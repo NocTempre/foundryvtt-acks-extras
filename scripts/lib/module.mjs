@@ -33,6 +33,7 @@ import * as services from "./services.mjs";
 import * as itemModel from "./item-model.mjs";
 import * as mount from "./mount.mjs";
 import * as storage from "./storage.mjs";
+import * as places from "./place.mjs";
 import * as actorRead from "./actor-read.mjs";
 import { loadRuledata } from "./ruledata.mjs";
 import { resolveLevelValue } from "./vocab.mjs";
@@ -68,7 +69,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  apiVersion: 11,
+  apiVersion: 12,
   vocab,
   fields,
   resolveLevelValue,
@@ -97,6 +98,14 @@ const localImpl = Object.freeze({
    * stash / retrieve / moveStored, plus the deletion fallback.
    */
   storage,
+  /**
+   * PLACES (place.mjs) — the layer above storage: what a place is inside of,
+   * what living thing is in it, and how many of it there are. A location actor,
+   * a provider actor and an acks-equipment container item all reduce to one
+   * node shape, so a chest is the trivial case of a duchy rather than a
+   * separate mechanism. Nesting (cycle-guarded), rosters, stack splitting.
+   */
+  places,
   /** Shared item baseline: isPhysical / isEquippable / weight6Of / … */
   itemModel,
   /** System actor reads: abilityMod / classLevel / monsterHd / hitDiceOrLevel. */

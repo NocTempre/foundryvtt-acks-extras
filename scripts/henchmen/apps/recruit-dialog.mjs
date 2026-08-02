@@ -289,7 +289,7 @@ export async function materializePendingHires(location) {
       remaining.push(entry);
     }
   }
-  await location.update({ "system.pendingHires": remaining });
+  await location.update({ "system.market.pendingHires": remaining });
 }
 
 registerHandler("hiringOutcome", handleHiringOutcomePayload);
@@ -334,7 +334,7 @@ async function handleOutcome({ location, candidateId, specialHireId, employer, r
         };
         const queue = [...(location.system.pendingHires ?? []).map((p) => p.toObject?.() ?? p), entry];
         const log = [...(location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l), { time: now(), type: "reserve", note: `queued hire for ${employer.name}` }].slice(-100);
-        await location.update({ "system.pendingHires": queue, "system.marketLog": log });
+        await location.update({ "system.market.pendingHires": queue, "system.market.marketLog": log });
         if (candidateId) await updateCandidate(location, candidateId, { status: "reserved" });
         ChatMessage.create({
           content: game.i18n.format("ACKS-HENCHMEN.hire.queuedChat", { employer: employer.name }),
@@ -376,7 +376,7 @@ async function handleOutcome({ location, candidateId, specialHireId, employer, r
           note: game.i18n.localize("ACKS-HENCHMEN.recruit.slanderNote"),
         },
       ];
-      await location.update({ "system.slander": slander });
+      await location.update({ "system.market.slander": slander });
       Hooks.callAll(HOOKS.SLANDER_CHANGED, { location, subject: { scope: "party", uuid: employer.uuid } });
       break;
     }

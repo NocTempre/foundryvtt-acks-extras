@@ -25,6 +25,16 @@ import { LocationSheet, registerLocationSheet } from "./apps/location-sheet.mjs"
 import { installStorageTab } from "./apps/storage-tab.mjs";
 import { StorageManagerMenu, openStorageManager, installManagerRefresh } from "./apps/storage-manager.mjs";
 import { runVaultSweep } from "./vault-sweep.mjs";
+import {
+  createLocationForScene,
+  linkScene,
+  locationOfScene,
+  registerSceneConfigRow,
+  registerSceneContextMenu,
+  registerSceneLinkSync,
+  sceneOfLocation,
+  unlinkScene,
+} from "./scene-link.mjs";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/location/location-sheet.hbs`,
@@ -78,6 +88,14 @@ Hooks.once("init", () => {
 
   installStorageTab();
   installManagerRefresh();
+
+  // Scene ↔ place linking. Registered unconditionally, but nothing is ever
+  // created without a GM asking: these are a scene-config row, two directory
+  // context entries, and the sync that keeps the location's mirror true.
+  registerSceneConfigRow();
+  registerSceneContextMenu();
+  registerSceneLinkSync();
+
   foundry.applications.handlebars.loadTemplates(TEMPLATES).catch(() => {});
 
   /**
@@ -101,7 +119,15 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  acksExtras.location = { openRuledataBrowser, openStorageManager, runVaultSweep, LOCATION_TYPE, LocationSheet };
+  acksExtras.location = {
+    openRuledataBrowser,
+    openStorageManager,
+    runVaultSweep,
+    LOCATION_TYPE,
+    LocationSheet,
+    /** Scene ↔ place linking (scene-link.mjs). The scene's flag is canonical. */
+    scenes: { locationOfScene, sceneOfLocation, linkScene, unlinkScene, createLocationForScene },
+  };
 
   if (game.system?.id !== "acks") return;
   // One client sweeps: it creates actors and moves coin. Elected the same way

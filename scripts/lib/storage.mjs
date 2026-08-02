@@ -378,11 +378,15 @@ export const deletePolicy = () => {
  * rows, because a purse inside a crate is not how anyone counts their money and
  * the system's totals only see loose money items.
  *
- * The container itself is a plain system `item` weighing nothing. When
- * acks-equipment is installed it is also flagged as one of that module's
- * containers so the goods nest properly in its UI; without it the contents are
- * simply loose and the container is a labelled marker. Either way this reads and
- * writes acks-equipment's documented flags only — no import, no dependency.
+ * The container itself is a plain system `item` weighing nothing, flagged as one
+ * of acks-equipment's containers so the goods nest properly in its UI. That
+ * vocabulary is READ AND WRITTEN, never imported — no dependency edge.
+ *
+ * The nesting used to sit behind an `equipment` guard from the days when that
+ * module could be absent. Since the merge it never can be, and the guard had
+ * become an UNDECLARED IDENTIFIER: every call with a non-coin item threw a
+ * ReferenceError, so the default "return the goods when a place is deleted"
+ * policy silently lost them (the caller's try/catch logged it and moved on).
  */
 export async function returnGoodsTo(owner, plainGoods, { containerName = "Storage" } = {}) {
   if (!owner || !plainGoods?.length) return { ok: false };
@@ -417,7 +421,9 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
       delete copy.flags[LIB_ID][STORAGE_KEY];
     }
     const parent = containedInOf(copy);
-    const nest = equipment ? (idMap.get(parent) ?? containerId) : null;
+    // Its original container if that came back too, else the labelled container
+    // made for this return.
+    const nest = idMap.get(parent) ?? containerId;
     if (nest) copy.flags["acks-extras"] = { ...copy.flags["acks-extras"], containedIn: nest };
     else if (copy.flags["acks-extras"]) {
       copy.flags["acks-extras"] = { ...copy.flags["acks-extras"] };

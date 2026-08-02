@@ -2,11 +2,28 @@
   <header class="location-header">
     <img class="profile" src="{{actor.img}}" data-action="editImage" data-edit="img" alt="{{actor.name}}" />
     <div class="header-fields">
+      {{#if breadcrumb.length}}
+      <nav class="acks-extras-place-crumbs" aria-label="{{localize 'ACKS-LOCATION.place.breadcrumb'}}">
+        {{#each breadcrumb}}<a data-action="openPlace" data-place-uuid="{{this.uuid}}">{{this.name}}</a><i class="fas fa-angle-right"></i>{{/each}}
+      </nav>
+      {{/if}}
       <input class="location-name" name="name" type="text" value="{{actor.name}}" placeholder="{{localize 'ACKS-HENCHMEN.location.name'}}" />
       <div class="market-class-line">
+        {{#if isStacked}}
+        <span class="acks-tag acks-extras-place-stack" data-tooltip="{{localize 'ACKS-LOCATION.place.stackHint'}}">
+          <i class="fas fa-layer-group"></i> ×{{stackCount}}
+        </span>
+        {{/if}}
+        {{#if scene}}
+        <a class="acks-tag acks-extras-place-scene{{#if scene.active}} is-active{{/if}}" data-action="openScene" data-tooltip="{{localize 'ACKS-LOCATION.place.openSceneHint'}}">
+          <i class="fas fa-map"></i> {{scene.name}}
+        </a>
+        {{/if}}
+        {{#if hasMarket}}
         <span class="market-class-badge acks-tag" data-tooltip="{{marketClassSource}}">
           {{localize "ACKS-HENCHMEN.location.marketClass"}}: <strong>{{marketClassRoman}}</strong>
         </span>
+        {{/if}}
         {{#if searchFeeFormula}}
         <span class="market-class-badge acks-tag" data-tooltip="{{localize 'ACKS-HENCHMEN.location.searchFeeHint'}}">
           {{localize "ACKS-HENCHMEN.location.searchFee"}}: <strong>{{searchFeeFormula}}</strong> gp/{{localize "ACKS-HENCHMEN.location.perWeek"}}
@@ -17,17 +34,23 @@
           {{localize "ACKS-HENCHMEN.location.marketWeek"}} <strong>{{marketWeek}}</strong>{{#if nextRollDays}} · {{localize "ACKS-HENCHMEN.location.nextRoll"}} {{nextRollDays}}d{{/if}}
         </span>
         {{/if}}
-        {{#if canProcess}}
-        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="processNow" data-tooltip="{{localize 'ACKS-HENCHMEN.location.processNowHint'}}">
-          <i class="fas fa-rotate"></i> {{localize "ACKS-HENCHMEN.location.processNow"}}
-        </button>
-        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="reloadMarket" data-tooltip="{{localize 'ACKS-HENCHMEN.location.reloadHint'}}">
-          <i class="fas fa-arrows-rotate"></i> {{localize "ACKS-HENCHMEN.location.reload"}}
-        </button>
-        {{/if}}
-        {{#if isGM}}
-        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="advanceWeek" data-tooltip="{{localize 'ACKS-HENCHMEN.location.advanceWeekHint'}}">
-          <i class="fas fa-forward"></i> {{localize "ACKS-HENCHMEN.location.advanceWeek"}}
+        {{#if hasMarket}}
+          {{#if canProcess}}
+          <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="processNow" data-tooltip="{{localize 'ACKS-HENCHMEN.location.processNowHint'}}">
+            <i class="fas fa-rotate"></i> {{localize "ACKS-HENCHMEN.location.processNow"}}
+          </button>
+          <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="reloadMarket" data-tooltip="{{localize 'ACKS-HENCHMEN.location.reloadHint'}}">
+            <i class="fas fa-arrows-rotate"></i> {{localize "ACKS-HENCHMEN.location.reload"}}
+          </button>
+          {{/if}}
+          {{#if isGM}}
+          <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="advanceWeek" data-tooltip="{{localize 'ACKS-HENCHMEN.location.advanceWeekHint'}}">
+            <i class="fas fa-forward"></i> {{localize "ACKS-HENCHMEN.location.advanceWeek"}}
+          </button>
+          {{/if}}
+        {{else if isGM}}
+        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="addMarket" data-tooltip="{{localize 'ACKS-LOCATION.place.addMarketHint'}}">
+          <i class="fas fa-store"></i> {{localize "ACKS-LOCATION.place.addMarket"}}
         </button>
         {{/if}}
       </div>
@@ -39,6 +62,111 @@
     <a class="{{this.cssClass}}" data-action="tab" data-group="primary" data-tab="{{this.id}}"><i class="{{this.icon}}"></i> {{this.label}}</a>
     {{/each}}
   </nav>
+
+  {{!-- --------------------------- Contents --------------------------- --}}
+  {{!-- What this place is inside of, what places are inside it, and who is
+        here. Every place has this tab; the market tabs below are the opt-in
+        specialisation. --}}
+  <section class="tab location-tab {{tabs.contents.cssClass}}" data-group="primary" data-tab="contents">
+
+    <div class="acks-extras-place-idline">
+      <label>
+        {{localize "ACKS-HENCHMEN.location.region"}}
+        <input type="text" name="system.region" value="{{system.region}}" />
+      </label>
+      {{#if coinRollupGC}}
+      <span class="acks-tag" data-tooltip="{{localize 'ACKS-LOCATION.place.coinRollupHint'}}">
+        <i class="fas fa-coins"></i> {{coinRollupGC}} gp
+      </span>
+      {{/if}}
+      {{#if headcount}}
+      <span class="acks-tag" data-tooltip="{{localize 'ACKS-LOCATION.place.headcountHint'}}">
+        <i class="fas fa-users"></i> {{headcount}}
+      </span>
+      {{/if}}
+    </div>
+
+    {{!-- ---- Places inside this one, and the goods kept here ---- --}}
+    <details class="section" open>
+      <summary>
+        {{localize "ACKS-LOCATION.place.contents"}} ({{contentRows.length}})
+        {{#if isGM}}
+        <button type="button" class="inline-add" data-action="addChildPlace">
+          <i class="fas fa-plus"></i> {{localize "ACKS-LOCATION.place.addChild"}}
+        </button>
+        {{/if}}
+      </summary>
+      {{#if contentRows.length}}
+      <ul class="acks-extras-place-list">
+        {{#each contentRows}}
+        <li class="acks-extras-place-row{{#if this.isPlace}} is-place{{/if}}" data-place-uuid="{{this.uuid}}">
+          <i class="fas {{this.icon}}"></i>
+          {{#if this.img}}<img src="{{this.img}}" alt="" />{{/if}}
+          {{#if this.isPlace}}
+          <a data-action="openPlace" class="acks-extras-place-name">{{this.name}}</a>
+          {{#if this.stacked}}<span class="acks-tag">×{{this.count}}</span>{{/if}}
+          {{else}}
+          <span class="acks-extras-place-name">{{this.name}}</span>
+          {{#if this.ownerName}}<span class="acks-extras-place-owner">{{this.ownerName}}</span>{{/if}}
+          {{/if}}
+          {{#if @root.isGM}}{{#if this.isPlace}}
+          <a class="acks-extras-place-detach" data-action="detachPlace" data-tooltip="{{localize 'ACKS-LOCATION.place.detachHint'}}">
+            <i class="fas fa-link-slash"></i>
+          </a>
+          {{/if}}{{/if}}
+        </li>
+        {{/each}}
+      </ul>
+      {{else}}
+      <p class="acks-empty">{{localize "ACKS-LOCATION.place.contentsEmpty"}}</p>
+      {{/if}}
+    </details>
+
+    {{!-- ---- Who is here ---- --}}
+    <details class="section" open>
+      <summary>
+        {{localize "ACKS-LOCATION.place.occupants"}} ({{occupants.length}})
+        <span class="acks-extras-place-hint">{{localize "ACKS-LOCATION.place.dropHint"}}</span>
+      </summary>
+      {{#if occupants.length}}
+      <table class="acks-table acks-extras-occupant-table">
+        <tbody>
+          {{#each occupants}}
+          <tr data-occupant-uuid="{{this.uuid}}" class="{{#if this.derived}}is-derived{{/if}}{{#if this.missing}} is-missing{{/if}}">
+            <td class="portrait">{{#if this.img}}<img src="{{this.img}}" alt="" />{{/if}}</td>
+            <td>
+              <a data-action="openPlace" data-place-uuid="{{this.uuid}}">{{this.name}}</a>
+              {{#if this.missing}}<i class="fas fa-triangle-exclamation" data-tooltip="{{localize 'ACKS-LOCATION.place.occupantMissing'}}"></i>{{/if}}
+            </td>
+            <td>{{this.kindLabel}}</td>
+            <td>{{#if this.quantity}}{{#unless (eq this.quantity 1)}}×{{this.quantity}}{{/unless}}{{/if}}</td>
+            <td class="row-actions">
+              {{#if this.derived}}
+              <a data-action="keepOccupant" data-tooltip="{{localize 'ACKS-LOCATION.place.keepHint'}}"><i class="fas fa-thumbtack"></i></a>
+              {{else}}
+                {{#if @root.isGM}}
+                <a data-action="toggleOccupantHidden" data-tooltip="{{localize 'ACKS-LOCATION.place.hideHint'}}">
+                  <i class="fas {{#if this.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+                </a>
+                {{/if}}
+              <a data-action="removeOccupant" data-tooltip="{{localize 'ACKS-LOCATION.place.removeOccupantHint'}}"><i class="fas fa-xmark"></i></a>
+              {{/if}}
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acks-empty">{{localize "ACKS-LOCATION.place.occupantsEmpty"}}</p>
+      {{/if}}
+    </details>
+
+    {{!-- ---- Notes ---- --}}
+    <details class="section">
+      <summary>{{localize "ACKS-LOCATION.place.notes"}}</summary>
+      <div class="acks-extras-place-notes">{{{notesHTML}}}</div>
+    </details>
+  </section>
 
   {{!-- ------------------------- Recruitment ------------------------- --}}
   <section class="tab location-tab {{tabs.recruitment.cssClass}}" data-group="primary" data-tab="recruitment">
@@ -369,38 +497,72 @@
     {{/each}}
   </section>
   <section class="tab location-tab {{tabs.gmSettings.cssClass}}" data-group="primary" data-tab="gmSettings">
+
+    {{!-- ---- The place itself: true of a chest and of a duchy alike ---- --}}
     <div class="grid-2">
       <div class="form-group">
-        <label>{{localize "ACKS-HENCHMEN.location.region"}}</label>
-        <input type="text" name="system.region" value="{{system.region}}" />
+        <label data-tooltip="{{localize 'ACKS-LOCATION.place.stackHint'}}">{{localize "ACKS-LOCATION.place.stackCount"}}</label>
+        <input type="number" name="system.stack.count" value="{{stackCount}}" min="1" step="1" />
       </div>
       <div class="form-group">
+        <label data-tooltip="{{localize 'ACKS-LOCATION.place.stackLabelHint'}}">{{localize "ACKS-LOCATION.place.stackLabel"}}</label>
+        <input type="text" name="system.stack.label" value="{{system.stack.label}}" />
+      </div>
+    </div>
+    <div class="acks-extras-place-admin">
+      {{#if isStacked}}
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="splitStack" data-tooltip="{{localize 'ACKS-LOCATION.place.splitHint'}}">
+        <i class="fas fa-layer-group"></i> {{localize "ACKS-LOCATION.place.split"}}
+      </button>
+      {{/if}}
+      {{#if scene}}
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="unlinkScene">
+        <i class="fas fa-link-slash"></i> {{localize "ACKS-LOCATION.place.unlinkScene"}}
+      </button>
+      {{else}}
+      <span class="hint">{{localize "ACKS-LOCATION.place.sceneDropHint"}}</span>
+      {{/if}}
+    </div>
+
+    {{!-- ---- The market, if this place has one. Every input below writes
+           into `system.market.*`, which is genuinely null on a place without
+           one — so the whole block is gated, not merely hidden. ---- --}}
+    {{#unless hasMarket}}
+    <div class="acks-extras-place-nomarket">
+      <p class="hint">{{localize "ACKS-LOCATION.place.noMarketHint"}}</p>
+      <button type="button" class="acks-btn acks-btn--primary acks-btn--sm" data-action="addMarket">
+        <i class="fas fa-store"></i> {{localize "ACKS-LOCATION.place.addMarket"}}
+      </button>
+    </div>
+    {{else}}
+    <div class="grid-2">
+      <div class="form-group">
         <label>{{localize "ACKS-HENCHMEN.location.urbanFamilies"}}</label>
-        <input type="number" name="system.urbanFamilies" value="{{system.urbanFamilies}}" min="0" step="1" />
+        <input type="number" name="system.market.urbanFamilies" value="{{system.market.urbanFamilies}}" min="0" step="1" />
       </div>
       <div class="form-group">
         <label data-tooltip="{{localize 'ACKS-HENCHMEN.location.overrideHint'}}">{{localize "ACKS-HENCHMEN.location.override"}}</label>
-        <select name="system.marketClassOverride">
-          <option value="" {{#unless system.marketClassOverride}}selected{{/unless}}>{{localize "ACKS-HENCHMEN.location.noOverride"}}</option>
-          <option value="1" {{#if (eq system.marketClassOverride 1)}}selected{{/if}}>I</option>
-          <option value="2" {{#if (eq system.marketClassOverride 2)}}selected{{/if}}>II</option>
-          <option value="3" {{#if (eq system.marketClassOverride 3)}}selected{{/if}}>III</option>
-          <option value="4" {{#if (eq system.marketClassOverride 4)}}selected{{/if}}>IV</option>
-          <option value="5" {{#if (eq system.marketClassOverride 5)}}selected{{/if}}>V</option>
-          <option value="6" {{#if (eq system.marketClassOverride 6)}}selected{{/if}}>VI</option>
+        <select name="system.market.marketClassOverride">
+          <option value="" {{#unless system.market.marketClassOverride}}selected{{/unless}}>{{localize "ACKS-HENCHMEN.location.noOverride"}}</option>
+          <option value="1" {{#if (eq system.market.marketClassOverride 1)}}selected{{/if}}>I</option>
+          <option value="2" {{#if (eq system.market.marketClassOverride 2)}}selected{{/if}}>II</option>
+          <option value="3" {{#if (eq system.market.marketClassOverride 3)}}selected{{/if}}>III</option>
+          <option value="4" {{#if (eq system.market.marketClassOverride 4)}}selected{{/if}}>IV</option>
+          <option value="5" {{#if (eq system.market.marketClassOverride 5)}}selected{{/if}}>V</option>
+          <option value="6" {{#if (eq system.market.marketClassOverride 6)}}selected{{/if}}>VI</option>
         </select>
       </div>
       <div class="form-group">
         <label data-tooltip="{{localize 'ACKS-HENCHMEN.location.alignmentHint'}}">{{localize "ACKS-HENCHMEN.location.alignment"}}</label>
-        <select name="system.settlementAlignment">
-          <option value="lawful" {{#if (eq system.settlementAlignment "lawful")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.alignment.lawful"}}</option>
-          <option value="neutral" {{#if (eq system.settlementAlignment "neutral")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.alignment.neutral"}}</option>
-          <option value="chaotic" {{#if (eq system.settlementAlignment "chaotic")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.alignment.chaotic"}}</option>
+        <select name="system.market.settlementAlignment">
+          <option value="lawful" {{#if (eq system.market.settlementAlignment "lawful")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.alignment.lawful"}}</option>
+          <option value="neutral" {{#if (eq system.market.settlementAlignment "neutral")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.alignment.neutral"}}</option>
+          <option value="chaotic" {{#if (eq system.market.settlementAlignment "chaotic")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.alignment.chaotic"}}</option>
         </select>
       </div>
       <div class="form-group">
         <label>{{localize "ACKS-HENCHMEN.location.rarityTable"}}</label>
-        <select name="system.classRarityTableId">
+        <select name="system.market.classRarityTableId">
           {{#each rarityVariants}}
           <option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>
           {{/each}}
@@ -408,13 +570,13 @@
       </div>
       <div class="form-group">
         <label data-tooltip="{{localize 'ACKS-HENCHMEN.location.desertHint'}}">{{localize "ACKS-HENCHMEN.location.desert"}}</label>
-        <input type="checkbox" name="system.desertRealm" {{#if system.desertRealm}}checked{{/if}} />
+        <input type="checkbox" name="system.market.desertRealm" {{#if system.market.desertRealm}}checked{{/if}} />
       </div>
       <div class="form-group">
         <label data-tooltip="{{localize 'ACKS-HENCHMEN.location.compositeHint'}}">{{localize "ACKS-HENCHMEN.location.composite"}}</label>
-        <select name="system.compositeVariant">
-          <option value="composite" {{#if (eq system.compositeVariant "composite")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.troop.compositeBowman"}}</option>
-          <option value="longbow" {{#if (eq system.compositeVariant "longbow")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.troop.longbowman"}}</option>
+        <select name="system.market.compositeVariant">
+          <option value="composite" {{#if (eq system.market.compositeVariant "composite")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.troop.compositeBowman"}}</option>
+          <option value="longbow" {{#if (eq system.market.compositeVariant "longbow")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.troop.longbowman"}}</option>
         </select>
       </div>
     </div>
@@ -426,12 +588,12 @@
       </label>
       {{#each demographics}}
       <div class="demographic-row" data-demographic-index="{{index}}">
-        <select name="system.demographics.{{index}}.culture">
+        <select name="system.market.demographics.{{index}}.culture">
           {{#each @root.cultureOptions}}
           <option value="{{id}}" {{#if (eq id ../culture)}}selected{{/if}}>{{label}}</option>
           {{/each}}
         </select>
-        <input type="number" name="system.demographics.{{index}}.weight" value="{{weight}}" min="0" step="1" data-tooltip="{{localize 'ACKS-HENCHMEN.location.weight'}}" />
+        <input type="number" name="system.market.demographics.{{index}}.weight" value="{{weight}}" min="0" step="1" data-tooltip="{{localize 'ACKS-HENCHMEN.location.weight'}}" />
         <a data-action="removeDemographic"><i class="fas fa-trash"></i></a>
       </div>
       {{else}}
@@ -447,18 +609,25 @@
       <p class="hint">{{localize "ACKS-HENCHMEN.location.slanderHint"}}</p>
       {{#each slander}}
       <div class="slander-row" data-slander-index="{{index}}">
-        <select name="system.slander.{{index}}.subject.scope">
+        <select name="system.market.slander.{{index}}.subject.scope">
           <option value="all" {{#if (eq subject.scope "all")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.location.slanderScopeAll"}}</option>
           <option value="party" {{#if (eq subject.scope "party")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.location.slanderScopeParty"}}</option>
           <option value="character" {{#if (eq subject.scope "character")}}selected{{/if}}>{{localize "ACKS-HENCHMEN.location.slanderScopeCharacter"}}</option>
         </select>
-        <input type="text" name="system.slander.{{index}}.subject.uuid" value="{{subject.uuid}}" placeholder="{{localize 'ACKS-HENCHMEN.location.slanderSubjectUuid'}}" />
-        <input type="text" name="system.slander.{{index}}.npcName" value="{{npcName}}" placeholder="{{localize 'ACKS-HENCHMEN.location.slanderNpc'}}" />
-        <input type="text" name="system.slander.{{index}}.note" value="{{note}}" placeholder="{{localize 'ACKS-HENCHMEN.location.slanderNote'}}" />
+        <input type="text" name="system.market.slander.{{index}}.subject.uuid" value="{{subject.uuid}}" placeholder="{{localize 'ACKS-HENCHMEN.location.slanderSubjectUuid'}}" />
+        <input type="text" name="system.market.slander.{{index}}.npcName" value="{{npcName}}" placeholder="{{localize 'ACKS-HENCHMEN.location.slanderNpc'}}" />
+        <input type="text" name="system.market.slander.{{index}}.note" value="{{note}}" placeholder="{{localize 'ACKS-HENCHMEN.location.slanderNote'}}" />
         <a data-action="removeSlander"><i class="fas fa-trash"></i></a>
       </div>
       {{/each}}
     </details>
+
+    <div class="acks-extras-place-admin">
+      <button type="button" class="acks-btn acks-btn--danger acks-btn--sm" data-action="removeMarket" data-tooltip="{{localize 'ACKS-LOCATION.place.removeMarketHint'}}">
+        <i class="fas fa-store-slash"></i> {{localize "ACKS-LOCATION.place.removeMarket"}}
+      </button>
+    </div>
+    {{/unless}}
 
     <details class="section">
       <summary>{{localize "ACKS-HENCHMEN.location.notesHeader"}}</summary>
@@ -469,7 +638,7 @@
   {{!-- ------------------------- GM view ------------------------- --}}
   <section class="tab location-tab {{tabs.gmView.cssClass}}" data-group="primary" data-tab="gmView">
     <p class="hint">{{localize "ACKS-HENCHMEN.market.hint"}}</p>
-    {{#if market.length}}
+    {{#if marketPools.length}}
     <table class="market-table acks-table acks-table--compact acks-table--interactive">
       <thead>
         <tr>
@@ -481,7 +650,7 @@
         </tr>
       </thead>
       <tbody>
-        {{#each market}}
+        {{#each marketPools}}
         <tr>
           <td data-tooltip="{{detail}}">{{label}}</td>
           <td>{{week}}</td>

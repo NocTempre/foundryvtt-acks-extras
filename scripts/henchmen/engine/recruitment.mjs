@@ -90,6 +90,10 @@ export function segmentKeyFor(spec) {
  */
 export function effectiveMarketClass(location, employer) {
   const base = location.system.marketClass;
+  // A place with no market has no class. Without this the null would clamp to
+  // Class I — the LARGEST market there is — which is the worst possible wrong
+  // answer to "what can you hire in this cave".
+  if (base == null) return null;
   const shift = employer ? sumEffectModifiers(employer, "marketClass") : 0;
   return shiftMarketClass(base, shift);
 }
@@ -190,7 +194,7 @@ export function applyDirectedReplacement({ location, spec, employerUuid, quantit
  */
 async function buildGmCandidate(location, spec, { marketClass = 4 } = {}) {
   const demographics = demographicsOf(location);
-  const variant = location.system.classRarityTableId || "default";
+  const variant = location.system.market?.classRarityTableId || "default";
 
   // Level: use the specified one, else roll for the market.
   let level = spec.level != null && spec.level >= 1 ? spec.level : null;
@@ -291,7 +295,7 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
       let wageType = spec.troopType;
       let labelKey = spec.kind === "mercenary" ? `ACKS-HENCHMEN.troop.${spec.troopType}` : `ACKS-HENCHMEN.specialist.${spec.specialistType}`;
       if (spec.troopType === "compositeBowmanLongbowman") {
-        wageType = location.system.compositeVariant === "longbow" ? "longbowman" : "compositeBowman";
+        wageType = location.system.market?.compositeVariant === "longbow" ? "longbowman" : "compositeBowman";
         labelKey = `ACKS-HENCHMEN.troop.${wageType}`;
       }
       const row =
@@ -313,7 +317,7 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
     // Individuals: identity + fixed class/level per candidate (anti-fishing).
     // CLASS ROLLS FIRST (bucket distribution, location rarity variant);
     // culture/sex resolve downstream from the class registry.
-    const variant = location.system.classRarityTableId || "default";
+    const variant = location.system.market?.classRarityTableId || "default";
     for (let i = 0; i < count; i++) {
       const candidate = { ...base, id: foundry.utils.randomID(), quantity: 1 };
       if (spec.kind === "henchman") {
@@ -398,7 +402,7 @@ export function allSegmentSpecs(location) {
   const specs = [];
   for (let level = 0; level <= 4; level++) specs.push({ kind: "henchman", level });
   for (const row of optTable("availability", "mercenaryAvailability")?.rows ?? []) {
-    if (row.desert && !location.system.desertRealm) continue;
+    if (row.desert && !location.system.market?.desertRealm) continue;
     specs.push({ kind: "mercenary", troopType: row.type });
   }
   for (const row of optTable("availability", "specialistAvailability")?.rows ?? []) {
@@ -483,6 +487,8 @@ async function chargeWeeklyFee(location, employer, week = 1) {
  */
 export async function createPosting(location, rawSpec, employer, { dedicatedSearcherUuid = "", playersSeeDetails = true, requestUserId = null } = {}) {
   const currentTime = now();
+  // You cannot post a notice in a place that has no market to post it in.
+  if (!location.system.hasMarket) return { error: "no-market" };
   // presentedLevel travels on the POSTING (RR 168 lie), not the spec — keep
   // it out of spec comparisons and storage.
   const { presentedLevel = null, ...spec } = rawSpec;
@@ -518,7 +524,7 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
     const classAlignment = classInfo(spec.classKey)?.alignment;
     if (classAlignment) {
       const shifts = optTable("rarity", "alignmentRecruitment")?.shifts ?? {};
-      spec.alignmentShift = shifts[location.system.settlementAlignment ?? "lawful"]?.[classAlignment] ?? 0;
+      spec.alignmentShift = shifts[location.system.market?.settlementAlignment ?? "lawful"]?.[classAlignment] ?? 0;
     }
   }
 
@@ -581,7 +587,7 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
     // does not mint new people — it replaces rolled leveled henchmen still
     // left in the month with what the recruiter sought.
     const mc = effectiveMarketClass(location, employer);
-    const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, location.system.classRarityTableId || "default");
+    const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, location.system.market?.classRarityTableId || "default");
     if (result.error) return { error: result.error };
     posting.totalAvailable = result.quantity;
     posting.rollDetail = result.detail;
@@ -623,29 +629,29 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
     posting.feesPaid.push({ time: currentTime, gp: fee.gp });
   }
 
-  const update = { "system.postings": [...postings, posting] };
+  const update = { "system.market.postings": [...postings, posting] };
   if (!gmAdd) {
-    update["system.searchLedger"] = [
+    update["system.market.searchLedger"] = [
       ...(location.system.searchLedger ?? []).map((l) => l.toObject?.() ?? l),
       { time: currentTime, gp: fee.gp, postingId: posting.id, paidByUuid: employer?.uuid ?? "" },
     ];
   }
   if (replacedCandidates) {
     // directed search: the pool itself was rewritten (replacements)
-    update["system.candidates"] = newCandidates.length ? [...replacedCandidates, ...newCandidates] : replacedCandidates;
-    update["system.marketLog"] = marketLogAppend(
+    update["system.market.candidates"] = newCandidates.length ? [...replacedCandidates, ...newCandidates] : replacedCandidates;
+    update["system.market.marketLog"] = marketLogAppend(
       (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l),
       currentTime,
       "replace",
       `${posting.rollDetail || spec.kind}: ${replacedCount} of ${posting.totalAvailable} rolled replaced for ${employer?.name ?? "?"}`
     );
   } else if (newCandidates.length) {
-    update["system.candidates"] = [
+    update["system.market.candidates"] = [
       ...(location.system.candidates ?? []).map((c) => c.toObject?.() ?? c),
       ...newCandidates,
     ];
     if (gmAdd) {
-      update["system.marketLog"] = marketLogAppend(
+      update["system.market.marketLog"] = marketLogAppend(
         (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l),
         currentTime,
         "gmPlace",
@@ -653,8 +659,8 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
       );
     }
   }
-  if (nextRolls) update["system.marketRolls"] = nextRolls;
-  if (anchorUpdate) update["system.monthAnchorTime"] = anchorUpdate;
+  if (nextRolls) update["system.market.marketRolls"] = nextRolls;
+  if (anchorUpdate) update["system.market.monthAnchorTime"] = anchorUpdate;
   await location.update(update);
   Hooks.callAll(HOOKS.POSTING_CREATED, { location, posting, employer });
   return { posting, fee, replaced: replacedCount, gmPlaced: gmAdd, placedName: gmAdd ? newCandidates[0]?.name : undefined };
@@ -670,6 +676,11 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
  */
 export async function processLocation(location, currentTime = now()) {
   const sys = location.system;
+  // No market, nothing to process. Markets are opt-in per place (2026-08-02),
+  // and `system.market` is genuinely null on a place without one — so this is
+  // not merely an optimisation: every write below addresses `system.market.*`,
+  // and a location that never had a market has no subtree to write into.
+  if (!sys.hasMarket) return { changed: false, arrived: 0 };
   const postings = (sys.postings ?? []).map((p) => p.toObject?.() ?? foundry.utils.deepClone(p));
   let candidates = (sys.candidates ?? []).map((c) => c.toObject?.() ?? foundry.utils.deepClone(c));
   let marketRolls = (sys.marketRolls ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
@@ -845,7 +856,7 @@ export async function processLocation(location, currentTime = now()) {
       // rarity shifts one step toward common — the JJ mechanic).
       const spec = { ...(posting.spec.toObject?.() ?? posting.spec) };
       if (posting.advertVeteran) spec.commissioned = true;
-      const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, sys.classRarityTableId || "default");
+      const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, sys.market?.classRarityTableId || "default");
       if (!result.error) {
         posting.totalAvailable = result.quantity;
         posting.rollDetail = result.detail;
@@ -876,13 +887,13 @@ export async function processLocation(location, currentTime = now()) {
 
   if (changed) {
     await location.update({
-      "system.postings": postings,
-      "system.candidates": candidates,
-      "system.marketRolls": marketRolls,
-      "system.monthAnchorTime": monthAnchorTime,
-      "system.specialHires": specialHires,
-      "system.searchLedger": ledger,
-      "system.marketLog": marketLog,
+      "system.market.postings": postings,
+      "system.market.candidates": candidates,
+      "system.market.marketRolls": marketRolls,
+      "system.market.monthAnchorTime": monthAnchorTime,
+      "system.market.specialHires": specialHires,
+      "system.market.searchLedger": ledger,
+      "system.market.marketLog": marketLog,
     });
     for (const [segment, count] of arrivals) {
       Hooks.callAll(HOOKS.CANDIDATES_ARRIVED, { location, segment, count });
@@ -936,7 +947,7 @@ export async function closePosting(location, postingId, { requestUserId = null }
     if (!allowed) return { error: "not-yours" };
   }
   posting.status = "closed";
-  await location.update({ "system.postings": postings });
+  await location.update({ "system.market.postings": postings });
   return { posting };
 }
 

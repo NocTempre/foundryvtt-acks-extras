@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.3.0
+
+Location enhancements — a location becomes a **place** (2026-08-02).
+
+### Added
+
+- **Places nest.** A location can sit inside another: realm > town > inn >
+  cellar > chest. The sheet gains a breadcrumb, a Contents tab listing
+  sub-places and goods together, and drag-a-location-onto-a-location to
+  re-parent. Cycles are refused at the write, not merely survived by the
+  readers. An acks-equipment container item is the trivial case of the same
+  model — see `docs/lib/PLACES.md`.
+- **`acksLib.places`** — the new shared primitive behind all of it (nesting,
+  occupancy, stack splitting, coin roll-up), with the Foundry-free half unit
+  tested. `apiVersion` 11 → 12.
+- **Location inventories hold living things.** Groups, monsters, retainers and
+  animals go on a reference roster; drag an actor onto the sheet to place it
+  there. Tokens on the linked scene are shown as *derived* rows — live, never
+  stored, and promoted to a permanent record only by an explicit pin.
+- **Scenes can be linked to a place.** A picker in Scene Configuration, "Create
+  Place for Scene" in the scene directory, and drag-a-scene-onto-a-place. Never
+  automatic: nothing is created until a GM asks.
+- **Stacked places.** One actor can stand for eight identical warehouse bays;
+  split one off when it becomes interesting.
+
+### Changed
+
+- **Markets are now opt-in per place.** A new location has no market: no
+  recruitment, henchmen, mercenaries or specialists tabs, and the recruitment
+  engine skips it entirely. "Add a market" is one click on the header or GM tab.
+  The gate is on the DATA, not just the UI — `system.market` is genuinely `null`
+  on a place without one, and every market field moved from `system.*` to
+  `system.market.*`. Existing locations migrate on load; one whose market was
+  empty and untouched becomes market-less.
+- The sheet opens on **Contents** rather than Recruitment.
+
+### Fixed
+
+- **Deleting a place no longer loses the goods stored in it.** `returnGoodsTo`
+  guarded on an identifier left undeclared by the module merge, so it threw a
+  ReferenceError on any non-coin item and the caller swallowed it — under the
+  default "return the goods" policy, which exists precisely to prevent that.
+
 ## 0.2.0
 
 Post-merge cleanup pass (2026-08-02).

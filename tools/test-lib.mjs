@@ -18,6 +18,24 @@ import {
   quantityOf,
   splitSpec,
 } from "../scripts/lib/storage-logic.mjs";
+import {
+  ancestorUuids,
+  childrenOf,
+  depthOf,
+  descendantUuids,
+  headcount,
+  indexPlaces,
+  isStacked,
+  mergeOccupants,
+  placePath,
+  planReparent,
+  planSplit,
+  rollup,
+  stackMemberName,
+  visibleOccupants,
+  wouldCycle,
+} from "../scripts/lib/place-logic.mjs";
+import { migrateLocationSource } from "../scripts/location/data/location-migrate.mjs";
 
 const { resolveLevelValue: R, choicesOf } = vocab;
 let n = 0;
@@ -754,4 +772,187 @@ t("groupByOwner buckets stored goods, unattributed included", () => {
   assert.equal(buckets.get("").items.length, 1); // never silently dropped
 });
 
-console.log(`\n${n} tests passed`);
+/* ------------------------------------------------------------------ */
+/*  place-logic.mjs — nesting, occupancy and stacking                   */
+/* ------------------------------------------------------------------ */
+
+/* A realm > town > inn > cellar > chest chain, plus a sibling, as normalised
+ * nodes. Deliberately built in a scrambled order: nothing here may depend on
+ * the array being pre-sorted parent-first. */
+const PLACES = [
+  { uuid: "Actor.cellar", parentUuid: "Actor.inn", name: "Cellar", kind: "location", count: 1 },
+  { uuid: "Actor.realm", parentUuid: null, name: "Realm", kind: "location", count: 1 },
+  { uuid: "Item.chest", parentUuid: "Actor.cellar", name: "Chest", kind: "container", count: 1 },
+  { uuid: "Actor.inn", parentUuid: "Actor.town", name: "Inn", kind: "location", count: 1 },
+  { uuid: "Actor.town", parentUuid: "Actor.realm", name: "Town", kind: "location", count: 1 },
+  { uuid: "Actor.bays", parentUuid: "Actor.town", name: "Bay", kind: "location", count: 8 },
+];
+const IDX = indexPlaces(PLACES);
+
+t("placePath is the breadcrumb, root first, self last", () => {
+  assert.deepEqual(
+    placePath("Item.chest", IDX).map((p) => p.name),
+    ["Realm", "Town", "Inn", "Cellar", "Chest"],
+  );
+  assert.deepEqual(placePath("Actor.realm", IDX).map((p) => p.name), ["Realm"]); // a root is itself
+  assert.deepEqual(placePath("Actor.nowhere", IDX), []); // unknown ≠ root
+});
+
+t("ancestorUuids walks up nearest-first; depthOf counts the walk", () => {
+  assert.deepEqual(ancestorUuids("Actor.inn", IDX), ["Actor.town", "Actor.realm"]);
+  assert.equal(depthOf("Actor.realm", IDX), 0);
+  assert.equal(depthOf("Item.chest", IDX), 4);
+});
+
+t("childrenOf is direct children only, in stable name order", () => {
+  assert.deepEqual(childrenOf("Actor.town", PLACES).map((p) => p.name), ["Bay", "Inn"]);
+  assert.deepEqual(childrenOf("Item.chest", PLACES), []);
+});
+
+t("descendantUuids is the whole subtree, excluding itself", () => {
+  assert.deepEqual(descendantUuids("Actor.inn", PLACES).sort(), ["Actor.cellar", "Item.chest"]);
+  assert.equal(descendantUuids("Actor.realm", PLACES).length, 5);
+});
+
+t("a corrupt parent cycle terminates instead of hanging", () => {
+  // The invariant the guards exist for: a loop must render short, not spin.
+  const looped = [
+    { uuid: "A", parentUuid: "B", name: "A" },
+    { uuid: "B", parentUuid: "A", name: "B" },
+  ];
+  const idx = indexPlaces(looped);
+  assert.ok(ancestorUuids("A", idx).length <= 2);
+  assert.ok(descendantUuids("A", looped).length <= 2);
+});
+
+t("wouldCycle refuses self-parenting and any ancestor loop", () => {
+  assert.equal(wouldCycle("Actor.town", "Actor.town", IDX), true); // itself
+  assert.equal(wouldCycle("Actor.town", "Actor.cellar", IDX), true); // its own descendant
+  assert.equal(wouldCycle("Actor.town", "Actor.realm", IDX), false); // its actual parent
+  assert.equal(wouldCycle("Actor.bays", "Actor.inn", IDX), false); // a legal move
+});
+
+t("planReparent reports why it refused", () => {
+  assert.deepEqual(planReparent("Actor.bays", "Actor.inn", IDX), { ok: true });
+  assert.equal(planReparent("Actor.bays", "Actor.town", IDX).reason, "same");
+  assert.equal(planReparent("Actor.town", "Actor.cellar", IDX).reason, "cycle");
+  assert.equal(planReparent("", "Actor.town", IDX).reason, "missing");
+  assert.deepEqual(planReparent("Actor.cellar", null, IDX), { ok: true }); // detach to root
+});
+
+t("rollup sums a place and everything beneath it", () => {
+  const coin = new Map([["Actor.inn", 10], ["Actor.cellar", 5], ["Item.chest", 100]]);
+  assert.equal(rollup("Actor.inn", PLACES, coin), 115);
+  assert.equal(rollup("Item.chest", PLACES, coin), 100);
+  assert.equal(rollup("Actor.bays", PLACES, coin), 0); // absent from the map = 0
+});
+
+t("mergeOccupants: stored rows win over derived, and nothing duplicates", () => {
+  const stored = [{ uuid: "Actor.cook", name: "Cook", notes: "runs the kitchen" }];
+  const derived = [{ uuid: "Actor.cook", name: "Cook" }, { uuid: "Actor.pc", name: "Hero" }];
+  const rows = mergeOccupants(stored, derived);
+  assert.equal(rows.length, 2);
+  // The stored row keeps its notes — the derived duplicate must not clobber it.
+  assert.equal(rows[0].notes, "runs the kitchen");
+  assert.equal(rows[0].derived, false);
+  assert.equal(rows[1].derived, true); // a live observation, never written back
+});
+
+t("visibleOccupants hides GM-hidden rows from players, except ones they placed", () => {
+  const rows = [
+    { uuid: "Actor.a", hidden: false },
+    { uuid: "Actor.garrison", hidden: true },
+    { uuid: "Actor.myHorse", hidden: true, ownerUuid: "Actor.me" },
+  ];
+  assert.equal(visibleOccupants(rows, { isGM: true }).length, 3);
+  const asPlayer = visibleOccupants(rows, { isGM: false, ownedUuids: ["Actor.me"] });
+  assert.deepEqual(asPlayer.map((r) => r.uuid), ["Actor.a", "Actor.myHorse"]);
+  assert.equal(visibleOccupants(rows, { isGM: false, ownedUuids: [] }).length, 1);
+});
+
+t("visibleOccupants: OWNING the hidden occupant does not reveal it", () => {
+  // Regression, found live 2026-08-02: worlds routinely grant players ownership
+  // of most actors, so an "you own the occupant" exception made `hidden` mean
+  // nothing. Only having PLACED the row reveals it.
+  const rows = [{ uuid: "Actor.garrison", hidden: true }];
+  const ownsEverything = { isGM: false, ownedUuids: ["Actor.garrison", "Actor.me"] };
+  assert.deepEqual(visibleOccupants(rows, ownsEverything), []);
+  // ...and the placer exception still works even when they own nothing else.
+  const placed = [{ uuid: "Actor.garrison", hidden: true, ownerUuid: "Actor.me" }];
+  assert.equal(visibleOccupants(placed, { isGM: false, ownedUuids: ["Actor.me"] }).length, 1);
+});
+
+t("headcount counts a group row as its whole stack", () => {
+  assert.equal(headcount([{ uuid: "a" }, { uuid: "b", quantity: 30 }]), 31);
+  assert.equal(headcount([]), 0);
+});
+
+t("planSplit refuses to empty a stack or split a single place", () => {
+  assert.deepEqual(planSplit(8, 1), { from: 7, to: 1 });
+  assert.deepEqual(planSplit(8, 3), { from: 5, to: 3 });
+  assert.equal(planSplit(8, 8), null); // would leave an empty stack
+  assert.equal(planSplit(1, 1), null); // nothing to split
+  assert.equal(planSplit(0, 1), null);
+  assert.equal(planSplit(8, 0), null);
+});
+
+t("isStacked / stackMemberName", () => {
+  assert.equal(isStacked({ count: 8 }), true);
+  assert.equal(isStacked({ count: 1 }), false);
+  assert.equal(isStacked({}), false); // absent count is a single place
+  assert.equal(stackMemberName("Bay", 3), "Bay 3");
+});
+
+/* ------------------------------------------------------------------ */
+/*  location-migrate.mjs — v1 loose market fields -> the `market` subtree */
+/* ------------------------------------------------------------------ */
+
+t("migrateLocationSource: a real market is folded in and kept", () => {
+  const src = { region: "Aura", postings: [{ id: "p" }], candidates: [], settlementAlignment: "lawful" };
+  const out = migrateLocationSource(src);
+  assert.equal(out.region, "Aura"); // identity stays where it was
+  assert.deepEqual(out.market.postings, [{ id: "p" }]);
+  assert.equal(out.market.settlementAlignment, "lawful");
+  assert.equal("postings" in out, false); // moved, not copied
+});
+
+t("migrateLocationSource: an empty, untouched location becomes market-LESS", () => {
+  // The judgement that decides whether an existing world wakes up with markets
+  // everywhere or nowhere.
+  const out = migrateLocationSource({
+    region: "A cave",
+    postings: [], candidates: [], marketRolls: [], slander: [], demographics: [],
+    monthAnchorTime: 0, desertRealm: false,
+    classRarityTableId: "default", settlementAlignment: "lawful", compositeVariant: "composite",
+  });
+  assert.equal(out.market, null);
+  assert.equal(out.region, "A cave");
+});
+
+t("migrateLocationSource: a touched SETTING alone proves a market", () => {
+  assert.notEqual(migrateLocationSource({ postings: [], settlementAlignment: "chaotic" }).market, null);
+  assert.notEqual(migrateLocationSource({ postings: [], desertRealm: true }).market, null);
+  assert.notEqual(migrateLocationSource({ postings: [], urbanFamilies: 900 }).market, null);
+  assert.notEqual(migrateLocationSource({ postings: [], classRarityTableId: "variant" }).market, null);
+  // ...but a default one does not: every location ever created carried these.
+  assert.equal(migrateLocationSource({ postings: [], classRarityTableId: "default" }).market, null);
+});
+
+t("migrateLocationSource is idempotent and leaves new documents alone", () => {
+  const already = { region: "x", market: { postings: [{ id: "p" }] } };
+  assert.deepEqual(migrateLocationSource(already), already); // already migrated
+  const cleared = { region: "x", market: null };
+  assert.equal(migrateLocationSource(cleared).market, null); // null is a decision, not absence
+  const fresh = { region: "x" };
+  assert.equal("market" in migrateLocationSource(fresh), false); // let the schema initial apply
+  assert.equal(migrateLocationSource(undefined), undefined);
+});
+
+t("migrateLocationSource: a partial update is not mistaken for a v1 document", () => {
+  // `migrateData` runs on every clean, not only on load — an update touching
+  // one roster field must not fabricate a market subtree.
+  const patch = { roster: [{ uuid: "Actor.a" }] };
+  assert.equal("market" in migrateLocationSource(patch), false);
+});
+
+console.log(`\n${n} tests passed (including the location migration)`);

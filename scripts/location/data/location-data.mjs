@@ -1,16 +1,37 @@
-/* global foundry, game */
+/* global foundry, game, fromUuidSync */
 /**
- * LocationData — the `acks-henchmen.location` actor sub-type: a settlement
- * where hirelings are recruited. Holds the market-class derivation inputs,
- * recruitment postings, candidate records, the per-town slander registry,
- * and a search-fee ledger.
+ * LocationData — the `acks-extras.location` actor sub-type: A PLACE.
+ *
+ * A place is four things, and only the first is universal:
+ *
+ *   1. **Identity and nesting** — a name, a region, notes, and the place it is
+ *      inside of. Every location has this, from a duchy to a chest.
+ *   2. **Contents** — goods (real embedded items, stamped by acks-lib's storage
+ *      primitive) and a ROSTER of the living things kept here, which items
+ *      cannot represent because Foundry has no actor-inside-an-actor.
+ *   3. **A stack count** — eight identical warehouse bays are one actor until
+ *      one of them becomes interesting (acks-lib place-logic.mjs, `planSplit`).
+ *   4. **A market**, optionally — the henchmen recruitment domain.
+ *
+ * THE MARKET IS A NULLABLE SUBTREE, AND THAT IS THE WHOLE POINT (owner's ruling,
+ * 2026-08-02: "markets are not the default"). `system.market` is `null` on a
+ * cave, a wagon and a chest — not an object of empty arrays, genuinely absent —
+ * because a nullable SchemaField's `clean()` short-circuits on null before it
+ * ever casts to an object. Adding a market is one write of a defaults object;
+ * removing one is a write of `null`.
+ *
+ * There is deliberately NO `hasMarket` boolean. The presence of the subtree IS
+ * the flag, so the two can never disagree — the failure mode a separate boolean
+ * would have introduced is a location whose flag says "market" and whose data
+ * says otherwise, which is exactly the class of bug the storage/bank split was
+ * retired for.
  *
  * DESIGNED FOR EXTENSION by the future domain-module family: other modules
- * (e.g. a structures/strongholds module) store their own data in their own
- * flag namespace on the same location actor; this schema stays minimal.
+ * (e.g. a structures/strongholds module) store their own data in their own flag
+ * namespace on the same location actor; this schema stays minimal.
  *
- * Candidates are plain records, NOT actors — a Class I market can roll
- * hundreds of 0th-level candidates; a real Actor is created only on hire.
+ * Candidates are plain records, NOT actors — a Class I market can roll hundreds
+ * of 0th-level candidates; a real Actor is created only on hire.
  */
 import { marketClassFromFamilies, clampMarketClass } from "../../henchmen/rules/availability.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
@@ -18,6 +39,7 @@ import { acksCompatStubs } from "../../lib/actor-compat.mjs";
 // (this file and henchman-record.mjs each had a verbatim copy). `fields` is
 // still needed locally for the non-leaf types (SchemaField, ArrayField, HTMLField).
 import { num, str, int } from "../../lib/fields.mjs";
+import { migrateLocationSource } from "./location-migrate.mjs";
 
 const fields = foundry.data.fields;
 
@@ -146,6 +168,200 @@ function candidateField() {
   });
 }
 
+/**
+ * One occupant — a living thing kept at this place.
+ *
+ * A REFERENCE, not an embedded document: Foundry cannot embed an Actor in an
+ * Actor, so a garrison, a stabled horse and a captive dragon are all uuids. The
+ * name and image are DENORMALISED alongside, for the same reason storage stamps
+ * `ownerName` next to `ownerUuid` — a deleted actor leaves a row that still says
+ * what used to be here, which is a record a GM can act on rather than a blank.
+ */
+function occupantField() {
+  return new fields.SchemaField({
+    uuid: str(),
+    name: str(),
+    img: str(),
+    kind: new fields.StringField({
+      required: true,
+      initial: "actor",
+      choices: ["actor", "group", "monster", "henchman", "place"],
+    }),
+    // A group row counts its whole stack: a platoon billeted at an inn is 30
+    // people asleep in it, and a headcount that said 1 would mislead every
+    // capacity decision made from this sheet.
+    quantity: int(1),
+    ownerUuid: str(), // who put it here / whose it is; "" = the place's own
+    notes: str(),
+    // Display gating only, never a security boundary — the same ruling storage
+    // makes about attribution. A garrison that must genuinely stay secret
+    // belongs on a GM-owned place.
+    hidden: new fields.BooleanField({ initial: false }),
+  });
+}
+
+/**
+ * The MARKET subtree: everything the henchmen recruitment domain owns.
+ *
+ * Gathered under one nullable field so a place without a market carries none of
+ * it. Every field here was previously a sibling of `region` and `notes`; the
+ * move is what makes "markets are not the default" true of the DATA and not
+ * merely of the UI.
+ */
+function marketSchema() {
+  return {
+    // Market-class derivation inputs: explicit override wins, then urban
+    // families (local bracket table), then acks-domains courtesy read,
+    // then default IV.
+    marketClassOverride: num({ integer: true, min: 1, max: 6 }),
+    urbanFamilies: num({ integer: true, min: 0 }),
+    domainUuid: str(),
+    classRarityTableId: new fields.StringField({ required: true, initial: "default" }),
+    // Settlement alignment: directed searches for opposed-alignment classes
+    // shift one rarity step (alignmentRecruitment table); the default
+    // ladders encode a lawful town, other alignments override via variant.
+    settlementAlignment: new fields.StringField({
+      required: true,
+      initial: "lawful",
+      choices: ["lawful", "neutral", "chaotic"],
+    }),
+    desertRealm: new fields.BooleanField({ initial: false }), // camel troops available
+    compositeVariant: new fields.StringField({
+      required: true,
+      initial: "composite",
+      choices: ["composite", "longbow"],
+    }),
+    // Demographics: weighted culture mix driving candidate identity
+    // generation (RR 495-503). Empty = uniform random across all cultures.
+    demographics: new fields.ArrayField(
+      new fields.SchemaField({
+        culture: str(),
+        weight: int(1),
+      })
+    ),
+    // Start of the location's current market month. The WHOLE market
+    // (every henchman level, troop type, and specialist type) is rolled at
+    // each month's beginning even if nobody is hiring — so a party that
+    // starts searching in week 2 finds the town as it already is.
+    monthAnchorTime: int(0),
+    // Append-only MARKET LEDGER: what the market did and when (month
+    // rolls, directed replacements, hires) — the GM's record for manual
+    // rollbacks after clock adjustments. Capped to the recent past.
+    marketLog: new fields.ArrayField(
+      new fields.SchemaField({
+        time: int(),
+        type: str(), // monthRoll | replace | hire | reserve
+        note: str(),
+      })
+    ),
+    // Hires accepted with no GM online and no actor-create permission —
+    // materialized into real actors at the next GM connect.
+    pendingHires: new fields.ArrayField(
+      new fields.SchemaField({
+        id: str(),
+        candidateId: str(),
+        specialHireId: str(),
+        employerUuid: str(),
+        signingGp: num(),
+        time: int(),
+        result: new fields.SchemaField({
+          outcome: str(),
+          natural: num({ integer: true }),
+          total: num({ integer: true }),
+        }),
+      })
+    ),
+    // The LOCATION's monthly availability ledger: one entry per generic
+    // segment rolled this month (availability is a property of the market,
+    // RR 162 — shared by all recruiters; rolled once per month per type).
+    marketRolls: new fields.ArrayField(
+      new fields.SchemaField({
+        segment: str(),
+        monthStartTime: int(),
+        total: int(0),
+        detail: str(),
+      })
+    ),
+    postings: new fields.ArrayField(postingField()),
+    candidates: new fields.ArrayField(candidateField()),
+    // Special hires: REAL actors the GM drags in (notable NPCs for hire)
+    // plus recruits the party FOUND on adventures (RR 162). GM entries
+    // stay available until an optional time limit; found recruits default
+    // to end of the market month (RAW gives no fixed window — Judge's
+    // call). Hiring attempts are tracked per NPC in `refusals`.
+    specialHires: new fields.ArrayField(
+      new fields.SchemaField({
+        id: str(),
+        actorUuid: str(),
+        name: str(),
+        img: str(),
+        addedTime: int(),
+        expiresTime: int(0), // 0 = no limit
+        origin: new fields.StringField({ required: true, initial: "gm", choices: ["gm", "found"] }),
+        status: new fields.StringField({
+          required: true,
+          initial: "available",
+          choices: ["available", "hired", "expired"],
+        }),
+        refusals: new fields.ArrayField(
+          new fields.SchemaField({
+            employerUuid: str(),
+            time: int(),
+            result: str(),
+          })
+        ),
+        lastResolutionId: str(), // multi-GM-socket claim (see candidateField)
+        notes: str(),
+      })
+    ),
+    slander: new fields.ArrayField(
+      new fields.SchemaField({
+        // WHO the −1 applies to. One location-held entry can name a party
+        // (employer uuid) or an individual character, so a subject is counted
+        // once and never double-tallied across a party and its members.
+        subject: new fields.SchemaField({
+          scope: new fields.StringField({
+            required: true,
+            initial: "all",
+            choices: ["all", "party", "character"],
+          }),
+          uuid: str(), // employer/party actor uuid, or character uuid; "" when scope="all"
+        }),
+        npcName: str(),
+        time: int(),
+        note: str(),
+      })
+    ),
+    searchLedger: new fields.ArrayField(
+    new fields.SchemaField({
+      time: int(),
+      gp: int(0),
+      postingId: str(),
+      paidByUuid: str(),
+    })
+    ),
+  };
+}
+
+/**
+ * The nullable market field. The three options are what make the subtree
+ * genuinely absent rather than an object of empty arrays: `clean()`
+ * short-circuits on null via `_validateSpecial` before it ever casts to an
+ * object, so `system.market` on a cave stores the literal `null`.
+ */
+const marketField = () =>
+  new fields.SchemaField(marketSchema(), { required: false, nullable: true, initial: null });
+
+/**
+ * A fresh, fully-defaulted market — what "add a market to this place" writes.
+ *
+ * Built from a THROWAWAY non-nullable field: a SchemaField takes ownership of
+ * the field instances handed to it (`_initialize` sets `field.parent` and throws
+ * if one is reused), so the schema is rebuilt rather than borrowed from the
+ * live one.
+ */
+export const emptyMarket = () => new fields.SchemaField(marketSchema()).clean({});
+
 export class LocationData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
@@ -157,154 +373,115 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       // (its setup sweep reads these world-wide, so it is a family concern, not
       // a per-module one). Values are meaningless for a settlement.
       ...acksCompatStubs(),
-      // --- location data -------------------------------------------------
+
+      // --- identity ------------------------------------------------------
       region: str(),
       notes: new fields.HTMLField({ required: false, blank: true, initial: "" }),
-      // Market-class derivation inputs: explicit override wins, then urban
-      // families (local bracket table), then acks-domains courtesy read,
-      // then default IV.
-      marketClassOverride: num({ integer: true, min: 1, max: 6 }),
-      urbanFamilies: num({ integer: true, min: 0 }),
-      domainUuid: str(),
-      classRarityTableId: new fields.StringField({ required: true, initial: "default" }),
-      // Settlement alignment: directed searches for opposed-alignment classes
-      // shift one rarity step (alignmentRecruitment table); the default
-      // ladders encode a lawful town, other alignments override via variant.
-      settlementAlignment: new fields.StringField({
-        required: true,
-        initial: "lawful",
-        choices: ["lawful", "neutral", "chaotic"],
+
+      // --- nesting -------------------------------------------------------
+      // The place this place is inside of. A uuid, not an id, because a parent
+      // may be a location actor OR any other provider — acks-lib's place layer
+      // resolves all of them the same way, and a bare id could not say which.
+      // Cycles are refused at the write (acks-lib place-logic `wouldCycle`),
+      // never merely tolerated by the readers.
+      parentUuid: str(),
+
+      // --- the map -------------------------------------------------------
+      // The scene this place IS. Set from the scene side (the scene holds the
+      // matching flag) and mirrored here so the sheet can offer "open the map"
+      // without a world scan. Never auto-created: a battle map is not a place
+      // until somebody says it is (owner's ruling, 2026-08-02).
+      sceneUuid: str(),
+
+      // --- stacking ------------------------------------------------------
+      // Eight identical warehouse bays are ONE actor until one of them becomes
+      // interesting. `count` is the only stack state, because unlike a group's
+      // bodies a place cannot express divergence as an ActorDelta — so
+      // divergence here is a SPLIT into a second actor. See docs/lib/GROUPS.md
+      // for the invariant this is the place-shaped analogue of.
+      stack: new fields.SchemaField({
+        count: int(1),
+        label: str(), // what one instance is called: "Bay", "Cell", "Stall"
       }),
-      desertRealm: new fields.BooleanField({ initial: false }), // camel troops available
-      compositeVariant: new fields.StringField({
-        required: true,
-        initial: "composite",
-        choices: ["composite", "longbow"],
-      }),
-      // Demographics: weighted culture mix driving candidate identity
-      // generation (RR 495-503). Empty = uniform random across all cultures.
-      demographics: new fields.ArrayField(
-        new fields.SchemaField({
-          culture: str(),
-          weight: int(1),
-        })
-      ),
-      // Start of the location's current market month. The WHOLE market
-      // (every henchman level, troop type, and specialist type) is rolled at
-      // each month's beginning even if nobody is hiring — so a party that
-      // starts searching in week 2 finds the town as it already is.
-      monthAnchorTime: int(0),
-      // Append-only MARKET LEDGER: what the market did and when (month
-      // rolls, directed replacements, hires) — the GM's record for manual
-      // rollbacks after clock adjustments. Capped to the recent past.
-      marketLog: new fields.ArrayField(
-        new fields.SchemaField({
-          time: int(),
-          type: str(), // monthRoll | replace | hire | reserve
-          note: str(),
-        })
-      ),
-      // Hires accepted with no GM online and no actor-create permission —
-      // materialized into real actors at the next GM connect.
-      pendingHires: new fields.ArrayField(
-        new fields.SchemaField({
-          id: str(),
-          candidateId: str(),
-          specialHireId: str(),
-          employerUuid: str(),
-          signingGp: num(),
-          time: int(),
-          result: new fields.SchemaField({
-            outcome: str(),
-            natural: num({ integer: true }),
-            total: num({ integer: true }),
-          }),
-        })
-      ),
-      // The LOCATION's monthly availability ledger: one entry per generic
-      // segment rolled this month (availability is a property of the market,
-      // RR 162 — shared by all recruiters; rolled once per month per type).
-      marketRolls: new fields.ArrayField(
-        new fields.SchemaField({
-          segment: str(),
-          monthStartTime: int(),
-          total: int(0),
-          detail: str(),
-        })
-      ),
-      schemaVersion: int(1),
-      postings: new fields.ArrayField(postingField()),
-      candidates: new fields.ArrayField(candidateField()),
-      // Special hires: REAL actors the GM drags in (notable NPCs for hire)
-      // plus recruits the party FOUND on adventures (RR 162). GM entries
-      // stay available until an optional time limit; found recruits default
-      // to end of the market month (RAW gives no fixed window — Judge's
-      // call). Hiring attempts are tracked per NPC in `refusals`.
-      specialHires: new fields.ArrayField(
-        new fields.SchemaField({
-          id: str(),
-          actorUuid: str(),
-          name: str(),
-          img: str(),
-          addedTime: int(),
-          expiresTime: int(0), // 0 = no limit
-          origin: new fields.StringField({ required: true, initial: "gm", choices: ["gm", "found"] }),
-          status: new fields.StringField({
-            required: true,
-            initial: "available",
-            choices: ["available", "hired", "expired"],
-          }),
-          refusals: new fields.ArrayField(
-            new fields.SchemaField({
-              employerUuid: str(),
-              time: int(),
-              result: str(),
-            })
-          ),
-          lastResolutionId: str(), // multi-GM-socket claim (see candidateField)
-          notes: str(),
-        })
-      ),
-      slander: new fields.ArrayField(
-        new fields.SchemaField({
-          // WHO the −1 applies to. One location-held entry can name a party
-          // (employer uuid) or an individual character, so a subject is counted
-          // once and never double-tallied across a party and its members.
-          subject: new fields.SchemaField({
-            scope: new fields.StringField({
-              required: true,
-              initial: "all",
-              choices: ["all", "party", "character"],
-            }),
-            uuid: str(), // employer/party actor uuid, or character uuid; "" when scope="all"
-          }),
-          npcName: str(),
-          time: int(),
-          note: str(),
-        })
-      ),
-      searchLedger: new fields.ArrayField(
-        new fields.SchemaField({
-          time: int(),
-          gp: int(0),
-          postingId: str(),
-          paidByUuid: str(),
-        })
-      ),
+
+      // --- occupancy -----------------------------------------------------
+      // The living things kept here. Goods are embedded items (acks-lib
+      // storage); these cannot be, so they are references.
+      roster: new fields.ArrayField(occupantField()),
+
+      // --- the market, if this place has one -----------------------------
+      market: marketField(),
+
+      schemaVersion: int(2),
     };
   }
 
+  /* -------------------------------------------- */
+  /*  The market gate                              */
+  /* -------------------------------------------- */
+
   /**
-   * Legacy → subject migration: the flat `partyKey` string became a structured
-   * `subject {scope, uuid}`. A blank key meant "applies to everyone"; any other
-   * value was an employer/party uuid. Runs before validation on load.
+   * Does this place have a market? The presence of the subtree IS the flag —
+   * there is no second boolean to fall out of step with it.
    */
-  /** Effective market class 1..6 (1 = largest), before per-actor effect shifts. */
+  get hasMarket() {
+    return this.market != null;
+  }
+
+  /* Read-through conveniences so a caller that only wants to LIST something
+   * does not have to null-check the subtree at every use. They return empty
+   * collections for a market-less place, which is the truthful answer: a cave
+   * has no postings, rather than an unknown number of them. Writers must still
+   * go through `system.market.*` — there is no write-through here, deliberately,
+   * because a write to a null subtree is a bug worth surfacing. */
+  get postings() {
+    return this.market?.postings ?? [];
+  }
+  get candidates() {
+    return this.market?.candidates ?? [];
+  }
+  get specialHires() {
+    return this.market?.specialHires ?? [];
+  }
+  get marketRolls() {
+    return this.market?.marketRolls ?? [];
+  }
+  get slander() {
+    return this.market?.slander ?? [];
+  }
+  get demographics() {
+    return this.market?.demographics ?? [];
+  }
+  get searchLedger() {
+    return this.market?.searchLedger ?? [];
+  }
+  get marketLog() {
+    return this.market?.marketLog ?? [];
+  }
+  get pendingHires() {
+    return this.market?.pendingHires ?? [];
+  }
+  get monthAnchorTime() {
+    return this.market?.monthAnchorTime ?? 0;
+  }
+
+  /* -------------------------------------------- */
+  /*  Derived                                      */
+  /* -------------------------------------------- */
+
+  /**
+   * Effective market class 1..6 (1 = largest), before per-actor effect shifts.
+   * `null` when this place has no market — callers that need a number for a
+   * market-less place are asking the wrong question, and a null says so louder
+   * than a default IV would.
+   */
   get marketClass() {
-    if (this.marketClassOverride) return clampMarketClass(this.marketClassOverride);
-    if (this.urbanFamilies !== null && this.urbanFamilies !== undefined) {
+    const market = this.market;
+    if (!market) return null;
+    if (market.marketClassOverride) return clampMarketClass(market.marketClassOverride);
+    if (market.urbanFamilies !== null && market.urbanFamilies !== undefined) {
       try {
-        return marketClassFromFamilies(this.urbanFamilies);
+        return marketClassFromFamilies(market.urbanFamilies);
       } catch {
         /* tables not loaded yet */
       }
@@ -312,8 +489,8 @@ export class LocationData extends foundry.abstract.TypeDataModel {
     // Courtesy read of a linked acks-domains domain (heavy WIP — guarded).
     try {
       const domains = game?.modules?.get?.("acks-domains");
-      if (domains?.active && this.domainUuid) {
-        const domain = fromUuidSync?.(this.domainUuid);
+      if (domains?.active && market.domainUuid) {
+        const domain = fromUuidSync?.(market.domainUuid);
         const urban = domain?.system?.families?.urban;
         const profile = domains.api?.rules?.settlementProfile?.(Number(urban) || 0);
         if (profile?.marketClass) return clampMarketClass(profile.marketClass);
@@ -324,12 +501,25 @@ export class LocationData extends foundry.abstract.TypeDataModel {
     return 4;
   }
 
+  /** Living things recorded here, counting a group row as its whole stack. */
+  get headcount() {
+    return (this.roster ?? []).reduce((sum, row) => sum + (Number(row?.quantity) > 0 ? Number(row.quantity) : 1), 0);
+  }
+
+  /** How many identical instances this actor stands for. Always at least 1. */
+  get instanceCount() {
+    const n = Math.floor(Number(this.stack?.count) || 1);
+    return n > 0 ? n : 1;
+  }
+
   /**
    * Count of active refuse-and-slander entries that apply to a recruiting
    * subject. Accepts `{ employerUuid, characterUuid }`; a bare string is treated
    * as `employerUuid` (back-compat shim for one release). Each entry matches at
    * most one scope branch, so it is counted exactly once — the property that
    * lets a party-wide and an individual slander coexist without double counting.
+   *
+   * A place with no market has nobody to slander you to: 0, not an error.
    */
   slanderCountFor(query) {
     const { employerUuid = "", characterUuid = "" } =
@@ -342,5 +532,22 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       if (scope === "character") return !!characterUuid && uuid === characterUuid;
       return false;
     }).length;
+  }
+
+  /* -------------------------------------------- */
+  /*  Migration                                    */
+  /* -------------------------------------------- */
+
+  /**
+   * v1 → v2: the market fields were siblings of `region`; they are now the
+   * `market` subtree, and a location that never had a market gets `null`.
+   *
+   * Runs before validation on load (TypeDataField._migrate → migrateDataSafe),
+   * so an un-migrated world reads correctly on the first render rather than
+   * after a sweep. The rules live in location-migrate.mjs, Foundry-free and
+   * unit-tested; this is the seam Foundry calls.
+   */
+  static migrateData(source) {
+    return super.migrateData(migrateLocationSource(source));
   }
 }

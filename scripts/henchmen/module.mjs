@@ -222,12 +222,15 @@ Hooks.once("ready", () => {
   if (game.user === game.users.activeGM) {
     for (const location of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
       if ((location.system.schemaVersion ?? 1) >= SCHEMA_VERSION) continue;
+      // A place with no market has no subtree to clear, and writing one would
+      // hand it a market it never asked for (markets are opt-in, 2026-08-02).
+      if (!location.system.hasMarket) continue;
       const hadData = (location.system.postings?.length ?? 0) + (location.system.candidates?.length ?? 0) > 0;
       location
         .update({
-          "system.postings": [],
-          "system.candidates": [],
-          "system.marketRolls": [],
+          "system.market.postings": [],
+          "system.market.candidates": [],
+          "system.market.marketRolls": [],
           "system.schemaVersion": SCHEMA_VERSION,
         })
         .then(() => {

@@ -70,7 +70,7 @@ export async function updateCandidate(location, candidateId, changes) {
     const obj = c.toObject?.() ?? foundry.utils.deepClone(c);
     return obj.id === candidateId ? foundry.utils.mergeObject(obj, changes) : obj;
   });
-  await location.update({ "system.candidates": candidates });
+  await location.update({ "system.market.candidates": candidates });
   return candidates.find((c) => c.id === candidateId);
 }
 
@@ -85,7 +85,7 @@ export async function updateSpecialHire(location, specialHireId, changes) {
     const obj = s.toObject?.() ?? foundry.utils.deepClone(s);
     return obj.id === specialHireId ? foundry.utils.mergeObject(obj, changes) : obj;
   });
-  await location.update({ "system.specialHires": entries });
+  await location.update({ "system.market.specialHires": entries });
   return entries.find((s) => s.id === specialHireId);
 }
 
@@ -95,6 +95,10 @@ export async function updateSpecialHire(location, specialHireId, changes) {
  * current market month.
  */
 export async function addSpecialHire(location, actor, { origin = "gm", expiresTime = null, notes = "" } = {}) {
+  // Somebody is only "for hire" where there is a market to hire them in. Exported,
+  // so this guards a public entry point rather than trusting every caller: the
+  // write below addresses `system.market.*`, which is genuinely null otherwise.
+  if (!location?.system?.hasMarket) return null;
   const { secondsPerMonth } = await import("../time.mjs");
   const anchor = location.system.monthAnchorTime || now();
   const defaultExpiry = origin === "found" ? anchor + secondsPerMonth() : 0;
@@ -111,7 +115,7 @@ export async function addSpecialHire(location, actor, { origin = "gm", expiresTi
     notes,
   };
   await location.update({
-    "system.specialHires": [...(location.system.specialHires ?? []).map((s) => s.toObject?.() ?? s), entry],
+    "system.market.specialHires": [...(location.system.specialHires ?? []).map((s) => s.toObject?.() ?? s), entry],
   });
   return entry;
 }
@@ -408,7 +412,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
     const log = (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l);
     const entry = { time: now(), type: "hire", note: `${actor.name} → ${employer.name} (${candidate.wageGp ?? "?"}gp)` };
     const capped = [...log, entry].slice(-100);
-    await location.update({ "system.marketLog": capped });
+    await location.update({ "system.market.marketLog": capped });
   } catch {
     /* ledger is best-effort */
   }

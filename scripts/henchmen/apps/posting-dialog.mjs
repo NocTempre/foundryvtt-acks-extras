@@ -59,7 +59,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       id: r.type,
       label: game.i18n.localize(`ACKS-HENCHMEN.specialist.${r.type}`),
     }));
-    const variant = this.location.system.classRarityTableId || "default";
+    const variant = this.location.system.market?.classRarityTableId || "default";
     const variants = optTable("rarity", "classRarityTables")?.variants ?? {};
     const tiers = (variants[variant] ?? variants.default)?.tiers ?? {};
     context.classes = Object.entries(tiers).flatMap(([tier, list]) =>

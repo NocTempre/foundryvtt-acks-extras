@@ -1,4 +1,4 @@
-/* global game, ui, foundry, fromUuidSync, fromUuid, RollTable, TextEditor, Hooks, CONST */
+/* global game, ui, foundry, fromUuidSync, fromUuid, Actor, RollTable, TextEditor, Hooks, CONST */
 /**
  * LocationSheet — ActorSheetV2 for the `acks-extras.location` sub-type.
  *
@@ -24,7 +24,9 @@
  * that must genuinely stay private belongs on a GM-owned actor.
  */
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
-import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
+import * as places from "../../lib/place.mjs";
+import { emptyMarket } from "../data/location-data.mjs";
+import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "../constants.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
@@ -43,6 +45,14 @@ const { ActorSheetV2 } = foundry.applications.sheets;
  * storage half's strings were authored; the market half localizes under
  * ACKS-HENCHMEN.* inline. Both roots live in the one merged lang file. */
 const loc = makeLoc(LANG_PREFIX);
+
+/**
+ * The tabs that exist only where there is a market. Markets are opt-in per
+ * place (owner's ruling, 2026-08-02): the overwhelming majority of places — a
+ * cave, a cellar, a wagon, a chest — have no recruitment board, and four empty
+ * tabs on every one of them was the UI saying otherwise.
+ */
+const MARKET_TABS = ["recruitment", "henchmen", "mercenaries", "specialists"];
 
 /**
  * Does a directed-search spec match this candidate? A directed CLASS search
@@ -102,6 +112,19 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       depositHere: LocationSheet.#onDepositHere,
       openManager: LocationSheet.#onOpenManager,
       openOwner: LocationSheet.#onOpenOwner,
+      // --- contents tab: nesting, occupancy, stacking, the map ---
+      openPlace: LocationSheet.#onOpenPlace,
+      detachPlace: LocationSheet.#onDetachPlace,
+      addChildPlace: LocationSheet.#onAddChildPlace,
+      removeOccupant: LocationSheet.#onRemoveOccupant,
+      keepOccupant: LocationSheet.#onKeepOccupant,
+      toggleOccupantHidden: LocationSheet.#onToggleOccupantHidden,
+      splitStack: LocationSheet.#onSplitStack,
+      openScene: LocationSheet.#onOpenScene,
+      unlinkScene: LocationSheet.#onUnlinkScene,
+      // --- the market gate ---
+      addMarket: LocationSheet.#onAddMarket,
+      removeMarket: LocationSheet.#onRemoveMarket,
     },
   };
 
@@ -113,6 +136,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static TABS = {
     primary: {
       tabs: [
+        { id: "contents", icon: "fas fa-sitemap" },
         { id: "recruitment", icon: "fas fa-scroll" },
         { id: "henchmen", icon: "fas fa-user-group" },
         { id: "mercenaries", icon: "fas fa-shield-halved" },
@@ -121,7 +145,10 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         { id: "gmSettings", icon: "fas fa-gears" },
         { id: "gmView", icon: "fas fa-eye" },
       ],
-      initial: "recruitment",
+      // Contents, not Recruitment: what is in a place and what it is inside of
+      // are true of every place, and since 2026-08-02 the market is the
+      // exception rather than the rule.
+      initial: "contents",
       // Every tab label resolves under one prefix, so the storage tab's label
       // is ACKS-HENCHMEN.location.tab.storage even though the storage half was
       // authored under ACKS-LOCATION.*. Adding the one key beats overriding
@@ -160,9 +187,147 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.actor = actor;
     context.system = sys;
     context.isGM = game.user.isGM;
+    context.hasMarket = sys.hasMarket;
     // Owners may run due processing (idempotent) so arrivals reveal
     // without waiting on a GM click; the clock itself is the GM's.
     context.canProcess = game.user.isGM || actor.testUserPermission(game.user, "OWNER");
+
+    // A place is its identity, its nesting and its contents FIRST; the market
+    // is a specialisation most places do not have (owner's ruling, 2026-08-02).
+    await this.#preparePlace(context);
+    if (sys.hasMarket) this.#prepareMarket(context, t);
+
+    // Tabs: labels carry live counts. The market tabs exist only where there is
+    // a market, and the GM tabs only for GMs.
+    context.tabs = this.#prepareVisibleTabs(context);
+    await this.#prepareStorage(context);
+
+    const tabCounts = {
+      contents: context.contentRows.length + context.occupants.length,
+      recruitment:
+        (context.postings?.filter((p) => p.isActive).length ?? 0) +
+        (context.directedRows?.length ?? 0) +
+        (context.specialHires?.length ?? 0),
+      henchmen: context.henchmenRows?.length ?? 0,
+      mercenaries: context.mercenaryRows?.length ?? 0,
+      specialists: context.specialistRows?.length ?? 0,
+      storage: context.groups.length,
+    };
+    for (const [id, tab] of Object.entries(context.tabs)) {
+      const base = game.i18n.localize(`ACKS-HENCHMEN.location.tab.${id}`);
+      tab.label = tabCounts[id] != null ? `${base} (${tabCounts[id]})` : base;
+    }
+    return context;
+  }
+
+  /**
+   * Which tabs this viewer gets, and a guarantee that one of them is active.
+   *
+   * That guarantee is the whole reason this is not three `delete` lines. The
+   * active tab is remembered per application instance (`this.tabGroups`), so a
+   * GM who was on Recruitment when the market was removed — or a player opening
+   * a sheet whose remembered tab is a GM one — would otherwise be left with
+   * every tab inactive, which renders as a sheet with a nav bar and no body.
+   */
+  #prepareVisibleTabs(context) {
+    const tabs = this._prepareTabs("primary");
+    if (!context.hasMarket) for (const id of MARKET_TABS) delete tabs[id];
+    if (!game.user.isGM) {
+      delete tabs.gmSettings;
+      delete tabs.gmView;
+    }
+    if (!Object.values(tabs).some((tab) => tab.active)) {
+      const fallback = tabs.contents ?? Object.values(tabs)[0];
+      if (fallback) {
+        this.tabGroups.primary = fallback.id;
+        for (const tab of Object.values(tabs)) {
+          tab.active = tab.id === fallback.id;
+          tab.cssClass = tab.active ? "active" : "";
+        }
+      }
+    }
+    return tabs;
+  }
+
+  /**
+   * The place half: where it sits, what is in it, who is in it.
+   *
+   * One `allPlaces()` scan is taken here and threaded through every call that
+   * needs it — the breadcrumb, the children, and the coin roll-up would
+   * otherwise each re-scan `game.actors` on every render.
+   */
+  async #preparePlace(context) {
+    const actor = this.actor;
+    const nodes = places.allPlaces();
+    const index = places.indexPlaces(nodes);
+
+    // Breadcrumb: root first, this place last. The last entry is dropped —
+    // the sheet's own title already says where you are.
+    context.breadcrumb = places
+      .placePath(actor.uuid, index)
+      .slice(0, -1)
+      .map((node) => ({ uuid: node.uuid, name: node.name }));
+    context.parentName = context.breadcrumb.at(-1)?.name ?? null;
+
+    // Contents: sub-places first, then goods. `contentRows` folds a container
+    // item and a sub-location into one row shape, which is what makes a chest
+    // the trivial case of a town rather than a separate list.
+    context.contentRows = places.contentRows(actor, nodes).map((row) => ({
+      ...row,
+      icon: row.isPlace ? (row.kind === "container" ? "fa-box" : "fa-map-location-dot") : "fa-cube",
+    }));
+
+    // Occupants: the stored roster, plus whoever is standing on the linked
+    // scene, filtered to what this viewer may see (place-logic.mjs owns the
+    // order of those three steps — getting it wrong leaks or loses rows).
+    const scene = actor.system.sceneUuid ? this.#linkedScene() : null;
+    const ownedUuids = game.user.isGM
+      ? []
+      : game.actors.filter((a) => a.testUserPermission(game.user, "OWNER")).map((a) => a.uuid);
+    context.occupants = places
+      .rosterFor(actor, { scene, isGM: game.user.isGM, ownedUuids })
+      .map((row) => ({
+        ...row,
+        kindLabel: game.i18n.localize(`${LANG_PREFIX}.occupant.kind.${row.kind}`),
+        // A row whose actor is gone is shown struck through rather than dropped:
+        // "the garrison used to be here" is a fact the GM should act on, not one
+        // the sheet should quietly erase. `fromUuidSync` THROWS on a uuid into an
+        // unloaded compendium, so it cannot be called bare on a render path.
+        missing: !LocationSheet.#exists(row.uuid),
+      }));
+    context.headcount = places.headcount(context.occupants);
+
+    context.scene = scene ? { uuid: scene.uuid, name: scene.name, active: scene.active } : null;
+    context.stackCount = actor.system.instanceCount;
+    context.isStacked = context.stackCount > 1;
+    context.coinRollupGC = places.coinRollupGC(actor, nodes);
+  }
+
+  /** Does this uuid still resolve? Never throws — render paths cannot afford it. */
+  static #exists(uuid) {
+    try {
+      return !!fromUuidSync(uuid);
+    } catch {
+      return false;
+    }
+  }
+
+  /** The scene this place is, or null when the link is dead. */
+  #linkedScene() {
+    const uuid = this.actor.system.sceneUuid;
+    if (!uuid) return null;
+    try {
+      const scene = fromUuidSync(uuid);
+      return scene?.documentName === "Scene" ? scene : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Everything the four market tabs render. Only called when there IS a market. */
+  #prepareMarket(context, t) {
+    const actor = this.actor;
+    const sys = actor.system;
     // "Not stuck" visibility: current market week + when the next whole-
     // market roll lands (a late-month board is quiet by RAW, not stalled).
     if (sys.monthAnchorTime) {
@@ -179,15 +344,15 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return "";
       }
     })();
-    context.marketClassSource = sys.marketClassOverride
+    context.marketClassSource = sys.market?.marketClassOverride
       ? game.i18n.localize("ACKS-HENCHMEN.location.sourceOverride")
-      : sys.urbanFamilies != null
+      : sys.market?.urbanFamilies != null
         ? game.i18n.localize("ACKS-HENCHMEN.location.sourceFamilies")
         : game.i18n.localize("ACKS-HENCHMEN.location.sourceDefault");
     context.rarityVariants = Object.entries(optTable("rarity", "classRarityTables")?.variants ?? {}).map(([id, v]) => ({
       id,
       label: game.i18n.localize(v.label),
-      selected: id === sys.classRarityTableId,
+      selected: id === sys.market?.classRarityTableId,
     }));
     context.cultureOptions = Object.entries(optTable("people", "cultures")?.list ?? {}).map(([id, c]) => ({
       id,
@@ -202,7 +367,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const postings = (sys.postings ?? []).map((p) => p.toObject?.() ?? p);
 
     // --- The market: shared monthly pools ---
-    context.market = (sys.marketRolls ?? []).map((r) => {
+    context.marketPools = (sys.marketRolls ?? []).map((r) => {
       const roll = r.toObject?.() ?? r;
       const mine = candidates.filter((c) => c.segment === roll.segment);
       const week = Math.max(1, Math.floor((t - roll.monthStartTime) / SECONDS_PER_WEEK) + 1);
@@ -373,27 +538,6 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         typeLabel: game.i18n.localize(`ACKS-HENCHMEN.marketLog.${l.type}`),
         when: game.i18n.format("ACKS-HENCHMEN.marketLog.day", { day: Math.floor(l.time / SECONDS_PER_DAY) }),
       }));
-
-    // Tabs: labels carry live counts; the GM tabs exist only for GMs.
-    context.tabs = this._prepareTabs("primary");
-    if (!game.user.isGM) {
-      delete context.tabs.gmSettings;
-      delete context.tabs.gmView;
-    }
-    await this.#prepareStorage(context);
-
-    const tabCounts = {
-      recruitment: context.postings.filter((p) => p.isActive).length + context.directedRows.length + (context.specialHires?.length ?? 0),
-      henchmen: context.henchmenRows.length,
-      mercenaries: context.mercenaryRows.length,
-      specialists: context.specialistRows.length,
-      storage: context.groups.length,
-    };
-    for (const [id, tab] of Object.entries(context.tabs)) {
-      const base = game.i18n.localize(`ACKS-HENCHMEN.location.tab.${id}`);
-      tab.label = tabCounts[id] != null ? `${base} (${tabCounts[id]})` : base;
-    }
-    return context;
   }
 
   /**
@@ -455,7 +599,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    */
   _prepareSubmitData(event, form, formData, updateData) {
     const data = super._prepareSubmitData(event, form, formData, updateData);
-    for (const path of ["system.slander", "system.demographics"]) {
+    for (const path of ["system.market.slander", "system.market.demographics"]) {
       const submitted = foundry.utils.getProperty(data, path);
       if (submitted && !Array.isArray(submitted)) {
         const existing = (foundry.utils.getProperty(this.actor, path) ?? []).map((s) => s.toObject?.() ?? s);
@@ -483,7 +627,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const obj = p.toObject?.() ?? foundry.utils.deepClone(p);
       return obj.id === id ? { ...obj, ...changes } : obj;
     });
-    await this.actor.update({ "system.postings": postings });
+    await this.actor.update({ "system.market.postings": postings });
   }
 
   static async #onCreatePosting() {
@@ -553,19 +697,77 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     await openHireGroupDialog(this.actor);
   }
 
-  /** GM drag-drop: register a dropped actor as a special hire. */
-  async _onDropActor(_event, actor) {
-    if (!game.user.isGM || !actor) return;
-    if (actor.type === `${MODULE_ID}.location`) return;
-    const existing = (this.actor.system.specialHires ?? []).find(
-      (s) => s.actorUuid === actor.uuid && s.status === "available"
-    );
-    if (existing) {
-      ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.special.already", { name: actor.name }));
+  /**
+   * Dropping an actor: WHERE it lands decides what it means.
+   *
+   * On the recruitment tab a dropped NPC is somebody the party can hire — the
+   * behaviour this sheet has always had. Anywhere else it is somebody who is
+   * simply HERE: the innkeeper, the garrison, the stabled mule. Both readings
+   * are obviously right in their own tab and obviously wrong in the other, so
+   * the drop target arbitrates rather than a modifier key nobody would find.
+   *
+   * Dropping a LOCATION re-parents it — that is nesting, and it goes through
+   * the cycle guard.
+   */
+  async _onDropActor(event, actor) {
+    if (!actor) return;
+    if (actor.uuid === this.actor.uuid) return;
+
+    // A LOCATION dropped on a location is nesting, whichever tab it lands on.
+    // Deliberately narrower than `isPlace`: a pack mule someone enabled storage
+    // on is a provider too, and dropping it here means "the mule is standing in
+    // the stable", not "the stable now contains the mule as a sub-place".
+    if (places.isLocation(actor)) {
+      if (!game.user.isGM) return;
+      await places.setParent(actor, this.actor.uuid);
+      this.render();
       return;
     }
-    await addSpecialHire(this.actor, actor, { origin: "gm" });
-    ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.special.added", { name: actor.name }));
+
+    const tab = event?.target?.closest?.(".tab")?.dataset?.tab ?? this.tabGroups.primary;
+    if (tab === "recruitment" && this.actor.system.hasMarket) {
+      if (!game.user.isGM) return;
+      const existing = this.actor.system.specialHires.find(
+        (s) => s.actorUuid === actor.uuid && s.status === "available"
+      );
+      if (existing) {
+        ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.special.already", { name: actor.name }));
+        return;
+      }
+      await addSpecialHire(this.actor, actor, { origin: "gm" });
+      ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.special.added", { name: actor.name }));
+      return;
+    }
+
+    // Anywhere else: this actor is here. Ownership is recorded so a player's
+    // own stabled horse stays visible to them even on a GM-hidden roster.
+    if (!this.actor.isOwner) return;
+    const added = await places.addOccupant(this.actor, actor, {
+      ownerUuid: game.user.isGM ? "" : (game.user.character?.uuid ?? ""),
+    });
+    if (added) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.occupantAdded`, { name: actor.name }));
+    this.render();
+  }
+
+  /**
+   * Core's `_onDropDocument` switches on documentName and has cases for
+   * ActiveEffect, Actor, Item and Folder only — a dropped Scene falls through
+   * to `null` and nothing happens. Adding the one case is what makes
+   * drag-a-scene-onto-a-place work at all.
+   * @override
+   */
+  async _onDropDocument(event, document) {
+    if (document?.documentName === "Scene") return (await this._onDropScene(event, document)) ?? null;
+    return super._onDropDocument(event, document);
+  }
+
+  /** Dropping a SCENE on a place links the map to it (GM only). */
+  async _onDropScene(_event, scene) {
+    if (!game.user.isGM || !scene) return;
+    await scene.setFlag(MODULE_ID, SCENE_LINK_FLAG, this.actor.uuid);
+    await this.actor.update({ "system.sceneUuid": scene.uuid });
+    ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.sceneLinked`, { name: scene.name }));
+    this.render();
   }
 
   #specialHire(target) {
@@ -584,7 +786,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const entries = (this.actor.system.specialHires ?? [])
       .map((s) => s.toObject?.() ?? s)
       .filter((s) => s.id !== entry.id);
-    await this.actor.update({ "system.specialHires": entries });
+    await this.actor.update({ "system.market.specialHires": entries });
   }
 
   /** GM: set/clear a decision time limit (in days from now; 0 = none). */
@@ -607,7 +809,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const candidates = (this.actor.system.candidates ?? [])
       .map((c) => c.toObject?.() ?? c)
       .filter((c) => c.id !== candidate.id);
-    await this.actor.update({ "system.candidates": candidates });
+    await this.actor.update({ "system.market.candidates": candidates });
   }
 
   static async #onAddSlander() {
@@ -615,14 +817,14 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ...(this.actor.system.slander ?? []).map((s) => s.toObject?.() ?? s),
       { subject: { scope: "all", uuid: "" }, npcName: "", time: now(), note: "" },
     ];
-    await this.actor.update({ "system.slander": slander });
+    await this.actor.update({ "system.market.slander": slander });
     Hooks.callAll(HOOKS.SLANDER_CHANGED, { location: this.actor });
   }
 
   static async #onRemoveSlander(_event, target) {
     const index = Number(target.closest("[data-slander-index]")?.dataset.slanderIndex);
     const slander = (this.actor.system.slander ?? []).map((s) => s.toObject?.() ?? s).filter((_, i) => i !== index);
-    await this.actor.update({ "system.slander": slander });
+    await this.actor.update({ "system.market.slander": slander });
     Hooks.callAll(HOOKS.SLANDER_CHANGED, { location: this.actor });
   }
 
@@ -631,7 +833,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ...(this.actor.system.demographics ?? []).map((d) => d.toObject?.() ?? d),
       { culture: "auran", weight: 1 },
     ];
-    await this.actor.update({ "system.demographics": demographics });
+    await this.actor.update({ "system.market.demographics": demographics });
   }
 
   static async #onRemoveDemographic(_event, target) {
@@ -639,7 +841,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const demographics = (this.actor.system.demographics ?? [])
       .map((d) => d.toObject?.() ?? d)
       .filter((_, i) => i !== index);
-    await this.actor.update({ "system.demographics": demographics });
+    await this.actor.update({ "system.market.demographics": demographics });
   }
 
   /** Drop a RollTable on the demographics block → set the culture mix. */
@@ -678,7 +880,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.location.mixNoCultures", { name: table.name }));
       return;
     }
-    await this.actor.update({ "system.demographics": demographics });
+    await this.actor.update({ "system.market.demographics": demographics });
     ui.notifications.info(
       game.i18n.format("ACKS-HENCHMEN.location.mixApplied", { name: table.name, n: demographics.length }) +
         (unknown.length ? " " + game.i18n.format("ACKS-HENCHMEN.location.mixUnknown", { list: unknown.join(", ") }) : "")
@@ -707,6 +909,141 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     });
     ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.location.mixExported", { name: table.name }));
     table.sheet.render(true);
+  }
+
+  /* ====================================================================== */
+  /*  Contents tab — nesting, occupancy, stacking, and the map.             */
+  /* ====================================================================== */
+
+  /** Open a sub-place, a parent, or a stored container. */
+  static async #onOpenPlace(_event, target) {
+    const uuid = target.closest("[data-place-uuid]")?.dataset.placeUuid;
+    if (!uuid) return;
+    const doc = await fromUuid(uuid).catch(() => null);
+    doc?.sheet?.render(true);
+  }
+
+  /** Lift a sub-place out to the root — the undo for a wrong drop. */
+  static async #onDetachPlace(_event, target) {
+    const uuid = target.closest("[data-place-uuid]")?.dataset.placeUuid;
+    const child = uuid ? await fromUuid(uuid).catch(() => null) : null;
+    if (child) await places.setParent(child, null);
+    this.render();
+  }
+
+  /** Make a new place inside this one — the ordinary way to build a hierarchy. */
+  static async #onAddChildPlace() {
+    const name = await foundry.applications.api.DialogV2.prompt({
+      window: { title: loc("place.newChildTitle") },
+      content: `<input type="text" name="name" value="${game.i18n.localize(`${LANG_PREFIX}.place.newChildDefault`)}" />`,
+      ok: { callback: (_e, button) => button.form.elements.name.value },
+    }).catch(() => null);
+    if (!name) return;
+    const child = await Actor.create({
+      name,
+      type: LOCATION_TYPE,
+      img: "icons/svg/house.svg",
+      // Inherit the parent's ownership: a room in an inn the party owns is
+      // theirs too, and making them ask for each one would be busywork.
+      ownership: this.actor.toObject().ownership,
+      system: { parentUuid: this.actor.uuid },
+    });
+    child?.sheet?.render(true);
+    this.render();
+  }
+
+  static async #onRemoveOccupant(_event, target) {
+    const uuid = target.closest("[data-occupant-uuid]")?.dataset.occupantUuid;
+    if (uuid) await places.removeOccupant(this.actor, uuid);
+    this.render();
+  }
+
+  /**
+   * Promote a DERIVED row (someone standing on the linked scene) into a stored
+   * one. Deliberately explicit: a party crossing a map must not silently take up
+   * residence in it, so the observation only becomes a record when asked.
+   */
+  static async #onKeepOccupant(_event, target) {
+    const uuid = target.closest("[data-occupant-uuid]")?.dataset.occupantUuid;
+    const actor = uuid ? await fromUuid(uuid).catch(() => null) : null;
+    if (actor) await places.addOccupant(this.actor, actor.actor ?? actor);
+    this.render();
+  }
+
+  static async #onToggleOccupantHidden(_event, target) {
+    if (!game.user.isGM) return;
+    const uuid = target.closest("[data-occupant-uuid]")?.dataset.occupantUuid;
+    const rows = (this.actor.system.roster ?? []).map((r) => r.toObject?.() ?? r);
+    const row = rows.find((r) => r.uuid === uuid);
+    if (!row) return;
+    row.hidden = !row.hidden;
+    await this.actor.update({ "system.roster": rows });
+  }
+
+  /** Split one instance out of a stacked place (eight bays → seven + one). */
+  static async #onSplitStack() {
+    const made = await places.splitPlace(this.actor, 1);
+    if (made) {
+      ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.split`, { name: made.name }));
+      made.sheet?.render(true);
+    }
+    this.render();
+  }
+
+  static async #onOpenScene() {
+    const scene = await fromUuid(this.actor.system.sceneUuid).catch(() => null);
+    scene?.view?.();
+  }
+
+  /** Break the scene link from the place side. The scene's flag is authoritative,
+   *  so BOTH ends are cleared — clearing only the mirror would let the scene
+   *  re-assert the link on its next render. */
+  static async #onUnlinkScene() {
+    const scene = await fromUuid(this.actor.system.sceneUuid).catch(() => null);
+    if (scene) await scene.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
+    await this.actor.update({ "system.sceneUuid": "" });
+    this.render();
+  }
+
+  /* ---------------------------- the market gate ------------------------- */
+
+  /**
+   * Give this place a market. One write of a fully-defaulted subtree — until
+   * now `system.market` was literally null, which is what kept a cave from
+   * carrying a recruitment schema it would never use.
+   */
+  static async #onAddMarket() {
+    if (!game.user.isGM || this.actor.system.hasMarket) return;
+    await this.actor.update({ "system.market": emptyMarket() });
+    this.tabGroups.primary = "recruitment";
+    this.render();
+  }
+
+  /**
+   * Take the market away — and say plainly what that discards, because it
+   * discards a great deal: every posting, candidate, slander entry and fee
+   * ledger line goes with it. Hired people are real actors and are untouched.
+   */
+  static async #onRemoveMarket() {
+    if (!game.user.isGM || !this.actor.system.hasMarket) return;
+    const sys = this.actor.system;
+    const tally = [
+      { n: sys.postings.length, key: "postings" },
+      { n: sys.candidates.length, key: "candidates" },
+      { n: sys.specialHires.length, key: "specialHires" },
+      { n: sys.slander.length, key: "slander" },
+    ].filter((row) => row.n > 0);
+    const detail = tally.length
+      ? `<ul>${tally.map((row) => `<li>${row.n} × ${game.i18n.localize(`${LANG_PREFIX}.place.discard.${row.key}`)}</li>`).join("")}</ul>`
+      : `<p>${game.i18n.localize(`${LANG_PREFIX}.place.discardNothing`)}</p>`;
+    const ok = await foundry.applications.api.DialogV2.confirm({
+      window: { title: game.i18n.format(`${LANG_PREFIX}.place.removeMarketTitle`, { name: this.actor.name }) },
+      content: `<p>${game.i18n.localize(`${LANG_PREFIX}.place.removeMarketWarn`)}</p>${detail}`,
+    }).catch(() => false);
+    if (!ok) return;
+    await this.actor.update({ "system.market": null });
+    this.tabGroups.primary = "contents";
+    this.render();
   }
 
   /* ====================================================================== */

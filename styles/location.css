@@ -285,3 +285,160 @@
 .acks-location-manager-newname.hidden {
   display: none;
 }
+
+/* ==========================================================================
+   Places — nesting, occupancy, stacking, and the scene link.
+   Everything here is on the Contents tab, which every place has; the market
+   tabs above it are the opt-in specialisation (2026-08-02).
+   ========================================================================== */
+
+/* The breadcrumb: where this place sits. Wraps rather than scrolls, because a
+   deep chain (realm > duchy > town > inn > cellar) is a legitimate address and
+   truncating it would hide the part that disambiguates. */
+.acks-extras-place-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  align-items: center;
+  font-size: var(--acks-fs-sm, 0.8em);
+  opacity: 0.85;
+}
+.acks-extras-place-crumbs a {
+  cursor: pointer;
+  text-decoration: none;
+}
+.acks-extras-place-crumbs a:hover {
+  text-decoration: underline;
+}
+.acks-extras-place-crumbs i {
+  font-size: 0.75em;
+  opacity: 0.6;
+}
+
+.acks-extras-place-idline {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.acks-extras-place-idline label {
+  display: flex;
+  flex: 1;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+/* Contents: sub-places and goods in one list, sub-places first. */
+.acks-extras-place-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.acks-extras-place-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.15rem 0.25rem;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+}
+.acks-extras-place-row img {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  border: 0;
+}
+/* A place is drillable, an item is not — the weight difference is the cue. */
+.acks-extras-place-row.is-place .acks-extras-place-name {
+  font-weight: 600;
+  cursor: pointer;
+}
+.acks-extras-place-name {
+  flex: 1;
+}
+.acks-extras-place-owner,
+.acks-extras-place-hint {
+  font-size: var(--acks-fs-sm, 0.8em);
+  opacity: 0.7;
+}
+.acks-extras-place-detach {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.acks-extras-place-detach:hover {
+  opacity: 1;
+}
+
+/* Occupants. A DERIVED row (someone standing on the linked map right now) is
+   dimmed and italic: it is an observation, not a record, and it disappears when
+   the token walks away. */
+.acks-extras-occupant-table td.portrait {
+  width: 28px;
+}
+.acks-extras-occupant-table td.portrait img {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border: 0;
+}
+.acks-extras-occupant-table tr.is-derived {
+  font-style: italic;
+  opacity: 0.75;
+}
+.acks-extras-occupant-table tr.is-missing {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+.acks-extras-occupant-table td.row-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+.acks-extras-occupant-table td.row-actions a {
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+/* Stack badge and the scene chip. The scene chip lights up when that scene is
+   the one currently being viewed, so "the map I am on" is legible at a glance. */
+.acks-extras-place-stack {
+  font-variant-numeric: tabular-nums;
+}
+.acks-extras-place-scene {
+  cursor: pointer;
+  text-decoration: none;
+}
+.acks-extras-place-scene.is-active {
+  outline: 1px solid var(--acks-color-accent, #7a5c2e);
+}
+
+.acks-extras-place-admin {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+.acks-extras-place-nomarket {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px dashed var(--color-border-light-tertiary, #b5b3a4);
+  border-radius: 4px;
+}
+.acks-extras-place-nomarket .hint {
+  flex: 1;
+  margin: 0;
+}
+.acks-extras-place-notes {
+  padding: 0.25rem;
+}
+
+/* The scene-config row this module injects (scene-link.mjs). */
+.acks-extras-scene-place .form-fields {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.acks-extras-scene-place-new {
+  flex: 0 0 auto;
+  width: 2rem;
+}
