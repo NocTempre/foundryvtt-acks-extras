@@ -1,0 +1,54 @@
+{
+  "_id": "acksEqSamp000009",
+  "_key": "!items!acksEqSamp000009",
+  "name": "Tooth-Breaker (named war hammer)",
+  "type": "weapon",
+  "img": "icons/weapons/hammers/hammer-war-spiked.webp",
+  "system": {
+    "_schemaVersion": 3,
+    "cost": 0,
+    "weight6": 1,
+    "damage": "1d6+1",
+    "bonus": 0,
+    "melee": true,
+    "missile": false,
+    "description": "<p>A rune-carved war hammer. Its finder named it <em>Tooth-Breaker</em>, unlocking one bonus category; each level of experience earned while wielding it unlocks another point, until its full power is reached. Speaking its true name would grant all its powers at once.</p><p><em>Judges Journal naming rules (p. 399). The signature badge on the item sheet's header tracks the unlocking; enable the named-item overlay to advance it automatically on level-up.</em></p>"
+  },
+  "effects": [],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "size": "small",
+      "damageType": "bludgeoning",
+      "named": {
+        "trueName": "Fist of Iron",
+        "givenName": "Tooth-Breaker",
+        "unlocked": 1,
+        "revealed": false,
+        "ladder": [
+          "damage",
+          "hit",
+          "damage",
+          "hit",
+          "damage",
+          "hit"
+        ],
+        "base": {
+          "bonus": 0,
+          "damage": "1d6",
+          "aac": 0,
+          "weight6": 1
+        }
+      }
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 900,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "_id": "acksEqProf000025",
+  "_key": "!items!acksEqProf000025",
+  "name": "Combat Trickery (Incapacitate)",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>The incapacitate maneuver's penalty is reduced by 2 and the target saves at −2.</p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqPfEf000025",
+      "_key": "!items.effects!acksEqProf000025.acksEqPfEf000025",
+      "name": "Combat Trickery (Incapacitate)",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.maneuverTrickery",
+          "type": "override",
+          "value": "incapacitate",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 2500,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

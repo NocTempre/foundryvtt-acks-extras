@@ -1,0 +1,60 @@
+{
+  "_id": "acksEqTrain00028",
+  "_key": "!items!acksEqTrain00028",
+  "name": "Restricted Weapon: Dagger",
+  "type": "ability",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>Restricted selection: proficiency with the dagger. A restricted class picks <strong>any 4</strong> of bola, cestus, club, dagger, dart, net, sap, sling, staff, whip.</p><p><em>Class training chunk — Judges Journal pp. 290–291. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqTrEf000028",
+      "_key": "!items.effects!acksEqTrain00028.acksEqTrEf000028",
+      "name": "Restricted Weapon: Dagger",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.weaponProf",
+          "type": "override",
+          "value": "dagger",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "training": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 2800,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

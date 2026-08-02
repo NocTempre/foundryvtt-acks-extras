@@ -1,0 +1,60 @@
+{
+  "_id": "acksEqTrain00005",
+  "_key": "!items!acksEqTrain00005",
+  "name": "Fighting Style: Weapon & Shield",
+  "type": "ability",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>Fighting while wielding a small, tiny, or medium weapon or missile weapon in one hand and a shield in the other. <strong>Classes which lack this style gain no benefit from shields.</strong></p><p><em>Class training chunk — Judges Journal pp. 290–291. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqTrEf000005",
+      "_key": "!items.effects!acksEqTrain00005.acksEqTrEf000005",
+      "name": "Fighting Style: Weapon & Shield",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.styleProficient",
+          "type": "override",
+          "value": "weaponShield",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "training": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 500,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

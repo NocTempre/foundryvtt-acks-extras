@@ -1,0 +1,6 @@
+#!/bin/sh
+# Synced from acks-module-template; do not hand-edit.
+# Keeps licensed ACKS II material out of git history by quarantining flagged
+# files at commit time — the last moment a .gitignore can still prevent it.
+# Enabled by `npm install` (the prepare script sets core.hooksPath=.githooks).
+exec node tools/ip-quarantine.mjs

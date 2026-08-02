@@ -1,0 +1,272 @@
+/* ============================================================================
+ * TABLES — the workhorse of every ACKS II page, and of every Foundry sheet.
+ *
+ * Anatomy, measured from the Revised Rulebook:
+ *   - a title above the table, outside it: Trajan Semibold caps, INK not
+ *     burgundy (the one place headings are black)
+ *   - a burgundy porphyry header row, white Cronos caps lettering
+ *   - body rows alternating --tint / --paper-pure, zero row borders
+ *   - a hairline burgundy frame around the whole table, hairline column rules
+ *   - numeric columns right-aligned, tabular figures
+ *   - an optional "Notes:" block beneath, Cronos Bold label + fine print
+ *
+ * Square corners, no shadow. See tokens --acks-radius.
+ * ========================================================================== */
+
+.acks-table-title {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h3);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-ink);
+  margin-block: var(--acks-sp-6) var(--acks-sp-2);
+}
+
+.acks-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: var(--acks-border-hair);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  line-height: var(--acks-lh-tight);
+  color: var(--acks-ink);
+  background: var(--acks-paper-pure);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Table directly under its own title: close the gap. */
+.acks-table-title + .acks-table {
+  margin-block-start: 0;
+}
+
+/* --- Header row: porphyry band, white letterspaced caps. ----------------- */
+.acks-table thead th {
+  background-color: var(--acks-burgundy);
+  background-image: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--acks-burgundy-deep) 55%, transparent) 0%,
+    transparent 30%,
+    color-mix(in srgb, var(--acks-burgundy-lit) 18%, transparent) 55%,
+    transparent 75%,
+    color-mix(in srgb, var(--acks-burgundy-deep) 50%, transparent) 100%
+  );
+  color: var(--acks-on-burgundy);
+  font-weight: var(--acks-weight-medium);
+  font-size: var(--acks-fs-label);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  text-align: start;
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: none;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+/* Hairline separators between header cells, drawn in the paper colour so they
+ * read as a break in the stone rather than a line on top of it. */
+.acks-table thead th:not(:first-child) {
+  box-shadow: inset var(--acks-rule-hair) 0 0 0
+    color-mix(in srgb, var(--acks-on-burgundy) 30%, transparent);
+}
+
+/* --- Body rows: alternating tint, no horizontal rules. ------------------- */
+.acks-table tbody td,
+.acks-table tbody th {
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: none;
+  vertical-align: top;
+  text-align: start;
+  font-weight: var(--acks-weight-body);
+}
+
+.acks-table tbody tr:nth-child(odd) {
+  background: var(--acks-tint);
+}
+
+.acks-table tbody tr:nth-child(even) {
+  background: var(--acks-paper-pure);
+}
+
+/* Hairline column rules, burgundy at low opacity. */
+.acks-table tbody td:not(:first-child),
+.acks-table tbody th:not(:first-child) {
+  border-inline-start: var(--acks-border-soft);
+}
+
+/* A row-header cell (the leftmost label column) picks up the Cronos-bold
+ * treatment the books use for template names and roll ranges. */
+.acks-table tbody th[scope="row"] {
+  font-weight: var(--acks-weight-medium);
+  white-space: nowrap;
+}
+
+/* --- Alignment helpers. Numbers right, dice ranges centred. -------------- */
+.acks-table :is(td, th).is-num,
+.acks-table col.is-num ~ *,
+.acks-table .acks-num {
+  text-align: end;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-table :is(td, th).is-center,
+.acks-table .acks-center {
+  text-align: center;
+}
+
+.acks-table :is(td, th).is-wrap {
+  white-space: normal;
+  min-width: 12ch;
+}
+
+/* --- Variants ----------------------------------------------------------- */
+
+/* Zebra off — for short lookup tables where stripes are noise. */
+.acks-table--plain tbody tr:nth-child(odd),
+.acks-table--plain tbody tr:nth-child(even) {
+  background: var(--acks-paper-pure);
+}
+
+.acks-table--plain tbody tr:not(:last-child) :is(td, th) {
+  border-block-end: var(--acks-border-soft);
+}
+
+/* Compact — Foundry inventory lists, where vertical space is the constraint. */
+.acks-table--compact :is(thead th, tbody td, tbody th) {
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+}
+
+.acks-table--compact {
+  font-size: var(--acks-fs-fine);
+}
+
+/* Grid — every cell ruled, for matrix/crosstab data (saving throws by level). */
+.acks-table--grid tbody :is(td, th) {
+  border: var(--acks-border-soft);
+}
+
+/* Multi-column continuation: the books split one logical table into 2–3
+ * side-by-side blocks to fill a spread. Repeat the header per block. */
+.acks-table--split {
+  --acks-split-gap: var(--acks-gutter);
+}
+
+.acks-table-group {
+  display: grid;
+  grid-template-columns: repeat(var(--acks-table-cols, 2), minmax(0, 1fr));
+  gap: var(--acks-gutter);
+}
+
+/* Interactive rows (Foundry item lists). The books have no hover state, so
+ * this is invented — a burgundy tint plus a spot-colour edge marker, which
+ * keeps it inside the established vocabulary. */
+.acks-table--interactive tbody tr {
+  cursor: pointer;
+  transition: background-color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-table--interactive tbody tr:hover {
+  background: var(--acks-tint-2);
+}
+
+.acks-table--interactive tbody tr td:first-child {
+  box-shadow: inset 0 0 0 0 var(--acks-spot);
+  transition: box-shadow var(--acks-duration) var(--acks-ease);
+}
+
+.acks-table--interactive tbody tr:hover td:first-child {
+  box-shadow: inset var(--acks-rule-heavy) 0 0 0 var(--acks-spot);
+}
+
+.acks-table--interactive tbody tr[aria-selected="true"] {
+  background: var(--acks-tint-2);
+}
+
+.acks-table--interactive tbody tr[aria-selected="true"] td:first-child {
+  box-shadow: inset var(--acks-rule-heavy) 0 0 0 var(--acks-spot);
+}
+
+/* --- Notes block: the fine print the books hang under a big table. ------- */
+.acks-table-notes {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  line-height: var(--acks-lh-snug);
+  color: var(--acks-ink);
+  margin-block-start: var(--acks-sp-3);
+}
+
+.acks-table-notes > .acks-table-notes-label {
+  font-weight: var(--acks-weight-bold);
+}
+
+/* --- Overflow. Foundry sheets are narrow; wide tables must scroll inside
+ *     their own frame rather than blow out the sheet. ---------------------- */
+.acks-table-scroll {
+  overflow-x: auto;
+  border: var(--acks-border-hair);
+}
+
+.acks-table-scroll > .acks-table {
+  border: none;
+  min-width: max-content;
+}
+
+/* --- Sortable header affordance (Foundry list headers). ------------------ */
+.acks-table th[aria-sort] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.acks-table th[aria-sort]::after {
+  content: "";
+  display: inline-block;
+  margin-inline-start: var(--acks-sp-3);
+  width: 0.4em;
+  height: 0.4em;
+  border-inline-end: var(--acks-rule-hair) solid currentColor;
+  border-block-end: var(--acks-rule-hair) solid currentColor;
+  transform: rotate(45deg) translateY(-0.1em);
+  opacity: 0.35;
+}
+
+.acks-table th[aria-sort="ascending"]::after {
+  transform: rotate(-135deg) translateY(-0.1em);
+  opacity: 1;
+}
+
+.acks-table th[aria-sort="descending"]::after {
+  opacity: 1;
+}
+
+/* --- Stat block: the Monstrous Manual's key/value run, not a real table. -- */
+.acks-statblock {
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-body);
+  line-height: var(--acks-lh-snug);
+  margin-block: var(--acks-sp-5);
+}
+
+.acks-statblock > div {
+  border-block-end: var(--acks-border-soft);
+  padding-block: var(--acks-sp-2);
+  display: flex;
+  gap: var(--acks-sp-4);
+  justify-content: space-between;
+}
+
+.acks-statblock > div:last-child {
+  border-block-end: none;
+}
+
+.acks-statblock dt,
+.acks-statblock .acks-statblock-key {
+  font-weight: var(--acks-weight-bold);
+  color: var(--acks-ink);
+}
+
+.acks-statblock dd,
+.acks-statblock .acks-statblock-val {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: lining-nums tabular-nums;
+}

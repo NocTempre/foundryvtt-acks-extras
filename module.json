@@ -1,0 +1,207 @@
+{
+  "id": "acks-extras",
+  "title": "ACKS II — Extras",
+  "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations, henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block — over shared primitives and one rules-table registry.",
+  "version": "0.1.0",
+  "socket": true,
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14.364"
+  },
+  "authors": [
+    {
+      "name": "NocTempre"
+    }
+  ],
+  "license": "LICENSE",
+  "esmodules": [
+    "scripts/module.mjs"
+  ],
+  "styles": [
+    "styles/lib.css",
+    "vendor/acks-design/acks-design.css",
+    "styles/lib-sheet-theme.css",
+    "styles/lib-follower-card.css",
+    "styles/abilities.css",
+    "styles/equipment.css",
+    "styles/formation.css",
+    "styles/henchmen.css",
+    "styles/influence.css",
+    "styles/location.css",
+    "styles/monsters.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "documentTypes": {
+    "Actor": {
+      "animal": {
+        "htmlFields": [
+          "details.biography"
+        ]
+      },
+      "group": {
+        "htmlFields": [
+          "details.biography"
+        ]
+      },
+      "template": {
+        "htmlFields": [
+          "details.biography"
+        ]
+      },
+      "party": {},
+      "location": {
+        "htmlFields": [
+          "notes"
+        ]
+      }
+    },
+    "RegionBehavior": {
+      "encounterZone": {}
+    },
+    "Item": {
+      "attitude": {}
+    }
+  },
+  "packs": [
+    {
+      "name": "equipment-training",
+      "label": "ACKS Class Training (Fighting Styles, Weapons, Armour)",
+      "path": "packs/equipment-training",
+      "type": "Item",
+      "system": "acks",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "equipment-proficiencies",
+      "label": "ACKS Equipment & Combat Proficiencies",
+      "path": "packs/equipment-proficiencies",
+      "type": "Item",
+      "system": "acks",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "equipment-samples",
+      "label": "ACKS Equipment Samples (Shield Variants, Masterwork, Named)",
+      "path": "packs/equipment-samples",
+      "type": "Item",
+      "system": "acks",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "equipment-actors",
+      "label": "ACKS Equipment Sample Characters",
+      "path": "packs/equipment-actors",
+      "type": "Actor",
+      "system": "acks",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "macros",
+      "label": "ACKS Extras Macros",
+      "path": "packs/macros",
+      "type": "Macro",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "proficiencies-powers",
+      "label": "ACKS Henchmen Proficiencies & Powers",
+      "path": "packs/proficiencies-powers",
+      "type": "Item",
+      "system": "acks",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "bestiary",
+      "label": "ACKS Full Monsters (Example)",
+      "path": "packs/bestiary",
+      "type": "Actor",
+      "system": "acks",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "spoils",
+      "label": "ACKS Monster Spoils (Example)",
+      "path": "packs/spoils",
+      "type": "Item",
+      "system": "acks",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "treasure",
+      "label": "ACKS Monster Treasure (Example)",
+      "path": "packs/treasure",
+      "type": "RollTable",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    }
+  ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "acks",
+        "type": "system",
+        "compatibility": {
+          "minimum": "14"
+        }
+      }
+    ],
+    "requires": [
+      {
+        "id": "lib-wrapper",
+        "type": "module",
+        "reason": "Wraps core AcksItem roll and tag methods so every route into a roll picks up ability, equipment and proficiency modifiers.",
+        "compatibility": {
+          "minimum": "1.12.0"
+        }
+      },
+      {
+        "id": "socketlib",
+        "type": "module",
+        "reason": "Routes equip auto-resolve, loadout-effect writes and GM-only rolls through the primary GM so players can act without ownership grants.",
+        "compatibility": {
+          "minimum": "1.1.0"
+        }
+      }
+    ]
+  },
+  "url": "https://github.com/NocTempre/foundryvtt-acks-extras",
+  "manifest": "https://github.com/NocTempre/foundryvtt-acks-extras/releases/latest/download/module.json",
+  "download": "https://github.com/NocTempre/foundryvtt-acks-extras/releases/latest/download/module.zip",
+  "flags": {
+    "acks-extras": {
+      "idPrefix": "acks"
+    }
+  }
+}

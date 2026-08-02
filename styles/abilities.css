@@ -1,0 +1,113 @@
+/* acks-abilities styles. Scope every selector under a module-specific class. */
+
+/* Mechanics tab: structured effect rows */
+.acks-abilities-effects { list-style: none; margin: 0; padding: 0; }
+.acks-abilities-effects li { display: flex; gap: 0.5rem; align-items: baseline; padding: 2px 0; border-bottom: 1px solid rgba(0,0,0,0.08); }
+.acks-abilities-effect-kind { flex: 0 0 auto; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7; min-width: 7.5rem; }
+.acks-abilities-effect-text { flex: 1 1 auto; }
+
+/* Capability tokens: compact chips, not a bulleted list. */
+.acks-abilities-caps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-abilities-caps code {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.18);
+}
+
+/* A per-level progression read off a printed table renders as a table. It
+   scrolls sideways rather than wrapping — fourteen levels will not fit an item
+   sheet, and a wrapped grid stops reading as a progression. */
+.acks-abilities-ladder-wrap {
+  overflow-x: auto;
+  margin-top: 4px;
+}
+
+.acks-abilities-ladder {
+  border-collapse: collapse;
+  font-size: var(--font-size-11, 11px);
+}
+
+.acks-abilities-ladder th,
+.acks-abilities-ladder td {
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  padding: 1px 5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.acks-abilities-ladder th {
+  text-align: right;
+  opacity: 0.75;
+}
+
+/* Rolls tab: one clickable row per roll, its progression underneath. */
+.acks-abilities-roll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-abilities-roll + .acks-abilities-roll {
+  margin-top: 6px;
+}
+
+.acks-abilities-roll-go {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.acks-abilities-roll-label {
+  flex: 1;
+}
+
+.acks-abilities-roll-value {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.acks-abilities-roll-cond {
+  margin: 2px 0 0 26px;
+}
+
+/* A count above 1 on an ability the book says cannot be taken twice. The data
+   contradicts itself, so the field argues with you instead of looking settled. */
+.acks-abilities-conflict input,
+.acks-abilities-conflict select {
+  border-color: var(--color-level-error, #b60205);
+  outline: 1px solid var(--color-level-error, #b60205);
+}
+
+.acks-abilities-conflict .hint {
+  color: var(--color-level-error, #b60205);
+  opacity: 1;
+}
+
+/* Selection picks: a checkbox per canonical pick (acks-lib SELECTION_VOCAB),
+   with the comma-separated line below as the fallback for anything else. */
+.acks-abilities-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-bottom: 3px;
+}
+.acks-abilities-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+.acks-abilities-pick input {
+  margin: 0;
+}

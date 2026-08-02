@@ -1,0 +1,15 @@
+<div class="acks-henchmen-card event-card">
+  <header class="card-header"><h3>{{title}}</h3></header>
+  <div class="card-content">
+    {{#if body}}<p>{{body}}</p>{{/if}}
+    {{#if buttons.length}}
+    <div class="card-buttons">
+      {{#each buttons}}
+      <button type="button" data-acks-henchmen-action="{{action}}" data-payload="{{payload}}">
+        {{#if icon}}<i class="{{icon}}"></i> {{/if}}{{label}}
+      </button>
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+</div>

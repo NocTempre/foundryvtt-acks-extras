@@ -1,0 +1,20 @@
+{
+  "_id": "acksEqUninstall0",
+  "_key": "!macros!acksEqUninstall0",
+  "name": "Uninstall — Strip Equipment Data",
+  "type": "script",
+  "img": "icons/svg/hazard.svg",
+  "scope": "global",
+  "command": "// Remove everything acks-equipment wrote to this world, so the module can be\n// disabled or uninstalled with nothing left behind: the managed \"Equipment\n// Loadout\" effects (which would otherwise keep applying stale AC/init/attack\n// modifiers forever), every flags.acks-equipment.* on actors and items, and\n// any disguise masks (revealed first, so items keep their TRUE identity).\n// Optionally also reverts masterwork/scavenged stat layers to pristine.\n// Run this BEFORE disabling the module — the macro needs the module's code.\nif (!game.user.isGM) { ui.notifications.warn(\"GM only.\"); return; }\nconst api = game.modules.get(\"acks-equipment\")?.api ?? globalThis.acksEquipment;\nif (!api?.stripModuleData) { ui.notifications.error(\"ACKS Equipment is not active.\"); return; }\nconst form = await foundry.applications.api.DialogV2.prompt({\n  window: { title: \"Strip ACKS Equipment data from this world?\" },\n  content: `<p>This removes the module's managed loadout effects, reveals any\n    disguised items, and deletes every <code>acks-equipment</code> flag from\n    actors and items (containers, grips, ammo state, named-item trackers,\n    proficiency profiles). It cannot be undone.</p>\n    <label class=\"checkbox\"><input type=\"checkbox\" name=\"revert\">\n    Also revert masterwork / scavenged items to their original stats\n    (unchecked: they keep their current, earned values)</label>\n    <p class=\"notes\">After it finishes, disable the module before the next\n    reload — while enabled, it rebuilds loadout effects on load. Leave\n    <b>acks-lib</b> enabled if any other ACKS module still uses it, or if the\n    world contains Animal/Group/Template actors: those actor types live in\n    acks-lib and become unavailable while it is off (they return, unharmed,\n    the moment it is re-enabled).</p>`,\n  ok: { label: \"Strip module data\", callback: (_ev, btn) => new FormData(btn.form) },\n  rejectClose: false,\n});\nif (!form) return;\nconst counts = await api.stripModuleData({ revertLayers: !!form.get(\"revert\") });\nif (!counts) return;\nui.notifications.info(\n  `acks-equipment stripped: ${counts.effects} loadout effect(s), ${counts.items} flagged item(s), ` +\n  `${counts.actors} actor flag set(s), ${counts.revealed} disguise(s) revealed, ${counts.reverted} item(s) reverted. ` +\n  \"You can now disable the module safely.\"\n);",
+  "folder": null,
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

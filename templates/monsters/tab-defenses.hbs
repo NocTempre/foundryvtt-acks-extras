@@ -1,0 +1,84 @@
+<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="defenses">
+  <div class="content flexcol acksm-content">
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.immunities"}}</legend>
+      <div class="form-group stacked">
+        <label>{{localize "ACKS-MONSTERS.field.dmgTypes"}}</label>
+        <multi-checkbox name="{{x}}.defenses.immunities.damage" class="acksm-chips">
+          {{#each choices.damage as |label key|}}
+          <option value="{{key}}" {{#if (acksMonstersHas @root.selected.immDamage key)}}selected{{/if}}>{{localize label}}</option>
+          {{/each}}
+        </multi-checkbox>
+      </div>
+      <div class="flexrow">
+        <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.defenses.immunities.mundane" {{#if extras.defenses.immunities.mundane}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.mundane"}}</label>
+        <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.defenses.immunities.extraordinary" {{#if extras.defenses.immunities.extraordinary}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.extraordinary"}}</label>
+      </div>
+      <div class="flexrow">
+        <div class="form-group flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
+          <div class="form-fields"><input type="text" name="{{x}}.defenses.immunities.effects" value="{{extras.defenses.immunities.effects}}" placeholder="{{localize 'ACKS-MONSTERS.hint.effectKeywords'}}"/></div></div>
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.note"}}</label>
+          <div class="form-fields"><input type="text" name="{{x}}.defenses.immunities.note" value="{{extras.defenses.immunities.note}}"/></div></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.resistances"}}</legend>
+      <div class="form-group stacked">
+        <label>{{localize "ACKS-MONSTERS.field.dmgTypes"}}</label>
+        <multi-checkbox name="{{x}}.defenses.resistances.damage" class="acksm-chips">
+          {{#each choices.damage as |label key|}}
+          <option value="{{key}}" {{#if (acksMonstersHas @root.selected.resDamage key)}}selected{{/if}}>{{localize label}}</option>
+          {{/each}}
+        </multi-checkbox>
+      </div>
+      <div class="flexrow">
+        <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.defenses.resistances.mundane" {{#if extras.defenses.resistances.mundane}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.mundane"}}</label>
+        <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.defenses.resistances.extraordinary" {{#if extras.defenses.resistances.extraordinary}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.extraordinary"}}</label>
+      </div>
+      <div class="flexrow">
+        <div class="form-group flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
+          <div class="form-fields"><input type="text" name="{{x}}.defenses.resistances.effects" value="{{extras.defenses.resistances.effects}}" placeholder="{{localize 'ACKS-MONSTERS.hint.effectKeywords'}}"/></div></div>
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.note"}}</label>
+          <div class="form-fields"><input type="text" name="{{x}}.defenses.resistances.note" value="{{extras.defenses.resistances.note}}"/></div></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.susceptibilities"}}</legend>
+      <div class="form-group stacked">
+        <label>{{localize "ACKS-MONSTERS.field.dmgTypes"}}</label>
+        <multi-checkbox name="{{x}}.defenses.susceptibilities.damage" class="acksm-chips">
+          {{#each choices.damage as |label key|}}
+          <option value="{{key}}" {{#if (acksMonstersHas @root.selected.susDamage key)}}selected{{/if}}>{{localize label}}</option>
+          {{/each}}
+        </multi-checkbox>
+      </div>
+      <div class="flexrow">
+        <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.defenses.susceptibilities.mundane" {{#if extras.defenses.susceptibilities.mundane}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.mundane"}}</label>
+        <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.defenses.susceptibilities.extraordinary" {{#if extras.defenses.susceptibilities.extraordinary}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.extraordinary"}}</label>
+      </div>
+      <div class="flexrow">
+        <div class="form-group flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
+          <div class="form-fields"><input type="text" name="{{x}}.defenses.susceptibilities.effects" value="{{extras.defenses.susceptibilities.effects}}" placeholder="{{localize 'ACKS-MONSTERS.hint.effectKeywords'}}"/></div></div>
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.note"}}</label>
+          <div class="form-fields"><input type="text" name="{{x}}.defenses.susceptibilities.note" value="{{extras.defenses.susceptibilities.note}}"/></div></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.spellcasting"}}</legend>
+      <div class="flexrow">
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.casterClass"}}</label>
+          <div class="form-fields"><input type="text" name="{{x}}.spellcasting.class" value="{{extras.spellcasting.class}}"/></div></div>
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.casterLevel"}}</label>
+          <div class="form-fields"><input type="number" name="{{x}}.spellcasting.level" value="{{extras.spellcasting.level}}"/></div></div>
+        <div class="form-group flex-2"><label>{{localize "ACKS-MONSTERS.field.note"}}</label>
+          <div class="form-fields"><input type="text" name="{{x}}.spellcasting.note" value="{{extras.spellcasting.note}}" placeholder="{{localize 'ACKS-MONSTERS.hint.spellcasting'}}"/></div></div>
+      </div>
+      <p class="acksm-hint">{{localize "ACKS-MONSTERS.hint.spellItems"}}</p>
+    </fieldset>
+
+  </div>
+</section>

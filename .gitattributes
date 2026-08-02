@@ -1,0 +1,9 @@
+# Normalise text to LF (matches Linux CI); never convert compiled LevelDB packs.
+* text=auto eol=lf
+
+packs/**/*.ldb binary
+packs/**/*.log binary
+packs/**/CURRENT binary
+packs/**/LOCK binary
+packs/**/LOG binary
+packs/**/MANIFEST-* binary

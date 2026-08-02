@@ -1,0 +1,41 @@
+{{!
+  The ability's non-roll properties, replacing the system's details-ability
+  partial on the Description tab (see ability-sheet.mjs
+  _prepareDescriptionContext).
+
+  Everything describing a THROW — formula, roll type, target, blind, save —
+  lives on the Rolls tab, where all of an ability's throws sit together. Core
+  can only store one roll, so its partial shows that one here; rendering it on
+  Description made the first throw look like the only one, and put a bare
+  "1d20 / = / 0" on every proficiency that makes no throw at all.
+
+  Field names still bind to the system's own schema — this is core's data,
+  just the part of it that is not a roll.
+}}
+<div class="field-set field-set--narrow">
+
+  <div class="form-group">
+    <label class="form-group__label">{{localize 'ACKS.abilities.Requirements'}}</label>
+    <div class="form-group__fields">
+      <input type="text" name="system.requirements" value="{{system.requirements}}" data-dtype="String"/>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-group__label">{{localize 'ACKS.items.proficiencyType'}}</label>
+    <div class="form-group__fields">
+      <select name="system.proficiencytype">
+        {{selectOptions config.proficiencyType localize=true selected=system.proficiencytype}}
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group form-group--row">
+    <label class="form-group__label">{{localize 'ACKS.favorite'}}</label>
+    <div class="form-group__fields">
+      <input type="checkbox" name="system.favorite" value="{{system.favorite}}" {{checked system.favorite}}
+             data-dtype="Boolean"/>
+    </div>
+  </div>
+
+</div>

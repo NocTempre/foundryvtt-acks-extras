@@ -1,0 +1,68 @@
+ACKS II App — License & Disclaimer Notice
+=========================================
+
+This software is an ACKS II App distributed under the ACKS II App License. It is
+NOT open source and NOT Open Game Content. The governing agreement is the ACKS II
+App License as accepted at registration with Autarch LLC; this file summarizes
+its effect on this repository and does not replace or enlarge it.
+
+
+1. Ownership of the code (registered code — not free to take)
+-------------------------------------------------------------
+The original source code, interface, documentation, and original artwork in this
+repository are Copyright (c) NocTempre and are proprietary. All rights are
+reserved, except for the limited rights granted to Autarch LLC under the ACKS II
+App License (Section 2).
+
+No license is granted to any third party to copy, modify, redistribute,
+sublicense, sell, relicense, or create derivative works from this code. Making
+this app available for use does NOT place its code in the public domain, under an
+open-source license, or under any Open Game, community-use, or compatibility
+license, and grants no one permission to take this registered code and ship it as
+their own. The right to run the app is not a right to its source.
+
+
+2. Autarch's material and rights (ACKS II App License)
+------------------------------------------------------
+ACKS, ACKS II, Adventurer Conqueror King System, and the related names, text,
+tables, data, setting material, and artwork are the property of Autarch LLC and
+are used here under the ACKS II App License. Incorporating ACKS II material into
+this app does not transfer it to the developer or make it open.
+
+Under the ACKS II App License, Autarch LLC retains the right to archive released
+versions, preserve user access when continuity requires it, fix security or
+compatibility problems, port the app, and arrange maintenance if the app is
+abandoned. Autarch LLC may NOT simply appropriate this code and sell it as a
+separate product while the app is actively maintained; it may commercialize the
+app only if the app is abandoned or the developer grants written permission.
+
+
+3. Mandatory conditions of use
+------------------------------
+- UNOFFICIAL. This is an unofficial fan app. It is not published or endorsed by
+  Autarch LLC and does not present itself as an official Autarch product. The
+  app's own name and its developer's identity are kept more prominent than
+  "ACKS II".
+- FREE. The app is free to access and use: no purchase price, subscription,
+  premium tier, paywall, paid early access, advertising, affiliate links, paid
+  API, or required crowdfunding contribution. Voluntary donations, if accepted,
+  earn the donor no extra features, content, releases, or support.
+- USERS STILL NEED THE BOOKS. Users must legitimately own the ACKS II
+  publications this app requires. The app is not marketed as a replacement for
+  buying them and does not knowingly help users avoid buying them.
+- CONTENT STAYS INSIDE THE APP. ACKS II content is not published separately: no
+  data dumps, protected-content repositories, bulk exports, public APIs exposing
+  substantial content, downloadable embeddings, or tools designed to reconstruct
+  the books. Reasonable safeguards against scraping and extraction apply.
+- AI LIMITS. AI may assist development and power in-app features using ACKS II
+  material only inside this approved app. ACKS II material is not used to train or
+  fine-tune a model, is not retained by a provider without written approval, is
+  not released as a general-purpose ACKS model or exposed retrieval database, and
+  is not used to reconstruct the books.
+
+
+4. Registration and required publications
+------------------------------------------
+This app is registered under the ACKS II App License. Its registration number and
+the specific ACKS II publications it requires are stated in its README. The
+registration number MUST appear in the app's public disclaimer before release.

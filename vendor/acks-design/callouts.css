@@ -1,0 +1,191 @@
+/* ============================================================================
+ * CALLOUTS — the books' boxed inserts.
+ *
+ * The rulebook has exactly one box style: a --tint fill inside a hairline
+ * burgundy frame, body copy, and a bold run-in lead ("EXAMPLE:"). Everything
+ * else here is a disciplined extension of that one box for UI needs Foundry
+ * has and a printed page doesn't (warnings, GM-only content, errors).
+ *
+ * Rule of thumb: if you're reaching for a new colour, you're probably reaching
+ * for the wrong component.
+ * ========================================================================== */
+
+.acks-callout {
+  border: var(--acks-border-hair);
+  background: var(--acks-tint);
+  padding: var(--acks-sp-5);
+  margin-block: var(--acks-sp-5);
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-body);
+  line-height: var(--acks-lh-snug);
+  color: var(--acks-ink);
+}
+
+.acks-callout > :last-child {
+  margin-block-end: 0;
+}
+
+/* The run-in lead. Bold ink, followed by the body on the same line. */
+.acks-callout-label {
+  font-weight: var(--acks-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--acks-tracking-caps);
+  font-size: var(--acks-fs-label);
+  font-family: var(--acks-font-ui);
+  color: var(--acks-spot);
+  margin-inline-end: var(--acks-sp-2);
+}
+
+/* A titled callout puts the label on its own line with a hairline under it. */
+.acks-callout-title {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h3);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-spot);
+  margin: 0 0 var(--acks-sp-3);
+  padding-block-end: var(--acks-sp-2);
+  border-block-end: var(--acks-border-hair);
+}
+
+/* --- SIDEBAR: the books' full-height marginal note. Heavier inner edge,
+ *     tighter type, sans face — it should read as commentary, not body. --- */
+.acks-callout--sidebar {
+  border: none;
+  border-inline-start: var(--acks-rule-heavy) solid var(--acks-spot);
+  background: var(--acks-tint);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  line-height: var(--acks-lh-snug);
+}
+
+/* --- PLAIN: no fill, frame only. For long inserts where a tint would be
+ *     too heavy across half a column. ---------------------------------- */
+.acks-callout--plain {
+  background: transparent;
+}
+
+/* --- STONE: reversed out on porphyry. Use sparingly — one per screen at
+ *     most, for a genuinely top-level statement. Compose with .acks-porphyry
+ *     to pick up the texture. ------------------------------------------ */
+.acks-callout--stone {
+  border: none;
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-callout--stone :is(.acks-callout-label, .acks-callout-title) {
+  color: var(--acks-on-burgundy);
+  border-block-end-color: color-mix(in srgb, var(--acks-on-burgundy) 45%, transparent);
+}
+
+/* --- SEMANTIC VARIANTS -----------------------------------------------------
+ * These carry meaning, so they must not rely on colour alone: each sets a
+ * left keyline AND an icon slot AND keeps its label text. The tint stays
+ * within the palette's warmth.
+ * ----------------------------------------------------------------------- */
+.acks-callout--gm {
+  border-inline-start: var(--acks-rule-heavy) solid var(--acks-burgundy-deep);
+  background: var(--acks-tint-2);
+}
+
+.acks-callout--warning {
+  border-inline-start: var(--acks-rule-heavy) solid var(--acks-warning);
+  background: var(--acks-warning-tint);
+}
+
+.acks-callout--warning .acks-callout-label {
+  color: var(--acks-warning-ink);
+}
+
+.acks-callout--danger {
+  border-inline-start: var(--acks-rule-heavy) solid var(--acks-danger);
+  background: var(--acks-danger-tint);
+}
+
+.acks-callout--danger .acks-callout-label {
+  color: var(--acks-danger-ink);
+}
+
+.acks-callout--success {
+  border-inline-start: var(--acks-rule-heavy) solid var(--acks-success);
+  background: var(--acks-success-tint);
+}
+
+.acks-callout--success .acks-callout-label {
+  color: var(--acks-success-ink);
+}
+
+/* --- BADGES / TAGS
+ * Not a print device. Kept strictly to the palette: a hairline burgundy
+ * outline on tint, caps sans, square. Used for proficiency chips, damage
+ * types, spell schools.
+ * ----------------------------------------------------------------------- */
+.acks-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  line-height: 1;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border: var(--acks-border-hair);
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+  white-space: nowrap;
+}
+
+.acks-tag--solid {
+  background: var(--acks-burgundy);
+  border-color: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-tag--ghost {
+  background: transparent;
+}
+
+.acks-tag--danger {
+  border-color: var(--acks-danger);
+  background: var(--acks-danger-tint);
+  color: var(--acks-danger-ink);
+}
+
+.acks-tag-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+}
+
+/* --- EMPTY STATE
+ * Foundry needs it; the books don't have one. Built from existing parts: a
+ * lozenge mark, a Trajan caps line, one line of fine print.
+ * ----------------------------------------------------------------------- */
+.acks-empty {
+  display: grid;
+  place-items: center;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-8) var(--acks-sp-5);
+  text-align: center;
+  border: var(--acks-rule-hair) dashed var(--acks-rule-color-soft);
+  color: var(--acks-ink-soft);
+}
+
+.acks-empty-title {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h3);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-spot);
+}
+
+.acks-empty-hint {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  max-width: 34ch;
+}

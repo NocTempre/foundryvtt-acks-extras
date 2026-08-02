@@ -1,0 +1,59 @@
+{
+  "_id": "acksEqProf000017",
+  "_key": "!items!acksEqProf000017",
+  "name": "Martial Training (Bows & Crossbows)",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>Adds all bows and crossbows to the character's proficient weapons.</p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqPfEf000017",
+      "_key": "!items.effects!acksEqProf000017.acksEqPfEf000017",
+      "name": "Martial Training (Bows & Crossbows)",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.martialWeapons",
+          "type": "override",
+          "value": "bow,crossbow",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 1700,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

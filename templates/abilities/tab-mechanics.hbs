@@ -1,0 +1,180 @@
+<section class="tab acks-abilities-mechanics" data-tab="mechanics" data-group="primary">
+
+  {{#if libMissing}}
+    <p class="notification warning">{{localize "ACKS-ABILITIES.warn.libMissing"}}</p>
+  {{/if}}
+
+  {{#if notice}}
+    <p class="notification {{notice.cls}} acks-abilities-notice" data-tooltip="{{notice.tip}}">
+      <i class="{{notice.icon}}" aria-hidden="true"></i>
+      {{notice.tip}}
+      {{#if notice.replacedBy}} {{localize "ACKS-ABILITIES.warn.replacedBy"}} <code>{{notice.replacedBy}}</code>{{/if}}
+    </p>
+  {{/if}}
+
+  {{#if aliasOf}}
+    <p class="notification info acks-abilities-notice" data-tooltip="{{localize 'ACKS-ABILITIES.warn.aliasTip'}}">
+      <i class="fa-solid fa-link" aria-hidden="true"></i>
+      {{localize "ACKS-ABILITIES.warn.aliasOf"}} <code>{{aliasOf}}</code>
+    </p>
+  {{/if}}
+
+  {{#if extras.unaudited}}
+    <p class="notification info acks-abilities-notice" data-tooltip="{{localize 'ACKS-ABILITIES.warn.unauditedTip'}}">
+      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+      {{localize "ACKS-ABILITIES.warn.unaudited"}}
+    </p>
+  {{/if}}
+
+  <fieldset>
+    <legend>{{localize "ACKS-ABILITIES.mech.classification"}}</legend>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.mech.category"}}</label>
+      <div class="form-fields">
+        <select name="{{x}}.category">{{selectOptions choices.category selected=extras.category}}</select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.mech.general"}}</label>
+      <div class="form-fields">
+        <input type="checkbox" name="{{x}}.general" {{checked extras.general}}>
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.mech.generalHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.mech.repeatable"}}</label>
+      <div class="form-fields">
+        <input type="checkbox" name="{{x}}.repeatable" {{checked extras.repeatable}}>
+      </div>
+    </div>
+
+    {{!-- Times taken. Shown only when it says something: a count of 1 is the
+          default, and an ability that cannot be repeated has nothing to count,
+          so both stay silent rather than putting a meaningless "x1" on every
+          sheet. A count above 1 on a NON-repeatable ability still shows -
+          that combination is a data fault and hiding it would hide the fault. --}}
+    {{#if showQty}}
+    <div class="form-group{{#if qtyConflict}} acks-abilities-conflict{{/if}}">
+      <label>{{localize "ACKS-ABILITIES.mech.qty"}}</label>
+      <div class="form-fields">
+        <input type="number" step="1" min="1" name="{{x}}.qty" value="{{extras.qty}}">
+      </div>
+      <p class="hint">
+        {{#if qtyConflict}}{{localize "ACKS-ABILITIES.mech.qtyConflict"}}
+        {{else}}{{localize "ACKS-ABILITIES.mech.qtyHint"}}{{/if}}
+      </p>
+    </div>
+    {{/if}}
+
+    {{!-- The picks. qty says how often; this says what each take chose, for
+          the list-expanding abilities where a take IS a choice (Weapon Focus's
+          category, Martial Training's group, a Specialization's style).
+          Rank-scaled abilities leave it blank. Edited as one comma-separated
+          line; normalize() splits it. --}}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.mech.selections"}}</label>
+      {{#if selectionOptions.length}}
+      <div class="acks-abilities-picks">
+        {{#each selectionOptions}}
+        <label class="acks-abilities-pick">
+          <input type="checkbox" data-selection-pick="{{this.key}}" {{checked this.checked}}>
+          <span>{{this.label}}</span>
+        </label>
+        {{/each}}
+      </div>
+      {{/if}}
+      <div class="form-fields">
+        <input type="text" name="{{x}}.selections" value="{{selectionsCSV}}"
+               placeholder="{{localize 'ACKS-ABILITIES.mech.selectionsPlaceholder'}}">
+      </div>
+      <p class="hint">{{#if selectionOptions.length}}{{localize "ACKS-ABILITIES.mech.selectionsBoxHint"}} {{/if}}{{localize "ACKS-ABILITIES.mech.selectionsHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.mech.powerValue"}}</label>
+      <div class="form-fields">
+        <input type="number" step="0.5" name="{{x}}.powerValue" value="{{extras.powerValue}}" placeholder="—">
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.mech.powerValueHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.mech.requires"}}</label>
+      <div class="form-fields">
+        <input type="text" name="{{x}}.requires" value="{{extras.requires}}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.mech.deprecated"}}</label>
+      <div class="form-fields">
+        <input type="checkbox" name="{{x}}.deprecated" {{checked extras.deprecated}}>
+      </div>
+    </div>
+  </fieldset>
+
+  {{#if provides.length}}
+    <fieldset>
+      <legend>{{localize "ACKS-ABILITIES.mech.provides"}}</legend>
+      <p class="hint">{{localize "ACKS-ABILITIES.mech.providesHint"}}</p>
+      <ul class="acks-abilities-caps">
+        {{#each provides}}<li><code data-tooltip="{{this.token}}">{{this.label}}</code></li>{{/each}}
+      </ul>
+    </fieldset>
+  {{/if}}
+
+  <fieldset>
+    <legend>{{localize "ACKS-ABILITIES.mech.effects"}}</legend>
+    {{#if effectRows.length}}
+      <ol class="acks-abilities-effects">
+        {{#each effectRows}}
+          <li>
+            <span class="acks-abilities-effect-kind">{{this.kind}}</span>
+            <span class="acks-abilities-effect-text">{{this.text}}</span>
+            {{#if this.ladder}}
+              <div class="acks-abilities-ladder-wrap">
+                <table class="acks-abilities-ladder">
+                  <tr><th>{{localize "ACKS-ABILITIES.mech.level"}}</th>{{#each this.ladder.levels}}<td>{{this}}</td>{{/each}}</tr>
+                  <tr><th>{{localize "ACKS-ABILITIES.mech.throw"}}</th>{{#each this.ladder.values}}<td>{{this}}</td>{{/each}}</tr>
+                </table>
+              </div>
+            {{/if}}
+          </li>
+        {{/each}}
+      </ol>
+    {{else}}
+      <p class="hint">{{localize "ACKS-ABILITIES.mech.noEffects"}}</p>
+    {{/if}}
+  </fieldset>
+
+  {{#if defenseRows.length}}
+    <fieldset>
+      <legend>{{localize "ACKS-ABILITIES.mech.defenses"}}</legend>
+      <ol class="acks-abilities-effects">
+        {{#each defenseRows}}
+          <li>
+            <span class="acks-abilities-effect-kind">{{this.label}}</span>
+            <span class="acks-abilities-effect-text">
+              {{#each this.damage}}{{this}} {{/each}}
+              {{#each this.effects}}{{this}} {{/each}}
+              {{#each this.conditions}}{{this}} {{/each}}
+            </span>
+          </li>
+        {{/each}}
+      </ol>
+    </fieldset>
+  {{/if}}
+
+  {{! Foundry Active Effects. They had a tab of their own next to this one, both
+      called some variant of "effects" — a split that described the
+      implementation, not the ability. Same list, same controls, and the
+      system's own partial; it just lives here now. }}
+  <fieldset class="acks-abilities-active-effects">
+    <legend>{{localize "ACKS.category.effects"}}</legend>
+    {{> "systems/acks/templates/items/v2/common/item-active-effects.hbs"}}
+  </fieldset>
+
+</section>

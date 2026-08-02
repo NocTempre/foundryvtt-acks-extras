@@ -1,0 +1,390 @@
+/* ============================================================================
+ * BASE — typography primitives and the page ground.
+ *
+ * Everything is scoped under `.acks-ui`. Nothing here leaks into Foundry's own
+ * chrome or another module's markup: put `.acks-ui` on your sheet root (or on
+ * `<body>` in the preview harness) and the type system switches on.
+ *
+ * These are the printed page's rules, translated:
+ *   - body copy is Crimson Pro at --fs-body, warm black, 1.42 leading
+ *   - every heading is Cinzel caps in the spot colour, letterspaced
+ *   - anything dense or interactive is Source Sans (the books' Cronos role)
+ * ========================================================================== */
+
+.acks-ui {
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-body);
+  font-weight: var(--acks-weight-body);
+  line-height: var(--acks-lh-body);
+  color: var(--acks-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Crimson Pro's oldstyle figures are lovely in prose and wrong in a stat
+   * block. Default to lining + tabular so numbers align in tables; prose opts
+   * back in via .acks-prose. */
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-ui *,
+.acks-ui *::before,
+.acks-ui *::after {
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+ * HEADINGS
+ * The books use exactly three levels plus a chapter-opener display size.
+ * All are Trajan (→ Cinzel) in burgundy. Cinzel is caps-only by design, so
+ * `text-transform` is belt-and-braces for lowercase source text.
+ * ----------------------------------------------------------------------- */
+.acks-ui :is(h1, h2, h3, h4, .acks-h1, .acks-h2, .acks-h3) {
+  font-family: var(--acks-font-display);
+  color: var(--acks-spot);
+  line-height: var(--acks-lh-tight);
+  letter-spacing: var(--acks-tracking-display);
+  text-transform: uppercase;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* H1 — a section head. 19pt Trajan Bold in the books. Sits on its own line
+ * with generous space above; no rule (the size carries it). */
+.acks-ui :is(h1, .acks-h1) {
+  font-size: var(--acks-fs-h1);
+  font-weight: var(--acks-weight-bold);
+  margin-block: var(--acks-sp-7) var(--acks-sp-4);
+}
+
+/* H2 — a subsection. 14pt Trajan Bold. */
+.acks-ui :is(h2, .acks-h2) {
+  font-size: var(--acks-fs-h2);
+  font-weight: var(--acks-weight-bold);
+  margin-block: var(--acks-sp-6) var(--acks-sp-3);
+}
+
+/* H3 — 9pt Trajan Bold with a burgundy rule beneath, spanning the measure.
+ * This underline is the single most recognisable ACKS heading device. */
+.acks-ui :is(h3, .acks-h3) {
+  font-size: var(--acks-fs-h3);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: var(--acks-tracking-caps);
+  margin-block: var(--acks-sp-6) var(--acks-sp-3);
+  padding-block-end: var(--acks-sp-2);
+  border-block-end: var(--acks-border-hair);
+}
+
+/* H4 — a run-in label, no rule. Used for stat-block field names. */
+.acks-ui :is(h4, .acks-h4) {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-spot);
+  margin-block: var(--acks-sp-5) var(--acks-sp-2);
+}
+
+/* A heading immediately after another must not double up its margin. */
+.acks-ui :is(h1, h2, h3, h4) + :is(h1, h2, h3, h4) {
+  margin-block-start: var(--acks-sp-3);
+}
+
+.acks-ui :is(h1, h2, h3, h4):first-child {
+  margin-block-start: 0;
+}
+
+/* Chapter-opener display type. Ornamental caps, centred, for hero panels. */
+.acks-display {
+  font-family: var(--acks-font-caps);
+  font-size: var(--acks-fs-display);
+  font-weight: var(--acks-weight-bold);
+  line-height: 1;
+  letter-spacing: var(--acks-tracking-display);
+  text-transform: uppercase;
+  color: var(--acks-spot);
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* --------------------------------------------------------------------------
+ * BODY COPY
+ * ----------------------------------------------------------------------- */
+.acks-ui p {
+  margin-block: 0 var(--acks-sp-5);
+}
+
+.acks-ui p:last-child {
+  margin-block-end: 0;
+}
+
+/* Prose blocks get the book's justified, hyphenated two-column feel and
+ * oldstyle figures. Do NOT use on stat blocks — see font-variant-numeric. */
+.acks-prose {
+  max-width: var(--acks-measure);
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.acks-prose--columns {
+  max-width: none;
+  columns: 2;
+  column-gap: var(--acks-gutter);
+  column-rule: none;
+}
+
+/* Tighter leading for sidebars and dense two-column settings. */
+.acks-prose--dense {
+  line-height: var(--acks-lh-snug);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-ui :is(strong, b) {
+  font-weight: var(--acks-weight-bold);
+}
+
+.acks-ui :is(em, i) {
+  font-style: italic;
+}
+
+/* The books mark referenced titles in bold-italic burgundy. */
+.acks-ui cite,
+.acks-title-ref {
+  font-style: italic;
+  font-weight: var(--acks-weight-bold);
+  color: var(--acks-spot);
+}
+
+/* A bold run-in lead ("EXAMPLE:", "Requirements:") — Minion Bold in the book. */
+.acks-lead-in {
+  font-weight: var(--acks-weight-bold);
+  color: var(--acks-ink);
+}
+
+.acks-ui small,
+.acks-fine {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+  line-height: var(--acks-lh-snug);
+}
+
+.acks-micro {
+  font-size: var(--acks-fs-micro);
+  color: var(--acks-ink-soft);
+  line-height: 1.2;
+}
+
+/* --------------------------------------------------------------------------
+ * LINKS
+ * Not a print element. Burgundy with a hairline underline, which thickens on
+ * hover — the closest thing to the books' rule vocabulary.
+ * ----------------------------------------------------------------------- */
+.acks-ui a {
+  color: var(--acks-spot);
+  text-decoration: underline;
+  text-decoration-thickness: var(--acks-rule-hair);
+  text-underline-offset: 0.18em;
+  transition: text-decoration-thickness var(--acks-duration) var(--acks-ease);
+}
+
+.acks-ui a:hover {
+  text-decoration-thickness: var(--acks-rule);
+}
+
+.acks-ui a:focus-visible,
+.acks-ui :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--acks-focus-ring);
+}
+
+/* --------------------------------------------------------------------------
+ * LISTS
+ * The books' bullet is a burgundy lozenge (Wingdings ♦), not a disc. That
+ * diamond is drawn as a rotated square so it scales with the type and needs
+ * no icon font.
+ * ----------------------------------------------------------------------- */
+.acks-ui ul {
+  list-style: none;
+  margin-block: 0 var(--acks-sp-5);
+  padding-inline-start: var(--acks-sp-6);
+}
+
+.acks-ui ul > li {
+  position: relative;
+  margin-block-end: var(--acks-sp-2);
+}
+
+.acks-ui ul > li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(var(--acks-sp-6) * -1);
+  inset-block-start: 0.48em;
+  width: 0.42em;
+  height: 0.42em;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+.acks-ui ol {
+  margin-block: 0 var(--acks-sp-5);
+  padding-inline-start: var(--acks-sp-7);
+}
+
+.acks-ui ol > li {
+  margin-block-end: var(--acks-sp-2);
+}
+
+.acks-ui ol > li::marker {
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-weight: var(--acks-weight-bold);
+}
+
+/* Nested lists step down to a hollow lozenge. */
+.acks-ui ul ul > li::before {
+  background: transparent;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+/* A tight inline list for proficiency/spell runs — comma-free, no bullets. */
+.acks-list--inline {
+  padding-inline-start: 0;
+}
+
+.acks-list--inline > li {
+  display: inline;
+}
+
+.acks-list--inline > li::before {
+  display: none;
+}
+
+.acks-list--inline > li:not(:last-child)::after {
+  content: ", ";
+}
+
+/* --------------------------------------------------------------------------
+ * QUOTATIONS
+ * In-world quotes are set in Broadsheet Italic (→ IM Fell English Italic),
+ * burgundy, with no box and no quote marks of their own — the script face and
+ * colour do the separating. Attribution follows in the upright cut.
+ * ----------------------------------------------------------------------- */
+.acks-quote {
+  font-family: var(--acks-font-script);
+  font-style: italic;
+  font-size: var(--acks-fs-quote);
+  line-height: var(--acks-lh-quote);
+  color: var(--acks-spot);
+  margin-block: var(--acks-sp-6);
+  margin-inline: 0;
+  max-width: var(--acks-measure);
+}
+
+.acks-quote p {
+  margin-block-end: var(--acks-sp-4);
+}
+
+.acks-quote-source {
+  display: block;
+  font-family: var(--acks-font-script);
+  font-style: normal;
+  color: var(--acks-spot);
+}
+
+.acks-quote-source cite {
+  font-family: var(--acks-font-body);
+}
+
+/* --------------------------------------------------------------------------
+ * DROP CAP — Archeologicaps (→ Cinzel Decorative) opening a chapter.
+ * ----------------------------------------------------------------------- */
+.acks-dropcap::first-letter {
+  float: inline-start;
+  font-family: var(--acks-font-caps);
+  font-weight: var(--acks-weight-bold);
+  font-size: 3.1em;
+  line-height: 0.82;
+  padding-inline-end: 0.08em;
+  padding-block-start: 0.06em;
+  color: var(--acks-spot);
+}
+
+/* --------------------------------------------------------------------------
+ * RULES & DIVIDERS
+ * ----------------------------------------------------------------------- */
+.acks-ui hr,
+.acks-rule {
+  border: none;
+  border-block-start: var(--acks-border);
+  margin-block: var(--acks-sp-6);
+}
+
+.acks-rule--hair {
+  border-block-start: var(--acks-border-hair);
+}
+
+/* The books' double rule: a heavy line above a hairline, separated by paper.
+ * Used under banners and to close a chapter. */
+.acks-rule--double {
+  height: 5px;
+  border: none;
+  border-block-start: var(--acks-rule) solid var(--acks-spot);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  background: transparent;
+}
+
+/* A rule that tapers to a centred lozenge — the section break ornament. */
+.acks-rule--ornament {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  border: none;
+  margin-block: var(--acks-sp-7);
+}
+
+.acks-rule--ornament::before,
+.acks-rule--ornament::after {
+  content: "";
+  flex: 1;
+  height: var(--acks-rule-hair);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--acks-spot) 45%,
+    var(--acks-spot)
+  );
+}
+
+.acks-rule--ornament::after {
+  background: linear-gradient(
+    to left,
+    transparent,
+    var(--acks-spot) 45%,
+    var(--acks-spot)
+  );
+}
+
+.acks-rule--ornament > .acks-lozenge-mark {
+  width: 9px;
+  height: 9px;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+  flex: none;
+}
+
+/* --------------------------------------------------------------------------
+ * SELECTION — tinted, never the browser blue.
+ * ----------------------------------------------------------------------- */
+.acks-ui ::selection {
+  background: var(--acks-tint-2);
+  color: var(--acks-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acks-ui *,
+  .acks-ui *::before,
+  .acks-ui *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

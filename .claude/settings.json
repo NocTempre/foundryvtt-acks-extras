@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm install *)",
+      "Bash(npm ci)",
+      "Bash(npm run *)",
+      "Bash(npm test)",
+      "Bash(npm ls *)",
+      "Bash(node tools/*)",
+      "Bash(node --check *)",
+      "Bash(node -e *)",
+      "Bash(node -p *)",
+      "Bash(node --input-type=module -e *)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git restore *)",
+      "Bash(git commit *)",
+      "Bash(git tag *)",
+      "Bash(git push *)",
+      "Bash(git ls-remote *)",
+      "Bash(gh run *)",
+      "Bash(gh release *)",
+      "Bash(curl -s https://api.github.com/repos/NocTempre/*)",
+      "Bash(curl -sL https://github.com/NocTempre/*)"
+    ]
+  }
+}

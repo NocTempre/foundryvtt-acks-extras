@@ -1,0 +1,562 @@
+/* ACKS II Follower Card (acks-lib) — the printed henchman/follower card as a
+   compact, self-contained actor view. Rendered both as a hireling's own sheet
+   (FollowerCardSheet) and, read-only, as the cards the character sheet's hirelings
+   tab is re-skinned into (acks-henchmen).
+
+   Colours come from the design-system tokens (vendor/acks-design/tokens.css) —
+   the single publisher at :root with one .theme-dark override — so the card is a
+   light printed card on a light seat, inverts its paper on a dark one, and agrees
+   with every other ACKS surface by construction. NO literal fallbacks: a fallback
+   masks a missing token (that is exactly how --acks-field went undeclared while
+   rendering white boxes on dark seats), and acks-lib itself guarantees the token
+   file is loaded. Type rides the scale: the card base is --acks-fs-label off the
+   family-wide --acks-fs-base knob (the acks-lib fontScale setting). Every rule
+   leads with .acks-lib-follower-card so the top-level class carries the module
+   id (7d). */
+
+.acks-lib-follower-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  box-sizing: border-box;
+  font-size: var(--acks-fs-label);
+  line-height: 1.25;
+  color: var(--acks-ink);
+  background: var(--acks-neutral);
+  border: 1px solid var(--acks-ink);
+  border-radius: 3px;
+}
+
+/* The card FILLS its window. The sheet asks to size to content, but a window the
+   user has resized taller keeps that height — and then bare window-content shows
+   below the card as a dark band. Stretching the card removes the band whatever
+   the frame size, and it scrolls when the content is the taller of the two. */
+.acks-lib-follower-card-sheet .window-content {
+  padding: 6px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.acks-lib-follower-card-sheet .acks-lib-follower-card {
+  flex: 1 1 auto;
+}
+
+/* --- Name banner --- */
+.acks-lib-follower-card .fc-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  background: var(--acks-banner, var(--acks-burgundy));
+  color: var(--acks-on-burgundy);
+  border-radius: 2px;
+}
+.acks-lib-follower-card .fc-portrait {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border: 1px solid var(--acks-on-burgundy);
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+.acks-lib-follower-card .fc-open {
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-banner);
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+  font-size: 1.15em;
+  font-weight: 600;
+  text-decoration: none;
+}
+.acks-lib-follower-card .fc-name input {
+  flex: 1;
+  font-family: var(--acks-font-banner);
+  font-variant: small-caps;
+}
+
+/* --- Labels: small-caps burgundy, as printed --- */
+.acks-lib-follower-card label {
+  font-family: var(--acks-font-banner);
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  font-size: 0.82em;
+  color: var(--acks-spot);
+  font-weight: 600;
+}
+
+/* --- Boxed value fields --- */
+.acks-lib-follower-card .fc-field,
+.acks-lib-follower-card .fc-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.acks-lib-follower-card .fc-field span,
+.acks-lib-follower-card .fc-box span,
+.acks-lib-follower-card .fc-field input,
+.acks-lib-follower-card .fc-box input,
+.acks-lib-follower-card .fc-ability input,
+.acks-lib-follower-card .fc-ability .fc-ability-value {
+  background: var(--acks-field);
+  border: 1px solid var(--acks-ink);
+  border-radius: 2px;
+  padding: 1px 4px;
+  min-height: 18px;
+  color: var(--acks-ink);
+}
+
+.acks-lib-follower-card .fc-topline {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.2fr 1.6fr;
+  gap: 4px;
+}
+
+.acks-lib-follower-card .fc-body {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.1fr) 1fr 1fr;
+  gap: 6px;
+  align-items: start;
+}
+
+/* --- AC + HP --- */
+.acks-lib-follower-card .fc-acx {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 4px;
+}
+.acks-lib-follower-card .fc-box {
+  text-align: center;
+}
+.acks-lib-follower-card .fc-hp-edit {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: 0;
+}
+.acks-lib-follower-card .fc-hp-edit input {
+  width: 42%;
+  text-align: center;
+}
+
+/* --- Ability grid --- */
+.acks-lib-follower-card .fc-abilities {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+.acks-lib-follower-card .fc-ability-head {
+  display: grid;
+  grid-template-columns: 2.4em 1fr 2.2em;
+  gap: 3px;
+  font-size: 0.72em;
+  font-variant: small-caps;
+  color: var(--acks-spot);
+  text-align: right;
+}
+.acks-lib-follower-card .fc-ability {
+  display: grid;
+  grid-template-columns: 2.4em 1fr 2.2em;
+  gap: 3px;
+  align-items: center;
+}
+.acks-lib-follower-card .fc-ability label {
+  text-align: left;
+}
+.acks-lib-follower-card .fc-ability-mod {
+  text-align: center;
+  font-weight: 600;
+}
+
+/* --- Vitals: SPD / ENC / MORALE / LOYALTY --- */
+.acks-lib-follower-card .fc-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+.acks-lib-follower-card .fc-vitals .fc-field {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.acks-lib-follower-card .fc-vitals .fc-field span,
+.acks-lib-follower-card .fc-vitals .fc-field a,
+.acks-lib-follower-card .fc-vitals .fc-field input {
+  flex: 0 0 auto;
+  min-width: 3.2em;
+  text-align: center;
+}
+.acks-lib-follower-card .fc-roll {
+  text-decoration: none;
+  color: var(--acks-ink);
+  background: var(--acks-field);
+  border: 1px solid var(--acks-ink);
+  border-radius: 2px;
+  padding: 1px 4px;
+}
+
+/* --- Panels: powers, notes, equipment --- */
+.acks-lib-follower-card .fc-mid,
+.acks-lib-follower-card .fc-right {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.acks-lib-follower-card .fc-panel {
+  border: 1px solid var(--acks-ink);
+  border-radius: 2px;
+  background: var(--acks-field);
+  overflow: hidden;
+}
+.acks-lib-follower-card .fc-panel-title {
+  background: var(--acks-banner, var(--acks-burgundy));
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-banner);
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  font-size: 0.82em;
+  padding: 1px 5px;
+}
+.acks-lib-follower-card .fc-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 3px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.acks-lib-follower-card .fc-panel li {
+  border-bottom: 1px dotted rgb(from var(--acks-ink) r g b / 0.3);
+  padding: 1px 0;
+}
+.acks-lib-follower-card .fc-notes-body,
+.acks-lib-follower-card .fc-notes textarea {
+  padding: 3px 6px;
+  min-height: 48px;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: none;
+  resize: vertical;
+  color: var(--acks-ink);
+}
+
+/* --- Attacks: Melee / Missile · #AT · DMG --- */
+.acks-lib-follower-card .fc-attacks {
+  border: 1px solid var(--acks-ink);
+  border-radius: 2px;
+  background: var(--acks-field);
+}
+/* Four columns: label · #AT · DMG · edit. The pencil is a real column — as an
+   unplaced 4th child it wrapped onto a line of its own under every attack. */
+.acks-lib-follower-card .fc-attacks-head,
+.acks-lib-follower-card .fc-attack-row {
+  display: grid;
+  grid-template-columns: 1fr 2em 3.4em 1.2em;
+  gap: 3px;
+  align-items: center;
+  padding: 1px 4px;
+}
+.acks-lib-follower-card .fc-attacks-head {
+  font-size: 0.72em;
+  font-variant: small-caps;
+  color: var(--acks-spot);
+  text-align: center;
+}
+.acks-lib-follower-card .fc-attack-row label {
+  color: var(--acks-ink);
+  font-variant: normal;
+  font-family: inherit;
+}
+
+/* Keep an attack to ONE line at any card width: only the weapon NAME gives way
+   (ellipsis, full text in the tooltip) — the throw, bonus and size pips are the
+   numbers you came for and always stay visible. */
+.acks-lib-follower-card .fc-attack-row > a,
+.acks-lib-follower-card .fc-attack-row > label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.acks-lib-follower-card .fc-attack-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.acks-lib-follower-card .fc-attack-throw,
+.acks-lib-follower-card .fc-attack-bonus,
+.acks-lib-follower-card .fc-size {
+  flex: 0 0 auto;
+}
+.acks-lib-follower-card .fc-attack-row span {
+  text-align: center;
+}
+
+/* --- Read-only footer actions --- */
+.acks-lib-follower-card .fc-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 2px 4px 0;
+}
+.acks-lib-follower-card .fc-actions a {
+  color: var(--acks-spot);
+}
+
+/* Read-only cards (hirelings-tab grid) inherit the same scale step as the
+   editable sheet. They used to drop to a hardcoded 11px — the smallest text
+   in the client, on the surface players actually read at the table. */
+
+/* --- Interactive affordances (editable sheet only) --- */
+.acks-lib-follower-card .fc-equip {
+  color: rgb(from var(--acks-ink) r g b / 0.35);
+  text-decoration: none;
+  cursor: pointer;
+}
+.acks-lib-follower-card .fc-equip.on,
+.acks-lib-follower-card .fc-equipped-mark {
+  color: var(--acks-spot);
+}
+.acks-lib-follower-card .fc-roll-link {
+  color: var(--acks-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.acks-lib-follower-card .fc-roll-link:hover,
+.acks-lib-follower-card .fc-attack-row a.fc-roll:hover {
+  color: var(--acks-spot);
+  text-decoration: underline;
+}
+.acks-lib-follower-card .fc-attack-row a.fc-roll {
+  cursor: pointer;
+  color: var(--acks-ink);
+  text-decoration: none;
+}
+.acks-lib-follower-card .fc-ac-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: 0;
+}
+.acks-lib-follower-card .fc-ac-edit input {
+  width: 2.6em;
+  text-align: center;
+}
+.acks-lib-follower-card .fc-ac-reset {
+  color: var(--acks-spot);
+  cursor: pointer;
+  font-size: 0.85em;
+  text-decoration: none;
+}
+
+/* --- Name-bar toolbar: +Attack / +Skill / Commit / Reset --- */
+.acks-lib-follower-card .fc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+.acks-lib-follower-card .fc-toolbar a {
+  color: var(--acks-on-burgundy);
+  text-decoration: none;
+  cursor: pointer;
+  opacity: 0.9;
+}
+.acks-lib-follower-card .fc-toolbar a.off {
+  opacity: 0.35;
+}
+.acks-lib-follower-card .fc-toolbar a i + i {
+  font-size: 0.66em;
+  vertical-align: super;
+  margin-left: -2px;
+}
+
+/* --- Proficiency rows: name left, roll button right --- */
+.acks-lib-follower-card .fc-prof-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.acks-lib-follower-card .fc-prof-roll,
+.acks-lib-follower-card .fc-adv-roll {
+  flex: 0 0 auto;
+  color: var(--acks-spot);
+  text-decoration: none;
+  cursor: pointer;
+  text-align: center;
+}
+
+/* --- Adventuring rows: icon, name, editable throw --- */
+.acks-lib-follower-card .fc-adv-list {
+  list-style: none;
+  margin: 0;
+  padding: 3px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.acks-lib-follower-card .fc-adv-row {
+  display: grid;
+  grid-template-columns: 1.5em 1fr 2.8em;
+  align-items: center;
+  gap: 4px;
+}
+.acks-lib-follower-card .fc-adv-row input {
+  background: var(--acks-field);
+  border: 1px solid var(--acks-ink);
+  border-radius: 2px;
+  padding: 1px 3px;
+  text-align: center;
+  color: var(--acks-ink);
+}
+.acks-lib-follower-card .fc-adv-val {
+  text-align: center;
+}
+
+/* --- Class-build strips, across the card's bottom ----------------------- */
+.acks-lib-follower-card .fc-build {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 6px 2px;
+  margin-top: 2px;
+  border-top: 1px solid rgb(from var(--acks-spot) r g b / 0.35);
+}
+.acks-lib-follower-card .fc-build-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.acks-lib-follower-card .fc-build-label {
+  font-family: var(--acks-font-banner);
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+  font-size: 0.72em;
+  color: var(--acks-spot);
+  margin-right: 1px;
+}
+.acks-lib-follower-card .fc-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0 3px;
+  border: 1px solid rgb(from var(--acks-ink) r g b / 0.25);
+  border-radius: 2px;
+  font-size: 0.78em;
+  line-height: 1;
+  /* Untrained: present but clearly inert — the slot still shows. */
+  color: rgb(from var(--acks-ink) r g b / 0.3);
+  background: transparent;
+}
+.acks-lib-follower-card .fc-pill.chip {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.acks-lib-follower-card .fc-pill.on {
+  color: var(--acks-on-burgundy);
+  background: var(--acks-burgundy);
+  border-color: var(--acks-burgundy-ink);
+}
+/* Specialization / focus reads gold against the burgundy. */
+.acks-lib-follower-card .fc-pill.gold {
+  color: var(--acks-gold-ink);
+  background: var(--acks-gold);
+  border-color: var(--acks-gold-deep);
+}
+
+/* UNSET — no class profile has been configured, so this is UNKNOWN, not "no".
+   Grey keeps it visibly different from a deliberate "not proficient" (outline)
+   and from a granted one (burgundy). Routed through the palette, or the light
+   chip it used to hardcode became the brightest thing on a dark card — the
+   loudest element on the sheet standing for "we don't know". The pair is soft
+   on purpose and lands at 3.9:1 light / 3.5:1 dark. */
+.acks-lib-follower-card .fc-pill.unset {
+  color: var(--acks-ink-faint);
+  background: var(--acks-tint-2);
+  border-color: rgb(from var(--acks-ink-faint) r g b / 0.5);
+}
+
+/* Weapon size, as pips (tiny 1 → large 4). */
+.acks-lib-follower-card .fc-size {
+  display: inline-flex;
+  gap: 1px;
+  vertical-align: middle;
+}
+.acks-lib-follower-card .fc-size i {
+  font-size: 0.32em;
+  opacity: 0.75;
+}
+
+/* --- Per-attack quick edit (name / throw / bonus / damage / dmg bonus) --- */
+.acks-lib-follower-card .fc-attack-edit {
+  color: var(--acks-spot);
+  cursor: pointer;
+  font-size: 0.8em;
+  padding-left: 2px;
+}
+.acks-lib-follower-card .fc-attack-editor {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 4px;
+  padding: 3px 5px 4px;
+  /* A tint of the INK-role spot, not the surface: at 6% the dark-seat surface
+     burgundy is indistinguishable from the card, while rose reads as a lift. */
+  background: rgb(from var(--acks-spot) r g b / 0.08);
+  border-top: 1px dotted rgb(from var(--acks-ink) r g b / 0.3);
+}
+.acks-lib-follower-card .fc-attack-wrap.editing .fc-attack-editor {
+  display: grid;
+}
+.acks-lib-follower-card .fc-attack-editor label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.7em;
+}
+.acks-lib-follower-card .fc-attack-editor input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--acks-field);
+  border: 1px solid var(--acks-ink);
+  border-radius: 2px;
+  padding: 0 3px;
+  color: var(--acks-ink);
+}
+/* An edited attack reads in the spot colour, like the other overrides. */
+.acks-lib-follower-card .fc-attack-wrap.overridden .fc-attack-row > a,
+.acks-lib-follower-card .fc-attack-wrap.overridden .fc-attack-row > label {
+  color: var(--acks-spot);
+  font-weight: 600;
+}
+
+/* Bonus half of an attack line: visually distinct from the throw TARGET. */
+.acks-lib-follower-card .fc-attack-bonus {
+  color: var(--acks-spot);
+  font-weight: 600;
+}
+
+/* An overridden target reads in the spot colour, so you can see the quick change. */
+.acks-lib-follower-card .fc-ac.overridden input,
+.acks-lib-follower-card .fc-ac.overridden span,
+.acks-lib-follower-card .fc-adv-row.overridden input,
+.acks-lib-follower-card .fc-adv-row.overridden .fc-adv-val {
+  color: var(--acks-spot);
+  font-weight: 600;
+}

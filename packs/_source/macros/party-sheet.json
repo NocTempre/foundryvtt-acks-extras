@@ -1,0 +1,20 @@
+{
+  "_id": "acksfmMacroSheet",
+  "_key": "!macros!acksfmMacroSheet",
+  "name": "Party Sheet",
+  "type": "script",
+  "img": "icons/svg/combat.svg",
+  "scope": "global",
+  "command": "// Open the exploration party sheet.\nconst api = game.modules.get(\"acks-formation\")?.api ?? globalThis.acksFormation;\nif (api?.open) api.open();\nelse ui.notifications.error(\"ACKS Exploration Formations is not active.\");",
+  "folder": null,
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

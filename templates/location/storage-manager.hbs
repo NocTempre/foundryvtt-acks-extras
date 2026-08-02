@@ -1,0 +1,105 @@
+<div class="acks-location-manager-body">
+
+  <aside class="acks-location-manager-places">
+    <h3>{{localize "ACKS-LOCATION.manager.places"}}</h3>
+    <ul>
+      {{#each places as |p|}}
+        <li class="acks-location-manager-place{{#if p.active}} active{{/if}}" data-place-uuid="{{p.uuid}}"
+            data-action="selectPlace">
+          <img src="{{p.img}}" alt="{{p.name}}" />
+          <span class="acks-location-manager-place-name">
+            {{#if p.isVault}}<i class="fas fa-vault"></i> {{/if}}{{p.name}}
+          </span>
+          <span class="acks-location-manager-place-count">{{p.count}}</span>
+        </li>
+      {{/each}}
+    </ul>
+    <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="enableStorage">
+      <i class="fas fa-plus"></i> {{localize "ACKS-LOCATION.manager.enable"}}
+    </button>
+  </aside>
+
+  <section class="acks-location-manager-main">
+    {{#if place}}
+      <header class="acks-location-manager-head">
+        <h2>
+          {{#if place.isVault}}<i class="fas fa-vault"></i> {{/if}}{{place.name}}
+        </h2>
+        <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="openPlace">
+          <i class="fas fa-up-right-from-square"></i> {{localize "ACKS-LOCATION.manager.openSheet"}}
+        </button>
+      </header>
+
+      <div class="acks-location-manager-goods">
+        {{#if empty}}
+          <p class="acks-location-empty">{{localize "ACKS-LOCATION.storage.emptyHere"}}</p>
+        {{/if}}
+        {{#each groups as |group|}}
+          <div class="acks-location-owner" data-owner-uuid="{{group.ownerUuid}}">
+            <div class="acks-location-owner-head">
+              <span class="acks-location-owner-name{{#if group.dangling}} acks-location-dangling{{/if}}"
+                    {{#if group.dangling}}data-tooltip="{{localize 'ACKS-LOCATION.storage.danglingOwner'}}"{{/if}}>
+                {{#if group.dangling}}<i class="fas fa-triangle-exclamation"></i> {{/if}}{{group.name}}
+              </span>
+              {{#if group.coinGC}}
+                <span class="acks-location-coin">{{group.coinGC}} {{localize "ACKS-LOCATION.storage.gp"}}</span>
+              {{/if}}
+              <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="toggleAll">
+                {{localize "ACKS-LOCATION.manager.selectAll"}}
+              </button>
+            </div>
+            <ul class="acks-location-rows">
+              {{#each group.rows as |row|}}
+                <li class="acks-location-row" data-item-id="{{row.id}}">
+                  <input type="checkbox" data-item-id="{{row.id}}" {{#if row.checked}}checked{{/if}} />
+                  <img class="acks-location-row-img" src="{{row.img}}" alt="{{row.name}}" />
+                  <span class="acks-location-row-name">{{row.name}}</span>
+                  {{#if row.stackable}}
+                    <span class="acks-location-row-qty">&times;{{row.quantity}}</span>
+                    <input class="acks-location-row-take" type="number" min="1" max="{{row.quantity}}"
+                           data-quantity-for="{{row.id}}" value="{{row.take}}" placeholder="{{row.quantity}}"
+                           data-tooltip="{{localize 'ACKS-LOCATION.storage.quantityPrompt'}}" />
+                  {{/if}}
+                </li>
+              {{/each}}
+            </ul>
+          </div>
+        {{/each}}
+      </div>
+
+      <footer class="acks-location-manager-actions">
+        <div class="acks-location-manager-target">
+          <label>
+            {{localize "ACKS-LOCATION.manager.moveTo"}}
+            <select name="target">
+              {{#each targets as |t|}}
+                <option value="{{t.uuid}}">{{t.name}}</option>
+              {{/each}}
+              <option value="__new__">{{localize "ACKS-LOCATION.manager.newLocation"}}</option>
+            </select>
+          </label>
+          <input class="acks-location-manager-newname hidden" type="text" name="newName"
+                 placeholder="{{localize 'ACKS-LOCATION.manager.newLocationName'}}" />
+        </div>
+        <div class="acks-location-manager-buttons">
+          <span class="acks-location-manager-picked">
+            {{localize "ACKS-LOCATION.manager.picked"}}
+            <b class="acks-location-manager-count">{{selected}}</b>
+          </span>
+          <button type="button" class="acks-location-btn" data-action="move">
+            <i class="fas fa-right-left"></i> {{localize "ACKS-LOCATION.manager.move"}}
+          </button>
+          <button type="button" class="acks-location-btn" data-action="reassign">
+            <i class="fas fa-user-pen"></i> {{localize "ACKS-LOCATION.manager.reassign"}}
+          </button>
+          <button type="button" class="acks-location-btn" data-action="returnToOwners">
+            <i class="fas fa-up-long"></i> {{localize "ACKS-LOCATION.manager.return"}}
+          </button>
+        </div>
+      </footer>
+    {{else}}
+      <p class="acks-location-empty">{{localize "ACKS-LOCATION.manager.noPlaces"}}</p>
+    {{/if}}
+  </section>
+
+</div>

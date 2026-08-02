@@ -1,0 +1,560 @@
+/* ACKS II — Henchmen & Hirelings */
+
+/* ----------------- hirelings tab: Follower Card grid ----------------- */
+/* The core character sheet's Hirelings tab, re-skinned at runtime into a grid
+   of acks-lib Follower Cards (scripts/apps/hirelings-grid.mjs). */
+.acks-henchmen-follower-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 8px;
+  padding: 6px 4px;
+}
+/* Neutralise the system's list-row `.item` styling on the card cells. */
+.acks-henchmen-follower-grid .item {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.acks-henchmen-grid-head {
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin-top: 6px;
+  padding: 4px 2px 2px;
+  /* Heading and rule sit ON the sheet's own ground, so they are the INK role:
+     --acks-spot, not --acks-burgundy. The surface token stays dark on a dark
+     seat and this bar measured 1.5:1 there — the group titles were invisible. */
+  color: var(--acks-spot);
+  border-bottom: 1px solid var(--acks-spot);
+}
+
+/* ------------------------------ dialogs ------------------------------ */
+/* App roots take the family type scale so their em hierarchies ride the
+   --acks-fs-base knob (the .acks-ui location sheet already does, via the
+   design system's base.css; chat cards stay on Foundry's chat scale). */
+.acks-henchmen.throw-dialog .throw-dialog-body,
+.acks-henchmen.posting-dialog .posting-dialog-body {
+  padding: 0.5rem;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-henchmen .form-group.modifier {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.acks-henchmen .form-group.modifier label {
+  flex: 1 1 60%;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.acks-henchmen .form-group.modifier .hint-icon {
+  opacity: 0.55;
+  font-size: 0.85em;
+}
+
+.acks-henchmen .form-group.modifier .mod-value {
+  font-weight: bold;
+  flex: 0 0 4.5em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.acks-henchmen .form-group.modifier input[type="number"] {
+  flex: 0 0 5em;
+  width: 5em;
+}
+
+.acks-henchmen .form-group.modifier input[type="checkbox"] {
+  flex: 0 0 auto;
+}
+
+.acks-henchmen .form-group.modifier select {
+  flex: 0 0 13em;
+  width: 13em;
+}
+
+.acks-henchmen .form-group.modifier.locked label {
+  opacity: 0.8;
+}
+
+.acks-henchmen .throw-total {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05em;
+}
+
+.acks-henchmen .throw-total .gm-unlock {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+.acks-henchmen .secret-badge {
+  margin-left: 0.5rem;
+  padding: 0 0.4em;
+  border: 1px solid var(--color-border-dark-tertiary, #7a7971);
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+.acks-henchmen .hint {
+  color: var(--color-text-dark-secondary, #4b4a44);
+  font-size: 0.9em;
+}
+
+/* ------------------------------ chat cards ------------------------------ */
+.acks-henchmen-card {
+  border: 1px solid var(--color-border-dark-tertiary, #7a7971);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+
+.acks-henchmen-card .card-header h3 {
+  margin: 0 0 0.25rem;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  font-size: 1.05em;
+}
+
+.acks-henchmen-card .roll-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.acks-henchmen-card .mod-parts {
+  margin: 0.25rem 0;
+  padding: 0 0 0 1rem;
+  font-size: 0.9em;
+}
+
+.acks-henchmen-card .mod-parts li {
+  display: flex;
+  justify-content: space-between;
+}
+
+.acks-henchmen-card .outcome {
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.4rem;
+  border-left: 3px solid var(--color-border-highlight, #ff6400);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.acks-henchmen-card.secret {
+  border-style: dashed;
+}
+
+.acks-henchmen-card .card-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+/* ------------------------------ location sheet ------------------------------ */
+.acks-henchmen.location-sheet .location-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.acks-henchmen.location-sheet .location-header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.acks-henchmen.location-sheet .location-header img.profile {
+  width: 64px;
+  height: 64px;
+  border: none;
+  object-fit: cover;
+}
+
+.acks-henchmen.location-sheet .header-fields {
+  flex: 1;
+}
+
+.acks-henchmen.location-sheet input.location-name {
+  width: 100%;
+  font-size: 1.4em;
+  font-weight: bold;
+  border: none;
+  background: transparent;
+}
+
+.acks-henchmen.location-sheet .market-class-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+/* .market-class-badge now rides acks-design's .acks-tag (applied in the template). */
+
+.acks-henchmen.location-sheet details.section {
+  border: 1px solid var(--acks-rule-color-soft, rgba(98, 7, 48, 0.35));
+  border-radius: var(--acks-radius, 0);
+  padding: 0.25rem 0.5rem;
+  margin-block: 0.25rem;
+}
+
+.acks-henchmen.location-sheet details.section > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--acks-font-display, "Cinzel", serif);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--acks-tracking-caps, 0.07em);
+  font-size: var(--acks-fs-label, 0.9em);
+  color: var(--acks-spot);
+}
+
+.acks-henchmen.location-sheet .inline-add {
+  margin-left: auto;
+  width: auto;
+  line-height: 1.4;
+  font-size: 0.85em;
+}
+
+.acks-henchmen.location-sheet .grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem 1rem;
+}
+
+/* Tables are styled by acks-design's .acks-table component (applied in the template). */
+
+.acks-henchmen.location-sheet tr.inactive,
+.acks-henchmen.location-sheet tr.status-withdrawn,
+.acks-henchmen.location-sheet tr.status-refused {
+  opacity: 0.55;
+}
+
+.acks-henchmen.location-sheet tr.status-slandered {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.acks-henchmen.location-sheet tr.status-hired {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.acks-henchmen.location-sheet .candidate-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0.4rem;
+}
+
+.acks-henchmen.location-sheet .candidate-filter input {
+  flex: 1;
+}
+
+.acks-henchmen.location-sheet .bucket-header {
+  margin: 0.5rem 0 0.15rem;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+}
+
+.acks-henchmen.location-sheet .candidates-table th[data-sortable] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.acks-henchmen.location-sheet .candidates-table th[data-sort-dir="asc"]::after {
+  content: " ▲";
+  font-size: 0.75em;
+}
+
+.acks-henchmen.location-sheet .candidates-table th[data-sort-dir="desc"]::after {
+  content: " ▼";
+  font-size: 0.75em;
+}
+
+.acks-henchmen.location-sheet .special-portrait {
+  width: 22px;
+  height: 22px;
+  border: none;
+  object-fit: cover;
+  vertical-align: middle;
+}
+
+.acks-henchmen.location-sheet .row-actions {
+  white-space: nowrap;
+}
+
+.acks-henchmen.location-sheet .row-actions a {
+  margin: 0 0.15rem;
+}
+
+.acks-henchmen.location-sheet .slander-row,
+.acks-henchmen.location-sheet .demographic-row {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  margin: 0.15rem 0;
+}
+
+.acks-henchmen.location-sheet .demographic-row select {
+  flex: 1;
+}
+
+.acks-henchmen.location-sheet .demographic-row input {
+  flex: 0 0 4em;
+}
+
+.acks-henchmen.location-sheet .demographics-block .block-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: bold;
+  margin-top: 0.35rem;
+}
+
+/* ------------------------------ roster app ------------------------------ */
+.acks-henchmen.roster-app .roster-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  height: 100%;
+  overflow-y: auto;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-henchmen.roster-app .roster-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border-dark-tertiary, #7a7971);
+  padding-bottom: 0.35rem;
+}
+
+.acks-henchmen.roster-app .limit-meter {
+  padding: 0.15em 0.5em;
+  border: 1px solid var(--color-border-dark-tertiary, #7a7971);
+  border-radius: 3px;
+}
+
+.acks-henchmen.roster-app .limit-meter.over {
+  border-color: var(--acks-danger);
+  color: var(--acks-danger-ink);
+  font-weight: bold;
+}
+
+.acks-henchmen.roster-app .wage-summary {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acks-henchmen.roster-app .wage-summary button {
+  width: auto;
+  line-height: 1.5;
+}
+
+.acks-henchmen.roster-app details.roster-row {
+  border: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+}
+
+.acks-henchmen.roster-app details.roster-row.wage-due {
+  border-left: 3px solid var(--acks-warning);
+}
+
+.acks-henchmen.roster-app .roster-row summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.acks-henchmen.roster-app .roster-row summary img {
+  width: 28px;
+  height: 28px;
+  border: none;
+  object-fit: cover;
+}
+
+.acks-henchmen.roster-app .row-name {
+  font-weight: bold;
+}
+
+.acks-henchmen.roster-app .row-tag {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.acks-henchmen.roster-app .row-stat {
+  margin-left: 0.5rem;
+  white-space: nowrap;
+}
+
+.acks-henchmen.roster-app .row-stat.due {
+  color: var(--acks-warning-ink);
+}
+
+.acks-henchmen.roster-app .row-actions {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.acks-henchmen.roster-app .row-actions a {
+  margin: 0 0.2rem;
+}
+
+.acks-henchmen.roster-app .row-details {
+  padding: 0.25rem 0.5rem 0.25rem 2.3rem;
+}
+
+.acks-henchmen.roster-app .event-log,
+.acks-henchmen.roster-app .loyalty-ledger {
+  width: 100%;
+  font-size: 0.85em;
+  border-collapse: collapse;
+}
+
+.acks-henchmen.roster-app .event-log td,
+.acks-henchmen.roster-app .loyalty-ledger td {
+  padding: 0.1rem 0.3rem;
+  border-top: 1px dotted var(--color-border-light-tertiary, #b5b3a4);
+}
+
+.acks-henchmen.roster-app .loyalty-ledger caption {
+  text-align: left;
+  font-weight: bold;
+  opacity: 0.8;
+}
+
+.acks-henchmen.roster-app .loyalty-ledger .ledger-track {
+  width: 4.5em;
+  opacity: 0.7;
+}
+
+.acks-henchmen.roster-app .loyalty-ledger .ledger-delta {
+  width: 2.5em;
+  text-align: right;
+  font-weight: bold;
+}
+
+.acks-henchmen.roster-app .loyalty-ledger .ledger-toggle {
+  width: 1.5em;
+  text-align: right;
+}
+
+/* Compensated (RR 166): the entry stays on record but no longer scores. */
+.acks-henchmen.roster-app .loyalty-ledger tr.compensated td:not(.ledger-toggle) {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Long-running advert: the post "changes color" (RAW designation) — the
+   whole location's search for that thing eases one rarity while it runs. */
+.acks-henchmen.location-sheet tr.advert-veteran td:first-child {
+  color: var(--acks-spot);
+}
+.acks-henchmen.location-sheet tr.advert-veteran .fa-bullhorn {
+  color: var(--acks-spot);
+}
+
+/* Location sheet tabs are styled by acks-design's foundry.css (.acks-ui .sheet-tabs). */
+.acks-henchmen.location-sheet section.location-tab:not(.active) {
+  display: none;
+}
+.acks-henchmen.location-sheet section.location-tab {
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Directed-search replacement: the candidate your search found — starred
+   and tinted for the posting recruiter, available the whole month. */
+.acks-henchmen.location-sheet tr.search-hit td:first-child {
+  color: var(--acks-spot);
+  font-weight: bold;
+}
+.acks-henchmen.location-sheet tr.search-hit .fa-star {
+  color: var(--acks-gold);
+}
+
+/* --- Hire-as-Group dialog: capped stepper grid + officer dropdown ---
+   Every rule is rooted at .acks-henchmen-hire-group so the child classes ride
+   as descendants (validate only namespaces the FIRST class on a line). */
+.acks-henchmen-hire-group .hg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.acks-henchmen-hire-group .hg-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-radius: 4px;
+}
+.acks-henchmen-hire-group .hg-name {
+  font-weight: bold;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acks-henchmen-hire-group .hg-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.acks-henchmen-hire-group .hg-stepper input[type="number"] {
+  width: 3rem;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+.acks-henchmen-hire-group .hg-stepper input[type="number"]::-webkit-outer-spin-button,
+.acks-henchmen-hire-group .hg-stepper input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.acks-henchmen-hire-group .hg-step {
+  flex: 0 0 1.6rem;
+  width: 1.6rem;
+  height: 1.7rem;
+  line-height: 1;
+  padding: 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.acks-henchmen-hire-group .hg-max {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  width: auto;
+  cursor: pointer;
+  font-size: 0.72rem;
+  color: var(--color-text-hyperlink, #1c60a5);
+}
+.acks-henchmen-hire-group .hg-officer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.6rem;
+}
+.acks-henchmen-hire-group .hg-officer select {
+  width: 100%;
+}

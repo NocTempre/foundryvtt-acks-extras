@@ -1,0 +1,403 @@
+/* ============================================================================
+ * FOUNDRY INTEGRATION — wire the ACKS tokens into real Foundry v13/v14 chrome.
+ *
+ * Two jobs:
+ *   1. REMAP Foundry's own custom properties inside an ACKS surface, so core
+ *      widgets we don't style follow the theme for free. This is the cheap,
+ *      robust half — it needs no selector to out-specify anything.
+ *   2. OVERRIDE the handful of places Foundry hardcodes a value that the vars
+ *      don't reach (window header band, sheet tabs, chat card frame).
+ *
+ * SCOPING RULE: every selector is prefixed `.acks-ui`, applied to your own
+ * application root. Nothing here restyles Foundry globally, nothing collides
+ * with another module. If you want a whole-client theme, that is a deliberate
+ * separate opt-in — see acks-lib's `body.acks-lib-sheet-theme` layer, which is
+ * the established pattern in this module family.
+ *
+ * Verified against Foundry VTT 14.365 (ApplicationV2). v13 shares this markup.
+ * ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * 1. VARIABLE REMAP
+ * Foundry reads these for core form controls, prose, links and headings.
+ * Redefining them at the ACKS root makes untouched core widgets inherit the
+ * ACKS look with no per-widget override at all.
+ * ------------------------------------------------------------------------ */
+.acks-ui {
+  /* Type */
+  --font-primary: var(--acks-font-body);
+  --font-body: var(--acks-font-body);
+  --font-h1: var(--acks-font-display);
+  --font-h2: var(--acks-font-display);
+  --font-h3: var(--acks-font-display);
+  --font-h4: var(--acks-font-display);
+  --font-h5: var(--acks-font-display);
+  --font-h6: var(--acks-font-display);
+
+  /* Text colour */
+  --color-text-primary: var(--acks-ink);
+  --color-text-secondary: var(--acks-ink-soft);
+  --color-text-subtle: var(--acks-ink-faint);
+  --color-text-emphatic: var(--acks-spot);
+  --color-text-accent: var(--acks-spot);
+  --color-text-hyperlink: var(--acks-spot);
+  --color-text-dark-primary: var(--acks-ink);
+  --color-text-dark-secondary: var(--acks-ink-soft);
+  --color-text-dark-header: var(--acks-spot);
+  --color-text-light-primary: var(--acks-on-burgundy);
+  --color-text-light-heading: var(--acks-on-burgundy);
+  --color-text-selection: var(--acks-ink);
+  --color-text-selection-bg: var(--acks-tint-2);
+
+  /* Borders — Foundry's tan keylines become our spot-colour rules. */
+  --color-border-light-primary: var(--acks-spot);
+  --color-border-light-secondary: var(--acks-rule-color-soft);
+  --color-border-light-tertiary: var(--acks-neutral-2);
+  --color-border-highlight: var(--acks-spot);
+  --color-border-highlight-alt: var(--acks-danger);
+
+  /* Form geometry — the books are dense; match them. */
+  --form-field-height: 28px;
+  --form-padding: var(--acks-sp-5);
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. WINDOW CHROME
+ * The header band becomes the books' running head: porphyry, white
+ * letterspaced caps, closed by the double rule. This is the single change that
+ * makes an application window read as ACKS at a glance.
+ * ------------------------------------------------------------------------ */
+.acks-ui.application {
+  border: var(--acks-border-hair);
+  border-radius: var(--acks-radius);
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+}
+
+.acks-ui.application > .window-header {
+  position: relative;
+  isolation: isolate;
+  min-height: var(--acks-banner-height);
+  padding-inline: var(--acks-sp-4);
+  border: none;
+  border-radius: 0;
+  background-color: var(--acks-burgundy);
+  background-image: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--acks-burgundy-deep) 60%, transparent) 0%,
+    transparent 26%,
+    color-mix(in srgb, var(--acks-burgundy-lit) 20%, transparent) 52%,
+    transparent 74%,
+    color-mix(in srgb, var(--acks-burgundy-deep) 55%, transparent) 100%
+  );
+  /* The double rule: heavy line, 2px of paper, hairline. */
+  box-shadow:
+    inset 0 calc(var(--acks-rule-hair) * -1) 0 0 var(--acks-paper),
+    0 var(--acks-rule-hair) 0 0 var(--acks-spot);
+}
+
+.acks-ui.application > .window-header .window-title {
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-banner);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-banner);
+  text-transform: uppercase;
+  color: var(--acks-on-burgundy);
+  text-shadow: none;
+  line-height: 1;
+}
+
+/* Header controls: square, quiet, white — no pills, no glow. */
+.acks-ui.application > .window-header button {
+  border: none;
+  border-radius: var(--acks-radius);
+  background: transparent;
+  color: var(--acks-on-burgundy-soft);
+  transition:
+    background-color var(--acks-duration) var(--acks-ease),
+    color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-ui.application > .window-header button:hover {
+  background: color-mix(in srgb, var(--acks-on-burgundy) 18%, transparent);
+  color: var(--acks-on-burgundy);
+  box-shadow: none;
+}
+
+.acks-ui.application .window-content {
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+  padding: var(--acks-sp-5);
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-body);
+  line-height: var(--acks-lh-body);
+}
+
+/* Resize handle: a lozenge, not Foundry's default. */
+.acks-ui.application .window-resize-handle {
+  color: var(--acks-spot);
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. SHEET TABS
+ * Foundry's `.sheet-tabs` gets the horizontal-tab treatment from
+ * components/controls.css.
+ * ------------------------------------------------------------------------ */
+.acks-ui .sheet-tabs {
+  border-block-end: var(--acks-rule) solid var(--acks-spot);
+  border-block-start: none;
+  gap: 0;
+  flex: none;
+  padding: 0;
+}
+
+.acks-ui .sheet-tabs > [data-tab] {
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-block-end: none;
+  border-radius: 0;
+  margin: 0;
+  margin-inline-start: calc(var(--acks-rule-hair) * -1);
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  text-shadow: none;
+  line-height: 1;
+}
+
+.acks-ui .sheet-tabs > [data-tab]:hover {
+  background: var(--acks-tint-2);
+  text-shadow: none;
+}
+
+.acks-ui .sheet-tabs > [data-tab].active {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  text-shadow: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. FIELDSETS
+ * Foundry v13+ leans on `<fieldset><legend>` for grouping. Legend becomes a
+ * Trajan caps label sitting on the frame's top rule, like a boxed insert.
+ * ------------------------------------------------------------------------ */
+.acks-ui fieldset {
+  border: var(--acks-border-hair);
+  border-radius: var(--acks-radius);
+  padding: var(--acks-sp-5);
+  margin-block: var(--acks-sp-5);
+  background: transparent;
+}
+
+.acks-ui fieldset > legend {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-spot);
+  padding-inline: var(--acks-sp-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * 5. CORE FORM CONTROLS
+ * Foundry's own inputs inside an ACKS sheet, without needing .acks-input on
+ * every element in every Handlebars template.
+ * ------------------------------------------------------------------------ */
+.acks-ui :is(input[type="text"], input[type="number"], input[type="search"],
+  input[type="password"], input[type="date"], input[type="time"], select, textarea) {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+  color: var(--acks-ink);
+  background: var(--acks-paper-pure);
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  border-radius: var(--acks-radius);
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-ui :is(input, select, textarea):focus-visible {
+  border-color: var(--acks-spot);
+  outline: none;
+  box-shadow: var(--acks-focus-ring);
+}
+
+.acks-ui :is(input, select, textarea):disabled {
+  background: var(--acks-neutral);
+  color: var(--acks-ink-soft);
+  border-color: var(--acks-neutral-2);
+}
+
+.acks-ui textarea {
+  font-family: var(--acks-font-body);
+  line-height: var(--acks-lh-body);
+}
+
+/* Foundry's form-group row layout, retuned to the books' label style. */
+.acks-ui .form-group > label {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-ink);
+}
+
+.acks-ui .form-group > .hint,
+.acks-ui .hint {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+  font-style: normal;
+}
+
+/* ---------------------------------------------------------------------------
+ * 6. CHAT CARDS
+ * A chat message is a miniature book page: banner head, ruled body, folio-like
+ * result badge. Put `.acks-ui.acks-chat` on your card root.
+ * ------------------------------------------------------------------------ */
+.acks-chat {
+  border: var(--acks-border-hair);
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-chat-header {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  background-color: var(--acks-burgundy);
+  background-image: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--acks-burgundy-deep) 55%, transparent) 0%,
+    transparent 30%,
+    color-mix(in srgb, var(--acks-burgundy-lit) 18%, transparent) 55%,
+    transparent 76%,
+    color-mix(in srgb, var(--acks-burgundy-deep) 50%, transparent) 100%
+  );
+  border-block-end: var(--acks-rule) solid var(--acks-spot);
+}
+
+.acks-chat-title {
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-banner);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-banner);
+  text-transform: uppercase;
+  color: var(--acks-on-burgundy);
+  margin: 0;
+  line-height: 1;
+}
+
+.acks-chat-subtitle {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-on-burgundy-soft);
+  margin-inline-start: auto;
+}
+
+.acks-chat-body {
+  padding: var(--acks-sp-4);
+  line-height: var(--acks-lh-snug);
+}
+
+.acks-chat-body > :last-child {
+  margin-block-end: 0;
+}
+
+/* The roll result: a big lozenge-flanked number on a tinted strip. */
+.acks-chat-result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-4);
+  background: var(--acks-tint);
+  border-block: var(--acks-border-hair);
+}
+
+.acks-chat-total {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h1);
+  font-weight: var(--acks-weight-bold);
+  line-height: 1;
+  color: var(--acks-spot);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-chat-formula {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+/* Outcome line: success/failure stated in words AND colour, never colour alone. */
+.acks-chat-outcome {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h3);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  text-align: center;
+  padding: var(--acks-sp-3);
+  border-block-end: var(--acks-border-hair);
+}
+
+.acks-chat-outcome--success {
+  color: var(--acks-success-ink);
+  background: var(--acks-success-tint);
+}
+
+.acks-chat-outcome--failure {
+  color: var(--acks-danger-ink);
+  background: var(--acks-danger-tint);
+}
+
+.acks-chat-footer {
+  display: flex;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border-block-start: var(--acks-border-soft);
+  background: var(--acks-paper-pure);
+}
+
+/* ---------------------------------------------------------------------------
+ * 7. SCROLLBARS — thin, spot-coloured, square.
+ * ------------------------------------------------------------------------ */
+.acks-ui ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.acks-ui ::-webkit-scrollbar-track {
+  background: var(--acks-tint);
+}
+
+.acks-ui ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--acks-burgundy) 65%, var(--acks-paper));
+  border-radius: 0;
+}
+
+.acks-ui ::-webkit-scrollbar-thumb:hover {
+  background: var(--acks-burgundy);
+}
+
+.acks-ui {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--acks-burgundy) 65%, var(--acks-paper))
+    var(--acks-tint);
+}

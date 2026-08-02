@@ -1,0 +1,9 @@
+{
+  "_id": "acksHmca2488a416",
+  "_key": "!macros!acksHmca2488a416",
+  "name": "Obedience Check (Selected)",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/combat.svg",
+  "command": "const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a hireling token first.\");\nacksHenchmen.openThrowDialog(\"hirelingObedience\", {\n  title: actor.name,\n  actor,\n  derived: { moraleScore: actor.system?.details?.morale ?? 0 },\n});"
+}

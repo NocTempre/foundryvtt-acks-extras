@@ -1,0 +1,20 @@
+{
+  "_id": "acksEqInspect000",
+  "_key": "!macros!acksEqInspect000",
+  "name": "Loadout Inspector",
+  "type": "script",
+  "img": "icons/svg/upgrade.svg",
+  "scope": "global",
+  "command": "// Show the selected actor's RAW loadout: hands, fighting style, and any violations.\nconst api = game.modules.get(\"acks-equipment\")?.api ?? globalThis.acksEquipment;\nif (!api) { ui.notifications.error(\"ACKS Equipment is not active.\"); return; }\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) { ui.notifications.warn(\"Select a token or assign a character.\"); return; }\nconst lo = api.getLoadout(actor);\nconst rows = lo.weapons.map((w) =>\n  `<tr><td>${w.item.name}</td><td>${w.profile.size}</td><td>${w.handsMin}${w.wieldTwoHanded ? \" (2H)\" : \"\"}</td></tr>`).join(\"\");\nconst viol = lo.violations.length\n  ? \"<ul>\" + lo.violations.map((v) => `<li class=\"${v.advisory ? \"\" : \"notification error\"}\">${v.type}: ${(v.items || []).map((i) => i.name).join(\", \")}</li>`).join(\"\") + \"</ul>\"\n  : \"<p><em>Legal loadout.</em></p>\";\nconst content = `<div class=\"acks-equipment-loadout\">\n  <p><b>Hands</b> ${lo.handsUsed}/${lo.handBudget} · <b>Style</b> ${lo.activeStyle}${lo.styleProficient ? \"\" : \" <em>(untrained)</em>\"}</p>\n  <table><thead><tr><th>Weapon</th><th>Size</th><th>Hands</th></tr></thead><tbody>${rows || \"<tr><td colspan=3><em>none equipped</em></td></tr>\"}</tbody></table>\n  <p><b>Armour</b> ${lo.armor?.name ?? \"none\"}${lo.shield ? \" · <b>Shield</b> \" + lo.shield.name : \"\"}${lo.hasHelmet ? \" · helmet\" : \"\"}</p>\n  ${viol}</div>`;\nnew foundry.applications.api.DialogV2({ window: { title: `Loadout — ${actor.name}` }, content, buttons: [{ action: \"ok\", label: \"Close\", default: true }] }).render(true);",
+  "folder": null,
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

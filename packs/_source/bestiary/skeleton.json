@@ -1,0 +1,291 @@
+{
+  "_id": "acksmSkeleton000",
+  "_key": "!actors!acksmSkeleton000",
+  "name": "Skeleton",
+  "type": "monster",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "_schemaVersion": 3,
+    "isNew": false,
+    "hp": {
+      "hd": "1d8",
+      "value": 4,
+      "max": 4,
+      "bhr": "1d3"
+    },
+    "aac": {
+      "value": 2,
+      "mod": 0
+    },
+    "thac0": {
+      "value": 19,
+      "bba": 0,
+      "throw": 10,
+      "mod": {
+        "missile": 0,
+        "melee": 0
+      }
+    },
+    "damage": {
+      "mod": {
+        "missile": 0,
+        "melee": 0
+      }
+    },
+    "movement": {
+      "base": 120,
+      "mod": 0,
+      "value": ""
+    },
+    "initiative": {
+      "value": 0,
+      "mod": 0
+    },
+    "surprise": {
+      "mod": 0,
+      "surpriseothers": 0,
+      "avoidsurprise": 0
+    },
+    "saves": {
+      "paralysis": {
+        "value": 13
+      },
+      "death": {
+        "value": 14
+      },
+      "blast": {
+        "value": 15
+      },
+      "breath": {
+        "value": 15
+      },
+      "implements": {
+        "value": 16
+      },
+      "wand": {
+        "value": 16
+      },
+      "spell": {
+        "value": 17
+      }
+    },
+    "save": {
+      "mod": 0
+    },
+    "retainer": {
+      "enabled": false,
+      "loyalty": 0,
+      "wage": "",
+      "managerid": "",
+      "category": "henchman",
+      "quantity": 1
+    },
+    "details": {
+      "biography": "<p>An animated warrior's bones. Invented test statistics over a generic open-content archetype.</p>",
+      "alignment": "Chaotic",
+      "xp": 15,
+      "treasure": {
+        "table": "",
+        "type": "none"
+      },
+      "appearing": {
+        "d": "3d4",
+        "w": "3d10"
+      },
+      "morale": 4
+    },
+    "attacks": ""
+  },
+  "items": [
+    {
+      "_id": "acksmSkelSword00",
+      "name": "Rusty Sword",
+      "type": "weapon",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "",
+        "damage": "1d6",
+        "bonus": 0,
+        "melee": true,
+        "missile": false,
+        "equipped": true,
+        "pattern": "transparent",
+        "tags": [],
+        "counter": {
+          "value": 1,
+          "max": 1
+        },
+        "cost": 0,
+        "weight": 0,
+        "weight6": 0
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "naturalWeapon": "weapon",
+          "damageType": "slashing",
+          "extraordinary": false
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmSkeleton000.acksmSkelSword00"
+    },
+    {
+      "_id": "acksmSkelShield0",
+      "name": "Battered Shield",
+      "type": "item",
+      "img": "icons/svg/item-bag.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "<p>Adds its bonus while the arm still holds.</p>",
+        "subtype": "item",
+        "quantity": {
+          "value": 1,
+          "max": 0
+        },
+        "cost": 2,
+        "weight": 0,
+        "weight6": 6
+      },
+      "effects": [],
+      "flags": {},
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmSkeleton000.acksmSkelShield0"
+    }
+  ],
+  "effects": [],
+  "flags": {
+    "acks-monsters": {
+      "extras": {
+        "types": [
+          "undead",
+          "construct"
+        ],
+        "size": "man",
+        "mass": {
+          "stone": 6,
+          "lbs": 60
+        },
+        "hd": {
+          "count": 1,
+          "asterisks": 1,
+          "dieType": 8
+        },
+        "saveAs": {
+          "class": "fighter",
+          "level": 1
+        },
+        "speeds": [
+          {
+            "type": "land",
+            "combat": 20,
+            "run": 60,
+            "hover": false
+          }
+        ],
+        "vision": [
+          "lightless"
+        ],
+        "lightlessRange": 60,
+        "load": {
+          "normal": 5,
+          "capacity": 10
+        },
+        "defenses": {
+          "immunities": {
+            "damage": [
+              "necrotic",
+              "poisonous"
+            ],
+            "mundane": false,
+            "extraordinary": false,
+            "effects": "enchantment; sleep; fear",
+            "note": "mindless undead construct"
+          },
+          "resistances": {
+            "damage": [
+              "piercing"
+            ],
+            "mundane": true,
+            "extraordinary": false,
+            "effects": "",
+            "note": "arrows rattle between the ribs"
+          },
+          "susceptibilities": {
+            "damage": [
+              "bludgeoning"
+            ],
+            "mundane": false,
+            "extraordinary": false,
+            "effects": "",
+            "note": ""
+          }
+        },
+        "secondary": {
+          "intelligence": "mindless"
+        },
+        "encounter": {
+          "lairChance": 35,
+          "dungeon": {
+            "wandering": {
+              "noun": "Squad",
+              "number": "3d4"
+            },
+            "lair": {
+              "noun": "Crypt",
+              "number": "3d10"
+            }
+          },
+          "wilderness": {
+            "wandering": {
+              "noun": "Squad",
+              "number": "3d4"
+            },
+            "lair": {
+              "noun": "Crypt",
+              "number": "3d10"
+            }
+          }
+        },
+        "description": {
+          "combat": "<p>Never checks morale; fights until destroyed. Attacks with whatever weapon it carried in life.</p>"
+        }
+      }
+    }
+  },
+  "prototypeToken": {
+    "name": "Skeleton",
+    "actorLink": false,
+    "disposition": -1,
+    "sight": {
+      "enabled": true
+    }
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784255926062,
+    "modifiedTime": 1784255926062
+  }
+}

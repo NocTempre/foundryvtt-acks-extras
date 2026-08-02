@@ -1,0 +1,547 @@
+/* ACKS II — Equipment & Fighting Styles */
+
+.acks-equipment-loadout {
+  font-size: var(--font-size-13, 13px);
+}
+
+.acks-equipment-loadout .violation {
+  color: var(--color-level-error, #b60205);
+}
+
+.acks-equipment-loadout .advisory {
+  color: var(--color-level-warning, #b8860b);
+}
+
+.acks-equipment-loadout .ok {
+  color: var(--color-level-success, #18520b);
+}
+
+/* --- Container Manager ------------------------------------------------- */
+
+.acks-equipment-containers__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  height: 100%;
+  font-size: var(--font-size-13, 13px);
+}
+
+.acks-equipment-containers__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.acks-equipment-containers__note,
+.acks-equipment-containers__empty {
+  margin: 0;
+  opacity: 0.75;
+}
+
+.acks-equipment-container-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.acks-equipment-container {
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+
+/* Drop affordance — deliberately loud, since drag targets are otherwise invisible. */
+.acks-equipment-container.drop-hover {
+  border-color: var(--color-shadow-primary, #ff6400);
+  box-shadow: 0 0 6px var(--color-shadow-primary, #ff6400);
+}
+
+.acks-equipment-container.over .acks-equipment-container__load {
+  color: var(--color-level-error, #b60205);
+  font-weight: bold;
+}
+
+.acks-equipment-container__header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.acks-equipment-container__icon {
+  width: 24px;
+  height: 24px;
+  border: none;
+  cursor: pointer;
+}
+
+.acks-equipment-container__name {
+  flex: 1;
+  font-weight: bold;
+}
+
+.acks-equipment-container__controls {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.acks-equipment-container__bar {
+  height: 4px;
+  margin: 0.25rem 0;
+  background: var(--color-border-light-tertiary, #7a7971);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.acks-equipment-container__fill {
+  height: 100%;
+  background: var(--color-level-success, #18520b);
+}
+
+.acks-equipment-container.over .acks-equipment-container__fill {
+  background: var(--color-level-error, #b60205);
+}
+
+.acks-equipment-container__contents {
+  margin: 0.2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-equipment-container__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.1rem 0;
+  cursor: grab;
+}
+
+.acks-equipment-container__row.empty {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.acks-equipment-container__row img {
+  width: 20px;
+  height: 20px;
+  border: none;
+  cursor: pointer;
+}
+
+.acks-equipment-container__row-name {
+  flex: 1;
+}
+
+.acks-equipment-container__row-weight {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.acks-equipment-container__worn {
+  margin-left: 0.25rem;
+  opacity: 0.6;
+}
+
+/* Gear whose name matches a RAW carrying device gets a highlighted control. */
+.acks-equipment-container__row a.suggested {
+  color: var(--color-level-success, #18520b);
+}
+
+/* --- Inventory wear buckets -------------------------------------------- */
+
+.acks-equipment-wear {
+  margin-bottom: 0.5rem;
+}
+
+.acks-equipment-wear__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.25rem;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+  font-weight: bold;
+}
+
+.acks-equipment-wear__title-text {
+  flex: 1;
+}
+
+.acks-equipment-wear__status {
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+.acks-equipment-wear__status.advisory {
+  color: var(--color-level-warning, #b8860b);
+  opacity: 1;
+}
+
+.acks-equipment-wear__bucket {
+  margin: 0.15rem 0 0.25rem;
+}
+
+.acks-equipment-wear__bucket-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.1rem 0.25rem;
+  font-size: var(--font-size-11, 11px);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.acks-equipment-wear__bucket-label {
+  flex: 1;
+}
+
+.acks-equipment-wear__bucket-note {
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+}
+
+.acks-equipment-wear__bucket.over .acks-equipment-wear__bucket-note {
+  color: var(--color-level-error, #b60205);
+  font-weight: bold;
+  opacity: 1;
+}
+
+.acks-equipment-wear__hint {
+  margin: 0.25rem;
+  opacity: 0.7;
+  font-size: var(--font-size-12, 12px);
+}
+
+/*
+ * Rows are core's own <li> nodes, moved here. Their per-section column widths
+ * come from the section they were rendered for, so neutralise the ones that
+ * would leave gaps and let the name take the slack.
+ */
+.acks-equipment-wear .item-list .item__damage,
+.acks-equipment-wear .item-list .item__range,
+.acks-equipment-wear .item-list .item__special {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.acks-equipment-wear .item-list .item__name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Containers on the equipment tab
+   The popout window these controls used to live in is retired; a container is
+   opened where it sits, next to the gear it holds.
+   -------------------------------------------------------------------------- */
+
+.acks-equipment-container__header {
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.acks-equipment-container__controls {
+  margin-left: auto;
+  display: flex;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+}
+
+.acks-equipment-container__ctrl {
+  width: 1.4rem;
+  text-align: center;
+  opacity: 0.75;
+  cursor: var(--cursor-pointer);
+}
+
+.acks-equipment-container__ctrl:hover {
+  opacity: 1;
+}
+
+/* A locked container reads as shut at a glance, before anyone reads the hint. */
+.acks-equipment-container.locked > .acks-equipment-container__header {
+  opacity: 0.85;
+  font-style: italic;
+}
+
+.acks-equipment-container.locked {
+  border-left: 2px solid var(--color-level-warning, #c9a227);
+}
+
+/* The drop target has to be visible while dragging or nobody finds it. */
+.acks-equipment-container.drop-hover,
+[data-drop-target].drop-hover {
+  outline: 2px dashed var(--color-shadow-primary, #ff6400);
+  outline-offset: -2px;
+}
+
+/* --- Injected row controls ------------------------------------------- *
+ * Our controls (grip, draw/sheathe, strap, light, ready) get their OWN box in
+ * the inventory row rather than joining core's. Core's control column is a
+ * fixed width measured to fit exactly its own icons — 84px for a weapon, 60px
+ * for armour, 35px for an item — so anything we added there overflowed it and
+ * pushed core's Delete off the end of the row, where the sheet clipped it.
+ * Widening the window could not help: a fixed-width column gets none of the
+ * extra space. This box sizes to its content and never shrinks; core's column
+ * is then left holding exactly what it was built for. See sheet.mjs
+ * rowControls(). */
+
+.acks-equipment-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Core's column must not be squeezed either, or Delete clips again on a narrow
+ * sheet. Scoped through our own box, so rows we never touched keep core's
+ * layout exactly as it ships. */
+.acks-equipment-row-controls ~ .list-header__controls {
+  flex-shrink: 0;
+}
+
+/* --- Grip control (wear buckets) -------------------------------------- */
+
+.acks-equipment-grip {
+  font-size: var(--font-size-11, 11px);
+  font-weight: bold;
+  white-space: nowrap;
+  padding: 0 0.25rem;
+}
+
+.acks-equipment-grip--twoHand {
+  color: var(--color-level-success, #18520b);
+}
+
+.acks-equipment-grip--blocked {
+  color: var(--color-level-error, #b60205);
+}
+
+/* --- Strap control (shield rows) — small text label + icon ------------ */
+
+.acks-equipment-strap {
+  font-size: var(--font-size-11, 11px);
+  white-space: nowrap;
+  padding: 0 0.25rem;
+}
+
+.acks-equipment-strap--back,
+.acks-equipment-strap--front {
+  color: var(--color-level-info, #0b5394);
+}
+
+/* --- Masterwork control: lit when a tier is applied ------------------- */
+
+.acks-equipment-mw--active {
+  color: var(--color-level-warning, #b8860b);
+}
+
+/* --- Scavenge control: lit when a condition is applied ---------------- */
+
+.acks-equipment-scavenge--active {
+  color: var(--color-level-error, #b60205);
+}
+
+/* --- Shield-variant control: small text label + icon ----------------- */
+
+.acks-equipment-variant {
+  font-size: var(--font-size-11, 11px);
+  white-space: nowrap;
+  padding: 0 0.25rem;
+}
+
+/* --- ACKS Properties panel on the item sheet ------------------------- */
+
+.acks-equipment-props {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border-light-tertiary, #782e2244);
+}
+
+.acks-equipment-props__title {
+  font-size: var(--font-size-13, 13px);
+  font-weight: bold;
+  margin: 0 0 0.35rem;
+  opacity: 0.85;
+}
+
+.acks-equipment-props__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.acks-equipment-props__label {
+  flex: 0 0 8em;
+  font-size: var(--font-size-12, 12px);
+}
+
+.acks-equipment-props__btn,
+.acks-equipment-props__select {
+  flex: 1;
+  min-height: 1.7rem;
+  font-size: var(--font-size-12, 12px);
+}
+
+.acks-equipment-props__btn.active {
+  font-weight: bold;
+  color: var(--color-level-warning, #b8860b);
+}
+
+/* Inline controls: a row may hold a bucket, fields and a narrow action button. */
+.acks-equipment-props__group {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.acks-equipment-props__group > * {
+  min-width: 0;
+}
+
+.acks-equipment-props__input {
+  flex: 1;
+  min-width: 3rem;
+  min-height: 1.7rem;
+  font-size: var(--font-size-12, 12px);
+}
+
+.acks-equipment-props__btn.narrow {
+  flex: 0 0 auto;
+  padding: 0 0.5rem;
+  white-space: nowrap;
+}
+
+.acks-equipment-props__spells {
+  flex: 1;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-12, 12px);
+  resize: vertical;
+}
+
+.acks-equipment-props__note {
+  flex: 1;
+  font-size: var(--font-size-11, 11px);
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.acks-equipment-props__note--warn {
+  color: var(--color-level-warning, #b8860b);
+  opacity: 1;
+}
+
+/* --- Equipment item sheet: tab panes ---------------------------------- */
+
+.acks-equipment-tab-rolls,
+.acks-equipment-tab-construction,
+.acks-equipment-tab-spells {
+  padding: 0.5rem 0.75rem;
+}
+
+/* The moved details field-set was a narrow side column; in its own tab it can
+ * breathe a little, but full-width single inputs read badly. */
+.acks-equipment-tab-rolls .field-set--narrow {
+  max-width: 24rem;
+}
+
+.acks-equipment-tab-construction .acks-equipment-props {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.acks-equipment-tab-spells .acks-equipment-props__spells {
+  width: 100%;
+}
+
+/* --- Header identity bar (named item + apparent identity) -------------- */
+
+.acks-equipment-idbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.4rem;
+}
+
+.acks-equipment-idbar__badge {
+  font-size: var(--font-size-14, 14px);
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.acks-equipment-idbar__badge.active {
+  opacity: 1;
+  color: var(--color-level-warning, #b8860b);
+}
+
+/* Sits in the window-content COLUMN flex: it must only ever be as tall as its
+ * open strip. (A 100% flex-basis here meant 100% of the HEIGHT — an invisible
+ * block that swallowed the body and crushed every tab pane to zero.) */
+.acks-equipment-idbar__strips {
+  flex: 0 0 auto;
+}
+
+.acks-equipment-idbar__strip {
+  display: none;
+}
+
+.acks-equipment-idbar__strip.open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #782e2244);
+}
+
+.acks-equipment-idbar__label {
+  font-size: var(--font-size-12, 12px);
+  font-weight: bold;
+  opacity: 0.85;
+}
+
+.acks-equipment-idbar__strip .acks-equipment-props__input {
+  flex: 1 1 6rem;
+}
+
+.acks-equipment-idbar__strip .acks-equipment-props__note {
+  flex: 1 1 100%;
+}
+
+/* The named-item tracker: one rung per point of power, lit when unlocked. */
+.acks-equipment-named-track {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.acks-equipment-named-track__rung {
+  font-size: var(--font-size-12, 12px);
+  opacity: 0.35;
+}
+
+.acks-equipment-named-track__rung.lit {
+  opacity: 1;
+  color: var(--color-level-warning, #b8860b);
+}
+
+/* --- Unarmed strike row ----------------------------------------------- */
+
+.acks-equipment-wear__bucket--unarmed .acks-equipment-unarmed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  opacity: 0.85;
+}
+
+.acks-equipment-unarmed__label {
+  font-style: italic;
+}

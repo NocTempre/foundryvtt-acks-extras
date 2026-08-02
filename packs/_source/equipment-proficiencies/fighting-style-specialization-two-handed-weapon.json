@@ -1,0 +1,65 @@
+{
+  "_id": "acksEqProf000004",
+  "_key": "!items!acksEqProf000004",
+  "name": "Fighting Style Specialization (Two-Handed Weapon)",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "Two-handed weapon fighting style",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>+1 to damage rolls while wielding a medium or large melee weapon in both hands. Free draw/sheathe/ready-shield.</p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqPfEf000004",
+      "_key": "!items.effects!acksEqProf000004.acksEqPfEf000004",
+      "name": "Fighting Style Specialization (Two-Handed Weapon)",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.styleProficient",
+          "type": "override",
+          "value": "twoHanded:spec",
+          "priority": 50
+        },
+        {
+          "key": "flags.acks-equipment.freeSwap",
+          "type": "override",
+          "value": "1",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 400,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

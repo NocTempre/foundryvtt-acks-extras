@@ -1,0 +1,20 @@
+{
+  "_id": "acksEqContainer0",
+  "_key": "!macros!acksEqContainer0",
+  "name": "Containers",
+  "type": "script",
+  "img": "icons/containers/bags/pack-leather-brown.webp",
+  "scope": "global",
+  "command": "// Annotate carrying gear from the RAW capacity table (RR pp. 142-145, 161)\n// and open the sheet where containers now live.\n//\n// The Container Manager window is retired: opening, locking, concealing,\n// filling and emptying a container all happen on the character sheet's\n// equipment tab, next to the gear they act on. This macro does the one thing\n// that was genuinely bulk — stamping capacities onto every carrying device the\n// character owns — and then shows you the tab.\nconst api = game.modules.get(\"acks-equipment\")?.api ?? globalThis.acksEquipment;\nif (!api) { ui.notifications.error(\"ACKS Equipment is not active.\"); return; }\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) { ui.notifications.warn(\"Select a token or assign a character first.\"); return; }\n\nlet n = 0;\nfor (const item of actor.items) {\n  if (item.type !== \"item\" || api.isContainer(item)) continue;\n  if (await api.annotateItem(item)) n++;\n}\nui.notifications.info(`Annotated ${n} carrying device(s).`);\nactor.sheet.render(true);",
+  "folder": null,
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

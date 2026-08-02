@@ -1,0 +1,150 @@
+/* ============================================================================
+ * TEXTURES — procedural reproductions of the two ACKS II surfaces.
+ *
+ * WHY PROCEDURAL: the books' burgundy bands and parchment ground are raster
+ * artwork owned by Autarch. Extracting and shipping those bitmaps in a Foundry
+ * module would redistribute licensed assets. Everything here is generated from
+ * SVG `feTurbulence` and CSS gradients tuned to the MEASURED statistics of the
+ * originals, so a module can ship it freely.
+ *
+ * Measured targets (see docs/EXTRACTION.md):
+ *   porphyry band  mean #68292f, luminance p5=30 p50=55 p95=110
+ *   parchment      mean #ead8b8, luminance p5=150 p50=227 p95=252
+ *
+ * Both are applied as a ::before overlay so the underlying token colour stays
+ * live — retheme `--acks-burgundy` and the texture follows it.
+ * ========================================================================== */
+
+/* --- Shared: a fractal-noise tile as a data URI. Two octaves of turbulence
+ *     at a low base frequency gives the coarse mineral fleck of polished
+ *     porphyry; the same tile at a larger scale and lower opacity reads as
+ *     paper fibre. One asset, two uses. -------------------------------- */
+
+.acks-porphyry,
+.acks-parchment {
+  position: relative;
+  isolation: isolate;
+}
+
+.acks-porphyry > *,
+.acks-parchment > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * POLISHED PORPHYRY — every burgundy band, tab, folio and table head.
+ * Layer order (bottom to top):
+ *   1. flat spot colour            (--acks-burgundy, so themes drive it)
+ *   2. broad tonal gradient        (the stone's uneven polish)
+ *   3. coarse fleck                (turbulence, screen-blended highlights)
+ * ------------------------------------------------------------------------ */
+.acks-porphyry {
+  background-color: var(--acks-burgundy);
+  background-image:
+    linear-gradient(
+      100deg,
+      color-mix(in srgb, var(--acks-burgundy-deep) 70%, transparent) 0%,
+      transparent 22%,
+      color-mix(in srgb, var(--acks-burgundy-lit) 26%, transparent) 47%,
+      transparent 68%,
+      color-mix(in srgb, var(--acks-burgundy-deep) 62%, transparent) 100%
+    );
+  color: var(--acks-on-burgundy);
+}
+
+.acks-porphyry::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--acks-tx-porphyry-opacity);
+  mix-blend-mode: overlay;
+  background-size: var(--acks-tx-porphyry-scale) var(--acks-tx-porphyry-scale);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' seed='7'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='1.15' intercept='-0.1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='90' height='90' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+
+/* A coarser second pass gives the larger crystalline specks that read at
+ * arm's length. Only on surfaces big enough to show them. */
+.acks-porphyry--rich::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.3;
+  mix-blend-mode: color-dodge;
+  background-size: calc(var(--acks-tx-porphyry-scale) * 2.4) calc(var(--acks-tx-porphyry-scale) * 2.4);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='216' height='216'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.22' numOctaves='2' seed='19'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' exponent='3.4' amplitude='1.6'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='216' height='216' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* ---------------------------------------------------------------------------
+ * PARCHMENT — the page ground. In the books this is printed so pale it reads
+ * as near-white; the texture is felt, not seen. Keep it subtle. A stronger
+ * `--aged` variant exists for hero panels and journal pages.
+ * ------------------------------------------------------------------------ */
+.acks-parchment {
+  background-color: var(--acks-paper);
+  background-image:
+    radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(in srgb, var(--acks-paper-warm) 32%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      100% 70% at 100% 100%,
+      color-mix(in srgb, var(--acks-paper-deep) 16%, transparent) 0%,
+      transparent 55%
+    );
+  color: var(--acks-ink);
+}
+
+.acks-parchment::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--acks-tx-parchment-opacity);
+  mix-blend-mode: multiply;
+  background-size: var(--acks-tx-parchment-scale) var(--acks-tx-parchment-scale);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' seed='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.34' intercept='0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23p)'/%3E%3C/svg%3E");
+}
+
+/* Aged stock: heavier fibre plus a corner vignette. Journal pages, handouts. */
+.acks-parchment--aged {
+  background-color: color-mix(in srgb, var(--acks-paper-warm) 55%, var(--acks-paper));
+  --acks-tx-parchment-opacity: 0.6;
+}
+
+.acks-parchment--aged::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      130% 120% at 50% 50%,
+      transparent 55%,
+      color-mix(in srgb, var(--acks-paper-deep) 42%, transparent) 100%
+    );
+}
+
+/* ---------------------------------------------------------------------------
+ * Reduced-transparency / forced-colors: drop the overlays entirely and fall
+ * back to flat tokens. Texture is decoration and must never carry meaning.
+ * ------------------------------------------------------------------------ */
+@media (prefers-contrast: more), (forced-colors: active) {
+  .acks-porphyry::before,
+  .acks-porphyry--rich::after,
+  .acks-parchment::before,
+  .acks-parchment--aged::after {
+    display: none;
+  }
+
+  .acks-porphyry {
+    background-image: none;
+  }
+}

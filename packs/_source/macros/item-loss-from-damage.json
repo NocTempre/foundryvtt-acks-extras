@@ -1,0 +1,20 @@
+{
+  "_id": "acksEqItemLoss00",
+  "_key": "!macros!acksEqItemLoss00",
+  "name": "Item Loss from Damage",
+  "type": "script",
+  "img": "icons/svg/fire.svg",
+  "scope": "global",
+  "command": "// JJ p. 398 (optional): an area attack that drops a creature to -6 hp or lower\n// destroys 1 stone of equipment, +1 per further 6 damage, in a fixed positional\n// order, skipping materials the damage type cannot harm.\nconst MOD = \"acks-equipment\";\nconst api = game.modules.get(MOD)?.api ?? globalThis.acksEquipment;\nif (!api) { ui.notifications.error(\"ACKS Equipment is not active.\"); return; }\nif (!game.settings.get(MOD, \"overlayItemLoss\")) { ui.notifications.warn(\"Enable the 'Item loss from damage' overlay in module settings first.\"); return; }\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) { ui.notifications.warn(\"Select a token.\"); return; }\nconst types = [\"acidic\",\"arcane\",\"bludgeoning\",\"piercing\",\"poisonous\",\"slashing\",\"cold\",\"electric\",\"fire\",\"luminous\",\"necrotic\",\"seismic\"];\nconst form = await foundry.applications.api.DialogV2.prompt({\n  window: { title: `Item Loss — ${actor.name}` },\n  content: `<div style=\"display:grid;gap:.5rem\">\n    <p>Applies only when the creature was reduced to <b>-6 hp or lower</b> by an area attack it did not save against.</p>\n    <label>Hit points after the attack <input type=\"number\" name=\"hp\" value=\"${actor.system.hp?.value ?? -6}\"></label>\n    <label>Damage type <select name=\"dt\">${types.map((t) => `<option value=\"${t}\">${t}</option>`).join(\"\")}</select></label>\n    <label><input type=\"checkbox\" name=\"rear\"> Damaged from the flank or rear (reverses the order)</label>\n  </div>`,\n  ok: { label: \"Resolve\", callback: (_e, btn) => new FormData(btn.form) },\n  rejectClose: false,\n});\nif (!form) return;\nconst loadout = api.getLoadout(actor);\nconst plan = api.planItemLoss(actor, loadout, { hp: Number(form.get(\"hp\")), damageType: form.get(\"dt\"), fromRear: !!form.get(\"rear\") });\nif (!plan.stones) { ui.notifications.info(\"Not at -6 hp or lower: no equipment is at risk.\"); return; }\nconst list = plan.destroyed.length\n  ? plan.destroyed.map((d) => `<li><b>${d.item.name}</b> <span style=\"opacity:.7\">(${d.material})</span></li>`).join(\"\")\n  : \"<li><em>nothing vulnerable to that damage type</em></li>\";\nChatMessage.create({\n  speaker: ChatMessage.getSpeaker({ actor }),\n  content: `<div class=\"acks-equipment-loadout\"><h3>Item Loss — ${actor.name}</h3>\n    <p><b>${plan.stones}</b> stone at risk (${form.get(\"dt\")}${form.get(\"rear\") ? \", from the rear\" : \"\"}).</p>\n    <ul>${list}</ul>\n    <p style=\"opacity:.75;font-size:.9em\">${plan.survivors} item(s) were immune to this damage type and skipped. Magic items get a saving throw (wielder's progression) before being destroyed; items of 2+ stone are damaged rather than destroyed, losing 1 AC per full stone.</p>\n  </div>`,\n});",
+  "folder": null,
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

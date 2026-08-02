@@ -1,0 +1,134 @@
+<div class="acks-formation-body skill-audit-body">
+  {{#if formation}}
+  <p class="hint">{{localize "ACKS-FORMATION.audit.hint"}}</p>
+
+  <section class="ability-roster">
+    <h3>
+      {{localize "ACKS-FORMATION.audit.roster"}}
+      <button type="button" class="reset-overrides" data-action="resetAbilityOverrides"
+              data-tooltip="{{localize 'ACKS-FORMATION.audit.resetHint'}}">
+        <i class="fa-solid fa-rotate-left"></i> {{localize "ACKS-FORMATION.audit.reset"}}
+      </button>
+    </h3>
+    <p class="hint">{{localize "ACKS-FORMATION.audit.rosterHint"}}</p>
+    <table class="audit-table">
+      <tbody>
+        {{#each abilities}}
+        <tr data-item-uuid="{{this.uuid}}" class="{{#unless this.active}}inactive{{/unless}}">
+          <td class="member-cell">
+            <img src="{{this.img}}" alt="" /> {{this.name}}
+            {{#if this.overridden}}<i class="fa-solid fa-user-pen gm-set"
+              data-tooltip="{{localize 'ACKS-FORMATION.audit.overridden'}}"></i>{{/if}}
+            <br /><span class="src">{{this.holderList}}</span>
+          </td>
+          <td class="binding-cell">
+            {{#if this.bindings.length}}
+              {{#each this.bindings}}
+              <span class="binding route-{{this.route}}"
+                    data-tooltip="{{this.routeLabel}}">{{this.label}}</span>
+              {{/each}}
+            {{else}}
+              <span class="src">{{localize "ACKS-FORMATION.audit.noBinding"}}</span>
+            {{/if}}
+          </td>
+          <td class="toggle-cell">
+            <button type="button" data-action="toggleAbility"
+                    class="ruling {{#if this.overridden}}forced{{/if}} {{#if this.active}}on{{else}}off{{/if}}"
+                    data-tooltip="{{localize 'ACKS-FORMATION.audit.toggleHint'}}">
+              {{#if this.overridden}}
+                {{#if this.active}}{{localize "ACKS-FORMATION.audit.forcedOn"}}{{else}}{{localize "ACKS-FORMATION.audit.forcedOff"}}{{/if}}
+              {{else}}
+                {{#if this.active}}{{localize "ACKS-FORMATION.audit.autoOn"}}{{else}}{{localize "ACKS-FORMATION.audit.autoOff"}}{{/if}}
+              {{/if}}
+            </button>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h3>{{localize "ACKS-FORMATION.audit.resolution"}}</h3>
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-FORMATION.audit.member"}}</th>
+          {{#each checkColumns}}<th>{{this.label}}</th>{{/each}}
+        </tr>
+      </thead>
+      <tbody>
+        {{#each members}}
+        <tr>
+          <td class="member-cell"><img src="{{this.img}}" alt="" /> {{this.name}} <span class="lvl">L{{this.level}}</span></td>
+          {{#each this.resolutions}}
+          <td><strong>{{this.label}}</strong><br /><span class="src">{{this.source}}</span></td>
+          {{/each}}
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h3>{{localize "ACKS-FORMATION.audit.items"}}</h3>
+    <p class="hint">{{localize "ACKS-FORMATION.audit.itemsHint"}}</p>
+    {{#each members}}
+    <h4>{{this.name}}</h4>
+    {{#if this.items.length}}
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-FORMATION.audit.item"}}</th>
+          <th>{{localize "ACKS-FORMATION.audit.sheetTarget"}}</th>
+          <th>{{localize "ACKS-FORMATION.audit.usedFor"}}</th>
+          <th>{{localize "ACKS-FORMATION.audit.progression"}}</th>
+          <th>{{localize "ACKS-FORMATION.audit.factor"}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each this.items}}
+        <tr>
+          <td>{{this.name}}</td>
+          <td>{{this.target}}+</td>
+          <td>
+            <select data-item-uuid="{{this.uuid}}" data-field="checkKey">
+              {{#each this.checkOptions}}
+              <option value="{{this.value}}" {{#if this.active}}selected{{/if}}>{{this.label}}</option>
+              {{/each}}
+            </select>
+          </td>
+          <td>
+            <select data-item-uuid="{{this.uuid}}" data-field="thiefSkill">
+              {{#each this.progressionOptions}}
+              <option value="{{this.value}}" {{#if this.active}}selected{{/if}}>{{this.label}}</option>
+              {{/each}}
+            </select>
+          </td>
+          <td>
+            <input type="number" step="0.25" min="0.25" max="2" value="{{this.levelFactor}}"
+                   data-item-uuid="{{this.uuid}}" data-field="levelFactor" />
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="hint">{{localize "ACKS-FORMATION.audit.noItems"}}</p>
+    {{/if}}
+    {{/each}}
+  </section>
+
+  <section>
+    <h3>{{localize "ACKS-FORMATION.audit.table"}}</h3>
+    <table class="audit-table">
+      <tbody>
+        {{#each progressionTable}}
+        <tr><td class="member-cell">{{this.key}}</td><td>{{this.values}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <p class="hint">{{localize "ACKS-FORMATION.audit.tableHint"}}</p>
+  </section>
+  {{/if}}
+</div>

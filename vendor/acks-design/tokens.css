@@ -1,0 +1,388 @@
+/* ============================================================================
+ * ACKS II DESIGN TOKENS — the single source of truth.
+ *
+ * Every value below was MEASURED from the official ACKS II PDFs, not invented.
+ * `docs/EXTRACTION.md` records the measurement for each one (which file, which
+ * page, what was sampled). If you need a value that is not here, measure it and
+ * add it — never hardcode a colour or size in a component.
+ *
+ * Naming: --acks-<group>-<name>. Groups are
+ *   colour  : ink, paper, burgundy/spot, tint, state
+ *   type    : font, fs (font-size), lh (line-height), tracking, weight
+ *   space   : sp
+ *   line    : rule
+ *   depth   : shadow, radius
+ *   texture : tx
+ *
+ * THEMING. Light is the default; dark is a single override block at the bottom
+ * of this file, keyed on `.theme-dark` (Foundry v14's own class) or
+ * `[data-acks-theme="dark"]` (to force a branch for one application, or in the
+ * preview harness).
+ *
+ * Dark mode is deliberately OPT-IN rather than following `prefers-color-scheme`
+ * directly, for two reasons: Foundry always applies an explicit theme class, so
+ * the media query would be redundant there; and writing the palette twice — once
+ * per mechanism — is exactly how themes drift out of sync. Outside Foundry,
+ * mirror the OS preference yourself; `preview/index.html` does it in three lines.
+ *
+ * A NOTE ON `light-dark()`: the obvious way to write this file would be one
+ * `light-dark(<light>, <dark>)` per token. It does not work. Inside a custom
+ * property, `light-dark()` silently resolves to the light branch — verified in
+ * Chrome 148, both for unregistered properties and for ones registered as
+ * `<color>` via `@property`. Direct use in a `color:` declaration is fine; via
+ * `var()` it is not. Don't reintroduce it.
+ *
+ * The books are letterpress-flat: across 1,800+ pages there is not one rounded
+ * corner and not one drop shadow. --acks-radius and --acks-shadow are zero on
+ * purpose — that flatness IS the ACKS look.
+ * ========================================================================== */
+
+:root {
+  /* ==========================================================================
+   * 1. COLOUR
+   * The books run on a two-colour press look: one burgundy spot plus a warm
+   * black, on near-white stock. Everything else is a tint of those. Resist
+   * adding hues — the whole identity is the discipline of this palette.
+   *
+   * The dark branch inverts the PAPER, never the SPOT: parchment becomes
+   * tooled oxblood leather and the burgundy stays burgundy.
+   * ====================================================================== */
+
+  /* -- The spot colour. #620730 is the flat vector value used for every rule,
+   *    heading, table head and folio across all four core books.
+   *
+   *    IT HAS TWO ROLES, and they must be separate tokens:
+   *      --acks-burgundy  the spot colour as a SURFACE (bands, table heads,
+   *                       folios, primary buttons — things white text sits on)
+   *      --acks-spot      the spot colour as INK (headings, rules, links,
+   *                       labels, marks — things that sit on the paper)
+   *
+   *    In print they are one and the same, so both are #620730 here. They only
+   *    diverge in the dark block below: a surface must stay dark enough to
+   *    carry white banner text (9.0:1), while ink must come up to a rose light
+   *    enough to read as a heading on dark paper (6.6:1). One value cannot do
+   *    both — the first draft of this file tried, and its dark headings
+   *    audited at 2.0:1. Pick the role, not the colour. ------------------- */
+  --acks-burgundy: #620730;       /* SURFACE role                            */
+  --acks-spot: #620730;           /* INK role                                */
+  --acks-burgundy-deep: #44141a;  /* porphyry shadow — gradient dark stop     */
+  --acks-burgundy-mid: #682d33;   /* porphyry mean  — textured band average   */
+  --acks-burgundy-lit: #af5155;   /* porphyry fleck — gradient light stop     */
+  --acks-burgundy-ink: #4a0524;   /* hover/pressed: burgundy driven darker    */
+
+  /* -- Ink. The books never use pure #000; body copy is a warm rich black. -- */
+  --acks-ink: #231f20;
+  --acks-ink-soft: #636466;
+  /* The books' faintest grey is #797979 (the DRM watermark), which lands at
+   * 4.22:1 on paper — below AA. Darkened to the nearest passing value; fine
+   * print has to be readable in a UI even if it needn't be in print. */
+  --acks-ink-faint: #6b6b6b;
+
+  /* -- Paper. The page ground is a cream parchment printed so light it reads
+   *    as near-white; --paper is that perceived value, --warm/--deep are the
+   *    texture's own tones for panels that should look more aged. ---------- */
+  --acks-paper: #fdfbf9;
+  --acks-paper-warm: #ead8b8;
+  --acks-paper-deep: #c6a67b;
+  --acks-paper-pure: #ffffff;
+
+  /* -- Tints of the spot colour. These are the ONLY fills in the books. ---- */
+  --acks-tint: #f2ebec;           /* ~5% burgundy: shaded rows, callouts     */
+  --acks-tint-2: #e6d9da;         /* ~12% burgundy: nested surfaces, hover   */
+  --acks-neutral: #e6e7e8;        /* neutral grey panel (character sheet)    */
+  --acks-neutral-2: #d1d3d4;      /* grey lettering on burgundy bands        */
+  /* Boxed write-in field on the sheet panel: the pure-white well ruled in ink.
+   * PROMOTED 2026-08-01 from acks-lib's sheet-theme layer, which was its only
+   * declarer — the follower card read the name everywhere and a literal
+   * fallback masked the missing definition (white boxes on a dark seat). */
+  --acks-field: #ffffff;
+
+  /* -- Reversed text: what sits on a burgundy band. Fixed in both themes,
+   *    because the band is dark in both. ---------------------------------- */
+  --acks-on-burgundy: #ffffff;
+  --acks-on-burgundy-soft: #d1d3d4;
+
+  /* -- State. The single bright accent in 1,800+ pages is the damage-icon red.
+   *    Spend it only on genuine alarm. Success/warning are derived, not
+   *    sampled: the books have no such semantics, so these are the minimum
+   *    additions needed for UI, hue-matched to the palette's warmth.
+   *
+   *    Each has a *-ink pair. The plain token is for FILLS, BARS and ICONS;
+   *    the -ink token is for TEXT on the matching tint, where the plain one
+   *    fails AA (the measured red is only 3.78:1 on its own tint). On dark
+   *    grounds the relationship inverts, so -ink is the *lighter* tone. -- */
+  --acks-danger: #ed1c24;         /* MEASURED — ACKS2e-Damage-Icons red      */
+  --acks-danger-ink: #b01015;     /* text-on-tint variant                    */
+  --acks-danger-tint: #fdeaea;
+  --acks-warning: #9a6a10;        /* derived (not in books)                  */
+  --acks-warning-ink: #7a5208;
+  --acks-warning-tint: #f7f0dd;
+  --acks-success: #2f6b46;        /* derived (not in books)                  */
+  --acks-success-ink: #245536;
+  --acks-success-tint: #e8f0e9;
+
+  /* -- Gilt accent: specialization / focus emphasis that must NOT read as
+   *    alarm. Module-invented (follower-card build strips, henchmen search
+   *    stars); promoted 2026-08-01 from hardcoded hexes there. Fixed in both
+   *    themes like the banner lettering — 6.4:1 on dark paper. ---------- */
+  --acks-gold: #c9a227;           /* fill / icon accent                      */
+  --acks-gold-ink: #2b1c05;       /* text ON a gold fill                     */
+  --acks-gold-deep: #8a6d13;      /* gold keyline / border                   */
+
+  /* ==========================================================================
+   * 2. TYPE
+   * Five roles, each a documented open-licence stand-in for the commercial
+   * Adobe face the books use. docs/FONT-MAPPING.md explains every choice.
+   * Fallback chains end in Foundry-bundled or system faces so a sheet still
+   * reads correctly if the webfonts fail to load.
+   * ====================================================================== */
+
+  /* Trajan Pro 3 Bold/Semibold — chapter titles, headings, table titles.     */
+  --acks-font-display: "Cinzel", "Trajan Pro 3", "Modesto Condensed", Georgia, serif;
+  /* Imperator Small Caps Bold — running heads, banner lettering.            */
+  --acks-font-banner: "Cinzel", "Imperator Small Caps", "Modesto Condensed", Georgia, serif;
+  /* Minion Pro — body copy. Foundry ships neither; Crimson Pro is the match. */
+  --acks-font-body: "Crimson Pro", "Minion Pro", "EB Garamond", Georgia, serif;
+  /* Cronos Pro — tables, labels, form controls, anything UI-dense.          */
+  --acks-font-ui: "Source Sans 3", "Cronos Pro", "Signika", "Segoe UI", sans-serif;
+  /* Broadsheet Italic — in-world quotations and attributions only.          */
+  --acks-font-script: "IM Fell English", "Broadsheet", Georgia, serif;
+  /* Archeologicaps — drop caps and ornamental initials only.                */
+  --acks-font-caps: "Cinzel Decorative", "Archeologicaps", "Cinzel", Georgia, serif;
+  --acks-font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* -- Scale. The books set 9 pt Minion body on US Letter. Every other size
+   *    is expressed here as its MEASURED ratio to that body size, so the
+   *    printed hierarchy survives translation to screen. Change --fs-base
+   *    alone to rescale a whole sheet. ----------------------------------- */
+  --acks-fs-base: 14px;
+
+  --acks-fs-micro: calc(var(--acks-fs-base) * 0.58);  /*  5.2pt  table micro  */
+  --acks-fs-fine: calc(var(--acks-fs-base) * 0.67);   /*  6.0pt  fine print   */
+  --acks-fs-label: calc(var(--acks-fs-base) * 0.89);  /*  8.0pt  table labels */
+  --acks-fs-body: var(--acks-fs-base);                /*  9.0pt  body copy    */
+  --acks-fs-h3: var(--acks-fs-base);                  /*  9.0pt  Trajan caps  */
+  --acks-fs-banner: calc(var(--acks-fs-base) * 1.11); /* 10.0pt  running head */
+  --acks-fs-quote: calc(var(--acks-fs-base) * 1.17);  /* 10.5pt  Broadsheet   */
+  --acks-fs-h2: calc(var(--acks-fs-base) * 1.56);     /* 14.0pt  subsection   */
+  --acks-fs-h1: calc(var(--acks-fs-base) * 2.11);     /* 19.0pt  section head */
+  --acks-fs-display: calc(var(--acks-fs-base) * 3.2); /* chapter-opener scale */
+
+  /* -- Leading. Print body is 9/11.5; tables are set tight. --------------- */
+  --acks-lh-tight: 1.15;   /* headings, banners, table cells                 */
+  --acks-lh-snug: 1.28;    /* dense two-column body, sidebars                */
+  --acks-lh-body: 1.42;    /* screen body copy (looser than print, on purpose)*/
+  --acks-lh-quote: 1.5;    /* script quotations need air                      */
+
+  /* -- Tracking. Roman inscriptional caps need letterspacing to read; the
+   *    books letterspace every Trajan and Imperator setting. ------------- */
+  --acks-tracking-banner: 0.09em;   /* Imperator running heads              */
+  --acks-tracking-display: 0.045em; /* Trajan H1/H2                         */
+  --acks-tracking-caps: 0.07em;     /* small-caps UI labels                 */
+  --acks-tracking-body: 0;
+
+  --acks-weight-body: 400;
+  --acks-weight-medium: 600;
+  --acks-weight-bold: 700;
+
+  /* ==========================================================================
+   * 3. SPACE — 4px base, matching the books' 4pt gutter grid.
+   * ====================================================================== */
+  --acks-sp-0: 0;
+  --acks-sp-1: 2px;
+  --acks-sp-2: 4px;
+  --acks-sp-3: 6px;
+  --acks-sp-4: 8px;
+  --acks-sp-5: 12px;
+  --acks-sp-6: 16px;
+  --acks-sp-7: 24px;
+  --acks-sp-8: 32px;
+  --acks-sp-9: 48px;
+  --acks-gutter: 18px;   /* MEASURED column gutter, two-column body          */
+
+  /* ==========================================================================
+   * 4. LINE WORK
+   * MEASURED stroke widths: 0.5pt hairline, 1.0pt standard, 1.5pt heavy —
+   * a clean 1:2:3 relationship, preserved here in crisp whole pixels.
+   * Rules are ink, so they follow --acks-spot, not the surface token.
+   * ====================================================================== */
+  --acks-rule-hair: 1px;
+  --acks-rule: 2px;
+  --acks-rule-heavy: 3px;
+  --acks-rule-color: var(--acks-spot);
+  --acks-rule-color-soft: color-mix(in srgb, var(--acks-spot) 35%, transparent);
+
+  --acks-border-hair: var(--acks-rule-hair) solid var(--acks-rule-color);
+  --acks-border: var(--acks-rule) solid var(--acks-rule-color);
+  --acks-border-soft: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  --acks-border-ink: var(--acks-rule-hair) solid var(--acks-ink);
+
+  /* ==========================================================================
+   * 4b. THE SHEET REGISTER
+   * ACKS II has two geometric systems, not one. The BOOKS are ruled rectangles
+   * in the spot colour. The official CHARACTER SHEET is discs, hexagons and
+   * polygons drawn in INK with reversed (white) keylines — on its five pages,
+   * curves outnumber rectangles by two orders of magnitude, and only 5 burgundy
+   * vector fills appear at all, every one of them in the top banner.
+   *
+   * The distinction is functional, and worth preserving: a sheet you write on
+   * is drawn in ink; a page you read is ruled in the spot colour. These tokens
+   * serve the shape primitives in styles/components/shapes.css. Note they
+   * default to --acks-ink, NOT --acks-spot.
+   * ====================================================================== */
+  --acks-shape-fill: var(--acks-ink);          /* filled disc / hexagon      */
+  --acks-shape-stroke: var(--acks-ink);        /* outline shapes             */
+  /* MEASURED 1.25pt outer + 0.75pt inner, the sheet's double-stroke hexagon. */
+  --acks-shape-stroke-w: 2px;
+  --acks-shape-stroke-inner-w: 1px;
+  /* Reversed keyline: filled shapes carry a WHITE inset rule, the inverse of
+   * how the books rule a tinted box. This is what gives them the engraved look. */
+  --acks-shape-keyline: var(--acks-paper-pure);
+  /* MEASURED 82.2pt outer / 75.3pt inner => the keyline sits 4.2% in. */
+  --acks-shape-inset: 4.2%;
+  --acks-shape-size: 76px;                     /* attribute disc / hexagon   */
+  --acks-shape-size-sm: 30px;                  /* modifier / AC pip          */
+  --acks-shape-size-lg: 96px;                  /* the LEVEL medallion        */
+
+  /* ==========================================================================
+   * 5. DEPTH — see the header note. Zero is deliberate.
+   * --acks-lift exists only for genuinely floating UI (tooltips, popouts)
+   * that has no print equivalent.
+   * ====================================================================== */
+  --acks-radius: 0;
+  --acks-radius-lozenge: 2px;  /* the folio diamond's slightly clipped tip   */
+  --acks-shadow: none;
+  --acks-lift: 0 2px 10px rgb(35 31 32 / 0.28);
+  --acks-focus-color: var(--acks-spot);
+  --acks-focus-ring: 0 0 0 2px var(--acks-paper), 0 0 0 4px var(--acks-focus-color);
+
+  /* ==========================================================================
+   * 6. TEXTURE
+   * The burgundy furniture is not flat — it is a speckled porphyry stone, and
+   * the page is a faint parchment. Both are reproduced PROCEDURALLY in
+   * styles/textures.css (SVG turbulence + gradients) so nothing from the
+   * copyrighted books is redistributed. These tokens are the knobs.
+   * ====================================================================== */
+  --acks-tx-porphyry-opacity: 0.55;
+  --acks-tx-porphyry-scale: 90px;
+  --acks-tx-parchment-opacity: 0.42;
+  --acks-tx-parchment-scale: 220px;
+
+  /* The porphyry BAND as a drop-in `background:` value — surface burgundy under
+   * the measured tonal stops, gradient only (the turbulence overlay stays in
+   * textures.css for roots a module owns). PROMOTED 2026-08-01 from acks-lib's
+   * sheet-theme. Re-declared in the dark block below — see the note there on
+   * derived tokens before assuming that repeat is redundant. */
+  --acks-banner: var(--acks-burgundy) linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--acks-burgundy-deep) 60%, transparent) 0%,
+    transparent 26%,
+    color-mix(in srgb, var(--acks-burgundy-lit) 20%, transparent) 52%,
+    transparent 74%,
+    color-mix(in srgb, var(--acks-burgundy-deep) 55%, transparent) 100%
+  );
+
+  /* ==========================================================================
+   * 7. LAYOUT
+   * ====================================================================== */
+  --acks-banner-height: 30px;   /* running-head band, scaled from 65px@300dpi */
+  --acks-tab-width: 20px;       /* vertical chapter thumb tab                 */
+  --acks-folio-size: 34px;      /* folio lozenge across the diagonal          */
+  --acks-measure: 34rem;        /* comfortable single-column reading measure  */
+  --acks-duration: 120ms;       /* the books don't animate; keep motion terse */
+  --acks-ease: cubic-bezier(0.2, 0, 0.3, 1);
+}
+
+/* ============================================================================
+ * DARK CONTEXT — the only theme override block in the system.
+ *
+ * The books have no dark mode, so this is an interpretation, chosen on one
+ * principle: invert the PAPER, never the SPOT. The parchment becomes tooled
+ * oxblood leather; the burgundy stays burgundy.
+ *
+ * This is where --acks-burgundy and --acks-spot part company. Every value below
+ * is checked by the live contrast audit in preview/index.html — flip the Dark
+ * toggle there and read the table before changing any of them.
+ * ========================================================================== */
+.theme-dark,
+[data-acks-theme="dark"] {
+  --acks-burgundy: #8e1442;       /* SURFACE — still carries white text 9.0:1 */
+  --acks-spot: #e79bab;           /* INK — rose, reads on dark paper   6.6:1  */
+  --acks-burgundy-deep: #5c0a2b;
+  --acks-burgundy-mid: #7a2a38;
+  --acks-burgundy-lit: #c9707a;
+  --acks-burgundy-ink: #a82050;
+
+  --acks-ink: #ede6df;
+  --acks-ink-soft: #b3a79d;
+  --acks-ink-faint: #8b7f76;
+
+  --acks-paper: #1b1416;
+  --acks-paper-warm: #241a1d;
+  --acks-paper-deep: #120c0e;
+  --acks-paper-pure: #241a1d;
+
+  --acks-tint: #2c1e22;
+  --acks-tint-2: #3a262c;
+  --acks-neutral: #2a2124;
+  --acks-neutral-2: #6c5c60;
+  --acks-field: #1b1416;          /* boxed field: a recessed well, one step
+                                   * darker than the dark panel it sits on   */
+
+  /* On a dark ground the fill/ink relationship inverts: the brighter tone is
+   * now the readable one, so -ink points at the *lighter* value. */
+  --acks-danger: #ff5c5c;
+  --acks-danger-ink: #ff9a9a;
+  --acks-danger-tint: #3a1d1f;
+  --acks-warning: #d9a13a;
+  --acks-warning-ink: #e8bc6b;
+  --acks-warning-tint: #33280f;
+  --acks-success: #6bbf8a;
+  --acks-success-ink: #8fd3a7;
+  --acks-success-tint: #17301f;
+
+  /* Paper fibre reads heavier on a dark ground, so ease the texture off. */
+  --acks-tx-parchment-opacity: 0.3;
+
+  /* -- DERIVED tokens, RE-DECLARED VERBATIM. Not redundant — do not remove.
+   * Custom properties inherit as ALREADY-SUBSTITUTED values: a :root token
+   * containing var() bakes the LIGHT palette in at <html>, and Foundry puts
+   * this dark class on <body> — one element too late. (The preview harness
+   * toggles <html>, which is why its audit alone cannot catch this; verified
+   * live in Foundry v14, where --acks-border computed to the light burgundy
+   * on a dark seat.) Repeating the declarations here re-runs substitution on
+   * the element where the dark values are in scope. Everything above this
+   * comment is a literal and inherits fine; everything below contains var().
+   * The same physics limits [data-acks-density]: it only rescales --acks-fs-*
+   * if set on the element declaring them (<html>) — a caveat, not a bug,
+   * while nothing ships density. ---------------------------------------- */
+  --acks-rule-color: var(--acks-spot);
+  --acks-rule-color-soft: color-mix(in srgb, var(--acks-spot) 35%, transparent);
+  --acks-border-hair: var(--acks-rule-hair) solid var(--acks-rule-color);
+  --acks-border: var(--acks-rule) solid var(--acks-rule-color);
+  --acks-border-soft: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  --acks-border-ink: var(--acks-rule-hair) solid var(--acks-ink);
+  --acks-shape-fill: var(--acks-ink);
+  --acks-shape-stroke: var(--acks-ink);
+  --acks-shape-keyline: var(--acks-paper-pure);
+  --acks-focus-color: var(--acks-spot);
+  --acks-focus-ring: 0 0 0 2px var(--acks-paper), 0 0 0 4px var(--acks-focus-color);
+  --acks-banner: var(--acks-burgundy) linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--acks-burgundy-deep) 60%, transparent) 0%,
+    transparent 26%,
+    color-mix(in srgb, var(--acks-burgundy-lit) 20%, transparent) 52%,
+    transparent 74%,
+    color-mix(in srgb, var(--acks-burgundy-deep) 55%, transparent) 100%
+  );
+}
+
+/* Density: Foundry sheets are cramped. `data-acks-density="compact"` shrinks
+ * the base size and the space ramp together rather than per-component. */
+[data-acks-density="compact"] {
+  --acks-fs-base: 12.5px;
+  --acks-sp-5: 10px;
+  --acks-sp-6: 12px;
+  --acks-sp-7: 18px;
+  --acks-banner-height: 26px;
+}

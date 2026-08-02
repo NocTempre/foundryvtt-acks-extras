@@ -1,0 +1,60 @@
+{
+  "_id": "acksEqTrain00008",
+  "_key": "!items!acksEqTrain00008",
+  "name": "Armour Proficiency: Light",
+  "type": "ability",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>Proficiency with light and very light armour (leather and below).</p><p><em>Class training chunk — Judges Journal pp. 290–291. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqTrEf000008",
+      "_key": "!items.effects!acksEqTrain00008.acksEqTrEf000008",
+      "name": "Armour Proficiency: Light",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.armourProficiency",
+          "type": "override",
+          "value": "light",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "training": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 800,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

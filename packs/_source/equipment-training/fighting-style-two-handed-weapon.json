@@ -1,0 +1,60 @@
+{
+  "_id": "acksEqTrain00004",
+  "_key": "!items!acksEqTrain00004",
+  "name": "Fighting Style: Two-Handed Weapon",
+  "type": "ability",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>Fighting while wielding a medium or large melee weapon in both hands.</p><p><em>Class training chunk — Judges Journal pp. 290–291. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqTrEf000004",
+      "_key": "!items.effects!acksEqTrain00004.acksEqTrEf000004",
+      "name": "Fighting Style: Two-Handed Weapon",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.styleProficient",
+          "type": "override",
+          "value": "twoHanded",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "training": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 400,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

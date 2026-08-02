@@ -1,0 +1,158 @@
+{{!-- acks-lib.group sheet body. Self-contained (no partials) so it loads on
+      demand. Every selector is scoped under .acks-lib-group-sheet. A group is a
+      list of STACKS; each renders its own prototype, headcount, controls, and
+      roster. --}}
+<div class="acks-lib-group-body">
+
+  {{#if invariantBroken}}
+    <p class="acks-lib-group-warning">{{localize "ACKS-LIB.group.warn.invariant"}}</p>
+  {{/if}}
+
+  {{!-- Group summary: totals across every stack, and the collective noun. --}}
+  <section class="acks-lib-group-summary">
+    <div class="size-figure">
+      <span class="size-current">{{totals.current}}</span>
+      <span class="size-noun">{{noun}}</span>
+      <span class="size-detail" title="{{localize 'ACKS-LIB.group.pristineHint'}}">
+        ({{localize "ACKS-LIB.group.pristine"}}: {{totals.pristine}}{{#if totals.dead}}, {{localize "ACKS-LIB.group.fallen"}}: {{totals.dead}}{{/if}})
+      </span>
+    </div>
+    {{#if editable}}
+      <div class="summary-fields">
+        <label>{{localize "ACKS-LIB.group.noun"}}
+          <input type="text" name="system.noun" value="{{system.noun}}" placeholder="{{noun}}" />
+        </label>
+        <button type="button" data-action="recall">{{localize "ACKS-LIB.group.recall"}}</button>
+      </div>
+    {{/if}}
+  </section>
+
+  {{!-- The stacks. Drop an actor anywhere below to add one; drop onto a stack to
+        re-point it. --}}
+  {{#each stacks}}
+    <section class="acks-lib-group-stack" data-stack-key="{{this.key}}">
+      <header class="stack-head">
+        <h3 class="stack-title">
+          {{#if this.hasTemplate}}{{this.label}}{{else}}{{localize "ACKS-LIB.group.emptyStack"}}{{/if}}
+          {{#if this.type}}<span class="proto-type">{{this.type}}</span>{{/if}}
+        </h3>
+        <span class="stack-count">{{this.size.current}} / {{this.size.initial}}</span>
+        {{#if @root.editable}}
+          <button type="button" class="icon" data-action="removeStack"
+                  title="{{localize 'ACKS-LIB.group.removeStack'}}">✕</button>
+        {{/if}}
+      </header>
+
+      <div class="stack-detail">
+        <span title="{{localize 'ACKS-LIB.group.pristineHint'}}">
+          {{localize "ACKS-LIB.group.pristine"}}: {{this.size.pristine}}
+        </span>
+      </div>
+
+      {{#if @root.editable}}
+        <div class="stack-size-fields">
+          <label>{{localize "ACKS-LIB.group.current"}}
+            <input type="number" data-stack-size="current" value="{{this.size.current}}" min="0" />
+          </label>
+          <label>{{localize "ACKS-LIB.group.initial"}}
+            <input type="number" data-stack-size="initial" value="{{this.size.initial}}" min="0" />
+          </label>
+        </div>
+        <div class="stack-controls">
+          <label class="count">{{localize "ACKS-LIB.group.count"}}
+            <input type="number" class="deploy-count" value="1" min="1" />
+          </label>
+          <button type="button" data-action="deploy">{{localize "ACKS-LIB.group.deploy"}}</button>
+          <button type="button" data-action="materialize">{{localize "ACKS-LIB.group.materialize"}}</button>
+          <button type="button" data-action="addCasualty" class="danger">{{localize "ACKS-LIB.group.casualties"}}</button>
+        </div>
+      {{/if}}
+
+      {{!-- This stack's roster: only bodies interesting enough to have a record. --}}
+      {{#if this.members.length}}
+        <ul class="member-list">
+          {{#each this.members}}
+            <li class="member" data-member-key="{{this.key}}">
+              <span class="member-name">{{this.name}}</span>
+              <span class="member-state state-{{this.state}}">{{this.state}}</span>
+              {{#if this.hp}}<span class="member-hp">{{this.hp.value}}/{{this.hp.max}}</span>{{/if}}
+              {{#if @root.editable}}
+                <button type="button" class="icon" data-action="detach"
+                        title="{{localize 'ACKS-LIB.group.detach'}}">➜</button>
+              {{/if}}
+            </li>
+          {{/each}}
+        </ul>
+      {{/if}}
+
+      {{!-- This stack's fallen and departed. --}}
+      {{#if this.dead.length}}
+        <div class="stack-fallen">
+          <span class="muted">{{localize "ACKS-LIB.group.fallen"}} ({{this.dead.length}}):</span>
+          <ul class="member-list">
+            {{#each this.dead}}
+              <li class="member dead" data-member-key="{{this.key}}">
+                <span class="member-name">{{this.name}}</span>
+                <span class="member-note">{{this.note}}</span>
+                {{#if @root.editable}}
+                  <button type="button" class="icon" data-action="deleteRecord" title="✕">✕</button>
+                {{/if}}
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+      {{/if}}
+
+      {{#if this.detached.length}}
+        <div class="stack-detached">
+          <span class="muted">{{localize "ACKS-LIB.group.detachedHeading"}} ({{this.detached.length}}):</span>
+          <ul class="member-list">
+            {{#each this.detached}}
+              <li class="member" data-member-key="{{this.key}}">
+                <span class="member-name">{{this.name}}</span>
+                {{#if this.hasActor}}
+                  <button type="button" class="icon" data-action="openMember" title="{{localize 'ACKS-LIB.group.open'}}">↗</button>
+                {{/if}}
+                {{#if @root.editable}}
+                  <button type="button" class="icon" data-action="deleteRecord" title="✕">✕</button>
+                {{/if}}
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+      {{/if}}
+    </section>
+  {{/each}}
+
+  {{#if editable}}
+    <p class="hint acks-lib-group-dropzone">
+      {{#if hasStacks}}{{localize "ACKS-LIB.group.dropAnotherStack"}}{{else}}{{localize "ACKS-LIB.group.dropFirstStack"}}{{/if}}
+    </p>
+  {{/if}}
+
+  {{!-- Unit bookkeeping (mercenary/specialist side), shared across stacks. --}}
+  {{#if editable}}
+    <section class="acks-lib-group-unit">
+      <header><h3>{{localize "ACKS-LIB.group.unit"}}</h3></header>
+      <div class="unit-fields">
+        <label>{{localize "ACKS-LIB.group.category"}}
+          <select name="system.unit.category">
+            {{#each categories as |label key|}}
+              <option value="{{key}}" {{#if (eq key @root.system.unit.category)}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+        </label>
+        <label>{{localize "ACKS-LIB.group.troopType"}}
+          <input type="text" name="system.unit.troopType" value="{{system.unit.troopType}}" />
+        </label>
+        <label>{{localize "ACKS-LIB.group.morale"}}
+          <input type="number" name="system.unit.morale" value="{{system.unit.morale}}" min="-6" max="4" />
+        </label>
+        <label>{{localize "ACKS-LIB.group.loyalty"}}
+          <input type="number" name="system.unit.loyalty" value="{{system.unit.loyalty}}" min="-4" max="4" />
+        </label>
+      </div>
+    </section>
+  {{/if}}
+
+</div>

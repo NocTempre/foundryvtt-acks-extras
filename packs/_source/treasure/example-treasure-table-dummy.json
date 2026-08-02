@@ -1,0 +1,103 @@
+{
+  "_id": "acksmTreasDummy0",
+  "_key": "!tables!acksmTreasDummy0",
+  "name": "Example Treasure Table (dummy)",
+  "img": "icons/svg/chest.svg",
+  "description": "<p>Invented dummy hoard — drop this table onto a Full Monster's Ecology tab treasure panel to link it, then roll. Replace with real hoard tables.</p>",
+  "formula": "1d4",
+  "replacement": true,
+  "displayRoll": true,
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "results": [
+    {
+      "_id": "acksmTResGold000",
+      "_key": "!tables.results!acksmTreasDummy0.acksmTResGold000",
+      "type": "text",
+      "name": "140 gp in a rotted sack",
+      "description": "",
+      "img": "icons/svg/coins.svg",
+      "weight": 1,
+      "range": [
+        1,
+        1
+      ],
+      "drawn": false,
+      "flags": {},
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784291971252,
+        "modifiedTime": 1784291971252
+      }
+    },
+    {
+      "_id": "acksmTResSilver0",
+      "_key": "!tables.results!acksmTreasDummy0.acksmTResSilver0",
+      "type": "text",
+      "name": "A cracked silver mirror (25 gp)",
+      "description": "",
+      "img": "icons/svg/coins.svg",
+      "weight": 1,
+      "range": [
+        2,
+        2
+      ],
+      "drawn": false,
+      "flags": {},
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784291971252,
+        "modifiedTime": 1784291971252
+      }
+    },
+    {
+      "_id": "acksmTResGems000",
+      "_key": "!tables.results!acksmTreasDummy0.acksmTResGems000",
+      "type": "text",
+      "name": "3 garnets (10 gp each)",
+      "description": "",
+      "img": "icons/svg/coins.svg",
+      "weight": 1,
+      "range": [
+        3,
+        3
+      ],
+      "drawn": false,
+      "flags": {},
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784291971252,
+        "modifiedTime": 1784291971252
+      }
+    },
+    {
+      "_id": "acksmTResNothing",
+      "_key": "!tables.results!acksmTreasDummy0.acksmTResNothing",
+      "type": "text",
+      "name": "Nothing but dust and old bones",
+      "description": "",
+      "img": "icons/svg/coins.svg",
+      "weight": 1,
+      "range": [
+        4,
+        4
+      ],
+      "drawn": false,
+      "flags": {},
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784291971252,
+        "modifiedTime": 1784291971252
+      }
+    }
+  ],
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784291971252,
+    "modifiedTime": 1784291971252
+  }
+}

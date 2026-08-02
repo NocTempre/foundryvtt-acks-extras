@@ -1,0 +1,49 @@
+{
+  "_id": "acksHmdd280c1c77",
+  "_key": "!items!acksHmdd280c1c77",
+  "name": "Battlefield Prowess",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "description": "<p>Henchmen and mercenaries hired by the character gain +1 to their morale score whenever he personally leads them. (JJ powers)</p>",
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "result",
+    "rollTarget": 0,
+    "blindroll": false,
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksHm0214a94a8a",
+      "_key": "!items.effects!acksHmdd280c1c77.acksHm0214a94a8a",
+      "name": "Battlefield Prowess",
+      "type": "base",
+      "img": "icons/svg/aura.svg",
+      "system": {},
+      "transfer": true,
+      "disabled": false,
+      "changes": [
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.henchmanMorale",
+          "mode": 2,
+          "value": "1"
+        }
+      ],
+      "duration": {
+        "startTime": null,
+        "seconds": null
+      },
+      "flags": {
+        "acks-henchmen": {
+          "condition": "ACKS-HENCHMEN.cond.personallyLed"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "_id": "acksHm78efb13113",
+  "_key": "!macros!acksHm78efb13113",
+  "name": "Repair Henchmen References",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/repair.svg",
+  "command": "// Fixes the core acks 14.0.1 crash where a character sheet fails to render\n// (\"Cannot read properties of undefined (reading 'system')\" in getTotalWages):\n// a hireling was deleted while still listed on its employer.\nif (!game.user.isGM) return ui.notifications.warn(\"Only a GM can repair actor references.\");\nconst selected = canvas.tokens.controlled.map((t) => t.actor).filter(Boolean);\nconst scope = selected.length ? selected : game.actors.contents;\nconst preview = await acksHenchmen.repair.repairWorld({ dryRun: true, actors: scope });\nif (!preview.repaired.length) {\n  return ui.notifications.info(`No dangling references found (${preview.scanned} actor(s) scanned).`);\n}\nconst lines = preview.repaired.map((r) => \"<li>\" + acksHenchmen.repair.describeRepair(r) + \"</li>\").join(\"\");\nconst go = await foundry.applications.api.DialogV2.confirm({\n  window: { title: \"Repair Henchmen References\" },\n  content: `<p>Found dangling references on <b>${preview.repaired.length}</b> of ${preview.scanned} actor(s):</p><ul>${lines}</ul><p>Remove them?</p>`,\n});\nif (!go) return;\nconst done = await acksHenchmen.repair.repairWorld({ actors: scope });\nui.notifications.info(`Repaired ${done.repaired.length} actor(s). Re-open any sheet that was failing.`);"
+}

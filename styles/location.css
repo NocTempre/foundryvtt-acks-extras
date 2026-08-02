@@ -1,0 +1,326 @@
+/* acks-location styles. Scope every selector under a module-specific class. */
+
+.acks-location.ruledata-browser .ruledata-browser-body {
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+.acks-location.ruledata-browser .ruledata-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-13, 13px);
+}
+.acks-location.ruledata-browser .ruledata-table td,
+.acks-location.ruledata-browser .ruledata-table th {
+  padding: 0.15rem 0.4rem;
+  text-align: left;
+  border-top: 1px dotted var(--color-border-light-tertiary, #b5b3a4);
+}
+.acks-location.ruledata-browser tr.overridden td:first-child {
+  color: var(--color-text-hyperlink, #1c60a5);
+  font-weight: bold;
+}
+.acks-location.ruledata-browser .override-badge {
+  background: var(--color-text-hyperlink, #1c60a5);
+  color: #fff;
+  border-radius: 3px;
+  padding: 0 0.35rem;
+  font-size: 0.85em;
+}
+.acks-location.ruledata-browser .row-actions a {
+  margin-right: 0.35rem;
+}
+.acks-location.ruledata-browser [data-entry-key].drag-over,
+.acks-location.ruledata-browser [data-entry-key]:hover {
+  background: rgba(28, 96, 165, 0.08);
+}
+.acks-location-json.ruledata-json {
+  max-height: 420px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Storage: the location sheet, the character sheet's tab, the manager.       */
+/*  Everything here roots at an `acks-location*` class — the character-sheet    */
+/*  pieces are injected into a sheet this module does not own, so they must     */
+/*  not restyle anything of the system's by reaching outward.                   */
+/* -------------------------------------------------------------------------- */
+
+.acks-location-sheet-body,
+.acks-location-storage-body,
+.acks-location-manager-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.acks-location-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.acks-location-portrait {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.acks-location-header-fields {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.acks-location-name {
+  font-size: var(--font-size-20, 20px);
+  font-weight: bold;
+}
+.acks-location-header-line {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.acks-location-badge {
+  padding: 0 0.4rem;
+  font-size: 0.85em;
+  white-space: nowrap;
+  border: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-radius: 3px;
+}
+
+.acks-location-storage-head,
+.acks-location-manager-head,
+.acks-location-storage-intro {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.acks-location-storage-head h3,
+.acks-location-manager-head h2 {
+  margin: 0;
+}
+.acks-location-storage-total,
+.acks-location-coin {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.acks-location-owner,
+.acks-location-place {
+  padding: 0.35rem 0.5rem;
+  margin-bottom: 0.4rem;
+  border: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-radius: 4px;
+}
+.acks-location-owner-head,
+.acks-location-place-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px dotted var(--color-border-light-tertiary, #b5b3a4);
+}
+.acks-location-owner-name,
+.acks-location-place-name {
+  flex: 1;
+  font-weight: bold;
+  cursor: pointer;
+}
+.acks-location-dangling {
+  color: var(--color-level-warning, #ee9b3a);
+  cursor: help;
+}
+.acks-location-place-img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border: none;
+  border-radius: 3px;
+}
+.acks-location-place-tools {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.acks-location-rows {
+  padding: 0;
+  margin: 0.25rem 0 0;
+  list-style: none;
+}
+.acks-location-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.15rem 0;
+}
+.acks-location-row-img {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border: none;
+}
+.acks-location-row-name {
+  flex: 1;
+}
+.acks-location-row-qty {
+  opacity: 0.75;
+}
+.acks-location-row-take {
+  width: 4.5em;
+}
+
+.acks-location-btn {
+  padding: 0 0.5rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.acks-location-btn--sm {
+  width: auto;
+  height: auto;
+  padding: 0 0.4rem;
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+.acks-location-empty,
+.acks-location-hint {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+/* The coin summary replaces the system's retired bank column, so it sits
+   inside core's money section and must stay visually subordinate to it. */
+.acks-location-coin-summary {
+  padding: 0.1rem 0.5rem 0.25rem;
+  font-size: 0.9em;
+}
+.acks-location-coin-summary a {
+  cursor: pointer;
+}
+
+/* Stash picker */
+.acks-location-picks {
+  max-height: 340px;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.acks-location-pick {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.1rem 0;
+}
+.acks-location-pick label {
+  display: flex;
+  flex: 1;
+  gap: 0.4rem;
+  align-items: center;
+  cursor: pointer;
+}
+.acks-location-pick img {
+  width: 24px;
+  height: 24px;
+  border: none;
+}
+.acks-location-pick-name {
+  flex: 1;
+}
+.acks-location-pick-qty {
+  opacity: 0.75;
+}
+.acks-location-qty {
+  width: 4.5em;
+}
+.acks-location-pick-actor {
+  margin-bottom: 0.4rem;
+}
+
+/* Manager: places down the side, the selected place's goods beside them. */
+.acks-location-manager-body {
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+}
+.acks-location-manager-places {
+  display: flex;
+  flex: 0 0 200px;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-right: 0.5rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+}
+.acks-location-manager-places ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.acks-location-manager-place {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.2rem 0.3rem;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.acks-location-manager-place.active {
+  background: rgba(28, 96, 165, 0.12);
+}
+.acks-location-manager-place img {
+  width: 24px;
+  height: 24px;
+  border: none;
+}
+.acks-location-manager-place-name {
+  flex: 1;
+}
+.acks-location-manager-place-count {
+  opacity: 0.7;
+}
+.acks-location-manager-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding-left: 0.5rem;
+}
+.acks-location-manager-goods {
+  flex: 1;
+  overflow-y: auto;
+}
+.acks-location-manager-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+}
+.acks-location-manager-target {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.acks-location-manager-target label {
+  display: flex;
+  flex: 1;
+  gap: 0.35rem;
+  align-items: center;
+}
+.acks-location-manager-buttons {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+.acks-location-manager-picked {
+  margin-right: auto;
+}
+.acks-location-manager-newname.hidden {
+  display: none;
+}

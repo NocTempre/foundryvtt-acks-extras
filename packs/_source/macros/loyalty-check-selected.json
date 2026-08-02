@@ -1,0 +1,9 @@
+{
+  "_id": "acksHme55308b20c",
+  "_key": "!macros!acksHme55308b20c",
+  "name": "Loyalty Check (Selected)",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/daze.svg",
+  "command": "const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a hireling token first.\");\nacksHenchmen.openThrowDialog(\"hirelingLoyalty\", {\n  title: actor.name,\n  actor,\n  derived: { effectiveLoyalty: actor.system?.retainer?.loyalty ?? 0 },\n});"
+}

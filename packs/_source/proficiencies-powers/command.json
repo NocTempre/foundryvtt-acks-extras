@@ -1,0 +1,47 @@
+{
+  "_id": "acksHm664c3b002e",
+  "_key": "!items!acksHm664c3b002e",
+  "name": "Command",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "description": "<p>Mastered the art of command: the character's henchmen, mercenaries, and other troops receive +2 to morale. (RR 108)</p>",
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "result",
+    "rollTarget": 0,
+    "blindroll": false,
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksHme4fb4f2387",
+      "_key": "!items.effects!acksHm664c3b002e.acksHme4fb4f2387",
+      "name": "Command",
+      "type": "base",
+      "img": "icons/svg/aura.svg",
+      "system": {},
+      "transfer": true,
+      "disabled": false,
+      "changes": [
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.henchmanMorale",
+          "mode": 2,
+          "value": "2"
+        }
+      ],
+      "duration": {
+        "startTime": null,
+        "seconds": null
+      },
+      "flags": {
+        "acks-henchmen": {}
+      }
+    }
+  ]
+}

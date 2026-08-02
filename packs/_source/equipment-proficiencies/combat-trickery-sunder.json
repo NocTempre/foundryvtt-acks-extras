@@ -1,0 +1,59 @@
+{
+  "_id": "acksEqProf000028",
+  "_key": "!items!acksEqProf000028",
+  "name": "Combat Trickery (Sunder)",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>The sunder maneuver's penalty is reduced by 2 and the target saves at −2.</p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqPfEf000028",
+      "_key": "!items.effects!acksEqProf000028.acksEqPfEf000028",
+      "name": "Combat Trickery (Sunder)",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.maneuverTrickery",
+          "type": "override",
+          "value": "sunder",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 2800,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

@@ -1,0 +1,170 @@
+<section class="standard-form scrollable influence-body">
+
+  {{!-- Parties + attitude tracker --}}
+  <div class="influence-tracker">
+
+    <div class="influence-party" data-side="influencer"
+         data-tooltip="{{localize 'ACKS-INFLUENCE.party.dropHint'}}">
+      <span class="influence-party-role">{{localize 'ACKS-INFLUENCE.party.characterRole'}}</span>
+      <img class="influence-portrait" src="{{parties.influencer.img}}" alt="{{parties.influencer.name}}"/>
+      <span class="influence-party-name">{{parties.influencer.name}}</span>
+    </div>
+
+    {{#if externalMode}}
+    <div class="influence-ladder influence-mode-title">
+      <strong>{{modeLabel}}</strong>
+    </div>
+    {{else}}
+    <div class="influence-ladder">
+      <div class="influence-ladder-rungs">
+        {{#each ladder}}
+          <button type="button" data-action="setAttitude" data-index="{{this.index}}"
+                  class="influence-rung rung-{{this.index}} {{#if this.isActive}}active{{/if}}"
+                  data-tooltip="{{localize 'ACKS-INFLUENCE.tracker.relationship'}}: {{numberFormat this.modifier sign=true}}">
+            <span class="influence-rung-label">{{this.label}}</span>
+          </button>
+        {{/each}}
+      </div>
+      <div class="influence-ladder-hint">
+        {{localize 'ACKS-INFLUENCE.tracker.relationship'}}:
+        <strong>{{numberFormat relationshipModifier sign=true}}</strong>
+      </div>
+    </div>
+    {{/if}}
+
+    <div class="influence-party" data-side="target"
+         data-tooltip="{{localize 'ACKS-INFLUENCE.party.dropHint'}}">
+      <span class="influence-party-role">{{localize 'ACKS-INFLUENCE.party.targetRole'}}</span>
+      <img class="influence-portrait {{#unless hasTarget}}no-target{{/unless}}"
+           src="{{parties.target.img}}" alt="{{parties.target.name}}"/>
+      <span class="influence-party-name">{{parties.target.name}}</span>
+    </div>
+
+  </div>
+
+  {{!-- Encounter setup (hidden for external modes — no tone or attempt) --}}
+  {{#unless externalMode}}
+  <fieldset>
+    <legend>{{localize 'ACKS-INFLUENCE.section.interaction'}}</legend>
+
+    <div class="row">
+      <div class="form-group flex-1">
+        <label class="flex-1" for="{{@root.partId}}-tone">{{localize 'ACKS-INFLUENCE.field.tone'}}</label>
+        <div class="form-fields flex-1">
+          <select name="tone" id="{{@root.partId}}-tone" data-dtype="String">
+            {{selectOptions toneChoices valueAttr="value" labelAttr="label" selected=system.tone localize=true}}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group flex-1">
+        <label class="flex-1" for="{{@root.partId}}-attempt">{{localize 'ACKS-INFLUENCE.field.attempt'}}</label>
+        <div class="form-fields flex-1">
+          <select name="attempt" id="{{@root.partId}}-attempt" data-dtype="Number">
+            {{selectOptions timeChoices valueAttr="value" labelAttr="label" selected=system.attempt localize=true}}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group influence-target-kind {{#if targetKindOverridden}}overridden{{/if}}">
+      <label class="flex-1" for="{{@root.partId}}-target-kind">
+        {{localize 'ACKS-INFLUENCE.field.targetKind'}}
+        {{#unless targetHidden}}
+          <i class="fa-solid fa-wand-magic-sparkles influence-auto-badge"
+             data-tooltip="{{localize 'ACKS-INFLUENCE.auto.badge'}}"></i>
+        {{/unless}}
+      </label>
+      <div class="form-fields flex-1">
+        {{#if targetHidden}}
+          <span class="influence-masked" data-tooltip="{{localize 'ACKS-INFLUENCE.hidden.field'}}">
+            <i class="fa-solid fa-lock"></i>
+          </span>
+        {{else}}
+          <input type="text" name="targetKind" id="{{@root.partId}}-target-kind"
+                 value="{{system.targetKind}}"
+                 data-tooltip="{{localize 'ACKS-INFLUENCE.field.targetKindHint'}}"/>
+        {{/if}}
+      </div>
+    </div>
+  </fieldset>
+  {{/unless}}
+
+  {{!-- Tone-specific modifiers --}}
+  <div class="influence-toolbar">
+    <button type="button" data-action="resetDefaults" class="influence-reset"
+            data-tooltip="{{localize 'ACKS-INFLUENCE.action.resetHint'}}">
+      <i class="fa-solid fa-rotate-left"></i> {{localize 'ACKS-INFLUENCE.action.reset'}}
+    </button>
+    <span class="influence-auto-legend">
+      <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize 'ACKS-INFLUENCE.auto.legend'}}
+    </span>
+  </div>
+
+  <div class="influence-groups">
+    {{#each groups}}
+      <fieldset class="influence-group">
+        <legend>{{this.group}}</legend>
+        {{#each this.mods}}
+          <div class="influence-mod {{#if this.isOverridden}}overridden{{/if}}">
+            <div class="influence-mod-field">
+              {{#if this.masked}}
+                <span class="influence-masked" data-tooltip="{{localize 'ACKS-INFLUENCE.hidden.field'}}">
+                  <i class="fa-solid fa-lock"></i>
+                </span>
+              {{else if this.isCheck}}
+                <input type="checkbox" name="mod.{{this.key}}" id="{{@root.partId}}-mod-{{this.key}}"
+                       {{checked this.checked}}/>
+              {{else if this.isSelect}}
+                <select name="mod.{{this.key}}" id="{{@root.partId}}-mod-{{this.key}}" data-dtype="Number"
+                        data-tooltip="{{this.label}}">
+                  {{selectOptions this.options valueAttr="value" labelAttr="label" selected=this.value}}
+                </select>
+              {{else}}
+                <input type="number" name="mod.{{this.key}}" id="{{@root.partId}}-mod-{{this.key}}"
+                       value="{{this.value}}" data-dtype="Number" class="{{#if this.isGold}}influence-gold{{/if}}"/>
+              {{/if}}
+              {{#if this.isGold}}{{#unless this.masked}}<span class="influence-gp-suffix">gp</span>{{/unless}}{{/if}}
+            </div>
+            <label class="influence-mod-label" for="{{@root.partId}}-mod-{{this.key}}">
+              {{this.label}}
+              {{#if this.isAuto}}
+                <i class="fa-solid fa-wand-magic-sparkles influence-auto-badge"
+                   data-tooltip="{{localize 'ACKS-INFLUENCE.auto.badge'}}"></i>
+              {{/if}}
+              {{#if this.isEffect}}
+                <i class="fa-solid fa-hand-sparkles influence-effect-badge"
+                   data-tooltip="{{localize 'ACKS-INFLUENCE.effect.badge'}}"></i>
+              {{/if}}
+              {{#if this.unaudited}}
+                <i class="fa-solid fa-triangle-exclamation influence-unaudited-badge"
+                   data-tooltip="{{localize 'ACKS-INFLUENCE.unaudited.badge'}}"></i>
+              {{/if}}
+            </label>
+          </div>
+        {{/each}}
+      </fieldset>
+    {{/each}}
+  </div>
+
+  {{!-- Roll bar: one editable Final Modifier (preselected to the computed total;
+        type over it to override — the difference is banked as a GM adjustment). --}}
+  <footer class="form-footer influence-footer">
+    {{#if isContinuing}}
+      <span class="influence-time-note">{{localize 'ACKS-INFLUENCE.field.timeCost'}}: <strong>{{timeLabel}}</strong></span>
+    {{/if}}
+    <label class="influence-total-label" for="{{@root.partId}}-total">{{localize 'ACKS-INFLUENCE.field.finalModifier'}}</label>
+    {{#if targetHidden}}
+      <span class="influence-final influence-masked" data-tooltip="{{localize 'ACKS-INFLUENCE.hidden.total'}}">
+        <i class="fa-solid fa-lock"></i>
+      </span>
+    {{else}}
+      <input type="number" name="finalTotal" id="{{@root.partId}}-total" value="{{finalModifier}}" data-dtype="Number"
+             class="influence-final" data-tooltip="{{localize 'ACKS-INFLUENCE.field.finalModifierHint'}}"/>
+    {{/if}}
+    <button type="button" data-action="roll" class="influence-roll-btn">
+      <i class="fa-solid fa-dice"></i> {{localize 'ACKS-INFLUENCE.action.roll'}}
+    </button>
+  </footer>
+
+</section>

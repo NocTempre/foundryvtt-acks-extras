@@ -1,0 +1,49 @@
+{
+  "_id": "acksHm9981830aeb",
+  "_key": "!items!acksHm9981830aeb",
+  "name": "Chronicles of Battle",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "description": "<p>Henchmen and mercenaries gain +1 to their morale score if the character is there to witness and record their deeds. (JJ powers — Bard)</p>",
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "result",
+    "rollTarget": 0,
+    "blindroll": false,
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksHma61c304536",
+      "_key": "!items.effects!acksHm9981830aeb.acksHma61c304536",
+      "name": "Chronicles of Battle",
+      "type": "base",
+      "img": "icons/svg/aura.svg",
+      "system": {},
+      "transfer": true,
+      "disabled": false,
+      "changes": [
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.henchmanMorale",
+          "mode": 2,
+          "value": "1"
+        }
+      ],
+      "duration": {
+        "startTime": null,
+        "seconds": null
+      },
+      "flags": {
+        "acks-henchmen": {
+          "condition": "ACKS-HENCHMEN.cond.witnessed"
+        }
+      }
+    }
+  ]
+}

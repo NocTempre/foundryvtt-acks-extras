@@ -1,0 +1,9 @@
+{
+  "_id": "acksHm163b2cb327",
+  "_key": "!macros!acksHm163b2cb327",
+  "name": "Post Recruitment Notice",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/scroll.svg",
+  "command": "const locations = game.actors.filter((a) => a.type === \"acks-henchmen.location\");\nif (!locations.length) return ui.notifications.warn(\"Create a Location actor first.\");\nacksHenchmen.openPostingDialog(locations[0]);"
+}

@@ -1,0 +1,391 @@
+/* ACKS II — Influence & Reactions module styles */
+
+.acks-influence-dialog .influence-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  /* Snap to content by default; scroll only when the window is manually shrunk. */
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.acks-influence-dialog fieldset {
+  border-radius: 4px;
+  padding: 0.3rem 0.4rem;
+  margin: 0;
+}
+.acks-influence-dialog fieldset legend {
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  font-size: 0.85em;
+  padding: 0 0.3rem;
+}
+
+/* Parties + attitude tracker */
+.acks-influence-dialog .influence-tracker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.acks-influence-dialog .influence-party {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  flex: 0 0 58px;
+}
+.acks-influence-dialog .influence-portrait {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border: 2px solid var(--color-border-dark, #7a7971);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.acks-influence-dialog .influence-portrait.no-target {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+.acks-influence-dialog .influence-party-name {
+  font-weight: bold;
+  text-align: center;
+  font-size: 0.85em;
+  max-width: 66px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acks-influence-dialog .influence-party-role {
+  font-size: 0.7em;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+.acks-influence-dialog .influence-party[data-side] {
+  cursor: copy;
+  border: 1px dashed var(--color-border-dark, rgba(122, 121, 113, 0.5));
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+.acks-influence-dialog .influence-party.drop-hover {
+  border-color: #c9a227;
+  background: rgba(201, 162, 39, 0.12);
+}
+.acks-influence-dialog .influence-ladder {
+  flex: 1 1 auto;
+}
+.acks-influence-dialog .influence-ladder-rungs {
+  display: flex;
+  gap: 2px;
+}
+.acks-influence-dialog .influence-rung {
+  flex: 1 1 0;
+  padding: 0.25rem 0.15rem;
+  border: 1px solid var(--color-border-dark, #7a7971);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+  font-size: 0.78em;
+  cursor: pointer;
+  line-height: 1.05;
+}
+.acks-influence-dialog .influence-rung:hover {
+  border-color: #c9a227;
+}
+.acks-influence-dialog .influence-rung.active {
+  background: #c9a227;
+  color: #1b1b1b;
+  font-weight: bold;
+  box-shadow: 0 0 6px rgba(201, 162, 39, 0.7);
+}
+.acks-influence-dialog .influence-ladder-hint {
+  text-align: center;
+  margin-top: 2px;
+  font-size: 0.85em;
+}
+
+/* Toolbar (reset + legend) */
+.acks-influence-dialog .influence-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.acks-influence-dialog .influence-reset {
+  flex: 0 0 auto;
+  width: auto;
+}
+.acks-influence-dialog .influence-auto-legend {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+.acks-influence-dialog .influence-auto-badge {
+  margin-left: 0.25rem;
+  color: #7a5cff;
+  opacity: 0.85;
+  font-size: 0.85em;
+}
+.acks-influence-dialog .influence-effect-badge {
+  margin-left: 0.25rem;
+  color: #3aa675;
+  opacity: 0.9;
+  font-size: 0.85em;
+}
+/* An unverified machine draft. Amber rather than red: the mechanic is probably
+   right and is genuinely offered — it just has not been read against the page,
+   so it must not look like a settled ruling. */
+.acks-influence-dialog .influence-unaudited-badge {
+  margin-left: 0.25rem;
+  color: #c8871b;
+  opacity: 0.9;
+  font-size: 0.85em;
+}
+
+/* Modifier groups — control on the left, label fills the rest. */
+.acks-influence-dialog .influence-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.1rem 0.6rem;
+}
+.acks-influence-dialog .influence-group {
+  min-width: 0;
+}
+.acks-influence-dialog .influence-mod {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.75em;
+  line-height: 1.15;
+}
+.acks-influence-dialog .influence-mod.overridden {
+  background: rgba(122, 92, 255, 0.08);
+  border-radius: 3px;
+}
+.acks-influence-dialog .influence-mod-field {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex: 0 0 4.5rem;
+  width: 4.5rem;
+}
+.acks-influence-dialog .influence-mod-field select {
+  width: 100%;
+  min-width: 0;
+}
+.acks-influence-dialog .influence-mod-field input[type="number"] {
+  width: 2.6rem;
+  min-width: 0;
+  text-align: center;
+}
+.acks-influence-dialog .influence-mod-field input[type="checkbox"] {
+  margin: 0 auto 0 0;
+}
+.acks-influence-dialog .influence-mod-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.acks-influence-dialog .influence-gp-suffix {
+  font-weight: bold;
+  color: #d4af37;
+}
+.acks-influence-dialog .influence-masked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  color: var(--color-text-dark-secondary, #7a7971);
+  opacity: 0.7;
+}
+
+/* Attitude item sheet */
+.acks-influence-attitude-sheet .attitude-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+.acks-influence-attitude-sheet .attitude-portrait {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 2px solid var(--color-border-dark, #7a7971);
+  border-radius: 6px;
+}
+.acks-influence-attitude-sheet .attitude-header-fields {
+  flex: 1 1 auto;
+}
+.acks-influence-attitude-sheet .form-group.stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Relationships section on the Notes tab (uses the system's item-list styling). */
+.acks-influence-relationships .item__name {
+  cursor: pointer;
+}
+.acks-influence-relationships .item__name:hover {
+  text-shadow: 0 0 6px #c9a227;
+}
+.acks-influence-relationships .ai-rel-empty {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* Roll bar (merged final modifier + roll) */
+.acks-influence-dialog .influence-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+.acks-influence-dialog .influence-footer .influence-time-note {
+  margin-right: auto;
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+.acks-influence-dialog .influence-footer .influence-total-label {
+  font-weight: bold;
+  flex: 0 0 auto;
+}
+.acks-influence-dialog .influence-footer .influence-final {
+  font-size: 1.15rem;
+  font-weight: bold;
+  max-width: 4.5rem;
+  flex: 0 0 auto;
+  text-align: center;
+}
+.acks-influence-dialog .influence-footer .influence-roll-btn {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* Chat card */
+.acks-influence.chat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.35rem 0.15rem;
+}
+.acks-influence.chat-card .influence-chat-header h3 {
+  margin: 0;
+  border: none;
+}
+.acks-influence.chat-card .influence-chat-parties {
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+.acks-influence.chat-card .influence-chat-roll {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.acks-influence.chat-card .influence-chat-total {
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+.acks-influence.chat-card .influence-chat-formula,
+.acks-influence.chat-card .influence-chat-dice {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+.acks-influence.chat-card .influence-chat-new {
+  font-weight: bold;
+  color: #c9a227;
+}
+.acks-influence.chat-card .influence-chat-bewitched {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  padding: 0.3rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(122, 92, 255, 0.12);
+  border: 1px solid rgba(122, 92, 255, 0.4);
+}
+.acks-influence.chat-card .influence-chat-bewitched i {
+  color: #7a5cff;
+}
+.acks-influence.chat-card .influence-chat-bribe {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+.acks-influence.chat-card .influence-chat-bribe i {
+  color: #d4af37;
+}
+.acks-influence.chat-card .influence-chat-notes {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+.acks-influence.chat-card .influence-chat-notes li {
+  line-height: 1.3;
+}
+.acks-influence.chat-card .influence-chat-mods summary {
+  cursor: pointer;
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+.acks-influence.chat-card .influence-chat-mods ul {
+  margin: 0.25rem 0 0;
+  padding-left: 0.5rem;
+  list-style: none;
+}
+.acks-influence.chat-card .influence-chat-mods li {
+  font-size: 0.9em;
+  line-height: 1.35;
+}
+.acks-influence.chat-card .influence-chat-mods .mod-val {
+  display: inline-block;
+  min-width: 2.1rem;
+  font-weight: bold;
+  color: #c9a227;
+}
+.acks-influence.chat-card .influence-chat-mods-none {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+/* Summary row */
+.acks-influence-dialog .influence-summary .influence-subtotal:disabled {
+  opacity: 0.8;
+}
+
+/* External modes (hiring / loyalty pages hosted for consumer modules) */
+.acks-influence .influence-mode-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+}
+
+.acks-influence-mode-result .acks-influence-roll-line {
+  display: flex;
+  justify-content: space-between;
+}
+
+.acks-influence-mode-result .acks-influence-mod-parts {
+  margin: 0.25rem 0;
+  padding-left: 1rem;
+  font-size: 0.9em;
+}
+
+.acks-influence-mode-result .acks-influence-mod-parts li {
+  display: flex;
+  justify-content: space-between;
+}
+
+.acks-influence-mode-result .acks-influence-outcome {
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.4rem;
+  border-left: 3px solid var(--color-border-highlight, #ff6400);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.acks-influence-mode-result.secret {
+  border-style: dashed;
+}

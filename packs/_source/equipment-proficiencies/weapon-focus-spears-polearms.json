@@ -1,0 +1,59 @@
+{
+  "_id": "acksEqProf000012",
+  "_key": "!items!acksEqProf000012",
+  "name": "Weapon Focus (Spears & Polearms)",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>On an unmodified 20 with a spear or polearm, inflict an additional die of damage.</p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqPfEf000012",
+      "_key": "!items.effects!acksEqProf000012.acksEqPfEf000012",
+      "name": "Weapon Focus (Spears & Polearms)",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.weaponFocus",
+          "type": "override",
+          "value": "spearspolearms",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 1200,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

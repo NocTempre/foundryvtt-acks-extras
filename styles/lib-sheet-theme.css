@@ -1,0 +1,203 @@
+/* ACKS II printed-character-sheet theme (acks-lib override layer).
+ *
+ * This file owns override RULES for markup the `acks` system itself renders —
+ * banners, boxed fields, tabs, sheet grounds, type scale — every one gated by
+ * `body.acks-lib-sheet-theme` (the client setting `sheetTheme`, default ON),
+ * which both keeps the theme opt-out and out-specifies the system rules it
+ * overrides.
+ *
+ * IT DECLARES NO PALETTE. Every colour comes from the vendored design-system
+ * tokens (vendor/acks-design/tokens.css), which module.json loads before this
+ * file: one publisher at `:root`, one dark block at `.theme-dark`. Until
+ * 2026-08-01 this file pinned its own copies of ~18 tokens at body-class
+ * specificity; that made it a SECOND publisher that out-specified the token
+ * file's dark block, and every other layer grew defenses (the vendor's
+ * `.acks-ui` isolation shim, the follower card's private palette) that still
+ * rendered four different cards across sheet-theme × seat combinations. The
+ * measurement history lives in acks-design docs/EXTRACTION.md; the decision
+ * record is docs/MODEL.md § "One token publisher".
+ *
+ * The two roles of the spot colour still matter in every rule here:
+ *   --acks-burgundy  SURFACE — bands, fills; things white text sits ON.
+ *   --acks-spot      INK     — borders, focus rings, rules on the ground.
+ * They are one value in light, and deliberately diverge on a dark seat.
+ */
+
+body.acks-lib-sheet-theme {
+  /* System vars, retuned: everything core that reads them follows the theme.
+     --acks-purple takes the SURFACE role — the system spends it on 9
+     backgrounds against 3 outline/border uses, and on a dark seat the surface
+     value is the brighter of the two, so those keylines gain contrast. These
+     are REMAPS of another package's knobs, not palette declarations. */
+  --acks-purple: var(--acks-burgundy);
+  --acks-sheet-tabs-background: var(--acks-neutral);
+}
+
+/* --- Type scale: the whole sheet rides --acks-fs-base. -------------------
+   One knob (the acks-lib `fontScale` client setting writes --acks-fs-base
+   inline on body); the system sheets' own em/% hierarchy scales from these
+   roots. At the default base (14px) this matches Foundry's stock size, so
+   the rule is a no-op until the knob moves. */
+body.acks-lib-sheet-theme .acks.sheet .window-content,
+body.acks-lib-sheet-theme .sheet.acks.actor-v2 .window-content,
+body.acks-lib-sheet-theme .sheet.acks.item-v2 .window-content {
+  font-size: var(--acks-fs-body);
+}
+
+/* --- Banner typography: reversed small-caps serif on every header band. --- */
+body.acks-lib-sheet-theme .acks .window-header .window-title,
+body.acks-lib-sheet-theme .acks2 .window-header .window-title,
+body.acks-lib-sheet-theme .acks .panel .panel-title h4,
+body.acks-lib-sheet-theme .acks .item-titles,
+body.acks-lib-sheet-theme .acks .list-header,
+body.acks-lib-sheet-theme .acks2 .list-header,
+body.acks-lib-sheet-theme .acks .chat-header .chat-title h2,
+body.acks-lib-sheet-theme .acks .favorite-title,
+body.acks-lib-sheet-theme .acks.dialog.party-sheet .header {
+  font-family: var(--acks-font-banner);
+  font-variant: small-caps;
+  letter-spacing: var(--acks-tracking-caps);
+}
+
+body.acks-lib-sheet-theme .acks fieldset legend,
+body.acks-lib-sheet-theme .acks2 fieldset legend {
+  font-family: var(--acks-font-banner);
+  font-variant: small-caps;
+  letter-spacing: var(--acks-tracking-caps);
+  font-weight: bold;
+}
+
+/* --- Banner surfaces: the porphyry stone of the sheet header. ------------
+   The actor-sheet selector is not redundant. Core ships a rule for
+   `acks sheet actor` + `window-header` setting `background: var(--acks-purple)`
+   at specificity (0,4,0), which out-specifies the plain body-class + header
+   pairing at (0,2,1) — and because core's is a SHORTHAND it resets
+   background-image to none, so the banner texture silently vanished on
+   exactly the windows the theme is named after while surviving everywhere
+   else. The colour still looked right (core reads the remapped
+   --acks-purple), which is what made it easy to miss. Match core's selector
+   and add the body class to clear it. --- */
+body.acks-lib-sheet-theme .window-header,
+body.acks-lib-sheet-theme .application .window-header,
+body.acks-lib-sheet-theme .acks.sheet.actor .window-header {
+  background: var(--acks-banner);
+}
+
+body.acks-lib-sheet-theme .acks.sheet.actor .panel .panel-title,
+body.acks-lib-sheet-theme .acks.dialog.party-sheet .header {
+  color: var(--acks-on-burgundy);
+  background: var(--acks-banner);
+}
+
+body.acks-lib-sheet-theme .acks.sheet.actor .sheet-body .inventory .item-titles,
+body.acks-lib-sheet-theme .acks.chat-block .chat-header,
+body.acks-lib-sheet-theme .favorite-title {
+  background: var(--acks-banner);
+  color: var(--acks-on-burgundy);
+}
+
+body.acks-lib-sheet-theme .acks.sheet.actor .sheet-body .attributes .attribute .attribute-name {
+  color: var(--acks-on-burgundy);
+  background: var(--acks-banner);
+  font-family: var(--acks-font-banner);
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+}
+
+body.acks-lib-sheet-theme .acks.chat-block .chat-header .chat-title h2 {
+  color: var(--acks-on-burgundy);
+}
+
+/* Active sheet tab reads as the selected banner. */
+body.acks-lib-sheet-theme .acks.sheet.actor .sheet-tabs .item.active,
+body.acks-lib-sheet-theme .acks.sheet.item .sheet-tabs .item.active {
+  background: var(--acks-banner);
+  color: var(--acks-on-burgundy);
+}
+
+/* --- Sheet ground --------------------------------------------------------
+   The printed sheet is a neutral gray page, so LIGHT-schemed seats get that
+   ground and white boxed fields. A DARK-schemed seat keeps Foundry's dark
+   surfaces — forcing white fields under dark-theme text made them illegible
+   — and takes only the boxing, banners and typography. Foundry marks the
+   client scheme as body.theme-dark; light-only rules use :not(.theme-dark)
+   so an unthemed client still reads as the printed page. --- */
+body.acks-lib-sheet-theme:not(.theme-dark) .acks.sheet.actor {
+  background: var(--acks-neutral);
+}
+
+body.acks-lib-sheet-theme:not(.theme-dark) .acks.sheet.actor .window-content {
+  background: var(--acks-neutral);
+}
+
+body.acks-lib-sheet-theme:not(.theme-dark) .sheet.acks.actor-v2 .window-content,
+body.acks-lib-sheet-theme:not(.theme-dark) .sheet.acks.item-v2 .window-content {
+  background: var(--acks-neutral);
+  color: var(--acks-ink);
+}
+
+/* --- Fields: boxed by a thin rule, as printed. Light seats get the white
+   box with dark ink; dark seats keep a dark box and their own text color.
+   The dark box is a translucent overlay on Foundry's own surface — an
+   intentional non-token pair, it must read as "the seat's ground, recessed"
+   whatever that ground is. */
+body.acks-lib-sheet-theme:not(.theme-dark) .acks .window-content input:not([type="checkbox"]) {
+  background: var(--acks-field);
+  border: 1px solid var(--acks-ink);
+  border-radius: 2px;
+  color: var(--acks-ink);
+}
+
+body.acks-lib-sheet-theme.theme-dark .acks .window-content input:not([type="checkbox"]) {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 2px;
+}
+
+/* Hover and focus are drawn in the INK role, not the surface role: this rule
+   is shared by both seats, and a surface-dark burgundy here is what audited
+   at 1.46:1 against a dark ground. --acks-spot lifts to rose there. */
+body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]):hover:not(:disabled),
+body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]):focus:not(:disabled) {
+  box-shadow: 0 0 3px var(--acks-spot);
+  border-color: var(--acks-spot);
+}
+
+/* Inputs drawn over artwork (shield, hearts) or inside tight spinner rows
+   stay unboxed — a field box would cover the art. !important because these
+   guards must beat both the light and dark field rules above regardless of
+   selector arithmetic. */
+body.acks-lib-sheet-theme .acks.sheet.actor.character .sheet-body .health input,
+body.acks-lib-sheet-theme .acks .window-content input.health-top,
+body.acks-lib-sheet-theme .acks .window-content input.health-bottom,
+body.acks-lib-sheet-theme .acks .window-content .field-long.memorize input,
+body.acks-lib-sheet-theme .acks .window-content .field-short.quantity input {
+  background: transparent !important;
+  border: none !important;
+}
+
+body.acks-lib-sheet-theme .acks.sheet.actor.character .sheet-body .health input:hover:not(:disabled),
+body.acks-lib-sheet-theme .acks.sheet.actor.character .sheet-body .health input:focus:not(:disabled) {
+  box-shadow: none;
+  background: transparent;
+}
+
+/* --- One-off colors routed into the sheet palette. --- */
+body.acks-lib-sheet-theme .acks.sheet.actor .sheet-body .inventory .item-list .item-summary .tag-list .tag,
+body.acks-lib-sheet-theme .acks.sheet.item .sheet-header .tag-list .tag {
+  background: var(--acks-burgundy);
+  border-color: var(--acks-burgundy-ink);
+  color: var(--acks-on-burgundy);
+}
+
+body.acks-lib-sheet-theme:not(.theme-dark) .acks.sheet.actor.character .encumbrance {
+  background: var(--acks-neutral);
+}
+
+body.acks-lib-sheet-theme .acks.sheet.actor.character .encumbrance .encumbrance-bar {
+  background: rgb(from var(--acks-burgundy) r g b / 0.75);
+}
+
+body.acks-lib-sheet-theme .sheet.acks.actor-v2 .encumbrance-fill {
+  background-color: rgb(from var(--acks-burgundy) r g b / 0.8);
+}

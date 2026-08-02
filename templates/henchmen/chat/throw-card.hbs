@@ -1,0 +1,27 @@
+<div class="acks-henchmen-card throw-card{{#if secret}} secret{{/if}}">
+  <header class="card-header">
+    <h3>{{title}}{{#if secret}} <i class="fas fa-user-secret" data-tooltip="{{localize 'ACKS-HENCHMEN.throwUi.secret'}}"></i>{{/if}}</h3>
+  </header>
+  <div class="card-content">
+    <div class="roll-line">
+      <span class="formula">{{formula}} {{total}}</span>
+      <span class="result">
+        {{localize "ACKS-HENCHMEN.card.natural"}} <strong>{{natural}}</strong>
+        → <strong class="adjusted">{{adjusted}}</strong>
+      </span>
+    </div>
+    {{#if parts.length}}
+    <ul class="mod-parts">
+      {{#each parts}}
+      <li><span class="part-label">{{label}}</span><span class="part-value">{{display}}</span></li>
+      {{/each}}
+    </ul>
+    {{/if}}
+    {{#if outcomeText}}
+    <div class="outcome outcome-{{outcome}}">
+      <strong>{{outcomeText}}</strong>
+      {{#if outcomeHint}}<p class="hint">{{outcomeHint}}</p>{{/if}}
+    </div>
+    {{/if}}
+  </div>
+</div>

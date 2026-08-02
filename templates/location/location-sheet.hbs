@@ -1,0 +1,95 @@
+<div class="acks-location-sheet-body">
+
+  <header class="acks-location-header">
+    <img class="acks-location-portrait" src="{{actor.img}}" data-action="editImage" data-edit="img" alt="{{actor.name}}" />
+    <div class="acks-location-header-fields">
+      <input class="acks-location-name" name="name" type="text" value="{{actor.name}}"
+             placeholder="{{localize 'ACKS-LOCATION.sheet.namePlaceholder'}}" {{#unless editable}}disabled{{/unless}} />
+      <div class="acks-location-header-line">
+        <input class="acks-location-region" name="system.region" type="text" value="{{system.region}}"
+               placeholder="{{localize 'ACKS-LOCATION.sheet.region'}}" {{#unless editable}}disabled{{/unless}} />
+        {{#if vaultOwner}}
+          <span class="acks-location-badge" data-tooltip="{{localize 'ACKS-LOCATION.vault.hint'}}">
+            <i class="fas fa-vault"></i> {{localize "ACKS-LOCATION.vault.badge"}}
+          </span>
+        {{/if}}
+      </div>
+    </div>
+  </header>
+
+  <section class="acks-location-storage">
+    <div class="acks-location-storage-head">
+      <h3><i class="fas fa-boxes-stacked"></i> {{localize "ACKS-LOCATION.storage.heldHere"}}</h3>
+      <div class="acks-location-storage-tools">
+        {{#if canDeposit}}
+          <button type="button" class="acks-location-btn" data-action="depositHere">
+            <i class="fas fa-down-long"></i> {{localize "ACKS-LOCATION.storage.deposit"}}
+          </button>
+        {{/if}}
+        {{#if isGM}}
+          <button type="button" class="acks-location-btn" data-action="openManager"
+                  data-tooltip="{{localize 'ACKS-LOCATION.manager.menuHint'}}">
+            <i class="fas fa-warehouse"></i> {{localize "ACKS-LOCATION.manager.open"}}
+          </button>
+        {{/if}}
+      </div>
+    </div>
+
+    {{#if empty}}
+      <p class="acks-location-empty">{{localize "ACKS-LOCATION.storage.emptyHere"}}</p>
+    {{/if}}
+
+    {{#each groups as |group|}}
+      <div class="acks-location-owner" data-owner-uuid="{{group.ownerUuid}}">
+        <div class="acks-location-owner-head">
+          <span class="acks-location-owner-name{{#if group.dangling}} acks-location-dangling{{/if}}"
+                {{#if group.dangling}}data-tooltip="{{localize 'ACKS-LOCATION.storage.danglingOwner'}}"{{/if}}
+                data-action="openOwner">
+            {{#if group.dangling}}<i class="fas fa-triangle-exclamation"></i> {{/if}}{{group.name}}
+          </span>
+          {{#if group.coinGC}}
+            <span class="acks-location-coin">{{group.coinGC}} {{localize "ACKS-LOCATION.storage.gp"}}</span>
+          {{/if}}
+          {{#if group.canTake}}
+            <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="retrieveAll">
+              <i class="fas fa-up-long"></i> {{localize "ACKS-LOCATION.storage.retrieveAll"}}
+            </button>
+          {{/if}}
+        </div>
+
+        <ul class="acks-location-rows">
+          {{#each group.rows as |row|}}
+            <li class="acks-location-row" data-item-id="{{row.id}}">
+              <img class="acks-location-row-img" src="{{row.img}}" alt="{{row.name}}" />
+              <span class="acks-location-row-name">{{row.name}}</span>
+              {{#if row.stackable}}
+                <span class="acks-location-row-qty">&times;{{row.quantity}}</span>
+              {{/if}}
+              {{#if group.canTake}}
+                {{#if row.stackable}}
+                  <input class="acks-location-row-take" type="number" min="1" max="{{row.quantity}}"
+                         data-quantity placeholder="{{row.quantity}}"
+                         data-tooltip="{{localize 'ACKS-LOCATION.storage.quantityPrompt'}}" />
+                {{/if}}
+                <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="retrieveRow"
+                        data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieve'}}">
+                  <i class="fas fa-up-long"></i>
+                </button>
+              {{/if}}
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+    {{/each}}
+  </section>
+
+  <section class="acks-location-notes">
+    <h3>{{localize "ACKS-LOCATION.sheet.notes"}}</h3>
+    {{#if editable}}
+      {{formInput (lookup fields "notes") value=system.notes name="system.notes" enriched=notesHTML toggled=true}}
+    {{else}}
+      <div class="acks-location-notes-view">{{{notesHTML}}}</div>
+    {{/if}}
+  </section>
+
+</div>

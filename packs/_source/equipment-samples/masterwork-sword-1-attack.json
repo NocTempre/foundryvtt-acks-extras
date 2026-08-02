@@ -1,0 +1,37 @@
+{
+  "_id": "acksEqSamp000007",
+  "_key": "!items!acksEqSamp000007",
+  "name": "Masterwork Sword (+1 attack)",
+  "type": "weapon",
+  "img": "icons/weapons/swords/sword-guard-steel.webp",
+  "system": {
+    "_schemaVersion": 3,
+    "cost": 90,
+    "weight6": 1,
+    "damage": "1d6",
+    "bonus": 1,
+    "melee": true,
+    "missile": false,
+    "description": "<p>A masterwork sword: +1 to attack throws (+80gp over the base 10gp). It does not let you hit monsters only harmed by magic.</p><p><em>Revised Rulebook p. 159. Masterwork and magic bonuses do not stack — enchanting a weapon makes it masterwork automatically.</em></p>"
+  },
+  "effects": [],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "size": "medium",
+      "damageType": "slashing",
+      "masterwork": {
+        "toHit": 1
+      }
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 700,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

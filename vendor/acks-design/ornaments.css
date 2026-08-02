@@ -1,0 +1,216 @@
+/* ============================================================================
+ * ORNAMENTS — the page furniture that makes a page read as ACKS II.
+ *
+ * Four devices, all measured from the Revised Rulebook:
+ *   .acks-banner      the running-head band across the top of every page
+ *   .acks-thumb-tab   the vertical chapter tab on the outer edge
+ *   .acks-folio       the burgundy lozenge holding the page number
+ *   .acks-crest       a lozenge used as a generic badge/marker
+ *
+ * All are drawn in CSS over the porphyry texture — no bitmaps from the books.
+ * ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * BANNER — the running head. A full-bleed porphyry band with the chapter name
+ * in white letterspaced caps, closed by the books' double rule (heavy line,
+ * paper gap, hairline). On a Foundry sheet this is the window/section header.
+ *
+ * The books mirror it: chapter name to the OUTSIDE edge (right on recto, left
+ * on verso). `.acks-banner--verso` flips it.
+ * ------------------------------------------------------------------------ */
+.acks-banner {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--acks-sp-5);
+  min-height: var(--acks-banner-height);
+  padding-inline: var(--acks-sp-5);
+  /* The double rule below the band. Drawn as borders so it survives themes. */
+  border-block-end: var(--acks-rule) solid var(--acks-spot);
+  box-shadow: 0 calc(var(--acks-rule) + 2px) 0 0 var(--acks-spot);
+  margin-block-end: calc(var(--acks-rule) + 2px);
+}
+
+.acks-banner--verso {
+  justify-content: flex-start;
+}
+
+.acks-banner-title {
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-banner);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-banner);
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--acks-on-burgundy);
+  margin: 0;
+}
+
+/* A secondary crumb in the band — grey, the books' #d1d3d4 lettering. */
+.acks-banner-sub {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-on-burgundy-soft);
+  margin-inline-end: auto;
+}
+
+.acks-banner--verso .acks-banner-sub {
+  margin-inline: auto 0;
+}
+
+/* Slot for controls (a Foundry window's close/config buttons). */
+.acks-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * THUMB TAB — the vertical chapter index bleeding off the outer edge.
+ * Purely decorative in print; on screen it makes an excellent vertical tab
+ * strip for a sheet with many sections.
+ * ------------------------------------------------------------------------ */
+.acks-thumb-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+}
+
+.acks-thumb-tab {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--acks-tab-width);
+  min-block-size: 84px;
+  padding-block: var(--acks-sp-4);
+  border: none;
+  cursor: pointer;
+  background-color: color-mix(in srgb, var(--acks-burgundy) 45%, var(--acks-paper));
+  color: var(--acks-on-burgundy);
+  transition: background-color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-thumb-tab > span {
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-micro);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-banner);
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-thumb-tab:hover {
+  background-color: color-mix(in srgb, var(--acks-burgundy) 70%, var(--acks-paper));
+}
+
+/* The current chapter's tab is full-strength porphyry. */
+.acks-thumb-tab[aria-selected="true"],
+.acks-thumb-tab.is-active {
+  background-color: var(--acks-burgundy);
+}
+
+/* ---------------------------------------------------------------------------
+ * FOLIO — the page-number lozenge. A rotated porphyry square with upright
+ * lettering inside; the books park it in the outer bottom corner. Doubles as a
+ * level/HD badge on a Foundry sheet.
+ * ------------------------------------------------------------------------ */
+.acks-folio {
+  display: grid;
+  place-items: center;
+  inline-size: var(--acks-folio-size);
+  block-size: var(--acks-folio-size);
+  transform: rotate(45deg);
+  background-color: var(--acks-burgundy);
+  border-radius: var(--acks-radius-lozenge);
+  /* Texture must rotate with the shape, so it lives on the element itself. */
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--acks-burgundy-lit) 22%, transparent) 0%,
+    transparent 40%,
+    color-mix(in srgb, var(--acks-burgundy-deep) 60%, transparent) 100%
+  );
+}
+
+.acks-folio > * {
+  transform: rotate(-45deg);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-bold);
+  line-height: 1;
+  color: var(--acks-on-burgundy);
+  font-variant-numeric: lining-nums;
+}
+
+.acks-folio--lg {
+  --acks-folio-size: 52px;
+}
+
+.acks-folio--lg > * {
+  font-size: var(--acks-fs-h2);
+}
+
+/* ---------------------------------------------------------------------------
+ * CREST / LOZENGE MARK — the bare diamond, used as a bullet, a divider bead,
+ * or a marker beside a heading.
+ * ------------------------------------------------------------------------ */
+.acks-lozenge-mark {
+  display: inline-block;
+  inline-size: 0.5em;
+  block-size: 0.5em;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+  vertical-align: middle;
+}
+
+.acks-lozenge-mark--hollow {
+  background: transparent;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+/* A row of three lozenges — the books' scene break. */
+.acks-lozenge-break {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--acks-sp-4);
+  margin-block: var(--acks-sp-7);
+}
+
+/* ---------------------------------------------------------------------------
+ * FRAME — a hairline burgundy box with a heavier outer keyline, the treatment
+ * the books give a boxed insert or a character-sheet panel.
+ * ------------------------------------------------------------------------ */
+.acks-frame {
+  border: var(--acks-border-hair);
+  outline: var(--acks-rule-hair) solid var(--acks-spot);
+  outline-offset: 2px;
+  padding: var(--acks-sp-5);
+  background: var(--acks-paper-pure);
+}
+
+/* ---------------------------------------------------------------------------
+ * SECTION — a titled block: banner on top, content below, optional folio.
+ * The composite unit most Foundry sheet sections want.
+ * ------------------------------------------------------------------------ */
+.acks-section {
+  border: var(--acks-border-hair);
+  background: var(--acks-paper);
+}
+
+.acks-section > .acks-banner {
+  border-block-end: var(--acks-rule) solid var(--acks-spot);
+  box-shadow: none;
+  margin-block-end: 0;
+}
+
+.acks-section-body {
+  padding: var(--acks-sp-5);
+}

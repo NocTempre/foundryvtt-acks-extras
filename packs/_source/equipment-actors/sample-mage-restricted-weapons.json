@@ -1,0 +1,131 @@
+{
+  "_id": "acksEqActor00004",
+  "_key": "!actors!acksEqActor00004",
+  "name": "Sample: Mage (Restricted Weapons)",
+  "type": "character",
+  "img": "icons/environment/people/commoner.webp",
+  "system": {
+    "_schemaVersion": 3,
+    "scores": {
+      "str": {
+        "value": 8
+      },
+      "dex": {
+        "value": 12
+      },
+      "con": {
+        "value": 10
+      },
+      "int": {
+        "value": 16
+      },
+      "wis": {
+        "value": 10
+      },
+      "cha": {
+        "value": 10
+      }
+    },
+    "details": {
+      "level": 3,
+      "class": "Sample",
+      "biography": "<p>Demonstrates <strong>non-proficiency</strong>. The mage is proficient only with club, dagger, dart, and staff, and wears no armour. The Staff attacks normally; the Sword is equipped but untrained, so attacking with it takes the RAW −1 penalty (shown in the chat card's total) and gains no fighting-style benefit. The armour cap is <em>unarmored</em>, so wearing the leather is flagged as beyond proficiency.</p>"
+    },
+    "hp": {
+      "value": 12,
+      "max": 12,
+      "hd": "1d8"
+    },
+    "config": {
+      "movementAuto": true
+    }
+  },
+  "items": [
+    {
+      "_id": "acksEqAG00000301",
+      "_key": "!actors.items!acksEqActor00004.acksEqAG00000301",
+      "name": "Staff",
+      "type": "weapon",
+      "img": "icons/weapons/swords/sword-guard-steel.webp",
+      "system": {
+        "_schemaVersion": 3,
+        "damage": "1d4",
+        "melee": true,
+        "missile": false,
+        "equipped": true,
+        "weight6": 1,
+        "cost": 10,
+        "bonus": 0
+      },
+      "effects": [],
+      "flags": {
+        "acks-equipment": {
+          "example": true
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784101908835,
+        "modifiedTime": 1784101908835
+      }
+    },
+    {
+      "_id": "acksEqAG00000302",
+      "_key": "!actors.items!acksEqActor00004.acksEqAG00000302",
+      "name": "Sword",
+      "type": "weapon",
+      "img": "icons/weapons/swords/sword-guard-steel.webp",
+      "system": {
+        "_schemaVersion": 3,
+        "damage": "1d6",
+        "melee": true,
+        "missile": false,
+        "equipped": true,
+        "weight6": 1,
+        "cost": 10,
+        "bonus": 0
+      },
+      "effects": [],
+      "flags": {
+        "acks-equipment": {
+          "example": true
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784101908835,
+        "modifiedTime": 1784101908835
+      }
+    }
+  ],
+  "effects": [],
+  "prototypeToken": {
+    "name": "Sample: Mage (Restricted Weapons)",
+    "actorLink": false
+  },
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "styles": "single,missile",
+      "weaponProficiency": "club,dagger,dart,staff",
+      "armorMax": "unarmored"
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 400,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

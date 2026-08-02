@@ -1,0 +1,53 @@
+{
+  "_id": "acksHm382a2b1710",
+  "_key": "!items!acksHm382a2b1710",
+  "name": "Blood of Ancient Kings",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "description": "<p>The blood of ancient kings and heroes: may hire one more henchman than Charisma permits, and the base loyalty of any henchmen increases by 1. (JJ powers: Blood of Kings)</p>",
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "result",
+    "rollTarget": 0,
+    "blindroll": false,
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksHm3e7fc7d809",
+      "_key": "!items.effects!acksHm382a2b1710.acksHm3e7fc7d809",
+      "name": "Blood of Ancient Kings",
+      "type": "base",
+      "img": "icons/svg/aura.svg",
+      "system": {},
+      "transfer": true,
+      "disabled": false,
+      "changes": [
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.retainBonus",
+          "mode": 2,
+          "value": "1"
+        },
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.baseLoyalty",
+          "mode": 2,
+          "value": "1"
+        }
+      ],
+      "duration": {
+        "startTime": null,
+        "seconds": null
+      },
+      "flags": {
+        "acks-henchmen": {}
+      }
+    }
+  ]
+}

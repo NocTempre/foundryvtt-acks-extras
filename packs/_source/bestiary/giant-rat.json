@@ -1,0 +1,346 @@
+{
+  "_id": "acksmGiantRat000",
+  "_key": "!actors!acksmGiantRat000",
+  "name": "Giant Rat",
+  "type": "monster",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "_schemaVersion": 3,
+    "isNew": false,
+    "hp": {
+      "hd": "1d4",
+      "value": 2,
+      "max": 2,
+      "bhr": "1d3"
+    },
+    "aac": {
+      "value": 1,
+      "mod": 0
+    },
+    "thac0": {
+      "value": 19,
+      "bba": 0,
+      "throw": 10,
+      "mod": {
+        "missile": 0,
+        "melee": 0
+      }
+    },
+    "damage": {
+      "mod": {
+        "missile": 0,
+        "melee": 0
+      }
+    },
+    "movement": {
+      "base": 120,
+      "mod": 0,
+      "value": ""
+    },
+    "initiative": {
+      "value": 0,
+      "mod": 0
+    },
+    "surprise": {
+      "mod": 0,
+      "surpriseothers": 0,
+      "avoidsurprise": 0
+    },
+    "saves": {
+      "paralysis": {
+        "value": 14
+      },
+      "death": {
+        "value": 15
+      },
+      "blast": {
+        "value": 16
+      },
+      "breath": {
+        "value": 16
+      },
+      "implements": {
+        "value": 17
+      },
+      "wand": {
+        "value": 17
+      },
+      "spell": {
+        "value": 18
+      }
+    },
+    "save": {
+      "mod": 0
+    },
+    "retainer": {
+      "enabled": false,
+      "loyalty": 0,
+      "wage": "",
+      "managerid": "",
+      "category": "henchman",
+      "quantity": 1
+    },
+    "details": {
+      "biography": "<p>A dog-sized scavenger rat. Invented test statistics over a generic open-content archetype.</p>",
+      "alignment": "Neutral",
+      "xp": 5,
+      "treasure": {
+        "table": "",
+        "type": "none"
+      },
+      "appearing": {
+        "d": "3d6",
+        "w": "3d10"
+      },
+      "morale": -1
+    },
+    "attacks": ""
+  },
+  "items": [
+    {
+      "_id": "acksmRatBite0000",
+      "name": "Bite",
+      "type": "weapon",
+      "img": "icons/svg/pawprint.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "",
+        "damage": "1d3",
+        "bonus": 0,
+        "melee": true,
+        "missile": false,
+        "equipped": true,
+        "pattern": "transparent",
+        "tags": [],
+        "counter": {
+          "value": 1,
+          "max": 1
+        },
+        "cost": 0,
+        "weight": 0,
+        "weight6": 0
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "naturalWeapon": "bite",
+          "damageType": "piercing",
+          "extraordinary": false
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmGiantRat000.acksmRatBite0000"
+    },
+    {
+      "_id": "acksmRatFever000",
+      "name": "Filth Fever",
+      "type": "ability",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "<p>A bitten creature must save vs Death or contract a debilitating fever (invented test effect).</p>",
+        "proficiencytype": "general",
+        "favorite": false,
+        "pattern": "white",
+        "requirements": "",
+        "roll": "",
+        "rollType": "above",
+        "rollTarget": 0,
+        "blindroll": false,
+        "save": ""
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "abilityCategory": "disease"
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmGiantRat000.acksmRatFever000"
+    },
+    {
+      "_id": "acksmRatPelt0000",
+      "name": "Giant Rat Pelt",
+      "type": "item",
+      "img": "icons/svg/item-bag.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "<p>A mangy but saleable pelt.</p>",
+        "subtype": "item",
+        "quantity": {
+          "value": 1,
+          "max": 0
+        },
+        "cost": 5,
+        "weight": 0,
+        "weight6": 1
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "spoil": true,
+          "component": false,
+          "researchEffects": []
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmGiantRat000.acksmRatPelt0000"
+    }
+  ],
+  "effects": [],
+  "flags": {
+    "acks-monsters": {
+      "extras": {
+        "types": [
+          "animal"
+        ],
+        "subtype": "wild",
+        "size": "small",
+        "mass": {
+          "stone": 1,
+          "lbs": 25
+        },
+        "hd": {
+          "count": 0.5,
+          "asterisks": 0,
+          "dieType": 4
+        },
+        "saveAs": {
+          "class": "fighter",
+          "level": 0
+        },
+        "speeds": [
+          {
+            "type": "land",
+            "combat": 30,
+            "run": 90,
+            "hover": false
+          },
+          {
+            "type": "swim",
+            "combat": 15,
+            "run": 45,
+            "hover": false
+          }
+        ],
+        "vision": [
+          "night"
+        ],
+        "otherSenses": [
+          {
+            "type": "acuteOlfaction",
+            "range": null,
+            "note": ""
+          }
+        ],
+        "load": {
+          "normal": 1,
+          "capacity": 2
+        },
+        "secondary": {
+          "expeditionSpeed": 18,
+          "supplyCost": 0.1,
+          "trainingMonths": 3,
+          "intelligence": "bestial",
+          "trainingModifier": -1,
+          "lifespan": {
+            "baby": 0,
+            "juvenile": 0.2,
+            "adolescent": 0.5,
+            "adult": 1,
+            "middleAged": 2,
+            "old": 3,
+            "ancient": 4,
+            "maximum": 5
+          },
+          "reproduction": {
+            "count": "2d4",
+            "youngType": "litter",
+            "interval": 3,
+            "intervalUnit": "month"
+          },
+          "untrainedValue": {
+            "adult": 2,
+            "juvenile": 1,
+            "baby": 0.5
+          },
+          "trainedValue": [
+            {
+              "role": "other",
+              "value": 8,
+              "note": "ratter"
+            }
+          ]
+        },
+        "encounter": {
+          "lairChance": 20,
+          "dungeon": {
+            "wandering": {
+              "noun": "Pack",
+              "number": "3d6"
+            },
+            "lair": {
+              "noun": "Nest",
+              "number": "3d10"
+            }
+          },
+          "wilderness": {
+            "wandering": {
+              "noun": "Pack",
+              "number": "3d6"
+            },
+            "lair": {
+              "noun": "Nest",
+              "number": "3d10"
+            }
+          }
+        },
+        "description": {
+          "combat": "<p>Bites and flees; fights only when cornered or in overwhelming numbers.</p>"
+        }
+      }
+    }
+  },
+  "prototypeToken": {
+    "name": "Giant Rat",
+    "actorLink": false,
+    "disposition": -1,
+    "sight": {
+      "enabled": true
+    }
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784255926062,
+    "modifiedTime": 1784255926062
+  }
+}

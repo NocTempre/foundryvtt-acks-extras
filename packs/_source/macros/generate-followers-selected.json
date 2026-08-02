@@ -1,0 +1,9 @@
+{
+  "_id": "acksHm8b1a497b63",
+  "_key": "!macros!acksHm8b1a497b63",
+  "name": "Generate Followers (Selected)",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/castle.svg",
+  "command": "const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a 9th+ level character token first.\");\nacksHenchmen.openFollowersDialog(actor);"
+}

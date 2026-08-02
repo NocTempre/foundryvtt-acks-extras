@@ -1,0 +1,9 @@
+{
+  "_id": "acksldbe29ed5b8f",
+  "_key": "!macros!acksldbe29ed5b8f",
+  "name": "Open Storage Manager",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/chest.svg",
+  "command": "if (!game.user.isGM) return ui.notifications.warn(\"The storage manager is a GM tool.\");\ngame.modules.get(\"acks-location\").api.openStorageManager();"
+}

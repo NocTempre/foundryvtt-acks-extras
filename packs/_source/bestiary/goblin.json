@@ -1,0 +1,407 @@
+{
+  "_id": "acksmGoblin00000",
+  "_key": "!actors!acksmGoblin00000",
+  "name": "Goblin",
+  "type": "monster",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "_schemaVersion": 3,
+    "isNew": false,
+    "hp": {
+      "hd": "1d8-1",
+      "value": 3,
+      "max": 3,
+      "bhr": "1d3"
+    },
+    "aac": {
+      "value": 2,
+      "mod": 0
+    },
+    "thac0": {
+      "value": 19,
+      "bba": 0,
+      "throw": 10,
+      "mod": {
+        "missile": 0,
+        "melee": 0
+      }
+    },
+    "damage": {
+      "mod": {
+        "missile": 0,
+        "melee": 0
+      }
+    },
+    "movement": {
+      "base": 120,
+      "mod": 0,
+      "value": ""
+    },
+    "initiative": {
+      "value": 0,
+      "mod": 0
+    },
+    "surprise": {
+      "mod": 0,
+      "surpriseothers": 0,
+      "avoidsurprise": 0
+    },
+    "saves": {
+      "paralysis": {
+        "value": 13
+      },
+      "death": {
+        "value": 14
+      },
+      "blast": {
+        "value": 15
+      },
+      "breath": {
+        "value": 15
+      },
+      "implements": {
+        "value": 16
+      },
+      "wand": {
+        "value": 16
+      },
+      "spell": {
+        "value": 17
+      }
+    },
+    "save": {
+      "mod": 0
+    },
+    "retainer": {
+      "enabled": false,
+      "loyalty": 0,
+      "wage": "",
+      "managerid": "",
+      "category": "henchman",
+      "quantity": 1
+    },
+    "details": {
+      "biography": "<p>A spiteful little raider. Invented test statistics over a generic open-content archetype.</p>",
+      "alignment": "Chaotic",
+      "xp": 5,
+      "treasure": {
+        "table": "",
+        "type": "E (per warband)"
+      },
+      "appearing": {
+        "d": "2d4",
+        "w": "1d6"
+      },
+      "morale": -1
+    },
+    "attacks": ""
+  },
+  "items": [
+    {
+      "_id": "acksmGobSpear000",
+      "name": "Spear",
+      "type": "weapon",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "",
+        "damage": "1d6",
+        "bonus": 0,
+        "melee": true,
+        "missile": false,
+        "equipped": true,
+        "pattern": "transparent",
+        "tags": [],
+        "counter": {
+          "value": 1,
+          "max": 1
+        },
+        "cost": 0,
+        "weight": 0,
+        "weight6": 0
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "naturalWeapon": "weapon",
+          "damageType": "piercing",
+          "extraordinary": false
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmGoblin00000.acksmGobSpear000"
+    },
+    {
+      "_id": "acksmGobBow00000",
+      "name": "Short Bow",
+      "type": "weapon",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "",
+        "damage": "1d6",
+        "bonus": 0,
+        "melee": false,
+        "missile": true,
+        "equipped": true,
+        "pattern": "transparent",
+        "tags": [],
+        "counter": {
+          "value": 1,
+          "max": 1
+        },
+        "cost": 0,
+        "weight": 0,
+        "weight6": 0
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "naturalWeapon": "weapon",
+          "damageType": "piercing",
+          "extraordinary": false
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmGoblin00000.acksmGobBow00000"
+    },
+    {
+      "_id": "acksmGobShield00",
+      "name": "Wicker Shield",
+      "type": "item",
+      "img": "icons/svg/item-bag.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "",
+        "subtype": "item",
+        "quantity": {
+          "value": 1,
+          "max": 0
+        },
+        "cost": 1,
+        "weight": 0,
+        "weight6": 4
+      },
+      "effects": [],
+      "flags": {},
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmGoblin00000.acksmGobShield00"
+    },
+    {
+      "_id": "acksmGobRations0",
+      "name": "Dried Rations",
+      "type": "item",
+      "img": "icons/svg/item-bag.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "<p>Best not to ask what of.</p>",
+        "subtype": "item",
+        "quantity": {
+          "value": 3,
+          "max": 0
+        },
+        "cost": 1,
+        "weight": 0,
+        "weight6": 3
+      },
+      "effects": [],
+      "flags": {},
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmGoblin00000.acksmGobRations0"
+    },
+    {
+      "_id": "acksmGobEars0000",
+      "name": "Goblin Ears",
+      "type": "item",
+      "img": "icons/svg/item-bag.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "<p>Proof for a village bounty.</p>",
+        "subtype": "item",
+        "quantity": {
+          "value": 1,
+          "max": 0
+        },
+        "cost": 2,
+        "weight": 0,
+        "weight6": 1
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "spoil": true,
+          "component": false,
+          "researchEffects": []
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmGoblin00000.acksmGobEars0000"
+    }
+  ],
+  "effects": [],
+  "flags": {
+    "acks-monsters": {
+      "extras": {
+        "types": [
+          "humanoid"
+        ],
+        "subtype": "warrior",
+        "size": "small",
+        "mass": {
+          "stone": 4,
+          "lbs": 40
+        },
+        "hd": {
+          "count": 1,
+          "bonus": -1,
+          "asterisks": 0,
+          "dieType": 8
+        },
+        "saveAs": {
+          "class": "fighter",
+          "level": 1
+        },
+        "speeds": [
+          {
+            "type": "land",
+            "combat": 20,
+            "run": 60,
+            "hover": false
+          }
+        ],
+        "vision": [
+          "lightless"
+        ],
+        "lightlessRange": 60,
+        "load": {
+          "normal": 5,
+          "capacity": 10
+        },
+        "secondary": {
+          "expeditionSpeed": 18,
+          "supplyCost": 0.5,
+          "trainingMonths": 1,
+          "intelligence": "sapient",
+          "untrainedValue": {
+            "adult": 25,
+            "juvenile": 10,
+            "baby": 5
+          },
+          "trainedValue": [
+            {
+              "role": "other",
+              "value": 100,
+              "note": "or more"
+            }
+          ],
+          "lifespan": {
+            "baby": 0,
+            "juvenile": 1,
+            "adolescent": 8,
+            "adult": 12,
+            "middleAged": 22,
+            "old": 33,
+            "ancient": 44,
+            "maximum": 55
+          },
+          "reproduction": {
+            "count": "1",
+            "youngType": "infant",
+            "interval": 1,
+            "intervalUnit": "year"
+          }
+        },
+        "encounter": {
+          "lairChance": 30,
+          "dungeon": {
+            "wandering": {
+              "noun": "Gang",
+              "number": "2d4"
+            },
+            "lair": {
+              "noun": "Lair (warband)",
+              "number": "1"
+            }
+          },
+          "wilderness": {
+            "wandering": {
+              "noun": "Warband (gangs)",
+              "number": "1d6"
+            },
+            "lair": {
+              "noun": "Village (warbands)",
+              "number": "1d8"
+            }
+          }
+        },
+        "variants": [
+          {
+            "label": "Goblin Chief",
+            "uuid": "Compendium.acks-monsters.bestiary.Actor.acksmGobChief000"
+          }
+        ],
+        "description": {
+          "combat": "<p>Skirmishes from the dark; flees when the chief falls. Sunlight stings its eyes (-1 to attack in daylight, invented).</p>"
+        }
+      }
+    }
+  },
+  "prototypeToken": {
+    "name": "Goblin",
+    "actorLink": false,
+    "disposition": -1,
+    "sight": {
+      "enabled": true
+    }
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784255926062,
+    "modifiedTime": 1784255926062
+  }
+}

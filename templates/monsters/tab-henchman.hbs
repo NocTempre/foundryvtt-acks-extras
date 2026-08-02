@@ -1,0 +1,45 @@
+<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="henchman">
+  <div class="content flexcol acksm-content">
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.retainer"}}</legend>
+      <p class="acksm-hint">{{localize "ACKS-MONSTERS.hint.henchman"}}</p>
+      <div class="flexrow">
+        <label class="checkbox acksm-cb"><input type="checkbox" name="system.retainer.enabled" {{#if system.retainer.enabled}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.isRetainer"}}</label>
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.category"}}</label>
+          <div class="form-fields"><select name="system.retainer.category">{{selectOptions choices.category selected=system.retainer.category localize=true}}</select></div></div>
+        {{!-- Loyalty & wage move to the header once enabled (which is where the
+              system renders them); showing them here too would duplicate the
+              form field name and corrupt the value into an array. --}}
+        {{#unless system.retainer.enabled}}
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.loyalty"}}</label>
+          <div class="form-fields"><input type="number" name="system.retainer.loyalty" value="{{system.retainer.loyalty}}" min="-4" max="4"/></div></div>
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.wage"}}</label>
+          <div class="form-fields"><input type="text" name="system.retainer.wage" value="{{system.retainer.wage}}" placeholder="gp"/></div></div>
+        {{/unless}}
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.quantity"}}</label>
+          <div class="form-fields"><input type="number" name="system.retainer.quantity" value="{{system.retainer.quantity}}" min="1"/></div></div>
+      </div>
+      {{#if system.retainer.enabled}}<p class="acksm-hint">{{localize "ACKS-MONSTERS.hint.retainerHeader"}}</p>{{/if}}
+      <div class="acksm-manager">
+        <span>{{localize "ACKS-MONSTERS.field.manager"}}:
+          <strong>{{#if managerName}}{{managerName}}{{else}}{{localize "ACKS-MONSTERS.field.noManager"}}{{/if}}</strong></span>
+        <button type="button" data-action="serveAsHenchman"><i class="fa-solid fa-handshake"></i> {{localize "ACKS-MONSTERS.henchman.serve"}}</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.henchmanSummary"}}</legend>
+      <p class="acksm-hint">{{localize "ACKS-MONSTERS.hint.henchmanSummary"}}</p>
+      <div class="flexrow acksm-readout">
+        <div class="acksm-ro"><label>{{localize "ACKS-MONSTERS.field.hdShort"}}</label><span>{{acksMonstersVal extras.hd.count}}{{#if extras.hd.bonus}}+{{extras.hd.bonus}}{{/if}}</span></div>
+        <div class="acksm-ro"><label>HP</label><span>{{acksMonstersVal system.hp.value}}/{{acksMonstersVal system.hp.max}}</span></div>
+        <div class="acksm-ro"><label>AC</label><span>{{acksMonstersVal system.aac.value}}</span></div>
+        <div class="acksm-ro"><label>{{localize "ACKS-MONSTERS.field.morale"}}</label><span>{{acksMonstersVal system.details.morale}}</span></div>
+        <div class="acksm-ro"><label>XP</label><span>{{acksMonstersVal system.details.xp}}</span></div>
+        <div class="acksm-ro"><label>{{localize "ACKS-MONSTERS.field.alignment"}}</label><span>{{acksMonstersVal system.details.alignment}}</span></div>
+      </div>
+    </fieldset>
+
+  </div>
+</section>

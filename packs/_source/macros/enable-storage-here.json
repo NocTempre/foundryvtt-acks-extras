@@ -1,0 +1,9 @@
+{
+  "_id": "acksl722a106f87c",
+  "_key": "!macros!acksl722a106f87c",
+  "name": "Enable Storage Here",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/village.svg",
+  "command": "if (!game.user.isGM) return ui.notifications.warn(\"Only a GM can turn storage on for an actor.\");\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a token first (or assign yourself a character).\");\nif (actor.isToken) return ui.notifications.warn(\"Link the token to its actor first — an unlinked token cannot hold goods.\");\nawait acksLib.storage.setProvider(actor, true);\nui.notifications.info(actor.name + \" can now hold goods for people.\");"
+}

@@ -1,0 +1,49 @@
+{
+  "_id": "acksHme73abf8a18",
+  "_key": "!items!acksHme73abf8a18",
+  "name": "Mystic Aura",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "description": "<p>Projects magical presence: +1 to reaction rolls to impress and intimidate; on a total of 12+ subjects act as if bewitched while in the character's presence. (RR 115)</p>",
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "result",
+    "rollTarget": 0,
+    "blindroll": false,
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksHmac40f39e19",
+      "_key": "!items.effects!acksHme73abf8a18.acksHmac40f39e19",
+      "name": "Mystic Aura",
+      "type": "base",
+      "img": "icons/svg/aura.svg",
+      "system": {},
+      "transfer": true,
+      "disabled": false,
+      "changes": [
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.hiring",
+          "mode": 2,
+          "value": "1"
+        }
+      ],
+      "duration": {
+        "startTime": null,
+        "seconds": null
+      },
+      "flags": {
+        "acks-henchmen": {
+          "condition": "ACKS-HENCHMEN.cond.impress"
+        }
+      }
+    }
+  ]
+}

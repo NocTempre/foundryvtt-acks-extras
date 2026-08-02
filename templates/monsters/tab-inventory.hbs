@@ -1,0 +1,84 @@
+<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="inventory">
+  <div class="content flexcol">
+    <section class="item-list-section">
+      <div class="list-header">
+        <div class="item__name">{{localize "ACKS-MONSTERS.section.inventory"}}</div>
+        {{#if owner}}
+        <div class="list-header__controls">
+          <a class="item-control" data-tooltip='{{localize "ACKS.Add"}}' data-action="itemCreate" data-type="item"><i class="fas fa-plus"></i> {{localize "ACKS-MONSTERS.field.item"}}</a>
+          <a class="item-control" data-tooltip='{{localize "ACKS.Add"}}' data-action="itemCreate" data-type="armor"><i class="fas fa-plus"></i> {{localize "ACKS-MONSTERS.field.armor"}}</a>
+        </div>
+        {{/if}}
+      </div>
+      <p class="acksm-hint">{{localize "ACKS-MONSTERS.hint.inventory"}}</p>
+      <div class="acksm-enc acksm-enc-{{encumbrance.state}}">
+        <div class="acksm-enc-head">
+          <span>{{localize "ACKS-MONSTERS.enc.carried"}} <strong>{{encumbrance.stone}}</strong> st{{#if encumbrance.speedFactor}} · {{localize "ACKS-MONSTERS.enc.speed"}} ×{{encumbrance.speedFactor}}{{/if}}</span>
+          <span class="acksm-enc-state">{{encumbrance.stateLabel}}</span>
+        </div>
+        {{#if encumbrance.pct includeZero=true}}
+        <div class="acksm-enc-bar" data-tooltip="{{localize 'ACKS-MONSTERS.enc.barTip'}}">
+          <div class="acksm-enc-fill" style="width: {{encumbrance.pct}}%"></div>
+          {{#if encumbrance.normalPct}}<div class="acksm-enc-mark" style="left: {{encumbrance.normalPct}}%"></div>{{/if}}
+        </div>
+        {{/if}}
+        <div class="acksm-enc-legend">
+          {{localize "ACKS-MONSTERS.field.loadNormal"}}: {{acksMonstersVal encumbrance.normal "—"}} · {{localize "ACKS-MONSTERS.field.loadCapacity"}}: {{acksMonstersVal encumbrance.max "—"}}
+          {{#unless encumbrance.normal}} · <em>{{localize "ACKS-MONSTERS.enc.setLoad"}}</em>{{/unless}}
+        </div>
+      </div>
+      <ul class="item-list unlist">
+        {{#each carriedItems as |item|}}
+        <li class="item draggable" data-item-id="{{item._id}}">
+          <div class="item-row">
+            <div class="item__icon" data-action="itemShow"><img src="{{item.img}}" alt="{{item.name}}" class="item__image"/></div>
+            <div class="item__text"><a data-action="toggleSummary">{{item.name}}</a></div>
+            <div class="acksm-inv-meta">{{acksMonstersVal item.system.weight6 0}}/6 st · {{acksMonstersVal item.system.cost 0}} gp{{#if item.system.quantity.value}} · ×{{item.system.quantity.value}}{{/if}}</div>
+            {{#if ../owner}}
+            <div class="item__controls">
+              <a class="item-control" data-tooltip='{{localize "ACKS.Edit"}}' data-action="itemEdit"><i class="fas fa-edit"></i></a>
+              <a class="item-control" data-tooltip='{{localize "ACKS.Delete"}}' data-action="itemDelete"><i class="fas fa-trash"></i></a>
+            </div>
+            {{/if}}
+          </div>
+          <div class="item-summary"></div>
+        </li>
+        {{/each}}
+        {{#each owned.armors as |item|}}
+        <li class="item draggable" data-item-id="{{item._id}}">
+          <div class="item-row">
+            <div class="item__icon" data-action="itemShow"><img src="{{item.img}}" alt="{{item.name}}" class="item__image"/></div>
+            <div class="item__text"><a data-action="toggleSummary">{{item.name}}</a></div>
+            <div class="acksm-inv-meta">{{localize "ACKS-MONSTERS.field.armor"}}</div>
+            {{#if ../owner}}
+            <div class="item__controls">
+              <a class="item-control" data-tooltip='{{localize "ACKS.Edit"}}' data-action="itemEdit"><i class="fas fa-edit"></i></a>
+              <a class="item-control" data-tooltip='{{localize "ACKS.Delete"}}' data-action="itemDelete"><i class="fas fa-trash"></i></a>
+            </div>
+            {{/if}}
+          </div>
+          <div class="item-summary"></div>
+        </li>
+        {{/each}}
+        {{#each owned.clothes as |item|}}
+        <li class="item draggable" data-item-id="{{item._id}}">
+          <div class="item-row">
+            <div class="item__icon" data-action="itemShow"><img src="{{item.img}}" alt="{{item.name}}" class="item__image"/></div>
+            <div class="item__text"><a data-action="toggleSummary">{{item.name}}</a></div>
+            {{#if ../owner}}
+            <div class="item__controls">
+              <a class="item-control" data-tooltip='{{localize "ACKS.Edit"}}' data-action="itemEdit"><i class="fas fa-edit"></i></a>
+              <a class="item-control" data-tooltip='{{localize "ACKS.Delete"}}' data-action="itemDelete"><i class="fas fa-trash"></i></a>
+            </div>
+            {{/if}}
+          </div>
+          <div class="item-summary"></div>
+        </li>
+        {{/each}}
+        {{#unless carriedItems.length}}{{#unless owned.armors.length}}{{#unless owned.clothes.length}}
+        <li class="acksm-empty">{{localize "ACKS-MONSTERS.empty.inventory"}}</li>
+        {{/unless}}{{/unless}}{{/unless}}
+      </ul>
+    </section>
+  </div>
+</section>

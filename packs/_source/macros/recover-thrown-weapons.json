@@ -1,0 +1,20 @@
+{
+  "_id": "acksEqRecover000",
+  "_key": "!macros!acksEqRecover000",
+  "name": "Recover Thrown Weapons",
+  "type": "script",
+  "img": "icons/svg/regen.svg",
+  "scope": "global",
+  "command": "// Recover thrown weapons — the manual retrieval RAW leaves to the Judge.\n// A thrown hand axe / javelin is marked \"thrown away\" (weight removed) on use;\n// this clears that state so the weapon is back in hand and weighs again.\n// Fired ammunition (arrows/bolts/stones) is restocked by hand — RAW gives no\n// automatic recovery percentage.\nconst MOD = \"acks-equipment\";\nconst api = game.modules.get(MOD)?.api ?? globalThis.acksEquipment;\nif (!api) { ui.notifications.error(\"ACKS Equipment is not active.\"); return; }\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) { ui.notifications.warn(\"Select a token or assign a character.\"); return; }\nconst names = await api.recoverThrown(actor);\nif (!names.length) { ui.notifications.info(\"No thrown weapons to recover.\"); return; }\nChatMessage.create({\n  speaker: ChatMessage.getSpeaker({ actor }),\n  content: `<p><b>${actor.name}</b> recovers: ${names.join(\", \")}.</p>`,\n});",
+  "folder": null,
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "_id": "acksHm804e38ef8e",
+  "_key": "!items!acksHm804e38ef8e",
+  "name": "Utter Domination",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "description": "<p>The character's henchmen have base morale scores of +4 and no longer make loyalty rolls upon suffering calamities (mercenaries unaffected). (JJ powers — Zaharan Sorcerer)</p>",
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "result",
+    "rollTarget": 0,
+    "blindroll": false,
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksHm072d4df322",
+      "_key": "!items.effects!acksHm804e38ef8e.acksHm072d4df322",
+      "name": "Utter Domination",
+      "type": "base",
+      "img": "icons/svg/aura.svg",
+      "system": {},
+      "transfer": true,
+      "disabled": false,
+      "changes": [
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.skipCalamityLoyalty",
+          "mode": 0,
+          "value": "1"
+        },
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.moraleBase",
+          "mode": 2,
+          "value": "4"
+        }
+      ],
+      "duration": {
+        "startTime": null,
+        "seconds": null
+      },
+      "flags": {
+        "acks-henchmen": {}
+      }
+    }
+  ]
+}

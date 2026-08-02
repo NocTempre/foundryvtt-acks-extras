@@ -1,0 +1,36 @@
+{
+  "_id": "acksEqTrain00024",
+  "_key": "!items!acksEqTrain00024",
+  "name": "Broad Weapons: Any Combination of 5 Weapons",
+  "type": "ability",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>Broad choice (vi): any combination of 5 weapons. <em>List the five on the effect's <code>weaponProf</code> change. Composite/long bow require short bow; spear/pole arm require javelin.</em></p><p><em>Class training chunk — Judges Journal pp. 290–291. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "training": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 2400,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

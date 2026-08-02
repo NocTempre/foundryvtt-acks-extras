@@ -1,0 +1,36 @@
+{
+  "_id": "acksmSpGobEars00",
+  "name": "Goblin Ears",
+  "type": "item",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "_schemaVersion": 3,
+    "description": "<p>Proof for a village bounty.</p>",
+    "subtype": "item",
+    "quantity": {
+      "value": 1,
+      "max": 0
+    },
+    "cost": 2,
+    "weight": 0,
+    "weight6": 1
+  },
+  "effects": [],
+  "flags": {
+    "acks-monsters": {
+      "spoil": true,
+      "component": false,
+      "researchEffects": []
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784255926062,
+    "modifiedTime": 1784255926062
+  },
+  "_key": "!items!acksmSpGobEars00"
+}

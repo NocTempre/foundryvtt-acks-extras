@@ -1,0 +1,105 @@
+{{!-- acks-lib.template builder sheet body. Self-contained (no partials).
+      Every selector is scoped under .acks-lib-template-sheet. --}}
+<div class="acks-lib-template-body">
+
+  {{#if isStub}}
+    <p class="acks-lib-template-warning">{{localize "ACKS-LIB.template.stubNote"}}</p>
+  {{/if}}
+
+  {{!-- The optional BASE actor: drop a victim on the sheet to modify it
+        (vampire thrall); leave empty to self-generate (dragon, elemental). --}}
+  <section class="acks-lib-template-base">
+    <header><h3>{{localize "ACKS-LIB.template.base"}}</h3></header>
+    {{#if base}}
+      <div class="base-row">
+        <span class="base-name">{{base.name}}</span>
+        {{#if editable}}
+          <button type="button" class="icon" data-action="clearBase"
+                  title="{{localize 'ACKS-LIB.template.clearBase'}}">✕</button>
+        {{/if}}
+      </div>
+    {{else}}
+      <p class="hint">{{localize "ACKS-LIB.template.dropBase"}}</p>
+    {{/if}}
+  </section>
+
+  {{!-- One select per axis. Empty = roll per the book's own procedure;
+        an axis that derives from the base says so. --}}
+  {{#if axes.length}}
+    <section class="acks-lib-template-axes">
+      {{#each axes}}
+        {{#if multi}}
+          <div class="axis-row axis-multi">
+            <span class="axis-label">{{label}}</span>
+            <div class="axis-multi-options">
+              {{#each options}}
+                <label><input type="checkbox" class="acks-lib-template-multi" data-axis="{{../key}}"
+                              value="{{key}}" {{#if selected}}checked{{/if}} /> {{label}}</label>
+              {{/each}}
+            </div>
+          </div>
+        {{else}}
+          <label class="axis-row">
+            <span class="axis-label">{{label}}</span>
+            <select class="acks-lib-template-pin" data-axis="{{key}}">
+              <option value="">{{#if derived}}{{localize "ACKS-LIB.template.derived"}}{{else}}{{rollLabel}}{{/if}}</option>
+              {{#each options}}
+                <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+              {{/each}}
+            </select>
+          </label>
+        {{/if}}
+      {{/each}}
+    </section>
+  {{/if}}
+
+  {{#if hasMenu}}
+    <p class="acks-lib-template-menu-note hint">{{menuNote}}</p>
+  {{/if}}
+
+  {{#if editable}}
+    <section class="acks-lib-template-controls">
+      <button type="button" data-action="generate" {{#if isStub}}disabled{{/if}}>
+        <i class="fas fa-dice-d20"></i> {{localize "ACKS-LIB.template.generate"}}
+      </button>
+      <button type="button" class="acks-lib-template-edit-toggle" data-action="editToggle">
+        <i class="fas fa-wrench"></i> {{#if editing}}{{localize "ACKS-LIB.template.editDone"}}{{else}}{{localize "ACKS-LIB.template.edit"}}{{/if}}
+      </button>
+    </section>
+  {{/if}}
+
+  {{!-- Structure editing: add/remove axes and options; DROP AN ACTOR ON AN
+        OPTION ROW to capture it as that option's preset (new families and
+        post-import additions, no import required). --}}
+  {{#if editing}}
+    <section class="acks-lib-template-editor">
+      {{#each axes}}
+        <div class="editor-axis" data-axis-key="{{key}}">
+          <header>
+            <strong>{{label}}</strong>
+            <a data-action="addOption" data-tooltip="{{localize 'ACKS-LIB.template.addOption'}}"><i class="fas fa-plus"></i></a>
+            <a data-action="deleteAxis" data-tooltip="{{localize 'ACKS-LIB.template.deleteAxis'}}"><i class="fas fa-trash"></i></a>
+          </header>
+          <ul>
+            {{#each options}}
+              <li data-axis-key="{{../key}}" data-option-key="{{key}}" class="editor-option{{#if empty}} is-empty{{/if}}"
+                  data-tooltip="{{localize 'ACKS-LIB.template.captureHint'}}">
+                <span>{{label}}</span>
+                {{#if empty}}<em class="hint">{{localize "ACKS-LIB.template.emptyOption"}}</em>{{/if}}
+                <a data-action="deleteOption" data-tooltip="{{localize 'ACKS-LIB.template.deleteOption'}}"><i class="fas fa-trash"></i></a>
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+      {{/each}}
+      <button type="button" data-action="addAxis"><i class="fas fa-plus"></i> {{localize "ACKS-LIB.template.addAxis"}}</button>
+    </section>
+  {{/if}}
+
+  {{#if biographyHTML}}
+    <section class="acks-lib-template-description">
+      {{{biographyHTML}}}
+    </section>
+  {{/if}}
+
+</div>

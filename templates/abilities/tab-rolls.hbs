@@ -1,0 +1,36 @@
+<section class="tab acks-abilities-rolls" data-tab="rolls" data-group="primary">
+
+  {{#if rollRows.length}}
+    {{#if extras.unaudited}}
+      <p class="notification info acks-abilities-notice" data-tooltip="{{localize 'ACKS-ABILITIES.warn.unauditedTip'}}">
+        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+        {{localize "ACKS-ABILITIES.warn.unaudited"}}
+      </p>
+    {{/if}}
+    <p class="hint">{{localize "ACKS-ABILITIES.roll.hint"}}</p>
+    <ol class="acks-abilities-roll-list">
+      {{#each rollRows}}
+        <li class="acks-abilities-roll">
+          <button type="button" class="acks-abilities-roll-go" data-roll-key="{{this.key}}"
+                  data-tooltip="{{localize 'ACKS-ABILITIES.roll.go'}}">
+            <i class="fa-solid fa-dice-d20"></i>
+            <span class="acks-abilities-roll-label">{{this.label}}</span>
+            <span class="acks-abilities-roll-value">{{this.display}}</span>
+          </button>
+          {{#if this.condition}}<p class="hint acks-abilities-roll-cond">{{this.condition}}</p>{{/if}}
+          {{#if this.ladder}}
+            <div class="acks-abilities-ladder-wrap">
+              <table class="acks-abilities-ladder">
+                <tr><th>{{this.ladder.scaleLabel}}</th>{{#each this.ladder.steps}}<td>{{this}}</td>{{/each}}</tr>
+                <tr><th>{{localize "ACKS-ABILITIES.mech.throw"}}</th>{{#each this.ladder.values}}<td>{{this}}</td>{{/each}}</tr>
+              </table>
+            </div>
+          {{/if}}
+        </li>
+      {{/each}}
+    </ol>
+  {{else}}
+    <p class="hint">{{localize "ACKS-ABILITIES.roll.none"}}</p>
+  {{/if}}
+
+</section>

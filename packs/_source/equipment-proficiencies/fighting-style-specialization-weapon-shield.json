@@ -1,0 +1,65 @@
+{
+  "_id": "acksEqProf000005",
+  "_key": "!items!acksEqProf000005",
+  "name": "Fighting Style Specialization (Weapon & Shield)",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "Weapon & shield fighting style",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>+1 to Armor Class (for a total of +2 with the shield) while wielding a weapon and shield. Free draw/sheathe/ready-shield.</p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksEqPfEf000005",
+      "_key": "!items.effects!acksEqProf000005.acksEqPfEf000005",
+      "name": "Fighting Style Specialization (Weapon & Shield)",
+      "img": "icons/svg/upgrade.svg",
+      "type": "base",
+      "changes": [
+        {
+          "key": "flags.acks-equipment.styleProficient",
+          "type": "override",
+          "value": "weaponShield:spec",
+          "priority": 50
+        },
+        {
+          "key": "flags.acks-equipment.freeSwap",
+          "type": "override",
+          "value": "1",
+          "priority": 50
+        }
+      ],
+      "disabled": false,
+      "transfer": true,
+      "duration": {},
+      "description": "",
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "flags": {}
+    }
+  ],
+  "flags": {
+    "acks-equipment": {
+      "example": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 500,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

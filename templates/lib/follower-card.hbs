@@ -1,0 +1,249 @@
+{{!-- acks-lib Follower Card — the printed ACKS II henchman/follower card as a
+      compact actor view. Self-contained (no partials); every selector scoped under
+      .acks-follower-card.
+
+      `editable` (the FollowerCardSheet, a hireling's own sheet) swaps display spans
+      for `name=` inputs that submit through that sheet's form. Read-only mode (the
+      card embedded in an employer's hirelings tab) MUST emit no `name=` inputs —
+      they would bind to the employer's form — only the system's own hireling
+      actions (hirelingShow/Loyalty/Morale/Delete), which resolve the hireling by the
+      data-item-id on the card root. --}}
+<div class="acks-lib-follower-card{{#if isMonster}} is-monster{{/if}}{{#unless editable}} readonly{{/unless}}" data-item-id="{{id}}">
+
+  {{!-- Name banner --}}
+  <header class="fc-name">
+    {{#if img}}<img class="fc-portrait" src="{{img}}" alt="{{name}}" />{{/if}}
+    {{#if editable}}
+      <input type="text" name="name" value="{{name}}" placeholder="{{localize 'Name'}}" />
+      <span class="fc-toolbar">
+        <a data-action="fcAddAttack" data-tooltip="{{localize 'ACKS-LIB.followerCard.addAttack'}}"><i class="fas fa-plus"></i><i class="fas fa-gavel"></i></a>
+        <a data-action="fcAddSkill" data-tooltip="{{localize 'ACKS-LIB.followerCard.addSkill'}}"><i class="fas fa-plus"></i><i class="fas fa-book"></i></a>
+        <a data-action="fcCommit" class="fc-commit{{#unless hasOverrides}} off{{/unless}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.commit'}}"><i class="fas fa-check-double"></i></a>
+        <a data-action="fcResetSheet" class="fc-reset{{#unless hasOverrides}} off{{/unless}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.resetSheet'}}"><i class="fas fa-rotate-left"></i></a>
+      </span>
+    {{else}}
+      <a data-action="hirelingShow" class="fc-open">{{name}}</a>
+    {{/if}}
+  </header>
+
+  {{!-- CLASS · LEVEL · XP · ALIGNMENT --}}
+  <div class="fc-topline">
+    <div class="fc-field fc-class">
+      <label>{{localize "ACKS.details.class"}}</label>
+      {{#if isMonster}}
+        <span>{{localize "ACKS-LIB.followerCard.monster"}}</span>
+      {{else if editable}}
+        <input type="text" name="system.details.class" value="{{klass}}" />
+      {{else}}
+        <span>{{klass}}</span>
+      {{/if}}
+    </div>
+    <div class="fc-field fc-level">
+      <label>{{localize levelLabel}}</label>
+      {{#if editable}}
+        {{#if levelReadonly}}<span>{{level}}</span>{{else}}<input type="text" name="system.details.level" value="{{level}}" data-dtype="Number" />{{/if}}
+      {{else}}
+        <span>{{level}}</span>
+      {{/if}}
+    </div>
+    <div class="fc-field fc-xp">
+      <label>{{localize "ACKS.details.experience.baseshort"}}</label>
+      {{#if editable}}
+        {{#if isMonster}}
+          <input type="text" name="system.details.xp" value="{{xp}}" data-dtype="Number" />
+        {{else}}
+          <input type="text" name="system.details.xp.value" value="{{xp}}" data-dtype="Number" />
+        {{/if}}
+      {{else}}
+        <span>{{xp}}</span>
+      {{/if}}
+    </div>
+    <div class="fc-field fc-alignment">
+      <label>{{localize "ACKS.details.alignment"}}</label>
+      {{#if editable}}<input type="text" name="system.details.alignment" value="{{alignment}}" />{{else}}<span>{{alignment}}</span>{{/if}}
+    </div>
+  </div>
+
+  <div class="fc-body">
+
+    {{!-- LEFT RAIL: AC, HP, abilities, SPD/ENC/MORALE/LOYALTY --}}
+    <div class="fc-rail">
+      <div class="fc-acx">
+        <div class="fc-box fc-ac{{#if acOverridden}} overridden{{/if}}">
+          <label>{{localize "ACKS-LIB.followerCard.ac"}}</label>
+          {{#if editable}}
+            <input type="number" data-fc-ac value="{{ac}}" data-dtype="Number" />
+          {{else}}
+            <span>{{ac}}</span>
+          {{/if}}
+        </div>
+        <div class="fc-box fc-hp">
+          <label>{{localize "ACKS-LIB.followerCard.hp"}}</label>
+          {{#if editable}}
+            <span class="fc-hp-edit">
+              <input type="number" name="system.hp.value" value="{{hp.value}}" data-dtype="Number" />/<input type="number" name="system.hp.max" value="{{hp.max}}" data-dtype="Number" />
+            </span>
+          {{else}}
+            <span>{{hp.value}} / {{hp.max}}</span>
+          {{/if}}
+        </div>
+      </div>
+
+      {{#if hasAbilities}}
+        <div class="fc-abilities">
+          <div class="fc-ability-head"><span></span><span></span><span>{{localize "ACKS-LIB.followerCard.mod"}}</span></div>
+          {{#each abilities}}
+            <div class="fc-ability">
+              <label>{{this.label}}</label>
+              {{#if @root.editable}}<input type="number" name="system.scores.{{this.key}}.value" value="{{this.value}}" data-dtype="Number" />{{else}}<span class="fc-ability-value">{{this.value}}</span>{{/if}}
+              <span class="fc-ability-mod">{{this.mod}}</span>
+            </div>
+          {{/each}}
+        </div>
+      {{/if}}
+
+      <div class="fc-vitals">
+        <div class="fc-field">
+          <label>{{localize "ACKS-LIB.followerCard.speed"}}</label>
+          <span>{{speed.primary}}{{#if speed.secondary}} / {{speed.secondary}}{{/if}}</span>
+        </div>
+        {{#if enc}}
+          <div class="fc-field">
+            <label>{{localize "ACKS.Encumbrance"}}</label>
+            <span>{{enc.value}} / {{enc.max}}</span>
+          </div>
+        {{/if}}
+        <div class="fc-field">
+          <label>{{localize "ACKS.details.morale"}}</label>
+          {{#if editable}}
+            <input type="number" name="system.details.morale" value="{{morale}}" data-dtype="Number" min="-6" max="4" />
+          {{else}}
+            <a data-action="hirelingMorale" class="fc-roll"><i class="fas fa-dice-d20"></i> {{morale}}</a>
+          {{/if}}
+        </div>
+        <div class="fc-field">
+          <label>{{localize "ACKS.Loyalty"}}</label>
+          {{#if editable}}
+            <input type="number" name="system.retainer.loyalty" value="{{loyalty}}" data-dtype="Number" min="-4" max="4" />
+          {{else}}
+            <a data-action="hirelingLoyalty" class="fc-roll"><i class="fas fa-dice-d20"></i> {{loyalty}}</a>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+
+    {{!-- MIDDLE: POWERS / PROF. + attacks --}}
+    <div class="fc-mid">
+      <div class="fc-panel fc-powers">
+        <div class="fc-panel-title">{{localize "ACKS-LIB.followerCard.powers"}}</div>
+        {{#if powers.length}}<ul class="fc-prof-list">{{#each powers}}<li class="fc-prof-row">
+          <span class="fc-prof-name">{{this.name}}</span>
+          {{#if @root.editable}}{{#if this.rollable}}<a data-action="fcRollProficiency" data-item-id="{{this.id}}" class="fc-prof-roll" data-tooltip="{{localize 'ACKS-LIB.followerCard.roll'}} {{this.name}}"><i class="fas fa-dice-d20"></i></a>{{/if}}{{/if}}
+        </li>{{/each}}</ul>{{/if}}
+      </div>
+
+      {{#if hasAdventuring}}
+      <div class="fc-panel fc-adventuring">
+        <div class="fc-panel-title">{{localize "ACKS-LIB.followerCard.adventuring"}}</div>
+        <ul class="fc-adv-list">
+          {{#each adventuring}}
+          <li class="fc-adv-row{{#if this.overridden}} overridden{{/if}}">
+            {{#if @root.editable}}<a data-action="fcRollAdventuring" data-skill="{{this.key}}" class="fc-adv-roll" data-tooltip="{{localize this.label}}"><i class="{{this.icon}}"></i></a>{{else}}<i class="{{this.icon}}" data-tooltip="{{localize this.label}}"></i>{{/if}}
+            <span class="fc-adv-name">{{localize this.label}}</span>
+            {{#if @root.editable}}<input type="number" data-fc-adv="{{this.key}}" value="{{this.value}}" data-dtype="Number" />{{else}}<span class="fc-adv-val">{{this.value}}</span>{{/if}}
+          </li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+      <div class="fc-attacks">
+        <div class="fc-attacks-head"><span></span><span>{{localize "ACKS-LIB.followerCard.at"}}</span><span>{{localize "ACKS-LIB.followerCard.dmg"}}</span></div>
+        {{#each attacks}}
+          <div class="fc-attack-wrap{{#if this.overridden}} overridden{{/if}}" data-attack-key="{{this.key}}">
+          <div class="fc-attack-row">
+            {{#if @root.editable}}
+              <a data-action="fcRollAttack" data-attack="{{this.type}}" data-item-id="{{this.itemId}}" class="fc-roll"
+                 data-tooltip="{{this.label}}{{#if this.damageTypeLabel}} — {{this.damageTypeLabel}}{{/if}}">
+                <i class="{{this.icon}}"></i> <span class="fc-attack-name">{{this.label}}</span> <span class="fc-attack-throw">{{this.target}}+</span> <span class="fc-attack-bonus">{{this.bonus}}</span>{{#if this.size.count}} <span class="fc-size" data-tooltip="{{this.size.label}}">{{#each this.size.pips}}<i class="fas fa-circle"></i>{{/each}}</span>{{/if}}
+              </a>
+            {{else}}
+              <label data-tooltip="{{this.damageTypeLabel}}"><i class="{{this.icon}}"></i> {{this.label}} {{this.target}}+ <span class="fc-attack-bonus">{{this.bonus}}</span></label>
+            {{/if}}
+            <span>{{this.at}}</span>
+            <span>{{this.dmg}}</span>
+            {{#if @root.editable}}<a data-action="fcToggleAttackEdit" class="fc-attack-edit" data-tooltip="{{localize 'ACKS-LIB.followerCard.editAttack'}}"><i class="fas fa-pen"></i></a>{{/if}}
+          </div>
+          {{#if @root.editable}}
+          <div class="fc-attack-editor">
+            <label>{{localize "ACKS-LIB.followerCard.atkName"}}<input type="text" data-fc-atk="label" value="{{this.edit.label}}" /></label>
+            <label>{{localize "ACKS-LIB.followerCard.atkThrow"}}<input type="number" data-fc-atk="target" value="{{this.edit.target}}" /></label>
+            <label>{{localize "ACKS-LIB.followerCard.atkBonus"}}<input type="number" data-fc-atk="bonus" value="{{this.edit.bonus}}" /></label>
+            <label>{{localize "ACKS-LIB.followerCard.atkDamage"}}<input type="text" data-fc-atk="damage" value="{{this.edit.damage}}" /></label>
+            <label>{{localize "ACKS-LIB.followerCard.atkDmgBonus"}}<input type="number" data-fc-atk="damageBonus" value="{{this.edit.damageBonus}}" /></label>
+          </div>
+          {{/if}}
+          </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- RIGHT: NOTES + EQUIPMENT --}}
+    <div class="fc-right">
+      <div class="fc-panel fc-notes">
+        <div class="fc-panel-title">{{localize "ACKS.category.notes"}}</div>
+        {{#if editable}}<textarea name="{{notesPath}}" rows="4">{{notes}}</textarea>{{else}}<div class="fc-notes-body">{{notes}}</div>{{/if}}
+      </div>
+      <div class="fc-panel fc-equipment">
+        <div class="fc-panel-title">{{localize "ACKS-LIB.followerCard.equipment"}}</div>
+        {{#if equipment.length}}<ul>{{#each equipment}}<li>{{#if @root.editable}}{{#if this.equippable}}<a data-action="fcToggleEquip" data-item-id="{{this.id}}" class="fc-equip{{#if this.equipped}} on{{/if}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.equipToggle'}}"><i class="fas fa-shield-halved"></i></a> {{/if}}{{else}}{{#if this.equipped}}<i class="fas fa-shield-halved fc-equipped-mark"></i> {{/if}}{{/if}}{{this.name}}</li>{{/each}}</ul>{{/if}}
+      </div>
+    </div>
+
+  </div>
+
+  {{!-- Caster line: per-level slots at a glance; the spell PAGE stays on the
+        full sheet, one action away. --}}
+  {{#if caster}}
+  <footer class="fc-build fc-caster">
+    <span class="fc-build-group" data-tooltip="{{localize 'ACKS-LIB.followerCard.slotsUsed'}}">
+      <span class="fc-build-label">{{localize "ACKS-LIB.followerCard.spells"}}</span>
+      {{#each caster.slots}}<span class="fc-pill chip on">L{{this.lvl}}&nbsp;{{this.used}}/{{this.max}}</span>{{/each}}
+      {{#if caster.empty}}<span class="fc-build-label">{{localize "ACKS-LIB.followerCard.casterNoSlots"}}</span>{{/if}}
+      {{#if editable}}<a data-action="fcOpenFull" data-tooltip="{{localize 'ACKS-LIB.followerCard.expand'}}"><i class="fas fa-up-right-from-square"></i> {{localize "ACKS-LIB.followerCard.fullSheet"}}</a>{{/if}}
+    </span>
+  </footer>
+  {{/if}}
+
+  {{!-- Class-build selections (JJ p.290-291), across the bottom: every slot is
+        shown, a trained one lights, specialization/focus reads gold. --}}
+  {{#if strips.any}}
+  <footer class="fc-build">
+    <span class="fc-build-group" data-tooltip="{{localize 'ACKS-LIB.followerCard.styles'}}">
+      <span class="fc-build-label">{{localize "ACKS-LIB.followerCard.stylesShort"}}</span>
+      {{#each strips.styles}}<span class="fc-pill{{#if this.unset}} unset{{else}}{{#if this.on}} on{{/if}}{{#if this.gold}} gold{{/if}}{{/if}}" data-tooltip="{{this.label}}"><i class="{{this.icon}}"></i></span>{{/each}}
+    </span>
+    <span class="fc-build-group" data-tooltip="{{localize 'ACKS-LIB.followerCard.weaponProf'}}">
+      <span class="fc-build-label">{{localize "ACKS-LIB.followerCard.weaponShort"}}</span>
+      {{#each strips.weapons}}<span class="fc-pill chip{{#if this.unset}} unset{{else}}{{#if this.on}} on{{/if}}{{#if this.gold}} gold{{/if}}{{/if}}" data-tooltip="{{this.label}}">{{this.chip}}</span>{{/each}}
+    </span>
+    <span class="fc-build-group" data-tooltip="{{localize 'ACKS-LIB.followerCard.armourProf'}}">
+      <span class="fc-build-label">{{localize "ACKS-LIB.followerCard.armourShort"}}</span>
+      {{#each strips.armour}}<span class="fc-pill{{#if this.unset}} unset{{else}}{{#if this.on}} on{{/if}}{{#if this.gold}} gold{{/if}}{{/if}}" data-tooltip="{{this.label}}"><i class="{{this.icon}}"></i></span>{{/each}}
+    </span>
+  </footer>
+  {{/if}}
+
+  {{#unless editable}}
+    <footer class="fc-actions">
+      <a data-action="hirelingShow" data-tooltip="{{localize 'ACKS-LIB.followerCard.open'}}"><i class="fas fa-up-right-from-square"></i></a>
+      <a data-action="hirelingDelete" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fas fa-trash"></i></a>
+    </footer>
+  {{else}}
+    {{!-- On the card SHEET: a labelled way out to everything the card omits
+          (spell page, effects, deep items) — the header icon alone was
+          undiscoverable, which read as "the caster page is gone". --}}
+    <footer class="fc-actions">
+      <a data-action="fcOpenFull" data-tooltip="{{localize 'ACKS-LIB.followerCard.expand'}}"><i class="fas fa-up-right-from-square"></i> {{localize "ACKS-LIB.followerCard.fullSheet"}}</a>
+    </footer>
+  {{/unless}}
+</div>

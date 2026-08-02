@@ -1,0 +1,24 @@
+name: Release
+
+# Thin caller — the actual release procedure lives in acks-module-template
+# (.github/workflows/release-module.yml) and propagates here automatically
+# via the @main reference. Synced from acks-module-template; do not hand-edit.
+#
+# Cut a release by pushing a version tag (must equal module.json version):
+#   git tag v0.1.0 && git push origin v0.1.0
+# Manual "Run workflow" performs a dry run: full build + validation, no publish.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: NocTempre/acks-module-template/.github/workflows/release-module.yml@main
+    with:
+      dry_run: ${{ github.event_name == 'workflow_dispatch' }}

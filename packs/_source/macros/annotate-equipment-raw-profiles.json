@@ -1,0 +1,20 @@
+{
+  "_id": "acksEqAnnotate00",
+  "_key": "!macros!acksEqAnnotate00",
+  "name": "Annotate Equipment (RAW profiles)",
+  "type": "script",
+  "img": "icons/svg/book.svg",
+  "scope": "global",
+  "command": "// Stamp acks-equipment RAW flags onto the selected actor's gear (or, with no\n// selection, everything in the world): weapon size/hands/qualities AND\n// carrying-device capacities (backpack, sack, saddlebag, bowquiver, the\n// adventurer's harness). Carrying devices are type \"item\", not \"weapon\" —\n// filtering to weapons alone meant containers could never be flagged at all.\nconst api = game.modules.get(\"acks-equipment\")?.api ?? globalThis.acksEquipment;\nif (!api) { ui.notifications.error(\"ACKS Equipment is not active.\"); return; }\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nconst ANNOTATABLE = [\"weapon\", \"item\"];\nconst source = actor ? actor.items : game.items;\n// annotateItem returns null for anything with no RAW profile, so a broad\n// sweep is safe — it only writes where it recognises the gear.\nconst items = source.filter((i) => ANNOTATABLE.includes(i.type));\nlet weapons = 0;\nlet containers = 0;\nfor (const it of items) {\n  const key = await api.annotateItem(it);\n  if (!key) continue;\n  if (key === \"container\") containers++; else weapons++;\n}\nui.notifications.info(\n  `Annotated ${weapons} weapon(s) and ${containers} carrying device(s)${actor ? \" on \" + actor.name : \" in the world\"}.`\n);",
+  "folder": null,
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

@@ -1,0 +1,380 @@
+/* global game, foundry, ChatMessage, Roll, ui */
+import { MODULE_ID } from "./constants.mjs";
+import {
+  hasCapability,
+  itemHasCapability,
+  importedLadderTarget,
+  importedThrowTarget,
+  overrideFor,
+} from "./ability-bridge.mjs";
+import { getMemberActor, hasAbility, isDown, isHurried, updateFormation } from "./formation-model.mjs";
+import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
+
+export { hasAbility };
+
+/**
+ * Party rolls pulled from the character sheets, not generic dice:
+ *
+ * For each member the throw target comes from, in order of fidelity:
+ *   1. a matching class-power / proficiency **ability item** on the sheet
+ *      (e.g. a thief's "Searching 16+": `system.rollTarget`), with the RAW
+ *      +4 methodical bonus applied for skill users where it applies;
+ *   2. the sheet's **Adventuring proficiency** target
+ *      (`system.adventuring.{listening,searching,dungeonbashing,…}`), which
+ *      the GM can tune per character (e.g. 14+ for Alertness).
+ *
+ * Searching/listening throws are Judge-secret (RR p. 265), so results post as
+ * ONE compact GM-whispered card rather than public per-member cards. RAW
+ * constraints are enforced or reminded:
+ *   - hasty search: skill users only ("Using Adventuring: not permitted");
+ *   - methodical search: takes a full turn (auto-advanced);
+ *   - listening: once per turn while the party is moving (tracked, warned).
+ */
+
+/**
+ * Alertness (or an equivalent power: Mindfulness, Alien Senses, Keen Insect
+ * Senses, Attunement to Nature): Adventuring search/listen at 14+ instead of
+ * 18+, or +2 on the throw for those separately skilled (RR p. 105).
+ */
+const ALERTNESS_PATTERN = /alertness|mindfulness|alien senses|keen insect|attunement to nature/i;
+/**
+ * Attunement to Nature: +4 (not +2) with the Listening skill — verified
+ * against JJ p.311 and authored into the acks-content register 2026-07-19.
+ * It is NOT an alias of Alertness precisely because this value differs, which
+ * is why it keeps its own pattern rather than folding into the one above.
+ */
+const ATTUNEMENT_PATTERN = /attunement to nature/i;
+/** Trapfinding: +2 on Searching (and Trapbreaking) throws (RR p. 121). */
+const TRAPFINDING_PATTERN = /trapfinding/i;
+
+/**
+ * Capability tokens (acks-lib). An ability implicitly provides its own id's
+ * capability, so `def.prof.trapfinding` satisfies `kw:trapfinding` with nothing
+ * tagged — these resolve against imported content today.
+ */
+const CAP_ALERTNESS = "kw:alertness";
+const CAP_TRAPFINDING = "kw:trapfinding";
+
+export const PARTY_CHECKS = Object.freeze({
+  listen: {
+    flagKey: "listen",
+    capability: "kw:listening",
+    consumesRound: true, // 1 round to pause and listen
+    label: "ACKS-FORMATION.rolls.listen",
+    hint: "ACKS-FORMATION.rolls.listenHint",
+    icon: "fa-ear-listen",
+    advKey: "listening",
+    pattern: /listen|hear\s*noise|eavesdrop/i,
+    alertness: true,
+    note: "ACKS-FORMATION.rolls.listenNote",
+    oncePerTurn: true,
+  },
+  searchHasty: {
+    flagKey: "search",
+    capability: "kw:searching",
+    blockedWhenHurried: true, // RR p. 263: no hasty searching at combat speed
+    consumesRound: true, // hasty search takes 1 round
+    label: "ACKS-FORMATION.rolls.searchHasty",
+    hint: "ACKS-FORMATION.rolls.searchHastyHint",
+    icon: "fa-magnifying-glass",
+    advKey: null, // not permitted via Adventuring
+    pattern: /search/i,
+    alertness: true,
+    trapfinding: true,
+    note: "ACKS-FORMATION.rolls.searchHastyNote",
+  },
+  searchMethodical: {
+    flagKey: "search",
+    capability: "kw:searching",
+    label: "ACKS-FORMATION.rolls.searchMethodical",
+    hint: "ACKS-FORMATION.rolls.searchMethodicalHint",
+    icon: "fa-magnifying-glass-plus",
+    advKey: "searching",
+    pattern: /search/i,
+    skillBonus: 4, // Searching skill methodically: +4 (RR p. 265)
+    alertness: true,
+    trapfinding: true,
+    note: "ACKS-FORMATION.rolls.searchMethodicalNote",
+    consumesTurn: true,
+  },
+  dungeonbashing: {
+    flagKey: "bash",
+    capability: null, // no register node: dungeon bashing is an Adventuring throw
+    consumesRound: true, // bashing a door takes 1 round
+    label: "ACKS-FORMATION.rolls.bash",
+    hint: "ACKS-FORMATION.rolls.bashHint",
+    icon: "fa-door-open",
+    advKey: "dungeonbashing",
+    pattern: /dungeon\s*bash|open\s*doors?\b|force\s*open/i,
+    strTimes4: true, // ±4 per point of STR modifier (RR p. 266)
+    note: "ACKS-FORMATION.rolls.bashNote",
+  },
+  tracking: {
+    flagKey: "track",
+    capability: "kw:tracking",
+    label: "ACKS-FORMATION.rolls.tracking",
+    hint: "ACKS-FORMATION.rolls.trackingHint",
+    icon: "fa-paw",
+    advKey: null, // proficients only (Tracking 11+, RR p. 121)
+    pattern: /tracking/i,
+    note: "ACKS-FORMATION.rolls.trackingNote",
+    consumesTurn: true,
+  },
+});
+
+function loc(key, data = {}) {
+  return game.i18n.format(`ACKS-FORMATION.${key}`, data);
+}
+
+/**
+ * All rollable ability items matching the check on this actor's sheet.
+ *
+ * Three routes, unioned so no route can lose a member the others would find:
+ *   1. the check's **capability** token (`kw:searching`) — catches every
+ *      printing of the mechanic regardless of the item's name;
+ *   2. an explicit `checkKey` flag — the GM binding any item as a custom skill;
+ *   3. the **name pattern** — the original route, still needed for abilities
+ *      the register has not tagged (Eavesdropping does not yet declare
+ *      `kw:listening`) and for hand-made items with no cookbook id.
+ */
+function skillCandidates(actor, cfg) {
+  return actor.items.filter((i) => {
+    if (i.type !== "ability") return false;
+
+    // A GM ruling from the audit window is final in both directions, and
+    // outranks the per-item Skill checkbox — it is the surface that shows what
+    // automation decided, so it has to be able to overturn it.
+    const ruling = overrideFor(i);
+    if (ruling === false) return false;
+    if (ruling !== true) {
+      // Unchecking "Skill" on the item sheet withdraws it from party rolls
+      // even if its bindings remain (re-checking restores them).
+      if (i.getFlag?.(MODULE_ID, "isSkill") === false) return false;
+    }
+
+    // 1. Capability — precise, and immune to renaming.
+    if (cfg.capability && itemHasCapability(i, cfg.capability)) return true;
+
+    // 2. Explicit binding designates ANY item for this roll.
+    const checkKey = i.getFlag?.(MODULE_ID, "checkKey");
+    if (checkKey) return checkKey === cfg.flagKey;
+
+    // 3. Name match. Auto-scaling items qualify regardless of stored target
+    //    (high-level thief targets are 0 or negative).
+    return (
+      cfg.pattern.test(i.name) &&
+      (i.getFlag?.(MODULE_ID, "thiefSkill") || Number(i.system?.rollTarget) > 0)
+    );
+  });
+}
+
+/**
+ * The skill a cookbook identity (`def.skill.<key>`) names, for display and for
+ * borrowing a ladder. An imported skill carries its own ladder, so this is not
+ * what makes it scale — see `scaledSkillTarget`.
+ */
+export function inferredThiefSkill(item) {
+  const id = item.getFlag?.("acks-content", "cookbook")?.id ?? "";
+  return /^def\.skill\.([a-zA-Z]+)$/.exec(id)?.[1] ?? null;
+}
+
+/**
+ * Skill items auto-scale from the owner's level. Every number comes from the
+ * GM's own book by way of acks-content — this module ships no ladder:
+ *   1. an explicit `thiefSkill` flag names the skill to scale AS, and that
+ *      skill's imported definition supplies the ladder (the GM's binding is a
+ *      deliberate override, so it is consulted first);
+ *   2. otherwise the ladder the item itself carries (acks-abilities extras),
+ *      resolved at the owner's factored level — this covers every imported
+ *      skill with no setup at all, and flat printed targets like the Listening
+ *      proficiency's 14+ land here too;
+ *   3. otherwise the item's cookbook IDENTITY names its skill, so a copy that
+ *      carries `def.skill.<key>` but no ladder of its own — imported before the
+ *      book was connected, or tagged by hand — still borrows the real one.
+ * Anything else returns null and the caller falls back to sheet rollTarget —
+ * which is exactly what a `thiefSkill`-flagged item does when that skill has
+ * not been imported into this world yet.
+ */
+export function scaledSkillTarget(actor, item) {
+  const factor = Number(item.getFlag(MODULE_ID, "levelFactor")) || 1;
+  const level = Math.max(1, Math.ceil((actor.system?.details?.level ?? 1) * factor));
+  const key = item.getFlag?.(MODULE_ID, "thiefSkill");
+  if (key) {
+    const borrowed = importedLadderTarget(key, actor, level);
+    if (borrowed !== null) return { target: borrowed, level };
+  }
+  const imported = importedThrowTarget(item, level);
+  if (imported !== null) return { target: imported, level };
+  const inferred = key ? null : inferredThiefSkill(item);
+  if (inferred) {
+    const borrowed = importedLadderTarget(inferred, actor, level);
+    if (borrowed !== null) return { target: borrowed, level };
+  }
+  return null;
+}
+
+/**
+ * Resolve one member's throw: {target, source, bonus, parts, skilled} or null.
+ * Stacking per the references, itemized in `parts` for transparency:
+ *  - skilled: methodical +4 (RR p. 265, skill users only), Alertness +2
+ *    (Attunement to Nature: +4 with the Listening skill), Trapfinding +2
+ *    on searching throws — all cumulative (no anti-stacking text);
+ *  - unskilled: Adventuring target, improved to 14+ by Alertness (a target
+ *    change, NOT a bonus — it does not stack with itself); Trapfinding's +2
+ *    applies to any Searching throw, Adventuring-based included.
+ * With several matching skill items, the BEST (lowest) target is used.
+ */
+export function resolveCheck(actor, cfg) {
+  // Capability first (catches every printing of the mechanic), name pattern as
+  // the safety net for abilities the register has not tagged yet.
+  const alert =
+    cfg.alertness && (hasCapability(actor, CAP_ALERTNESS) || hasAbility(actor, ALERTNESS_PATTERN));
+  const attuned = cfg.alertness && hasAbility(actor, ATTUNEMENT_PATTERN);
+  const trapfinder =
+    cfg.trapfinding && (hasCapability(actor, CAP_TRAPFINDING) || hasAbility(actor, TRAPFINDING_PATTERN));
+  const parts = [];
+
+  let best = null;
+  for (const item of skillCandidates(actor, cfg)) {
+    const scaled = scaledSkillTarget(actor, item);
+    const raw = scaled?.target ?? Number(item.system.rollTarget);
+    // A capability match can arrive with no derivable number at all (a ladder
+    // deferring to a class table nothing carries). It must not shadow the
+    // Adventuring fallback with a 0/NaN target — skip it and let the next
+    // candidate, or the fallback, answer. Scaled targets may legitimately be
+    // ≤ 0 at high level; an UNSCALED non-positive rollTarget is just unset.
+    if (!Number.isFinite(raw)) continue;
+    if (!scaled && raw <= 0) continue;
+    // The GM's flat throw adjustment (Skill tab): +N bonus = target N lower.
+    const mod = Number(item.getFlag?.(MODULE_ID, "targetMod")) || 0;
+    const target = raw - mod;
+    if (!best || target < best.target) best = { item, scaled, target, mod };
+  }
+
+  if (best) {
+    if (cfg.skillBonus) parts.push({ label: game.i18n.localize("ACKS-FORMATION.rolls.partMethodical"), value: cfg.skillBonus });
+    if (alert) {
+      const value = attuned && cfg.flagKey === "listen" ? 4 : 2;
+      parts.push({ label: game.i18n.localize("ACKS-FORMATION.rolls.partAlertness"), value });
+    }
+    if (trapfinder) parts.push({ label: game.i18n.localize("ACKS-FORMATION.rolls.partTrapfinding"), value: 2 });
+    const modTag = best.mod ? ` [${best.mod > 0 ? "+" : ""}${best.mod}]` : "";
+    return {
+      target: best.target,
+      source: (best.scaled ? `${best.item.name} (L${best.scaled.level})` : best.item.name) + modTag,
+      bonus: parts.reduce((sum, p) => sum + p.value, 0),
+      parts,
+      skilled: true,
+    };
+  }
+
+  if (cfg.advKey && typeof actor.system?.adventuring?.[cfg.advKey] === "number") {
+    let target = actor.system.adventuring[cfg.advKey];
+    if (alert) target = Math.min(target, 14);
+    if (trapfinder) parts.push({ label: game.i18n.localize("ACKS-FORMATION.rolls.partTrapfinding"), value: 2 });
+    return {
+      target,
+      source: game.i18n.localize(
+        alert ? "ACKS-FORMATION.rolls.viaAlertness" : "ACKS-FORMATION.rolls.viaAdventuring",
+      ),
+      bonus: parts.reduce((sum, p) => sum + p.value, 0),
+      parts,
+      skilled: false,
+    };
+  }
+  return null;
+}
+
+/**
+ * Roll a party check for every capable member and whisper one summary card to
+ * the GMs. Returns the number of members who rolled.
+ */
+export async function rollPartyCheck(formation, checkKey) {
+  const cfg = PARTY_CHECKS[checkKey];
+  if (!cfg) return 0;
+
+  if (cfg.blockedWhenHurried && isHurried(formation)) {
+    ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.rolls.noHastyHurried"));
+    return 0;
+  }
+
+  const preNotes = [];
+
+  if (cfg.oncePerTurn) {
+    // RR p. 265: while the party is moving, listening only once per turn —
+    // it takes time for people to settle down into quiet. Enforced; a
+    // stationary party may listen repeatedly.
+    if (formation.clock.movedThisTurn && formation.clock.lastListenTurn === formation.clock.turnsTotal) {
+      ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.rolls.alreadyListened"));
+      return 0;
+    }
+    formation.clock.lastListenTurn = formation.clock.turnsTotal;
+    await updateFormation(formation);
+  }
+
+  const rows = [];
+  const rolls = [];
+  const incapable = [];
+  for (const member of formation.members) {
+    const actor = getMemberActor(member);
+    if (!actor || isDown(actor)) continue;
+    const check = resolveCheck(actor, cfg);
+    if (!check) {
+      incapable.push(actor.name);
+      continue;
+    }
+    let bonus = check.bonus;
+    if (cfg.strTimes4) bonus += 4 * (actor.system?.scores?.str?.mod ?? 0);
+    const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
+    const roll = await new Roll(formula).evaluate();
+    rolls.push(roll);
+    const breakdown = (check.parts ?? [])
+      .map((part) => `+${part.value} ${part.label}`)
+      .concat(cfg.strTimes4 ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR×4`] : [])
+      .join(", ");
+    rows.push({
+      name: actor.name,
+      total: roll.total,
+      target: check.target,
+      source: breakdown ? `${check.source}; ${breakdown}` : check.source,
+      success: roll.total >= check.target,
+    });
+  }
+
+  if (!rows.length) {
+    ui.notifications.warn(loc("rolls.nobodyCapable", { check: game.i18n.localize(cfg.label) }));
+    return 0;
+  }
+
+  let html = `<div class="acks-formation-card party-rolls">`;
+  html += `<header><strong>${foundry.utils.escapeHTML(formation.name)}</strong> — ${game.i18n.localize(cfg.label)}</header>`;
+  if (cfg.note) html += `<p class="hint">${game.i18n.localize(cfg.note)}</p>`;
+  for (const note of preNotes) html += `<p class="warning">${note}</p>`;
+  html += `<ul class="results">`;
+  for (const row of rows) {
+    html += `<li class="${row.success ? "good" : "bad"}"><strong>${foundry.utils.escapeHTML(row.name)}</strong>: `;
+    html += `${row.total} vs ${row.target}+ <em>(${foundry.utils.escapeHTML(row.source)})</em> — `;
+    html += row.success
+      ? `<strong>${game.i18n.localize("ACKS-FORMATION.rolls.success")}</strong>`
+      : game.i18n.localize("ACKS-FORMATION.rolls.failure");
+    html += `</li>`;
+  }
+  html += `</ul>`;
+  if (incapable.length) {
+    html += `<p class="hint">${loc("rolls.notCapable", { names: incapable.join(", ") })}</p>`;
+  }
+  html += `</div>`;
+
+  await ChatMessage.create({
+    content: html,
+    rolls,
+    whisper: game.users.filter((u) => u.isGM).map((u) => u.id),
+    speaker: { alias: formation.name },
+  });
+
+  // Time cost: methodical actions occupy a full turn, hasty ones a round.
+  if (cfg.consumesTurn) await advanceTurns(formation, 1, { reason: "search" });
+  else if (cfg.consumesRound) await advanceRounds(formation, 1, { reason: "action" });
+  return rows.length;
+}
+

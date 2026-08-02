@@ -1,0 +1,24 @@
+<div class="acks-influence-card acks-influence-mode-result{{#if secret}} secret{{/if}}">
+  <header class="acks-influence-card-header">
+    <h3>{{modeLabel}}{{#if secret}} <i class="fa-solid fa-user-secret" data-tooltip="GM"></i>{{/if}}</h3>
+    <p class="acks-influence-parties-line">
+      {{influencerName}}{{#if targetName}} &rarr; {{targetName}}{{/if}}
+    </p>
+  </header>
+  <div class="acks-influence-card-content">
+    <div class="acks-influence-roll-line">
+      <span class="formula">{{rollFormula}}</span>
+      <span class="result"><strong>{{diceResult}}</strong> &rarr; <strong>{{total}}</strong></span>
+    </div>
+    {{#if activeModifiers.length}}
+    <ul class="acks-influence-mod-parts">
+      {{#each activeModifiers}}
+      <li><span>{{this.label}}</span><span>{{numberFormat this.value sign=true}}</span></li>
+      {{/each}}
+    </ul>
+    {{/if}}
+    <div class="acks-influence-outcome">
+      <strong>{{outcomeLabel}}</strong>
+    </div>
+  </div>
+</div>

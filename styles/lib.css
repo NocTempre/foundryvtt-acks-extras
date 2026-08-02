@@ -1,0 +1,243 @@
+/* acks-lib styles. Scope every selector under a module-specific class. */
+
+.acks-lib-group-sheet .acks-lib-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+}
+
+.acks-lib-group-sheet section > header h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+  border-bottom: 1px solid var(--color-border-light-primary, #b5b3a4);
+}
+
+.acks-lib-group-sheet .muted {
+  color: var(--color-text-dark-secondary, #7a7971);
+  font-weight: normal;
+}
+
+.acks-lib-group-sheet .hint {
+  font-style: italic;
+  color: var(--color-text-dark-secondary, #7a7971);
+  margin: 0.2rem 0;
+}
+
+.acks-lib-group-warning {
+  background: rgba(180, 40, 40, 0.12);
+  border: 1px solid rgba(180, 40, 40, 0.5);
+  border-radius: 3px;
+  padding: 0.3rem 0.5rem;
+  margin: 0;
+}
+
+.acks-lib-group-sheet .proto-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.acks-lib-group-sheet .proto-label {
+  font-weight: bold;
+}
+.acks-lib-group-sheet .proto-type {
+  font-size: 0.8rem;
+  color: var(--color-text-dark-secondary, #7a7971);
+}
+
+.acks-lib-group-sheet .size-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.acks-lib-group-sheet .size-current {
+  font-size: 1.8rem;
+  font-weight: bold;
+  line-height: 1;
+}
+.acks-lib-group-sheet .size-of {
+  color: var(--color-text-dark-secondary, #7a7971);
+}
+.acks-lib-group-sheet .size-noun {
+  font-style: italic;
+}
+.acks-lib-group-sheet .size-detail {
+  font-size: 0.85rem;
+  color: var(--color-text-dark-secondary, #7a7971);
+}
+.acks-lib-group-sheet .size-fields,
+.acks-lib-group-sheet .unit-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.3rem 0.6rem;
+  margin-top: 0.35rem;
+}
+.acks-lib-group-sheet label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+}
+
+.acks-lib-group-sheet .acks-lib-group-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.acks-lib-group-sheet .acks-lib-group-controls .count {
+  max-width: 5rem;
+}
+.acks-lib-group-sheet button.danger {
+  color: #7a1f1f;
+}
+.acks-lib-group-sheet button.icon {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.acks-lib-group-sheet .member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.acks-lib-group-sheet .member {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+}
+.acks-lib-group-sheet .member:nth-child(odd) {
+  background: rgba(0, 0, 0, 0.04);
+}
+.acks-lib-group-sheet .member-name {
+  flex: 1 1 auto;
+}
+.acks-lib-group-sheet .member.dead .member-name {
+  text-decoration: line-through;
+  color: var(--color-text-dark-secondary, #7a7971);
+}
+.acks-lib-group-sheet .member-state {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.08);
+}
+.acks-lib-group-sheet .member-state.state-deployed {
+  background: rgba(40, 100, 180, 0.18);
+}
+.acks-lib-group-sheet .member-hp {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+}
+.acks-lib-group-sheet .member-note {
+  font-style: italic;
+  font-size: 0.8rem;
+  color: var(--color-text-dark-secondary, #7a7971);
+}
+
+/* --- acks-lib.template builder sheet --- */
+.acks-lib-template-sheet .acks-lib-template-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+.acks-lib-template-sheet section > header h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.25rem;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+}
+.acks-lib-template-sheet .hint {
+  font-size: 0.8rem;
+  color: var(--color-text-dark-secondary, #7a7971);
+  margin: 0.15rem 0;
+}
+.acks-lib-template-warning {
+  background: rgba(180, 120, 40, 0.15);
+  border: 1px solid rgba(180, 120, 40, 0.5);
+  border-radius: 3px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+.acks-lib-template-sheet .base-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.acks-lib-template-sheet .base-name {
+  font-weight: bold;
+}
+.acks-lib-template-sheet .axis-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.2rem 0;
+}
+.acks-lib-template-sheet .axis-label {
+  flex: 0 0 7rem;
+  font-weight: bold;
+}
+.acks-lib-template-sheet .axis-row select {
+  flex: 1;
+}
+.acks-lib-template-sheet .acks-lib-template-controls button {
+  width: 100%;
+  font-size: 1rem;
+}
+.acks-lib-template-sheet .acks-lib-template-description {
+  border-top: 1px solid var(--color-border-light-tertiary, #7a7971);
+  padding-top: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.acks-lib-template-sheet .acks-lib-template-editor {
+  border-top: 1px dashed var(--color-border-light-tertiary, #7a7971);
+  padding-top: 0.4rem;
+}
+.acks-lib-template-sheet .editor-axis header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.acks-lib-template-sheet .editor-axis ul {
+  list-style: none;
+  margin: 0.2rem 0 0.5rem;
+  padding: 0;
+}
+.acks-lib-template-sheet .editor-option {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.15rem 0.3rem;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+}
+.acks-lib-template-sheet .editor-option:hover {
+  border-color: var(--color-border-light-tertiary, #7a7971);
+}
+.acks-lib-template-sheet .editor-option.is-empty span {
+  opacity: 0.7;
+}
+
+.acks-lib-template-sheet .axis-multi-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.8rem;
+  flex: 1;
+}
+.acks-lib-template-sheet .axis-multi-options label {
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}

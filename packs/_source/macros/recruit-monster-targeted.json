@@ -1,0 +1,9 @@
+{
+  "_id": "acksHm8d646e9561",
+  "_key": "!macros!acksHm8d646e9561",
+  "name": "Recruit Monster (Targeted)",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/pawprint.svg",
+  "command": "const employer = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nconst monster = game.user.targets.first()?.actor;\nif (!employer || !monster) return ui.notifications.warn(\"Select your character's token and TARGET the monster.\");\nconst captured = await foundry.applications.api.DialogV2.confirm({\n  window: { title: \"Recruit \" + monster.name },\n  content: \"<p>Was the monster defeated and captured (Irrefusable Offer, MM 351)? Choose No for a peaceful/market offer.</p>\",\n});\nacksHenchmen.recruitMonster(monster, employer, { captured });"
+}

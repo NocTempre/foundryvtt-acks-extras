@@ -1,0 +1,769 @@
+/* ACKS II — Exploration Formations */
+
+/* One scroller: the window content. The window root is hard-capped to the
+   viewport so the frame can never grow past the screen; the content then
+   overflows and scrolls (position preserved across re-renders by the app). */
+.acks-formation.application {
+  max-height: 92vh;
+}
+
+.acks-formation .window-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px;
+}
+
+.acks-formation .acks-formation-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+}
+
+.acks-formation section {
+  flex: 0 0 auto;
+}
+
+/* --- Marching order controls & ranks --- */
+
+.acks-formation .members h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.acks-formation .march-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-weight: normal;
+}
+
+.acks-formation .march-controls select {
+  width: auto;
+  font-size: var(--font-size-12, 12px);
+  height: 22px;
+}
+
+.acks-formation .march-controls button {
+  width: auto;
+  font-size: var(--font-size-11, 11px);
+  line-height: 20px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.acks-formation .rank-divider {
+  list-style: none;
+  font-size: var(--font-size-10, 10px);
+  text-transform: uppercase;
+  opacity: 0.6;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+  margin: 2px 0 1px;
+  padding-left: 4px;
+}
+
+.acks-formation .toolbar {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.acks-formation .toolbar select {
+  flex: 1;
+}
+
+.acks-formation .toolbar button {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 8px;
+  line-height: 24px;
+}
+
+.acks-formation .name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.acks-formation .name-row input {
+  width: 100%;
+  font-weight: bold;
+}
+
+.acks-formation .name-row .party-img {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border: 1px solid var(--color-border-dark, #555);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.acks-formation .name-row .party-img:hover {
+  box-shadow: 0 0 4px var(--color-shadow-highlight, #ff6400);
+}
+
+.acks-formation .table-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.acks-formation .table-row label {
+  flex: 0 0 auto;
+  font-size: var(--font-size-12, 12px);
+  white-space: nowrap;
+}
+
+.acks-formation .table-row select {
+  flex: 1;
+}
+
+.acks-formation section {
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.acks-formation section h3 {
+  margin: 0 0 4px 0;
+  font-size: var(--font-size-14, 14px);
+  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+}
+
+/* --- Clock --- */
+
+.acks-formation .clock .stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.acks-formation .clock .stat label {
+  display: block;
+  font-size: var(--font-size-11, 11px);
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.acks-formation .clock .stat .value {
+  font-size: var(--font-size-18, 18px);
+  font-weight: bold;
+}
+
+.acks-formation .clock .stat .sub {
+  display: block;
+  font-size: var(--font-size-10, 10px);
+  opacity: 0.7;
+}
+
+.acks-formation .clock .stat.bad .value {
+  color: #a02020;
+}
+
+.acks-formation .clock .buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.acks-formation .clock .buttons button {
+  flex: 1 1 auto;
+  width: auto;
+  font-size: var(--font-size-12, 12px);
+  line-height: 22px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.acks-formation button.danger {
+  color: #a02020;
+}
+
+.acks-formation button.paused {
+  color: #a06010;
+}
+
+/* --- Warnings --- */
+
+.acks-formation .warnings {
+  background: rgba(160, 96, 16, 0.08);
+}
+
+.acks-formation .warnings p {
+  margin: 2px 0;
+  font-size: var(--font-size-12, 12px);
+}
+
+.acks-formation .warnings i {
+  color: #a06010;
+  margin-right: 4px;
+}
+
+/* --- Members --- */
+
+/* 2D marching grid: --frontage columns, ranks as rows. */
+.acks-formation .members ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--frontage, 1), minmax(0, 1fr));
+  gap: 4px;
+}
+
+.acks-formation .rank-divider {
+  grid-column: 1 / -1;
+}
+
+.acks-formation .member.blank-cell {
+  border: 1px dashed var(--color-border-light-tertiary, #7a7971);
+  border-radius: 4px;
+  justify-content: center;
+  min-height: 44px;
+  opacity: 0.7;
+}
+
+.acks-formation .member.blank-cell .hint {
+  flex: 1;
+  text-align: center;
+}
+
+.acks-formation .stat.quiet .value {
+  color: #a06010;
+}
+
+/* --- Map items & skill audit --- */
+
+.acks-formation .map-item .label.clickable {
+  cursor: pointer;
+}
+
+.acks-formation .map-item .label.clickable:hover {
+  text-shadow: 0 0 6px var(--color-shadow-primary, #782e22);
+}
+
+.acks-formation .audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-12, 12px);
+}
+
+.acks-formation .audit-table th,
+.acks-formation .audit-table td {
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  padding: 3px 5px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.acks-formation .audit-table .member-cell {
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.acks-formation .audit-table .member-cell img {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  border: none;
+}
+
+.acks-formation .audit-table .lvl {
+  opacity: 0.6;
+  font-weight: normal;
+}
+
+.acks-formation .audit-table .src {
+  opacity: 0.7;
+  font-size: var(--font-size-10, 10px);
+}
+
+.acks-formation .audit-table select,
+.acks-formation .audit-table input {
+  width: 100%;
+  min-width: 70px;
+  height: 22px;
+  font-size: var(--font-size-11, 11px);
+}
+
+.acks-formation .member-controls.grid-controls {
+  display: grid;
+  grid-template-columns: repeat(2, 22px);
+  gap: 1px;
+}
+
+.acks-formation .member-controls.grid-controls button:first-child {
+  grid-column: 1 / -1;
+}
+
+.acks-formation .member-controls.grid-controls button:nth-last-child(2) {
+  grid-column: 1 / -1;
+}
+
+.acks-formation .member-controls.grid-controls button:last-child {
+  grid-column: 1 / -1;
+}
+
+.acks-formation .member {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.acks-formation .member.slowest {
+  border-color: rgba(160, 96, 16, 0.5);
+}
+
+.acks-formation .member .rank {
+  flex: 0 0 18px;
+  text-align: center;
+  font-weight: bold;
+  opacity: 0.7;
+}
+
+.acks-formation .member img {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.acks-formation .member .info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.acks-formation .member .name {
+  font-weight: bold;
+}
+
+.acks-formation .member .name i {
+  font-size: var(--font-size-10, 10px);
+  opacity: 0.6;
+}
+
+.acks-formation .member .details {
+  font-size: var(--font-size-11, 11px);
+  opacity: 0.75;
+}
+
+.acks-formation .member .roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.acks-formation .role-chip {
+  width: auto;
+  font-size: var(--font-size-10, 10px);
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 8px;
+  opacity: 0.55;
+  background: transparent;
+}
+
+.acks-formation .role-chip.active {
+  opacity: 1;
+  background: var(--color-shadow-primary, #782e22);
+  color: #fff;
+  border-color: transparent;
+}
+
+.acks-formation .member-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.acks-formation .member-controls button {
+  width: 22px;
+  height: 16px;
+  line-height: 12px;
+  font-size: var(--font-size-10, 10px);
+  padding: 0;
+}
+
+/* --- Lights --- */
+
+.acks-formation .light {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.acks-formation .light .label {
+  flex: 1;
+}
+
+.acks-formation .light .remaining {
+  font-size: var(--font-size-11, 11px);
+  opacity: 0.75;
+}
+
+.acks-formation .light i.lit {
+  color: #d08020;
+}
+
+.acks-formation .light.unlit {
+  opacity: 0.55;
+}
+
+.acks-formation .light button {
+  flex: 0 0 24px;
+  width: 24px;
+  line-height: 18px;
+  padding: 0;
+}
+
+.acks-formation .add-light {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.acks-formation .add-light select {
+  flex: 1;
+}
+
+.acks-formation .add-light button {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 8px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+.acks-formation .hint {
+  font-size: var(--font-size-12, 12px);
+  opacity: 0.75;
+  font-style: italic;
+}
+
+/* --- Spells --- */
+
+.acks-formation .add-spell input[type="text"] {
+  flex: 1 1 90px;
+  min-width: 70px;
+}
+
+.acks-formation .add-spell input[type="number"] {
+  flex: 0 0 52px;
+  min-width: 52px;
+}
+
+.acks-formation .add-spell select {
+  flex: 1 1 90px;
+  min-width: 70px;
+}
+
+.acks-formation .spells .light i.lit {
+  color: #7040a0;
+}
+
+/* --- Party saves --- */
+
+.acks-formation .magical-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--font-size-11, 11px);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.acks-formation .magical-toggle input {
+  margin: 0;
+}
+
+.acks-formation .save-label {
+  font-size: var(--font-size-11, 11px);
+  text-transform: uppercase;
+  opacity: 0.75;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.acks-formation .saves-row button,
+.acks-formation .party-sheet-body .buttons button {
+  flex: 0 1 auto;
+}
+
+/* --- Party sheet --- */
+
+.acks-formation.party-sheet .window-content {
+  padding: 6px;
+}
+
+.acks-formation .party-sheet-body .buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.acks-formation .party-sheet-body .buttons button {
+  width: auto;
+  font-size: var(--font-size-12, 12px);
+  line-height: 22px;
+  padding: 0 8px;
+}
+
+/* --- Chat cards --- */
+
+.acks-formation-card header {
+  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+  margin-bottom: 4px;
+  padding-bottom: 2px;
+}
+
+.acks-formation-card ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.acks-formation-card li.bad {
+  color: #a02020;
+  font-weight: bold;
+}
+
+.acks-formation-card li.warn {
+  color: #a06010;
+}
+
+.acks-formation-card li.good {
+  color: #207020;
+}
+
+.acks-formation-card .warning {
+  color: #a02020;
+}
+
+.acks-formation-card.encounter {
+  border-left: 3px solid #a02020;
+  padding-left: 6px;
+}
+
+.acks-formation-card .hint {
+  font-size: var(--font-size-11, 11px);
+  font-style: italic;
+  opacity: 0.8;
+  margin: 2px 0;
+}
+
+.acks-formation-card.party-rolls .results {
+  list-style: none;
+  padding-left: 4px;
+}
+
+/* --- Maps --- */
+
+.acks-formation .maps .session {
+  margin: 2px 0;
+}
+
+.acks-formation .maps .buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.acks-formation .maps .buttons button {
+  flex: 0 1 auto;
+  width: auto;
+  font-size: var(--font-size-12, 12px);
+  line-height: 22px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.acks-formation .maps .map-item button {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.acks-formation .maps i.lit {
+  color: #2060a0;
+}
+
+.acks-formation .maps i.distorted,
+.acks-formation .session i.distorted {
+  color: #a02020;
+}
+
+.acks-formation .maps .warn {
+  color: #a06010;
+  font-size: var(--font-size-11, 11px);
+}
+.acks-formation .down-badge {
+  color: #a02020;
+}
+
+.acks-formation-flags {
+  margin-top: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 4px;
+}
+
+.acks-formation-flags .acks-formation-flag-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.acks-formation-flags label {
+  font-size: var(--font-size-11, 11px);
+  white-space: nowrap;
+}
+
+.acks-formation-flags select,
+.acks-formation-flags input {
+  width: auto;
+  min-width: 80px;
+  height: 22px;
+  font-size: var(--font-size-11, 11px);
+}
+
+.acks-formation-flags input[type="number"] {
+  min-width: 55px;
+  max-width: 60px;
+}
+
+.acks-formation-flags .hint {
+  margin: 2px 0 0;
+  font-size: var(--font-size-11, 11px);
+  opacity: 0.75;
+}
+
+/* Injected Skill tab on ability item sheets */
+.acks-formation-skill-tab .content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px;
+}
+
+.acks-formation-skill-tab .acks-formation-progression {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.acks-formation-skill-tab .acks-formation-progression .cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 34px;
+  padding: 2px 4px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 3px;
+  font-size: var(--font-size-12, 12px);
+}
+
+.acks-formation-skill-tab .acks-formation-progression .cell label {
+  font-size: var(--font-size-10, 10px);
+  opacity: 0.7;
+}
+
+.acks-formation-skill-tab .acks-formation-progression .cell.current {
+  border-color: var(--color-shadow-highlight, #ff6400);
+  box-shadow: 0 0 3px var(--color-shadow-highlight, #ff6400);
+  font-weight: bold;
+}
+
+.acks-formation-skill-tab .acks-formation-resolution {
+  margin: 2px 0;
+  padding-left: 16px;
+  font-size: var(--font-size-12, 12px);
+}
+
+/* --- Skill Audit: party ability roster --- */
+.acks-formation .ability-roster h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.acks-formation .ability-roster .reset-overrides {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 8px;
+  line-height: 22px;
+  font-size: var(--font-size-11, 11px);
+}
+
+.acks-formation .ability-roster tr.inactive .member-cell,
+.acks-formation .ability-roster tr.inactive .binding-cell {
+  opacity: 0.5;
+}
+
+.acks-formation .ability-roster .binding {
+  display: inline-block;
+  margin: 1px 2px 1px 0;
+  padding: 0 5px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 3px;
+  font-size: var(--font-size-11, 11px);
+}
+
+/* A name-only match is the fragile one — mark it so it is visible at a glance. */
+.acks-formation .ability-roster .binding.route-name {
+  border-style: dashed;
+  border-color: #a06010;
+  color: #a06010;
+}
+
+.acks-formation .ability-roster .binding.route-capability {
+  border-color: #2d6a2d;
+  color: #2d6a2d;
+}
+
+.acks-formation .ability-roster .gm-set {
+  margin-left: 4px;
+  color: #4a6fa5;
+  font-size: var(--font-size-11, 11px);
+}
+
+.acks-formation .ability-roster .toggle-cell {
+  width: 7.5em;
+}
+
+.acks-formation .ability-roster .ruling {
+  width: 100%;
+  padding: 0 4px;
+  line-height: 22px;
+  font-size: var(--font-size-11, 11px);
+}
+
+.acks-formation .ability-roster .ruling.forced {
+  border-color: #4a6fa5;
+  font-weight: bold;
+}
+
+.acks-formation .ability-roster .ruling.off {
+  text-decoration: line-through;
+}

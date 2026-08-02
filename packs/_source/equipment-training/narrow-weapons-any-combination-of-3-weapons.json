@@ -1,0 +1,36 @@
+{
+  "_id": "acksEqTrain00018",
+  "_key": "!items!acksEqTrain00018",
+  "name": "Narrow Weapons: Any Combination of 3 Weapons",
+  "type": "ability",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "above",
+    "rollTarget": 0,
+    "blindroll": false,
+    "description": "<p>Narrow selection (vii): any combination of 3 weapons. <em>List the three on the effect's <code>weaponProf</code> change (comma-separated weapon names). Composite/long bow require short bow; spear/pole arm require javelin.</em></p><p><em>Class training chunk — Judges Journal pp. 290–291. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>",
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "training": true
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 1800,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

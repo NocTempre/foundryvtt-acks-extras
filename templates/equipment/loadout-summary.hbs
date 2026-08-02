@@ -1,0 +1,35 @@
+<div class="acks-equipment-loadout">
+  <h3>{{actorName}} — Loadout</h3>
+  <p>
+    Hands: <strong>{{loadout.handsUsed}}/{{loadout.handBudget}}</strong>
+    · Style: <strong>{{styleLabel}}</strong>
+    {{#if loadout.styleProficient}}<span class="ok">(proficient)</span>{{else}}<span class="advisory">(untrained)</span>{{/if}}
+  </p>
+  <table>
+    <thead><tr><th>Weapon</th><th>Size</th><th>Hands</th><th>Wield</th></tr></thead>
+    <tbody>
+      {{#each weapons}}
+      <tr>
+        <td>{{this.name}}</td>
+        <td>{{this.size}}</td>
+        <td>{{this.hands}}</td>
+        <td>{{this.wield}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <p>
+    Armour: <strong>{{armorName}}</strong>
+    {{#if loadout.shield}} · Shield: <strong>{{shieldName}}</strong>{{/if}}
+    {{#if loadout.hasHelmet}} · Helmet{{/if}}
+  </p>
+  {{#if violations.length}}
+  <ul>
+    {{#each violations}}
+    <li class="{{#if this.advisory}}advisory{{else}}violation{{/if}}">{{this.message}}</li>
+    {{/each}}
+  </ul>
+  {{else}}
+  <p class="ok">Legal loadout.</p>
+  {{/if}}
+</div>

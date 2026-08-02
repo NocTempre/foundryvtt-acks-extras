@@ -1,0 +1,96 @@
+<div class="roster-body">
+  <header class="roster-header">
+    <div class="limit-meter {{#if limit.over}}over{{/if}}" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.limitHint'}}">
+      <i class="fas fa-users"></i>
+      {{localize "ACKS-HENCHMEN.roster.limit"}}: <strong>{{limit.count}} / {{limit.max}}</strong>
+    </div>
+    <div class="employer-mods hint" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.employerModsHint'}}">
+      CHA {{employerMods.cha}}{{#if employerMods.effects}}, {{localize "ACKS-HENCHMEN.roster.effects"}} +{{employerMods.effects}}{{/if}}
+    </div>
+    <div class="wage-summary">
+      {{localize "ACKS-HENCHMEN.roster.totalWages"}}: <strong>{{totalWages}} gp</strong>/{{localize "ACKS-HENCHMEN.roster.month"}}
+      {{#if isGM}}
+      <button type="button" data-action="payWages" {{#unless anyDue}}disabled{{/unless}}>
+        <i class="fas fa-coins"></i> {{localize "ACKS-HENCHMEN.wage.pay"}}
+      </button>
+      {{/if}}
+    </div>
+    <div class="sheet-toggle">
+      <button type="button" data-action="allCards" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.allCardsHint'}}">
+        <i class="fa-solid fa-address-card"></i> {{localize "ACKS-HENCHMEN.roster.allCards"}}
+      </button>
+      <button type="button" data-action="allFull" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.allFullHint'}}">
+        <i class="fa-solid fa-file-lines"></i> {{localize "ACKS-HENCHMEN.roster.allFull"}}
+      </button>
+    </div>
+  </header>
+
+  {{#if rows.length}}
+  <div class="roster-rows">
+    {{#each rows}}
+    <details class="roster-row {{#if wageDue}}wage-due{{/if}}" data-actor-id="{{id}}">
+      <summary>
+        <img src="{{img}}" alt="{{name}}" />
+        <a data-action="openActor" class="row-name">{{name}}</a>
+        <span class="row-tag">{{category}}{{#if isMonster}} ({{localize "ACKS-HENCHMEN.roster.monster"}}){{/if}}{{#if noSlot}} <i class="fas fa-star-of-life" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.noSlot'}}"></i>{{/if}}</span>
+        <span class="row-stat" data-tooltip="{{loyaltyBreakdown}}">{{localize "ACKS-HENCHMEN.roster.loyalty"}} <strong>{{loyalty}}</strong></span>
+        <span class="row-stat">{{localize "ACKS-HENCHMEN.roster.morale"}} <strong>{{morale}}</strong></span>
+        <span class="row-stat {{#if wageDue}}due{{/if}}">{{wage}} gp{{#if wageDue}} <i class="fas fa-triangle-exclamation" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.wageDue'}}"></i>{{/if}}</span>
+        {{#if @root.isGM}}
+        <span class="row-actions">
+          <a data-action="loyaltyRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.throw.hirelingLoyalty'}}"><i class="fas fa-user-secret"></i></a>
+          <a data-action="obedienceRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.throw.hirelingObedience'}}"><i class="fas fa-list-check"></i></a>
+          <a data-action="calamity" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.recordCalamity'}}"><i class="fas fa-skull"></i></a>
+          <a data-action="penalty" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.recordPenalty'}}"><i class="fas fa-bandage"></i></a>
+          <a data-action="transfer" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.transfer'}}"><i class="fas fa-right-left"></i></a>
+          <a data-action="dismiss" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.dismiss'}}"><i class="fas fa-door-open"></i></a>
+        </span>
+        {{/if}}
+      </summary>
+      <div class="row-details">
+        {{#if origin}}<p class="hint">{{origin}}{{#if arrears}} — {{localize "ACKS-HENCHMEN.roster.arrears"}}: {{arrears}} gp{{/if}} — {{localize "ACKS-HENCHMEN.roster.calamities"}}: {{calamities}}</p>{{/if}}
+        {{#if rolledLine}}
+        <p><strong>{{localize "ACKS-HENCHMEN.roster.rolled"}}:</strong> {{rolledLine}}</p>
+        {{/if}}
+        {{#if ledger.length}}
+        <table class="loyalty-ledger">
+          <caption>{{localize "ACKS-HENCHMEN.ledger.title"}}</caption>
+          <tbody>
+            {{#each ledger}}
+            <tr class="{{#if compensated}}compensated{{/if}}">
+              <td class="ledger-track">{{trackLabel}}</td>
+              <td class="ledger-delta">{{delta}}</td>
+              <td>{{reasonLabel}}</td>
+              <td class="hint">{{note}}</td>
+              <td class="ledger-toggle">
+                {{#if @root.isGM}}
+                <a data-action="toggleCompensated" data-track="{{track}}" data-index="{{index}}" data-compensated="{{compensated}}"
+                   data-tooltip="{{#if compensated}}{{localize 'ACKS-HENCHMEN.ledger.restoreHint'}}{{else}}{{localize 'ACKS-HENCHMEN.ledger.compensateHint'}}{{/if}}">
+                  <i class="fas {{#if compensated}}fa-rotate-left{{else}}fa-hand-holding-heart{{/if}}"></i>
+                </a>
+                {{else if compensated}}
+                <i class="fas fa-check" data-tooltip="{{localize 'ACKS-HENCHMEN.ledger.compensatedTag'}}"></i>
+                {{/if}}
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+        {{/if}}
+        {{#if events.length}}
+        <table class="event-log">
+          <tbody>
+            {{#each events}}
+            <tr><td>{{typeLabel}}</td><td>{{outcomeLabel}}</td><td class="hint">{{note}}</td></tr>
+            {{/each}}
+          </tbody>
+        </table>
+        {{/if}}
+      </div>
+    </details>
+    {{/each}}
+  </div>
+  {{else}}
+  <p class="hint">{{localize "ACKS-HENCHMEN.roster.empty"}}</p>
+  {{/if}}
+</div>

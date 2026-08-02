@@ -1,0 +1,354 @@
+/* ACKS II — Full Monster Sheet: styles for the ADDED tabs only.
+   The sheet subclasses the system's monster sheet, so header, item lists, and
+   base form controls inherit the acks/Foundry styling; we only tune our extras. */
+
+.acks-monsters .acksm-content {
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.acks-monsters .acksm-content fieldset {
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 5px;
+  padding: 4px 8px 8px;
+  margin: 0;
+}
+
+.acks-monsters .acksm-content legend {
+  font-weight: 700;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Grouped rows: tight, wrapping. */
+.acks-monsters .acksm-content .flexrow {
+  gap: 6px 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.acks-monsters .acksm-content .form-group {
+  flex: 1 1 130px;
+  min-width: 90px;
+}
+.acks-monsters .acksm-content .form-group.flex-2 {
+  flex: 2 1 220px;
+}
+.acks-monsters .acksm-content .form-group.stacked {
+  flex: 1 1 100%;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.acks-monsters .acksm-content .form-group > label,
+.acks-monsters .acksm-lore-label,
+.acks-monsters .acksm-rows-head {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+/* --- Checkbox "chips" for short enum sets (types, vision, damage) --- */
+.acks-monsters multi-checkbox.acksm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  border: none;
+  padding: 2px 0;
+}
+.acks-monsters multi-checkbox.acksm-chips label.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 2px 8px 2px 6px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 0.82rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.acks-monsters multi-checkbox.acksm-chips label.checkbox:has(input:checked) {
+  background: rgba(130, 38, 80, 0.18);
+  border-color: rgba(130, 38, 80, 0.5);
+  font-weight: 600;
+}
+.acks-monsters multi-checkbox.acksm-chips input {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+/* Inline checkbox + label (single booleans). */
+.acks-monsters .acksm-cb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+.acks-monsters .acksm-cb input {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* Save row (Classification). */
+.acks-monsters .acksm-saves .form-group {
+  flex: 1 1 90px;
+}
+.acks-monsters .acksm-saves .rollable-header {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+.acks-monsters .acksm-saves .rollable-header__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+/* Encounter grid: two columns of noun/number pairs. */
+.acks-monsters .acksm-enc-grid .form-group {
+  flex: 1 1 45%;
+}
+.acks-monsters .acksm-enc-grid .form-fields {
+  display: flex;
+  gap: 4px;
+}
+
+/* Repeatable rows (speeds, senses, values, variants). */
+.acks-monsters .acksm-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.acks-monsters .acksm-rows-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.acks-monsters .acksm-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.acks-monsters .acksm-row > select,
+.acks-monsters .acksm-row > input[type="text"],
+.acks-monsters .acksm-row > input[type="number"] {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.acks-monsters .acksm-row .acksm-cb {
+  flex: 0 0 auto;
+}
+
+.acks-monsters .acksm-mini {
+  flex: 0 0 auto;
+  cursor: pointer;
+  padding: 2px 5px;
+  opacity: 0.85;
+}
+.acks-monsters .acksm-mini:hover {
+  opacity: 1;
+}
+
+.acks-monsters .acksm-wrap .acksm-narrow {
+  flex: 1 1 70px;
+  min-width: 60px;
+}
+
+.acks-monsters .acksm-hint {
+  font-size: 0.78rem;
+  opacity: 0.72;
+  margin: 2px 0 6px;
+}
+
+/* --- Item-row tags (damage, category, inventory meta) --- */
+.acks-monsters .acksm-dmg-tag,
+.acks-monsters .acksm-cat-tag,
+.acks-monsters .acksm-inv-meta {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  opacity: 0.85;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+.acks-monsters .acksm-dmg-tag {
+  background: rgba(130, 38, 80, 0.14);
+  font-weight: 600;
+}
+.acks-monsters .acksm-cat-tag {
+  background: rgba(40, 90, 140, 0.16);
+  text-transform: capitalize;
+}
+.acks-monsters .acksm-inv-meta {
+  opacity: 0.7;
+}
+/* --- Encumbrance readout (Inventory tab) --- */
+.acks-monsters .acksm-enc {
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 5px;
+  padding: 5px 8px 6px;
+  margin: 0 0 8px;
+}
+.acks-monsters .acksm-enc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.acks-monsters .acksm-enc-state {
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+.acks-monsters .acksm-enc-bar {
+  position: relative;
+  height: 8px;
+  margin: 5px 0 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+.acks-monsters .acksm-enc-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: rgba(80, 140, 80, 0.75);
+  transition: width 0.2s;
+}
+.acks-monsters .acksm-enc-mark {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: var(--color-text-dark-primary, #111);
+  opacity: 0.6;
+}
+.acks-monsters .acksm-enc-legend {
+  font-size: 0.74rem;
+  opacity: 0.75;
+}
+.acks-monsters .acksm-enc-encumbered .acksm-enc-fill {
+  background: rgba(190, 140, 30, 0.8);
+}
+.acks-monsters .acksm-enc-encumbered .acksm-enc-state {
+  color: #a9791b;
+}
+.acks-monsters .acksm-enc-overloaded .acksm-enc-fill {
+  background: rgba(170, 45, 45, 0.85);
+}
+.acks-monsters .acksm-enc-overloaded .acksm-enc-state {
+  color: #a52d2d;
+}
+
+.acks-monsters .acksm-empty {
+  opacity: 0.6;
+  font-style: italic;
+  padding: 4px 6px;
+  list-style: none;
+}
+
+/* Henchman */
+.acks-monsters .acksm-manager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.acks-monsters .acksm-readout {
+  gap: 6px;
+}
+.acks-monsters .acksm-ro {
+  flex: 1 1 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+.acks-monsters .acksm-ro label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.acks-monsters .acksm-ro span {
+  font-weight: 700;
+}
+
+/* Description prose editors */
+.acks-monsters .acksm-lore {
+  gap: 4px;
+}
+.acks-monsters .acksm-lore prose-mirror {
+  /* The tab content is a flexcol with align-items:flex-start (system CSS), and
+     a prose-mirror has no intrinsic width — without stretching it collapses to
+     a 2px border sliver. */
+  align-self: stretch;
+  min-height: 70px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.acks-monsters .acksm-lore prose-mirror .editor-content {
+  padding: 4px 8px;
+}
+/* Display (not editing): the editors should grow to fit their content — most
+   importantly acks-content's streamed book text — rather than each capping at
+   the 70px floor and scrolling internally. Core lays the editor-content out
+   position:absolute (inset 0) so it never contributes height; return it to flow
+   only while inactive, so the whole tab (part root is scrollable) does the
+   scrolling. The active ProseMirror editor keeps core's bounded/scrolling
+   layout untouched. */
+.acks-monsters .acksm-lore prose-mirror.inactive {
+  height: auto;
+  overflow: visible;
+}
+.acks-monsters .acksm-lore prose-mirror.inactive .editor-content {
+  position: static;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+/* Treasure is edited on the Ecology tab; hide the reused system header's
+   treasure panel on the Full Monster sheet only (no template fork). */
+.acks-monsters .sheet-header .form-group:has(> .treasure-link-panel) {
+  display: none;
+}
+
+/* --- Injected item-sheet flag fieldset (NOT scoped to .acks-monsters) --- */
+.acks-monsters-flags {
+  margin: 6px 0 2px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 5px;
+  padding: 4px 8px 8px;
+}
+.acks-monsters-flags > legend {
+  font-weight: 700;
+  padding: 0 4px;
+}
+.acks-monsters-flags .acksm-flag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+}
+.acks-monsters-flags .acksm-flag-row label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.acks-monsters-flags .acksm-flag-row label.checkbox {
+  text-transform: none;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}

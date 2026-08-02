@@ -1,0 +1,49 @@
+{
+  "_id": "acksHm8c12e2a616",
+  "_key": "!items!acksHm8c12e2a616",
+  "name": "Holy Fervor",
+  "type": "ability",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "description": "<p>Hirelings of the same religion as the character gain +1 to their morale score whenever he is present. (JJ powers — Paladin, Flagellant)</p>",
+    "proficiencytype": "class",
+    "favorite": false,
+    "pattern": "white",
+    "requirements": "",
+    "roll": "",
+    "rollType": "result",
+    "rollTarget": 0,
+    "blindroll": false,
+    "save": "",
+    "_schemaVersion": 3
+  },
+  "effects": [
+    {
+      "_id": "acksHm8f1ce44aeb",
+      "_key": "!items.effects!acksHm8c12e2a616.acksHm8f1ce44aeb",
+      "name": "Holy Fervor",
+      "type": "base",
+      "img": "icons/svg/aura.svg",
+      "system": {},
+      "transfer": true,
+      "disabled": false,
+      "changes": [
+        {
+          "priority": 20,
+          "key": "flags.acks-henchmen.henchmanMorale",
+          "mode": 2,
+          "value": "1"
+        }
+      ],
+      "duration": {
+        "startTime": null,
+        "seconds": null
+      },
+      "flags": {
+        "acks-henchmen": {
+          "condition": "ACKS-HENCHMEN.cond.sameReligion"
+        }
+      }
+    }
+  ]
+}

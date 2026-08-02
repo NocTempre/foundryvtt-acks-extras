@@ -1,0 +1,35 @@
+{
+  "_id": "acksEqSamp000008",
+  "_key": "!items!acksEqSamp000008",
+  "name": "Masterwork Plate Armour (+1 AC)",
+  "type": "armor",
+  "img": "icons/equipment/chest/breastplate-layered-steel.webp",
+  "system": {
+    "_schemaVersion": 3,
+    "cost": 710,
+    "weight6": 36,
+    "aac": {
+      "value": 7
+    },
+    "type": "heavy",
+    "description": "<p>Masterwork plate: AC 7 at the normal 6 stone weight (+650gp over the base 60gp).</p><p><em>Revised Rulebook p. 159. The cheaper +80gp masterwork instead sheds one stone of weight at normal AC.</em></p>"
+  },
+  "effects": [],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "masterwork": {
+        "ac": 1
+      }
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 800,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

@@ -1,0 +1,69 @@
+<div class="acks-location-storage-body">
+
+  <div class="acks-location-storage-intro">
+    {{#if hasGoods}}
+      <span>{{localize "ACKS-LOCATION.storage.tabIntro"}}</span>
+      <span class="acks-location-storage-total">{{coinGC}} {{localize "ACKS-LOCATION.storage.gp"}}</span>
+    {{else}}
+      <span>{{localize "ACKS-LOCATION.storage.tabEmpty"}}</span>
+    {{/if}}
+  </div>
+
+  {{#each places as |place|}}
+    <section class="acks-location-place" data-place-uuid="{{place.uuid}}">
+      <header class="acks-location-place-head">
+        <img class="acks-location-place-img" src="{{place.img}}" alt="{{place.name}}" />
+        <a class="acks-location-place-name" data-acksl-action="openLocation">
+          {{#if place.isVault}}<i class="fas fa-vault"></i> {{/if}}{{place.name}}
+        </a>
+        {{#if place.coinGC}}
+          <span class="acks-location-coin">{{place.coinGC}} {{localize "ACKS-LOCATION.storage.gp"}}</span>
+        {{/if}}
+        <span class="acks-location-place-tools">
+          {{#if place.canReach}}
+            <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="deposit">
+              <i class="fas fa-down-long"></i> {{localize "ACKS-LOCATION.storage.deposit"}}
+            </button>
+          {{/if}}
+          {{#if place.canReach}}
+            {{#if place.rows.length}}
+              <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="retrieveAll">
+                <i class="fas fa-up-long"></i> {{localize "ACKS-LOCATION.storage.retrieveAll"}}
+              </button>
+            {{/if}}
+          {{else}}
+            <span class="acks-location-hint" data-tooltip="{{localize 'ACKS-LOCATION.storage.outOfReachHint'}}">
+              <i class="fas fa-lock"></i> {{localize "ACKS-LOCATION.storage.outOfReach"}}
+            </span>
+          {{/if}}
+        </span>
+      </header>
+
+      {{#if place.rows.length}}
+        <ul class="acks-location-rows">
+          {{#each place.rows as |row|}}
+            <li class="acks-location-row" data-item-id="{{row.id}}">
+              <img class="acks-location-row-img" src="{{row.img}}" alt="{{row.name}}" />
+              <span class="acks-location-row-name">{{row.name}}</span>
+              {{#if row.stackable}}
+                <span class="acks-location-row-qty">&times;{{row.quantity}}</span>
+                <input class="acks-location-row-take" type="number" min="1" max="{{row.quantity}}"
+                       data-quantity placeholder="{{row.quantity}}"
+                       data-tooltip="{{localize 'ACKS-LOCATION.storage.quantityPrompt'}}" />
+              {{/if}}
+              {{#if place.canReach}}
+                <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="retrieve"
+                        data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieve'}}">
+                  <i class="fas fa-up-long"></i>
+                </button>
+              {{/if}}
+            </li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <p class="acks-location-empty">{{localize "ACKS-LOCATION.storage.nothingHere"}}</p>
+      {{/if}}
+    </section>
+  {{/each}}
+
+</div>

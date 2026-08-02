@@ -1,0 +1,476 @@
+/* ============================================================================
+ * CONTROLS — buttons, fields, tabs, checkboxes.
+ *
+ * The books are a static medium, so almost nothing here is a direct copy. The
+ * one interactive precedent is the OFFICIAL CHARACTER SHEET, which is where
+ * the field treatment comes from: white wells boxed by thin near-black rules,
+ * with Trajan small-caps labels above and grey Cronos hints below. That's a
+ * different rule colour to the books' burgundy, and it's deliberate — a sheet
+ * you write on uses ink lines, a page you read uses spot-colour lines.
+ *
+ * Everything invented (hover, focus, disabled, active) is built from the
+ * existing vocabulary: tints of the spot colour, hairline rules, square
+ * corners. No gradients-as-buttons, no rounded pills, no shadows.
+ * ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * BUTTONS
+ * Primary = porphyry band, the same surface as a banner.
+ * Secondary = hairline burgundy outline on paper.
+ * Quiet = text only, for tertiary actions in dense rows.
+ * ------------------------------------------------------------------------ */
+.acks-btn {
+  --acks-btn-bg: var(--acks-burgundy);
+  --acks-btn-fg: var(--acks-on-burgundy);
+  --acks-btn-border: var(--acks-burgundy);
+
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--acks-sp-3);
+  min-height: 28px;
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+  border: var(--acks-rule-hair) solid var(--acks-btn-border);
+  border-radius: var(--acks-radius);
+  background: var(--acks-btn-bg);
+  color: var(--acks-btn-fg);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--acks-duration) var(--acks-ease),
+    border-color var(--acks-duration) var(--acks-ease),
+    color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-btn:hover:not(:disabled) {
+  --acks-btn-bg: var(--acks-burgundy-ink);
+  --acks-btn-border: var(--acks-burgundy-ink);
+}
+
+/* Pressed: the band goes deeper and the label shifts a hair, no shadow. */
+.acks-btn:active:not(:disabled) {
+  --acks-btn-bg: var(--acks-burgundy-deep);
+  --acks-btn-border: var(--acks-burgundy-deep);
+}
+
+.acks-btn:disabled,
+.acks-btn[aria-disabled="true"] {
+  --acks-btn-bg: var(--acks-neutral);
+  --acks-btn-fg: var(--acks-ink-faint);
+  --acks-btn-border: var(--acks-neutral-2);
+  cursor: not-allowed;
+}
+
+.acks-btn--secondary {
+  --acks-btn-bg: var(--acks-paper-pure);
+  --acks-btn-fg: var(--acks-spot);
+  --acks-btn-border: var(--acks-spot);
+}
+
+.acks-btn--secondary:hover:not(:disabled) {
+  --acks-btn-bg: var(--acks-tint);
+  --acks-btn-fg: var(--acks-spot);
+  --acks-btn-border: var(--acks-spot);
+}
+
+.acks-btn--secondary:active:not(:disabled) {
+  --acks-btn-bg: var(--acks-tint-2);
+}
+
+.acks-btn--quiet {
+  --acks-btn-bg: transparent;
+  --acks-btn-fg: var(--acks-spot);
+  --acks-btn-border: transparent;
+  padding-inline: var(--acks-sp-3);
+}
+
+.acks-btn--quiet:hover:not(:disabled) {
+  --acks-btn-bg: var(--acks-tint);
+  --acks-btn-border: transparent;
+}
+
+.acks-btn--danger {
+  --acks-btn-bg: var(--acks-danger);
+  --acks-btn-border: var(--acks-danger);
+  --acks-btn-fg: var(--acks-paper-pure);
+}
+
+.acks-btn--danger:hover:not(:disabled) {
+  --acks-btn-bg: color-mix(in srgb, var(--acks-danger) 78%, black);
+  --acks-btn-border: color-mix(in srgb, var(--acks-danger) 78%, black);
+}
+
+/* Icon-only: square, sized to the banner controls in a Foundry window. */
+.acks-btn--icon {
+  padding: 0;
+  inline-size: 26px;
+  min-height: 26px;
+  gap: 0;
+}
+
+.acks-btn--sm {
+  min-height: 22px;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-btn--lg {
+  min-height: 34px;
+  padding: var(--acks-sp-4) var(--acks-sp-6);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-btn--block {
+  width: 100%;
+}
+
+/* A roll button — the one place a Foundry sheet earns emphasis. Display face,
+ * because rolling is the ceremonial act of the game. */
+.acks-btn--roll {
+  font-family: var(--acks-font-display);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: var(--acks-tracking-display);
+}
+
+.acks-btn-group {
+  display: inline-flex;
+}
+
+/* Collapse shared borders so a group reads as one ruled block. */
+.acks-btn-group > .acks-btn:not(:first-child) {
+  margin-inline-start: calc(var(--acks-rule-hair) * -1);
+}
+
+/* ---------------------------------------------------------------------------
+ * FIELDS
+ * From the character sheet: a white well, thin INK rule, label in Trajan
+ * small caps above. Values are set in the UI sans with tabular figures so
+ * columns of numbers line up.
+ * ------------------------------------------------------------------------ */
+.acks-field {
+  display: grid;
+  gap: var(--acks-sp-2);
+}
+
+.acks-label {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-ink);
+  line-height: 1.1;
+}
+
+.acks-label--required::after {
+  content: "*";
+  color: var(--acks-danger-ink);
+  margin-inline-start: 0.15em;
+}
+
+.acks-hint {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+  line-height: var(--acks-lh-snug);
+}
+
+.acks-error {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-danger-ink);
+}
+
+.acks-ui :is(.acks-input, input[type="text"], input[type="number"],
+  input[type="search"], input[type="password"], select, textarea).acks-input,
+.acks-input {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+  line-height: 1.3;
+  color: var(--acks-ink);
+  background: var(--acks-paper-pure);
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  border-radius: var(--acks-radius);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  min-height: 28px;
+  width: 100%;
+  font-variant-numeric: lining-nums tabular-nums;
+  transition: border-color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-input::placeholder {
+  color: var(--acks-ink-faint);
+  font-style: italic;
+}
+
+.acks-input:hover:not(:disabled):not([readonly]) {
+  border-color: var(--acks-spot);
+}
+
+.acks-input:focus-visible {
+  border-color: var(--acks-spot);
+  outline: none;
+  box-shadow: var(--acks-focus-ring);
+}
+
+.acks-input:disabled,
+.acks-input[readonly] {
+  background: var(--acks-neutral);
+  color: var(--acks-ink-soft);
+  border-color: var(--acks-neutral-2);
+  cursor: not-allowed;
+}
+
+.acks-input[aria-invalid="true"] {
+  border-color: var(--acks-danger);
+  border-width: var(--acks-rule);
+}
+
+.acks-input--num {
+  text-align: center;
+  inline-size: 5ch;
+  min-inline-size: 5ch;
+  width: auto;
+}
+
+/* Underline-only field, the character sheet's write-on line. Good for
+ * name/player fields where a full box would be heavy. */
+.acks-input--line {
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-ink);
+  background: transparent;
+  padding-inline: var(--acks-sp-1);
+}
+
+.acks-input--line:focus-visible {
+  border-block-end-color: var(--acks-spot);
+  border-block-end-width: var(--acks-rule);
+}
+
+.acks-ui textarea.acks-input {
+  min-height: 72px;
+  resize: vertical;
+  line-height: var(--acks-lh-body);
+  font-family: var(--acks-font-body);
+}
+
+/* --- Attribute box: the character sheet's boxed score with a caps label
+ *     banner above it. The signature ACKS stat widget. ------------------- */
+.acks-attribute {
+  display: grid;
+  border: var(--acks-border-hair);
+  background: var(--acks-paper-pure);
+  text-align: center;
+  min-inline-size: 62px;
+}
+
+.acks-attribute-name {
+  position: relative;
+  isolation: isolate;
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-fine);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-banner);
+  text-transform: uppercase;
+  color: var(--acks-on-burgundy);
+  background: var(--acks-burgundy);
+  padding: var(--acks-sp-2) var(--acks-sp-2);
+  line-height: 1;
+}
+
+.acks-attribute-value {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-h2);
+  font-weight: var(--acks-weight-bold);
+  color: var(--acks-ink);
+  line-height: 1.1;
+  padding: var(--acks-sp-3) var(--acks-sp-2) var(--acks-sp-1);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-attribute-mod {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+  padding-block-end: var(--acks-sp-3);
+  line-height: 1;
+}
+
+.acks-attribute-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+  gap: var(--acks-sp-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * CHECKBOX / RADIO
+ * A square ink box that fills with a burgundy lozenge when checked — reusing
+ * the diamond that serves as the books' bullet.
+ * ------------------------------------------------------------------------ */
+.acks-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+  cursor: pointer;
+}
+
+.acks-check > input[type="checkbox"],
+.acks-check > input[type="radio"] {
+  appearance: none;
+  margin: 0;
+  flex: none;
+  inline-size: 14px;
+  block-size: 14px;
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: var(--acks-paper-pure);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: border-color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-check > input[type="radio"] {
+  border-radius: 50%;
+}
+
+.acks-check > input:hover:not(:disabled) {
+  border-color: var(--acks-spot);
+}
+
+.acks-check > input::before {
+  content: "";
+  inline-size: 7px;
+  block-size: 7px;
+  background: var(--acks-spot);
+  transform: rotate(45deg) scale(0);
+  transition: transform var(--acks-duration) var(--acks-ease);
+}
+
+.acks-check > input[type="radio"]::before {
+  border-radius: 50%;
+  transform: scale(0);
+}
+
+.acks-check > input:checked::before {
+  transform: rotate(45deg) scale(1);
+}
+
+.acks-check > input[type="radio"]:checked::before {
+  transform: scale(1);
+}
+
+.acks-check > input:focus-visible {
+  outline: none;
+  box-shadow: var(--acks-focus-ring);
+}
+
+.acks-check > input:disabled {
+  background: var(--acks-neutral);
+  border-color: var(--acks-neutral-2);
+  cursor: not-allowed;
+}
+
+.acks-check:has(input:disabled) {
+  color: var(--acks-ink-faint);
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------------------
+ * TABS — horizontal. The books' analogue is the thumb tab, so the active tab
+ * gets the porphyry band and the rest sit on tint.
+ * ------------------------------------------------------------------------ */
+.acks-tabs {
+  display: flex;
+  gap: 0;
+  border-block-end: var(--acks-rule) solid var(--acks-spot);
+}
+
+.acks-tab {
+  position: relative;
+  isolation: isolate;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-block-end: none;
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+  cursor: pointer;
+  line-height: 1;
+  transition: background-color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-tab:not(:first-child) {
+  margin-inline-start: calc(var(--acks-rule-hair) * -1);
+}
+
+.acks-tab:hover:not([aria-selected="true"]) {
+  background: var(--acks-tint-2);
+}
+
+.acks-tab[aria-selected="true"] {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-tab-panel {
+  padding-block-start: var(--acks-sp-5);
+}
+
+.acks-tab-panel[hidden] {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * RESOURCE BAR — HP / XP / encumbrance. No print precedent; kept flat and
+ * square, filled with the spot colour, with the value written on top.
+ * ------------------------------------------------------------------------ */
+.acks-bar {
+  position: relative;
+  block-size: 18px;
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: var(--acks-neutral);
+  overflow: hidden;
+}
+
+.acks-bar-fill {
+  block-size: 100%;
+  inline-size: var(--acks-bar-value, 0%);
+  background: var(--acks-burgundy);
+  transition: inline-size var(--acks-duration) var(--acks-ease);
+}
+
+.acks-bar-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: var(--acks-tracking-caps);
+  color: var(--acks-ink);
+  /* Readable over both the filled and unfilled halves. */
+  mix-blend-mode: difference;
+  filter: invert(1) grayscale(1) contrast(3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-bar--danger .acks-bar-fill {
+  background: var(--acks-danger);
+}

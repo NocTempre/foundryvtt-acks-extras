@@ -1,0 +1,28 @@
+# Dev-only artifacts.
+node_modules/
+*.zip
+.DS_Store
+npm-debug.log*
+.claude/settings.local.json
+
+# Compiled LevelDB compendium packs are BUILD OUTPUT, not source (2026-07-19).
+# `packs/_source/**` is the source; the release workflow runs `build:packs`
+# before zipping, so the compiled dirs are rebuilt for every release and were
+# never read from git. Committing them only produced timestamp churn, binary
+# bloat, and dirty repos whenever a Foundry world held the LevelDB locks.
+# They are still SHIPPED in module.zip — Foundry reads compiled LevelDB and
+# cannot read packs/_source at runtime — just not tracked.
+# Run `npm run build:packs` after cloning, or compendiums will be empty.
+packs/*
+!packs/_source/
+
+# ACKS rules extracts are LOCAL-ONLY (licensed book text; purged from all
+# repo histories 2026-07-16). They live in C:\Proj\acks-rules\<module-id>\ —
+# these armor patterns guard against accidental re-adds.
+docs/RULES.md
+docs/PROFICIENCIES.md
+docs/ACKS-Reactions-Reference.md
+
+# Book rule tables. Nothing loads these any more and no repo tracks them; the
+# ban lives in tools/ip-scan.mjs too. Committed armor, not a local exclude.
+ruledata/

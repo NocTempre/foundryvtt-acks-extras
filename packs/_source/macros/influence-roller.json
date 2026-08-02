@@ -1,0 +1,20 @@
+{
+  "_id": "acksInflMacro001",
+  "_key": "!macros!acksInflMacro001",
+  "name": "Influence Roller",
+  "type": "script",
+  "img": "icons/skills/social/diplomacy-handshake-yellow.webp",
+  "scope": "global",
+  "command": "// Open the ACKS Influence roller for the selected/assigned actor.\nconst actor = canvas?.tokens?.controlled?.[0]?.actor ?? game.user?.character ?? null;\nconst api = game.modules.get(\"acks-influence\")?.api ?? globalThis.acksInfluence;\nif (api?.open) api.open(actor);\nelse ui.notifications.error(\"ACKS Influence & Reactions module is not active/enabled.\");",
+  "folder": null,
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "systemId": "acks",
+    "createdTime": 1784206144345,
+    "modifiedTime": 1784206144345
+  }
+}

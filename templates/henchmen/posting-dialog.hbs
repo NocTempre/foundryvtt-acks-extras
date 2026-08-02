@@ -1,0 +1,101 @@
+<div class="posting-dialog-body">
+  <div class="form-group">
+    <label>{{localize "ACKS-HENCHMEN.posting.employer"}}</label>
+    <select name="employerId">
+      <option value="">{{localize "ACKS-HENCHMEN.posting.noEmployer"}}</option>
+      {{#each employers}}
+      <option value="{{id}}">{{name}} (L{{level}})</option>
+      {{/each}}
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>{{localize "ACKS-HENCHMEN.posting.kindLabel"}}</label>
+    <select name="kind" data-posting-kind>
+      <option value="henchmanGeneral">{{localize "ACKS-HENCHMEN.posting.kind.henchmanGeneral"}}</option>
+      {{#if isGM}}
+      <option value="henchman">{{localize "ACKS-HENCHMEN.posting.kind.henchman"}}</option>
+      {{/if}}
+      <option value="mercenary">{{localize "ACKS-HENCHMEN.posting.kind.mercenary"}}</option>
+      <option value="specialist">{{localize "ACKS-HENCHMEN.posting.kind.specialist"}}</option>
+      <option value="henchmanByProficiency">{{localize "ACKS-HENCHMEN.posting.kind.henchmanByProficiency"}}</option>
+      <option value="henchmanByClassProficiency">{{localize "ACKS-HENCHMEN.posting.kind.henchmanByClassProficiency"}}</option>
+      <option value="henchmanByClass">{{localize "ACKS-HENCHMEN.posting.kind.henchmanByClass"}}</option>
+    </select>
+  </div>
+  {{#unless isGM}}
+  <p class="hint">{{localize "ACKS-HENCHMEN.posting.criteriaHint"}}</p>
+  {{/unless}}
+
+  <div class="form-group" data-kind-field="henchman henchmanByClass">
+    <label>{{localize "ACKS-HENCHMEN.posting.level"}}</label>
+    <select name="level">
+      <option value="" data-kind-only="henchmanByClass">{{localize "ACKS-HENCHMEN.posting.anyLevel"}}</option>
+      {{#each levels}}
+      <option value="{{level}}">{{level}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <p class="hint" data-kind-field="henchmanByClass">{{localize "ACKS-HENCHMEN.posting.classLevelHint"}}</p>
+
+  <div class="form-group" data-kind-field="henchmanByClass henchmanByClassProficiency">
+    <label>{{localize "ACKS-HENCHMEN.posting.classKey"}}</label>
+    <select name="classKey">
+      {{#each classes}}
+      <option value="{{id}}">{{label}}</option>
+      {{/each}}
+    </select>
+  </div>
+
+  <div class="form-group" data-kind-field="henchmanByProficiency henchmanByClassProficiency">
+    <label>{{localize "ACKS-HENCHMEN.posting.proficiency"}}</label>
+    <input type="text" name="proficiencyName" placeholder="{{localize 'ACKS-HENCHMEN.posting.proficiencyPlaceholder'}}" />
+    <select name="proficiencyRanks">
+      <option value="1">1 {{localize "ACKS-HENCHMEN.posting.ranks"}}</option>
+      <option value="2">2 {{localize "ACKS-HENCHMEN.posting.ranks"}}</option>
+      <option value="3">3 {{localize "ACKS-HENCHMEN.posting.ranks"}}</option>
+    </select>
+  </div>
+
+  <div class="form-group" data-kind-field="mercenary">
+    <label>{{localize "ACKS-HENCHMEN.posting.troopType"}}</label>
+    <select name="troopType">
+      {{#each mercTypes}}
+      <option value="{{id}}">{{label}}</option>
+      {{/each}}
+    </select>
+  </div>
+
+  <div class="form-group" data-kind-field="specialist">
+    <label>{{localize "ACKS-HENCHMEN.posting.specialistType"}}</label>
+    <select name="specialistType">
+      {{#each specialistTypes}}
+      <option value="{{id}}">{{label}}</option>
+      {{/each}}
+    </select>
+  </div>
+
+  <div class="form-group" data-kind-field="henchmanByClass henchmanByClassProficiency henchmanByProficiency">
+    <label data-tooltip="{{localize 'ACKS-HENCHMEN.posting.commissionedHint'}}">{{localize "ACKS-HENCHMEN.posting.commissionedLabel"}}</label>
+    <input type="checkbox" name="commissioned" />
+  </div>
+
+  <div class="form-group">
+    <label data-tooltip="{{localize 'ACKS-HENCHMEN.posting.domainRulerHint'}}">{{localize "ACKS-HENCHMEN.posting.domainRuler"}}</label>
+    <input type="checkbox" name="domainRuler" />
+  </div>
+
+  <div class="form-group">
+    <label data-tooltip="{{localize 'ACKS-HENCHMEN.posting.presentedLevelHint'}}">{{localize "ACKS-HENCHMEN.posting.presentedLevel"}}</label>
+    <input type="number" name="presentedLevel" min="0" max="14" step="1" placeholder="{{localize 'ACKS-HENCHMEN.posting.presentedLevelPlaceholder'}}" />
+  </div>
+
+  <div class="form-group">
+    <label>{{localize "ACKS-HENCHMEN.posting.playersSee"}}</label>
+    <input type="checkbox" name="playersSeeDetails" checked />
+  </div>
+
+  <footer class="form-footer">
+    <button type="submit"><i class="fas fa-scroll"></i> {{localize "ACKS-HENCHMEN.posting.createButton"}}</button>
+  </footer>
+</div>

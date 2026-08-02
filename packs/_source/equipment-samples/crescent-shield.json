@@ -1,0 +1,34 @@
+{
+  "_id": "acksEqSamp000003",
+  "_key": "!items!acksEqSamp000003",
+  "name": "Crescent Shield",
+  "type": "armor",
+  "img": "icons/equipment/shield/heater-steel-worn.webp",
+  "system": {
+    "_schemaVersion": 3,
+    "cost": 10,
+    "weight6": 6,
+    "aac": {
+      "value": 1
+    },
+    "type": "shield",
+    "description": "<p>An oval shield with crescent cut-outs. In hand: +1 AC except when vulnerable. Strapped on the front: +1 AC except when vulnerable (2 stone, no Specialization bonus). Strapped on the back: +1 AC against attacks from behind (no Specialization bonus). 1 stone.</p><p><em>Judges Journal optional shield rules (pp. 407–408). Enable the shield-variant overlay to apply the type-specific rules; otherwise it behaves as a standard +1 AC shield.</em></p>"
+  },
+  "effects": [],
+  "flags": {
+    "acks-equipment": {
+      "example": true,
+      "shieldVariant": "crescent",
+      "strap": "hand"
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "sort": 300,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784101908835,
+    "modifiedTime": 1784101908835
+  }
+}

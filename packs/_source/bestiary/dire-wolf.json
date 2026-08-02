@@ -1,0 +1,386 @@
+{
+  "_id": "acksmDireWolf000",
+  "_key": "!actors!acksmDireWolf000",
+  "name": "Dire Wolf",
+  "type": "monster",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "_schemaVersion": 3,
+    "isNew": false,
+    "hp": {
+      "hd": "4d8+1",
+      "value": 19,
+      "max": 19,
+      "bhr": "1d3"
+    },
+    "aac": {
+      "value": 3,
+      "mod": 0
+    },
+    "thac0": {
+      "value": 19,
+      "bba": 0,
+      "throw": 10,
+      "mod": {
+        "missile": 0,
+        "melee": 0
+      }
+    },
+    "damage": {
+      "mod": {
+        "missile": 0,
+        "melee": 0
+      }
+    },
+    "movement": {
+      "base": 120,
+      "mod": 0,
+      "value": ""
+    },
+    "initiative": {
+      "value": 0,
+      "mod": 0
+    },
+    "surprise": {
+      "mod": 0,
+      "surpriseothers": 0,
+      "avoidsurprise": 0
+    },
+    "saves": {
+      "paralysis": {
+        "value": 12
+      },
+      "death": {
+        "value": 13
+      },
+      "blast": {
+        "value": 14
+      },
+      "breath": {
+        "value": 14
+      },
+      "implements": {
+        "value": 15
+      },
+      "wand": {
+        "value": 15
+      },
+      "spell": {
+        "value": 16
+      }
+    },
+    "save": {
+      "mod": 0
+    },
+    "retainer": {
+      "enabled": false,
+      "loyalty": 0,
+      "wage": "",
+      "managerid": "",
+      "category": "henchman",
+      "quantity": 1
+    },
+    "details": {
+      "biography": "<p>A horse-sized wolf of the deep forests. Invented test statistics over a generic open-content archetype.</p>",
+      "alignment": "Neutral",
+      "xp": 140,
+      "treasure": {
+        "table": "",
+        "type": "none"
+      },
+      "appearing": {
+        "d": "2d4",
+        "w": "1d6+1"
+      },
+      "morale": 1
+    },
+    "attacks": ""
+  },
+  "items": [
+    {
+      "_id": "acksmWolfBite000",
+      "name": "Bite",
+      "type": "weapon",
+      "img": "icons/svg/pawprint.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "",
+        "damage": "2d4",
+        "bonus": 0,
+        "melee": true,
+        "missile": false,
+        "equipped": true,
+        "pattern": "transparent",
+        "tags": [],
+        "counter": {
+          "value": 1,
+          "max": 1
+        },
+        "cost": 0,
+        "weight": 0,
+        "weight6": 0
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "naturalWeapon": "bite",
+          "damageType": "piercing",
+          "extraordinary": false
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmDireWolf000.acksmWolfBite000"
+    },
+    {
+      "_id": "acksmWolfTrack00",
+      "name": "Tracking",
+      "type": "ability",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "<p>Follows scent trails as a trained tracker (6+).</p>",
+        "proficiencytype": "general",
+        "favorite": false,
+        "pattern": "white",
+        "requirements": "",
+        "roll": "1d20",
+        "rollType": "above",
+        "rollTarget": 6,
+        "blindroll": false,
+        "save": ""
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "abilityCategory": "classPowers"
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmDireWolf000.acksmWolfTrack00"
+    },
+    {
+      "_id": "acksmWolfPelt000",
+      "name": "Dire Wolf Pelt",
+      "type": "item",
+      "img": "icons/svg/item-bag.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "<p>A thick winter pelt.</p>",
+        "subtype": "item",
+        "quantity": {
+          "value": 1,
+          "max": 0
+        },
+        "cost": 20,
+        "weight": 0,
+        "weight6": 8
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "spoil": true,
+          "component": false,
+          "researchEffects": []
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmDireWolf000.acksmWolfPelt000"
+    },
+    {
+      "_id": "acksmWolfFang000",
+      "name": "Dire Wolf Fangs",
+      "type": "item",
+      "img": "icons/svg/item-bag.svg",
+      "system": {
+        "_schemaVersion": 3,
+        "description": "<p>Invented research component.</p>",
+        "subtype": "item",
+        "quantity": {
+          "value": 1,
+          "max": 0
+        },
+        "cost": 35,
+        "weight": 0,
+        "weight6": 1
+      },
+      "effects": [],
+      "flags": {
+        "acks-monsters": {
+          "spoil": true,
+          "component": true,
+          "researchEffects": [
+            "beast speech",
+            "howl of the pack"
+          ]
+        }
+      },
+      "ownership": {
+        "default": 0
+      },
+      "sort": 0,
+      "_stats": {
+        "coreVersion": "14",
+        "createdTime": 1784255926062,
+        "modifiedTime": 1784255926062
+      },
+      "_key": "!actors.items!acksmDireWolf000.acksmWolfFang000"
+    }
+  ],
+  "effects": [],
+  "flags": {
+    "acks-monsters": {
+      "extras": {
+        "types": [
+          "animal"
+        ],
+        "subtype": "wild",
+        "size": "large",
+        "mass": {
+          "stone": 60,
+          "lbs": 600
+        },
+        "hd": {
+          "count": 4,
+          "bonus": 1,
+          "asterisks": 0,
+          "dieType": 8
+        },
+        "saveAs": {
+          "class": "fighter",
+          "level": 2
+        },
+        "speeds": [
+          {
+            "type": "land",
+            "combat": 60,
+            "run": 180,
+            "hover": false
+          }
+        ],
+        "vision": [
+          "night"
+        ],
+        "otherSenses": [
+          {
+            "type": "acuteOlfaction",
+            "range": null,
+            "note": "follows day-old scent trails"
+          }
+        ],
+        "load": {
+          "normal": 25,
+          "capacity": 50
+        },
+        "secondary": {
+          "expeditionSpeed": 36,
+          "supplyCost": 3,
+          "trainingMonths": 4,
+          "intelligence": "bestial",
+          "trainingModifier": 0,
+          "battleRating": {
+            "individual": 0.05,
+            "unit": 3
+          },
+          "lifespan": {
+            "baby": 0,
+            "juvenile": 1,
+            "adolescent": 2,
+            "adult": 4,
+            "middleAged": 8,
+            "old": 12,
+            "ancient": 16,
+            "maximum": 20
+          },
+          "reproduction": {
+            "count": "1d4+1",
+            "youngType": "litter",
+            "interval": 1,
+            "intervalUnit": "year"
+          },
+          "untrainedValue": {
+            "adult": 150,
+            "juvenile": 200,
+            "baby": 100
+          },
+          "trainedValue": [
+            {
+              "role": "warMount",
+              "value": 750,
+              "note": "prized by small riders"
+            },
+            {
+              "role": "hunter",
+              "value": 400,
+              "note": ""
+            }
+          ]
+        },
+        "encounter": {
+          "lairChance": 15,
+          "dungeon": {
+            "wandering": {
+              "noun": "Pack",
+              "number": "2d4"
+            },
+            "lair": {
+              "noun": "Den",
+              "number": "1d6+1"
+            }
+          },
+          "wilderness": {
+            "wandering": {
+              "noun": "Pack",
+              "number": "2d4"
+            },
+            "lair": {
+              "noun": "Den",
+              "number": "1d6+1"
+            }
+          }
+        }
+      }
+    }
+  },
+  "prototypeToken": {
+    "name": "Dire Wolf",
+    "actorLink": false,
+    "disposition": -1,
+    "sight": {
+      "enabled": true
+    }
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784255926062,
+    "modifiedTime": 1784255926062
+  }
+}

@@ -1,0 +1,44 @@
+<div class="ruledata-browser-body">
+  <p class="hint">{{localize "ACKS-LOCATION.browser.hint"}}</p>
+  {{#if empty}}
+  <p class="hint">{{localize "ACKS-LOCATION.browser.empty"}}</p>
+  {{/if}}
+  {{#each docs}}
+  <details class="section" open>
+    <summary><strong>{{docId}}</strong> ({{entries.length}})</summary>
+    <table class="ruledata-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-LOCATION.browser.table"}}</th>
+          <th>{{localize "ACKS-LOCATION.browser.kind"}}</th>
+          <th>{{localize "ACKS-LOCATION.browser.state"}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each entries}}
+        <tr data-entry-key="{{key}}" class="{{#if overridden}}overridden{{/if}}" data-tooltip="{{localize 'ACKS-LOCATION.browser.dropHint'}}">
+          <td>{{label}}</td>
+          <td>{{kindLabel}}</td>
+          <td>
+            {{#if overridden}}
+            <span class="override-badge" data-tooltip="{{sourceName}}">{{localize "ACKS-LOCATION.browser.overriddenBadge"}}</span>
+            {{else}}
+            <span class="hint">{{localize "ACKS-LOCATION.browser.importedBadge"}}</span>
+            {{/if}}
+          </td>
+          <td class="row-actions">
+            <a data-action="viewEntry" data-tooltip="{{localize 'ACKS-LOCATION.browser.view'}}"><i class="fas fa-magnifying-glass"></i></a>
+            <a data-action="exportEntry" data-tooltip="{{localize 'ACKS-LOCATION.browser.export'}}"><i class="fas fa-file-export"></i></a>
+            <a data-action="editEntry" data-tooltip="{{localize 'ACKS-LOCATION.browser.edit'}}"><i class="fas fa-pen"></i></a>
+            {{#if overridden}}
+            <a data-action="revertEntry" data-tooltip="{{localize 'ACKS-LOCATION.browser.revert'}}"><i class="fas fa-rotate-left"></i></a>
+            {{/if}}
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </details>
+  {{/each}}
+</div>
