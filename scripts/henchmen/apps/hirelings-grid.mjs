@@ -51,9 +51,9 @@ async function gridifyHirelings(app, element) {
     .map((id) => game.actors.get(id))
     .filter((a) => a && a.type === "monster");
   const groups = [
-    { title: "Henchmen", list: [...(buckets.henchman ?? []), ...monsters] },
-    { title: "Mercenaries", list: buckets.mercenary ?? [] },
-    { title: "Specialists", list: buckets.specialist ?? [] },
+    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.henchmen"), list: [...(buckets.henchman ?? []), ...monsters] },
+    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.mercenaries"), list: buckets.mercenary ?? [] },
+    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.specialists"), list: buckets.specialist ?? [] },
   ].filter((g) => g.list.length);
   if (!groups.length) return; // nothing to show — leave core's own empty state
 

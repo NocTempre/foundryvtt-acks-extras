@@ -1,12 +1,12 @@
 <div class="acks-equipment-loadout">
-  <h3>{{actorName}} — Loadout</h3>
+  <h3>{{localize "ACKS-EQUIPMENT.loadout.title" name=actorName}}</h3>
   <p>
-    Hands: <strong>{{loadout.handsUsed}}/{{loadout.handBudget}}</strong>
-    · Style: <strong>{{styleLabel}}</strong>
-    {{#if loadout.styleProficient}}<span class="ok">(proficient)</span>{{else}}<span class="advisory">(untrained)</span>{{/if}}
+    {{localize "ACKS-EQUIPMENT.loadout.hands"}}: <strong>{{loadout.handsUsed}}/{{loadout.handBudget}}</strong>
+    · {{localize "ACKS-EQUIPMENT.loadout.style"}}: <strong>{{styleLabel}}</strong>
+    {{#if loadout.styleProficient}}<span class="ok">({{localize "ACKS-EQUIPMENT.loadout.proficient"}})</span>{{else}}<span class="advisory">({{localize "ACKS-EQUIPMENT.loadout.untrained"}})</span>{{/if}}
   </p>
   <table>
-    <thead><tr><th>Weapon</th><th>Size</th><th>Hands</th><th>Wield</th></tr></thead>
+    <thead><tr><th>{{localize "ACKS-EQUIPMENT.loadout.colWeapon"}}</th><th>{{localize "ACKS-EQUIPMENT.loadout.colSize"}}</th><th>{{localize "ACKS-EQUIPMENT.loadout.colHands"}}</th><th>{{localize "ACKS-EQUIPMENT.loadout.colWield"}}</th></tr></thead>
     <tbody>
       {{#each weapons}}
       <tr>
@@ -19,9 +19,9 @@
     </tbody>
   </table>
   <p>
-    Armour: <strong>{{armorName}}</strong>
-    {{#if loadout.shield}} · Shield: <strong>{{shieldName}}</strong>{{/if}}
-    {{#if loadout.hasHelmet}} · Helmet{{/if}}
+    {{localize "ACKS-EQUIPMENT.loadout.armour"}}: <strong>{{armorName}}</strong>
+    {{#if loadout.shield}} · {{localize "ACKS-EQUIPMENT.loadout.shield"}}: <strong>{{shieldName}}</strong>{{/if}}
+    {{#if loadout.hasHelmet}} · {{localize "ACKS-EQUIPMENT.loadout.helmet"}}{{/if}}
   </p>
   {{#if violations.length}}
   <ul>
@@ -30,6 +30,6 @@
     {{/each}}
   </ul>
   {{else}}
-  <p class="ok">Legal loadout.</p>
+  <p class="ok">{{localize "ACKS-EQUIPMENT.loadout.legal"}}</p>
   {{/if}}
 </div>
