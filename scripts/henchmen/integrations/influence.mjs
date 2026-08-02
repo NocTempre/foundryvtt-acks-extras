@@ -1,19 +1,19 @@
 /* global game, Hooks, foundry */
 /**
- * acks-influence integration (soft — everything is guarded).
+ * Influence-feature integration.
  *
- * With acks-influence apiVersion 3+ the HIRING and LOYALTY rolls render inside
- * the influence app as external-mode pages (consistent UI, auto-derived
- * subject/target features, effect-granted modifiers, the three core tones
- * hidden); apiVersion 6+ adds OBEDIENCE and the IRREFUSABLE OFFER. This module
- * supplies ctx (signing-bonus options, refusal/slander counts, effective
- * loyalty and morale) and applies the consequences when
- * `acksInfluenceRollComplete` fires with our context. Without influence (or on
- * an older apiVersion) everything falls back to the module's own ThrowDialog.
+ * The HIRING and LOYALTY rolls render inside the influence app as
+ * external-mode pages (consistent UI, auto-derived subject/target features,
+ * effect-granted modifiers, the three core tones hidden), plus OBEDIENCE and
+ * the IRREFUSABLE OFFER. This feature supplies ctx (signing-bonus options,
+ * refusal/slander counts, effective loyalty and morale) and applies the
+ * consequences when the roll-complete hook fires with our context. If an
+ * influence-hosted page fails to open, everything falls back to this
+ * feature's own ThrowDialog.
  *
- * Also consumed: `flags.acks-influence.reaction` Active Effects feed hiring
- * throws (scripts/effects.mjs); influence rolls AGAINST managed hirelings
- * are logged into their HenchmanRecord.
+ * Also consumed: the influence feature's `reaction` Active Effects feed
+ * hiring throws (scripts/effects.mjs); influence rolls AGAINST managed
+ * hirelings are logged into their HenchmanRecord.
  */
 import { MODULE_ID } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
@@ -21,9 +21,10 @@ import * as adapter from "../acks-adapter.mjs";
 
 const INFLUENCE_ID = "acks-extras";
 
+/* module.api is the whole acksExtras namespace; the influence surface —
+ * apiVersion, open() — hangs off its feature key. */
 export function influenceApi() {
-  const module = game.modules.get(INFLUENCE_ID);
-  return module?.active ? module.api : null;
+  return globalThis.acksExtras?.influence ?? null;
 }
 
 /** True when influence can host the hiring/loyalty pages (apiVersion 3+). */

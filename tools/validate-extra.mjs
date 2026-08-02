@@ -92,6 +92,48 @@ for (const f of walk(path.join(ROOT, "scripts"))) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* 2b. `module.api` is the whole acksExtras namespace.                         */
+/*                                                                             */
+/* Pre-merge, get("acks-<feature>").api WAS the feature surface. Post-merge it  */
+/* is the namespace, and a consumer that reads a feature member straight off it */
+/* gets undefined — this silently disabled the influence-hosted henchmen pages */
+/* (apiVersion read off the namespace root). Every self-lookup must therefore   */
+/* step through a feature key; returning or ?? -defaulting the raw api hands    */
+/* the same bug to the caller.                                                  */
+/* -------------------------------------------------------------------------- */
+const FEATURE_KEY = /^(?:\?\.|\.)(lib|abilities|equipment|formation|henchmen|influence|location|monsters)\b/;
+for (const f of [...walk(path.join(ROOT, "scripts")), ...walk(path.join(ROOT, "tools"))]) {
+  if (!f.endsWith(".mjs")) continue;
+  if (NAMES_OLD_IDS_BY_DESIGN.has(rel(f))) continue;
+  const text = fs.readFileSync(f, "utf8");
+  const lines = text.split("\n");
+  const prose = (i) => /^\s*(\*|\/\/|\/\*)/.test(lines[i] ?? "");
+  // (a) direct: game.modules.get(<self>)…api not followed by a feature key.
+  for (const m of text.matchAll(/game\.modules\??\.get\??\.?\(\s*([^),\s]+)\s*\)\s*(?:\?\.|\.)api\b(.{0,50})/g)) {
+    const lineNo = text.slice(0, m.index).split("\n").length;
+    if (prose(lineNo - 1)) continue;
+    const arg = m[1];
+    const self =
+      arg === '"acks-extras"' ||
+      arg === "MODULE_ID" ||
+      (/^[A-Za-z_$][\w$]*$/.test(arg) && scopeValue(text, arg) === '"acks-extras"');
+    if (!self) continue; // unresolvable or genuinely external (e.g. acks-domains)
+    if (FEATURE_KEY.test(m[2])) continue;
+    fail(`${rel(f)}:${lineNo} reads module.api without a feature key — it is the whole namespace, not a feature`);
+  }
+  // (b) escaped: reading `module.api` off a variable without a feature key —
+  // the shape that let (a) hide inside a helper. Assignments (and comparisons)
+  // are exempt, as is anything not code-shaped after `.api` (prose in strings).
+  lines.forEach((line, i) => {
+    if (prose(i)) return;
+    for (const m of line.matchAll(/\bmodule\.api\b(?!\s*=)(?=\s*(?:[?.;):,]|$))(.{0,50})/g)) {
+      if (FEATURE_KEY.test(m[1])) continue;
+      fail(`${rel(f)}:${i + 1} reads module.api without a feature key — it is the whole namespace, not a feature`);
+    }
+  });
+}
+
+/* -------------------------------------------------------------------------- */
 /* 3. One libWrapper registration per target.                                  */
 /*                                                                             */
 /* libWrapper permits many PACKAGES to wrap one method but not one package to   */
