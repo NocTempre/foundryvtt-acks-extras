@@ -45,17 +45,46 @@ level. Any sub-namespacing (§1) turns `{"acks-lib":{}}` into
 `{"acks-extras":{"lib":{}}}`, which is not empty at the top level, and item
 stacks quietly stop merging. Only bites if §1 lands as sub-namespacing.
 
-## 4. `Actor.location` declared twice — FIXED in the manifest, open in the code
+## 4. `Actor.location` declared twice — RESOLVED
 
-henchmen and location both declared `Actor.location` with an identical
-`{"htmlFields":["notes"]}` config, so the merged `module.json` needed no
-decision. The code still has two of everything:
-`scripts/{henchmen,location}/data/location-data.mjs` (361 vs 39 lines) and
-`scripts/{henchmen,location}/apps/location-sheet.mjs` (672 vs 189), plus two
-`templates/{henchmen,location}/location-sheet.hbs`.
+henchmen and location both declared `Actor.location` with an identical config,
+and had two of everything behind it. `docs/location/MODEL.md` ruled 2026-07-19
+that the sub-type belongs to the location feature, blocked only by a data
+migration this merge does not need. Everything now lives under
+`scripts/location/`:
 
-`docs/location/MODEL.md` ruled 2026-07-19 that the subtype belongs to
-acks-location, blocked only by a data migration this merge does not need.
+- **Data model** — henchmen's was a strict SUPERSET (both carried
+  `acksCompatStubs()` + `region` + `notes`; henchmen added the market schema),
+  so the union is henchmen's. `migrateData` dropped — it renamed
+  `slander.partyKey` → `subject` in a namespace never shipped under this id.
+- **Sheet** — one `LocationSheet` on henchmen's tabbed base with location's
+  storage grafted in as a seventh `storage` tab (its 5 actions, its
+  groups-by-owner context, its store-not-copy `_onDropItem`). location's
+  `_onDropActor` stub, which returned null because actor drops were "henchmen's",
+  is gone: this sheet *is* henchmen's now.
+- **Registration** — once, in `location/module.mjs`.
+- The bare CSS class `location-sheet` became `acks-extras-location-sheet`; it
+  only ever passed because the CSS rule scans `styles/*.css`, not JS class arrays.
+
+**A regression this nearly caused.** The sheet registration sits after two
+`apiVersion` early-returns that gated on acks-lib being a separately-installed
+dependency. Post-merge those can only fail spuriously — and failing meant
+`return`, which would have skipped the registration and taken the whole Location
+sheet, market included, down with it. Both gates removed; lib attaches at import
+time and is always present at this exact version.
+
+Similar dead gates remain in `henchmen/integrations/influence.mjs` (influence
+apiVersion ≥3 / ≥6, and influence exposes 7) and
+`location/apps/storage-tab.mjs`. They pass, they only select a nicer UI over a
+fallback, and they gate no registration — left alone.
+
+## 4b. Import cycles — pre-existing, not merge-caused
+
+The merged tree has 4 cycles. All four exist identically in the source repos
+(verified by running the same check against them): equipment `loadout ↔ effects`
+— actually a false positive, a JSDoc `import("./loadout.mjs")` type annotation —
+and henchmen `hire ↔ monster`, `recruit-dialog ↔ influence`. ES modules tolerate
+these and they shipped working.
 
 ## 5. `Item.attitude` had no type label — FIXED
 

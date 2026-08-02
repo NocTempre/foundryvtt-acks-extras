@@ -17,7 +17,7 @@
  * storage work would put a migration between a player and their belongings.
  */
 import { acksExtras } from "../namespace.mjs";
-import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, REQUIRED_LIB_API } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
 import { registerStoreSetting, registerPersisted, ruledataImport } from "./table-store.mjs";
 import { RuledataBrowser, openRuledataBrowser } from "./ruledata-browser.mjs";
 import { LocationData } from "./data/location-data.mjs";
@@ -35,11 +35,14 @@ const TEMPLATES = [
 Hooks.once("init", () => {
   registerStoreSetting();
 
+  // No apiVersion gate: lib is a sibling feature of this module now, not a
+  // separately-installed dependency that could be older or absent. It attaches
+  // itself at import time (scripts/lib/module.mjs, module scope), so it is
+  // always present and always this exact version by the time any init hook
+  // runs. The gate that used to stand here was an `return` — which after the
+  // merge would have skipped the sheet registration below and taken the whole
+  // Location sheet, market and all, down with it.
   const lib = globalThis.acksExtras.lib;
-  if (!lib?.services || (lib.apiVersion ?? 0) < 3) {
-    console.error(`${MODULE_ID} | acks-lib >= 0.8.0 (apiVersion 3+) is required — table import disabled`);
-    return;
-  }
   lib.services.register("ruledata-import", ruledataImport);
   const n = registerPersisted();
   console.log(`${MODULE_ID} | ruledata-import provider ready (${n} persisted table layer(s) mirrored)`);
@@ -53,17 +56,14 @@ Hooks.once("init", () => {
     restricted: true,
   });
 
-  // Storage needs a newer library than the tables work does. Gate it on its own
-  // so an older acks-lib costs the storage half, not the whole module.
-  if ((lib.apiVersion ?? 0) < REQUIRED_LIB_API || !lib.storage) {
-    console.error(`${MODULE_ID} | acks-lib >= 0.39.0 (apiVersion ${REQUIRED_LIB_API}+) is required — location storage disabled`);
-    return;
-  }
-
-  // A normal module registers its data model at INIT: Foundry has already
-  // finalized CONFIG.Actor.dataModels from the manifests by the time this runs.
-  // (acks-lib, being library:true, has to wait for `setup` — the asymmetry is
-  // load order, not style. See its module.mjs.)
+  // The data model and the sheet for `acks-extras.location` register HERE and
+  // only here. henchmen declared the same sub-type and its own sheet under a
+  // sub-type that differed only by module id; docs/location/MODEL.md named this
+  // feature the owner on 2026-07-19, blocked then only by a data migration the
+  // merge does not need. The sheet is the union — market tabs plus storage.
+  //
+  // Unconditional, deliberately: this registration must never sit behind a
+  // capability check, because failing it now costs the market UI too.
   CONFIG.Actor.dataModels[LOCATION_TYPE] = LocationData;
   registerLocationSheet();
 

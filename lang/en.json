@@ -1023,6 +1023,7 @@
   "ACKS-HENCHMEN.location.tab.henchmen": "Henchmen",
   "ACKS-HENCHMEN.location.tab.mercenaries": "Mercenaries",
   "ACKS-HENCHMEN.location.tab.specialists": "Specialists",
+  "ACKS-HENCHMEN.location.tab.storage": "Storage",
   "ACKS-HENCHMEN.location.tab.gmSettings": "GM Settings",
   "ACKS-HENCHMEN.location.tab.gmView": "GM View",
   "ACKS-HENCHMEN.location.mixDropHint": "Drop a RollTable of cultures here to set this town's culture mix (result text = culture, weight = share).",

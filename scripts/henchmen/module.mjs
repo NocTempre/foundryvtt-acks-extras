@@ -20,9 +20,8 @@ import * as loyaltyRules from "./rules/loyalty.mjs";
 import * as diceRules from "./rules/dice.mjs";
 import * as adapter from "./acks-adapter.mjs";
 import { collectEffectModifiers, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
-import { LocationData } from "./data/location-data.mjs";
 import HenchmanRecord from "./data/henchman-record.mjs";
-import { LocationSheet } from "./apps/location-sheet.mjs";
+import { LocationSheet } from "../location/apps/location-sheet.mjs";
 import { ThrowDialog, openThrowDialog } from "./apps/throw-dialog.mjs";
 import { openPostingDialog } from "./apps/posting-dialog.mjs";
 import { openRecruitDialog, openRecruitSpecial } from "./apps/recruit-dialog.mjs";
@@ -48,12 +47,9 @@ const { registerInfluenceIntegration, openInfluenceFor } = influenceIntegration;
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | Initializing`);
 
-  Object.assign(CONFIG.Actor.dataModels, { [LOCATION_TYPE]: LocationData });
-  foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, LocationSheet, {
-    types: [LOCATION_TYPE],
-    makeDefault: true,
-    label: "ACKS-HENCHMEN.sheet.location",
-  });
+  // The `location` sub-type and its sheet are registered by the location
+  // feature, which owns them (docs/location/MODEL.md, 2026-07-19). Both used to
+  // be declared here too, under a sub-type that differed only by module id.
 
   registerSettings();
 
