@@ -30,13 +30,13 @@
       "changes": [
         {
           "priority": 20,
-          "key": "flags.acks-henchmen.retainBonus",
+          "key": "flags.acks-extras.retainBonus",
           "mode": 2,
           "value": "1"
         },
         {
           "priority": 20,
-          "key": "flags.acks-henchmen.baseLoyalty",
+          "key": "flags.acks-extras.baseLoyalty",
           "mode": 2,
           "value": "1"
         }

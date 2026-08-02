@@ -4,25 +4,25 @@
  *
  * Mechanics live as Active Effect changes on proficiency/power Items
  * (`ability` type in acks), NOT as hardcoded proficiency lists. Any effect
- * change whose key is `flags.acks-henchmen.<domain>` contributes its value to
- * that modifier domain. Per-effect metadata is read from the effect's own
- * flags:
- *   flags["acks-henchmen"].label      — display label (defaults to effect/item name)
- *   flags["acks-henchmen"].condition  — i18n key or text; marks the bonus as
- *                                       situational → rendered as a toggle in
- *                                       roll dialogs (GM/player decides if it
- *                                       applies), like acks-influence's
- *                                       `situational` convention.
- *   flags["acks-henchmen"].target     — free-text scope note (e.g. "animal",
- *                                       "sameReligion") appended to the label.
+ * change whose key is `flags.acks-extras.<domain>` (this feature's domains
+ * only — membership test below) contributes its value to that modifier
+ * domain. Per-effect metadata is read from the effect's own flags:
+ *   flags["acks-extras"].label      — display label (defaults to effect/item name)
+ *   flags["acks-extras"].condition  — i18n key or text; marks the bonus as
+ *                                     situational → rendered as a toggle in
+ *                                     roll dialogs (GM/player decides if it
+ *                                     applies), like the influence feature's
+ *                                     `situational` convention.
+ *   flags["acks-extras"].target     — free-text scope note (e.g. "animal",
+ *                                     "sameReligion") appended to the label.
  *
- * For hiring rolls we also honor acks-influence's Active Effect convention
- * (`flags.acks-influence.reaction` + its `situational`/`tone`/`label` flags),
- * so reaction-granting effects written for that module feed hiring here.
+ * For hiring rolls we also honor the influence feature's Active Effect
+ * convention (`flags.acks-extras.reaction` + its `situational`/`tone`/`label`
+ * flags), so reaction-granting effects written for it feed hiring here.
  *
  * Fallback (decision K / graceful degradation): items named like the classic
- * book proficiencies with NO acks-henchmen effect changes are recovered via
- * config.NAME_FALLBACKS name regexes.
+ * book proficiencies with NO effect changes in this feature's domains are
+ * recovered via config.NAME_FALLBACKS name regexes.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS, INFLUENCE_REACTION_KEY, MODULE_ID } from "./constants.mjs";
 import { NAME_FALLBACKS } from "./config.mjs";

@@ -103,10 +103,14 @@ export const RARITY_TIERS = Object.freeze([
 
 /**
  * Item-name fallbacks: when a proficiency/power Item carries NO
- * `flags.acks-henchmen.*` Active Effect, these regexes recover the classic
+ * `flags.acks-extras.*` Active Effect, these regexes recover the classic
  * book mechanics from the item name alone (graceful degradation for worlds
  * built before this module — the AE contract is always preferred and a
- * name match is skipped when the item has any acks-henchmen effect change).
+ * name match is skipped when the item has any of this feature's effect
+ * changes). Also load-bearing for two merge-era populations: worlds that
+ * imported the 0.1.0 proficiencies-powers pack (its change keys shipped under
+ * the dead `flags.acks-henchmen` scope), and worlds where the cleanup macro
+ * ran — it deletes stale AE changes rather than rewriting them.
  * `condition` marks the bonus as situational (GM/player toggles it in the
  * roll dialog); absent condition means always-on.
  */

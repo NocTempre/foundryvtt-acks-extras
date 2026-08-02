@@ -30,13 +30,13 @@
       "changes": [
         {
           "priority": 20,
-          "key": "flags.acks-henchmen.skipCalamityLoyalty",
+          "key": "flags.acks-extras.skipCalamityLoyalty",
           "mode": 0,
           "value": "1"
         },
         {
           "priority": 20,
-          "key": "flags.acks-henchmen.moraleBase",
+          "key": "flags.acks-extras.moraleBase",
           "mode": 2,
           "value": "4"
         }

@@ -30,7 +30,7 @@
       "changes": [
         {
           "priority": 20,
-          "key": "flags.acks-henchmen.moraleRoll",
+          "key": "flags.acks-extras.moraleRoll",
           "mode": 2,
           "value": "1"
         }

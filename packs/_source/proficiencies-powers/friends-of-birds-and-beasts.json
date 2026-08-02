@@ -30,13 +30,13 @@
       "changes": [
         {
           "priority": 20,
-          "key": "flags.acks-henchmen.hiring",
+          "key": "flags.acks-extras.hiring",
           "mode": 2,
           "value": "2"
         },
         {
           "priority": 20,
-          "key": "flags.acks-henchmen.recruitKinds",
+          "key": "flags.acks-extras.recruitKinds",
           "mode": 0,
           "value": "animal"
         }

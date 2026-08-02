@@ -37,9 +37,10 @@ export const SCHEMA_VERSION = 2;
 
 /**
  * Active Effect change-key prefix. Any effect change whose key is
- * `flags.acks-henchmen.<domain>` contributes to that modifier domain —
- * this is how proficiency/power Items carry their mechanics (data-driven,
- * never a hardcoded name list). See docs/MODEL.md for the contract.
+ * `flags.acks-extras.<domain>` (for this feature's domains) contributes to
+ * that modifier domain — this is how proficiency/power Items carry their
+ * mechanics (data-driven, never a hardcoded name list). See docs/MODEL.md
+ * for the contract.
  */
 export const EFFECT_PREFIX = `flags.${MODULE_ID}.`;
 

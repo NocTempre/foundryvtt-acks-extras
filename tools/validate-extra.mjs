@@ -37,7 +37,10 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
 /* and `game.modules.get("acks-lib")` is just inactive. Comments and CHANGELOG  */
 /* legitimately name the old modules, so only code lines are checked.           */
 /* -------------------------------------------------------------------------- */
-const OLD = /"acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)"|\bglobalThis\.acks(Lib|Abilities|Equipment|Formation|Henchmen|Influence|Location|Monsters)\b|flags\.acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)\./;
+/* The flags alternative is \b-terminated, not dot-terminated: the pack-data
+ * rewrite miss that shipped an inert compendium was `"flags.acks-henchmen"` —
+ * scope only, no trailing key — and a dot-anchored pattern cannot see it. */
+const OLD = /"acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)"|\bglobalThis\.acks(Lib|Abilities|Equipment|Formation|Henchmen|Influence|Location|Monsters)\b|flags\.acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)\b/;
 /* Two files name the old ids as DATA and must not be flagged: this one, and the
  * cleaner macro whose entire job is finding what those modules left behind. */
 const NAMES_OLD_IDS_BY_DESIGN = new Set(["tools/validate-extra.mjs", "tools/pack-data/cleanup.mjs"]);

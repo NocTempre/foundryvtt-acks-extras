@@ -65,7 +65,7 @@ function ability(name, { type = "general", description, requirements = "", effec
 }
 
 export function buildProficienciesPowers() {
-  const K = "flags.acks-henchmen";
+  const K = "flags.acks-extras";
   return [
     ability("Diplomacy", {
       description:

@@ -30,7 +30,7 @@
       "changes": [
         {
           "priority": 20,
-          "key": "flags.acks-henchmen.hiring",
+          "key": "flags.acks-extras.hiring",
           "mode": 2,
           "value": "1"
         }
