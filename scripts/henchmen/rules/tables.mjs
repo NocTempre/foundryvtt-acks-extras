@@ -1,6 +1,6 @@
 /**
  * Table access — delegates to the acks-lib layered registry
- * (`globalThis.acksLib.tables`). This module ships NO tables of its own: book
+ * (`globalThis.acksExtras.lib.tables`). This module ships NO tables of its own: book
  * tables are imported per world through acks-content extraction
  * (→ the `ruledata-import` contract → acks-lib at world priority). These thin
  * wrappers keep the ~14 rules call sites (getTable/getDoc/getThrowDef/
@@ -8,10 +8,10 @@
  * from an import, a premium catalog, or (future) a sample layer.
  *
  * Pure delegation, resolved at call time — acks-lib is `requires`d and sets
- * `globalThis.acksLib` at module evaluation, before any of these run.
+ * `globalThis.acksExtras.lib` at module evaluation, before any of these run.
  */
 function reg() {
-  const t = globalThis.acksLib?.tables;
+  const t = globalThis.acksExtras.lib?.tables;
   if (!t) throw new Error("acks-henchmen: acks-lib (>=0.7.0) is required but not active");
   return t;
 }
@@ -38,7 +38,7 @@ export function bracketRow(rows, value, minKey = "min", maxKey = "max") {
 
 /** True when a ruledata document is present in the registry. */
 export function hasDoc(docId) {
-  return !!globalThis.acksLib?.tables?.hasDoc(docId);
+  return !!globalThis.acksExtras.lib?.tables?.hasDoc(docId);
 }
 
 /**
@@ -50,7 +50,7 @@ export function hasDoc(docId) {
  * table keep using getTable and surface the missing-tables notice.
  */
 export function optTable(docId, tableId) {
-  const t = globalThis.acksLib?.tables;
+  const t = globalThis.acksExtras.lib?.tables;
   if (!t?.hasDoc(docId)) return null;
   try {
     return t.getTable(docId, tableId);

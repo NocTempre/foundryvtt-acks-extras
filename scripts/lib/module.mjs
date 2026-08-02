@@ -24,6 +24,7 @@
  *   - **the shared item baseline** — one answer to "is this physical / can it
  *     be equipped / what does it weigh", which the system spells out per type
  */
+import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import * as vocab from "./vocab.mjs";
 import * as fields from "./fields.mjs";
@@ -138,13 +139,13 @@ function resolveApi() {
   return fromCore ? Object.freeze({ ...localImpl, ...fromCore }) : localImpl;
 }
 
-globalThis.acksLib = resolveApi();
+acksExtras.lib = resolveApi();
 
 Hooks.once("init", () => {
   const api = resolveApi();
-  globalThis.acksLib = api;
+  acksExtras.lib = api;
   const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = api;
+  if (mod) mod.api = acksExtras;
 
   registerMountCleanup();
   registerStorageCleanup();

@@ -1,4 +1,5 @@
 /* global Hooks, game, foundry, canvas, ui, CONFIG, Actor */
+import { acksExtras } from "../namespace.mjs";
 import {
   DEFAULT_PARTY_IMAGE,
   DEFAULT_ENCOUNTER_EVERY,
@@ -225,8 +226,8 @@ Hooks.once("init", () => {
     toggleShield,
   };
   const module = game.modules.get(MODULE_ID);
-  if (module) module.api = api;
-  globalThis.acksFormation = api;
+  if (module) module.api = acksExtras;
+  acksExtras.formation = api;
 
   /* --- Template preload (best-effort) --- */
   try {

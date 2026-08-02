@@ -127,7 +127,7 @@ export function createFullMonsterSheet(Base) {
 
   return class FullMonsterSheet extends Base {
     static DEFAULT_OPTIONS = {
-      classes: ["acks", "actor-v2", "monster-v2", "acks-monsters"],
+      classes: ["acks", "actor-v2", "monster-v2", "acks-extras"],
       actions: { ...ACTIONS },
     };
 

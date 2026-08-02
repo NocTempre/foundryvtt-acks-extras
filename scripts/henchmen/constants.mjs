@@ -1,7 +1,7 @@
 /**
  * Shared constants. Pure module — importable from Node tooling and tests.
  */
-export const MODULE_ID = "acks-henchmen";
+export const MODULE_ID = "acks-extras";
 
 /** Actor sub-type id for settlements/markets (namespaced by Foundry). */
 export const LOCATION_TYPE = `${MODULE_ID}.location`;
@@ -60,7 +60,7 @@ export const EFFECT_DOMAINS = Object.freeze({
 });
 
 /** acks-influence Active Effect reaction key, honored on hiring rolls. */
-export const INFLUENCE_REACTION_KEY = "flags.acks-influence.reaction";
+export const INFLUENCE_REACTION_KEY = "flags.acks-extras.reaction";
 
 /** Custom hooks fired by this module. */
 export const HOOKS = Object.freeze({

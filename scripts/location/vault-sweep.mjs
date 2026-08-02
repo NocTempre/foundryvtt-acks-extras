@@ -23,7 +23,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, FLAG_PENDING_DEPOSIT } from "./constants.mjs";
 
-const storage = () => globalThis.acksLib.storage;
+const storage = () => globalThis.acksExtras.lib.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 
 /** Owner entries for a vault: the character's own players, and nobody else. */
@@ -50,7 +50,7 @@ async function vaultFor(character) {
     // new locations does not apply: a personal vault is not a public bulletin
     // board. (Attribution is still a UI convention, not a security boundary.)
     ownership: vaultOwnership(character),
-    flags: { "acks-lib": { storage: { provider: true, vaultOf: character.uuid } } },
+    flags: { "acks-extras": { storage: { provider: true, vaultOf: character.uuid } } },
     system: { region: loc("vault.region") },
   });
 }

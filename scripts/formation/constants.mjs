@@ -8,7 +8,7 @@
  * lang/en.json.
  */
 
-export const MODULE_ID = "acks-formation";
+export const MODULE_ID = "acks-extras";
 
 /** Flag on the party TokenDocument / party Actor pointing back at a formation. */
 export const FLAG_FORMATION_ID = "formationId";

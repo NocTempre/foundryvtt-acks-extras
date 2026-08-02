@@ -88,7 +88,7 @@ export function kindOf(actor) {
   let race = "";
 
   // acks-monsters enhanced sheet typing, when the module is in use.
-  const extras = actor.flags?.["acks-monsters"]?.extras ?? null;
+  const extras = actor.flags?.["acks-extras"]?.extras ?? null;
   const types = extras?.types;
   const typeList = types instanceof Set ? [...types] : Array.isArray(types) ? types : [];
   for (const t of typeList) {

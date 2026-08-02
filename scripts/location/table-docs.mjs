@@ -20,7 +20,7 @@ import { MODULE_ID } from "./constants.mjs";
 const FOLDER_NAME = "ACKS Imported Tables";
 const JOURNAL_NAME = "ACKS Ruledata (Imported)";
 
-const lib = () => globalThis.acksLib;
+const lib = () => globalThis.acksExtras.lib;
 
 /* ------------------------- entry enumeration ------------------------- */
 

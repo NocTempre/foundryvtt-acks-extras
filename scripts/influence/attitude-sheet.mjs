@@ -7,7 +7,7 @@ const { ItemSheetV2 } = foundry.applications.sheets;
 /** Minimal sheet for a stored-attitude Item. */
 export default class AttitudeSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-influence", "acks-influence-attitude-sheet"],
+    classes: ["acks-extras", "acks-influence-attitude-sheet"],
     position: { width: 380, height: "auto" },
     tag: "form",
     form: { submitOnChange: true, closeOnSubmit: false },

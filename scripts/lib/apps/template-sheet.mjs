@@ -24,7 +24,7 @@ export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
 
 export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-lib", "acks-lib-template-sheet"],
+    classes: ["acks-extras", "acks-lib-template-sheet"],
     position: { width: 520, height: 600 },
     window: { resizable: true },
     form: { submitOnChange: true, closeOnSubmit: false },

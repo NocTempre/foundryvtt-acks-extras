@@ -24,8 +24,17 @@
  * book proficiencies with NO acks-henchmen effect changes are recovered via
  * config.NAME_FALLBACKS name regexes.
  */
-import { EFFECT_PREFIX, INFLUENCE_REACTION_KEY, MODULE_ID } from "./constants.mjs";
+import { EFFECT_PREFIX, EFFECT_DOMAINS, INFLUENCE_REACTION_KEY, MODULE_ID } from "./constants.mjs";
 import { NAME_FALLBACKS } from "./config.mjs";
+
+/**
+ * The exact set of change keys this feature speaks. Membership, not a prefix
+ * test: every feature's flags now share one scope, so `startsWith(EFFECT_PREFIX)`
+ * would also match equipment's domains — and even before the merge it matched
+ * plain item flags like `flags.acks-extras.record`, which are not effect
+ * domains at all.
+ */
+const OWN_CHANGE_KEYS = new Set(Object.values(EFFECT_DOMAINS).map((d) => `${EFFECT_PREFIX}${d}`));
 
 /**
  * @typedef {object} FoundModifier
@@ -91,8 +100,8 @@ export function collectEffectModifiers(actor, domain) {
       const parentItem = effect.parent?.documentName === "Item" ? effect.parent : null;
       if (parentItem) seenItems.add(parentItem.id);
     }
-    // Track items that carry ANY acks-henchmen change so name-fallback skips them.
-    if ((effect.changes ?? []).some((c) => c.key?.startsWith(EFFECT_PREFIX))) {
+    // Track items that carry ANY henchmen-domain change so name-fallback skips them.
+    if ((effect.changes ?? []).some((c) => OWN_CHANGE_KEYS.has(String(c.key ?? "")))) {
       const parentItem = effect.parent?.documentName === "Item" ? effect.parent : null;
       if (parentItem) seenItems.add(parentItem.id);
     }
@@ -106,10 +115,10 @@ export function collectEffectModifiers(actor, domain) {
         if (change.key !== INFLUENCE_REACTION_KEY) continue;
         const value = Number(change.value);
         if (!Number.isFinite(value) || value === 0) continue;
-        const inf = effect.flags?.["acks-influence"] ?? {};
+        const inf = effect.flags?.["acks-extras"] ?? {};
         found.push({
           id: `inf-${effect.id ?? foundry.utils.randomID()}`,
-          label: inf.label ? localize(inf.label) : (effect.name ?? "acks-influence"),
+          label: inf.label ? localize(inf.label) : (effect.name ?? "acks-extras"),
           value,
           situational: inf.situational !== false,
           condition: inf.tone && inf.tone !== "all" ? String(inf.tone) : null,

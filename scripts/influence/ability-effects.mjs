@@ -17,7 +17,7 @@
  */
 import { CHANGE_KEY_FAMILY, ROLL_FAMILY } from "./constants.mjs";
 
-const ABILITIES_FLAG = "acks-abilities";
+const ABILITIES_FLAG = "acks-extras";
 
 /** The roll families this roller hosts, keyed by acks-lib MODIFIER_TARGETS. */
 const SOCIAL_TARGETS = new Set([ROLL_FAMILY.REACTION, ROLL_FAMILY.LOYALTY, ROLL_FAMILY.MORALE]);
@@ -47,7 +47,7 @@ export function getAbilityReactionMods(actor, skipItemIds = new Set()) {
   // missing or late-loading lib degrades to "no ability-sourced mods" instead of
   // throwing at module load. acks-lib is a hard requirement, so in a correctly
   // configured world this is always present.
-  const resolveLevelValue = globalThis.acksLib?.resolveLevelValue;
+  const resolveLevelValue = globalThis.acksExtras.lib?.resolveLevelValue;
   if (!resolveLevelValue) return [];
   const level = actorLevel(actor);
   const out = [];

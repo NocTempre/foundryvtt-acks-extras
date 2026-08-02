@@ -577,7 +577,7 @@ export async function addLight(formation, type, bearerId) {
   // mutation, and an unreadable hand count means no check, not a refusal.
   let freeHands;
   try {
-    freeHands = globalThis.acksEquipment?.freeHands?.(bearer);
+    freeHands = globalThis.acksExtras.equipment?.freeHands?.(bearer);
   } catch (err) {
     console.error(`${MODULE_ID} | acks-equipment freeHands failed`, err);
   }
@@ -626,7 +626,7 @@ export async function addLight(formation, type, bearerId) {
     // oil is. Reuse acks-equipment's ammunition-tracker decrement when present so
     // fuel burn-down and ammo share one code path.
     if (fuel && fuel.system?.quantity?.value != null) {
-      const consume = globalThis.acksEquipment?.consumeItem;
+      const consume = globalThis.acksExtras.equipment?.consumeItem;
       if (typeof consume === "function") await consume(fuel, 1);
       else await fuel.update({ "system.quantity.value": Math.max(0, fuel.system.quantity.value - 1) });
     }

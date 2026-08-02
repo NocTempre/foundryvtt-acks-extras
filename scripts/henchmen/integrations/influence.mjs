@@ -19,7 +19,7 @@ import { MODULE_ID } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import * as adapter from "../acks-adapter.mjs";
 
-const INFLUENCE_ID = "acks-influence";
+const INFLUENCE_ID = "acks-extras";
 
 export function influenceApi() {
   const module = game.modules.get(INFLUENCE_ID);

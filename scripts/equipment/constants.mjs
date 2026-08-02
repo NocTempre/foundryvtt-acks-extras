@@ -6,7 +6,7 @@
  * as hardcoded name lists. The effect collector in effects.mjs reads them.
  */
 
-export const MODULE_ID = "acks-equipment";
+export const MODULE_ID = "acks-extras";
 
 /** Active Effect change-key prefix for this module's data-driven modifiers. */
 export const EFFECT_PREFIX = `flags.${MODULE_ID}.`;
@@ -162,11 +162,11 @@ export const HOOKS = Object.freeze({
 
 /** The label of the module-managed loadout Active Effect on actors. */
 export const LOADOUT_EFFECT_NAME = "Equipment Loadout";
-export const LOADOUT_EFFECT_FLAG = "loadout"; // flags.acks-equipment.loadout = true marks our managed AE
+export const LOADOUT_EFFECT_FLAG = "loadout"; // flags.acks-extras.loadout = true marks our managed AE
 
 /** Paper Doll module id + the flag/hook names it exposes. */
 export const PAPERDOLL_ID = "fvtt-paper-doll-ui";
 
 /** Sibling module owning the richer proficiency/ability model (kill switch). */
-export const ABILITIES_ID = "acks-abilities";
+export const ABILITIES_ID = "acks-extras";
 export const PAPERDOLL_HOOKS = Object.freeze({ EQUIP: "paper-doll-equip", SWAP: "paper-doll-swap" });

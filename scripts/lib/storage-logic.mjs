@@ -20,11 +20,11 @@
  */
 
 /** The flag scope/key attribution lives under, on both providers and stored items. */
-export const LIB_ID = "acks-lib";
+export const LIB_ID = "acks-extras";
 export const STORAGE_KEY = "storage";
 
 /** acks-equipment's container pointer — read generically, never imported. */
-const EQUIPMENT_ID = "acks-equipment";
+const EQUIPMENT_ID = "acks-extras";
 const CONTAINED_IN = "containedIn";
 
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);

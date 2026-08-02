@@ -49,7 +49,7 @@ function directedSpecMatches(spec, c) {
 
 export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-ui", "acks-henchmen", "location-sheet"],
+    classes: ["acks-ui", "acks-extras", "location-sheet"],
     position: { width: 760, height: 720 },
     window: { resizable: true },
     form: { submitOnChange: true },

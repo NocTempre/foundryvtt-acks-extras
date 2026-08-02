@@ -40,7 +40,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 // module load. acks-lib is a hard requirement, so this fallback is a safety net
 // for a broken world, not a supported no-lib mode.
 function scopeApplies(effect, ctx) {
-  const fn = globalThis.acksLib?.vocab?.scopeApplies;
+  const fn = globalThis.acksExtras.lib?.vocab?.scopeApplies;
   return fn ? fn(effect, ctx) : { applies: false, sign: 1, undetermined: true };
 }
 
@@ -141,7 +141,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   }
 
   static DEFAULT_OPTIONS = {
-    classes: ["acks-influence", "acks-influence-dialog"],
+    classes: ["acks-extras", "acks-influence-dialog"],
     sheetConfig: false,
     window: { resizable: true, title: "ACKS-INFLUENCE.app.title" },
     position: { width: 560, height: "auto" },

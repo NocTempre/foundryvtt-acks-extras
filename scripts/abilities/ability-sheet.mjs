@@ -235,7 +235,7 @@ export function createAbilitySheet(Base) {
   tabList.push({ id: "mechanics", icon: "fa-solid fa-gears", label: "ACKS-ABILITIES.tab.mechanics" });
 
   return class AcksAbilitySheet extends Base {
-    static DEFAULT_OPTIONS = { classes: ["acks", "acks2", "item-v2", "acks-abilities"] };
+    static DEFAULT_OPTIONS = { classes: ["acks", "acks2", "item-v2", "acks-extras"] };
     static PARTS = parts;
     static TABS = { primary: { tabs: tabList, initial: tabList[0].id } };
 
@@ -244,7 +244,7 @@ export function createAbilitySheet(Base) {
     /** @override */
     async _prepareContext(options) {
       const context = await super._prepareContext(options);
-      const V = globalThis.acksLib?.vocab ?? {};
+      const V = globalThis.acksExtras.lib?.vocab ?? {};
       const extras = AbilityExtras.fromItem(this.item);
       context.extras = extras;
       context.x = `flags.${MODULE_ID}.${FLAG_EXTRAS}`;
@@ -329,7 +329,7 @@ export function createAbilitySheet(Base) {
         };
       });
       context.scales = scales;
-      context.libMissing = !globalThis.acksLib;
+      context.libMissing = !globalThis.acksExtras.lib;
       // Converted content still imports; it just carries a notice. Removed-on-
       // purpose reads as a caution, merely-omitted as info, and a RENAME is
       // marked too — it resolved, but the reader's book calls it something else,
@@ -356,7 +356,7 @@ export function createAbilitySheet(Base) {
         const slug = String(token).replace(/^kw:/, "");
         const owner = game.items?.find?.((i) => {
           const id = i.getFlag?.("acks-content", "cookbook")?.id;
-          return id && !i.getFlag("acks-abilities", "extras")?.aliasOf && V.capabilityForId?.(id) === token;
+          return id && !i.getFlag("acks-extras", "extras")?.aliasOf && V.capabilityForId?.(id) === token;
         });
         return { token, label: owner?.name ?? slug };
       });

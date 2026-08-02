@@ -21,7 +21,7 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-location-ruledata-browser",
-    classes: ["acks-location", "ruledata-browser"],
+    classes: ["acks-extras", "ruledata-browser"],
     position: { width: 640, height: 640 },
     window: { title: "ACKS-LOCATION.browser.title", resizable: true },
     actions: {
@@ -139,7 +139,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
           try {
             let parsed = JSON.parse(button.form.elements.json.value);
             if (entry.subId && entry.tableId === "occupationSubTables") {
-              const table = globalThis.acksLib.tables.getTable(entry.docId, entry.tableId);
+              const table = globalThis.acksExtras.lib.tables.getTable(entry.docId, entry.tableId);
               parsed = { categories: { ...(table?.categories ?? {}), [entry.subId]: parsed } };
             }
             await setOverride(entry.docId, entry.tableId, parsed, { sourceName: "manual edit" });

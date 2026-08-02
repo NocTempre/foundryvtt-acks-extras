@@ -171,7 +171,7 @@ export function openLoyaltyRoll(actor, opts = {}) {
   // hook routes back through applyLoyaltyOutcome via the integration).
   try {
     // Late import avoids a load-order cycle (integration imports this file).
-    const integration = globalThis.acksHenchmen?.integrations?.influence;
+    const integration = globalThis.acksExtras.henchmen?.integrations?.influence;
     if (integration?.hostsModes?.()) {
       integration.openLoyaltyViaInfluence({
         employer,
@@ -202,7 +202,7 @@ export function openObedienceRoll(actor, opts = {}) {
 
   // Influence-hosted page when available (apiVersion 6+), same as loyalty.
   try {
-    const integration = globalThis.acksHenchmen?.integrations?.influence;
+    const integration = globalThis.acksExtras.henchmen?.integrations?.influence;
     if (integration?.hostsMoraleModes?.()) {
       integration.openObedienceViaInfluence({
         employer,

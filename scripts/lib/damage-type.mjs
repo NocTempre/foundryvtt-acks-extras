@@ -2,22 +2,26 @@
 /**
  * Damage typing for weapons, and the attack options an actor actually has.
  *
- * THE GAP THIS CLOSES: core weapon Items carry no damage type at all, and
- * acks-equipment only STAMPS `flags.acks-equipment.damageType` when someone runs
+ * THE GAP THIS CLOSES: core weapon Items carry no damage type at all, and the
+ * equipment feature only STAMPS `flags.acks-extras.damageType` when someone runs
  * its annotate macro — so ordinary gear on a henchman is untyped and nothing can
  * show a damage-type affordance. Rather than duplicate the weapon table (it is
- * acks-equipment's, read off the books) this resolves the type LIVE through that
- * module's own classifier, so every profiled weapon is typed with no annotation
+ * equipment's, read off the books) this resolves the type LIVE through that
+ * feature's own classifier, so every profiled weapon is typed with no annotation
  * step and no second copy of the data.
  *
  * Resolution order, most explicit first:
- *   1. `flags.acks-lib.damageType`        — a hand-set override (ad-hoc weapons)
- *   2. `flags.acks-equipment.damageType`  — the stamped classifier value
- *   3. acks-equipment's live `classifyWeapon(item).type`
+ *   1. `flags.acks-extras.damageTypeOverride` — a hand-set override (ad-hoc weapons)
+ *   2. `flags.acks-extras.damageType`         — the stamped classifier value
+ *   3. equipment's live `classifyWeapon(item).type`
  *   4. null — genuinely unknown; the UI shows a neutral icon rather than guessing
  *
- * Nothing here invents a type for a weapon the books do not type: with
- * acks-equipment absent, an unstamped item resolves null.
+ * The override key is spelled out because these two tiers used to live in
+ * separate modules (`flags.acks-lib.damageType` over
+ * `flags.acks-equipment.damageType`) and the module id was what told them
+ * apart. One module now, so the NAME has to carry that distinction — leave them
+ * both called `damageType` and the override silently becomes the value it is
+ * meant to override.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES } from "./vocab.mjs";
@@ -46,8 +50,8 @@ export const DAMAGE_TYPE_ICONS = Object.freeze({
 /** Neutral icon when the type is genuinely unknown — never a guessed type. */
 export const UNTYPED_ICON = "fas fa-circle-dot";
 
-/** acks-equipment's API, when the module is active. */
-const equipmentApi = () => globalThis.acksEquipment ?? game.modules?.get("acks-equipment")?.api ?? null;
+/** The equipment feature's API, once it has attached itself. */
+const equipmentApi = () => globalThis.acksExtras?.equipment ?? game.modules?.get(MODULE_ID)?.api?.equipment ?? null;
 
 /**
  * The damage type of a weapon item, or null when unknown.
@@ -56,9 +60,9 @@ const equipmentApi = () => globalThis.acksEquipment ?? game.modules?.get("acks-e
  */
 export function damageTypeOf(item) {
   if (!item) return null;
-  const own = item.getFlag?.(MODULE_ID, "damageType");
+  const own = item.getFlag?.(MODULE_ID, "damageTypeOverride");
   if (own && DAMAGE_TYPES[own]) return own;
-  const stamped = item.getFlag?.("acks-equipment", "damageType");
+  const stamped = item.getFlag?.(MODULE_ID, "damageType");
   if (stamped && DAMAGE_TYPES[stamped]) return stamped;
   try {
     const t = equipmentApi()?.classifyWeapon?.(item)?.type;
@@ -86,11 +90,11 @@ export function damageTypeLabel(key) {
 export async function setDamageType(item, type) {
   if (!item) return false;
   if (!type) {
-    await item.unsetFlag(MODULE_ID, "damageType");
+    await item.unsetFlag(MODULE_ID, "damageTypeOverride");
     return true;
   }
   if (!DAMAGE_TYPES[type]) return false;
-  await item.setFlag(MODULE_ID, "damageType", type);
+  await item.setFlag(MODULE_ID, "damageTypeOverride", type);
   return true;
 }
 

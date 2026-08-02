@@ -1,4 +1,5 @@
 /* global Hooks, game, foundry, canvas, CONFIG, socketlib */
+import { acksExtras } from "../namespace.mjs";
 import InfluenceApp from "./influence-app.mjs";
 import AttitudeData from "./attitude-data.mjs";
 import AttitudeSheet from "./attitude-sheet.mjs";
@@ -93,15 +94,15 @@ Hooks.once("init", () => {
     },
   };
   const module = game.modules.get(MODULE_ID);
-  if (module) module.api = api;
+  if (module) module.api = acksExtras;
   // Also expose globally as a resilient fallback for macros.
-  globalThis.acksInfluence = api;
+  acksExtras.influence = api;
 
   // acks-lib is a hard requirement (see module.json): its scopeApplies gates
   // every effect modifier and resolveLevelValue resolves level ladders. If it is
   // missing the roller degrades to "no ability mods / undetermined scope" rather
   // than throwing, but that is a broken world — say so plainly.
-  if (!globalThis.acksLib) {
+  if (!globalThis.acksExtras.lib) {
     console.warn(`${MODULE_ID} | acks-lib not found — effect gating and level-value semantics are unavailable; enable acks-lib.`);
   }
 

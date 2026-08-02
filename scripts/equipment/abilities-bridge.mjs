@@ -31,7 +31,7 @@ import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
 import { normalizeName } from "./config.mjs";
 
 const CONTENT_ID = "acks-content";
-const ABILITIES_FLAG_SCOPE = "acks-abilities";
+const ABILITIES_FLAG_SCOPE = "acks-extras";
 
 /** Definition slug of an imported ability ("def.prof.weaponFinesse" → "weaponfinesse"). */
 function defSlug(item) {
@@ -48,7 +48,7 @@ function baseNameSlug(item) {
 
 /** The picks, via the abilities API when live, else its documented flag shape. */
 function picksOf(item) {
-  const api = globalThis.acksAbilities;
+  const api = globalThis.acksExtras.abilities;
   if (api?.selectionsOf) {
     try {
       return api.selectionsOf(item);
@@ -67,7 +67,7 @@ function picksOf(item) {
 
 /** Rank via the abilities API when live (its rule, not ours), else qty. */
 function rankOf(actor, item) {
-  const api = globalThis.acksAbilities;
+  const api = globalThis.acksExtras.abilities;
   if (api?.rankOf) {
     try {
       const r = Number(api.rankOf(actor, item));
@@ -80,10 +80,19 @@ function rankOf(actor, item) {
   return Number.isFinite(q) && q >= 1 ? q : 1;
 }
 
+/**
+ * The exact set of change keys this feature speaks. Membership, not a prefix
+ * test: every feature's flags now share one scope, so `startsWith(EFFECT_PREFIX)`
+ * would also match henchmen's domains — and even before the merge it matched
+ * plain item flags like `flags.acks-extras.size`, which are not effect domains
+ * at all.
+ */
+const OWN_CHANGE_KEYS = new Set(Object.values(EFFECT_DOMAINS).map((d) => `${EFFECT_PREFIX}${d}`));
+
 /** Does this item already speak the native effect language? Then stand aside. */
 function speaksNative(item) {
   for (const effect of item.effects ?? []) {
-    if ((effect.changes ?? []).some((c) => String(c.key ?? "").startsWith(EFFECT_PREFIX))) return true;
+    if ((effect.changes ?? []).some((c) => OWN_CHANGE_KEYS.has(String(c.key ?? "")))) return true;
   }
   return false;
 }

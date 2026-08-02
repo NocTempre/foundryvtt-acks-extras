@@ -184,7 +184,7 @@ export const getMonsterHd = monsterHd;
  */
 export function getWageLevel(actor) {
   if (actor?.type === "monster") {
-    const extras = game.modules.get("acks-monsters")?.api?.getExtras?.(actor);
+    const extras = game.modules.get("acks-extras")?.api?.getExtras?.(actor);
     const hd = Number(extras?.hd?.count);
     return Number.isFinite(hd) && hd > 0 ? hd : getMonsterHd(actor);
   }

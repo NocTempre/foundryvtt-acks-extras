@@ -13,7 +13,7 @@
  * core engine.
  */
 
-const MONSTERS_ID = "acks-monsters";
+const MONSTERS_ID = "acks-extras";
 const FLAG_EXTRAS = "extras";
 
 /**

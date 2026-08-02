@@ -8,6 +8,7 @@
  * data lives in `flags["acks-monsters"].extras`. Toggle the sheet per-actor from
  * the actor's Sheet Configuration.
  */
+import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, MONSTER_TYPE } from "./constants.mjs";
 import { createFullMonsterSheet } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
@@ -54,8 +55,8 @@ Hooks.once("init", () => {
     getExtras: (actor) => MonsterExtras.fromActor(actor),
   };
   const module = game.modules.get(MODULE_ID);
-  if (module) module.api = api;
-  globalThis.acksMonsters = api;
+  if (module) module.api = acksExtras;
+  acksExtras.monsters = api;
 
   // Best-effort template preload (added tabs; base tabs preload with the system).
   try {

@@ -26,7 +26,7 @@ const TAB_CLASS = "acks-location-storage-tab";
 const SUMMARY_CLASS = "acks-location-coin-summary";
 const TEMPLATE = `modules/${MODULE_ID}/templates/location/storage-tab.hbs`;
 
-const storage = () => globalThis.acksLib?.storage;
+const storage = () => globalThis.acksExtras.lib?.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 
 /* -------------------------------------------- */
@@ -183,7 +183,7 @@ export function installStorageTab() {
   Hooks.on("renderActorSheetV2", async (app, element) => {
     try {
       if (game.system?.id !== "acks") return;
-      if ((globalThis.acksLib?.apiVersion ?? 0) < REQUIRED_LIB_API) return;
+      if ((globalThis.acksExtras.lib?.apiVersion ?? 0) < REQUIRED_LIB_API) return;
       const actor = app.actor ?? app.document;
       if (actor?.type !== "character") return;
       const root = element instanceof HTMLElement ? element : element?.[0];

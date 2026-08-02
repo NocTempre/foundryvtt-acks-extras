@@ -908,7 +908,7 @@ export async function processLocation(location, currentTime = now()) {
  * @returns {Promise<{reloaded: object|null, tablesPresent: boolean}>}
  */
 export async function reloadMarket() {
-  const svc = globalThis.acksLib?.services?.get?.("ruledata-import");
+  const svc = globalThis.acksExtras.lib?.services?.get?.("ruledata-import");
   let reloaded = null;
   try {
     reloaded = (await svc?.reload?.()) ?? null;

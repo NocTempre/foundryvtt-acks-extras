@@ -16,6 +16,7 @@
  * moving that data is its own program, and doing it as a side effect of the
  * storage work would put a migration between a player and their belongings.
  */
+import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, REQUIRED_LIB_API } from "./constants.mjs";
 import { registerStoreSetting, registerPersisted, ruledataImport } from "./table-store.mjs";
 import { RuledataBrowser, openRuledataBrowser } from "./ruledata-browser.mjs";
@@ -34,7 +35,7 @@ const TEMPLATES = [
 Hooks.once("init", () => {
   registerStoreSetting();
 
-  const lib = globalThis.acksLib;
+  const lib = globalThis.acksExtras.lib;
   if (!lib?.services || (lib.apiVersion ?? 0) < 3) {
     console.error(`${MODULE_ID} | acks-lib >= 0.8.0 (apiVersion 3+) is required — table import disabled`);
     return;
@@ -92,8 +93,8 @@ Hooks.once("init", () => {
     }
     // Locations hold goods by construction; anything else needs the flag set
     // deliberately (the manager's "enable storage" does it).
-    if (!doc.flags?.["acks-lib"]?.storage) {
-      changes.flags = foundry.utils.mergeObject(doc.flags ?? {}, { "acks-lib": { storage: { provider: true } } }, { inplace: false });
+    if (!doc.flags?.["acks-extras"]?.storage) {
+      changes.flags = foundry.utils.mergeObject(doc.flags ?? {}, { "acks-extras": { storage: { provider: true } } }, { inplace: false });
     }
     if (Object.keys(changes).length) doc.updateSource(changes);
   });
@@ -101,10 +102,11 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", () => {
   const module = game.modules.get(MODULE_ID);
-  if (module) module.api = { openRuledataBrowser, openStorageManager, runVaultSweep, LOCATION_TYPE, LocationSheet };
+  acksExtras.location = { openRuledataBrowser, openStorageManager, runVaultSweep, LOCATION_TYPE, LocationSheet };
+  if (module) module.api = acksExtras;
 
   if (game.system?.id !== "acks") return;
-  if (!globalThis.acksLib?.storage) return;
+  if (!globalThis.acksExtras.lib?.storage) return;
   // One client sweeps: it creates actors and moves coin. Elected the same way
   // the library elects its deletion fallback.
   if (!game.users.activeGM?.isSelf) return;

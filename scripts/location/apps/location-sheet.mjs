@@ -18,14 +18,14 @@ import { openStashDialog } from "./stash-dialog.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
-const storage = () => globalThis.acksLib.storage;
+const storage = () => globalThis.acksExtras.lib.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 
 export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     // `acks-ui` opts this window into the library's vendored ACKS design layer;
     // the rest are our own scoped hooks.
-    classes: ["acks-ui", "acks-location", "acks-location-sheet"],
+    classes: ["acks-ui", "acks-extras", "acks-location-sheet"],
     position: { width: 620, height: 640 },
     window: { resizable: true },
     form: { submitOnChange: true },

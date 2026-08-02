@@ -19,7 +19,7 @@
  *
  * acks-lib is a hard `requires` of this module and its vocabulary is imported
  * STATICALLY, exactly like `slug` below. The first cut looked the functions up
- * on `globalThis.acksLib` at call time instead — and when the public object
+ * on `globalThis.acksExtras.lib` at call time instead — and when the public object
  * grew a `vocab` namespace, `acksLib.satisfies` stopped existing and both
  * capability checks silently returned false forever: every dragged cookbook
  * skill fell back to Adventuring, mislabelled and unbonused. A static import
@@ -31,7 +31,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { slug, satisfies, resolveLevelValue } from "../lib/vocab.mjs";
 
 const CONTENT_ID = "acks-content";
-const ABILITIES_ID = "acks-abilities";
+const ABILITIES_ID = "acks-extras";
 
 /**
  * One ability item as the `{id, provides}` shape acks-lib reasons over.

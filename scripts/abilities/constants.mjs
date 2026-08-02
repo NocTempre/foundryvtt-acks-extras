@@ -1,4 +1,4 @@
-export const MODULE_ID = "acks-abilities";
+export const MODULE_ID = "acks-extras";
 export const LANG_PREFIX = "ACKS-ABILITIES";
 
 /**

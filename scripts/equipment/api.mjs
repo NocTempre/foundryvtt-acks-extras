@@ -1,10 +1,11 @@
 /* global game, globalThis */
 /**
  * Public API — exposed on `game.modules.get("acks-equipment").api` and mirrored
- * on `globalThis.acksEquipment`. Lets sibling modules read the loadout the way
+ * on `globalThis.acksExtras.equipment`. Lets sibling modules read the loadout the way
  * they read each other's data today (formation reads equipped weapons; henchmen
  * reads gear), and lets macros drive equip/annotate/purchase.
  */
+import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, HOOKS, EFFECT_DOMAINS, ITEM_FLAGS } from "./constants.mjs";
 import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands } from "./loadout.mjs";
 import { classifyWeapon, handCost, focusGroup, weaponKey, equipmentClass } from "./profiles.mjs";
@@ -202,7 +203,7 @@ export function buildApi() {
     HOOKS,
   };
   const module = game.modules.get(MODULE_ID);
-  if (module) module.api = api;
-  globalThis.acksEquipment = api;
+  if (module) module.api = acksExtras;
+  acksExtras.equipment = api;
   return api;
 }

@@ -8,7 +8,7 @@
  * lang/en.json. See acks-rules/acks-influence/ACKS-Reactions-Reference.md for the rules reference.
  */
 
-export const MODULE_ID = "acks-influence";
+export const MODULE_ID = "acks-extras";
 
 /**
  * Active Effect convention: an effect on any item/actor with a change keyed

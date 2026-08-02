@@ -18,13 +18,13 @@ import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const { DialogV2 } = foundry.applications.api;
 
-const storage = () => globalThis.acksLib.storage;
+const storage = () => globalThis.acksExtras.lib.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 
 export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-location-storage-manager",
-    classes: ["acks-ui", "acks-location", "acks-location-manager"],
+    classes: ["acks-ui", "acks-extras", "acks-location-manager"],
     position: { width: 780, height: 700 },
     window: { title: `${LANG_PREFIX}.manager.title`, resizable: true, icon: "fas fa-warehouse" },
     actions: {
@@ -220,7 +220,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
     const options = owners.map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
     const uuid = await DialogV2.prompt({
       window: { title: loc("manager.reassign") },
-      classes: ["acks-location"],
+      classes: ["acks-extras"],
       content: `<p>${loc("manager.reassignPrompt", { count: spec.length })}</p>
         <select name="owner" style="width:100%">${options}</select>`,
       ok: { label: loc("manager.reassign"), callback: (_e, button) => button.form.elements.owner.value },
@@ -233,7 +233,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
       "Item",
       spec.map(({ id }) => ({
         _id: id,
-        "flags.acks-lib.storage": { ownerUuid: owner.uuid, ownerName: owner.name },
+        "flags.acks-extras.storage": { ownerUuid: owner.uuid, ownerName: owner.name },
       })),
     );
     // Reassigning can leave the same character holding two rows of one coin.
@@ -282,7 +282,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
       .join("");
     const uuid = await DialogV2.prompt({
       window: { title: loc("manager.enable") },
-      classes: ["acks-location"],
+      classes: ["acks-extras"],
       content: `<p>${loc("manager.enablePrompt")}</p><select name="actor" style="width:100%">${options}</select>`,
       ok: { label: loc("manager.enable"), callback: (_e, button) => button.form.elements.actor.value },
     }).catch(() => null);

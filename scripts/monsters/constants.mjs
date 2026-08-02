@@ -5,7 +5,7 @@
  * pairs with) can be imported by the Node build tooling as well as at runtime.
  */
 
-export const MODULE_ID = "acks-monsters";
+export const MODULE_ID = "acks-extras";
 
 /** Localization key prefix. */
 export const LANG = "ACKS-MONSTERS";

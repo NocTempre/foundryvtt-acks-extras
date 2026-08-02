@@ -35,7 +35,7 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
 
   static DEFAULT_OPTIONS = {
     id: "acks-formation-skill-audit",
-    classes: ["acks-formation", "skill-audit"],
+    classes: ["acks-extras", "skill-audit"],
     window: { resizable: true, title: "ACKS-FORMATION.audit.title" },
     position: { width: 640, height: 640 },
     actions: {

@@ -126,7 +126,7 @@ export function cleanDelta(delta) {
  */
 export function sizeFromEcology(source, context = "wilderness") {
   if (!source) return null;
-  const extras = source.getFlag?.("acks-monsters", "extras");
+  const extras = source.getFlag?.("acks-extras", "extras");
   const side = extras?.encounter?.[context];
   const rich = side?.wandering?.number || side?.lair?.number;
   if (rich) return String(rich).trim();

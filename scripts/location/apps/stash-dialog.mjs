@@ -9,15 +9,15 @@
  */
 import { LANG_PREFIX } from "../constants.mjs";
 
-const storage = () => globalThis.acksLib.storage;
+const storage = () => globalThis.acksExtras.lib.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 const esc = (text) => foundry.utils.escapeHTML(String(text ?? ""));
 
 /** Worth offering: things, and coin (which the system does not call "physical"). */
-const stowable = (actor) => actor.items.filter((i) => globalThis.acksLib.itemModel.isPhysical(i) || i.type === "money");
+const stowable = (actor) => actor.items.filter((i) => globalThis.acksExtras.lib.itemModel.isPhysical(i) || i.type === "money");
 
 /** Is this one of acks-equipment's containers? Read the documented flag, never import. */
-const isContainer = (item) => !!item.getFlag?.("acks-equipment", "container");
+const isContainer = (item) => !!item.getFlag?.("acks-extras", "container");
 
 function rowHTML(item) {
   const qty = storage().quantityOf(item.toObject())?.value ?? null;
@@ -60,7 +60,7 @@ export async function openStashDialog(sources, provider) {
 
   const result = await foundry.applications.api.DialogV2.prompt({
     window: { title: loc("storage.stashTitle") },
-    classes: ["acks-location"],
+    classes: ["acks-extras"],
     content: `<div class="acks-location-stash-dialog">
         <p>${loc("storage.stashInto", { place: esc(provider.name) })}</p>
         ${chooser}

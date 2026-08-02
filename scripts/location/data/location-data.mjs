@@ -21,7 +21,7 @@ export { LOCATION_TYPE };
 
 export class LocationData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
-    const lib = globalThis.acksLib;
+    const lib = globalThis.acksExtras.lib;
     const { str, html } = lib.fields;
     return {
       // AcksActor.prepareDerivedData runs for EVERY actor type and touches

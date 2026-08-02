@@ -63,7 +63,7 @@ function wearingGloves(actor) {
  * than substituting a number.
  */
 async function rollProficiency(actor, item) {
-  const api = globalThis.acksAbilities;
+  const api = globalThis.acksExtras.abilities;
   if (!api?.rollAbility) return { rolled: false, reason: "noAbilitiesModule" };
   // rollsOf is the module's single read path; an ability with no throw is a
   // real answer, not a failure to look.

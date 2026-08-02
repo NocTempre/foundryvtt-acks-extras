@@ -389,7 +389,7 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
   const coin = plainGoods.filter((g) => g.type === "money");
   const goods = plainGoods.filter((g) => g.type !== "money");
 
-  const equipment = game.modules?.get("acks-equipment")?.active;
+  const equipment = game.modules?.get("acks-extras")?.active;
   let containerId = null;
   if (goods.length) {
     const container = {
@@ -397,7 +397,7 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
       type: "item",
       img: "icons/svg/chest.svg",
       system: { subtype: "item", cost: 0, weight6: 0, quantity: { value: 1, max: 0 } },
-      ...(equipment ? { flags: { "acks-equipment": { container: { capacity: 0 } } } } : {}),
+      ...(equipment ? { flags: { "acks-extras": { container: { capacity: 0 } } } } : {}),
     };
     const [made] = await owner.createEmbeddedDocuments("Item", [container]);
     containerId = made?.id ?? null;
@@ -419,10 +419,10 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
     }
     const parent = containedInOf(copy);
     const nest = equipment ? (idMap.get(parent) ?? containerId) : null;
-    if (nest) copy.flags["acks-equipment"] = { ...copy.flags["acks-equipment"], containedIn: nest };
-    else if (copy.flags["acks-equipment"]) {
-      copy.flags["acks-equipment"] = { ...copy.flags["acks-equipment"] };
-      delete copy.flags["acks-equipment"].containedIn;
+    if (nest) copy.flags["acks-extras"] = { ...copy.flags["acks-extras"], containedIn: nest };
+    else if (copy.flags["acks-extras"]) {
+      copy.flags["acks-extras"] = { ...copy.flags["acks-extras"] };
+      delete copy.flags["acks-extras"].containedIn;
     }
     return copy;
   });

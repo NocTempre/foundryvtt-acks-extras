@@ -7,6 +7,7 @@
  *  setup: ruledata load (fetch), public API.
  *  ready: system check, GM time watcher, chat commands, card listeners.
  */
+import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, SCHEMA_VERSION } from "./constants.mjs";
 import { installWageGuard, registerDeletionCleanup, sweepAtReady, repairWorld, repairActor, scanActor, describeRepair } from "./repair.mjs";
 import * as config from "./config.mjs";
@@ -93,7 +94,7 @@ Hooks.once("setup", async () => {
   // (module vocabulary, not book data), shipped and registered at SAMPLE
   // priority so hiring/loyalty/obedience rolls work with no import. A catalog
   // or world may still override the `throws` doc by id.
-  if (globalThis.acksLib?.tables) {
+  if (globalThis.acksExtras.lib?.tables) {
     try {
       initTables(THROWS_DATA);
       initTables(RARITY_AUTOMATION); // partial doc: per-table layering keeps imports above
@@ -103,12 +104,12 @@ Hooks.once("setup", async () => {
     // Declare the tables this module reads, so the materialize flow can
     // generate EMPTY placeholders for expected-but-missing ones.
     try {
-      globalThis.acksLib.tables.expectTables?.("availability", ["henchmanAvailability", "mercenaryAvailability", "specialistAvailability", "searchFees"]);
-      globalThis.acksLib.tables.expectTables?.("rarity", ["classRarityTables", "rarityAvailability", "randomHenchmanLevel", "classDistribution", "specificQualificationMods"]);
-      globalThis.acksLib.tables.expectTables?.("wages", ["henchmanWageByLevel", "signingBonus", "mercenaryWages"]);
-      globalThis.acksLib.tables.expectTables?.("people", ["cultures", "classPercentages", "occupationTypes", "occupationSubTables", "occupationPackages", "classRestrictions", "cultureAppearance", "ageByClass", "proficienciesByAge", "hd0", "dwarvenCastes"]);
-      globalThis.acksLib.tables.expectTables?.("slavery", ["commonSlaves", "slaveTroopCosts", "slaveLoyalty", "soldierRules"]);
-      globalThis.acksLib.tables.expectTables?.("settlement", ["marketClassByFamilies"]);
+      globalThis.acksExtras.lib.tables.expectTables?.("availability", ["henchmanAvailability", "mercenaryAvailability", "specialistAvailability", "searchFees"]);
+      globalThis.acksExtras.lib.tables.expectTables?.("rarity", ["classRarityTables", "rarityAvailability", "randomHenchmanLevel", "classDistribution", "specificQualificationMods"]);
+      globalThis.acksExtras.lib.tables.expectTables?.("wages", ["henchmanWageByLevel", "signingBonus", "mercenaryWages"]);
+      globalThis.acksExtras.lib.tables.expectTables?.("people", ["cultures", "classPercentages", "occupationTypes", "occupationSubTables", "occupationPackages", "classRestrictions", "cultureAppearance", "ageByClass", "proficienciesByAge", "hd0", "dwarvenCastes"]);
+      globalThis.acksExtras.lib.tables.expectTables?.("slavery", ["commonSlaves", "slaveTroopCosts", "slaveLoyalty", "soldierRules"]);
+      globalThis.acksExtras.lib.tables.expectTables?.("settlement", ["marketClassByFamilies"]);
     } catch (err) {
       console.warn(`${MODULE_ID} | expectTables failed`, err);
     }
@@ -182,8 +183,8 @@ Hooks.once("setup", async () => {
     time: { now, advanceDays },
   };
   const module = game.modules.get(MODULE_ID);
-  if (module) module.api = api;
-  globalThis.acksHenchmen = api;
+  if (module) module.api = acksExtras;
+  acksExtras.henchmen = api;
 });
 
 Hooks.once("ready", () => {
@@ -210,7 +211,7 @@ Hooks.once("ready", () => {
   // Book tables are imported per-world, not shipped. If acks-lib is missing or
   // some documents have not been imported yet, tell the GM once and name them.
   if (game.user.isGM) {
-    if (!globalThis.acksLib?.tables) {
+    if (!globalThis.acksExtras.lib?.tables) {
       ui.notifications.error(game.i18n.localize("ACKS-HENCHMEN.libMissing"));
     } else {
       const missing = RULEDATA.filter((id) => !hasDoc(id));
