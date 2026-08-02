@@ -744,7 +744,16 @@ SETTINGS_STATE.overlayNamed = false;
 // never imported, so buildApi() threw a ReferenceError at init and the whole
 // module died. node --check is syntax-only and nothing here called buildApi, so
 // it sailed through. Actually building the API is the guard.
-globalThis.Hooks = globalThis.Hooks ?? { once: () => {}, on: () => {}, callAll: () => {} };
+// namespace.mjs registers the single module.api assignment on init; capture
+// the callbacks so the test can fire them the way Foundry would.
+const initCallbacks = [];
+globalThis.Hooks = globalThis.Hooks ?? {
+  once: (name, fn) => {
+    if (name === "init") initCallbacks.push(fn);
+  },
+  on: () => {},
+  callAll: () => {},
+};
 const moduleStub = {};
 globalThis.game.modules = { get: (id) => (id === "acks-extras" ? moduleStub : { active: false }) };
 const { buildApi } = await import(new URL("api.mjs", S));
@@ -752,7 +761,8 @@ const api = buildApi();
 check("buildApi() runs without throwing (every exposed symbol is imported)", !!api);
 // module.api is the whole acksExtras namespace, not this one feature's api:
 // eight features assigning their own would have left only the last visible.
-// The feature reaches its own surface through its key.
+// The assignment lives in namespace.mjs's init hook — fire it as Foundry would.
+for (const fn of initCallbacks) fn();
 check("buildApi attaches the feature to the shared namespace", globalThis.acksExtras.equipment === api);
 check("module.api is the shared namespace, and the feature is on it", moduleStub.api === globalThis.acksExtras && moduleStub.api.equipment === api);
 for (const fn of ["getLoadout", "containerReport", "contentsOf", "contentsWeight6", "overCapacity", "isContainer", "encumbranceDelta6", "planItemLoss", "maneuverMods", "annotateItem", "refreshLoadout"]) {

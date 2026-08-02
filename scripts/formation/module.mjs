@@ -1,5 +1,5 @@
 /* global Hooks, game, foundry, canvas, ui, CONFIG, Actor */
-import { acksExtras } from "../namespace.mjs";
+import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import {
   DEFAULT_PARTY_IMAGE,
   DEFAULT_ENCOUNTER_EVERY,
@@ -225,8 +225,6 @@ Hooks.once("init", () => {
     removeLight,
     toggleShield,
   };
-  const module = game.modules.get(MODULE_ID);
-  if (module) module.api = acksExtras;
   acksExtras.formation = api;
 
   /* --- Template preload (best-effort) --- */
@@ -250,9 +248,7 @@ Hooks.once("setup", () => {
 });
 
 Hooks.once("ready", () => {
-  if (game.system?.id !== "acks") {
-    console.warn(`${MODULE_ID} | Active system is not "acks"; exploration speeds cannot be read from actors.`);
-  }
+  assertAcksSystem("exploration speeds cannot be read from actors.");
   registerMapSocket();
   registerRequestSocket();
   // Index the skill ladders acks-content imported (item directory or the world

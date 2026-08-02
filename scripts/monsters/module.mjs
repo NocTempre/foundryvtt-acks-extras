@@ -8,7 +8,7 @@
  * data lives in `flags["acks-monsters"].extras`. Toggle the sheet per-actor from
  * the actor's Sheet Configuration.
  */
-import { acksExtras } from "../namespace.mjs";
+import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, MONSTER_TYPE } from "./constants.mjs";
 import { createFullMonsterSheet } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
@@ -54,8 +54,6 @@ Hooks.once("init", () => {
     /** Read the extended stat block for an actor (a MonsterExtras instance). */
     getExtras: (actor) => MonsterExtras.fromActor(actor),
   };
-  const module = game.modules.get(MODULE_ID);
-  if (module) module.api = acksExtras;
   acksExtras.monsters = api;
 
   // Best-effort template preload (added tabs; base tabs preload with the system).
@@ -86,10 +84,7 @@ Hooks.once("init", () => {
  * resolved here. Registering at ready takes the immediate (non-queued) path.
  */
 Hooks.once("ready", () => {
-  if (game.system?.id !== "acks") {
-    console.warn(`${MODULE_ID} | Active system is not "acks"; the Full Monster sheet expects acks monster actors.`);
-    return;
-  }
+  if (!assertAcksSystem("the Full Monster sheet expects acks monster actors.")) return;
   const Base = resolveMonsterSheetBase();
   if (!Base) {
     console.error(`${MODULE_ID} | could not resolve the acks monster sheet; Full Monster sheet NOT registered.`);

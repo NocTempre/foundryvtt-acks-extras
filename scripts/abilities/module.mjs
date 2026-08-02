@@ -7,7 +7,7 @@
  * alternate ability sheet to view/edit it. Nothing mutates the acks system;
  * the effect vocabulary comes from acks-lib.
  */
-import { acksExtras } from "../namespace.mjs";
+import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, ABILITY_TYPE } from "./constants.mjs";
 import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
 import { createAbilitySheet } from "./ability-sheet.mjs";
@@ -58,8 +58,6 @@ Hooks.once("init", () => {
       return AcksAbilitySheet;
     },
   };
-  const module = game.modules.get(MODULE_ID);
-  if (module) module.api = acksExtras;
   acksExtras.abilities = api;
 
   // Best-effort template preload (the base sheet's own parts preload with the system).
@@ -84,10 +82,7 @@ Hooks.once("init", () => {
  * ability sheet — our base class — can only be resolved here.
  */
 Hooks.once("ready", async () => {
-  if (game.system?.id !== "acks") {
-    console.warn(`${MODULE_ID} | active system is not "acks"; the ACKS Ability sheet expects acks ability items.`);
-    return;
-  }
+  if (!assertAcksSystem("the ACKS Ability sheet expects acks ability items.")) return;
   const Base = resolveAbilitySheetBase();
   if (!Base) {
     console.error(`${MODULE_ID} | could not resolve the acks ability sheet; ACKS Ability sheet NOT registered.`);

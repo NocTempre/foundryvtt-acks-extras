@@ -1,5 +1,5 @@
 /* global Hooks, game, foundry, canvas, CONFIG, socketlib */
-import { acksExtras } from "../namespace.mjs";
+import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import InfluenceApp from "./influence-app.mjs";
 import AttitudeData from "./attitude-data.mjs";
 import AttitudeSheet from "./attitude-sheet.mjs";
@@ -93,8 +93,6 @@ Hooks.once("init", () => {
       attitudeChanged: "acksExtras.influenceAttitudeChanged",
     },
   };
-  const module = game.modules.get(MODULE_ID);
-  if (module) module.api = acksExtras;
   // Also expose globally as a resilient fallback for macros.
   acksExtras.influence = api;
 
@@ -125,9 +123,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  if (game.system?.id !== "acks") {
-    console.warn(`${MODULE_ID} | Active system is not "acks"; the character-sheet button may not appear.`);
-  }
+  assertAcksSystem("the character-sheet button may not appear.");
 });
 
 /**

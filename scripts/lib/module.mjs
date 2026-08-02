@@ -148,8 +148,6 @@ acksExtras.lib = resolveApi();
 Hooks.once("init", () => {
   const api = resolveApi();
   acksExtras.lib = api;
-  const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = acksExtras;
 
   registerMountCleanup();
   registerStorageCleanup();

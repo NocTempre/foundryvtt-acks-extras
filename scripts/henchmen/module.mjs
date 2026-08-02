@@ -7,7 +7,7 @@
  *  setup: ruledata load (fetch), public API.
  *  ready: system check, GM time watcher, chat commands, card listeners.
  */
-import { acksExtras } from "../namespace.mjs";
+import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, SCHEMA_VERSION } from "./constants.mjs";
 import { installWageGuard, registerDeletionCleanup, sweepAtReady, repairWorld, repairActor, scanActor, describeRepair } from "./repair.mjs";
 import * as config from "./config.mjs";
@@ -178,16 +178,11 @@ Hooks.once("setup", async () => {
     effects: { collectEffectModifiers, sumEffectModifiers, hasEffectFlag },
     time: { now, advanceDays },
   };
-  const module = game.modules.get(MODULE_ID);
-  if (module) module.api = acksExtras;
   acksExtras.henchmen = api;
 });
 
 Hooks.once("ready", () => {
-  if (game.system?.id !== "acks") {
-    console.warn(`${MODULE_ID} | Active system is not "acks"; this module expects the ACKS II system.`);
-    return;
-  }
+  if (!assertAcksSystem("henchmen automation expects the ACKS II system.")) return;
 
   registerSockets();
   registerEventEngine();

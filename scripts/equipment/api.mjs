@@ -200,8 +200,6 @@ export function buildApi() {
     config: CONFIG_DATA,
     HOOKS,
   };
-  const module = game.modules.get(MODULE_ID);
-  if (module) module.api = acksExtras;
   acksExtras.equipment = api;
   return api;
 }

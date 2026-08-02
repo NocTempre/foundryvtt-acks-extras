@@ -7,6 +7,7 @@
  * ready — system guard, socketlib, paper-doll wiring (Phase 4), initial
  *         loadout sync, equip-enforcement hooks.
  */
+import { assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, SETTINGS, LOADOUT_EFFECT_FLAG } from "./constants.mjs";
 import { registerSettings } from "./settings.mjs";
 import { buildApi } from "./api.mjs";
@@ -42,10 +43,7 @@ Hooks.once("setup", () => {
 });
 
 Hooks.once("ready", async () => {
-  if (game.system?.id !== "acks") {
-    console.warn(`${MODULE_ID} | Active system is not "acks"; equipment automation is inert.`);
-    return;
-  }
+  if (!assertAcksSystem("equipment automation is inert.")) return;
 
   // Wear-location buckets on the core character sheet. Independent of the Paper
   // Doll — the doll is an optional input device, the sheet is where every table

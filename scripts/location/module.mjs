@@ -101,9 +101,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  const module = game.modules.get(MODULE_ID);
   acksExtras.location = { openRuledataBrowser, openStorageManager, runVaultSweep, LOCATION_TYPE, LocationSheet };
-  if (module) module.api = acksExtras;
 
   if (game.system?.id !== "acks") return;
   // One client sweeps: it creates actors and moves coin. Elected the same way
