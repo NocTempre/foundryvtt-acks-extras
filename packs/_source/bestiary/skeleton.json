@@ -122,7 +122,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "naturalWeapon": "weapon",
           "damageType": "slashing",
           "extraordinary": false
@@ -134,8 +134,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmSkeleton000.acksmSkelSword00"
     },
@@ -164,15 +164,15 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmSkeleton000.acksmSkelShield0"
     }
   ],
   "effects": [],
   "flags": {
-    "acks-monsters": {
+    "acks-extras": {
       "extras": {
         "types": [
           "undead",
@@ -285,7 +285,7 @@
   },
   "_stats": {
     "coreVersion": "14",
-    "createdTime": 1785648830784,
-    "modifiedTime": 1785648830784
+    "createdTime": 1785649301251,
+    "modifiedTime": 1785649301251
   }
 }

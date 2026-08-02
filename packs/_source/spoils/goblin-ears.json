@@ -17,7 +17,7 @@
   },
   "effects": [],
   "flags": {
-    "acks-monsters": {
+    "acks-extras": {
       "spoil": true,
       "component": false,
       "researchEffects": []
@@ -29,8 +29,8 @@
   "sort": 0,
   "_stats": {
     "coreVersion": "14",
-    "createdTime": 1785648830784,
-    "modifiedTime": 1785648830784
+    "createdTime": 1785649301251,
+    "modifiedTime": 1785649301251
   },
   "_key": "!items!acksmSpGobEars00"
 }

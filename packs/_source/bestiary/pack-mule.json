@@ -122,7 +122,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "naturalWeapon": "hoof",
           "damageType": "bludgeoning",
           "extraordinary": false
@@ -134,8 +134,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmPackMule000.acksmMuleHoof000"
     },
@@ -164,8 +164,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmPackMule000.acksmMuleSack000"
     },
@@ -194,15 +194,15 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmPackMule000.acksmMuleRope000"
     }
   ],
   "effects": [],
   "flags": {
-    "acks-monsters": {
+    "acks-extras": {
       "extras": {
         "types": [
           "animal"
@@ -320,7 +320,7 @@
   },
   "_stats": {
     "coreVersion": "14",
-    "createdTime": 1785648830784,
-    "modifiedTime": 1785648830784
+    "createdTime": 1785649301251,
+    "modifiedTime": 1785649301251
   }
 }

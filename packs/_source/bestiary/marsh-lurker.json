@@ -122,7 +122,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "naturalWeapon": "tentacle",
           "damageType": "bludgeoning",
           "extraordinary": false
@@ -134,8 +134,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmMarshLurk00.acksmLrkTent0000"
     },
@@ -164,7 +164,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "naturalWeapon": "bite",
           "damageType": "piercing",
           "extraordinary": false
@@ -176,8 +176,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmMarshLurk00.acksmLrkBite0000"
     },
@@ -201,7 +201,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "abilityCategory": "grabRestrain"
         }
       },
@@ -211,8 +211,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmMarshLurk00.acksmLrkGrab0000"
     },
@@ -235,7 +235,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "spoil": true,
           "component": true,
           "researchEffects": [
@@ -250,15 +250,15 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmMarshLurk00.acksmLrkIchor000"
     }
   ],
   "effects": [],
   "flags": {
-    "acks-monsters": {
+    "acks-extras": {
       "extras": {
         "types": [
           "monstrosity"
@@ -370,7 +370,7 @@
   },
   "_stats": {
     "coreVersion": "14",
-    "createdTime": 1785648830784,
-    "modifiedTime": 1785648830784
+    "createdTime": 1785649301251,
+    "modifiedTime": 1785649301251
   }
 }

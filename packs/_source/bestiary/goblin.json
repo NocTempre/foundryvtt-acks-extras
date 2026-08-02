@@ -122,7 +122,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "naturalWeapon": "weapon",
           "damageType": "piercing",
           "extraordinary": false
@@ -134,8 +134,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmGoblin00000.acksmGobSpear000"
     },
@@ -164,7 +164,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "naturalWeapon": "weapon",
           "damageType": "piercing",
           "extraordinary": false
@@ -176,8 +176,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmGoblin00000.acksmGobBow00000"
     },
@@ -206,8 +206,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmGoblin00000.acksmGobShield00"
     },
@@ -236,8 +236,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmGoblin00000.acksmGobRations0"
     },
@@ -260,7 +260,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "spoil": true,
           "component": false,
           "researchEffects": []
@@ -272,15 +272,15 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmGoblin00000.acksmGobEars0000"
     }
   ],
   "effects": [],
   "flags": {
-    "acks-monsters": {
+    "acks-extras": {
       "extras": {
         "types": [
           "humanoid"
@@ -377,7 +377,7 @@
         "variants": [
           {
             "label": "Goblin Chief",
-            "uuid": "Compendium.acks-monsters.bestiary.Actor.acksmGobChief000"
+            "uuid": "Compendium.acks-extras.bestiary.Actor.acksmGobChief000"
           }
         ],
         "description": {
@@ -401,7 +401,7 @@
   },
   "_stats": {
     "coreVersion": "14",
-    "createdTime": 1785648830784,
-    "modifiedTime": 1785648830784
+    "createdTime": 1785649301251,
+    "modifiedTime": 1785649301251
   }
 }

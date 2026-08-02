@@ -122,7 +122,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "naturalWeapon": "bite",
           "damageType": "piercing",
           "extraordinary": false
@@ -134,8 +134,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmGiantRat000.acksmRatBite0000"
     },
@@ -159,7 +159,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "abilityCategory": "disease"
         }
       },
@@ -169,8 +169,8 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmGiantRat000.acksmRatFever000"
     },
@@ -193,7 +193,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-monsters": {
+        "acks-extras": {
           "spoil": true,
           "component": false,
           "researchEffects": []
@@ -205,15 +205,15 @@
       "sort": 0,
       "_stats": {
         "coreVersion": "14",
-        "createdTime": 1785648830784,
-        "modifiedTime": 1785648830784
+        "createdTime": 1785649301251,
+        "modifiedTime": 1785649301251
       },
       "_key": "!actors.items!acksmGiantRat000.acksmRatPelt0000"
     }
   ],
   "effects": [],
   "flags": {
-    "acks-monsters": {
+    "acks-extras": {
       "extras": {
         "types": [
           "animal"
@@ -340,7 +340,7 @@
   },
   "_stats": {
     "coreVersion": "14",
-    "createdTime": 1785648830784,
-    "modifiedTime": 1785648830784
+    "createdTime": 1785649301251,
+    "modifiedTime": 1785649301251
   }
 }

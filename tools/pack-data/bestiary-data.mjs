@@ -19,7 +19,7 @@
  *   Marsh Lurker   — HD range (countMax), multi-tentacle attacks, aquatic senses
  */
 
-const MODULE_ID = "acks-monsters";
+const MODULE_ID = "acks-extras";
 const SV = 3; // acks CURRENT_SCHEMA_VERSION
 const now = Date.now();
 const STATS = { coreVersion: "14", createdTime: now, modifiedTime: now };
