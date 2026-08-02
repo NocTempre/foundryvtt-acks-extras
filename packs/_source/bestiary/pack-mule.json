@@ -3,7 +3,7 @@
   "_key": "!actors!acksmPackMule000",
   "name": "Pack Mule",
   "type": "monster",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "icons/environment/creatures/horse-brown.webp",
   "system": {
     "_schemaVersion": 3,
     "isNew": false,
@@ -311,6 +311,9 @@
     "disposition": -1,
     "sight": {
       "enabled": true
+    },
+    "texture": {
+      "src": "icons/environment/creatures/horse-brown.webp"
     }
   },
   "folder": null,

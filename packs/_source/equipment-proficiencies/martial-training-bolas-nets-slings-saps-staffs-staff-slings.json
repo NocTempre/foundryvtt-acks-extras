@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000021",
   "name": "Martial Training (Bolas, Nets, Slings, Saps, Staffs & Staff-Slings)",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/martial-training.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

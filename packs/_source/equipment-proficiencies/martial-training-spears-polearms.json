@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000020",
   "name": "Martial Training (Spears & Polearms)",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/martial-training.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000037",
   "name": "Berserkergang",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/berserkergang.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

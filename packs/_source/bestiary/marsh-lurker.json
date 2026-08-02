@@ -3,7 +3,7 @@
   "_key": "!actors!acksmMarshLurk00",
   "name": "Marsh Lurker",
   "type": "monster",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "icons/creatures/tentacles/tentacle-earth-green.webp",
   "system": {
     "_schemaVersion": 3,
     "isNew": false,
@@ -361,6 +361,9 @@
     "disposition": -1,
     "sight": {
       "enabled": true
+    },
+    "texture": {
+      "src": "icons/creatures/tentacles/tentacle-earth-green.webp"
     }
   },
   "folder": null,

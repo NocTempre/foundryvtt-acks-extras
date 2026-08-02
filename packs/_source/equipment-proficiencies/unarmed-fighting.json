@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000042",
   "name": "Unarmed Fighting",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/unarmed-fighting.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

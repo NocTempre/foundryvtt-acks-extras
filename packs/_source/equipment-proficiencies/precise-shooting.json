@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000013",
   "name": "Precise Shooting",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/precise-shooting.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

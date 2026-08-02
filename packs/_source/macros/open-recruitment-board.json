@@ -4,7 +4,7 @@
   "name": "Open Recruitment Board",
   "type": "script",
   "scope": "global",
-  "img": "icons/svg/tavern.svg",
+  "img": "icons/svg/tankard.svg",
   "command": "const locations = game.actors.filter((a) => a.type === \"acks-extras.location\");\nif (!locations.length) return ui.notifications.warn(\"Create a Location actor first.\");\n(locations.find((l) => l.testUserPermission(game.user, \"OBSERVER\")) ?? locations[0]).sheet.render(true);",
   "folder": "acks420ff1a0388a"
 }

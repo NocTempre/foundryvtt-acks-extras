@@ -3,7 +3,7 @@
   "_key": "!items!acksHm4d7fbced74",
   "name": "Diplomacy",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/diplomacy.webp",
   "system": {
     "description": "<p>Smooth-tongued and familiar with protocol: +1 to reaction rolls when parleying. Stacks with Mystic Aura, not with Intimidation or Seduction. (RR 108)</p>",
     "proficiencytype": "general",

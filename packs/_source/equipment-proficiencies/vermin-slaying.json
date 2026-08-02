@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000041",
   "name": "Vermin-Slaying",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/vermin-slaying.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

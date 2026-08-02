@@ -3,7 +3,7 @@
   "_key": "!actors!acksmSkeleton000",
   "name": "Skeleton",
   "type": "monster",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "icons/svg/skull.svg",
   "system": {
     "_schemaVersion": 3,
     "isNew": false,
@@ -276,6 +276,9 @@
     "disposition": -1,
     "sight": {
       "enabled": true
+    },
+    "texture": {
+      "src": "icons/svg/skull.svg"
     }
   },
   "folder": null,

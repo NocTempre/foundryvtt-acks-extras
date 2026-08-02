@@ -3,7 +3,7 @@
   "_key": "!actors!acksmGiantRat000",
   "name": "Giant Rat",
   "type": "monster",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "icons/creatures/mammals/rodent-rat-diseaed-gray.webp",
   "system": {
     "_schemaVersion": 3,
     "isNew": false,
@@ -331,6 +331,9 @@
     "disposition": -1,
     "sight": {
       "enabled": true
+    },
+    "texture": {
+      "src": "icons/creatures/mammals/rodent-rat-diseaed-gray.webp"
     }
   },
   "folder": null,

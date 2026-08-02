@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000038",
   "name": "Ambushing",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/ambushing.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

@@ -3,7 +3,7 @@
   "_key": "!items!acksHmbf7700e360",
   "name": "Seduction",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/seduction.webp",
   "system": {
     "description": "<p>Naturally alluring: +1 to reaction rolls with others potentially attracted to the character. Stacks with Mystic Aura, not with Diplomacy or Intimidation. (RR 118)</p>",
     "proficiencytype": "general",

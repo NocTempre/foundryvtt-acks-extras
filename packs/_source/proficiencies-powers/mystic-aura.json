@@ -3,7 +3,7 @@
   "_key": "!items!acksHme73abf8a18",
   "name": "Mystic Aura",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/mystic-aura.webp",
   "system": {
     "description": "<p>Projects magical presence: +1 to reaction rolls to impress and intimidate; on a total of 12+ subjects act as if bewitched while in the character's presence. (RR 115)</p>",
     "proficiencytype": "class",

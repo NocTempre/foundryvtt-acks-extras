@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000010",
   "name": "Weapon Focus (Bows & Crossbows)",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/weapon-focus.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

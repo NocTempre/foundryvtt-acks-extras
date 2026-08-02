@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000011",
   "name": "Weapon Focus (Slings & Thrown)",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/weapon-focus.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

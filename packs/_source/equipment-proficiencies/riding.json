@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000036",
   "name": "Riding",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/riding.webp",
   "system": {
     "proficiencytype": "general",
     "favorite": false,

@@ -3,7 +3,7 @@
   "_key": "!actors!acksmAshDrake000",
   "name": "Ash Drake",
   "type": "monster",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "icons/creatures/reptiles/dragon-horned-blue.webp",
   "system": {
     "_schemaVersion": 3,
     "isNew": false,
@@ -474,6 +474,9 @@
     "disposition": -1,
     "sight": {
       "enabled": true
+    },
+    "texture": {
+      "src": "icons/creatures/reptiles/dragon-horned-blue.webp"
     }
   },
   "folder": null,

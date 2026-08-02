@@ -3,7 +3,7 @@
   "_key": "!items!acksHm6d834e47d8",
   "name": "Beast Friendship",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/beast-friendship.webp",
   "system": {
     "description": "<p>Schooled in the natural world: identifies plants and fauna (11+), understands animal vocalizations, +2 to reaction rolls with normal animals, and can take animals as henchmen. With Friend of Birds and Beasts: +1 henchman limit while at least one henchman is an animal. (RR 106)</p>",
     "proficiencytype": "class",

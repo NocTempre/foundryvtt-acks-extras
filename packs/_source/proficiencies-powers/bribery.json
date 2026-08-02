@@ -3,7 +3,7 @@
   "_key": "!items!acksHmcd08402a85",
   "name": "Bribery",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/bribery.webp",
   "system": {
     "description": "<p>Skilled at bribing with gifts: +1 to reaction rolls when offering one day's pay, +2 for a week's, +3 for a month's — politely deniable by both parties. The recruit dialog prices signing-bonus tiers on the cheaper Bribery scale when this item is present. (RR 107)</p>",
     "proficiencytype": "general",

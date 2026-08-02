@@ -4,7 +4,7 @@
   "name": "Post Recruitment Notice",
   "type": "script",
   "scope": "global",
-  "img": "icons/svg/scroll.svg",
+  "img": "icons/sundries/scrolls/scroll-bound-black-brown.webp",
   "command": "const locations = game.actors.filter((a) => a.type === \"acks-extras.location\");\nif (!locations.length) return ui.notifications.warn(\"Create a Location actor first.\");\nacksExtras.henchmen.openPostingDialog(locations[0]);",
   "folder": "acks420ff1a0388a"
 }

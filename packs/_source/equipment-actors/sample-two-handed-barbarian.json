@@ -170,7 +170,7 @@
       "_key": "!actors.items!acksEqActor00002.acksEqAG00000103",
       "name": "Two-Handed Sword",
       "type": "weapon",
-      "img": "icons/weapons/swords/sword-guard-steel.webp",
+      "img": "icons/weapons/swords/sword-guard-steel-green.webp",
       "system": {
         "_schemaVersion": 3,
         "damage": "1d10",
@@ -233,7 +233,10 @@
   "effects": [],
   "prototypeToken": {
     "name": "Sample: Two-Handed Barbarian",
-    "actorLink": false
+    "actorLink": false,
+    "texture": {
+      "src": "icons/environment/people/commoner.webp"
+    }
   },
   "flags": {
     "acks-extras": {

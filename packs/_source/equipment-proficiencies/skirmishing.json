@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000014",
   "name": "Skirmishing",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/skirmishing.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

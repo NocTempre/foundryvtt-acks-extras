@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000032",
   "name": "Running",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/running.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,
@@ -13,7 +13,7 @@
     "rollType": "above",
     "rollTarget": 0,
     "blindroll": false,
-    "description": "<p>Base speed +30' when wearing ≤ medium armour and carrying ≤ 7 stone. <em>Speed is applied by movement modules (e.g. acks-formation); this module only publishes the marker.</em></p>",
+    "description": "<p>Base speed +30' when wearing ≤ medium armour and carrying ≤ 7 stone. <em>Speed is applied by the formation feature's movement engine; equipment only publishes the marker.</em></p>",
     "save": "",
     "_schemaVersion": 3
   },

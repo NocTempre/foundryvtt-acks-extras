@@ -170,7 +170,7 @@
       "_key": "!actors.items!acksEqActor00003.acksEqAG00000203",
       "name": "Short Sword",
       "type": "weapon",
-      "img": "icons/weapons/swords/sword-guard-steel.webp",
+      "img": "icons/weapons/swords/sword-guard-steel-green.webp",
       "system": {
         "_schemaVersion": 3,
         "damage": "1d6",
@@ -202,7 +202,7 @@
       "_key": "!actors.items!acksEqActor00003.acksEqAG00000204",
       "name": "Dagger",
       "type": "weapon",
-      "img": "icons/weapons/swords/sword-guard-steel.webp",
+      "img": "icons/weapons/swords/sword-guard-steel-green.webp",
       "system": {
         "_schemaVersion": 3,
         "damage": "1d4",
@@ -265,7 +265,10 @@
   "effects": [],
   "prototypeToken": {
     "name": "Sample: Dual-Wield Thief",
-    "actorLink": false
+    "actorLink": false,
+    "texture": {
+      "src": "icons/environment/people/commoner.webp"
+    }
   },
   "flags": {
     "acks-extras": {

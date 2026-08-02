@@ -3,7 +3,7 @@
   "_key": "!items!acksEqProf000007",
   "name": "Weapon Focus (Axes)",
   "type": "ability",
-  "img": "icons/svg/book.svg",
+  "img": "systems/acks/assets/icons/weapon-focus.webp",
   "system": {
     "proficiencytype": "class",
     "favorite": false,

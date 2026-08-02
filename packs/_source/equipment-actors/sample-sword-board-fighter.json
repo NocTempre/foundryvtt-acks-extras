@@ -111,7 +111,7 @@
       "_key": "!actors.items!acksEqActor00001.acksEqAG00000002",
       "name": "Sword",
       "type": "weapon",
-      "img": "icons/weapons/swords/sword-guard-steel.webp",
+      "img": "icons/weapons/swords/sword-guard-steel-green.webp",
       "system": {
         "_schemaVersion": 3,
         "damage": "1d6",
@@ -206,7 +206,10 @@
   "effects": [],
   "prototypeToken": {
     "name": "Sample: Sword & Board Fighter",
-    "actorLink": false
+    "actorLink": false,
+    "texture": {
+      "src": "icons/environment/people/commoner.webp"
+    }
   },
   "flags": {
     "acks-extras": {
