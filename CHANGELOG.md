@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
-Post-merge cleanup pass.
+Post-merge cleanup pass (2026-08-02).
 
 ### Fixed
 
