@@ -5,7 +5,7 @@ effect/ability vocabulary** the abilities program needs, the scoping
 primitives the social rolls need (v0.6), and — pulled forward by the table
 extraction program (template docs/CONTENT-EXTRACTION.md) — the **layered
 tables registry, the service-contract registry, and the ruledata loader**
-(v0.7). Still *not* here from [FAMILY.md](../../acks-module-template/docs/FAMILY.md)
+(v0.7). Still *not* here from [FAMILY.md](https://github.com/NocTempre/acks-module-template/blob/main/docs/FAMILY.md)
 §3: the socket relay and sheet helpers (Phase 1 backlog); §3c's
 `economy.json` is **superseded** — no book-read value ships in the lib.
 `library: true`, `socket: false`, requires only the `acks` system.
