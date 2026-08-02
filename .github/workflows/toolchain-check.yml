@@ -1,0 +1,34 @@
+name: Toolchain check
+
+# Fails when this module's canonical toolchain files drift from
+# acks-module-template. Fix by syncing (never by hand-editing the files):
+#   node C:\Proj\acks-module-template\bin\sync-toolchain.mjs --apply
+# (or the /acks-sync-toolchain skill). Synced from acks-module-template.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout module
+        uses: actions/checkout@v4
+
+      - name: Checkout toolchain template
+        uses: actions/checkout@v4
+        with:
+          repository: NocTempre/acks-module-template
+          path: .toolchain-template
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check canonical files match the template
+        run: node .toolchain-template/bin/sync-toolchain.mjs --check --repo-path "$GITHUB_WORKSPACE"
