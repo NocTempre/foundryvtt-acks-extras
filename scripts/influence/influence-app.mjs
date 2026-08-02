@@ -431,7 +431,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         this.#attitudeItem = created?.[0] ?? null;
       }
       // Consumer-module event: the stored relationship changed.
-      Hooks.callAll("acksInfluenceAttitudeChanged", {
+      Hooks.callAll("acksExtras.influenceAttitudeChanged", {
         actor: this.#actor,
         target: this.#targetActor,
         attitude: newIndex,
@@ -1062,7 +1062,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       flags: { [MODULE_ID]: { mode: this.#modeId, outcome, rollResult: result } },
     });
 
-    Hooks.callAll("acksInfluenceRollComplete", {
+    Hooks.callAll("acksExtras.influenceRollComplete", {
       actor: this.#actor,
       target: this.#targetActor,
       mode: this.#modeId,
@@ -1185,7 +1185,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     this.#recalculate();
 
     // Consumer-module event (acks-henchmen etc.): the full resolved roll.
-    Hooks.callAll("acksInfluenceRollComplete", {
+    Hooks.callAll("acksExtras.influenceRollComplete", {
       actor: this.#actor,
       target: this.#targetActor,
       tone,

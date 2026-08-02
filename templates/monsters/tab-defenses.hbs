@@ -7,7 +7,7 @@
         <label>{{localize "ACKS-MONSTERS.field.dmgTypes"}}</label>
         <multi-checkbox name="{{x}}.defenses.immunities.damage" class="acksm-chips">
           {{#each choices.damage as |label key|}}
-          <option value="{{key}}" {{#if (acksMonstersHas @root.selected.immDamage key)}}selected{{/if}}>{{localize label}}</option>
+          <option value="{{key}}" {{#if (acksExtrasHas @root.selected.immDamage key)}}selected{{/if}}>{{localize label}}</option>
           {{/each}}
         </multi-checkbox>
       </div>
@@ -29,7 +29,7 @@
         <label>{{localize "ACKS-MONSTERS.field.dmgTypes"}}</label>
         <multi-checkbox name="{{x}}.defenses.resistances.damage" class="acksm-chips">
           {{#each choices.damage as |label key|}}
-          <option value="{{key}}" {{#if (acksMonstersHas @root.selected.resDamage key)}}selected{{/if}}>{{localize label}}</option>
+          <option value="{{key}}" {{#if (acksExtrasHas @root.selected.resDamage key)}}selected{{/if}}>{{localize label}}</option>
           {{/each}}
         </multi-checkbox>
       </div>
@@ -51,7 +51,7 @@
         <label>{{localize "ACKS-MONSTERS.field.dmgTypes"}}</label>
         <multi-checkbox name="{{x}}.defenses.susceptibilities.damage" class="acksm-chips">
           {{#each choices.damage as |label key|}}
-          <option value="{{key}}" {{#if (acksMonstersHas @root.selected.susDamage key)}}selected{{/if}}>{{localize label}}</option>
+          <option value="{{key}}" {{#if (acksExtrasHas @root.selected.susDamage key)}}selected{{/if}}>{{localize label}}</option>
           {{/each}}
         </multi-checkbox>
       </div>

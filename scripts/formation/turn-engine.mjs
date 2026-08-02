@@ -683,9 +683,9 @@ export async function toggleShield(formation, lightId) {
 function lightChanged(bearerId, light, state) {
   try {
     const bearer = game.actors.get(bearerId) ?? null;
-    Hooks.callAll("acksFormation.lightChanged", bearer, { bearerId, light, state });
+    Hooks.callAll("acksExtras.lightChanged", bearer, { bearerId, light, state });
   } catch (err) {
-    console.error(`${MODULE_ID} | acksFormation.lightChanged listener failed`, err);
+    console.error(`${MODULE_ID} | acksExtras.lightChanged listener failed`, err);
   }
 }
 

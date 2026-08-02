@@ -78,21 +78,24 @@ the alternative made one typo silently non-proficient with everything.
 
 ## 4. Public API & hooks
 
-`game.modules.get("acks-equipment").api` (mirror `globalThis.acksEquipment`):
-`getLoadout(actor)`, `handBudget`, `trainedStyles`, `specializedStyles`,
-`classifyWeapon`, `handCost`, `focusGroup`, `weaponKey`, `annotateItem(item)`,
-`refreshLoadout(actor)`, the effect collectors, `config`, `HOOKS`, `VIOLATION`.
+`game.modules.get("acks-extras").api.equipment` (mirror
+`globalThis.acksExtras.equipment`): `getLoadout(actor)`, `handBudget`,
+`trainedStyles`, `specializedStyles`, `classifyWeapon`, `handCost`,
+`focusGroup`, `weaponKey`, `annotateItem(item)`, `refreshLoadout(actor)`, the
+effect collectors, `config`, `HOOKS`, `VIOLATION`.
 
-Hooks fired — prefixed with the camelCase namespace `acksEquipment` per
+Hooks fired — prefixed with the camelCase namespace `acksExtras` per
 acks-module-template `docs/TOOLCHAIN.md` §5b (shared registries carry the module
-key): `acksEquipment.loadoutChanged (actor, loadout)`,
-`acksEquipment.equipBlocked (actor, item, {reason, resolution})`,
-`acksEquipment.purchased (actor, item, cost)`, and
-`acksEquipment.preRollAttack (actor, item, mods, ctx)` — our own pre-roll hook,
-and the shape proposed for a future core `acks.preRollAttack`.
+key): `acksExtras.loadoutChanged (actor, loadout)`,
+`acksExtras.equipBlocked (actor, item, {reason, resolution})`,
+`acksExtras.purchased (actor, item, cost)`,
+`acksExtras.preRollAttack (actor, item, mods, ctx)` — our own pre-roll hook,
+and the shape proposed for a future core `acks.preRollAttack` — plus
+`acksExtras.lockPicked (actor, container)` and
+`acksExtras.containerBashed (actor, container, {fragile})`.
 
-Pack document `_id`s carry the short key `acksEq`, declared in `module.json` at
-`flags.acks-equipment.idPrefix` (validator enforces it once declared).
+Pack document `_id`s carry the prefix declared in `module.json` at
+`flags.acks-extras.idPrefix` (validator enforces it once declared).
 
 ## 5. Boundaries with sibling modules (in force)
 

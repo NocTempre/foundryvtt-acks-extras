@@ -63,20 +63,23 @@ export const EFFECT_DOMAINS = Object.freeze({
 /** acks-influence Active Effect reaction key, honored on hiring rolls. */
 export const INFLUENCE_REACTION_KEY = "flags.acks-extras.reaction";
 
-/** Custom hooks fired by this module. */
+/** camelCased module id — the namespace custom hooks fire under (TOOLCHAIN §5b). */
+const NAMESPACE = MODULE_ID.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()); // "acksExtras"
+
+/** Custom hooks fired by this feature. */
 export const HOOKS = Object.freeze({
-  POSTING_CREATED: `${MODULE_ID}.postingCreated`,
-  CANDIDATES_ARRIVED: `${MODULE_ID}.candidatesArrived`,
-  CANDIDATE_ROLLED: `${MODULE_ID}.candidateRolled`,
-  HIRING_OUTCOME: `${MODULE_ID}.hiringOutcome`,
-  HIRED: `${MODULE_ID}.hired`,
-  LOYALTY_EVENT: `${MODULE_ID}.loyaltyEvent`,
-  LOYALTY_ROLLED: `${MODULE_ID}.loyaltyRolled`,
-  CALAMITY: `${MODULE_ID}.calamity`,
-  WAGES_PAID: `${MODULE_ID}.wagesPaid`,
-  WAGES_MISSED: `${MODULE_ID}.wagesMissed`,
-  ROSTER_CHANGED: `${MODULE_ID}.rosterChanged`,
-  SLANDER_CHANGED: `${MODULE_ID}.slanderChanged`,
+  POSTING_CREATED: `${NAMESPACE}.postingCreated`,
+  CANDIDATES_ARRIVED: `${NAMESPACE}.candidatesArrived`,
+  CANDIDATE_ROLLED: `${NAMESPACE}.candidateRolled`,
+  HIRING_OUTCOME: `${NAMESPACE}.hiringOutcome`,
+  HIRED: `${NAMESPACE}.hired`,
+  LOYALTY_EVENT: `${NAMESPACE}.loyaltyEvent`,
+  LOYALTY_ROLLED: `${NAMESPACE}.loyaltyRolled`,
+  CALAMITY: `${NAMESPACE}.calamity`,
+  WAGES_PAID: `${NAMESPACE}.wagesPaid`,
+  WAGES_MISSED: `${NAMESPACE}.wagesMissed`,
+  ROSTER_CHANGED: `${NAMESPACE}.rosterChanged`,
+  SLANDER_CHANGED: `${NAMESPACE}.slanderChanged`,
 });
 
 /** Seconds per day/week for worldTime math (month length is a setting). */

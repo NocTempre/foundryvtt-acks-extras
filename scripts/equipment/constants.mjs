@@ -140,13 +140,14 @@ export const ENFORCE = Object.freeze({ RESOLVE: "resolve", VETO: "veto", ADVISOR
  * Handlebars helpers) — the module id camelCased, per acks-module-template
  * docs/TOOLCHAIN.md §5b. Derived, never declared.
  */
-export const NAMESPACE = MODULE_ID.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()); // "acksEquipment"
+export const NAMESPACE = MODULE_ID.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()); // "acksExtras"
 
 /**
- * Custom hooks this module fires (consumable by sibling modules).
- * Named `acksEquipment.*` per the namespacing rule — note the validator's
- * static check only catches string literals passed to Hooks.call/callAll, so
- * these constants are on the honour system: keep the NAMESPACE prefix.
+ * Custom hooks this feature fires (consumable by sibling features and other
+ * modules). Named `acksExtras.*` per the namespacing rule — note the
+ * validator's static check only catches string literals passed to
+ * Hooks.call/callAll, so these constants are on the honour system: keep the
+ * NAMESPACE prefix.
  */
 export const HOOKS = Object.freeze({
   LOADOUT_CHANGED: `${NAMESPACE}.loadoutChanged`, // (actor, loadout)

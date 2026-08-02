@@ -46,7 +46,7 @@ The `acks-influence.attitude` Item implements the edge.
   `.tab[data-tab="notes"]` DOM; the host lookup is hardened with fallback
   selectors and warns once (instead of silently dropping the section) if the
   core sheet's DOM shape ever changes — edges are still created either way.
-- **Consumer hook** `acksInfluenceAttitudeChanged` fires on every change.
+- **Consumer hook** `acksExtras.influenceAttitudeChanged` fires on every change.
 
 ---
 
@@ -150,7 +150,7 @@ family rule: v14-verified or out):
    Items on the influencer, slander subjects on the location). The map module
    receives a *projection* — nodes and edges generated from our stores — and
    is never the source of truth. `HOOKS.SLANDER_CHANGED` and
-   `acksInfluenceAttitudeChanged` already exist to drive incremental refresh.
+   `acksExtras.influenceAttitudeChanged` already exist to drive incremental refresh.
 2. **Soft integration**, like the influence integration: guarded behind
    `game.modules.get(id)?.active`, zero hard dependency, everything degrades
    to today's ledger/section UI.

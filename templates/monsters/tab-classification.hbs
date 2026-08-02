@@ -7,7 +7,7 @@
         <label>{{localize "ACKS-MONSTERS.field.types"}}</label>
         <multi-checkbox name="{{x}}.types" class="acksm-chips">
           {{#each choices.types as |label key|}}
-          <option value="{{key}}" {{#if (acksMonstersHas @root.selected.types key)}}selected{{/if}}>{{localize label}}</option>
+          <option value="{{key}}" {{#if (acksExtrasHas @root.selected.types key)}}selected{{/if}}>{{localize label}}</option>
           {{/each}}
         </multi-checkbox>
       </div>
@@ -87,7 +87,7 @@
         <label>{{localize "ACKS-MONSTERS.field.vision"}}</label>
         <multi-checkbox name="{{x}}.vision" class="acksm-chips">
           {{#each choices.vision as |label key|}}
-          <option value="{{key}}" {{#if (acksMonstersHas @root.selected.vision key)}}selected{{/if}}>{{localize label}}</option>
+          <option value="{{key}}" {{#if (acksExtrasHas @root.selected.vision key)}}selected{{/if}}>{{localize label}}</option>
           {{/each}}
         </multi-checkbox>
       </div>

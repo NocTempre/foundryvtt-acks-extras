@@ -1017,7 +1017,7 @@ await scenario("turn + light state survive the equipment feedback loop", async (
   const equipmentListener = (actor) => {
     if (actor) actor.update({ "system.loadoutStamp": (actor.system.loadoutStamp ?? 0) + 1 });
   };
-  Hooks.on("acksFormation.lightChanged", equipmentListener);
+  Hooks.on("acksExtras.lightChanged", equipmentListener);
   try {
     const before = onlyFormation();
     const turnsBefore = before.clock.turnsTotal;
@@ -1030,7 +1030,7 @@ await scenario("turn + light state survive the equipment feedback loop", async (
     assert.equal(after.clock.turnsTotal, turnsBefore + 1, "turn clock advanced AND STAYED advanced");
     assert.equal(after.lights[0].remaining, remainingBefore - 1, "light burn-down persisted");
   } finally {
-    const arr = hooks.get("acksFormation.lightChanged") ?? [];
+    const arr = hooks.get("acksExtras.lightChanged") ?? [];
     const i = arr.indexOf(equipmentListener);
     if (i >= 0) arr.splice(i, 1);
   }
@@ -1189,7 +1189,7 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
   const equipmentListener = (actor) => {
     if (actor) actor.update({ "system.loadoutStamp": (actor.system.loadoutStamp ?? 0) + 1 });
   };
-  Hooks.on("acksFormation.lightChanged", equipmentListener);
+  Hooks.on("acksExtras.lightChanged", equipmentListener);
   try {
     await engine.addLight(model.getFormation(id), "torch", bearer.id);
     await drain();
@@ -1206,7 +1206,7 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
     console.log(`      [probe] party token light = ${partyToken.light.bright}/${partyToken.light.dim}`);
     assert.ok(partyToken.light.bright > 0, "the party token actually emits light");
   } finally {
-    const arr = hooks.get("acksFormation.lightChanged") ?? [];
+    const arr = hooks.get("acksExtras.lightChanged") ?? [];
     const i = arr.indexOf(equipmentListener);
     if (i >= 0) arr.splice(i, 1);
     delete globalThis.acksExtras.equipment;

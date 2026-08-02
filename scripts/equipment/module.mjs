@@ -68,11 +68,10 @@ Hooks.once("ready", async () => {
     console.error(`${MODULE_ID} | equipment item sheet failed to register; core's item sheet stands`, err);
   }
 
-  // A held light occupies a hand: when acks-formation lights/douses/burns out a
-  // source, recompute that bearer's loadout so hands-used reflects it. The read
-  // half is loadout.heldLightHands; this keeps it live. Optional — the hook
-  // simply never fires without acks-formation.
-  Hooks.on("acksFormation.lightChanged", (actor) => {
+  // A held light occupies a hand: when the formation feature lights/douses/
+  // burns out a source, recompute that bearer's loadout so hands-used reflects
+  // it. The read half is loadout.heldLightHands; this keeps it live.
+  Hooks.on("acksExtras.lightChanged", (actor) => {
     if (actor?.type === "character" && actor.isOwner) {
       refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | light-change loadout sync failed`, err));
     }

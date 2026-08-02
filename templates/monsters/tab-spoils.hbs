@@ -16,7 +16,7 @@
           <div class="item-row">
             <div class="item__icon" data-action="itemShow"><img src="{{item.img}}" alt="{{item.name}}" class="item__image"/></div>
             <div class="item__text"><a data-action="toggleSummary">{{item.name}}</a></div>
-            <div class="acksm-inv-meta">{{acksMonstersVal item.system.weight6 0}}/6 st · {{acksMonstersVal item.system.cost 0}} gp</div>
+            <div class="acksm-inv-meta">{{acksExtrasVal item.system.weight6 0}}/6 st · {{acksExtrasVal item.system.cost 0}} gp</div>
             {{#with item.flags.[acks-monsters] as |mf|}}
               {{#if mf.component}}<div class="acksm-cat-tag">{{localize "ACKS-MONSTERS.item.componentShort"}}</div>{{/if}}
               {{#each mf.researchEffects as |eff|}}<div class="acksm-dmg-tag">{{eff}}</div>{{/each}}

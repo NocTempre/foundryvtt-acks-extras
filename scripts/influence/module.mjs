@@ -89,8 +89,8 @@ Hooks.once("init", () => {
     getEffectReactionMods,
     // Custom hooks fired (camelCase module namespace — TOOLCHAIN §5b):
     hooks: {
-      rollComplete: "acksInfluenceRollComplete",
-      attitudeChanged: "acksInfluenceAttitudeChanged",
+      rollComplete: "acksExtras.influenceRollComplete",
+      attitudeChanged: "acksExtras.influenceAttitudeChanged",
     },
   };
   const module = game.modules.get(MODULE_ID);

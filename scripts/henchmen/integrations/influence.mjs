@@ -127,7 +127,7 @@ const _seenResolutions = new Map();
 export function registerInfluenceIntegration() {
   if (!game.modules.get(INFLUENCE_ID)?.active) return;
 
-  Hooks.on("acksInfluenceRollComplete", async (payload) => {
+  Hooks.on("acksExtras.influenceRollComplete", async (payload) => {
     try {
       const context = payload?.context;
       // --- Our hosted pages: apply the consequences ---
@@ -199,7 +199,7 @@ export function registerInfluenceIntegration() {
         outcome: payload.band ?? payload.outcome ?? "",
       });
     } catch (err) {
-      console.warn(`${MODULE_ID} | acksInfluenceRollComplete handling failed`, err);
+      console.warn(`${MODULE_ID} | acksExtras.influenceRollComplete handling failed`, err);
     }
   });
   console.log(`${MODULE_ID} | acks-influence integration active (hostsModes: ${hostsModes()})`);

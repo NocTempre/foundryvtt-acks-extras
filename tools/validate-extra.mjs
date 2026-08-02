@@ -41,6 +41,9 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
  * rewrite miss that shipped an inert compendium was `"flags.acks-henchmen"` —
  * scope only, no trailing key — and a dot-anchored pattern cannot see it. */
 const OLD = /"acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)"|\bglobalThis\.acks(Lib|Abilities|Equipment|Formation|Henchmen|Influence|Location|Monsters)\b|flags\.acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)\b/;
+/* Hook and helper names retired when everything moved under acksExtras.* —
+ * firing OR listening under one of these is a silent no-op for the other side. */
+const RETIRED = /\backsFormation\.|\backsInfluence(RollComplete|AttitudeChanged)\b|\backsMonsters(Val|Has)\b|\backsEquipment(LockPicked|ContainerBashed)\b/;
 /* Two files name the old ids as DATA and must not be flagged: this one, and the
  * cleaner macro whose entire job is finding what those modules left behind. */
 const NAMES_OLD_IDS_BY_DESIGN = new Set(["tools/validate-extra.mjs", "tools/pack-data/cleanup.mjs"]);
@@ -53,6 +56,10 @@ for (const f of [...walk(path.join(ROOT, "scripts")), ...walk(path.join(ROOT, "t
     if (OLD.test(line)) {
       stale++;
       fail(`${rel(f)}:${i + 1} still references a pre-merge module id — ${line.trim().slice(0, 90)}`);
+    }
+    if (RETIRED.test(line)) {
+      stale++;
+      fail(`${rel(f)}:${i + 1} uses a retired hook/helper name (now acksExtras.*) — ${line.trim().slice(0, 90)}`);
     }
   });
 }
