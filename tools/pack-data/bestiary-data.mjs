@@ -21,8 +21,10 @@
 
 const MODULE_ID = "acks-extras";
 const SV = 3; // acks CURRENT_SCHEMA_VERSION
-const now = Date.now();
-const STATS = { coreVersion: "14", createdTime: now, modifiedTime: now };
+// FIXED timestamps — Date.now() here makes every rebuild churn packs/_source
+// and the compiled packs (same contract as the other pack-data modules).
+const FIXED_TIME = 1785649301251;
+const STATS = { coreVersion: "14", createdTime: FIXED_TIME, modifiedTime: FIXED_TIME };
 const uuid = (id) => `Compendium.${MODULE_ID}.bestiary.Actor.${id}`;
 
 /* -------------------------------------------- */

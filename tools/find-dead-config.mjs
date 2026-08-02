@@ -22,22 +22,32 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = process.argv[2] ?? ".";
-const CONFIG = path.join(ROOT, "scripts", "config.mjs");
-if (!fs.existsSync(CONFIG)) {
-  console.log(`no scripts/config.mjs under ${ROOT}`);
+// One config per feature since the merge: scripts/<feature>/config.mjs.
+const scriptsDir = path.join(ROOT, "scripts");
+const CONFIGS = fs.existsSync(scriptsDir)
+  ? fs
+      .readdirSync(scriptsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => path.join(scriptsDir, e.name, "config.mjs"))
+      .filter((f) => fs.existsSync(f))
+  : [];
+if (!CONFIGS.length) {
+  console.log(`no scripts/*/config.mjs under ${ROOT}`);
   process.exit(0);
 }
-
-const cfg = fs.readFileSync(CONFIG, "utf8");
 
 // Value-object properties: a `name:` that sits INSIDE braces on a line that
 // also opens a `{`. i.e. lines shaped `key: { a: 1, b: 2 },`
 const declared = new Map(); // prop -> example line
-for (const line of cfg.split("\n")) {
-  const body = line.slice(line.indexOf("{") + 1);
-  if (!line.includes("{") || !line.includes(":")) continue;
-  for (const m of body.matchAll(/([a-zA-Z][a-zA-Z0-9_]*)\s*:/g)) {
-    if (!declared.has(m[1])) declared.set(m[1], line.trim().slice(0, 110));
+for (const CONFIG of CONFIGS) {
+  const cfg = fs.readFileSync(CONFIG, "utf8");
+  const rel = path.relative(ROOT, CONFIG);
+  for (const line of cfg.split("\n")) {
+    const body = line.slice(line.indexOf("{") + 1);
+    if (!line.includes("{") || !line.includes(":")) continue;
+    for (const m of body.matchAll(/([a-zA-Z][a-zA-Z0-9_]*)\s*:/g)) {
+      if (!declared.has(m[1])) declared.set(m[1], `${rel}: ${line.trim()}`.slice(0, 110));
+    }
   }
 }
 
@@ -48,7 +58,7 @@ const walk = (dir) => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const f = path.join(dir, e.name);
     if (e.isDirectory()) walk(f);
-    else if (f.endsWith(".mjs") && path.resolve(f) !== path.resolve(CONFIG)) {
+    else if (f.endsWith(".mjs") && !CONFIGS.some((c) => path.resolve(f) === path.resolve(c))) {
       sources.push([f, fs.readFileSync(f, "utf8")]);
     }
   }

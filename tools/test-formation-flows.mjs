@@ -42,6 +42,9 @@ globalThis.Hooks = {
       }
     }
   },
+  callAll(name, ...args) {
+    return this.call(name, ...args);
+  },
 };
 
 class Coll extends Map {

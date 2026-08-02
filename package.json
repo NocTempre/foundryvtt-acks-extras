@@ -1,6 +1,6 @@
 {
   "name": "acks-extras",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Dev tooling for the ACKS II — Extras Foundry module. Not loaded by Foundry at runtime.",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "build:packs": "node tools/build-packs.mjs",
     "validate": "node tools/validate.mjs",
     "prepare": "git config core.hooksPath .githooks",
-    "test": "node tools/test-lib.mjs && node tools/test-equipment.mjs",
+    "test": "node tools/test-lib.mjs && node tools/test-equipment.mjs && node tools/test-formation-flows.mjs",
     "find:dead-config": "node tools/find-dead-config.mjs"
   },
   "devDependencies": {
