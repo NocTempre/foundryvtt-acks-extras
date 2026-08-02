@@ -20,20 +20,20 @@
  * convention (`flags.acks-extras.reaction` + its `situational`/`tone`/`label`
  * flags), so reaction-granting effects written for it feed hiring here.
  *
- * Fallback (decision K / graceful degradation): items named like the classic
- * book proficiencies with NO effect changes in this feature's domains are
- * recovered via config.NAME_FALLBACKS name regexes.
+ * GRACEFUL DEGRADATION: items named like the classic book proficiencies that
+ * carry NO effect changes in this feature's domains are still recovered, via
+ * the name regexes in config.NAME_FALLBACKS — so a world that never set up
+ * effects still gets the common cases.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS, INFLUENCE_REACTION_KEY, MODULE_ID } from "./constants.mjs";
 import { NAME_FALLBACKS } from "./config.mjs";
 import { appliedEffects, localizeKey as localize, makeEffectMeta, activeNumericChanges, csvFlagSet, sumModifiers } from "../lib/effect-scan.mjs";
 
 /**
- * The exact set of change keys this feature speaks. Membership, not a prefix
- * test: every feature's flags now share one scope, so `startsWith(EFFECT_PREFIX)`
- * would also match equipment's domains — and even before the merge it matched
- * plain item flags like `flags.acks-extras.record`, which are not effect
- * domains at all.
+ * The exact set of change keys this feature speaks. Membership, NOT a prefix
+ * test: sibling features share the flag scope, so `startsWith(EFFECT_PREFIX)`
+ * matches their domains too, and also plain item flags like
+ * `flags.acks-extras.record` that are not effect domains at all.
  */
 const OWN_CHANGE_KEYS = new Set(Object.values(EFFECT_DOMAINS).map((d) => `${EFFECT_PREFIX}${d}`));
 

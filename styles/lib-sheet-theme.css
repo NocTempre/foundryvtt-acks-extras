@@ -6,16 +6,13 @@
  * which both keeps the theme opt-out and out-specifies the system rules it
  * overrides.
  *
- * IT DECLARES NO PALETTE. Every colour comes from the vendored design-system
- * tokens (vendor/acks-design/tokens.css), which module.json loads before this
- * file: one publisher at `:root`, one dark block at `.theme-dark`. Until
- * 2026-08-01 this file pinned its own copies of ~18 tokens at body-class
- * specificity; that made it a SECOND publisher that out-specified the token
- * file's dark block, and every other layer grew defenses (the vendor's
- * `.acks-ui` isolation shim, the follower card's private palette) that still
- * rendered four different cards across sheet-theme × seat combinations. The
- * measurement history lives in acks-design docs/EXTRACTION.md; the decision
- * record is docs/MODEL.md § "One token publisher".
+ * IT DECLARES NO PALETTE, and must not start. Every colour comes from the
+ * vendored design-system tokens (vendor/acks-design/tokens.css), which
+ * module.json loads before this file: one publisher at `:root`, one dark block
+ * at `.theme-dark`. Pinning token copies here — at body-class specificity —
+ * makes this a second publisher that out-specifies the token file's dark block,
+ * and every dependent layer then grows counter-defences of its own.
+ * See docs/lib/DECISIONS.md § "One token publisher".
  *
  * The two roles of the spot colour still matter in every rule here:
  *   --acks-burgundy  SURFACE — bands, fills; things white text sits ON.

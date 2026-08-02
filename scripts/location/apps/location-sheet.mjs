@@ -2,13 +2,9 @@
 /**
  * LocationSheet — ActorSheetV2 for the `acks-extras.location` sub-type.
  *
- * A place: both the market that recruits people there and the goods kept there.
- * Those were two sheets in two modules, each registering its own `location`
- * Actor sub-type, and only the module id told them apart — so merging the
- * modules made them one sub-type with two sheets fighting over it. This is the
- * union, and `docs/location/MODEL.md` (2026-07-19) already named this feature
- * the owner; the only thing that had blocked the move was a data migration the
- * merge does not need.
+ * A place: what it is, what it holds, what it sits inside — and, where there is
+ * one, the market that recruits people there. This feature owns the sub-type and
+ * this is its only sheet.
  *
  * MARKET tabs: settings + demographics, THE MARKET (the location's shared
  * monthly pools — availability belongs to the town, RR 162), paid searches
@@ -46,12 +42,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
  * ACKS-HENCHMEN.* inline. Both roots live in the one merged lang file. */
 const loc = makeLoc(LANG_PREFIX);
 
-/**
- * The tabs that exist only where there is a market. Markets are opt-in per
- * place (owner's ruling, 2026-08-02): the overwhelming majority of places — a
- * cave, a cellar, a wagon, a chest — have no recruitment board, and four empty
- * tabs on every one of them was the UI saying otherwise.
- */
+/** The tabs that exist only where there is a market. */
 const MARKET_TABS = ["recruitment", "henchmen", "mercenaries", "specialists"];
 
 /**
@@ -132,7 +123,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     body: { template: `modules/${MODULE_ID}/templates/location/location-sheet.hbs` },
   };
 
-  /** Sheet tabs (user direction 2026-07-22: tabs, not one long page). */
+  /** Sheet tabs. A place accumulates unrelated concerns; one scrolling page
+   *  made the market's absence read as a defect rather than the norm. */
   static TABS = {
     primary: {
       tabs: [
@@ -145,9 +137,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         { id: "gmSettings", icon: "fas fa-gears" },
         { id: "gmView", icon: "fas fa-eye" },
       ],
-      // Contents, not Recruitment: what is in a place and what it is inside of
-      // are true of every place, and since 2026-08-02 the market is the
-      // exception rather than the rule.
+      // Contents, not Recruitment: what a place holds and what it sits inside
+      // are true of every place; a market is not.
       initial: "contents",
       // Every tab label resolves under one prefix, so the storage tab's label
       // is ACKS-HENCHMEN.location.tab.storage even though the storage half was
@@ -192,8 +183,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // without waiting on a GM click; the clock itself is the GM's.
     context.canProcess = game.user.isGM || actor.testUserPermission(game.user, "OWNER");
 
-    // A place is its identity, its nesting and its contents FIRST; the market
-    // is a specialisation most places do not have (owner's ruling, 2026-08-02).
+    // A place is its identity, its nesting and its contents first; the market
+    // is a specialisation, prepared only where there is one.
     await this.#preparePlace(context);
     if (sys.hasMarket) this.#prepareMarket(context, t);
 

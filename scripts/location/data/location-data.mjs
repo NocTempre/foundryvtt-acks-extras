@@ -13,12 +13,11 @@
  *      one of them becomes interesting (acks-lib place-logic.mjs, `planSplit`).
  *   4. **A market**, optionally — the henchmen recruitment domain.
  *
- * THE MARKET IS A NULLABLE SUBTREE, AND THAT IS THE WHOLE POINT (owner's ruling,
- * 2026-08-02: "markets are not the default"). `system.market` is `null` on a
- * cave, a wagon and a chest — not an object of empty arrays, genuinely absent —
- * because a nullable SchemaField's `clean()` short-circuits on null before it
- * ever casts to an object. Adding a market is one write of a defaults object;
- * removing one is a write of `null`.
+ * THE MARKET IS A NULLABLE SUBTREE. `system.market` is `null` on a cave, a
+ * wagon and a chest — not an object of empty arrays, genuinely absent — because
+ * a nullable SchemaField's `clean()` short-circuits on null before it ever casts
+ * to an object. Adding a market is one write of a defaults object; removing one
+ * is a write of `null`.
  *
  * There is deliberately NO `hasMarket` boolean. The presence of the subtree IS
  * the flag, so the two can never disagree — the failure mode a separate boolean
@@ -26,9 +25,8 @@
  * says otherwise, which is exactly the class of bug the storage/bank split was
  * retired for.
  *
- * DESIGNED FOR EXTENSION by the future domain-module family: other modules
- * (e.g. a structures/strongholds module) store their own data in their own flag
- * namespace on the same location actor; this schema stays minimal.
+ * DESIGNED FOR EXTENSION: another module stores its own data in its own flag
+ * namespace on the same location actor, so this schema stays minimal.
  *
  * Candidates are plain records, NOT actors — a Class I market can roll hundreds
  * of 0th-level candidates; a real Actor is created only on hire.
@@ -204,9 +202,8 @@ function occupantField() {
  * The MARKET subtree: everything the henchmen recruitment domain owns.
  *
  * Gathered under one nullable field so a place without a market carries none of
- * it. Every field here was previously a sibling of `region` and `notes`; the
- * move is what makes "markets are not the default" true of the DATA and not
- * merely of the UI.
+ * it — which is what makes "markets are not the default" true of the DATA and
+ * not merely of the UI.
  */
 function marketSchema() {
   return {
@@ -362,6 +359,13 @@ const marketField = () =>
  */
 export const emptyMarket = () => new fields.SchemaField(marketSchema()).clean({});
 
+/**
+ * The `acks-extras.location` actor sub-type. Identity, nesting, contents and
+ * stack count on every place; a nullable `market` subtree only where there is
+ * one. `migrateData` folds a v1 location (market fields as siblings of `region`)
+ * into the subtree on load, so an un-migrated world reads correctly on its first
+ * render rather than after a sweep.
+ */
 export class LocationData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
@@ -389,8 +393,7 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       // --- the map -------------------------------------------------------
       // The scene this place IS. Set from the scene side (the scene holds the
       // matching flag) and mirrored here so the sheet can offer "open the map"
-      // without a world scan. Never auto-created: a battle map is not a place
-      // until somebody says it is (owner's ruling, 2026-08-02).
+      // without a world scan. Never auto-created — the link is made on demand.
       sceneUuid: str(),
 
       // --- stacking ------------------------------------------------------

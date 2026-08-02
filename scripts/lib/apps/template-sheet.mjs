@@ -22,6 +22,11 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 
 export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
 
+/**
+ * The sheet for a template actor — the generator behind a creature the book
+ * stats as tables (a dragon by age, type and body form). Builds one concrete
+ * actor on demand rather than materializing the cross product.
+ */
 export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-extras", "acks-lib-template-sheet"],

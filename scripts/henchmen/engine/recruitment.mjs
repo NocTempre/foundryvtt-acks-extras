@@ -149,12 +149,12 @@ export function applyDirectedReplacement({ location, spec, employerUuid, quantit
   const demographics = demographicsOf(location);
   for (const c of picks) {
     // The search FOUND this person: available immediately and for the whole
-    // month (user model) — a pending future-week arrival that stayed
-    // "pending" was invisible and unhirable (found live 2026-07-23).
+    // month. A pending future-week arrival would be invisible and unhirable —
+    // a search that turned up somebody the recruiter cannot talk to.
     c.status = "available";
-    // Directed results are PRIVATE to the recruiter (JJ 118) and live in
-    // the Recruitment tab's directed bucket — not the shared walk-in tabs
-    // (user report 2026-07-23). Employer-less GM posts stay shared.
+    // Directed results are PRIVATE to the recruiter (JJ 118) and live in the
+    // Recruitment tab's directed bucket, not the shared walk-in tabs.
+    // Employer-less GM posts stay shared.
     c.privateToUuid = employerUuid ?? "";
     const changesClass = spec.kind === "henchmanByClass" || spec.kind === "henchmanByClassProficiency";
     if (changesClass && spec.classKey) {
@@ -266,10 +266,9 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
   for (const { week, count } of weeks) {
     if (count <= 0) continue;
     // LATE ROLLS: when the month is rolled after its start (clock jumped,
-    // nobody processed), arrivals schedule from the ROLL time — backdating
-    // them to the month start made whole cohorts expire instantly (one week
-    // of visibility each; user report 2026-07-23). On-time rolls keep the
-    // RAW week 1/2/3 pacing.
+    // nobody processed), arrivals schedule from the ROLL time. Backdating them
+    // to the month start expires whole cohorts instantly — one week of
+    // visibility each. On-time rolls keep the RAW week 1/2/3 pacing.
     const availableFromTime = Math.max(monthStart + (week - 1) * SECONDS_PER_WEEK, notBefore + (week - 1) * SECONDS_PER_WEEK);
     const base = {
       segment: segment ?? "",
@@ -676,10 +675,9 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
  */
 export async function processLocation(location, currentTime = now()) {
   const sys = location.system;
-  // No market, nothing to process. Markets are opt-in per place (2026-08-02),
-  // and `system.market` is genuinely null on a place without one — so this is
-  // not merely an optimisation: every write below addresses `system.market.*`,
-  // and a location that never had a market has no subtree to write into.
+  // Not merely an optimisation: `system.market` is genuinely null on a place
+  // without one, and every write below addresses `system.market.*` — there is
+  // no subtree to write into.
   if (!sys.hasMarket) return { changed: false, arrived: 0 };
   const postings = (sys.postings ?? []).map((p) => p.toObject?.() ?? foundry.utils.deepClone(p));
   let candidates = (sys.candidates ?? []).map((c) => c.toObject?.() ?? foundry.utils.deepClone(c));
@@ -845,10 +843,10 @@ export async function processLocation(location, currentTime = now()) {
     try {
       const employerDoc = posting.employerUuid ? await fromUuid(posting.employerUuid).catch(() => null) : null;
       const employer = employerDoc?.actor ?? employerDoc;
-      // This recruiter's previous directed results purge on re-roll. The
-      // guard is CRITICAL: an employer-less posting ("" uuid) must never
-      // match the shared pool's empty privateToUuid — that deleted the
-      // whole fresh month (user report 2026-07-23, reproduced live).
+      // This recruiter's previous directed results purge on re-roll. The guard
+      // is load-bearing, not an optimisation: an employer-less posting ("" uuid)
+      // matching the shared pool's empty privateToUuid purges the whole fresh
+      // month rather than one recruiter's stale results.
       if (posting.employerUuid) candidates = candidates.filter((c) => c.privateToUuid !== posting.employerUuid);
       else candidates = candidates.filter((c) => !(c.monthLong && !c.privateToUuid && c.highlightFor === ""));
       const mc = effectiveMarketClass(location, employer);

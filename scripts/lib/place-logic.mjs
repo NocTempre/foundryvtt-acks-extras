@@ -15,11 +15,11 @@
  *   - **how many of it are there** — eight identical warehouse bays are one
  *     actor until one of them becomes interesting.
  *
- * A CONTAINER IS THE TRIVIAL PLACE (the owner's framing, 2026-08-02). A chest
- * is a place with no market, no occupants, and exactly one level of nesting; a
- * duchy is a place with all three. Because the degenerate case is a real
- * shipped document — acks-equipment's container item — the model is kept honest:
- * anything the location sheet does to a town, it must be able to do to a chest.
+ * A CONTAINER IS THE TRIVIAL PLACE. A chest is a place with no market, no
+ * occupants, and exactly one level of nesting; a duchy is a place with all
+ * three. Because the degenerate case is a real shipped document — the equipment
+ * feature's container item — the model is kept honest: anything the location
+ * sheet does to a town, it must be able to do to a chest.
  *
  * Everything here works on NORMALISED NODES, never on Foundry documents:
  *

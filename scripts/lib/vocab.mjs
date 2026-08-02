@@ -5,11 +5,14 @@
  * Foundry runtime does. DataModel field-builders that consume these live in
  * `fields.mjs` (Foundry-only).
  *
- * The damage/movement/vision/sense/natural-weapon enums MIRROR the values
- * acks-monsters currently defines (config.mjs) so the deferred monster
- * migration onto this lib is value-identical (a documented sanctioned mirror
- * until then). The ability-effect enums are new — the shared target both
- * acks-abilities and (later) acks-monsters build their effect models from.
+ * This file is the SINGLE SOURCE for the damage / movement / vision / sense /
+ * natural-weapon enums and for alignment. The monsters feature re-exports them
+ * from its own `config.mjs` so its consumers keep one import path; nothing
+ * defines a second copy. `NATURAL_WEAPONS` here is the superset — it carries
+ * the monster sheet's sting / feeler / envelopment as well.
+ *
+ * The ability-effect enums are the shared target the abilities and monsters
+ * effect models both build from.
  */
 
 /** `{ key: { label, … } }` → `{ key: label }` for DataModel `choices`. */
@@ -34,7 +37,7 @@ export const slug = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "
 // be a dead primitive. Add it beside ALIGNMENTS when a real consumer appears.
 
 /* ---------------------------------------------------------------- */
-/*  Shared with acks-monsters (mirror — keep value-identical)        */
+/*  Shared vocabulary — defined here, re-exported by monsters/config */
 /* ---------------------------------------------------------------- */
 
 /** Damage types (MM Overview p.12; core system damage set). */
@@ -225,10 +228,10 @@ export const EFFECT_TYPES = {
   // "On a roll of X, Y happens" — a consequence keyed to how the throw itself
   // came up: the natural die in a botch band (jams the lock, triggers the
   // trap), the result below a fraction of the target (the victim notices), or
-  // plain failure (the climber falls). Owner ruling 2026-08-01: these are
-  // MECHANICS, not prose — an entry whose page states one is incomplete until
-  // it carries one. Numbers (band edge, fraction) are page values and locate
-  // per-seat; the consequence itself is a chef conclusion in own words.
+  // plain failure (the climber falls). These are MECHANICS, not prose — an
+  // entry whose page states one is incomplete until it carries one. Numbers
+  // (band edge, fraction) are page values and locate per-seat; the consequence
+  // itself is a chef conclusion in own words.
   outcome: { label: "Roll Outcome" },
   // --- Relational: abilities that depend on, grant, or alter OTHER abilities ---
   requires: { label: "Requires" }, // prerequisite ability/abilities
@@ -672,12 +675,10 @@ export const rerollTotal = (effect) => 1 + Math.max(0, Math.trunc(effect?.times 
 /**
  * Scales a `conditional` value can key on, besides class level.
  *
- * TODO(magic): `arcaneValue` / `divineValue` exist so a custom-class power can
- * state a cost that varies by the class's spellcasting value ("counts as 1
- * power at Arcane Value 1-2, 2 at Arcane Value 3-4"). NOTHING CONSUMES THESE
- * YET — the primitive is deliberately built ahead of the magic work, and the
- * ability model still stores a plain numeric `powerValue`. Wire `powerValue`
- * onto `levelValueField()` when magic lands.
+ * `arcaneValue` / `divineValue` let a custom-class power state a cost that varies
+ * by the class's spellcasting value ("counts as 1 power at Arcane Value 1-2, 2
+ * at Arcane Value 3-4"). Nothing consumes them yet — the ability model stores a
+ * plain numeric `powerValue`. See docs/ROADMAP.md § Magic.
  */
 export const VALUE_SCALES = {
   level: { label: "Class Level" },

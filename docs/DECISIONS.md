@@ -1,10 +1,23 @@
-# Merge findings
+# Decision record — repo level
 
-What the merge surfaced, and what was done about it. Kept after the fact because
-several of these are the reason the code looks the way it does.
+Decisions true of the whole module, not of any one feature: the merge that made
+eight modules into one, the namespace and flag-scope rules that fell out of it,
+and the guards added so the same class of mistake fails loudly next time.
 
-Everything marked RESOLVED shipped in 0.1.0. What is left is either pre-existing
-(and named as such) or deliberate.
+Per-feature records live in `docs/<feature>/DECISIONS.md`. A fact belongs here
+only when it is true of every feature — anything narrower belongs to its feature,
+and nothing is stated in two places.
+
+Entries are append-only. RESOLVED means it shipped; a superseded entry stays,
+marked, because knowing an option was tried and abandoned is the point.
+
+---
+
+## The merge (0.1.0, 2026-07)
+
+What the merge surfaced and what was done about it. Kept after the fact because
+several of these are the reason the code looks the way it does. Source repos were
+read-only inputs; nothing here was a change to them.
 
 > **Post-0.1.0 addendum (2026-08-02).** A cleanup pass audited the merged tree
 > and corrected this document's record in four places: §4's claim that the

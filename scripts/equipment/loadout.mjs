@@ -91,12 +91,14 @@ function isShield(item) {
 /**
  * Compute the full loadout for an actor from its equipped items.
  * @param {Actor} actor
+ * @param {object} [opts]
+ * @param {Map<string, boolean>} [opts.overrides] itemId → equipped, letting a
+ *   caller resolve the loadout a pending equip/unequip *would* produce before
+ *   committing it. Enforcement uses this to judge a toggle before it lands.
  * @returns {Loadout}
  */
 export function getLoadout(actor, opts = {}) {
   const budget = handBudget(actor);
-  // `opts.overrides` (Map itemId→bool) lets enforcement simulate a pending
-  // equip/unequip before it is committed.
   const isEq = (i) => (opts.overrides?.has(i.id) ? opts.overrides.get(i.id) : !!i.system?.equipped);
   const equippedWeapons = actor.items.filter((i) => i.type === "weapon" && isEq(i));
   const equippedArmor = actor.items.filter((i) => i.type === "armor" && isEq(i));

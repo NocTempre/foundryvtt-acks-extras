@@ -3,9 +3,8 @@
  * DataModel field-builders for the shared ACKS vocabulary. Foundry-only (they
  * touch `foundry.data.fields`), but every builder is a lazy function so the
  * module still evaluates in Node — `foundry` is only dereferenced when a model
- * is actually defined (at `init` or later). acks-abilities builds its effect
- * model from these; acks-monsters is expected to adopt the defense/sense/speed
- * shapes when it migrates (deferred).
+ * is actually defined (at `init` or later). The abilities effect model is built
+ * from these.
  */
 import {
   choicesOf,
@@ -115,15 +114,9 @@ export function rollField() {
 export const rollsField = () => new (F().ArrayField)(rollField());
 
 /**
- * A pointer to a spell.
- *
- * TODO(magic): this is a PLACEHOLDER. It points at the core system's existing
- * spell item by uuid and carries the printed name as a fallback, which is
- * enough to link and display but models nothing about the spell itself. When
- * the magic work lands, this becomes a real spell primitive (school, range,
- * duration, save, reversibility, ritual/formula cost) and the `spell` string on
- * `effectField` retires in favour of it. Nothing consumes this yet — it exists
- * so the shape is agreed before anything depends on it.
+ * A pointer to a spell: the core system's spell item by uuid, with the printed
+ * name as a fallback. Enough to link and display; it models nothing about the
+ * spell itself. Nothing consumes it yet — see docs/ROADMAP.md § Magic.
  */
 export function spellRefField() {
   return new (F().SchemaField)({

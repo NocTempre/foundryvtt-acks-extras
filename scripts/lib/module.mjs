@@ -127,9 +127,9 @@ const localImpl = Object.freeze({
    * ctx (terms / throwTarget / targetAc) — the seam for effect replacer/dedup logic.
    */
   attack: { ...attackLogic, PRE_ATTACK_HOOK },
-  // Compose a wrapper around the patched rollAttack. libWrapper allows many
-  // packages to wrap one method but not one package to register twice, and the
-  // features that used to do that are now one module.
+  // Compose a wrapper around the patched rollAttack: libWrapper lets many
+  // packages wrap one method but forbids one package registering twice, and
+  // every feature here is the same package.
   wrapRollAttack,
   /**
    * Weapon damage typing (damage-type.mjs): resolves a type LIVE through

@@ -21,10 +21,8 @@ export const PARTY_TYPE = `${MODULE_ID}.party`;
  * movement, saves.implements|wand) does not error on it. That set has one home
  * now: acks-lib's acksCompatStubs().
  *
- * NOTE this used to carry six saves (the legacy breath/wand names among them)
- * and a hand-rolled movement block, plus a local `save` helper. The extra saves
- * were never read — a party does not save on its own; rollPartySave reads each
- * MEMBER's saves — so folding to the canonical drops them.
+ * A party does not save on its own — rollPartySave reads each MEMBER's saves —
+ * so the stub carries no saves of its own beyond the compat set.
  *
  * Movement is re-declared for two party-specific reasons the shared stub can't
  * carry: `base` defaults to a human's 120 (synced from members on the first
@@ -57,6 +55,11 @@ export function formationForActor(actor) {
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
+/**
+ * The party actor's sheet: members and their marching order, the exploration
+ * clock, lights and spells. Reads the formation record rather than the actor,
+ * which carries almost no state of its own.
+ */
 export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-extras", "party-sheet"],

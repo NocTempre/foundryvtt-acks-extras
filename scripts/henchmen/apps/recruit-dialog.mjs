@@ -202,13 +202,13 @@ export async function openRecruitSpecial(location, specialHireId, preferredEmplo
 
 /** GM-side executor for a resolved hiring throw (socket action + hook).
  *
- *  EXACTLY-ONCE under duplicate delivery. The same resolution reaches every
- *  socket of the addressed GM user (GM open in two windows, a co-GM) — found
- *  live 2026-07-22 as two hires, two actors, 12ms apart. Defense in depth:
- *  an in-flight key kills same-client duplicates, and a persisted CLAIM
- *  settles cross-socket races: each roll carries a resolutionId; the applier
- *  writes it on the candidate, waits a settle beat so every claimant's write
- *  lands, re-reads, and only the socket whose id survived applies. */
+ *  EXACTLY-ONCE under duplicate delivery: the same resolution reaches every
+ *  socket of the addressed GM user — a GM with two windows open, or a co-GM.
+ *  Defence in depth, because neither half suffices alone. An in-flight key
+ *  kills same-client duplicates; a persisted CLAIM settles cross-socket races —
+ *  each roll carries a resolutionId, the applier writes it on the candidate,
+ *  waits a settle beat so every claimant's write lands, re-reads, and only the
+ *  socket whose id survived applies. */
 const inFlightOutcomes = new Set();
 const CLAIM_SETTLE_MS = 300;
 
@@ -254,10 +254,10 @@ export async function handleHiringOutcomePayload(payload) {
 }
 
 /**
- * Route a resolved hiring roll to whoever can APPLY it — no GM client
- * required (user direction 2026-07-22): a seat that can write the location
- * (GM, or a player on an OWNER-default bulletin board) applies locally;
- * otherwise the GM socket relay carries it.
+ * Route a resolved hiring roll to whoever can APPLY it, so no GM client is
+ * required: a seat that can write the location (a GM, or a player on an
+ * OWNER-default bulletin board) applies locally; otherwise the GM socket relay
+ * carries it.
  */
 export async function deliverHiringOutcome(payload) {
   const doc = await fromUuid(payload.locationUuid).catch(() => null);

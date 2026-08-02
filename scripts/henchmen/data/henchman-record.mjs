@@ -49,7 +49,8 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
         appearance: str(),
       }),
 
-      // Feature 4: rolled results are RECORDED, generation is a future module.
+      // Rolled results are RECORDED; the record is the interface to whatever
+      // generates the person (docs/ROADMAP.md § Henchmen).
       rolled: new fields.SchemaField({
         attributes: new fields.SchemaField({
           str: num({ integer: true }),

@@ -7,13 +7,9 @@
  * contents, its occupants, what it sits inside, and (sometimes) its market. The
  * link makes each reachable from the other.
  *
- * THE LINK IS MADE ON DEMAND, NEVER AUTOMATICALLY (owner's ruling, 2026-08-02).
- * Auto-creating a location for every scene was the obvious implementation and
- * the wrong one: most scenes in a real world are battle maps, lighting tests and
- * half-finished sketches, and a world that gained forty actors the first time it
- * loaded this module would be a world whose GM turned the module off. So the
- * affordances are a scene-config picker and a directory context entry, and
- * nothing exists until somebody asks for it.
+ * THE LINK IS MADE ON DEMAND, NEVER AUTOMATICALLY. The affordances are a
+ * scene-config picker and a directory context entry; nothing exists until
+ * somebody asks for it.
  *
  * THE SCENE'S FLAG IS AUTHORITATIVE; the location's `system.sceneUuid` is a
  * MIRROR. One direction has to win or the two drift, and the scene's wins

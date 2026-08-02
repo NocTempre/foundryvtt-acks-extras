@@ -8,9 +8,8 @@
  *      "Domain Income: 350gp/month", "Syndicate Member: <boss>"
  *   4. null → callers fall back to asking the GM
  *
- * Future domain-family modules (structures/strongholds…) supersede the
- * markers transparently by taking over step 1 — no changes needed here
- * beyond adding their API probe.
+ * A module that owns one of these facts supersedes the markers transparently by
+ * taking over step 1; nothing else here changes.
  */
 import { MODULE_ID } from "./constants.mjs";
 

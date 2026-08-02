@@ -39,8 +39,7 @@ export { hasAbility };
  */
 const ALERTNESS_PATTERN = /alertness|mindfulness|alien senses|keen insect|attunement to nature/i;
 /**
- * Attunement to Nature: +4 (not +2) with the Listening skill — verified
- * against JJ p.311 and authored into the acks-content register 2026-07-19.
+ * Attunement to Nature: +4 (not +2) with the Listening skill, per JJ p.311.
  * It is NOT an alias of Alertness precisely because this value differs, which
  * is why it keeps its own pattern rather than folding into the one above.
  */

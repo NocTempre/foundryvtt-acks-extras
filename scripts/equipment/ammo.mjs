@@ -5,8 +5,8 @@
  * RAW (RR): a missile attack is "subject to available ammunition" (p304); a
  * bundle of 20 arrows/bolts is ONE inventory item (p144). The base rules give
  * no automatic recovery percentage — recovery is Judge's discretion and thrown
- * weapons come back by being picked up. So this module does exactly what RAW
- * specifies and no more (user decision, 2026-07-24):
+ * weapons come back by being picked up. So this does exactly what RAW specifies
+ * and no more:
  *
  *   - CONSUME on use: firing a launcher decrements its matching ammo by one;
  *     a stackable thrown weapon (a bundle of darts) decrements likewise.

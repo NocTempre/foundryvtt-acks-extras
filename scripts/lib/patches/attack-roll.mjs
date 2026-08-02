@@ -2,7 +2,7 @@
 /**
  * Core patch: the attack roll, remodeled as TARGET vs AUDITABLE BONUS STACK.
  *
- * WHY (user direction 2026-07-31): ACKS distinguishes the ATTACK THROW — a
+ * WHY: ACKS distinguishes the ATTACK THROW — a
  * target that MOVES (class/level, "attacks as 0th-level fighter") — from BONUSES
  * added to the roll (ability, magic, situational). Core's `rollAttack` folds the
  * target movement into the die pool (`bba = 10 − throw`) and resolves

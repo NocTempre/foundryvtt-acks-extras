@@ -97,10 +97,6 @@ export const ITEM_FLAGS = Object.freeze({
 /** Actor-level flags this module owns. */
 export const ACTOR_FLAGS = Object.freeze({
   ACTIVE_STYLE: "activeStyle", // player's chosen style when two apply this round
-  // NOTE `lastLoadoutHash` was here as a dedupe guard for effect rebuilds and
-  // is gone: syncLoadoutEffect already compares changesHash(existing) against
-  // changesHash(desired) and skips the write when they match, so the flag was a
-  // second answer to a question that was already answered — and one nothing set.
   STYLES: "styles", // CSV/array of fighting styles the actor is trained in (+ single,missile)
   WEAPON_PROF: "weaponProficiency", // "all" | CSV of categories/weapon keys the actor is proficient with
   ARMOR_MAX: "armorMax", // highest armour category the actor is proficient in (default heavy)

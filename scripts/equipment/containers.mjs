@@ -236,12 +236,6 @@ function warn(key, data = {}) {
   ui.notifications?.warn(msg);
 }
 
-// NOTE the local itemWeight6 that used to sit here is gone: it was a duplicate
-// of acks-lib's weight6Of (imported above). They are equivalent over every
-// stowable type — only `item` carries a quantity to multiply, `weapon`/`armor`
-// carry none, and `money` has no weight6 so both yield 0 — verified live before
-// the swap. weight6Of is the family's single weight primitive now.
-
 /** Total weight6 of a container's contents (one level; nesting recurses). */
 export function contentsWeight6(actor, containerId, seen = new Set()) {
   if (seen.has(containerId)) return 0; // guard against a container inside itself

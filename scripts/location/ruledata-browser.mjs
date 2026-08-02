@@ -1,9 +1,8 @@
 /* global game, ui, foundry, fromUuid, TextEditor */
 /**
  * Ruledata Browser — the GM's audit-and-tweak surface over every imported
- * table (user directive 2026-07-22: imported tables become Foundry tables;
- * prefilled defaults; every table gets a drag-a-replacement slot and a
- * delete/revert).
+ * table. Imported tables become Foundry documents, prefilled with the current
+ * data; every table gets a drag-a-replacement slot and a delete/revert.
  *
  *  - EXPORT materializes a table as a world document prefilled with the
  *    current data (RollTable when rollable, JSON journal page otherwise).
@@ -18,6 +17,11 @@ import { setOverride, clearOverride, hasOverride, overrideMeta } from "./table-s
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
+/**
+ * The GM's audit surface over every imported rules table: what is present, what
+ * is missing and which book it comes from, with export / override / revert per
+ * row.
+ */
 export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-location-ruledata-browser",

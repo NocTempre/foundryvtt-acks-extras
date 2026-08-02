@@ -81,11 +81,10 @@ function rankOf(actor, item) {
 }
 
 /**
- * The exact set of change keys this feature speaks. Membership, not a prefix
- * test: every feature's flags now share one scope, so `startsWith(EFFECT_PREFIX)`
- * would also match henchmen's domains — and even before the merge it matched
- * plain item flags like `flags.acks-extras.size`, which are not effect domains
- * at all.
+ * The exact set of change keys this feature speaks. Membership, NOT a prefix
+ * test: sibling features share the flag scope, so `startsWith(EFFECT_PREFIX)`
+ * matches their domains too, and also plain item flags like
+ * `flags.acks-extras.size` that are not effect domains at all.
  */
 const OWN_CHANGE_KEYS = new Set(Object.values(EFFECT_DOMAINS).map((d) => `${EFFECT_PREFIX}${d}`));
 

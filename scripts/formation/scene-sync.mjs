@@ -225,11 +225,11 @@ export async function syncEnvironments() {
   const formations = Object.values(getFormations());
 
   /**
-   * Every step is fault-isolated. These run in sequence and one used to be able
-   * to abort the whole sweep: a throw in the FIRST step (token light) meant
-   * ownership, token size, fog, measurement and map sessions never synced at
-   * all — and the caller only logs, so the table just saw the map go dark with
-   * no error surfaced. A failing step must cost only itself.
+   * Every step is fault-isolated, and must stay that way. These run in
+   * sequence, so an unguarded throw in the FIRST step (token light) leaves
+   * ownership, token size, fog, measurement and map sessions unsynced — and the
+   * caller only logs, so the table just sees the map go dark with no error
+   * surfaced. A failing step must cost only itself.
    */
   const step = async (label, fn) => {
     try {

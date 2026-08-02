@@ -383,10 +383,10 @@ export const deletePolicy = () => {
  * vocabulary is READ AND WRITTEN, never imported — no dependency edge.
  *
  * The nesting used to sit behind an `equipment` guard from the days when that
- * module could be absent. Since the merge it never can be, and the guard had
- * become an UNDECLARED IDENTIFIER: every call with a non-coin item threw a
- * ReferenceError, so the default "return the goods when a place is deleted"
- * policy silently lost them (the caller's try/catch logged it and moved on).
+ * module could be absent. It is not optional now, and the guard must not come
+ * back: as an undeclared identifier it threw a ReferenceError on every non-coin
+ * item, and the caller's try/catch swallowed it — so the default "return the
+ * goods when a place is deleted" policy silently lost them.
  */
 export async function returnGoodsTo(owner, plainGoods, { containerName = "Storage" } = {}) {
   if (!owner || !plainGoods?.length) return { ok: false };

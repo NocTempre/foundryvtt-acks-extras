@@ -226,6 +226,11 @@ function resolveAutoValue(source, ctx) {
  * @param {Actor|null} actor
  * @param {Actor|null} targetActor
  * @param {Record<string, Array>} modConfig  per-tone groups (static + effects)
+ * @param {Record<string, unknown>|null} [external] the caller's own context bag
+ *   (`api.open(actor, {mode, ctx})`), for facts that live on neither actor. An
+ *   `auto` source spelled `ctx:<key>` reads it and coerces to a number, so an
+ *   absent key scores 0 rather than breaking the tone. No shipped caller passes
+ *   one — it is the seam external modes resolve against.
  * @returns {{[tone:string]: {[key:string]: (number|boolean)}}}
  */
 export function computeDefaults(actor, targetActor, modConfig = INFLUENCE_MODIFIERS, external = null) {

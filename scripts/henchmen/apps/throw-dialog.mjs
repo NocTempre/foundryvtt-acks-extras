@@ -22,6 +22,11 @@ import { postThrowCard } from "../chat/cards.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
+/**
+ * A henchman throw (loyalty, morale, or a hiring reaction) with every modifier
+ * itemized and the situational ones offered as toggles, so the Judge sees what
+ * the number is made of before committing it.
+ */
 export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
    * @param {object} options

@@ -47,9 +47,9 @@ const { registerInfluenceIntegration, openInfluenceFor } = influenceIntegration;
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | Initializing`);
 
-  // The `location` sub-type and its sheet are registered by the location
-  // feature, which owns them (docs/location/MODEL.md, 2026-07-19). Both used to
-  // be declared here too, under a sub-type that differed only by module id.
+  // The `location` sub-type and its sheet belong to the location feature and
+  // are registered there. This feature is a consumer: it reads and writes
+  // `system.market.*` on a location it does not own.
 
   registerSettings();
 
@@ -61,8 +61,8 @@ Hooks.once("init", () => {
 
   try {
     const T = `modules/${MODULE_ID}/templates/henchmen`;
-    // The location sheet's template moved to templates/location/ with the
-    // sheet itself (MERGE-NOTES §4); the location feature preloads it.
+    // The location sheet's template lives under templates/location/ with the
+    // sheet, and the location feature preloads it — not this list.
     foundry.applications.handlebars.loadTemplates([
       `${T}/posting-dialog.hbs`,
       `${T}/throw-dialog.hbs`,
@@ -223,7 +223,7 @@ Hooks.once("ready", () => {
     for (const location of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
       if ((location.system.schemaVersion ?? 1) >= SCHEMA_VERSION) continue;
       // A place with no market has no subtree to clear, and writing one would
-      // hand it a market it never asked for (markets are opt-in, 2026-08-02).
+      // hand it a market it never asked for.
       if (!location.system.hasMarket) continue;
       const hadData = (location.system.postings?.length ?? 0) + (location.system.candidates?.length ?? 0) > 0;
       location
@@ -271,11 +271,11 @@ Hooks.once("ready", () => {
   }
 });
 
-/* A location is a public bulletin board: new location actors default to
- * OWNER so players can post searches, run due processing, and hire WITHOUT
- * any GM client online (user direction 2026-07-22). The sheet still hides
- * GM tabs from players; a stricter table sets ownership down by hand
- * (explicit ownership in the creation data always wins). */
+/* A location is a public bulletin board: new location actors default to OWNER
+ * so players can post searches, run due processing and hire with no GM client
+ * online. The sheet still hides GM tabs from players, and a stricter table sets
+ * ownership down by hand — explicit ownership in the creation data always
+ * wins. */
 Hooks.on("preCreateActor", (doc, data) => {
   if (doc.type !== `${MODULE_ID}.location`) return;
   if (data?.ownership?.default != null) return;

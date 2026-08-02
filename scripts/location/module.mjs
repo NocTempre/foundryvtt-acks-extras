@@ -45,13 +45,12 @@ const TEMPLATES = [
 Hooks.once("init", () => {
   registerStoreSetting();
 
-  // No apiVersion gate: lib is a sibling feature of this module now, not a
-  // separately-installed dependency that could be older or absent. It attaches
-  // itself at import time (scripts/lib/module.mjs, module scope), so it is
-  // always present and always this exact version by the time any init hook
-  // runs. The gate that used to stand here was an `return` — which after the
-  // merge would have skipped the sheet registration below and taken the whole
-  // Location sheet, market and all, down with it.
+  // NEVER gate this on an apiVersion check. lib is a sibling feature, not a
+  // separately-installed dependency: it attaches at import time
+  // (scripts/lib/module.mjs, module scope), so it is always present and always
+  // this exact version by the time any init hook runs. A guard here could only
+  // fire spuriously, and an early return would skip the sheet registration
+  // below — taking the whole location sheet, market and all, down with it.
   const lib = globalThis.acksExtras?.lib;
   lib.services.register("ruledata-import", ruledataImport);
   const n = registerPersisted();
@@ -67,13 +66,9 @@ Hooks.once("init", () => {
   });
 
   // The data model and the sheet for `acks-extras.location` register HERE and
-  // only here. henchmen declared the same sub-type and its own sheet under a
-  // sub-type that differed only by module id; docs/location/MODEL.md named this
-  // feature the owner on 2026-07-19, blocked then only by a data migration the
-  // merge does not need. The sheet is the union — market tabs plus storage.
-  //
-  // Unconditional, deliberately: this registration must never sit behind a
-  // capability check, because failing it now costs the market UI too.
+  // only here — this feature owns the sub-type. Unconditional, deliberately:
+  // the registration must never sit behind a capability check, because failing
+  // it costs the market UI as well as the sheet.
   CONFIG.Actor.dataModels[LOCATION_TYPE] = LocationData;
   registerLocationSheet();
 

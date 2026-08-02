@@ -129,9 +129,8 @@ export function registerInfluenceIntegration() {
       // --- Our hosted pages: apply the consequences ---
       if (context?.module === MODULE_ID) {
         // One roll = one application. Multiple open dialog instances for the
-        // same candidate each report the shared completion (found live
-        // 2026-07-22: two stale hiring windows → two hires, two actors) —
-        // collapse identical resolutions reported within a short window.
+        // same candidate each report the shared completion, so identical
+        // resolutions arriving within a short window collapse to one.
         const sig = [context.candidateId ?? context.specialHireId ?? context.actorUuid ?? "", payload.mode, payload.natural, payload.total, payload.outcome].join(":");
         const nowMs = Date.now();
         for (const [k, t] of _seenResolutions) if (nowMs - t > 15000) _seenResolutions.delete(k);

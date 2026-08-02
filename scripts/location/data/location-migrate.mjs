@@ -6,8 +6,7 @@
  *
  * v1 → v2: the market fields were siblings of `region` on every location. They
  * are now the `market` subtree, and a place that never had a market gets `null`
- * — which is the whole point of the 2026-08-02 ruling that markets are opt-in:
- * a cave must not carry a recruitment schema, not even an empty one.
+ * rather than an empty recruitment schema.
  */
 
 /** Every field that moved under `market`. Order is documentation, not logic. */

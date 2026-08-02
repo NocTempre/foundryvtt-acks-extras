@@ -21,6 +21,11 @@ const { DialogV2 } = foundry.applications.api;
 
 const loc = makeLoc(LANG_PREFIX);
 
+/**
+ * GM tool for goods held across every provider in the world: which actor holds
+ * what, whose it is, and the reassign / release actions for attribution that has
+ * gone stale (a deleted owner, goods stored before attribution existed).
+ */
 export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-location-storage-manager",

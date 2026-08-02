@@ -160,9 +160,8 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
-    // LOCAL-FIRST: a seat that can write the location posts directly — no GM
-    // client required (locations default to OWNER; user direction
-    // 2026-07-22). Seats without write fall back to the GM socket relay.
+    // LOCAL-FIRST: a seat that can write the location posts directly, so no GM
+    // client is required. Seats without write fall back to the GM socket relay.
     const canLocal = game.user.isGM || this.location.testUserPermission(game.user, "OWNER");
     if (!canLocal) {
       await executeAsGM("createPosting", {

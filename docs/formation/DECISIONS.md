@@ -1,0 +1,94 @@
+# Exploration formations — decision record
+
+Why this feature is shaped the way it is: what was ruled, what was rejected, and
+what it cost. How it behaves *now* is [MODEL.md](MODEL.md); unbuilt work is
+[ROADMAP.md](ROADMAP.md).
+
+Entries are dated and append-only. A superseded entry stays, marked.
+
+---
+
+### Save keys track the RELEASED system, never the dev branch
+
+`breath` is correct for acks 14.0.1: a fresh character's schema is
+`[paralysis, death, breath, implements, spell, wand]`, and `ACKS.saves.blast.long`
+does not exist. The system's dev branch renames `breath` → `blast`.
+
+**Flip the key when that lands in a system RELEASE, not before.** The modules
+target the released system and the test world runs it, so tracking the dev branch
+would break every world that is not running it.
+
+---
+
+### A party actor holds almost no data
+
+The formation record holds the state; the party actor exists so the party can
+have a token. Its schema is the compatibility stub every non-character sub-type
+needs, so the acks system's unguarded per-actor compute (`isNew`, `thac0`,
+initiative, movement, `saves.implements|wand`) does not error on it. That stub has
+one home: acks-lib's `acksCompatStubs()`.
+
+**A party does not save; its members do.** The six saves the party actor used to
+carry were never read — `rollPartySave` reads each member's own — so folding to
+the canonical stub drops them.
+
+Movement is re-declared for two party-specific reasons the shared stub cannot
+carry: `base` defaults to a human's 120 (synced from members on the first
+formation sync), where the stub's 0 is right for a settlement; and `value` holds
+the "N'/turn (exploration)" label. `mod` is deliberately absent — the system only
+reads it in `_calculateMovement`, which bails on `type !== "character"`.
+
+---
+
+### Every sync step is fault-isolated
+
+The scene sync steps run in sequence, and one used to be able to abort the whole
+sweep: a throw in the FIRST step (token light) meant ownership, token size, fog,
+measurement and map sessions never synced at all. The caller only logs, so the
+table just saw the map go dark with no error surfaced.
+
+A failing step must cost only itself.
+
+---
+
+### Phantom records are pruned before anything else
+
+A formation whose party actor has been deleted from the sidebar used to leave a
+record behind, which the next "Add to party" silently re-adopted — resurrecting
+the deleted actor with its stale members. Dead records are now dropped first, at
+ready on the primary GM, before environments are synced.
+
+A fresh formation (a hand-created Party Formation actor with no token placed yet)
+is still adopted rather than spawning a duplicate — but only while its actor
+exists.
+
+---
+
+### Party rolls post one GM card, not per-member public cards
+
+A party check resolves every member, which as public per-member cards is a wall
+of chat nobody reads. One compact GM-whispered card carries the whole result.
+The GM can overturn what the automation decided, so the card has to be theirs.
+
+---
+
+### The ladders come from the GM's own book (2026-07-19)
+
+This feature ships no skill ladder. Every number resolves from the world's
+imported copy of a skill, by way of acks-content:
+
+1. an explicit `thiefSkill` flag names the skill to scale as — the GM's binding,
+   so it is consulted first;
+2. otherwise the ladder the item itself carries, resolved at the owner's factored
+   level, which covers every imported skill with no setup;
+3. otherwise the item's cookbook identity names its skill, so a copy tagged by
+   hand still borrows the real one.
+
+Anything else returns null and the caller falls back to the sheet's roll target.
+
+**Attunement to Nature is +4 with Listening, not +2** — verified against JJ p.311
+and authored into the acks-content register on 2026-07-19. It is deliberately not
+an alias of Alertness precisely because the value differs.
+
+A binding the world can no longer resolve still lists itself, so the GM sees
+their own choice rather than a silently blank select.

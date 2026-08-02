@@ -48,9 +48,9 @@ function strictWeaponKey(name) {
 }
 
 /**
- * The family's EQUIPMENT ROOT (user, 2026-07-24: "equipment is just a special
- * class of item; they should share a root"). Given only a NAME, say which core
- * item type a piece of gear should become and the stats that type needs — so a
+ * The family's EQUIPMENT ROOT — gear is a special class of item, and shares its
+ * root. Given only a NAME, say which core item type a piece of gear should
+ * become and the stats that type needs — so a
  * torch (a 1d4 light-weapon) and a flask of military oil / holy water (thrown
  * splash flasks) import as WEAPONS, while a lantern/candle stay plain
  * light-bearing items. acks-content CONSUMES this rather than re-hardcoding the
@@ -88,8 +88,7 @@ export function equipmentClass(name) {
     // becomes a 1d4 light-WEAPON when one is READIED for use (see prepareTorch in
     // actions.mjs). So the root imports it as a light ITEM (quantity-bearing),
     // recording the weapon stats the prepare step needs under `prepareAs`. Torch
-    // is the only weapon-table entry tagged `light`. User, 2026-07-25: "torches
-    // can just carry a stack".
+    // is the only weapon-table entry tagged `light`.
     if (base.light) return { type: "item", prepareAs: "weapon", ...base };
     return { type: "weapon", ...base };
   }

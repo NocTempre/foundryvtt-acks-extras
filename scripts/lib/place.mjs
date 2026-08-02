@@ -14,9 +14,9 @@
  *     children, storage;
  *   - any other actor flagged a storage provider — a wagon, a pack mule, a
  *     hireling with a strongbox;
- *   - an acks-equipment CONTAINER ITEM — the trivial article, and the one that
- *     keeps the model honest (owner's framing, 2026-08-02: a chest is a place
- *     with no market, no occupants and one level of nesting).
+ *   - an equipment CONTAINER ITEM — the trivial article, and the one that keeps
+ *     the model honest: a chest is a place with no market, no occupants and one
+ *     level of nesting.
  *
  * `nodeOf` performs that reduction and nothing downstream knows the difference.
  *

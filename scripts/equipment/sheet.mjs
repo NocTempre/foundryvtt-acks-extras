@@ -549,13 +549,10 @@ function buildStowedSection(actor, tab) {
     section.append(hint);
   }
 
-  // ALWAYS render. This used to return null unless a row had actually been
-  // moved into a bucket, which deadlocked the whole feature: a container you had
-  // just created was empty, so the section vanished — taking with it the bucket,
-  // its controls, its drop zone, and the button that creates containers. The only
-  // way to fill a container is to drop onto its bucket, so a container that
-  // hides until it is non-empty can never become non-empty. A bucket is content
-  // whether or not anything is in it, and `moved` was never the right question.
+  // ALWAYS render, even with nothing in a bucket. The only way to fill a
+  // container is to drop onto its bucket, so a section that hides until it is
+  // non-empty can never become non-empty — it would take the bucket, its
+  // controls, its drop zone and the create-container button with it.
   return section;
 }
 
@@ -773,8 +770,5 @@ export function registerSheet() {
   Hooks.on("renderApplicationV2", onRenderCharacterSheet);
   Hooks.on("renderActorSheetV2", onRenderCharacterSheet);
   Hooks.on("renderACKSCharacterSheetV2", onRenderCharacterSheet);
-  // NOTE the item-sheet property panel is no longer hook-injected: the module
-  // registers its own equipment item sheet (item-sheet.mjs) whose Construction
-  // tab mounts buildConstructionPanel.
   console.debug(`${MODULE_ID} | inventory wear buckets registered.`);
 }

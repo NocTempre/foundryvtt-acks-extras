@@ -67,8 +67,8 @@ export const ruledataImport = {
     store[`${doc.id}:${p}`] = { doc, priority: p, source: source ?? null, importedAt: Date.now() };
     await game.settings.set(MODULE_ID, SETTING, store);
     // Verify the write actually landed in world data. A world DB that loses
-    // this write would silently un-import every table on the next reload —
-    // fail loudly here instead (seen in the wild 2026-07-19).
+    // this write silently un-imports every table on the next reload, with no
+    // error anywhere — so read it back and fail loudly instead.
     const persisted = game.settings.get(MODULE_ID, SETTING);
     if (!persisted?.[`${doc.id}:${p}`]) {
       ui.notifications.error(`acks-extras | "${doc.id}" did not persist to world data — check the world's storage and re-import.`);

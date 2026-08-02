@@ -226,11 +226,9 @@ export function normalizeName(name) {
 /**
  * WEAR LOCATIONS — the single canonical taxonomy of "where is this gear?".
  *
- * This used to be implied in three unrelated places (the Paper Doll slot
- * layout, the per-item flags, and the derived buckets in getLoadout), which
- * could disagree without anything noticing. Everything that groups gear by
- * position now resolves through wear.mjs against these keys: the ACKS
- * character sheet, the Paper Doll layout, and the loadout summary.
+ * Everything that groups gear by position resolves through wear.mjs against
+ * these keys — the ACKS character sheet, the Paper Doll layout and the loadout
+ * summary — so the three cannot disagree.
  *
  * Order is display order, head to foot then off-body.
  */

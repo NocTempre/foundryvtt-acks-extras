@@ -24,6 +24,11 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 
 export const GROUP_TYPE = `${MODULE_ID}.group`;
 
+/**
+ * The sheet for a STACK — a headcount plus a roster of the individuals in it,
+ * which is a different shape from a single creature and so gets its own sheet
+ * rather than an alternate character one.
+ */
 export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-extras", "acks-lib-group-sheet"],

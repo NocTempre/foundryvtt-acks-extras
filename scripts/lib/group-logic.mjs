@@ -112,13 +112,12 @@ export function cleanDelta(delta) {
 }
 
 /**
- * The ONE ecology reader, and the ONLY consumption of acks-monsters data:
- * a monster's number-appearing → a size formula, soft-read so acks-monsters
- * stays an optional dependency. Returns a dice string; nothing auto-rolls it
- * (the Judge decides when a group is sized), and a source with no ecology data
- * returns null so the Judge types the size. The richer seams — lair chance,
- * supply cost, battle rating — are documented in group-data.mjs and deliberately
- * unread for now.
+ * The ONE ecology reader: a monster's number-appearing → a size formula,
+ * soft-read so the monsters feature stays optional. Returns a dice string;
+ * nothing auto-rolls it (the Judge decides when a group is sized), and a source
+ * with no ecology data returns null so the Judge types the size. The richer
+ * seams — lair chance, supply cost, battle rating — are declared in
+ * group-data.mjs and deliberately unread (docs/ROADMAP.md § Groups).
  *
  * @param {object} source - a prototype actor (may carry acks-monsters extras)
  * @param {"wilderness"|"dungeon"} [context]

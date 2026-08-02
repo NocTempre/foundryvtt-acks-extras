@@ -1,7 +1,7 @@
 /* global game, ui, foundry, Roll, Hooks, ChatMessage, Actor, CONST */
 /**
- * Candidate rolling (feature 4 — record the results, generation is a future
- * module) and the hire pipeline.
+ * Candidate rolling and the hire pipeline. Rolled results are RECORDED here;
+ * generating the people is not this feature's job (docs/ROADMAP.md § Henchmen).
  */
 import { MODULE_ID, HOOKS, FLAG_RECORD } from "../constants.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
@@ -313,11 +313,10 @@ export async function hire(location, candidateId, employer, opts = {}) {
   }
   if (!actor) return { error: "actor-create-denied" };
 
-  // COMMIT the hire on the market FIRST: the actor exists, so the candidate
-  // is taken. Everything after this (grants, roster link, record, loyalty)
-  // is enrichment — a failure there must never leave a phantom "available"
-  // candidate beside a real actor (found live 2026-07-23: an aborted
-  // enrichment step made hiring look broken).
+  // COMMIT the hire on the market FIRST: the actor exists, so the candidate is
+  // taken. Everything after this (grants, roster link, record, loyalty) is
+  // enrichment, and a failure there must never leave a phantom "available"
+  // candidate standing beside a real hired actor.
   await updateCandidate(location, candidateId, { status: "hired" });
 
   // Grant the candidate's proficiency package (JJ 254-257) as real ability
