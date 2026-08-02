@@ -77,16 +77,6 @@
   flex-direction: column;
   font-size: 0.8rem;
 }
-
-.acks-lib-group-sheet .acks-lib-group-controls {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-.acks-lib-group-sheet .acks-lib-group-controls .count {
-  max-width: 5rem;
-}
 .acks-lib-group-sheet button.danger {
   color: #7a1f1f;
 }

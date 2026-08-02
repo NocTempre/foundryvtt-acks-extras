@@ -3,11 +3,11 @@
 /* One scroller: the window content. The window root is hard-capped to the
    viewport so the frame can never grow past the screen; the content then
    overflows and scrolls (position preserved across re-renders by the app). */
-.acks-formation.application {
+.acks-extras:is(.party-sheet, .skill-audit).application {
   max-height: 92vh;
 }
 
-.acks-formation .window-content {
+.acks-extras:is(.party-sheet, .skill-audit) .window-content {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -15,40 +15,40 @@
   padding: 6px;
 }
 
-.acks-formation .acks-formation-body {
+.acks-extras:is(.party-sheet, .skill-audit) .acks-formation-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 4px;
 }
 
-.acks-formation section {
+.acks-extras:is(.party-sheet, .skill-audit) section {
   flex: 0 0 auto;
 }
 
 /* --- Marching order controls & ranks --- */
 
-.acks-formation .members h3 {
+.acks-extras:is(.party-sheet, .skill-audit) .members h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
 }
 
-.acks-formation .march-controls {
+.acks-extras:is(.party-sheet, .skill-audit) .march-controls {
   display: flex;
   gap: 4px;
   align-items: center;
   font-weight: normal;
 }
 
-.acks-formation .march-controls select {
+.acks-extras:is(.party-sheet, .skill-audit) .march-controls select {
   width: auto;
   font-size: var(--font-size-12, 12px);
   height: 22px;
 }
 
-.acks-formation .march-controls button {
+.acks-extras:is(.party-sheet, .skill-audit) .march-controls button {
   width: auto;
   font-size: var(--font-size-11, 11px);
   line-height: 20px;
@@ -56,7 +56,7 @@
   white-space: nowrap;
 }
 
-.acks-formation .rank-divider {
+.acks-extras:is(.party-sheet, .skill-audit) .rank-divider {
   list-style: none;
   font-size: var(--font-size-10, 10px);
   text-transform: uppercase;
@@ -66,35 +66,35 @@
   padding-left: 4px;
 }
 
-.acks-formation .toolbar {
+.acks-extras:is(.party-sheet, .skill-audit) .toolbar {
   display: flex;
   gap: 4px;
   align-items: center;
 }
 
-.acks-formation .toolbar select {
+.acks-extras:is(.party-sheet, .skill-audit) .toolbar select {
   flex: 1;
 }
 
-.acks-formation .toolbar button {
+.acks-extras:is(.party-sheet, .skill-audit) .toolbar button {
   flex: 0 0 auto;
   width: auto;
   padding: 0 8px;
   line-height: 24px;
 }
 
-.acks-formation .name-row {
+.acks-extras:is(.party-sheet, .skill-audit) .name-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.acks-formation .name-row input {
+.acks-extras:is(.party-sheet, .skill-audit) .name-row input {
   width: 100%;
   font-weight: bold;
 }
 
-.acks-formation .name-row .party-img {
+.acks-extras:is(.party-sheet, .skill-audit) .name-row .party-img {
   flex: 0 0 auto;
   width: 32px;
   height: 32px;
@@ -104,33 +104,33 @@
   cursor: pointer;
 }
 
-.acks-formation .name-row .party-img:hover {
+.acks-extras:is(.party-sheet, .skill-audit) .name-row .party-img:hover {
   box-shadow: 0 0 4px var(--color-shadow-highlight, #ff6400);
 }
 
-.acks-formation .table-row {
+.acks-extras:is(.party-sheet, .skill-audit) .table-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.acks-formation .table-row label {
+.acks-extras:is(.party-sheet, .skill-audit) .table-row label {
   flex: 0 0 auto;
   font-size: var(--font-size-12, 12px);
   white-space: nowrap;
 }
 
-.acks-formation .table-row select {
+.acks-extras:is(.party-sheet, .skill-audit) .table-row select {
   flex: 1;
 }
 
-.acks-formation section {
+.acks-extras:is(.party-sheet, .skill-audit) section {
   border: 1px solid var(--color-border-light-tertiary, #7a7971);
   border-radius: 4px;
   padding: 6px;
 }
 
-.acks-formation section h3 {
+.acks-extras:is(.party-sheet, .skill-audit) section h3 {
   margin: 0 0 4px 0;
   font-size: var(--font-size-14, 14px);
   border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
@@ -138,43 +138,43 @@
 
 /* --- Clock --- */
 
-.acks-formation .clock .stats {
+.acks-extras:is(.party-sheet, .skill-audit) .clock .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   text-align: center;
 }
 
-.acks-formation .clock .stat label {
+.acks-extras:is(.party-sheet, .skill-audit) .clock .stat label {
   display: block;
   font-size: var(--font-size-11, 11px);
   text-transform: uppercase;
   opacity: 0.75;
 }
 
-.acks-formation .clock .stat .value {
+.acks-extras:is(.party-sheet, .skill-audit) .clock .stat .value {
   font-size: var(--font-size-18, 18px);
   font-weight: bold;
 }
 
-.acks-formation .clock .stat .sub {
+.acks-extras:is(.party-sheet, .skill-audit) .clock .stat .sub {
   display: block;
   font-size: var(--font-size-10, 10px);
   opacity: 0.7;
 }
 
-.acks-formation .clock .stat.bad .value {
+.acks-extras:is(.party-sheet, .skill-audit) .clock .stat.bad .value {
   color: #a02020;
 }
 
-.acks-formation .clock .buttons {
+.acks-extras:is(.party-sheet, .skill-audit) .clock .buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
 }
 
-.acks-formation .clock .buttons button {
+.acks-extras:is(.party-sheet, .skill-audit) .clock .buttons button {
   flex: 1 1 auto;
   width: auto;
   font-size: var(--font-size-12, 12px);
@@ -183,26 +183,26 @@
   white-space: nowrap;
 }
 
-.acks-formation button.danger {
+.acks-extras:is(.party-sheet, .skill-audit) button.danger {
   color: #a02020;
 }
 
-.acks-formation button.paused {
+.acks-extras:is(.party-sheet, .skill-audit) button.paused {
   color: #a06010;
 }
 
 /* --- Warnings --- */
 
-.acks-formation .warnings {
+.acks-extras:is(.party-sheet, .skill-audit) .warnings {
   background: rgba(160, 96, 16, 0.08);
 }
 
-.acks-formation .warnings p {
+.acks-extras:is(.party-sheet, .skill-audit) .warnings p {
   margin: 2px 0;
   font-size: var(--font-size-12, 12px);
 }
 
-.acks-formation .warnings i {
+.acks-extras:is(.party-sheet, .skill-audit) .warnings i {
   color: #a06010;
   margin-right: 4px;
 }
@@ -210,7 +210,7 @@
 /* --- Members --- */
 
 /* 2D marching grid: --frontage columns, ranks as rows. */
-.acks-formation .members ol {
+.acks-extras:is(.party-sheet, .skill-audit) .members ol {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -219,11 +219,11 @@
   gap: 4px;
 }
 
-.acks-formation .rank-divider {
+.acks-extras:is(.party-sheet, .skill-audit) .rank-divider {
   grid-column: 1 / -1;
 }
 
-.acks-formation .member.blank-cell {
+.acks-extras:is(.party-sheet, .skill-audit) .member.blank-cell {
   border: 1px dashed var(--color-border-light-tertiary, #7a7971);
   border-radius: 4px;
   justify-content: center;
@@ -231,88 +231,88 @@
   opacity: 0.7;
 }
 
-.acks-formation .member.blank-cell .hint {
+.acks-extras:is(.party-sheet, .skill-audit) .member.blank-cell .hint {
   flex: 1;
   text-align: center;
 }
 
-.acks-formation .stat.quiet .value {
+.acks-extras:is(.party-sheet, .skill-audit) .stat.quiet .value {
   color: #a06010;
 }
 
 /* --- Map items & skill audit --- */
 
-.acks-formation .map-item .label.clickable {
+.acks-extras:is(.party-sheet, .skill-audit) .map-item .label.clickable {
   cursor: pointer;
 }
 
-.acks-formation .map-item .label.clickable:hover {
+.acks-extras:is(.party-sheet, .skill-audit) .map-item .label.clickable:hover {
   text-shadow: 0 0 6px var(--color-shadow-primary, #782e22);
 }
 
-.acks-formation .audit-table {
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-12, 12px);
 }
 
-.acks-formation .audit-table th,
-.acks-formation .audit-table td {
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table th,
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table td {
   border: 1px solid var(--color-border-light-tertiary, #7a7971);
   padding: 3px 5px;
   text-align: left;
   vertical-align: top;
 }
 
-.acks-formation .audit-table .member-cell {
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table .member-cell {
   white-space: nowrap;
   font-weight: bold;
 }
 
-.acks-formation .audit-table .member-cell img {
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table .member-cell img {
   width: 20px;
   height: 20px;
   vertical-align: middle;
   border: none;
 }
 
-.acks-formation .audit-table .lvl {
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table .lvl {
   opacity: 0.6;
   font-weight: normal;
 }
 
-.acks-formation .audit-table .src {
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table .src {
   opacity: 0.7;
   font-size: var(--font-size-10, 10px);
 }
 
-.acks-formation .audit-table select,
-.acks-formation .audit-table input {
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table select,
+.acks-extras:is(.party-sheet, .skill-audit) .audit-table input {
   width: 100%;
   min-width: 70px;
   height: 22px;
   font-size: var(--font-size-11, 11px);
 }
 
-.acks-formation .member-controls.grid-controls {
+.acks-extras:is(.party-sheet, .skill-audit) .member-controls.grid-controls {
   display: grid;
   grid-template-columns: repeat(2, 22px);
   gap: 1px;
 }
 
-.acks-formation .member-controls.grid-controls button:first-child {
+.acks-extras:is(.party-sheet, .skill-audit) .member-controls.grid-controls button:first-child {
   grid-column: 1 / -1;
 }
 
-.acks-formation .member-controls.grid-controls button:nth-last-child(2) {
+.acks-extras:is(.party-sheet, .skill-audit) .member-controls.grid-controls button:nth-last-child(2) {
   grid-column: 1 / -1;
 }
 
-.acks-formation .member-controls.grid-controls button:last-child {
+.acks-extras:is(.party-sheet, .skill-audit) .member-controls.grid-controls button:last-child {
   grid-column: 1 / -1;
 }
 
-.acks-formation .member {
+.acks-extras:is(.party-sheet, .skill-audit) .member {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -321,18 +321,18 @@
   border-radius: 4px;
 }
 
-.acks-formation .member.slowest {
+.acks-extras:is(.party-sheet, .skill-audit) .member.slowest {
   border-color: rgba(160, 96, 16, 0.5);
 }
 
-.acks-formation .member .rank {
+.acks-extras:is(.party-sheet, .skill-audit) .member .rank {
   flex: 0 0 18px;
   text-align: center;
   font-weight: bold;
   opacity: 0.7;
 }
 
-.acks-formation .member img {
+.acks-extras:is(.party-sheet, .skill-audit) .member img {
   flex: 0 0 36px;
   width: 36px;
   height: 36px;
@@ -342,35 +342,35 @@
   cursor: pointer;
 }
 
-.acks-formation .member .info {
+.acks-extras:is(.party-sheet, .skill-audit) .member .info {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.acks-formation .member .name {
+.acks-extras:is(.party-sheet, .skill-audit) .member .name {
   font-weight: bold;
 }
 
-.acks-formation .member .name i {
+.acks-extras:is(.party-sheet, .skill-audit) .member .name i {
   font-size: var(--font-size-10, 10px);
   opacity: 0.6;
 }
 
-.acks-formation .member .details {
+.acks-extras:is(.party-sheet, .skill-audit) .member .details {
   font-size: var(--font-size-11, 11px);
   opacity: 0.75;
 }
 
-.acks-formation .member .roles {
+.acks-extras:is(.party-sheet, .skill-audit) .member .roles {
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
   margin-top: 2px;
 }
 
-.acks-formation .role-chip {
+.acks-extras:is(.party-sheet, .skill-audit) .role-chip {
   width: auto;
   font-size: var(--font-size-10, 10px);
   line-height: 16px;
@@ -380,20 +380,20 @@
   background: transparent;
 }
 
-.acks-formation .role-chip.active {
+.acks-extras:is(.party-sheet, .skill-audit) .role-chip.active {
   opacity: 1;
   background: var(--color-shadow-primary, #782e22);
   color: #fff;
   border-color: transparent;
 }
 
-.acks-formation .member-controls {
+.acks-extras:is(.party-sheet, .skill-audit) .member-controls {
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
-.acks-formation .member-controls button {
+.acks-extras:is(.party-sheet, .skill-audit) .member-controls button {
   width: 22px;
   height: 16px;
   line-height: 12px;
@@ -403,48 +403,48 @@
 
 /* --- Lights --- */
 
-.acks-formation .light {
+.acks-extras:is(.party-sheet, .skill-audit) .light {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 2px 0;
 }
 
-.acks-formation .light .label {
+.acks-extras:is(.party-sheet, .skill-audit) .light .label {
   flex: 1;
 }
 
-.acks-formation .light .remaining {
+.acks-extras:is(.party-sheet, .skill-audit) .light .remaining {
   font-size: var(--font-size-11, 11px);
   opacity: 0.75;
 }
 
-.acks-formation .light i.lit {
+.acks-extras:is(.party-sheet, .skill-audit) .light i.lit {
   color: #d08020;
 }
 
-.acks-formation .light.unlit {
+.acks-extras:is(.party-sheet, .skill-audit) .light.unlit {
   opacity: 0.55;
 }
 
-.acks-formation .light button {
+.acks-extras:is(.party-sheet, .skill-audit) .light button {
   flex: 0 0 24px;
   width: 24px;
   line-height: 18px;
   padding: 0;
 }
 
-.acks-formation .add-light {
+.acks-extras:is(.party-sheet, .skill-audit) .add-light {
   display: flex;
   gap: 4px;
   margin-top: 4px;
 }
 
-.acks-formation .add-light select {
+.acks-extras:is(.party-sheet, .skill-audit) .add-light select {
   flex: 1;
 }
 
-.acks-formation .add-light button {
+.acks-extras:is(.party-sheet, .skill-audit) .add-light button {
   flex: 0 0 auto;
   width: auto;
   padding: 0 8px;
@@ -452,7 +452,7 @@
   white-space: nowrap;
 }
 
-.acks-formation .hint {
+.acks-extras:is(.party-sheet, .skill-audit) .hint {
   font-size: var(--font-size-12, 12px);
   opacity: 0.75;
   font-style: italic;
@@ -460,28 +460,28 @@
 
 /* --- Spells --- */
 
-.acks-formation .add-spell input[type="text"] {
+.acks-extras:is(.party-sheet, .skill-audit) .add-spell input[type="text"] {
   flex: 1 1 90px;
   min-width: 70px;
 }
 
-.acks-formation .add-spell input[type="number"] {
+.acks-extras:is(.party-sheet, .skill-audit) .add-spell input[type="number"] {
   flex: 0 0 52px;
   min-width: 52px;
 }
 
-.acks-formation .add-spell select {
+.acks-extras:is(.party-sheet, .skill-audit) .add-spell select {
   flex: 1 1 90px;
   min-width: 70px;
 }
 
-.acks-formation .spells .light i.lit {
+.acks-extras:is(.party-sheet, .skill-audit) .spells .light i.lit {
   color: #7040a0;
 }
 
 /* --- Party saves --- */
 
-.acks-formation .magical-toggle {
+.acks-extras:is(.party-sheet, .skill-audit) .magical-toggle {
   display: flex;
   align-items: center;
   gap: 3px;
@@ -490,11 +490,11 @@
   flex: 0 0 auto;
 }
 
-.acks-formation .magical-toggle input {
+.acks-extras:is(.party-sheet, .skill-audit) .magical-toggle input {
   margin: 0;
 }
 
-.acks-formation .save-label {
+.acks-extras:is(.party-sheet, .skill-audit) .save-label {
   font-size: var(--font-size-11, 11px);
   text-transform: uppercase;
   opacity: 0.75;
@@ -502,25 +502,25 @@
   white-space: nowrap;
 }
 
-.acks-formation .saves-row button,
-.acks-formation .party-sheet-body .buttons button {
+.acks-extras:is(.party-sheet, .skill-audit) .saves-row button,
+.acks-extras:is(.party-sheet, .skill-audit) .party-sheet-body .buttons button {
   flex: 0 1 auto;
 }
 
 /* --- Party sheet --- */
 
-.acks-formation.party-sheet .window-content {
+.acks-extras.party-sheet .window-content {
   padding: 6px;
 }
 
-.acks-formation .party-sheet-body .buttons {
+.acks-extras:is(.party-sheet, .skill-audit) .party-sheet-body .buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
 }
 
-.acks-formation .party-sheet-body .buttons button {
+.acks-extras:is(.party-sheet, .skill-audit) .party-sheet-body .buttons button {
   width: auto;
   font-size: var(--font-size-12, 12px);
   line-height: 22px;
@@ -576,18 +576,18 @@
 
 /* --- Maps --- */
 
-.acks-formation .maps .session {
+.acks-extras:is(.party-sheet, .skill-audit) .maps .session {
   margin: 2px 0;
 }
 
-.acks-formation .maps .buttons {
+.acks-extras:is(.party-sheet, .skill-audit) .maps .buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin: 4px 0;
 }
 
-.acks-formation .maps .buttons button {
+.acks-extras:is(.party-sheet, .skill-audit) .maps .buttons button {
   flex: 0 1 auto;
   width: auto;
   font-size: var(--font-size-12, 12px);
@@ -596,27 +596,27 @@
   white-space: nowrap;
 }
 
-.acks-formation .maps .map-item button {
+.acks-extras:is(.party-sheet, .skill-audit) .maps .map-item button {
   flex: 0 0 auto;
   width: auto;
   padding: 0 8px;
   white-space: nowrap;
 }
 
-.acks-formation .maps i.lit {
+.acks-extras:is(.party-sheet, .skill-audit) .maps i.lit {
   color: #2060a0;
 }
 
-.acks-formation .maps i.distorted,
-.acks-formation .session i.distorted {
+.acks-extras:is(.party-sheet, .skill-audit) .maps i.distorted,
+.acks-extras:is(.party-sheet, .skill-audit) .session i.distorted {
   color: #a02020;
 }
 
-.acks-formation .maps .warn {
+.acks-extras:is(.party-sheet, .skill-audit) .maps .warn {
   color: #a06010;
   font-size: var(--font-size-11, 11px);
 }
-.acks-formation .down-badge {
+.acks-extras:is(.party-sheet, .skill-audit) .down-badge {
   color: #a02020;
 }
 
@@ -701,14 +701,14 @@
 }
 
 /* --- Skill Audit: party ability roster --- */
-.acks-formation .ability-roster h3 {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.acks-formation .ability-roster .reset-overrides {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .reset-overrides {
   flex: 0 0 auto;
   width: auto;
   padding: 0 8px;
@@ -716,12 +716,12 @@
   font-size: var(--font-size-11, 11px);
 }
 
-.acks-formation .ability-roster tr.inactive .member-cell,
-.acks-formation .ability-roster tr.inactive .binding-cell {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster tr.inactive .member-cell,
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster tr.inactive .binding-cell {
   opacity: 0.5;
 }
 
-.acks-formation .ability-roster .binding {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .binding {
   display: inline-block;
   margin: 1px 2px 1px 0;
   padding: 0 5px;
@@ -731,39 +731,39 @@
 }
 
 /* A name-only match is the fragile one — mark it so it is visible at a glance. */
-.acks-formation .ability-roster .binding.route-name {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .binding.route-name {
   border-style: dashed;
   border-color: #a06010;
   color: #a06010;
 }
 
-.acks-formation .ability-roster .binding.route-capability {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .binding.route-capability {
   border-color: #2d6a2d;
   color: #2d6a2d;
 }
 
-.acks-formation .ability-roster .gm-set {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .gm-set {
   margin-left: 4px;
   color: #4a6fa5;
   font-size: var(--font-size-11, 11px);
 }
 
-.acks-formation .ability-roster .toggle-cell {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .toggle-cell {
   width: 7.5em;
 }
 
-.acks-formation .ability-roster .ruling {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .ruling {
   width: 100%;
   padding: 0 4px;
   line-height: 22px;
   font-size: var(--font-size-11, 11px);
 }
 
-.acks-formation .ability-roster .ruling.forced {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .ruling.forced {
   border-color: #4a6fa5;
   font-weight: bold;
 }
 
-.acks-formation .ability-roster .ruling.off {
+.acks-extras:is(.party-sheet, .skill-audit) .ability-roster .ruling.off {
   text-decoration: line-through;
 }

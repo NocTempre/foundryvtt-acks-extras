@@ -34,68 +34,68 @@
 /* App roots take the family type scale so their em hierarchies ride the
    --acks-fs-base knob (the .acks-ui location sheet already does, via the
    design system's base.css; chat cards stay on Foundry's chat scale). */
-.acks-henchmen.throw-dialog .throw-dialog-body,
-.acks-henchmen.posting-dialog .posting-dialog-body {
+.acks-extras.throw-dialog .throw-dialog-body,
+.acks-extras.posting-dialog .posting-dialog-body {
   padding: 0.5rem;
   font-size: var(--acks-fs-body);
 }
 
-.acks-henchmen .form-group.modifier {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin: 0.25rem 0;
 }
 
-.acks-henchmen .form-group.modifier label {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier label {
   flex: 1 1 60%;
   min-width: 0;
   line-height: 1.25;
 }
 
-.acks-henchmen .form-group.modifier .hint-icon {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier .hint-icon {
   opacity: 0.55;
   font-size: 0.85em;
 }
 
-.acks-henchmen .form-group.modifier .mod-value {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier .mod-value {
   font-weight: bold;
   flex: 0 0 4.5em;
   text-align: right;
   white-space: nowrap;
 }
 
-.acks-henchmen .form-group.modifier input[type="number"] {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier input[type="number"] {
   flex: 0 0 5em;
   width: 5em;
 }
 
-.acks-henchmen .form-group.modifier input[type="checkbox"] {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier input[type="checkbox"] {
   flex: 0 0 auto;
 }
 
-.acks-henchmen .form-group.modifier select {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier select {
   flex: 0 0 13em;
   width: 13em;
 }
 
-.acks-henchmen .form-group.modifier.locked label {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier.locked label {
   opacity: 0.8;
 }
 
-.acks-henchmen .throw-total {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .throw-total {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 1.05em;
 }
 
-.acks-henchmen .throw-total .gm-unlock {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .throw-total .gm-unlock {
   margin-left: auto;
   opacity: 0.6;
 }
 
-.acks-henchmen .secret-badge {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .secret-badge {
   margin-left: 0.5rem;
   padding: 0 0.4em;
   border: 1px solid var(--color-border-dark-tertiary, #7a7971);
@@ -103,7 +103,7 @@
   font-size: 0.85em;
 }
 
-.acks-henchmen .hint {
+:is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .hint {
   color: var(--color-text-dark-secondary, #4b4a44);
   font-size: 0.9em;
 }
@@ -157,7 +157,7 @@
 }
 
 /* ------------------------------ location sheet ------------------------------ */
-.acks-henchmen.location-sheet .location-sheet-body {
+.acks-extras.acks-extras-location-sheet .location-sheet-body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -166,24 +166,24 @@
   height: 100%;
 }
 
-.acks-henchmen.location-sheet .location-header {
+.acks-extras.acks-extras-location-sheet .location-header {
   display: flex;
   gap: 0.75rem;
   align-items: center;
 }
 
-.acks-henchmen.location-sheet .location-header img.profile {
+.acks-extras.acks-extras-location-sheet .location-header img.profile {
   width: 64px;
   height: 64px;
   border: none;
   object-fit: cover;
 }
 
-.acks-henchmen.location-sheet .header-fields {
+.acks-extras.acks-extras-location-sheet .header-fields {
   flex: 1;
 }
 
-.acks-henchmen.location-sheet input.location-name {
+.acks-extras.acks-extras-location-sheet input.location-name {
   width: 100%;
   font-size: 1.4em;
   font-weight: bold;
@@ -191,7 +191,7 @@
   background: transparent;
 }
 
-.acks-henchmen.location-sheet .market-class-line {
+.acks-extras.acks-extras-location-sheet .market-class-line {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -200,14 +200,14 @@
 
 /* .market-class-badge now rides acks-design's .acks-tag (applied in the template). */
 
-.acks-henchmen.location-sheet details.section {
+.acks-extras.acks-extras-location-sheet details.section {
   border: 1px solid var(--acks-rule-color-soft, rgba(98, 7, 48, 0.35));
   border-radius: var(--acks-radius, 0);
   padding: 0.25rem 0.5rem;
   margin-block: 0.25rem;
 }
 
-.acks-henchmen.location-sheet details.section > summary {
+.acks-extras.acks-extras-location-sheet details.section > summary {
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -220,14 +220,14 @@
   color: var(--acks-spot);
 }
 
-.acks-henchmen.location-sheet .inline-add {
+.acks-extras.acks-extras-location-sheet .inline-add {
   margin-left: auto;
   width: auto;
   line-height: 1.4;
   font-size: 0.85em;
 }
 
-.acks-henchmen.location-sheet .grid-2 {
+.acks-extras.acks-extras-location-sheet .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.25rem 1rem;
@@ -235,54 +235,54 @@
 
 /* Tables are styled by acks-design's .acks-table component (applied in the template). */
 
-.acks-henchmen.location-sheet tr.inactive,
-.acks-henchmen.location-sheet tr.status-withdrawn,
-.acks-henchmen.location-sheet tr.status-refused {
+.acks-extras.acks-extras-location-sheet tr.inactive,
+.acks-extras.acks-extras-location-sheet tr.status-withdrawn,
+.acks-extras.acks-extras-location-sheet tr.status-refused {
   opacity: 0.55;
 }
 
-.acks-henchmen.location-sheet tr.status-slandered {
+.acks-extras.acks-extras-location-sheet tr.status-slandered {
   opacity: 0.55;
   text-decoration: line-through;
 }
 
-.acks-henchmen.location-sheet tr.status-hired {
+.acks-extras.acks-extras-location-sheet tr.status-hired {
   opacity: 0.7;
   font-style: italic;
 }
 
-.acks-henchmen.location-sheet .candidate-filter {
+.acks-extras.acks-extras-location-sheet .candidate-filter {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   margin: 0.25rem 0 0.4rem;
 }
 
-.acks-henchmen.location-sheet .candidate-filter input {
+.acks-extras.acks-extras-location-sheet .candidate-filter input {
   flex: 1;
 }
 
-.acks-henchmen.location-sheet .bucket-header {
+.acks-extras.acks-extras-location-sheet .bucket-header {
   margin: 0.5rem 0 0.15rem;
   border-bottom: 1px solid var(--color-border-light-tertiary, #b5b3a4);
 }
 
-.acks-henchmen.location-sheet .candidates-table th[data-sortable] {
+.acks-extras.acks-extras-location-sheet .candidates-table th[data-sortable] {
   cursor: pointer;
   user-select: none;
 }
 
-.acks-henchmen.location-sheet .candidates-table th[data-sort-dir="asc"]::after {
+.acks-extras.acks-extras-location-sheet .candidates-table th[data-sort-dir="asc"]::after {
   content: " ▲";
   font-size: 0.75em;
 }
 
-.acks-henchmen.location-sheet .candidates-table th[data-sort-dir="desc"]::after {
+.acks-extras.acks-extras-location-sheet .candidates-table th[data-sort-dir="desc"]::after {
   content: " ▼";
   font-size: 0.75em;
 }
 
-.acks-henchmen.location-sheet .special-portrait {
+.acks-extras.acks-extras-location-sheet .special-portrait {
   width: 22px;
   height: 22px;
   border: none;
@@ -290,31 +290,31 @@
   vertical-align: middle;
 }
 
-.acks-henchmen.location-sheet .row-actions {
+.acks-extras.acks-extras-location-sheet .row-actions {
   white-space: nowrap;
 }
 
-.acks-henchmen.location-sheet .row-actions a {
+.acks-extras.acks-extras-location-sheet .row-actions a {
   margin: 0 0.15rem;
 }
 
-.acks-henchmen.location-sheet .slander-row,
-.acks-henchmen.location-sheet .demographic-row {
+.acks-extras.acks-extras-location-sheet .slander-row,
+.acks-extras.acks-extras-location-sheet .demographic-row {
   display: flex;
   gap: 0.25rem;
   align-items: center;
   margin: 0.15rem 0;
 }
 
-.acks-henchmen.location-sheet .demographic-row select {
+.acks-extras.acks-extras-location-sheet .demographic-row select {
   flex: 1;
 }
 
-.acks-henchmen.location-sheet .demographic-row input {
+.acks-extras.acks-extras-location-sheet .demographic-row input {
   flex: 0 0 4em;
 }
 
-.acks-henchmen.location-sheet .demographics-block .block-label {
+.acks-extras.acks-extras-location-sheet .demographics-block .block-label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -323,7 +323,7 @@
 }
 
 /* ------------------------------ roster app ------------------------------ */
-.acks-henchmen.roster-app .roster-body {
+.acks-extras.roster-app .roster-body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -333,7 +333,7 @@
   font-size: var(--acks-fs-body);
 }
 
-.acks-henchmen.roster-app .roster-header {
+.acks-extras.roster-app .roster-header {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -342,151 +342,151 @@
   padding-bottom: 0.35rem;
 }
 
-.acks-henchmen.roster-app .limit-meter {
+.acks-extras.roster-app .limit-meter {
   padding: 0.15em 0.5em;
   border: 1px solid var(--color-border-dark-tertiary, #7a7971);
   border-radius: 3px;
 }
 
-.acks-henchmen.roster-app .limit-meter.over {
+.acks-extras.roster-app .limit-meter.over {
   border-color: var(--acks-danger);
   color: var(--acks-danger-ink);
   font-weight: bold;
 }
 
-.acks-henchmen.roster-app .wage-summary {
+.acks-extras.roster-app .wage-summary {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.acks-henchmen.roster-app .wage-summary button {
+.acks-extras.roster-app .wage-summary button {
   width: auto;
   line-height: 1.5;
 }
 
-.acks-henchmen.roster-app details.roster-row {
+.acks-extras.roster-app details.roster-row {
   border: 1px solid var(--color-border-light-tertiary, #b5b3a4);
   border-radius: 4px;
   padding: 0.2rem 0.4rem;
 }
 
-.acks-henchmen.roster-app details.roster-row.wage-due {
+.acks-extras.roster-app details.roster-row.wage-due {
   border-left: 3px solid var(--acks-warning);
 }
 
-.acks-henchmen.roster-app .roster-row summary {
+.acks-extras.roster-app .roster-row summary {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
 }
 
-.acks-henchmen.roster-app .roster-row summary img {
+.acks-extras.roster-app .roster-row summary img {
   width: 28px;
   height: 28px;
   border: none;
   object-fit: cover;
 }
 
-.acks-henchmen.roster-app .row-name {
+.acks-extras.roster-app .row-name {
   font-weight: bold;
 }
 
-.acks-henchmen.roster-app .row-tag {
+.acks-extras.roster-app .row-tag {
   font-size: 0.85em;
   opacity: 0.8;
 }
 
-.acks-henchmen.roster-app .row-stat {
+.acks-extras.roster-app .row-stat {
   margin-left: 0.5rem;
   white-space: nowrap;
 }
 
-.acks-henchmen.roster-app .row-stat.due {
+.acks-extras.roster-app .row-stat.due {
   color: var(--acks-warning-ink);
 }
 
-.acks-henchmen.roster-app .row-actions {
+.acks-extras.roster-app .row-actions {
   margin-left: auto;
   white-space: nowrap;
 }
 
-.acks-henchmen.roster-app .row-actions a {
+.acks-extras.roster-app .row-actions a {
   margin: 0 0.2rem;
 }
 
-.acks-henchmen.roster-app .row-details {
+.acks-extras.roster-app .row-details {
   padding: 0.25rem 0.5rem 0.25rem 2.3rem;
 }
 
-.acks-henchmen.roster-app .event-log,
-.acks-henchmen.roster-app .loyalty-ledger {
+.acks-extras.roster-app .event-log,
+.acks-extras.roster-app .loyalty-ledger {
   width: 100%;
   font-size: 0.85em;
   border-collapse: collapse;
 }
 
-.acks-henchmen.roster-app .event-log td,
-.acks-henchmen.roster-app .loyalty-ledger td {
+.acks-extras.roster-app .event-log td,
+.acks-extras.roster-app .loyalty-ledger td {
   padding: 0.1rem 0.3rem;
   border-top: 1px dotted var(--color-border-light-tertiary, #b5b3a4);
 }
 
-.acks-henchmen.roster-app .loyalty-ledger caption {
+.acks-extras.roster-app .loyalty-ledger caption {
   text-align: left;
   font-weight: bold;
   opacity: 0.8;
 }
 
-.acks-henchmen.roster-app .loyalty-ledger .ledger-track {
+.acks-extras.roster-app .loyalty-ledger .ledger-track {
   width: 4.5em;
   opacity: 0.7;
 }
 
-.acks-henchmen.roster-app .loyalty-ledger .ledger-delta {
+.acks-extras.roster-app .loyalty-ledger .ledger-delta {
   width: 2.5em;
   text-align: right;
   font-weight: bold;
 }
 
-.acks-henchmen.roster-app .loyalty-ledger .ledger-toggle {
+.acks-extras.roster-app .loyalty-ledger .ledger-toggle {
   width: 1.5em;
   text-align: right;
 }
 
 /* Compensated (RR 166): the entry stays on record but no longer scores. */
-.acks-henchmen.roster-app .loyalty-ledger tr.compensated td:not(.ledger-toggle) {
+.acks-extras.roster-app .loyalty-ledger tr.compensated td:not(.ledger-toggle) {
   text-decoration: line-through;
   opacity: 0.6;
 }
 
 /* Long-running advert: the post "changes color" (RAW designation) — the
    whole location's search for that thing eases one rarity while it runs. */
-.acks-henchmen.location-sheet tr.advert-veteran td:first-child {
+.acks-extras.acks-extras-location-sheet tr.advert-veteran td:first-child {
   color: var(--acks-spot);
 }
-.acks-henchmen.location-sheet tr.advert-veteran .fa-bullhorn {
+.acks-extras.acks-extras-location-sheet tr.advert-veteran .fa-bullhorn {
   color: var(--acks-spot);
 }
 
 /* Location sheet tabs are styled by acks-design's foundry.css (.acks-ui .sheet-tabs). */
-.acks-henchmen.location-sheet section.location-tab:not(.active) {
+.acks-extras.acks-extras-location-sheet section.location-tab:not(.active) {
   display: none;
 }
-.acks-henchmen.location-sheet section.location-tab {
+.acks-extras.acks-extras-location-sheet section.location-tab {
   overflow-y: auto;
   flex: 1;
 }
 
 /* Directed-search replacement: the candidate your search found — starred
    and tinted for the posting recruiter, available the whole month. */
-.acks-henchmen.location-sheet tr.search-hit td:first-child {
+.acks-extras.acks-extras-location-sheet tr.search-hit td:first-child {
   color: var(--acks-spot);
   font-weight: bold;
 }
-.acks-henchmen.location-sheet tr.search-hit .fa-star {
+.acks-extras.acks-extras-location-sheet tr.search-hit .fa-star {
   color: var(--acks-gold);
 }
 

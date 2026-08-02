@@ -18,35 +18,6 @@
 
 /* --- Container Manager ------------------------------------------------- */
 
-.acks-equipment-containers__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  height: 100%;
-  font-size: var(--font-size-13, 13px);
-}
-
-.acks-equipment-containers__summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.acks-equipment-containers__note,
-.acks-equipment-containers__empty {
-  margin: 0;
-  opacity: 0.75;
-}
-
-.acks-equipment-container-scroll {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .acks-equipment-container {
   border: 1px solid var(--color-border-light-tertiary, #7a7971);
   border-radius: 4px;
@@ -59,27 +30,10 @@
   box-shadow: 0 0 6px var(--color-shadow-primary, #ff6400);
 }
 
-.acks-equipment-container.over .acks-equipment-container__load {
-  color: var(--color-level-error, #b60205);
-  font-weight: bold;
-}
-
 .acks-equipment-container__header {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-}
-
-.acks-equipment-container__icon {
-  width: 24px;
-  height: 24px;
-  border: none;
-  cursor: pointer;
-}
-
-.acks-equipment-container__name {
-  flex: 1;
-  font-weight: bold;
 }
 
 .acks-equipment-container__controls {
@@ -87,67 +41,6 @@
   gap: 0.35rem;
 }
 
-.acks-equipment-container__bar {
-  height: 4px;
-  margin: 0.25rem 0;
-  background: var(--color-border-light-tertiary, #7a7971);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.acks-equipment-container__fill {
-  height: 100%;
-  background: var(--color-level-success, #18520b);
-}
-
-.acks-equipment-container.over .acks-equipment-container__fill {
-  background: var(--color-level-error, #b60205);
-}
-
-.acks-equipment-container__contents {
-  margin: 0.2rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.acks-equipment-container__row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.1rem 0;
-  cursor: grab;
-}
-
-.acks-equipment-container__row.empty {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.acks-equipment-container__row img {
-  width: 20px;
-  height: 20px;
-  border: none;
-  cursor: pointer;
-}
-
-.acks-equipment-container__row-name {
-  flex: 1;
-}
-
-.acks-equipment-container__row-weight {
-  opacity: 0.7;
-  font-variant-numeric: tabular-nums;
-}
-
-.acks-equipment-container__worn {
-  margin-left: 0.25rem;
-  opacity: 0.6;
-}
-
-/* Gear whose name matches a RAW carrying device gets a highlighted control. */
-.acks-equipment-container__row a.suggested {
-  color: var(--color-level-success, #18520b);
-}
 
 /* --- Inventory wear buckets -------------------------------------------- */
 
@@ -333,25 +226,8 @@
   color: var(--color-level-info, #0b5394);
 }
 
-/* --- Masterwork control: lit when a tier is applied ------------------- */
 
-.acks-equipment-mw--active {
-  color: var(--color-level-warning, #b8860b);
-}
 
-/* --- Scavenge control: lit when a condition is applied ---------------- */
-
-.acks-equipment-scavenge--active {
-  color: var(--color-level-error, #b60205);
-}
-
-/* --- Shield-variant control: small text label + icon ----------------- */
-
-.acks-equipment-variant {
-  font-size: var(--font-size-11, 11px);
-  white-space: nowrap;
-  padding: 0 0.25rem;
-}
 
 /* --- ACKS Properties panel on the item sheet ------------------------- */
 
@@ -359,13 +235,6 @@
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--color-border-light-tertiary, #782e2244);
-}
-
-.acks-equipment-props__title {
-  font-size: var(--font-size-13, 13px);
-  font-weight: bold;
-  margin: 0 0 0.35rem;
-  opacity: 0.85;
 }
 
 .acks-equipment-props__row {

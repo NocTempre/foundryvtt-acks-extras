@@ -179,6 +179,50 @@ for (const f of walk(path.join(ROOT, "scripts"))) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* 5. CSS scope classes are alive.                                             */
+/*                                                                             */
+/* The merge renamed the CSS-hook classes inside JS `classes:` arrays (they     */
+/* matched stale module ids) and the stylesheets kept the old scopes — ~255     */
+/* rules matched nothing and five sheets rendered unstyled. MERGE-NOTES §4      */
+/* names the gap: the old check scanned styles/*.css, never the JS class        */
+/* arrays. So: every acks* class token used in a styles/*.css selector must     */
+/* occur somewhere in scripts/ or templates/ (vendor/ is upstream, excluded).   */
+/* -------------------------------------------------------------------------- */
+{
+  const surface = [
+    ...walk(path.join(ROOT, "scripts")).filter((f) => f.endsWith(".mjs")),
+    ...walk(path.join(ROOT, "templates")).filter((f) => f.endsWith(".hbs")),
+  ]
+    .map((f) => fs.readFileSync(f, "utf8"))
+    .join("\n");
+  /* A token is also alive when code BUILDS it from a stem — `grip--${state}`,
+   * `acksm-enc-{{encumbrance.state}}` — so every separator-cut prefix is
+   * tried against an interpolation start before the token is called dead. */
+  const live = (token) => {
+    if (new RegExp(`\\b${token}\\b`).test(surface)) return true;
+    for (let i = token.length - 1; i > 0; i--) {
+      if (token[i] !== "-" && token[i] !== "_") continue;
+      const stem = token.slice(0, i + 1);
+      if (surface.includes(`${stem}\${`) || surface.includes(`${stem}{{`)) return true;
+    }
+    return false;
+  };
+  for (const f of walk(path.join(ROOT, "styles"))) {
+    if (!f.endsWith(".css")) continue;
+    const css = fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const seen = new Set();
+    for (const m of css.matchAll(/\.((?:acks)[\w-]*)/g)) {
+      const token = m[1];
+      if (seen.has(token)) continue;
+      seen.add(token);
+      if (!live(token)) {
+        fail(`${rel(f)}: selector class ".${token}" never appears in scripts/ or templates/ — dead scope (JS classes: arrays renamed without the CSS?)`);
+      }
+    }
+  }
+}
+
 console.log(
   failed
     ? "validate-extra: merge guards FAILED"

@@ -355,8 +355,8 @@
   opacity: 0.8;
 }
 
-/* External modes (hiring / loyalty pages hosted for consumer modules) */
-.acks-influence .influence-mode-title {
+/* External modes (hiring / loyalty pages hosted for consumer features) */
+.acks-extras.acks-influence-dialog .influence-mode-title {
   display: flex;
   align-items: center;
   justify-content: center;
