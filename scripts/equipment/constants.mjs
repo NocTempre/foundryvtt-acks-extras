@@ -156,11 +156,11 @@ export const HOOKS = Object.freeze({
   // inventing a second convention.
   PURCHASED: `${NAMESPACE}.purchased`, // (actor, item, cost)
   PRE_ROLL_ATTACK: `${NAMESPACE}.preRollAttack`, // (actor, item, mods, ctx) — also the name proposed for a core hook
+  LOCK_PICKED: `${NAMESPACE}.lockPicked`, // (actor, container)
+  CONTAINER_BASHED: `${NAMESPACE}.containerBashed`, // (actor, container, {fragile})
 });
 
 /** The label of the module-managed loadout Active Effect on actors. */
 export const LOADOUT_EFFECT_NAME = "Equipment Loadout";
 export const LOADOUT_EFFECT_FLAG = "loadout"; // flags.acks-extras.loadout = true marks our managed AE
 
-/** Sibling module owning the richer proficiency/ability model (kill switch). */
-export const ABILITIES_ID = "acks-extras";

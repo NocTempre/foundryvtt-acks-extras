@@ -110,7 +110,7 @@ export async function pickLock(actor, container) {
   if (success) {
     await setOpened(container, true);
     notify("info", "picked", { name: container.name });
-    Hooks.callAll(HOOKS?.LOCK_PICKED ?? "acksEquipmentLockPicked", actor, container);
+    Hooks.callAll(HOOKS.LOCK_PICKED, actor, container);
   } else {
     notify("warn", "pickFailed", { name: container.name });
   }
@@ -180,7 +180,7 @@ export async function destroyContainer(actor, container) {
     notify("info", "bashed", { name: container.name });
   }
 
-  Hooks.callAll(HOOKS?.CONTAINER_BASHED ?? "acksEquipmentContainerBashed", actor, container, { fragile });
+  Hooks.callAll(HOOKS.CONTAINER_BASHED, actor, container, { fragile });
   await actor.deleteEmbeddedDocuments("Item", [container.id]);
   return true;
 }

@@ -11,7 +11,7 @@
  *   flags.acks-equipment.martialWeapons     (effect) CSV of added weapon categories
  *   flags.acks-equipment.armorTraining      (effect) integer categories added
  */
-import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS, ABILITIES_ID } from "./constants.mjs";
+import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS } from "./constants.mjs";
 import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX, WEAPONS, WEAPON_ALIASES, normalizeName } from "./config.mjs";
 import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 
@@ -29,16 +29,16 @@ import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects
  * with its Class Training items (a style plus the weapon/armour lists) and the
  * gate is correct.
  *
- * acks-abilities owns a richer model of the same facts but cannot yet express
- * the base class proficiency LISTS; its POSITIVE grants (Weapon Finesse, a
- * specialization's style, Martial/Armour Training, Weapon Focus) still apply
- * through the bridge regardless of this setting.
+ * The abilities feature owns a richer model of the same facts but cannot yet
+ * express the base class proficiency LISTS; its POSITIVE grants (Weapon
+ * Finesse, a specialization's style, Martial/Armour Training, Weapon Focus)
+ * still apply through the bridge regardless of this setting.
  *
  * The `proficiencyEnforcement` world setting selects the policy:
  *   "on"   (default) — always enforce; a declared Class-Training limit is real.
- *   "auto"           — enforce only while acks-abilities is NOT active (the old
- *                      default); use it if characters rely on acks-abilities and
- *                      read as falsely non-proficient.
+ *   "auto"           — enforce only while the abilities feature is absent (the
+ *                      pre-merge default); use it if characters rely on the
+ *                      abilities model and read as falsely non-proficient.
  *   "off"            — never enforce; all proficiency gating goes permissive.
  *
  * Scope: this toggles the PENALTIES (the RR p.106 Non-Proficient Use package:
@@ -55,7 +55,7 @@ export function enforcementActive() {
   }
   if (mode === "on") return true;
   if (mode === "off") return false;
-  return !game.modules?.get?.(ABILITIES_ID)?.active; // "auto"
+  return !globalThis.acksExtras?.abilities; // "auto" — off while the abilities feature is present
 }
 
 /** Ladder index of an armour category (higher = heavier); -1 if unknown. */
