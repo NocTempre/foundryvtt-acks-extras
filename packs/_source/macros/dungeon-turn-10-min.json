@@ -5,7 +5,7 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/clockwork.svg",
-  "command": "// Mark off one dungeon turn for the (first) formation — GM only.\nconst api = game.modules.get(\"acks-extras\")?.api ?? globalThis.acksExtras.formation;\nif (!api) return ui.notifications.error(\"ACKS Exploration Formations is not active.\");\nconst formation = Object.values(api.getFormations())[0];\nif (!formation) return ui.notifications.warn(\"No formation exists yet.\");\napi.advanceTurns(formation, 1, { reason: \"manual\" });",
+  "command": "// Mark off one dungeon turn for the (first) formation — GM only.\nconst api = game.modules.get(\"acks-extras\")?.api?.formation ?? globalThis.acksExtras?.formation;\nif (!api) return ui.notifications.error(\"ACKS Exploration Formations is not active.\");\nconst formation = Object.values(api.getFormations())[0];\nif (!formation) return ui.notifications.warn(\"No formation exists yet.\");\napi.advanceTurns(formation, 1, { reason: \"manual\" });",
   "ownership": {
     "default": 0
   },

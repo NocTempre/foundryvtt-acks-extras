@@ -33,6 +33,18 @@ read-only inputs; nothing here was a change to them.
 > four classes of miss (plus icon-path existence), each verified red on the
 > pre-fix tree.
 
+> **Second addendum (2026-08-02, v1.0.3).** The `module.api` trap named in the
+> addendum above had three surviving instances, all in the macros pack:
+> **Influence Roller**, **Party Sheet** and **Dungeon Turn (+10 min)** each read
+> `game.modules.get("acks-extras")?.api ?? globalThis.acksExtras.<feature>`.
+> The aggregate api is never null, so the `??` fallback behind it is unreachable
+> — the first two reported the module inactive and Dungeon Turn threw on
+> `getFormations`. All three now read `api.<feature>`. The rule for any new
+> macro: **`module.api` is the namespace, never a feature — always drill in.**
+> Found by the release live gate, not by validation: `validate-extra` does not
+> inspect macro command strings in `tools/pack-data/`. A guard belongs there and
+> is not yet written.
+
 Source repos are read-only inputs; nothing here was a change to them.
 
 ---

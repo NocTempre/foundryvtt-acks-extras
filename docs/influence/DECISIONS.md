@@ -7,6 +7,33 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### Sheet injectors gate on the document, never on `.actor` (2026-08-02)
+
+The header button and the Notes-tab Relationships section resolve their subject
+from `app.document`, and require it to be an Actor of type `character`. Reading
+`app.actor` first — the previous gate — is what broke.
+
+`renderApplicationV2` offers every ApplicationV2, and an owned Item's sheet
+exposes `.actor` as its *owner*. So an owned item's sheet passed the character
+test, and the Influence button was being injected into item sheet headers.
+The same window then failed the Notes-tab lookup and tripped the one-shot
+"no Notes-tab host found" warning, which latched for the rest of the session
+and read as "the section never renders" — while the section was in fact
+rendering correctly on every character sheet all along. The reported symptom
+was the warning, not the feature.
+
+Rejected: narrowing the hook registrations to `renderActorSheetV2` alone. The
+three registrations exist so the system's minified sheet class name can change
+freely, and the correct gate makes the broad hook harmless. This matches the
+gate the equipment injectors already use.
+
+A second guard follows from the same rule: a character sheet with no primary
+tab strip (the Follower Card, this module's location sheet) has no Notes tab to
+extend, and returns silently. Only a sheet carrying the strip is expected to
+host the section, so only that case is worth warning about.
+
+---
+
 ### Racial and cross-species reactions ship strict-RAW (2026-07-16)
 
 Shipped as `racial.mjs` plus roller integration, compendium items and settings.

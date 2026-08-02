@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.0.3
+
+### Fixed
+- The Influence button no longer appears on the header of an owned item's
+  sheet. The character-sheet injectors identified their subject by reading
+  `.actor` off the rendering window, and an owned Item's sheet reports its
+  owner there — so every item belonging to a character was dressed as a
+  character sheet. They now require the window's own document to be the
+  character.
+- Silenced the "relationships: no Notes-tab host found on the character sheet"
+  warning. It was the same misidentification: an item sheet reached the Notes
+  tab lookup, failed it, and tripped a once-per-session warning that then
+  read as a permanent failure. The Relationships section itself was rendering
+  correctly on the character sheet throughout.
+- A character sheet with no primary tab strip — the Follower Card, this
+  module's location sheet — is no longer reported as a missing Notes tab. It
+  has none to extend, which is not a fault.
+- Three shipped macros — **Influence Roller**, **Party Sheet** and **Dungeon
+  Turn (+10 min)** — reached for the whole module api where they wanted one
+  feature's. Since the merge that api is the aggregate (`{lib, abilities,
+  equipment, formation, influence, monsters, henchmen, location}`), so it is
+  never null and the `??` fallback behind it could never fire: the first two
+  reported the module as "not active/enabled" and Dungeon Turn threw on
+  `getFormations`. They now read `api.influence` / `api.formation`.
+- The Full Monster sheet renders its item tags again. `tab-abilities.hbs` and
+  `tab-spoils.hbs` read `item.flags.[acks-monsters]` while the annotations are
+  written under `acks-extras`, so the ability-category tag and the spoil
+  component / research-effect tags never appeared.
+
+### Changed
+- Comments and docs across abilities, equipment, formation, henchmen,
+  influence, lib and monsters no longer name pre-merge flag scopes the code
+  stopped using — every feature writes `flags["acks-extras"]`. `validate-extra`
+  now scans `templates/` and understands Handlebars' bracketed segment
+  literals, which is why the two stale templates above were finally caught.
+
 ## 1.0.2
 
 ### Fixed

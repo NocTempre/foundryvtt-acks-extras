@@ -19,7 +19,7 @@ export function buildMacros() {
     type: "script",
     scope: "global",
     img: "icons/skills/social/diplomacy-handshake-yellow.webp",
-    command: "// Open the ACKS Influence roller for the selected/assigned actor.\nconst actor = canvas?.tokens?.controlled?.[0]?.actor ?? game.user?.character ?? null;\nconst api = game.modules.get(\"acks-extras\")?.api ?? globalThis.acksExtras.influence;\nif (api?.open) api.open(actor);\nelse ui.notifications.error(\"ACKS Influence & Reactions module is not active/enabled.\");",
+    command: "// Open the ACKS Influence roller for the selected/assigned actor.\nconst actor = canvas?.tokens?.controlled?.[0]?.actor ?? game.user?.character ?? null;\nconst api = game.modules.get(\"acks-extras\")?.api?.influence ?? globalThis.acksExtras?.influence;\nif (api?.open) api.open(actor);\nelse ui.notifications.error(\"ACKS Influence & Reactions module is not active/enabled.\");",
     ownership: { default: 0 },
     _stats: { coreVersion: "13", createdTime: 1784206144345, modifiedTime: 1784206144345 },
   },

@@ -5,7 +5,7 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/combat.svg",
-  "command": "// Open the exploration party sheet.\nconst api = game.modules.get(\"acks-extras\")?.api ?? globalThis.acksExtras.formation;\nif (api?.open) api.open();\nelse ui.notifications.error(\"ACKS Exploration Formations is not active.\");",
+  "command": "// Open the exploration party sheet.\nconst api = game.modules.get(\"acks-extras\")?.api?.formation ?? globalThis.acksExtras?.formation;\nif (api?.open) api.open();\nelse ui.notifications.error(\"ACKS Exploration Formations is not active.\");",
   "ownership": {
     "default": 0
   },

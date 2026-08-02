@@ -124,6 +124,23 @@ Hooks.once("ready", () => {
 });
 
 /**
+ * Resolve the character whose sheet is being rendered, for the injectors below.
+ *
+ * The gate is "this app IS a character Actor's sheet", never "this app has an
+ * actor". `renderApplicationV2` offers EVERY ApplicationV2, and plenty of other
+ * windows expose an `.actor` — an owned Item's sheet reports its owner — so
+ * never resolve the actor from `.actor`: that lets a foreign window through and
+ * it gets dressed as a character sheet.
+ * @param {foundry.applications.api.ApplicationV2} app
+ * @returns {Actor|null} The sheet's character, or null if this is not one.
+ */
+function characterOf(app) {
+  const doc = app?.document ?? null;
+  if (doc?.documentName !== "Actor" || doc.type !== "character") return null;
+  return doc;
+}
+
+/**
  * Inject an "Influence" button into the ACKS character sheet header, styled to
  * match the system's existing header icon buttons. Fails gracefully if the
  * header structure changes.
@@ -132,8 +149,8 @@ Hooks.once("ready", () => {
  */
 function injectSheetButton(app, element) {
   try {
-    const actor = app?.actor ?? app?.document ?? null;
-    if (actor?.type !== "character") return;
+    const actor = characterOf(app);
+    if (!actor) return;
 
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root || root.querySelector(".acks-influence-btn")) return;
@@ -168,10 +185,14 @@ function injectSheetButton(app, element) {
  */
 function injectRelationships(app, element) {
   try {
-    const actor = app?.actor ?? app?.document ?? null;
-    if (actor?.type !== "character") return;
+    const actor = characterOf(app);
+    if (!actor) return;
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
+    // Character sheets without core's primary tab strip (the Follower Card, our
+    // own location sheet) have no Notes tab to extend. That is not a failure to
+    // report — only a sheet carrying the strip is expected to host the section.
+    if (!root.querySelector('section.tab[data-group="primary"]')) return;
     const host =
       root.querySelector('.tab[data-tab="notes"] .content .flexcol') ??
       root.querySelector('.tab[data-tab="notes"] .flexcol') ??
