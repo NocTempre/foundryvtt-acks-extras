@@ -1,9 +1,5 @@
 <section class="tab acks-abilities-mechanics" data-tab="mechanics" data-group="primary">
 
-  {{#if libMissing}}
-    <p class="notification warning">{{localize "ACKS-ABILITIES.warn.libMissing"}}</p>
-  {{/if}}
-
   {{#if notice}}
     <p class="notification {{notice.cls}} acks-abilities-notice" data-tooltip="{{notice.tip}}">
       <i class="{{notice.icon}}" aria-hidden="true"></i>

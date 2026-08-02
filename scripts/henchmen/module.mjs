@@ -204,16 +204,12 @@ Hooks.once("ready", () => {
     })().catch((err) => console.error(`${MODULE_ID} | adopting pre-existing hirelings failed`, err));
   }
 
-  // Book tables are imported per-world, not shipped. If acks-lib is missing or
-  // some documents have not been imported yet, tell the GM once and name them.
+  // Book tables are imported per-world, not shipped. If some documents have
+  // not been imported yet, tell the GM once and name them.
   if (game.user.isGM) {
-    if (!globalThis.acksExtras?.lib?.tables) {
-      ui.notifications.error(game.i18n.localize("ACKS-HENCHMEN.libMissing"));
-    } else {
-      const missing = RULEDATA.filter((id) => !hasDoc(id));
-      if (missing.length) {
-        ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.tablesMissing", { list: missing.join(", ") }));
-      }
+    const missing = RULEDATA.filter((id) => !hasDoc(id));
+    if (missing.length) {
+      ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.tablesMissing", { list: missing.join(", ") }));
     }
   }
 

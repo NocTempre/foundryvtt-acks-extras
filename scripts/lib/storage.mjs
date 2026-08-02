@@ -389,7 +389,6 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
   const coin = plainGoods.filter((g) => g.type === "money");
   const goods = plainGoods.filter((g) => g.type !== "money");
 
-  const equipment = game.modules?.get("acks-extras")?.active;
   let containerId = null;
   if (goods.length) {
     const container = {
@@ -397,7 +396,7 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
       type: "item",
       img: "icons/svg/chest.svg",
       system: { subtype: "item", cost: 0, weight6: 0, quantity: { value: 1, max: 0 } },
-      ...(equipment ? { flags: { "acks-extras": { container: { capacity: 0 } } } } : {}),
+      flags: { "acks-extras": { container: { capacity: 0 } } },
     };
     const [made] = await owner.createEmbeddedDocuments("Item", [container]);
     containerId = made?.id ?? null;

@@ -329,7 +329,6 @@ export function createAbilitySheet(Base) {
         };
       });
       context.scales = scales;
-      context.libMissing = !globalThis.acksExtras?.lib;
       // Converted content still imports; it just carries a notice. Removed-on-
       // purpose reads as a caution, merely-omitted as info, and a RENAME is
       // marked too — it resolved, but the reader's book calls it something else,

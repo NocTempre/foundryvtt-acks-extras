@@ -18,7 +18,7 @@
  * destroyed while an injected section (not being a part) survives — removing
  * both and re-adding them is what keeps the two halves consistent.
  */
-import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID, REQUIRED_LIB_API } from "../constants.mjs";
+import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
@@ -183,7 +183,6 @@ export function installStorageTab() {
   Hooks.on("renderActorSheetV2", async (app, element) => {
     try {
       if (game.system?.id !== "acks") return;
-      if ((globalThis.acksExtras?.lib?.apiVersion ?? 0) < REQUIRED_LIB_API) return;
       const actor = app.actor ?? app.document;
       if (actor?.type !== "character") return;
       const root = element instanceof HTMLElement ? element : element?.[0];

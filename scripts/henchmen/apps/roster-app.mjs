@@ -91,8 +91,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   static #onAllSheets(useCard) {
     return async function () {
-      const setSheet = globalThis.acksExtras?.lib?.followerCard?.setSheet;
-      if (!setSheet) return ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.libMissing"));
+      const setSheet = globalThis.acksExtras.lib.followerCard.setSheet;
       const ids = [...adapter.getHenchmenIds(this.employer), ...(this.employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [])];
       let changed = 0;
       for (const id of ids) {

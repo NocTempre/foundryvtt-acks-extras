@@ -106,7 +106,6 @@ Hooks.once("ready", () => {
   if (module) module.api = acksExtras;
 
   if (game.system?.id !== "acks") return;
-  if (!globalThis.acksExtras?.lib?.storage) return;
   // One client sweeps: it creates actors and moves coin. Elected the same way
   // the library elects its deletion fallback.
   if (!game.users.activeGM?.isSelf) return;

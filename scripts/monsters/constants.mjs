@@ -7,9 +7,6 @@
 
 export const MODULE_ID = "acks-extras";
 
-/** Localization key prefix. */
-export const LANG = "ACKS-MONSTERS";
-
 /** The core ACKS actor type this module enhances (we do NOT invent a new one). */
 export const MONSTER_TYPE = "monster";
 

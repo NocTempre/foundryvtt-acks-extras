@@ -19,8 +19,6 @@ import { MODULE_ID } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import * as adapter from "../acks-adapter.mjs";
 
-const INFLUENCE_ID = "acks-extras";
-
 /* module.api is the whole acksExtras namespace; the influence surface —
  * apiVersion, open() — hangs off its feature key. */
 export function influenceApi() {
@@ -125,8 +123,6 @@ export function signingTierFromParts(parts) {
 const _seenResolutions = new Map();
 
 export function registerInfluenceIntegration() {
-  if (!game.modules.get(INFLUENCE_ID)?.active) return;
-
   Hooks.on("acksExtras.influenceRollComplete", async (payload) => {
     try {
       const context = payload?.context;
