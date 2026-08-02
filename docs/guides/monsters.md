@@ -10,8 +10,11 @@ monster be hired.
 
 ## The sheet
 
-Open any **monster** actor. The sheet replaces core's flat "attributes" and
-"notes" panes with tabs:
+Open any **monster** actor — this is the sheet you get, no configuration needed.
+**Animals** open on it too: an animal's combat block uses the monster's own
+field paths, and the extended block is where its body form, carrying load and
+training live. The sheet replaces core's flat "attributes" and "notes" panes
+with tabs:
 
 - **Classification** — type, size, body form, intelligence, alignment.
 - **Attacks** — the attack routine, natural weapons and their damage types.
@@ -24,7 +27,10 @@ Open any **monster** actor. The sheet replaces core's flat "attributes" and
 - **Description** — the prose.
 
 No new actor type is invented: this is core's `monster`, extended through flags,
-so everything that already reads a monster keeps working.
+so everything that already reads a monster keeps working. The sheet is a
+subclass of the system's own, so it keeps every tab core defines — and core's
+plain sheet is still there under **Sheet Configuration** if you want the lean
+view for a particular actor.
 
 ## Monsters as hirelings
 

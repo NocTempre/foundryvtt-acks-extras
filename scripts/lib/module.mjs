@@ -275,6 +275,11 @@ function applyFontScale(px) {
  * to keep in step. So the system's monster sheet is registered for the animal
  * type as well.
  *
+ * This is the FLOOR, not the final answer: monsters/module.mjs registers the
+ * Full Monster sheet for `animal` too, later in the same hook, and takes the
+ * default over. Registering here regardless is what guarantees an animal always
+ * has a working sheet even when that sheet cannot be built.
+ *
  * At READY, not init: Foundry defers every registerSheet call made before
  * `game.ready` into a pending queue, so `CONFIG.Actor.sheetClasses` is empty
  * during init and the system's sheet cannot be resolved yet. Same reason

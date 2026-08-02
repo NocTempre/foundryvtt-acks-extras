@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.2
+
+### Fixed
+- The Full Monster sheet is now the **default** for `monster`, not an alternate
+  a GM had to pick per actor. It subclasses the system's own monster sheet and
+  keeps every tab it defines, so nothing is taken away — the plain sheet stays
+  selectable from Sheet Configuration.
+- Animals get the Full Monster sheet too. Their combat block already mirrors the
+  monster's field paths exactly, so the extended stat block (body form, load,
+  training, reproduction) reads an animal unchanged — it had simply never been
+  registered for the sub-type, leaving animals on the lean sheet.
+- Resolving the sheet's base class now considers only the *system's* sheets.
+  This module registers into the same map (the Full Monster sheet itself, and
+  lib's Follower Card), and with the sheet now defaulted, an unfiltered lookup
+  could subclass this module's own output.
+
 ## 1.0.1
 
 ### Fixed
