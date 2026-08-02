@@ -2,7 +2,7 @@
 
 Why this feature is shaped the way it is: what was ruled, what was rejected, and
 what it cost. How it behaves *now* is [MODEL.md](MODEL.md); unbuilt work is
-[ROADMAP.md](ROADMAP.md).
+[ROADMAP.md](../ROADMAP.md).
 
 Entries are dated and append-only. A superseded entry stays, marked.
 

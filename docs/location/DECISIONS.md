@@ -2,7 +2,7 @@
 
 Why this feature is shaped the way it is: what was ruled, what was rejected, and
 what the ruling cost. How it behaves *now* is [MODEL.md](MODEL.md); what is not
-built yet is [ROADMAP.md](ROADMAP.md).
+built yet is [ROADMAP.md](../ROADMAP.md).
 
 Entries are dated and append-only. **A superseded entry stays, marked as
 superseded** — the value of this file is that a settled question is not

@@ -1,6 +1,6 @@
 # Roadmap & Rules Gap Analysis
 
-Status of every rule in the local rules extract (`acks-rules/acks-formation/RULES.md`, kept outside the repo) against the module as of **v0.4.0**, the refreshed plan for the **map-object fog system** ([FOG-DESIGN.md](FOG-DESIGN.md)), and — per the campaign requirements — the rules that need **additional development** (or additional rules text we don't yet have) to implement properly.
+Status of every rule in the local rules extract (`acks-rules/acks-formation/RULES.md`, kept outside the repo) against the module as of **v0.4.0**, the refreshed plan for the **map-object fog system** ([FOG.md](FOG.md)), and — per the campaign requirements — the rules that need **additional development** (or additional rules text we don't yet have) to implement properly.
 
 Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · 📖 needs rules text not in the three source PDFs
 
@@ -40,7 +40,7 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 
 ## 2. The mapping system (revisited)
 
-[FOG-DESIGN.md](FOG-DESIGN.md) remains the architecture; v0.4.0 made it *simpler*: the module is now **v14-only** (no dual-path fog code needed) and Map items get a natural home — the party actor / member inventories are already tradeable.
+[FOG.md](FOG.md) remains the architecture; v0.4.0 made it *simpler*: the module is now **v14-only** (no dual-path fog code needed) and Map items get a natural home — the party actor / member inventories are already tradeable.
 
 **Phase 1 — map sessions (core loop).**
 - Force `fog.mode = SHARED` while a formation maps on a scene (today we restore "whatever the scene had"); all members contribute to and see one union.

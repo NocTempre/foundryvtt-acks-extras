@@ -92,5 +92,5 @@ changed the party's posture.
 ## Ideas for later
 
 Superseded by [ROADMAP.md](ROADMAP.md), which tracks the full rules gap analysis and
-the phased mapping plan ([FOG-DESIGN.md](FOG-DESIGN.md)). Combat-round counting
+the phased mapping plan ([FOG.md](FOG.md)). Combat-round counting
 shipped in v0.4.0 (on combat end, 10 rounds = 1 turn with carry).
