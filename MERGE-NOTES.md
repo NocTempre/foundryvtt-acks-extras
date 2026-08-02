@@ -85,6 +85,34 @@ not participate in the canonical generated-packs contract. A repo has exactly
 one `build-packs.mjs` and it comes from the template, so both need their macro
 definitions lifted into `tools/pack-data/{formation,influence}.mjs`.
 
+## 10. `npm run validate` — 7 failures, all one decision
+
+Everything else passes: 1,198 lang keys, 4,068 CSS lines, all pack `_id`s under
+`idPrefix: "acks"`, i18n coverage, and a clean ip-scan.
+
+The 7 failures are all §7c, and all the same shape — each feature still exposes
+its own global:
+
+```
+globalThis.acksLib  acksAbilities  acksEquipment  acksFormation
+                    acksHenchmen   acksInfluence  acksMonsters
+```
+
+§7c requires them to start with `acksExtras`. **These are not runtime errors** —
+the globals work, and the 44 cross-feature reads of `globalThis.acksLib` still
+resolve. It is a policy failure that blocks release, and the fix (one
+`globalThis.acksExtras` with the features hanging off it) is a public-API shape
+decision, so it belongs with §1 rather than being done reflexively.
+
+Same family, currently WARN not FAIL:
+- hooks `acksFormation.lightChanged`, `acksInfluenceRollComplete`,
+  `acksInfluenceAttitudeChanged` fire under what is now a foreign namespace
+- Handlebars helpers `acksMonstersVal` / `acksMonstersHas` likewise
+
+Also WARN, and **expected**: `id "acks-extras" does not match directory name
+"foundryvtt-acks-extras"`. Deliberate — the same split `foundryvtt-acks-core`
+uses, whose system id is just `acks`.
+
 ## 9. Macros merged cleanly but need an audit
 
 The five `macros` packs (equipment 7, henchmen 10, formation 2, influence 1,
