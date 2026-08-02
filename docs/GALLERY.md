@@ -10,14 +10,14 @@ the next refresh.
 
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
-| Locations | A place holding goods, people and nested places | [guide](guides/location.md) | *not yet shot* |
-| Henchmen | Rolling a recruitment result against a posting | [guide](guides/henchmen.md) | *not yet shot* |
-| Equipment | The inventory split into containers and wear buckets | [guide](guides/equipment.md) | *not yet shot* |
-| Formations | A marching order with the exploration clock running | [guide](guides/formation.md) | *not yet shot* |
-| Influence | A social roll with its modifier stack itemized | [guide](guides/influence.md) | *not yet shot* |
-| Abilities | A proficiency with a conditional roll ladder | [guide](guides/abilities.md) | *not yet shot* |
-| Monsters | A Monstrous Manual stat block on the monster sheet | [guide](guides/monsters.md) | *not yet shot* |
+| Locations | Goods kept at a place, grouped by whose they are | [guide](guides/location.md) | [v1.0.0](releases/v1.0.0/location-sheet.png) |
+| Henchmen | A market's recruitment board on a location sheet | [guide](guides/henchmen.md) | [v1.0.0](releases/v1.0.0/henchmen-market.png) |
+| Equipment | A character's inventory with containers and wear buckets | [guide](guides/equipment.md) | [v1.0.0](releases/v1.0.0/equipment-inventory.png) |
+| Formations | The party sheet: exploration clock, party saves and rolls | [guide](guides/formation.md) | [v1.0.0](releases/v1.0.0/formation-party.png) |
+| Influence | A social roll with its modifier stack itemized | [guide](guides/influence.md) | [v1.0.0](releases/v1.0.0/influence-dialog.png) |
+| Abilities | An ability item's sheet, with its rolls and mechanics | [guide](guides/abilities.md) | [v1.0.0](releases/v1.0.0/ability-sheet.png) |
+| Monsters | A Monstrous Manual stat block on the monster sheet | [guide](guides/monsters.md) | [v1.0.0](releases/v1.0.0/monster-sheet.png) |
 
 Snapshots are captured during the live-verification session of a release
-(`acks-module-template/docs/TOOLCHAIN.md` §4b), never staged afterwards. Rows
-read *not yet shot* until the first release that captures them.
+(`acks-module-template/docs/TOOLCHAIN.md` §4b), never staged afterwards. Every
+subject is a disposable fixture built for the shot and destroyed after it.

@@ -4,7 +4,9 @@ The system's own `ability` item, given a real model: several throws instead of
 one, targets that scale with level or rank, and selections that light up the
 matching proficiency pills.
 
-> *Screenshot pending — captured at the next release.*
+![](../releases/v1.0.0/ability-sheet.png)
+
+*An ability item with its rolls and mechanics tabs.*
 
 ## The sheet
 

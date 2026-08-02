@@ -4,7 +4,9 @@ Recruitment runs off a **place with a market**. You post a paid search, the
 market rolls what turns up, and you make a hiring throw against the people it
 found.
 
-> *Screenshot pending — captured at the next release.*
+![](../releases/v1.0.0/henchmen-market.png)
+
+*A market on a location sheet, ready to take a posting.*
 
 ## Post a search
 

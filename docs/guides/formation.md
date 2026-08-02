@@ -3,7 +3,9 @@
 A **formation** is the party as one thing: a marching order, one token on the
 map, one exploration clock, and party-wide checks that resolve every member.
 
-> *Screenshot pending — captured at the next release.*
+![](../releases/v1.0.0/formation-party.png)
+
+*The party sheet: exploration clock, party saves, party rolls.*
 
 ## Build one
 

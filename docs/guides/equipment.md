@@ -4,7 +4,9 @@ The character sheet's inventory grows containers, wear locations and hand
 accounting. Core's own rows are moved into place rather than rebuilt, so every
 control you already knew keeps working.
 
-> *Screenshot pending — captured at the next release.*
+![](../releases/v1.0.0/equipment-inventory.png)
+
+*A character inventory with containers and wear buckets.*
 
 ## Wear and hands
 

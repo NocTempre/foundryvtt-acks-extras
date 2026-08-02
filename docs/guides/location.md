@@ -4,7 +4,9 @@ A **place** is anything that holds things: a duchy, a town, an inn, its cellar,
 and the chest in the cellar. They nest, they hold goods and living things, and
 some of them have a recruitment market. One actor type covers all of it.
 
-> *Screenshot pending — captured at the next release.*
+![](../releases/v1.0.0/location-sheet.png)
+
+*Goods kept at The Rusty Anchor, grouped by whose they are.*
 
 ## Make a place
 

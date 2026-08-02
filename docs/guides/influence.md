@@ -4,7 +4,9 @@ A social roll with its whole modifier stack visible before you commit to it —
 who is rolling, against whom, in what tone, and exactly what is adding to the
 number.
 
-> *Screenshot pending — captured at the next release.*
+![](../releases/v1.0.0/influence-dialog.png)
+
+*A social roll with every modifier itemized before you commit.*
 
 ## Make a roll
 

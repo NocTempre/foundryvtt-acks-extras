@@ -4,7 +4,9 @@ The system's own `monster` actor, given the full stat block: classification,
 ecology, defences, attack routines, spoils, and the henchman fields that let a
 monster be hired.
 
-> *Screenshot pending — captured at the next release.*
+![](../releases/v1.0.0/monster-sheet.png)
+
+*A Monstrous Manual stat block on the monster sheet.*
 
 ## The sheet
 

@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.0.0
+
+### Changed
+- Documentation restructured into four kinds, each answering one question:
+  MODEL (how it works now), DECISIONS (what was ruled and rejected), ROADMAP
+  (what is not built), and guides/ (how to use it). Nothing is stated twice —
+  a fact lives at the deepest level where it is entirely true.
+- Code comments now explain mechanics only. Dated rulings, attributions,
+  tombstones for deleted code and roadmap notes moved to the decision record.
+  One ruling that had been restated at seven call sites is now stated once.
+- MERGE-NOTES.md became docs/DECISIONS.md — it was already the repo decision
+  record, for one event.
+
+### Added
+- docs/guides/ — a user-facing how-to per feature, and the landing page for
+  release screenshots. docs/GALLERY.md indexes them with the release each shot
+  came from.
+- Docstrings on every exported class.
+
+### Fixed
+- getLoadout and computeDefaults each had an undocumented parameter.
+- Several docs described a state that no longer held: the location sub-type
+  collision was recorded as unresolved when it is resolved; the monsters enum
+  migration was recorded as deferred when it had already happened, in the
+  opposite direction; a referenced test file does not exist.
+
 ## 0.3.0
 
 Location enhancements — a location becomes a **place** (2026-08-02).
