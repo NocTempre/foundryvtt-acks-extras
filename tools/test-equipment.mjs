@@ -933,8 +933,11 @@ const { enforcementActive } = await import(new URL("proficiency.mjs", S));
 // A bare unconfigured actor with a weapon its (absent) flags don't cover.
 const unconfigured = () => withItems([weapon("Halberd", { melee: true, id: "hb" })]);
 
-const setModules = (activeIds) => {
-  globalThis.game.modules = { get: (id) => ({ active: activeIds.includes(id) }) };
+// "auto" reads the abilities feature off the namespace (the way the runtime
+// reaches it), so the toggle is the acksExtras.abilities stub itself.
+const priorAbilities = globalThis.acksExtras.abilities;
+const setAbilities = (present) => {
+  globalThis.acksExtras.abilities = present ? (priorAbilities ?? {}) : undefined;
 };
 const setMode = (mode) => {
   const base = globalThis.game.settings.get;
@@ -942,14 +945,14 @@ const setMode = (mode) => {
     k === "proficiencyEnforcement" ? mode : base(m, k);
 };
 
-// Baseline: no acks-abilities → enforcement live, penalties as before.
-setModules([]);
+// Baseline: abilities feature absent → enforcement live, penalties as before.
+setAbilities(false);
 setMode("auto");
 check("auto + abilities absent → enforcement LIVE", enforcementActive());
 check("baseline: unconfigured actor is still gated", getLoadout(unconfigured()).nonProficientUse);
 
-// The hotfix: acks-abilities present → penalties off, no silent 0th-level hit.
-setModules(["acks-extras"]);
+// The hotfix: abilities feature present → penalties off, no silent 0th-level hit.
+setAbilities(true);
 check("auto + abilities ACTIVE → enforcement OFF", !enforcementActive());
 const freed = getLoadout(unconfigured());
 check("kill switch clears nonProficientUse", !freed.nonProficientUse);
@@ -973,12 +976,13 @@ check("kill switch does NOT disable hand-limit enforcement",
 // Explicit overrides win in both directions.
 setMode("on");
 check("mode 'on' enforces even with abilities active", enforcementActive());
-setModules([]);
+setAbilities(false);
 setMode("off");
 check("mode 'off' disables even with abilities absent", !enforcementActive());
 
 // Restore defaults for anything that runs later.
 setMode("auto");
+globalThis.acksExtras.abilities = priorAbilities;
 
 /* ---------------------------------------------------------------------- */
 /*  Abilities bridge — proficiency facts FROM the acks-abilities model      */
