@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+### Fixed
+- The 1.0.0 artifact still carried docs/. The tag was pushed before the
+  template change that excludes it, so CI resolved the pre-fix workflow.
+
 ## 1.0.0
 
 ### Changed
