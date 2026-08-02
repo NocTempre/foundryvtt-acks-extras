@@ -26,6 +26,7 @@
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS, INFLUENCE_REACTION_KEY, MODULE_ID } from "./constants.mjs";
 import { NAME_FALLBACKS } from "./config.mjs";
+import { appliedEffects, localizeKey as localize, makeEffectMeta, activeNumericChanges, csvFlagSet, sumModifiers } from "../lib/effect-scan.mjs";
 
 /**
  * The exact set of change keys this feature speaks. Membership, not a prefix
@@ -46,28 +47,12 @@ const OWN_CHANGE_KEYS = new Set(Object.values(EFFECT_DOMAINS).map((d) => `${EFFE
  * @property {string} source - "effect" | "influence-effect" | "item-name"
  */
 
-/** All active effects on the actor, tolerant of Foundry version differences. */
-function appliedEffects(actor) {
-  if (!actor) return [];
-  if (Array.isArray(actor.appliedEffects)) return actor.appliedEffects;
-  return Array.from(actor.effects ?? []);
-}
+const effectMeta = makeEffectMeta(MODULE_ID, { legacyLabel: true });
 
-function localize(key) {
-  try {
-    return key && game?.i18n?.has?.(key) ? game.i18n.localize(key) : key ?? "";
-  } catch {
-    return key ?? "";
-  }
-}
-
-function effectMeta(effect) {
-  const flags = effect.flags?.[MODULE_ID] ?? {};
-  return {
-    label: flags.label ?? effect.name ?? effect.label ?? "",
-    condition: flags.condition ? localize(flags.condition) : null,
-    target: flags.target ? localize(flags.target) : null,
-  };
+/** Mark the owning Item (if any) of an effect as seen by the collector. */
+function markParentItem(effect, seenItems) {
+  const parentItem = effect.parent?.documentName === "Item" ? effect.parent : null;
+  if (parentItem) seenItems.add(parentItem.id);
 }
 
 /**
@@ -79,54 +64,41 @@ function effectMeta(effect) {
 export function collectEffectModifiers(actor, domain) {
   const found = [];
   const seenItems = new Set();
-  const key = `${EFFECT_PREFIX}${domain}`;
 
+  for (const { effect, value } of activeNumericChanges(actor, `${EFFECT_PREFIX}${domain}`)) {
+    const meta = effectMeta(effect);
+    const label = meta.target ? `${meta.label} (${meta.target})` : meta.label;
+    found.push({
+      id: `fx-${effect.id ?? foundry.utils.randomID()}-${domain}`,
+      label,
+      value,
+      situational: !!meta.condition,
+      condition: meta.condition,
+      source: "effect",
+    });
+    markParentItem(effect, seenItems);
+  }
+  // Track items that carry ANY henchmen-domain change so name-fallback skips them.
   for (const effect of appliedEffects(actor)) {
     if (effect.disabled) continue;
-    for (const change of effect.changes ?? []) {
-      if (change.key !== key) continue;
-      const value = Number(change.value);
-      if (!Number.isFinite(value) || value === 0) continue;
-      const meta = effectMeta(effect);
-      const label = meta.target ? `${meta.label} (${meta.target})` : meta.label;
-      found.push({
-        id: `fx-${effect.id ?? foundry.utils.randomID()}-${domain}`,
-        label,
-        value,
-        situational: !!meta.condition,
-        condition: meta.condition,
-        source: "effect",
-      });
-      const parentItem = effect.parent?.documentName === "Item" ? effect.parent : null;
-      if (parentItem) seenItems.add(parentItem.id);
-    }
-    // Track items that carry ANY henchmen-domain change so name-fallback skips them.
     if ((effect.changes ?? []).some((c) => OWN_CHANGE_KEYS.has(String(c.key ?? "")))) {
-      const parentItem = effect.parent?.documentName === "Item" ? effect.parent : null;
-      if (parentItem) seenItems.add(parentItem.id);
+      markParentItem(effect, seenItems);
     }
   }
 
-  // acks-influence reaction effects apply to hiring negotiations.
+  // The influence feature's reaction effects apply to hiring negotiations.
   if (domain === "hiring") {
-    for (const effect of appliedEffects(actor)) {
-      if (effect.disabled) continue;
-      for (const change of effect.changes ?? []) {
-        if (change.key !== INFLUENCE_REACTION_KEY) continue;
-        const value = Number(change.value);
-        if (!Number.isFinite(value) || value === 0) continue;
-        const inf = effect.flags?.["acks-extras"] ?? {};
-        found.push({
-          id: `inf-${effect.id ?? foundry.utils.randomID()}`,
-          label: inf.label ? localize(inf.label) : (effect.name ?? "acks-extras"),
-          value,
-          situational: inf.situational !== false,
-          condition: inf.tone && inf.tone !== "all" ? String(inf.tone) : null,
-          source: "influence-effect",
-        });
-        const parentItem = effect.parent?.documentName === "Item" ? effect.parent : null;
-        if (parentItem) seenItems.add(parentItem.id);
-      }
+    for (const { effect, value } of activeNumericChanges(actor, INFLUENCE_REACTION_KEY)) {
+      const inf = effect.flags?.["acks-extras"] ?? {};
+      found.push({
+        id: `inf-${effect.id ?? foundry.utils.randomID()}`,
+        label: inf.label ? localize(inf.label) : (effect.name ?? "acks-extras"),
+        value,
+        situational: inf.situational !== false,
+        condition: inf.tone && inf.tone !== "all" ? String(inf.tone) : null,
+        source: "influence-effect",
+      });
+      markParentItem(effect, seenItems);
     }
   }
 
@@ -163,9 +135,7 @@ export function collectEffectModifiers(actor, domain) {
  * @returns {number}
  */
 export function sumEffectModifiers(actor, domain) {
-  return collectEffectModifiers(actor, domain)
-    .filter((m) => !m.situational)
-    .reduce((sum, m) => sum + m.value, 0);
+  return sumModifiers(collectEffectModifiers(actor, domain));
 }
 
 /**
@@ -182,19 +152,7 @@ export function hasEffectFlag(actor, domain) {
  * @returns {Set<string>}
  */
 export function collectStringFlags(actor, domain) {
-  const out = new Set();
-  const key = `${EFFECT_PREFIX}${domain}`;
-  for (const effect of appliedEffects(actor)) {
-    if (effect.disabled) continue;
-    for (const change of effect.changes ?? []) {
-      if (change.key !== key) continue;
-      String(change.value ?? "")
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean)
-        .forEach((s) => out.add(s));
-    }
-  }
+  const out = csvFlagSet(actor, `${EFFECT_PREFIX}${domain}`);
   // Name fallback: Beast Friendship / Friend(s) of Birds and Beasts unlock animals.
   if (domain === "recruitKinds" && actor?.items) {
     for (const item of actor.items) {

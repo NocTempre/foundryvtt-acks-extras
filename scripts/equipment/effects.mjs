@@ -16,30 +16,9 @@ import { STYLE_SPEC_BONUS, STYLE, DUAL_WIELD_ATTACK_BONUS } from "./config.mjs";
 import { shieldACCorrection, specApplies } from "./overlays/shield-variants.mjs";
 import { enclosingHelmActive, HELM_MODIFIERS } from "./overlays/enclosing-helm.mjs";
 import { bridgeContributions } from "./abilities-bridge.mjs";
+import { appliedEffects, makeEffectMeta, activeNumericChanges, csvFlagSet, sumModifiers } from "../lib/effect-scan.mjs";
 
-/** All active effects on the actor, tolerant of Foundry version differences. */
-function appliedEffects(actor) {
-  if (!actor) return [];
-  if (Array.isArray(actor.appliedEffects)) return actor.appliedEffects;
-  return Array.from(actor.effects ?? []);
-}
-
-function localize(key) {
-  try {
-    return key && game?.i18n?.has?.(key) ? game.i18n.localize(key) : (key ?? "");
-  } catch {
-    return key ?? "";
-  }
-}
-
-function effectMeta(effect) {
-  const flags = effect.flags?.[MODULE_ID] ?? {};
-  return {
-    label: flags.label ?? effect.name ?? "",
-    condition: flags.condition ? localize(flags.condition) : null,
-    target: flags.target ? localize(flags.target) : null,
-  };
-}
+const effectMeta = makeEffectMeta(MODULE_ID);
 
 /**
  * Collect every modifier an actor's effects contribute to one numeric domain.
@@ -47,23 +26,16 @@ function effectMeta(effect) {
  */
 export function collectEffectModifiers(actor, domain) {
   const found = [];
-  const key = `${EFFECT_PREFIX}${domain}`;
-  for (const effect of appliedEffects(actor)) {
-    if (effect.disabled) continue;
-    for (const change of effect.changes ?? []) {
-      if (change.key !== key) continue;
-      const value = Number(change.value);
-      if (!Number.isFinite(value) || value === 0) continue;
-      const meta = effectMeta(effect);
-      found.push({
-        id: `fx-${effect.id ?? foundry.utils.randomID()}-${domain}`,
-        label: meta.target ? `${meta.label} (${meta.target})` : meta.label,
-        value,
-        situational: !!meta.condition,
-        condition: meta.condition,
-        source: "effect",
-      });
-    }
+  for (const { effect, value } of activeNumericChanges(actor, `${EFFECT_PREFIX}${domain}`)) {
+    const meta = effectMeta(effect);
+    found.push({
+      id: `fx-${effect.id ?? foundry.utils.randomID()}-${domain}`,
+      label: meta.target ? `${meta.label} (${meta.target})` : meta.label,
+      value,
+      situational: !!meta.condition,
+      condition: meta.condition,
+      source: "effect",
+    });
   }
   // Abilities-modelled items contribute through the bridge (never both ways —
   // the bridge stands aside for items carrying native effect changes).
@@ -82,12 +54,12 @@ export function collectEffectModifiers(actor, domain) {
 
 /** Sum the always-on (non-situational) modifiers of a numeric domain. */
 export function sumEffectModifiers(actor, domain) {
-  return collectEffectModifiers(actor, domain)
-    .filter((m) => !m.situational)
-    .reduce((sum, m) => sum + m.value, 0);
+  return sumModifiers(collectEffectModifiers(actor, domain));
 }
 
-/** True when any active effect — or a bridged ability — contributes to the domain. */
+/** True when any active effect — or a bridged ability — contributes to the domain.
+ * A raw key scan by design (any change, even zero-valued, counts) — unlike
+ * henchmen's collector-backed variant. */
 export function hasEffectFlag(actor, domain) {
   const key = `${EFFECT_PREFIX}${domain}`;
   for (const effect of appliedEffects(actor)) {
@@ -100,19 +72,7 @@ export function hasEffectFlag(actor, domain) {
 
 /** Collect CSV string flags of a domain into a lowercased Set. */
 export function collectStringFlags(actor, domain) {
-  const out = new Set();
-  const key = `${EFFECT_PREFIX}${domain}`;
-  for (const effect of appliedEffects(actor)) {
-    if (effect.disabled) continue;
-    for (const change of effect.changes ?? []) {
-      if (change.key !== key) continue;
-      String(change.value ?? "")
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean)
-        .forEach((s) => out.add(s));
-    }
-  }
+  const out = csvFlagSet(actor, `${EFFECT_PREFIX}${domain}`);
   for (const token of bridgeContributions(actor).strings.get(domain) ?? []) out.add(token);
   return out;
 }
