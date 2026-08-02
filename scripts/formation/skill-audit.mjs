@@ -1,4 +1,5 @@
 /* global game, foundry, fromUuidSync, Hooks, document */
+import { makeLoc } from "../lib/util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   abilityKey,
@@ -252,9 +253,7 @@ function collectPartyAbilities(formation) {
 
 const TAB_ID = "afmskill";
 
-function loc(key, data = {}) {
-  return game.i18n.format(`ACKS-FORMATION.${key}`, data);
-}
+const loc = makeLoc("ACKS-FORMATION");
 
 /**
  * An ability is "a skill" when explicitly checked on its sheet, or (for items

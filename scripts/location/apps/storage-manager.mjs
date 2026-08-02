@@ -13,13 +13,13 @@
  * against — the socket-and-claim-token machinery exists for player-triggered
  * flows, not for two people sharing one admin screen.
  */
+import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const { DialogV2 } = foundry.applications.api;
 
-const storage = () => globalThis.acksExtras?.lib.storage;
-const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
+const loc = makeLoc(LANG_PREFIX);
 
 export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {

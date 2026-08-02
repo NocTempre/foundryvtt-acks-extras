@@ -14,10 +14,10 @@
  * touching the actor's real data. **Reset** clears the overrides; **Commit** bakes
  * them into the real base fields. `+Attack` / `+Skill` add minimal items for ad-hocs.
  */
+import { toNum as num } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
 import { followerCardContext, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
 
-const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
 export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.sheets.ActorSheetV2,

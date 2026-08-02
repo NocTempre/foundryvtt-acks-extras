@@ -23,6 +23,7 @@
  * Reuse first: unlocked points are applied to fields core already owns
  * (system.bonus, the damage string, aac.value, weight6) — same as masterwork.
  */
+import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 
 /** Bonus categories a named item can unlock (JJ p. 399). */
@@ -34,9 +35,7 @@ export const NAMED_CATEGORIES = Object.freeze({
   power: { label: "a special power or ceremonial spell", field: null },
 });
 
-export function overlayEnabled() {
-  return !!game.settings.get(MODULE_ID, SETTINGS.OVERLAY_NAMED);
-}
+export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_NAMED);
 
 /**
  * Should this viewer see the named-item badge/tracker?

@@ -7,10 +7,10 @@
  * picked moves in ONE transfer call, because a single move that fails halfway is
  * far easier to reason about than twenty that each might.
  */
+import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { LANG_PREFIX } from "../constants.mjs";
 
-const storage = () => globalThis.acksExtras?.lib.storage;
-const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
+const loc = makeLoc(LANG_PREFIX);
 const esc = (text) => foundry.utils.escapeHTML(String(text ?? ""));
 
 /** Worth offering: things, and coin (which the system does not call "physical"). */

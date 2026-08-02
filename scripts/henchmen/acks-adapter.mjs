@@ -323,9 +323,7 @@ export async function delHenchman(employer, hirelingId) {
 
 /* ------------------------------ misc ------------------------------ */
 
-export function gmIds() {
-  return game.users.filter((u) => u.isGM).map((u) => u.id);
-}
+export { gmIds } from "../lib/util.mjs";
 
 export function firstActiveGm() {
   return game.users.activeGM ?? game.users.find((u) => u.isGM && u.active) ?? null;

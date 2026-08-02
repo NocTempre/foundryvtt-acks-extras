@@ -22,6 +22,7 @@
  * A mount is not required to be an `acks-lib.animal`. A character can ride a
  * monster, and in ACKS plenty do.
  */
+import { resolveActorSync } from "./storage.mjs";
 import { MODULE_ID } from "./constants.mjs";
 
 /** Flag keys. Both ends store the OTHER actor's uuid. */
@@ -65,21 +66,6 @@ export function riderOf(actor) {
 /** Is this actor on a mount? */
 export const isMounted = (actor) => !!mountOf(actor);
 
-/**
- * Resolve an actor uuid without awaiting. Handles "Actor.<id>" and the
- * "Scene.<id>.Token.<id>.Actor.<id>" form a token actor carries.
- */
-function resolveActorSync(uuid) {
-  if (typeof uuid !== "string") return null;
-  const parts = uuid.split(".");
-  if (parts[0] === "Actor") return game.actors?.get(parts[1]) ?? null;
-  if (parts[0] === "Scene") {
-    const scene = game.scenes?.get(parts[1]);
-    const token = scene?.tokens?.get(parts[3]);
-    return token?.actor ?? null;
-  }
-  return null;
-}
 
 /**
  * Put `rider` on `mount`.

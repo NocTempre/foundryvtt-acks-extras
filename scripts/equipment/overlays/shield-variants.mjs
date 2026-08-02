@@ -33,12 +33,11 @@
  *  - the phalanx shield counting for the Defend action.
  * Those are surfaced in the item descriptions for the Judge.
  */
+import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 import { SHIELD_VARIANTS, STYLE } from "../config.mjs";
 
-export function overlayEnabled() {
-  return !!game.settings.get(MODULE_ID, SETTINGS.OVERLAY_SHIELD_VARIANTS);
-}
+export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_SHIELD_VARIANTS);
 
 /** The variant profile for a shield item ("standard" when unflagged/disabled). */
 export function variantOf(item) {

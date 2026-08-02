@@ -18,6 +18,7 @@
  * destroyed while an injected section (not being a part) survives — removing
  * both and re-adding them is what keeps the two halves consistent.
  */
+import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 
@@ -26,8 +27,7 @@ const TAB_CLASS = "acks-location-storage-tab";
 const SUMMARY_CLASS = "acks-location-coin-summary";
 const TEMPLATE = `modules/${MODULE_ID}/templates/location/storage-tab.hbs`;
 
-const storage = () => globalThis.acksExtras?.lib?.storage;
-const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
+const loc = makeLoc(LANG_PREFIX);
 
 /* -------------------------------------------- */
 /*  Data — one world scan per render             */

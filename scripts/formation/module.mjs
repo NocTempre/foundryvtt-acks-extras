@@ -1,4 +1,5 @@
 /* global Hooks, game, foundry, canvas, ui, CONFIG, Actor */
+import { isPrimaryGM } from "../lib/util.mjs";
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import {
   DEFAULT_PARTY_IMAGE,
@@ -43,10 +44,6 @@ function openPartySheet() {
   else ui.notifications.info(game.i18n.localize("ACKS-FORMATION.warn.noFormationYet"));
 }
 
-/** True on exactly one client: the active GM responsible for automation. */
-function isPrimaryGM() {
-  return game.users.activeGM?.isSelf ?? false;
-}
 
 Hooks.once("init", () => {
   /* --- Settings --- */

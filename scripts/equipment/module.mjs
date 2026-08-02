@@ -7,6 +7,7 @@
  * ready — system guard, socketlib, paper-doll wiring (Phase 4), initial
  *         loadout sync, equip-enforcement hooks.
  */
+import { isPrimaryGM } from "../lib/util.mjs";
 import { assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, SETTINGS, LOADOUT_EFFECT_FLAG } from "./constants.mjs";
 import { registerSettings } from "./settings.mjs";
@@ -17,10 +18,6 @@ import { registerSheet } from "./sheet.mjs";
 import { registerEquipmentItemSheet } from "./item-sheet.mjs";
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
 
-/** True on exactly one client: the active GM responsible for automation. */
-function isPrimaryGM() {
-  return game.users.activeGM?.isSelf ?? false;
-}
 
 Hooks.once("init", () => {
   registerSettings();

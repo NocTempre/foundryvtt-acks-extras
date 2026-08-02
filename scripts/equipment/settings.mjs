@@ -3,6 +3,9 @@ import { MODULE_ID, SETTINGS, ENFORCE } from "./constants.mjs";
 
 const L = (k) => `ACKS-EQUIPMENT.settings.${k}`;
 
+/** Reader for one overlay's on/off world setting. */
+export const overlayGate = (key) => () => !!game.settings.get(MODULE_ID, key);
+
 /** Register all world/client settings. Called at init. */
 export function registerSettings() {
   game.settings.register(MODULE_ID, SETTINGS.ENFORCE_MODE, {

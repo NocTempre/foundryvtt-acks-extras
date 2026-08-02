@@ -17,9 +17,9 @@
  * the displayed value/tooltip are superseded. Character sheets only: monsters
  * have no such boxes, and the Follower Card already renders the split.
  */
+import { toNum as num } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
 
-const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const signed = (n) => (n >= 0 ? `+${n}` : `${n}`);
 
 function fixAttackDisplays(app, element) {

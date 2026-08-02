@@ -1,4 +1,5 @@
 /* global game, foundry, ChatMessage, ui, fromUuid */
+import { makeLoc } from "../lib/util.mjs";
 import { getFormation, getFrontage, swapCells, toggleRole } from "./formation-model.mjs";
 import { ROLE_LABELS } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
@@ -28,9 +29,7 @@ import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./t
 
 const REQUEST_HANDLER = "partyRequest";
 
-function loc(key, data = {}) {
-  return game.i18n.format(`ACKS-FORMATION.${key}`, data);
-}
+const loc = makeLoc("ACKS-FORMATION");
 
 function userOwnsMember(formation, user, actorId = null) {
   const members = actorId ? formation.members.filter((m) => m.actorId === actorId) : formation.members;

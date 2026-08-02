@@ -17,6 +17,7 @@
  * destruction (and magic items' saving throws, which the wielder rolls with
  * their own progression) is left to the macro and the Judge.
  */
+import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 import { containedIn, isContainer, STONE } from "../containers.mjs";
 
@@ -54,9 +55,7 @@ export const MATERIALS_BY_DAMAGE_TYPE = Object.freeze({
   seismic: ["ceramic", "glass", "metal", "stone", "wood"],
 });
 
-export function overlayEnabled() {
-  return !!game.settings.get(MODULE_ID, SETTINGS.OVERLAY_ITEM_LOSS);
-}
+export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_ITEM_LOSS);
 
 /**
  * Stones of equipment at risk: 1 at −6 hp, +1 per further 6 damage.

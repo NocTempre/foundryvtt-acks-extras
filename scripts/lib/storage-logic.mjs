@@ -18,6 +18,7 @@
  *    location takes its contents along; acks-lib never imports that module and
  *    the behaviour simply does not trigger when it is absent.
  */
+import { toNum as num } from "./util.mjs";
 
 /** The flag scope/key attribution lives under, on both providers and stored items. */
 export const LIB_ID = "acks-extras";
@@ -27,7 +28,6 @@ export const STORAGE_KEY = "storage";
 const EQUIPMENT_ID = "acks-extras";
 const CONTAINED_IN = "containedIn";
 
-const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 const isMoney = (plain) => plain?.type === "money";
 
 /* -------------------------------------------- */

@@ -1,4 +1,5 @@
 /* global game, foundry, ChatMessage, Roll, ui */
+import { makeLoc } from "../lib/util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   hasCapability,
@@ -122,9 +123,7 @@ export const PARTY_CHECKS = Object.freeze({
   },
 });
 
-function loc(key, data = {}) {
-  return game.i18n.format(`ACKS-FORMATION.${key}`, data);
-}
+const loc = makeLoc("ACKS-FORMATION");
 
 /**
  * All rollable ability items matching the check on this actor's sheet.

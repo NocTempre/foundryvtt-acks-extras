@@ -1,4 +1,5 @@
 /* global game, canvas, foundry, PIXI, ChatMessage, ui, Item, fromUuid, CONST */
+import { makeLoc, gmIds } from "../lib/util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   getMapperActor,
@@ -36,13 +37,8 @@ import { getSocket, registerHandler } from "./socket.mjs";
 
 export const MAP_FLAG = "map";
 
-function loc(key, data = {}) {
-  return game.i18n.format(`ACKS-FORMATION.${key}`, data);
-}
+const loc = makeLoc("ACKS-FORMATION");
 
-function gmIds() {
-  return game.users.filter((u) => u.isGM).map((u) => u.id);
-}
 
 async function announce(formation, text, { whisper = false } = {}) {
   await ChatMessage.create({

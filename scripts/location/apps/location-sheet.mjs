@@ -23,6 +23,7 @@
  * security boundary (acks-lib's storage header makes the same ruling): anything
  * that must genuinely stay private belongs on a GM-owned actor.
  */
+import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
@@ -41,8 +42,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 /* Storage-tab helpers. `loc` resolves under ACKS-LOCATION.*, which is where the
  * storage half's strings were authored; the market half localizes under
  * ACKS-HENCHMEN.* inline. Both roots live in the one merged lang file. */
-const storage = () => globalThis.acksExtras?.lib.storage;
-const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
+const loc = makeLoc(LANG_PREFIX);
 
 /**
  * Does a directed-search spec match this candidate? A directed CLASS search

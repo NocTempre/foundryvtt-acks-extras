@@ -21,10 +21,10 @@
  * zeroes the field, and cleared only once the coin has landed. A resume pass
  * reads the ledger, not the (now zero) field.
  */
+import { makeLoc, libStorage as storage } from "../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, FLAG_PENDING_DEPOSIT } from "./constants.mjs";
 
-const storage = () => globalThis.acksExtras?.lib.storage;
-const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
+const loc = makeLoc(LANG_PREFIX);
 
 /** Owner entries for a vault: the character's own players, and nobody else. */
 function vaultOwnership(character) {

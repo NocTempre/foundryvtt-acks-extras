@@ -14,6 +14,7 @@
  * Items that "break" are destroyed on an unmodified 1 when used (long weapons on
  * 1-3) — recorded as a flag for the Judge rather than auto-destroying.
  */
+import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS } from "../constants.mjs";
 
 /** d20 → condition. `reroll` means roll twice more and apply both (19-20). */
@@ -167,9 +168,7 @@ export function importedNeedsReroll(tableKey, roll) {
   return row ? /roll\s+again/i.test(String(row.category ?? "")) : false;
 }
 
-export function overlayEnabled() {
-  return !!game.settings.get(MODULE_ID, SETTINGS.OVERLAY_SCAVENGED);
-}
+export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_SCAVENGED);
 
 /** Which table applies to an item. */
 export function tableFor(item, profile) {

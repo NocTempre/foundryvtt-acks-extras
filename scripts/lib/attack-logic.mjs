@@ -22,8 +22,8 @@
  * always hits UNLESS exploding 20s are in play (then the die is open-ended and
  * carries no auto-result), exactly as core resolves them.
  */
+import { toNum as num } from "./util.mjs";
 
-const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
 /**
  * Build the bonus-term stack for one attack. Zero terms are dropped (they add

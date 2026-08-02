@@ -18,6 +18,7 @@
  *   - MM hooked weapons: as Combat Trickery for disarm
  *   - disarm: the target saves at +4 when wielding its weapon two-handed
  */
+import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, EFFECT_DOMAINS } from "../constants.mjs";
 import { collectStringFlags } from "../effects.mjs";
 
@@ -42,9 +43,7 @@ const QUALITY_BONUS = Object.freeze({
   incapacitating: ["incapacitate"],
 });
 
-export function overlayEnabled() {
-  return !!game.settings.get(MODULE_ID, SETTINGS.OVERLAY_MANEUVERS);
-}
+export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_MANEUVERS);
 
 /** Maneuvers the actor has Combat Trickery for (lowercased tokens). */
 export function trickeryFor(actor) {

@@ -1,4 +1,5 @@
 /* global game, foundry, ChatMessage */
+import { makeLoc, gmIds } from "../lib/util.mjs";
 import { MODULE_ID, ROLES } from "./constants.mjs";
 import {
   formationForToken,
@@ -25,13 +26,8 @@ import { advanceRounds } from "./turn-engine.mjs";
  * - Combat rounds feed the round-level clock directly (10 = 1 turn).
  */
 
-function gmIds() {
-  return game.users.filter((u) => u.isGM).map((u) => u.id);
-}
 
-function loc(key, data = {}) {
-  return game.i18n.format(`ACKS-FORMATION.${key}`, data);
-}
+const loc = makeLoc("ACKS-FORMATION");
 
 async function announce(formation, text, { whisper = false } = {}) {
   await ChatMessage.create({

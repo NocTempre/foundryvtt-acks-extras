@@ -17,6 +17,7 @@
  * appear for monsters — the card hides the ability grid and reads the monster's own
  * HD / stored AC instead.
  */
+import { toNum as num } from "./util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { monsterHd } from "./actor-read.mjs";
 import { isEquippable, isEquipped } from "./item-model.mjs";
@@ -44,7 +45,6 @@ const ADVENTURING = [
   { key: "trapbreaking", label: "ACKS.adventuring.trapbreaking", icon: "fas fa-toolbox" },
 ];
 
-const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const signed = (v) => {
   const n = num(v);
   return n >= 0 ? `+${n}` : `${n}`;

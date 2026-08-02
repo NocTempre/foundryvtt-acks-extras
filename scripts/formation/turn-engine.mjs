@@ -1,4 +1,5 @@
 /* global game, foundry, ui, ChatMessage, Roll, fromUuid, Hooks */
+import { makeLoc, gmIds } from "../lib/util.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import {
   LIGHT_SOURCES,
@@ -21,13 +22,8 @@ import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown
  * Everything here runs on a (the) GM client only.
  */
 
-function gmIds() {
-  return game.users.filter((u) => u.isGM).map((u) => u.id);
-}
 
-function loc(key, data = {}) {
-  return game.i18n.format(`ACKS-FORMATION.${key}`, data);
-}
+const loc = makeLoc("ACKS-FORMATION");
 
 /** "Xh YYm" for a number of dungeon turns. */
 export function formatTurns(turns) {
