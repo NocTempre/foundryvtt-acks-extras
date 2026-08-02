@@ -1,16 +1,16 @@
 /* global foundry */
 
 /**
- * Reads the structured stat block published by the sibling **acks-monsters**
- * module (Full Monster Sheet) so the formation applies a creature's real
- * vision modes, senses, and movement instead of human defaults.
+ * Reads the structured stat block written by the Full Monster Sheet (the
+ * monsters feature) so the formation applies a creature's real vision modes,
+ * senses, and movement instead of human defaults.
  *
- * The data lives in `actor.flags["acks-monsters"].extras` (typed there by a
+ * The data lives in `actor.flags["acks-extras"].extras` (typed there by a
  * `MonsterExtras` DataModel). We read the raw flag directly rather than through
- * that module's API, so this works whether or not acks-monsters is active — a
- * monster without the extended sheet simply reports nothing and the caller
- * falls back to the generic heuristics. Nothing here writes to the flag or the
- * core engine.
+ * the monsters API, so this stays independent of feature load order — a monster
+ * without the extended sheet simply reports nothing and the caller falls back
+ * to the generic heuristics. Nothing here writes to the flag or the core
+ * engine.
  */
 
 const MONSTERS_ID = "acks-extras";

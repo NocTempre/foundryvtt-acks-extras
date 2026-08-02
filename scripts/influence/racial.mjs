@@ -2,7 +2,7 @@
 /**
  * Racial & cross-species reaction support (docs/RACIAL_REACTIONS_PLAN.md):
  *  - kind typing: what races/categories an actor belongs to, read from the
- *    class name (characters) or the acks-monsters enhanced sheet (monsters);
+ *    class name (characters) or the Full Monster Sheet (monsters);
  *  - the asymmetric campaign race-relations registry (world setting + api);
  *  - the RAW hard-hatred pairs (chat notes only, never forced results);
  *  - optional-rule gating for compendium effects (BTA dwarven caste).
@@ -43,7 +43,7 @@ const HUMAN_RACES = new Set(["human", "nobiran", "zaharan"]);
 // Specific beastman kinds recognisable from a monster's name/subtype.
 const BEASTMAN_KINDS = ["hobgoblin", "goblin", "kobold", "orc", "gnoll", "bugbear", "ogre", "troll"];
 
-/** Name/subtype matchers for monsters without (or beyond) acks-monsters typing. */
+/** Name/subtype matchers for monsters without (or beyond) stat-block typing. */
 const NAME_KIND_MATCHERS = [
   ["hobgoblin", /hobgoblin/],
   ["goblin", /(?:^|[^b])goblin/], // avoid matching "hobgoblin"
@@ -65,7 +65,7 @@ const NAME_KIND_MATCHERS = [
  *
  * Characters: race inferred from class; dwarves/elves/gnomes also count as
  * `demi-human`, races of men as `human`. Monsters: `monster`, plus the
- * acks-monsters enhanced-sheet typing (`flags.acks-monsters.extras.types` and
+ * enhanced-sheet typing (`flags.acks-extras.extras.types` and
  * `.subtype`) when present, plus name-recognised kinds (goblin, dwarf, …).
  *
  * @returns {{race: string, categories: Set<string>}}
@@ -87,7 +87,7 @@ export function kindOf(actor) {
   categories.add("monster");
   let race = "";
 
-  // acks-monsters enhanced sheet typing, when the module is in use.
+  // Full Monster Sheet typing, when the monster carries a stat block.
   const extras = actor.flags?.["acks-extras"]?.extras ?? null;
   const types = extras?.types;
   const typeList = types instanceof Set ? [...types] : Array.isArray(types) ? types : [];

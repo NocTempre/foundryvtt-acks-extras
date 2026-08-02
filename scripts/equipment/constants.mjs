@@ -2,7 +2,7 @@
  * Shared identifiers for acks-equipment.
  *
  * Design note (mirrors acks-henchmen): mechanics live as Active Effect changes
- * keyed `flags.acks-equipment.<domain>` on `ability`/`weapon`/`armor` items, not
+ * keyed `flags.acks-extras.<domain>` on `ability`/`weapon`/`armor` items, not
  * as hardcoded name lists. The effect collector in effects.mjs reads them.
  */
 
@@ -12,7 +12,7 @@ export const MODULE_ID = "acks-extras";
 export const EFFECT_PREFIX = `flags.${MODULE_ID}.`;
 
 /**
- * Effect domains — the `<domain>` in `flags.acks-equipment.<domain>` change keys.
+ * Effect domains — the `<domain>` in `flags.acks-extras.<domain>` change keys.
  * Numeric domains sum; string/CSV domains collect; boolean-ish domains test
  * presence. See docs/MODEL.md for the full contract.
  */

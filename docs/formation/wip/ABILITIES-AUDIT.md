@@ -342,7 +342,7 @@ it so existing worlds keep working. Stop adding entries.
 **Phase 3 — capability-based binding. DONE (2026-07-19).**
 `scripts/ability-bridge.mjs` folds an ability item into the `{id, provides}`
 shape acks-lib reasons over — `id` from `flags["acks-content"].cookbook.id`
-(written on import), `provides` from `flags["acks-abilities"].extras` — and
+(written on import), `provides` from `flags["acks-extras"].extras` — and
 exposes `hasCapability` / `itemHasCapability` over `acksExtras.lib.satisfies()`.
 
 Wired into `skillCandidates()` (per-check `capability` token), the Alertness

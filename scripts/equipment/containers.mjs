@@ -38,7 +38,7 @@ import { weight6Of } from "../lib/item-model.mjs";
 /** A stone is six 1/6-stone units — core stores weight in `weight6`. */
 export const STONE = 6;
 
-/** Container spec on an item: flags.acks-equipment.container = {capacity, …}. */
+/** Container spec on an item: flags.acks-extras.container = {capacity, …}. */
 export function containerOf(item) {
   return item?.getFlag?.(MODULE_ID, ITEM_FLAGS.CONTAINER) ?? null;
 }

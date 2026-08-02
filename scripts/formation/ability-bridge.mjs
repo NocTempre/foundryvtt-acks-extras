@@ -37,7 +37,7 @@ const ABILITIES_ID = "acks-extras";
  * One ability item as the `{id, provides}` shape acks-lib reasons over.
  *
  * `id` is the register's definition id, written by acks-content on import
- * (`flags["acks-content"].cookbook.id`). `provides` comes from the
+ * (`flags["acks-importer"].cookbook.id`). `provides` comes from the
  * acks-abilities effect model. An item with neither is a hand-made ability and
  * simply has no capability — the name path still covers it.
  */

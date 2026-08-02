@@ -18,7 +18,7 @@
  *     is +1 and most tables want to keep what the fiction earned. Named-item
  *     rungs already unlocked stay in core fields either way (they are earned
  *     state, not machinery).
- *   • Every `flags.acks-equipment.*` on actors and items — REMOVED. This is
+ *   • Every `flags.acks-extras.*` on actors and items — REMOVED. This is
  *     container structure, grips, ammo state, proficiency profiles, named-item
  *     trackers: all meaningless without the module.
  *

@@ -1,19 +1,19 @@
 /**
  * Reads social-roll modifiers out of the **acks-abilities effect model** —
- * `item.flags["acks-abilities"].extras.effects[]`, in the acks-lib vocabulary —
+ * `item.flags["acks-extras"].extras.effects[]`, in the acks-lib vocabulary —
  * so abilities imported by acks-content drive the roller without anyone
  * hand-authoring an Active Effect.
  *
  * This is the second of two sources. The first, in actor-data.mjs, reads
- * ActiveEffect documents keyed `flags.acks-influence.<family>`; that path stays
+ * ActiveEffect documents keyed `flags.acks-extras.<family>`; that path stays
  * as the escape hatch for homebrew and for overriding an import. Both sources
  * normalize to ONE row shape carrying acks-lib scope fields, so
  * `scopeApplies()` decides both and there is a single place gating can be wrong.
  *
- * acks-abilities itself is NOT required: the extras are plain data on an item
- * flag, readable whether or not that module is active — which matters, because
- * acks-content writes the flag during import and a seat may not have installed
- * the sheet. acks-lib IS required, for the level-value and scope semantics.
+ * The abilities SHEET is not required: the extras are plain data on an item
+ * flag, readable without it — which matters, because the importer writes the
+ * flag during import and a seat may never open that sheet. The lib vocabulary
+ * IS required, for the level-value and scope semantics.
  */
 import { CHANGE_KEY_FAMILY, ROLL_FAMILY } from "./constants.mjs";
 

@@ -6,10 +6,10 @@
  * store. So the actor carries a per-actor proficiency profile via flags
  * (permissive defaults until a GM narrows them), extended by data-driven effect
  * flags from proficiency items (Martial Training, Armour Training):
- *   flags.acks-equipment.weaponProficiency  "all" | CSV of categories/weapon keys
- *   flags.acks-equipment.armorMax           unarmored|veryLight|light|medium|heavy
- *   flags.acks-equipment.martialWeapons     (effect) CSV of added weapon categories
- *   flags.acks-equipment.armorTraining      (effect) integer categories added
+ *   flags.acks-extras.weaponProficiency  "all" | CSV of categories/weapon keys
+ *   flags.acks-extras.armorMax           unarmored|veryLight|light|medium|heavy
+ *   flags.acks-extras.martialWeapons     (effect) CSV of added weapon categories
+ *   flags.acks-extras.armorTraining      (effect) integer categories added
  */
 import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS } from "./constants.mjs";
 import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX, WEAPONS, WEAPON_ALIASES, normalizeName } from "./config.mjs";
@@ -18,7 +18,7 @@ import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects
 /**
  * Is proficiency ENFORCEMENT live?
  *
- * This module infers proficiency from its own `flags.acks-equipment.*` actor
+ * This module infers proficiency from its own `flags.acks-extras.*` actor
  * flags and effect markers — the ones the ACKS Class Training compendium items
  * set: weapon and armour proficiency lists, and fighting styles. The weapon and
  * armour resolvers stay PERMISSIVE when the actor carries no such flags (no

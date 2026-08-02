@@ -346,7 +346,7 @@ export function getEffectReactionMods(actor) {
 }
 
 /**
- * Powers whose effect declares `flags.acks-influence.actsAs: <coreProf>` — a
+ * Powers whose effect declares `flags.acks-extras.actsAs: <coreProf>` — a
  * proficiency granted as a class power (non-stacking). Returns a map of core
  * proficiency key → display label, used to fill in / relabel that prof's box.
  * @returns {Record<string, string>}

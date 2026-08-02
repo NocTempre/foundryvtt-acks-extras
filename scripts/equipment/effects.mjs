@@ -3,7 +3,7 @@
  * Data-driven modifier discovery + the module-managed "Equipment Loadout"
  * Active Effect.
  *
- * Mechanics live as Active Effect changes keyed `flags.acks-equipment.<domain>`
+ * Mechanics live as Active Effect changes keyed `flags.acks-extras.<domain>`
  * on `ability`/`weapon`/`armor` items (mirrors acks-henchmen). The collector
  * below reads them. The loadout AE translates the applicable ones — plus the
  * fighting-style-conditional Specialization bonuses — into changes on the real

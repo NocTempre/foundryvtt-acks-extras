@@ -83,7 +83,7 @@ export function getHenchmenIds(actor) {
  * guard prevents a runaway anyway.
  *
  * GM-only (creates/updates world documents). Idempotent: the per-employer folder
- * is found by its `flags.acks-henchmen.employerId` and reused, so re-running
+ * is found by its `flags.acks-extras.employerId` and reused, so re-running
  * re-homes moved actors instead of making duplicate folders.
  *
  * @param {Actor[]} [actors] - the pool to organize; default = every actor
@@ -179,7 +179,7 @@ export const getMonsterHd = monsterHd;
 
 /**
  * "Level" for wage purposes: class level for characters, HD for monsters
- * (MM 351 — substitute Hit Dice for level). acks-monsters extras win when
+ * (MM 351 — substitute Hit Dice for level). Monster extras win when
  * present (integrations/monsters.mjs passes them through here).
  */
 export function getWageLevel(actor) {

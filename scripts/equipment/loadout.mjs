@@ -133,8 +133,8 @@ export function getLoadout(actor, opts = {}) {
   // Only a shield carried IN HAND costs a hand; a strapped one (JJ variant
   // overlay) rides the back or front and leaves both hands free.
   const handShields = shields.filter(occupiesHand);
-  // A lit light source held by this actor occupies a hand too (acks-formation,
-  // optional — degrade-gracefully to 0 when it is absent). This is the read
+  // A lit light source held by this actor occupies a hand too (degrades to 0
+  // when nothing is tracking light for this actor). This is the read
   // half of the two-way hook: formation owns the light state; we count it as a
   // used hand so hands-available matches who is holding a light.
   const heldLights = heldLightHands(actor);

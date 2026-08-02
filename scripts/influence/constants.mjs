@@ -12,9 +12,9 @@ export const MODULE_ID = "acks-extras";
 
 /**
  * Active Effect convention: an effect on any item/actor with a change keyed
- * `flags.acks-influence.<family>` contributes a modifier equal to the change
+ * `flags.acks-extras.<family>` contributes a modifier equal to the change
  * value to that family of 2d6 social roll. Effect flags under
- * `flags.acks-influence` tune it:
+ * `flags.acks-extras` tune it:
  *   - situational {boolean} default true  → shown as a GM-toggled checkbox
  *   - tone {"all"|"diplomacy"|"intimidation"|"seduction"} default "all"
  *   - label {string} optional display label (else the effect's name)

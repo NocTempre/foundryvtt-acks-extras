@@ -18,7 +18,7 @@
             <div class="item__icon {{#if item.system.roll}}item-usable{{/if}}" data-action="itemUse"><img src="{{item.img}}" alt="{{item.name}}" class="item__image"/></div>
             <div class="item__text"><a data-action="toggleSummary">{{item.name}}</a></div>
             {{#if item.system.rollTarget}}<div class="acksm-dmg-tag">{{item.system.rollTarget}}+</div>{{/if}}
-            {{#with item.flags.[acks-monsters] as |mf|}}{{#if mf.abilityCategory}}<div class="acksm-cat-tag">{{mf.abilityCategory}}</div>{{/if}}{{/with}}
+            {{#with item.flags.[acks-extras] as |mf|}}{{#if mf.abilityCategory}}<div class="acksm-cat-tag">{{mf.abilityCategory}}</div>{{/if}}{{/with}}
             {{#if ../owner}}
             <div class="item__controls">
               <a class="item-control" data-tooltip='{{localize "ACKS.Show"}}' data-action="itemShow"><i class="fas fa-eye"></i></a>

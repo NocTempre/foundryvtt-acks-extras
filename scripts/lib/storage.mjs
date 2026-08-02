@@ -15,7 +15,7 @@
  * macro that reads an actor's items reads a location's stock unchanged, and
  * nothing has to be kept in sync with a parallel record of what is really where.
  *
- * A PROVIDER is any actor carrying `flags.acks-lib.storage.provider`. This
+ * A PROVIDER is any actor carrying `flags.acks-extras.storage.provider`. This
  * library deliberately does not know what a "location" is: acks-location's
  * settlement, acks-henchmen's market actor, and the carts and wagons a later
  * pass turns into base camps are all just actors with the flag. Storage is

@@ -52,7 +52,7 @@ Sources: `client/canvas/perception/fog.mjs` (FogManager, 1017 lines), `client/do
 Never let exploration accumulate anonymously. All live exploration belongs to a **map session**, and a map session is always backed by a **Map item** — an ordinary (ACKS) Item with module flags, sitting in a member's inventory. Items are already lootable, tradeable, and sellable, which satisfies requirement 3 with zero new economy code.
 
 ```
-flags["acks-formation"].map = {
+flags["acks-extras"].map = {
   sceneId:   string,        // which scene this map depicts
   explored:  string,        // base64 webp, same format as FogExploration#explored
   active:    boolean,       // is this the live session's backing item?

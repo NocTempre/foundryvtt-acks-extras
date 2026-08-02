@@ -113,7 +113,7 @@ Hooks.on("updateItem", (item, changes) => {
 });
 
 /* Items that affect the loadout: worn gear (weapon/armor) and proficiencies
- * (ability items carrying flags.acks-equipment.* markers). */
+ * (ability items carrying flags.acks-extras.* markers). */
 const LOADOUT_ITEM_TYPES = ["weapon", "armor", "ability"];
 function onLoadoutItemChange(item) {
   const actor = item?.parent;

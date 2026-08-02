@@ -13,10 +13,11 @@
  *    number, `item` a `{value, max}` schema, and `weapon`/`armor` have none at
  *    all. `quantityOf` is the one place that difference is resolved, and it
  *    reads the SHAPE rather than the type name (item-model.mjs philosophy).
- *  - `flags.acks-equipment.containedIn` is acks-equipment's documented container
- *    pointer. It is READ (and rewritten) generically so a container stashed at a
- *    location takes its contents along; acks-lib never imports that module and
- *    the behaviour simply does not trigger when it is absent.
+ *  - `flags.acks-extras.containedIn` is the equipment feature's documented
+ *    container pointer. It is READ (and rewritten) generically so a container
+ *    stashed at a location takes its contents along; this file imports nothing
+ *    from equipment, and the behaviour simply does not trigger when no item
+ *    carries the pointer.
  */
 import { toNum as num } from "./util.mjs";
 

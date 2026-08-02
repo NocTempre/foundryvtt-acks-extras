@@ -9,7 +9,7 @@
  *
  * The card is a QUICK-ROLL surface: attacks and proficiencies roll through the
  * system, and each roll target (AC, adventuring throws) can be given a **sticky
- * card-only override** — stored in `flags.acks-lib.fcOverrides`, which the main
+ * card-only override** — stored in `flags.acks-extras.fcOverrides`, which the main
  * character sheet ignores, so you can change a target for a quick roll without
  * touching the actor's real data. **Reset** clears the overrides; **Commit** bakes
  * them into the real base fields. `+Attack` / `+Skill` add minimal items for ad-hocs.

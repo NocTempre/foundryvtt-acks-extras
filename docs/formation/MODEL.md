@@ -14,11 +14,12 @@ Rather than recreate core infrastructure, the module leans on community librarie
 **Recommended** (`relationships.recommends`) — optional, degrades gracefully:
 
 - **simple-timekeeping** — a front-end for the world clock, calendar, and scene-darkness sync. Dungeon turns feed it through the standard `game.time.advance` contract, so it needs no integration code: with it installed you get the calendar UI and time-of-day darkness; without it, turns still advance core world time and the module is unaffected. The module only *reads* scene darkness (`isPartyInDark`), never writes it, so the two never fight over darkness.
-- **acks-monsters** — the Full Monster Sheet stores a creature's real vision modes, special senses, and multi-row Speed table. `scripts/monster-traits.mjs` reads that structured data (the raw `flags["acks-monsters"].extras`, so it works even when the module is inactive) so a monster party member's dark sight and exploration pace come from its stat block rather than human defaults — see below. Without it, actors fall back to ability/effect name matching and the system encumbrance speed.
 
 ### Monster senses & movement
 
-For monsters carrying an acks-monsters stat block, `canSeeInDark` and `explorationSpeedOf` defer to `monster-traits.mjs` instead of the generic heuristics:
+The Full Monster Sheet (the monsters feature) stores a creature's real vision modes, special senses, and multi-row Speed table, so a monster party member's dark sight and exploration pace come from its stat block rather than human defaults. `scripts/formation/monster-traits.mjs` reads that structured data raw from `flags["acks-extras"].extras` rather than through the monsters API, so it stays independent of feature load order.
+
+For monsters carrying a stat block, `canSeeInDark` and `explorationSpeedOf` defer to `monster-traits.mjs` instead of the generic heuristics; without one, actors fall back to ability/effect name matching and the system encumbrance speed.
 
 - **Dark operation** is authoritative from `extras.vision` + `extras.otherSenses`. Only modes that function in *total* darkness count: **Lightless Vision** and **Blind** navigation, plus **Echolocation** and the **Mechanoreception** senses (their "sight" reads as dim light). **Night Vision is excluded** — it upgrades dim light but fails in total dark, the exact human assumption this fixes. Acute hearing/olfaction/vision only aid surprise and never defeat darkness.
 - **Exploration speed** is the *running* value of the creature's land Speed row (ACKS records speed as `[combat] / [exploration = running]`); a purely aquatic/aerial creature falls back to its primary row. Blinded creatures still take the 1/3-speed dark penalty unless one of the dark senses above applies.

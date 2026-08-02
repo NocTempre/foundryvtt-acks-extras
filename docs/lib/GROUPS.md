@@ -66,7 +66,7 @@ and explicit `hp`/`aac`/`details`. Same reasoning as `acks-lib.animal`
 
 ### The collective noun is data
 
-`system.noun` is filled from acks-monsters ecology (`encounter.*.noun` — a
+`system.noun` is filled from the monster stat block's ecology (`encounter.*.noun` — a
 *pack* wandering, a *tribe* in its lair) or the unit category, and is always
 GM-overridable. The internal type name is deliberately neutral (`group`) so it
 never contradicts a displayed noun the way `unit` would on a kobold pack.
@@ -107,10 +107,11 @@ the reason the strip exists.)
 
 ## Ecology runway — READ only, deliberately unimplemented
 
-`sizeFromEcology(source, context)` is the ONE reader of acks-monsters data and
-the only ecology consumption today: a monster's number-appearing → a size
-formula, soft-read so acks-monsters stays optional, and **not auto-rolled** (the
-Judge decides when a group is sized). The richer seams named in `group-data.mjs`
+`sizeFromEcology(source, context)` is the ONE reader of monster stat-block data
+and the only ecology consumption today: a monster's number-appearing → a size
+formula, soft-read so a monster with no stat block still resolves through core
+`system.details.appearing`, and **not auto-rolled** (the Judge decides when a
+group is sized). The richer seams named in `group-data.mjs`
 — lair chance, supply cost, `battleRating.unit` for mass combat — are documented
 and left unread.
 

@@ -10,7 +10,7 @@
  * delta, leaving residue (a "pristine" item still reading 1d6-1) or silently
  * discarding the other layer.
  *
- * So there is exactly ONE snapshot — `flags.acks-equipment.pristine`, captured
+ * So there is exactly ONE snapshot — `flags.acks-extras.pristine`, captured
  * the first time any layer is applied — and every change RECOMPUTES the fields
  * from it:
  *

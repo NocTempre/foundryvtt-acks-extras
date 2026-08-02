@@ -39,8 +39,10 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
 /* -------------------------------------------------------------------------- */
 /* The flags alternative is \b-terminated, not dot-terminated: the pack-data
  * rewrite miss that shipped an inert compendium was `"flags.acks-henchmen"` —
- * scope only, no trailing key — and a dot-anchored pattern cannot see it. */
-const OLD = /"acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)"|\bglobalThis\.acks(Lib|Abilities|Equipment|Formation|Henchmen|Influence|Location|Monsters)\b|flags\.acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)\b/;
+ * scope only, no trailing key — and a dot-anchored pattern cannot see it.
+ * The bracketed alternative catches Handlebars segment literals
+ * (`item.flags.[acks-monsters]`), whose `[` defeats the \b-terminated form. */
+const OLD = /"acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)"|\bglobalThis\.acks(Lib|Abilities|Equipment|Formation|Henchmen|Influence|Location|Monsters)\b|flags\.acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)\b|flags\.\[acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters)\]/;
 /* Hook and helper names retired when everything moved under acksExtras.* —
  * firing OR listening under one of these is a silent no-op for the other side. */
 const RETIRED = /\backsFormation\.|\backsInfluence(RollComplete|AttitudeChanged)\b|\backsMonsters(Val|Has)\b|\backsEquipment(LockPicked|ContainerBashed)\b/;
@@ -48,8 +50,14 @@ const RETIRED = /\backsFormation\.|\backsInfluence(RollComplete|AttitudeChanged)
  * cleaner macro whose entire job is finding what those modules left behind. */
 const NAMES_OLD_IDS_BY_DESIGN = new Set(["tools/validate-extra.mjs", "tools/pack-data/cleanup.mjs"]);
 let stale = 0;
-for (const f of [...walk(path.join(ROOT, "scripts")), ...walk(path.join(ROOT, "tools"))]) {
-  if (!f.endsWith(".mjs")) continue;
+/* Templates are scanned too: a stale scope in a .hbs reads undefined and the
+ * markup it guards silently never renders, with no error anywhere. */
+for (const f of [
+  ...walk(path.join(ROOT, "scripts")),
+  ...walk(path.join(ROOT, "tools")),
+  ...walk(path.join(ROOT, "templates")),
+]) {
+  if (!f.endsWith(".mjs") && !f.endsWith(".hbs")) continue;
   if (NAMES_OLD_IDS_BY_DESIGN.has(rel(f))) continue;
   fs.readFileSync(f, "utf8").split("\n").forEach((line, i) => {
     if (/^\s*(\*|\/\/|\/\*)/.test(line)) return; // prose

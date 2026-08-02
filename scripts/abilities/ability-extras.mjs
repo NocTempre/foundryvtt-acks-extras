@@ -1,7 +1,7 @@
 /* global foundry */
 /**
  * AbilityExtras — the extended effect model the core ACKS `ability` item does
- * not carry. Stored at `item.flags["acks-abilities"].extras` (NOT a document
+ * not carry. Stored at `item.flags["acks-extras"].extras` (NOT a document
  * sub-type): the core ability item keeps owning name, description,
  * proficiencytype, roll/rollType/rollTarget, requirements and save; this adds
  * the structured, level-aware EFFECTS plus the classification meta the books

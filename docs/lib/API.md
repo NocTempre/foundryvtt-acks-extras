@@ -469,7 +469,7 @@ row it refines), and composes the name from `output.nameFormat`
 The **builder sheet** (`TemplateSheet`, registered at `ready`) shows one select
 per axis defaulting to "Roll", a drop zone for the base actor, and Generate;
 pins and the base are per-window UI state, never document data. Generated
-actors carry `flags["acks-lib"].generated = {templateUuid, choices, log, menu}`
+actors carry `flags["acks-extras"].generated = {templateUuid, choices, log, menu}`
 as provenance.
 
 v0.17 additions: options carry actor-level `flags`/`token` channels (a family

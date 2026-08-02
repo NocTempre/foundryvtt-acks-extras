@@ -37,7 +37,7 @@ namespace (`actor.flags["<their-module>"]`) — this schema stays minimal.
 
 ## 3. `HenchmanRecord` (hireling flag)
 
-Serialized DataModel at `actor.flags["acks-henchmen"].record`
+Serialized DataModel at `actor.flags["acks-extras"].record`
 (`scripts/data/henchman-record.mjs`):
 
 - `origin`, `locationUuid`, `settlementName`, `employerUuid`, `hiredTime`
@@ -82,7 +82,7 @@ computation):
 | `recruitKinds` | unlock henchman kinds (CSV string) | Beast Friendship → `animal` |
 | `reactionRollTwice` | roll 2d6 twice, take better/worse | White Luck Presence |
 
-Effect-level metadata (on the effect's own flags, `flags["acks-henchmen"]`):
+Effect-level metadata (on the effect's own flags, `flags["acks-extras"]`):
 
 - `condition` — i18n key/text; its presence marks the bonus **situational**:
   roll dialogs render it as a toggle (GM/player decides applicability).

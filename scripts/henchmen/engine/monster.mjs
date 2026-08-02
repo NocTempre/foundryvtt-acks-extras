@@ -17,7 +17,7 @@ import { openThrowDialog } from "../apps/throw-dialog.mjs";
 import { checkHenchmanLimit } from "./hire.mjs";
 import { now } from "../time.mjs";
 
-/** HD for recruitment/wages: acks-monsters extras when present, else parsed. */
+/** HD for recruitment/wages: monster extras when present, else parsed. */
 export function monsterHd(monster) {
   return adapter.getWageLevel(monster);
 }
@@ -37,7 +37,7 @@ export function validateMonsterRecruit(monster, employer) {
   }
   const kinds = collectStringFlags(employer, "recruitKinds");
   // Sapient monster types are open to everyone; animals are gated (MM 351).
-  // Without acks-monsters typing we can't detect animals reliably — warn only.
+  // Without monster stat-block typing we can't detect animals reliably — warn only.
   if (!kinds.size) {
     warnings.push(game.i18n.localize("ACKS-HENCHMEN.monster.animalGate"));
   }

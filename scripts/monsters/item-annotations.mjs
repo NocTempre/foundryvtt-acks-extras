@@ -3,8 +3,9 @@
  * Item-sheet flag injector. The core weapon / ability / item schemas can't hold
  * the Monstrous Manual enum metadata (damage type, ability category, spoil
  * component data), so — when such an item is owned by a `monster` — we inject a
- * compact "ACKS Monster" fieldset that reads/writes `flags["acks-monsters"]`.
- * Consumer modules read those flags; this module only stores them.
+ * compact "ACKS Monster" fieldset that reads/writes `flags["acks-extras"]`.
+ * The monster sheet's abilities and spoils tabs render tags from these flags;
+ * consumers otherwise read them raw.
  *
  * Uses the generic `renderApplicationV2` hook (fires for every ApplicationV2,
  * including the system's item sheet) and keys off `app.document`.

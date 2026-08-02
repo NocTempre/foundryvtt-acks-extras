@@ -3,8 +3,8 @@
  * The acks-abilities bridge — proficiency facts read FROM the abilities model.
  *
  * A character built with acks-abilities/acks-content carries generic `ability`
- * items (one per definition, identified by `flags["acks-content"].cookbook.id`,
- * picks recorded in `flags["acks-abilities"].extras.selections`) instead of
+ * items (one per definition, identified by `flags["acks-importer"].cookbook.id`,
+ * picks recorded in `flags["acks-extras"].extras.selections`) instead of
  * this module's 42 effect-carrying pack items. This bridge translates those
  * facts into the SAME effect domains the collectors in effects.mjs already
  * serve, so loadout, proficiency, and roll-wrap consume them unchanged.
@@ -23,7 +23,7 @@
  * proficiency.mjs enforcementActive().
  *
  * Dedup rule: an ability item whose OWN Active Effects already carry any
- * `flags.acks-equipment.*` change stands aside — it speaks the native effect
+ * `flags.acks-extras.*` change stands aside — it speaks the native effect
  * language (this module's pack items do), and bridging it too would double
  * its contribution.
  */

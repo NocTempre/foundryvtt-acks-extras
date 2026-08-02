@@ -119,7 +119,7 @@ export function cleanDelta(delta) {
  * seams — lair chance, supply cost, battle rating — are declared in
  * group-data.mjs and deliberately unread (docs/ROADMAP.md § Groups).
  *
- * @param {object} source - a prototype actor (may carry acks-monsters extras)
+ * @param {object} source - a prototype actor (may carry monster extras)
  * @param {"wilderness"|"dungeon"} [context]
  * @returns {string|null} a dice formula, or null if unstated
  */

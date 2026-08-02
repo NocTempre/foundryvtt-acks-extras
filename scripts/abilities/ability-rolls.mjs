@@ -6,7 +6,7 @@
  * The core ability item carries ONE roll (formula, type, target). Most ACKS
  * proficiencies offer several: Animal Husbandry diagnoses, cures, cures serious
  * injury and extracts venom, three of those on their own rank ladder. So an
- * ability's rolls live in `flags["acks-abilities"].extras.rolls`.
+ * ability's rolls live in `flags["acks-extras"].extras.rolls`.
  *
  * ONE STORE, ONE READ PATH. `rollsOf()` is the only place anything asks an
  * ability what it rolls, and it folds core's singleton fields in on the way out

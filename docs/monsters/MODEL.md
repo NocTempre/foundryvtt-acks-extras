@@ -41,7 +41,7 @@ behavior.
 | **Spoils / harvestable parts** | items | `item` items (`weight6` = N/6 stone, `cost` = gp) + flags below |
 | **Active effects** | core | actor `ActiveEffect`s |
 
-## Item flag metadata (`flags["acks-monsters"]`)
+## Item flag metadata (`flags["acks-extras"]`)
 
 Set via the "ACKS Monster" fieldset injected into monster-owned item sheets.
 
@@ -66,7 +66,7 @@ api.config;                // all enum tables (MONSTER_TYPES, BODY_FORMS, …)
 api.FLAG_EXTRAS;           // "extras"
 ```
 
-Read raw: `actor.getFlag("acks-monsters", "extras")`.
+Read raw: `actor.getFlag("acks-extras", "extras")`.
 
 ## Enums
 

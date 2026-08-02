@@ -5,7 +5,7 @@
  *
  * Source order (reuse → override → lookup → default):
  *   1. core weapon data (`system.melee/missile`, `system.tags`)
- *   2. per-item overrides `flags.acks-equipment.{size,hands,style,handy,thrown,damageType}`
+ *   2. per-item overrides `flags.acks-extras.{size,hands,style,handy,thrown,damageType}`
  *   3. built-in RAW name lookup (config.WEAPONS + aliases)
  *   4. default: medium melee, one-handed
  *

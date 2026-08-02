@@ -3,7 +3,7 @@
  *
  * Extends the core `ability` item (proficiencies / class powers / skills /
  * monster abilities) with a structured, level-aware EFFECT model stored at
- * `flags["acks-abilities"].extras` (see ability-extras.mjs) and — later — an
+ * `flags["acks-extras"].extras` (see ability-extras.mjs) and — later — an
  * alternate ability sheet to view/edit it. Nothing mutates the acks system;
  * the effect vocabulary comes from acks-lib.
  */

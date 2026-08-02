@@ -107,7 +107,7 @@ Pack document `_id`s carry the prefix declared in `module.json` at
   built) reuses `game.modules.get("acks-extras").api.henchmen.adapter.spendGold/grantGold`
   rather than re-implementing denomination handling.
 - **acks-monsters** owns gear storage and the `DAMAGE_TYPES`/`NATURAL_WEAPONS`
-  enums, read raw/soft so it stays optional. The classifier's `damageType`
+  enums, read raw/soft so a monster with no stat block still resolves. The classifier's `damageType`
   aligns to them.
 - **Surprise** determination + the `surprised` status are core's; this module
   only reads them (first-round interrupt helpers).

@@ -150,7 +150,7 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
       /**
        * The displayed collective noun is DATA, not a hardcoded word: a *pack* of
        * kobolds wandering, a *tribe* in its lair, a *unit* of mercenaries. Filled
-       * from acks-monsters ecology (`encounter.*.noun`) or the unit category, and
+       * from the monster stat block's ecology (`encounter.*.noun`) or the unit category, and
        * always GM-overridable. Blank → the sheet falls back to a category default.
        */
       noun: str(),

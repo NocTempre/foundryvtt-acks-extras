@@ -2,7 +2,7 @@
 /**
  * MonsterExtras — the extended, structured stat-block data that the core ACKS
  * `monster` schema does not carry. It is a standalone in-memory DataModel
- * persisted at `actor.flags["acks-monsters"].extras`, NOT a document sub-type:
+ * persisted at `actor.flags["acks-extras"].extras`, NOT a document sub-type:
  * this lets us reuse the system's own `monster` actor (and its henchman /
  * hp / aac / saves / details fields) while still getting DataModel defaults,
  * `choices` validation, and — crucially — nullable numerics so that a blank

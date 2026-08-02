@@ -11,7 +11,7 @@
  *
  * Generation itself is the pure half (template-logic.mjs): pinned > derived >
  * rolled, merged into one engine-ready payload, created as ONE actor. The
- * provenance rides in `flags["acks-lib"].generated` so a sheet can later say
+ * provenance rides in `flags["acks-extras"].generated` so a sheet can later say
  * "derived from Dragon (Adult · Wyvern)".
  */
 import { MODULE_ID } from "../constants.mjs";

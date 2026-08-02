@@ -3,7 +3,7 @@
  * The ACKS Abilities sheet is built at ready as a SUBCLASS of the system's own
  * registered `ability` item sheet, so it inherits the header, description and
  * Active Effects tabs verbatim and adds one **Mechanics** tab for the extended
- * effect model (`flags["acks-abilities"].extras`).
+ * effect model (`flags["acks-extras"].extras`).
  *
  * NOTE the tab id is `mechanics`, not `effects` — the system already uses
  * `effects` for Foundry Active Effects, which are a different thing entirely.

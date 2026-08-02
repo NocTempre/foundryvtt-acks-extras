@@ -80,7 +80,7 @@ export function followerCardContext(actor, { editable = false } = {}) {
   const sys = actor?.system ?? {};
   const isMonster = actor?.type === "monster";
   const items = actor?.items?.contents ?? [];
-  // Sticky card-only overrides (flags.acks-lib.fcOverrides): the quick sheet reads
+  // Sticky card-only overrides (flags.acks-extras.fcOverrides): the quick sheet reads
   // and rolls with these, the main character sheet ignores them. Reset clears them;
   // Commit bakes them into the real base fields. Shape: { ac, adventuring: {key} }.
   const overrides = actor?.getFlag?.(MODULE_ID, "fcOverrides") ?? {};
