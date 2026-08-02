@@ -169,13 +169,29 @@ for (const [target, files] of targets) {
 /*                                                                             */
 /* templates/ gained a directory per feature to keep two location-sheet.hbs     */
 /* apart, so every path needed a feature segment. A miss only shows as a 404 at */
-/* render time.                                                                 */
+/* render time — or worse, as an unhandled rejection from a preload, because    */
+/* loadTemplates fails async and escapes any try around it. Both the single-    */
+/* literal shape and the composed `const T = …dir` + `${T}/x.hbs` shape (which  */
+/* is how the henchmen preload shipped a moved template unnoticed) are checked. */
 /* -------------------------------------------------------------------------- */
 for (const f of walk(path.join(ROOT, "scripts"))) {
   if (!f.endsWith(".mjs")) continue;
   const text = fs.readFileSync(f, "utf8");
-  for (const m of text.matchAll(/modules\/\$\{MODULE_ID\}\/(templates\/[^"`\s]*\.hbs)/g)) {
+  for (const m of text.matchAll(/modules\/\$\{MODULE_ID\}\/(templates\/[^"`\s$]*\.hbs)/g)) {
     if (!fs.existsSync(path.join(ROOT, m[1]))) fail(`${rel(f)}: template not found — ${m[1]}`);
+  }
+  // composed: const T = `modules/${MODULE_ID}/templates/<feature>`; … `${T}/x.hbs`
+  const dirs = new Map();
+  for (const m of text.matchAll(/const\s+(\w+)\s*=\s*`modules\/\$\{MODULE_ID\}\/(templates\/[\w./-]*)`/g)) {
+    dirs.set(m[1], m[2]);
+  }
+  if (dirs.size) {
+    for (const m of text.matchAll(/\$\{(\w+)\}\/([\w./-]+\.hbs)/g)) {
+      const dir = dirs.get(m[1]);
+      if (!dir) continue;
+      const p = `${dir}/${m[2]}`;
+      if (!fs.existsSync(path.join(ROOT, p))) fail(`${rel(f)}: template not found — ${p}`);
+    }
   }
 }
 

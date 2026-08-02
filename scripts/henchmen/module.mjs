@@ -61,8 +61,9 @@ Hooks.once("init", () => {
 
   try {
     const T = `modules/${MODULE_ID}/templates/henchmen`;
+    // The location sheet's template moved to templates/location/ with the
+    // sheet itself (MERGE-NOTES §4); the location feature preloads it.
     foundry.applications.handlebars.loadTemplates([
-      `${T}/location-sheet.hbs`,
       `${T}/posting-dialog.hbs`,
       `${T}/throw-dialog.hbs`,
       `${T}/roster-app.hbs`,
