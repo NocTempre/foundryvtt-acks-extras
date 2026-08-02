@@ -27,8 +27,9 @@ import { packs as influence } from "./pack-data/influence.mjs";
 import { packs as lib } from "./pack-data/lib.mjs";
 import { packs as location } from "./pack-data/location.mjs";
 import { packs as monsters } from "./pack-data/monsters.mjs";
+import { packs as cleanup } from "./pack-data/cleanup.mjs";
 
-const FEATURES = { lib, abilities, equipment, formation, henchmen, influence, location, monsters };
+const FEATURES = { lib, abilities, equipment, formation, henchmen, influence, location, monsters, cleanup };
 
 /** Deterministic 16-char id under the module's declared idPrefix ("acks"). */
 const did = (seed) => "acks" + crypto.createHash("sha1").update(seed).digest("hex").slice(0, 12);
