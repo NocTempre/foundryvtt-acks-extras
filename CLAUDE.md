@@ -177,7 +177,7 @@ None of `docs/` ships in `module.zip`.
   docstring — do not write both.
 - `@param`/`@returns` are required only where the type is not obvious from the
   name: destructured option bags, non-obvious return shapes, and anything
-  crossing a feature boundary (`scripts/lib/**`, each feature's `api.mjs`).
+  crossing a module boundary (a shared library, the public `api`).
   Elsewhere prose is preferred.
 - **Treat existing comments and docs as unverified.** They drift: a "deferred
   migration" that already happened, a referenced test file that does not exist,
