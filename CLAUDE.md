@@ -85,13 +85,32 @@ with no list is not a result. Say what you created and confirm you removed it.
 
 ## Release
 
-1. Bump `module.json` version; update changelog if present.
+Every release is a **major**, **minor** or **hotfix** — declared by the user,
+never derived from the version number. Ask if it is unclear; a major release is
+always explicit. The kind decides only what gets photographed (below); all three
+pass exactly the same gates.
+
+1. Establish the release kind; bump `module.json` version; update changelog if
+   present.
 2. Build + validate + test.
 3. **Live-verify (above). This is a go-live gate** — skip only if this machine
    defines no test environment, and state that in the release report.
-4. Commit, `git tag v<version>` (must equal module.json version), push branch
+4. **Capture release snapshots in that same live session** — screenshots of the
+   features working, which serve at once as evidence the check ran, as the
+   images for the release notes, and as the user guide:
+   - **major** → re-shoot every feature area, changed or not;
+     **minor** → one shot per user-visible changelog entry;
+     **hotfix** → none, unless UI-visible and requested.
+   - Save to `docs/releases/v<X.Y.Z>/<feature-slug>.png` (kept out of
+     module.zip); update `docs/GALLERY.md` — every row on a major, only the
+     re-shot rows on a minor. Never rewrite a past release's directory.
+   - Shoot the disposable fixtures you built for the live check, and clip to
+     the app window — that keeps world id / user name / server URL out of
+     frame. Incidental book text in a feature's UI is not a concern.
+   - Capture technique is machine-specific — see `TEST_ENVIRONMENT.md`.
+5. Commit, `git tag v<version>` (must equal module.json version), push branch
    + tag.
-5. Confirm publication with BOUNDED polls — **never `gh run watch`, it hangs**:
+6. Confirm publication with BOUNDED polls — **never `gh run watch`, it hangs**:
    `gh release view v<version> --json assets` ~30s apart, capped ~5 min. Then
    verify `https://github.com/NocTempre/foundryvtt-acks-extras/releases/latest/download/module.json`
    shows the new version. The `/acks-release` skill walks all of this.
