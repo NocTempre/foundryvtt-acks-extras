@@ -5,5 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/chest.svg",
-  "command": "if (!game.user.isGM) return ui.notifications.warn(\"The storage manager is a GM tool.\");\ngame.modules.get(\"acks-location\").api.openStorageManager();"
+  "command": "if (!game.user.isGM) return ui.notifications.warn(\"The storage manager is a GM tool.\");\ngame.modules.get(\"acks-extras\").api.location.openStorageManager();",
+  "folder": "acks420ff1a0388a"
 }

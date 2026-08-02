@@ -15,7 +15,7 @@
  */
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 
-const equipmentApi = () => globalThis.acksExtras.equipment ?? game.modules?.get("acks-extras")?.api ?? null;
+const equipmentApi = () => globalThis.acksExtras?.equipment ?? game.modules?.get("acks-extras")?.api ?? null;
 
 /** Fighting styles (JJ p.291), in the order the books present them. */
 const STYLES = [
@@ -156,7 +156,7 @@ const matchSynonym = (token, table) => {
  */
 function abilityGrants(actor) {
   const out = { styles: new Set(), spec: new Set(), weapons: new Set(), armourRank: -1, has: { styles: false, weapons: false, armour: false } };
-  const api = globalThis.acksExtras.abilities ?? game.modules?.get("acks-extras")?.api ?? null;
+  const api = globalThis.acksExtras?.abilities ?? game.modules?.get("acks-extras")?.api ?? null;
   if (!api?.selectionsOf) return out;
   for (const item of actor?.items ?? []) {
     if (item.type !== "ability") continue;

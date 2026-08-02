@@ -169,7 +169,7 @@ function lightTypeOf(item) {
  * sheet's own light buttons.
  */
 function injectLightControls(list, actor) {
-  const fm = globalThis.acksExtras.formation;
+  const fm = globalThis.acksExtras?.formation;
   if (!fm?.getFormationForActor) return;
   const formation = fm.getFormationForActor(actor.id);
   if (!formation) return;

@@ -5,5 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/castle.svg",
-  "command": "const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a 9th+ level character token first.\");\nacksHenchmen.openFollowersDialog(actor);"
+  "command": "const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a 9th+ level character token first.\");\nacksExtras.henchmen.openFollowersDialog(actor);",
+  "folder": "acks420ff1a0388a"
 }

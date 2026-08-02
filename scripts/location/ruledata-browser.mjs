@@ -139,7 +139,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
           try {
             let parsed = JSON.parse(button.form.elements.json.value);
             if (entry.subId && entry.tableId === "occupationSubTables") {
-              const table = globalThis.acksExtras.lib.tables.getTable(entry.docId, entry.tableId);
+              const table = globalThis.acksExtras?.lib.tables.getTable(entry.docId, entry.tableId);
               parsed = { categories: { ...(table?.categories ?? {}), [entry.subId]: parsed } };
             }
             await setOverride(entry.docId, entry.tableId, parsed, { sourceName: "manual edit" });

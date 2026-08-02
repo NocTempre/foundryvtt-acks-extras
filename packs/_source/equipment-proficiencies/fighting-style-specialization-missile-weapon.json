@@ -26,13 +26,13 @@
       "type": "base",
       "changes": [
         {
-          "key": "flags.acks-equipment.styleProficient",
+          "key": "flags.acks-extras.styleProficient",
           "type": "override",
           "value": "missile:spec",
           "priority": 50
         },
         {
-          "key": "flags.acks-equipment.freeSwap",
+          "key": "flags.acks-extras.freeSwap",
           "type": "override",
           "value": "1",
           "priority": 50
@@ -49,7 +49,7 @@
     }
   ],
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true
     }
   },

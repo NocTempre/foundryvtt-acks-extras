@@ -5,5 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/coins.svg",
-  "command": "const actor = game.user.character ?? canvas.tokens.controlled[0]?.actor;\nif (!actor) return ui.notifications.warn(\"Assign yourself a character, or select your token.\");\nconst places = acksLib.storage.providersFor(actor);\nif (!places.length) return ui.notifications.info(actor.name + \" has nothing in storage anywhere.\");\nawait actor.sheet.render(true);\n// The tab is injected on render, so switch after the sheet has drawn itself.\nsetTimeout(() => { try { actor.sheet.changeTab(\"acks-location-storage\", \"primary\"); } catch (e) { console.warn(e); } }, 250);"
+  "command": "const actor = game.user.character ?? canvas.tokens.controlled[0]?.actor;\nif (!actor) return ui.notifications.warn(\"Assign yourself a character, or select your token.\");\nconst places = acksExtras.lib.storage.providersFor(actor);\nif (!places.length) return ui.notifications.info(actor.name + \" has nothing in storage anywhere.\");\nawait actor.sheet.render(true);\n// The tab is injected on render, so switch after the sheet has drawn itself.\nsetTimeout(() => { try { actor.sheet.changeTab(\"acks-location-storage\", \"primary\"); } catch (e) { console.warn(e); } }, 250);",
+  "folder": "acks420ff1a0388a"
 }

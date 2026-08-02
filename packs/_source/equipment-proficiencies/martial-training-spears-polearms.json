@@ -26,7 +26,7 @@
       "type": "base",
       "changes": [
         {
-          "key": "flags.acks-equipment.martialWeapons",
+          "key": "flags.acks-extras.martialWeapons",
           "type": "override",
           "value": "spearPolearm",
           "priority": 50
@@ -43,7 +43,7 @@
     }
   ],
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true
     }
   },

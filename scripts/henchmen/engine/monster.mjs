@@ -69,7 +69,7 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
   // through the hiring page elsewhere.
   if (captured) {
     try {
-      const integration = globalThis.acksExtras.henchmen?.integrations?.influence;
+      const integration = globalThis.acksExtras?.henchmen?.integrations?.influence;
       if (integration?.hostsMoraleModes?.()) {
         integration.openIrrefusableViaInfluence({
           employer,

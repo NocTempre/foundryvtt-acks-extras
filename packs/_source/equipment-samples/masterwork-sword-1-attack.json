@@ -16,7 +16,7 @@
   },
   "effects": [],
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true,
       "size": "medium",
       "damageType": "slashing",

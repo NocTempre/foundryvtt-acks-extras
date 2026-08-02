@@ -5,5 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/regen.svg",
-  "command": "acksHenchmen.processAllLocations().then(() => ui.notifications.info(\"Recruitment postings processed.\"));"
+  "command": "acksExtras.henchmen.processAllLocations().then(() => ui.notifications.info(\"Recruitment postings processed.\"));",
+  "folder": "acks420ff1a0388a"
 }

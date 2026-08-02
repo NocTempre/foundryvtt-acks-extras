@@ -11,7 +11,7 @@
  * callbacks in the order they were registered. The order below is the family's
  * dependency order, not alphabetical:
  *
- *   lib        first — everything else reads globalThis.acksExtras.lib from its own
+ *   lib        first — everything else reads globalThis.acksExtras?.lib from its own
  *              hooks, and lib owns the shared registries (services, tables) and
  *              the core patches.
  *   influence  before henchmen — henchmen consumes influence's Active Effect

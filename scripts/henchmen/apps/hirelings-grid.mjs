@@ -25,7 +25,7 @@ const GRID_CLASS = "acks-henchmen-follower-grid";
 
 async function gridifyHirelings(app, element) {
   if (game.system?.id !== "acks") return;
-  const api = globalThis.acksExtras.lib?.followerCard;
+  const api = globalThis.acksExtras?.lib?.followerCard;
   if (!api?.render) return; // older acks-lib — leave the stock list intact
   const employer = app.actor ?? app.document;
   if (employer?.type !== "character") return;

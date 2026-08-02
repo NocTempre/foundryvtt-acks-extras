@@ -46,7 +46,7 @@
         "seconds": null
       },
       "flags": {
-        "acks-henchmen": {}
+        "acks-extras": {}
       }
     }
   ]

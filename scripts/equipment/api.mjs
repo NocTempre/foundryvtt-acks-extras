@@ -1,7 +1,7 @@
 /* global game, globalThis */
 /**
  * Public API — exposed on `game.modules.get("acks-equipment").api` and mirrored
- * on `globalThis.acksExtras.equipment`. Lets sibling modules read the loadout the way
+ * on `globalThis.acksExtras?.equipment`. Lets sibling modules read the loadout the way
  * they read each other's data today (formation reads equipped weapons; henchmen
  * reads gear), and lets macros drive equip/annotate/purchase.
  */

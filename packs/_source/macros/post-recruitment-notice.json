@@ -5,5 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/scroll.svg",
-  "command": "const locations = game.actors.filter((a) => a.type === \"acks-henchmen.location\");\nif (!locations.length) return ui.notifications.warn(\"Create a Location actor first.\");\nacksHenchmen.openPostingDialog(locations[0]);"
+  "command": "const locations = game.actors.filter((a) => a.type === \"acks-extras.location\");\nif (!locations.length) return ui.notifications.warn(\"Create a Location actor first.\");\nacksExtras.henchmen.openPostingDialog(locations[0]);",
+  "folder": "acks420ff1a0388a"
 }

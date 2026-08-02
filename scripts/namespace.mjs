@@ -6,10 +6,10 @@
  * through those names. One module now, so there is one global, and each feature
  * attaches itself under its own key:
  *
- *   globalThis.acksExtras.lib        globalThis.acksExtras.formation
- *   globalThis.acksExtras.abilities  globalThis.acksExtras.henchmen
- *   globalThis.acksExtras.equipment  globalThis.acksExtras.influence
- *   globalThis.acksExtras.location   globalThis.acksExtras.monsters
+ *   globalThis.acksExtras?.lib        globalThis.acksExtras?.formation
+ *   globalThis.acksExtras?.abilities  globalThis.acksExtras?.henchmen
+ *   globalThis.acksExtras?.equipment  globalThis.acksExtras?.influence
+ *   globalThis.acksExtras?.location   globalThis.acksExtras?.monsters
  *
  * `??=` rather than `=` because import order decides who gets here first and it
  * must not matter: every feature that attaches imports this, and the first one

@@ -32,7 +32,7 @@ export function buildMacros() {
       "Open Storage Manager",
       "icons/svg/chest.svg",
       `if (!game.user.isGM) return ui.notifications.warn("The storage manager is a GM tool.");
-game.modules.get("acks-location").api.openStorageManager();`,
+game.modules.get("acks-extras").api.location.openStorageManager();`,
     ),
     macro(
       "Enable Storage Here",
@@ -41,7 +41,7 @@ game.modules.get("acks-location").api.openStorageManager();`,
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a token first (or assign yourself a character).");
 if (actor.isToken) return ui.notifications.warn("Link the token to its actor first — an unlinked token cannot hold goods.");
-await acksLib.storage.setProvider(actor, true);
+await acksExtras.lib.storage.setProvider(actor, true);
 ui.notifications.info(actor.name + " can now hold goods for people.");`,
     ),
     macro(
@@ -49,7 +49,7 @@ ui.notifications.info(actor.name + " can now hold goods for people.");`,
       "icons/svg/coins.svg",
       `const actor = game.user.character ?? canvas.tokens.controlled[0]?.actor;
 if (!actor) return ui.notifications.warn("Assign yourself a character, or select your token.");
-const places = acksLib.storage.providersFor(actor);
+const places = acksExtras.lib.storage.providersFor(actor);
 if (!places.length) return ui.notifications.info(actor.name + " has nothing in storage anywhere.");
 await actor.sheet.render(true);
 // The tab is injected on render, so switch after the sheet has drawn itself.
@@ -59,7 +59,7 @@ setTimeout(() => { try { actor.sheet.changeTab("acks-location-storage", "primary
       "Run Vault Sweep Now",
       "icons/svg/vault.svg",
       `if (!game.user.isGM) return ui.notifications.warn("The vault sweep is a GM tool.");
-const result = await game.modules.get("acks-location").api.runVaultSweep();
+const result = await game.modules.get("acks-extras").api.location.runVaultSweep();
 ui.notifications.info(result.swept
   ? "Swept banked coin for " + result.swept + " character(s) — " + result.gp + " gp moved to vaults."
   : "No banked coin left to sweep.");`,

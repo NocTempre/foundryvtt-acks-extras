@@ -26,7 +26,7 @@
       "type": "base",
       "changes": [
         {
-          "key": "flags.acks-equipment.armourProficiency",
+          "key": "flags.acks-extras.armourProficiency",
           "type": "override",
           "value": "heavy",
           "priority": 50
@@ -43,7 +43,7 @@
     }
   ],
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true,
       "training": true
     }

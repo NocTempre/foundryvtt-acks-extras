@@ -47,7 +47,7 @@ export function getAbilityReactionMods(actor, skipItemIds = new Set()) {
   // missing or late-loading lib degrades to "no ability-sourced mods" instead of
   // throwing at module load. acks-lib is a hard requirement, so in a correctly
   // configured world this is always present.
-  const resolveLevelValue = globalThis.acksExtras.lib?.resolveLevelValue;
+  const resolveLevelValue = globalThis.acksExtras?.lib?.resolveLevelValue;
   if (!resolveLevelValue) return [];
   const level = actorLevel(actor);
   const out = [];

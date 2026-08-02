@@ -69,13 +69,13 @@
           "type": "base",
           "changes": [
             {
-              "key": "flags.acks-equipment.styleProficient",
+              "key": "flags.acks-extras.styleProficient",
               "type": "override",
               "value": "dual:spec",
               "priority": 50
             },
             {
-              "key": "flags.acks-equipment.freeSwap",
+              "key": "flags.acks-extras.freeSwap",
               "type": "override",
               "value": "1",
               "priority": 50
@@ -92,7 +92,7 @@
         }
       ],
       "flags": {
-        "acks-equipment": {
+        "acks-extras": {
           "example": true
         }
       },
@@ -134,7 +134,7 @@
           "type": "base",
           "changes": [
             {
-              "key": "flags.acks-equipment.finesse",
+              "key": "flags.acks-extras.finesse",
               "type": "override",
               "value": "1",
               "priority": 50
@@ -151,7 +151,7 @@
         }
       ],
       "flags": {
-        "acks-equipment": {
+        "acks-extras": {
           "example": true
         }
       },
@@ -183,7 +183,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-equipment": {
+        "acks-extras": {
           "example": true
         }
       },
@@ -215,7 +215,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-equipment": {
+        "acks-extras": {
           "example": true
         }
       },
@@ -247,7 +247,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-equipment": {
+        "acks-extras": {
           "example": true
         }
       },
@@ -268,7 +268,7 @@
     "actorLink": false
   },
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true,
       "styles": "single,missile,dual",
       "weaponProficiency": "swordDagger",

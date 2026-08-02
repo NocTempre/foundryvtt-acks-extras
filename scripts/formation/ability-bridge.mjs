@@ -19,7 +19,7 @@
  *
  * acks-lib is a hard `requires` of this module and its vocabulary is imported
  * STATICALLY, exactly like `slug` below. The first cut looked the functions up
- * on `globalThis.acksExtras.lib` at call time instead — and when the public object
+ * on `globalThis.acksExtras?.lib` at call time instead — and when the public object
  * grew a `vocab` namespace, `acksLib.satisfies` stopped existing and both
  * capability checks silently returned false forever: every dragged cookbook
  * skill fell back to Adventuring, mislabelled and unbonused. A static import
@@ -30,7 +30,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { slug, satisfies, resolveLevelValue } from "../lib/vocab.mjs";
 
-const CONTENT_ID = "acks-content";
+const DEFINITION_SCOPE = "acks-extras";
 const ABILITIES_ID = "acks-extras";
 
 /**
@@ -42,7 +42,7 @@ const ABILITIES_ID = "acks-extras";
  * simply has no capability — the name path still covers it.
  */
 function abilityRef(item) {
-  const id = item?.getFlag?.(CONTENT_ID, "cookbook")?.id ?? null;
+  const id = item?.getFlag?.(DEFINITION_SCOPE, "cookbook")?.id ?? null;
   const provides = item?.getFlag?.(ABILITIES_ID, "extras")?.provides ?? [];
   if (!id && !provides.length) return null;
   return { id, provides };
@@ -167,7 +167,7 @@ export function invalidateLadders() {
 }
 
 function takeLadder(map, item) {
-  const id = item?.type === "ability" ? item.getFlag?.(CONTENT_ID, "cookbook")?.id : null;
+  const id = item?.type === "ability" ? item.getFlag?.(DEFINITION_SCOPE, "cookbook")?.id : null;
   if (!id?.startsWith(SKILL_PREFIX)) return;
   const ladder = ladderOf(item);
   if (ladder && !map.has(id.slice(SKILL_PREFIX.length))) map.set(id.slice(SKILL_PREFIX.length), ladder);
@@ -215,7 +215,7 @@ export function importedLadderFor(key, actor = null) {
   if (!key) return null;
   const id = skillDefId(key);
   const carries = (item) =>
-    item?.type === "ability" && item.getFlag?.(CONTENT_ID, "cookbook")?.id === id ? ladderOf(item) : null;
+    item?.type === "ability" && item.getFlag?.(DEFINITION_SCOPE, "cookbook")?.id === id ? ladderOf(item) : null;
   // Everything readable synchronously is read synchronously, so a world that
   // imports into the item directory never depends on the cache at all.
   for (const item of actor?.items ?? []) {
@@ -278,7 +278,7 @@ export const SETTING_ABILITY_OVERRIDES = "abilityOverrides";
  * it has one (stable across renames — the whole point), else its folded name.
  */
 export function abilityKey(item) {
-  const id = item?.getFlag?.(CONTENT_ID, "cookbook")?.id;
+  const id = item?.getFlag?.(DEFINITION_SCOPE, "cookbook")?.id;
   if (id) return id;
   return `name:${slug(item?.name)}`;
 }

@@ -41,7 +41,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 /* Storage-tab helpers. `loc` resolves under ACKS-LOCATION.*, which is where the
  * storage half's strings were authored; the market half localizes under
  * ACKS-HENCHMEN.* inline. Both roots live in the one merged lang file. */
-const storage = () => globalThis.acksExtras.lib.storage;
+const storage = () => globalThis.acksExtras?.lib.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 
 /**

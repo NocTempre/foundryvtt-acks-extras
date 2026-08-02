@@ -24,7 +24,7 @@ import { now } from "../time.mjs";
 export const FLAG_GROUP_PAY = "groupPay";
 
 const GROUP_TYPE = "acks-lib.group";
-const acksGroups = () => globalThis.acksExtras.lib?.groups ?? null;
+const acksGroups = () => globalThis.acksExtras?.lib?.groups ?? null;
 
 /** Mounted troop types — they count DOUBLE toward the RR 169 command capacity
  *  (a platoon is 30 infantry OR 15 cavalry). */

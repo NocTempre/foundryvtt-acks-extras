@@ -99,7 +99,7 @@ export function occupiesHand(item) {
  * does not fire — the same behaviour as before the binding existed.
  */
 export function mounted(actor) {
-  return !!globalThis.acksExtras.lib?.mount?.isMounted?.(actor);
+  return !!globalThis.acksExtras?.lib?.mount?.isMounted?.(actor);
 }
 
 /**

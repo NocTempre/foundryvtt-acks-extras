@@ -42,7 +42,7 @@ export async function cycleGrip(item) {
 
 /** Hands occupied by lit light sources this actor bears (acks-formation, optional). */
 export function heldLightHands(actor) {
-  const n = globalThis.acksExtras.formation?.heldLightCount?.(actor?.id);
+  const n = globalThis.acksExtras?.formation?.heldLightCount?.(actor?.id);
   return Number.isFinite(n) ? n : 0;
 }
 

@@ -11,7 +11,7 @@
  * acks-module-template docs/TOOLCHAIN.md §2 and §8).
  */
 
-const MODULE_ID = "acks-equipment";
+const MODULE_ID = "acks-extras";
 const STAMP = 1784101908835; // fixed; matches the committed pack sources
 const STATS = { coreVersion: "14", createdTime: STAMP, modifiedTime: STAMP };
 
@@ -25,7 +25,7 @@ const MACROS = [
     name: "Loadout Inspector",
     img: "icons/svg/upgrade.svg",
     command: `// Show the selected actor's RAW loadout: hands, fighting style, and any violations.
-const api = game.modules.get("acks-equipment")?.api ?? globalThis.acksEquipment;
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character."); return; }
@@ -54,7 +54,7 @@ new foundry.applications.api.DialogV2({ window: { title: \`Loadout — \${actor.
 // equipment tab, next to the gear they act on. This macro does the one thing
 // that was genuinely bulk — stamping capacities onto every carrying device the
 // character owns — and then shows you the tab.
-const api = game.modules.get("acks-equipment")?.api ?? globalThis.acksEquipment;
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character first."); return; }
@@ -74,8 +74,8 @@ actor.sheet.render(true);`,
     command: `// JJ p. 398 (optional): an area attack that drops a creature to -6 hp or lower
 // destroys 1 stone of equipment, +1 per further 6 damage, in a fixed positional
 // order, skipping materials the damage type cannot harm.
-const MOD = "acks-equipment";
-const api = game.modules.get(MOD)?.api ?? globalThis.acksEquipment;
+const MOD = "acks-extras";
+const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
 if (!game.settings.get(MOD, "overlayItemLoss")) { ui.notifications.warn("Enable the 'Item loss from damage' overlay in module settings first."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
@@ -117,8 +117,8 @@ ChatMessage.create({
 // this clears that state so the weapon is back in hand and weighs again.
 // Fired ammunition (arrows/bolts/stones) is restocked by hand — RAW gives no
 // automatic recovery percentage.
-const MOD = "acks-equipment";
-const api = game.modules.get(MOD)?.api ?? globalThis.acksEquipment;
+const MOD = "acks-extras";
+const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character."); return; }
@@ -141,8 +141,8 @@ ChatMessage.create({
 // unrestricted grant. Names typed by hand are checked before they are saved: a
 // token matching no weapon used to save silently and leave the character
 // non-proficient with everything it owned.
-const MOD = "acks-equipment";
-const api = game.modules.get(MOD)?.api ?? globalThis.acksEquipment;
+const MOD = "acks-extras";
+const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character."); return; }
@@ -257,12 +257,12 @@ ui.notifications.info(\`\${actor.name}: styles \${styles.join(", ")} · weapons 
     command: `// Remove everything acks-equipment wrote to this world, so the module can be
 // disabled or uninstalled with nothing left behind: the managed "Equipment
 // Loadout" effects (which would otherwise keep applying stale AC/init/attack
-// modifiers forever), every flags.acks-equipment.* on actors and items, and
+// modifiers forever), every flags.acks-extras.* on actors and items, and
 // any disguise masks (revealed first, so items keep their TRUE identity).
 // Optionally also reverts masterwork/scavenged stat layers to pristine.
 // Run this BEFORE disabling the module — the macro needs the module's code.
 if (!game.user.isGM) { ui.notifications.warn("GM only."); return; }
-const api = game.modules.get("acks-equipment")?.api ?? globalThis.acksEquipment;
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api?.stripModuleData) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const form = await foundry.applications.api.DialogV2.prompt({
   window: { title: "Strip ACKS Equipment data from this world?" },
@@ -300,7 +300,7 @@ ui.notifications.info(
 // carrying-device capacities (backpack, sack, saddlebag, bowquiver, the
 // adventurer's harness). Carrying devices are type "item", not "weapon" —
 // filtering to weapons alone meant containers could never be flagged at all.
-const api = game.modules.get("acks-equipment")?.api ?? globalThis.acksEquipment;
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 const ANNOTATABLE = ["weapon", "item"];
@@ -343,7 +343,7 @@ export function buildMacros() {
 /* -------------------------------------------- */
 
 // Each proficiency is an `ability` item carrying a transferred Active Effect
-// whose changes are the module's data-driven markers (flags.acks-equipment.*),
+// whose changes are the module's data-driven markers (flags.acks-extras.*),
 // read by scripts/effects.mjs. Mode "override" is the v14 string-typed change
 // mode (CONST.ACTIVE_EFFECT_CHANGE_TYPES key); numbers in that enum are only
 // default priorities. See docs/MODEL.md §3.
@@ -382,7 +382,7 @@ const PROFS = [
   { n: "Martial Training (Swords & Daggers)", t: "class", m: { martialWeapons: "swordDagger" }, d: "Adds all swords and daggers to the character's proficient weapons." },
   { n: "Martial Training (Spears & Polearms)", t: "class", m: { martialWeapons: "spearPolearm" }, d: "Adds all spears and polearms to the character's proficient weapons." },
   { n: "Martial Training (Bolas, Nets, Slings, Saps, Staffs & Staff-Slings)", t: "class", m: { martialWeapons: "other" }, d: "Adds bolas, nets, slings, saps, staffs, and staff-slings to the character's proficient weapons." },
-  { n: "Martial Training (Choose Four Weapons)", t: "class", m: {}, d: "Adds any four weapons to the character's proficient weapons. <em>Set the four weapon names on the actor's <code>flags.acks-equipment.weaponProficiency</code> list.</em>" },
+  { n: "Martial Training (Choose Four Weapons)", t: "class", m: {}, d: "Adds any four weapons to the character's proficient weapons. <em>Set the four weapon names on the actor's <code>flags.acks-extras.weaponProficiency</code> list.</em>" },
 
   // Combat Trickery — reduces a maneuver's penalty by 2 and the target's save by 2.
   { n: "Combat Trickery (Disarm)", t: "class", m: { maneuverTrickery: "disarm" }, d: "The disarm maneuver's penalty is reduced by 2 and the target saves at −2." },

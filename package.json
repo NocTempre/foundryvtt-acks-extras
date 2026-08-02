@@ -10,7 +10,9 @@
   "scripts": {
     "build:packs": "node tools/build-packs.mjs",
     "validate": "node tools/validate.mjs",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "git config core.hooksPath .githooks",
+    "test": "node tools/test-lib.mjs && node tools/test-equipment.mjs",
+    "find:dead-config": "node tools/find-dead-config.mjs"
   },
   "devDependencies": {
     "@foundryvtt/foundryvtt-cli": "^1.0.0",

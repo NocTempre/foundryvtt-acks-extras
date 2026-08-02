@@ -18,7 +18,7 @@ import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const { DialogV2 } = foundry.applications.api;
 
-const storage = () => globalThis.acksExtras.lib.storage;
+const storage = () => globalThis.acksExtras?.lib.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 
 export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {

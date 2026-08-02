@@ -1,7 +1,7 @@
 /**
  * Compendium content: henchmen-relevant proficiencies & class powers as acks
  * `ability` Items whose ACTIVE EFFECTS carry the module's machine-readable
- * mechanics (the flags.acks-henchmen.* change-key contract — docs/MODEL.md),
+ * mechanics (the flags.acks-extras.* change-key contract — docs/MODEL.md),
  * plus helper macros. Pure data; consumed by tools/build-packs.mjs.
  *
  * Rules text is paraphrased with book citations (never verbatim book text).
@@ -28,7 +28,7 @@ function effect(itemName, { label, changes, condition, target }) {
     changes: changes.map((c) => ({ priority: 20, ...c })),
     duration: { startTime: null, seconds: null },
     flags: {
-      "acks-henchmen": {
+      "acks-extras": {
         ...(condition ? { condition } : {}),
         ...(target ? { target } : {}),
       },
@@ -311,23 +311,23 @@ export function buildMacros() {
     macro(
       "Open Recruitment Board",
       "icons/svg/tavern.svg",
-      `const locations = game.actors.filter((a) => a.type === "acks-henchmen.location");
+      `const locations = game.actors.filter((a) => a.type === "acks-extras.location");
 if (!locations.length) return ui.notifications.warn("Create a Location actor first.");
 (locations.find((l) => l.testUserPermission(game.user, "OBSERVER")) ?? locations[0]).sheet.render(true);`
     ),
     macro(
       "Post Recruitment Notice",
       "icons/svg/scroll.svg",
-      `const locations = game.actors.filter((a) => a.type === "acks-henchmen.location");
+      `const locations = game.actors.filter((a) => a.type === "acks-extras.location");
 if (!locations.length) return ui.notifications.warn("Create a Location actor first.");
-acksHenchmen.openPostingDialog(locations[0]);`
+acksExtras.henchmen.openPostingDialog(locations[0]);`
     ),
     macro(
       "Loyalty Check (Selected)",
       "icons/svg/daze.svg",
       `const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a hireling token first.");
-acksHenchmen.openThrowDialog("hirelingLoyalty", {
+acksExtras.henchmen.openThrowDialog("hirelingLoyalty", {
   title: actor.name,
   actor,
   derived: { effectiveLoyalty: actor.system?.retainer?.loyalty ?? 0 },
@@ -338,7 +338,7 @@ acksHenchmen.openThrowDialog("hirelingLoyalty", {
       "icons/svg/combat.svg",
       `const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a hireling token first.");
-acksHenchmen.openThrowDialog("hirelingObedience", {
+acksExtras.henchmen.openThrowDialog("hirelingObedience", {
   title: actor.name,
   actor,
   derived: { moraleScore: actor.system?.details?.morale ?? 0 },
@@ -357,7 +357,7 @@ acksHenchmen.openThrowDialog("hirelingObedience", {
 // too. Running it twice changes nothing the second time.
 if (!game.user.isGM) return ui.notifications.warn("Only a GM can forgive wage debts.");
 const selected = canvas.tokens.controlled.map((t) => t.actor).filter(Boolean);
-const employers = selected.length ? selected : acksHenchmen.allEmployers();
+const employers = selected.length ? selected : acksExtras.henchmen.allEmployers();
 if (!employers.length) return ui.notifications.info("No employers found.");
 const names = employers.map((e) => e.name).join(", ");
 const ok = await foundry.applications.api.DialogV2.confirm({
@@ -369,7 +369,7 @@ const ok = await foundry.applications.api.DialogV2.confirm({
 if (!ok) return;
 let hirelings = 0, groups = 0, gp = 0, calamities = 0;
 for (const employer of employers) {
-  const s = await acksHenchmen.forgiveWageDebts(employer);
+  const s = await acksExtras.henchmen.forgiveWageDebts(employer);
   hirelings += s.hirelings; groups += s.groups; gp += s.arrearsGp; calamities += s.calamities;
 }
 ui.notifications.info(\`Forgiven: \${gp} gp of arrears across \${hirelings} hireling(s) and \${groups} unit(s); \${calamities} missed-wage calamity(ies) reversed.\`);`
@@ -383,17 +383,17 @@ ui.notifications.info(\`Forgiven: \${gp} gp of arrears across \${hirelings} hire
 if (!game.user.isGM) return ui.notifications.warn("Only a GM can repair actor references.");
 const selected = canvas.tokens.controlled.map((t) => t.actor).filter(Boolean);
 const scope = selected.length ? selected : game.actors.contents;
-const preview = await acksHenchmen.repair.repairWorld({ dryRun: true, actors: scope });
+const preview = await acksExtras.henchmen.repair.repairWorld({ dryRun: true, actors: scope });
 if (!preview.repaired.length) {
   return ui.notifications.info(\`No dangling references found (\${preview.scanned} actor(s) scanned).\`);
 }
-const lines = preview.repaired.map((r) => "<li>" + acksHenchmen.repair.describeRepair(r) + "</li>").join("");
+const lines = preview.repaired.map((r) => "<li>" + acksExtras.henchmen.repair.describeRepair(r) + "</li>").join("");
 const go = await foundry.applications.api.DialogV2.confirm({
   window: { title: "Repair Henchmen References" },
   content: \`<p>Found dangling references on <b>\${preview.repaired.length}</b> of \${preview.scanned} actor(s):</p><ul>\${lines}</ul><p>Remove them?</p>\`,
 });
 if (!go) return;
-const done = await acksHenchmen.repair.repairWorld({ actors: scope });
+const done = await acksExtras.henchmen.repair.repairWorld({ actors: scope });
 ui.notifications.info(\`Repaired \${done.repaired.length} actor(s). Re-open any sheet that was failing.\`);`
     ),
     macro(
@@ -401,7 +401,7 @@ ui.notifications.info(\`Repaired \${done.repaired.length} actor(s). Re-open any 
       "icons/svg/castle.svg",
       `const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a 9th+ level character token first.");
-acksHenchmen.openFollowersDialog(actor);`
+acksExtras.henchmen.openFollowersDialog(actor);`
     ),
     macro(
       "Recruit Monster (Targeted)",
@@ -413,17 +413,17 @@ const captured = await foundry.applications.api.DialogV2.confirm({
   window: { title: "Recruit " + monster.name },
   content: "<p>Was the monster defeated and captured (Irrefusable Offer, MM 351)? Choose No for a peaceful/market offer.</p>",
 });
-acksHenchmen.recruitMonster(monster, employer, { captured });`
+acksExtras.henchmen.recruitMonster(monster, employer, { captured });`
     ),
     macro(
       "Advance 1 Week",
       "icons/svg/clockwork.svg",
-      `acksHenchmen.time.advanceDays(7);`
+      `acksExtras.henchmen.time.advanceDays(7);`
     ),
     macro(
       "Process Recruitment Time Now",
       "icons/svg/regen.svg",
-      `acksHenchmen.processAllLocations().then(() => ui.notifications.info("Recruitment postings processed."));`
+      `acksExtras.henchmen.processAllLocations().then(() => ui.notifications.info("Recruitment postings processed."));`
     ),
   ];
 }

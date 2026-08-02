@@ -323,7 +323,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
   // labels as printed (naming glue, code by rule — incl. the book's own
   // "chirugeon" spelling). Missing provider or tables degrades to no grants.
   try {
-    const provider = globalThis.acksExtras.lib?.services?.get?.("ability-provider");
+    const provider = globalThis.acksExtras?.lib?.services?.get?.("ability-provider");
     const packs = optTable("people", "occupationPackages");
     const keys = candidate.occupation
       ? [packageKey(candidate.occupation), packageKey(String(candidate.occupation).replace(/\(.*$/, ""))]

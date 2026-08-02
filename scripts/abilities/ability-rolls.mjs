@@ -46,7 +46,7 @@ export function scalesFor(actor, item) {
  * Delegates to acks-lib so the ladder semantics have one definition.
  */
 export function targetOf(roll, actor, item) {
-  const resolve = globalThis.acksExtras.lib?.resolveLevelValue;
+  const resolve = globalThis.acksExtras?.lib?.resolveLevelValue;
   if (!resolve) return roll?.target?.flat ?? null;
   const scales = scalesFor(actor, item);
   return resolve(roll?.target, scales.level, scales);

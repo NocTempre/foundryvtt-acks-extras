@@ -42,7 +42,7 @@ Hooks.once("init", () => {
   // runs. The gate that used to stand here was an `return` — which after the
   // merge would have skipped the sheet registration below and taken the whole
   // Location sheet, market and all, down with it.
-  const lib = globalThis.acksExtras.lib;
+  const lib = globalThis.acksExtras?.lib;
   lib.services.register("ruledata-import", ruledataImport);
   const n = registerPersisted();
   console.log(`${MODULE_ID} | ruledata-import provider ready (${n} persisted table layer(s) mirrored)`);
@@ -106,7 +106,7 @@ Hooks.once("ready", () => {
   if (module) module.api = acksExtras;
 
   if (game.system?.id !== "acks") return;
-  if (!globalThis.acksExtras.lib?.storage) return;
+  if (!globalThis.acksExtras?.lib?.storage) return;
   // One client sweeps: it creates actors and moves coin. Elected the same way
   // the library elects its deletion fallback.
   if (!game.users.activeGM?.isSelf) return;

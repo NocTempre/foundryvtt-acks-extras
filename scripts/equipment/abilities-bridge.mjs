@@ -30,12 +30,12 @@
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
 import { normalizeName } from "./config.mjs";
 
-const CONTENT_ID = "acks-content";
+const DEFINITION_SCOPE = "acks-extras";
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
 /** Definition slug of an imported ability ("def.prof.weaponFinesse" → "weaponfinesse"). */
 function defSlug(item) {
-  const id = item.flags?.[CONTENT_ID]?.cookbook?.id;
+  const id = item.flags?.[DEFINITION_SCOPE]?.cookbook?.id;
   if (typeof id !== "string" || !id) return null;
   const tail = id.split(".").pop();
   return normalizeName(tail);
@@ -48,7 +48,7 @@ function baseNameSlug(item) {
 
 /** The picks, via the abilities API when live, else its documented flag shape. */
 function picksOf(item) {
-  const api = globalThis.acksExtras.abilities;
+  const api = globalThis.acksExtras?.abilities;
   if (api?.selectionsOf) {
     try {
       return api.selectionsOf(item);
@@ -67,7 +67,7 @@ function picksOf(item) {
 
 /** Rank via the abilities API when live (its rule, not ours), else qty. */
 function rankOf(actor, item) {
-  const api = globalThis.acksExtras.abilities;
+  const api = globalThis.acksExtras?.abilities;
   if (api?.rankOf) {
     try {
       const r = Number(api.rankOf(actor, item));

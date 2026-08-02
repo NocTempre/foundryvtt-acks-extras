@@ -52,7 +52,7 @@
         "seconds": null
       },
       "flags": {
-        "acks-henchmen": {
+        "acks-extras": {
           "condition": "ACKS-HENCHMEN.cond.related"
         }
       }

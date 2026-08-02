@@ -19,7 +19,7 @@
   },
   "effects": [],
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true,
       "training": true
     }

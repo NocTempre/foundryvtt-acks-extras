@@ -13,13 +13,13 @@
     "rollType": "above",
     "rollTarget": 0,
     "blindroll": false,
-    "description": "<p>Adds any four weapons to the character's proficient weapons. <em>Set the four weapon names on the actor's <code>flags.acks-equipment.weaponProficiency</code> list.</em></p>",
+    "description": "<p>Adds any four weapons to the character's proficient weapons. <em>Set the four weapon names on the actor's <code>flags.acks-extras.weaponProficiency</code> list.</em></p>",
     "save": "",
     "_schemaVersion": 3
   },
   "effects": [],
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true
     }
   },

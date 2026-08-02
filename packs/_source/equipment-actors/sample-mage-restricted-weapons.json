@@ -59,7 +59,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-equipment": {
+        "acks-extras": {
           "example": true
         }
       },
@@ -91,7 +91,7 @@
       },
       "effects": [],
       "flags": {
-        "acks-equipment": {
+        "acks-extras": {
           "example": true
         }
       },
@@ -112,7 +112,7 @@
     "actorLink": false
   },
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true,
       "styles": "single,missile",
       "weaponProficiency": "club,dagger,dart,staff",

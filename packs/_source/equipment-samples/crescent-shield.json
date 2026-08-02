@@ -16,7 +16,7 @@
   },
   "effects": [],
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true,
       "shieldVariant": "crescent",
       "strap": "hand"

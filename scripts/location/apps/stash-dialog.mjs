@@ -9,12 +9,12 @@
  */
 import { LANG_PREFIX } from "../constants.mjs";
 
-const storage = () => globalThis.acksExtras.lib.storage;
+const storage = () => globalThis.acksExtras?.lib.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 const esc = (text) => foundry.utils.escapeHTML(String(text ?? ""));
 
 /** Worth offering: things, and coin (which the system does not call "physical"). */
-const stowable = (actor) => actor.items.filter((i) => globalThis.acksExtras.lib.itemModel.isPhysical(i) || i.type === "money");
+const stowable = (actor) => actor.items.filter((i) => globalThis.acksExtras?.lib.itemModel.isPhysical(i) || i.type === "money");
 
 /** Is this one of acks-equipment's containers? Read the documented flag, never import. */
 const isContainer = (item) => !!item.getFlag?.("acks-extras", "container");

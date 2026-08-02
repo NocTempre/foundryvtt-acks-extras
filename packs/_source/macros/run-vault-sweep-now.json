@@ -5,5 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/vault.svg",
-  "command": "if (!game.user.isGM) return ui.notifications.warn(\"The vault sweep is a GM tool.\");\nconst result = await game.modules.get(\"acks-location\").api.runVaultSweep();\nui.notifications.info(result.swept\n  ? \"Swept banked coin for \" + result.swept + \" character(s) — \" + result.gp + \" gp moved to vaults.\"\n  : \"No banked coin left to sweep.\");"
+  "command": "if (!game.user.isGM) return ui.notifications.warn(\"The vault sweep is a GM tool.\");\nconst result = await game.modules.get(\"acks-extras\").api.location.runVaultSweep();\nui.notifications.info(result.swept\n  ? \"Swept banked coin for \" + result.swept + \" character(s) — \" + result.gp + \" gp moved to vaults.\"\n  : \"No banked coin left to sweep.\");",
+  "folder": "acks420ff1a0388a"
 }

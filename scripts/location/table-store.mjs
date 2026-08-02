@@ -10,7 +10,7 @@ import { MODULE_ID } from "./constants.mjs";
 
 const SETTING = "importedTables";
 
-const lib = () => globalThis.acksExtras.lib;
+const lib = () => globalThis.acksExtras?.lib;
 
 /** Layers this client has mirrored into the registry, as "docId:priority". */
 let _registered = new Set();

@@ -73,7 +73,7 @@ export const RULEDATA_TABLES = Object.freeze({
  */
 export function importedTable(tableKey) {
   const id = RULEDATA_TABLES[tableKey];
-  const reg = globalThis.acksExtras.lib?.tables;
+  const reg = globalThis.acksExtras?.lib?.tables;
   if (!id || !reg?.hasDoc?.(RULEDATA_DOC)) return null;
   try {
     const t = reg.getTable(RULEDATA_DOC, id);
@@ -132,7 +132,7 @@ export function importedRow(tableKey, roll) {
   const table = importedTable(tableKey);
   if (!table) return null;
   const rows = Object.values(table);
-  const reg = globalThis.acksExtras.lib?.tables;
+  const reg = globalThis.acksExtras?.lib?.tables;
   const hit = reg?.bracketRow?.(rows, roll) ?? rows.find((r) => roll >= Number(r.min) && roll <= Number(r.max));
   return hit ?? null;
 }

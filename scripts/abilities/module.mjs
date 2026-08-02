@@ -62,7 +62,7 @@ Hooks.once("init", () => {
   if (module) module.api = acksExtras;
   acksExtras.abilities = api;
 
-  if (!globalThis.acksExtras.lib) {
+  if (!globalThis.acksExtras?.lib) {
     console.warn(`${MODULE_ID} | acks-lib not found — the effect vocabulary is unavailable; enable acks-lib.`);
   }
   // Best-effort template preload (the base sheet's own parts preload with the system).

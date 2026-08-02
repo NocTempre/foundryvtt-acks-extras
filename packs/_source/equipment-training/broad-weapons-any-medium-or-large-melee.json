@@ -26,7 +26,7 @@
       "type": "base",
       "changes": [
         {
-          "key": "flags.acks-equipment.weaponProf",
+          "key": "flags.acks-extras.weaponProf",
           "type": "override",
           "value": "melee:medium,melee:large",
           "priority": 50
@@ -43,7 +43,7 @@
     }
   ],
   "flags": {
-    "acks-equipment": {
+    "acks-extras": {
       "example": true,
       "training": true
     }

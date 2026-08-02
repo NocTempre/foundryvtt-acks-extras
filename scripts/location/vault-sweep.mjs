@@ -23,7 +23,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, FLAG_PENDING_DEPOSIT } from "./constants.mjs";
 
-const storage = () => globalThis.acksExtras.lib.storage;
+const storage = () => globalThis.acksExtras?.lib.storage;
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
 
 /** Owner entries for a vault: the character's own players, and nobody else. */

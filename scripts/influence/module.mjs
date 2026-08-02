@@ -102,7 +102,7 @@ Hooks.once("init", () => {
   // every effect modifier and resolveLevelValue resolves level ladders. If it is
   // missing the roller degrades to "no ability mods / undetermined scope" rather
   // than throwing, but that is a broken world — say so plainly.
-  if (!globalThis.acksExtras.lib) {
+  if (!globalThis.acksExtras?.lib) {
     console.warn(`${MODULE_ID} | acks-lib not found — effect gating and level-value semantics are unavailable; enable acks-lib.`);
   }
 
