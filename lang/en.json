@@ -549,7 +549,7 @@
   "ACKS-EQUIPMENT.lock.bashedSpilled": "{name} is broken open; {n} item(s) spill out.",
   "ACKS-EQUIPMENT.lock.bashedFragile": "{name} shatters, destroying {n} item(s) inside.",
   "ACKS-EQUIPMENT.lock.notLocked": "That is not locked.",
-  "ACKS-EQUIPMENT.lock.manual.noAbilitiesModule": "Roll {ability} yourself — acks-abilities is not active, so this cannot roll it for you.",
+  "ACKS-EQUIPMENT.lock.manual.noAbilitiesModule": "Roll {ability} yourself — the ability roller is unavailable, so this cannot roll it for you.",
   "ACKS-EQUIPMENT.lock.manual.noThrow": "{ability} carries no throw on this seat. Connect your book, or roll it yourself.",
   "ACKS-EQUIPMENT.lock.manual.unresolved": "Rolled — the target could not be resolved here, so the Judge decides whether {name} opens.",
   "ACKS-FORMATION": {

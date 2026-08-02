@@ -166,7 +166,7 @@ export function applyDirectedReplacement({ location, spec, employerUuid, quantit
         c.age = identity.age;
         c.appearance = identity.appearance;
       } catch (err) {
-        console.warn("acks-henchmen | replacement identity regen failed (people tables missing?)", err);
+        console.warn("acks-extras | replacement identity regen failed (people tables missing?)", err);
       }
     }
     if (spec.kind === "henchmanByProficiency" || spec.kind === "henchmanByClassProficiency") {

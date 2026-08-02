@@ -65,11 +65,11 @@ Employer-side flags: `monsterHenchmenList[]` (monster roster — core
 ## 4. The Active Effect contract (data-driven modifiers)
 
 **Mechanics live on proficiency/power Items as Active Effect changes — never
-hardcoded name lists.** Any effect change keyed `flags.acks-henchmen.<domain>`
+hardcoded name lists.** Any effect change keyed `flags.acks-extras.<domain>`
 feeds that domain (`scripts/effects.mjs` collects them at each roll or
 computation):
 
-| Change key (`flags.acks-henchmen.`) | Feeds | Example |
+| Change key (`flags.acks-extras.`) | Feeds | Example |
 |---|---|---|
 | `hiring` | Reaction to Hiring Offer rolls | Diplomacy +1, Beast Friendship +2 (animals) |
 | `loyaltyRoll` / `moraleRoll` / `obedienceRoll` | those 2d6 throws | Inspire Courage +1 morale rolls |
@@ -91,7 +91,7 @@ Effect-level metadata (on the effect's own flags, `flags["acks-henchmen"]`):
 - `label` — display override (defaults to the effect/item name).
 
 Interop: hiring rolls **also honor acks-influence's**
-`flags.acks-influence.reaction` effects (with their `situational`/`tone`/
+`flags.acks-extras.reaction` effects (with their `situational`/`tone`/
 `label` flags). Fallback: items named like classic proficiencies with no
 acks-henchmen changes are recovered via `config.mjs > NAME_FALLBACKS`
 regexes (Leadership, Command, Blood of Kings, Diplomacy…); an item with any
@@ -113,7 +113,7 @@ is the recommended UI; fallback "Advance 1 week" buttons are gated by the
 
 ## 6. Public API & hooks
 
-`game.modules.get("acks-henchmen").api` (mirrored to `globalThis.acksHenchmen`):
+`game.modules.get("acks-extras").api.henchmen` (mirrored to `globalThis.acksExtras.henchmen`):
 apps (`openPostingDialog`, `openRecruitDialog`, `openThrowDialog`…), engine
 (`createPosting`, `processLocation`, `processAllLocations`, `hire`,
 `checkHenchmanLimit`, candidate rollers), `getRecord(actor)`, pure `rules.*`,

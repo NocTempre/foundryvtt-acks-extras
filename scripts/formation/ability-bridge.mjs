@@ -160,7 +160,7 @@ export function invalidateLadders() {
   refreshQueued = true;
   Promise.resolve()
     .then(() => refreshLadders())
-    .catch((err) => console.warn("acks-formation | skill ladder refresh failed", err))
+    .catch((err) => console.warn("acks-extras | skill ladder refresh failed", err))
     .finally(() => {
       refreshQueued = false;
     });
@@ -182,7 +182,7 @@ export async function refreshLadders() {
     try {
       for (const doc of await pack.getDocuments()) takeLadder(map, doc);
     } catch (err) {
-      console.warn(`acks-formation | could not read compendium ${pack.collection}`, err);
+      console.warn(`acks-extras | could not read compendium ${pack.collection}`, err);
     }
   }
   ladderCache = map;

@@ -38,7 +38,7 @@ builders that consumer modules assemble into their own models.
   ledger: an item that has left the character genuinely weighs nothing on them,
   and every existing reader of `actor.items` sees a location's stock without
   being taught anything. (2) **A provider is any actor with
-  `flags.acks-lib.storage.provider`** — the library never names a location type,
+  `flags.acks-extras.storage.provider`** — the library never names a location type,
   so acks-location's settlement, acks-henchmen's market actor and a future cart
   are the same machinery, and enabling storage on one is a flag write. The UI,
   the actor type and the lifecycle around it belong to acks-location; only the

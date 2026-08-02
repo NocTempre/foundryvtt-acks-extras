@@ -71,7 +71,7 @@ export const ruledataImport = {
     // fail loudly here instead (seen in the wild 2026-07-19).
     const persisted = game.settings.get(MODULE_ID, SETTING);
     if (!persisted?.[`${doc.id}:${p}`]) {
-      ui.notifications.error(`acks-location | "${doc.id}" did not persist to world data — check the world's storage and re-import.`);
+      ui.notifications.error(`acks-extras | "${doc.id}" did not persist to world data — check the world's storage and re-import.`);
       throw new Error(`acks-location: persist verification failed for "${doc.id}"`);
     }
     // Imported tables become FOUNDRY documents too (prefilled RollTables /

@@ -106,7 +106,7 @@ core roller.
 | | influence | abilities + content |
 |---|---|---|
 | Storage | **ActiveEffect documents** on the item | **structured data** at `flags["acks-abilities"].extras.effects[]` |
-| Discovery | change key `flags.acks-influence.reaction` | `{type:"modifier", target:"reaction"}` |
+| Discovery | change key `flags.acks-extras.reaction` | `{type:"modifier", target:"reaction"}` |
 | Vocabulary | influence's own effect flags | acks-lib `MODIFIER_TARGETS` / `effectField()` |
 
 `bindAbility()` (`acks-content/scripts/cookbook.mjs:856`) returns an item with

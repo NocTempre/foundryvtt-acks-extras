@@ -12,14 +12,15 @@ tables registry, the service-contract registry, and the ruledata loader**
 
 ## Exposure
 
-- `globalThis.acksLib` — assigned at module evaluation via the core-deferral
-  shim `game.acks?.lib ?? localImpl`; re-affirmed at `init`.
-- `game.modules.get("acks-lib").api` — the same object, set at `init`.
+- `globalThis.acksExtras.lib` — assigned at module evaluation via the
+  core-deferral shim `game.acks?.lib ?? localImpl`; re-affirmed at `init`.
+- `game.modules.get("acks-extras").api.lib` — the same object (`api` is the
+  whole namespace; the lib surface hangs off its feature key).
 - Node/offline tooling imports the files directly (sibling-relative), e.g.
-  `import { resolveLevelValue } from "../../acks-lib/scripts/vocab.mjs"`.
+  `import { resolveLevelValue } from "../scripts/lib/vocab.mjs"`.
 
 ```
-acksLib = {
+acksExtras.lib = {
   apiVersion: 3,
   vocab,               // scripts/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // scripts/fields.mjs — DataModel field-builders (Foundry-only)
@@ -342,7 +343,7 @@ reason the compat stubs exist.
 ### `mount` — who is riding what
 
 ```js
-const { mountOf, riderOf, isMounted, mountActor, dismount, unseat } = acksLib.mount;
+const { mountOf, riderOf, isMounted, mountActor, dismount, unseat } = acksExtras.lib.mount;
 ```
 
 The binding is **symmetric** — stored on both actors — because a combat hook
@@ -364,7 +365,7 @@ weigh" with its own type list, and they disagreed.
 
 ```js
 const { isPhysical, isEquippable, isEquipped, weight6Of, weightStoneOf,
-        physicalItems, equippedItems, setEquipped, STONE } = acksLib.itemModel;
+        physicalItems, equippedItems, setEquipped, STONE } = acksExtras.lib.itemModel;
 ```
 
 These read the **schema**, not a type name (`"cost" in item.system`), so they
@@ -383,17 +384,17 @@ on the target and never delete from the source. Markets, banks, base camps and
 ```js
 const { isProvider, setProvider, findVaultOf, storedItems, storesByOwner,
         providersFor, storedCoinGC, stash, retrieve, moveStored,
-        depositCoin, consolidateMoney, returnGoodsTo, STORAGE_HOOKS } = acksLib.storage;
+        depositCoin, consolidateMoney, returnGoodsTo, STORAGE_HOOKS } = acksExtras.lib.storage;
 ```
 
 **The model.** Stored goods are REAL EMBEDDED ITEMS on a provider actor, stamped
-`flags.acks-lib.storage = {ownerUuid, ownerName}`. That is what makes the rest
+`flags.acks-extras.storage = {ownerUuid, ownerName}`. That is what makes the rest
 work: the goods stop weighing on the character because they are genuinely not on
 the character, and every sheet, macro and rule that reads an actor's items reads
 a location's stock unchanged — nothing has to stay in sync with a parallel record
 of what is really where.
 
-A **provider** is any actor carrying `flags.acks-lib.storage.provider`; a
+A **provider** is any actor carrying `flags.acks-extras.storage.provider`; a
 personal vault also carries `vaultOf: <owner uuid>`. This library deliberately
 does not know what a "location" is — acks-location's settlement, acks-henchmen's
 market actor and the carts a later pass turns into base camps are all just actors
@@ -452,7 +453,7 @@ sheet says so instead of offering an empty Generate.
 
 ```js
 const { chooseAxes, resolveActor, rollMenu, rollDie, mergePatch, seededRng } =
-  acksLib.templateLogic; // Foundry-free, Node-importable
+  acksExtras.lib.templateLogic; // Foundry-free, Node-importable
 ```
 
 Per-axis precedence is **pinned > derived > rolled**: the Judge pins what they

@@ -183,7 +183,7 @@ export function openLoyaltyRoll(actor, opts = {}) {
       return;
     }
   } catch (err) {
-    console.warn("acks-henchmen | influence-hosted loyalty open failed; falling back", err);
+    console.warn("acks-extras | influence-hosted loyalty open failed; falling back", err);
   }
 
   const dynamicModifiers = employer ? toDialogModifiers(collectEffectModifiers(employer, "loyaltyRoll")) : [];
@@ -213,7 +213,7 @@ export function openObedienceRoll(actor, opts = {}) {
       return;
     }
   } catch (err) {
-    console.warn("acks-henchmen | influence-hosted obedience open failed; falling back", err);
+    console.warn("acks-extras | influence-hosted obedience open failed; falling back", err);
   }
 
   const dynamicModifiers = employer ? toDialogModifiers(collectEffectModifiers(employer, "obedienceRoll")) : [];

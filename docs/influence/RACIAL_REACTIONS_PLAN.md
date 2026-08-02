@@ -30,7 +30,7 @@ New helpers in `actor-data.mjs`:
     categories: {"human"}}`, an elven spellsword → `{race: "elf",
     categories: {"elf", "demi-human"}}`, dwarf → `{"dwarf", "demi-human"}`.
   - **Monsters with acks-monsters**: read
-    `flags.acks-monsters.extras.types` (Set: animal, beastman, construct,
+    `flags.acks-extras.extras.types` (Set: animal, beastman, construct,
     enchanted, giant, humanoid, incarnation, monstrosity, ooze, plant,
     undead, vermin) plus `.subtype` (free text, e.g. "goblin") — categories
     become the type tokens + normalized subtype token.
@@ -45,7 +45,7 @@ shown read-only next to the portrait.
 
 ## B. `vs` effect flag (target-scoped modifiers)
 
-Extend the reaction-effect convention (`flags.acks-influence.*`):
+Extend the reaction-effect convention (`flags.acks-extras.*`):
 
 - `vs: "human,demi-human"` — comma-list of kind tokens. The modifier
   **auto-activates** when any token matches the target's categories, and

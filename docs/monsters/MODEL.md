@@ -19,7 +19,7 @@ behavior.
 | Treasure type / table | core | `system.details.treasure.type` / `.table` (RollTable link) |
 | Number appearing (primary) | core (mirrored) | `system.details.appearing.d` / `.w` |
 | Retainer / henchman | core | `system.retainer.{enabled,loyalty,wage,managerid,category,quantity}` |
-| **Type(s) / sub-type** | extras | `flags.acks-monsters.extras.types` (Set) / `.subtype` |
+| **Type(s) / sub-type** | extras | `flags.acks-extras.extras.types` (Set) / `.subtype` |
 | **Size / mass** | extras | `.size`, `.mass.{stone,lbs}` |
 | **Body form** | extras | `.bodyForm` |
 | **Hit Dice rating** | extras | `.hd.{count,bonus,asterisks,dieType}` |
@@ -59,7 +59,7 @@ submit `null` when empty via FormDataExtended.
 ## Consumer API
 
 ```js
-const api = game.modules.get("acks-monsters").api; // also globalThis.acksMonsters
+const api = game.modules.get("acks-extras").api.monsters; // also globalThis.acksExtras.monsters
 api.getExtras(actor);      // → MonsterExtras (typed view of the flag)
 api.MonsterExtras;         // the DataModel class
 api.config;                // all enum tables (MONSTER_TYPES, BODY_FORMS, …)

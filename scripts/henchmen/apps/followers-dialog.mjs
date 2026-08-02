@@ -34,7 +34,7 @@ async function rollTroopType(tableId) {
 
 export async function openFollowersDialog(actor) {
   if (!hasDoc("followers")) {
-    ui.notifications.warn("acks-henchmen: the followers tables are not imported yet (RR 334-337) - follower generation is disabled until then.");
+    ui.notifications.warn("ACKS Extras | the followers tables are not imported yet (RR 334-337) — follower generation is disabled until then.");
     return;
   }
 

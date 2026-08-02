@@ -19,7 +19,7 @@ RAW source of truth behind the code enums).
   one client — the active GM if online, else the actor owner — to avoid duplicate
   effects (`enforce.primaryResponder`). Phase 4 upgrades this to socketlib routing.
 - **Data-driven, not name-driven.** Proficiency mechanics live as Active-Effect
-  changes keyed `flags.acks-equipment.<domain>` on `ability` items, read by the
+  changes keyed `flags.acks-extras.<domain>` on `ability` items, read by the
   collector in `effects.mjs` (mirrors acks-henchmen). Name matching is only a
   last-resort fallback.
 
@@ -27,18 +27,18 @@ RAW source of truth behind the code enums).
 
 | Location | Key | Meaning |
 |---|---|---|
-| Actor flag | `flags.acks-equipment.styles` | CSV/array of fighting styles the actor is trained in (adds to the mandatory `single,missile`). |
-| Actor flag | `flags.acks-equipment.activeStyle` | Player's chosen style when two apply this round (overrides inference). |
-| Actor AE | name `Equipment Loadout`, `flags.acks-equipment.loadout = true` | Module-managed effect; `changes[]` target core `system.*.mod`; rebuilt on every loadout change; deleted when empty. |
-| Item flag (weapon) | `flags.acks-equipment.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by the annotate macro). |
-| Item flag (armor) | `flags.acks-equipment.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
-| Item flag (weapon/shield) | `flags.acks-equipment.hand` | `main` \| `off` — set from the Paper Doll slot the item occupies (`MAIN_RIGHT`/`MAIN_LEFT`); resolves dual-wield off-hand identity. |
+| Actor flag | `flags.acks-extras.styles` | CSV/array of fighting styles the actor is trained in (adds to the mandatory `single,missile`). |
+| Actor flag | `flags.acks-extras.activeStyle` | Player's chosen style when two apply this round (overrides inference). |
+| Actor AE | name `Equipment Loadout`, `flags.acks-extras.loadout = true` | Module-managed effect; `changes[]` target core `system.*.mod`; rebuilt on every loadout change; deleted when empty. |
+| Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by the annotate macro). |
+| Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
+| Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — set from the Paper Doll slot the item occupies (`MAIN_RIGHT`/`MAIN_LEFT`); resolves dual-wield off-hand identity. |
 | Foreign setting (written once) | `fvtt-paper-doll-ui.globalConfig` | Our ACKS slot layout + `EQUIPPED_PATH: "equipped"`, merged over Paper Doll's CONSTS. Pushed once, guarded by our `paperdollConfigured` setting, so GM slot edits are never clobbered. Paper Doll is premium/signed — integrate via its settings + `paper-doll-equip`/`paper-doll-swap` hooks only, never a fork. |
 
-## 3. Effect contract — `flags.acks-equipment.<domain>`
+## 3. Effect contract — `flags.acks-extras.<domain>`
 
 Numeric domains sum; CSV domains collect; boolean-ish domains test presence. Add
-`flags.acks-equipment.condition` (i18n key/text) to an effect to mark its bonus
+`flags.acks-extras.condition` (i18n key/text) to an effect to mark its bonus
 **situational** → surfaced as a toggle in the pre-roll dialog (Phase 3).
 
 | Domain | Kind | Consumed for |
@@ -56,7 +56,7 @@ Numeric domains sum; CSV domains collect; boolean-ish domains test presence. Add
 | `running` | boolean | +30' speed marker — read by movement modules (formation), not written here |
 | `finesse` `preciseShooting` `sniping` `ambushing` `skirmishing` `unarmedFighting` `blindFighting` `mountedCombat` `riding` `berserkergang` `freeSwap` | boolean | proficiency presence tests |
 
-Per-actor proficiency profile (not effects): `flags.acks-equipment.styles` (trained
+Per-actor proficiency profile (not effects): `flags.acks-extras.styles` (trained
 fighting styles), `.weaponProficiency` (a CSV of grant tokens), `.armorMax`
 (heaviest armour category). Set via the Configure Proficiencies macro.
 
@@ -104,7 +104,7 @@ Pack document `_id`s carry the prefix declared in `module.json` at
   it wraps `computeEncumbrance` (see §1) only to apply the RAW rules core's flat
   sum gets wrong, so formation keeps reading one consistent core value.
 - **acks-henchmen** owns coin math. The purchase-from-market macro (not yet
-  built) reuses `game.modules.get("acks-henchmen").api.adapter.spendGold/grantGold`
+  built) reuses `game.modules.get("acks-extras").api.henchmen.adapter.spendGold/grantGold`
   rather than re-implementing denomination handling.
 - **acks-monsters** owns gear storage and the `DAMAGE_TYPES`/`NATURAL_WEAPONS`
   enums, read raw/soft so it stays optional. The classifier's `damageType`

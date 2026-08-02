@@ -343,7 +343,7 @@ it so existing worlds keep working. Stop adding entries.
 `scripts/ability-bridge.mjs` folds an ability item into the `{id, provides}`
 shape acks-lib reasons over — `id` from `flags["acks-content"].cookbook.id`
 (written on import), `provides` from `flags["acks-abilities"].extras` — and
-exposes `hasCapability` / `itemHasCapability` over `acksLib.satisfies()`.
+exposes `hasCapability` / `itemHasCapability` over `acksExtras.lib.satisfies()`.
 
 Wired into `skillCandidates()` (per-check `capability` token), the Alertness
 and Trapfinding bonus gates, `canSeeInDark()` (`kw:lightlessvision`) and
@@ -464,7 +464,7 @@ longer imports `THIEF_PROGRESSION` at all — see below).
 What unblocked it was v0.26.0, not the Phase 4 burn-down. The pack's remaining
 job was being the only thing that reliably *worked*: until capability matching
 actually fired, an imported skill fell through to Adventuring, so the bundled
-copies were the dependable path. With `acksLib.vocab.satisfies` imported
+copies were the dependable path. With `acksExtras.lib.vocab.satisfies` imported
 statically and `inferredThiefSkill()` reading `def.skill.<key>`, an imported
 skill now matches by capability and scales at the owner's level with zero
 setup — strictly better than the placeholder it replaces, since it survives a

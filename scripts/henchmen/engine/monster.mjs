@@ -79,7 +79,7 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
         return;
       }
     } catch (err) {
-      console.warn("acks-henchmen | influence-hosted irrefusable offer failed; falling back", err);
+      console.warn("acks-extras | influence-hosted irrefusable offer failed; falling back", err);
     }
   }
 
