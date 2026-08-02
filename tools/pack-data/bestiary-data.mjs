@@ -200,12 +200,13 @@ export function monster({ id, name, img, system, extras, items = [] }) {
   // Embedded documents are packed as their own LevelDB entries and need a
   // compound _key (parent collection.embedded!parentId.childId).
   const keyedItems = items.map((it) => ({ ...it, _key: `!actors.items!${id}.${it._id}` }));
+  const art = img ?? "icons/svg/mystery-man.svg";
   return {
     _id: id,
     _key: `!actors!${id}`,
     name,
     type: "monster",
-    img: img ?? "icons/svg/mystery-man.svg",
+    img: art,
     system,
     items: keyedItems,
     effects: [],
@@ -215,6 +216,7 @@ export function monster({ id, name, img, system, extras, items = [] }) {
       actorLink: false,
       disposition: -1,
       sight: { enabled: true },
+      texture: { src: art },
     },
     folder: null,
     sort: 0,
@@ -237,6 +239,7 @@ const SAVES_F8 = { paralysis: 8, death: 9, blast: 10, implements: 11, spell: 12 
 function giantRat() {
   return monster({
     id: "acksmGiantRat000",
+    img: "icons/creatures/mammals/rodent-rat-diseaed-gray.webp",
     name: "Giant Rat",
     system: monsterSystem({
       hpFormula: "1d4",
@@ -301,6 +304,7 @@ function giantRat() {
 function skeleton() {
   return monster({
     id: "acksmSkeleton000",
+    img: "icons/svg/skull.svg",
     name: "Skeleton",
     system: monsterSystem({
       hpFormula: "1d8",
@@ -359,6 +363,7 @@ function skeleton() {
 function direWolf() {
   return monster({
     id: "acksmDireWolf000",
+    img: "icons/creatures/mammals/wolf-shadow-black.webp",
     name: "Dire Wolf",
     system: monsterSystem({
       hpFormula: "4d8+1",
@@ -425,6 +430,7 @@ function direWolf() {
 function goblins() {
   const warrior = monster({
     id: "acksmGoblin00000",
+    img: "icons/environment/people/infantry.webp",
     name: "Goblin",
     system: monsterSystem({
       hpFormula: "1d8-1",
@@ -480,6 +486,7 @@ function goblins() {
 
   const chief = monster({
     id: "acksmGobChief000",
+    img: "icons/environment/people/infantry-armored.webp",
     name: "Goblin Chief",
     system: monsterSystem({
       hpFormula: "3d8",
@@ -524,6 +531,7 @@ function goblins() {
 function packMule() {
   return monster({
     id: "acksmPackMule000",
+    img: "icons/environment/creatures/horse-brown.webp",
     name: "Pack Mule",
     system: monsterSystem({
       hpFormula: "2d8",
@@ -581,6 +589,7 @@ function packMule() {
 function ashDrake() {
   return monster({
     id: "acksmAshDrake000",
+    img: "icons/creatures/reptiles/dragon-horned-blue.webp",
     name: "Ash Drake",
     system: monsterSystem({
       hpFormula: "9d8",
@@ -666,6 +675,7 @@ function ashDrake() {
 function marshLurker() {
   return monster({
     id: "acksmMarshLurk00",
+    img: "icons/creatures/tentacles/tentacle-earth-green.webp",
     name: "Marsh Lurker",
     system: monsterSystem({
       hpFormula: "4d8",

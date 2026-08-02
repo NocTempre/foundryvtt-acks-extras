@@ -1,5 +1,5 @@
 /**
- * Compendium document content for acks-equipment (module-owned; the harness in
+ * Compendium document content for the equipment feature (module-owned; the harness in
  * tools/build-packs.mjs is synced from acks-module-template and consumes the
  * `packs` map exported at the bottom of this file).
  *
@@ -10,6 +10,8 @@
  * rebuild byte-identical so `packs/_source` never churns (see
  * acks-module-template docs/TOOLCHAIN.md §2 and §8).
  */
+
+import { systemIcon } from "./system-icons.mjs";
 
 const MODULE_ID = "acks-extras";
 const STAMP = 1784101908835; // fixed; matches the committed pack sources
@@ -254,11 +256,12 @@ ui.notifications.info(\`\${actor.name}: styles \${styles.join(", ")} · weapons 
     _id: "acksEqUninstall0",
     name: "Uninstall — Strip Equipment Data",
     img: "icons/svg/hazard.svg",
-    command: `// Remove everything acks-equipment wrote to this world, so the module can be
-// disabled or uninstalled with nothing left behind: the managed "Equipment
-// Loadout" effects (which would otherwise keep applying stale AC/init/attack
-// modifiers forever), every flags.acks-extras.* on actors and items, and
-// any disguise masks (revealed first, so items keep their TRUE identity).
+    command: `// Remove everything the equipment feature wrote to this world, so ACKS
+// Extras can be disabled or uninstalled with no equipment data left behind:
+// the managed "Equipment Loadout" effects (which would otherwise keep
+// applying stale AC/init/attack modifiers forever), the equipment flags on
+// actors and items, and any disguise masks (revealed first, so items keep
+// their TRUE identity).
 // Optionally also reverts masterwork/scavenged stat layers to pristine.
 // Run this BEFORE disabling the module — the macro needs the module's code.
 if (!game.user.isGM) { ui.notifications.warn("GM only."); return; }
@@ -266,19 +269,19 @@ const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksEx
 if (!api?.stripModuleData) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const form = await foundry.applications.api.DialogV2.prompt({
   window: { title: "Strip ACKS Equipment data from this world?" },
-  content: \`<p>This removes the module's managed loadout effects, reveals any
-    disguised items, and deletes every <code>acks-equipment</code> flag from
-    actors and items (containers, grips, ammo state, named-item trackers,
-    proficiency profiles). It cannot be undone.</p>
+  content: \`<p>This removes the managed loadout effects, reveals any
+    disguised items, and deletes every equipment flag from actors and items
+    (containers, grips, ammo state, named-item trackers, proficiency
+    profiles). It cannot be undone.</p>
     <label class="checkbox"><input type="checkbox" name="revert">
     Also revert masterwork / scavenged items to their original stats
     (unchecked: they keep their current, earned values)</label>
-    <p class="notes">After it finishes, disable the module before the next
-    reload — while enabled, it rebuilds loadout effects on load. Leave
-    <b>acks-lib</b> enabled if any other ACKS module still uses it, or if the
-    world contains Animal/Group/Template actors: those actor types live in
-    acks-lib and become unavailable while it is off (they return, unharmed,
-    the moment it is re-enabled).</p>\`,
+    <p class="notes">After it finishes, disable ACKS Extras before the next
+    reload — while enabled, it rebuilds loadout effects on load. Note that
+    disabling the module takes down every feature, not just equipment: any
+    Animal/Group/Template/Location actors become unavailable while it is off
+    (they return, unharmed, the moment it is re-enabled), and this macro does
+    not touch the other features' data.</p>\`,
   ok: { label: "Strip module data", callback: (_ev, btn) => new FormData(btn.form) },
   rejectClose: false,
 });
@@ -286,7 +289,7 @@ if (!form) return;
 const counts = await api.stripModuleData({ revertLayers: !!form.get("revert") });
 if (!counts) return;
 ui.notifications.info(
-  \`acks-equipment stripped: \${counts.effects} loadout effect(s), \${counts.items} flagged item(s), \` +
+  \`Equipment data stripped: \${counts.effects} loadout effect(s), \${counts.items} flagged item(s), \` +
   \`\${counts.actors} actor flag set(s), \${counts.revealed} disguise(s) revealed, \${counts.reverted} item(s) reverted. \` +
   "You can now disable the module safely."
 );`,
@@ -295,7 +298,7 @@ ui.notifications.info(
     _id: "acksEqAnnotate00",
     name: "Annotate Equipment (RAW profiles)",
     img: "icons/svg/book.svg",
-    command: `// Stamp acks-equipment RAW flags onto the selected actor's gear (or, with no
+    command: `// Stamp the equipment feature's RAW flags onto the selected actor's gear (or, with no
 // selection, everything in the world): weapon size/hands/qualities AND
 // carrying-device capacities (backpack, sack, saddlebag, bowquiver, the
 // adventurer's harness). Carrying devices are type "item", not "weapon" —
@@ -395,7 +398,7 @@ const PROFS = [
 
   { n: "Combat Reflexes", t: "class", m: { styleInit: "1" }, d: "+1 bonus to surprise rolls and initiative rolls (not when casting spells). <em>Initiative is automated; surprise is applied by the Judge.</em>" },
   { n: "Combat Ferocity", t: "class", m: { maxCleaves: "1" }, d: "The character's maximum number of cleaves is increased by 1." },
-  { n: "Running", t: "class", m: { running: "1" }, d: "Base speed +30' when wearing ≤ medium armour and carrying ≤ 7 stone. <em>Speed is applied by movement modules (e.g. acks-formation); this module only publishes the marker.</em>" },
+  { n: "Running", t: "class", m: { running: "1" }, d: "Base speed +30' when wearing ≤ medium armour and carrying ≤ 7 stone. <em>Speed is applied by the formation feature's movement engine; equipment only publishes the marker.</em>" },
   { n: "Swashbuckling", t: "class", m: { swashbuckling: "1" }, d: "+1 AC (→+2 at level 7, +3 at level 13) while wearing ≤ light armour and carrying ≤ 5 stone." },
   { n: "Blind Fighting", t: "class", m: { blindFighting: "1" }, d: "Only −2 (instead of −4) on attack throws when blinded or against invisible enemies; no surprise penalty from being blinded; no speed reduction." },
   { n: "Mounted Combat", t: "class", m: { mountedCombat: "1" }, d: "Ride a saddled animal in combat without penalty and gain +1 to attack throws while mounted. With Riding, ride without saddle/bit/bridle in combat." },
@@ -445,7 +448,7 @@ function proficiencyDoc(p, i) {
     _key: `!items!${id}`,
     name: p.n,
     type: "ability",
-    img: BOOK,
+    img: systemIcon(p.n, BOOK),
     system: {
       proficiencytype: p.t,
       favorite: false,
@@ -582,7 +585,7 @@ const SAMPLE_ITEMS = [
   {
     name: "Masterwork Sword (+1 attack)",
     type: "weapon",
-    img: "icons/weapons/swords/sword-guard-steel.webp",
+    img: "icons/weapons/swords/sword-guard-steel-green.webp",
     system: { cost: 90, weight6: 1, damage: "1d6", bonus: 1, melee: true, missile: false, description: "<p>A masterwork sword: +1 to attack throws (+80gp over the base 10gp). It does not let you hit monsters only harmed by magic.</p><p><em>Revised Rulebook p. 159. Masterwork and magic bonuses do not stack — enchanting a weapon makes it masterwork automatically.</em></p>" },
     flags: { size: "medium", damageType: "slashing", masterwork: { toHit: 1 } },
   },
@@ -642,7 +645,7 @@ const scores = (str, dex, con = 10, int = 10, wis = 10, cha = 10) => ({
 
 const gearWeapon = (name, damage, over = {}) => ({
   name,
-  type: "weapon", img: "icons/weapons/swords/sword-guard-steel.webp",
+  type: "weapon", img: "icons/weapons/swords/sword-guard-steel-green.webp",
   system: { damage, melee: true, missile: false, equipped: true, weight6: 1, cost: 10, bonus: 0, ...over },
 });
 const gearArmour = (name, type, aac, w) => ({
@@ -704,7 +707,7 @@ function embeddedProficiency(actorId, profName, seq) {
     _key: `!actors.items!${actorId}.${id}`,
     name: p.n,
     type: "ability",
-    img: BOOK,
+    img: systemIcon(p.n, BOOK),
     system: {
       proficiencytype: p.t, favorite: false, pattern: "white", requirements: p.r ?? "",
       roll: "", rollType: "above", rollTarget: 0, blindroll: false,
@@ -758,7 +761,7 @@ function actorDoc(a, i) {
     },
     items,
     effects: [],
-    prototypeToken: { name: a.name, actorLink: false },
+    prototypeToken: { name: a.name, actorLink: false, texture: { src: a.img } },
     flags: { [MODULE_ID]: { example: true, ...a.flags } },
     ownership: { default: 0 },
     sort: (i + 1) * 100,

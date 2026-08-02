@@ -223,6 +223,48 @@ for (const f of walk(path.join(ROOT, "scripts"))) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* 6. Icon paths resolve.                                                      */
+/*                                                                             */
+/* Nothing type-checks an img string: a missing file is a broken image at the  */
+/* moment a user opens the sheet, and 13 shipped that way. Module-relative      */
+/* paths are checked in-repo (always possible). Foundry-core `icons/**` and     */
+/* system `systems/acks/**` paths are checked when an install / checkout is     */
+/* discoverable, else skipped with a notice — CI stays honest about what it     */
+/* did not check.                                                               */
+/* -------------------------------------------------------------------------- */
+{
+  const FOUNDRY_PUBLIC = [
+    "C:/Program Files/Foundry Virtual Tabletop/resources/app/public",
+    path.join(ROOT, "..", "FoundryVTT", "resources", "app", "public"),
+  ].find((p) => fs.existsSync(path.join(p, "icons")));
+  const SYSTEM_SRC = [path.join(ROOT, "..", "foundryvtt-acks-core", "src")].find((p) =>
+    fs.existsSync(path.join(p, "assets"))
+  );
+  const skipped = new Set();
+  const seen = new Set();
+  for (const f of [...walk(path.join(ROOT, "tools")), ...walk(path.join(ROOT, "scripts"))]) {
+    if (!f.endsWith(".mjs")) continue;
+    const text = fs.readFileSync(f, "utf8");
+    for (const m of text.matchAll(/["'`]((?:icons|systems|modules)\/[^"'`\n${]+\.(?:svg|webp|png|jpg|jpeg))["'`]/g)) {
+      const p = m[1];
+      if (seen.has(p)) continue;
+      seen.add(p);
+      let resolved;
+      if (p.startsWith("modules/acks-extras/")) resolved = path.join(ROOT, p.replace("modules/acks-extras/", ""));
+      else if (p.startsWith("icons/")) resolved = FOUNDRY_PUBLIC ? path.join(FOUNDRY_PUBLIC, p) : null;
+      else if (p.startsWith("systems/acks/")) resolved = SYSTEM_SRC ? path.join(SYSTEM_SRC, p.replace("systems/acks/", "")) : null;
+      else continue; // another module's path — its presence is that module's business
+      if (resolved === null) {
+        skipped.add(p.split("/")[0]);
+        continue;
+      }
+      if (!fs.existsSync(resolved)) fail(`${rel(f)}: icon path does not exist — ${p}`);
+    }
+  }
+  if (skipped.size) console.log(`validate-extra: icon check skipped for ${[...skipped].join(", ")} paths (no install/checkout found)`);
+}
+
 console.log(
   failed
     ? "validate-extra: merge guards FAILED"

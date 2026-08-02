@@ -7,6 +7,7 @@
  * Rules text is paraphrased with book citations (never verbatim book text).
  */
 import crypto from "node:crypto";
+import { systemIcon } from "./system-icons.mjs";
 
 /** Deterministic prefixed 16-char id ("acksHm" + 10 hash chars) from a seed. */
 function did(seed) {
@@ -46,7 +47,7 @@ function ability(name, { type = "general", description, requirements = "", effec
     _key: `!items!${id}`,
     name,
     type: "ability",
-    img: "icons/svg/book.svg",
+    img: systemIcon(name, "icons/svg/book.svg"),
     system: {
       description: `<p>${description}</p>`,
       proficiencytype: type,
@@ -310,14 +311,14 @@ export function buildMacros() {
   return [
     macro(
       "Open Recruitment Board",
-      "icons/svg/tavern.svg",
+      "icons/svg/tankard.svg",
       `const locations = game.actors.filter((a) => a.type === "acks-extras.location");
 if (!locations.length) return ui.notifications.warn("Create a Location actor first.");
 (locations.find((l) => l.testUserPermission(game.user, "OBSERVER")) ?? locations[0]).sheet.render(true);`
     ),
     macro(
       "Post Recruitment Notice",
-      "icons/svg/scroll.svg",
+      "icons/sundries/scrolls/scroll-bound-black-brown.webp",
       `const locations = game.actors.filter((a) => a.type === "acks-extras.location");
 if (!locations.length) return ui.notifications.warn("Create a Location actor first.");
 acksExtras.henchmen.openPostingDialog(locations[0]);`
@@ -376,7 +377,7 @@ ui.notifications.info(\`Forgiven: \${gp} gp of arrears across \${hirelings} hire
     ),
     macro(
       "Repair Henchmen References",
-      "icons/svg/repair.svg",
+      "icons/svg/upgrade.svg",
       `// Fixes the core acks 14.0.1 crash where a character sheet fails to render
 // ("Cannot read properties of undefined (reading 'system')" in getTotalWages):
 // a hireling was deleted while still listed on its employer.

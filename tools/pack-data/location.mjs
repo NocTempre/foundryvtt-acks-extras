@@ -57,7 +57,7 @@ setTimeout(() => { try { actor.sheet.changeTab("acks-location-storage", "primary
     ),
     macro(
       "Run Vault Sweep Now",
-      "icons/svg/vault.svg",
+      "icons/svg/chest.svg",
       `if (!game.user.isGM) return ui.notifications.warn("The vault sweep is a GM tool.");
 const result = await game.modules.get("acks-extras").api.location.runVaultSweep();
 ui.notifications.info(result.swept

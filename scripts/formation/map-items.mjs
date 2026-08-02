@@ -402,7 +402,7 @@ export async function saveFogAsMapItem() {
   const item = await Item.implementation.create({
     name: loc("map.itemName", { scene: canvas.scene.name }),
     type: "item",
-    img: "icons/sundries/documents/document-sealed-brown.webp",
+    img: "icons/sundries/documents/document-sealed-brown-red.webp",
     system: { description: loc("map.authoredDescription", { scene: canvas.scene.name }), quantity: { value: 1 } },
     flags: {
       [MODULE_ID]: {
