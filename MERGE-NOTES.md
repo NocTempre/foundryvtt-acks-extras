@@ -6,6 +6,20 @@ several of these are the reason the code looks the way it does.
 Everything marked RESOLVED shipped in 0.1.0. What is left is either pre-existing
 (and named as such) or deliberate.
 
+> **Post-0.1.0 addendum (2026-08-02).** A cleanup pass audited the merged tree
+> and corrected this document's record in four places: §4's claim that the
+> remaining apiVersion gates "pass" was wrong — `module.api` is the whole
+> namespace, so the influence-hosted henchmen pages never opened (fixed, with a
+> guard); the §10 WARN family is now enforced — every hook fires under
+> `acksExtras.*` and the retired names FAIL validation; the pack-data rewrite
+> miss §10 records for bestiary-data had a second, still-live instance
+> (`flags.acks-henchmen` change keys shipping inert in proficiencies-powers);
+> and the §4 CSS-class rename was one of five — the merge renamed the scope
+> classes inside every JS `classes:` array while the stylesheets kept the old
+> selectors, leaving ~255 rules dead. validate-extra now carries guards for all
+> four classes of miss (plus icon-path existence), each verified red on the
+> pre-fix tree.
+
 Source repos are read-only inputs; nothing here was a change to them.
 
 ---
