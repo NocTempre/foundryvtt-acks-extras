@@ -47,7 +47,6 @@ import {
 } from "./containers.mjs";
 import { pickLock, bashOpen, canPick, canBash } from "./locks.mjs";
 import { annotateItem } from "./api.mjs";
-import { injectDollHeaderButton } from "./paperdoll.mjs";
 
 /** Stone display shared with the container app. */
 function st(weight6) {
@@ -747,8 +746,6 @@ function onRenderCharacterSheet(app, element) {
     // is "this is an Actor's sheet", not "this has an actor". Without it a
     // foreign window reaches the injectors below and gets dressed as a sheet.
     if (app?.document?.documentName !== "Actor" || app.document.type !== "character") return;
-    // Restore a visible Paper Doll button (self-guards on strategy + settings).
-    injectDollHeaderButton(app, element);
     const tab = element?.querySelector?.(".sheet-inventory");
     // Dedupe: ApplicationV2 fires a render hook per class in the chain, and we
     // listen on three of them so the system's class name can change freely.

@@ -14,7 +14,6 @@ import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATERIALS } from "./overlays/item-loss.mjs";
 import { maneuverMods, MANEUVERS } from "./overlays/maneuvers.mjs";
 import * as named from "./overlays/named.mjs";
-import { clearFromPaperDoll } from "./paperdoll.mjs";
 import { consumeForAttack, recoverThrown, isThrownAway, consumeItem } from "./ammo.mjs";
 import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised } from "./actions.mjs";
 import { cycleStrap, strapOf, canStrap } from "./overlays/shield-variants.mjs";
@@ -122,7 +121,6 @@ export function buildApi() {
     maneuverMods,
     MANEUVERS,
     named, // JJ p.399 named arms & armour: true name, guessing, unlock ladder
-    clearFromPaperDoll,
     // Ammunition & thrown-weapon state (RAW: consume on use; manual recovery).
     consumeForAttack,
     recoverThrown,

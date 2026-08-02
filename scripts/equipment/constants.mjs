@@ -116,8 +116,6 @@ export const SETTINGS = Object.freeze({
   PROFICIENCY_ENFORCEMENT: "proficiencyEnforcement",
   ROLL_AUTOMATION: "rollAutomation", // wrap rollAttack/rollWeapon
   AMMO_TRACKING: "ammoTracking", // consume ammunition / mark thrown weapons on a missile attack
-  PAPERDOLL_STRATEGY: "paperdollStrategy", // "auto" | "paperdoll" | "fallback"
-  PAPERDOLL_CONFIGURED: "paperdollConfigured", // internal: slot layout pushed once; never clobber GM edits
   DEFAULT_HAND_BUDGET: "defaultHandBudget",
   // Optional-rule overlays (RAW, off unless core-default).
   // NOTE: there is deliberately no masterwork overlay — RR p. 159 masterwork is
@@ -164,9 +162,5 @@ export const HOOKS = Object.freeze({
 export const LOADOUT_EFFECT_NAME = "Equipment Loadout";
 export const LOADOUT_EFFECT_FLAG = "loadout"; // flags.acks-extras.loadout = true marks our managed AE
 
-/** Paper Doll module id + the flag/hook names it exposes. */
-export const PAPERDOLL_ID = "fvtt-paper-doll-ui";
-
 /** Sibling module owning the richer proficiency/ability model (kill switch). */
 export const ABILITIES_ID = "acks-extras";
-export const PAPERDOLL_HOOKS = Object.freeze({ EQUIP: "paper-doll-equip", SWAP: "paper-doll-swap" });

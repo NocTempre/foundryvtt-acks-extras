@@ -12,7 +12,6 @@ import { registerSettings } from "./settings.mjs";
 import { buildApi } from "./api.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
-import { registerPaperDoll } from "./paperdoll.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerEquipmentItemSheet } from "./item-sheet.mjs";
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
@@ -46,12 +45,6 @@ Hooks.once("ready", async () => {
   if (game.system?.id !== "acks") {
     console.warn(`${MODULE_ID} | Active system is not "acks"; equipment automation is inert.`);
     return;
-  }
-
-  try {
-    registerPaperDoll();
-  } catch (err) {
-    console.error(`${MODULE_ID} | paper-doll wiring failed`, err);
   }
 
   // Wear-location buckets on the core character sheet. Independent of the Paper

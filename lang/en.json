@@ -272,13 +272,6 @@
         "name": "Automate attack/damage rolls",
         "hint": "Inject RAW fighting-style and proficiency modifiers into attack and damage rolls (Weapon Finesse, dual-wield, two-handed damage, Weapon Focus, Precise Shooting, non-proficiency). Requires libWrapper. Turn off to apply only always-on bonuses via the loadout effect."
       },
-      "paperdollStrategy": {
-        "name": "Equipment slot source",
-        "hint": "Where equipped state is read from.",
-        "auto": "Auto (Paper Doll if installed, else max-per-type)",
-        "paperdoll": "Paper Doll slots",
-        "fallback": "Max-per-type (core inventory)"
-      },
       "defaultHandBudget": {
         "name": "Default hand budget",
         "hint": "Number of hands a humanoid actor has for wielding weapons and shields. Raised per-actor by the Four Arms power or monster anatomy effects."
@@ -389,7 +382,6 @@
     },
     "notify": {
       "autoUnequipped": "Auto-unequipped to keep a legal loadout: {items}.",
-      "paperdollConfigured": "Paper Doll configured for ACKS equipment slots (hands, armour, helmet).",
       "namedGuessSpent": "{name} has already guessed this item's name and may not guess again until gaining a level.",
       "namedAdvanced": "{item} reveals more of its power to {name}.",
       "namedRevealed": "{item} answers to its true name — its full powers awaken.",

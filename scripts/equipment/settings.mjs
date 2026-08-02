@@ -52,29 +52,6 @@ export function registerSettings() {
     default: true,
   });
 
-  game.settings.register(MODULE_ID, SETTINGS.PAPERDOLL_STRATEGY, {
-    name: L("paperdollStrategy.name"),
-    hint: L("paperdollStrategy.hint"),
-    scope: "world",
-    config: true,
-    type: String,
-    choices: {
-      auto: L("paperdollStrategy.auto"),
-      paperdoll: L("paperdollStrategy.paperdoll"),
-      fallback: L("paperdollStrategy.fallback"),
-    },
-    default: "auto",
-  });
-
-  // Internal: tracks that the ACKS slot layout has been pushed to Paper Doll
-  // once, so a GM's later slot customisation is never overwritten.
-  game.settings.register(MODULE_ID, SETTINGS.PAPERDOLL_CONFIGURED, {
-    scope: "world",
-    config: false,
-    type: Boolean,
-    default: false,
-  });
-
   game.settings.register(MODULE_ID, SETTINGS.DEFAULT_HAND_BUDGET, {
     name: L("defaultHandBudget.name"),
     hint: L("defaultHandBudget.hint"),
