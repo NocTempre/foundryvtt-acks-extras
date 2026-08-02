@@ -1,13 +1,16 @@
 # Merge findings
 
-Running log of things the merge surfaced. **Recorded, not fixed** — each needs a
-careful check before it is touched. Delete an entry once it is resolved.
+What the merge surfaced, and what was done about it. Kept after the fact because
+several of these are the reason the code looks the way it does.
 
-Source repos are read-only inputs; nothing here is a change to them.
+Everything marked RESOLVED shipped in 0.1.0. What is left is either pre-existing
+(and named as such) or deliberate.
+
+Source repos are read-only inputs; nothing here was a change to them.
 
 ---
 
-## 1. Flag key collisions — blocks the `MODULE_ID` rewrite
+## 1. Flag key collisions — RESOLVED (flat namespace)
 
 Every feature still declares its own `MODULE_ID` (`scripts/<feature>/constants.mjs`).
 Pointing all eight at `"acks-extras"` is what makes the module one module — but
@@ -25,25 +28,31 @@ Measured across all 65 flag keys, only **two genuinely collide**:
 That is the `module.json` manifest flag `flags["acks-lib"].idPrefix`, not a
 document flag. Ignore it.
 
-**Decision still open:** flat namespace with those two keys renamed (166 call
-sites unchanged, one flat key-space) vs. sub-namespacing per feature
-(`flags["acks-extras"].equipment.size`, all 166 call sites rewritten, features
-stay isolated). Flat is far less churn; sub-namespacing is more future-proof.
+**Resolved: flat.** Sub-namespacing was rejected on evidence — the flag key
+constants are used in mixed forms (`flags.${MODULE_ID}.${CONST}`, where dots
+expand, but also `{ [MODULE_ID]: { [CONST]: v } }` and `flags[LIB_ID][CONST]`,
+where they do not), so prefixing the constants would have silently produced
+literal dotted keys. `damageType` was renamed to `damageTypeOverride` on the lib
+side; `extras` was left alone. All 166 flag call sites are unchanged.
 
-## 2. `EFFECT_PREFIX` collapses silently
+## 2. `EFFECT_PREFIX` collapse — RESOLVED
 
 `equipment/constants.mjs:9` and `henchmen/constants.mjs:4` both derive
 ``EFFECT_PREFIX = `flags.${MODULE_ID}.` ``. Once `MODULE_ID` is shared these
 become the same string and equipment's effect collector starts reading
-henchmen's domains. No throw, no warning. Tied to the decision in §1.
+henchmen's domains. No throw, no warning. Both gates now test exact membership of their own `EFFECT_DOMAINS` (29 equipment,
+12 henchmen, verified disjoint) rather than the shared prefix — which also fixes
+a pre-existing looseness, since the prefix test already matched plain item flags
+like `flags.<id>.size` that are not effect domains at all.
 
-## 3. `stackSignature` prunes only top-level empty flag scopes
+## 3. `stackSignature` — NOT NEEDED (namespace stayed flat)
 
 `scripts/lib/storage-logic.mjs` treats an item whose flag scope was emptied in
 transit as identical to one that never travelled — but it only prunes at the top
 level. Any sub-namespacing (§1) turns `{"acks-lib":{}}` into
 `{"acks-extras":{"lib":{}}}`, which is not empty at the top level, and item
-stacks quietly stop merging. Only bites if §1 lands as sub-namespacing.
+stacks quietly stop merging. §1 landed flat, so this never bites. Live-verified anyway: deposit a stack,
+retrieve half, re-deposit — one row of 20, not two.
 
 ## 4. `Actor.location` declared twice — RESOLVED
 
@@ -93,13 +102,18 @@ acks-influence declared the `attitude` Item subtype but shipped no
 `TYPES.Item.acks-extras.attitude = "Attitude"` during the lang merge.
 Pre-existing, not caused by the merge.
 
-## 6. acks-content references a lang key it does not own
+## 6. The importer references a lang key it does not own — CORRECT AS IS
 
 `ACKS-HENCHMEN.rarityTable.default` is referenced from acks-content but defined
 in acks-henchmen's `lang/en.json`. It resolves only when henchmen happens to be
 installed. Surfaced by the widened `validate.mjs` §6 regex — the old
-module-scoped regex could not see cross-module references at all. acks-content
-becomes the importer, henchmen becomes extras, so it stays cross-module.
+module-scoped regex could not see cross-module references at all.
+
+It stays cross-module, and that is right: the label is written into the imported
+rarity table as DATA, and extras localizes it when it renders the table —
+possibly long after the importer has been uninstalled. Pointing it at an
+importer-owned key would break exactly then. Mirrored into the importer's own
+lang file so that module still validates standalone.
 
 ## 7. `TYPES` labels lost a disambiguator — intentional
 
@@ -107,14 +121,20 @@ henchmen's Location was labelled `"Location (Henchmen Market)"` to tell it apart
 from acks-location's `"Location"`. One subtype now, so the merged lang keeps
 `"Location"`.
 
-## 8. formation and influence have no `tools/pack-data.mjs`
+## 8. formation and influence had no `tools/pack-data.mjs` — RESOLVED
 
-Both carry a custom `tools/build-packs.mjs` with pack data inline, so they did
-not participate in the canonical generated-packs contract. A repo has exactly
-one `build-packs.mjs` and it comes from the template, so both need their macro
-definitions lifted into `tools/pack-data/{formation,influence}.mjs`.
+Both carried a custom `tools/build-packs.mjs` with pack data inline, so they
+never participated in the canonical generated-packs contract. A repo has exactly
+one `build-packs.mjs` and it comes from the template, so their macro definitions
+were lifted into `tools/pack-data/{formation,influence}.mjs` with ids and fixed
+timestamps preserved.
 
-## 10. `npm run validate` — 7 failures, all one decision
+`tools/pack-data.mjs` is now an aggregator over the per-feature modules, and it
+CONCATENATES same-named packs rather than spreading them — five features each
+shipped a pack called `macros`, and an object spread would have kept only the
+last one silently.
+
+## 10. `npm run validate` — RESOLVED, and now carries merge guards
 
 Everything else passes: 1,198 lang keys, 4,068 CSS lines, all pack `_id`s under
 `idPrefix: "acks"`, i18n coverage, and a clean ip-scan.
@@ -127,11 +147,17 @@ globalThis.acksLib  acksAbilities  acksEquipment  acksFormation
                     acksHenchmen   acksInfluence  acksMonsters
 ```
 
-§7c requires them to start with `acksExtras`. **These are not runtime errors** —
-the globals work, and the 44 cross-feature reads of `globalThis.acksLib` still
-resolve. It is a policy failure that blocks release, and the fix (one
-`globalThis.acksExtras` with the features hanging off it) is a public-API shape
-decision, so it belongs with §1 rather than being done reflexively.
+Resolved: one `globalThis.acksExtras` with a key per feature
+(`scripts/namespace.mjs`), which is also what `game.modules.get(...).api` points
+at — eight features each assigning their own would have left only the last
+visible. 71 references repointed.
+
+`tools/validate-extra.mjs` now also runs four merge guards: no stale family ids
+in code, flag-call scopes resolved to their declared value, one libWrapper
+registration per target, and every template path present on disk. The first of
+them immediately caught a real miss — `tools/pack-data/bestiary-data.mjs` was
+copied in after the rewrite pass and still generated every bestiary document
+with `flags["acks-monsters"]`.
 
 Same family, currently WARN not FAIL:
 - hooks `acksFormation.lightChanged`, `acksInfluenceRollComplete`,
@@ -142,10 +168,43 @@ Also WARN, and **expected**: `id "acks-extras" does not match directory name
 "foundryvtt-acks-extras"`. Deliberate — the same split `foundryvtt-acks-core`
 uses, whose system id is just `acks`.
 
-## 9. Macros merged cleanly but need an audit
+## 9. Macros — RESOLVED
 
 The five `macros` packs (equipment 7, henchmen 10, formation 2, influence 1,
 location 4 = 24) merged into one with **no filename and no `_id` collisions**,
-so no rename was needed. Reported to contain dead and stale entries. Every
-survivor embeds `globalThis.acks*` names as string literals in its `command`
-body, so each needs repointing and a live run.
+so no rename was needed. All 24 are filed under a single *ACKS Extras* folder
+instead of the five per-feature trees they arrived in, joined by the cleaner
+macro (§11).
+
+A macro's `command` is a string. Nothing type-checks it, `validate.mjs` cannot
+see inside it, and a stale API name shows up only when a user clicks the macro —
+so every global, module id and sub-type in every body was rewritten and every
+call checked against the real merged api surface. That pass also caught a live
+bug: `module.api` is the whole `acksExtras` namespace now, so
+`game.modules.get(...)?.api.annotateItem` had silently become `undefined`; the
+bodies go through the feature key.
+
+Live-verified: all 45 macros across both modules compile under Foundry's own
+async wrapper, and none references a stale identifier.
+
+## 11. The cleaner macro — why it is not a migration
+
+Nothing is carried across from the old modules; that was the decision. But a
+world that ran them keeps what they wrote, and one part of that is not merely
+inert: Foundry refuses to instantiate an Actor whose sub-type is gone, so an old
+`acks-henchmen.location` actor throws on every world load forever.
+
+**Clean Up After the Merge (GM)** removes the residue — documents of a removed
+sub-type, flag scopes under the nine old ids, AE change keys into them, world
+settings in their namespaces, and `core.sheetClass` pointers at their sheets. It
+reports before it touches anything and is idempotent.
+
+Two awkward bits are load-bearing. Invalid documents are unreachable through the
+normal collection lookup, so it goes through `invalidDocumentIds` / `getInvalid`.
+And `unsetFlag` refuses a scope that is not an active package — which is every
+scope it needs to clear — so it falls back to `flags.-=<scope>` on the document's
+own update.
+
+Live-verified on the test world: 43 leftovers removed, a second run reported
+"already clean" without prompting, and the world then loaded with zero console
+errors where it had previously thrown on every load.
