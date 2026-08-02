@@ -37,7 +37,7 @@ import { getTable, optTable, hasDoc } from "../rules/tables.mjs";
 import { sumEffectModifiers } from "../effects.mjs";
 import { getSetting } from "../settings.mjs";
 import * as adapter from "../acks-adapter.mjs";
-import { registerSocketAction } from "../sockets.mjs";
+import { registerHandler } from "../../lib/sockets.mjs";
 import { now, secondsPerMonth, calendarMonthStart, sameMarketMonth } from "../time.mjs";
 import { postSlaveMarketCard } from "./slavery-market.mjs";
 
@@ -940,7 +940,7 @@ export async function closePosting(location, postingId, { requestUserId = null }
   return { posting };
 }
 
-registerSocketAction("closePosting", async ({ locationUuid, postingId, requestUserId }) => {
+registerHandler("closePosting", async ({ locationUuid, postingId, requestUserId }) => {
   const location = await fromUuid(locationUuid);
   if (location) await closePosting(location.actor ?? location, postingId, { requestUserId });
 });
@@ -948,7 +948,7 @@ registerSocketAction("closePosting", async ({ locationUuid, postingId, requestUs
 /** Player posting creation relays through the GM (players cannot write the
  *  location actor); employer ownership + criteria are enforced in
  *  createPosting against requestUserId. */
-registerSocketAction("createPosting", async ({ locationUuid, spec, employerUuid, playersSeeDetails, requestUserId }) => {
+registerHandler("createPosting", async ({ locationUuid, spec, employerUuid, playersSeeDetails, requestUserId }) => {
   const locationDoc = await fromUuid(locationUuid);
   const location = locationDoc?.actor ?? locationDoc;
   const employerDoc = employerUuid ? await fromUuid(employerUuid).catch(() => null) : null;

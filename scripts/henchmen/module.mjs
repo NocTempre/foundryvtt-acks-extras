@@ -33,7 +33,7 @@ import * as candidateRules from "./rules/candidates.mjs";
 import * as identityRules from "./rules/identity.mjs";
 import { onTimeAdvanced, advanceDays, now } from "./time.mjs";
 import { bindCardListeners, registerCardAction } from "./chat/cards.mjs";
-import { registerSockets, executeAsGM, registerSocketAction } from "./sockets.mjs";
+
 import { registerEventEngine, openLoyaltyRoll, openObedienceRoll, recordCalamity, payWagesFor, enrollNewcomers, forgiveWageDebts, setPermanentCompensated, allEmployers, effectiveLoyaltyFor, effectiveMoraleFor } from "./engine/events.mjs";
 import { openRosterApp } from "./apps/roster-app.mjs";
 import { installHirelingsGrid } from "./apps/hirelings-grid.mjs";
@@ -184,7 +184,6 @@ Hooks.once("setup", async () => {
 Hooks.once("ready", () => {
   if (!assertAcksSystem("henchmen automation expects the ACKS II system.")) return;
 
-  registerSockets();
   registerEventEngine();
   registerInfluenceIntegration();
 

@@ -1,5 +1,6 @@
 /* global Hooks, game, foundry, canvas, CONFIG, socketlib */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
+import { registerHandler } from "../lib/sockets.mjs";
 import InfluenceApp from "./influence-app.mjs";
 import AttitudeData from "./attitude-data.mjs";
 import AttitudeSheet from "./attitude-sheet.mjs";
@@ -32,14 +33,10 @@ function openInfluenceApp(actor = null, options = {}) {
   return new InfluenceApp({ actor, ...options }).render(true);
 }
 
-// GM-side socket handler (via socketlib): resolve a player's roll against a
-// hidden target. socketlib routes `executeAsGM` to an active GM client, which
-// re-resolves the roll with the real target data the player can't see.
-Hooks.once("socketlib.ready", () => {
-  const socket = socketlib.registerModule(MODULE_ID);
-  socket.register("resolveHiddenRoll", (payload) => InfluenceApp.resolveExternal(payload));
-  InfluenceApp.socket = socket;
-});
+// GM-side socket handler (via the shared transport): resolve a player's roll
+// against a hidden target on an active GM client, which re-resolves it with
+// the real target data the player can't see.
+registerHandler("resolveHiddenRoll", (payload) => InfluenceApp.resolveExternal(payload));
 
 Hooks.once("init", () => {
   // World settings for the racial layer (docs/RACIAL_REACTIONS_PLAN.md).

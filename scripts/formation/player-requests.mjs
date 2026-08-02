@@ -3,7 +3,7 @@ import { makeLoc } from "../lib/util.mjs";
 import { getFormation, getFrontage, swapCells, toggleRole } from "./formation-model.mjs";
 import { ROLE_LABELS } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
-import { getSocket, registerHandler } from "./socket.mjs";
+import { getSocket, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck } from "./party-rolls.mjs";
 import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./turn-engine.mjs";
 

@@ -10,7 +10,7 @@ import { getTable, optTable } from "../rules/tables.mjs";
 import { createPosting, PRIVATE_KINDS } from "../engine/recruitment.mjs";
 import { maxHenchmanLevel } from "../rules/wages.mjs";
 import * as adapter from "../acks-adapter.mjs";
-import { executeAsGM } from "../sockets.mjs";
+import { executeAsGM } from "../../lib/sockets.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 

@@ -15,7 +15,7 @@ import { signingBonusCost } from "../rules/wages.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
 import { hire, updateCandidate, hireExistingActor, updateSpecialHire } from "../engine/hire.mjs";
 import * as adapter from "../acks-adapter.mjs";
-import { executeAsGM, registerSocketAction } from "../sockets.mjs";
+import { executeAsGM, registerHandler } from "../../lib/sockets.mjs";
 import { hostsModes, openHiringViaInfluence } from "../integrations/influence.mjs";
 import { now } from "../time.mjs";
 
@@ -292,7 +292,7 @@ export async function materializePendingHires(location) {
   await location.update({ "system.pendingHires": remaining });
 }
 
-registerSocketAction("hiringOutcome", handleHiringOutcomePayload);
+registerHandler("hiringOutcome", handleHiringOutcomePayload);
 
 async function handleOutcome({ location, candidateId, specialHireId, employer, result, signingGp }) {
   const outcome = result.outcome;

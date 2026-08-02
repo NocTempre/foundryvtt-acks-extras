@@ -1,4 +1,5 @@
 /* global foundry, game, ChatMessage, CONST, Roll, fromUuid, ui, Hooks */
+import { getSocket } from "../lib/sockets.mjs";
 import {
   INFLUENCE_ATTITUDE_LABELS,
   INFLUENCE_BAND_LABELS,
@@ -561,7 +562,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       // Blind bribe guess: the gp the player offers without knowing the tiers.
       bribeOffer: Number(this.#modifiers[INFLUENCE_TONE.DIPLOMACY]?.bribeFee) || 0,
     };
-    InfluenceApp.socket
+    getSocket()
       .executeAsGM("resolveHiddenRoll", payload)
       .catch((err) => console.error(`${MODULE_ID} | hidden roll relay failed`, err));
     ui.notifications?.info(game.i18n.localize("ACKS-INFLUENCE.hidden.sentToGm"));

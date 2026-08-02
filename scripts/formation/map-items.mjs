@@ -8,7 +8,7 @@ import {
   mapperIsProficient,
   patchFormation,
 } from "./formation-model.mjs";
-import { getSocket, registerHandler } from "./socket.mjs";
+import { getSocket, registerHandler } from "../lib/sockets.mjs";
 
 /**
  * Maps as objects (FOG-DESIGN.md Phases 1–2).
@@ -215,8 +215,12 @@ export async function startMapSession(formation) {
 
   if (formation.mapSession) await closeMapSession(formation, { silent: true });
 
-  // Wipe the scene's exploration: the new map starts from black.
-  game.socket.emit("resetFog", formation.sceneId);
+  // The new map starts from black: after the session opens, every client
+  // viewing the scene re-pulls its fog. (This was a bare game.socket.emit on
+  // an unregistered channel before — dead traffic the server never relayed.)
+  const socket = getSocket();
+  if (socket) await socket.executeForEveryone("reloadFog", formation.sceneId);
+  else await reloadFog(formation.sceneId);
 
   await openSession(formation, mapper, canvas.scene);
 }

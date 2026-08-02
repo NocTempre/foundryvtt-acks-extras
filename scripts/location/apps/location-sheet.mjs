@@ -29,7 +29,7 @@ import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constan
 import { openStashDialog } from "./stash-dialog.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { processLocation, closePosting, reloadMarket } from "../../henchmen/engine/recruitment.mjs";
-import { executeAsGM } from "../../henchmen/sockets.mjs";
+import { executeAsGM } from "../../lib/sockets.mjs";
 import { addSpecialHire, updateSpecialHire } from "../../henchmen/engine/hire.mjs";
 import { openPostingDialog } from "../../henchmen/apps/posting-dialog.mjs";
 import { openRecruitDialog, openRecruitSpecial } from "../../henchmen/apps/recruit-dialog.mjs";

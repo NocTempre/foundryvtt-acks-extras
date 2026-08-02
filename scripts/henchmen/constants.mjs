@@ -13,9 +13,6 @@ export const FLAG_MONSTER_LIST = "monsterHenchmenList";
 /** Flag key on employer actors: extra henchman slots granted manually. */
 export const FLAG_RETAIN_BONUS = "retainBonus";
 
-/** Socket channel (native game.socket; socketlib used instead when active). */
-export const SOCKET_CHANNEL = `module.${MODULE_ID}`;
-
 /**
  * Book-table document ids expected from per-world import (acks-content
  * extraction). `throws` is NOT here — it is this module's own roll-automation
