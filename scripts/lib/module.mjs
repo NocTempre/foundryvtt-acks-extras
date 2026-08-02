@@ -50,7 +50,7 @@ import { FollowerCardSheet } from "./apps/follower-card-sheet.mjs";
 import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from "./follower-card.mjs";
 import * as attackLogic from "./attack-logic.mjs";
 import * as damageType from "./damage-type.mjs";
-import { installAttackRollPatch, PRE_ATTACK_HOOK } from "./patches/attack-roll.mjs";
+import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK } from "./patches/attack-roll.mjs";
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
 
 /** The actor sub-types this library adds to the system. */
@@ -118,6 +118,10 @@ const localImpl = Object.freeze({
    * ctx (terms / throwTarget / targetAc) — the seam for effect replacer/dedup logic.
    */
   attack: { ...attackLogic, PRE_ATTACK_HOOK },
+  // Compose a wrapper around the patched rollAttack. libWrapper allows many
+  // packages to wrap one method but not one package to register twice, and the
+  // features that used to do that are now one module.
+  wrapRollAttack,
   /**
    * Weapon damage typing (damage-type.mjs): resolves a type LIVE through
    * acks-equipment's classifier — no annotate step, no second copy of the weapon

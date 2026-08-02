@@ -30,7 +30,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { slug, satisfies, resolveLevelValue } from "../lib/vocab.mjs";
 
-const DEFINITION_SCOPE = "acks-extras";
+const DEFINITION_SCOPE = "acks-importer"; // the importer owns its provenance flags; they persist even when it is uninstalled
 const ABILITIES_ID = "acks-extras";
 
 /**

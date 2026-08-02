@@ -174,7 +174,7 @@ function skillCandidates(actor, cfg) {
  * what makes it scale — see `scaledSkillTarget`.
  */
 export function inferredThiefSkill(item) {
-  const id = item.getFlag?.("acks-extras", "cookbook")?.id ?? "";
+  const id = item.getFlag?.("acks-importer", "cookbook")?.id ?? "";
   return /^def\.skill\.([a-zA-Z]+)$/.exec(id)?.[1] ?? null;
 }
 

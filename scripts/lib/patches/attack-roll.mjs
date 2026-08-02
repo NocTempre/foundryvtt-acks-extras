@@ -259,9 +259,40 @@ function patchedRollAttack(attData, options = {}) {
 }
 
 /**
+ * Wrappers to compose AROUND this patch, innermost-last — the equipment
+ * feature's pre-roll adjustment is the only one today.
+ *
+ * This exists because libWrapper permits many PACKAGES to wrap one method but
+ * not one package to register twice for it. Before the merge, lib's OVERRIDE
+ * and equipment's WRAPPER were two packages and composed for free; afterwards
+ * they are one, and the second registration threw at `ready` — taking the
+ * whole ready hook with it. Composing here reproduces libWrapper's own
+ * ordering (wrappers outside, override inside) inside a single registration.
+ *
+ * Each entry has libWrapper's WRAPPER signature: `(wrapped, ...args)`, called
+ * with the actor as `this`.
+ */
+const composed = [];
+
+/** Register a wrapper to run around the patched rollAttack. */
+export function wrapRollAttack(fn) {
+  if (typeof fn === "function" && !composed.includes(fn)) composed.push(fn);
+}
+
+/** patchedRollAttack with every registered wrapper folded around it. */
+function chainedRollAttack(attData, options = {}) {
+  let next = (a, o) => patchedRollAttack.call(this, a, o);
+  for (const w of [...composed].reverse()) {
+    const inner = next;
+    next = (a, o) => w.call(this, inner, a, o);
+  }
+  return next(attData, options);
+}
+
+/**
  * Install at `ready` (the actor class is final), gated by the world setting.
- * Registered through libWrapper as OVERRIDE when available so acks-equipment's
- * WRAPPER composes on top; plain prototype swap otherwise.
+ * Registered through libWrapper as OVERRIDE when available; other features'
+ * wrappers compose through `wrapRollAttack` rather than a second registration.
  */
 export function installAttackRollPatch() {
   if (game.system?.id !== "acks") return false;
@@ -275,11 +306,11 @@ export function installAttackRollPatch() {
     globalThis.libWrapper.register(
       MODULE_ID,
       "CONFIG.Actor.documentClass.prototype.rollAttack",
-      patchedRollAttack,
+      chainedRollAttack,
       "OVERRIDE",
     );
   } else {
-    proto.rollAttack = patchedRollAttack;
+    proto.rollAttack = chainedRollAttack;
   }
   console.log(`${MODULE_ID} | attack roll patched: throw as target, bonuses as auditable terms.`);
   return true;

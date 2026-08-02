@@ -30,7 +30,7 @@
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
 import { normalizeName } from "./config.mjs";
 
-const DEFINITION_SCOPE = "acks-extras";
+const DEFINITION_SCOPE = "acks-importer"; // the importer owns its provenance flags; they persist even when it is uninstalled
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
 /** Definition slug of an imported ability ("def.prof.weaponFinesse" → "weaponfinesse"). */

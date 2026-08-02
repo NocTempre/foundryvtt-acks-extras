@@ -240,7 +240,13 @@ function onComputeEncumbrance(wrapped, ...args) {
 }
 
 export function registerRollWrap() {
-  libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.rollAttack", onRollAttack, "WRAPPER");
+  // rollAttack is OWNED by the lib feature's patch, which registers the single
+  // libWrapper OVERRIDE for it and composes this wrapper around itself. As two
+  // separate modules these were two libWrapper registrations and composed for
+  // free; as one module the second registration throws ("a wrapper for ... has
+  // already been registered by module acks-extras") and takes the whole `ready`
+  // hook down with it. Same order, same semantics, one registration.
+  globalThis.acksExtras?.lib?.wrapRollAttack?.(onRollAttack);
   libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.computeEncumbrance", onComputeEncumbrance, "WRAPPER");
   console.debug(`${MODULE_ID} | attack-roll and encumbrance wrappers registered.`);
   void CONFIG;
