@@ -229,6 +229,24 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const targetCats = this.#targetCategories();
     const config = {};
 
+    /**
+     * Rename a proficiency box after the power standing in for it — but only
+     * while the character lacks the proficiency itself, since holding both is
+     * one non-stacking capability and the canonical name is the one to show.
+     *
+     * The rename is stamped onto the config, not applied at render, because the
+     * chat card lists what contributed by the same labels; resolving it in the
+     * view would print the power's name in the dialog and the proficiency's on
+     * the card. The frozen table is copied, never written to.
+     */
+    const actsAs = getActsAsPowers(this.#actor);
+    const ownProfs = getProficiencies(this.#actor);
+    const nameAfterPower = (mod) => {
+      const key = mod.auto?.startsWith("prof:") ? mod.auto.slice(5) : null;
+      if (!key || !actsAs[key] || ownProfs[key]) return mod;
+      return { ...mod, label: actsAs[key].label, actsAs: true };
+    };
+
     // Campaign race-relations row (asymmetric registry / world setting) —
     // applies to every tone and both external modes (RAW Inhumanity wording
     // covers reactions, loyalty, and morale alike).
@@ -293,9 +311,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     if (this.#mode) {
       const groups = this.#mode.groups.map((g) => ({
         group: g.group,
-        mods: g.mods.map((m) =>
-          m.ctxOptions ? { ...m, options: this.#ctx[m.ctxOptions] ?? [{ label: "ACKS-INFLUENCE.opt.dash", value: 0 }] } : m
-        ),
+        mods: g.mods
+          .map((m) =>
+            m.ctxOptions ? { ...m, options: this.#ctx[m.ctxOptions] ?? [{ label: "ACKS-INFLUENCE.opt.dash", value: 0 }] } : m
+          )
+          .map(nameAfterPower),
       }));
       // Only effects feeding THIS page's roll family. A hiring offer is a
       // reaction roll; a loyalty roll is not, so a Diplomacy bonus must not
@@ -314,7 +334,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       return config;
     }
     for (const tone of Object.values(INFLUENCE_TONE)) {
-      const groups = INFLUENCE_MODIFIERS[tone].map((g) => ({ group: g.group, mods: g.mods }));
+      const groups = INFLUENCE_MODIFIERS[tone].map((g) => ({ group: g.group, mods: g.mods.map(nameAfterPower) }));
       const forTone = effectRowsForPage(effectMods, {
         family: ROLL_FAMILY.REACTION,
         tone,
@@ -609,7 +629,6 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const defaults = this.#defaults[tone];
     const autoKeys = this.#autoKeys[tone];
     const profs = getProficiencies(this.#actor);
-    const actsAs = getActsAsPowers(this.#actor);
     const hidden = this.#targetHidden();
     const L = (s) => game.i18n.localize(s);
     return this.#modConfig[tone].map((group) => ({
@@ -618,15 +637,15 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         const value = values[mod.key];
         const isAuto = autoKeys.has(mod.key);
         const isGold = mod.type === "gold";
-        // A power that acts as a core prof (and the base prof is absent) relabels
-        // that prof's checkbox with the power's name and borrows its mechanic.
-        const profKey = mod.auto?.startsWith("prof:") ? mod.auto.slice(5) : null;
-        const isActsAs = Boolean(profKey && actsAs[profKey] && !profs[profKey]);
+        // A power standing in for a core prof already renamed this box when the
+        // config was built (nameAfterPower); the badge is all that is left to
+        // read. Its label is literal text, and localize passes it through.
+        const isActsAs = Boolean(mod.actsAs);
         // Hidden bribe: the player can't see the tiers, so the fee field becomes
         // a blind "offered payment" guess (bonus computed on GM resolve) and the
         // bribe bonus select is masked instead.
         const isBribeGuess = hidden && mod.key === "bribeFee";
-        let label = isActsAs ? actsAs[profKey] : L(mod.label);
+        let label = L(mod.label);
         if (isBribeGuess) label = L("ACKS-INFLUENCE.mod.diplomacy.bribeOffer");
         // A value computed from a proficiency the character has (e.g. Bribery
         // scaling the bribe fee) is flagged so it gets the proficiency badge.

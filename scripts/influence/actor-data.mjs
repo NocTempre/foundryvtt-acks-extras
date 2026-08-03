@@ -126,6 +126,11 @@ export function getProficiencies(actor) {
  * Only a row that contributes to the throw claims — the bribe fee reads Bribery
  * to price a bribe, which is not a modifier on the roll.
  *
+ * A power standing in for a proficiency (`actsAs`) fills that same checkbox and
+ * is claimed with it. It is named for itself, so no name match can ever find
+ * it, and only the core four can be stood in for — CORE_PROFS is what ticks the
+ * box, so an `actsAs` naming anything else fills nothing and keeps its own row.
+ *
  * @param {Actor|null} actor
  * @param {Array} groups  the page's own modifier groups, before effect rows join them
  * @returns {Set<string>}
@@ -138,7 +143,12 @@ export function itemsWithProficiencyRows(actor, groups) {
     }
   }
   if (!keys.length) return new Set();
-  return new Set(Object.values(getProficiencyItems(actor, keys)).flat());
+  const claimed = new Set(Object.values(getProficiencyItems(actor, keys)).flat());
+  const actsAs = getActsAsPowers(actor);
+  for (const key of keys) {
+    if (CORE_PROFS.includes(key) && actsAs[key]?.itemId) claimed.add(actsAs[key].itemId);
+  }
+  return claimed;
 }
 
 /**
@@ -426,8 +436,11 @@ export function effectRowsForPage(mods, { family, tone = null, claimed = new Set
 /**
  * Powers whose effect declares `flags.acks-extras.actsAs: <coreProf>` — a
  * proficiency granted as a class power (non-stacking). Returns a map of core
- * proficiency key → display label, used to fill in / relabel that prof's box.
- * @returns {Record<string, string>}
+ * proficiency key → the power that grants it: its `label` fills in / relabels
+ * that prof's box, and its `itemId` is what claims the power for the box it
+ * fills (see itemsWithProficiencyRows), so the power cannot also be counted as
+ * a modifier of its own.
+ * @returns {Record<string, {label: string, itemId: string|null}>}
  */
 export function getActsAsPowers(actor) {
   const map = {};
@@ -438,7 +451,11 @@ export function getActsAsPowers(actor) {
     const f = effect.flags?.[MODULE_ID];
     if (!f?.actsAs) continue;
     const key = String(f.actsAs);
-    if (!map[key]) map[key] = f.label || effect.name || key;
+    if (map[key]) continue;
+    map[key] = {
+      label: f.label || effect.name || key,
+      itemId: effect.parent?.documentName === "Item" ? effect.parent.id : null,
+    };
   }
   return map;
 }

@@ -7,6 +7,26 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A stand-in power is claimed by the box it fills, and named once (2026-08-03)
+
+Hotfix 1.3.2, completing the entry below. Claiming by NAME could not reach a
+power standing in for a proficiency (`actsAs`), because such a power is named
+for itself — "Command of Voice", never "Diplomacy". Four shapes exist and only
+one leaked: a power whose effect carries the reaction change was already
+claimed for its item, but one carrying `actsAs` and no change of its own, with
+its number in the abilities model, ticked the box AND added its own row. So the
+claim reads stand-ins too, gated by `CORE_PROFS` — the same list that ticks the
+box, so a power standing in for anything else claims nothing and keeps its row.
+
+The rename moved with it, from the view into the config. `#buildGroups` renamed
+the box after the power while `#activeModifiers` localized the static label, so
+the dialog said "Command of Voice" and the chat card said "Diplomacy
+proficiency" about the same +1. One label, stamped once at build time, is read
+by both. Holding the power AND the proficiency still shows the proficiency's
+name: one non-stacking capability, called what the book calls it.
+
+---
+
 ### A proficiency row wins over the same item's effects (2026-08-03)
 
 Hotfix 1.3.1. A character holding Diplomacy opened the roller at **+2**, and one

@@ -37,6 +37,12 @@ an Active Effect wins over the same item's abilities model. The claim is made
 per page, because which proficiencies a page renders a row for differs by page;
 an ability the page offers nowhere else keeps its own row.
 
+A power standing in for a proficiency (`actsAs`) fills that same row, renames it
+after itself, and is claimed with it. The rename lives in the config rather than
+the view, so the dialog and the chat card name it identically; a character
+holding both the power and the proficiency keeps the proficiency's name, because
+the two are one non-stacking capability.
+
 ## Recipes, not rules
 
 The dialog **offers** modifiers; it does not assert them. Situational modifiers

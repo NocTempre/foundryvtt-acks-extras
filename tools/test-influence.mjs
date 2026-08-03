@@ -14,6 +14,7 @@ import { resolveLevelValue } from "../scripts/lib/vocab.mjs";
 import { EXTERNAL_MODES, INFLUENCE_MODIFIERS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY } from "../scripts/influence/constants.mjs";
 import {
   effectRowsForPage,
+  getActsAsPowers,
   getEffectReactionMods,
   getProficiencies,
   getProficiencyItems,
@@ -184,6 +185,58 @@ t("a page with no tone offers a tone-scoped row rather than excluding it", () =>
   assert.equal(effectRowsForPage(mods, { family: ROLL_FAMILY.REACTION }).length, 1);
   assert.equal(effectRowsForPage(mods, { family: ROLL_FAMILY.REACTION, tone: INFLUENCE_TONE.DIPLOMACY }).length, 1);
   assert.equal(effectRowsForPage(mods, { family: ROLL_FAMILY.REACTION, tone: INFLUENCE_TONE.SEDUCTION }).length, 0);
+});
+
+t("a power standing in for a proficiency is claimed by the box it fills", () => {
+  // The replacer shape that hides from a name match: the power is named for
+  // itself, declares actsAs on an effect carrying no change of its own, and
+  // keeps its number in the abilities model. It ticks the Diplomacy box, so
+  // that box is its whole contribution.
+  const power = ability("i-voice", "Command of Voice", [reactionMod(1)]);
+  const standIn = {
+    items: [power],
+    appliedEffects: [{
+      id: "fx-voice",
+      name: "Command of Voice",
+      disabled: false,
+      parent: { id: power.id, documentName: "Item" },
+      changes: [],
+      flags: { "acks-extras": { actsAs: "diplomacy", label: "Command of Voice" } },
+    }],
+  };
+  assert.deepEqual(getActsAsPowers(standIn).diplomacy, { label: "Command of Voice", itemId: "i-voice" });
+
+  const dip = itemsWithProficiencyRows(standIn, groupsFor(INFLUENCE_TONE.DIPLOMACY));
+  assert.equal(dip.has("i-voice"), true);
+  assert.deepEqual(
+    effectRowsForPage(getAbilityReactionMods(standIn), {
+      family: ROLL_FAMILY.REACTION,
+      tone: INFLUENCE_TONE.DIPLOMACY,
+      claimed: dip,
+    }),
+    [],
+  );
+  // Intimidation renders no diplomacy box for it to fill, so nothing is
+  // claimed and the power's own row is offered there.
+  const intim = itemsWithProficiencyRows(standIn, groupsFor(INFLUENCE_TONE.INTIMIDATION));
+  assert.equal(intim.has("i-voice"), false);
+});
+
+t("a stand-in for something outside the core four fills no box, so claims nothing", () => {
+  // Only CORE_PROFS are ticked from an actsAs power. One naming anything else
+  // contributes nothing through a checkbox, so its own row has to survive.
+  const power = ability("i-song", "Song of the Siren", [reactionMod(1)]);
+  const odd = {
+    items: [power],
+    appliedEffects: [{
+      id: "fx-song",
+      disabled: false,
+      parent: { id: power.id, documentName: "Item" },
+      changes: [],
+      flags: { "acks-extras": { actsAs: "performanceArt", label: "Song of the Siren" } },
+    }],
+  };
+  assert.equal(itemsWithProficiencyRows(odd, groupsFor(INFLUENCE_TONE.SEDUCTION)).has("i-song"), false);
 });
 
 t("an effect aimed at somebody else is not a modifier on this roll", () => {

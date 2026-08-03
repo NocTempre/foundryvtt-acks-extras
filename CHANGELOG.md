@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.2
+
+### Fixed
+- **A power that stands in for a proficiency is counted once too.** A class
+  power written to act as Diplomacy fills the Diplomacy box, so that box is its
+  whole contribution — but a power whose numbers live in its imported mechanics
+  rather than in its effect was still adding a second row underneath, opening
+  the roller at +2 for one capability. Where the page offers no box for it — an
+  Intimidation attempt, for a power standing in for Diplomacy — the power keeps
+  a row of its own, as before.
+- **The result card calls the power by its own name.** A box renamed after the
+  power filling it went back to reading "Diplomacy proficiency" in the chat
+  card's list of what applied. Dialog and card now say the same thing, and a
+  character who has both the power and the proficiency itself sees the
+  proficiency's name — they are one capability, not two.
+
 ## 1.3.1
 
 ### Fixed

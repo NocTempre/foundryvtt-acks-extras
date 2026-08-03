@@ -46,6 +46,13 @@ Performance on a seduction — that checkbox is the ability's whole contribution
 and its effects add no second row. An ability the page has no checkbox for gets
 a row under **Proficiencies & Powers**.
 
+A class power can stand in for one of those proficiencies: give its effect
+`flags.acks-extras.actsAs` naming the proficiency (`diplomacy`, `intimidation`,
+`seduction`, `mysticAura`) and it fills that checkbox under its own name. A
+character who has the power *and* the proficiency gets the box once, under the
+proficiency's name — they are one capability, and the book does not stack it
+with itself.
+
 ## Badged rows
 
 A row marked **unaudited** (amber, not red) is a mechanic that has not been read
