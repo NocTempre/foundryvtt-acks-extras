@@ -40,6 +40,12 @@ Any Active Effect keyed `flags.acks-extras.reaction` contributes, with its own
 This is shared with hiring: a reaction effect written here also feeds henchmen
 recruitment throws, so it is written once.
 
+An ability is counted once per page. Where the page already offers a proficiency
+as its own checkbox — Diplomacy, Intimidation, Seduction, Mystic Aura, and
+Performance on a seduction — that checkbox is the ability's whole contribution,
+and its effects add no second row. An ability the page has no checkbox for gets
+a row under **Proficiencies & Powers**.
+
 ## Badged rows
 
 A row marked **unaudited** (amber, not red) is a mechanic that has not been read

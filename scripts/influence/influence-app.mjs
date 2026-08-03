@@ -17,12 +17,14 @@ import {
   autoKeysByTone,
   classifyAlignment,
   computeDefaults,
+  effectRowsForPage,
   exclusivePeers,
   getActorHD,
   getActsAsPowers,
   getEffectReactionMods,
   getProficiencies,
   getTargetActor,
+  itemsWithProficiencyRows,
   monthlyWageForHD,
   resolveParties,
   toLibAlignment,
@@ -214,9 +216,15 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const subject = this.#mode?.subject === "target" ? this.#targetActor : this.#actor;
     // Two sources, one shape. Active Effects first — an item that carries one
     // has overridden whatever its abilities model says, so it claims that item.
+    // A third source is not an effect at all: a proficiency detected by name,
+    // whose static row already offers the same ability. That claim is made per
+    // page (below), because which proficiencies get a row differs by page, and
+    // always against `this.#actor` — the static rows read the roller's
+    // proficiencies (computeDefaults) even on a page whose effects are the
+    // subject's, so the roller's items are the ones that can speak twice.
     const aeMods = getEffectReactionMods(subject);
-    const claimed = itemsWithReactionEffects(subject);
-    const effectMods = [...aeMods, ...getAbilityReactionMods(subject, claimed)];
+    const aeClaimed = itemsWithReactionEffects(subject);
+    const effectMods = [...aeMods, ...getAbilityReactionMods(subject, aeClaimed)];
     const targetAlign = toLibAlignment(classifyAlignment(this.#targetActor?.system?.details?.alignment));
     const targetCats = this.#targetCategories();
     const config = {};
@@ -291,11 +299,13 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       }));
       // Only effects feeding THIS page's roll family. A hiring offer is a
       // reaction roll; a loyalty roll is not, so a Diplomacy bonus must not
-      // reach it while Inhumanity's loyalty change must.
+      // reach it while Inhumanity's loyalty change must. An external page has
+      // no tone of its own, hence none to gate on.
       const family = this.#mode.family ?? ROLL_FAMILY.REACTION;
-      // An external page has no tone, so a tone-scoped effect is undetermined
-      // here rather than excluded — it is offered, not asserted.
-      const forFamily = effectMods.filter((m) => m.family === family && m.appliesTo === "self");
+      const forFamily = effectRowsForPage(effectMods, {
+        family,
+        claimed: itemsWithProficiencyRows(this.#actor, groups),
+      });
       if (forFamily.length) {
         groups.push({ group: "ACKS-INFLUENCE.group.powers", mods: forFamily.map((m) => effectModRow(m, null)) });
       }
@@ -305,15 +315,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     }
     for (const tone of Object.values(INFLUENCE_TONE)) {
       const groups = INFLUENCE_MODIFIERS[tone].map((g) => ({ group: g.group, mods: g.mods }));
-      // Tone scoping is applied by scopeApplies, not by filtering the list:
-      // a mismatched tone must not silently vanish from a page the GM is
-      // looking at when they may still rule that it applies.
-      const forTone = effectMods.filter(
-        (m) =>
-          m.family === ROLL_FAMILY.REACTION &&
-          m.appliesTo === "self" &&
-          (!m.tones.length || m.tones.includes(tone)),
-      );
+      const forTone = effectRowsForPage(effectMods, {
+        family: ROLL_FAMILY.REACTION,
+        tone,
+        claimed: itemsWithProficiencyRows(this.#actor, groups),
+      });
       if (forTone.length) {
         groups.push({ group: "ACKS-INFLUENCE.group.powers", mods: forTone.map((m) => effectModRow(m, tone)) });
       }

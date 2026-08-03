@@ -29,6 +29,14 @@ Every modifier resolves from one of three sources:
 `ctx:<key>` sources read the caller's own context bag, which is the seam an
 external mode resolves against.
 
+**An ability counts once per page.** One proficiency can reach the roller by
+every route at once: its name fills a static `prof:` row, an Active Effect on it
+speaks, and its abilities-model effects speak. So each page settles which source
+speaks for an item — a static proficiency row wins over that item's effects, and
+an Active Effect wins over the same item's abilities model. The claim is made
+per page, because which proficiencies a page renders a row for differs by page;
+an ability the page offers nowhere else keeps its own row.
+
 ## Recipes, not rules
 
 The dialog **offers** modifiers; it does not assert them. Situational modifiers

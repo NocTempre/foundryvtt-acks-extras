@@ -7,6 +7,45 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A proficiency row wins over the same item's effects (2026-08-03)
+
+Hotfix 1.3.1. A character holding Diplomacy opened the roller at **+2**, and one
+holding Diplomacy and Mystic Aura at **+4**, where the book says +1 and +2.
+
+One ability reaches the roller by three routes: `PROFICIENCY_MATCHERS` detects
+it by name and fills a static checkbox, an Active Effect on it can speak, and
+the abilities effect model can speak. The dual-source reader (phase 4, 0.11.0)
+deduplicated the last two against each other and left the first out of it — and
+those were the two that collided, because an audited content import gives
+Diplomacy exactly the +1 its static row already offers, unconditional and
+non-situational, so both arrived pre-ticked.
+
+The static row wins, and the claim is settled per page:
+
+- It carries the mechanic somebody read against the page; the effect row may be
+  a machine draft.
+- The mutually exclusive tone set is modelled on those rows (`exclusive` in
+  `INFLUENCE_MODIFIERS`), so letting an effect row carry the bonus instead would
+  let all three tone proficiencies stack again on the hiring page — undoing that
+  rule by a route it cannot see.
+- Per page, because which proficiencies get a row differs by page: Performance
+  has one only on Seduction, and Beast Friendship, Folkways, Animal Husbandry
+  and Bribery have none anywhere. Claiming by matcher key would delete their
+  modifiers rather than deduplicate them — a silently missing bonus, which is
+  the worse failure of the two.
+
+Rejected: making the name match a fallback, the way the henchmen feature does it
+(`collectEffectModifiers` recovers a named proficiency only when the item
+carries no effect of its own). That is right where the name match has no other
+home, and wrong here, where exclusivity, the bewitched kicker and the bribe fee
+all hang off the static rows.
+
+Unchanged by this fix: the roller still does not infer tone from an ability's
+name. An effect declaring no `tones` is offered on every tone page, because tone
+scoping is the authored spec's to state and not the roller's to guess.
+
+---
+
 ### Sheet injectors gate on the document, never on `.actor` (2026-08-02)
 
 The header button and the Notes-tab Relationships section resolve their subject

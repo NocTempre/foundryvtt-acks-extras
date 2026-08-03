@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.1
+
+### Fixed
+- **A proficiency is worth what the page says, once.** A character with
+  Diplomacy opened the influence roller at +2, and one with Diplomacy and Mystic
+  Aura at +4: the proficiency's own checkbox and the same ability's imported
+  mechanics were both being counted. Each ability now speaks once per page —
+  through the checkbox that page offers — while an ability the page has no
+  checkbox for (Beast Friendship, Folkways, or Performance outside a seduction)
+  still brings a row of its own. The reaction to a hiring offer is fixed the
+  same way, so its ceiling is once again the +2 the book allows.
+
 ## 1.3.0
 
 ### Added

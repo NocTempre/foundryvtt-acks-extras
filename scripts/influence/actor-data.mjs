@@ -79,21 +79,66 @@ const PROFICIENCY_MATCHERS = Object.freeze({
 });
 
 /**
+ * The `ability` items backing each proficiency, as item ids — the one walk of
+ * PROFICIENCY_MATCHERS, so the name vocabulary is defined and applied once.
+ * @param {Actor|null} actor
+ * @param {Iterable<string>} [keys]  which proficiencies to look for
+ * @returns {Record<string, string[]>} proficiency key → matching item ids
+ */
+export function getProficiencyItems(actor, keys = Object.keys(PROFICIENCY_MATCHERS)) {
+  const found = {};
+  for (const key of keys) if (PROFICIENCY_MATCHERS[key]) found[key] = [];
+  if (!actor?.items) return found;
+  for (const item of actor.items) {
+    if (item.type !== "ability") continue;
+    const name = item.name ?? "";
+    for (const [key, ids] of Object.entries(found)) {
+      if (PROFICIENCY_MATCHERS[key].test(name)) ids.push(item.id);
+    }
+  }
+  return found;
+}
+
+/**
  * Detect which reaction-relevant proficiencies the actor possesses.
  * @returns {Record<string, boolean>}
  */
 export function getProficiencies(actor) {
   const found = {};
-  for (const key of Object.keys(PROFICIENCY_MATCHERS)) found[key] = false;
-  if (!actor?.items) return found;
-  for (const item of actor.items) {
-    if (item.type !== "ability") continue;
-    const name = item.name ?? "";
-    for (const [key, re] of Object.entries(PROFICIENCY_MATCHERS)) {
-      if (!found[key] && re.test(name)) found[key] = true;
+  for (const [key, ids] of Object.entries(getProficiencyItems(actor))) found[key] = ids.length > 0;
+  return found;
+}
+
+/**
+ * Item ids already spoken for by a static proficiency checkbox in `groups`.
+ *
+ * A proficiency detected by NAME fills its own row, so the same item's effect
+ * model must not add a second one: that is the ability counted twice. The
+ * static row wins — it carries the audited printed mechanic, and the
+ * mutually-exclusive tone set is modelled on those rows (`exclusive` in
+ * INFLUENCE_MODIFIERS), so moving the bonus onto an effect row would let all
+ * three tone proficiencies stack again.
+ *
+ * Read from the rows a page actually renders, never from the matcher list: a
+ * proficiency detected but not offered here (Beast Friendship and Folkways
+ * anywhere, Performance outside Seduction) has no other row to be counted in,
+ * and claiming it would silently drop the modifier rather than deduplicate it.
+ * Only a row that contributes to the throw claims — the bribe fee reads Bribery
+ * to price a bribe, which is not a modifier on the roll.
+ *
+ * @param {Actor|null} actor
+ * @param {Array} groups  the page's own modifier groups, before effect rows join them
+ * @returns {Set<string>}
+ */
+export function itemsWithProficiencyRows(actor, groups) {
+  const keys = [];
+  for (const group of groups ?? []) {
+    for (const mod of group.mods ?? []) {
+      if (mod.type === "check" && mod.auto?.startsWith("prof:")) keys.push(mod.auto.slice(5));
     }
   }
-  return found;
+  if (!keys.length) return new Set();
+  return new Set(Object.values(getProficiencyItems(actor, keys)).flat());
 }
 
 /**
@@ -280,7 +325,7 @@ export function exclusivePeers(groups, key) {
  * Scan an actor's active effects for social-roll modifiers (see
  * CHANGE_KEY_FAMILY). Returns a flat list carrying each change's roll family;
  * the app groups them per tone and filters them per page.
- * @returns {Array<{id:string,label:string,value:number,family:string,situational:boolean,tones:string[]}>}
+ * @returns {Array<{id:string,itemId:string|null,label:string,value:number,family:string,situational:boolean,tones:string[]}>}
  */
 export function getEffectReactionMods(actor) {
   if (!actor) return [];
@@ -295,6 +340,10 @@ export function getEffectReactionMods(actor) {
       idx++;
       continue;
     }
+    // The item this effect rides, which is the unit a claim is made against
+    // (see itemsWithProficiencyRows). An effect written straight onto the actor
+    // has no item and so is nobody's second voice.
+    const itemId = effect.parent?.documentName === "Item" ? effect.parent.id : null;
     let ci = 0;
     for (const change of effect.changes ?? []) {
       // Which family of 2d6 social roll this change feeds (reaction/loyalty/
@@ -319,6 +368,7 @@ export function getEffectReactionMods(actor) {
           const gated = f.alignmentOnly ? String(f.alignmentOnly).toLowerCase() : null;
           out.push({
             id: `eff:${effect.id ?? idx}:${ci}`,
+            itemId,
             label: f.label || effect.name || "Effect",
             value,
             family,
@@ -343,6 +393,34 @@ export function getEffectReactionMods(actor) {
     idx++;
   }
   return out;
+}
+
+/**
+ * The effect-sourced rows one page offers, from the whole set an actor supplies.
+ *
+ * Four gates, and the order they are stated in is the order they are argued:
+ * the page's roll family (a Diplomacy bonus is not a loyalty modifier), whose
+ * roll it modifies, whether a static proficiency row on this page already
+ * offers the same item (see itemsWithProficiencyRows), and finally the tone.
+ *
+ * A page with no tone of its own passes `tone: null`, which leaves a
+ * tone-scoped row undetermined rather than excluded — it is offered, not
+ * asserted. Tone MISmatch on a page that has one is likewise a filter here and
+ * not in scopeApplies: a mismatched row must not silently vanish from a page
+ * the GM is looking at when they may still rule that it applies.
+ *
+ * @param {Array} mods  rows in the shared modifier shape
+ * @param {{family:string, tone?:string|null, claimed?:Set<string>}} page
+ * @returns {Array}
+ */
+export function effectRowsForPage(mods, { family, tone = null, claimed = new Set() }) {
+  return mods.filter(
+    (m) =>
+      m.family === family &&
+      m.appliesTo === "self" &&
+      !claimed.has(m.itemId) &&
+      (!tone || !m.tones.length || m.tones.includes(tone)),
+  );
 }
 
 /**

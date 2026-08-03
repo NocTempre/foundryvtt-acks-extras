@@ -311,6 +311,11 @@ exposure, and there is no reason to retract the published `v0.9.1` asset.
   Aura, Performance — all match the existing regexes. Detection is not a
   migration risk; *effects* are.
 
+  > **Correction (2026-08-03):** detection surviving intact is exactly what made
+  > it a risk — a detected proficiency and its imported effects both applied,
+  > and every audited entry above opened the roller at double its printed bonus.
+  > Fixed in 1.3.1; the ruling is in [../DECISIONS.md](../DECISIONS.md).
+
 ---
 
 ## 7. Recommended sequencing

@@ -72,6 +72,7 @@ export function getAbilityReactionMods(actor, skipItemIds = new Set()) {
 
       out.push({
         id: `abil:${item.id}:${i}`,
+        itemId: item.id,
         label: item.name || "Ability",
         value,
         family: effect.target,
@@ -122,8 +123,9 @@ export function itemsWithReactionEffects(actor) {
     if (effect.disabled) continue;
     const social = (effect.changes ?? []).some((c) => Object.hasOwn(CHANGE_KEY_FAMILY, String(c.key ?? "")));
     if (!social) continue;
-    const parentId = effect.parent?.id;
-    if (parentId) ids.add(parentId);
+    // Only an effect riding an item claims one; an effect written straight onto
+    // the actor has no item, and its parent's id is the actor's.
+    if (effect.parent?.documentName === "Item") ids.add(effect.parent.id);
   }
   return ids;
 }
