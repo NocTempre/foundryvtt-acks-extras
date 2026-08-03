@@ -25,11 +25,11 @@ import { getLoadout, cycleGrip } from "./loadout.mjs";
 import {
   prepareTorch, rollUnarmed, setMasterwork, masterworkTiersFor, drawItem, sheatheItem,
   scavengeItem, clearScavenged, setScavengedRow, scavengedOptions, setShieldVariant, SHIELD_VARIANT_KEYS,
-  setGearSlots, setGearAccess, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
+  setGearSlots, setGearAccess, setGearCapacity, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
 } from "./actions.mjs";
 import { masterworkTierOf, scavengedOf, layerSummary } from "./properties.mjs";
 import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
-import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable } from "../lib/item-model.mjs";
+import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf } from "../lib/item-model.mjs";
 import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity } from "../lib/vocab.mjs";
 import { cycleStrap, strapOf, variantOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
 import { overlayEnabled as scavengedOverlayEnabled, tableFor } from "./overlays/scavenged.mjs";
@@ -799,8 +799,20 @@ export function buildConstructionPanel(item) {
     }
   }
 
-  // RETRIEVAL COST — containers only. Drawing from rigging is free; opening a
-  // pack is an action (RR pp. 293-294).
+  // CAPACITY — on ANY gear, not only on things called containers. A coat with
+  // hidden pockets holds a dagger; whether it does is a ruling about that coat,
+  // so it is set here rather than guessed from a name. Blank = holds nothing.
+  const capBox = el("input", "acks-equipment-props__input");
+  capBox.type = "number";
+  capBox.min = "0";
+  capBox.step = "0.5";
+  capBox.placeholder = game.i18n.localize("ACKS-EQUIPMENT.props.capacityNone");
+  const cap = capacityOf(item);
+  capBox.value = cap === null ? "" : String(cap);
+  onChange(capBox, () => setGearCapacity(item, capBox.value));
+  row("ACKS-EQUIPMENT.props.capacity", capBox);
+
+  // RETRIEVAL COST — only meaningful once something can be inside it.
   if (isContainer(item)) {
     row("ACKS-EQUIPMENT.props.access", select(
       [{ value: SLOT_AUTO, label: game.i18n.localize("ACKS-EQUIPMENT.props.accessUnset") },

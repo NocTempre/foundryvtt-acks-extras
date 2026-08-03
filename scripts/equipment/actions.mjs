@@ -161,6 +161,24 @@ export async function setGearAccess(item, value) {
 }
 
 /**
+ * Declare how much this holds, in stone.
+ *
+ * Blank clears it back to "holds nothing" — distinct from 0, which is a
+ * container whose size nobody has stated and which therefore never warns.
+ * Any gear may be given one: a coat with hidden pockets holds a dagger, and
+ * whether it does is a Judge's call about that coat rather than something a
+ * name can be read for.
+ */
+export async function setGearCapacity(item, value) {
+  if (!item) return false;
+  const raw = String(value ?? "").trim();
+  const capacity = raw === "" ? null : Math.max(0, Number(raw));
+  if (raw !== "" && !Number.isFinite(capacity)) return false;
+  await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.capacity`]: capacity });
+  return true;
+}
+
+/**
  * Wear or remove a piece of gear that core cannot equip.
  *
  * Routed through acks-lib's `setWorn`, which writes whichever store the item's

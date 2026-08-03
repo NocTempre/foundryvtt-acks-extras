@@ -170,3 +170,24 @@ sheet's Construction tab carries the correction.
 two flags would create the duplication rather than remove it — and `layer` has a
 single reader and no second copy to collapse. Neither move would have removed a
 duplicate; both would have cost a data migration.
+
+### Capacity belongs to gear, not to containers (2026-08-03)
+
+Capacity was deferred out of `GearExtras` a day earlier on the grounds that it
+belonged with `locked`/`fragile` in the container record. **That was wrong, and
+the reason it was wrong is instructive:** it treated "container" as a kind of
+thing rather than as a thing that happens to hold something. Under that model a
+coat could carry magical qualities and hidden pockets in its description, and
+carry nothing in the fixture — because the module had not annotated it as a
+carrying device, and only carrying devices could have a capacity.
+
+Capacity now lives on the gear model and `holdsGear` derives container identity
+from it. The container record keeps only the lock's state, which is genuinely
+about being a container. Read order is new home then legacy, so 1.2.0 worlds
+need no migration.
+
+Owner, same day: **encumbrance is a special case of capacity** — mounts, wagons,
+crates and the hands of a team lifting a body all ask the same question, so a
+container function is the wrong home going forward. That refactor is a major
+release and is scoped in [../ROADMAP.md](../ROADMAP.md); this entry records only
+the move off the container record.

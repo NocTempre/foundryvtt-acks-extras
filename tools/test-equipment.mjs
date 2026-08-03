@@ -595,6 +595,27 @@ check("the harness rides the belt and is free to reach (RR pp293-294)", inferGea
 check("a backpack rides the back and costs an action to open", inferGear(goods("Backpack (holds 4 stone)")).slots.join() === "back" && inferGear(goods("Backpack (holds 4 stone)")).access === "action");
 check("a belt pouch and a quiver are free; a sack is not", inferGear(goods("Pouch/Purse (holds 1/2 stone)")).access === "free" && inferGear(goods("Quiver, 20 Arrows")).access === "free" && inferGear(goods("Sack, Small (holds 2 stone)")).access === "action");
 check("a barrel holds things but is worn nowhere", inferGear(goods("Barrel (20 gallon)")).slots.length === 0 && gearProfileFor("Barrel (20 gallon)").capacity === 15);
+check("inference carries capacity, so annotate has one home to write", inferGear(goods("Backpack (holds 4 stone)")).capacity === 4 && inferGear(goods("Rope, 50'")).capacity === null);
+// A garment gets NO capacity guessed for it: whether a coat has usable pockets
+// is a ruling about that coat, not something its name can be read for.
+check("no capacity is invented for a garment", inferGear(clothing("Cloak, Silk, Hooded")).capacity === null);
+
+// Capacity is a property of gear, so a coat with hidden pockets is a container
+// exactly as a sack is — which is the whole point of moving it off the
+// container record.
+const { capacityStone } = await import(new URL("containers.mjs", S));
+const { encumbering6 } = await import(new URL("../lib/item-model.mjs", S));
+const pocketCoat = gear("Coat, Travelling", 1, { id: "coat", subtype: "clothing", flags: { gear: { slots: ["worn"], wornAt: "worn", capacity: 0.5 } } });
+const hiddenBlade = gear("Knife", 1, { id: "kn", flags: { containedIn: "coat" } });
+const coatActor = withItems([pocketCoat, hiddenBlade]);
+check("a coat with pockets is a container", isContainer(pocketCoat) === true);
+check("...with a real capacity", capacityStone(pocketCoat) === 0.5);
+check("...and reports its load", contentsWeight6(coatActor, "coat") === 1);
+// The garment itself is weightless to core (clothing is excluded from
+// encumbrance) but WHAT IS IN IT is not — contents are ordinary items on the
+// actor, so acks-formation keeps reading a load that includes them.
+check("gear in a pocket still weighs on the carrier", encumbering6(hiddenBlade) === 1 && encumbering6(pocketCoat) === 0);
+check("a plain garment is still not a container", isContainer(gear("Chiton", 1, { id: "ch", subtype: "clothing" })) === false);
 check("garments land on the body part they name", inferGear(clothing("Cloak, Silk, Hooded")).slots.join() === "shoulders" && inferGear(clothing("Boots, Leather, High")).slots.join() === "feet" && inferGear(clothing("Gloves, Leather or Wool, Long")).slots.join() === "hands" && inferGear(clothing("Belt/Sash, Leather")).slots.join() === "belt" && inferGear(clothing("Skullcap")).slots.join() === "head");
 check("unpatterned clothing is simply worn", inferGear(clothing("Chiton, Linen or Wool")).slots.join() === "worn" && inferGear(clothing("Loincloth")).slots.join() === "worn");
 check("cloth sold by the pound is goods, not a garment", inferGear(clothing("Linen, Cheap (1 lb)")).slots.length === 0 && inferGear(clothing("Silk (1 lb)")).slots.length === 0);
@@ -885,6 +906,7 @@ check("containerChain terminates on a cycle", containerChain(withItems([loopA, l
 let stored = null;
 const wornCloak = { ...gear("Cloak", 1, { id: "cl", wornAt: "shoulders" }), update: async (u) => { stored = u; } };
 const stowActor = withItems([pack, wornCloak]);
+check("a coat with pockets accepts gear", canStore(coatActor, hiddenBlade, pocketCoat).ok === true);
 check("storeIn refuses a non-container target", (await storeIn(stowActor, wornCloak, torch)) === false);
 check("storeIn stows the item", (await storeIn(stowActor, wornCloak, pack)) === true);
 check("storeIn writes the containedIn flag", stored?.["flags.acks-extras.containedIn"] === "bp");

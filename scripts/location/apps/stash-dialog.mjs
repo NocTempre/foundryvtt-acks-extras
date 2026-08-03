@@ -16,8 +16,9 @@ const esc = (text) => foundry.utils.escapeHTML(String(text ?? ""));
 /** Worth offering: things, and coin (which the system does not call "physical"). */
 const stowable = (actor) => actor.items.filter((i) => !!globalThis.acksExtras?.lib.itemModel.isGoods(i));
 
-/** Is this one of acks-equipment's containers? Read the documented flag, never import. */
-const isContainer = (item) => !!item.getFlag?.("acks-extras", "container");
+/** Can gear go inside this? acks-lib owns the answer, so a coat with hidden
+ * pockets counts as much as a sack does. */
+const isContainer = (item) => !!globalThis.acksExtras?.lib.places.isContainerItem(item);
 
 function rowHTML(item) {
   const qty = storage().quantityOf(item.toObject())?.value ?? null;

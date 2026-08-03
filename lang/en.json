@@ -484,7 +484,9 @@
       "slotNone": "Carried — worn nowhere",
       "slotCapacity": "A character can wear {n} at {slot} (Treasure Tome: no two of the same).",
       "access": "Retrieve from it",
-      "accessUnset": "Unset"
+      "accessUnset": "Unset",
+      "capacity": "Holds (stone)",
+      "capacityNone": "nothing"
     },
     "access": {
       "free": "Free",

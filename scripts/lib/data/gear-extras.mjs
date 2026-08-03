@@ -39,7 +39,7 @@ export default class GearExtras extends foundry.abstract.DataModel {
   static ARRAY_PATHS = ["slots"];
 
   static defineSchema() {
-    const { ArrayField, StringField } = foundry.data.fields;
+    const { ArrayField, NumberField, StringField } = foundry.data.fields;
     return {
       // The slots this item MAY occupy. Empty ⇒ plain goods.
       //
@@ -53,6 +53,16 @@ export default class GearExtras extends foundry.abstract.DataModel {
       // Retrieval cost for what this container holds. Blank on anything that is
       // not a container: an item you are wearing is not "retrieved" at all.
       access: new StringField({ required: false, blank: true, initial: "", choices: choicesOf(ACCESS_COSTS) }),
+      // How much this holds, in STONE. `null` is "holds nothing" — distinct
+      // from 0, which is a container of unstated size (RAW capacity is a
+      // warning, not a limit, so an unstated one simply never warns).
+      //
+      // Capacity lives HERE rather than on the container record because it is
+      // not the exclusive property of things called containers: a coat with
+      // hidden pockets, a bandolier and a saddle all hold gear, and gating the
+      // concept on "is this a recognised carrying device" made every one of
+      // them unable to hold anything at all.
+      capacity: new NumberField({ required: false, nullable: true, initial: null, min: 0 }),
     };
   }
 

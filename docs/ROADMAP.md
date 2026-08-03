@@ -80,3 +80,25 @@ folded in as a modifier on the roller.
 richer seams — lair chance, supply cost, battle rating — are documented in
 `group-data.mjs` and deliberately unread, waiting on the domain work that would
 give them somewhere to be spent.
+
+---
+
+## Capacity is one concept, still answered in four places
+
+`lib/item-model.mjs` `capacityOf` (1.2.1) made capacity a property of gear rather
+than of the equipment feature's container record. It is the same question asked
+everywhere else, and the rest has not been collapsed yet:
+
+| Who asks | What it reads today |
+|---|---|
+| an item | `gear.capacity` — the one that moved |
+| a character | core's `system.encumbrance.max` (`20 + STR mod`, or the GM's `forcemax`) |
+| a monster or mount | the monster extras model's `load.normal` / `load.capacity` (MM p. 13) |
+| a party carrying a body | `formation-model.mjs` `carriedLoad`, which **re-derives `20 + STR mod` inline** and so ignores a forced maximum a GM has set |
+
+**Encumbrance is capacity applied to an actor** (owner, 2026-08-03), and mounts,
+wagons, crates and the hands of a team lifting a body all ask it the same way.
+One primitive over any document — `capacityStone` / `loadStone` / `overCapacity`
+— replaces all four, and the formation bug disappears as a consequence rather
+than as a separate fix. Scheduled as a major release: it moves the load model
+that monster and party sheets read.

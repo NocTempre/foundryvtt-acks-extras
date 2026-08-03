@@ -37,6 +37,7 @@
  * place actually being looked at.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { holdsGear } from "./item-model.mjs";
 import { isProvider, storedItems, storageFlagOf, STORAGE_KEY } from "./storage.mjs";
 import {
   LIB_ID,
@@ -108,9 +109,16 @@ const CONTAINED_IN = "containedIn";
 /** Is this actor our location sub-type? */
 export const isLocation = (doc) => doc?.documentName === "Actor" && doc?.type === LOCATION_TYPE;
 
-/** Is this item one of acks-equipment's containers? */
+/**
+ * Is this item something gear can go inside?
+ *
+ * Either ground: a declared capacity — which any gear may have, a coat with
+ * hidden pockets as much as a sack — or a container state record for one a
+ * Judge made by hand and gave a lock but no stated size. Reading only the
+ * record made a place out of the second and not the first.
+ */
 export const isContainerItem = (doc) =>
-  doc?.documentName === "Item" && !!doc?.getFlag?.(MODULE_ID, CONTAINER_FLAG);
+  doc?.documentName === "Item" && (holdsGear(doc) || !!doc?.getFlag?.(MODULE_ID, CONTAINER_FLAG));
 
 /** Any document that can hold things: a location, a provider actor, a container. */
 export const isPlace = (doc) => isLocation(doc) || isContainerItem(doc) || isProvider(doc);

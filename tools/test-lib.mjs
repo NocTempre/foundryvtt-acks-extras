@@ -47,7 +47,9 @@ import {
 import { emittedLight } from "../scripts/lib/light.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import {
+  capacityOf,
   declaresSlots,
+  holdsGear,
   isGoods,
   isStowable,
   isWearable,
@@ -1233,6 +1235,33 @@ t("isWorn reads whichever store the type uses", () => {
   const cloak = mkItem("item", physical(), { slots: ["shoulders"], wornAt: "shoulders" });
   assert.equal(isWorn(cloak), true);
   assert.equal(isWorn(mkItem("item", physical(), { slots: ["shoulders"] })), false);
+});
+
+t("capacity: any gear may hold things, not only recognised containers", () => {
+  // A coat with hidden pockets. Capacity lived inside the container record, so
+  // only items annotated as carrying devices could have one at all.
+  const coat = mkItem("item", { ...physical(), subtype: "clothing" }, { slots: ["worn"], capacity: 0.5 });
+  assert.equal(capacityOf(coat), 0.5);
+  assert.equal(holdsGear(coat), true);
+  // Nothing stated is null, and null is not 0: 0 is a container of unstated
+  // size, which never warns, while null holds nothing at all.
+  const rock = mkItem("item", physical());
+  assert.equal(capacityOf(rock), null);
+  assert.equal(holdsGear(rock), false);
+  const vague = mkItem("item", physical(), { capacity: 0 });
+  assert.equal(capacityOf(vague), 0);
+  assert.equal(holdsGear(vague), true);
+});
+
+t("capacity: worlds annotated before the concept moved still answer", () => {
+  // The legacy home was `flags.acks-extras.container.capacity`. Reading it as a
+  // fallback is what makes this a hotfix rather than a migration.
+  const legacy = { type: "item", system: physical(), flags: { "acks-extras": { container: { capacity: 4 } } } };
+  assert.equal(capacityOf(legacy), 4);
+  assert.equal(holdsGear(legacy), true);
+  // The new home wins where both exist.
+  const both = { type: "item", system: physical(), flags: { "acks-extras": { container: { capacity: 4 }, gear: { capacity: 2 } } } };
+  assert.equal(capacityOf(both), 2);
 });
 
 t("declaresSlots: 'nowhere' and 'never annotated' are different answers", () => {

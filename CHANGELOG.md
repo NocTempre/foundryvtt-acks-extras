@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.1
+
+### Fixed
+- **Capacity is a property of gear, not of a category called containers.** It
+  lived inside the container record, so only items the module recognised as
+  carrying devices could hold anything at all — which meant a coat could carry
+  magical qualities but not a dagger. Any item may now be given a capacity, on
+  its Construction tab, and anything with one is a container: a coat with hidden
+  pockets accepts gear exactly as a sack does.
+- Gear stowed in a garment still weighs on the carrier. The garment itself stays
+  weightless, as the system has always had it, but its contents are ordinary
+  items and count — so exploration speed and encumbrance read the same load they
+  would if the dagger were loose in a pack.
+- The stash dialog and the places model both asked whether an item carried a
+  container record rather than whether gear could go inside it, so a coat with
+  pockets was not offered as somewhere to put anything. Both now read one answer.
+- Worlds annotated under 1.2.0 keep working: capacity is read from its new home
+  first and the old one second, so there is nothing to migrate.
+
 ## 1.2.0
 
 ### Added

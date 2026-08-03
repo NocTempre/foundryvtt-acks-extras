@@ -68,32 +68,42 @@ export function isHelmet(item) {
  * not gear you wear, and they get the wear features switched off by declaring
  * nowhere to go.
  *
- * @returns {{slots: string[], access: string}} `access` is blank unless the item
- *   holds something.
+ * @returns {{slots: string[], access: string, capacity: number|null}} `access` is
+ *   blank and `capacity` null unless the item holds something.
  */
 export function inferGear(item) {
-  const none = { slots: [], access: "" };
+  const none = { slots: [], access: "", capacity: null };
   if (!item) return none;
 
   const profile = gearProfileFor(item.name ?? "");
-  if (profile) return { slots: [...(profile.slots ?? [])], access: profile.access ?? "" };
+  if (profile) {
+    return {
+      slots: [...(profile.slots ?? [])],
+      access: profile.access ?? "",
+      capacity: profile.capacity ?? null,
+    };
+  }
 
   if (item.type === "armor") {
     // A shield is the one piece of gear with a real choice of place: in the
     // hand, or slung (JJ variants). Both are declared; the wearer picks.
-    if (isShield(item)) return { slots: [SLOT.offHand, SLOT.strapped], access: "" };
-    return { slots: [isHelmet(item) ? SLOT.head : SLOT.body], access: "" };
+    if (isShield(item)) return { ...none, slots: [SLOT.offHand, SLOT.strapped] };
+    return { ...none, slots: [isHelmet(item) ? SLOT.head : SLOT.body] };
   }
 
-  if (item.type === "weapon") return { slots: [SLOT.mainHand, SLOT.offHand, SLOT.bothHands], access: "" };
+  if (item.type === "weapon") return { ...none, slots: [SLOT.mainHand, SLOT.offHand, SLOT.bothHands] };
 
   for (const { re, slots } of CLOTHING_SLOT_PATTERNS) {
-    if (re.test(item.name ?? "")) return { slots: [...slots], access: "" };
+    if (re.test(item.name ?? "")) return { ...none, slots: [...slots] };
   }
 
   // Clothing the patterns did not name is still worn — a chiton, a cassock, a
   // loincloth. `worn` is uncapped, so guessing it costs nothing.
-  if (isClothing(item)) return { slots: [SLOT.worn], access: "" };
+  //
+  // NO CAPACITY IS INVENTED for a garment. Whether a coat has pockets deep
+  // enough to matter is a Judge's call about that coat, not something a name
+  // can be read for, so it is set on the item rather than guessed here.
+  if (isClothing(item)) return { ...none, slots: [SLOT.worn] };
 
   return none;
 }

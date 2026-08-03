@@ -36,19 +36,36 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // wanted instead (harness heavy-check, shield baseline), which do NOT go
 // through it. `isStowable` is where coin's missing cost/weight6 is reconciled:
 // coin is goods without being physical, so asking `isPhysical` here loses it.
-import { weight6Of, isStowable, isWorn, isClothing, gearOf, STONE } from "../lib/item-model.mjs";
+import { weight6Of, isStowable, isWorn, isClothing, gearOf, capacityOf, holdsGear, STONE } from "../lib/item-model.mjs";
 
 
-/** Container spec on an item: flags.acks-extras.container = {capacity, …}. */
+/**
+ * The container STATE record on an item: `flags.acks-extras.container` —
+ * `{locked, opened, concealed, fragile, lockMod}`.
+ *
+ * Capacity is NOT here. It is a property of gear (acks-lib `capacityOf`), not
+ * of a category called containers: a coat with hidden pockets and a bandolier
+ * hold gear without being carrying devices, and while capacity lived in this
+ * record only the items annotated as devices could have one.
+ */
 export function containerOf(item) {
   return item?.getFlag?.(MODULE_ID, ITEM_FLAGS.CONTAINER) ?? null;
 }
+
+/**
+ * Can gear go inside this?
+ *
+ * Either ground counts: a declared capacity (any gear at all — the coat with
+ * pockets), or a container state record (a chest a Judge made by hand and gave
+ * a lock but no stated size).
+ */
 export function isContainer(item) {
-  return !!containerOf(item);
+  return holdsGear(item) || !!containerOf(item);
 }
-/** Declared capacity in stone (0 = unlimited/unspecified). */
+
+/** Declared capacity in stone (0 = a container of unstated size, which never warns). */
 export function capacityStone(item) {
-  return Number(containerOf(item)?.capacity ?? 0);
+  return capacityOf(item) ?? 0;
 }
 
 /* -------------------------------------------------------------------------- */

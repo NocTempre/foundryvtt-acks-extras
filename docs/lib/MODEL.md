@@ -139,6 +139,27 @@ the system adds a type this library never heard of.
 | Can it be worn? | `isWearable` | core's `equipped` field OR a declared slot |
 | Is it worn now? | `isWorn` | **two stores, one question** |
 | Where? | `wornSlotOf` / `setWorn` | ditto |
+| How much does it hold? | `capacityOf` / `holdsGear` | capacity belongs to gear, not to a category — see below |
+
+### Capacity
+
+`capacityOf(item)` is stone, or `null` for "holds nothing". It reads
+`gear.capacity` first and the legacy `container.capacity` second, so worlds
+annotated before the concept moved answer correctly with nothing to migrate.
+
+**It is not a container property.** While capacity lived inside the equipment
+feature's container record, only items that feature recognised as carrying
+devices could have one — so a coat with hidden pockets, a bandolier and a saddle
+could hold nothing, and "is this a container" and "does this hold anything" were
+the same question by accident. Anything that can be given a capacity is a place
+gear can go.
+
+0 is a real answer distinct from `null`: a container of unstated size. RAW
+capacity is a warning rather than a limit, so an unstated one never warns.
+
+> Encumbrance is the same question asked of an actor, and mounts, wagons and a
+> team lifting a body all ask it too. Unifying those is
+> [ROADMAP.md](../ROADMAP.md) work, not done here.
 
 ### Two stores, and why nothing outside this file knows
 

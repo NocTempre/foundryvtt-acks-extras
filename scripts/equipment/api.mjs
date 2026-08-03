@@ -87,18 +87,26 @@ export async function annotateItem(item) {
 
   const profile = CONFIG_DATA.gearProfileFor(item.name ?? "");
   if (profile) {
-    if (profile.capacity) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINER}`] = { capacity: profile.capacity };
     if (profile.harness) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.HARNESS}`] = true;
     if (profile.bowquiver) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.BOWQUIVER}`] = true;
-    key ??= "container";
+    if (profile.capacity != null) key ??= "container";
   }
 
-  // Where it sits. Only stamped when there is something to say, so annotating a
-  // sack of rations does not litter it with an empty model.
+  // Where it sits, what it costs to reach into, and how much it holds. Only
+  // stamped when there is something to say, so annotating a sack of rations
+  // does not litter it with an empty model.
+  //
+  // Capacity is written HERE, not into the container record: it is a property
+  // of gear rather than of a category, which is what lets a Judge give a coat
+  // hidden pockets. The container record keeps only the lock's state.
   const gear = inferGear(item);
-  if (gear.slots.length || gear.access) {
-    updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = { slots: gear.slots, access: gear.access };
-    key ??= "gear";
+  if (gear.slots.length || gear.access || gear.capacity != null) {
+    updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = {
+      slots: gear.slots,
+      access: gear.access,
+      capacity: gear.capacity,
+    };
+    key ??= gear.capacity != null ? "container" : "gear";
   }
 
   if (!Object.keys(updates).length) return null;

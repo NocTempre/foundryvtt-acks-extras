@@ -266,6 +266,37 @@ export async function setWorn(item, slot = null) {
   return true;
 }
 
+/* -------------------------------------------- */
+/*  Capacity — what a thing can hold             */
+/* -------------------------------------------- */
+
+/**
+ * How much this item holds, in STONE, or `null` for "holds nothing".
+ *
+ * Capacity is a property of GEAR, not of a category called containers. A coat
+ * with hidden pockets, a bandolier, a saddle and a sack all hold things, and
+ * while the concept lived inside the equipment feature's container record only
+ * the items it recognised as carrying devices could have one — which is why
+ * clothing could carry magical qualities but not a dagger.
+ *
+ * Reads the gear model first and the legacy container record second, so worlds
+ * annotated before the concept moved keep answering correctly with nothing to
+ * migrate.
+ *
+ * 0 is a real answer, distinct from null: a container of unstated size. RAW
+ * capacity is a warning rather than a limit, so an unstated one simply never
+ * warns.
+ */
+export function capacityOf(item) {
+  const declared = gearOf(item).capacity;
+  if (Number.isFinite(declared)) return Number(declared);
+  const legacy = item?.getFlag?.(MODULE_ID, "container")?.capacity ?? item?.flags?.[MODULE_ID]?.container?.capacity;
+  return Number.isFinite(legacy) ? Number(legacy) : null;
+}
+
+/** Can gear be put inside this at all? */
+export const holdsGear = (item) => capacityOf(item) !== null;
+
 /**
  * Everything the actor has in a given slot. The basis of the exclusivity check:
  * a slot holds `slotCapacity(slot)` items and no more.
