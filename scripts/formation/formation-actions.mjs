@@ -23,6 +23,9 @@ import {
 } from "./map-items.mjs";
 import { rollPartyCheck } from "./party-rolls.mjs";
 import { requestPartyAction } from "./player-requests.mjs";
+import { announce } from "./announce.mjs";
+import { toggleDetachMember } from "./deployment.mjs";
+import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
 import {
   addLight,
@@ -45,6 +48,8 @@ import {
  * controls hidden from players). Handlers run with `this` = the application,
  * which must expose a `formation` getter, `render()`, and `element`.
  */
+
+const loc = makeLoc("ACKS-FORMATION");
 
 function gmFormation(app) {
   const formation = app.formation;
@@ -143,6 +148,28 @@ export const SHARED_ACTIONS = {
     }
     if (!actorId || !ownsActor(actorId)) return;
     await requestPartyAction(formation.id, "role", { actorId, role });
+  },
+
+  /**
+   * Step out of the party token, or step back in. The GM moves anyone; a player
+   * moves their own character, which is the point — scouting ahead is a thing
+   * you decide to do, not a thing you ask permission for.
+   */
+  async toggleDetach(event, target) {
+    const formation = this.formation;
+    if (!formation) return;
+    const actorId = target.closest("[data-actor-id]")?.dataset.actorId;
+    if (game.user.isGM) {
+      const result = await toggleDetachMember(formation, actorId);
+      if (result) {
+        const name = game.actors.get(actorId)?.name ?? "";
+        await announce(formation, loc(`chat.${result}`, { name }));
+      }
+      this.render();
+      return;
+    }
+    if (!actorId || !ownsActor(actorId)) return;
+    await requestPartyAction(formation.id, "detach", { actorId });
   },
 
   /** Skill audit: how every party roll resolves per member; custom-skill flags. */

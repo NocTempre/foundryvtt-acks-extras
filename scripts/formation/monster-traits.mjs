@@ -1,66 +1,13 @@
-/* global foundry */
-
 /**
- * Reads the structured stat block written by the Full Monster Sheet (the
- * monsters feature) so the formation applies a creature's real vision modes,
- * senses, and movement instead of human defaults.
+ * The parts of a Full Monster Sheet stat block the FORMATION needs — currently
+ * just exploration pace, so a monster party member marches at its own speed
+ * rather than a human default.
  *
- * The data lives in `actor.flags["acks-extras"].extras` (typed there by a
- * `MonsterExtras` DataModel). We read the raw flag directly rather than through
- * the monsters API, so this stays independent of feature load order — a monster
- * without the extended sheet simply reports nothing and the caller falls back
- * to the generic heuristics. Nothing here writes to the flag or the core
- * engine.
+ * Senses moved to `lib/senses.mjs`: standalone actors and token vision ask the
+ * same questions, and lib is the deepest level at which they are all true.
  */
 
-const MONSTERS_ID = "acks-extras";
-const FLAG_EXTRAS = "extras";
-
-/**
- * Vision modes that let a creature move in TOTAL darkness (ACKS Monstrous
- * Manual, Overview pp. 12–13):
- *   - lightless: sight in darkness to a range, counts as dim light;
- *   - blind: never relies on light (navigates by other senses).
- * Night Vision is deliberately excluded — it upgrades dim light but does
- * NOT function in total dark, so it must not be treated as dark sight.
- */
-const DARK_VISION = new Set(["lightless", "blind"]);
-
-/**
- * Non-visual senses that substitute for sight in darkness (their "sight"
- * counts as dim light, MM p. 13): echolocation and the mechanoreception
- * family. Acute hearing/olfaction only aid surprise, so they do NOT count.
- */
-const DARK_SENSES = new Set(["echolocation", "mechAerial", "mechAquatic", "mechTerrestrial", "mechWebbed"]);
-
-/** The monster's extended stat block, or null if it has no Full Monster Sheet. */
-export function getMonsterExtras(actor) {
-  const extras = actor?.getFlag?.(MONSTERS_ID, FLAG_EXTRAS);
-  return extras && typeof extras === "object" && !foundry.utils.isEmpty(extras) ? extras : null;
-}
-
-/** True if the actor carries any structured senses/vision or speed data. */
-function hasSenseData(extras) {
-  return Array.from(extras.vision ?? []).length > 0 || (extras.otherSenses ?? []).length > 0;
-}
-
-/**
- * Whether a monster can operate in total darkness, read from its vision modes
- * and special senses. Returns:
- *   - true / false when the stat block records vision or senses (authoritative);
- *   - null when there is nothing to read, so the caller keeps its own heuristic.
- */
-export function monsterSeesInDark(actor) {
-  const extras = getMonsterExtras(actor);
-  if (!extras || !hasSenseData(extras)) return null;
-  for (const mode of Array.from(extras.vision ?? [])) {
-    if (DARK_VISION.has(mode)) return true;
-  }
-  for (const sense of extras.otherSenses ?? []) {
-    if (DARK_SENSES.has(sense?.type)) return true;
-  }
-  return false;
-}
+import { getMonsterExtras } from "../lib/senses.mjs";
 
 /**
  * A monster's dungeon exploration speed (feet/turn), read from its Speed table.

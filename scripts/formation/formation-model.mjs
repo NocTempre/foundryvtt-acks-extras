@@ -1,10 +1,8 @@
 /* global game, foundry, ui, Actor, CONST */
-import { BODY_STONE, DARK_SENSE_PATTERN, DEFAULT_PARTY_IMAGE, FLAG_FORMATION_ID, MODULE_ID, POLE_ITEM_PATTERN, ROLES } from "./constants.mjs";
+import { BODY_STONE, DEFAULT_PARTY_IMAGE, FLAG_FORMATION_ID, MODULE_ID, POLE_ITEM_PATTERN, ROLES } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
-import { monsterExplorationSpeed, monsterSeesInDark } from "./monster-traits.mjs";
-
-/** Sight without light, as a capability (acks-lib token, see ability-bridge). */
-const CAP_LIGHTLESS = "kw:lightlessvision";
+import { monsterExplorationSpeed } from "./monster-traits.mjs";
+import { canSeeInDark } from "../lib/senses.mjs";
 
 /** World-setting key holding all formation records, keyed by formation id. */
 export const SETTING_FORMATIONS = "formations";
@@ -70,6 +68,28 @@ export function heldLightCount(actorId) {
     }
   }
   return n;
+}
+
+/**
+ * Every light this actor carries as a formation member, or **null** when they
+ * belong to no formation.
+ *
+ * Null is load-bearing: it is how `lib/light.mjs` distinguishes "a member who
+ * happens to carry nothing" (an empty array — stay dark) from "not a member,
+ * read the actor's own flag instead". Returning `[]` for both would leave every
+ * standalone torch unlit.
+ */
+export function lightsForBearer(actorId) {
+  if (!actorId) return null;
+  let found = null;
+  for (const f of Object.values(getFormations())) {
+    if (!f?.members?.some((m) => m?.actorId === actorId)) continue;
+    found ??= [];
+    for (const l of f.lights ?? []) {
+      if (l.bearerId === actorId) found.push(l);
+    }
+  }
+  return found;
 }
 
 /**
@@ -286,23 +306,13 @@ export function formationHasLight(formation) {
   return formation.lights.some((l) => l.lit && !l.shielded);
 }
 
-/** Can this actor operate without light (shadowy senses, infravision, spell)?
- *  Monsters with a Full Monster Sheet answer from their recorded vision modes
- *  and special senses; other actors fall back to ability/effect name matching. */
-export function canSeeInDark(actor) {
-  if (!actor) return false;
-  const monster = monsterSeesInDark(actor);
-  if (monster !== null) return monster;
-  // Capability first (Infravision, Lightless Vision and anything else the
-  // register tags), then the name pattern for untagged/hand-made abilities.
-  if (hasCapability(actor, CAP_LIGHTLESS)) return true;
-  if (actor.items.some((i) => DARK_SENSE_PATTERN.test(i.name))) return true;
-  const effects = typeof actor.allApplicableEffects === "function" ? actor.allApplicableEffects() : actor.effects;
-  for (const effect of effects) {
-    if (!effect.disabled && DARK_SENSE_PATTERN.test(effect.name)) return true;
-  }
-  return false;
-}
+/**
+ * Can this actor operate without light (shadowy senses, lightless vision,
+ * spell)? Owned by `lib/senses.mjs`, which answers the same reading of the
+ * sheet that token vision is derived from — re-exported here so the movement
+ * rules and the formation window keep their existing import.
+ */
+export { canSeeInDark };
 
 /**
  * Is the party effectively in darkness? Only when the scene itself is dark

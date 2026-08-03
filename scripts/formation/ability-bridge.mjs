@@ -3,12 +3,8 @@
 /**
  * Capability-aware ability matching — the bridge to the abilities program
  * (acks-lib vocabulary, acks-abilities effect model, acks-content import).
- *
- * The books print one capability several ways: *Searching* is a thief skill, a
- * proficiency, and what several class powers hand out. Matching on item NAME
- * catches whichever spelling the sheet happens to use; matching on a `kw:`
- * capability token catches every route to the mechanic. This module prefers
- * the capability and keeps the name match alongside it.
+ * The capability primitives themselves live in `lib/capabilities.mjs`; what
+ * this file adds is how a formation CONSUMES them, plus the skill ladders.
  *
  * **Union, not fallback.** Capability matching is precise but only as complete
  * as the register: Eavesdropping is a real listening proficiency that does not
@@ -28,52 +24,19 @@
  */
 
 import { MODULE_ID } from "./constants.mjs";
-import { slug, satisfies, resolveLevelValue } from "../lib/vocab.mjs";
+import { slug, resolveLevelValue } from "../lib/vocab.mjs";
 
-const DEFINITION_SCOPE = "acks-importer"; // the importer owns its provenance flags; they persist even when it is uninstalled
+// Declared here as well as in lib/capabilities.mjs: the flag-scope validator
+// resolves a scope to its literal value within the calling file.
+const DEFINITION_SCOPE = "acks-importer";
 const ABILITIES_ID = "acks-extras";
 
 /**
- * One ability item as the `{id, provides}` shape acks-lib reasons over.
- *
- * `id` is the register's definition id, written by acks-content on import
- * (`flags["acks-importer"].cookbook.id`). `provides` comes from the
- * acks-abilities effect model. An item with neither is a hand-made ability and
- * simply has no capability — the name path still covers it.
+ * Capability matching itself lives in `lib/capabilities.mjs` — the sense model
+ * asks the same question and lib may not import a feature. Re-exported here so
+ * this bridge stays the one import site for everything ability-shaped.
  */
-function abilityRef(item) {
-  const id = item?.getFlag?.(DEFINITION_SCOPE, "cookbook")?.id ?? null;
-  const provides = item?.getFlag?.(ABILITIES_ID, "extras")?.provides ?? [];
-  if (!id && !provides.length) return null;
-  return { id, provides };
-}
-
-/** Every capability-bearing ability item on this actor. */
-export function abilityRefs(actor) {
-  const out = [];
-  for (const item of actor?.items ?? []) {
-    if (item.type !== "ability") continue;
-    const ref = abilityRef(item);
-    if (ref) out.push(ref);
-  }
-  return out;
-}
-
-/**
- * Does this actor hold an ability satisfying `token` (e.g. "kw:alertness")?
- * A falsy token matches nothing (checks without a capability use names only).
- */
-export function hasCapability(actor, token) {
-  if (!token) return false;
-  return satisfies(abilityRefs(actor), token);
-}
-
-/** Does this specific item satisfy `token`? Used to pick roll candidates. */
-export function itemHasCapability(item, token) {
-  if (!token) return false;
-  const ref = abilityRef(item);
-  return ref ? satisfies([ref], token) : false;
-}
+export { abilityRefs, hasCapability, itemHasCapability } from "../lib/capabilities.mjs";
 
 /**
  * The throw target an imported ability carries, resolved at `level` — or null.

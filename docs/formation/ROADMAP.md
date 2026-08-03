@@ -18,7 +18,7 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 | Mapper: bright light, both hands, **vulnerable** (§3.1) | 🟡 | Light requirement drives fog; hands/vulnerable are tooltip reminders; v0.5.0 warns when the mapper lacks the Mapping proficiency (vague measurements, no passive error detection). Auto-applying a *Vulnerable* Active Effect needs 📖 the Conditions rules (RR p. 514). |
 | Mapping proficiency (secret error-detection throw) (§3.1) | 📖🔧 | Needs RR p. 114 proficiency text + a "map error" concept — only meaningful once the map-object system exists (an unproficient mapper's Map item could get GM-injected distortions). |
 | Light sources & burnout (§4) | ✅ | Burn clock, guttering, inventory consumption, token light emission. |
-| Shadowy senses / lightless vision (§4) | 🔧 | Fog gating assumes a lit source. A per-member "shadowy senses" flag could satisfy the mapper-needs-nothing case incorrectly (mapping *requires bright light* even with shadowy senses — RAW says senses can't do bright-light tasks), but scouts operating dark should suppress the "no light" warning. Small flag + warning logic change. |
+| Shadowy senses / lightless vision (§4) | ✅ | Both now reach the TOKEN: sight derived from the sheet by acks-lib `senses.mjs` (shadowy 30', lightless its recorded range, both as dim monochrome; ordinary eyes range 0, seeing only what is lit). Applies to any actor, in a party or not. Mapping still requires bright light, so the mapper gating is unchanged — RAW, senses cannot do bright-light tasks. |
 | Searching & listening throws (§5) | ✅ (v0.5.0) | Party-roll buttons (Listen / Hasty Search / Methodical Search / Bash Door) roll every member using **their sheet's numbers** — a matching ability item's rollTarget (thief skills) first, else the sheet's Adventuring target — GM-whispered as one card. RAW enforced: hasty search skill-only, methodical +4 for skill users and auto-consumes 1 turn, listening once per turn while moving, bashing ±4×STR. |
 | Earshot / noise (§5) | 📖 tables captured; automation impractical (Judge adjudication). |
 | Doors: bash/pick/batter procedures (§6) | 🔧 | Time costs work via Turn button. A "Door helper" dialog could roll Dungeonbashing 18+ (±4/STR), lockpicking by thief level with jam-on-botch state, and consume the right number of turns. Needs per-actor proficiency access; ACKS system already has adventuring/lockpicking rollers worth reusing. |
@@ -69,7 +69,9 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 2. **Encounter scaling & reactions** (dungeon-level field on zones; §10 above).
 3. **Obstacle helper** (climb/squeeze/swim per-member throws).
 4. **Door helper** (bash/pick with time cost + botch states).
-5. Deploy members in marching-order file behind the party heading (combat deploy currently rings them).
+5. Deploy members in marching-order file behind the party heading (deploy
+   currently rings them). Now one change, not two: the combat deploy and the
+   detach share `deployment.mjs`.
 6. Formation templates (save/load marching orders); token HUD "form up" button.
 7. Wilderness/expedition mode (needs 📖 wilderness chapter; actor `movementacks.expedition` already computed by the system).
 8. Spell "per level" duration parsing (quick win, batch with the next release).

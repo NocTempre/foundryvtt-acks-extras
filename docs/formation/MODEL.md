@@ -34,6 +34,8 @@ For monsters carrying a stat block, `canSeeInDark` and `explorationSpeedOf` defe
 | `scripts/formation-app.mjs` | The formation window (GM controls, player read-only). |
 | `scripts/encounter-zone.mjs` | `acks-formation.encounterZone` RegionBehavior subtype (table UUID + cadence overrides) and point-in-region lookup for the party token (core `testPoint` when available, manual shape math as a headless fallback). |
 | `scripts/scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag) and party-token light emission mirroring lit sources. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
+| `scripts/deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
+| `scripts/announce.mjs` | One formation chat card (public, or whispered to the GMs). |
 | `scripts/socket.mjs` | socketlib registration (`socketlib.ready`) and a queue so handlers can register at import time; exposes `getSocket`/`registerHandler`. |
 | `scripts/module.mjs` | Settings, hooks, scene-control button, `/formation` chat command, public API. |
 
@@ -82,6 +84,48 @@ be indistinguishable from an accurate one to its holders. Removals, blanks,
 frontage, the clock, saves, tables, and session lifecycle stay GM-only.
 Role and light declarations are announced publicly, so the table sees who
 changed the party's posture.
+
+## Detaching a member
+
+A formation travels as one token. Two things take a member out of it, and both
+run through `deployment.mjs`: a **combat**, which deploys everyone who can
+fight, and a **detach**, which sends one member out deliberately — the scout
+easing down the corridor while the party waits.
+
+A detached member never leaves the formation. Marching order, roles, lights,
+rest and the turn clock all keep counting them. What changes is which token
+carries their vision and their torch: their own token is synced from the actor
+like any standalone creature (acks-lib `token-sync.mjs`), and `bearerLights`
+finds their light in the formation's record. The party token meanwhile drops
+that bearer's light and stops borrowing their eyes — `syncPartyTokenVision`
+gives the party token its best *remaining* member's sight.
+
+### The leash
+
+A detached member may not get further than **one round's movement**
+(`system.movementacks.combat`, which the system derives as exploration ÷ 3) from
+where they stood the last time the party token moved. At that limit they wait;
+the party has to catch up or pass them before they can push on again.
+
+This is what lets a scout exist without breaking the clock. Dungeon turns are
+driven by the party token's movement, so a scout free to range the whole level
+would spend hours of game time that nothing counted. Tethered to a round, the
+point man is where the rules put them — just ahead, within earshot — and the
+party token remains the only thing that spends time.
+
+The limit is a **distance from the anchor**, not a spent budget: pacing back and
+forth inside the circle is free, because it gets you no further ahead. That also
+means any client can evaluate it from state it already has, with no running
+total only a GM could write. `preUpdateToken` cancels a breaching move outright
+rather than snapping the token back afterwards. The GM is warned but not
+stopped — they decide where things end up, and hard-blocking them would make
+repositioning a scout impossible without recalling them first.
+
+Combat takes over a detached member rather than fighting with them: joining a
+combat clears `detached`, so the leash does not constrain a fight. A detached
+scout is also explicitly *not* treated as "already deployed" when the party
+enters combat — they are exactly who walks into one, and the rest of the party
+must still deploy around them.
 
 ## Deliberate non-features (v0.1)
 

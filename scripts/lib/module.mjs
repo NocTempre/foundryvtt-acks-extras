@@ -26,6 +26,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { isPrimaryGM } from "./util.mjs";
 import * as vocab from "./vocab.mjs";
 import * as fields from "./fields.mjs";
 import * as tables from "./tables.mjs";
@@ -53,6 +54,14 @@ import * as attackLogic from "./attack-logic.mjs";
 import * as damageType from "./damage-type.mjs";
 import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK } from "./patches/attack-roll.mjs";
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
+import * as senses from "./senses.mjs";
+import * as light from "./light.mjs";
+import {
+  SETTING_MANAGE_VISION,
+  syncActorTokens,
+  syncSceneTokens,
+  syncTokenFromActor,
+} from "./token-sync.mjs";
 
 /** The actor sub-types this library adds to the system. */
 export const ANIMAL_TYPE = `${MODULE_ID}.animal`;
@@ -91,6 +100,13 @@ const localImpl = Object.freeze({
   templateLogic,
   /** Mount binding: mountOf / riderOf / isMounted / mountActor / dismount / unseat. */
   mount,
+  /**
+   * What a creature perceives (senses.mjs): canSeeInDark for the movement
+   * rules, senseProfile for the Foundry sight a token should carry.
+   */
+  senses,
+  /** The ACKS light table and who is bearing one (light.mjs). */
+  light,
   /**
    * Storage at a place (storage.mjs): goods that belong to a character but are
    * not on them. Any actor flagged a PROVIDER holds real embedded items stamped
@@ -176,6 +192,21 @@ Hooks.once("init", () => {
     type: Boolean,
     default: true,
     requiresReload: true,
+  });
+
+  // Token vision and light derived from the sheet (senses.mjs / light.mjs).
+  // World-scoped: what a creature can see is a table-wide fact, and half a
+  // table running with the system's stock 60' monster sight would see different
+  // things in the same corridor. Off restores nothing — tokens keep whatever
+  // they were last set to, which is the honest no-op.
+  game.settings.register(MODULE_ID, SETTING_MANAGE_VISION, {
+    name: `${LANG_PREFIX}.settings.manageVision.name`,
+    hint: `${LANG_PREFIX}.settings.manageVision.hint`,
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => syncSceneTokens(game.scenes?.current).catch(() => {}),
   });
 
   // What happens to goods stored at a place when that place is deleted. A
@@ -363,6 +394,60 @@ Hooks.once("ready", () => {
  * ever SET (never clobbers a manual sheet choice), and never auto-reverts on
  * dismiss. preCreate catches actors born as retainers; updateActor catches a plain
  * actor flipped into service (drop-as-henchman, hires that set the flag). */
+/* -------------------------------------------- */
+/*  Token senses & light                        */
+/* -------------------------------------------- */
+
+/*
+ * A creature's sight follows its sheet, so every route that can change what it
+ * perceives re-derives the token: placing it, gaining or losing the ability or
+ * effect that grants dark sight, and lighting or dousing what it carries.
+ *
+ * All of these run on the primary GM alone (`syncActorTokens` enforces it) —
+ * token updates are GM writes, and five clients racing to make the same one is
+ * how duplicate-write bugs start.
+ */
+Hooks.on("createToken", (tokenDoc) => {
+  if (game.system?.id !== "acks" || !isPrimaryGM()) return;
+  syncTokenFromActor(tokenDoc).catch((err) => console.error(`${MODULE_ID} | token sense sync failed`, err));
+});
+
+for (const hook of ["createItem", "updateItem", "deleteItem"]) {
+  Hooks.on(hook, (item) => {
+    if (game.system?.id !== "acks" || !item?.parent?.id) return;
+    syncActorTokens(item.parent).catch(() => {});
+  });
+}
+
+for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect"]) {
+  Hooks.on(hook, (effect) => {
+    const actor = effect?.parent instanceof Actor ? effect.parent : effect?.parent?.parent;
+    if (game.system?.id !== "acks" || !actor?.id) return;
+    syncActorTokens(actor).catch(() => {});
+  });
+}
+
+/*
+ * A stat block edited on the Full Monster Sheet changes the creature's vision
+ * modes, so the flag write has to re-derive too.
+ *
+ * Flags ONLY, deliberately: nothing in the sense or light derivation reads
+ * `system`, and matching on it would rescan every scene's tokens on every hit
+ * point lost — a full sweep per damage roll, for an answer that cannot have
+ * changed.
+ */
+Hooks.on("updateActor", (actor, changes) => {
+  if (game.system?.id !== "acks") return;
+  if (!foundry.utils.hasProperty(changes, `flags.${MODULE_ID}`)) return;
+  syncActorTokens(actor).catch(() => {});
+});
+
+/* Catch up a scene the GM was not on when any of the above happened. */
+Hooks.on("canvasReady", (canvas) => {
+  if (game.system?.id !== "acks") return;
+  syncSceneTokens(canvas?.scene).catch((err) => console.error(`${MODULE_ID} | scene sense sync failed`, err));
+});
+
 Hooks.on("preCreateActor", (doc, data) => {
   if (game.system?.id !== "acks") return;
   if (!FOLLOWER_TYPES.has(doc.type)) return;

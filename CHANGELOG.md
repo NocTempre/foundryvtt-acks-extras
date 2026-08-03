@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+- **Token vision from ACKS senses.** Every token's sight is now derived from its
+  own sheet, in a party or not. Ordinary eyes see only what a light source
+  reveals; lightless vision sees its recorded range and a thief's shadowy senses
+  reach 30', both as dim monochrome — no colour, no reading; night vision
+  brightens dim light but stays blind in total dark. Monsters answer from their
+  Full Monster Sheet stat block. Previously nothing wrote token vision at all,
+  so every creature in the system's monster packs carried a stock 60' of dark
+  sight and an unlit character saw as far as a bugbear. Edit a token's vision by
+  hand and the module leaves that token alone from then on; the world setting
+  **Token vision from ACKS senses** turns the pass off entirely.
+- **Light follows whoever is carrying it.** A lit torch, lantern or candle now
+  lights its bearer's own token, not just the party token — including an actor
+  in no formation at all, which previously emitted nothing.
+- **Detach a member to scout ahead.** Any member can step out of the party token
+  onto their own and still belong to the formation: turns, rest, encounters and
+  marching order keep counting them, while their vision and their torch become
+  their own. Players may detach their own character; the GM may detach anyone. A
+  scout can range one round's movement ahead, then waits for the party to catch
+  up or pass — so the party token remains the one thing that spends dungeon
+  turns. A fight deploys the party around a detached scout as normal.
+
+### Changed
+- The combat deploy and the new detach share one implementation, so the two
+  cannot drift apart.
+
 ## 1.0.3
 
 ### Fixed

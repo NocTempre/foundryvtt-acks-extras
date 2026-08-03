@@ -1,5 +1,6 @@
-/* global game, canvas, foundry, PIXI, ChatMessage, ui, Item, fromUuid, CONST */
-import { makeLoc, gmIds } from "../lib/util.mjs";
+/* global game, canvas, foundry, PIXI, ui, Item, fromUuid, CONST */
+import { makeLoc } from "../lib/util.mjs";
+import { announce } from "./announce.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   getMapperActor,
@@ -39,14 +40,6 @@ export const MAP_FLAG = "map";
 
 const loc = makeLoc("ACKS-FORMATION");
 
-
-async function announce(formation, text, { whisper = false } = {}) {
-  await ChatMessage.create({
-    content: `<div class="acks-formation-card"><em>${text}</em></div>`,
-    speaker: { alias: formation.name },
-    whisper: whisper ? gmIds() : [],
-  });
-}
 
 /* -------------------------------------------- */
 /*  Deterministic warp                          */

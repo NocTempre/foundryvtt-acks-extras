@@ -92,3 +92,23 @@ an alias of Alertness precisely because the value differs.
 
 A binding the world can no longer resolve still lists itself, so the GM sees
 their own choice rather than a silently blank select.
+
+- **2026-08-03 — A detached member is leashed to one round, not given its own
+  clock.** Sending a scout out raises "whose movement spends dungeon turns?".
+  Rejected: measuring the furthest mover each tick, and summing every
+  detachment's movement — both rework the turn engine, and both let a scout
+  range far enough that the party's position becomes a fiction. Ruled instead
+  that a detached member may not get more than one round's movement from where
+  they stood when the party token last moved. The party token stays the sole
+  clock driver (`onPartyTokenMoved` is untouched), because a scout can never
+  get more than a tenth of a turn ahead.
+  - Implemented as a DISTANCE from an anchor rather than a spent budget:
+    stateless per move, evaluable on any client, and pacing inside the circle
+    costs nothing because it gains nothing. Party movement re-anchors everyone
+    detached — that reset *is* "caught up or passed".
+  - Enforced for players, warn-only for GMs, matching the module's existing
+    trust model. Combat clears `detached` outright so a fight is never leashed.
+  - Deploy/recall were extracted from `combat-bridge.mjs` into
+    `deployment.mjs` so the combat path and the detach path cannot drift; the
+    two identical `announce` copies (combat-bridge, map-items) collapsed into
+    `announce.mjs` at the same time rather than becoming three.

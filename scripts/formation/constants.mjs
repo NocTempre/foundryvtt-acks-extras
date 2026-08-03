@@ -94,44 +94,11 @@ export const ROUNDS_PER_TURN = 10;
  */
 
 /**
- * Light sources (RR p. 265): bright/dim radii in feet and burn duration in
- * turns.
- *   `consumes` — the FUEL item decremented when lit (and required, when
- *                enforcement is on). For a torch/candle the item IS the fuel;
- *                for a lantern it is a flask of (common) oil, NOT the lantern.
- *   `holder`   — an optional durable DEVICE that must be carried but is NOT
- *                consumed (the lantern itself). Absent → the fuel is the device.
- *   `fuelLabel`— i18n label for the fuel, when it differs from the device.
- * A lantern's oil pattern excludes "military oil" (a thrown weapon, RR: common
- * oil is for lanterns) via a negative lookbehind.
+ * The ACKS light table lives in `lib/light.mjs`: a lone actor with a torch needs
+ * it as much as a formation does. Re-exported so this feature's existing imports
+ * keep reading it from one place.
  */
-export const LIGHT_SOURCES = Object.freeze({
-  torch: {
-    label: "ACKS-FORMATION.light.torch",
-    turns: 6,
-    bright: 15,
-    dim: 30,
-    consumes: /torch/i,
-  },
-  lantern: {
-    label: "ACKS-FORMATION.light.lantern",
-    turns: 24,
-    bright: 15,
-    dim: 30,
-    holder: /lantern/i,
-    consumes: /(?<!military\s)\boil\b/i,
-    fuelLabel: "ACKS-FORMATION.light.oil",
-    // RR (equipment): "Lanterns can be closed to conceal the light" — burns on.
-    shieldable: true,
-  },
-  candle: {
-    label: "ACKS-FORMATION.light.candle",
-    turns: 6,
-    bright: 5,
-    dim: 10,
-    consumes: /candle/i,
-  },
-});
+export { LIGHT_SOURCES } from "../lib/light.mjs";
 
 
 /** A 10' pole needs the physical implement: a pole item or a polearm. */
@@ -143,18 +110,6 @@ export const POLE_ITEM_PATTERN = /pole|polearm|spear|pike|halberd|glaive|lance
  * quantified carrying figure in the references).
  */
 export const BODY_STONE = 7.5;
-
-/**
- * Senses that work in TOTAL darkness: shadowy senses (thief power), lightless
- * vision / infravision, or spell effects granting the equivalent. Matched on
- * item AND active-effect names.
- *
- * Night Vision is deliberately NOT here: it upgrades dim light but fails in
- * total dark (MM Overview pp. 12–13), which is how `monster-traits.mjs` treats
- * it — one rule, one answer on both paths. Content corroborates: the register
- * provides `kw:lightlessvision` on Infravision and Lightless Vision only.
- */
-export const DARK_SENSE_PATTERN = /shadowy\s*sense|lightless\s*vision|infravision|darkvision|dark\s*sight/i;
 
 /** Inventory name matcher for ration items (1-day preferred over 1-week). */
 export const RATION_PATTERN = /ration/i;

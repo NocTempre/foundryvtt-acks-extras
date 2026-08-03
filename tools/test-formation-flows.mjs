@@ -495,6 +495,7 @@ const model = await import("../scripts/formation/formation-model.mjs");
 const engine = await import("../scripts/formation/turn-engine.mjs");
 const requests = await import("../scripts/formation/player-requests.mjs");
 const sceneSync = await import("../scripts/formation/scene-sync.mjs");
+const deployment = await import("../scripts/formation/deployment.mjs");
 Hooks.call("init");
 Hooks.call("ready");
 // socketlib: in-process loopback — executeAsGM invokes the registered handler
@@ -688,6 +689,64 @@ await scenario("reform still fires if the combat flag was lost (evidence path)",
     0,
     "no member tokens stranded",
   );
+});
+
+await scenario("detach sends one member out and recall brings them home", async () => {
+  const before = onlyFormation();
+  const alicePos = before.members.findIndex((m) => m.actorId === alice.id);
+
+  assert.equal(await deployment.toggleDetachMember(before, alice.id), "detached");
+  await drain();
+  let stored = onlyFormation();
+  let scout = stored.members[alicePos];
+  assert.ok(scout.deployedTokenId, "the scout has a token of their own");
+  assert.ok(scout.detached, "marked a detach, not a combat deploy");
+  assert.ok(scout.detach?.anchor, "the leash is anchored where they stepped out");
+  assert.ok(scene.tokens.get(scout.deployedTokenId), "token really on the scene");
+  // The rest of the party stays inside the party token.
+  assert.ok(!stored.members[alicePos === 0 ? 1 : 0].deployedTokenId, "only the scout went out");
+  assert.ok(!scene.tokens.get(stored.tokenId)?.hidden, "party token stays visible — the party is still there");
+
+  // Damage taken while out must come home with them.
+  const scoutToken = scene.tokens.get(scout.deployedTokenId);
+  scoutToken.actor.system.hp.value = 3;
+
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), alice.id), "recalled");
+  await drain();
+  stored = onlyFormation();
+  scout = stored.members[alicePos];
+  assert.ok(!scout.deployedTokenId, "back inside the party token");
+  assert.ok(!scout.detached && !scout.detach, "detach state cleared");
+  assert.equal(scout.tokenData?.actorId ?? alice.id, alice.id, "token re-stashed");
+  assert.equal(scene.tokens.filter((t) => t.actorId === alice.id).length, 0, "no stray token left behind");
+});
+
+await scenario("a detached scout does not block the party deploying for combat", async () => {
+  // The scout ahead of the party is exactly who walks into a fight. Treating
+  // their token as "already deployed" would leave everyone else inside the
+  // party token for the whole battle.
+  await deployment.toggleDetachMember(onlyFormation(), alice.id);
+  await drain();
+
+  const combat = new CombatMock();
+  game.combats.set(combat.id, combat);
+  const stored = onlyFormation();
+  await combat.createEmbeddedDocuments("Combatant", [
+    { tokenId: stored.tokenId, sceneId: scene.id, actorId: stored.actorId, hidden: false },
+  ]);
+  await drain();
+
+  const after = onlyFormation();
+  assert.ok(after.combat?.active, "the party deployed for combat");
+  assert.equal(after.members.filter((m) => m.deployedTokenId).length, 2, "both members on the field");
+  assert.ok(
+    after.members.every((m) => !m.detached),
+    "the fight takes over the scout: no leash during combat",
+  );
+
+  await combat.delete();
+  await drain();
+  assert.equal(onlyFormation().members.filter((m) => m.deployedTokenId).length, 0, "everyone reformed");
 });
 
 await scenario("deleting a member actor removes it from the formation", async () => {

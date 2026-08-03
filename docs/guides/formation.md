@@ -3,9 +3,11 @@
 A **formation** is the party as one thing: a marching order, one token on the
 map, one exploration clock, and party-wide checks that resolve every member.
 
-![](../releases/v1.0.0/formation-party.png)
+![](../releases/v1.1.0/formation-party.png)
 
-*The party sheet: exploration clock, party saves, party rolls.*
+*The party sheet: exploration clock, party saves and rolls, and the marching
+order. Sable is out ahead on her own token — note the hiker badge, her 30'
+dark-sight chip, and her lit detach control.*
 
 ## Build one
 
@@ -27,6 +29,49 @@ down, spell durations tick, and the rest cycle tracks when the party is due one.
 
 Light is real: a lit torch occupies a hand, lights the party token, and goes out
 when it burns through.
+
+## Seeing in the dark
+
+![](../releases/v1.1.0/token-vision.png)
+
+*Nobody typed these numbers. A Cave Lurker's stat block records lightless vision
+to 90', so its token gets 90' of monochromatic sight — and Foundry derives the
+Darkvision and Light Perception detection modes from it.*
+
+Every token's vision now comes from its own sheet, whether or not it is in a
+party. Ordinary eyes see **only what a light source reveals** — walk a torchless
+character into a black corridor and they see nothing, which is the rule. A
+character with **lightless vision** (or infravision) sees its recorded range,
+and a thief's **shadowy senses** reach 30'; both see as dim light — colourless,
+no reading, no fine detail. **Night vision** brightens dim light but is just as
+blind in total dark.
+
+Monsters answer from their Full Monster Sheet stat block, so a creature with
+lightless vision or echolocation gets it without you configuring anything. The
+member list shows each character's dark-sight range beside their speed.
+
+If you want a token to see differently, **edit its vision by hand** — from then
+on that token is yours and the module leaves it alone. The world setting
+*Token vision from ACKS senses* turns the whole thing off.
+
+## Sending a scout ahead
+
+The party travels as one token, but any member can **detach** — the arrow button
+in their row — and step out onto their own token. They stay in the formation:
+turns, rest, encounters and their place in the marching order all keep counting.
+What changes is that they now carry their own light and see with their own eyes,
+which is the entire point of scouting.
+
+Players can detach their own character; the GM can detach anyone.
+
+A scout can range **one round's movement** ahead, then must wait for the party
+to catch up or pass before going further — you will see a notice when they hit
+the limit. This keeps the exploration clock honest: the party token is still
+what spends dungeon turns.
+
+Press the button again to bring them back, with everything that happened to them
+while they were out. If a fight starts, the party deploys around the scout as
+normal and the leash lifts for the combat.
 
 ## Party checks
 

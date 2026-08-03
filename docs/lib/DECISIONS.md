@@ -61,3 +61,31 @@ Entries are dated and append-only. A superseded entry stays, marked.
   `--acks-fs-*` scale so the `fontScale` client setting (writes
   `--acks-fs-base` inline on the root element, where the scale steps
   substitute) resizes every ACKS surface with one knob.
+- **2026-08-03 — Perception rises to lib; `monochromatic`, not `darkvision`.**
+  The sense model, the RR light table and the token writes moved out of the
+  formation feature (`monster-traits.mjs`, `formation/constants.mjs`,
+  `formation-model.canSeeInDark`) because a second sibling needed them: a
+  standalone actor has no formation, and its torch and its infravision have to
+  work anyway. `capabilities.mjs` came along for the ride — `senses.mjs` needs
+  the `kw:lightlessvision` check and lib may not import a feature — with
+  `ability-bridge.mjs` re-exporting so no consumer changed.
+  - **Ruled:** dark senses render `monochromatic`. Core's `darkvision` remaps
+    DIM to BRIGHT, which would let a creature read a scroll in a black
+    corridor; both ACKS senses see only "as dim light", and dim light cannot
+    discern colours or read (RULES §4). Rejected `darkvision` for that reason
+    and `blindness` for inherently blind creatures — that mode models the
+    *blinded condition* and renders black, which would cripple a creature that
+    navigates perfectly well by echolocation. A blind creature gets its best
+    sense range instead, or 30' when its stat block records none.
+  - **Cost:** the first sync overwrites a token the GM configured by hand
+    before installing this, because a never-stamped token is indistinguishable
+    from a stock one. Accepted: the alternative is leaving every monster pack's
+    stock 60' dark sight in place, which is the defect. `managedVision` makes
+    it a one-time cost — edit the token once and it is yours forever — and
+    `manageVision` turns the whole pass off.
+  - **Not done:** `detectionModes` are never written. Core derives
+    `basicSight` and `lightPerception` from `sight`
+    (`client/documents/token.mjs:541`), so writing them would add a field to
+    clobber and buy nothing. Terrestrial mechanoreception could plausibly map
+    to core's `feelTremor` instead of a sight radius; kept uniform with the
+    other dark senses for now, one rule and one answer.

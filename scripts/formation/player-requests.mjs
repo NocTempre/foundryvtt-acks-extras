@@ -3,6 +3,7 @@ import { makeLoc } from "../lib/util.mjs";
 import { getFormation, getFrontage, swapCells, toggleRole } from "./formation-model.mjs";
 import { ROLE_LABELS } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
+import { toggleDetachMember } from "./deployment.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck } from "./party-rolls.mjs";
 import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./turn-engine.mjs";
@@ -17,6 +18,8 @@ import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./t
  * - declare a rest turn, or a listen/search/bash/track check;
  * - move their own character in the marching order (reorder);
  * - take up or set down a role for their own character (role);
+ * - step their own character out of the party token to scout, or back in
+ *   (detach);
  * - douse/relight or shutter a light their character carries (lightToggle /
  *   lightShield);
  * - consult — anchor — a map their character holds (anchorMap).
@@ -55,7 +58,7 @@ async function executeRequest(formation, user, type, payload) {
     case "light": {
       if (!userOwnsMember(formation, user, payload.bearerId)) return;
       await announceDeclaration(formation, user, loc("request.light", {
-        light: game.i18n.localize(`ACKS-FORMATION.light.${payload.lightType}`),
+        light: game.i18n.localize(`ACKS-LIB.light.${payload.lightType}`),
         bearer: game.actors.get(payload.bearerId)?.name ?? "?",
       }));
       await addLight(formation, payload.lightType, payload.bearerId);
@@ -126,6 +129,17 @@ async function executeRequest(formation, user, type, payload) {
       await announceDeclaration(formation, user, loc(had ? "request.roleOff" : "request.roleOn", {
         name: game.actors.get(payload.actorId)?.name ?? "?",
         role: game.i18n.localize(ROLE_LABELS[payload.role] ?? payload.role),
+      }));
+      break;
+    }
+
+    /* --- Step out of the party token to scout ahead, or step back in --- */
+    case "detach": {
+      if (!userOwnsMember(formation, user, payload.actorId)) return;
+      const result = await toggleDetachMember(formation, payload.actorId);
+      if (!result) return; // declined GM-side (mid-combat, or not theirs to recall)
+      await announceDeclaration(formation, user, loc(`request.${result}`, {
+        name: game.actors.get(payload.actorId)?.name ?? "?",
       }));
       break;
     }

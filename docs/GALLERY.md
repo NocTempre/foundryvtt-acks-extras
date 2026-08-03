@@ -13,7 +13,8 @@ the next refresh.
 | Locations | Goods kept at a place, grouped by whose they are | [guide](guides/location.md) | [v1.0.0](releases/v1.0.0/location-sheet.png) |
 | Henchmen | A market's recruitment board on a location sheet | [guide](guides/henchmen.md) | [v1.0.0](releases/v1.0.0/henchmen-market.png) |
 | Equipment | A character's inventory with containers and wear buckets | [guide](guides/equipment.md) | [v1.0.0](releases/v1.0.0/equipment-inventory.png) |
-| Formations | The party sheet: exploration clock, party saves and rolls | [guide](guides/formation.md) | [v1.0.0](releases/v1.0.0/formation-party.png) |
+| Formations | The party sheet: exploration clock, party rolls, and a scout detached ahead | [guide](guides/formation.md) | [v1.1.0](releases/v1.1.0/formation-party.png) |
+| Vision & light | A token's sight derived from its ACKS senses, not typed by hand | [guide](guides/formation.md#seeing-in-the-dark) | [v1.1.0](releases/v1.1.0/token-vision.png) |
 | Influence | A social roll with its modifier stack itemized | [guide](guides/influence.md) | [v1.0.0](releases/v1.0.0/influence-dialog.png) |
 | Abilities | An ability item's sheet, with its rolls and mechanics | [guide](guides/abilities.md) | [v1.0.0](releases/v1.0.0/ability-sheet.png) |
 | Monsters | A Monstrous Manual stat block on the monster sheet | [guide](guides/monsters.md) | [v1.0.0](releases/v1.0.0/monster-sheet.png) |

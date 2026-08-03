@@ -1,8 +1,11 @@
 /* global game, ChatMessage, CONST */
-import { LIGHT_SOURCES, MODULE_ID, ROLES } from "./constants.mjs";
+import { MODULE_ID, ROLES } from "./constants.mjs";
 import { getFormations, getPartyActor, getPartyToken, mapperIsProficient } from "./formation-model.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
+import { emittedLight } from "../lib/light.mjs";
+import { VISION_MODES, senseProfile } from "../lib/senses.mjs";
+import { SETTING_MANAGE_VISION, applyTokenLight, applyTokenVision, syncTokenFromActor } from "../lib/token-sync.mjs";
 
 /**
  * Keeps the world in step with formation state (runs on the primary GM client
@@ -168,40 +171,66 @@ async function syncPartyActorOwnership(formation) {
   if (dirty) await partyActor.update({ ownership: desired }, { diff: false, recursive: false });
 }
 
+/**
+ * The party token burns with the brightest source ANY member has lit — the
+ * whole party shares one light radius while it shares one token. A member who
+ * has deployed or detached takes their own light with them: their token is
+ * synced from `bearerLights`, which is why this reads the formation's whole list
+ * and the individual path reads only what that bearer carries.
+ */
 async function syncPartyTokenLight(formation) {
   const token = getPartyToken(formation);
   if (!token) return;
+  const carried = formation.lights.filter((l) => !isDeployed(formation, l.bearerId));
+  await applyTokenLight(token, emittedLight(carried));
+}
 
-  let bright = 0;
-  let dim = 0;
-  for (const light of formation.lights) {
-    if (!light.lit || light.shielded) continue;
-    const cfg = LIGHT_SOURCES[light.type];
-    if (!cfg) continue;
-    bright = Math.max(bright, cfg.bright);
-    dim = Math.max(dim, cfg.dim);
+/**
+ * The party token sees as well as its best-sighted member: a party with a
+ * lightless-vision member is not blind merely because it rides in one token.
+ * Members who have left the token do not lend it their eyes.
+ */
+async function syncPartyTokenVision(formation) {
+  // The party token is written directly rather than through syncTokenFromActor
+  // (the party actor has no senses of its own), so the world switch that turns
+  // the vision pass off has to be honoured here too.
+  if (!game.settings.get(MODULE_ID, SETTING_MANAGE_VISION)) return;
+  const token = getPartyToken(formation);
+  if (!token) return;
+  let best = { seesInDark: false, sightRange: 0, visionMode: VISION_MODES.BASIC };
+  for (const member of formation.members) {
+    if (!member?.actorId || member.blank || isDeployed(formation, member.actorId)) continue;
+    const actor = game.actors.get(member.actorId);
+    if (!actor) continue;
+    const profile = senseProfile(actor);
+    if (profile.sightRange > best.sightRange) best = profile;
   }
+  await applyTokenVision(token, best);
+}
 
-  if (token.light.bright === bright && token.light.dim === dim) return;
+/** Is this member currently out of the party token (combat deploy or detach)? */
+function isDeployed(formation, actorId) {
+  if (!actorId) return false;
+  return formation.members.some((m) => m?.actorId === actorId && m.deployedTokenId);
+}
 
-  // Only ever clear a light WE set. Without this, a formation carrying no lit
-  // source forces the token to 0/0 on every sync — which silently undid a GM's
-  // manually configured token light and left the party in the dark with no
-  // explanation. The flag records ownership: we manage the token's light while
-  // the formation supplies one, and hands it back untouched when it does not.
-  const managed = token.getFlag(MODULE_ID, "managedLight") ?? false;
-  if (bright === 0 && dim === 0 && !managed) return; // a manual light: leave it alone
-
-  await token.update({
-    light: {
-      bright,
-      dim,
-      color: bright > 0 ? "#ff9b47" : null,
-      alpha: bright > 0 ? 0.3 : 0.5,
-      animation: bright > 0 ? { type: "torch", speed: 2, intensity: 3 } : { type: null },
-    },
-    [`flags.${MODULE_ID}.managedLight`]: bright > 0 || dim > 0,
-  });
+/**
+ * A member out of the party token carries their own torch and sees with their
+ * own eyes. Their token is synced from the actor exactly like any standalone
+ * creature's — the only difference being that `bearerLights` finds their light
+ * in the formation's record rather than on the actor.
+ *
+ * This is what makes a detach worth doing: the scout walks into the dark with
+ * whatever their character can actually see by.
+ */
+async function syncDeployedMemberTokens(formation) {
+  const scene = getPartyToken(formation)?.parent ?? game.scenes.get(formation.sceneId);
+  if (!scene) return;
+  for (const member of formation.members) {
+    if (!member?.deployedTokenId) continue;
+    const token = scene.tokens.get(member.deployedTokenId);
+    if (token) await syncTokenFromActor(token);
+  }
 }
 
 /**
@@ -248,6 +277,8 @@ export async function syncEnvironments() {
   for (const formation of formations) {
     await step("party ownership", () => syncPartyActorOwnership(formation));
     await step("token size", () => syncPartyTokenSize(formation));
+    await step("party vision", () => syncPartyTokenVision(formation));
+    await step("member tokens", () => syncDeployedMemberTokens(formation));
   }
 
   if (!game.settings.get(MODULE_ID, "manageFog")) return;

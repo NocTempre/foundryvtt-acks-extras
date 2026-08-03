@@ -24,6 +24,7 @@ import {
   mapperIsProficient,
   partySpeed,
 } from "./formation-model.mjs";
+import { senseProfile } from "../lib/senses.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS } from "./party-rolls.mjs";
 import { formatTurns, parseSpellTurns } from "./turn-engine.mjs";
@@ -97,6 +98,13 @@ export function buildFormationView(formation) {
       encMax: actor?.system?.encumbrance?.max ?? "—",
       stashed: !!member.tokenData,
       deployed: !!member.deployedTokenId,
+      // Out on their own feet rather than swept out by a combat. Only a detach
+      // can be undone from here; a fighter is recalled when the fight ends.
+      detached: !!member.detached,
+      canDetach: !formation.combat?.active && !isDown(actor) && (!member.deployedTokenId || member.detached),
+      // How far this character sees with no light at all, for the chip that
+      // explains why the scout can go where the rest of the party cannot.
+      darkSight: senseProfile(actor).sightRange,
       down: isDown(actor),
       blind: dark && !canSeeInDark(actor),
       first: index === 0,

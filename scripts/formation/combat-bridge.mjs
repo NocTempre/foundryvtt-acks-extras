@@ -1,15 +1,8 @@
-/* global game, foundry, ChatMessage */
-import { makeLoc, gmIds } from "../lib/util.mjs";
+import { makeLoc } from "../lib/util.mjs";
+import { announce } from "./announce.mjs";
 import { MODULE_ID, ROLES } from "./constants.mjs";
-import {
-  formationForToken,
-  formationOffset,
-  getFormations,
-  getMemberActor,
-  getPartyToken,
-  isDown,
-  updateFormation,
-} from "./formation-model.mjs";
+import { formationForToken, getFormations, getPartyToken, updateFormation } from "./formation-model.mjs";
+import { deployMembers, recallMembers } from "./deployment.mjs";
 import { advanceRounds } from "./turn-engine.mjs";
 
 /**
@@ -29,14 +22,6 @@ import { advanceRounds } from "./turn-engine.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
-async function announce(formation, text, { whisper = false } = {}) {
-  await ChatMessage.create({
-    content: `<div class="acks-formation-card"><em>${text}</em></div>`,
-    speaker: { alias: formation.name },
-    whisper: whisper ? gmIds() : [],
-  });
-}
-
 /* -------------------------------------------- */
 /*  Deploy on joining combat                    */
 /* -------------------------------------------- */
@@ -51,51 +36,45 @@ export async function onPartyCombatantCreated(combatant) {
   // Already deployed (e.g. the party token was re-added): just drop the extra
   // combatant. Deployed member tokens count as evidence even without the
   // combat flag — deploying again would duplicate every member on the field.
-  if (formation.combat?.active || formation.members.some((m) => m.deployedTokenId)) {
+  //
+  // A DETACHED member is not that evidence: a scout ahead of the party is
+  // exactly who walks into a fight, and treating their token as "already
+  // deployed" would leave the rest of the party inside the party token for the
+  // whole battle.
+  const alreadyFighting = formation.members.some((m) => m.deployedTokenId && !m.detached);
+  if (formation.combat?.active || alreadyFighting) {
     await combatant.delete();
     return;
   }
 
   const scene = tokenDoc.parent;
-  const gs = scene.grid.size;
-  const toCreate = [];
-  for (let cell = 0; cell < formation.members.length; cell++) {
-    const member = formation.members[cell];
-    if (!member || member.blank || !member.actorId) continue;
-    if (member.roles?.includes(ROLES.NONCOMBATANT)) continue;
-    const actor = getMemberActor(member);
-    if (isDown(actor)) continue; // the down are carried, not deployed
-    let data = member.tokenData ? foundry.utils.deepClone(member.tokenData) : null;
-    if (!data && actor) data = (await actor.getTokenDocument()).toObject();
-    if (!data) continue;
-    delete data._id;
-    // Deploy in marching-order shape — blanks leave real gaps in the line.
-    const { dx, dy } = formationOffset(formation, cell);
-    data.x = tokenDoc.x + dx * gs;
-    data.y = tokenDoc.y + dy * gs;
-    data.hidden = false;
-    toCreate.push({ member, data });
-  }
+  // Everyone who can fight goes out; non-combatants stay inside the party token.
+  // A member already detached is on the map already and simply joins the fight.
+  const fighters = formation.members.filter(
+    (m) => m && !m.blank && m.actorId && !m.roles?.includes(ROLES.NONCOMBATANT),
+  );
+  await deployMembers(formation, { members: fighters });
+  const onField = fighters.filter((m) => m.deployedTokenId);
 
-  if (!toCreate.length) {
+  if (!onField.length) {
     await announce(formation, loc("chat.combatNoCombatants"), { whisper: true });
     return;
   }
 
-  const created = await scene.createEmbeddedDocuments("Token", toCreate.map((c) => c.data));
-  const combatants = [];
-  created.forEach((token, i) => {
-    toCreate[i].member.deployedTokenId = token.id;
-    combatants.push({
-      tokenId: token.id,
-      actorId: token.actorId,
-      sceneId: scene.id,
-      hidden: combatant.hidden,
-    });
-  });
-  // Record the deployed tokens at once so reform can always gather them,
-  // even if combatant creation below fails.
+  // A detached member is already deployed and already a token: the fight simply
+  // takes them over, so combat movement is not held to the one-round leash.
+  for (const member of onField) {
+    delete member.detached;
+    delete member.detach;
+  }
   await updateFormation(formation);
+
+  const combatants = onField.map((member) => ({
+    tokenId: member.deployedTokenId,
+    actorId: scene.tokens.get(member.deployedTokenId)?.actorId,
+    sceneId: scene.id,
+    hidden: combatant.hidden,
+  }));
 
   await combat.createEmbeddedDocuments("Combatant", combatants);
   await combatant.delete();
@@ -106,7 +85,7 @@ export async function onPartyCombatantCreated(combatant) {
 
   formation.combat = { combatId: combat.id, active: true, roundsCounted: 0 };
   await updateFormation(formation);
-  await announce(formation, loc("chat.combatDeployed", { n: created.length }));
+  await announce(formation, loc("chat.combatDeployed", { n: onField.length }));
 }
 
 /* -------------------------------------------- */
@@ -153,43 +132,19 @@ export async function onCombatEnd(combat) {
 
 async function reform(formation, combat) {
   const partyToken = getPartyToken(formation);
-  const scene = partyToken?.parent ?? game.scenes.get(formation.sceneId);
-
-  const fallen = [];
-  const toDelete = [];
-  let anchor = null;
-
-  for (const member of [...formation.members]) {
-    const tokenId = member.deployedTokenId;
-    delete member.deployedTokenId;
-    if (!tokenId) continue;
-    const token = scene?.tokens.get(tokenId);
-    if (!token) continue; // token already gone; keep the pre-combat stash
-
-    const hp = token.actor?.system?.hp?.value;
-    if (typeof hp === "number" && hp <= 0) {
-      // The fallen are gathered up with the party: assign Carriers, or
-      // remove them from the formation to abandon the body where it fell.
-      fallen.push(token.actor?.name ?? token.name);
-    }
-
-    member.tokenData = token.toObject();
-    if (!anchor) anchor = { x: token.x, y: token.y };
-    toDelete.push(token.id);
-  }
 
   /* --- Any rounds not yet ticked live feed the clock now --- */
   const rounds = Math.max(0, (combat.round ?? 0) - (formation.combat?.roundsCounted ?? 0));
 
   formation.combat = null;
+  // The fallen come back with the party: assign Carriers, or remove them from
+  // the formation to abandon the body where it fell.
+  const { fallen, anchor } = await recallMembers(formation);
+
   // Re-anchor movement tracking at the reform position before the token moves.
   if (anchor) formation.clock.lastPosition = anchor;
   else if (partyToken) formation.clock.lastPosition = { x: partyToken.x, y: partyToken.y };
-  // Stash before destroy: the members' token snapshots must be in storage
-  // before their canvas tokens are deleted, or a failure loses them.
   await updateFormation(formation);
-
-  if (scene && toDelete.length) await scene.deleteEmbeddedDocuments("Token", toDelete);
 
   if (partyToken) {
     const update = { hidden: false };

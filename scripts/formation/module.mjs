@@ -21,12 +21,14 @@ import {
   getFormations,
   getPartyActor,
   heldLightCount,
+  lightsForBearer,
   getPartyToken,
   patchFormation,
   pruneFormations,
   syncPartyActorSpeed,
   updateFormation,
 } from "./formation-model.mjs";
+import { leashBreach, memberForDeployedToken, reanchorDetached } from "./deployment.mjs";
 import { anchorMap, archiveSession, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
 import { registerFuzzyRulers } from "./measure-fuzz.mjs";
 import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
@@ -217,6 +219,10 @@ Hooks.once("init", () => {
     // mutators let equipment's sheet controls light/douse/shutter by actor.
     heldLightCount,
     getFormationForActor,
+    // lib/light.mjs reads this to decide which record owns an actor's lights.
+    // It is consumed through the namespace, so removing it here silently sends
+    // every member's token back to reading its own (empty) actor flag.
+    lightsForBearer,
     addLight,
     toggleLight,
     removeLight,
@@ -301,7 +307,36 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   if (!formationId) return;
   // Only the active GM client runs the automation, regardless of who moved the token.
   if (!isPrimaryGM()) return;
+  // The party caught up: every scout ahead of it may range a fresh round.
+  reanchorDetached(formationId).catch((err) => console.error(`${MODULE_ID} | re-anchor failed`, err));
   onPartyTokenMoved(tokenDoc, formationId).catch((err) => console.error(`${MODULE_ID} | movement processing failed`, err));
+});
+
+/*
+ * The leash on a detached member (deployment.mjs): they may not get further than
+ * one round's movement from where they stood when the party last moved.
+ *
+ * Cancelling in preUpdateToken rather than snapping the token back afterwards —
+ * a refused move should never have happened, and a corrective second write is
+ * one more thing to fail. Runs on whichever client is dragging, which is the
+ * client that must be told no.
+ *
+ * The GM is warned, not stopped: they are the one who decides where anything
+ * ends up, and hard-blocking them would make repositioning a scout impossible
+ * without first recalling them.
+ */
+Hooks.on("preUpdateToken", (tokenDoc, changes) => {
+  if (!("x" in changes) && !("y" in changes)) return;
+  const found = memberForDeployedToken(Object.values(getFormations()), tokenDoc.id);
+  if (!found?.member?.detached) return;
+  const target = { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y };
+  const actor = game.actors.get(found.member.actorId);
+  const breach = leashBreach(found.member, tokenDoc, target, actor);
+  if (!breach) return;
+
+  const name = actor?.name ?? tokenDoc.name;
+  ui.notifications.warn(game.i18n.format("ACKS-FORMATION.app.leashed", { name }));
+  if (!game.user.isGM) return false;
 });
 
 /* If the party token is deleted outside of "disband", unlink it so the

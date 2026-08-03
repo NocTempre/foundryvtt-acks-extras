@@ -202,8 +202,8 @@
         <span class="rank">{{this.index}}</span>
         <img src="{{this.img}}" data-action="openSheet" alt="{{this.name}}" />
         <div class="info">
-          <span class="name">{{this.name}} {{#if this.down}}<i class="fa-solid fa-skull down-badge" data-tooltip="{{localize 'ACKS-FORMATION.app.downBadge'}}"></i>{{/if}}{{#if this.blind}}<i class="fa-solid fa-eye-slash down-badge" data-tooltip="{{localize 'ACKS-FORMATION.app.blindBadge'}}"></i>{{/if}} {{#if this.deployed}}<i class="fa-solid fa-swords" data-tooltip="{{localize 'ACKS-FORMATION.app.deployedBadge'}}"></i>{{else}}{{#unless this.stashed}}<i class="fa-solid fa-location-dot" data-tooltip="{{localize 'ACKS-FORMATION.app.noStashedToken'}}"></i>{{/unless}}{{/if}}</span>
-          <span class="details">{{this.speed}}'/{{localize "ACKS-FORMATION.app.turn"}} · {{localize "ACKS-FORMATION.app.enc"}} {{this.enc}}/{{this.encMax}}</span>
+          <span class="name">{{this.name}} {{#if this.down}}<i class="fa-solid fa-skull down-badge" data-tooltip="{{localize 'ACKS-FORMATION.app.downBadge'}}"></i>{{/if}}{{#if this.blind}}<i class="fa-solid fa-eye-slash down-badge" data-tooltip="{{localize 'ACKS-FORMATION.app.blindBadge'}}"></i>{{/if}} {{#if this.detached}}<i class="fa-solid fa-person-hiking" data-tooltip="{{localize 'ACKS-FORMATION.app.detachedBadge'}}"></i>{{else if this.deployed}}<i class="fa-solid fa-swords" data-tooltip="{{localize 'ACKS-FORMATION.app.deployedBadge'}}"></i>{{else}}{{#unless this.stashed}}<i class="fa-solid fa-location-dot" data-tooltip="{{localize 'ACKS-FORMATION.app.noStashedToken'}}"></i>{{/unless}}{{/if}}</span>
+          <span class="details">{{this.speed}}'/{{localize "ACKS-FORMATION.app.turn"}} · {{localize "ACKS-FORMATION.app.enc"}} {{this.enc}}/{{this.encMax}}{{#if this.darkSight}} · <span class="dark-sight" data-tooltip="{{localize 'ACKS-FORMATION.app.darkSightHint'}}"><i class="fa-solid fa-low-vision"></i> {{this.darkSight}}'</span>{{/if}}</span>
           <span class="roles">
             {{#each this.roles}}
             <button type="button" class="role-chip {{#if this.active}}active{{/if}}" data-action="toggleRole"
@@ -221,6 +221,11 @@
           <button type="button" data-action="memberRight" {{#unless this.canRight}}disabled{{/unless}}><i class="fa-solid fa-chevron-right"></i></button>
           {{/if}}
           <button type="button" data-action="memberDown" {{#unless this.canDown}}disabled{{/unless}}><i class="fa-solid fa-chevron-down"></i></button>
+          <button type="button" data-action="toggleDetach" class="{{#if this.detached}}active{{/if}}"
+                  {{#unless this.canDetach}}disabled{{/unless}}
+                  data-tooltip="{{#if this.detached}}{{localize 'ACKS-FORMATION.app.recallHint'}}{{else}}{{localize 'ACKS-FORMATION.app.detachHint'}}{{/if}}">
+            <i class="fa-solid {{#if this.detached}}fa-people-arrows{{else}}fa-person-walking-arrow-right{{/if}}"></i>
+          </button>
           {{#if @root.isGM}}
           <button type="button" data-action="removeMember" class="danger" data-tooltip="{{localize 'ACKS-FORMATION.app.removeMemberHint'}}">
             <i class="fa-solid fa-user-minus"></i>

@@ -36,6 +36,15 @@ import {
   wouldCycle,
 } from "../scripts/lib/place-logic.mjs";
 import { migrateLocationSource } from "../scripts/location/data/location-migrate.mjs";
+import {
+  DEFAULT_LIGHTLESS_RANGE,
+  SHADOWY_SENSE_RANGE,
+  VISION_MODES,
+  canSeeInDark,
+  senseProfile,
+} from "../scripts/lib/senses.mjs";
+import { emittedLight } from "../scripts/lib/light.mjs";
+import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 
 const { resolveLevelValue: R, choicesOf } = vocab;
 let n = 0;
@@ -953,6 +962,142 @@ t("migrateLocationSource: a partial update is not mistaken for a v1 document", (
   // one roster field must not fabricate a market subtree.
   const patch = { roster: [{ uuid: "Actor.a" }] };
   assert.equal("market" in migrateLocationSource(patch), false);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Senses → Foundry vision, and who is carrying a light.                       */
+/*                                                                             */
+/* The mapping table is the rules claim this module makes, so it is asserted    */
+/* row by row. The one that matters most is the FIRST: an ordinary character    */
+/* sees range 0 — only what is lit. The acks system's own monster packs ship    */
+/* every creature at 60, which is the defect this pass exists to fix.           */
+/* -------------------------------------------------------------------------- */
+
+/** A mock actor: `extras` becomes the monster stat-block flag, items by name. */
+const mockActor = (extras = null, itemNames = []) => ({
+  getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? extras : undefined),
+  items: itemNames.map((name) => ({ type: "ability", name, getFlag: () => undefined })),
+  effects: [],
+});
+
+t("senseProfile: ordinary eyes see only what is lit (range 0)", () => {
+  const profile = senseProfile(mockActor());
+  assert.equal(profile.sightRange, 0);
+  assert.equal(profile.visionMode, VISION_MODES.BASIC);
+  assert.equal(profile.seesInDark, false);
+});
+
+t("senseProfile: lightless vision uses its recorded range, as dim light", () => {
+  const profile = senseProfile(mockActor({ vision: ["lightless"], lightlessRange: 90 }));
+  assert.equal(profile.sightRange, 90);
+  // NOT "darkvision": that mode promotes DIM to BRIGHT, which would let the
+  // creature read a scroll in a lightless corridor.
+  assert.equal(profile.visionMode, VISION_MODES.DIM);
+  assert.equal(profile.seesInDark, true);
+});
+
+t("senseProfile: lightless vision with no recorded range falls back to the MM default", () => {
+  assert.equal(senseProfile(mockActor({ vision: ["lightless"] })).sightRange, DEFAULT_LIGHTLESS_RANGE);
+});
+
+t("senseProfile: night vision brightens dim light but never pierces total dark", () => {
+  const profile = senseProfile(mockActor({ vision: ["night"] }));
+  assert.equal(profile.sightRange, 0); // the whole point: dark is still dark
+  assert.equal(profile.visionMode, VISION_MODES.AMPLIFIED);
+  assert.equal(profile.seesInDark, false);
+});
+
+t("senseProfile: a blind creature navigates by its senses, not by nothing", () => {
+  // Blind WITH a ranged sense uses that sense's range...
+  const bat = senseProfile(mockActor({ vision: ["blind"], otherSenses: [{ type: "echolocation", range: 60 }] }));
+  assert.equal(bat.sightRange, 60);
+  assert.equal(bat.seesInDark, true);
+  // ...and blind with nothing recorded still gets a radius, or it would be
+  // rendered helpless by an empty field rather than by a rule.
+  assert.equal(senseProfile(mockActor({ vision: ["blind"] })).sightRange, SHADOWY_SENSE_RANGE);
+});
+
+t("senseProfile: the longest dark sense wins", () => {
+  const profile = senseProfile(
+    mockActor({ vision: ["lightless"], lightlessRange: 30, otherSenses: [{ type: "mechTerrestrial", range: 120 }] }),
+  );
+  assert.equal(profile.sightRange, 120);
+});
+
+t("senseProfile: acute vision is not a dark sense", () => {
+  // Acute Vision aids surprise and range categories; it does not see in dark.
+  const profile = senseProfile(mockActor({ vision: ["standard", "acute"] }));
+  assert.equal(profile.sightRange, 0);
+  assert.equal(profile.seesInDark, false);
+});
+
+t("senseProfile: a thief's shadowy senses read 30', by name", () => {
+  const profile = senseProfile(mockActor(null, ["Shadowy Senses"]));
+  assert.equal(profile.sightRange, SHADOWY_SENSE_RANGE);
+  assert.equal(profile.visionMode, VISION_MODES.DIM);
+});
+
+t("senseProfile: infravision by name reads as lightless vision", () => {
+  assert.equal(senseProfile(mockActor(null, ["Infravision"])).sightRange, DEFAULT_LIGHTLESS_RANGE);
+});
+
+t("canSeeInDark agrees with senseProfile on every path", () => {
+  // One reading of the sheet: a creature blind to the movement rules and
+  // sighted on canvas (or the reverse) is the bug this shared file prevents.
+  for (const actor of [
+    mockActor(),
+    mockActor({ vision: ["lightless"], lightlessRange: 60 }),
+    mockActor({ vision: ["night"] }),
+    mockActor(null, ["Shadowy Senses"]),
+    mockActor(null, ["Swimming"]),
+  ]) {
+    assert.equal(canSeeInDark(actor), senseProfile(actor).seesInDark);
+  }
+});
+
+t("emittedLight: the brightest lit, unshuttered source wins", () => {
+  assert.deepEqual(emittedLight([{ type: "candle", lit: true }, { type: "torch", lit: true }]), { bright: 15, dim: 30 });
+  // A closed lantern keeps burning but sheds nothing; a doused source is stowed.
+  assert.deepEqual(emittedLight([{ type: "lantern", lit: true, shielded: true }]), { bright: 0, dim: 0 });
+  assert.deepEqual(emittedLight([{ type: "torch", lit: false }]), { bright: 0, dim: 0 });
+  assert.deepEqual(emittedLight([]), { bright: 0, dim: 0 });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The detached-member leash.                                                  */
+/* -------------------------------------------------------------------------- */
+
+const scene100 = { grid: { size: 100, distance: 5 } }; // 100px = 5 feet
+
+t("oneRoundFeet: one round is the system's combat speed", () => {
+  assert.equal(oneRoundFeet({ system: { movementacks: { combat: 40 } } }), 40);
+  // No combat speed recorded: exploration ÷ 3, the same split the system uses.
+  assert.equal(oneRoundFeet({ system: { movementacks: { exploration: 120 } } }), 40);
+  assert.equal(oneRoundFeet(null), 0);
+});
+
+t("leashBreach: a scout may range one round ahead, and no further", () => {
+  const member = {
+    detach: { anchor: { x: 0, y: 0 } },
+    actorId: "a",
+  };
+  const token = { parent: scene100 };
+  const actor = { system: { movementacks: { combat: 40 } } };
+  // 40' of allowance = 800px at 100px per 5'.
+  const at = (px) => leashBreach(member, token, { x: px, y: 0 }, actor);
+  assert.equal(at(700), null); // 35' — fine
+  assert.equal(at(800), null); // exactly 40' — the limit is inclusive
+  assert.ok(at(900)); // 45' — refused
+  assert.equal(at(900).allowance, 40);
+});
+
+t("leashBreach: nothing to enforce is never a refusal", () => {
+  const token = { parent: scene100 };
+  const actor = { system: { movementacks: { combat: 40 } } };
+  // No anchor (not detached), and an actor with no readable speed: both must
+  // let the move through rather than invent a limit.
+  assert.equal(leashBreach({}, token, { x: 9999, y: 0 }, actor), null);
+  assert.equal(leashBreach({ detach: { anchor: { x: 0, y: 0 } } }, token, { x: 9999, y: 0 }, {}), null);
 });
 
 console.log(`\n${n} tests passed (including the location migration)`);
