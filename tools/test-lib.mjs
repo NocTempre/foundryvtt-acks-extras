@@ -38,6 +38,7 @@ import {
 import { migrateLocationSource } from "../scripts/location/data/location-migrate.mjs";
 import {
   DEFAULT_LIGHTLESS_RANGE,
+  DETECTION_MODES,
   SHADOWY_SENSE_RANGE,
   VISION_MODES,
   canSeeInDark,
@@ -974,10 +975,11 @@ t("migrateLocationSource: a partial update is not mistaken for a v1 document", (
 /* -------------------------------------------------------------------------- */
 
 /** A mock actor: `extras` becomes the monster stat-block flag, items by name. */
-const mockActor = (extras = null, itemNames = []) => ({
+const mockActor = (extras = null, itemNames = [], statuses = []) => ({
   getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? extras : undefined),
   items: itemNames.map((name) => ({ type: "ability", name, getFlag: () => undefined })),
   effects: [],
+  statuses: new Set(statuses),
 });
 
 t("senseProfile: ordinary eyes see only what is lit (range 0)", () => {
@@ -990,10 +992,13 @@ t("senseProfile: ordinary eyes see only what is lit (range 0)", () => {
 t("senseProfile: lightless vision uses its recorded range, as dim light", () => {
   const profile = senseProfile(mockActor({ vision: ["lightless"], lightlessRange: 90 }));
   assert.equal(profile.sightRange, 90);
-  // NOT "darkvision": that mode promotes DIM to BRIGHT, which would let the
-  // creature read a scroll in a lightless corridor.
-  assert.equal(profile.visionMode, VISION_MODES.DIM);
+  // Its OWN mode, not core's darkvision: darkvision promotes DIM to BRIGHT,
+  // which would let the creature read a scroll in a lightless corridor.
+  assert.equal(profile.visionMode, VISION_MODES.LIGHTLESS);
   assert.equal(profile.seesInDark, true);
+  // And it detects as lightless vision, which Hiding can beat — not as
+  // generic sight, which nothing can.
+  assert.deepEqual(profile.detection, { [DETECTION_MODES.LIGHTLESS]: 90 });
 });
 
 t("senseProfile: lightless vision with no recorded range falls back to the MM default", () => {
@@ -1003,8 +1008,9 @@ t("senseProfile: lightless vision with no recorded range falls back to the MM de
 t("senseProfile: night vision brightens dim light but never pierces total dark", () => {
   const profile = senseProfile(mockActor({ vision: ["night"] }));
   assert.equal(profile.sightRange, 0); // the whole point: dark is still dark
-  assert.equal(profile.visionMode, VISION_MODES.AMPLIFIED);
+  assert.equal(profile.visionMode, VISION_MODES.NIGHT);
   assert.equal(profile.seesInDark, false);
+  assert.deepEqual(profile.detection, {}); // ordinary sight finds things
 });
 
 t("senseProfile: a blind creature navigates by its senses, not by nothing", () => {
@@ -1034,7 +1040,59 @@ t("senseProfile: acute vision is not a dark sense", () => {
 t("senseProfile: a thief's shadowy senses read 30', by name", () => {
   const profile = senseProfile(mockActor(null, ["Shadowy Senses"]));
   assert.equal(profile.sightRange, SHADOWY_SENSE_RANGE);
-  assert.equal(profile.visionMode, VISION_MODES.DIM);
+  assert.equal(profile.visionMode, VISION_MODES.SHADOWY);
+  assert.deepEqual(profile.detection, { [DETECTION_MODES.SHADOWY]: SHADOWY_SENSE_RANGE });
+});
+
+t("senseProfile: each sense carries its own detection mode", () => {
+  // Echolocation is hearing, not sight — so invisibility and blindness cannot
+  // defeat it. Terrestrial mechanoreception is ground vibration, which is
+  // core's own feelTremor: through walls, moving targets only.
+  const bat = senseProfile(mockActor({ vision: ["blind"], otherSenses: [{ type: "echolocation", range: 60 }] }));
+  assert.deepEqual(bat.detection, { [DETECTION_MODES.ECHOLOCATION]: 60 });
+
+  const burrower = senseProfile(mockActor({ otherSenses: [{ type: "mechTerrestrial", range: 40 }] }));
+  assert.deepEqual(burrower.detection, { [DETECTION_MODES.TREMOR]: 40 });
+  assert.equal(DETECTION_MODES.TREMOR, "feelTremor"); // core's, reused not reinvented
+
+  const spider = senseProfile(mockActor({ otherSenses: [{ type: "mechWebbed", range: 30 }] }));
+  assert.deepEqual(spider.detection, { [DETECTION_MODES.MECHANORECEPTION]: 30 });
+});
+
+t("senseProfile: several senses all detect, at their own ranges", () => {
+  const profile = senseProfile(
+    mockActor({
+      vision: ["lightless"],
+      lightlessRange: 30,
+      otherSenses: [{ type: "echolocation", range: 120 }],
+    }),
+  );
+  assert.equal(profile.sightRange, 120); // looks through the longest
+  assert.equal(profile.visionMode, VISION_MODES.ECHOLOCATION);
+  assert.deepEqual(profile.detection, {
+    [DETECTION_MODES.LIGHTLESS]: 30,
+    [DETECTION_MODES.ECHOLOCATION]: 120,
+  });
+});
+
+t("senseProfile: a condition switches shadowy senses off entirely", () => {
+  // RULES §4: not while deafened, in magical silence, or at running speed.
+  for (const status of ["deaf", "silence", "acks-extras.running"]) {
+    const profile = senseProfile(mockActor(null, ["Shadowy Senses"], [status]));
+    assert.equal(profile.sightRange, 0, `${status} should blind the thief`);
+    assert.equal(profile.seesInDark, false, `${status} should blind the thief`);
+    assert.deepEqual(profile.detection, {}, `${status} should remove the detection mode`);
+    assert.equal(profile.suppressed, true);
+  }
+  // A condition that has nothing to do with hearing leaves them alone.
+  assert.equal(senseProfile(mockActor(null, ["Shadowy Senses"], ["prone"])).sightRange, SHADOWY_SENSE_RANGE);
+});
+
+t("senseProfile: a condition does NOT switch off lightless vision", () => {
+  // Infravision is not hearing: deafness and silence are irrelevant to it.
+  const profile = senseProfile(mockActor({ vision: ["lightless"], lightlessRange: 60 }, [], ["deaf", "silence"]));
+  assert.equal(profile.sightRange, 60);
+  assert.equal(profile.seesInDark, true);
 });
 
 t("senseProfile: infravision by name reads as lightless vision", () => {

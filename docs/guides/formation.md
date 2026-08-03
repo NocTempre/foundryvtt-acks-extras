@@ -50,6 +50,26 @@ Monsters answer from their Full Monster Sheet stat block, so a creature with
 lightless vision or echolocation gets it without you configuring anything. The
 member list shows each character's dark-sight range beside their speed.
 
+**Each sense behaves like itself, not like eyes.** That is the part worth
+knowing at the table:
+
+| Sense | Finds an invisible creature | Works in magical darkness | Reaches through walls | Stopped by |
+|---|---|---|---|---|
+| Lightless vision | no | no | no | blindness; a **hiding** character proficient in Hiding |
+| Shadowy senses | yes | no | no | deafness, silence, **running** |
+| Echolocation | yes | **yes** | no | deafness, silence |
+| Mechanoreception (terrestrial) | yes | yes | **yes** — but only creatures that *move* | — |
+| Mechanoreception (other) | yes | yes | no | — |
+
+So a bat still hunts you inside a *darkness* spell, and going invisible does not
+help; a thief creeping on shadowy senses goes blind the moment they break into a
+run; and a burrowing horror feels you through the floor only while you are
+moving.
+
+Two of those need a switch Foundry does not ship, so this module adds them to the
+token HUD: **Hiding** and **Running**. Neither is guessed — toggle them when the
+character declares it.
+
 If you want a token to see differently, **edit its vision by hand** — from then
 on that token is yours and the module leaves it alone. The world setting
 *Token vision from ACKS senses* turns the whole thing off.

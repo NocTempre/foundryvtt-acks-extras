@@ -34,6 +34,10 @@
  */
 
 import { hasCapability } from "./capabilities.mjs";
+import { DETECTION_MODES, VISION_MODES } from "./perception.mjs";
+
+/** Re-exported so callers name a mode from the file that produced the profile. */
+export { VISION_MODES, DETECTION_MODES };
 
 /** The monsters feature's flag scope, holding the `MonsterExtras` stat block. */
 const MONSTERS_ID = "acks-extras";
@@ -135,72 +139,127 @@ function matchesByName(actor, pattern) {
 }
 
 /**
- * Can this actor operate without light (shadowy senses, lightless vision,
- * spell)? Monsters with a Full Monster Sheet answer from their recorded vision
- * modes and senses; other actors fall back to capability then name matching.
+ * Can this actor operate without light? One reading of the sheet, shared with
+ * token vision — a creature blind to the movement rules and sighted on canvas
+ * (or the reverse) is the bug this file exists to prevent. A sense a condition
+ * has switched off does not count, so a deafened thief moves at the blinded
+ * ⅓ speed exactly as the canvas shows them seeing nothing.
  */
 export function canSeeInDark(actor) {
-  if (!actor) return false;
-  const monster = monsterSeesInDark(actor);
-  if (monster !== null) return monster;
-  if (hasCapability(actor, CAP_LIGHTLESS)) return true;
-  return matchesByName(actor, DARK_SENSE_PATTERN);
+  return actor ? senseProfile(actor).seesInDark : false;
 }
 
 /* -------------------------------------------- */
 /*  Foundry vision                              */
 /* -------------------------------------------- */
 
-/** Foundry vision modes this module assigns (`CONFIG.Canvas.visionModes`). */
-export const VISION_MODES = Object.freeze({
-  /** Ordinary eyes: sees what is lit, and nothing else. */
-  BASIC: "basic",
-  /** Sight in darkness that reads as dim light — colourless, no fine detail. */
-  DIM: "monochromatic",
-  /** Night Vision: dim reads as bright, but total dark stays dark. */
-  AMPLIFIED: "lightAmplification",
-});
+/**
+ * The senses a creature can be suppressed out of, by condition.
+ *
+ * Shadowy senses are the conditional one (RULES §4: not at running speed, while
+ * deafened, or in magical silence). Magical DARKNESS also stops them, but that
+ * is a property of where the creature is standing rather than of the creature,
+ * so it is enforced per-test in `perception.mjs` instead of here.
+ */
+const SHADOWY_SUPPRESSORS = ["deaf", "silence", `${MONSTERS_ID}.running`];
 
-/** Every dark-sense range this actor's stat block records, in feet. */
-function statBlockRanges(extras) {
-  const ranges = [];
-  for (const mode of Array.from(extras.vision ?? [])) {
-    if (mode === "lightless") ranges.push(Number(extras.lightlessRange) || DEFAULT_LIGHTLESS_RANGE);
-  }
-  for (const sense of extras.otherSenses ?? []) {
-    if (DARK_SENSES.has(sense?.type)) ranges.push(Number(sense.range) || DEFAULT_LIGHTLESS_RANGE);
-  }
-  return ranges;
+/** Status ids currently on an actor, as a Set (empty for a plain object). */
+function statusesOf(actor) {
+  const statuses = actor?.statuses;
+  if (statuses instanceof Set) return statuses;
+  return new Set(Array.isArray(statuses) ? statuses : []);
 }
 
 /**
- * How this actor's token should see: `{ seesInDark, sightRange, visionMode }`.
- *
- * `sightRange` is in scene distance units (feet) and means sight in DARKNESS —
- * 0 is the correct, common answer, and leaves the token seeing lit areas only.
- * A creature with several dark senses uses its longest; one that is blind with
- * no recorded range still navigates, at {@link DEFAULT_BLIND_RANGE}.
+ * Which detection mode carries each ACKS sense, and which vision mode it looks
+ * like. `perception.mjs` defines what those modes actually DO.
  */
-export function senseProfile(actor) {
-  const dim = (sightRange) => ({ seesInDark: true, sightRange, visionMode: VISION_MODES.DIM });
+const SENSE_MODES = Object.freeze({
+  lightless: { detect: DETECTION_MODES.LIGHTLESS, vision: VISION_MODES.LIGHTLESS },
+  shadowy: { detect: DETECTION_MODES.SHADOWY, vision: VISION_MODES.SHADOWY },
+  echolocation: { detect: DETECTION_MODES.ECHOLOCATION, vision: VISION_MODES.ECHOLOCATION },
+  mechTerrestrial: { detect: DETECTION_MODES.TREMOR, vision: VISION_MODES.ECHOLOCATION },
+  mechAerial: { detect: DETECTION_MODES.MECHANORECEPTION, vision: VISION_MODES.ECHOLOCATION },
+  mechAquatic: { detect: DETECTION_MODES.MECHANORECEPTION, vision: VISION_MODES.ECHOLOCATION },
+  mechWebbed: { detect: DETECTION_MODES.MECHANORECEPTION, vision: VISION_MODES.ECHOLOCATION },
+});
 
+/** Every sense this actor has, as `[{ key, range }]`, longest first. */
+function sensesOf(actor) {
+  const found = [];
   const extras = getMonsterExtras(actor);
   if (extras && hasSenseData(extras)) {
-    const vision = Array.from(extras.vision ?? []);
-    const ranges = statBlockRanges(extras);
-    if (ranges.length) return dim(Math.max(...ranges));
-    if (vision.includes("blind")) return dim(DEFAULT_BLIND_RANGE);
-    if (vision.includes("night")) {
-      return { seesInDark: false, sightRange: 0, visionMode: VISION_MODES.AMPLIFIED };
+    for (const mode of Array.from(extras.vision ?? [])) {
+      if (mode === "lightless") found.push({ key: "lightless", range: Number(extras.lightlessRange) || DEFAULT_LIGHTLESS_RANGE });
     }
-    return { seesInDark: false, sightRange: 0, visionMode: VISION_MODES.BASIC };
+    for (const sense of extras.otherSenses ?? []) {
+      if (DARK_SENSES.has(sense?.type)) found.push({ key: sense.type, range: Number(sense.range) || DEFAULT_LIGHTLESS_RANGE });
+    }
+    // Blind with nothing else recorded still navigates — it simply has no
+    // number on its sheet, which is not the same as being helpless.
+    if (!found.length && Array.from(extras.vision ?? []).includes("blind")) {
+      found.push({ key: "shadowy", range: DEFAULT_BLIND_RANGE });
+    }
+    return found.sort((a, b) => b.range - a.range);
   }
 
-  // No stat block: the capability register, then names. Lightless vision
-  // outranges shadowy senses, so an actor with both uses the longer.
+  // No stat block: the capability register, then names.
   if (hasCapability(actor, CAP_LIGHTLESS) || matchesByName(actor, LIGHTLESS_PATTERN)) {
-    return dim(DEFAULT_LIGHTLESS_RANGE);
+    found.push({ key: "lightless", range: DEFAULT_LIGHTLESS_RANGE });
   }
-  if (matchesByName(actor, SHADOWY_PATTERN)) return dim(SHADOWY_SENSE_RANGE);
-  return { seesInDark: false, sightRange: 0, visionMode: VISION_MODES.BASIC };
+  if (matchesByName(actor, SHADOWY_PATTERN)) found.push({ key: "shadowy", range: SHADOWY_SENSE_RANGE });
+  return found.sort((a, b) => b.range - a.range);
+}
+
+/** Is this sense switched off by a condition the creature is currently under? */
+function suppressed(key, statuses) {
+  if (key !== "shadowy") return false;
+  return SHADOWY_SUPPRESSORS.some((s) => statuses.has(s));
+}
+
+/**
+ * How this actor's token should perceive:
+ * `{ seesInDark, sightRange, visionMode, detection, suppressed }`.
+ *
+ * `sightRange` is in scene units (feet) and means seeing the SURROUNDINGS in
+ * darkness — 0 is the correct, common answer, leaving the token to see lit areas
+ * only. `detection` is the `{modeId: range}` record of which creatures it can
+ * find and how: a sense is not merely a radius, and modelling one as plain sight
+ * would let invisibility beat echolocation and stop tremor at a wall.
+ *
+ * A creature with several senses looks through its longest, and detects with all
+ * of them at their own ranges.
+ */
+export function senseProfile(actor) {
+  const statuses = statusesOf(actor);
+  const senses = sensesOf(actor);
+  const live = senses.filter((s) => !suppressed(s.key, statuses));
+
+  const detection = {};
+  for (const { key, range } of live) {
+    const mode = SENSE_MODES[key]?.detect;
+    if (mode) detection[mode] = Math.max(detection[mode] ?? 0, range);
+  }
+
+  if (!live.length) {
+    // Night Vision is the one light-based sense: it brightens dim light but
+    // leaves total darkness dark, so it never grants a range.
+    const night = Array.from(getMonsterExtras(actor)?.vision ?? []).includes("night");
+    return {
+      seesInDark: false,
+      sightRange: 0,
+      visionMode: night ? VISION_MODES.NIGHT : VISION_MODES.BASIC,
+      detection,
+      suppressed: senses.length > 0,
+    };
+  }
+
+  const best = live[0];
+  return {
+    seesInDark: true,
+    sightRange: best.range,
+    visionMode: SENSE_MODES[best.key]?.vision ?? VISION_MODES.LIGHTLESS,
+    detection,
+    suppressed: false,
+  };
 }

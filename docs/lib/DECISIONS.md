@@ -89,3 +89,36 @@ Entries are dated and append-only. A superseded entry stays, marked.
     clobber and buy nothing. Terrestrial mechanoreception could plausibly map
     to core's `feelTremor` instead of a sight radius; kept uniform with the
     other dark senses for now, one rule and one answer.
+    — **SUPERSEDED 2026-08-03 (below).** "Buys nothing" was wrong: a radius
+    without a detection mode makes every sense behave like eyes.
+
+- **2026-08-03 — Every sense gets its own detection mode; `basicSight` off.**
+  The entry above modelled all five ACKS senses as a sight radius. That
+  silently gave each of them sight's weaknesses and none of its own: a bat's
+  echolocation was defeated by invisibility and by a *darkness* spell, tremor
+  could not reach through a floor, and Hiding could not beat infravision — all
+  four wrong at the table, and none visible in a screenshot.
+  - **Ruled:** `DetectionMode.type` carries the rule. Core's `_canDetect`
+    defeats only SIGHT with the Blind status and an invisible target, and only
+    wall-respecting modes with magical darkness — so SOUND for echolocation and
+    shadowy senses, MOVE for mechanoreception, SIGHT for lightless vision.
+    Echolocation overrides the darkness bail (core keys it to `walls`, not to
+    type: sound does not care how dark it is). Terrestrial mechanoreception
+    reuses core's `feelTremor` rather than inventing a twin.
+  - **`basicSight` is disabled wherever a real sense replaces it.** This is the
+    load-bearing part and was missed until the live check: core derives that
+    mode from `sight.range`, and left on it shadows every specific mode, so the
+    hiding thief is seen and the invisible one found regardless. Safe because
+    the vision source radius reads `sight.range` itself (`Token#sightRange`),
+    so environment vision is untouched.
+  - **Source conditions resolve in `senses.mjs`, target conditions in
+    `_canDetect`.** Suppressing a sense by rewriting the token costs nothing per
+    visibility test and keeps `canSeeInDark` agreeing with the canvas. Only what
+    depends on the target, or on where the perceiver stands, can't be
+    precomputed.
+  - **Cost:** two status effects this module now registers (Hiding, Running),
+    because core ships neither. Both are toggles — inferring "is running" from
+    token movement would fight the GM every time they repositioned someone.
+  - **Rejected:** reusing core's `invisible` for hiding (different rule,
+    different detection semantics), and inferring Hiding from `token.hidden`
+    (that is the GM's "not on the map yet" switch, not a character's action).

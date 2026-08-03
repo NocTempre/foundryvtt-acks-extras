@@ -32,7 +32,16 @@
 import { MODULE_ID } from "./constants.mjs";
 import { isPrimaryGM } from "./util.mjs";
 import { senseProfile } from "./senses.mjs";
+import { DETECTION_MODES } from "./perception.mjs";
 import { bearerLights, emittedLight } from "./light.mjs";
+
+/**
+ * The detection modes this module manages. A token that stops having a sense
+ * must lose its mode, so the set has to be known independently of what the
+ * actor currently reports — otherwise a doused sense lingers forever.
+ * `feelTremor` is core's own but we place it, so we clear it too.
+ */
+const OWNED_DETECTION_MODES = Object.freeze(Object.values(DETECTION_MODES));
 
 /** Boolean: this token's light is ours to clear. Predates the vision stamp. */
 const FLAG_LIGHT = "managedLight";
@@ -67,7 +76,7 @@ const enabled = () => {
  * since our last write — in which case the stamp is dropped and the token is
  * never managed again.
  */
-export async function applyTokenVision(tokenDoc, { sightRange, visionMode }) {
+export async function applyTokenVision(tokenDoc, { sightRange, visionMode, detection = {} }) {
   if (!tokenDoc?.sight?.enabled) return false;
   const stamp = tokenDoc.getFlag(MODULE_ID, FLAG_VISION);
   const current = { range: tokenDoc.sight.range, visionMode: tokenDoc.sight.visionMode };
@@ -85,7 +94,34 @@ export async function applyTokenVision(tokenDoc, { sightRange, visionMode }) {
     }
   }
 
-  if (current.range === sightRange && current.visionMode === visionMode) {
+  // Detection modes are a TypedObjectField keyed by mode id. We rewrite ours and
+  // leave everything else — lightPerception, and anything another module added.
+  const desiredDetection = {};
+  for (const [id, range] of Object.entries(detection)) desiredDetection[id] = { enabled: true, range };
+
+  // Generic darkvision has to be switched OFF wherever a real sense replaces it.
+  // Core derives `basicSight` from `sight.range`, so a creature would otherwise
+  // detect through plain sight at the same radius — and that generic mode
+  // shadows every specific one: the hiding thief is seen anyway, the invisible
+  // one is found by a bat that should be listening, not looking. Environment
+  // vision is unaffected: the vision source radius reads `sight.range` itself
+  // (`Token#sightRange`), never this mode.
+  if (Object.keys(detection).length) desiredDetection.basicSight = { enabled: false, range: 0 };
+
+  // Compare against STORED data, not prepared: core injects basicSight and
+  // lightPerception during preparation, so diffing the live object would report
+  // a change on every single sync and write forever.
+  const stored = tokenDoc.toObject().detectionModes ?? {};
+  const detectionDelta = {};
+  for (const id of new Set([...OWNED_DETECTION_MODES, "basicSight", ...Object.keys(detection)])) {
+    const want = desiredDetection[id] ?? null;
+    const have = stored[id] ?? null;
+    if (!want && have) detectionDelta[`-=${id}`] = null;
+    else if (want && (have?.range !== want.range || have?.enabled !== want.enabled)) detectionDelta[id] = want;
+  }
+  const detectionDirty = Object.keys(detectionDelta).length > 0;
+
+  if (!detectionDirty && current.range === sightRange && current.visionMode === visionMode) {
     // Already correct — but CLAIM it anyway. An ordinary character derives
     // range 0 / basic, which is exactly Foundry's default, so without this the
     // commonest token in the world is never stamped; a GM's later hand-edit is
@@ -98,6 +134,7 @@ export async function applyTokenVision(tokenDoc, { sightRange, visionMode }) {
 
   await tokenDoc.update({
     sight: { range: sightRange, visionMode },
+    detectionModes: detectionDelta,
     [`flags.${MODULE_ID}.${FLAG_VISION}`]: { range: sightRange, visionMode },
   });
   return true;

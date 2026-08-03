@@ -56,6 +56,8 @@ import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK } from "./patch
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
+import * as perception from "./perception.mjs";
+import { registerPerceptionModes } from "./perception.mjs";
 import {
   SETTING_MANAGE_VISION,
   syncActorTokens,
@@ -107,6 +109,8 @@ const localImpl = Object.freeze({
   senses,
   /** The ACKS light table and who is bearing one (light.mjs). */
   light,
+  /** The ACKS senses as Foundry vision/detection modes (perception.mjs). */
+  perception,
   /**
    * Storage at a place (storage.mjs): goods that belong to a character but are
    * not on them. Any actor flagged a PROVIDER holds real embedded items stamped
@@ -176,6 +180,11 @@ Hooks.once("init", () => {
 
   registerMountCleanup();
   registerStorageCleanup();
+
+  // Vision/detection modes and the two status effects the ACKS senses need.
+  // At init, not ready: a token drawn against an unregistered vision mode
+  // silently falls back to basic.
+  registerPerceptionModes();
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
   // acks-henchmen, cross-module) has no fetch miss on first paint.

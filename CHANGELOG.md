@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.1.1
+
+### Fixed
+- **Each ACKS sense is now its own sense, not a coat of paint on sight.** 1.1.0
+  gave every dark sense a sight radius, which quietly made all of them behave
+  like eyes: invisibility defeated a bat's echolocation, a *darkness* spell
+  blinded it, tremor could not reach through a floor, and Hiding could not beat
+  infravision. Each sense now carries its own detection mode —
+  - **Lightless vision** is sight, and a character *proficient in Hiding* who is
+    hiding defeats it (RULES §4).
+  - **Shadowy senses** are hearing, scent and touch: blindness and invisibility
+    no longer defeat them, but they switch off entirely while deafened, in
+    magical silence, at running speed, or in magical darkness.
+  - **Echolocation** is sound: unaffected by darkness or invisibility, stopped
+    by walls, by deafness and by silence.
+  - **Terrestrial mechanoreception** is ground vibration, using Foundry's own
+    tremorsense — through walls, moving creatures only.
+  - **Aerial, aquatic and webbed mechanoreception** sense pressure: darkness,
+    silence and invisibility are all irrelevant to them.
+- Each sense also renders distinctly instead of every one of them sharing
+  Foundry's stock monochrome — lightless vision reads warm, shadowy senses cold,
+  echolocation flat. Night vision keeps its dim-to-bright boost without core's
+  green night-scope cast.
+- A creature with several senses now looks through its longest and **detects
+  with all of them**, each at its own range, rather than collapsing to one.
+- A sense a condition has switched off no longer counts as seeing in the dark,
+  so a deafened thief takes the blinded ⅓-speed penalty the canvas already
+  showed them suffering.
+
+### Added
+- Two status effects the rules need and Foundry does not ship: **Hiding** and
+  **Running**, toggled from the token HUD. Nothing infers them — whether a
+  character is running flat out or has gone to ground is a declaration.
+
 ## 1.1.0
 
 ### Added
