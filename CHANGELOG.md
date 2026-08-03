@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+- **Gear now says where it is worn.** Cloaks, boots, gloves, belts, hats,
+  packs and rigging declare a slot — head, neck, shoulders, body, worn, belt,
+  ring, hands, feet, main hand, off hand, both hands, back or strapped — and the
+  character sheet groups them under it. Every worn item that is not a weapon or a
+  suit of armour also gets a **wear / take off control**, which core does not
+  draw because it has nowhere to record the answer.
+- **A slot picker on every item**, on the Construction tab. The slot is inferred
+  when you run **Annotate Equipment**, and inference is sometimes wrong, so the
+  picker is the correction: *Auto* hands it back, *Carried* declares that the
+  item is worn nowhere at all.
+- **Retrieval cost on containers** (RR pp. 293–294). Drawing from an adventurer's
+  harness, belt pouch, bowcase, quiver or sheath is free; opening a backpack,
+  rucksack or sack costs an action in lieu of movement.
+- Slot capacity, from the Treasure Tome: a character can wear one of most things
+  and **two rings** — and the Tome is explicit that a third stops all of them
+  working.
+
+### Fixed
+- **The adventurer's harness now actually forgives its stone** (RR p. 142). The
+  rule asked whether the harness was equipped; a harness is a plain item, which
+  the system gives no "equipped" field, so the answer was always no and the rule
+  had never once fired.
+- **Gloves now block lockpicking** (RR p. 145), for the same reason — and now by
+  the hands slot rather than only by the word "glove" in the name.
+- **Worn clothing reaches the sheet.** The worn bucket existed but was
+  unreachable, so a cloak you were wearing showed as merely carried.
+- Renaming an item no longer changes what it is: a helmet, a cloak and a pair of
+  gloves are identified by what they declare, not by their names. The name test
+  remains for gear nobody has annotated.
+- **Annotate Equipment now covers armour**, which it had always skipped — that is
+  where the helmet-versus-suit distinction is recorded.
+- Monster encumbrance no longer reimplements the system's own carrying-weight
+  rule, so a monster's load and a character's are computed the same way.
+
 ## 1.1.1
 
 ### Fixed

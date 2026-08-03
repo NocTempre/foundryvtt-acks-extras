@@ -17,6 +17,7 @@ import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerEquipmentItemSheet } from "./item-sheet.mjs";
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
+import { isWearable } from "../lib/item-model.mjs";
 
 
 Hooks.once("init", () => {
@@ -112,16 +113,20 @@ Hooks.on("updateItem", (item, changes) => {
   onUpdateItem(item, changes).catch((err) => console.error(`${MODULE_ID} | updateItem enforcement failed`, err));
 });
 
-/* Items that affect the loadout: worn gear (weapon/armor) and proficiencies
- * (ability items carrying flags.acks-extras.* markers). */
-const LOADOUT_ITEM_TYPES = ["weapon", "armor", "ability"];
+/* Items that affect the loadout: anything WEARABLE — which is core's
+ * weapon/armor plus whatever declares a slot, so annotated clothing and rigging
+ * refresh it too — and proficiencies (ability items carrying
+ * flags.acks-extras.* markers). */
+function affectsLoadout(item) {
+  return isWearable(item) || item?.type === "ability";
+}
 function onLoadoutItemChange(item) {
   const actor = item?.parent;
   if (
     actor?.documentName === "Actor" &&
     managesLoadout(actor) &&
     primaryResponder(actor) &&
-    LOADOUT_ITEM_TYPES.includes(item.type)
+    affectsLoadout(item)
   ) {
     refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | item loadout sync failed`, err));
   }

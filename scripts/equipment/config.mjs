@@ -6,6 +6,7 @@
  * profiles.mjs (after core tags and per-item flags). Keys are normalised weapon
  * names (lowercase, non-alphanumerics stripped).
  */
+import { SLOT, WEAR_SLOTS, WEAR_SLOT_ORDER, slug } from "../lib/vocab.mjs";
 
 /** Weapon size classes → base one-handed hand cost. RR p. 127. */
 export const SIZE = Object.freeze({ TINY: "tiny", SMALL: "small", MEDIUM: "medium", LARGE: "large" });
@@ -191,79 +192,103 @@ export const MASTERWORK = Object.freeze({
 });
 
 /**
- * RAW carrying devices (RR pp. 142–145). Core's acks-adventuring-equipment pack
- * already ships these items, so we ANNOTATE them in place (see the Annotate
- * macro) rather than duplicating them. capacity is in stone.
+ * RAW carrying devices (RR pp. 142–145, 293–294). Core's
+ * acks-adventuring-equipment pack already ships these items, so we ANNOTATE
+ * them in place (see the Annotate macro) rather than duplicating them.
+ *
+ * One table, because these are all the same fact about one piece of gear:
+ * `capacity` (stone) is how much it holds, `slots` where it rides, and `access`
+ * what it costs to get something out — free from rigging worn on the body
+ * (harness, belt pouch, bowcase, quiver, sheath), an action in lieu of movement
+ * from a pack (backpack, rucksack, sack). A container with no slots is not worn
+ * at all: a barrel and an ironbound chest sit on the floor.
  */
-export const CONTAINER_PROFILES = Object.freeze({
-  backpack: { capacity: 4 },
-  rucksack: { capacity: 2 },
-  sacklarge: { capacity: 6 },
-  sacksmall: { capacity: 2 },
-  saddlebag: { capacity: 3 },
-  pouchpurse: { capacity: 0.5 },
+export const GEAR_PROFILES = Object.freeze({
+  // Rigging — worn, and RAW-free to draw from.
+  adventurersharness: { slots: [SLOT.belt], access: "free", harness: true },
+  bowquiver: { slots: [SLOT.back], access: "free", capacity: 1, bowquiver: true },
+  quiver: { slots: [SLOT.belt], access: "free", capacity: 1 },
+  // "Case, 20 Bolts". Generic enough to want the comment: the only `case` in
+  // the RAW equipment list is the bolt case.
+  case: { slots: [SLOT.belt], access: "free", capacity: 1 },
+  scabbard: { slots: [SLOT.belt], access: "free" },
+  pouchpurse: { slots: [SLOT.belt], access: "free", capacity: 0.5 },
+  // Packs — worn, but an action to open.
+  backpack: { slots: [SLOT.back], access: "action", capacity: 4 },
+  rucksack: { slots: [SLOT.back], access: "action", capacity: 2 },
+  sacklarge: { slots: [SLOT.back], access: "action", capacity: 6 },
+  sacksmall: { slots: [SLOT.back], access: "action", capacity: 2 },
+  // Rides the mount, not the rider — so no slot on a character.
+  saddlebag: { access: "action", capacity: 3 },
+  // Fixed containers: never worn.
   chestironbound: { capacity: 20 },
   barrel: { capacity: 15 },
-  bowquiver: { capacity: 1, bowquiver: true },
-  adventurersharness: { harness: true },
 });
 
-/** Resolve a container profile from an item name, or null. */
-export function containerProfileFor(name) {
-  const key = normalizeName(name);
-  if (CONTAINER_PROFILES[key]) return CONTAINER_PROFILES[key];
-  for (const [k, v] of Object.entries(CONTAINER_PROFILES)) {
+/** Resolve a gear profile from an item name, or null. */
+export function gearProfileFor(name) {
+  const key = slug(name);
+  if (GEAR_PROFILES[key]) return GEAR_PROFILES[key];
+  for (const [k, v] of Object.entries(GEAR_PROFILES)) {
     if (key.startsWith(k) || key.includes(k)) return v;
   }
   return null;
 }
 
-/** Normalise an item name to a lookup key. */
-export function normalizeName(name) {
-  return String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
+/**
+ * Where a garment sits, by name — the fallback for everything the gear profiles
+ * do not name, and the reason a hand-made "Cloak of Elvenkind" lands on the
+ * shoulders without anyone listing it.
+ *
+ * ORDERED: the first hit wins. The bulk-material rule comes first because the
+ * clothing pack prices cloth by the pound ("Linen, Cheap (1 lb)") alongside the
+ * garments made from it, and a bolt of linen is goods rather than something you
+ * put on.
+ *
+ * Vocabulary follows the Treasure Tome's Miscellaneous Magic Item Form table,
+ * which is ACKS II's own list of the shapes a worn item comes in.
+ */
+export const CLOTHING_SLOT_PATTERNS = Object.freeze([
+  { re: /\(\s*\d+\s*lb\s*\)/i, slots: [] }, // cloth/metal sold by weight: not a garment
+  { re: /\b(belt|sash|girdle|corset)\b/i, slots: [SLOT.belt] },
+  { re: /\b(boots?|sandals?|shoes?|slippers?)\b/i, slots: [SLOT.feet] },
+  { re: /\b(gloves?|gauntlets?|bracers?|mittens?)\b/i, slots: [SLOT.hands] },
+  { re: /\b(cloak|cape|mantle|shawl)\b/i, slots: [SLOT.shoulders] },
+  { re: /\b(hat|skullcap|veil|crown|circlet|tiara|coif|hood|headdress)\b/i, slots: [SLOT.head] },
+  { re: /\b(necklace|amulet|torc|pendant|collar)\b/i, slots: [SLOT.neck] },
+  { re: /\b(ring)\b/i, slots: [SLOT.ring] },
+]);
 
 /**
  * WEAR LOCATIONS — the single canonical taxonomy of "where is this gear?".
  *
  * Everything that groups gear by position resolves through wear.mjs against
- * these keys — the ACKS character sheet, the Paper Doll layout and the loadout
- * summary — so the three cannot disagree.
+ * these keys — the ACKS character sheet and the loadout summary — so the two
+ * cannot disagree.
+ *
+ * The SLOTS come from acks-lib (`vocab.mjs` WEAR_SLOTS), which is where the
+ * declaration on an item points, and which carries each slot's capacity. This
+ * feature adds the two buckets that are states rather than places: gear on the
+ * character but not worn, and gear inside a container. Nothing here re-declares
+ * a slot.
  *
  * Order is display order, head to foot then off-body.
  */
 export const WEAR = Object.freeze({
-  HEAD: "head", // helmet
-  BODY: "body", // worn suit of armour
-  WORN: "worn", // clothing and other worn-but-not-armour gear
-  MAIN_HAND: "mainHand",
-  OFF_HAND: "offHand",
-  BOTH_HANDS: "bothHands", // a single weapon wielded two-handed
-  STRAPPED: "strapped", // shield slung to back or front (JJ variant overlay)
-  CARRIED: "carried", // on the character, not worn or wielded
-  STOWED: "stowed", // inside a container
+  ...SLOT,
+  carried: "carried", // on the character, not worn or wielded
+  stowed: "stowed", // inside a container
 });
 
-/** Display order for the worn buckets (CARRIED/STOWED are handled separately). */
-export const WEAR_ORDER = Object.freeze([
-  WEAR.HEAD,
-  WEAR.BODY,
-  WEAR.WORN,
-  WEAR.MAIN_HAND,
-  WEAR.OFF_HAND,
-  WEAR.BOTH_HANDS,
-  WEAR.STRAPPED,
-]);
+/** Display order for the worn buckets (carried/stowed are handled separately). */
+export const WEAR_ORDER = Object.freeze([...WEAR_SLOT_ORDER]);
 
-/** Font Awesome icon per wear location, for sheet + app headers. */
+/**
+ * Font Awesome icon per wear location, for sheet + app headers. The slots carry
+ * their own; only the two non-slot buckets are named here.
+ */
 export const WEAR_ICONS = Object.freeze({
-  [WEAR.HEAD]: "fa-hat-wizard",
-  [WEAR.BODY]: "fa-shirt",
-  [WEAR.WORN]: "fa-mitten",
-  [WEAR.MAIN_HAND]: "fa-hand-fist",
-  [WEAR.OFF_HAND]: "fa-hand",
-  [WEAR.BOTH_HANDS]: "fa-hands",
-  [WEAR.STRAPPED]: "fa-shield-halved",
-  [WEAR.CARRIED]: "fa-sack-xmark",
-  [WEAR.STOWED]: "fa-box",
+  ...Object.fromEntries(Object.entries(WEAR_SLOTS).map(([k, v]) => [k, v.icon])),
+  [WEAR.carried]: "fa-sack-xmark",
+  [WEAR.stowed]: "fa-box",
 });

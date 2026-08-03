@@ -122,3 +122,51 @@ Entries are dated and append-only. A superseded entry stays, marked.
   - **Rejected:** reusing core's `invisible` for hiding (different rule,
     different detection semantics), and inferring Hiding from `token.hidden`
     (that is the GM's "not on the map yet" switch, not a character's action).
+
+### The item taxonomy is declared over core's types, not invented beside them (2026-08-03)
+
+The system's eight Item sub-types share no base, so "wearable" had no home:
+`equipped` is declared on `weapon` and `armor` and nowhere else, and Foundry
+prunes off-schema keys, so the whole `acks-clothing` pack and every carrying
+device in `acks-adventuring-equipment` were unwearable however they were written.
+Three RAW rules were silently inert as a result — the adventurer's harness's
+stone of relief (RR p. 142), gloves blocking lockpicking (RR p. 145), and the
+worn bucket for clothing on the character sheet.
+
+**Ruled: declare the taxonomy over core's types.** A `GearExtras` flag model
+(`flags["acks-extras"].gear`) plus one predicate module, mirroring the ruling the
+abilities feature made for `AbilityExtras`.
+
+**Rejected: module-owned `gear`/`wearable` Item sub-types.** They would have a
+genuine shared base, at these costs — core's `_prepareItems` is a five-bucket
+`switch` with no default, so a module sub-type renders **nowhere** on the
+character sheet (and the equipment feature's whole technique is moving core's own
+rows into wear buckets); `computeEncumbrance` sums `item`/`weapon`/`armor` by
+name, so it would weigh nothing; core's inventory template draws the equip toggle
+in the weapons and armours sections only; and every existing world, both core
+gear packs, the importer and acks-content produce core types, so adopting them
+means a destructive per-document `type` rewrite. That is the "invent" tier for
+something the system provides badly rather than not at all.
+
+**Equippable is derived, not tagged.** `slots.length > 0` *is* the tag. A boolean
+sitting beside a slot list can disagree with it; one field cannot disagree with
+itself. Rations, loot and coin declare no slots and get the wear features
+switched off without a flag saying so.
+
+**`declaresSlots` is a third state, and it was needed.** "Declared to sit
+nowhere" and "never annotated" both leave `slotsOf` empty, but they must behave
+differently: every name-heuristic fallback gates on `declaresSlots`, so a Judge
+who sets a Great Helm to sit nowhere is not overruled by its name.
+
+**Cost:** the slot for 143 core pack items is inferred, not read — the books
+assign no slots. Accepted deliberately (owner: "a bad guess with a dropdown to
+select/correct is fine") because the Treasure Tome makes a slot's only mechanical
+job exclusivity, so a wrong guess mis-scopes that and nothing else. The item
+sheet's Construction tab carries the correction.
+
+**Deferred, against the original plan:** container `capacity` and the clothing
+`layer` were to move into `GearExtras`. They did not. `capacity` belongs with
+`locked`/`fragile` in the container record — splitting one coherent record across
+two flags would create the duplication rather than remove it — and `layer` has a
+single reader and no second copy to collapse. Neither move would have removed a
+duplicate; both would have cost a data migration.

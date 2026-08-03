@@ -32,8 +32,8 @@ RAW source of truth behind the code enums).
 | Actor AE | name `Equipment Loadout`, `flags.acks-extras.loadout = true` | Module-managed effect; `changes[]` target core `system.*.mod`; rebuilt on every loadout change; deleted when empty. |
 | Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by the annotate macro). |
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
-| Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — set from the Paper Doll slot the item occupies (`MAIN_RIGHT`/`MAIN_LEFT`); resolves dual-wield off-hand identity. |
-| Foreign setting (written once) | `fvtt-paper-doll-ui.globalConfig` | Our ACKS slot layout + `EQUIPPED_PATH: "equipped"`, merged over Paper Doll's CONSTS. Pushed once, guarded by our `paperdollConfigured` setting, so GM slot edits are never clobbered. Paper Doll is premium/signed — integrate via its settings + `paper-doll-equip`/`paper-doll-swap` hooks only, never a fork. |
+| Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
+| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access}` — where this gear MAY sit, where it sits now, and the RAW cost of drawing from it. The model and its read path are acks-lib's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment). |
 
 ## 3. Effect contract — `flags.acks-extras.<domain>`
 

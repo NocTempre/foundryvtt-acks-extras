@@ -19,7 +19,8 @@
  */
 import { MODULE_ID, HOOKS, ITEM_FLAGS } from "./constants.mjs";
 import { containerOf, isLocked, setOpened, contentsOf, isFragile } from "./containers.mjs";
-import { slug } from "../lib/vocab.mjs";
+import { slug, SLOT } from "../lib/vocab.mjs";
+import { isWorn, slotsOf, declaresSlots } from "../lib/item-model.mjs";
 
 /**
  * Proficiency names that defeat a lock, and the ones that break a container.
@@ -44,15 +45,26 @@ function findAbility(actor, names) {
   );
 }
 
+/** Names that read as handwear, for gear nobody has annotated. */
+const GLOVE_NAME = /\bglove|gauntlet/i;
+
 /**
  * Is the character wearing gloves? RR p. 145 blocks pickpocketing, lockpicking
- * and trap-breaking while gloved. Read from the item's own layer/name rather
- * than a curated list, because gloves are ordinary gear a table may hand-make.
+ * and trap-breaking while gloved.
+ *
+ * WORN, not `system.equipped` — gloves are a plain `item`, which core gives no
+ * `equipped` field, so gating on that field made this rule permanently inert.
+ * Never re-narrow a worn test to one store.
+ *
+ * The hands slot answers it outright once gear is annotated; the name test is
+ * the fallback for gear that is not, because gloves are ordinary equipment a
+ * table may hand-make and no curated list would hold them all.
  */
-function wearingGloves(actor) {
-  return !!actor?.items?.find(
-    (i) => i.system?.equipped && /\bglove|gauntlet/i.test(i.name ?? ""),
-  );
+export function wearingGloves(actor) {
+  return !!actor?.items?.find((i) => {
+    if (!isWorn(i)) return false;
+    return declaresSlots(i) ? slotsOf(i).includes(SLOT.hands) : GLOVE_NAME.test(i.name ?? "");
+  });
 }
 
 /**

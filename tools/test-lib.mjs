@@ -46,6 +46,17 @@ import {
 } from "../scripts/lib/senses.mjs";
 import { emittedLight } from "../scripts/lib/light.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
+import {
+  declaresSlots,
+  isGoods,
+  isStowable,
+  isWearable,
+  isWorn,
+  itemsInSlot,
+  slotOverfilled,
+  slotsOf,
+  wornSlotOf,
+} from "../scripts/lib/item-model.mjs";
 
 const { resolveLevelValue: R, choicesOf } = vocab;
 let n = 0;
@@ -1156,6 +1167,101 @@ t("leashBreach: nothing to enforce is never a refusal", () => {
   // let the move through rather than invent a limit.
   assert.equal(leashBreach({}, token, { x: 9999, y: 0 }, actor), null);
   assert.equal(leashBreach({ detach: { anchor: { x: 0, y: 0 } } }, token, { x: 9999, y: 0 }, {}), null);
+});
+
+/* ---------------------------------------------------------------- */
+/*  Item taxonomy — goods, wear slots, and the two worn-state stores  */
+/* ---------------------------------------------------------------- */
+
+/** A core-shaped item. `system` decides which family the schema probe reports. */
+const mkItem = (type, system = {}, gear = null) => ({
+  type,
+  system,
+  flags: gear ? { "acks-extras": { gear } } : {},
+});
+const physical = (over = {}) => ({ cost: 0, weight6: 1, ...over });
+
+t("wear slots: the vocabulary carries capacity, and rings are the Tome's two", () => {
+  assert.equal(vocab.slotCapacity("ring"), 2);
+  assert.equal(vocab.slotCapacity("head"), 1);
+  assert.equal(vocab.slotCapacity("worn"), Infinity); // unlimited
+  // A typo must not silently grant unlimited wear, nor forbid all of it.
+  assert.equal(vocab.slotCapacity("elbow"), 1);
+  assert.ok(vocab.isWearSlot("mainHand") && !vocab.isWearSlot("elbow"));
+  assert.equal(vocab.SLOT.mainHand, "mainHand");
+});
+
+t("isGoods: coin is goods despite failing the physical schema probe", () => {
+  // The system gives `money` no cost and no weight6 — the gap that grew a
+  // `|| i.type === "money"` rider at fifteen call sites.
+  assert.equal(isGoods(mkItem("money", { coppervalue: 100, quantity: 5 })), true);
+  assert.equal(isGoods(mkItem("item", physical())), true);
+  assert.equal(isGoods(mkItem("weapon", physical())), true);
+  assert.equal(isGoods(mkItem("ability", {})), false);
+  assert.equal(isGoods(mkItem("spell", {})), false);
+  // A bundle holds uuid references, not a thing — stowing one nests a pointer.
+  assert.equal(isGoods(mkItem("bundle", { itemList: [] })), false);
+  assert.equal(isStowable, isGoods); // same question, two readable names
+});
+
+t("isWearable: core's equipped field OR a declared slot, never a type list", () => {
+  // Core answers for weapon/armor…
+  assert.equal(isWearable(mkItem("armor", { ...physical(), equipped: false })), true);
+  // …and for nothing else, which is the whole problem: a cloak is a plain
+  // `item` and cannot carry `equipped` at all.
+  assert.equal(isWearable(mkItem("item", physical())), false);
+  // The declaration is what makes it wearable.
+  assert.equal(isWearable(mkItem("item", physical(), { slots: ["shoulders"] })), true);
+  // Rations declare nothing and stay plain goods — the features off, no flag
+  // saying so.
+  assert.equal(isWearable(mkItem("item", physical(), { slots: [] })), false);
+});
+
+t("slotsOf: an unknown slot degrades to fewer slots, never an undrawable one", () => {
+  assert.deepEqual(slotsOf(mkItem("item", physical(), { slots: ["belt", "elbow"] })), ["belt"]);
+  assert.deepEqual(slotsOf(mkItem("item", physical())), []);
+  assert.deepEqual(slotsOf(mkItem("item", physical(), { slots: "belt" })), []); // not an array
+});
+
+t("isWorn reads whichever store the type uses", () => {
+  // Core's field, where core has one.
+  assert.equal(isWorn(mkItem("armor", { ...physical(), equipped: true })), true);
+  assert.equal(isWorn(mkItem("armor", { ...physical(), equipped: false })), false);
+  // The gear model, where it does not. Gating on `system.equipped` alone —
+  // which is what containers.mjs and locks.mjs do today — answers false here
+  // and leaves the harness and glove rules permanently inert.
+  const cloak = mkItem("item", physical(), { slots: ["shoulders"], wornAt: "shoulders" });
+  assert.equal(isWorn(cloak), true);
+  assert.equal(isWorn(mkItem("item", physical(), { slots: ["shoulders"] })), false);
+});
+
+t("declaresSlots: 'nowhere' and 'never annotated' are different answers", () => {
+  // Both give slotsOf() an empty list, so only this can tell them apart — and
+  // every name-heuristic fallback gates on it, so a Judge's deliberate "this
+  // sits nowhere" is not undone by the item's name.
+  assert.equal(declaresSlots(mkItem("item", physical())), false);
+  assert.equal(declaresSlots(mkItem("item", physical(), { slots: [] })), true);
+  assert.equal(declaresSlots(mkItem("item", physical(), { slots: ["belt"] })), true);
+});
+
+t("wornSlotOf: a slot the item no longer declares reads as not worn there", () => {
+  const ok = mkItem("item", physical(), { slots: ["feet"], wornAt: "feet" });
+  assert.equal(wornSlotOf(ok), "feet");
+  // An edit removed the slot but left the state behind.
+  const stale = mkItem("item", physical(), { slots: ["belt"], wornAt: "feet" });
+  assert.equal(wornSlotOf(stale), null);
+});
+
+t("slot capacity: a third ring overfills, and two do not", () => {
+  const ring = () => mkItem("item", physical(), { slots: ["ring"], wornAt: "ring" });
+  const actor = { items: [ring(), ring()] };
+  assert.equal(itemsInSlot(actor, "ring").length, 2);
+  assert.equal(slotOverfilled(actor, "ring"), false);
+  actor.items.push(ring());
+  assert.equal(slotOverfilled(actor, "ring"), true);
+  // An unlimited slot never overfills however much is worn.
+  const clothes = { items: Array.from({ length: 9 }, () => mkItem("item", physical(), { slots: ["worn"], wornAt: "worn" })) };
+  assert.equal(slotOverfilled(clothes, "worn"), false);
 });
 
 console.log(`\n${n} tests passed (including the location migration)`);

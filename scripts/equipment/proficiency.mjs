@@ -12,7 +12,8 @@
  *   flags.acks-extras.armorTraining      (effect) integer categories added
  */
 import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS } from "./constants.mjs";
-import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX, WEAPONS, WEAPON_ALIASES, normalizeName } from "./config.mjs";
+import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX, WEAPONS, WEAPON_ALIASES } from "./config.mjs";
+import { slug } from "../lib/vocab.mjs";
 import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 
 /**
@@ -93,7 +94,7 @@ export function normalizeGrantToken(token) {
 
 /** The canonical WEAPONS key a token names (aliases resolved), or "". */
 function weaponTokenKey(token) {
-  const key = normalizeName(token);
+  const key = slug(token);
   if (WEAPONS[key]) return key;
   const alias = WEAPON_ALIASES[key];
   return alias && WEAPONS[alias] ? alias : "";
@@ -111,7 +112,7 @@ export function classifyGrantToken(token) {
   if (t === "all") return "all";
   if (t === "missile:all") return "missile";
   if (t.startsWith("melee:")) return SIZE_TOKENS.has(t.slice(6)) ? "meleeSize" : "unknown";
-  if (CATEGORY_TOKENS.has(normalizeName(t))) return "category";
+  if (CATEGORY_TOKENS.has(slug(t))) return "category";
   return weaponTokenKey(t) ? "weapon" : "unknown";
 }
 
@@ -140,7 +141,7 @@ export function grantMatches(token, profile) {
   if (t === "all") return true;
   if (t === "missile:all") return !!profile.missile;
   if (t.startsWith("melee:")) return !!profile.melee && String(profile.size).toLowerCase() === t.slice(6);
-  if (CATEGORY_TOKENS.has(normalizeName(t))) return String(profile.cat).toLowerCase() === normalizeName(t);
+  if (CATEGORY_TOKENS.has(slug(t))) return String(profile.cat).toLowerCase() === slug(t);
   const key = weaponTokenKey(t);
   return !!key && profile.key === key;
 }
@@ -225,8 +226,8 @@ export function thiefSkillsGated(loadout) {
 
 /** Is a named skill/ability subject to the armour gate? */
 export function isArmorGatedSkill(name) {
-  const n = normalizeName(name);
-  return ARMOR_GATED_SKILLS.some((s) => n.includes(normalizeName(s)));
+  const n = slug(name);
+  return ARMOR_GATED_SKILLS.some((s) => n.includes(slug(s)));
 }
 
 /**

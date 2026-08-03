@@ -23,6 +23,10 @@
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
+// "Is this a helmet at all" is armour classification, and profiles.mjs owns it
+// for the whole feature — this overlay only decides which KIND of helmet.
+import { isHelmet } from "../profiles.mjs";
+import { isWorn } from "../../lib/item-model.mjs";
 
 /** RAW modifiers a heavy helm imposes (RR p140). */
 export const HELM_MODIFIERS = Object.freeze({ surprise: -1, listening: -4, mortalWounds: 2 });
@@ -31,13 +35,6 @@ export const HELM_MODIFIERS = Object.freeze({ surprise: -1, listening: -4, morta
 const ENCLOSING_NAME = /\b(heavy|great\s?helm|close\s?helm|armet|barbute|hounskull|corinthian|visor(ed)?)\b/i;
 
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_ENCLOSING_HELM);
-
-/** Is this armour item a helmet at all? (explicit flag, else the name.) */
-export function isHelmet(item) {
-  if (item?.type !== "armor") return false;
-  if (item.getFlag?.(MODULE_ID, ITEM_FLAGS.HELMET)) return true;
-  return /helm/i.test(item.name ?? "");
-}
 
 /**
  * A helmet's type: "heavy" (enclosing) or "light". The explicit flag wins; else
@@ -62,5 +59,5 @@ export function isEnclosingHelm(item) {
  */
 export function enclosingHelmActive(actor) {
   if (!overlayEnabled()) return false;
-  return (actor?.items ?? []).some((i) => i.system?.equipped && isEnclosingHelm(i));
+  return (actor?.items ?? []).some((i) => isWorn(i) && isEnclosingHelm(i));
 }

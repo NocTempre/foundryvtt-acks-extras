@@ -1,30 +1,26 @@
 /**
- * Wear locations — resolving "where is this piece of gear?" from the data the
- * module already keeps.
+ * Wear locations — resolving "where is this piece of gear?".
  *
- * Nothing new is stored. The answer is derived from core's `system.equipped`
- * plus flags this module already sets (helmet, worn hand, shield strap,
- * containedIn) and the loadout's own two-handed inference, so the sheet, the
- * Paper Doll layout, and the loadout summary all describe the same reality.
+ * The answer comes from the item's own DECLARATION where it has one
+ * (`flags.acks-extras.gear`, read through acks-lib's `wornSlotOf`), and is
+ * DERIVED where it does not: core's `system.equipped` plus flags this module
+ * already sets (helmet, worn hand, shield strap, containedIn) and the loadout's
+ * two-handed inference. So the sheet, the loadout summary and the container UI
+ * describe the same reality whether or not a world has been annotated.
  *
- * @see config.mjs WEAR for the canonical key list.
+ * A declaration, once present, wins outright — deriving afterwards would let a
+ * name heuristic overrule a Judge who set the slot deliberately.
+ *
+ * @see acks-lib vocab.mjs WEAR_SLOTS for the canonical slot list; config.mjs
+ *      WEAR adds the two buckets that are states rather than places.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { WEAR, WEAR_ORDER } from "./config.mjs";
 import { getLoadout } from "./loadout.mjs";
 import { containedIn } from "./containers.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
-
-/** Is an armour item a shield? (mirrors loadout.mjs) */
-function isShield(item) {
-  return item.system?.type === "shield";
-}
-
-/** Is an armour item a helmet? (flag, else the same name heuristic core uses) */
-function isHelmet(item) {
-  if (item.getFlag?.(MODULE_ID, ITEM_FLAGS.HELMET)) return true;
-  return /helm/i.test(item.name ?? "");
-}
+import { isHelmet, isShield } from "./profiles.mjs";
+import { isWorn, wornSlotOf } from "../lib/item-model.mjs";
 
 /**
  * Where does this item sit?
@@ -34,30 +30,38 @@ function isHelmet(item) {
  * @returns {string} a WEAR key
  */
 export function wearLocation(actor, item, loadout = getLoadout(actor)) {
-  if (containedIn(item)) return WEAR.STOWED;
-  if (!item.system?.equipped) return WEAR.CARRIED;
+  // Inside a container beats everything: a stowed cloak is stowed, whatever
+  // slot it would occupy if you put it on.
+  if (containedIn(item)) return WEAR.stowed;
+
+  const declared = wornSlotOf(item);
+  if (declared) return declared;
+
+  if (!isWorn(item)) return WEAR.carried;
 
   if (item.type === "armor") {
     if (isShield(item)) {
       // A strapped shield rides the back or front and leaves the hand free.
-      if (!occupiesHand(item)) return WEAR.STRAPPED;
-      return WEAR.OFF_HAND;
+      if (!occupiesHand(item)) return WEAR.strapped;
+      return WEAR.offHand;
     }
-    return isHelmet(item) ? WEAR.HEAD : WEAR.BODY;
+    return isHelmet(item) ? WEAR.head : WEAR.body;
   }
 
   if (item.type === "weapon") {
     const entry = loadout.weapons.find((w) => w.item.id === item.id);
-    if (entry?.wieldTwoHanded) return WEAR.BOTH_HANDS;
-    // `hand` is set by the Paper Doll normalisation; without it a weapon is in
-    // the main hand unless something else already claims it.
+    if (entry?.wieldTwoHanded) return WEAR.bothHands;
+    // `hand` is set when a weapon is drawn into a specific hand; without it a
+    // weapon is in the main hand unless something else already claims it.
     const hand = item.getFlag?.(MODULE_ID, ITEM_FLAGS.WORN_HAND);
-    if (hand === "off") return WEAR.OFF_HAND;
-    return WEAR.MAIN_HAND;
+    if (hand === "off") return WEAR.offHand;
+    return WEAR.mainHand;
   }
 
-  // Equipped non-armour, non-weapon gear (clothing, cloaks, boots) is worn.
-  return WEAR.WORN;
+  // Worn non-armour, non-weapon gear (clothing, cloaks, boots) that declares no
+  // slot. Reachable only through the gear model — core's `item` type carries no
+  // `equipped` field, so nothing else can put one here.
+  return WEAR.worn;
 }
 
 /**

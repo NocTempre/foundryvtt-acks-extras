@@ -365,7 +365,10 @@ weigh" with its own type list, and they disagreed.
 
 ```js
 const { isPhysical, isEquippable, isEquipped, weight6Of, weightStoneOf,
-        physicalItems, equippedItems, setEquipped, STONE } = acksExtras.lib.itemModel;
+        physicalItems, equippedItems, setEquipped, STONE,
+        isGoods, isStowable, isClothing, encumbering6,
+        isWearable, isWorn, slotsOf, declaresSlots, wornSlotOf, setWorn,
+        gearOf, itemsInSlot, slotOverfilled } = acksExtras.lib.itemModel;
 ```
 
 These read the **schema**, not a type name (`"cost" in item.system`), so they
@@ -373,6 +376,22 @@ keep working when the system adds a physical type this library never heard of.
 `weight6Of` multiplies by quantity only where a quantity field exists.
 `physicalFields()` / `equippableFields()` build a module sub-type's own schema
 to match the system exactly rather than approximately.
+
+`isGoods` is `isPhysical` plus coin: the system gives `money` no cost and no
+weight, so the schema probe alone loses it. `encumbering6` mirrors core's
+`computeEncumbrance` rule (clothing excluded), so anything summing a
+non-character's load matches what core computes for a character.
+
+**Worn state has two stores and one read path.** Core owns `system.equipped` on
+`weapon` and `armor`; everything else records `flags["acks-extras"].gear.wornAt`,
+because core declares no `equipped` field for it and Foundry prunes off-schema
+keys. Always ask `isWorn` / `wornSlotOf` / `setWorn` — narrowing to
+`system.equipped` answers `false` for every cloak, glove, harness and pack on the
+character. `declaresSlots` separates "declared to sit nowhere" from "never
+annotated"; name-heuristic fallbacks must gate on it.
+
+Slot keys and their capacities come from `vocab.mjs` `WEAR_SLOTS` / `SLOT` /
+`slotCapacity`; `ACCESS_COSTS` is the RAW retrieval cost (RR pp. 293–294).
 
 ### `storage` — goods kept somewhere other than on you (v0.39, apiVersion 11)
 

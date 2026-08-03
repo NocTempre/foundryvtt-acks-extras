@@ -19,7 +19,9 @@
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
-import { containedIn, isContainer, STONE } from "../containers.mjs";
+import { containedIn, isContainer } from "../containers.mjs";
+import { isClothing, isPhysical, slotsOf, declaresSlots, STONE } from "../../lib/item-model.mjs";
+import { SLOT } from "../../lib/vocab.mjs";
 
 /** Positional order when damaged from the FRONT (JJ p. 398). */
 export const LOSS_ORDER_FRONT = Object.freeze([
@@ -122,14 +124,26 @@ export function categoryOf(item, loadout) {
     return onBack ? "hangingFromPack" : "inBackpack";
   }
 
-  if (item.type === "item" && item.system?.subtype === "clothing") {
-    if (/cloak|cape/i.test(item.name ?? "")) return "cloak";
+  if (isCloak(item)) return "cloak";
+  if (isClothing(item)) {
     const layer = item.getFlag?.(MODULE_ID, ITEM_FLAGS.LAYER);
     return layer === "under" ? "clothingUnderArmour" : "clothingOverArmour";
   }
-  if (/cloak|cape/i.test(item.name ?? "")) return "cloak";
 
   return "handsOrTorso";
+}
+
+/** Names that read as a cloak, for gear nobody has annotated. */
+const CLOAK_NAME = /cloak|cape/i;
+
+/**
+ * Is this a cloak? Declaration first — a garment that says where it sits has
+ * already answered, and consulting the name after would let "Cape of the
+ * Magistrate" overrule a Judge who slotted it elsewhere.
+ */
+function isCloak(item) {
+  if (declaresSlots(item)) return slotsOf(item).includes(SLOT.shoulders);
+  return CLOAK_NAME.test(item.name ?? "");
 }
 
 /**
@@ -145,7 +159,7 @@ export function planItemLoss(actor, loadout, { hp, damageType, fromRear = false 
   if (!stones) return { stones: 0, destroyed: [], survivors: 0 };
 
   const order = fromRear ? LOSS_ORDER_REAR : LOSS_ORDER_FRONT;
-  const candidates = actor.items.filter((i) => ["item", "weapon", "armor"].includes(i.type));
+  const candidates = actor.items.filter(isPhysical);
   const lo = { ...loadout, actorItems: candidates };
 
   const buckets = new Map(order.map((k) => [k, []]));
@@ -166,7 +180,7 @@ export function planItemLoss(actor, loadout, { hp, damageType, fromRear = false 
         continue; // immune material: skipped, does not consume the budget
       }
       // Clothing counts as one stone per layer regardless of its listed weight.
-      const w6 = item.system?.subtype === "clothing" ? STONE : Math.max(1, Number(item.system?.weight6 ?? 1));
+      const w6 = isClothing(item) ? STONE : Math.max(1, Number(item.system?.weight6 ?? 1));
       destroyed.push({ item, material, weight6: w6 });
       budget6 -= w6;
     }

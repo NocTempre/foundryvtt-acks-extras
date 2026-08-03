@@ -28,7 +28,7 @@
  * its contribution.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
-import { normalizeName } from "./config.mjs";
+import { slug } from "../lib/vocab.mjs";
 
 const DEFINITION_SCOPE = "acks-importer"; // the importer owns its provenance flags; they persist even when it is uninstalled
 const ABILITIES_FLAG_SCOPE = "acks-extras";
@@ -38,12 +38,12 @@ function defSlug(item) {
   const id = item.flags?.[DEFINITION_SCOPE]?.cookbook?.id;
   if (typeof id !== "string" || !id) return null;
   const tail = id.split(".").pop();
-  return normalizeName(tail);
+  return slug(tail);
 }
 
 /** Item name with any trailing "(X)" pick suffix removed, normalized. */
 function baseNameSlug(item) {
-  return normalizeName(String(item.name ?? "").replace(/\([^)]*\)\s*$/, ""));
+  return slug(String(item.name ?? "").replace(/\([^)]*\)\s*$/, ""));
 }
 
 /** The picks, via the abilities API when live, else its documented flag shape. */
@@ -102,7 +102,7 @@ function speaksNative(item) {
 
 /** Fighting-style pick → style key (lowercased, as the collectors emit). */
 export function resolveStylePick(pick) {
-  const n = normalizeName(pick);
+  const n = slug(pick);
   if (!n) return null;
   if (n.includes("shield")) return "weaponshield";
   if (n.includes("two") && n.includes("hand")) return "twohanded";
@@ -118,7 +118,7 @@ export function resolveStylePick(pick) {
  * grantMatches treats as a named-weapon key — "Martial Training (Sword)").
  */
 export function resolveWeaponGroupPick(pick) {
-  const n = normalizeName(pick);
+  const n = slug(pick);
   if (!n) return null;
   if (n.includes("axe")) return "axe";
   if (n.includes("crossbow")) return "crossbow"; // before "bow"
@@ -131,7 +131,7 @@ export function resolveWeaponGroupPick(pick) {
 
 /** Weapon-Focus pick → a WEAPON_FOCUS_GROUPS key; null when unrecognisable. */
 export function resolveFocusPick(pick) {
-  const n = normalizeName(pick);
+  const n = slug(pick);
   if (!n) return null;
   if (n.includes("axe")) return "axes";
   if (n.includes("flail") || n.includes("hammer") || n.includes("mace")) return "macesflailshammers";
@@ -227,7 +227,7 @@ export function bridgeContributions(actor) {
         break;
       }
       case "combattrickery": {
-        for (const pick of picksOf(item)) addStr(EFFECT_DOMAINS.MANEUVER_TRICKERY, normalizeName(pick));
+        for (const pick of picksOf(item)) addStr(EFFECT_DOMAINS.MANEUVER_TRICKERY, slug(pick));
         break;
       }
       case "armourtraining": // both spellings appear in the wild

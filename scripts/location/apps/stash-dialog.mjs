@@ -14,7 +14,7 @@ const loc = makeLoc(LANG_PREFIX);
 const esc = (text) => foundry.utils.escapeHTML(String(text ?? ""));
 
 /** Worth offering: things, and coin (which the system does not call "physical"). */
-const stowable = (actor) => actor.items.filter((i) => globalThis.acksExtras?.lib.itemModel.isPhysical(i) || i.type === "money");
+const stowable = (actor) => actor.items.filter((i) => !!globalThis.acksExtras?.lib.itemModel.isGoods(i));
 
 /** Is this one of acks-equipment's containers? Read the documented flag, never import. */
 const isContainer = (item) => !!item.getFlag?.("acks-extras", "container");

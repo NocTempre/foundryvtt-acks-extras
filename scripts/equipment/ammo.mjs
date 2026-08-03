@@ -20,11 +20,12 @@
  * the rollAttack wrap, never blocking or failing the roll.
  */
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "./constants.mjs";
-import { WEAPON_CATEGORY, normalizeName } from "./config.mjs";
+import { WEAPON_CATEGORY } from "./config.mjs";
+import { slug } from "../lib/vocab.mjs";
 
 /** Ammo-name pattern a launcher consumes, or null if it is not a launcher. */
 export function launcherAmmoPattern(item, profile) {
-  const n = normalizeName(item?.name ?? "");
+  const n = slug(item?.name ?? "");
   if (profile?.cat === WEAPON_CATEGORY.BOW || (/bow/.test(n) && !/crossbow/.test(n))) return /arrow/i;
   if (profile?.cat === WEAPON_CATEGORY.CROSSBOW || /crossbow|arbalest/.test(n)) return /bolt|quarrel/i;
   if (/sling/.test(n)) return /stone|bullet|shot/i;

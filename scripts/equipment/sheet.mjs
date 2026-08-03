@@ -25,18 +25,20 @@ import { getLoadout, cycleGrip } from "./loadout.mjs";
 import {
   prepareTorch, rollUnarmed, setMasterwork, masterworkTiersFor, drawItem, sheatheItem,
   scavengeItem, clearScavenged, setScavengedRow, scavengedOptions, setShieldVariant, SHIELD_VARIANT_KEYS,
+  setGearSlots, setGearAccess, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
 } from "./actions.mjs";
 import { masterworkTierOf, scavengedOf, layerSummary } from "./properties.mjs";
-import { classifyWeapon } from "./profiles.mjs";
+import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
+import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable } from "../lib/item-model.mjs";
+import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity } from "../lib/vocab.mjs";
 import { cycleStrap, strapOf, variantOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
 import { overlayEnabled as scavengedOverlayEnabled, tableFor } from "./overlays/scavenged.mjs";
-import { helmetType, isHelmet } from "./overlays/enclosing-helm.mjs";
+import { helmetType } from "./overlays/enclosing-helm.mjs";
 import { MATERIALS, MATERIALS_BY_DAMAGE_TYPE, setMaterial, materialOf } from "./overlays/item-loss.mjs";
 import { wearBuckets, wearLabel } from "./wear.mjs";
 import {
   containerReport,
   contentsOf,
-  STONE,
   isContainer,
   emptyContainer,
   setConcealed,
@@ -317,6 +319,40 @@ function injectDrawSheathe(tab, actor) {
   }
 }
 
+/**
+ * Wear / remove control on every row core cannot equip.
+ *
+ * Core renders its equip toggle in the weapons and armours sections only,
+ * because `system.equipped` exists on those two types alone. So a cloak, a pair
+ * of gloves, an adventurer's harness and a backpack — all worn in the books —
+ * have no control anywhere, and the RAW rules that ask whether they are worn
+ * (harness encumbrance, gloves blocking lockpicks) could never fire. This is
+ * that control.
+ *
+ * Only rows that DECLARE a slot get one; plain goods keep core's layout
+ * untouched. A multi-slot item puts it in the first slot it declares, which is
+ * the one the sheet groups it under.
+ */
+function injectWearControls(tab, actor) {
+  if (!actor?.isOwner) return;
+  for (const li of tab.querySelectorAll("li.item[data-item-id]")) {
+    const item = actor.items.get(li.dataset.itemId);
+    if (!item || li.querySelector(".acks-equipment-wear-toggle")) continue;
+    // Core already draws a toggle wherever it owns the field.
+    if (isEquippable(item) || !slotsOf(item).length) continue;
+    const worn = isWorn(item);
+    const slot = slotsOf(item)[0];
+    const a = el("a", `item-control acks-equipment-wear-toggle acks-equipment-wear-toggle--${worn ? "remove" : "wear"}`);
+    a.innerHTML = `<i class="fas ${worn ? "fa-circle-minus" : "fa-circle-plus"}"></i>`;
+    a.dataset.tooltip = game.i18n.format(`ACKS-EQUIPMENT.action.${worn ? "remove" : "wear"}`, { slot: wearLabel(slot) });
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      (worn ? removeItem(item) : wearItem(item, slot)).catch((err) => console.error(`${MODULE_ID} | wear toggle failed`, err));
+    });
+    rowControls(li).append(a);
+  }
+}
 
 /**
  * Strap control on every shield row (gated on the shield-variant overlay). A
@@ -733,6 +769,46 @@ export function buildConstructionPanel(item) {
       (v) => item.setFlag(MODULE_ID, ITEM_FLAGS.HELMET, v),
     ));
   }
+
+  // WHERE IT SITS. The annotate pass infers this and is sometimes wrong, so the
+  // control is the correction: "Auto" hands it back to inference, "Carried"
+  // declares that it is worn nowhere — which is a real answer, and one that
+  // stops the name heuristics putting a "Great Helm" back on the head.
+  const inferred = inferGear(item);
+  const declared = declaresSlots(item);
+  const current = declared ? (slotsOf(item)[0] ?? SLOT_NONE) : SLOT_AUTO;
+  const autoLabel = inferred.slots.length
+    ? game.i18n.format("ACKS-EQUIPMENT.props.slotAuto", { guess: wearLabel(inferred.slots[0]) })
+    : game.i18n.localize("ACKS-EQUIPMENT.props.slotAutoNone");
+  row("ACKS-EQUIPMENT.props.slot", select(
+    [{ value: SLOT_AUTO, label: autoLabel },
+      { value: SLOT_NONE, label: game.i18n.localize("ACKS-EQUIPMENT.props.slotNone") },
+      ...WEAR_SLOT_ORDER.map((k) => ({ value: k, label: wearLabel(k) }))],
+    current,
+    (v) => setGearSlots(item, v),
+  ));
+  // A slot with a capacity is the only mechanic RAW hangs on one (TT: you
+  // cannot wear two of the same thing), so say what it is rather than leaving
+  // the control looking decorative.
+  const slotKey = declared ? slotsOf(item)[0] : inferred.slots[0];
+  if (slotKey) {
+    const cap = slotCapacity(slotKey);
+    if (Number.isFinite(cap)) {
+      row("", el("span", "acks-equipment-props__note",
+        game.i18n.format("ACKS-EQUIPMENT.props.slotCapacity", { n: cap, slot: wearLabel(slotKey) })));
+    }
+  }
+
+  // RETRIEVAL COST — containers only. Drawing from rigging is free; opening a
+  // pack is an action (RR pp. 293-294).
+  if (isContainer(item)) {
+    row("ACKS-EQUIPMENT.props.access", select(
+      [{ value: SLOT_AUTO, label: game.i18n.localize("ACKS-EQUIPMENT.props.accessUnset") },
+        ...Object.keys(ACCESS_COSTS).map((k) => ({ value: k, label: game.i18n.localize(`ACKS-EQUIPMENT.access.${k}`) }))],
+      gearOf(item).access || SLOT_AUTO,
+      (v) => setGearAccess(item, v),
+    ));
+  }
   return section;
 }
 
@@ -754,6 +830,7 @@ function onRenderCharacterSheet(app, element) {
     injectLightControls(tab, app.actor); // Light a lantern/candle/torch-weapon (needs formation)
     injectTorchReady(tab, app.actor); // Ready a torch from a stack (formation-independent)
     injectDrawSheathe(tab, app.actor); // Draw / sheathe every weapon
+    injectWearControls(tab, app.actor); // Wear / remove the gear core cannot equip
     injectStrapControls(tab, app.actor); // Sling a shield (overlay-gated)
     // NOTE masterwork, the scavenged condition and a shield's VARIANT describe
     // what the item IS, not how it is being carried — they live on the item

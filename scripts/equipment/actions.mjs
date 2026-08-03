@@ -5,6 +5,8 @@
  * against mock documents, and exposed on the module API for macros.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
+import { FLAG_GEAR } from "../lib/constants.mjs";
+import { setWorn } from "../lib/item-model.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
 import { equipmentClass, classifyWeapon } from "./profiles.mjs";
 import { consumeItem, roundsOf } from "./ammo.mjs";
@@ -121,6 +123,56 @@ export async function sheatheItem(item) {
 /** Draw a carried weapon (equip it). */
 export async function drawItem(item) {
   return item?.update?.({ "system.equipped": true });
+}
+
+/* -------------------------------------------------------------------------- */
+/*  #3b Where gear sits — the declaration, and correcting it                  */
+/* -------------------------------------------------------------------------- */
+
+/** The sentinel the slot control uses for "let the module infer it". */
+export const SLOT_AUTO = "auto";
+/** The sentinel for "this is carried, not worn" — a real answer, not absence. */
+export const SLOT_NONE = "none";
+
+/**
+ * Declare which slot a piece of gear occupies, from the item sheet's control.
+ *
+ * THREE STATES, and the difference between the last two matters: `auto` DELETES
+ * the declaration so the name/type inference resumes, while `none` STORES an
+ * empty list, which is a Judge saying this is carried and must stop the name
+ * heuristics putting it back on the body.
+ */
+export async function setGearSlots(item, value) {
+  if (!item) return false;
+  if (value === SLOT_AUTO) {
+    await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.-=slots`]: null });
+    return true;
+  }
+  const slots = value === SLOT_NONE ? [] : [value];
+  await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.slots`]: slots });
+  return true;
+}
+
+/** What it costs to take something out of this container (RR pp. 293-294). */
+export async function setGearAccess(item, value) {
+  if (!item) return false;
+  await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.access`]: value === SLOT_AUTO ? "" : value });
+  return true;
+}
+
+/**
+ * Wear or remove a piece of gear that core cannot equip.
+ *
+ * Routed through acks-lib's `setWorn`, which writes whichever store the item's
+ * type uses, so this never has to know that core owns `system.equipped` for
+ * weapon and armour and nothing else.
+ */
+export async function wearItem(item, slot) {
+  return setWorn(item, slot);
+}
+/** Take a worn item off. */
+export async function removeItem(item) {
+  return setWorn(item, null);
 }
 
 /* -------------------------------------------------------------------------- */

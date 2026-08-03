@@ -138,3 +138,37 @@ application recomputes from the BASE rather than adding to the current value.
 
 Renaming is a state edit, not automation, so it is never gated on the overlay
 setting — gating it there made renaming impossible whenever the overlay was off.
+
+---
+
+### Gear declares where it sits; the heuristics are only a fallback (2026-08-03)
+
+"Where is this gear?" used to be reconstructed on every call from type, flags and
+**item names** — `/helm/i` was written out four separate times, cloaks were
+`/cloak|cape/i`, gloves `/\bglove|gauntlet/i`, containers a name-prefix match. A
+rename changed an item's identity, and nothing could express a Judge's ruling.
+
+Gear now carries a declaration (acks-lib `GearExtras`; see `docs/lib/DECISIONS.md`
+for why it is a flag model and not an Item sub-type). Every classifier reads it
+first, and **a declaration, once present, replaces the heuristic entirely** —
+consulting the name afterwards would let "Great Helm" overrule a Judge who set
+the slot to the body. The name tests survive only for gear nobody has annotated,
+which is every world until the Annotate macro runs over it.
+
+Ownership moved with the rule: `isHelmet`/`isShield` live in `profiles.mjs`, the
+feature's classifier, and the copies in `loadout.mjs`, `wear.mjs` and the
+enclosing-helm overlay are gone.
+
+The Annotate macro now sweeps `armor` as well as `weapon` and `item` — armour is
+where the head/body distinction is declared, and filtering it out left that
+undeclared.
+
+### Retrieval cost is per-container, not per-slot (2026-08-03)
+
+RR pp. 293–294 makes drawing from an adventurer's harness, belt pouch, bowcase,
+quiver or sheath **free**, and from a backpack, rucksack or sack an **action in
+lieu of movement**. That is a fact about the container, not about where it hangs:
+a pouch on your belt and a sack on your back differ by what they are. So `access`
+sits on the gear model beside `slots`, and the container profile table carries
+both — one table, because capacity, slot and access are all the same fact about
+one piece of kit.

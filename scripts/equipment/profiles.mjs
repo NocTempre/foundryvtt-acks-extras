@@ -13,14 +13,97 @@
  * classification is exact; without it, (1)+(3) still classify the RAW weapons.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
-import { SIZE, STYLE, WEAPONS, WEAPON_ALIASES, WEAPON_CATEGORY, WEAPON_FOCUS_GROUPS, normalizeName } from "./config.mjs";
+import {
+  SIZE, STYLE, WEAPONS, WEAPON_ALIASES, WEAPON_CATEGORY, WEAPON_FOCUS_GROUPS,
+  gearProfileFor, CLOTHING_SLOT_PATTERNS,
+} from "./config.mjs";
+import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
+import { SLOT, slug } from "../lib/vocab.mjs";
+
+/* -------------------------------------------- */
+/*  Armour classification                        */
+/* -------------------------------------------- */
+
+/**
+ * Is this armour item a shield?
+ *
+ * Core's own field, not a heuristic — `system.type` carries the armour ladder
+ * plus `shield`, so there is nothing to infer and nothing to declare.
+ */
+export function isShield(item) {
+  return item?.system?.type === "shield";
+}
+
+/**
+ * Is this armour item a helmet?
+ *
+ * A DECLARATION, ONCE PRESENT, REPLACES THE HEURISTIC ENTIRELY. Gear that
+ * declares where it sits has already answered this, and consulting the name
+ * afterwards would let "Great Helm" override a Judge who deliberately set the
+ * slot to the body. The name test survives only for gear nobody has annotated,
+ * which is every world until the annotate pass runs over it.
+ *
+ * Core keys its own Mortal Wounds bonus off the same name shape, so the
+ * fallback deliberately matches what core would say.
+ */
+export function isHelmet(item) {
+  if (item?.type !== "armor") return false;
+  if (item.getFlag?.(MODULE_ID, ITEM_FLAGS.HELMET)) return true;
+  if (declaresSlots(item)) return slotsOf(item).includes(SLOT.head);
+  return /helm/i.test(item.name ?? "");
+}
+
+/**
+ * Infer where a piece of gear sits and what it costs to reach into.
+ *
+ * A BEST GUESS, and treated as one: the annotate step stamps it as the item's
+ * declaration and the item sheet offers a slot control to correct it. RAW gives
+ * a slot only one job — you cannot wear two of the same thing (Treasure Tome,
+ * Miscellaneous Magic Item Form) — so a wrong guess mis-scopes exclusivity and
+ * nothing worse. That is what makes inferring acceptable at all.
+ *
+ * Order: the named gear profiles (RAW carrying devices), then armour's own
+ * shape, then the clothing patterns, then nothing. Returning no slots is the
+ * common and correct answer — rations, loot, tools and coin are goods you carry,
+ * not gear you wear, and they get the wear features switched off by declaring
+ * nowhere to go.
+ *
+ * @returns {{slots: string[], access: string}} `access` is blank unless the item
+ *   holds something.
+ */
+export function inferGear(item) {
+  const none = { slots: [], access: "" };
+  if (!item) return none;
+
+  const profile = gearProfileFor(item.name ?? "");
+  if (profile) return { slots: [...(profile.slots ?? [])], access: profile.access ?? "" };
+
+  if (item.type === "armor") {
+    // A shield is the one piece of gear with a real choice of place: in the
+    // hand, or slung (JJ variants). Both are declared; the wearer picks.
+    if (isShield(item)) return { slots: [SLOT.offHand, SLOT.strapped], access: "" };
+    return { slots: [isHelmet(item) ? SLOT.head : SLOT.body], access: "" };
+  }
+
+  if (item.type === "weapon") return { slots: [SLOT.mainHand, SLOT.offHand, SLOT.bothHands], access: "" };
+
+  for (const { re, slots } of CLOTHING_SLOT_PATTERNS) {
+    if (re.test(item.name ?? "")) return { slots: [...slots], access: "" };
+  }
+
+  // Clothing the patterns did not name is still worn — a chiton, a cassock, a
+  // loincloth. `worn` is uncapped, so guessing it costs nothing.
+  if (isClothing(item)) return { slots: [SLOT.worn], access: "" };
+
+  return none;
+}
 
 /** Collect the lowercased tag tokens on a core weapon (title or value). */
 function tagTokens(item) {
   const out = new Set();
   for (const tag of item.system?.tags ?? []) {
     for (const field of [tag?.title, tag?.value]) {
-      const t = normalizeName(field);
+      const t = slug(field);
       if (t) out.add(t);
     }
   }
@@ -29,7 +112,7 @@ function tagTokens(item) {
 
 /** Resolve the canonical WEAPONS key for an item, or null. */
 export function weaponKey(item) {
-  const key = normalizeName(item?.name);
+  const key = slug(item?.name);
   if (WEAPONS[key]) return key;
   if (WEAPON_ALIASES[key] && WEAPONS[WEAPON_ALIASES[key]]) return WEAPON_ALIASES[key];
   // partial contains match (e.g. "long bow, masterwork" → "longbow")
@@ -41,7 +124,7 @@ export function weaponKey(item) {
 
 /** Exact-or-alias key resolution — no fuzzy substring match (see equipmentClass). */
 function strictWeaponKey(name) {
-  const key = normalizeName(name);
+  const key = slug(name);
   if (WEAPONS[key]) return key;
   if (WEAPON_ALIASES[key] && WEAPONS[WEAPON_ALIASES[key]]) return WEAPON_ALIASES[key];
   return null;

@@ -11,13 +11,44 @@ control you already knew keeps working.
 ## Wear and hands
 
 Equip an item and it lands in a **wear bucket** — head to foot, then off-body.
-One taxonomy drives the paper doll, the buckets and the loadout summary, so they
-cannot disagree.
+One taxonomy drives the buckets and the loadout summary, so they cannot disagree.
 
 Hands are counted. A two-handed weapon needs both; a lit torch occupies one, and
 you cannot light one with no hand free. The controls sit in their own box beside
 core's, because core's control column is a fixed 35–60px and anything added
 inside it overflows.
+
+## Where gear is worn
+
+The system only lets a **weapon** or a suit of **armour** be equipped, so a
+cloak, a pair of gloves, a belt pouch or a backpack had nowhere to be worn. Gear
+now declares its own place, and every worn item that is not a weapon or armour
+gets a **wear / take off** control on its row.
+
+Run **Annotate Equipment (RAW profiles)** from the module's macro compendium and
+it fills this in for everything a character (or the whole world) owns:
+
+- garments land on the body part they name — cloaks on the shoulders, boots on
+  the feet, gloves on the hands, belts and sashes at the belt;
+- carrying gear lands where it rides, with the RAW cost of reaching into it: an
+  adventurer's harness, belt pouch, bowcase, quiver or sheath is **free** to draw
+  from, while a backpack, rucksack or sack costs an **action in lieu of
+  movement** (RR pp. 293–294);
+- rations, tools, rope, loot and coin declare nothing, because they are carried
+  rather than worn — that is what keeps them plain goods.
+
+**The slot is a guess, and you can correct it.** Open any item, go to
+**Construction**, and set *Worn at*. Three answers matter:
+
+| Choice | Means |
+|---|---|
+| *Auto (…)* | let the module infer it from the item's name and type |
+| a slot | this is where it sits, whatever it is called |
+| *Carried — worn nowhere* | it is not worn at all — and this **overrides the name**, so a "Great Helm" you have ruled to be a trophy stays a trophy |
+
+A slot's only rule is that you cannot wear two of the same thing, so a wrong
+guess costs nothing but that. Rings are the exception the Treasure Tome spells
+out: you benefit from **two**, and a third stops all of them working.
 
 ## Containers
 

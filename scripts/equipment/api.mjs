@@ -8,7 +8,8 @@
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, HOOKS, EFFECT_DOMAINS, ITEM_FLAGS } from "./constants.mjs";
 import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands } from "./loadout.mjs";
-import { classifyWeapon, handCost, focusGroup, weaponKey, equipmentClass } from "./profiles.mjs";
+import { classifyWeapon, handCost, focusGroup, weaponKey, equipmentClass, inferGear, isHelmet, isShield } from "./profiles.mjs";
+import { FLAG_GEAR } from "../lib/constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
 import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATERIALS } from "./overlays/item-loss.mjs";
@@ -42,42 +43,67 @@ import * as CONFIG_DATA from "./config.mjs";
 
 /**
  * Stamp module profile flags onto a core item from its RAW profile.
- * Handles weapons (size/qualities) and carrying devices (container capacity,
- * harness, bowquiver) — core already ships both, so we annotate in place rather
- * than duplicate them into our own packs.
- * @returns {string|null} the profile key applied, or null if unrecognised
+ *
+ * Three layers, applied in ONE write:
+ *  - weapons: size and qualities from the RAW weapon table;
+ *  - carrying devices: capacity, harness, bowquiver;
+ *  - EVERY physical item: where it sits (`gear.slots`) and what it costs to
+ *    reach into (`gear.access`), inferred by `inferGear`.
+ *
+ * The gear layer is what makes clothing and rigging wearable at all — core
+ * declares `system.equipped` on weapon and armor alone — and it is a correctable
+ * guess, not a fact: the item sheet offers the slot control that overrides it.
+ * Gear that belongs nowhere (rations, loot, tools) declares no slot, which is
+ * how it keeps the wear features switched off.
+ *
+ * Core already ships all of these items, so we annotate in place rather than
+ * duplicate them into our own packs.
+ *
+ * @returns {string|null} the profile key applied, or null if nothing was stamped
  */
 export async function annotateItem(item) {
-  if (item?.type === "weapon") {
-    const key = weaponKey(item);
-    if (!key) return null;
-    const base = CONFIG_DATA.WEAPONS[key];
-    await item.update({
-      [`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`]: base.size,
-      [`flags.${MODULE_ID}.${ITEM_FLAGS.DAMAGE_TYPE}`]: base.type || "",
-      [`flags.${MODULE_ID}.${ITEM_FLAGS.HANDY}`]: !!base.handy,
-      [`flags.${MODULE_ID}.${ITEM_FLAGS.THROWN}`]: !!base.thrown,
-      // A thrown melee weapon is a MISSILE too (RR p296), and core only offers
-      // its melee-vs-thrown range selector when BOTH booleans are set — so
-      // reconcile the core item to the RAW profile. melee/missile are left as-is
-      // for a purely melee or purely missile weapon (base.thrown false).
-      "system.melee": base.melee ?? item.system?.melee ?? false,
-      "system.missile": !!(base.missile || base.thrown),
-    });
-    return key;
+  if (!item) return null;
+  const updates = {};
+  let key = null;
+
+  if (item.type === "weapon") {
+    key = weaponKey(item);
+    if (key) {
+      const base = CONFIG_DATA.WEAPONS[key];
+      Object.assign(updates, {
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`]: base.size,
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.DAMAGE_TYPE}`]: base.type || "",
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.HANDY}`]: !!base.handy,
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.THROWN}`]: !!base.thrown,
+        // A thrown melee weapon is a MISSILE too (RR p296), and core only offers
+        // its melee-vs-thrown range selector when BOTH booleans are set — so
+        // reconcile the core item to the RAW profile. melee/missile are left as-is
+        // for a purely melee or purely missile weapon (base.thrown false).
+        "system.melee": base.melee ?? item.system?.melee ?? false,
+        "system.missile": !!(base.missile || base.thrown),
+      });
+    }
   }
-  if (item?.type === "item") {
-    const profile = CONFIG_DATA.containerProfileFor(item.name);
-    if (!profile) return null;
-    const updates = {};
+
+  const profile = CONFIG_DATA.gearProfileFor(item.name ?? "");
+  if (profile) {
     if (profile.capacity) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINER}`] = { capacity: profile.capacity };
     if (profile.harness) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.HARNESS}`] = true;
     if (profile.bowquiver) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.BOWQUIVER}`] = true;
-    if (!Object.keys(updates).length) return null;
-    await item.update(updates);
-    return "container";
+    key ??= "container";
   }
-  return null;
+
+  // Where it sits. Only stamped when there is something to say, so annotating a
+  // sack of rations does not litter it with an empty model.
+  const gear = inferGear(item);
+  if (gear.slots.length || gear.access) {
+    updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = { slots: gear.slots, access: gear.access };
+    key ??= "gear";
+  }
+
+  if (!Object.keys(updates).length) return null;
+  await item.update(updates);
+  return key;
 }
 
 export function buildApi() {
@@ -98,6 +124,9 @@ export function buildApi() {
     handCost,
     focusGroup,
     weaponKey,
+    isHelmet, // armour classification: the one owner for the whole feature
+    isShield,
+    inferGear, // name/type → where it sits + what it costs to reach into
     annotateItem,
     refreshLoadout,
     // Proficiency

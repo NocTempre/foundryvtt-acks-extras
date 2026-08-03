@@ -16,6 +16,7 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { ACTIONS } from "./monster-actions.mjs";
 import * as CFG from "./config.mjs";
+import { encumbering6 } from "../lib/item-model.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 
@@ -31,11 +32,7 @@ function computeEncumbrance(actor, extras) {
   let weight6 = 0;
   for (const item of actor.items) {
     if (item.getFlag(MODULE_ID, "spoil")) continue;
-    if (item.type === "item" && item.system?.subtype !== "clothing") {
-      weight6 += (item.system?.weight6 ?? 0) * (item.system?.quantity?.value ?? 1);
-    } else if (item.type === "weapon" || item.type === "armor") {
-      weight6 += item.system?.weight6 ?? 0;
-    }
+    weight6 += encumbering6(item);
   }
   const money = actor.getTotalMoneyEncumbrance?.() ?? { stone: 0 };
   const stone = weight6 / 6 + (money.stone ?? 0);

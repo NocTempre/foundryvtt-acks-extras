@@ -25,7 +25,17 @@
  * Everything here reads the SCHEMA, not a type name, wherever it can: `"cost" in
  * item.system` keeps working when the system adds a physical type this library
  * has never heard of, and a hardcoded list does not.
+ *
+ * The schema probe answers "can this be worn?" correctly and uselessly: `no`,
+ * for every cloak, glove, harness and pack in the books, because the system
+ * declares `equipped` on `weapon` and `armor` alone. So the wear half below
+ * reads a DECLARATION instead — `flags.acks-extras.gear.slots`, the GearExtras
+ * model — and `isWorn`/`setWorn` hide which of the two stores a given item uses.
+ * Nothing outside this file should know there are two.
  */
+
+import { MODULE_ID, FLAG_GEAR } from "./constants.mjs";
+import { WEAR_SLOTS, slotCapacity } from "./vocab.mjs";
 
 const F = () => foundry.data.fields;
 
@@ -91,6 +101,24 @@ export function weight6Of(item) {
 export const weightStoneOf = (item) => weight6Of(item) / STONE;
 
 /**
+ * Is this clothing? The system's one sub-classification of the `item` type
+ * (`system.subtype`), and the only place the schema distinguishes a tunic from
+ * a coil of rope.
+ */
+export const isClothing = (item) => item?.type === "item" && item?.system?.subtype === "clothing";
+
+/**
+ * What this item contributes to encumbrance, in `weight6`.
+ *
+ * Mirrors core's `computeEncumbrance` rule exactly — quantity multiplies where
+ * the type has it, and CLOTHING IS EXCLUDED — so anything summing a non-
+ * character's load reaches the same number core would for a character instead
+ * of reimplementing the loop and drifting from it. Coin is 0 here by design:
+ * core's `getTotalMoneyEncumbrance()` owns coin weight and callers add it.
+ */
+export const encumbering6 = (item) => (isClothing(item) ? 0 : weight6Of(item));
+
+/**
  * Every physical item on an actor. The one place a module should ask "what is
  * this actor carrying" rather than filtering on a type list of its own.
  */
@@ -112,3 +140,145 @@ export async function setEquipped(item, equipped = true) {
   await item.update({ "system.equipped": !!equipped });
   return true;
 }
+
+/* -------------------------------------------- */
+/*  Goods — the things you can put somewhere     */
+/* -------------------------------------------- */
+
+/**
+ * Is this a thing that can be carried, stowed, stored or handed over?
+ *
+ * `isPhysical` alone cannot answer it: the system gives `money` no `cost` and no
+ * `weight6`, so coins fail the schema probe while obviously being goods. That
+ * gap is why fifteen call sites grew a `|| i.type === "money"` rider. It is
+ * answered HERE, once, and the riders read this instead.
+ *
+ * `bundle` is excluded: it holds uuid references rather than being a thing, so
+ * stowing one would nest a pointer, not an object.
+ */
+export const isGoods = (item) => isPhysical(item) || item?.type === "money";
+
+/**
+ * Goods a container can hold. The same question as `isGoods` — kept as its own
+ * name because the container code asks it about a candidate and reads better
+ * for it, not because the answer differs.
+ */
+export const isStowable = isGoods;
+
+/* -------------------------------------------- */
+/*  Wear — where a piece of gear sits            */
+/* -------------------------------------------- */
+
+/** An item's stored gear model, as a plain object. Never null. */
+export function gearOf(item) {
+  const flags = item?.getFlag?.(MODULE_ID, FLAG_GEAR) ?? item?.flags?.[MODULE_ID]?.[FLAG_GEAR];
+  return flags ?? {};
+}
+
+/**
+ * The slots this item may occupy — declared only. Unknown keys are dropped, so
+ * a stale or hand-edited flag degrades to "fewer slots", never to a slot the
+ * sheet cannot draw.
+ *
+ * Callers that also want the slots INFERRED from a core type (a weapon's hands,
+ * an armour's body) layer that on top; this is the declaration, and the
+ * declaration always wins.
+ */
+export function slotsOf(item) {
+  const declared = gearOf(item).slots;
+  return Array.isArray(declared) ? declared.filter((s) => s in WEAR_SLOTS) : [];
+}
+
+/**
+ * Has anyone declared where this item sits — as opposed to declaring that it
+ * sits NOWHERE?
+ *
+ * The two are different answers and `slotsOf` cannot tell them apart, because
+ * both are an empty list. Every name-heuristic fallback in the family gates on
+ * THIS, not on `slotsOf(item).length`: a Judge who deliberately sets a Great
+ * Helm to sit nowhere must not have the name test put it back on the head.
+ */
+export const declaresSlots = (item) => Array.isArray(gearOf(item).slots);
+
+/**
+ * Can this be worn or wielded at all?
+ *
+ * Two grounds, because the system splits the answer: core says yes for anything
+ * carrying its `equipped` field (`weapon`, `armor`), and a declared slot says
+ * yes for everything core forgot (clothing, rigging, packs). An item with
+ * neither is plain goods — which is exactly how rations, loot and coin get the
+ * wear features switched off without a flag saying so.
+ */
+export const isWearable = (item) => isEquippable(item) || slotsOf(item).length > 0;
+
+/**
+ * Is it worn or wielded right now?
+ *
+ * READ THROUGH HERE, never off one store. Core owns `system.equipped` where it
+ * exists and its own equip toggle writes it; everything else records the slot
+ * it occupies. Two stores, one question — gating on either alone answers `false`
+ * for half the gear on the character.
+ */
+export function isWorn(item) {
+  if (isEquippable(item)) return !!item.system.equipped;
+  return !!gearOf(item).wornAt;
+}
+
+/**
+ * Which slot it occupies now, or null. Only ever a slot the item declares: a
+ * `wornAt` left behind by an edit that removed the slot reads as not worn there
+ * rather than as worn somewhere impossible.
+ */
+export function wornSlotOf(item) {
+  const at = gearOf(item).wornAt;
+  return at && slotsOf(item).includes(at) ? at : null;
+}
+
+/**
+ * Put an item in a slot, or take it off with `null`.
+ *
+ * Writes to whichever store the item's type uses, so callers never branch. A
+ * slot the item does not declare is refused rather than stored — the declaration
+ * is what bounds this, and silently accepting would make it decoration.
+ *
+ * Core-equippable types keep answering through `system.equipped`; the slot is
+ * still recorded for them when they declare one, because "equipped" cannot say
+ * whether a shield is in the hand or strapped to the back.
+ *
+ * @param {Item} item
+ * @param {string|null} slot a WEAR_SLOTS key, or null to remove
+ * @returns {Promise<boolean>} whether anything was written
+ */
+export async function setWorn(item, slot = null) {
+  if (!item) return false;
+  if (slot !== null && !slotsOf(item).includes(slot)) return false;
+
+  const update = {};
+  if (isEquippable(item)) {
+    if (!!item.system.equipped !== (slot !== null)) update["system.equipped"] = slot !== null;
+  }
+  if (slotsOf(item).length) {
+    const current = gearOf(item).wornAt || "";
+    if (current !== (slot ?? "")) update[`flags.${MODULE_ID}.${FLAG_GEAR}.wornAt`] = slot ?? "";
+  }
+  if (!Object.keys(update).length) return false;
+  await item.update(update);
+  return true;
+}
+
+/**
+ * Everything the actor has in a given slot. The basis of the exclusivity check:
+ * a slot holds `slotCapacity(slot)` items and no more.
+ */
+export function itemsInSlot(actor, slot) {
+  return actor?.items?.filter((i) => wornSlotOf(i) === slot) ?? [];
+}
+
+/**
+ * Is the slot carrying more than it can?
+ *
+ * The Treasure Tome's rings are why this returns a state rather than blocking a
+ * write: a third ring does not fail to go on, it stops all three working. What
+ * an over-filled slot MEANS is the caller's to decide.
+ */
+export const slotOverfilled = (actor, slot) => itemsInSlot(actor, slot).length > slotCapacity(slot);

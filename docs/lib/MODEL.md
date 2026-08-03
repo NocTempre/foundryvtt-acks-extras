@@ -117,3 +117,53 @@ point is to overwrite the system's stock `sight.range: 60` on every monster — 
 it stamps what it wrote (`managedVision`) and compares before writing again; a
 token whose sight no longer matches the stamp was edited by a human and is
 handed back permanently. `manageVision` is the world-level off switch.
+
+## The item taxonomy: goods, gear, and where it sits
+
+The system's eight Item sub-types share no base. `cost`/`weight6` are hand-spread
+into `item`, `weapon` and `armor`; `equipped` is declared **separately on `weapon`
+and `armor` and nowhere else**; `money` has neither cost nor weight. So "is this a
+thing?", "can it be worn?" and "what does it weigh?" had no schema answer, and
+every consumer re-derived them from its own type list.
+
+`scripts/item-model.mjs` is the one place those questions are answered. It reads
+the **schema** wherever it can (`"cost" in item.system`), so it keeps working when
+the system adds a type this library never heard of.
+
+| Question | Read | Why not a type list |
+|---|---|---|
+| Is it a thing? | `isPhysical` | schema probe |
+| Can it be put somewhere? | `isGoods` / `isStowable` | coin is goods without being physical — the gap that grew a `\|\| type === "money"` rider at fifteen sites |
+| Is it clothing? | `isClothing` | core's `system.subtype`, its one sub-classification |
+| What does it add to encumbrance? | `encumbering6` | mirrors core's `computeEncumbrance` exactly, clothing excluded, so a non-character's load matches what core computes for a character |
+| Can it be worn? | `isWearable` | core's `equipped` field OR a declared slot |
+| Is it worn now? | `isWorn` | **two stores, one question** |
+| Where? | `wornSlotOf` / `setWorn` | ditto |
+
+### Two stores, and why nothing outside this file knows
+
+Core owns `system.equipped` on `weapon` and `armor`; its own equip toggle and the
+equipment feature's enforcement wrap both write it, so forking it would break
+them. Core gives every other type **no such field at all**, and Foundry prunes
+keys outside a type's schema — so a cloak, a pair of gloves, an adventurer's
+harness and a backpack could not be worn, whatever anyone wrote. Those record
+`flags["acks-extras"].gear.wornAt` instead.
+
+`isWorn`/`wornSlotOf`/`setWorn` hide which store applies. **Never re-narrow a worn
+test to `system.equipped`**: three RAW rules were silently inert for exactly that
+reason (the harness's stone of relief, gloves blocking lockpicks, and the worn
+bucket for clothing), each gated on a field their own item type cannot carry.
+
+### Slots
+
+`vocab.mjs` `WEAR_SLOTS` is the canonical list — fourteen places, each with a
+`capacity`. A slot is fundamentally an **exclusion**: the Treasure Tome's
+Miscellaneous Magic Item Form table states the only wear mechanic ACKS II has,
+that a character may not wear two of the same form at once, and its Rings entry
+sets the one capacity above 1 (two, and a third stops all of them working).
+
+`gear.slots` is the list an item MAY occupy; `gear.wornAt` is the one it does.
+`declaresSlots` separates "declared to sit nowhere" from "never annotated" —
+both give `slotsOf` an empty list, and every name-heuristic fallback in the
+family gates on the former so a deliberate ruling is not undone by an item's
+name.

@@ -44,7 +44,7 @@ import {
   stackSignature,
   storageFlagOf,
 } from "./storage-logic.mjs";
-import { isPhysical } from "./item-model.mjs";
+import { isGoods } from "./item-model.mjs";
 
 // Re-export the Foundry-free half so consumers reach it all through
 // `acksLib.storage`, while the pure half stays independently Node-importable.
@@ -482,7 +482,7 @@ export function registerStorageCleanup() {
         if (!gm.isSelf) return;
       } else if (userId !== game.user?.id) return;
 
-      const goods = doc.items.filter((i) => !!storageFlagOf(i) && (isPhysical(i) || i.type === "money"));
+      const goods = doc.items.filter((i) => !!storageFlagOf(i) && isGoods(i));
       if (!goods.length) return;
 
       const buckets = groupByOwner(goods.map((i) => i.toObject()));

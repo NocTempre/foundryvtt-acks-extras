@@ -28,15 +28,16 @@
  * enforced as a warning on the container, not by altering weight.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
+import { FLAG_GEAR } from "../lib/constants.mjs";
 import { shieldEncumbranceDelta6 } from "./overlays/shield-variants.mjs";
-// The one weight primitive for the family. Quantity-aware; returns 0 for
-// non-physical items. See containers' own notes on where raw per-unit weight is
-// wanted instead (harness heavy-check, item-loss, shield baseline) — those do
-// NOT go through this.
-import { weight6Of } from "../lib/item-model.mjs";
+import { isHelmet, isShield } from "./profiles.mjs";
+// The family's item primitives. `weight6Of` is quantity-aware and returns 0 for
+// non-physical items — see the notes below on where raw PER-UNIT weight is
+// wanted instead (harness heavy-check, shield baseline), which do NOT go
+// through it. `isStowable` is where coin's missing cost/weight6 is reconciled:
+// coin is goods without being physical, so asking `isPhysical` here loses it.
+import { weight6Of, isStowable, isWorn, isClothing, gearOf, STONE } from "../lib/item-model.mjs";
 
-/** A stone is six 1/6-stone units — core stores weight in `weight6`. */
-export const STONE = 6;
 
 /** Container spec on an item: flags.acks-extras.container = {capacity, …}. */
 export function containerOf(item) {
@@ -132,16 +133,9 @@ export function contentsOf(actor, containerId) {
   return actor.items.filter((i) => containedIn(i) === containerId);
 }
 
-/** Item types that can be put into a container. */
-// NOTE this is isPhysical's set ∪ {"money"} — NOT the same as itemModel.isPhysical.
-// Money is stowable (coins go in a pouch) but not physical (no cost/weight6), so
-// a future refactor must NOT "simplify" this to isPhysical() or coins vanish
-// from container and loose lists and can no longer be stowed.
-export const STOWABLE_TYPES = Object.freeze(["item", "weapon", "armor", "money"]);
-
 /** Items carried loose — not inside anything (containers themselves included). */
 export function looseItems(actor) {
-  return actor.items.filter((i) => STOWABLE_TYPES.includes(i.type) && !containedIn(i));
+  return actor.items.filter((i) => isStowable(i) && !containedIn(i));
 }
 
 /**
@@ -170,7 +164,7 @@ export function canStore(actor, item, container) {
   if (!item || !container) return { ok: false, reason: "missing" };
   if (!isContainer(container)) return { ok: false, reason: "notAContainer" };
   if (item.id === container.id) return { ok: false, reason: "selfContained" };
-  if (!STOWABLE_TYPES.includes(item.type)) return { ok: false, reason: "notStowable" };
+  if (!isStowable(item)) return { ok: false, reason: "notStowable" };
   // A shut lock is a real obstacle, unlike capacity: you cannot put the sword
   // in the chest without opening the chest. Blocked for everyone including the
   // GM, because silently succeeding would make the lock decorative.
@@ -200,7 +194,9 @@ export async function storeIn(actor, item, container) {
   }
   if (containedIn(item) === container.id) return false; // already there
   const updates = { [`flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINED_IN}`]: container.id };
+  // Both worn stores are cleared, because either can be the one holding it.
   if (item.system?.equipped) updates["system.equipped"] = false;
+  if (gearOf(item).wornAt) updates[`flags.${MODULE_ID}.${FLAG_GEAR}.wornAt`] = "";
   await item.update(updates);
   if (overCapacity(actor, container)) {
     warn("overCapacity", { container: container.name, capacity: capacityStone(container) });
@@ -289,7 +285,7 @@ export function containerReport(actor) {
 function harnessEligible6(actor, harnessId) {
   return actor.items
     .filter((i) => i.id !== harnessId)
-    .filter((i) => i.type === "item" && i.system?.subtype !== "clothing")
+    .filter((i) => i.type === "item" && !isClothing(i))
     // Per-UNIT heavy check stays RAW (not weight6Of): a stack of six 1/6-stone
     // torches sums to a stone but no single one is heavy, so quantity must NOT
     // enter here. The reduce below is over type==="item" rows only, where
@@ -300,7 +296,7 @@ function harnessEligible6(actor, harnessId) {
 
 /** Worn armour category, for the harness's "not over heavy armour" clause. */
 function wornArmourType(actor) {
-  const worn = actor.items.find((i) => i.type === "armor" && i.system?.equipped && i.system?.type !== "shield" && !/helm/i.test(i.name ?? ""));
+  const worn = actor.items.find((i) => i.type === "armor" && isWorn(i) && !isShield(i) && !isHelmet(i));
   return worn?.system?.type ?? "unarmored";
 }
 
@@ -317,9 +313,10 @@ export function encumbranceDelta6(actor) {
   delta += shieldEncumbranceDelta6(actor);
 
   // 1. Adventurer's harness: ignore up to 1 stone of ordinary equipment.
-  const harness = actor.items.find(
-    (i) => i.getFlag?.(MODULE_ID, ITEM_FLAGS.HARNESS) && i.system?.equipped,
-  );
+  //    WORN, not `system.equipped` — a harness is a plain `item`, which core
+  //    gives no `equipped` field, so gating on that field made this rule
+  //    permanently inert. Never re-narrow a worn test to one store.
+  const harness = actor.items.find((i) => i.getFlag?.(MODULE_ID, ITEM_FLAGS.HARNESS) && isWorn(i));
   if (harness && wornArmourType(actor) !== "heavy") {
     delta -= Math.min(STONE, harnessEligible6(actor, harness.id));
   }

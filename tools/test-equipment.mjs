@@ -498,14 +498,29 @@ check("unknown maneuver → null", maneuverMods(plainActor, mSword, "nonsense") 
 const { encumbranceDelta6, contentsWeight6, overCapacity, containerReport, isContainer } =
   await import(new URL("containers.mjs", S));
 
-const gear = (name, w6, over = {}) => ({
-  id: over.id ?? name.replace(/\W/g, ""),
-  name,
-  type: over.type ?? "item",
-  system: { cost: over.cost ?? 0, weight6: w6, quantity: { value: over.qty ?? 1 }, subtype: over.subtype, equipped: over.equipped ?? false },
-  getFlag: (_m, k) => (over.flags ?? {})[k],
-  effects: [],
-});
+const gear = (name, w6, over = {}) => {
+  const type = over.type ?? "item";
+  const system = { cost: over.cost ?? 0, weight6: w6, quantity: { value: over.qty ?? 1 }, subtype: over.subtype };
+  // Core declares `equipped` on weapon and armor ONLY, and Foundry prunes keys
+  // outside a type's schema — so a fixture carrying it on a plain `item` claims
+  // a field the system cannot store. That lie is exactly how the adventurer's
+  // harness rule stayed dead through a green suite: it gated on
+  // `system.equipped`, the fixture supplied one, and no real world ever could.
+  // Worn gear that is not a weapon or armour declares a slot instead.
+  if (type === "weapon" || type === "armor") system.equipped = over.equipped ?? false;
+  const flags = { ...(over.flags ?? {}) };
+  if (over.slots || over.wornAt) {
+    flags.gear = { slots: over.slots ?? [over.wornAt], wornAt: over.wornAt ?? "" };
+  }
+  return {
+    id: over.id ?? name.replace(/\W/g, ""),
+    name,
+    type,
+    system,
+    getFlag: (_m, k) => flags[k],
+    effects: [],
+  };
+};
 const withItems = (items) => {
   const a = actor(items);
   a.items = Object.assign(items.slice(), {
@@ -534,13 +549,15 @@ const ingots = gear("Iron Ingots", 30, { id: "ing", flags: { containedIn: "bp" }
 check("backpack over capacity flagged", overCapacity(withItems([pack, ingots]), pack));
 
 // Adventurer's harness: ignore up to 1 stone of ORDINARY gear (RR p. 142).
-const harness = gear("Adventurer's Harness", 1, { id: "h", equipped: true, flags: { harness: true } });
+// WORN VIA THE SLOT, because a harness is a plain `item` and core gives it no
+// `equipped` field to be worn by.
+const harness = gear("Adventurer's Harness", 1, { id: "h", wornAt: "belt", flags: { harness: true } });
 const smalls = [gear("Flask A", 1, { id: "f1" }), gear("Flask B", 1, { id: "f2" }), gear("Torch", 1, { id: "f3" })];
 check("harness ignores up to 1 stone (only 3/6 available -> -3)", encumbranceDelta6(withItems([harness, ...smalls])) === -3);
 const manySmalls = Array.from({ length: 10 }, (_, i) => gear(`Item ${i}`, 1, { id: `s${i}` }));
 check("harness caps its relief at exactly 1 stone", encumbranceDelta6(withItems([harness, ...manySmalls])) === -6);
 check("harness cannot secure heavy items", encumbranceDelta6(withItems([harness, gear("Anvil", 12, { id: "an" })])) === 0);
-const plateArm = { id: "pl", name: "Plate", type: "armor", system: { equipped: true, type: "heavy", aac: { value: 6 }, weight6: 36 }, getFlag: () => undefined, effects: [] };
+const plateArm = { id: "pl", name: "Plate", type: "armor", system: { cost: 0, equipped: true, type: "heavy", aac: { value: 6 }, weight6: 36 }, getFlag: () => undefined, effects: [] };
 check("harness gives nothing over heavy armour", encumbranceDelta6(withItems([harness, plateArm, ...smalls])) === 0);
 
 // Bowquiver: a loaded assembly counts as 2 items, not quiver + bow + arrows.
@@ -561,12 +578,33 @@ check("self-referencing containers do not hang", contentsWeight6(withItems([loop
 
 // Container profiles must match core's REAL item names in acks-adventuring-
 // equipment (we annotate those in place rather than duplicating them).
-const { containerProfileFor } = await import(new URL("config.mjs", S));
-check("backpack profile from core's name '(holds 4 stone)'", containerProfileFor("Backpack (holds 4 stone)").capacity === 4);
-check("rucksack 2 st / large sack 6 st / saddlebag 3 st", containerProfileFor("Rucksack (holds 2 stone)").capacity === 2 && containerProfileFor("Sack, Large (holds 6 stone)").capacity === 6 && containerProfileFor("Saddlebag (holds 3 stone)").capacity === 3);
-check("adventurer's harness profile flags the harness rule", containerProfileFor("Adventurer's Harness").harness === true);
-check("bowquiver profile flags the 2-item rule", containerProfileFor("Bowquiver").bowquiver === true);
-check("a sword is not a container", containerProfileFor("Sword") === null);
+const { gearProfileFor } = await import(new URL("config.mjs", S));
+check("backpack profile from core's name '(holds 4 stone)'", gearProfileFor("Backpack (holds 4 stone)").capacity === 4);
+check("rucksack 2 st / large sack 6 st / saddlebag 3 st", gearProfileFor("Rucksack (holds 2 stone)").capacity === 2 && gearProfileFor("Sack, Large (holds 6 stone)").capacity === 6 && gearProfileFor("Saddlebag (holds 3 stone)").capacity === 3);
+check("adventurer's harness profile flags the harness rule", gearProfileFor("Adventurer's Harness").harness === true);
+check("bowquiver profile flags the 2-item rule", gearProfileFor("Bowquiver").bowquiver === true);
+check("a sword is not a container", gearProfileFor("Sword") === null);
+
+// Where gear sits. RAW gives a slot one job — you cannot wear two of the same
+// (TT Miscellaneous Magic Item Form) — so these are guesses the item sheet can
+// correct, and the test pins the ones that carry a rule.
+const { inferGear } = await import(new URL("profiles.mjs", S));
+const clothing = (name) => ({ name, type: "item", system: { cost: 0, weight6: 0, subtype: "clothing" }, getFlag: () => undefined });
+const goods = (name) => ({ name, type: "item", system: { cost: 0, weight6: 1, subtype: "item" }, getFlag: () => undefined });
+check("the harness rides the belt and is free to reach (RR pp293-294)", inferGear(goods("Adventurer's Harness")).slots.join() === "belt" && inferGear(goods("Adventurer's Harness")).access === "free");
+check("a backpack rides the back and costs an action to open", inferGear(goods("Backpack (holds 4 stone)")).slots.join() === "back" && inferGear(goods("Backpack (holds 4 stone)")).access === "action");
+check("a belt pouch and a quiver are free; a sack is not", inferGear(goods("Pouch/Purse (holds 1/2 stone)")).access === "free" && inferGear(goods("Quiver, 20 Arrows")).access === "free" && inferGear(goods("Sack, Small (holds 2 stone)")).access === "action");
+check("a barrel holds things but is worn nowhere", inferGear(goods("Barrel (20 gallon)")).slots.length === 0 && gearProfileFor("Barrel (20 gallon)").capacity === 15);
+check("garments land on the body part they name", inferGear(clothing("Cloak, Silk, Hooded")).slots.join() === "shoulders" && inferGear(clothing("Boots, Leather, High")).slots.join() === "feet" && inferGear(clothing("Gloves, Leather or Wool, Long")).slots.join() === "hands" && inferGear(clothing("Belt/Sash, Leather")).slots.join() === "belt" && inferGear(clothing("Skullcap")).slots.join() === "head");
+check("unpatterned clothing is simply worn", inferGear(clothing("Chiton, Linen or Wool")).slots.join() === "worn" && inferGear(clothing("Loincloth")).slots.join() === "worn");
+check("cloth sold by the pound is goods, not a garment", inferGear(clothing("Linen, Cheap (1 lb)")).slots.length === 0 && inferGear(clothing("Silk (1 lb)")).slots.length === 0);
+check("rations, tools and rope are worn nowhere", inferGear(goods("Rations, Standard (one week)")).slots.length === 0 && inferGear(goods("Thieves' Tools")).slots.length === 0 && inferGear(goods("Rope, 50'")).slots.length === 0);
+const gearHelm = { name: "Great Helm", type: "armor", system: { cost: 0, weight6: 1, type: "medium" }, getFlag: () => undefined };
+const gearSuit = { name: "Plate", type: "armor", system: { cost: 0, weight6: 36, type: "heavy" }, getFlag: () => undefined };
+const gearShield = { name: "Shield", type: "armor", system: { cost: 0, weight6: 6, type: "shield" }, getFlag: () => undefined };
+check("a helmet goes on the head and a suit on the body", inferGear(gearHelm).slots.join() === "head" && inferGear(gearSuit).slots.join() === "body");
+check("a shield declares both of its RAW places", inferGear(gearShield).slots.join() === "offHand,strapped");
+check("a weapon declares the hands", inferGear({ name: "Sword", type: "weapon", system: { cost: 0, weight6: 6 }, getFlag: () => undefined }).slots.join() === "mainHand,offHand,bothHands");
 
 
 // --- Phase 5b: item loss from damage (JJ p. 398) ------------------------------
@@ -590,7 +628,7 @@ check("explicit material flag beats the guess", materialOf(gear("Odd Thing", 1, 
 // The Judges Journal's own worked example: Andravus at -18 hp from a fireball
 // risks 3 stone; fire cannot touch his metal flasks of holy water or his coins,
 // so those are skipped rather than consuming the budget.
-const jjShield = { id: "sh", name: "Shield", type: "armor", system: { equipped: true, type: "shield", aac: { value: 1 }, weight6: 6 }, getFlag: (_m, k) => ({ material: "wood" }[k]), effects: [] };
+const jjShield = { id: "sh", name: "Shield", type: "armor", system: { cost: 0, equipped: true, type: "shield", aac: { value: 1 }, weight6: 6 }, getFlag: (_m, k) => ({ material: "wood" }[k]), effects: [] };
 const jjSpear = gear("Spear", 6, { id: "sp", type: "weapon", flags: { material: "wood" } });
 const jjHolyWater = gear("Holy Water", 1, { id: "hw", flags: { material: "metal" } });
 const jjOil = gear("Oil, Military", 1, { id: "oil" });
@@ -845,12 +883,16 @@ check("containerChain terminates on a cycle", containerChain(withItems([loopA, l
 
 // storeIn: refuses the impossible, and takes worn gear off before stowing it.
 let stored = null;
-const wornCloak = { ...gear("Cloak", 1, { id: "cl", equipped: true }), update: async (u) => { stored = u; } };
+const wornCloak = { ...gear("Cloak", 1, { id: "cl", wornAt: "shoulders" }), update: async (u) => { stored = u; } };
 const stowActor = withItems([pack, wornCloak]);
 check("storeIn refuses a non-container target", (await storeIn(stowActor, wornCloak, torch)) === false);
 check("storeIn stows the item", (await storeIn(stowActor, wornCloak, pack)) === true);
 check("storeIn writes the containedIn flag", stored?.["flags.acks-extras.containedIn"] === "bp");
-check("stowing worn gear unequips it first", stored?.["system.equipped"] === false);
+// A cloak is worn through the gear model, so THAT is the store stowing must
+// clear — clearing `system.equipped` alone would leave it worn and stowed.
+check("stowing worn gear takes it off first", stored?.["flags.acks-extras.gear.wornAt"] === "");
+const wornBlade = { ...gear("Sword", 6, { id: "swx", type: "weapon", equipped: true }), update: async (u) => { stored = u; } };
+check("stowing a wielded weapon clears core's own field", (await storeIn(withItems([pack, wornBlade]), wornBlade, pack)) === true && stored?.["system.equipped"] === false);
 
 // containerReport is now the whole feature's data path (the Container Manager
 // popout it used to feed is retired; the sheet renders this directly).
@@ -906,13 +948,13 @@ const stowedRope = gear("Rope", 6, { id: "rp", flags: { containedIn: "bp" } });
 const dressed = withItems([helm, plate, shield, blade, offBlade, spare, pack, stowedRope]);
 const dLo = getLoadout(dressed);
 
-check("a helmet is worn on the head", wearLocation(dressed, helm, dLo) === WEAR.HEAD);
-check("a suit of armour is worn on the body", wearLocation(dressed, plate, dLo) === WEAR.BODY);
-check("a shield in hand is in the off hand", wearLocation(dressed, shield, dLo) === WEAR.OFF_HAND);
-check("an unflagged weapon is in the main hand", wearLocation(dressed, blade, dLo) === WEAR.MAIN_HAND);
-check("the hand flag puts a weapon in the off hand", wearLocation(dressed, offBlade, dLo) === WEAR.OFF_HAND);
-check("unequipped gear is merely carried", wearLocation(dressed, spare, dLo) === WEAR.CARRIED);
-check("gear inside a container is stowed", wearLocation(dressed, stowedRope, dLo) === WEAR.STOWED);
+check("a helmet is worn on the head", wearLocation(dressed, helm, dLo) === WEAR.head);
+check("a suit of armour is worn on the body", wearLocation(dressed, plate, dLo) === WEAR.body);
+check("a shield in hand is in the off hand", wearLocation(dressed, shield, dLo) === WEAR.offHand);
+check("an unflagged weapon is in the main hand", wearLocation(dressed, blade, dLo) === WEAR.mainHand);
+check("the hand flag puts a weapon in the off hand", wearLocation(dressed, offBlade, dLo) === WEAR.offHand);
+check("unequipped gear is merely carried", wearLocation(dressed, spare, dLo) === WEAR.carried);
+check("gear inside a container is stowed", wearLocation(dressed, stowedRope, dLo) === WEAR.stowed);
 
 // A lone medium weapon with both hands free is wielded two-handed (RR p. 299),
 // and the wear bucket must agree with the loadout that says so.
@@ -920,15 +962,48 @@ const soloBlade = weapon("Sword", { melee: true, id: "sw2" });
 const twoHanded = withItems([soloBlade]);
 const tLo = getLoadout(twoHanded);
 check("the loadout wields a lone medium weapon two-handed", tLo.weapons[0].wieldTwoHanded);
-check("wear agrees: both hands", wearLocation(twoHanded, soloBlade, tLo) === WEAR.BOTH_HANDS);
+check("wear agrees: both hands", wearLocation(twoHanded, soloBlade, tLo) === WEAR.bothHands);
 
 const buckets = wearBuckets(dressed, dLo);
-check("buckets are display-ordered head first", buckets[0].key === WEAR.HEAD);
+check("buckets are display-ordered head first", buckets[0].key === WEAR.head);
 check("buckets omit empty locations", buckets.every((b) => b.items.length > 0));
 check("carried and stowed gear stays out of the worn buckets",
   !buckets.some((b) => b.items.some((i) => i.id === "hx" || i.id === "rp")));
 check("every equipped item lands in exactly one bucket",
   buckets.reduce((n, b) => n + b.items.length, 0) === 5);
+
+// --- the three rules that could not fire before gear declared a slot ---------
+// Each of these gated on `system.equipped`, which core declares on weapon and
+// armor alone. Every one of the items below is a plain `item`.
+const wornCloakDoc = gear("Cloak, Silk, Hooded", 1, { id: "cl2", wornAt: "shoulders" });
+const carriedCloak = gear("Cloak, Wool", 1, { id: "cl3", slots: ["shoulders"] });
+const cloaked = withItems([wornCloakDoc, carriedCloak]);
+const cLo = getLoadout(cloaked);
+check("a worn cloak reaches its slot instead of reading as carried",
+  wearLocation(cloaked, wornCloakDoc, cLo) === WEAR.shoulders);
+check("...and one merely owned is still carried",
+  wearLocation(cloaked, carriedCloak, cLo) === WEAR.carried);
+check("the shoulders bucket is now reachable at all",
+  wearBuckets(cloaked, cLo).some((b) => b.key === WEAR.shoulders));
+
+// Gloves block lockpicking (RR p. 145) — dead while it asked for an `equipped`
+// field gloves cannot have.
+const { wearingGloves } = await import(new URL("locks.mjs", S));
+const gloves = gear("Gloves, Leather or Wool, Long", 0, { id: "gv", wornAt: "hands" });
+const spareGloves = gear("Gloves, Leather or Wool, Short", 0, { id: "gv2", slots: ["hands"] });
+const unnamedMitts = gear("Handwear of the Deft", 0, { id: "gv3", wornAt: "hands" });
+check("worn gloves are detected", wearingGloves(withItems([gloves])) === true);
+check("gloves merely owned are not", wearingGloves(withItems([spareGloves])) === false);
+check("the slot answers it even when the name would not", wearingGloves(withItems([unnamedMitts])) === true);
+
+// A Judge who declares a Great Helm sits nowhere must not have the name test
+// put it back on the head — which is why "declared nowhere" and "never
+// annotated" are different states.
+const { isHelmet: isHelmetOf } = await import(new URL("profiles.mjs", S));
+const namedHelm = armor("Great Helm", "medium", { id: "gh" });
+const disownedHelm = { ...namedHelm, getFlag: (_m, k) => (k === "gear" ? { slots: [] } : undefined) };
+check("an un-annotated helm falls back to its name", isHelmetOf(namedHelm) === true);
+check("a helm declared to sit nowhere stays nowhere", isHelmetOf(disownedHelm) === false);
 
 /* ---------------------------------------------------------------------- */
 /*  Proficiency kill switch (acks-abilities interop)                        */

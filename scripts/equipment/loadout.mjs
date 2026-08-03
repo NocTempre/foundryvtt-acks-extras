@@ -7,7 +7,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS, ACTOR_FLAGS, SETTINGS } from "./constants.mjs";
 import { STYLE } from "./config.mjs";
-import { classifyWeapon, handCost, inferStyle, canOneHand, isTwoHandedOnly } from "./profiles.mjs";
+import { classifyWeapon, handCost, inferStyle, canOneHand, isTwoHandedOnly, isHelmet, isShield } from "./profiles.mjs";
 import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, enforcementActive } from "./proficiency.mjs";
@@ -75,17 +75,6 @@ export function specializedStyles(actor) {
     if (kind === "spec") set.add(style);
   }
   return set;
-}
-
-/** Is an armour item a helmet? (flag, else name heuristic matching core). */
-function isHelmet(item) {
-  if (item.getFlag?.(MODULE_ID, ITEM_FLAGS.HELMET)) return true;
-  return /helm/i.test(item.name ?? "");
-}
-
-/** Is an armour item a shield? */
-function isShield(item) {
-  return item.system?.type === "shield";
 }
 
 /**

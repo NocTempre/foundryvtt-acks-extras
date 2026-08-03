@@ -13,11 +13,18 @@
 import { MODULE_ID, SETTINGS, ENFORCE, HOOKS } from "./constants.mjs";
 import { getLoadout, VIOLATION } from "./loadout.mjs";
 import { syncLoadoutEffect } from "./effects.mjs";
+import { isEquippable } from "../lib/item-model.mjs";
 
-/** Is this an equip-state change on a wearable item of a character? */
+/**
+ * Is this an equip-state change on a wearable item of a character?
+ *
+ * The type test is the SCHEMA probe, not a list: `system.equipped` reaching
+ * `changes` proves only that someone wrote the path, and a write to a type
+ * without the field is pruned rather than stored.
+ */
 function isEquipToggle(item, changes) {
   if (!item?.parent || item.parent.documentName !== "Actor") return false;
-  if (!["weapon", "armor"].includes(item.type)) return false;
+  if (!isEquippable(item)) return false;
   return foundry.utils.hasProperty(changes, "system.equipped");
 }
 

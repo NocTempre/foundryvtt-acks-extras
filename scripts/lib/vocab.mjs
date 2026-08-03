@@ -703,6 +703,82 @@ export const VALUE_ROUNDING = {
 };
 
 /* ---------------------------------------------------------------- */
+/*  Wear slots — where a piece of gear sits                          */
+/* ---------------------------------------------------------------- */
+
+/**
+ * WEAR SLOTS — the canonical set of places a piece of gear can be worn or
+ * wielded, and the family's single source for them. The equipment feature's
+ * `WEAR` re-exports this rather than defining a second copy.
+ *
+ * A slot is fundamentally an EXCLUSION, not a bonus. The Treasure Tome's
+ * Miscellaneous Magic Item Form table states the only wear mechanic ACKS II
+ * has: an item's form is mechanically irrelevant except that a character may
+ * not wear two of the same form at once. So `capacity` is what a slot is FOR,
+ * and a slot assignment that is slightly wrong costs only mis-scoped
+ * exclusivity — which is why gear may declare its slot as a correctable guess.
+ *
+ * `capacity: null` means unlimited. `ring` is 2 on the Tome's own numbers: a
+ * creature benefits from two magical rings at once, and wearing more makes NONE
+ * of them function — so an over-filled ring slot is a real failure state, not a
+ * warning.
+ *
+ * Keys are in display order, head to foot then off-body. Foundry-free: `icon`
+ * is a Font Awesome class the sheet layers consume, and `label` is the English
+ * fallback `choicesOf` feeds to DataModel `choices`. The DISPLAYED label is
+ * localised from the key (`ACKS-EQUIPMENT.wear.<key>`, via `wearLabel`), so a
+ * translation never has to touch this table.
+ */
+export const WEAR_SLOTS = {
+  head: { label: "Head", capacity: 1, icon: "fa-hat-wizard" }, // helmet, hat, crown
+  neck: { label: "Neck", capacity: 1, icon: "fa-gem" }, // amulet, torc
+  shoulders: { label: "Shoulders", capacity: 1, icon: "fa-user-tie" }, // cloak, cape, mantle
+  body: { label: "Body", capacity: 1, icon: "fa-shirt" }, // the worn suit of armour
+  worn: { label: "Worn", capacity: null, icon: "fa-mitten" }, // clothing and other worn-not-armour gear
+  belt: { label: "Belt", capacity: 1, icon: "fa-grip-lines" }, // belt, girdle, sash — and the pouches on it
+  ring: { label: "Ring", capacity: 2, icon: "fa-ring" }, // TT: a third ring stops ALL of them working
+  hands: { label: "Hands", capacity: 1, icon: "fa-hand-sparkles" }, // gloves, gauntlets, bracers
+  feet: { label: "Feet", capacity: 1, icon: "fa-shoe-prints" }, // boots, sandals
+  mainHand: { label: "Main Hand", capacity: 1, icon: "fa-hand-fist" },
+  offHand: { label: "Off Hand", capacity: 1, icon: "fa-hand" },
+  bothHands: { label: "Both Hands", capacity: 1, icon: "fa-hands" }, // one weapon wielded two-handed
+  back: { label: "Back", capacity: 1, icon: "fa-boxes-packing" }, // pack, rucksack, bowcase
+  strapped: { label: "Strapped", capacity: 1, icon: "fa-shield-halved" }, // shield slung front or back
+};
+
+/** Display order for the worn slots, head to foot then off-body. */
+export const WEAR_SLOT_ORDER = Object.freeze(Object.keys(WEAR_SLOTS));
+
+/** The slot keys as named constants — `SLOT.mainHand` rather than "mainHand". */
+export const SLOT = Object.freeze(Object.fromEntries(WEAR_SLOT_ORDER.map((k) => [k, k])));
+
+/** Is this a slot key we know? */
+export const isWearSlot = (key) => !!WEAR_SLOTS[key];
+
+/**
+ * How many items the slot holds. Unknown slots answer 1 rather than 0 or
+ * Infinity: a typo must not silently grant unlimited wear, nor forbid all of it.
+ */
+export const slotCapacity = (key) => {
+  if (!isWearSlot(key)) return 1;
+  const cap = WEAR_SLOTS[key].capacity;
+  return cap === null ? Infinity : cap;
+};
+
+/**
+ * RETRIEVAL COST (RR pp. 293-294). Getting a thing out of rigging — an
+ * adventurer's harness, a belt pouch, a bowcase, a quiver, a sheath — is free;
+ * out of a backpack, rucksack or sack it costs an action. The distinction is
+ * per-CONTAINER, which is why it lives on the gear rather than on the slot: a
+ * pouch on your belt and a sack on your back differ by what they are, not only
+ * by where they hang.
+ */
+export const ACCESS_COSTS = {
+  free: { label: "Free" },
+  action: { label: "Action in lieu of movement" },
+};
+
+/* ---------------------------------------------------------------- */
 /*  LevelValue — the level-scaling spine                             */
 /* ---------------------------------------------------------------- */
 
