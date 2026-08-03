@@ -20,6 +20,7 @@ import {
   getFormationForActor,
   getFormations,
   getPartyActor,
+  handsOccupied,
   heldLightCount,
   lightsForBearer,
   getPartyToken,
@@ -214,9 +215,11 @@ Hooks.once("init", () => {
     anchorMap,
     saveFogAsMapItem,
     requestPartyAction,
-    // Light ↔ hand integration (acks-equipment). heldLightCount tells equipment
-    // how many hands an actor's lights occupy; getFormationForActor + the light
-    // mutators let equipment's sheet controls light/douse/shutter by actor.
+    // Hand integration (acks-equipment). handsOccupied tells equipment how many
+    // hands the party sheet has already filled — lights borne, and the mapper's
+    // kit — and is the ONE call its loadout makes; getFormationForActor + the
+    // light mutators let equipment's sheet controls light/douse/shutter by actor.
+    handsOccupied,
     heldLightCount,
     getFormationForActor,
     // lib/light.mjs reads this to decide which record owns an actor's lights.

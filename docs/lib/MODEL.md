@@ -133,6 +133,7 @@ the system adds a type this library never heard of.
 | Question | Read | Why not a type list |
 |---|---|---|
 | Is it a thing? | `isPhysical` | schema probe |
+| Have they got one? | `findCarried` / `carriesItem` | every "you need a pole / a torch / a quill for this" rule asks the same question; physical-only, so a proficiency named "Spear Fighting" is not an implement, and `hasStock` makes an empty stack read as not carried |
 | Can it be put somewhere? | `isGoods` / `isStowable` | coin is goods without being physical — the gap that grew a `\|\| type === "money"` rider at fifteen sites |
 | Is it clothing? | `isClothing` | core's `system.subtype`, its one sub-classification |
 | What does it add to encumbrance? | `encumbering6` | mirrors core's `computeEncumbrance` exactly, clothing excluded, so a non-character's load matches what core computes for a character |

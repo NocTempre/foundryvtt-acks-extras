@@ -32,6 +32,7 @@ import {
   REROLL_KEEP,
   OUTCOME_TRIGGERS,
   VALUE_SCALES,
+  VALUE_KINDS,
   VALUE_ROUNDING,
 } from "./vocab.mjs";
 
@@ -58,16 +59,7 @@ export const refList = () => new (F().ArrayField)(new (F().StringField)({ blank:
 export function levelValueField() {
   const { SchemaField, ArrayField } = F();
   return new SchemaField({
-    kind: choice(
-      {
-        flat: { label: "Flat" },
-        perLevel: { label: "Per Level" },
-        breakpoints: { label: "Breakpoints" },
-        progression: { label: "Progression" },
-        conditional: { label: "Conditional on a Scale" },
-      },
-      { initial: "flat" },
-    ),
+    kind: choice(VALUE_KINDS, { initial: "flat" }),
     flat: num(),
     base: num(),
     per: num(),

@@ -28,21 +28,49 @@ The same ability rolled differently depending on where you clicked.
 This module owns the ability roll path and routes all of them to the same place.
 Add as many throws as the ability has; they all work from everywhere.
 
+## Typing in a throw
+
+The **Rolls** tab is a list you edit like an inventory:
+
+- **Add a throw** puts a new one at the bottom and opens it.
+- The **pencil** on a row opens that throw; the **trash** deletes it, after
+  asking.
+- The row itself is still the roll button.
+
+The window that opens holds everything about that one throw — what it is called,
+what it rolls, whether the result must reach the target or stay under it, and
+when it applies. Changes save as you make them; there is no Save button.
+
+![](../releases/v1.3.0/ability-roll-editor.png)
+
+*Animal Husbandry's diagnosis throw as the book prints it: read at rank, and a
+level table of three steps — 11+ at one rank, 7+ at two, 3+ at three.*
+
+**Read At** is the thing to get right. Most throws are read against class level;
+the proficiencies the books rate by how many times they were taken — Animal
+Husbandry, Naturalism — are read against **rank**. The line at the bottom of the
+window shows what the throw comes to for the character holding it, which is the
+quickest way to check you typed the table the way the page prints it.
+
+## Level tables
+
+Set **Target** to *Breakpoints* and the window grows a table. Add one step for
+each point where the printed number changes — a step holds from where it starts
+until the next one begins, so a throw that is 11+ at one rank, 7+ at two and 3+
+at three is three steps, not one per level.
+
+The table belongs to that throw. Sharing one table between abilities is not
+built yet.
+
+*Per Level* is the shape for a target that moves by a fixed amount each level
+rather than in steps; a target that gets easier moves **down**, so write the
+change negative. *Progression* is for a throw the book rates off another class's
+table — the table itself is not carried yet, so the sheet shows the progression
+instead of a number.
+
 **An ability with no roll shows itself instead of rolling.** Core intends this,
 but tests a field that defaults to `"1d20"` and is therefore never empty — so a
 proficiency that makes no throw used to post a d20 against a target of 0.
-
-## Ladders
-
-A throw can key its target on:
-
-- **class level** — the usual case;
-- **rank** — how many times the proficiency has been taken. Several proficiencies
-  are rated this way rather than by level: Animal Husbandry's diagnosis throw is
-  11+ at one rank, 7+ at two, 3+ at three, and the ranks carry different titles.
-
-A conditional ladder reads off a scale rather than a level, so the sheet names
-which scale it is using.
 
 ## Selections
 

@@ -7,7 +7,8 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, HOOKS, EFFECT_DOMAINS, ITEM_FLAGS } from "./constants.mjs";
-import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands } from "./loadout.mjs";
+import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands, releaseOrder } from "./loadout.mjs";
+import { grantGear, clearHands, findGearSource } from "./grant.mjs";
 import { classifyWeapon, handCost, focusGroup, weaponKey, equipmentClass, inferGear, isHelmet, isShield } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
@@ -122,7 +123,19 @@ export function buildApi() {
     // Free hands right now — read by acks-formation before it lights a source
     // (a light needs a hand to hold). The write half of the two-way hook.
     freeHands: (actor) => getLoadout(actor).handsFree,
+    // Room for one more thing, which is a different question from what is free:
+    // a lone versatile weapon holds the spare hand only until something needs
+    // it. acks-formation asks THIS before lighting a torch, so a swordsman with
+    // an empty off hand is not told he has none.
+    spareHands: (actor) => getLoadout(actor).handsSpare,
     heldLightHands,
+    releaseOrder,
+    // The Judge's override, in two mutations: hand over gear the character does
+    // not have, and put held gear away to make room for it. acks-formation calls
+    // both when a GM gives a member a light or sets them to mapping.
+    grantGear,
+    clearHands,
+    findGearSource,
     trainedStyles,
     specializedStyles,
     VIOLATION,

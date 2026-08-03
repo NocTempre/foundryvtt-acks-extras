@@ -422,11 +422,24 @@ check(
 // coexist — the strapped shield frees the hand the light needs — and it is still
 // a single shield. Mock formation's held-light count for this actor.
 const priorFormation = globalThis.acksExtras.formation;
-globalThis.acksExtras.formation = { heldLightCount: () => 1 };
+const partySheetHands = (lights, mapping = 0) => ({
+  handsOccupied: () => ({ lights, mapping, total: lights + mapping }),
+});
+globalThis.acksExtras.formation = partySheetHands(1);
 const shieldLight = getLoadout(wsActor([weapon("Sword", { melee: true, id: "sl" }), shieldItem("Auxiliary Shield", "auxiliary", "back")], true));
 check("shield+light: sword + strapped shield + held light all fit (2 hands, legal)", shieldLight.handsUsed === 2 && shieldLight.legal);
 check("shield+light: the lone sword yields its 2H grip to the light", shieldLight.weapons[0].wieldTwoHanded === false);
 check("shield+light: still a single shield (no violation)", !shieldLight.violations.some((v) => v.type === VIOLATION.TOO_MANY_SHIELDS));
+
+// The mapper's kit fills BOTH hands (RR p266), so a mapper cannot also hold a
+// weapon — the same accounting the light uses, from the same single call.
+globalThis.acksExtras.formation = partySheetHands(0, 2);
+const mapperIdle = getLoadout(actor([]));
+check("the mapper's kit takes both hands", mapperIdle.handsUsed === 2 && mapperIdle.handsFree === 0);
+check("the loadout reports WHY the hands are full", mapperIdle.mappingHands === 2 && mapperIdle.heldLights === 0);
+const mapperArmed = getLoadout(actor([weapon("Sword", { melee: true, id: "ms" })]));
+check("a mapper with a drawn sword overflows the hand budget",
+  mapperArmed.violations.some((v) => v.type === VIOLATION.HAND_OVERFLOW));
 globalThis.acksExtras.formation = priorFormation;
 
 // --- shield ENCUMBRANCE (enc / encItem / frontEnc / mountEnc) -----------------
@@ -1324,7 +1337,10 @@ check("no formation → heldLights 0", noLight.heldLights === 0);
 
 // A lit light the actor bears occupies a hand: a 2-hand actor holding a torch
 // and a sword uses both hands, and a second weapon would overflow.
-globalThis.acksExtras.formation = { heldLightCount: (id) => (id === "a1" ? 1 : 0) };
+const litFor = (wanted) => ({
+  handsOccupied: (id) => ({ lights: id === wanted ? 1 : 0, mapping: 0, total: id === wanted ? 1 : 0 }),
+});
+globalThis.acksExtras.formation = litFor("a1");
 const oneLight = getLoadout(withItems([weapon("Sword", { melee: true, id: "hl2" })]));
 check("held light counts as a used hand", oneLight.heldLights === 1 && oneLight.handsUsed === 2);
 check("held light leaves no free hand for a 2-hand actor", oneLight.handsFree === 0);
@@ -1658,6 +1674,92 @@ check("disguise shows the apparent name/value/damage", magic.name === "Old Sword
 check("disguise keeps the true identity hidden in a flag", isDisguised(magic) && magic._flags.disguise.true.name === "Flametongue" && magic._flags.disguise.true.cost === 5000);
 await revealItem(magic);
 check("reveal restores the true item + clears the disguise", magic.name === "Flametongue" && magic.system.cost === 5000 && magic.system.damage === "1d6+2" && !isDisguised(magic));
+
+/* ---------------------------------------------------------------------- */
+/*  The Judge's override: granting gear, and clearing hands to hold it     */
+/* ---------------------------------------------------------------------- */
+
+const { grantGear, clearHands, findGearSource } = await import(new URL("grant.mjs", S));
+
+/** An actor that can be given items — enough shape for grantGear/clearHands. */
+const grantee = (items = []) => {
+  const a = {
+    id: "g1",
+    type: "character",
+    name: "Nolan",
+    items,
+    system: {},
+    effects: [],
+    appliedEffects: [],
+    isOwner: true,
+    getFlag: () => undefined,
+    async createEmbeddedDocuments(_type, data) {
+      const made = data.map((d, n) => ({
+        ...d,
+        id: `new${n}`,
+        getFlag: () => undefined,
+        async update(u) { for (const [k, v] of Object.entries(u)) if (k === "system.equipped") this.system.equipped = v; },
+      }));
+      a.items.push(...made);
+      return made;
+    },
+  };
+  a.items.find ??= Array.prototype.find;
+  return a;
+};
+
+const QUILL = { pattern: /quill/i, name: "Quill, writing", label: "kit.quill" };
+const PARCHMENT = {
+  pattern: /parchment/i,
+  name: "Parchment",
+  label: "kit.parchment",
+  fallback: { system: { quantity: { value: 1, max: 0 }, cost: 1, weight6: 0 } },
+};
+
+// No world items and no compendia in this harness, so every grant falls back to
+// the synthesized stand-in — which is the path a world without the system's
+// equipment pack takes too.
+check("findGearSource returns null when nothing in the world carries the name", (await findGearSource("Parchment")) === null);
+
+const empty = grantee();
+const madeBoth = await grantGear(empty, [QUILL, PARCHMENT]);
+check("grantGear creates every missing piece", madeBoth.length === 2 && empty.items.length === 2);
+check("granted gear is physical, so the pattern that wanted it now finds it",
+  empty.items.every((i) => i.system.cost !== undefined && i.system.weight6 !== undefined));
+check("the fallback price rides on the spec, not on the grant helper",
+  empty.items.find((i) => i.name === "Parchment").system.cost === 1);
+
+const again = await grantGear(empty, [QUILL, PARCHMENT]);
+check("granting twice is a no-op — gear already carried is left alone", again.length === 0 && empty.items.length === 2);
+
+const halfKitted = grantee([{ id: "q", name: "Swan Quill", type: "item", system: { cost: 1, weight6: 0 } }]);
+await grantGear(halfKitted, [QUILL, PARCHMENT]);
+check("only the missing half is supplied", halfKitted.items.length === 2 && halfKitted.items.filter((i) => /quill/i.test(i.name)).length === 1);
+
+// clearHands: shields go first, then weapons newest-first, and it stops as soon
+// as there is room rather than stripping the character bare. The fixtures need a
+// real `update`, since sheathing is a write.
+const writable = (item) => ({
+  ...item,
+  async update(u) { for (const [k, v] of Object.entries(u)) if (k === "system.equipped") this.system.equipped = v; },
+});
+const armed = grantee([
+  writable(weapon("Sword", { melee: true, id: "sw" })),
+  writable(armor("Shield", "shield", { ac: 1, id: "sh" })),
+]);
+check("both hands start full", getLoadout(armed).handsFree === 0);
+const cleared = await clearHands(armed, 1);
+check("clearHands frees exactly one hand", cleared.handsSpare === 1 && cleared.released.length === 1);
+check("the shield is what gives way first", cleared.released[0].id === "sh");
+check("the sword stays in hand", armed.items.find((i) => i.id === "sw").system.equipped === true);
+
+const greatsworder = grantee([writable(weapon("Two-Handed Sword", { melee: true, id: "ths" }))]);
+const bigClear = await clearHands(greatsworder, 2);
+check("a two-handed weapon buys both hands in one release", bigClear.handsSpare === 2 && bigClear.released.length === 1);
+
+const alreadyFree = grantee([]);
+const noop = await clearHands(alreadyFree, 1);
+check("clearHands disturbs nothing when a hand is already free", noop.released.length === 0 && noop.handsSpare === 2);
 
 /* ---------------------------------------------------------------------- */
 /*  Shipped macros compile                                                 */

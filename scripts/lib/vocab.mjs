@@ -693,6 +693,19 @@ export const VALUE_SCALES = {
 };
 
 /**
+ * The SHAPES a LevelValue can take — the discriminator every `levelValueField`
+ * carries. `resolveLevelValue` (below) defines what each one computes; this
+ * names them for a picker, so the field-builder and any editor offer one list.
+ */
+export const VALUE_KINDS = {
+  flat: { label: "Flat" },
+  perLevel: { label: "Per Level" },
+  breakpoints: { label: "Breakpoints" },
+  progression: { label: "Progression" },
+  conditional: { label: "Conditional on a Scale" },
+};
+
+/**
  * How a fractional level-scaled value is rounded. The books always print the
  * rounding beside the fraction ("one-half his class level (round up)"), so it
  * is part of the rule, not a display choice. Absent means no rounding.

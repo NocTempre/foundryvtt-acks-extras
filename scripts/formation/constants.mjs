@@ -98,11 +98,50 @@ export const ROUNDS_PER_TURN = 10;
  * it as much as a formation does. Re-exported so this feature's existing imports
  * keep reading it from one place.
  */
-export { LIGHT_SOURCES } from "../lib/light.mjs";
+export { LIGHT_SOURCES, lightGear } from "../lib/light.mjs";
 
 
 /** A 10' pole needs the physical implement: a pole item or a polearm. */
-export const POLE_ITEM_PATTERN = /pole|polearm|spear|pike|halberd|glaive|lance/i;
+export const POLE_ITEM_PATTERN = /\bpole\b|polearm|spear|pike|halberd|glaive|lance/i;
+
+/**
+ * The implement each role needs before a character can take it up, in the shape
+ * `grantGear` reads — so ONE list both refuses the role to a character without
+ * the gear and, for a Judge who overrides, supplies what was missing.
+ *
+ * RR p. 266 gives the mapper's requirement as "both hands occupied", and this is
+ * what occupies them: a quill in one hand, something to draw on in the other.
+ * ONE HAND PER PIECE, which is why the kit is a list rather than a count — add a
+ * third piece and the mapper needs a third hand, exactly as RAW would have it.
+ *
+ * The RAW equipment list prices the quill and no writing surface, so parchment
+ * carries a stand-in price, used only when the world has no such item to copy
+ * (see docs/formation/DECISIONS.md).
+ */
+export const ROLE_GEAR = Object.freeze({
+  [ROLES.POLE]: Object.freeze([
+    { pattern: POLE_ITEM_PATTERN, name: "Pole, Wooden", label: "ACKS-FORMATION.kit.pole" },
+  ]),
+  [ROLES.MAPPER]: Object.freeze([
+    { pattern: /quill/i, name: "Quill, writing", label: "ACKS-FORMATION.kit.quill" },
+    {
+      pattern: /parchment|vellum|graph paper/i,
+      name: "Parchment",
+      label: "ACKS-FORMATION.kit.parchment",
+      fallback: { system: { quantity: { value: 1, max: 0 }, cost: 1, weight6: 0 } },
+    },
+  ]),
+});
+
+/**
+ * Roles whose kit is HELD rather than merely carried, and so costs hands for as
+ * long as the role is held. Only mapping does: a 10' pole is probed with and set
+ * down again, while the mapper's quill and parchment stay in both hands — which
+ * is what makes mapping and a drawn sword mutually exclusive.
+ */
+export const ROLE_HAND_COST = Object.freeze({
+  [ROLES.MAPPER]: ROLE_GEAR[ROLES.MAPPER].length,
+});
 
 /**
  * Carrying a body: the carried character counts as 7 3/6 stone plus half of

@@ -142,7 +142,9 @@ export const SHARED_ACTIONS = {
     const actorId = target.closest("[data-actor-id]")?.dataset.actorId;
     const role = target.dataset.role;
     if (game.user.isGM) {
-      await toggleRole(formation, actorId, role);
+      // Same authority as the light panel: the kit appears rather than the role
+      // being refused.
+      await toggleRole(formation, actorId, role, { override: true });
       this.render();
       return;
     }
@@ -263,7 +265,8 @@ export const SHARED_ACTIONS = {
     const type = this.element.querySelector("[name=lightType]")?.value;
     const bearerId = this.element.querySelector("[name=lightBearer]")?.value;
     if (!type || !bearerId) return;
-    await addLight(formation, type, bearerId);
+    // A GM handing out a light is describing the world, not shopping in it.
+    await addLight(formation, type, bearerId, { override: true });
     this.render();
   },
 

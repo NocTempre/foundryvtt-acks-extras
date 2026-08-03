@@ -126,6 +126,29 @@ export function physicalItems(actor) {
   return actor?.items?.filter(isPhysical) ?? [];
 }
 
+/**
+ * Does a stack have anything left? An item the system gives no quantity — a
+ * weapon, a suit of armour — is a single thing and always answers yes.
+ */
+export const hasStock = (item) => (item?.system?.quantity?.value ?? 1) > 0;
+
+/**
+ * The item this actor is carrying whose NAME matches, or null.
+ *
+ * The one answer to "have they got a pole / a torch / a quill" — the shape every
+ * rule takes that demands a physical implement before a character may do
+ * something. Two riders come with it, and both matter: only PHYSICAL items
+ * count, so a proficiency called "Mapping" is never mistaken for the mapper's
+ * kit; and an empty stack reads as not carried, because a bundle of no torches
+ * lights nothing.
+ */
+export function findCarried(actor, pattern) {
+  return actor?.items?.find((i) => isPhysical(i) && pattern.test(i.name ?? "") && hasStock(i)) ?? null;
+}
+
+/** Whether `findCarried` finds anything — the predicate form. */
+export const carriesItem = (actor, pattern) => findCarried(actor, pattern) !== null;
+
 /** Everything the actor currently has worn or wielded. */
 export function equippedItems(actor) {
   return actor?.items?.filter((i) => isEquippable(i) && isEquipped(i)) ?? [];

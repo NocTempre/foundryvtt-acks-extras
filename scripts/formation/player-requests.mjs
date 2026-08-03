@@ -61,7 +61,10 @@ async function executeRequest(formation, user, type, payload) {
         light: game.i18n.localize(`ACKS-LIB.light.${payload.lightType}`),
         bearer: game.actors.get(payload.bearerId)?.name ?? "?",
       }));
-      await addLight(formation, payload.lightType, payload.bearerId);
+      // The DECLARING user's authority, not this client's: every player request
+      // executes on a GM client, so `game.user.isGM` would hand the override to
+      // everyone. A GM declaring from the same panel still gets it.
+      await addLight(formation, payload.lightType, payload.bearerId, { override: user.isGM });
       break;
     }
     case "spell": {
@@ -123,10 +126,13 @@ async function executeRequest(formation, user, type, payload) {
     /* --- Roles: a player declares their own character's job --- */
     case "role": {
       if (!userOwnsMember(formation, user, payload.actorId)) return;
-      const before = formation.members.find((m) => m.actorId === payload.actorId);
-      const had = before?.roles?.includes(payload.role) ?? false;
-      await toggleRole(formation, payload.actorId, payload.role); // pole-item gate inside
-      await announceDeclaration(formation, user, loc(had ? "request.roleOff" : "request.roleOn", {
+      const had = formation.members.find((m) => m.actorId === payload.actorId)?.roles?.includes(payload.role) ?? false;
+      const after = await toggleRole(formation, payload.actorId, payload.role, { override: user.isGM }); // kit gate inside
+      const holds = after.members.find((m) => m.actorId === payload.actorId)?.roles?.includes(payload.role) ?? false;
+      // Announce what HAPPENED, not what was asked for: the kit gate can decline
+      // a player's request, and the table should not be told they took the job.
+      if (holds === had) return;
+      await announceDeclaration(formation, user, loc(holds ? "request.roleOn" : "request.roleOff", {
         name: game.actors.get(payload.actorId)?.name ?? "?",
         role: game.i18n.localize(ROLE_LABELS[payload.role] ?? payload.role),
       }));

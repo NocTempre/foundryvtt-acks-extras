@@ -1,5 +1,65 @@
 # Changelog
 
+## 1.3.0
+
+### Added
+- **An ability's throws can now be typed in by hand.** The Rolls tab is an
+  inventory: add a throw, delete one, or open one to edit it. Each throw gets a
+  window of its own holding everything it is made of — its name, its dice,
+  whether the result must reach the target or stay under it, and when it
+  applies. Changes save as you make them.
+- **Level tables are edited in that same window.** Set a throw's target to
+  *Breakpoints* and type one step for each point where the printed number
+  changes; a step holds until the next one begins, so Animal Husbandry's
+  11+ / 7+ / 3+ is three rows rather than one per level. The table belongs to
+  the throw that uses it — a table shared between abilities is not built yet.
+- A line at the foot of the window shows what the throw comes to for the
+  character holding it, which is the quickest way to check a table was typed the
+  way the page prints it. A shared definition says it has no character to read
+  against instead.
+- **A Judge handing out a light hands out the gear with it.** Give a party
+  member a torch, a lantern or a candle and they now get what it takes to burn
+  it — a lantern arrives with its flask of oil — and a hand is emptied to hold
+  it, the shield going on the back before the sword is sheathed. Nothing that
+  did not need to be put away is. Players are unchanged: they still need to own
+  the gear and have a hand spare.
+- **The mapper's kit is a quill and parchment, and it fills both hands.** Taking
+  up the Mapper role supplies the kit the same way, and for as long as the role
+  is held those two hands are accounted for — so a mapper cannot also have a
+  weapon drawn. Set the role down and the hands come back. The 10' Pole role
+  supplies its pole on the same terms.
+
+### Fixed
+- **A throw is read at the scale it declares.** Throws have always been able to
+  say they are rated by rank rather than by class level, and the sheet labelled
+  their ladder that way, but the number was resolved against class level
+  regardless — so Animal Husbandry on a 5th-level character who had taken the
+  proficiency once answered with the third rung instead of the first.
+- Clicking the third throw of an imported ability rolled the first, whenever the
+  import had left the throws unnamed.
+- Deleting an ability's only throw no longer brings it back on the next render.
+- **The 10' Pole role never recognised a pole.** Its inventory matcher had been
+  committed with stray control characters where the word boundaries belonged, so
+  it saw polearms, spears, pikes, halberds, glaives and lances — and not a pole.
+- **A lantern could be fuelled with military oil.** The rule meant to keep the
+  thrown-weapon flasks out of the lamp never fired, because the RAW item is
+  named "Oil, Military (1 pint)" with the word *oil* first. A party's military
+  oil was eligible to be burnt for light.
+- **A swordsman with an empty off hand could not light a torch.** A lone sword
+  widens to a two-handed grip whenever a hand is going spare, and the check read
+  that as having no hands free — when in fact the grip yields the moment a torch
+  arrives.
+- The table is no longer told a player took up a role the party sheet refused
+  them.
+- **A player's light controls on their own character sheet did nothing.** Light,
+  Douse and Shutter on the inventory tab wrote straight into the party's record,
+  which only a Judge may change — so a player's click was refused and the lamp
+  never lit, with nothing said either way. They now declare the action exactly as
+  the party sheet does, and the Judge's client carries it out. A Judge clicking
+  the same button still gets the Judge's own authority, never the declaring
+  player's. The controls no longer appear to onlookers who do not own the
+  character, having never been usable by them.
+
 ## 1.2.1
 
 ### Fixed

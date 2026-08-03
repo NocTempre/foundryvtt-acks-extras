@@ -26,8 +26,15 @@ import { MODULE_ID } from "./constants.mjs";
  *   `holder`   — an optional durable DEVICE that must be carried but is NOT
  *                consumed (the lantern itself). Absent → the fuel is the device.
  *   `fuelLabel`— i18n label for the fuel, when it differs from the device.
- * A lantern's oil pattern excludes "military oil" (a thrown weapon, RR: common
- * oil is for lanterns) via a negative lookbehind.
+ *   `fuelItem` /
+ *   `holderItem` — the RAW item to hand over when a Judge supplies the gear
+ *                (see `lightGear`). Names match the system's own equipment
+ *                compendium so the granted item is core's, not a copy.
+ *
+ * A lantern burns COMMON oil; military oil is a thrown weapon (RR p297) and
+ * must never read as lamp fuel. The pattern therefore rejects the whole name
+ * when it mentions military — a lookbehind cannot, because the RAW item is
+ * named "Oil, Military (1 pint)" with the word `oil` FIRST.
  */
 export const LIGHT_SOURCES = Object.freeze({
   torch: {
@@ -36,6 +43,7 @@ export const LIGHT_SOURCES = Object.freeze({
     bright: 15,
     dim: 30,
     consumes: /torch/i,
+    fuelItem: "Torches (6)",
   },
   lantern: {
     label: "ACKS-LIB.light.lantern",
@@ -43,8 +51,10 @@ export const LIGHT_SOURCES = Object.freeze({
     bright: 15,
     dim: 30,
     holder: /lantern/i,
-    consumes: /(?<!military\s)\boil\b/i,
+    holderItem: "Lantern",
+    consumes: /^(?!.*\bmilitary\b).*\boil\b/i,
     fuelLabel: "ACKS-LIB.light.oil",
+    fuelItem: "Oil, Common (1 pint)",
     // RR (equipment): "Lanterns can be closed to conceal the light" — burns on.
     shieldable: true,
   },
@@ -54,8 +64,32 @@ export const LIGHT_SOURCES = Object.freeze({
     bright: 5,
     dim: 10,
     consumes: /candle/i,
+    fuelItem: "Candle (tallow, 1 lb)",
   },
 });
+
+/**
+ * Everything a light source needs in the pack before it can burn, device first.
+ *
+ * ONE list answers both halves of the equipment rule: what is missing (test each
+ * `pattern` against the bearer's inventory) and what to hand over when a Judge
+ * supplies it (create each `name`). A torch and a candle are their own device,
+ * so they yield a single entry; a lantern yields the lamp and its oil.
+ *
+ * `fuel` marks the piece the flame eats — the one that must have stock left, and
+ * the one decremented when the light is struck.
+ * @returns {{pattern: RegExp, name: string, label: string, fuel: boolean}[]}
+ */
+export function lightGear(type) {
+  const cfg = LIGHT_SOURCES[type];
+  if (!cfg) return [];
+  const gear = [];
+  if (cfg.holder) {
+    gear.push({ pattern: cfg.holder, name: cfg.holderItem, label: cfg.label, fuel: false });
+  }
+  gear.push({ pattern: cfg.consumes, name: cfg.fuelItem, label: cfg.fuelLabel ?? cfg.label, fuel: true });
+  return gear;
+}
 
 /** Flag holding a non-formation actor's own light state, same record shape. */
 export const FLAG_LIGHTS = "lights";

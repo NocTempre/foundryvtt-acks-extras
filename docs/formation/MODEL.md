@@ -28,7 +28,8 @@ For monsters carrying a stat block, `canSeeInDark` and `explorationSpeedOf` defe
 
 | File | Responsibility |
 |---|---|
-| `scripts/constants.mjs` | Rules constants (turn length, rest interval, light sources, roles, speed tiers). |
+| `scripts/constants.mjs` | Rules constants (turn length, rest interval, light sources, roles and their kits, speed tiers). |
+| `scripts/judge-override.mjs` | What a GM giving a character something means: supply the gear, empty the hands. |
 | `scripts/formation-model.mjs` | Formation records: storage (world setting `acks-formation.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
 | `scripts/turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `scripts/formation-app.mjs` | The formation window (GM controls, player read-only). |
@@ -74,6 +75,7 @@ executes. Players act on what is THEIRS:
 | Marching order | Move their own character (up/down/left/right; target recomputed GM-side from the actor id, not the click's stale cell) | `reorder` |
 | Roles | Take up / set down roles on their own character (10'-pole item gate enforced GM-side) | `role` |
 | Lights | Douse/relight and shutter lights their character carries; add via the declaration panel | `lightToggle` / `lightShield` / `light` |
+| Character sheet lights | Light, douse and shutter a lamp on their own character's inventory tab (acks-equipment's row controls, `declareLightAction`) | `light` / `lightToggle` / `lightShield` |
 | Spells | See all tracked spells; add their own via the declaration panel | `spell` |
 | Maps | See the party's maps and session status; consult (anchor) a map their character holds | `anchorMap` |
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
@@ -84,6 +86,50 @@ be indistinguishable from an accurate one to its holders. Removals, blanks,
 frontage, the clock, saves, tables, and session lifecycle stay GM-only.
 Role and light declarations are announced publicly, so the table sees who
 changed the party's posture.
+
+## The Judge's override
+
+The party sheet's gear rules exist to stop a *player* claiming a torch they never
+bought or a free hand they do not have. Applied to the Judge they are only in the
+way: a GM who assigns the light has already decided the character has one. So a
+GM action does not ask — `judge-override.mjs` puts the gear in the pack and
+empties a hand to hold it, then the action proceeds.
+
+| Action | GM | Player |
+|---|---|---|
+| Light a torch / lantern / candle | gear supplied, a hand emptied | refused without the gear and a spare hand |
+| Take up a role with a kit (mapper, 10' pole) | kit supplied, hands emptied | refused without the kit |
+
+The override **never blocks**. Where it cannot finish — no such item exists in
+the world to copy, or the hands are full of lit torches that sheathing cannot
+empty — it warns and lets the action through anyway. A Judge overriding the rules
+is not looking for a smaller refusal.
+
+Authority comes from the **declaring** user, not the executing client:
+`player-requests.mjs` passes `user.isGM`, because a player's declaration is
+relayed to and executed on a GM client, where `game.user.isGM` would hand the
+override to everyone.
+
+The two mutations themselves belong to acks-equipment (`grantGear`,
+`clearHands` — see [its model](../equipment/MODEL.md)); this feature owns only
+the rule about *what* is needed. Missing the equipment feature degrades to
+supplying nothing, never to an error.
+
+## Roles that need a kit
+
+`ROLE_GEAR` states what a role's holder must be carrying, in the shape the grant
+API reads — so ONE list both refuses the role and, under override, supplies it.
+
+- **10' pole** — a pole or polearm. Carried, not held: probed with and set down.
+- **Mapper** — a quill and parchment. RR p. 266 gives the requirement as "both
+  hands occupied", and this is what occupies them: **one hand per piece of kit**
+  (`ROLE_HAND_COST`), for as long as the role is held. That is what makes mapping
+  and a drawn sword mutually exclusive.
+
+`handsOccupied(actorId)` is the single call acks-equipment's loadout makes for
+hands the party sheet has filled — lights borne plus role kits — and taking up or
+setting down a role fires `acksExtras.roleChanged` so the loadout recomputes,
+exactly as `acksExtras.lightChanged` does for a struck light.
 
 ## Detaching a member
 

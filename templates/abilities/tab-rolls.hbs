@@ -1,22 +1,36 @@
+{{!
+  The ability's throws, as a list you can add to, delete from and open. Each row
+  IS the roll button; the pencil opens the throw's own window, where everything
+  about it — including its level table — is edited.
+}}
 <section class="tab acks-abilities-rolls" data-tab="rolls" data-group="primary">
 
+  {{#if extras.unaudited}}
+    <p class="notification info acks-abilities-notice" data-tooltip="{{localize 'ACKS-ABILITIES.warn.unauditedTip'}}">
+      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+      {{localize "ACKS-ABILITIES.warn.unaudited"}}
+    </p>
+  {{/if}}
+
   {{#if rollRows.length}}
-    {{#if extras.unaudited}}
-      <p class="notification info acks-abilities-notice" data-tooltip="{{localize 'ACKS-ABILITIES.warn.unauditedTip'}}">
-        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-        {{localize "ACKS-ABILITIES.warn.unaudited"}}
-      </p>
-    {{/if}}
     <p class="hint">{{localize "ACKS-ABILITIES.roll.hint"}}</p>
     <ol class="acks-abilities-roll-list">
       {{#each rollRows}}
         <li class="acks-abilities-roll">
-          <button type="button" class="acks-abilities-roll-go" data-roll-key="{{this.key}}"
-                  data-tooltip="{{localize 'ACKS-ABILITIES.roll.go'}}">
-            <i class="fa-solid fa-dice-d20"></i>
-            <span class="acks-abilities-roll-label">{{this.label}}</span>
-            <span class="acks-abilities-roll-value">{{this.display}}</span>
-          </button>
+          <div class="acks-abilities-roll-head">
+            <button type="button" class="acks-abilities-roll-go" data-action="rollOne" data-roll-key="{{this.key}}"
+                    data-tooltip="{{localize 'ACKS-ABILITIES.roll.go'}}">
+              <i class="fa-solid fa-dice-d20"></i>
+              <span class="acks-abilities-roll-label">{{this.label}}</span>
+              <span class="acks-abilities-roll-value">{{this.display}}</span>
+            </button>
+            {{#if @root.editable}}
+              <a class="acks-abilities-mini" data-action="editRoll" data-roll-key="{{this.key}}"
+                 data-tooltip="{{localize 'ACKS-ABILITIES.roll.edit'}}"><i class="fa-solid fa-pen-to-square"></i></a>
+              <a class="acks-abilities-mini" data-action="deleteRoll" data-roll-key="{{this.key}}"
+                 data-tooltip="{{localize 'ACKS-ABILITIES.roll.delete'}}"><i class="fa-solid fa-trash"></i></a>
+            {{/if}}
+          </div>
           {{#if this.condition}}<p class="hint acks-abilities-roll-cond">{{this.condition}}</p>{{/if}}
           {{#if this.ladder}}
             <div class="acks-abilities-ladder-wrap">
@@ -31,6 +45,15 @@
     </ol>
   {{else}}
     <p class="hint">{{localize "ACKS-ABILITIES.roll.none"}}</p>
+  {{/if}}
+
+  {{#if editable}}
+    <footer class="acks-abilities-roll-add">
+      <button type="button" data-action="addRoll">
+        <i class="fa-solid fa-plus"></i> {{localize "ACKS-ABILITIES.roll.add"}}
+      </button>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.addHint"}}</p>
+    </footer>
   {{/if}}
 
 </section>

@@ -17,11 +17,11 @@ import {
   getMapperActor,
   getMemberActor,
   hasAbility,
-  hasPoleItem,
   isDown,
   isHurried,
   isPartyInDark,
   mapperIsProficient,
+  missingRoleGear,
   partySpeed,
 } from "./formation-model.mjs";
 import { senseProfile } from "../lib/senses.mjs";
@@ -267,12 +267,22 @@ function buildWarnings(formation, speed) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.inCombat"));
   }
 
-  // 10' pole role without the physical implement in inventory.
+  // A role held without the implement it needs — the 10' pole, or the mapper's
+  // quill and parchment. A Judge can put anyone in any job (judge-override.mjs),
+  // so this is the standing reminder of what that job is still missing.
   for (const m of formation.members) {
-    if (!m?.roles?.includes("pole")) continue;
     const actor = getMemberActor(m);
-    if (actor && !hasPoleItem(actor)) {
-      warnings.push(game.i18n.format("ACKS-FORMATION.warnings.poleNoItem", { name: actor.name }));
+    if (!actor) continue;
+    for (const role of m.roles ?? []) {
+      const missing = missingRoleGear(actor, role);
+      if (!missing.length) continue;
+      warnings.push(
+        game.i18n.format("ACKS-FORMATION.warnings.roleNoKit", {
+          name: actor.name,
+          role: game.i18n.localize(ROLE_LABELS[role] ?? role),
+          items: missing.map((spec) => game.i18n.localize(spec.label)).join(", "),
+        }),
+      );
     }
   }
 

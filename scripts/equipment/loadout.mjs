@@ -40,10 +40,36 @@ export async function cycleGrip(item) {
   return next;
 }
 
+/**
+ * Hands the party sheet says are already full (acks-formation, optional): the
+ * light sources this actor bears, and the mapper's kit if they are the one
+ * drawing the map. Degrades to zero of each when nothing is tracking the actor.
+ * @returns {{lights: number, mapping: number, total: number}}
+ */
+export function formationHands(actor) {
+  const busy = globalThis.acksExtras?.formation?.handsOccupied?.(actor?.id);
+  const lights = Number.isFinite(busy?.lights) ? busy.lights : 0;
+  const mapping = Number.isFinite(busy?.mapping) ? busy.mapping : 0;
+  return { lights, mapping, total: lights + mapping };
+}
+
 /** Hands occupied by lit light sources this actor bears (acks-formation, optional). */
 export function heldLightHands(actor) {
-  const n = globalThis.acksExtras?.formation?.heldLightCount?.(actor?.id);
-  return Number.isFinite(n) ? n : 0;
+  return formationHands(actor).lights;
+}
+
+/**
+ * The order in which held gear gives up a hand: shields first, then weapons
+ * newest-first. Shields lead because a shield's only cost IS the hand — putting
+ * one on the back loses an AC point, while sheathing a weapon disarms.
+ *
+ * Deliberately NOT the hand-overflow violation's candidate list, which names
+ * every equipped shield including a strapped one. That list answers "what is
+ * implicated in this overflow"; this one answers "what can actually free a
+ * hand", and a strapped shield occupies none.
+ */
+export function releaseOrder(loadout) {
+  return [...loadout.handShields, ...loadout.weapons.slice().reverse().map((w) => w.item)];
 }
 
 /** Base hand budget for an actor (2 + Four-Arms/anatomy effects + setting). */
@@ -122,12 +148,20 @@ export function getLoadout(actor, opts = {}) {
   // Only a shield carried IN HAND costs a hand; a strapped one (JJ variant
   // overlay) rides the back or front and leaves both hands free.
   const handShields = shields.filter(occupiesHand);
-  // A lit light source held by this actor occupies a hand too (degrades to 0
-  // when nothing is tracking light for this actor). This is the read
-  // half of the two-way hook: formation owns the light state; we count it as a
-  // used hand so hands-available matches who is holding a light.
-  const heldLights = heldLightHands(actor);
-  let handsUsed = weapons.reduce((n, w) => n + w.handsMin, 0) + handShields.length + heldLights;
+  // The party sheet fills hands too (degrades to 0 when nothing is tracking this
+  // actor): a lit light source is held, and a mapper works with a quill in one
+  // hand and parchment in the other. This is the read half of the two-way hook —
+  // formation owns both states; we count them as used hands so hands-available
+  // matches what the character is actually holding.
+  const { lights: heldLights, mapping: mappingHands, total: formationBusy } = formationHands(actor);
+  let handsUsed = weapons.reduce((n, w) => n + w.handsMin, 0) + handShields.length + formationBusy;
+  // What is COMMITTED — every hand that something would have to be put down to
+  // free. Captured before the two-handed grip below, which is elective: a
+  // versatile weapon takes the spare hand for the better damage die and gives it
+  // straight back the moment a torch or a map wants it. Anything asking "is
+  // there room for one more thing?" must read this, not handsFree, or a
+  // swordsman with a free hand reads as having none.
+  const handsCommitted = handsUsed;
 
   // GRIP resolution. A two-handed grip needs BOTH hands, so only a lone melee
   // weapon with no in-hand shield can take it (RAW 1d8/1d10). The player's grip
@@ -250,7 +284,10 @@ export function getLoadout(actor, opts = {}) {
     handBudget: budget,
     handsUsed,
     handsFree: Math.max(0, budget - handsUsed),
+    handsCommitted,
+    handsSpare: Math.max(0, budget - handsCommitted),
     heldLights, // hands occupied by lit light sources (acks-formation)
+    mappingHands, // hands occupied by the mapper's kit (acks-formation)
     weapons,
     armor,
     armorProficient,
@@ -282,7 +319,9 @@ function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
  * @typedef {object} Loadout
  * @property {number} handBudget
  * @property {number} handsUsed
- * @property {number} handsFree
+ * @property {number} handsFree hands not in use right now
+ * @property {number} handsCommitted hands something would have to be put down to free
+ * @property {number} handsSpare room for one more thing (elective grips yield)
  * @property {object[]} weapons
  * @property {object|null} armor
  * @property {object[]} shields

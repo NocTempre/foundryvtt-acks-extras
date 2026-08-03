@@ -82,7 +82,40 @@ the alternative made one typo silently non-proficient with everything.
 `globalThis.acksExtras.equipment`): `getLoadout(actor)`, `handBudget`,
 `trainedStyles`, `specializedStyles`, `classifyWeapon`, `handCost`,
 `focusGroup`, `weaponKey`, `annotateItem(item)`, `refreshLoadout(actor)`, the
-effect collectors, `config`, `HOOKS`, `VIOLATION`.
+effect collectors, `config`, `HOOKS`, `VIOLATION`, plus the hand and gear
+surfaces below.
+
+### Hands: free, committed, spare
+
+Three numbers on the Loadout, and asking for the wrong one is the classic bug:
+
+| Field | Question it answers |
+|---|---|
+| `handsFree` | What is empty *right now*. |
+| `handsCommitted` | What something would have to be **put down** to free. |
+| `handsSpare` | Whether there is **room for one more thing**. |
+
+They differ because a lone versatile weapon widens to a two-handed grip to fill
+any hand going, and gives it straight back the moment a torch or a map wants it.
+That grip is elective, so it commits nothing. Anything asking "can this character
+take up one more object?" reads `handsSpare` (API: `spareHands`) — reading
+`handsFree` tells a swordsman with an empty off hand that he has no hands.
+
+`formationHands(actor)` is the one call into acks-formation for hands the party
+sheet has already filled: lights borne, and the mapper's kit.
+
+### Giving gear, and making room for it — `grant.mjs`
+
+`grantGear(actor, specs)` puts named gear in a character's pack, preferring a
+world item or compendium entry of that name over a synthesized stand-in — a
+granted torch should be the system's torch. `clearHands(actor, n)` sheathes held
+gear (shields first, then weapons newest-first) until there is room, and reports
+what it put away; it can fall short and says so, because hands full of lit
+torches are not freed by sheathing anything.
+
+Neither decides *whether* a character should be given anything. That is a rule,
+and it stays with the feature holding the rule — see acks-formation's
+[judge-override](../formation/MODEL.md#the-judges-override).
 
 Hooks fired — prefixed with the camelCase namespace `acksExtras` per
 acks-module-template `docs/TOOLCHAIN.md` §5b (shared registries carry the module

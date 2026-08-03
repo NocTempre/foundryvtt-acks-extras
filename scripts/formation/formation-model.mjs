@@ -1,8 +1,20 @@
 /* global game, foundry, ui, Actor, CONST */
-import { BODY_STONE, DEFAULT_PARTY_IMAGE, FLAG_FORMATION_ID, MODULE_ID, POLE_ITEM_PATTERN, ROLES } from "./constants.mjs";
+import {
+  BODY_STONE,
+  DEFAULT_PARTY_IMAGE,
+  FLAG_FORMATION_ID,
+  MODULE_ID,
+  ROLES,
+  ROLE_GEAR,
+  ROLE_HAND_COST,
+  ROLE_LABELS,
+} from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
+import { carriesItem } from "../lib/item-model.mjs";
+import { announceChange } from "../lib/util.mjs";
+import { equipForRole } from "./judge-override.mjs";
 
 /** World-setting key holding all formation records, keyed by formation id. */
 export const SETTING_FORMATIONS = "formations";
@@ -52,22 +64,38 @@ export function getFormationForActor(actorId) {
   return null;
 }
 
-/**
- * How many light sources the actor is BEARING IN HAND right now — the number of
- * hands their lights occupy. A light is in hand while it is lit (a burning
- * torch/lantern) or a shielded-but-carried lantern (shutter closed, still
- * held); a fully doused source is stowed and frees the hand. Consumed by
- * acks-equipment so hands-available matches who is holding a light.
- */
+/** How many light sources the actor is bearing in hand — see `handsOccupied`. */
 export function heldLightCount(actorId) {
-  if (!actorId) return 0;
-  let n = 0;
+  return handsOccupied(actorId).lights;
+}
+
+/**
+ * Every hand the party sheet says this actor already has full, and why.
+ *
+ * TWO SOURCES, one answer, because acks-equipment reads the total in a single
+ * question:
+ *  - **lights** — a source is in hand while it burns, and while a lantern is
+ *    shuttered but still carried. A fully doused one is stowed and gives the
+ *    hand back.
+ *  - **mapping** — the mapper works with a quill in one hand and parchment in
+ *    the other for as long as the role is held (RR p. 266, one hand per piece
+ *    of kit).
+ * @returns {{lights: number, mapping: number, total: number}}
+ */
+export function handsOccupied(actorId) {
+  const busy = { lights: 0, mapping: 0, total: 0 };
+  if (!actorId) return busy;
   for (const f of Object.values(getFormations())) {
     for (const l of f?.lights ?? []) {
-      if (l.bearerId === actorId && (l.lit || l.shielded)) n++;
+      if (l.bearerId === actorId && (l.lit || l.shielded)) busy.lights++;
+    }
+    for (const m of f?.members ?? []) {
+      if (m?.actorId !== actorId) continue;
+      for (const role of m.roles ?? []) busy.mapping += ROLE_HAND_COST[role] ?? 0;
     }
   }
-  return n;
+  busy.total = busy.lights + busy.mapping;
+  return busy;
 }
 
 /**
@@ -326,17 +354,17 @@ export function isPartyInDark(formation) {
   return !formationHasLight(formation);
 }
 
-/** Does this actor carry a physical pole (or polearm) for probing? */
-export function hasPoleItem(actor) {
-  return (
-    actor?.items?.some(
-      (i) =>
-        POLE_ITEM_PATTERN.test(i.name) &&
-        (i.type === "weapon" || i.type === "item") &&
-        (i.system?.quantity?.value ?? 1) > 0,
-    ) ?? false
-  );
+/**
+ * The pieces of a role's kit this actor is NOT carrying, in declaration order.
+ * Empty for a role that needs no implement, and empty for a character already
+ * equipped — so an empty list is always "nothing stands in the way".
+ */
+export function missingRoleGear(actor, role) {
+  return (ROLE_GEAR[role] ?? []).filter((spec) => !carriesItem(actor, spec.pattern));
 }
+
+/** Is this actor carrying everything the role needs? */
+export const hasRoleGear = (actor, role) => missingRoleGear(actor, role).length === 0;
 
 /**
  * Is the party hurrying (exploring at combat speed)? RR p. 263: exploration
@@ -742,19 +770,52 @@ export async function autoArrange(formation) {
   return formation;
 }
 
-export async function toggleRole(formation, actorId, role) {
+/**
+ * Take up or set down a role.
+ *
+ * TAKING one is what is gated: a role with a declared kit (`ROLE_GEAR`) needs
+ * that kit in the character's hands — a 10' pole to probe with, a quill and
+ * parchment to map with. Setting a role DOWN is never gated; a character can
+ * always stop doing a job.
+ *
+ * `override` is the Judge saying it happens anyway: the kit is supplied and the
+ * hands emptied (see judge-override.mjs) instead of the role being refused.
+ * @param {object} [opts]
+ * @param {boolean} [opts.override] GM authority — equip rather than refuse
+ */
+export async function toggleRole(formation, actorId, role, { override = false } = {}) {
   const member = formation.members.find((m) => m.actorId === actorId);
   if (!member) return formation;
   member.roles ??= [];
-  // The 10' Pole role needs the implement in inventory (pole or polearm).
-  if (role === ROLES.POLE && !member.roles.includes(role) && !hasPoleItem(getMemberActor(member))) {
-    ui.notifications.warn(
-      game.i18n.format("ACKS-FORMATION.warn.noPoleItem", { name: getMemberActor(member)?.name ?? "?" }),
-    );
-    return formation;
+
+  if (!member.roles.includes(role)) {
+    const actor = getMemberActor(member);
+    if (override) await equipForRole(actor, role);
+    const missing = missingRoleGear(actor, role);
+    if (missing.length) {
+      ui.notifications.warn(
+        game.i18n.format("ACKS-FORMATION.warn.noRoleGear", {
+          name: actor?.name ?? "?",
+          role: game.i18n.localize(ROLE_LABELS[role] ?? role),
+          items: missing.map((spec) => game.i18n.localize(spec.label)).join(", "),
+        }),
+      );
+      // A Judge who overrode is told what could not be supplied, not stopped by
+      // it — the role goes on regardless.
+      if (!override) return formation;
+    }
+    member.roles.push(role);
+  } else {
+    member.roles = member.roles.filter((r) => r !== role);
   }
-  if (member.roles.includes(role)) member.roles = member.roles.filter((r) => r !== role);
-  else member.roles.push(role);
+
   await updateFormation(formation);
+  // A role can fill hands (the mapper's kit), so acks-equipment recomputes the
+  // loadout off this exactly as it does off a light being struck.
+  announceChange("acksExtras.roleChanged", getMemberActor(member), {
+    actorId,
+    role,
+    held: member.roles.includes(role),
+  });
   return formation;
 }

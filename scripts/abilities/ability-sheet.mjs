@@ -10,7 +10,8 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
-import { rollAbility, rollsOf, targetOf, scalesFor } from "./ability-rolls.mjs";
+import { keyOf, rollsOf, targetOf, scalesFor } from "./ability-rolls.mjs";
+import { ROLL_ACTIONS } from "./roll-editor.mjs";
 
 const T = `modules/${MODULE_ID}/templates/abilities`;
 
@@ -235,7 +236,10 @@ export function createAbilitySheet(Base) {
   tabList.push({ id: "mechanics", icon: "fa-solid fa-gears", label: "ACKS-ABILITIES.tab.mechanics" });
 
   return class AcksAbilitySheet extends Base {
-    static DEFAULT_OPTIONS = { classes: ["acks", "acks2", "item-v2", "acks-extras"] };
+    static DEFAULT_OPTIONS = {
+      classes: ["acks", "acks2", "item-v2", "acks-extras"],
+      actions: { ...ROLL_ACTIONS },
+    };
     static PARTS = parts;
     static TABS = { primary: { tabs: tabList, initial: tabList[0].id } };
 
@@ -309,11 +313,15 @@ export function createAbilitySheet(Base) {
       // roll still lives in core's singleton fields presents identically.
       const scales = scalesFor(this.item.actor, this.item);
       context.rollRows = rollsOf(this.item).map((r, i) => {
-        const key = r.key || `roll${i}`;
+        const key = keyOf(r, i);
         const target = targetOf(r, this.item.actor, this.item);
         const bp = r.target?.breakpoints ?? [];
         const varies = bp.length > 1;
         const suffix = r.rollType === "below" ? "-" : r.rollType === "result" ? "" : "+";
+        // A `conditional` target names its own scale; every other shape is read
+        // at the roll's. Label the ladder with whichever one it is actually
+        // stepped by, or the header claims a progression it does not have.
+        const scaleKey = (r.target?.kind === "conditional" ? r.target.on : r.scale) || "level";
         return {
           key,
           label: r.label || game.i18n.localize("ACKS-ABILITIES.roll.unnamed"),
@@ -321,7 +329,7 @@ export function createAbilitySheet(Base) {
           condition: r.condition,
           ladder: varies
             ? {
-                scaleLabel: V.VALUE_SCALES?.[r.scale]?.label ?? r.scale ?? "Level",
+                scaleLabel: V.VALUE_SCALES?.[scaleKey]?.label ?? scaleKey,
                 steps: bp.map((b) => b.atLevel),
                 values: bp.map((b) => `${b.value}${suffix}`),
               }
@@ -399,15 +407,6 @@ export function createAbilitySheet(Base) {
         }
       }
       return context;
-    }
-
-    /** @override */
-    _onRender(context, options) {
-      super._onRender?.(context, options);
-      const root = this.element instanceof HTMLElement ? this.element : this.element?.[0];
-      for (const b of root?.querySelectorAll(".acks-abilities-roll-go") ?? []) {
-        b.addEventListener("click", () => rollAbility(this.item, b.dataset.rollKey));
-      }
     }
 
     /**

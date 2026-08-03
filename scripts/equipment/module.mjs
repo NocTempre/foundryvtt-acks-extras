@@ -64,14 +64,18 @@ Hooks.once("ready", async () => {
     console.error(`${MODULE_ID} | equipment item sheet failed to register; core's item sheet stands`, err);
   }
 
-  // A held light occupies a hand: when the formation feature lights/douses/
-  // burns out a source, recompute that bearer's loadout so hands-used reflects
-  // it. The read half is loadout.heldLightHands; this keeps it live.
-  Hooks.on("acksExtras.lightChanged", (actor) => {
-    if (actor?.type === "character" && actor.isOwner) {
-      refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | light-change loadout sync failed`, err));
-    }
-  });
+  // The party sheet fills hands: a held light, and the mapper's quill and
+  // parchment. When the formation feature lights/douses/burns out a source, or a
+  // member takes up or sets down a role, recompute that character's loadout so
+  // hands-used reflects it. The read half is loadout.formationHands; these keep
+  // it live.
+  for (const hook of ["acksExtras.lightChanged", "acksExtras.roleChanged"]) {
+    Hooks.on(hook, (actor) => {
+      if (actor?.type === "character" && actor.isOwner) {
+        refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | ${hook} loadout sync failed`, err));
+      }
+    });
+  }
 
   // Rebuild loadout effects for owned characters on load (repairs after config
   // changes, migrations, or a session where enforcement was off).

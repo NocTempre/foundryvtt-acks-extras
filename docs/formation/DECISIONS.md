@@ -112,3 +112,60 @@ their own choice rather than a silently blank select.
     `deployment.mjs` so the combat path and the detach path cannot drift; the
     two identical `announce` copies (combat-bridge, map-items) collapsed into
     `announce.mjs` at the same time rather than becoming three.
+
+- **2026-08-03 — Judge actions supply gear instead of refusing it.** The gear and
+  free-hand gates on lighting a source were written against a player claiming a
+  torch they never bought. Applied to a GM they inverted: assigning the light was
+  the Judge *changing* the fact the gate was quoting back at them. Ruled that a
+  GM action carries an **override** — the gear appears, a hand is emptied, and
+  the action proceeds — while a player declaration stays gated exactly as before.
+  - Authority is the **declaring** user's, never the executing client's. Player
+    declarations are relayed to and run on a GM client, so `game.user.isGM` there
+    would have handed the override to the whole table.
+  - The override never blocks. Where it cannot finish (no such item in the world,
+    or hands full of lit torches that sheathing cannot free) it warns and lets
+    the action through. Rejected: falling back to the old refusal, which is a
+    Judge being told "no" in a smaller voice.
+  - The two mutations live in acks-equipment (`grantGear`, `clearHands`) because
+    both are equipment facts; this feature keeps only the rule about what a
+    light or a role *needs*. Missing the equipment feature supplies nothing
+    rather than throwing.
+
+- **2026-08-03 — The mapper's kit is quill and parchment, one hand each.** RR
+  p. 266 requires the mapper to have "both hands occupied" without naming what
+  occupies them. Ruled the kit is a quill and parchment, and that the hand cost
+  DERIVES from the kit list (`ROLE_HAND_COST` = number of pieces) rather than
+  being a second constant that can disagree with it.
+  - The RAW equipment list prices the quill and no writing surface, so
+    **parchment is a stand-in at 1 gp / 0 stone**, matching the quill's price
+    point. It is used only when the world has no item of that name to copy — a
+    Judge who adds a real one gets theirs. This is the one invented figure in the
+    feature and it is deliberately trivial; nothing mechanical reads it.
+  - Rejected: shipping parchment in a module pack. The system already ships the
+    quill, and a stand-in that only materialises when nothing better exists costs
+    no pack, no `module.json` entry, and no rebuild.
+  - The 10' pole's implement moved into the same `ROLE_GEAR` table, so the pole
+    gate, the mapper gate, the standing warnings and the override all read one
+    list. `hasPoleItem` and the two pole-specific messages went with it.
+
+- **2026-08-03 — "Room for one more thing" is not "hands free".** `clearHands`
+  first appeared to strip a fighter bare: sheathing the shield freed a hand, the
+  lone sword immediately widened to a two-handed grip to fill it, and the loop
+  saw no progress. A two-handed grip is ELECTIVE — it yields the moment a torch
+  or a map needs the hand — so it commits nothing. Added `handsCommitted` /
+  `handsSpare` alongside `handsFree`, and every "can they take up one more
+  object?" test now reads `handsSpare` (`spareHands`).
+  - This also fixed a standing false refusal: a swordsman with an empty off hand
+    read as having no free hand and could not light a torch at all.
+
+- **2026-08-03 — Two shipped matcher bugs, found while extending them.**
+  Recorded because both had passed a green offline suite:
+  - `POLE_ITEM_PATTERN` held literal **backspace bytes** where `\b` word
+    boundaries were meant (`/\x08pole\x08|polearm|…/`), committed that way, so
+    the 10' Pole role never recognised an item named "Pole" — only a polearm,
+    spear, pike, halberd, glaive or lance.
+  - A lantern's fuel pattern excluded military oil with a lookbehind
+    (`(?<!military\s)\boil\b`), which cannot work: the RAW item is named "Oil,
+    Military (1 pint)", with `oil` FIRST. A party's thrown-weapon oil read as
+    lamp fuel and would have been burnt. Now the whole name is rejected when it
+    mentions military.

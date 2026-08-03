@@ -3,11 +3,12 @@
 A **formation** is the party as one thing: a marching order, one token on the
 map, one exploration clock, and party-wide checks that resolve every member.
 
-![](../releases/v1.1.0/formation-party.png)
+![](../releases/v1.3.0/formation-judge-override.png)
 
 *The party sheet: exploration clock, party saves and rolls, and the marching
-order. Sable is out ahead on her own token — note the hiker badge, her 30'
-dark-sight chip, and her lit detach control.*
+order with its roles — Bess scouting, Quill on the map. Tam's lantern is in the
+Light Sources panel with 24 turns left; the Judge handed it over and the lamp,
+its oil and a free hand came with it.*
 
 ## Build one
 
@@ -29,6 +30,23 @@ down, spell durations tick, and the rest cycle tracks when the party is due one.
 
 Light is real: a lit torch occupies a hand, lights the party token, and goes out
 when it burns through.
+
+## Handing things out
+
+A player has to own a torch to light one, and a free hand to hold it. **You do
+not.** When a Judge gives a member a light from the party sheet, the gear appears
+in their pack and a hand is emptied to hold it — the shield goes on the back
+before the sword is sheathed, and nothing is put away that did not need to be. A
+lantern arrives with its flask of oil. The same applies to roles that need a kit:
+put someone on the map and they are handed a quill and parchment.
+
+Nothing here blocks you. If the world has no such item to copy, or the character's
+hands are full of *lit torches* — which sheathing cannot fix — you get told, and
+it happens anyway.
+
+**Mapping takes both hands.** The quill is in one and the parchment in the other
+for as long as the role is held, which is why a mapper cannot also have a weapon
+drawn. Set the role down and the hands come back.
 
 ## Seeing in the dark
 

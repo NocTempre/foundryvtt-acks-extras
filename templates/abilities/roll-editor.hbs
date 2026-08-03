@@ -1,0 +1,165 @@
+{{!
+  One throw of one ability. Everything the throw is made of is here, including
+  its level table — a ladder is part of the target, not a second thing attached
+  to it, so it is typed where the target is chosen.
+
+  There is no Save button: fields apply as they are made, the way an item sheet
+  applies them.
+}}
+<div class="acks-abilities-roll-editor-body">
+
+  <fieldset>
+    <legend>{{localize "ACKS-ABILITIES.roll.section.throw"}}</legend>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.label"}}</label>
+      <div class="form-fields">
+        <input type="text" name="label" value="{{roll.label}}"
+               placeholder="{{localize 'ACKS-ABILITIES.roll.field.labelPlaceholder'}}">
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.labelHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.formula"}}</label>
+      <div class="form-fields">
+        <input type="text" name="formula" value="{{roll.formula}}" placeholder="1d20">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.rollType"}}</label>
+      <div class="form-fields">
+        <select name="rollType">{{selectOptions choices.rollType selected=roll.rollType}}</select>
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.rollTypeHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.condition"}}</label>
+      <div class="form-fields">
+        <input type="text" name="condition" value="{{roll.condition}}"
+               placeholder="{{localize 'ACKS-ABILITIES.roll.field.conditionPlaceholder'}}">
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.conditionHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.note"}}</label>
+      <div class="form-fields">
+        <input type="text" name="note" value="{{roll.note}}">
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-ABILITIES.roll.section.target"}}</legend>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.kind"}}</label>
+      <div class="form-fields">
+        <select name="target.kind">{{selectOptions choices.kind selected=kind}}</select>
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.kindHint"}}</p>
+    </div>
+
+    {{#unless isFlat}}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.scale"}}</label>
+      <div class="form-fields">
+        <select name="scale">{{selectOptions choices.scale selected=roll.scale}}</select>
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.scaleHint"}}</p>
+    </div>
+    {{/unless}}
+
+    {{#if isFlat}}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.flat"}}</label>
+      <div class="form-fields">
+        <input type="number" name="target.flat" value="{{roll.target.flat}}" placeholder="—">
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.flatHint"}}</p>
+    </div>
+    {{/if}}
+
+    {{#if isPerLevel}}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.base"}}</label>
+      <div class="form-fields">
+        <input type="number" step="any" name="target.base" value="{{roll.target.base}}" placeholder="—">
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.baseHint"}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.per"}}</label>
+      <div class="form-fields">
+        <input type="number" step="any" name="target.per" value="{{roll.target.per}}" placeholder="—">
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.perHint"}}</p>
+    </div>
+    {{/if}}
+
+    {{#if isProgression}}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.as"}}</label>
+      <div class="form-fields">
+        <select name="target.as">{{selectOptions choices.as selected=roll.target.as}}</select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.atLevel"}}</label>
+      <div class="form-fields">
+        <select name="target.atLevel">{{selectOptions choices.atLevel selected=roll.target.atLevel}}</select>
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.asHint"}}</p>
+    </div>
+    {{/if}}
+
+    {{#if isLadder}}
+    <div class="acks-abilities-steps">
+      <div class="acks-abilities-steps-head">
+        <span>{{localize "ACKS-ABILITIES.roll.table.legend"}}</span>
+        <a class="acks-abilities-mini" data-action="addStep"
+           data-tooltip="{{localize 'ACKS-ABILITIES.roll.table.add'}}"><i class="fa-solid fa-plus"></i></a>
+      </div>
+      {{#if steps.length}}
+        <div class="acks-abilities-step acks-abilities-step-labels">
+          <span>{{localize "ACKS-ABILITIES.roll.table.at"}} {{scaleLabel}}</span>
+          <span>{{localize "ACKS-ABILITIES.roll.table.value"}}</span>
+          <span></span>
+        </div>
+        {{#each steps as |step i|}}
+        <div class="acks-abilities-step">
+          <input type="number" step="1" name="target.breakpoints.{{i}}.atLevel" value="{{step.atLevel}}">
+          <input type="number" step="any" name="target.breakpoints.{{i}}.value" value="{{step.value}}">
+          <a class="acks-abilities-mini" data-action="removeStep" data-index="{{i}}"
+             data-tooltip="{{localize 'ACKS-ABILITIES.roll.table.remove'}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+        {{/each}}
+      {{else}}
+        <p class="hint">{{localize "ACKS-ABILITIES.roll.table.empty"}}</p>
+      {{/if}}
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.table.hint"}}</p>
+    </div>
+    {{/if}}
+
+    {{#unless isFlat}}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.round"}}</label>
+      <div class="form-fields">
+        <select name="target.round">
+          {{selectOptions choices.round selected=roll.target.round blank=(localize "ACKS-ABILITIES.roll.field.roundNone")}}
+        </select>
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.roundHint"}}</p>
+    </div>
+    {{/unless}}
+  </fieldset>
+
+  <p class="acks-abilities-roll-preview">
+    <i class="fa-solid fa-dice-d20" aria-hidden="true"></i> {{preview}}
+  </p>
+  <p class="hint">{{localize "ACKS-ABILITIES.roll.editorHint"}}</p>
+
+</div>

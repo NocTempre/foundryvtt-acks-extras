@@ -1,4 +1,4 @@
-/* global game */
+/* global game, Hooks */
 /**
  * Tiny cross-feature helpers. Everything here used to exist as N identical
  * copies across the merged features (loc ×11, num ×5, gmIds ×4, …); the
@@ -20,3 +20,17 @@ export const isPrimaryGM = () => game.users.activeGM?.isSelf ?? false;
 
 /** The lib feature's storage surface (attached at import time). */
 export const libStorage = () => globalThis.acksExtras.lib.storage;
+
+/**
+ * Fire one of the family's own hooks without letting a listener take the caller
+ * down with it. Announcing a change is always the LAST thing a mutation does, so
+ * a sibling feature throwing in its handler must not undo the write that already
+ * landed — it gets logged and the mutation still succeeded.
+ */
+export function announceChange(hook, ...args) {
+  try {
+    Hooks.callAll(hook, ...args);
+  } catch (err) {
+    console.error(`acks-extras | ${hook} listener failed`, err);
+  }
+}

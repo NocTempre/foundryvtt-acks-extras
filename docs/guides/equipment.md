@@ -18,6 +18,24 @@ you cannot light one with no hand free. The controls sit in their own box beside
 core's, because core's control column is a fixed 35–60px and anything added
 inside it overflows.
 
+## Lighting a lamp from your own sheet
+
+A character in a party formation gets light controls on the lamp itself — one to
+**light** it, and once it is burning, **douse / re-light** plus, on a lantern,
+**open / close the shutter**. They do the same thing as the party sheet's light
+panel, on the row where the gear already is.
+
+![](../releases/v1.3.0/equipment-light-controls.png)
+
+*Tam's lantern, with its light controls on the row. Hands read 1/2 — the lit
+lamp is holding one of them.*
+
+Players use these on their own characters: the click is declared to the Judge's
+client, which checks the character is yours and carries it out, and the table
+sees what was declared. What a player may do is unchanged — you still need the
+lamp, its oil, and a hand free. A Judge clicking the same control is the Judge,
+so the gear and the hand are supplied rather than demanded.
+
 ## Where gear is worn
 
 The system only lets a **weapon** or a suit of **armour** be equipped, so a

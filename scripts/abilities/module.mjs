@@ -64,6 +64,7 @@ Hooks.once("init", () => {
   try {
     foundry.applications.handlebars.loadTemplates([
       `modules/${MODULE_ID}/templates/abilities/tab-mechanics.hbs`,
+      `modules/${MODULE_ID}/templates/abilities/roll-editor.hbs`,
       // Resolved dynamically by core's description.hbs, so it must be
       // pre-registered — a partial reached through a context function is not
       // discovered by the part loader.

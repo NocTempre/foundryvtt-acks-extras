@@ -163,14 +163,58 @@ function lightTypeOf(item) {
 }
 
 /**
+ * Declare one light action on `actor`'s behalf, by the route the party sheet
+ * uses for the same three buttons.
+ *
+ * The light record lives in a formation, which lives in a **world setting only a
+ * GM may write**. So a player cannot call the mutators at all — the write is
+ * refused and the button does nothing, silently. A player DECLARES instead:
+ * `requestPartyAction` relays to the active GM's client, which validates
+ * ownership against the declaring user and executes there.
+ *
+ * A GM calls straight through. The relay would execute a GM's declaration too,
+ * but only the direct call keeps their own click out of the public "so-and-so
+ * declared" card — a Judge lighting a lamp is narration, not a request.
+ *
+ * The formation is re-read on every click: the record these rows were built from
+ * may be many renders old.
+ *
+ * @param {string} type              a party-request type: light | lightToggle | lightShield
+ * @param {object} payload           `{lightType, bearerId}` to light, `{lightId}` to douse/shutter
+ */
+export function declareLightAction(actor, type, payload) {
+  const fm = globalThis.acksExtras?.formation;
+  const formation = fm?.getFormationForActor?.(actor.id);
+  if (!formation) return;
+  // NEVER gate this on the executing client: a relayed declaration runs on a GM
+  // client, where `game.user.isGM` is true for whoever declared it.
+  if (!game.user.isGM) return fm.requestPartyAction(formation.id, type, payload);
+  switch (type) {
+    case "light":
+      // A GM lighting from a character's own sheet carries the same authority as
+      // the party sheet's light panel: gear supplied, a hand emptied.
+      return fm.addLight(formation, payload.lightType, payload.bearerId, { override: true });
+    case "lightToggle":
+      return fm.toggleLight(formation, payload.lightId);
+    case "lightShield":
+      return fm.toggleShield(formation, payload.lightId);
+  }
+}
+
+/**
  * Put light controls on each equipped light source — Light / Douse, plus Shutter
  * for a lantern. These drive acks-formation's light state by actor (the module
  * owns it; this is the sheet-side control the two-way hook enables). No
  * formation module, or the actor is not in a party formation → no controls
- * (nothing to hold the light record). GM/owner authoritative, like the party
- * sheet's own light buttons.
+ * (nothing to hold the light record). Every click goes through
+ * declareLightAction, so a player's button works like the party sheet's.
+ *
+ * Owner-gated like every other injector here: an observer's click could only be
+ * refused GM-side, and a control that answers "request sent" then nothing is
+ * worse than no control.
  */
 function injectLightControls(list, actor) {
+  if (!actor?.isOwner) return;
   const fm = globalThis.acksExtras?.formation;
   if (!fm?.getFormationForActor) return;
   const formation = fm.getFormationForActor(actor.id);
@@ -202,10 +246,13 @@ function injectLightControls(list, actor) {
     };
     if (held) {
       // Douse (and re-light) the held source; shutter a lantern.
-      add("fa-fire", "ACKS-EQUIPMENT.light.douse", () => fm.toggleLight(fm.getFormationForActor(actor.id), held.id));
-      if (type === "lantern") add("fa-lightbulb", "ACKS-EQUIPMENT.light.shutter", () => fm.toggleShield(fm.getFormationForActor(actor.id), held.id));
+      add("fa-fire", "ACKS-EQUIPMENT.light.douse", () => declareLightAction(actor, "lightToggle", { lightId: held.id }));
+      if (type === "lantern") {
+        add("fa-lightbulb", "ACKS-EQUIPMENT.light.shutter", () => declareLightAction(actor, "lightShield", { lightId: held.id }));
+      }
     } else {
-      add("fa-fire-flame-curved", "ACKS-EQUIPMENT.light.light", () => fm.addLight(fm.getFormationForActor(actor.id), type, actor.id));
+      add("fa-fire-flame-curved", "ACKS-EQUIPMENT.light.light", () =>
+        declareLightAction(actor, "light", { lightType: type, bearerId: actor.id }));
     }
   }
 }

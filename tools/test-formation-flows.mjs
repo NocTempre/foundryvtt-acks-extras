@@ -189,6 +189,15 @@ class ItemMock {
     this.id = uid("itm");
     this.uuid = `Actor.${parent.id}.Item.${this.id}`;
     Object.assign(this, foundry.utils.deepClone(data));
+    // The system's ItemPhysicalTemplate gives EVERY item/weapon/armor a cost and
+    // a weight6, and the family's "is this a physical thing?" probe reads those
+    // fields rather than a type list — so a fixture without them is not a
+    // realistic item, and gear lookups would silently skip it.
+    if (["item", "weapon", "armor"].includes(this.type)) {
+      this.system ??= {};
+      this.system.cost ??= 0;
+      this.system.weight6 ??= 0;
+    }
     this.flags ??= {};
     uuidMap.set(this.uuid, this);
   }
@@ -443,10 +452,12 @@ class CombatMock {
 
 const settingsStore = new Map();
 const settingsDefaults = new Map();
+const settingsScopes = new Map();
 globalThis.game = {
   settings: {
     register(ns, key, cfg) {
       settingsDefaults.set(`${ns}.${key}`, cfg?.default);
+      settingsScopes.set(`${ns}.${key}`, cfg?.scope ?? "client");
     },
     get(ns, key) {
       const k = `${ns}.${key}`;
@@ -455,6 +466,14 @@ globalThis.game = {
     },
     async set(ns, key, value) {
       const k = `${ns}.${key}`;
+      // A WORLD setting is GM-only in Foundry, and every formation lives in one.
+      // Refusing the write here is what makes the player paths testable at all:
+      // without it a player mutation appears to work in the harness and only
+      // fails at a real table, which is how the sheet's light controls shipped
+      // dead. Modelled as Foundry does it — the write throws.
+      if (settingsScopes.get(k) === "world" && !game.user?.isGM) {
+        throw new Error(`User lacks permission to update world setting ${k}`);
+      }
       const existed = settingsStore.has(k);
       settingsStore.set(k, foundry.utils.deepClone(value));
       Hooks.call(existed ? "updateSetting" : "createSetting", { key: k, value });
@@ -504,7 +523,20 @@ const socketHandlers = {};
 globalThis.socketlib = {
   registerModule: () => ({
     register: (name, fn) => (socketHandlers[name] = fn),
-    executeAsGM: async (name, ...args) => socketHandlers[name]?.(...args),
+    // executeAsGM runs the handler ON THE GM'S CLIENT, so `game.user` there is
+    // the GM and not the player who declared. Modelling that is what lets the
+    // world-setting guard above stand: the relay must be the one route by which
+    // a player's declaration reaches a write. The declaring user still travels
+    // as an argument, which is the whole point of validating against it.
+    executeAsGM: async (name, ...args) => {
+      const declaring = game.user;
+      game.user = game.users.activeGM;
+      try {
+        return await socketHandlers[name]?.(...args);
+      } finally {
+        game.user = declaring;
+      }
+    },
   }),
 };
 Hooks.call("socketlib.ready");
@@ -864,7 +896,21 @@ await scenario("players steer their own members via the GM relay", async () => {
   const gmUser = game.user;
   game.user = game.users.get("PL1");
   try {
-    // Own member: role toggle and reorder land.
+    // A PLAYER carries no Judge override: mapping needs the kit in hand, and
+    // declaring the role without one is refused rather than granted.
+    await requests.requestPartyAction(id, "role", { actorId: dave.id, role: "mapper" });
+    await drain();
+    assert.ok(
+      !onlyFormation().members.find((m) => m.actorId === dave.id)?.roles?.includes("mapper"),
+      "a player cannot map without a quill and parchment",
+    );
+
+    // Own member, kit in the pack: role toggle and reorder land.
+    await dave.createEmbeddedDocuments("Item", [
+      { name: "Quill, writing", type: "item", system: {} },
+      { name: "Parchment", type: "item", system: {} },
+    ]);
+    await drain();
     await requests.requestPartyAction(id, "role", { actorId: dave.id, role: "mapper" });
     await drain();
     assert.ok(
@@ -906,6 +952,111 @@ await scenario("players steer their own members via the GM relay", async () => {
     game.user = gmUser;
   }
 
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
+await scenario("a player lights their own lamp from the character sheet", async () => {
+  // The equipment sheet's Light / Douse / Shutter buttons hand every click to
+  // declareLightAction, and THAT is what has to reach the GM relay: the light
+  // record lives in a world setting a player may not write, so calling the
+  // mutators from a player's client refuses the write and the button dies
+  // silently. Exercised through the same public api object the sheet reads.
+  const { declareLightAction } = await import("../scripts/equipment/sheet.mjs");
+
+  const pat = await ActorMock.create({
+    name: "Pat",
+    type: "character",
+    ownership: { default: 0, PL1: 3 },
+    system: {
+      hp: { value: 8, max: 8 },
+      details: { level: 2 },
+      movementacks: { exploration: 120 },
+      movement: { base: 120 },
+      encumbrance: { value: 4, max: 20 },
+      scores: { str: { mod: 0 } },
+      adventuring: { listening: 18, searching: 18, dungeonbashing: 18 },
+    },
+  });
+  const quinn = await member("Quinn"); // GM-owned only
+  await drain();
+
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  await game.settings.set(MODULE_ID, "lightItemEnforcement", "require");
+  let formation = await model.createFormation("Sheet Party");
+  formation = await model.addMember(formation, pat, null);
+  await model.addMember(model.getFormation(formation.id), quinn, null);
+  await drain();
+  const id = onlyFormation().id;
+
+  // The grant API stands in for acks-equipment, which is what makes "no
+  // override" PROVABLE: with it installed a Judge's click conjures the kit, so
+  // a player's click conjuring nothing is the authority gate holding rather
+  // than the grant simply being absent.
+  globalThis.acksExtras.equipment = {
+    spareHands: () => 2,
+    async grantGear(actor, specs) {
+      const missing = specs.filter((s) => !actor.items.some((i) => s.pattern.test(i.name)));
+      if (!missing.length) return [];
+      return actor.createEmbeddedDocuments(
+        "Item",
+        missing.map((s) => ({ name: s.name, type: "item", system: { quantity: { value: 1 } } })),
+      );
+    },
+    async clearHands() {
+      return { handsSpare: 2, released: [] };
+    },
+  };
+
+  const gmUser = game.user;
+  try {
+    game.user = game.users.get("PL1");
+
+    // Empty-handed, the declaration is gated exactly as it is from the party
+    // sheet. This is the assertion that pins the authority: the request EXECUTES
+    // on a GM client, so reading `game.user.isGM` there would hand the Judge's
+    // override to every player at the table.
+    await declareLightAction(pat, "light", { lightType: "lantern", bearerId: pat.id });
+    await drain();
+    assert.equal(onlyFormation().lights.length, 0, "a player without the gear is still refused");
+    assert.equal(pat.items.contents.length, 0, "and no kit is conjured for them");
+
+    // Lantern and oil bought and carried: the same click now lands.
+    await pat.createEmbeddedDocuments("Item", [
+      { name: "Lantern", type: "item", system: {} },
+      { name: "Flask of Oil", type: "item", system: { quantity: { value: 2 } } },
+    ]);
+    await drain();
+    await declareLightAction(pat, "light", { lightType: "lantern", bearerId: pat.id });
+    await drain();
+    assert.equal(onlyFormation().lights.length, 1, "the player's own lamp is lit through the relay");
+    assert.equal(onlyFormation().lights[0].bearerId, pat.id, "lit for the sheet's own character");
+
+    // The other two buttons on that same row.
+    const lightId = onlyFormation().lights[0].id;
+    await declareLightAction(pat, "lightShield", { lightId });
+    await drain();
+    assert.ok(onlyFormation().lights[0].shielded, "the player shuttered their own lantern");
+    await declareLightAction(pat, "lightToggle", { lightId });
+    await drain();
+    assert.ok(!onlyFormation().lights[0].lit, "the player doused their own lantern");
+
+    // Someone else's character, whatever the sheet asked for.
+    await declareLightAction(quinn, "light", { lightType: "candle", bearerId: quinn.id });
+    await drain();
+    assert.equal(onlyFormation().lights.length, 1, "a light on an unowned member is rejected");
+  } finally {
+    game.user = gmUser;
+  }
+
+  // The Judge clicking the SAME control keeps the Judge's authority: the kit
+  // appears rather than the click being refused.
+  await declareLightAction(quinn, "light", { lightType: "torch", bearerId: quinn.id });
+  await drain();
+  assert.ok(onlyFormation().lights.some((l) => l.bearerId === quinn.id), "the Judge's own click lights");
+  assert.ok(quinn.items.find((i) => /torch/i.test(i.name)), "and supplies what it takes to burn");
+
+  delete globalThis.acksExtras.equipment;
   await model.disband(model.getFormation(id));
   await drain();
 });
@@ -1155,6 +1306,86 @@ await scenario("lighting works with acks-equipment installed (hand accounting)",
   } finally {
     delete globalThis.acksExtras.equipment;
   }
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
+await scenario("the Judge's override supplies gear and empties a hand", async () => {
+  const pauper = await member("Pauper"); // owns nothing, both hands full
+  await drain();
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Override Party");
+  formation = await model.addMember(formation, pauper, null);
+  await drain();
+  const id = onlyFormation().id;
+  await game.settings.set(MODULE_ID, "lightItemEnforcement", "require");
+  pauper.system.__handsUsed = 2;
+
+  // Stand in for acks-equipment's grant API: create what is missing, and put
+  // held gear away until there is room. Faithful enough to prove the formation
+  // side calls both, with the right specs, BEFORE it tests anything.
+  const spare = (actor) =>
+    Math.max(0, 2 - (actor.system.__handsUsed ?? 0) - (globalThis.acksExtras.formation?.handsOccupied?.(actor.id).total ?? 0));
+  globalThis.acksExtras.equipment = {
+    spareHands: spare,
+    async grantGear(actor, specs) {
+      const missing = specs.filter((s) => !actor.items.some((i) => s.pattern.test(i.name)));
+      if (!missing.length) return [];
+      return actor.createEmbeddedDocuments(
+        "Item",
+        missing.map((s) => ({ name: s.name, type: "item", system: { quantity: { value: 1 } } })),
+      );
+    },
+    async clearHands(actor, needed) {
+      const released = [];
+      while (spare(actor) < needed && (actor.system.__handsUsed ?? 0) > 0) {
+        actor.system.__handsUsed -= 1;
+        released.push({ name: "Shield" });
+      }
+      return { handsSpare: spare(actor), released };
+    },
+  };
+
+  try {
+    // WITHOUT the override — the player path — nothing is conjured and the
+    // refusal stands, gear and hands both.
+    await engine.addLight(model.getFormation(id), "torch", pauper.id);
+    await drain();
+    assert.equal(onlyFormation().lights.length, 0, "a player declaration is still gated");
+    assert.equal(pauper.items.contents.length, 0, "no gear appears without the Judge's authority");
+
+    // WITH it, the same call lands: the torches arrive and a hand is emptied.
+    await engine.addLight(model.getFormation(id), "torch", pauper.id, { override: true });
+    await drain();
+    assert.equal(onlyFormation().lights.length, 1, "the Judge's light is lit");
+    assert.ok(pauper.items.find((i) => /torch/i.test(i.name)), "the torches were supplied");
+    assert.equal(pauper.system.__handsUsed, 1, "a hand was emptied to hold it");
+
+    // A lantern needs BOTH halves of its kit — the lamp and a flask of oil.
+    await engine.addLight(model.getFormation(id), "lantern", pauper.id, { override: true });
+    await drain();
+    assert.ok(pauper.items.find((i) => /^lantern$/i.test(i.name)), "the lantern was supplied");
+    assert.ok(pauper.items.find((i) => /oil/i.test(i.name)), "so was its oil");
+
+    // The mapper's kit: supplied the same way, and it fills BOTH hands.
+    await model.toggleRole(model.getFormation(id), pauper.id, "mapper", { override: true });
+    await drain();
+    assert.ok(
+      onlyFormation().members.find((m) => m.actorId === pauper.id)?.roles?.includes("mapper"),
+      "the Judge put them on the map",
+    );
+    assert.ok(pauper.items.find((i) => /quill/i.test(i.name)), "a quill was supplied");
+    assert.ok(pauper.items.find((i) => /parchment/i.test(i.name)), "so was parchment");
+    assert.equal(model.handsOccupied(pauper.id).mapping, 2, "mapping occupies both hands");
+
+    // Setting the role down gives the hands back.
+    await model.toggleRole(model.getFormation(id), pauper.id, "mapper");
+    await drain();
+    assert.equal(model.handsOccupied(pauper.id).mapping, 0, "hands come back when the role is set down");
+  } finally {
+    delete globalThis.acksExtras.equipment;
+  }
+
   await model.disband(model.getFormation(id));
   await drain();
 });

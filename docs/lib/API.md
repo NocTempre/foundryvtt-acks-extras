@@ -367,6 +367,7 @@ weigh" with its own type list, and they disagreed.
 const { isPhysical, isEquippable, isEquipped, weight6Of, weightStoneOf,
         physicalItems, equippedItems, setEquipped, STONE,
         isGoods, isStowable, isClothing, encumbering6,
+        hasStock, findCarried, carriesItem,
         isWearable, isWorn, slotsOf, declaresSlots, wornSlotOf, setWorn,
         gearOf, itemsInSlot, slotOverfilled } = acksExtras.lib.itemModel;
 ```
@@ -381,6 +382,12 @@ to match the system exactly rather than approximately.
 weight, so the schema probe alone loses it. `encumbering6` mirrors core's
 `computeEncumbrance` rule (clothing excluded), so anything summing a
 non-character's load matches what core computes for a character.
+
+`findCarried(actor, pattern)` / `carriesItem` answer "have they got one?" for
+every rule that demands a physical implement — a 10' pole to probe with, a quill
+to map with, a flask of oil to burn. Physical items only, so a proficiency whose
+NAME matches is never mistaken for the gear, and `hasStock` makes a bundle of
+nothing read as not carried.
 
 **Worn state has two stores and one read path.** Core owns `system.equipped` on
 `weapon` and `armor`; everything else records `flags["acks-extras"].gear.wornAt`,

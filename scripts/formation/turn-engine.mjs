@@ -1,5 +1,5 @@
 /* global game, foundry, ui, ChatMessage, Roll, fromUuid, Hooks */
-import { makeLoc, gmIds } from "../lib/util.mjs";
+import { announceChange, makeLoc, gmIds } from "../lib/util.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import {
   LIGHT_SOURCES,
@@ -10,8 +10,11 @@ import {
   TURN_SECONDS,
   TURNS_PER_DAY,
   WINDED_EFFECT_NAME,
+  lightGear,
 } from "./constants.mjs";
 import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, updateFormation } from "./formation-model.mjs";
+import { findCarried } from "../lib/item-model.mjs";
+import { equipForLight } from "./judge-override.mjs";
 
 /**
  * The dungeon-turn engine. Implements step 5 of the Judges Journal sequence of
@@ -555,27 +558,43 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
 /**
  * Light a new light source carried by a member, consuming a matching
  * inventory item (torch/candle: the item itself; lantern: a flask of oil).
+ *
+ * @param {object} [opts]
+ * @param {boolean} [opts.override] the Judge is GIVING them this light: supply
+ *   the gear they lack and empty a hand to hold it, rather than refusing. Set
+ *   from the DECLARING user's authority, never the executing client's — a
+ *   player's declaration runs on a GM client and must stay gated.
  */
-export async function addLight(formation, type, bearerId) {
+export async function addLight(formation, type, bearerId, { override = false } = {}) {
   const config = LIGHT_SOURCES[type];
   if (!config) return;
   const bearer = game.actors.get(bearerId);
   if (!bearer) return;
 
+  // The Judge's override runs FIRST, so every check below sees the character
+  // they meant to describe: gear in the pack, a hand free to hold the flame.
+  if (override) await equipForLight(bearer, type);
+
   // Two-way hand check (acks-equipment, optional): a light is held in hand, so
   // lighting one needs a free hand. Degrade-gracefully — no equipment module,
-  // no check. This is the reverse of heldLightCount: equipment counts a held
+  // no check. This is the reverse of handsOccupied: equipment counts a held
   // light as a used hand, and here we refuse to light with none to hold it.
   //
-  // BLOCKING BY DESIGN. Sheathe or stow something first; acks-equipment's own
-  // sheet controls (drawItem/sheatheItem) are where a hand is freed. Only the
-  // call is defended — a companion module throwing must never break a core
-  // mutation, and an unreadable hand count means no check, not a refusal.
+  // BLOCKING BY DESIGN for a player. Sheathe or stow something first;
+  // acks-equipment's own sheet controls (drawItem/sheatheItem) are where a hand
+  // is freed. Only the call is defended — a companion module throwing must never
+  // break a core mutation, and an unreadable hand count means no check, not a
+  // refusal.
+  //
+  // ROOM, not free hands: a lone sword widens to a two-handed grip whenever a
+  // hand is going spare and gives it straight back for the torch, so asking what
+  // is FREE would refuse a swordsman with an empty off hand.
   let freeHands;
   try {
-    freeHands = globalThis.acksExtras?.equipment?.freeHands?.(bearer);
+    const equipment = globalThis.acksExtras?.equipment;
+    freeHands = equipment?.spareHands?.(bearer) ?? equipment?.freeHands?.(bearer);
   } catch (err) {
-    console.error(`${MODULE_ID} | acks-equipment freeHands failed`, err);
+    console.error(`${MODULE_ID} | acks-equipment hand count failed`, err);
   }
   if (Number.isFinite(freeHands) && freeHands <= 0) {
     ui.notifications.warn(
@@ -583,34 +602,33 @@ export async function addLight(formation, type, bearerId) {
         ? game.i18n.format("ACKS-FORMATION.warn.noFreeHand", { bearer: bearer.name })
         : `${bearer.name} has no free hand to hold a light.`,
     );
-    return;
+    // Hands the override could not empty are full of lit sources, which
+    // sheathing cannot fix. Say so; do not stop a Judge over it.
+    if (!override) return;
   }
 
   // Equipment requirement (RR p265). "require" (default) blocks lighting without
-  // the gear; "warn" lights anyway with a warning; "off" ignores it. A torch/
-  // candle IS its own fuel; a lantern needs the lantern (holder, kept) AND a
-  // flask of oil (fuel, consumed). A torch supplied as an equipped WEAPON (it is
-  // both a light and a 1d4 weapon) is tolerated — quantity-bearing or not.
+  // the gear; "warn" lights anyway with a warning; "off" ignores it. The gear a
+  // light needs is the light table's to state (`lightGear`): a torch/candle IS
+  // its own fuel, while a lantern needs the lamp (kept) AND a flask of oil
+  // (consumed). A torch supplied as an equipped WEAPON (it is both a light and a
+  // 1d4 weapon) is tolerated — quantity-bearing or not.
   const enforcement = game.settings.get(MODULE_ID, "lightItemEnforcement");
   if (enforcement !== "off") {
-    const hasQty = (i) => (i.system?.quantity?.value ?? 1) > 0; // non-stackable weapon-torch counts as 1
-    const fuel = bearer.items.find((i) => config.consumes.test(i.name) && hasQty(i));
-    const missing = [];
-    if (config.holder) {
-      const holder = bearer.items.find((i) => config.holder.test(i.name));
-      if (!holder) missing.push(game.i18n.localize(config.label)); // the lantern device
-      if (!fuel) missing.push(game.i18n.localize(config.fuelLabel ?? config.label)); // a flask of oil
-    } else if (!fuel) {
-      missing.push(game.i18n.localize(config.label)); // the torch/candle itself
-    }
+    const gear = lightGear(type);
+    const fuel = findCarried(bearer, gear.find((g) => g.fuel).pattern);
+    const missing = gear
+      .filter((g) => !findCarried(bearer, g.pattern))
+      .map((g) => game.i18n.localize(g.label));
 
     if (missing.length) {
       const msg = game.i18n.has("ACKS-FORMATION.warn.needLightItem")
         ? game.i18n.format("ACKS-FORMATION.warn.needLightItem", { bearer: bearer.name, items: missing.join(", ") })
         : `${bearer.name} needs ${missing.join(", ")} to light this.`;
       ui.notifications.warn(msg);
-      if (enforcement === "require") return; // block — no proper equipment
-      // "warn": fall through and light anyway
+      // "require" blocks — unless the Judge overrode and the world simply had no
+      // such item to hand over. "warn" falls through and lights anyway.
+      if (enforcement === "require" && !override) return;
     }
 
     // Consume one unit of the FUEL, but only when it is a genuine STACK. A
@@ -672,17 +690,10 @@ export async function toggleShield(formation, lightId) {
 
 /**
  * Announce a light-state change so companion modules can react (acks-equipment
- * recomputes hands — a held light occupies one). The module previously fired no
- * custom hooks; this is the first, namespaced per the family rule. Best-effort:
- * a listener throwing must never break the light mutation.
+ * recomputes hands — a held light occupies one). Namespaced per the family rule.
  */
 function lightChanged(bearerId, light, state) {
-  try {
-    const bearer = game.actors.get(bearerId) ?? null;
-    Hooks.callAll("acksExtras.lightChanged", bearer, { bearerId, light, state });
-  } catch (err) {
-    console.error(`${MODULE_ID} | acksExtras.lightChanged listener failed`, err);
-  }
+  announceChange("acksExtras.lightChanged", game.actors.get(bearerId) ?? null, { bearerId, light, state });
 }
 
 /* -------------------------------------------- */

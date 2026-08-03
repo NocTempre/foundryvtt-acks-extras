@@ -11,13 +11,16 @@
  * ONE STORE, ONE READ PATH. `rollsOf()` is the only place anything asks an
  * ability what it rolls, and it folds core's singleton fields in on the way out
  * — so an item this module has never migrated still presents the same shape,
- * and roll #1 is not reached by different code than roll #3.
+ * and roll #1 is not reached by different code than roll #3. `writeRolls()` is
+ * its counterpart: the only place anything changes the set, so keys stay unique
+ * and an emptied list stays empty.
  *
  * Targets resolve against the CHARACTER, not the item: a rank ladder needs how
  * many times the proficiency was taken, a level ladder needs the actor's level.
  * A shared world item has neither, so it shows the ladder instead of a number.
  */
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
+import AbilityExtras from "./ability-extras.mjs";
 import { slug } from "../lib/vocab.mjs";
 
 /**
@@ -44,12 +47,24 @@ export function scalesFor(actor, item) {
 /**
  * Resolve a roll's target number, or null when it cannot be known here.
  * Delegates to acks-lib so the ladder semantics have one definition.
+ *
+ * A target is read at the roll's OWN scale. Animal Husbandry's diagnosis ladder
+ * is rated by rank, so reading it at the character's class level answers a
+ * question nobody asked — a 5th-level character who took the proficiency once
+ * would diagnose on the third rung. `scale` is what the sheet already labels the
+ * ladder with; it is what the ladder is read at too.
  */
 export function targetOf(roll, actor, item) {
   const resolve = globalThis.acksExtras?.lib?.resolveLevelValue;
-  if (!resolve) return roll?.target?.flat ?? null;
+  const target = roll?.target;
+  if (!resolve) return target?.flat ?? null;
   const scales = scalesFor(actor, item);
-  return resolve(roll?.target, scales.level, scales);
+  const at = scales[roll?.scale || "level"];
+  // A scale nothing here can supply (Arcane Value, Hit Dice — no consumer
+  // computes them yet). A flat target still answers; a ladder does not, and the
+  // sheet shows the whole ladder rather than a number read at the wrong rung.
+  if (at == null) return (target?.kind ?? "flat") === "flat" ? (target?.flat ?? null) : null;
+  return resolve(target, at, scales);
 }
 
 /**
@@ -88,6 +103,92 @@ export function rollsOf(item) {
 }
 
 /**
+ * The handle a roll answers to: its stored key, or its position when it has
+ * none. ONE rule, used by the sheet's buttons, by `rollAbility(item, key)` and
+ * by the editor — so a roll that predates the editor and carries no key is
+ * still reachable. Never gate a lookup on the stored key alone: clicking the
+ * third throw of a keyless import then rolled the first.
+ */
+export const keyOf = (roll, index) => roll?.key || `roll${index}`;
+
+/** `base`, suffixed until nothing in `taken` holds it. */
+function uniqueKey(base, taken) {
+  let key = base;
+  for (let n = 2; taken.has(key); n++) key = `${base}${n}`;
+  taken.add(key);
+  return key;
+}
+
+/**
+ * Give every roll a key that no other roll in the ability holds.
+ *
+ * A key that EXISTS is never rewritten. It is the handle a macro or an
+ * importing module holds, so renaming a throw must not silently retarget them;
+ * the label is what the reader identifies a roll by, the key is what code does.
+ * That is why the pass that KEEPS keys runs first and claims them all — filling
+ * a blank one from its label cannot then take a name a later roll was already
+ * answering to.
+ */
+function settleKeys(rolls) {
+  const settled = rolls.map((roll) => ({ ...roll }));
+  const taken = new Set();
+  for (const roll of settled) if (roll.key) roll.key = uniqueKey(roll.key, taken);
+  settled.forEach((roll, i) => {
+    if (!roll.key) roll.key = uniqueKey(slug(roll.label) || `roll${i}`, taken);
+  });
+  return settled;
+}
+
+/** A new, empty roll — what "add a roll" puts in the list. */
+export const blankRoll = () => ({
+  key: "",
+  label: "",
+  formula: "1d20",
+  rollType: "above",
+  target: { kind: "flat", flat: null },
+  scale: "level",
+  condition: "",
+  note: "",
+});
+
+/** Every roll, as a detached copy safe to mutate and hand back to writeRolls. */
+export const readRolls = (item) => foundry.utils.deepClone(rollsOf(item));
+
+/**
+ * Persist an ability's rolls — THE write path, the counterpart to rollsOf().
+ *
+ * Two things happen here that a bare setFlag would not do:
+ *
+ * Keys are settled before writing, so every roll has a unique handle whatever
+ * the caller assembled.
+ *
+ * An emptied list also resets core's singleton roll fields to their schema
+ * initials. rollsOf() folds those fields in when the store is empty, so
+ * deleting the last roll of an ability whose throw still lived there would
+ * resurrect it on the very next render. The initials are what the fold reads as
+ * "no roll", which is what the deletion just said.
+ */
+export async function writeRolls(item, rolls) {
+  const settled = settleKeys(rolls);
+  const raw = foundry.utils.deepClone(item.getFlag(MODULE_ID, FLAG_EXTRAS) ?? {});
+  raw.rolls = settled;
+  let cleaned;
+  try {
+    cleaned = AbilityExtras.normalize(raw);
+  } catch (err) {
+    console.error(`${MODULE_ID} | roll normalization failed; saving as-is`, err);
+    cleaned = raw;
+  }
+  const update = { [`flags.${MODULE_ID}.${FLAG_EXTRAS}`]: cleaned };
+  if (!settled.length) {
+    update["system.roll"] = "1d20";
+    update["system.rollTarget"] = 0;
+  }
+  await item.update(update);
+  return cleaned.rolls;
+}
+
+/**
  * Roll one of an ability's rolls and post the result.
  *
  * Success is reported only when a target is known. On a shared world item there
@@ -96,7 +197,7 @@ export function rollsOf(item) {
  */
 export async function rollAbility(item, key) {
   const rolls = rollsOf(item);
-  const roll = rolls.find((r) => r.key === key) ?? rolls[0];
+  const roll = rolls.find((r, i) => keyOf(r, i) === key) ?? rolls[0];
   if (!roll) return null;
   const actor = item.actor ?? null;
   const target = targetOf(roll, actor, item);
