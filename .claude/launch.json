@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "docs-site",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "docs/site", "run", "dev", "--", "--port", "4321"],
+      "port": 4321,
+      "url": "http://localhost:4321"
+    }
+  ]
+}

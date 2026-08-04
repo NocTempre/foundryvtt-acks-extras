@@ -1,0 +1,76 @@
+name: Docs site
+
+# Builds docs/site/ (Astro + Starlight) and publishes it to GitHub Pages at
+# https://noctempre.github.io/foundryvtt-acks-extras/
+#
+# MODULE-OWNED, not synced from acks-module-template — this repo is the only one
+# in the family with a site. If a second one grows one, promote this to the
+# template rather than copying it.
+#
+# The site derives its content from docs/, README.md, lang/en.json, scripts/ and
+# tools/pack-data.mjs, so there is deliberately no `paths:` filter: almost any
+# change to the module can change a published page, and a filter that is subtly
+# wrong publishes stale docs rather than failing loudly.
+#
+# Unrelated to release.yml, which fires on version tags. The site ships nothing
+# into module.zip — docs/ in its entirety is excluded from the release artifact.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer commit supersedes a queued one but never
+# cancels a deploy already in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: docs/site/package-lock.json
+
+      - name: Install site dependencies
+        working-directory: docs/site
+        run: npm ci
+
+      # `npm run build` runs tools/sync.mjs first, which stages the guides,
+      # screenshots and design tokens and regenerates the settings and
+      # compendium references. It exits non-zero if a setting key cannot be
+      # resolved or the gallery points at a missing screenshot, so a docs change
+      # that breaks either fails here rather than publishing quietly.
+      - name: Build
+        working-directory: docs/site
+        run: npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

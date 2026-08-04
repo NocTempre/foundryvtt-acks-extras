@@ -1,0 +1,18 @@
+# Astro build output and generated types
+dist/
+.astro/
+node_modules/
+
+# Everything tools/sync.mjs stages from the repo. These are COPIES — the
+# sources are docs/guides/, docs/releases/, docs/GALLERY.md, lang/en.json,
+# scripts/ and tools/pack-data/. Committing them would create the second
+# place a fact is stated, which is the one thing the docs tree forbids.
+src/content/docs/guides/
+src/content/docs/reference/settings.md
+src/content/docs/reference/compendia.md
+src/content/docs/start/what-this-is.md
+src/content/docs/start/install.md
+src/content/docs/start/getting-started.md
+src/assets/shots/
+src/styles/vendor/
+src/data/gallery.json

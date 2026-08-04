@@ -1,0 +1,416 @@
+/* ============================================================================
+ * ACKS II — Extras: the bridge between the module's design system and Starlight.
+ *
+ * This file MAPS; it does not define. Every colour and face comes from
+ * `vendor/acks-design/tokens.css` (staged next to this file by
+ * tools/sync.mjs), which is measured from the books and is the single source of
+ * truth for the family. Adding a hex here would fork the palette — measure it
+ * into the design system instead.
+ *
+ * ONE MAPPING SERVES BOTH THEMES. The ACKS tokens resolve per-theme on `<html>`
+ * (light on `:root`, dark on `:root[data-theme="dark"]`, which sync.mjs adds to
+ * the dark selector list) and Starlight stamps `data-theme` on that same
+ * element — so `--sl-color-bg: var(--acks-paper)` is already both themes. The
+ * one-element rule the tokens file warns about holds here: declaration and
+ * override land together, so derived `var()` tokens re-substitute correctly.
+ *
+ * Starlight's own rules sit in the `starlight.base` cascade layer. This file is
+ * unlayered, so it wins without needing `!important`.
+ * ========================================================================== */
+
+:root {
+  /* -- Palette ---------------------------------------------------------- */
+  --sl-color-accent: var(--acks-spot);
+  --sl-color-accent-low: var(--acks-tint);
+  --sl-color-accent-high: var(--acks-spot);
+
+  --sl-color-white: var(--acks-ink);
+  --sl-color-black: var(--acks-paper);
+  --sl-color-gray-1: var(--acks-ink);
+  --sl-color-gray-2: var(--acks-ink);
+  --sl-color-gray-3: var(--acks-ink-soft);
+  --sl-color-gray-4: var(--acks-ink-faint);
+  --sl-color-gray-5: var(--acks-tint-2);
+  --sl-color-gray-6: var(--acks-tint);
+  --sl-color-gray-7: var(--acks-paper-warm);
+
+  --sl-color-text: var(--acks-ink);
+  --sl-color-text-accent: var(--acks-spot);
+  --sl-color-text-invert: var(--acks-on-burgundy);
+  --sl-color-bg: var(--acks-paper);
+  --sl-color-bg-nav: var(--acks-paper);
+  --sl-color-bg-sidebar: var(--acks-paper);
+  --sl-color-bg-inline-code: var(--acks-tint);
+  --sl-color-bg-accent: var(--acks-burgundy);
+  --sl-color-hairline: var(--acks-rule-color-soft);
+  --sl-color-hairline-light: var(--acks-rule-color-soft);
+  --sl-color-hairline-shade: var(--acks-rule-color-soft);
+  --sl-color-backdrop-overlay: color-mix(in srgb, var(--acks-paper-deep) 55%, transparent);
+
+  /* Asides, mapped onto the palette's own semantic tokens rather than
+     Starlight's stock hues, which are outside the two-colour press look. */
+  --sl-color-orange: var(--acks-warning);
+  --sl-color-orange-low: var(--acks-warning-tint);
+  --sl-color-orange-high: var(--acks-warning-ink);
+  --sl-color-green: var(--acks-success);
+  --sl-color-green-low: var(--acks-success-tint);
+  --sl-color-green-high: var(--acks-success-ink);
+  --sl-color-red: var(--acks-danger);
+  --sl-color-red-low: var(--acks-danger-tint);
+  --sl-color-red-high: var(--acks-danger-ink);
+  --sl-color-blue: var(--acks-spot);
+  --sl-color-blue-low: var(--acks-tint);
+  --sl-color-blue-high: var(--acks-spot);
+  --sl-color-purple: var(--acks-gold-deep);
+  --sl-color-purple-low: var(--acks-warning-tint);
+  --sl-color-purple-high: var(--acks-gold-deep);
+
+  /* -- Type. Body is the books' body face; the UI face carries chrome. ---- */
+  --sl-font: var(--acks-font-body);
+  --sl-font-system: var(--acks-font-ui);
+  --sl-font-system-mono: var(--acks-font-mono);
+  --sl-line-height: var(--acks-lh-body);
+  --sl-line-height-headings: var(--acks-lh-tight);
+
+  /* -- The books are letterpress-flat. Keep them that way. ---------------- */
+  --sl-shadow-sm: none;
+  --sl-shadow-md: none;
+  --sl-shadow-lg: none;
+
+  --sl-content-width: 50rem;
+}
+
+/* The mark is a burgundy diamond; on dark paper it needs no inversion, but the
+   site title beside it is chrome and should read as banner lettering. */
+.site-title {
+  font-family: var(--acks-font-banner);
+  letter-spacing: var(--acks-tracking-banner);
+  font-weight: var(--acks-weight-bold);
+  color: var(--acks-spot);
+}
+
+/* ============================================================================
+ * HEADINGS — Trajan-style inscriptional caps, letterspaced as the books set them.
+ * ========================================================================== */
+
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6),
+.content-panel h1 {
+  font-family: var(--acks-font-display);
+  letter-spacing: var(--acks-tracking-display);
+  color: var(--acks-spot);
+  font-weight: var(--acks-weight-bold);
+}
+
+/* A section head sits under a hairline rule, as the page furniture does. */
+.sl-markdown-content h2 {
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  padding-bottom: var(--acks-sp-3);
+}
+
+/* ============================================================================
+ * PROSE
+ * ========================================================================== */
+
+.sl-markdown-content strong {
+  color: var(--acks-ink);
+  font-weight: var(--acks-weight-bold);
+}
+
+.sl-markdown-content a {
+  color: var(--acks-spot);
+  text-underline-offset: 0.15em;
+}
+
+.sl-markdown-content :is(code, kbd) {
+  font-size: 0.9em;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  border-radius: 0;
+  padding: 0.1em 0.35em;
+}
+
+.sl-markdown-content blockquote {
+  border-inline-start: var(--acks-rule) solid var(--acks-rule-color);
+  font-family: var(--acks-font-script);
+  font-size: var(--acks-fs-quote);
+  line-height: var(--acks-lh-quote);
+  color: var(--acks-ink-soft);
+}
+
+/* ============================================================================
+ * TABLES — the books' table head is a burgundy band with reversed lettering.
+ * ========================================================================== */
+
+.sl-markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+}
+
+.sl-markdown-content :is(th, td) {
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  vertical-align: top;
+  line-height: var(--acks-lh-snug);
+}
+
+.sl-markdown-content thead th {
+  background: var(--acks-banner);
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-banner);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  text-align: start;
+  border-color: var(--acks-burgundy-deep);
+}
+
+/* The README's requirements table is written with an empty header row, which
+   renders as a bare burgundy band with nothing in it. Collapse it. Scoped to an
+   empty FIRST cell so a table that merely leaves one label column blank keeps
+   its head. */
+.sl-markdown-content thead:has(th:first-child:empty) {
+  display: none;
+}
+
+/* Shaded alternating rows — the only fill the books use. */
+.sl-markdown-content tbody tr:nth-child(even) {
+  background: var(--acks-tint);
+}
+
+/* A table wider than the measure scrolls in its own box rather than pushing the
+   page sideways. */
+.sl-markdown-content > table,
+.sl-markdown-content .table-wrapper {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* ============================================================================
+ * FIGURES — the guides write `![shot](…)` followed by an italic caption
+ * paragraph. Style the pair as a plate rather than as two loose blocks.
+ * ========================================================================== */
+
+.sl-markdown-content p:has(> img:only-child) {
+  margin-block-end: var(--acks-sp-3);
+}
+
+.sl-markdown-content p:has(> img:only-child) > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  border-radius: 0;
+}
+
+.sl-markdown-content p:has(> img:only-child) + p > em:only-child {
+  display: block;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  line-height: var(--acks-lh-snug);
+  color: var(--acks-ink-soft);
+  border-inline-start: var(--acks-rule) solid var(--acks-rule-color-soft);
+  padding-inline-start: var(--acks-sp-4);
+}
+
+/* ============================================================================
+ * CHROME — sidebar, nav, pagination, asides.
+ * ========================================================================== */
+
+.sidebar-content {
+  font-family: var(--acks-font-ui);
+}
+
+.sidebar-content summary,
+.sidebar-content .large {
+  font-family: var(--acks-font-banner);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-label);
+}
+
+.sidebar-content a[aria-current="page"] {
+  background: var(--acks-banner);
+  color: var(--acks-on-burgundy);
+  border-radius: 0;
+}
+
+header.header {
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.sl-markdown-content .starlight-aside {
+  border-inline-start-width: var(--acks-rule-heavy);
+  border-radius: 0;
+}
+
+.sl-markdown-content .starlight-aside__title {
+  font-family: var(--acks-font-banner);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+}
+
+/* Details/summary, used by the compendium contents page. */
+.sl-markdown-content details {
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  border-radius: 0;
+  padding: var(--acks-sp-4) var(--acks-sp-5);
+  margin-block: var(--acks-sp-4);
+}
+
+.sl-markdown-content details > summary {
+  font-family: var(--acks-font-ui);
+  color: var(--acks-spot);
+  cursor: pointer;
+}
+
+/* Buttons and cards inherit the flat register. */
+:is(.action, .card, .sl-link-card, .starlight-aside) {
+  border-radius: 0 !important;
+}
+
+.action.primary {
+  background: var(--acks-banner);
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-banner);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  border: var(--acks-rule-hair) solid var(--acks-burgundy-deep);
+}
+
+.action.minimal {
+  font-family: var(--acks-font-ui);
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+/* The splash hero title, set at chapter-opener scale. */
+.hero h1 {
+  font-family: var(--acks-font-display);
+  letter-spacing: var(--acks-tracking-display);
+  color: var(--acks-spot);
+}
+
+.hero .tagline {
+  font-family: var(--acks-font-body);
+  color: var(--acks-ink-soft);
+}
+
+/* ============================================================================
+ * THE GALLERY — cards generated from docs/GALLERY.md by src/pages/gallery.astro.
+ * ========================================================================== */
+
+.acks-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+  gap: var(--acks-sp-7);
+  margin-block-start: var(--acks-sp-7);
+  padding: 0;
+  list-style: none;
+}
+
+.acks-gallery__item {
+  display: flex;
+  flex-direction: column;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  background: var(--acks-paper-pure);
+}
+
+.acks-gallery__figure {
+  margin: 0;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  background: var(--acks-tint);
+}
+
+.acks-gallery__figure a {
+  display: block;
+}
+
+.acks-gallery__figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.acks-gallery__body {
+  padding: var(--acks-sp-5) var(--acks-sp-6) var(--acks-sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  flex: 1;
+}
+
+.acks-gallery__title {
+  font-family: var(--acks-font-display);
+  letter-spacing: var(--acks-tracking-display);
+  font-size: var(--acks-fs-h2);
+  line-height: var(--acks-lh-tight);
+  color: var(--acks-spot);
+  margin: 0;
+}
+
+.acks-gallery__title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.acks-gallery__title a:hover {
+  text-decoration: underline;
+}
+
+.acks-gallery__shows {
+  font-family: var(--acks-font-body);
+  color: var(--acks-ink);
+  margin: 0;
+  flex: 1;
+}
+
+.acks-gallery__meta {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-ink-faint);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--acks-sp-4);
+  border-top: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  padding-top: var(--acks-sp-3);
+}
+
+/* ============================================================================
+ * A store row — the "where to buy" page's link list.
+ * ========================================================================== */
+
+.acks-buy {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: var(--acks-sp-6);
+  margin-block: var(--acks-sp-7);
+  padding: 0;
+  list-style: none;
+}
+
+.acks-buy > li {
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  padding: var(--acks-sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+}
+
+.acks-buy h3 {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  letter-spacing: var(--acks-tracking-display);
+  color: var(--acks-spot);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .acks-gallery__figure img {
+    transition: opacity var(--acks-duration) var(--acks-ease);
+  }
+  .acks-gallery__figure a:hover img {
+    opacity: 0.85;
+  }
+}

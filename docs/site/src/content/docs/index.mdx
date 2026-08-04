@@ -1,0 +1,103 @@
+---
+title: ACKS II — Extras
+description: Rules automation for the Adventurer Conqueror King System II in Foundry VTT — proficiencies and class powers, equipment and fighting styles, exploration formations, henchmen, influence, locations, and the full Monstrous Manual stat block.
+template: splash
+editUrl: false
+# Without this the tab reads "ACKS II — Extras | ACKS II — Extras", because the
+# page title and the site title are the same on the landing page alone.
+head:
+  - tag: title
+    content: ACKS II — Extras — rules automation for Foundry VTT
+hero:
+  tagline: Rules automation for the Adventurer Conqueror King System II in Foundry VTT. Seven feature areas over one set of shared primitives — and nothing you have to use.
+  image:
+    file: ../../assets/mark.svg
+  actions:
+    - text: See it working
+      link: /foundryvtt-acks-extras/gallery/
+      icon: right-arrow
+    - text: Install
+      link: /foundryvtt-acks-extras/start/install/
+      icon: down-arrow
+      variant: secondary
+    - text: GitHub
+      link: https://github.com/NocTempre/foundryvtt-acks-extras
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+## What it does
+
+ACKS II is a game about what your choices cost — a hand that is already full, a
+market that has only so many people in it this month, a torch with eleven turns
+left. This module keeps that bookkeeping honest so the table can spend its
+attention on the decisions instead.
+
+Every feature is opt-in through its own settings, and the defaults are RAW.
+
+<CardGrid>
+  <Card title="Equipment & fighting styles" icon="seti:pipeline">
+    Equip limits and a hand budget, fighting styles detected from what is
+    equipped, containers that carry their own encumbrance, ammunition and thrown
+    weapons. [Read the guide](/foundryvtt-acks-extras/guides/equipment/)
+  </Card>
+  <Card title="Exploration formations" icon="seti:folder">
+    The party as one token and one marching order, a ten-minute dungeon clock,
+    torches that burn down, and a scout who can range ahead.
+    [Read the guide](/foundryvtt-acks-extras/guides/formation/)
+  </Card>
+  <Card title="Henchmen & hirelings" icon="seti:crystal">
+    Availability rolled once a month for the whole town, paid recruitment
+    postings, hiring throws, loyalty and morale, wages and arrears.
+    [Read the guide](/foundryvtt-acks-extras/guides/henchmen/)
+  </Card>
+  <Card title="Proficiencies & class powers" icon="seti:plan">
+    An ability item with several throws instead of one, targets that scale with
+    level or rank, and rolls that pick up their own modifiers.
+    [Read the guide](/foundryvtt-acks-extras/guides/abilities/)
+  </Card>
+  <Card title="Influence & reactions" icon="seti:notebook">
+    A social roll with its whole modifier stack itemized before you commit, and
+    attitude tracked per subject.
+    [Read the guide](/foundryvtt-acks-extras/guides/influence/)
+  </Card>
+  <Card title="Places, storage & markets" icon="seti:db">
+    A Location actor that nests, holds goods attributed to their owners, and
+    optionally carries a recruitment market.
+    [Read the guide](/foundryvtt-acks-extras/guides/location/)
+  </Card>
+</CardGrid>
+
+## Start here
+
+<CardGrid>
+  <LinkCard
+    title="Feature gallery"
+    href="/foundryvtt-acks-extras/gallery/"
+    description="Every feature area in a screenshot from a live game, with the guide that explains it."
+  />
+  <LinkCard
+    title="Install"
+    href="/foundryvtt-acks-extras/start/install/"
+    description="The manifest URL, what it requires, and upgrading from the eight separate modules."
+  />
+  <LinkCard
+    title="Settings reference"
+    href="/foundryvtt-acks-extras/reference/settings/"
+    description="All 44 registrations — what each does, its default, and its scope."
+  />
+  <LinkCard
+    title="Where to buy ACKS II"
+    href="/foundryvtt-acks-extras/start/buying/"
+    description="The books this module draws on, and Foundry VTT itself."
+  />
+</CardGrid>
+
+:::note[Unofficial]
+This is an unofficial fan module, not published or endorsed by Autarch LLC. ACKS,
+ACKS II, and Adventurer Conqueror King System are trademarks of **Autarch LLC**,
+and ACKS II content is used under the ACKS II App License. The module ships no
+book text and is not a substitute for the books.
+:::

@@ -1,0 +1,72 @@
+---
+/**
+ * The feature gallery — one plate per feature area, generated from
+ * `docs/GALLERY.md` via `src/data/gallery.json` (staged by tools/sync.mjs).
+ *
+ * The repo already maintains that table as part of every release: what each
+ * shot shows, which guide explains it, and which release it was taken in.
+ * Reading it here keeps the published gallery and the repo's gallery one list.
+ * A row still pointing at an older release directory is a truthful statement of
+ * how stale that image is, so the release is printed rather than hidden.
+ */
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { Image } from "astro:assets";
+
+import gallery from "../data/gallery.json";
+
+type Shot = { default: ImageMetadata };
+const shots = import.meta.glob<Shot>("../assets/shots/**/*.png", { eager: true });
+
+const base = import.meta.env.BASE_URL;
+
+const plates = gallery.map((row) => {
+  const image = shots[`../assets/shots/${row.shot}`]?.default;
+  if (!image) throw new Error(`gallery: no staged screenshot for ${row.shot}`);
+  return { ...row, image, href: `${base}guides/${row.guide}/${row.anchor}` };
+});
+---
+
+<StarlightPage
+  frontmatter={{
+    title: "Feature gallery",
+    description:
+      "Every feature area of ACKS II — Extras, in a screenshot taken from a live game, with the guide that explains it.",
+    tableOfContents: false,
+  }}
+>
+  <p>
+    One plate per feature area. Every shot was captured during the live
+    verification of a release, from disposable fixtures built for the purpose —
+    never staged afterwards. Follow a plate through to the guide that explains it.
+  </p>
+
+  <ul class="acks-gallery">
+    {
+      plates.map((plate) => (
+        <li class="acks-gallery__item">
+          <figure class="acks-gallery__figure">
+            <a href={plate.href}>
+              <Image
+                src={plate.image}
+                alt={plate.shows}
+                widths={[480, 800, 1200]}
+                sizes="(min-width: 72rem) 30rem, (min-width: 50rem) 45vw, 90vw"
+                loading="lazy"
+              />
+            </a>
+          </figure>
+          <div class="acks-gallery__body">
+            <h2 class="acks-gallery__title">
+              <a href={plate.href}>{plate.feature}</a>
+            </h2>
+            <p class="acks-gallery__shows">{plate.shows}</p>
+            <p class="acks-gallery__meta">
+              <span>Shot in {plate.release}</span>
+              <a href={plate.image.src}>Full size</a>
+            </p>
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+</StarlightPage>

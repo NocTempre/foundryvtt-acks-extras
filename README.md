@@ -1,5 +1,7 @@
 # ACKS II — Extras
 
+### 📖 [Tutorials and feature gallery → noctempre.github.io/foundryvtt-acks-extras](https://noctempre.github.io/foundryvtt-acks-extras/)
+
 Rules automation for the **Adventurer Conqueror King System II** in Foundry VTT:
 proficiencies and class powers, equipment and fighting styles, exploration
 formations, henchmen and hirelings, influence and reactions, locations and

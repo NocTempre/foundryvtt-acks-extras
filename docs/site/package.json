@@ -1,0 +1,23 @@
+{
+  "name": "acks-extras-site",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Tutorial and feature-gallery site for ACKS II — Extras. Built from docs/, published to GitHub Pages; not part of module.zip.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "sync": "node tools/sync.mjs",
+    "dev": "npm run sync && astro dev",
+    "start": "npm run dev",
+    "build": "npm run sync && astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.6",
+    "astro": "^7.0.2",
+    "sharp": "^0.34.5"
+  }
+}
