@@ -42,7 +42,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Astro 7 requires >=22.12; the module's own toolchain only needs 20,
+          # so this pin belongs to the site and is deliberately not shared with
+          # the release workflow.
+          node-version: 22
           cache: npm
           cache-dependency-path: docs/site/package-lock.json
 

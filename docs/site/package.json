@@ -5,7 +5,7 @@
   "private": true,
   "description": "Tutorial and feature-gallery site for ACKS II — Extras. Built from docs/, published to GitHub Pages; not part of module.zip.",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "sync": "node tools/sync.mjs",
