@@ -154,6 +154,11 @@ stays there and the other repo points at it; a pointer is not duplication.
 - `docs/<feature>/wip/` — in-flight audits/plans/proposals only. When the work
   lands, its substance moves into the three above and the artifact is deleted.
   **Nothing permanent is named AUDIT, PLAN or PROPOSAL.**
+- `docs/site/` — the published Starlight site (GitHub Pages). It **stages** its
+  content from `docs/guides/`, `docs/GALLERY.md`, `README.md`, `lang/en.json`,
+  `scripts/` and `tools/pack-data.mjs`; every staged path is gitignored and
+  editing one is undone by the next `npm run sync`. Change the source. See
+  `docs/README.md` for the full mapping.
 
 **One feature-slug vocabulary**, shared by `docs/<feature>/`,
 `docs/releases/v*/<slug>.png` and `docs/guides/<slug>.md`. Never "henchmen" in
