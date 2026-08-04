@@ -247,3 +247,34 @@ own update.
 Live-verified on the test world: 43 leftovers removed, a second run reported
 "already clean" without prompting, and the world then loaded with zero console
 errors where it had previously thrown on every load.
+
+## 12. Single-branch development — RESOLVED (isolation off, guard on)
+
+The convention was always one branch. It read `Branch `main`; tags `v<semver>`.`
+— true, but stated as a fact about the repo rather than as an instruction, and
+nothing enforced it. Five `claude/*` branches and three worktrees accumulated
+under `.claude/worktrees/` anyway, none of them asked for.
+
+They were not hand-made. Background sessions default to worktree isolation
+(`worktree.bgIsolation`), so every task spun off from a background-task chip got
+its own worktree and a generated `claude/<adjective>-<scientist>-<hash>` branch.
+Work then landed there instead of on `main`, invisibly.
+
+The cost was not just untracked refs. A session working inside
+`.claude/worktrees/gallant-leavitt-73353f` rewrote the repo's own name to its
+worktree directory name in two places in CLAUDE.md — the Foundry junction target
+and the release manifest URL both became
+`.../NocTempre/gallant-leavitt-73353f/...`. A worktree names itself after
+nothing; anything keyed on "the current directory" inherits that.
+
+**Resolution.** `worktree.bgIsolation: "none"` in `.claude/settings.json` — the
+root cause, since it stops background sessions minting a branch at all.
+`.claude/hooks/single-branch-guard.mjs` covers what that setting does not: a
+PreToolUse hook denies `git checkout -b` / `switch -c` / `branch <name>` /
+`worktree add` (deletes, renames and listings pass), and a SessionStart hook
+warns any session whose cwd is under `.claude/worktrees/`. The convention line
+in CLAUDE.md is now an instruction with the guard named.
+
+**Rejected:** blocking the worktree at the `WorktreeCreate` event alone — it
+fires too late to stop the session that is already being placed there, and it
+would not catch a hand-typed `git checkout -b`.

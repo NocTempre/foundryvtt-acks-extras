@@ -28,5 +28,35 @@
       "Bash(curl -s https://api.github.com/repos/NocTempre/*)",
       "Bash(curl -sL https://github.com/NocTempre/*)"
     ]
+  },
+  "worktree": {
+    "bgIsolation": "none"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "if": "Bash(git *)",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/single-branch-guard.mjs\" pretool",
+            "statusMessage": "Checking branch convention"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/single-branch-guard.mjs\" session-start"
+          }
+        ]
+      }
+    ]
   }
 }

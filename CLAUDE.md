@@ -120,7 +120,13 @@ pass exactly the same gates.
 
 ## Conventions
 
-- Branch `main`; tags `v<semver>`.
+- **Single branch: `main`**; tags `v<semver>` are the only other refs. Never
+  create a branch or a worktree — not for a feature, not for a hotfix, not to
+  isolate a background task. Work in `C:\Proj\foundryvtt-acks-extras` on `main`.
+  A session whose cwd is under `.claude/worktrees/` is misplaced: its commits
+  land on a throwaway `claude/*` branch. Merge back to `main` and say so.
+  `.claude/hooks/single-branch-guard.mjs` denies the branch- and
+  worktree-creating git commands and warns a misplaced session at startup.
 - `compatibility` minimum 14 / verified 14.364; system `acks` minimum 14.
 - Every `relationships.requires` entry carries a `reason` and
   `compatibility.minimum` (lib-wrapper for wrapping, socketlib for GM-routed
