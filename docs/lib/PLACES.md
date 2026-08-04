@@ -8,7 +8,7 @@ and where are they kept".
 ## Why it lives here
 
 Same standing rule as the group and the storage primitive: shared machinery
-belongs in acks-lib (workspace `CLAUDE.md`; template `TOOLCHAIN.md` §6). Nesting,
+belongs in the lib subsystem (workspace `CLAUDE.md`; template `TOOLCHAIN.md` §6). Nesting,
 occupancy and stack-splitting are not specific to settlements — a wagon train, a
 dungeon level and a stronghold all want them, and the domains program will want
 them again. What is *not* here is anything that knows what a settlement is: the
@@ -29,10 +29,10 @@ Three documents therefore reduce to one node shape (`nodeOf`):
 |---|---|---|
 | `acks-extras.location` actor | `system.parentUuid` | embedded items stamped by storage |
 | any other storage **provider** actor | `flags.acks-extras.place.parentUuid` | embedded items stamped by storage |
-| acks-equipment **container item** | *derived* — carrier + `containedIn` | sibling items pointing at it |
+| the equipment feature **container item** | *derived* — carrier + `containedIn` | sibling items pointing at it |
 
 Three readers, one fact each, no copies. The container carries no parent of its
-own on purpose: acks-equipment already owns "what is this item inside of", and a
+own on purpose: the equipment feature already owns "what is this item inside of", and a
 second copy would drift the first time somebody moved a sack into a backpack.
 
 ```
@@ -79,7 +79,7 @@ duplicate. Both orderings are pinned by tests.
 ## Stacking, and how it differs from a group
 
 Eight identical warehouse bays are one actor until one becomes interesting —
-the laziness invariant of `acks-lib.group` (see [GROUPS.md](GROUPS.md)), applied
+the laziness invariant of `acks-extras.group` (see [GROUPS.md](GROUPS.md)), applied
 to places.
 
 The mechanism is **not** the same, and the difference is forced. A group's

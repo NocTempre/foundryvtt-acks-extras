@@ -1,4 +1,12 @@
 # Relationships — Attitude & Slander
+> **Pre-merge document (2026-08-04 note).** Written when these were separate
+> modules. `acks-lib`/`acks-abilities`/`acks-equipment`/`acks-formation`/
+> `acks-henchmen`/`acks-influence`/`acks-location`/`acks-monsters` are now
+> features of `acks-extras` under `scripts/<feature>/`, and `acks-content` is
+> `acks-importer`. Cross-module edges, `requires` relationships and
+> `apiVersion` handshakes described below no longer exist — read them as
+> cross-*feature* seams inside one repo. Runtime identifiers named here may
+> predate the flat `acks-extras` scope; check the code before relying on one.
 
 > **IN EFFECT** (accepted and implemented 2026-07-22). Describes shipped
 > behavior in acks-influence (attitude) and acks-henchmen (slander).
@@ -25,7 +33,7 @@ double-tallied across a party and its members.
 
 ## Part A — Attitude relationship (acks-influence)
 
-The `acks-influence.attitude` Item implements the edge.
+The `acks-extras.attitude` Item implements the edge.
 
 **Store** (`scripts/attitude-data.mjs`) — one Item on the influencer per target:
 `targetUuid` / `targetName` / `targetImg`, `attitude` (0–4 ladder),
@@ -93,7 +101,7 @@ town's, and the recruit-time query is location-scoped). The character/party end
 location actors and returns `[{ location, count }]`. A read helper, not a
 second store.
 
-**Consumer hook** `HOOKS.SLANDER_CHANGED` (`acks-henchmen.slanderChanged`)
+**Consumer hook** `HOOKS.SLANDER_CHANGED` (`acksExtras.slanderChanged`)
 fires on every registry write (refuse-and-slander, ledger add/remove).
 
 ---

@@ -1,4 +1,12 @@
 # Abilities Integration Audit (2026-07-19, v0.18.4)
+> **Pre-merge document (2026-08-04 note).** Written when these were separate
+> modules. `acks-lib`/`acks-abilities`/`acks-equipment`/`acks-formation`/
+> `acks-henchmen`/`acks-influence`/`acks-location`/`acks-monsters` are now
+> features of `acks-extras` under `scripts/<feature>/`, and `acks-content` is
+> `acks-importer`. Cross-module edges, `requires` relationships and
+> `apiVersion` handshakes described below no longer exist — read them as
+> cross-*feature* seams inside one repo. Runtime identifiers named here may
+> predate the flat `acks-extras` scope; check the code before relying on one.
 
 Audit of how acks-formation interfaces with abilities, against the three-module
 abilities program: **acks-lib** (shared effect vocabulary), **acks-abilities**

@@ -7,11 +7,12 @@ object (rollable, effect-bearing) even before its full prose is streamed.
 
 - **Reuse**: the core `ability` item (name, description, proficiencytype,
   roll/rollType/rollTarget, requirements, save) and its sheet; the shared
-  effect vocabulary + `LevelValue` + field-builders from **acks-lib** (`requires`).
+  effect vocabulary + `LevelValue` + field-builders from **the `lib` subsystem**
+  (`scripts/lib/vocab.mjs`, `fields.mjs` — a direct import, not a module dependency).
 - **Extend**: `flags["acks-extras"].extras` — an `AbilityExtras` DataModel
   (blank numerics `null`, never 0): `category`, `general`, `repeatable`,
   `powerValue`, `deprecated`, `requires`, a `choice` branch, `effects[]` (the
-  acks-lib typed primitives), and `defenses` (immunity/resistance/susceptibility).
+  lib's typed primitives), and `defenses` (immunity/resistance/susceptibility).
 - **Enhance**: an alternate ability sheet — Description, **Rolls**, **Mechanics**
   (Foundry's own Active Effects folded into the last of these).
 - **Invent**: nothing the system provides is duplicated.

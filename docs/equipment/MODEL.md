@@ -1,27 +1,33 @@
-# acks-equipment — Data Model & Integration Contract
+# Equipment — Data Model & Integration Contract
 
-How this module stores data, the Active-Effect contract it reads, the API it
-exposes, and where its responsibilities end. Companion to `acks-rules/acks-equipment/RULES.md` (the
-RAW source of truth behind the code enums).
+How this feature stores data, the Active-Effect contract it reads, the API it
+exposes, and where its responsibilities end. Companion to
+`acks-rules/acks-equipment/RULES.md` (the RAW source of truth behind the code
+enums; local-only, never in the repo).
 
 ## 1. Design rules
 
-- **Core is frozen.** The module never edits the `acks` system source. It reads
+- **Core is frozen.** The feature never edits the `acks` system source. It reads
   core item/actor data and writes only its own flags plus one managed Active
   Effect that targets real core `system.*.mod` fields.
 - **Reuse core fields.** Always-on modifiers are written into the fields core
   already sums (`system.aac.mod`, `system.initiative.mod`,
   `system.thac0.mod.melee/missile`, `system.damage.mod.melee`) so
-  `computeAC`/`rollAttack` consume them with no patch. Per-attack modifiers that
-  cannot be static are injected by a libWrapper wrap on `rollAttack`/`rollWeapon`
-  (Phase 3), documented as a handoff to a proposed core `acks.preRollAttack` hook.
+  `computeAC`/`rollAttack` consume them with no patch.
+- **One owner per wrapped core method.** `rollAttack` is owned by
+  `scripts/lib/patches/attack-roll.mjs`, which remodels it as target-vs-bonus-stack
+  and fires a pre-roll hook carrying the mutable term stack — that hook is the seam
+  for per-attack modifiers that cannot be static. This feature's own libWrapper
+  registration is `computeEncumbrance` and nothing else
+  (`scripts/equipment/roll-wrap.mjs`); a second registration against the same
+  target fails `tools/validate-extra.mjs`.
 - **Single responder.** Loadout writes (auto-unequip, effect sync) run on exactly
   one client — the active GM if online, else the actor owner — to avoid duplicate
-  effects (`enforce.primaryResponder`). Phase 4 upgrades this to socketlib routing.
+  effects (`enforce.primaryResponder`).
 - **Data-driven, not name-driven.** Proficiency mechanics live as Active-Effect
-  changes keyed `flags.acks-extras.<domain>` on `ability` items, read by the
-  collector in `effects.mjs` (mirrors acks-henchmen). Name matching is only a
-  last-resort fallback.
+  changes keyed `flags.acks-extras.<domain>` on `ability` items, read through the
+  shared effect-scan core in `scripts/lib/effect-scan.mjs` with this feature's
+  own domain list layered on top. Name matching is only a last-resort fallback.
 
 ## 2. Storage map
 
@@ -33,13 +39,13 @@ RAW source of truth behind the code enums).
 | Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by the annotate macro). |
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
-| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access}` — where this gear MAY sit, where it sits now, and the RAW cost of drawing from it. The model and its read path are acks-lib's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment). |
+| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access}` — where this gear MAY sit, where it sits now, and the RAW cost of drawing from it. The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment). |
 
 ## 3. Effect contract — `flags.acks-extras.<domain>`
 
 Numeric domains sum; CSV domains collect; boolean-ish domains test presence. Add
 `flags.acks-extras.condition` (i18n key/text) to an effect to mark its bonus
-**situational** → surfaced as a toggle in the pre-roll dialog (Phase 3).
+**situational** → surfaced as a toggle in the pre-roll dialog.
 
 | Domain | Kind | Consumed for |
 |---|---|---|
@@ -101,7 +107,7 @@ That grip is elective, so it commits nothing. Anything asking "can this characte
 take up one more object?" reads `handsSpare` (API: `spareHands`) — reading
 `handsFree` tells a swordsman with an empty off hand that he has no hands.
 
-`formationHands(actor)` is the one call into acks-formation for hands the party
+`formationHands(actor)` is the one call into the formation feature for hands the party
 sheet has already filled: lights borne, and the mapper's kit.
 
 ### Giving gear, and making room for it — `grant.mjs`
@@ -114,7 +120,7 @@ what it put away; it can fall short and says so, because hands full of lit
 torches are not freed by sheathing anything.
 
 Neither decides *whether* a character should be given anything. That is a rule,
-and it stays with the feature holding the rule — see acks-formation's
+and it stays with the feature holding the rule — see the formation feature's
 [judge-override](../formation/MODEL.md#the-judges-override).
 
 Hooks fired — prefixed with the camelCase namespace `acksExtras` per
@@ -130,36 +136,31 @@ and the shape proposed for a future core `acks.preRollAttack` — plus
 Pack document `_id`s carry the prefix declared in `module.json` at
 `flags.acks-extras.idPrefix` (validator enforces it once declared).
 
-## 5. Boundaries with sibling modules (in force)
+## 5. Boundaries with sibling features (in force)
 
-- **acks-formation** owns encumbrance→speed, light/ration consumption. This
-  module never writes `system.movement.*` and never re-implements encumbrance;
-  it wraps `computeEncumbrance` (see §1) only to apply the RAW rules core's flat
-  sum gets wrong, so formation keeps reading one consistent core value.
-- **acks-henchmen** owns coin math. The purchase-from-market macro (not yet
-  built) reuses `game.modules.get("acks-extras").api.henchmen.adapter.spendGold/grantGold`
+- **formation** owns encumbrance→speed, light/ration consumption. This feature
+  never writes `system.movement.*` and never re-implements encumbrance; it wraps
+  `computeEncumbrance` (see §1) only to apply the RAW rules core's flat sum gets
+  wrong, so formation keeps reading one consistent core value.
+- **henchmen** owns coin math. The purchase-from-market macro (not yet built)
+  reuses `game.modules.get("acks-extras").api.henchmen.adapter.spendGold/grantGold`
   rather than re-implementing denomination handling.
-- **acks-monsters** owns gear storage and the `DAMAGE_TYPES`/`NATURAL_WEAPONS`
+- **monsters** owns gear storage and the `DAMAGE_TYPES`/`NATURAL_WEAPONS`
   enums, read raw/soft so a monster with no stat block still resolves. The classifier's `damageType`
   aligns to them.
-- **Surprise** determination + the `surprised` status are core's; this module
+- **Surprise** determination + the `surprised` status are core's; this feature
   only reads them (first-round interrupt helpers).
 
-## 6. Shared library (idea, not built)
+## 6. Shared library — BUILT (`scripts/lib/`)
 
-`build-packs.mjs`, the Active-Effect modifier collector, the DOM-injection
-idiom, and the `DAMAGE_TYPES` enum are duplicated across acks-* modules and are
-candidates for extraction. This module vendors its copies; extraction is a
-separate cross-module task, not a prerequisite for anything here.
+The Active-Effect modifier collector, the DOM-injection idiom and the
+`DAMAGE_TYPES` enum were duplicated across the pre-merge modules. They are now
+single implementations under `scripts/lib/` — see [`docs/lib/MODEL.md`](../lib/MODEL.md)
+— and this feature layers on them rather than vendoring copies. `build-packs.mjs`
+is a synced template file with one `tools/pack-data.mjs` behind it.
 
-> **Not in effect — future planning.** The template repo carries a *proposal*
-> (`docs/FAMILY.md`, `docs/REFACTOR_PLAN.md`) for a strict family hierarchy in
-> which a new required `acks-lib` becomes the only permitted inter-module edge
-> and the boundaries in §5 are re-mediated through it. **It is a proposal only:
-> `docs/TOOLCHAIN.md` remains the only canon in force, and no phase of it runs
-> without the maintainer's explicit go-ahead.** Nothing in this module should be
-> restructured against it, and §5 above stays authoritative until a phase
-> actually lands.
+Overrides of core logic default to `lib`; this feature patches core directly only
+where the behavior is unique to equipment, and §1 says which and why.
 
 ## 2026-07-24 — containers live on the sheet; locks roll the character's own proficiency
 
@@ -184,7 +185,7 @@ must genuinely stay secret belongs on a GM-owned actor.
 bashing a chest because it has not read one off anyone's page (scans locate,
 recipes interpret — a fabricated target is worse than no automation). `locks.mjs`
 finds the character's own Lockpicking or Dungeon Bashing item and rolls it
-through acks-abilities' roller, so the number comes from the reader's book by
+through the abilities feature's roller, so the number comes from the reader's book by
 the same path every other proficiency throw does. Missing proficiency, missing
 roller, or an ability with no throw are all reported as such and left to the
 table. Proficiency names are matched on a normalised prefix, because the shipped

@@ -1,35 +1,57 @@
-# acks-lib API (v0.7)
+# lib API (apiVersion 12)
 
-`acks-lib` is the family's shared-primitives library. **Scope is the
-effect/ability vocabulary** the abilities program needs, the scoping
-primitives the social rolls need (v0.6), and — pulled forward by the table
-extraction program (template docs/CONTENT-EXTRACTION.md) — the **layered
-tables registry, the service-contract registry, and the ruledata loader**
-(v0.7). Still *not* here from [FAMILY.md](https://github.com/NocTempre/acks-module-template/blob/main/docs/FAMILY.md)
-§3: the socket relay and sheet helpers (Phase 1 backlog); §3c's
-`economy.json` is **superseded** — no book-read value ships in the lib.
-`library: true`, `socket: false`, requires only the `acks` system.
+`lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
+every other feature is allowed to depend on, and the one place overrides of core
+logic belong — a feature patches core directly only where the behavior is unique
+to its own domain.
+
+It was `acks-lib`, a separate module, until the 2026-08-01 merge. Nothing about
+it is a *dependency* any more: features import it directly
+(`import … from "../lib/vocab.mjs"`), which is what makes a moved surface fail at
+load instead of degrading into silence. There is no `requires` edge, no
+installed-but-disabled case, and `apiVersion` is an informational stamp rather
+than a handshake — a feature and the lib always ship at the same version.
+
+Scope: the effect/ability vocabulary and DataModel field-builders, the scoping
+primitives the social rolls need, the layered tables registry, the
+service-contract registry, the ruledata loader, the core patch layer, and the
+actor sub-types the module owns. **No book-read value ships here or anywhere
+else in the repo.**
 
 ## Exposure
 
-- `globalThis.acksExtras.lib` — assigned at module evaluation via the
-  core-deferral shim `game.acks?.lib ?? localImpl`; re-affirmed at `init`.
-- `game.modules.get("acks-extras").api.lib` — the same object (`api` is the
-  whole namespace; the lib surface hangs off its feature key).
-- Node/offline tooling imports the files directly (sibling-relative), e.g.
+- `globalThis.acksExtras.lib` — assigned at module evaluation; re-affirmed at
+  `init`. The `game.acks?.lib ?? localImpl` shim stays in place so that if a
+  surface is ever upstreamed into the `acks` system, consumers defer to core
+  without changing.
+- `game.modules.get("acks-extras").api.lib` — the same object. **`api` is the
+  whole namespace, never a feature — always drill in.**
+- Node/offline tooling imports the files directly, e.g.
   `import { resolveLevelValue } from "../scripts/lib/vocab.mjs"`.
 
 ```
 acksExtras.lib = {
-  apiVersion: 3,
-  vocab,               // scripts/vocab.mjs — enums + resolvers (Foundry-free)
-  fields,              // scripts/fields.mjs — DataModel field-builders (Foundry-only)
+  apiVersion: 12,
+  // --- primitives ---
+  vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
+  fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only)
   resolveLevelValue,   // (levelValue, level, scales?) → number | null
-  tables,              // scripts/tables.mjs — layered rules-table registry (Foundry-free)
-  services,            // scripts/services.mjs — named-contract registry (Foundry-free)
-  loadRuledata,        // scripts/ruledata.mjs — fetch+register a module's ruledata (Foundry-only)
+  tables,              // lib/tables.mjs — layered rules-table registry (Foundry-free)
+  services,            // lib/services.mjs — named-contract registry (Foundry-free)
+  loadRuledata,        // lib/ruledata.mjs — register table documents (Foundry-only)
+  // --- patch layer ---
+  acksCompatStubs, savingThrowFields,
+  // --- owned actor sub-types ---
+  AnimalData, ANIMAL_TYPE,
+  GroupData, GROUP_TYPE, groups,
+  TemplateData, TEMPLATE_TYPE, templateLogic,
+  // --- domain surfaces ---
+  mount, senses, light, perception, storage, places, itemModel, …
 }
 ```
+
+`scripts/lib/module.mjs` is the authoritative list; the trailing group above is
+elided. Every path is under `scripts/lib/`.
 
 ## `tables` — layered rules-table registry (Foundry-free)
 
@@ -62,8 +84,8 @@ defined HERE, never by module ids.
 
 ### Contract `ruledata-import` v1
 
-Provider: the location-domain binding target (acks-location). Consumers:
-content import flows (acks-content). Shape:
+Provider: the location-domain binding target (the location feature). Consumers:
+content import flows (acks-importer). Shape:
 
 ```
 {
@@ -80,7 +102,7 @@ and import UIs say "no import target installed".
 
 ### Contract `ability-provider` v1
 
-Provider: the content binding (acks-content). Consumers: anything that
+Provider: the content binding (acks-importer). Consumers: anything that
 embeds proficiency/power items on an actor from name tokens (henchmen's
 hire-time occupation packages). Shape:
 
@@ -102,7 +124,7 @@ on the embedded copy's name only. No provider ⇒ consumers skip granting.
 Enum objects are `{ key: { label, … } }`; `vocab.choicesOf(enumObj)` maps them
 to `{ key: label }` for DataModel `choices`.
 
-- **Shared with acks-monsters** (value-identical mirror until its deferred
+- **Shared with the monsters feature** (value-identical mirror until its deferred
   migration): `DAMAGE_TYPES`, `MOVEMENT_TYPES`, `VISION_TYPES`, `SENSE_TYPES`,
   `NATURAL_WEAPONS`, `ALIGNMENTS`.
 - **Ability effect model** (new): `ABILITY_CATEGORIES`, `EFFECT_TYPES`,
@@ -237,12 +259,12 @@ definition). Leaf helpers `num/str/bool/html/choice/choiceSet`, plus:
   system's existing spell item. See *Not yet consumed* below.
 - `defensesField()` — `{ immunities, resistances, susceptibilities }`, each
   `{ damage:Set, effects:Set, conditions:Set, mundane, extraordinary }`
-  (the shape acks-monsters' defenses adopt on migration).
+  (the shape the monsters feature’s defenses adopt on migration).
 - `speedsField()` / `sensesField()` / `visionField()` — Speed/Senses/Vision
   shapes shared with the monster sheet.
 - `effectField()` / `effectsField()` — one typed effect primitive (wide
   all-optional schema discriminated by `type` ∈ `EFFECT_TYPES`) and the array of
-  them. This is what acks-abilities stores as an ability's `effects[]`.
+  them. This is what the abilities feature stores as an ability's `effects[]`.
 
 ### Relational effects — requires / grants / modifies, stacking and chaining
 
@@ -284,7 +306,7 @@ them today; treat a change here as cheap until magic lands.
 - **`VALUE_SCALES.arcaneValue` / `.divineValue` + `conditional` LevelValue.** A
   custom-class power can cost differently by the class's spellcasting value
   ("1 power at Arcane Value 1–2, 2 at Arcane Value 3–4"). The resolver handles
-  it; acks-abilities still stores a plain numeric `powerValue`. **TODO(magic):**
+  it; the abilities feature still stores a plain numeric `powerValue`. **TODO(magic):**
   move `powerValue` onto `levelValueField()`.
 - **`spellRefField()`.** Points at the core system's spell item by uuid with the
   printed name as a fallback — enough to link and display, but it models nothing
@@ -294,16 +316,24 @@ them today; treat a change here as cheap until magic lands.
 
 ## Versioning
 
-Semver + `apiVersion`. Additive enum/field growth is a minor bump; a shape
-change to an existing field is a major bump with coordinated consumer updates.
-Consumers pin `compatibility.minimum` on their `requires acks-lib`.
+`apiVersion` is bumped when this surface changes shape, and it is informational:
+the lib and its callers are one module at one version, so nothing pins a minimum
+against it. It matters to **`acks-importer`**, which is a separate repo reading
+this surface across the family's one dependency edge — before tagging the
+importer against a symbol here, that symbol must exist in `acks-extras` HEAD
+*and* in its released tag.
 
-## Patch layer (v0.10) — what the library adds to the system
+The `(v0.x)` markers throughout this page are the pre-merge `acks-lib` release
+that first shipped a surface. They are provenance, not anything to check a
+version against.
 
-The acks system is an **unmodifiable reference**. Anything the family needs
-that it does not provide lands here, once. A module patches core directly only
-for behaviour unique to its own domain (e.g. acks-abilities owns the ability
-roll path); everything shared is here.
+## Patch layer — what the lib adds to the system
+
+The acks system is an **unmodifiable reference**. Anything the module needs that
+it does not provide lands here, once. A feature patches core directly only for
+behaviour unique to its own domain (the abilities feature owns the ability roll
+path); everything shared is here. One owner per wrapped core method —
+`tools/validate-extra.mjs` fails on a second registration against one target.
 
 ### `acksCompatStubs()` / `savingThrowFields()`
 
@@ -313,14 +343,14 @@ roll path); everything shared is here.
 module actor with an incomplete schema aborts the system's own ready work.
 
 Spread `acksCompatStubs()` into any module actor sub-type's `defineSchema()`.
-Four copies of this existed across acks-domains, acks-formation and
-acks-henchmen before it moved here; a system patch four modules maintain
+Four copies of this existed across acks-domains, the formation feature and
+the henchmen feature before it moved here; a system patch four modules maintain
 separately is one system update away from three of them being wrong.
 
 `savingThrowFields()` is separate, for a sub-type that genuinely saves — same
 field paths and initials as the system's own `SavingThrowsTemplate`.
 
-### `acks-lib.animal` — the animal/monster bridge
+### `acks-extras.animal` — the animal/monster bridge
 
 An animal is a monster you can also buy, load and ride. `AnimalData` mirrors the
 monster's field paths (`hp`, `aac`, `thac0`, `movement`, `saves`,
@@ -351,9 +381,9 @@ holds the rider and an encumbrance calculation holds the animal, and searching
 every actor for the other end on each read is not viable. Both readers verify
 the far end still agrees, so a half-broken pair reads as "not mounted" rather
 than throwing. Hooks: `acksLibMounted`, `acksLibDismounted`. A mount need not be
-an `acks-lib.animal` — in ACKS plenty of people ride monsters.
+an `acks-extras.animal` — in ACKS plenty of people ride monsters.
 
-This exists because acks-equipment's mounted-combat overlay was blocked on
+This exists because the equipment feature’s mounted-combat overlay was blocked on
 there being any mounted state in the system at all.
 
 ### `itemModel` — the shared item baseline
@@ -422,7 +452,7 @@ of what is really where.
 
 A **provider** is any actor carrying `flags.acks-extras.storage.provider`; a
 personal vault also carries `vaultOf: <owner uuid>`. This library deliberately
-does not know what a "location" is — acks-location's settlement, acks-henchmen's
+does not know what a "location" is — the location feature’s settlement, the henchmen feature’s
 market actor and the carts a later pass turns into base camps are all just actors
 with the flag, so `setProvider(actor)` is the whole of "this can hold goods now".
 
@@ -430,7 +460,7 @@ with the flag, so `setProvider(actor)` is the whole of "this can hold goods now"
 deleting from the source: a half-finished move duplicates goods rather than
 destroying them, and the source half failing triggers a compensating delete (with
 a loud error if even that fails). Arrivals are normalised — nothing arrives
-equipped, the retired `quantitybank` never travels, and acks-equipment's
+equipped, the retired `quantitybank` never travels, and the equipment feature’s
 `containedIn` pointers are remapped when a container travels with its contents
 and stripped when it does not. `spec` is `[{id, quantity?}]` — omit `quantity`
 for the whole stack.
@@ -457,14 +487,14 @@ a record. Hooks: `acksLibStorageStashed`, `…Retrieved`, `…Moved`, `…Return
 
 **Attribution is a UI convention, not a security boundary.** `ownerUuid` lets
 sheets group and gate rows; a player with ownership of a shared location can
-still reach every item on it from the console — the same ruling acks-equipment
+still reach every item on it from the console — the same ruling the equipment feature
 makes for containers. Anything that must genuinely stay secret belongs on a
 GM-owned actor.
 
 `providersFor(actor)` scans the world's actors once; call it per render and share
 the result rather than per row.
 
-### `acks-lib.template` — the generator actor (v0.16)
+### `acks-extras.template` — the generator actor (v0.16)
 
 The MM's "characteristics by rank/age/tier" creatures (dragon, cacodemon,
 elemental) have no stat block — every cell points at tables on the following
@@ -473,7 +503,7 @@ standing alone. `TemplateData` holds that procedure as a document: AXES whose
 options carry **engine-ready patches** (`system.*` fragments, embedded-item
 payloads, name pieces, art paths, description snippets), N-dimensional `cells`
 refinements, and a rolled special-ability `menu`. The importing module
-(acks-content) materializes all of it from the reader's own book; this library
+(acks-importer) materializes all of it from the reader's own book; this library
 never interprets book content — a bookless template has empty axes and the
 sheet says so instead of offering an empty Generate.
 

@@ -1,7 +1,7 @@
-# acks-henchmen — Data Model & Integration Contract
+# Henchmen — Data Model & Integration Contract
 
-How the module stores data, how proficiencies/powers plug in, and how other
-modules extend it. Companion to the local rules extract
+How this feature stores data, how proficiencies/powers plug in, and how other
+features extend it. Companion to the local rules extract
 (`acks-rules/acks-henchmen/RULES.md`, kept outside the repo).
 
 ## 1. Design rules
@@ -14,10 +14,13 @@ modules extend it. Companion to the local rules extract
   quantity}` set and are pushed into the employer's `system.henchmenList` by
   core `addHenchman` — the stock Hirelings tab keeps working.
 - Module-owned data lives in **module flags** (hirelings) or a **module actor
-  sub-type** (locations). Rules math is pure (`scripts/rules/`), fed by
-  book-cited JSON in `ruledata/`.
+  sub-type** (locations). Rules math is pure (`scripts/henchmen/rules/`), fed by
+  table documents read through `acksExtras.lib.tables`. **No table ships**: a
+  world gets its numbers by importing them from the GM's own book through
+  `acks-importer`, and the feature shows a stub plus an import pointer until it
+  has them.
 
-## 2. The `acks-henchmen.location` actor sub-type
+## 2. The `acks-extras.location` actor sub-type
 
 One actor per settlement (see `scripts/data/location-data.mjs`):
 
@@ -90,12 +93,12 @@ Effect-level metadata (on the effect's own flags, `flags["acks-extras"]`):
 - `target` — scope note appended to the label (e.g. "animals").
 - `label` — display override (defaults to the effect/item name).
 
-Interop: hiring rolls **also honor acks-influence's**
+Interop: hiring rolls **also honor the influence feature’s**
 `flags.acks-extras.reaction` effects (with their `situational`/`tone`/
 `label` flags). Fallback: items named like classic proficiencies with no
-acks-henchmen changes are recovered via `config.mjs > NAME_FALLBACKS`
+the henchmen feature changes are recovered via `config.mjs > NAME_FALLBACKS`
 regexes (Leadership, Command, Blood of Kings, Diplomacy…); an item with any
-acks-henchmen effect change opts out of name matching. Bribery is detected by
+the henchmen feature effect change opts out of name matching. Bribery is detected by
 name to select the cheaper signing-bonus scale.
 
 The compendium pack `proficiencies-powers` ships ready-made items carrying
@@ -119,7 +122,7 @@ apps (`openPostingDialog`, `openRecruitDialog`, `openThrowDialog`…), engine
 `checkHenchmanLimit`, candidate rollers), `getRecord(actor)`, pure `rules.*`,
 `tables`, `adapter`, `effects`, `time`.
 
-Hooks fired (`Hooks.on("acks-henchmen.<event>", …)`): `postingCreated`,
+Hooks fired (`Hooks.on("acksExtras.<event>", …)`): `postingCreated`,
 `candidatesArrived`, `candidateRolled`, `hiringOutcome`, **`hired`**
 (`{employer, actor, location, record, candidate}` — the class-autogen
 module's entry point), `loyaltyEvent`, `loyaltyRolled`, `calamity`,

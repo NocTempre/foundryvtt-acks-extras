@@ -26,7 +26,7 @@ The formation record holds the state; the party actor exists so the party can
 have a token. Its schema is the compatibility stub every non-character sub-type
 needs, so the acks system's unguarded per-actor compute (`isNew`, `thac0`,
 initiative, movement, `saves.implements|wand`) does not error on it. That stub has
-one home: acks-lib's `acksCompatStubs()`.
+one home: the lib subsystem's `acksCompatStubs()`.
 
 **A party does not save; its members do.** The six saves the party actor used to
 carry were never read — `rollPartySave` reads each member's own — so folding to
@@ -75,7 +75,7 @@ The GM can overturn what the automation decided, so the card has to be theirs.
 ### The ladders come from the GM's own book (2026-07-19)
 
 This feature ships no skill ladder. Every number resolves from the world's
-imported copy of a skill, by way of acks-content:
+imported copy of a skill, by way of acks-importer:
 
 1. an explicit `thiefSkill` flag names the skill to scale as — the GM's binding,
    so it is consulted first;
@@ -87,7 +87,7 @@ imported copy of a skill, by way of acks-content:
 Anything else returns null and the caller falls back to the sheet's roll target.
 
 **Attunement to Nature is +4 with Listening, not +2** — verified against JJ p.311
-and authored into the acks-content register on 2026-07-19. It is deliberately not
+and authored into the acks-importer register on 2026-07-19. It is deliberately not
 an alias of Alertness precisely because the value differs.
 
 A binding the world can no longer resolve still lists itself, so the GM sees
@@ -126,7 +126,7 @@ their own choice rather than a silently blank select.
     or hands full of lit torches that sheathing cannot free) it warns and lets
     the action through. Rejected: falling back to the old refusal, which is a
     Judge being told "no" in a smaller voice.
-  - The two mutations live in acks-equipment (`grantGear`, `clearHands`) because
+  - The two mutations live in the equipment feature (`grantGear`, `clearHands`) because
     both are equipment facts; this feature keeps only the rule about what a
     light or a role *needs*. Missing the equipment feature supplies nothing
     rather than throwing.

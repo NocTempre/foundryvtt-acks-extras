@@ -19,7 +19,7 @@ Entries are dated and append-only. A superseded entry stays, marked.
   exists. `NATURAL_WEAPONS` here is the superset, carrying the monster sheet's
   sting / feeler / envelopment.
 - **Foundry-free split:** `vocab.mjs` (enums + resolver) imports in Node so the
-  acks-content cookbook compiler/executor share one definition; `fields.mjs`
+  acks-importer cookbook compiler/executor share one definition; `fields.mjs`
   (Foundry field-builders) is lazy so the module still evaluates under Node.
 
 - **Storage lands in the library, keyed on a flag rather than a type**
@@ -46,7 +46,7 @@ Entries are dated and append-only. A superseded entry stays, marked.
   (`vendor/acks-design/tokens.css`, `:root` + one `.theme-dark` block) is the
   ONLY place `--acks-*` palette values are declared, and it loads
   unconditionally — inert values style nothing by themselves, and every
-  dependent module `requires` acks-lib, so consumers read tokens BARE
+  feature ships in the same module, so consumers read tokens BARE
   (`var(--acks-spot)`, no literal fallback; a fallback masks a missing token,
   which is exactly how `--acks-field` shipped undeclared and rendered white
   boxes on dark seats). Before this, sheet-theme.css pinned ~18 token copies at
@@ -144,7 +144,7 @@ character sheet (and the equipment feature's whole technique is moving core's ow
 rows into wear buckets); `computeEncumbrance` sums `item`/`weapon`/`armor` by
 name, so it would weigh nothing; core's inventory template draws the equip toggle
 in the weapons and armours sections only; and every existing world, both core
-gear packs, the importer and acks-content produce core types, so adopting them
+gear packs, the importer and acks-importer produce core types, so adopting them
 means a destructive per-document `type` rewrite. That is the "invent" tier for
 something the system provides badly rather than not at all.
 

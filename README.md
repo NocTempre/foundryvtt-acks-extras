@@ -236,9 +236,13 @@ acksExtras.location   acksExtras.monsters
 Read it from a hook, not at module top level — features attach during `init`.
 
 The rules-table registry (`acksExtras.lib.tables`) and the named-service registry
-(`acksExtras.lib.services`) are the seams for feeding this module data; the
-Importer registers `ruledata-import` there. Contracts are named rather than
-module-scoped, so nothing needs to know who provides them.
+(`acksExtras.lib.services`) are the seams for feeding this module data. This
+module registers `ruledata-import` (the location feature provides it) and the
+Importer calls it to write a world's imported tables; the Importer in turn
+registers `ability-provider`, which this module calls to resolve proficiency
+names into real items. Contracts are named rather than module-scoped, so neither
+side needs to know who is on the other end — and a contract with no provider
+reads as `null` rather than throwing.
 
 ---
 

@@ -1,4 +1,12 @@
 # Influence Module — Scope & Integration Audit
+> **Pre-merge document (2026-08-04 note).** Written when these were separate
+> modules. `acks-lib`/`acks-abilities`/`acks-equipment`/`acks-formation`/
+> `acks-henchmen`/`acks-influence`/`acks-location`/`acks-monsters` are now
+> features of `acks-extras` under `scripts/<feature>/`, and `acks-content` is
+> `acks-importer`. Cross-module edges, `requires` relationships and
+> `apiVersion` handshakes described below no longer exist — read them as
+> cross-*feature* seams inside one repo. Runtime identifiers named here may
+> predate the flat `acks-extras` scope; check the code before relying on one.
 
 > ⚠️ **FINDINGS DOCUMENT — most phases NOT IN EFFECT (2026-07-19).**
 > Records the state of `acks-influence` v0.9.1 measured against three asks:
