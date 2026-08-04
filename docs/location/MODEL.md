@@ -7,15 +7,15 @@ home of the settlement actor and of the per-world imported rules tables that
 sibling modules (henchmen today; domains later) read through acks-lib.
 
 - **Reuse**: the core `acks` system's actor framework and money/inventory
-  documents; acks-lib's tables registry and service contracts (`requires
-  acks-lib` — the module's only family edge).
+  documents; the lib subsystem's tables registry and service contracts (`requires
+  the lib subsystem` — the module's only family edge).
 - **Extend**:
   - Actor sub-type `acks-extras.location` (TypeDataModel), registered here and
     only here: identity and nesting (name, region, notes, `parentUuid`), a
     reference roster, a stack count, and — on the places that have one — a
     nullable `market` subtree carrying demographics, market class, postings,
     candidates and slander.
-  - **Storage at a place**: acks-lib owns the primitives (providers, stored
+  - **Storage at a place**: the lib subsystem owns the primitives (providers, stored
     goods, transfers, the deletion fallback); this module owns the experience
     — the location sheet, the character sheet's Storage tab, the retirement of
     the system's banked-coin column, the vault sweep, and the GM manager.
@@ -26,7 +26,7 @@ sibling modules (henchmen today; domains later) read through acks-lib.
     do**.
   - World-imported table documents, registered into `acksLib.tables` at
     priority 20 (world) via the lib's `ruledata-import` contract; the
-    acks-content binding writes through that contract, never through this
+    acks-importer binding writes through that contract, never through this
     module's name.
 - **Enhance**: the location sheet — contents, roster and nesting on every place,
   plus the market tabs (pools, demographics, postings, candidates, slander) on

@@ -3,7 +3,8 @@
 Foundry VTT module for the ACKS II system (`acks`), part of the NocTempre ACKS
 module family. Canonical conventions and shared toolchain:
 `C:\Proj\acks-module-template` — read its `docs/TOOLCHAIN.md` before changing
-build/release plumbing.
+build/release plumbing, and its `docs/DECISIONS.md` before a structural change
+(splitting or merging a repo, adding a dependency edge, changing what ships).
 
 ## Layout
 
@@ -21,22 +22,24 @@ build/release plumbing.
   from acks-module-template — never hand-edit**; change the template, then run
   `/acks-sync-toolchain`. `pack-data.mjs` (and data files it re-exports) are
   module-owned.
-- Canonical ACKS II rules extracts: `C:\Projcks-rules\<feature>\RULES.md`
+- Canonical ACKS II rules extracts: `C:\Proj\acks-rules\<feature>\RULES.md`
   (one dir per pre-merge feature module; single-feature repos have exactly one)
   — **LOCAL-ONLY, never committed or shipped** (licensed book text; purged
   from repo history 2026-07-16). Cite it instead of re-deriving rules.
-  `docs/MODEL.md` — design decisions (original content, stays in-repo).
-- `ruledata/` (if present) — runtime-fetched JSON rule content; ships in the zip.
+- **No `ruledata/`.** No value read off a page ships in any repo — `ip-scan.mjs`
+  hard-FAILS on a tracked `ruledata/` directory. Book content reaches a world
+  through `acks-importer`, materialized from the GM's own books.
+- `docs/` — not shipped; see Documentation below.
 
 ## Commands
 
 - `npm install` once, then `npm run build:packs` and `npm run validate`
-  (`npm test` where `tools/test-logic.mjs` exists).
+  (`npm test` where the repo defines one).
 - Run `build:packs` after cloning, or compendiums are empty (the compiled
   packs are not in git). Commit `packs/_source` when it changes; the compiled
   dirs are ignored, so there is nothing to review or discard.
 - Foundry dev install (junction, not copy):
-  `New-Item -ItemType Junction -Path "$env:LOCALAPPDATA\FoundryVTT\Data\modules\acks-extras" -Target "C:\Proj\foundryvtt-acks-extras"`
+  `New-Item -ItemType Junction -Path "$env:LOCALAPPDATA\FoundryVTT\Data\modules\acks-extras" -Target "C:\Proj\gallant-leavitt-73353f"`
 ## Live testing
 
 `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` defines this machine's local Foundry
@@ -112,7 +115,7 @@ pass exactly the same gates.
    + tag.
 6. Confirm publication with BOUNDED polls — **never `gh run watch`, it hangs**:
    `gh release view v<version> --json assets` ~30s apart, capped ~5 min. Then
-   verify `https://github.com/NocTempre/foundryvtt-acks-extras/releases/latest/download/module.json`
+   verify `https://github.com/NocTempre/gallant-leavitt-73353f/releases/latest/download/module.json`
    shows the new version. The `/acks-release` skill walks all of this.
 
 ## Conventions
@@ -129,13 +132,15 @@ pass exactly the same gates.
   CSS classes with `acks-extras-`.
 - Design doctrine: **reuse → extend → enhance → invent** — reuse core system
   documents; extend only via `flags["acks-extras"]`; enhance with alternate
-  sheets/wrappers; invent nothing the system provides (see docs/MODEL.md).
+  sheets/wrappers; invent nothing the system provides (see
+  `docs/<feature>/MODEL.md`).
 - **The `acks` system repo (`C:\Proj\foundryvtt-acks-core`) is an unmodifiable
   reference.** Read it to learn what core already does and build on top; a
   module task never edits system source. **Overrides or extensions of core
-  logic default to `acks-lib`** — patch core from this module only when the
-  behavior is unique to this module's domain, and record why in docs/MODEL.md.
-  One owner per wrapped core method.
+  logic default to the shared `lib` subsystem** (`acks-extras/scripts/lib/`) —
+  patch core from a feature only when the behavior is unique to that feature's
+  domain, and record why in `docs/<feature>/MODEL.md`. One owner per wrapped
+  core method.
 
 ## Documentation
 

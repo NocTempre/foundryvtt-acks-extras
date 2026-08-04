@@ -1,4 +1,12 @@
 # Racial & Cross-Species Reactions — Implementation Plan
+> **Pre-merge document (2026-08-04 note).** Written when these were separate
+> modules. `acks-lib`/`acks-abilities`/`acks-equipment`/`acks-formation`/
+> `acks-henchmen`/`acks-influence`/`acks-location`/`acks-monsters` are now
+> features of `acks-extras` under `scripts/<feature>/`, and `acks-content` is
+> `acks-importer`. Cross-module edges, `requires` relationships and
+> `apiVersion` handshakes described below no longer exist — read them as
+> cross-*feature* seams inside one repo. Runtime identifiers named here may
+> predate the flat `acks-extras` scope; check the code before relying on one.
 
 > ✅ **IMPLEMENTED 2026-07-16** (scripts/racial.mjs + roller integration +
 > compendium items + settings). This document is retained as the design
@@ -64,7 +72,7 @@ Extend the reaction-effect convention (`flags.acks-extras.*`):
 
 Two entry points, one store:
 
-- **World setting** `acks-influence.raceRelations` (GM-editable JSON):
+- **World setting** `acks-extras.raceRelations` (GM-editable JSON):
   `[{ "from": "dwarf", "to": "elf", "value": -1, "label": "Grudge of the
   Vaults" }, …]` — `from` = influencer race/category, `to` = target
   race/category, **directional** (no implied symmetry).

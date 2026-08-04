@@ -116,7 +116,7 @@ normal and the leash lifts for the combat.
 **Party roll** resolves the check for every member and posts **one GM-whispered
 card**, not a wall of per-member public cards.
 
-Every number comes from your own imported book by way of acks-content — this
+Every number comes from your own imported book by way of acks-importer — this
 module ships no skill ladder. Resolution order:
 
 1. an explicit **Used for** binding on an ability item;

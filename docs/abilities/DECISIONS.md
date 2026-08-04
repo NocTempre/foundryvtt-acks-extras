@@ -18,7 +18,7 @@ Entries are dated and append-only. A superseded entry stays, marked.
   defined by the container (a class/monster item lists its abilities), per the
   register model — the ability node is a reusable definition. `general` (the
   "(G)" marker) is the one membership fact tracked, because it is intrinsic.
-- **Binding target for acks-content:** on import it writes this flag; the full
+- **Binding target for acks-importer:** on import it writes this flag; the full
   literal prose stays a lazy `@PdfText` descriptor, the mechanical effect
   materializes per seat and persists here.
 - **2026-07-24 — this module owns core's ability roll path.** `AcksItem#rollFormula`
@@ -35,7 +35,7 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
   **One owner per wrapped core method: these two are ours.** Multi-roll
   abilities are this module's domain, so the wrap lives here rather than in
-  acks-lib. No sibling may wrap them; anything else that needs to influence an
+  the lib subsystem. No sibling may wrap them; anything else that needs to influence an
   ability roll goes through the API (`rollsOf`, `rollAbility`, `targetOf`).
 
   A no-roll ability now **shows** itself instead of rolling. Core intends this

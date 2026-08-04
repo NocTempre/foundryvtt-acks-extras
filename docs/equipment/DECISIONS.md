@@ -124,7 +124,7 @@ Where RAW says a shield variant gives nothing, this feature contributes a
 trying to prevent core from applying it. A shield strapped on the back protects
 only the rear, which is situational rather than ordinary AC.
 
-Mounted use is no longer blocked outright: acks-lib records who is riding what,
+Mounted use is no longer blocked outright: the lib subsystem records who is riding what,
 and whether to protect self or mount is a player's decision each round rather
 than a derivable fact.
 
@@ -148,7 +148,7 @@ setting — gating it there made renaming impossible whenever the overlay was of
 `/cloak|cape/i`, gloves `/\bglove|gauntlet/i`, containers a name-prefix match. A
 rename changed an item's identity, and nothing could express a Judge's ruling.
 
-Gear now carries a declaration (acks-lib `GearExtras`; see `docs/lib/DECISIONS.md`
+Gear now carries a declaration (the lib subsystem's `GearExtras`; see `docs/lib/DECISIONS.md`
 for why it is a flag model and not an Item sub-type). Every classifier reads it
 first, and **a declaration, once present, replaces the heuristic entirely** —
 consulting the name afterwards would let "Great Helm" overrule a Judge who set

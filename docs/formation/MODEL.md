@@ -1,15 +1,16 @@
-# acks-formation — Architecture
+# Formation — Architecture
 
-Follows the conventions of `acks-influence` (ApplicationV2 + HandlebarsApplicationMixin, Foundry v13/v14, `acks` system).
+The exploration feature: marching order, the party token, dungeon turns, light
+and fog. ApplicationV2 + HandlebarsApplicationMixin, Foundry v14, `acks` system.
 
 ## Libraries
 
 Rather than recreate core infrastructure, the module leans on community libraries instead of hand-rolled equivalents.
 
-**Required** (`relationships.requires`) — the module cannot run without them:
+**Required** (`relationships.requires` on the module as a whole) — this feature cannot run without them:
 
 - **libWrapper** — wraps the ruler classes' `_getWaypointLabelContext` (`measure-fuzz.mjs`) so it composes with other ruler modules instead of clobbering the class.
-- **socketlib** — all cross-client messaging (`socket.mjs`): named handlers with GM routing for player action requests and fog reloads.
+- **socketlib** — all cross-client messaging, through the module-wide transport in `scripts/lib/sockets.mjs`: named handlers with GM routing for player action requests and fog reloads. There is one socketlib registration and one channel (`module.acks-extras`) for the whole module; the feature owns handler names, not a socket.
 
 **Recommended** (`relationships.recommends`) — optional, degrades gracefully:
 
@@ -26,19 +27,21 @@ For monsters carrying a stat block, `canSeeInDark` and `explorationSpeedOf` defe
 
 ## Files
 
+All paths are under `scripts/formation/` unless noted.
+
 | File | Responsibility |
 |---|---|
-| `scripts/constants.mjs` | Rules constants (turn length, rest interval, light sources, roles and their kits, speed tiers). |
-| `scripts/judge-override.mjs` | What a GM giving a character something means: supply the gear, empty the hands. |
-| `scripts/formation-model.mjs` | Formation records: storage (world setting `acks-formation.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
-| `scripts/turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
-| `scripts/formation-app.mjs` | The formation window (GM controls, player read-only). |
-| `scripts/encounter-zone.mjs` | `acks-formation.encounterZone` RegionBehavior subtype (table UUID + cadence overrides) and point-in-region lookup for the party token (core `testPoint` when available, manual shape math as a headless fallback). |
-| `scripts/scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag) and party-token light emission mirroring lit sources. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
-| `scripts/deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
-| `scripts/announce.mjs` | One formation chat card (public, or whispered to the GMs). |
-| `scripts/socket.mjs` | socketlib registration (`socketlib.ready`) and a queue so handlers can register at import time; exposes `getSocket`/`registerHandler`. |
-| `scripts/module.mjs` | Settings, hooks, scene-control button, `/formation` chat command, public API. |
+| `constants.mjs` | Rules constants (turn length, rest interval, light sources, roles and their kits, speed tiers). |
+| `judge-override.mjs` | What a GM giving a character something means: supply the gear, empty the hands. |
+| `formation-model.mjs` | Formation records: storage (world setting `acks-extras.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
+| `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
+| `formation-view.mjs`, `formation-actions.mjs` | The formation window (GM controls, player read-only) and its action handlers. |
+| `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID + cadence overrides) and point-in-region lookup for the party token (core `testPoint` when available, manual shape math as a headless fallback). |
+| `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag) and party-token light emission mirroring lit sources. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
+| `deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
+| `announce.mjs` | One formation chat card (public, or whispered to the GMs). |
+| `../lib/sockets.mjs` | Module-wide socketlib transport: one registration, one channel, a handler registry that throws on a duplicate name, and a pre-ready queue so handlers can register at import time. Not formation-owned. |
+| `module.mjs` | Settings, hooks, scene-control button, `/formation` chat command, feature API. |
 
 ## Data flow
 
@@ -49,7 +52,7 @@ For monsters carrying a stat block, `canSeeInDark` and `explorationSpeedOf` defe
 
 ## Movement → turns
 
-`updateToken` (x/y change on a token flagged with `acks-formation.formationId`) is processed **only on the active GM client** (`game.users.activeGM.isSelf`), no matter who dragged the token. Distance = straight-line pixels → feet via the scene grid; accumulated in `clock.carryFeet`; each full exploration-speed's worth pops one call to `advanceTurns`. `clock.lastPosition` anchors measurement (re-anchored when tracking is un-paused, seeded at party-token creation).
+`updateToken` (x/y change on a token flagged with `acks-extras.formationId`) is processed **only on the active GM client** (`game.users.activeGM.isSelf`), no matter who dragged the token. Distance = straight-line pixels → feet via the scene grid; accumulated in `clock.carryFeet`; each full exploration-speed's worth pops one call to `advanceTurns`. `clock.lastPosition` anchors measurement (re-anchored when tracking is un-paused, seeded at party-token creation).
 
 ## Turn tick (`advanceTurns`)
 
@@ -75,7 +78,7 @@ executes. Players act on what is THEIRS:
 | Marching order | Move their own character (up/down/left/right; target recomputed GM-side from the actor id, not the click's stale cell) | `reorder` |
 | Roles | Take up / set down roles on their own character (10'-pole item gate enforced GM-side) | `role` |
 | Lights | Douse/relight and shutter lights their character carries; add via the declaration panel | `lightToggle` / `lightShield` / `light` |
-| Character sheet lights | Light, douse and shutter a lamp on their own character's inventory tab (acks-equipment's row controls, `declareLightAction`) | `light` / `lightToggle` / `lightShield` |
+| Character sheet lights | Light, douse and shutter a lamp on their own character's inventory tab (the equipment feature's row controls, `declareLightAction`) | `light` / `lightToggle` / `lightShield` |
 | Spells | See all tracked spells; add their own via the declaration panel | `spell` |
 | Maps | See the party's maps and session status; consult (anchor) a map their character holds | `anchorMap` |
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
@@ -110,7 +113,7 @@ Authority comes from the **declaring** user, not the executing client:
 relayed to and executed on a GM client, where `game.user.isGM` would hand the
 override to everyone.
 
-The two mutations themselves belong to acks-equipment (`grantGear`,
+The two mutations themselves belong to the equipment feature (`grantGear`,
 `clearHands` — see [its model](../equipment/MODEL.md)); this feature owns only
 the rule about *what* is needed. Missing the equipment feature degrades to
 supplying nothing, never to an error.
@@ -126,7 +129,7 @@ API reads — so ONE list both refuses the role and, under override, supplies it
   (`ROLE_HAND_COST`), for as long as the role is held. That is what makes mapping
   and a drawn sword mutually exclusive.
 
-`handsOccupied(actorId)` is the single call acks-equipment's loadout makes for
+`handsOccupied(actorId)` is the single call the equipment feature's loadout makes for
 hands the party sheet has filled — lights borne plus role kits — and taking up or
 setting down a role fires `acksExtras.roleChanged` so the loadout recomputes,
 exactly as `acksExtras.lightChanged` does for a struck light.
@@ -141,7 +144,7 @@ easing down the corridor while the party waits.
 A detached member never leaves the formation. Marching order, roles, lights,
 rest and the turn clock all keep counting them. What changes is which token
 carries their vision and their torch: their own token is synced from the actor
-like any standalone creature (acks-lib `token-sync.mjs`), and `bearerLights`
+like any standalone creature (`lib/token-sync.mjs`), and `bearerLights`
 finds their light in the formation's record. The party token meanwhile drops
 that bearer's light and stops borrowing their eyes — `syncPartyTokenVision`
 gives the party token its best *remaining* member's sight.

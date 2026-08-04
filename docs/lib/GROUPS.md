@@ -1,4 +1,4 @@
-# `acks-lib.group` — the stackable actor
+# `acks-extras.group` — the stackable actor
 
 A **group** is many near-identical creatures held as one actor: a mercenary
 platoon, a pack of kobolds, a flight of manes. It carries a headcount and a
@@ -9,13 +9,13 @@ become, not to its size.
 ## Why it lives here
 
 Shared machinery — a new actor sub-type, the deploy/recall token handling —
-belongs in acks-lib under the family's standing "promote to acks-lib" rule
+belongs in the lib subsystem under the family's standing "promote to the lib subsystem" rule
 (workspace `CLAUDE.md`; template `TOOLCHAIN.md` §6). Behaviour unique to
 mercenary formations (leaders per RR 169, training pipelines, unit wages) is
 **not** here — it belongs to a consuming module (`acks-troops`). This split was
 the maintainer's ruling (2026-07-23).
 
-The group is the second Foundry document acks-lib owns, after `acks-lib.animal`;
+The group is the second Foundry document the lib subsystem owns, after `acks-extras.animal`;
 it reuses that type's whole apparatus — `acksCompatStubs()`, `savingThrowFields()`,
 the `library:true` setup-registration timing, the `game.acks.lib` deferral shim.
 
@@ -61,7 +61,7 @@ a body is first materialised.
 Undeployed, the stack token must still be attackable and show a sensible bar, so
 the schema mirrors ONE body's stat block — `acksCompatStubs()` for the floor the
 system touches on every actor, `savingThrowFields()` for the full five saves,
-and explicit `hp`/`aac`/`details`. Same reasoning as `acks-lib.animal`
+and explicit `hp`/`aac`/`details`. Same reasoning as `acks-extras.animal`
 (`actor-compat.mjs`).
 
 ### The collective noun is data
@@ -74,8 +74,8 @@ never contradicts a displayed noun the way `unit` would on a kobold pack.
 ## The lifecycle (`scripts/group.mjs` + `scripts/group-logic.mjs`)
 
 Deploy/recall is the **compatibility strategy**: a deployed member is an
-ordinary token over an ordinary actor, so combat, acks-equipment and
-acks-formation all read it with no special-casing.
+ordinary token over an ordinary actor, so combat, the equipment feature and
+the formation feature all read it with no special-casing.
 
 | Operation | Effect |
 |---|---|
@@ -100,7 +100,7 @@ forever. `cleanDelta` strips any effect flagged `flags.<namespace>.managed =
 true`; authored effects (a Judge's curse on one kobold, unflagged) are kept. A
 module teaches the predicate about its own generated effects through the
 `acksLibGroupIsDerivedEffect` hook — the library never hardcodes consumer module
-ids. (acks-equipment's loadout effect is invisible to a group anyway:
+ids. (the equipment feature’s loadout effect is invisible to a group anyway:
 `managesLoadout` is `type === "character"`, and a group is not a character. The
 interaction only matters for *deployed members*, which are characters, and is
 the reason the strip exists.)
@@ -125,7 +125,8 @@ and left unread.
 - **Split / merge** of stacks → planned, not built.
 - **Socket routing** — these ops write documents on the calling client under
   Foundry's own permissions; a consumer needing GM-routed writes wraps them.
-  acks-lib is `socket:false`.
+  The lib layer writes on the calling client and owns no socket of its own;
+  the module-wide transport is `scripts/lib/sockets.mjs`.
 
 ## Verification
 

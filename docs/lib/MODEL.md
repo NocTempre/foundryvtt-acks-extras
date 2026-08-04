@@ -1,20 +1,26 @@
 # Library — Design Model
 
-acks-lib is the family's shared-primitives library (`library: true`). It ships
-**no sheets and no world data** — it exposes vocabulary + DataModel field-
-builders that consumer modules assemble into their own models.
+`lib` is the module's shared-primitives subsystem (`scripts/lib/`). It exposes
+vocabulary, DataModel field-builders, the core patch layer, and the actor
+sub-types the module owns — the surfaces more than one feature reads. Anything
+only one feature needs stays with that feature.
 
-- **Reuse**: the `acks` system's damage/save vocabulary and (via the core-
-  deferral shim `game.acks?.lib`) any surface later upstreamed into core.
-- **Extend**: the shared ACKS effect/ability vocabulary (`scripts/vocab.mjs`)
-  and its DataModel field-builders (`scripts/fields.mjs`) — the target both
-  acks-abilities and (deferred) acks-monsters build their models from.
-- **Enhance**: nothing yet — the FAMILY.md §3 plumbing (tables registry, socket
-  relay, effects collector, economy data) is deliberately **out of v0.1 scope**
-  and remains the family-refactor Phase 1 backlog.
+- **Reuse**: the `acks` system's damage/save vocabulary and (via the
+  `game.acks?.lib` shim) any surface later upstreamed into core.
+- **Extend**: the shared ACKS effect/ability vocabulary (`vocab.mjs`) and its
+  DataModel field-builders (`fields.mjs`) — the target the abilities feature
+  and (deferred) the monsters feature build their models from.
+- **Enhance**: the plumbing every feature was duplicating before the merge —
+  one socket transport (`sockets.mjs`), one effect-scan core
+  (`effect-scan.mjs`), one tables registry (`tables.mjs`), one service registry
+  (`services.mjs`).
 - **Invent**: `LevelValue` — the level-scaling value type + its resolver — the
   one genuinely new primitive, spanning thief skills, per-level throws, and
   attack/save progressions.
+
+**Overrides of core logic default here.** A feature patches core directly only
+when the behavior is unique to that feature's domain, and says so in its own
+MODEL. One owner per wrapped core method.
 
 ## Perception: senses, light, and the token
 
