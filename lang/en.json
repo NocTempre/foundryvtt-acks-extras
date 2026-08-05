@@ -159,6 +159,7 @@
   "ACKS-LIB.followerCard.acReset": "Reset AC to its computed value",
   "ACKS-LIB.followerCard.adventuring": "Adventuring",
   "ACKS-LIB.followerCard.roll": "Roll",
+  "ACKS-LIB.followerCard.readAloud": "Read aloud — post to chat",
   "ACKS-LIB.followerCard.resetSheet": "Reset quick overrides",
   "ACKS-LIB.followerCard.commit": "Commit overrides to the sheet (permanent)",
   "ACKS-LIB.followerCard.addAttack": "Add a quick attack",

@@ -140,6 +140,7 @@
         {{#if powers.length}}<ul class="fc-prof-list">{{#each powers}}<li class="fc-prof-row">
           <span class="fc-prof-name">{{this.name}}</span>
           {{#if @root.editable}}{{#if this.rollable}}<a data-action="fcRollProficiency" data-item-id="{{this.id}}" class="fc-prof-roll" data-tooltip="{{localize 'ACKS-LIB.followerCard.roll'}} {{this.name}}"><i class="fas fa-dice-d20"></i></a>{{/if}}{{/if}}
+          {{#if @root.interactive}}{{#if this.hasText}}<a data-action="fcShowItem" data-item-id="{{this.id}}" class="fc-prof-show" data-tooltip="{{localize 'ACKS-LIB.followerCard.readAloud'}}"><i class="fas fa-comment-dots"></i></a>{{/if}}{{/if}}
         </li>{{/each}}</ul>{{/if}}
       </div>
 
@@ -208,8 +209,9 @@
 
   </div>
 
-  {{!-- Caster line: per-level slots at a glance; the spell PAGE stays on the
-        full sheet, one action away. --}}
+  {{!-- Caster block: the slot line at a glance, then the spells themselves by
+        level — what a creature can cast is read at the table, not looked up. The
+        page that memorizes and resets them stays on the full sheet. --}}
   {{#if caster}}
   <footer class="fc-build fc-caster">
     <span class="fc-build-group" data-tooltip="{{localize 'ACKS-LIB.followerCard.slotsUsed'}}">
@@ -218,6 +220,12 @@
       {{#if caster.empty}}<span class="fc-build-label">{{localize "ACKS-LIB.followerCard.casterNoSlots"}}</span>{{/if}}
       {{#if editable}}<a data-action="fcOpenFull" data-tooltip="{{localize 'ACKS-LIB.followerCard.expand'}}"><i class="fas fa-up-right-from-square"></i> {{localize "ACKS-LIB.followerCard.fullSheet"}}</a>{{/if}}
     </span>
+    {{#each caster.levels}}
+    <span class="fc-build-group fc-spell-level">
+      <span class="fc-build-label">L{{this.lvl}}</span>
+      {{#each this.spells}}<span class="fc-pill chip">{{this.name}}{{#if @root.interactive}}{{#if this.hasText}} <a data-action="fcShowItem" data-item-id="{{this.id}}" class="fc-prof-show" data-tooltip="{{localize 'ACKS-LIB.followerCard.readAloud'}}"><i class="fas fa-comment-dots"></i></a>{{/if}}{{/if}}</span>{{/each}}
+    </span>
+    {{/each}}
   </footer>
   {{/if}}
 

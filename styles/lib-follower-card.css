@@ -410,12 +410,29 @@
   gap: 6px;
 }
 .acks-lib-follower-card .fc-prof-roll,
+.acks-lib-follower-card .fc-prof-show,
 .acks-lib-follower-card .fc-adv-roll {
   flex: 0 0 auto;
   color: var(--acks-spot);
   text-decoration: none;
   cursor: pointer;
   text-align: center;
+}
+
+/* The name and its controls sit together at the right of a proficiency row; the
+   name takes the slack so a row with two controls does not stagger against one
+   with a single control. */
+.acks-lib-follower-card .fc-prof-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Spell names run as chips under the slot line, wrapping by level. */
+.acks-lib-follower-card .fc-spell-level {
+  flex-wrap: wrap;
+}
+.acks-lib-follower-card .fc-spell-level .fc-prof-show {
+  margin-left: 3px;
 }
 
 /* --- Adventuring rows: icon, name, editable throw --- */

@@ -118,12 +118,25 @@ Hooks.once("ready", () => {
   // instead of throwing.
   const animalType = acksExtras.lib?.ANIMAL_TYPE;
   sheetTypes = animalType ? [MONSTER_TYPE, animalType] : [MONSTER_TYPE];
+  const label = game.i18n.localize("ACKS-MONSTERS.sheet.full");
+
+  // A MONSTER lands on lib's Follower Card and expands to this — so this sheet is
+  // registered for the type but does not claim the default. Claiming it here as
+  // well would make the landing sheet depend on which subsystem's `ready` handler
+  // ran last, which is not a thing to leave to import order.
   foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, FullMonsterSheet, {
-    types: sheetTypes,
-    makeDefault: true,
-    label: game.i18n.localize("ACKS-MONSTERS.sheet.full"),
+    types: [MONSTER_TYPE],
+    makeDefault: false,
+    label,
   });
-  console.log(`${MODULE_ID} | Full Monster sheet registered (default for ${sheetTypes.join("/")}).`);
+  if (animalType) {
+    foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, FullMonsterSheet, {
+      types: [animalType],
+      makeDefault: true,
+      label,
+    });
+  }
+  console.log(`${MODULE_ID} | Full Monster sheet registered for ${sheetTypes.join("/")} (default for ${animalType ?? "none"}).`);
 });
 
 /* Actor-directory convenience: open the Full Monster sheet directly. */

@@ -104,12 +104,29 @@ function withMod(dice, mod) {
 }
 
 /**
+ * Does this body bring spells to the table?
+ *
+ * THE one answer to that question. A class caster declares the slot model, but a
+ * creature with spell-like powers carries the spells themselves and never sets
+ * the flag — asking only the flag hides exactly the monsters whose spells the
+ * table needs to see. Either is enough.
+ */
+export function isSpellcaster(actor) {
+  if (actor?.system?.spells?.enabled) return true;
+  return (actor?.items?.contents ?? []).some((i) => i.type === "spell");
+}
+
+/**
  * Build the Follower Card view model for an actor.
  * @param {Actor} actor
- * @param {{editable?: boolean}} [opts]
+ * @param {{editable?: boolean, interactive?: boolean}} [opts]
+ *   `interactive` marks the card as the FollowerCardSheet's own render, where this
+ *   module's actions are bound. The read-only cards on a character sheet's
+ *   hirelings tab sit inside the EMPLOYER's application, which knows nothing of
+ *   them, so controls that dispatch an action are drawn only when it is set.
  * @returns {Promise<object>} a flat view model consumed by follower-card.hbs
  */
-export async function followerCardContext(actor, { editable = false } = {}) {
+export async function followerCardContext(actor, { editable = false, interactive = false } = {}) {
   const sys = actor?.system ?? {};
   const items = actor?.items?.contents ?? [];
   // Ability scores are the card's one structural fork: a model that declares them
@@ -128,9 +145,12 @@ export async function followerCardContext(actor, { editable = false } = {}) {
   // Proficiencies that DO something. The ones that merely record a fighting
   // style / armour / weapon-proficiency state live in the strips instead, and a
   // non-rolling entry gets no button at all — a d20 means "this rolls".
+  // `hasText` earns the power a Read-aloud button: a named power whose prose the
+  // book supplies is the thing a table stops to read out ("Terrifying Visage"),
+  // and it is worth posting whether or not it also rolls.
   const powers = items
     .filter((i) => i.type === "ability" && !isProfileAbility(i))
-    .map((i) => ({ id: i.id, name: i.name, rollable: !!i.system?.roll }));
+    .map((i) => ({ id: i.id, name: i.name, rollable: !!i.system?.roll, hasText: !!i.system?.description }));
   const equipment = items
     .filter((i) => i.type === "weapon" || i.type === "armor" || i.type === "item")
     .map((i) => {
@@ -152,7 +172,23 @@ export async function followerCardContext(actor, { editable = false } = {}) {
   const spellLevels = Object.entries(sys.spells ?? {})
     .filter(([key, slot]) => /^\d+$/.test(key) && slot && (num(slot.max) > 0 || num(slot.value) > 0))
     .map(([key, slot]) => ({ lvl: key, used: num(slot.value), max: num(slot.max) }));
-  const caster = sys.spells?.enabled ? { slots: spellLevels, empty: !spellLevels.length } : null;
+
+  // The spells THEMSELVES, by level. A creature that casts is usually met before
+  // it is read up on, so the names belong where the block is — the full sheet
+  // keeps the page that memorizes and resets them.
+  const byLevel = new Map();
+  for (const s of items.filter((i) => i.type === "spell")) {
+    const lvl = String(num(s.system?.lvl, 1));
+    if (!byLevel.has(lvl)) byLevel.set(lvl, []);
+    byLevel.get(lvl).push({ id: s.id, name: s.name, hasText: !!s.system?.description });
+  }
+  const spellRows = [...byLevel.entries()]
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([lvl, spells]) => ({ lvl, spells }));
+
+  const caster = isSpellcaster(actor)
+    ? { slots: spellLevels, empty: !spellLevels.length && !spellRows.length, levels: spellRows }
+    : null;
 
   // A character keeps a dedicated notes field; a creature model carries its prose
   // in the biography instead.
@@ -166,6 +202,7 @@ export async function followerCardContext(actor, { editable = false } = {}) {
 
   const ctx = {
     editable,
+    interactive,
     caster,
     id: actor?.id,
     uuid: actor?.uuid,
@@ -349,7 +386,7 @@ export async function followerCardContext(actor, { editable = false } = {}) {
  * @param {{editable?: boolean}} [opts]
  * @returns {Promise<string>}
  */
-export async function renderFollowerCard(actor, { editable = false } = {}) {
-  const ctx = await followerCardContext(actor, { editable });
+export async function renderFollowerCard(actor, { editable = false, interactive = false } = {}) {
+  const ctx = await followerCardContext(actor, { editable, interactive });
   return foundry.applications.handlebars.renderTemplate(FOLLOWER_CARD_TEMPLATE, ctx);
 }

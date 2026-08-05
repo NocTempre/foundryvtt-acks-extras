@@ -1,5 +1,47 @@
 # Changelog
 
+## 2.2.0
+
+### Changed
+- **A monster opens on the block you fight it from.** The extended stat block
+  put classification first — types, immunities, defenses, the reference matter —
+  so the first thing on screen was the half of the entry you read *before* the
+  session, and attacks were a tab away. A monster now opens on its Follower
+  Card: attacks, powers and spells on one page, in a window a little over half
+  the height of the old one, with everything else one click behind **Expand**.
+  Nothing was removed — the full block is the same sheet it always was, and a
+  GM who prefers to land there can say so once in the sheet's own configuration.
+  Animals and characters open exactly where they did.
+- **A world that already had the old sheet moves with it.** Foundry records a
+  type's sheet the first time a module claims it, and a recorded choice outranks
+  anything a later version asks for — so this change would have reached new
+  worlds only, and left every existing one opening the full block forever. On
+  first load, a world still pointing at this module's own former default is
+  moved to the card. A world where anyone has since chosen a different sheet —
+  the system's, or the card itself — is left exactly as it is, and the move
+  never happens twice. It is one click to undo.
+
+### Added
+- **A named power reads itself out to the table.** A creature's powers sat on
+  the card as text, so "Terrifying Visage" meant reaching for the book while
+  everyone waited. Any power or spell whose entry carries prose now has a
+  speech-bubble beside it that posts the whole entry to chat, where the table
+  can read it. Rolling is unchanged and still lives on its own d20; a power with
+  no prose gains no button rather than an empty one.
+- **A creature's spells are on the card, not just its slots.** The card counted
+  a caster's slots per level and stopped, which told you it had spells without
+  telling you which. The spells themselves now run under that line by level,
+  each with the same read-aloud button. A creature that carries spells without
+  the caster flag — the spell-like powers a monster entry gives — counts as a
+  caster here, so its spells show rather than nothing at all.
+
+### Fixed
+- **Expand opens this module's own full block.** The Expand button asked the
+  registry for the type's default sheet and took whatever was left after the
+  card — a question with no good answer once the card itself became the default,
+  at which point it could land on the system's plain monster sheet instead of
+  the extended one it is a summary of. It now names the sheet it belongs to.
+
 ## 2.1.1
 
 ### Fixed

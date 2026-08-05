@@ -513,15 +513,47 @@ Hooks.once("ready", () => {
   });
   console.log(`${MODULE_ID} | ${TEMPLATE_TYPE} sheet registered.`);
 
-  // The Follower Card: an ALTERNATIVE sheet for characters and monsters (never
-  // makeDefault — PCs and wild monsters keep their full system sheet). It becomes
-  // the per-instance default for retainers via flags.core.sheetClass (below).
+  // The Follower Card for a CHARACTER is an alternative, never the default — a PC
+  // keeps their own sheet. It becomes the per-instance default for retainers via
+  // flags.core.sheetClass (below).
   foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, FollowerCardSheet, {
-    types: ["character", "monster"],
+    types: ["character"],
     makeDefault: false,
     label: "ACKS-LIB.sheet.follower",
   });
-  console.log(`${MODULE_ID} | FollowerCardSheet registered (character, monster).`);
+
+  // For a MONSTER it is the default, and the extended block is what opens behind
+  // it. A monster is met before it is read up on: what a table needs on the first
+  // click is the half-page you fight from, not the whole entry. `makeDefault`
+  // decides only where an actor with NO recorded choice lands, so this changes no
+  // stored document and leaves every hand-picked sheet alone.
+  foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, FollowerCardSheet, {
+    types: ["monster"],
+    makeDefault: true,
+    label: "ACKS-LIB.sheet.follower",
+  });
+  console.log(`${MODULE_ID} | FollowerCardSheet registered (character; default for monster).`);
+
+  // One-time GM sweep: a world that already ran this module carries THIS MODULE'S
+  // OWN former default pinned in `core.sheetClasses`, and a stored choice outranks
+  // any later registration — so `makeDefault` above moves a NEW world to the card
+  // and leaves every existing one opening the full sheet forever.
+  //
+  // Rewrite only that one exact string, the value our past registration wrote. A
+  // GM who has since picked the system's sheet, or the card, holds a different
+  // value and is left alone; and the rewritten value no longer matches, so this
+  // cannot fire twice. Reversible from the sheet's own configuration in one click.
+  if (game.user.isGM) {
+    const stored = game.settings.get("core", "sheetClasses") ?? {};
+    if (stored?.Actor?.monster === `${MODULE_ID}.FullMonsterSheet`) {
+      const next = foundry.utils.deepClone(stored);
+      next.Actor.monster = FOLLOWER_SHEET_KEY;
+      game.settings
+        .set("core", "sheetClasses", next)
+        .then(() => console.log(`${MODULE_ID} | monsters now open on the Follower Card; expand for the full block.`))
+        .catch((err) => console.error(`${MODULE_ID} | monster landing-sheet migration failed`, err));
+    }
+  }
 
   // One-time GM sweep: existing retainers with no explicit sheet choice adopt the
   // card. Idempotent (only actors missing flags.core.sheetClass); never clobbers a

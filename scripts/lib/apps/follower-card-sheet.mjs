@@ -2,10 +2,12 @@
 /**
  * FollowerCardSheet — the compact "Follower Card" as an actor's own sheet.
  *
- * Registered (at `ready`, in module.mjs) for `character` and `monster` as an
- * ALTERNATIVE sheet. acks-lib makes it the per-instance default for retainers, so a
- * hireling opens as the card. The "Expand / details" header button opens the full
- * system sheet.
+ * Registered at `ready` in module.mjs: the DEFAULT sheet for `monster`, and an
+ * alternative for `character`. A monster is met before it is read up on, so what
+ * opens is the block you fight from — attacks, powers, spells — and the full stat
+ * block is one click away on the "Expand / details" header button. A character
+ * keeps their own sheet; acks-lib makes the card the per-instance default only for
+ * retainers, so a hireling opens as the card.
  *
  * The card is a QUICK-ROLL surface: attacks and proficiencies roll through the
  * system, and each roll target (AC, adventuring throws) can be given a **sticky
@@ -41,8 +43,21 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       fcAddSkill: FollowerCardSheet.#onAddSkill,
       fcToggleAttackEdit: FollowerCardSheet.#onToggleAttackEdit,
       fcOpenFull: FollowerCardSheet.#onOpenFull,
+      fcShowItem: FollowerCardSheet.#onShowItem,
     },
   };
+
+  /**
+   * Post a power or spell to chat, so the table reads what the creature just did
+   * instead of waiting for the book to be found.
+   *
+   * The system's own `show()` renders the item card and obeys the seat's roll
+   * mode, so a GM who has chosen to whisper their rolls whispers this too — the
+   * one place that choice is already recorded, and not worth a second one.
+   */
+  static #onShowItem(event, target) {
+    this.actor.items.get(target.dataset.itemId)?.show?.();
+  }
 
   static #onOpenFull() {
     this.#openFull();
@@ -55,7 +70,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    return { ...context, ...(await followerCardContext(this.actor, { editable: this.isEditable })) };
+    return { ...context, ...(await followerCardContext(this.actor, { editable: this.isEditable, interactive: true })) };
   }
 
   /** @override — wire the override inputs and inject the Expand button. */
@@ -94,11 +109,25 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     else header.append(btn);
   }
 
-  /** Open the full system sheet for this actor's type — never this card. */
+  /**
+   * Open the full sheet for this actor's type — never this card.
+   *
+   * THIS MODULE'S OWN full sheet wins, because the card is a summary OF it: the
+   * Full Monster sheet carries the extended block a monster's card abbreviates,
+   * and falling past it lands on the system's plain sheet, which has none of it.
+   * Preferring the registry's `default` cannot express that — once the card holds
+   * that title for a type, no other entry claims it, and the choice decays to
+   * registration order.
+   */
   #openFull() {
-    const entries = Object.values(CONFIG.Actor?.sheetClasses?.[this.actor.type] ?? {});
-    const other = entries.filter((e) => e.cls !== FollowerCardSheet);
-    const full = (other.find((e) => e.default) ?? other[0])?.cls ?? null;
+    const entries = Object.entries(CONFIG.Actor?.sheetClasses?.[this.actor.type] ?? {})
+      .map(([id, e]) => ({ id, ...e }))
+      .filter((e) => e.cls && e.cls !== FollowerCardSheet);
+    const full =
+      entries.find((e) => e.id.startsWith(`${MODULE_ID}.`))?.cls ??
+      entries.find((e) => e.default)?.cls ??
+      entries[0]?.cls ??
+      null;
     if (!full) {
       ui.notifications.warn(game.i18n.localize("ACKS-LIB.followerCard.noFullSheet"));
       return;

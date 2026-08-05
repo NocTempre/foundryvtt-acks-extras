@@ -23,7 +23,9 @@ the next refresh.
 | Templates | The generator that stats a creature when you need one | [guide](guides/monsters.md) | [v2.0.0](releases/v2.0.0/template-sheet.png) |
 | Influence | A social roll with its modifier stack itemized | [guide](guides/influence.md) | [v2.0.0](releases/v2.0.0/influence-dialog.png) |
 | Abilities | An ability item's sheet, with its rolls and mechanics | [guide](guides/abilities.md) | [v2.0.0](releases/v2.0.0/ability-sheet.png) |
-| Monsters | A Monstrous Manual stat block on the monster sheet | [guide](guides/monsters.md) | [v2.0.0](releases/v2.0.0/monster-sheet.png) |
+| Monster card | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v2.2.0](releases/v2.2.0/monster-card.png) |
+| Read aloud | A named power posted to chat for the table to read | [guide](guides/monsters.md#what-opens-first) | [v2.2.0](releases/v2.2.0/monster-card-chat.png) |
+| Monsters | The extended stat block, one click behind the card | [guide](guides/monsters.md) | [v2.2.0](releases/v2.2.0/monster-sheet.png) |
 | Sheet light controls | Lighting, dousing and shuttering a lamp from the row it sits on | [guide](guides/equipment.md#lighting-a-lamp-from-your-own-sheet) | [v1.3.0](releases/v1.3.0/equipment-light-controls.png) |
 | Vision & light | A token's sight derived from its ACKS senses, not typed by hand | [guide](guides/formation.md#seeing-in-the-dark) | [v1.1.0](releases/v1.1.0/token-vision.png) |
 | Ability throws | One throw in a window of its own, with the level table it is read from | [guide](guides/abilities.md#typing-in-a-throw) | [v1.3.0](releases/v1.3.0/ability-roll-editor.png) |

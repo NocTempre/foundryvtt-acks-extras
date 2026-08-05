@@ -4,17 +4,40 @@ The system's own `monster` actor, given the full stat block: classification,
 ecology, defences, attack routines, spoils, and the henchman fields that let a
 monster be hired.
 
-![](../releases/v1.0.0/monster-sheet.png)
+## What opens first
 
-*A Monstrous Manual stat block on the monster sheet.*
+A monster opens on its **card** — the half-page you fight from. Attacks and
+their damage, the creature's powers, and its spells by level, in a window a
+little over half the height of the full block.
+
+![](../releases/v2.2.0/monster-card.png)
+
+*What a monster opens on.*
+
+A power or spell whose entry carries prose has a **speech bubble** beside it.
+Click it and the whole entry goes to chat, so the table reads "Terrifying
+Visage" instead of waiting for someone to find the book. Rolling is separate and
+still sits on its own d20, and a power with no prose gets no button.
+
+![](../releases/v2.2.0/monster-card-chat.png)
+
+*What the table sees.*
+
+Everything else is one click away on **Expand** in the window header. If you
+would rather land on the full block, set it once under **Sheet Configuration**
+on any monster — that choice is yours and this module will not move it again.
+**Animals** still open on the full block.
 
 ## The sheet
 
-Open any **monster** actor — this is the sheet you get, no configuration needed.
-**Animals** open on it too: an animal's combat block uses the monster's own
-field paths, and the extended block is where its body form, carrying load and
-training live. The sheet replaces core's flat "attributes" and "notes" panes
-with tabs:
+![](../releases/v2.2.0/monster-sheet.png)
+
+*The extended stat block, one click behind the card.*
+
+**Expand** from the card, or open an **animal** actor, and this is the sheet you
+get. An animal's combat block uses the monster's own field paths, and the
+extended block is where its body form, carrying load and training live. The
+sheet replaces core's flat "attributes" and "notes" panes with tabs:
 
 - **Classification** — type, size, body form, intelligence, alignment.
 - **Attacks** — the attack routine, natural weapons and their damage types.
