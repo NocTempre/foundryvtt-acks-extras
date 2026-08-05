@@ -221,6 +221,14 @@
   flex-direction: column;
   align-items: stretch;
 }
+/* Draws the field boundary the replaced textarea got from the browser: a bare
+   prose-mirror (and the read-only render that stands in for it) is otherwise an
+   unbounded blank area on this narrow sheet. */
+.acks-influence-attitude-sheet .acks-influence-attitude-notes {
+  padding: 0.25rem;
+  border: 1px solid var(--color-border-dark, #7a7971);
+  border-radius: 3px;
+}
 
 /* Relationships section on the Notes tab (uses the system's item-list styling). */
 .acks-influence-relationships .item__name {

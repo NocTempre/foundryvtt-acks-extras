@@ -55,7 +55,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    return { ...context, ...followerCardContext(this.actor, { editable: this.isEditable }) };
+    return { ...context, ...(await followerCardContext(this.actor, { editable: this.isEditable })) };
   }
 
   /** @override — wire the override inputs and inject the Expand button. */

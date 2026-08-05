@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.4.1
+
+### Fixed
+- **A field the module calls rich text can be written as rich text.** The group
+  and template actors both declared a biography and offered nowhere to type one:
+  the group sheet had no control at all, and the template sheet showed its
+  description only once it already had text, so an empty one could never be
+  started. Both now carry an editor. The template's Generate action appends to
+  that field, so what it accumulates can finally be trimmed.
+- **An editor knows which document it belongs to.** All seven prose editors on
+  the monster Description tab — Appearance, Combat, Ecology, Encounter Text,
+  Lore, Notes and Biography — named the actor through an attribute Foundry does
+  not read, so each opened with no document behind it. Links written relative to
+  the actor did not resolve, and neither did secret blocks. Typing and saving
+  always worked, which is why this read as "links break when I edit here"
+  rather than as a broken field.
+- **A retainer's notes read as prose, not as markup.** The Follower Card printed
+  the notes field escaped, so anything written with formatting came back as
+  visible tags on the employer's hirelings tab. An animal hireling showed a
+  permanently blank panel, because the card looked for the field by the actor's
+  type instead of by what its schema actually holds.
+- **An attitude's notes are the rich text their schema declares.** The field was
+  modelled as rich text and rendered as a plain box.
+- **The ability sheet offers the saving throw again.** The module's replacement
+  for the details panel dropped the save selector that the system provides, so a
+  proficiency or power keyed to a save had no way to say which one.
+- **Revealing a disguise restores only what the disguise hid.** A disguised
+  weapon, armour or item kept its own description and icon while disguised — the
+  disguise never masks them — but revealing it wrote both back from the snapshot
+  taken when the disguise was first applied, discarding every edit made in
+  between.
+
 ## 1.4.0
 
 ### Added

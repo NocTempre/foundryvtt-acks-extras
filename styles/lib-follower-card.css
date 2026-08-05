@@ -236,8 +236,7 @@
   border-bottom: 1px dotted rgb(from var(--acks-ink) r g b / 0.3);
   padding: 1px 0;
 }
-.acks-lib-follower-card .fc-notes-body,
-.acks-lib-follower-card .fc-notes textarea {
+.acks-lib-follower-card .fc-notes-body {
   padding: 3px 6px;
   min-height: 48px;
   width: 100%;
@@ -245,6 +244,19 @@
   border: none;
   background: none;
   resize: vertical;
+  color: var(--acks-ink);
+}
+/* The editor reads as part of the panel, not as a control dropped into it. The
+   panel is `overflow: hidden`, so the element must stretch to the panel's width
+   rather than overflow it. Height is left to the element's own `--min-height`:
+   a `min-height` declared here outranks core's `min-height: var(--min-height)`
+   and would silently shrink the clickable area an empty field depends on. */
+.acks-lib-follower-card .fc-notes prose-mirror {
+  padding: 3px 6px;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: none;
   color: var(--acks-ink);
 }
 

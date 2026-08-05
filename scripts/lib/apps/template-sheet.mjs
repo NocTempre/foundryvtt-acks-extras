@@ -61,6 +61,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
     const sys = this.actor.system;
     context.editable = this.isEditable;
     context.system = sys;
+    context.actor = this.actor;
     context.isStub = sys.isStub;
     context.base = this.#baseUuid ? { uuid: this.#baseUuid, name: this.#baseName } : null;
 

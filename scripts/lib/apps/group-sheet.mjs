@@ -59,6 +59,11 @@ export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.
     context.isGM = game.user.isGM;
     context.editable = this.isEditable;
     context.system = sys;
+    context.actor = this.actor;
+    context.biographyHTML = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
+      sys.details?.biography ?? "",
+      { relativeTo: this.actor, secrets: this.actor.isOwner }
+    );
     context.noun = sys.noun || this.#defaultNoun(sys);
     context.invariantBroken = !sys.invariantHolds;
     context.totals = { current: sys.totalCurrent, pristine: sys.totalPristine, dead: sys.totalDead };

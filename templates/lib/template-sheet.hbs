@@ -96,7 +96,22 @@
     </section>
   {{/if}}
 
-  {{#if biographyHTML}}
+  {{!-- The template's own description, and the sheet's ONLY editable render of
+        system.details.biography — Generate APPENDS each option's snippet here,
+        so this editor is also how accumulated prose gets trimmed. `toggled`
+        holds the change event back until save, so form.submitOnChange writes
+        once per save rather than once per keystroke, and the enriched HTML is
+        what shows while the editor is closed. `content-sized` returns the
+        editor content to flow (core lays it out absolutely, contributing no
+        height); `--min-height` keeps the edit affordance reachable when the
+        description is empty. --}}
+  {{#if editable}}
+    <section class="acks-lib-template-description">
+      <prose-mirror class="content-sized" name="system.details.biography" value="{{system.details.biography}}"
+                    toggled data-document-uuid="{{actor.uuid}}"
+                    style="--min-height: 6rem;">{{{biographyHTML}}}</prose-mirror>
+    </section>
+  {{else if biographyHTML}}
     <section class="acks-lib-template-description">
       {{{biographyHTML}}}
     </section>

@@ -191,7 +191,7 @@
     <div class="fc-right">
       <div class="fc-panel fc-notes">
         <div class="fc-panel-title">{{localize "ACKS.category.notes"}}</div>
-        {{#if editable}}<textarea name="{{notesPath}}" rows="4">{{notes}}</textarea>{{else}}<div class="fc-notes-body">{{notes}}</div>{{/if}}
+        {{#if editable}}<prose-mirror class="content-sized" name="{{notesPath}}" value="{{notes}}" toggled data-document-uuid="{{uuid}}" style="--min-height: 6rem;">{{{notesHTML}}}</prose-mirror>{{else}}<div class="fc-notes-body">{{{notesHTML}}}</div>{{/if}}
       </div>
       <div class="fc-panel fc-equipment">
         <div class="fc-panel-title">{{localize "ACKS-LIB.followerCard.equipment"}}</div>

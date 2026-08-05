@@ -31,7 +31,21 @@
 
   <div class="form-group stacked">
     <label>{{localize 'ACKS-INFLUENCE.attitude.notes'}}</label>
-    <textarea name="system.notes" rows="3" {{#unless editable}}disabled{{/unless}}>{{system.notes}}</textarea>
+    {{!-- The sheet's ONLY render of system.notes: a second control of the same
+          name in this one form is last-write-wins, and a prose-mirror has no
+          `disabled`, so read-only falls through to the enriched render below.
+          `toggled` holds the change event back until save, so
+          form.submitOnChange writes once per save rather than once per
+          keystroke, and the enriched HTML is what shows while the editor is
+          closed. `content-sized` returns the editor content to flow (core lays
+          it out absolutely, contributing no height); `--min-height` keeps the
+          edit affordance reachable when the notes are empty. --}}
+    {{#if editable}}
+    <prose-mirror class="acks-influence-attitude-notes content-sized" name="system.notes" value="{{system.notes}}" toggled
+                  data-document-uuid="{{item.uuid}}" style="--min-height: 4rem;">{{{notesHTML}}}</prose-mirror>
+    {{else}}
+    <div class="acks-influence-attitude-notes">{{{notesHTML}}}</div>
+    {{/if}}
   </div>
 
 </section>

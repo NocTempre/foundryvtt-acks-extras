@@ -381,14 +381,26 @@ export async function disguiseItem(item, apparent = {}) {
   await item.setFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE, { true: truth, apparent });
 }
 
-/** Drop the disguise, restoring the item's true identity. */
+/**
+ * Drop the disguise, restoring the item's true identity.
+ *
+ * Restores only the fields the disguise actually masked: each guard mirrors the
+ * matching write in `disguiseItem` against the stored `apparent` payload. A field
+ * the disguise never wrote still holds the owner's own later edits, which are the
+ * newer truth and must survive the reveal. `name` is always masked, so it always
+ * comes back. Keep the two sets of guards in step if either function changes.
+ */
 export async function revealItem(item) {
   const d = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE);
   if (!d?.true) return;
   const t = d.true;
-  const update = { name: t.name, img: t.img, "system.cost": t.cost, "system.description": t.description };
-  if (item.type === "weapon") update["system.damage"] = t.damage;
-  if (item.type === "armor") update["system.aac.value"] = t.ac;
+  const ap = d.apparent ?? {};
+  const update = { name: t.name };
+  if (ap.img) update.img = t.img;
+  if (ap.cost != null && ap.cost !== "") update["system.cost"] = t.cost;
+  if (item.type === "weapon" && ap.damage != null && ap.damage !== "") update["system.damage"] = t.damage;
+  if (item.type === "armor" && ap.ac != null && ap.ac !== "") update["system.aac.value"] = t.ac;
+  if (ap.description != null) update["system.description"] = t.description;
   await item.update?.(update);
   await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE);
 }

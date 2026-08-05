@@ -4,24 +4,24 @@
           the ENRICHED HTML renders inside each element (running @PdfText and
           other enrichers), while `value` keeps the raw stored text for editing. --}}
     <label class="acksm-lore-label">{{localize "ACKS-MONSTERS.desc.appearance"}}</label>
-    <prose-mirror name="{{x}}.description.appearance" value="{{extras.description.appearance}}" toggled document-uuid="{{actor.uuid}}">{{{enrichedDesc.appearance}}}</prose-mirror>
+    <prose-mirror name="{{x}}.description.appearance" value="{{extras.description.appearance}}" toggled data-document-uuid="{{actor.uuid}}">{{{enrichedDesc.appearance}}}</prose-mirror>
 
     <label class="acksm-lore-label">{{localize "ACKS-MONSTERS.desc.combat"}}</label>
-    <prose-mirror name="{{x}}.description.combat" value="{{extras.description.combat}}" toggled document-uuid="{{actor.uuid}}">{{{enrichedDesc.combat}}}</prose-mirror>
+    <prose-mirror name="{{x}}.description.combat" value="{{extras.description.combat}}" toggled data-document-uuid="{{actor.uuid}}">{{{enrichedDesc.combat}}}</prose-mirror>
 
     <label class="acksm-lore-label">{{localize "ACKS-MONSTERS.desc.ecology"}}</label>
-    <prose-mirror name="{{x}}.description.ecology" value="{{extras.description.ecology}}" toggled document-uuid="{{actor.uuid}}">{{{enrichedDesc.ecology}}}</prose-mirror>
+    <prose-mirror name="{{x}}.description.ecology" value="{{extras.description.ecology}}" toggled data-document-uuid="{{actor.uuid}}">{{{enrichedDesc.ecology}}}</prose-mirror>
 
     <label class="acksm-lore-label">{{localize "ACKS-MONSTERS.desc.encounterText"}}</label>
-    <prose-mirror name="{{x}}.description.encounterText" value="{{extras.description.encounterText}}" toggled document-uuid="{{actor.uuid}}">{{{enrichedDesc.encounterText}}}</prose-mirror>
+    <prose-mirror name="{{x}}.description.encounterText" value="{{extras.description.encounterText}}" toggled data-document-uuid="{{actor.uuid}}">{{{enrichedDesc.encounterText}}}</prose-mirror>
 
     <label class="acksm-lore-label">{{localize "ACKS-MONSTERS.desc.lore"}}</label>
-    <prose-mirror name="{{x}}.description.lore" value="{{extras.description.lore}}" toggled document-uuid="{{actor.uuid}}">{{{enrichedDesc.lore}}}</prose-mirror>
+    <prose-mirror name="{{x}}.description.lore" value="{{extras.description.lore}}" toggled data-document-uuid="{{actor.uuid}}">{{{enrichedDesc.lore}}}</prose-mirror>
 
     <label class="acksm-lore-label">{{localize "ACKS-MONSTERS.desc.notes"}}</label>
-    <prose-mirror name="{{x}}.description.notes" value="{{extras.description.notes}}" toggled document-uuid="{{actor.uuid}}">{{{enrichedDesc.notes}}}</prose-mirror>
+    <prose-mirror name="{{x}}.description.notes" value="{{extras.description.notes}}" toggled data-document-uuid="{{actor.uuid}}">{{{enrichedDesc.notes}}}</prose-mirror>
 
     <label class="acksm-lore-label">{{localize "ACKS-MONSTERS.desc.biography"}}</label>
-    <prose-mirror name="system.details.biography" value="{{system.details.biography}}" toggled document-uuid="{{actor.uuid}}">{{{enriched.biography}}}</prose-mirror>
+    <prose-mirror name="system.details.biography" value="{{system.details.biography}}" toggled data-document-uuid="{{actor.uuid}}">{{{enriched.biography}}}</prose-mirror>
   </div>
 </section>

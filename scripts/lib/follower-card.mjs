@@ -74,9 +74,9 @@ function withMod(dice, mod) {
  * Build the Follower Card view model for an actor.
  * @param {Actor} actor
  * @param {{editable?: boolean}} [opts]
- * @returns {object} a flat view model consumed by follower-card.hbs
+ * @returns {Promise<object>} a flat view model consumed by follower-card.hbs
  */
-export function followerCardContext(actor, { editable = false } = {}) {
+export async function followerCardContext(actor, { editable = false } = {}) {
   const sys = actor?.system ?? {};
   const isMonster = actor?.type === "monster";
   const items = actor?.items?.contents ?? [];
@@ -118,11 +118,20 @@ export function followerCardContext(actor, { editable = false } = {}) {
     .map(([key, slot]) => ({ lvl: key, used: num(slot.value), max: num(slot.max) }));
   const caster = sys.spells?.enabled ? { slots: spellLevels, empty: !spellLevels.length } : null;
 
+  // A character keeps a dedicated notes field; a monster — and the animal
+  // subtype, whose schema has no `details.notes` — carries its prose in the
+  // biography. Choose by the field the schema actually has, so a follower
+  // type that is not literally `monster` still finds its own text.
+  const hasNotes = sys.details?.notes !== undefined;
+  const notesPath = hasNotes ? "system.details.notes" : "system.details.biography";
+  const notes = (hasNotes ? sys.details?.notes : sys.details?.biography) ?? "";
+
   const ctx = {
     editable,
     isMonster,
     caster,
     id: actor?.id,
+    uuid: actor?.uuid,
     name: actor?.name ?? "",
     img: actor?.img,
     alignment: sys.details?.alignment ?? "",
@@ -135,10 +144,16 @@ export function followerCardContext(actor, { editable = false } = {}) {
     attackThrow: num(sys.thac0?.throw, 10),
     powers,
     equipment,
-    // Character keeps a dedicated notes field; a monster's prose is its biography.
-    notesPath: isMonster ? "system.details.biography" : "system.details.notes",
-    notes: isMonster ? sys.details?.biography ?? "" : sys.details?.notes ?? "",
+    notesPath,
+    notes,
   };
+
+  // Enriched for display only; the raw text is what the editor edits (its
+  // `value`). Both branches render HTML that core stored as HTML.
+  ctx.notesHTML = await foundry.applications.ux.TextEditor.implementation.enrichHTML(notes, {
+    relativeTo: actor,
+    secrets: !!actor?.isOwner,
+  });
 
   // LEVEL / HD + XP (shape differs by type)
   if (isMonster) {
@@ -263,6 +278,6 @@ export function followerCardContext(actor, { editable = false } = {}) {
  * @returns {Promise<string>}
  */
 export async function renderFollowerCard(actor, { editable = false } = {}) {
-  const ctx = followerCardContext(actor, { editable });
+  const ctx = await followerCardContext(actor, { editable });
   return foundry.applications.handlebars.renderTemplate(FOLLOWER_CARD_TEMPLATE, ctx);
 }

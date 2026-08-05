@@ -143,13 +143,15 @@ export function createFullMonsterSheet(Base) {
       // core sheet already enriches biography — most importantly acks-content's
       // @PdfText tags, which stream book prose per seat. The raw value still
       // drives editing (prose-mirror `value`); the enriched HTML is the display.
+      // `relativeTo` is what resolves relative @UUID links in that display, and
+      // secrets stay hidden from anyone who does not own the actor.
       const TE = foundry.applications.ux.TextEditor.implementation;
       const desc = extras.description ?? {};
       context.enrichedDesc = Object.fromEntries(
         await Promise.all(
           ["appearance", "combat", "ecology", "encounterText", "lore", "notes"].map(async (k) => [
             k,
-            await TE.enrichHTML(desc[k] ?? ""),
+            await TE.enrichHTML(desc[k] ?? "", { relativeTo: this.actor, secrets: this.actor.isOwner }),
           ]),
         ),
       );
