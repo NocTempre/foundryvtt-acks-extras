@@ -371,22 +371,30 @@ export function createAbilitySheet(Base) {
     }
 
     /**
-     * Swap the details partial the system's description tab renders.
+     * Swap the details partial the system's description tab renders, and tell
+     * it whether the ability throws at all.
      *
      * Core's `description.hbs` pulls in `details-<type>.hbs` through a context
      * function, and for an ability that partial is mostly the roll block —
-     * formula, type, target, blind, save. Those belong on the Rolls tab with
-     * the ability's other throws; leaving the first one here made it look like
-     * the only one, and left a bare "1d20 / = / 0" on every proficiency that
-     * makes no throw at all.
+     * formula, type, target. Those belong on the Rolls tab with the ability's
+     * other throws; leaving the first one here made it look like the only one,
+     * and left a bare "1d20 / = / 0" on every proficiency that makes no throw at
+     * all.
      *
-     * Only the pointer changes. Core's description template, its enrichment and
-     * everything else about the tab are reused untouched.
+     * `system.blindroll` stays on this tab, because it is one setting for ALL of
+     * an ability's throws rather than a property of any one of them — but the
+     * partial renders it only while `hasRolls`, so it never offers to hide a
+     * result the ability cannot produce.
+     *
+     * Nothing but the pointer and that flag is added. Core's description
+     * template, its enrichment and everything else about the tab are reused
+     * untouched.
      * @override
      */
     async _prepareDescriptionContext(context) {
       const prepared = await super._prepareDescriptionContext(context);
       prepared.getDetailsPartialPath = () => `${T}/details-ability.hbs`;
+      prepared.hasRolls = rollsOf(this.item).length > 0;
       return prepared;
     }
 

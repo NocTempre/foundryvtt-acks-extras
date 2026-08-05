@@ -90,6 +90,37 @@ Entries are dated and append-only. A superseded entry stays, marked.
   reads as "not a roll", so this clears core's stale copy rather than authoring
   anything into it. The alternative, a marker flag saying "the list is
   deliberately empty", adds a field whose only reader is this one case.
+- **2026-08-05 — blind is per ABILITY, and it is core's `system.blindroll`.**
+  Two docstrings asserted that blind "lives on the Rolls tab". No tab, template
+  or editor ever carried it, the replacement details partial had dropped core's
+  checkbox, and `rollAbility()` set no roll mode — so an ability could not be
+  rolled blind at all, and this record had never ruled anything about it.
+
+  Ruled: reuse core's field. The checkbox is back on Description with core's own
+  markup and core's `ACKS.items.BlindRoll` key, and `rollAbility()` posts under
+  Foundry's `blind` message mode — `self` when the roller is the GM, which is
+  the distinction `AcksDice.#sendRoll` makes. It reaches every throw, because
+  `rollAbility()` is the single point both the Rolls tab and core's roll path
+  arrive at. The mode is passed as `messageMode`; the legacy `rollMode` spelling
+  core still uses logs a deprecation on every call under 14.
+
+  **Per-throw blind was rejected.** It needs a new field on acks-lib's
+  `rollField` — a schema change to re-express, per throw, the one ability-wide
+  fact core already stores — plus a checkbox in every throw window. Nothing in
+  the books prints blind per throw: whether a result is hidden is a table
+  convention about the ability (Hear Noise, Hide in Shadows), not part of what
+  the throw is.
+
+  **Blind on the Rolls tab was rejected**, asserted though it was. That tab is
+  one row per throw; an ability-wide control standing among them reads as
+  belonging to whichever row it sits nearest.
+
+  *Cost:* the checkbox renders only while the ability HAS a throw. An ability
+  with none does not roll — the wrap shows its card instead — so there is
+  nothing for blind to hide, and a control offered there would be exactly the
+  dead switch this entry exists to remove. A blind flag already stored on a
+  throwless ability is inert and unseen until a throw is added; it is not
+  cleared, because the ability may simply not have been entered yet.
 - **One store, one read path for rolls.** `extras.rolls` is where an ability's
   throws live; `rollsOf(item)` is the only place anything reads them, and it
   folds core's singleton fields in when this module has not written the flag

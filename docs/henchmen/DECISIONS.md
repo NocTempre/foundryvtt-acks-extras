@@ -123,3 +123,34 @@ Hiring rolls honour the influence feature's Active Effect reaction convention
 (`flags.acks-extras.reaction` plus its `situational`/`tone`/`label` flags), so an
 effect written for social rolls feeds hiring without being written twice. This is
 why influence imports before henchmen in `scripts/module.mjs`.
+
+---
+
+### Attributes outside Foundry's allowlist are set from the render callback (2026-08-05)
+
+Found in the field. `inputmode="numeric"` on the "Hire as Group" troop-count
+inputs never reached the DOM. `DialogV2` runs a string `content` through
+`foundry.utils.cleanHTML`, and `CONST.ALLOWED_HTML_ATTRIBUTES.input` is
+checked/disabled/name/value/placeholder/type/alt/height/list/max/min/readonly/
+size/src/step/width/required. `inputmode` is on neither that list nor the global
+one, so it was dropped silently — no error, no warning — and a tablet opened the
+alphabetic keyboard over a number field.
+
+The rule for this feature: **an attribute outside Foundry's allowlist is set as a
+property from the dialog's `render` callback, never written into DialogV2 string
+markup.** The callback holds the real elements and runs after the sanitiser, and
+one callback per dialog carries all of it. Two traps make eyeballing unsafe, so
+check candidates against the table in `resources/app/common/constants.mjs`
+instead: the allowlist is per-tag with a separate global list, and the matcher is
+built as `^a|b|c$` with no grouping, so every alternative but the first and last
+matches as an unanchored substring — attributes pass or fail for reasons the list
+does not read like it says.
+
+Rejected: passing `content` as an `HTMLDivElement`, which skips `cleanHTML`
+entirely. It would carry any attribute through, but it discards the sanitiser for
+markup built by interpolating candidate and employer names, and every dialog in
+the feature is string-content — the trade is one silent presentation bug for a
+class of escaping bugs across the whole surface.
+
+A sweep of every DialogV2 `content` string in `scripts/henchmen/apps/` against
+the real allowlist regexes found no other dropped attribute.

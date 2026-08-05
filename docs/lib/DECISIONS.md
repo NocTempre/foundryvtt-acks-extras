@@ -224,3 +224,65 @@ value and no migration is needed. Three lang strings were retired
 (`ACKS-FORMATION.settings.advanceWorldTime.*` and
 `ACKS-HENCHMEN.setting.advanceWorldTime*`) for one reconciled pair under
 `ACKS-LIB`; a translation carrying the old keys loses them.
+
+### The Follower Card selects fields by schema, never by actor type (2026-08-05)
+
+The card branched on `isMonster` — a strict `type === "monster"` test — at nine
+places: class, level/HD, XP, ability grid, speed, encumbrance, attack bonus, the
+natural-attack fallback and adventuring throws. Every branch was a two-way choice
+between "character" and "everything else", and "everything else" was written
+against the monster's field paths.
+
+The module's own `acks-extras.animal` is neither. It took the CHARACTER branch
+throughout and was read at paths it does not have: `details.level` (absent),
+`details.xp.value` (its XP is a flat number), `movementacks.*`, `scores.*`,
+`encumbrance.value6`. An animal hireling in an employer's hirelings grid showed
+level 1, 0 XP, speed 0, a blank ability grid and an encumbrance bar for a body
+that carries no inventory — all of it plausible-looking and all of it wrong.
+
+**Ruled: no branch in the card may test `actor.type`.** Each displayed value is
+selected by whether the actor's data model DECLARES the field it needs
+(`actorProvides`, which asks the model's schema and falls back to the value for
+fields that only a derived pass creates). A rating the model does not carry is
+left out of the card instead of read off another type's path. The editable card
+binds its inputs to a `*Path` computed the same way, so an edit can never write a
+character-shaped object over a creature's flat number. The `animal` needed no
+code of its own: it renders correctly because it declares the monster's paths,
+which is the whole point of that schema.
+
+The type test is a closed set. It cannot be right about a type added after it was
+written, and it fails *silently* — the card renders, the numbers are simply
+someone else's. 1.4.1 had already fixed the notes field this way and the rest of
+the card was left on the type test; that is the shape of the cost of fixing one
+branch at a time.
+
+**Rejected: a per-type view-model table** (`character` → these fields, `monster`
+→ those). It is the same closed set with more ceremony, and every new type still
+has to be added by hand before its card is right.
+
+**Rejected: showing an animal's carrying capacity in the encumbrance slot.** The
+animal model does declare `animal.capacity6` / `animal.unencumbered6`, so the row
+has something true to say — but the card computes no load against them, and a
+capacity bar with no load is a new feature, not a repair. The row is absent.
+
+**Rejected: folding `thac0.mod.*` into the displayed attack bonus for an actor
+with no ability scores.** The attack bonus is now "the ability mod, where the
+model declares scores", which leaves the Actor-Tweaks attack adjustment out for a
+monster or an animal exactly as before. Including it is arguably the correct
+reading of the model, but it changes what an already-tweaked monster's card shows
+— a visible change to a type this fix is not repairing, in a hotfix.
+
+**Cost, deliberate:** the class slot on a model with no class now shows the
+actor's own localized TYPE name rather than a hard-coded "Monster", so
+`ACKS-LIB.followerCard.monster` no longer has a reader (`TYPES.Actor.monster` is
+the identical string, so the monster card is unchanged). `ctx.isMonster` and
+`ctx.levelReadonly` are gone from the view model and the card root no longer
+carries `is-monster`; nothing read any of the three.
+
+**Left standing, outside the card:** an actor's *route* to the card is still
+type-gated in files this fix does not own — `lib/module.mjs` registers the
+Follower Card sheet and its retainer default for `["character", "monster"]`, and
+`henchmen/apps/hirelings-grid.mjs` filters the monster-henchman bucket to
+`type === "monster"`. An animal reached through core's `henchmenList` now renders
+correctly; one recruited into the module's own monster list is still dropped
+before the card is asked for.

@@ -190,6 +190,9 @@ function occupantField() {
     // capacity decision made from this sheet.
     quantity: int(1),
     ownerUuid: str(), // who put it here / whose it is; "" = the place's own
+    // Caller-supplied at placement (acks-lib `occupantRow` / `addOccupant` option
+    // bag), and kept when a stored row absorbs its derived scene duplicate. No
+    // sheet control renders it yet: a consumer's text is stored, not shown.
     notes: str(),
     // Display gating only, never a security boundary — the same ruling storage
     // makes about attribution. A garrison that must genuinely stay secret
@@ -308,6 +311,9 @@ function marketSchema() {
           })
         ),
         lastResolutionId: str(), // multi-GM-socket claim (see candidateField)
+        // Caller-supplied via `addSpecialHire` (public api, and the
+        // `registerFoundRecruit` wrapper that spreads its options). Stored, not
+        // rendered by the special-hires table.
         notes: str(),
       })
     ),

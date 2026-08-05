@@ -16,7 +16,7 @@
  */
 import { toNum as num } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
-import { followerCardContext, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
+import { actorProvides, followerCardContext, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
 
 
 export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplicationMixin(
@@ -158,12 +158,16 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     const ov = this.actor.getFlag(MODULE_ID, "fcOverrides") ?? {};
     const upd = {};
     if (ov.ac != null) {
-      if (this.actor.type === "monster") {
-        upd["system.aac.value"] = num(ov.ac); // monster AC is stored directly
-      } else {
+      // Core recomputes `aac.value` from armour + DEX + `aac.mod` for a body that
+      // HAS ability scores, so a direct write there is overwritten on the next
+      // prepare — the difference goes into `aac.mod` instead. A model with no
+      // scores gets no such pass and stores its AC as typed.
+      if (actorProvides(this.actor, "scores")) {
         const sys = this.actor.system;
         const base = num(sys.aac?.value) - num(sys.aac?.mod);
-        upd["system.aac.mod"] = num(ov.ac) - base; // land computeAC on the typed value
+        upd["system.aac.mod"] = num(ov.ac) - base;
+      } else {
+        upd["system.aac.value"] = num(ov.ac);
       }
     }
     for (const [k, v] of Object.entries(ov.adventuring ?? {})) upd[`system.adventuring.${k}`] = num(v);

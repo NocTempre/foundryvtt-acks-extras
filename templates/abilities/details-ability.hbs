@@ -3,15 +3,21 @@
   partial on the Description tab (see ability-sheet.mjs
   _prepareDescriptionContext).
 
-  Everything describing a THROW — formula, roll type, target, blind — lives on
-  the Rolls tab, where all of an ability's throws sit together. Core can only
-  store one roll, so its partial shows that one here; rendering it on
-  Description made the first throw look like the only one, and put a bare
-  "1d20 / = / 0" on every proficiency that makes no throw at all.
+  Everything describing a THROW — formula, roll type, target — lives on the
+  Rolls tab, where all of an ability's throws sit together. Core can only store
+  one roll, so its partial shows that one here; rendering it on Description made
+  the first throw look like the only one, and put a bare "1d20 / = / 0" on every
+  proficiency that makes no throw at all.
 
-  The save is NOT a throw property and stays here: it names what the ability
-  forces on its TARGET, not how the ability's own roll is made, and core reads
-  it to render a Save button on the chat card.
+  Blind is NOT a throw property: one `system.blindroll` hides every throw the
+  ability offers, so it stays here with the ability's other ability-wide fields.
+  It renders only when the ability HAS a throw — `hasRolls`, from
+  ability-sheet.mjs — because a switch on a proficiency that never rolls
+  controls nothing.
+
+  The save is NOT a throw property either: it names what the ability forces on
+  its TARGET, not how the ability's own roll is made, and core reads it to
+  render a Save button on the chat card.
 
   Field names still bind to the system's own schema — this is core's data,
   just the part of it that is not a roll.
@@ -33,6 +39,16 @@
       </select>
     </div>
   </div>
+
+  {{#if hasRolls}}
+  <div class="form-group form-group--row">
+    <label class="form-group__label">{{localize 'ACKS.items.BlindRoll'}}</label>
+    <div class="form-group__fields">
+      <input type="checkbox" name="system.blindroll" value="{{system.blindroll}}" {{checked system.blindroll}}
+             data-dtype="Boolean"/>
+    </div>
+  </div>
+  {{/if}}
 
   <div class="form-group">
     <label class="form-group__label">{{localize 'ACKS.spells.Save'}}</label>

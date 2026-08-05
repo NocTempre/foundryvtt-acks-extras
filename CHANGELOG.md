@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.4.2
+
+### Fixed
+- **An ability can be thrown blind again.** The Blind checkbox had been dropped
+  from the ability's Description tab, and nothing read the field behind it. It is
+  back, and it works from every route a throw can start — the proficiency row,
+  the chat card, a macro, or the Rolls tab — because they all arrive at the same
+  roller. Blind is one switch for the whole ability, as the system stores it, and
+  it is offered only on abilities that actually throw rather than sitting dead on
+  those that do not. A Judge rolling their own blind ability keeps it to
+  themselves; a player's goes to the Judge alone.
+- **A Follower Card reads the follower it was given.** The card decided what to
+  show by asking what *kind* of actor it held, so an animal hireling was read as
+  though it were a character: level, experience, speed, ability scores,
+  encumbrance and attack bonus were all fetched from paths an animal does not
+  have, and came back wrong or blank on the employer's hirelings tab. The card
+  now asks each follower's own data what it holds, and leaves out what it does
+  not carry instead of borrowing another shape's answer. Committing an armour
+  class for an animal wrote to a field nothing reads, so the button did nothing;
+  it now lands.
+- **A place's notes answer to ownership.** Anyone who could rename a location and
+  set its region could only read its notes, though the same tab already showed
+  those notes to everyone. Notes are the place's shared record and are now
+  written by whoever owns it.
+- **The troop-count boxes ask for a number pad.** On a tablet the hiring dialog
+  opened the alphabetic keyboard, because Foundry strips that request out of a
+  dialog's markup before it is drawn. It is now set on the fields themselves.
+
+### Notes
+- Occupant and special-hire notes are written by the module but have nowhere on
+  the sheet to be read. The fields are deliberately kept rather than removed, and
+  the missing display is recorded in the Locations roadmap.
+
 ## 1.4.1
 
 ### Fixed

@@ -2,12 +2,75 @@
 
 Why this feature is shaped the way it is: what was ruled, what was rejected, and
 what the ruling cost. How it behaves *now* is [MODEL.md](MODEL.md); what is not
-built yet is [ROADMAP.md](../ROADMAP.md).
+built yet is [ROADMAP.md](ROADMAP.md).
 
 Entries are dated and append-only. **A superseded entry stays, marked as
 superseded** — the value of this file is that a settled question is not
 re-opened, and knowing an option was tried and abandoned is worth more than a
 tidy list of only the current answers.
+
+---
+
+### A place's notes answer to ownership, not to the Judge's seat (2026-08-05)
+
+The Contents tab gated the `system.notes` editor on `isGM` while `name` and
+`system.region` — the same form, the same tab — answered to `editable`. A player
+who owned a location could rename it and move it between regions but could only
+read its notes. Nothing recorded why, and the read-only branch already showed
+those notes to every viewer, so the gate was not keeping a secret; it was
+withholding a pen from someone already holding the deed.
+
+Notes are now gated on `editable`, like the fields beside them. A place's notes
+are its shared record.
+
+**Rejected: gating `name` and `region` to the Judge instead.** That is the
+consistent alternative and it was weighed. It loses more than it protects — a
+party that owns a stronghold renaming it is ordinary play — and it would have
+taken away a capability owners already had, which is a worse trade than granting
+one they were plainly meant to have.
+
+**Rejected: a second, Judge-only notes field.** The right answer if notes were
+ever meant to be private, but the field the party can already read is not that,
+and adding one is a schema change — a minor, not a patch.
+
+**Cost:** a Judge wanting a private record of a place has nowhere on this sheet
+to put it, and must use a journal until a private field exists. That gap is
+recorded in [ROADMAP.md](ROADMAP.md) rather than papered over here.
+
+---
+
+### Occupant and special-hire `notes` stay: they are write-only, not dead (2026-08-05)
+
+Reported as inert schema fields to be deleted — declared, never written, never
+read. The first half is false. Both are written on every add, through exported
+API a consumer can already reach:
+
+- `roster[].notes` — `occupantRow()` (acks-lib `place.mjs`) stamps it from its
+  option bag on every `addOccupant`, and `mergeOccupants` deliberately preserves
+  it when a stored row absorbs its derived duplicate.
+- `market.specialHires[].notes` — `addSpecialHire()` stamps it, and that function
+  sits on the henchmen public `api`, as does `registerFoundRecruit`, which
+  spreads caller options straight through to it.
+
+Nothing in this repo passes a non-empty value, and no sheet renders either one.
+The fields are therefore WRITE-ONLY, and the defect is a missing display rather
+than a dead declaration. **Kept; the display is [ROADMAP.md](ROADMAP.md).**
+
+*Rejected: deleting them.* A field nothing ever wrote can go without ceremony; a
+field an exported API writes cannot. A consumer that has called
+`addOccupant(place, actor, { notes })` or `api.registerFoundRecruit(loc, actor,
+{ notes })` has real text in a world DB, and removing the declaration discards it
+on the next write with no warning. That is a schema migration, which a hotfix
+does not carry.
+
+The cost is that the original complaint stands until the display lands: a caller
+can write a note and see nothing. It is now a named gap rather than an
+unexplained one.
+
+*Not to be confused with `market.candidates[].notes`* — a different field,
+written by `recruitment.mjs` (the proficiency tag a directed search stamps) and
+read both by the sheet's candidate identity line and by `directedSpecMatches`.
+That one is load-bearing.
 
 ---
 

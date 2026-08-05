@@ -27,13 +27,20 @@ function officerLabel(c) {
 }
 
 /**
- * Wire the +/− steppers and the "take all" affordance on the group dialog, and
- * keep every count within [0, cap]. Event-delegated off the dialog root so it
- * survives DialogV2's DOM, and defensive: a missing root simply leaves the
- * number inputs (which already carry min/max) as the fallback.
+ * Wire the +/− steppers and the "take all" affordance on the group dialog, put
+ * the count fields on a numeric soft keyboard, and keep every count within
+ * [0, cap]. Event-delegated off the dialog root so it survives DialogV2's DOM,
+ * and defensive: a missing root simply leaves the number inputs (which already
+ * carry min/max) as the fallback.
  */
 function wireSteppers(root) {
   if (!(root instanceof HTMLElement)) return;
+  // The numeric soft keyboard is requested as a PROPERTY here, never as an
+  // `inputmode` attribute in the dialog's markup: DialogV2 runs a string
+  // `content` through cleanHTML, whose <input> allowlist does not include
+  // `inputmode`, so an attribute written there is dropped before render and a
+  // tablet opens the alphabetic keyboard on a count field.
+  for (const input of root.querySelectorAll('input[type="number"][data-cap]')) input.inputMode = "numeric";
   const clamp = (input) => {
     const cap = Number(input.dataset.cap) || 0;
     const v = Math.floor(Number(input.value) || 0);
@@ -81,7 +88,7 @@ export async function openHireGroupDialog(location) {
         <span class="hg-name" title="${esc(troopLabel(c))}">${esc(troopLabel(c))}</span>
         <div class="hg-stepper">
           <button type="button" class="hg-step" data-target="q_${c.id}" data-delta="-1" aria-label="−">&minus;</button>
-          <input type="number" name="q_${c.id}" value="0" min="0" max="${cap(c)}" data-cap="${cap(c)}" inputmode="numeric" />
+          <input type="number" name="q_${c.id}" value="0" min="0" max="${cap(c)}" data-cap="${cap(c)}" />
           <button type="button" class="hg-step" data-target="q_${c.id}" data-delta="1" aria-label="+">+</button>
         </div>
         <button type="button" class="hg-max" data-target="q_${c.id}" title="${game.i18n.localize("ACKS-HENCHMEN.group.takeAll")}">${game.i18n.format("ACKS-HENCHMEN.group.ofAvailable", { n: cap(c) })}</button>

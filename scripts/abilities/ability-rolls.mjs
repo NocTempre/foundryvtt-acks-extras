@@ -189,11 +189,34 @@ export async function writeRolls(item, rolls) {
 }
 
 /**
+ * How an ability's throws are posted to chat, or undefined to leave the seat's
+ * own default alone.
+ *
+ * `system.blindroll` is core's field and it is ABILITY-wide: it hides every
+ * throw the ability offers, not a chosen one. A GM rolling a blind ability
+ * posts to themselves instead — blind exists to keep a result from the table,
+ * and the GM is who the result is for. That is core's own rule
+ * (`AcksDice.#sendRoll`), applied to each of an ability's throws rather than to
+ * the single throw core can store.
+ *
+ * The mode names are Foundry 14's `CONFIG.ChatMessage.modes` keys; the legacy
+ * `rollMode` spellings core still uses are deprecated and log on every call.
+ */
+function messageModeFor(item) {
+  if (!item?.system?.blindroll) return undefined;
+  return game.user?.isGM ? "self" : "blind";
+}
+
+/**
  * Roll one of an ability's rolls and post the result.
  *
  * Success is reported only when a target is known. On a shared world item there
  * is no character to resolve a ladder against, so the roll still happens and
  * the result stands on its own rather than being scored against a guess.
+ *
+ * THE one place an ability's throw is posted — the Rolls tab's buttons and
+ * core's own roll path (through roll-wrap.mjs) both arrive here — so blind is
+ * honoured wherever the roll was started from.
  */
 export async function rollAbility(item, key) {
   const rolls = rollsOf(item);
@@ -215,11 +238,16 @@ export async function rollAbility(item, key) {
   const verdict =
     success == null ? "" : success ? game.i18n.localize("ACKS-ABILITIES.roll.success") : game.i18n.localize("ACKS-ABILITIES.roll.failure");
 
-  await evaluated.toMessage({
-    speaker: ChatMessage.getSpeaker({ actor }),
-    flavor: `${foundry.utils.escapeHTML?.(label) ?? label}<br><span class="acks-abilities-roll-target">${targetText}${
-      verdict ? ` — <strong>${verdict}</strong>` : ""
-    }</span>${roll.condition ? `<br><em>${foundry.utils.escapeHTML?.(roll.condition) ?? roll.condition}</em>` : ""}`,
-  });
+  await evaluated.toMessage(
+    {
+      speaker: ChatMessage.getSpeaker({ actor }),
+      flavor: `${foundry.utils.escapeHTML?.(label) ?? label}<br><span class="acks-abilities-roll-target">${targetText}${
+        verdict ? ` — <strong>${verdict}</strong>` : ""
+      }</span>${roll.condition ? `<br><em>${foundry.utils.escapeHTML?.(roll.condition) ?? roll.condition}</em>` : ""}`,
+    },
+    // An undefined mode falls through to the seat's own default, which is what
+    // toMessage does when nothing is passed at all.
+    { messageMode: messageModeFor(item) },
+  );
   return { total, target, success };
 }

@@ -7,8 +7,13 @@
       card embedded in an employer's hirelings tab) MUST emit no `name=` inputs —
       they would bind to the employer's form — only the system's own hireling
       actions (hirelingShow/Loyalty/Morale/Delete), which resolve the hireling by the
-      data-item-id on the card root. --}}
-<div class="acks-lib-follower-card{{#if isMonster}} is-monster{{/if}}{{#unless editable}} readonly{{/unless}}" data-item-id="{{id}}">
+      data-item-id on the card root.
+
+      No block here tests an actor TYPE. A field is rendered when the context says
+      this actor has it, and bound to the `*Path` the context supplies — the JS
+      reads those off the actor's data model, so a field one actor type spells
+      differently is never written to another type's path. --}}
+<div class="acks-lib-follower-card{{#unless editable}} readonly{{/unless}}" data-item-id="{{id}}">
 
   {{!-- Name banner --}}
   <header class="fc-name">
@@ -30,10 +35,8 @@
   <div class="fc-topline">
     <div class="fc-field fc-class">
       <label>{{localize "ACKS.details.class"}}</label>
-      {{#if isMonster}}
-        <span>{{localize "ACKS-LIB.followerCard.monster"}}</span>
-      {{else if editable}}
-        <input type="text" name="system.details.class" value="{{klass}}" />
+      {{#if klassPath}}
+        {{#if editable}}<input type="text" name="{{klassPath}}" value="{{klass}}" />{{else}}<span>{{klass}}</span>{{/if}}
       {{else}}
         <span>{{klass}}</span>
       {{/if}}
@@ -41,7 +44,7 @@
     <div class="fc-field fc-level">
       <label>{{localize levelLabel}}</label>
       {{#if editable}}
-        {{#if levelReadonly}}<span>{{level}}</span>{{else}}<input type="text" name="system.details.level" value="{{level}}" data-dtype="Number" />{{/if}}
+        {{#if levelPath}}<input type="text" name="{{levelPath}}" value="{{level}}" data-dtype="Number" />{{else}}<span>{{level}}</span>{{/if}}
       {{else}}
         <span>{{level}}</span>
       {{/if}}
@@ -49,11 +52,7 @@
     <div class="fc-field fc-xp">
       <label>{{localize "ACKS.details.experience.baseshort"}}</label>
       {{#if editable}}
-        {{#if isMonster}}
-          <input type="text" name="system.details.xp" value="{{xp}}" data-dtype="Number" />
-        {{else}}
-          <input type="text" name="system.details.xp.value" value="{{xp}}" data-dtype="Number" />
-        {{/if}}
+        {{#if xpPath}}<input type="text" name="{{xpPath}}" value="{{xp}}" data-dtype="Number" />{{else}}<span>{{xp}}</span>{{/if}}
       {{else}}
         <span>{{xp}}</span>
       {{/if}}
@@ -103,10 +102,12 @@
       {{/if}}
 
       <div class="fc-vitals">
-        <div class="fc-field">
-          <label>{{localize "ACKS-LIB.followerCard.speed"}}</label>
-          <span>{{speed.primary}}{{#if speed.secondary}} / {{speed.secondary}}{{/if}}</span>
-        </div>
+        {{#if speed}}
+          <div class="fc-field">
+            <label>{{localize "ACKS-LIB.followerCard.speed"}}</label>
+            <span>{{speed.primary}}{{#if speed.secondary}} / {{speed.secondary}}{{/if}}</span>
+          </div>
+        {{/if}}
         {{#if enc}}
           <div class="fc-field">
             <label>{{localize "ACKS.Encumbrance"}}</label>
