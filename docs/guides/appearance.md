@@ -34,19 +34,31 @@ colour scheme to **Always light** and it resolves.
 follower cards, module windows, and the system's sheets. One knob rescales the
 whole family; Foundry's own UI scale applies on top of it.
 
-## What happened to the character-sheet theme
+## Choose how much styling the system's sheets take
 
-There used to be a **Character-sheet theme** toggle. It is gone, and what it
-switched on is now simply how the module looks.
+**ACKS styling on system sheets** decides how far the look reaches into the
+windows the ACKS *system* opens — the character sheet, the item sheet, its
+dialogs.
 
-Turning it off never returned you to a neutral Foundry — it left this module's
-windows in the ACKS look and the system's in Foundry's default one, which is the
-split this release exists to close. It could not be made safe in the off position
-either: the ACKS system publishes no dark palette of its own, so with the theme
-off a dark seat put the module's panels on a page drawn for a light one.
+| Setting | What it does |
+|---|---|
+| **Full dress** (default) | Banners, tabs and ACKS write-in fields throughout. The character sheet opens wider to fit them |
+| **Palette only** | The system keeps its own layout, spacing and width; only the colours change |
 
-If what you wanted was a lighter or darker look, **ACKS colour scheme** above is
-the knob that was actually being reached for.
+Both follow your colour scheme. This setting is how much ACKS, never whether
+dark mode works.
+
+Full dress widens the character sheet by about 90px. The ACKS write-in fields
+are roomier than the ones that sheet was laid out around, so it is given the room
+rather than made to do without them — and it is a minimum, not a fixed width, so
+if you drag the sheet wider it stays where you put it. If you would rather keep
+the sheet exactly as the system draws it, that is what **Palette only** is for.
+
+There used to be a **Character-sheet theme** on/off toggle. Off never returned
+you to a neutral Foundry — it left this module's windows in the ACKS look and the
+system's in Foundry's default one — and the ACKS system publishes no dark palette
+of its own, so on a dark seat it put the module's panels on a page drawn for a
+light one. The choice above replaces it.
 
 ## Colour is never the only signal
 

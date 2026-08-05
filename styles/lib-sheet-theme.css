@@ -75,6 +75,25 @@ body.acks-lib-sheet-theme .mortal-wounds-dialog :is(select, input) {
   color: var(--acks-ink);
 }
 
+/* --- Room for the ACKS controls. -----------------------------------------
+   The design system's fields are roomier than core's, and core sizes its
+   attribute grid around core's own field metrics — so the same grid needs
+   ~90px more than core's default width asks for, and clips its last column
+   without it. The window is what gives: widening it costs nothing, where
+   withholding the control styling costs the sheet its ACKS character. A
+   minimum rather than a width, so a player who drags it wider keeps that.
+
+   Scoped to `.acks-ui`, so it applies to the full dress only. The palette
+   setting leaves core's field metrics alone and therefore needs no more room
+   than core already asked for.
+
+   `.actor-v2` is the class the system's v2 actor sheet actually carries; it
+   does NOT also carry a bare `.actor`, so a selector written that way is
+   inert. --- */
+body.acks-lib-sheet-theme .acks.sheet.actor-v2.acks-ui {
+  min-width: 900px;
+}
+
 /* --- Type scale: the whole sheet rides --acks-fs-base. -------------------
    One knob (the acks-lib `fontScale` client setting writes --acks-fs-base
    inline on the root element); the system sheets' own em/% hierarchy scales

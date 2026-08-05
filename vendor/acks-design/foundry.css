@@ -24,14 +24,13 @@
  * ACKS look with no per-widget override at all.
  *
  * TWO CLASSES, ON PURPOSE. `.acks-palette` is this block and nothing else:
- * colour, type face, and no geometry. `.acks-ui` is this block PLUS the ACKS
+ * colour and type face, no geometry. `.acks-ui` is this block PLUS the ACKS
  * chrome below — window band, tabs, control padding, scrollbars.
  *
- * A surface laid out by someone else takes the palette only. The `acks`
- * system's character sheet sizes its attribute grid around its own field
- * metrics, so the roomier control padding further down this file — right for a
- * window the module lays out itself — pushes that grid 89px past its own edge.
- * Colour crosses that boundary safely; spacing does not.
+ * Both carry the full light/dark remap, so a host can take the palette without
+ * the furniture and still follow the seat exactly as a fully-dressed one does.
+ * That is the point of the split: the choice is how much ACKS, never whether
+ * dark mode works.
  * ------------------------------------------------------------------------ */
 .acks-ui,
 .acks-palette {

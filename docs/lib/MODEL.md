@@ -35,24 +35,33 @@ light-theme constants and cannot follow a dark seat.
 | Chrome | `vendor/acks-design/foundry.css` | any application root carrying `acks-ui` |
 | Core sheets | `styles/lib-sheet-theme.css` | markup the **system** renders, prefixed `body.acks-lib-sheet-theme` |
 
-**Core's own windows are ACKS surfaces too.** A `renderApplicationV2` hook adds
-`acks-palette` to any application root carrying `acks` or `acks2`, which is every
-sheet and dialog the system renders. This is not decoration: the `acks` system
-publishes no dark palette — zero `.theme-dark` rules, and a sheet ground that is
-a fixed light parchment image — so without the remap its widgets draw light-theme
-values underneath themed module regions injected into the same sheet. There is no
-setting for this and no off-state; a seat that themed the module's windows but
-left the system's alone rendered one family two ways.
+**Core's own windows are ACKS surfaces too.** A `renderApplicationV2` hook marks
+any application root carrying `acks` or `acks2` — every sheet and dialog the
+system renders. This is not decoration: the `acks` system publishes no dark
+palette at all (zero `.theme-dark` rules, and a sheet ground that is a fixed
+light parchment image), so without the remap its widgets draw light-theme values
+underneath themed module regions injected into the same sheet.
 
-**`acks-palette` is the colour half of `acks-ui`, and the split is load-bearing.**
-`acks-ui` is the remap PLUS the ACKS chrome — window band, tabs, control padding,
-scrollbars — and belongs on windows this module lays out itself. A surface laid
-out by someone else takes `acks-palette` alone: core sizes its attribute grid
-around its own field metrics, and the design system's roomier control padding
-pushes that grid 89px past the sheet's own edge. Colour crosses that boundary
-safely; spacing does not. What makes a core sheet still *read* as ACKS — the
-banner, the small-caps, the ruled page, the boxed fields — is
-`styles/lib-sheet-theme.css`, which changes no geometry at all.
+**`acks-palette` is the colour half of `acks-ui`.** `acks-ui` is the remap PLUS
+the ACKS chrome — window band, tabs, control padding, scrollbars.
+`acks-palette` is the remap alone. Both carry the identical light/dark values,
+so the choice between them is how much ACKS, never whether the seat works.
+
+The `sheetStyle` client setting picks which one lands on the system's windows:
+
+| `sheetStyle` | Class | What core keeps |
+|---|---|---|
+| `full` (default) | `acks-ui` | nothing — banners, tabs and ACKS fields throughout |
+| `palette` | `acks-palette` | its own layout, spacing and field metrics |
+
+**Full dress needs a wider sheet, and gets one.** The ACKS fields are roomier
+than core's, and core sizes its attribute grid around core's own metrics, so the
+grid wants ~90px more than core's default width — it clips its last column
+otherwise. `lib-sheet-theme.css` gives `.acks.sheet.actor-v2.acks-ui` a
+`min-width`. A minimum, not a width, so a player who drags it wider keeps that;
+and scoped to `.acks-ui`, so palette mode leaves core's width alone. Note the
+class is `actor-v2` — the system's v2 actor sheet does not also carry a bare
+`.actor`, so a selector written that way is inert.
 
 **Tokens are published once.** Light at `:root`, dark at a single override block.
 Nothing else declares a palette value — a second publisher at higher specificity
@@ -82,10 +91,13 @@ by-the-rules — are carried by the glyph, the glyph's weight, or the rule weigh
 `--acks-gold` is the one accent beyond the spot colour, and it is a real measured
 token, not a per-feature invention.
 
-**Two client settings drive it**, both in `lib/module.mjs` and both per player:
+**Three client settings drive it**, all in `lib/module.mjs` and all per player:
 
 - `theme` — `follow` (default), `light`, `dark`. Pins `data-acks-theme` on
   `<html>`; `follow` removes the attribute so Foundry's own scheme governs.
+- `sheetStyle` — `full` (default) or `palette`, per the table above. Its
+  `onChange` re-dresses already-open windows in place, or the setting appears to
+  do nothing until each is reopened.
 - `fontScale` — writes `--acks-fs-base` inline on `<html>`, rescaling every ACKS
   surface from one knob.
 

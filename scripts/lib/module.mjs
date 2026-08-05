@@ -269,6 +269,24 @@ Hooks.once("init", () => {
     onChange: (mode) => applyTheme(mode),
   });
 
+  // HOW MUCH of the ACKS look the SYSTEM's own windows take. Not whether they
+  // follow your colour scheme — both settings carry the same palette, so a dark
+  // seat is dark either way. Full dress restyles the furniture too and needs a
+  // wider sheet for it; palette keeps core's own layout and width.
+  game.settings.register(MODULE_ID, "sheetStyle", {
+    name: `${LANG_PREFIX}.settings.sheetStyle.name`,
+    hint: `${LANG_PREFIX}.settings.sheetStyle.hint`,
+    scope: "client",
+    config: true,
+    type: String,
+    choices: {
+      full: `${LANG_PREFIX}.settings.sheetStyle.full`,
+      palette: `${LANG_PREFIX}.settings.sheetStyle.palette`,
+    },
+    default: "full",
+    onChange: () => redressOpenSheets(),
+  });
+
   // THE font knob. Every ACKS surface (follower card, module apps, and — with
   // the theme on — the system sheets) derives its sizes from --acks-fs-base via
   // the token scale, so one inline declaration on the root element resizes the
@@ -314,6 +332,25 @@ Hooks.once("setup", () => {
 });
 
 /**
+ * Re-dress the system windows that are already open when `sheetStyle` changes.
+ *
+ * The class is applied on render, so without this the setting appears to do
+ * nothing until each sheet is closed and reopened. Swapping the classes in
+ * place is enough — both are pure CSS hooks, and the min-width that the full
+ * dress needs is a stylesheet rule, not a stored position.
+ */
+function redressOpenSheets() {
+  const full = game.settings.get(MODULE_ID, "sheetStyle") !== "palette";
+  for (const app of foundry.applications.instances.values()) {
+    const root = app.element;
+    if (!root?.classList) continue;
+    if (!root.classList.contains("acks") && !root.classList.contains("acks2")) continue;
+    root.classList.toggle("acks-ui", full);
+    root.classList.toggle("acks-palette", !full);
+  }
+}
+
+/**
  * Pin the ACKS palette from the `theme` setting, or release it to Foundry.
  *
  * `follow` REMOVES the attribute rather than writing a value: with nothing
@@ -351,12 +388,15 @@ function applyTheme(mode) {
  * into the same sheet. Remapping at the root is what makes one window one
  * colour scheme.
  *
- * `acks-palette`, NOT `acks-ui`: the palette without the chrome. Core sizes its
- * attribute grid around its own field metrics, and the design system's roomier
- * control padding pushes that grid 89px past the sheet's own edge — measured on
- * the character sheet, invisible until a label clips. The banners, small-caps
- * and sheet ground that make these windows read as ACKS come from
- * styles/lib-sheet-theme.css, which changes no geometry at all.
+ * WHICH class is the `sheetStyle` setting. `acks-ui` is the full dress —
+ * banners, tabs, ACKS controls; the roomier fields mean core's own sheets need
+ * ~90px more than core's default width asks for, which the min-width in
+ * styles/lib-sheet-theme.css supplies. `acks-palette` is the colours alone, so
+ * core keeps its own field metrics and its own width.
+ *
+ * The setting is how much ACKS, never whether the seat works: both classes
+ * carry the same light/dark remap, so a palette-only sheet follows a dark seat
+ * exactly as a fully-dressed one does.
  *
  * `renderApplicationV2` reaches every ApplicationV2: core fires render hooks for
  * each class in the inheritance chain, not just the concrete one.
@@ -366,7 +406,10 @@ function applyTheme(mode) {
 Hooks.on("renderApplicationV2", (_app, element) => {
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root?.classList) return;
-  if (root.classList.contains("acks") || root.classList.contains("acks2")) root.classList.add("acks-palette");
+  if (!root.classList.contains("acks") && !root.classList.contains("acks2")) return;
+  const full = game.settings.get(MODULE_ID, "sheetStyle") !== "palette";
+  root.classList.toggle("acks-ui", full);
+  root.classList.toggle("acks-palette", !full);
 });
 
 /**

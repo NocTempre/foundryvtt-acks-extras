@@ -12,13 +12,14 @@
   the porphyry running head, the square letterpress rules, the small-caps banner
   lettering — instead of Foundry's default chrome. Nothing moved: this changes
   what the module is coloured with, not where anything sits.
-- **The system's own sheets follow your colour scheme.** Every window the ACKS
-  system opens now draws from the same palette as this module's, so a dark seat
+- **The system's own sheets are ACKS windows too.** Every window the ACKS system
+  opens — the character sheet, the item sheet, and its dialogs — now wears the
+  same frame and the same palette as everything this module opens, so a dark seat
   is dark all the way through instead of stopping at the module's own windows.
-  The system's sheets keep their own spacing — they are laid out around field
-  sizes this module has no business changing — and take the printed-sheet
-  treatment on top: the porphyry banner, the ruled page, the boxed write-in
-  fields.
+  The character sheet opens a little wider than it used to: the ACKS write-in
+  fields are roomier than the ones it was laid out around, and it is given the
+  room rather than made to do without them. Drag it wider and it stays where you
+  put it.
 - **A distinction you could only see in colour is now drawn, not tinted.** A lit
   lamp and an unlit one were the same icon in two hues; a magical light and a
   mundane one were purple and blue. The books have no such palette to spend, so
@@ -27,13 +28,14 @@
   hues did not.
 
 ### Removed
-- **The Character-sheet theme setting is gone, and the theme it toggled is now
-  simply on.** Turning it off did not return you to a neutral Foundry; it left
-  the module's own windows themed and the system's not, which is the split this
-  release exists to close. It could not be made safe either way: the ACKS system
-  publishes no dark palette at all, so with the theme off a dark seat put the
-  module's regions on a page drawn for a light one. Nothing replaces it — the new
-  ACKS colour scheme setting is the knob that was actually wanted.
+- **The Character-sheet theme on/off toggle is gone, replaced by a choice of how
+  much.** Off never returned you to a neutral Foundry — it left this module's
+  windows themed and the system's not, which is the split this release closes,
+  and the ACKS system publishes no dark palette to fall back to, so a dark seat
+  put the module's panels on a page drawn for a light one. **ACKS styling on
+  system sheets** takes its place: *Full dress* restyles the furniture too, and
+  *Palette only* keeps the system's own layout, spacing and width and changes
+  nothing but the colours. Both follow your colour scheme.
 
 ### Added
 - **You can hold the ACKS look steady while the rest of your client goes the

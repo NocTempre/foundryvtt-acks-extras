@@ -383,13 +383,12 @@ would have made the off position legible by letting those regions inherit core's
 colours, but it preserves the two-ways-rendered split as a supported state, which
 is the thing being removed.
 
-### The palette crosses to core's sheets; the chrome does not (2026-08-05)
+### The palette crosses to core's sheets; the chrome is a setting (2026-08-05)
 
 Carrying the ACKS look onto the system's own windows began as one class:
 `renderApplicationV2` added `acks-ui` to every root carrying `acks` or `acks2`.
-It looked right and it was wrong. Measured live on the character sheet, the
-attributes tab rendered 871px of content in a 782px box — 89px past its own
-edge, clipping the last column's labels.
+It looked right and it clipped. Measured live on the character sheet, the
+attributes tab rendered 871px of content in a 782px box.
 
 The cause was not typography, which was the obvious suspect and the wrong one:
 the computed font size is 14px with the frame on or off. It was
@@ -397,25 +396,30 @@ the computed font size is 14px with the frame on or off. It was
 `4px 6px` of padding. Core's attribute grid is sized around core's own field
 metrics, and a dozen widened fields is 89px.
 
-**Ruled: `.acks-palette` — the variable remap alone, no geometry.** The design
-system now publishes the remap under both `.acks-ui` and `.acks-palette`, and
-keeps the chrome (window band, tabs, control padding, scrollbars, form geometry)
-under `.acks-ui` only. Windows this module lays out itself take `.acks-ui`;
-surfaces laid out by someone else take `.acks-palette`. Verified: 782px and zero
-overflow with the palette applied, and `--color-text-primary` still remapped to
-the ACKS ink rather than core's own value.
+**First answer, and it was the wrong shape: withhold the chrome.** The design
+system grew `.acks-palette` — the variable remap with no geometry — and core's
+sheets took that instead. It measured clean, and it gave up the burgundy caps
+labels and the boxed tabs to buy back 89px. Owner, immediately: *how was
+"revert everything" easier than adding some pixels to the width of one window's
+default?* Correct. The window is what should give.
 
-Nothing is lost visually. What makes a core sheet read as ACKS — the porphyry
-banner, the small-caps lettering, the ruled page, the boxed write-in fields —
-comes from `styles/lib-sheet-theme.css`, and that layer was measured at core's
-own 782px both before and after. The chrome was never what carried the look
-there.
+**Ruled: the sheet gets a `min-width`, and the split becomes a setting.**
+`lib-sheet-theme.css` widens `.acks.sheet.actor-v2.acks-ui` to 900px — a
+minimum, not a width, so a player who drags it wider keeps that. `.acks-palette`
+survives as the other value of the new `sheetStyle` client setting, for a table
+that wants the colours without the furniture. Both classes carry the identical
+light/dark remap, so the setting is how much ACKS, never whether dark mode
+works. Verified live across all four `sheetStyle` x `theme` combinations: zero
+overflow and the correct ink in every one.
+
+**A selector written against the wrong class is silently inert.** The first
+min-width targeted `.acks.sheet.actor`, and the system's v2 actor sheet carries
+`actor-v2` with no bare `.actor` — so the rule matched nothing and the overflow
+persisted unchanged. It read as "min-width does not override Foundry's inline
+width", which is false and would have been the wrong lesson. Read the class list
+off the live element before scoping to it.
 
 **The general rule this establishes:** a design system may hand another owner's
-layout its colours, never its spacing. Every token in the remap is a colour or a
-face; every geometry knob stayed behind.
+layout its colours freely. If it also wants to hand over its geometry, it has to
+give that layout the room, not take away the geometry.
 
-**Cost:** two classes to keep straight, and a module window that also carries a
-system class now gets both (harmless — the palette is a strict subset). The
-alternative was neutralising core's field padding from the override layer, which
-means this module guessing at core's metrics and re-guessing whenever they move.

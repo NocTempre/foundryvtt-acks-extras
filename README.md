@@ -91,8 +91,10 @@ The foundation the other features are built on, and useful on its own.
 - **The rules-table registry.** A priority-layered store the other features read
   through: built-in sample tables at the bottom, imported book tables above them,
   GM overrides on top. Nobody reads a table by module name.
-- **Theming.** One design-token layer (`--acks-*`) across every ACKS surface,
-  plus a per-client font-size control.
+- **Theming.** One design-token layer (`--acks-*`) across every ACKS surface —
+  including the ones the *system* renders — measured from the books and carrying
+  a light and a dark value for every colour. Per-client controls for colour
+  scheme, how much styling the system's own sheets take, and font size.
 
 ### Proficiencies, class powers and skills
 
@@ -203,7 +205,7 @@ transcription. The module ships no book text.
 the UI).
 
 **Library** — `attackRollPatch`, `manageVision`, `advanceWorldTime`,
-`storageDeletePolicy`; per-client `theme`, `fontScale`.
+`storageDeletePolicy`; per-client `theme`, `sheetStyle`, `fontScale`.
 
 **Equipment** — `enforceMode`, `proficiencyEnforcement`, `rollAutomation`,
 `ammoTracking`, `defaultHandBudget`, plus six `overlay*` optional rules.
