@@ -39,7 +39,7 @@ build/release plumbing, and its `docs/DECISIONS.md` before a structural change
   packs are not in git). Commit `packs/_source` when it changes; the compiled
   dirs are ignored, so there is nothing to review or discard.
 - Foundry dev install (junction, not copy):
-  `New-Item -ItemType Junction -Path "$env:LOCALAPPDATA\FoundryVTT\Data\modules\acks-extras" -Target "C:\Proj\gallant-leavitt-73353f"`
+  `New-Item -ItemType Junction -Path "$env:LOCALAPPDATA\FoundryVTT\Data\modules\acks-extras" -Target "C:\Proj\foundryvtt-acks-extras"`
 ## Live testing
 
 `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` defines this machine's local Foundry
@@ -115,7 +115,7 @@ pass exactly the same gates.
    + tag.
 6. Confirm publication with BOUNDED polls — **never `gh run watch`, it hangs**:
    `gh release view v<version> --json assets` ~30s apart, capped ~5 min. Then
-   verify `https://github.com/NocTempre/gallant-leavitt-73353f/releases/latest/download/module.json`
+   verify `https://github.com/NocTempre/foundryvtt-acks-extras/releases/latest/download/module.json`
    shows the new version. The `/acks-release` skill walks all of this.
 
 ## Conventions
@@ -168,11 +168,6 @@ stays there and the other repo points at it; a pointer is not duplication.
 - `docs/<feature>/wip/` — in-flight audits/plans/proposals only. When the work
   lands, its substance moves into the three above and the artifact is deleted.
   **Nothing permanent is named AUDIT, PLAN or PROPOSAL.**
-- `docs/site/` — the published Starlight site (GitHub Pages). It **stages** its
-  content from `docs/guides/`, `docs/GALLERY.md`, `README.md`, `lang/en.json`,
-  `scripts/` and `tools/pack-data.mjs`; every staged path is gitignored and
-  editing one is undone by the next `npm run sync`. Change the source. See
-  `docs/README.md` for the full mapping.
 
 **One feature-slug vocabulary**, shared by `docs/<feature>/`,
 `docs/releases/v*/<slug>.png` and `docs/guides/<slug>.md`. Never "henchmen" in

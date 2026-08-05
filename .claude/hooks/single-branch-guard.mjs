@@ -117,10 +117,10 @@ if (MODE === "worktree-create") {
   process.stdout.write(JSON.stringify({
     continue: false,
     stopReason:
-      "This repo is single-branch: no worktrees. Run in " +
-      "C:\\Proj\\foundryvtt-acks-extras on main. See CLAUDE.md, Conventions.",
+      "This repo is single-branch: no worktrees. Run in the repo's main " +
+      "checkout on main. See CLAUDE.md, Conventions.",
     systemMessage:
-      "Blocked a worktree: acks-extras is single-branch, work happens on main.",
+      "Blocked a worktree: this repo is single-branch, work happens on main.",
   }));
   process.exit(0);
 }
@@ -132,7 +132,7 @@ if (MODE === "session-start") {
       systemMessage:
         "This session is running in an isolated worktree, which commits to a " +
         "throwaway claude/* branch. This repo is single-branch — work in " +
-        "C:\\Proj\\foundryvtt-acks-extras on main instead.",
+        "the repo's main checkout on main instead.",
       hookSpecificOutput: {
         hookEventName: "SessionStart",
         additionalContext:
