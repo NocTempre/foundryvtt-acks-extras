@@ -46,11 +46,13 @@ function plain(md) {
 /**
  * Copy the design system in, re-pointing its dark branch at Starlight's switch.
  *
- * The tokens file keys dark on `.theme-dark` / `[data-acks-theme="dark"]`
- * (Foundry's class and its own preview harness); Starlight stamps
- * `data-theme="dark"` on `<html>`. Rewriting the selector list is what lets the
- * palette stay authored once — the alternative, re-declaring the dark values
- * here, is exactly the duplication the tokens file's own header warns against.
+ * The tokens file keys dark on an `:is(.theme-dark, [data-acks-theme="dark"])`
+ * list (Foundry's class and its own preview harness) wrapped in the two
+ * forced-light `:not()` guards; Starlight stamps `data-theme="dark"` on
+ * `<html>`. Adding `:root[data-theme="dark"]` inside the `:is()` list — guards
+ * intact — is what lets the palette stay authored once; the alternative,
+ * re-declaring the dark values here, is exactly the duplication the tokens
+ * file's own header warns against.
  */
 function stageDesignSystem() {
   const from = path.join(REPO, "vendor", "acks-design");
@@ -59,14 +61,18 @@ function stageDesignSystem() {
   copyDir(path.join(from, "fonts"), path.join(to, "fonts"));
 
   const tokens = fs.readFileSync(path.join(from, "tokens.css"), "utf8");
-  const marker = '.theme-dark,\n[data-acks-theme="dark"] {';
+  const marker =
+    ':is(.theme-dark, [data-acks-theme="dark"]):not([data-acks-theme="light"]):not([data-acks-theme="light"] *) {';
   if (!tokens.includes(marker)) {
     throw new Error(
       "vendor/acks-design/tokens.css no longer opens its dark block with the expected selector list; " +
         "update stageDesignSystem() in docs/site/tools/stage-content.mjs to match.",
     );
   }
-  const patched = tokens.replace(marker, `.theme-dark,\n[data-acks-theme="dark"],\n:root[data-theme="dark"] {`);
+  const patched = tokens.replace(
+    marker,
+    ':is(.theme-dark, [data-acks-theme="dark"], :root[data-theme="dark"]):not([data-acks-theme="light"]):not([data-acks-theme="light"] *) {',
+  );
   write(
     path.join(to, "tokens.css"),
     `/* GENERATED from vendor/acks-design/tokens.css — the dark selector list gains\n` +
