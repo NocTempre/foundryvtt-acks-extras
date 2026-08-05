@@ -18,6 +18,7 @@ import { applyClass, classUpdateData, normalizeHd } from "./apply.mjs";
 import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
+import { openChargen, applyTemplate, legalTemplates, intBonusPicks, resolveBase, registerChargen } from "./chargen.mjs";
 import { savesUpdateData, repairSaveReferences, BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 
@@ -70,6 +71,11 @@ Hooks.once("init", () => {
     parseHd,
     openClassPicker,
     openLevelUp,
+    openChargen,
+    applyTemplate,
+    legalTemplates,
+    intBonusPicks,
+    resolveBase,
     casting,
     choiceOptions,
     savesUpdateData,
@@ -83,4 +89,5 @@ Hooks.once("init", () => {
 registerAssignUi();
 casting.registerCastingUi();
 registerLevelUp();
+registerChargen();
 registry.registerRegistryHooks();
