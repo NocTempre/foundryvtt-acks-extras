@@ -1,4 +1,4 @@
-/* global game, foundry, Hooks, CONFIG, ChatMessage, Roll */
+/* global game, foundry, Hooks, CONFIG, ChatMessage, Roll, ui */
 /**
  * Core patch: the attack roll, remodeled as TARGET vs AUDITABLE BONUS STACK.
  *
@@ -95,8 +95,32 @@ function buildContext(actor, attData, options) {
 /** "+2[Strength]" formula fragments — the labels surface in the roll tooltip. */
 const termPart = (t) => `${t.value}[${String(t.label).replace(/[[\]]/g, "")}]`;
 
+/**
+ * A weapon's damage die, or the 1d6 default.
+ *
+ * A stat block may state damage as prose rather than dice — a monster that
+ * strikes "by weapon" does whatever it is holding — and Foundry's parser throws
+ * on the ENTIRE formula when one term is unparseable, so an unrollable damage
+ * string costs the attack, not just the damage. The same default this file
+ * already gives an empty damage field covers an unrollable one, and the GM is
+ * told which item to correct instead of losing the roll.
+ */
+function damageDie(item) {
+  const raw = item?.system?.damage;
+  if (!raw) return "1d6";
+  const formula = String(raw);
+  if (Roll.validate(formula)) return formula;
+  ui.notifications.warn(
+    game.i18n.format("ACKS-LIB.attack.badDamage", {
+      item: item?.name ?? L("weapon", "Weapon"),
+      formula,
+    }),
+  );
+  return "1d6";
+}
+
 function damageParts(actor, attData, type) {
-  const parts = [{ value: attData?.item?.system?.damage || "1d6", label: null }];
+  const parts = [{ value: damageDie(attData?.item), label: null }];
   if (type === "melee") {
     const str = Number(actor.system.scores?.str?.mod ?? 0);
     if (str) parts.push({ value: str, label: L("str", "STR") });
@@ -252,10 +276,17 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   return roll;
 }
 
-/** The installed method body — fail-safe: any error falls back to core's roll. */
-function patchedRollAttack(attData, options = {}) {
+/**
+ * The installed method body — fail-safe: any error falls back to core's roll.
+ *
+ * The `await` is what makes that true. The remodeled roll is async, so returning
+ * its promise unawaited leaves every rejection raised inside it — a bad formula,
+ * a failed render, a template miss — outside this `try`, and the fail-safe can
+ * only ever catch a throw from the call itself.
+ */
+async function patchedRollAttack(attData, options = {}) {
   try {
-    return acksLibRollAttack(this, attData, options);
+    return await acksLibRollAttack(this, attData, options);
   } catch (err) {
     console.error(`${MODULE_ID} | patched attack roll failed; falling back to core`, err);
     return coreRollAttack ? coreRollAttack.call(this, attData, options) : undefined;

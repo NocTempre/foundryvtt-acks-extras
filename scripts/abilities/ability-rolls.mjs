@@ -1,4 +1,4 @@
-/* global foundry, game, Roll, ChatMessage */
+/* global foundry, game, Roll, ChatMessage, ui */
 /**
  * The roller behind the Rolls tab — and, through roll-wrap.mjs, behind every
  * other way the game rolls an ability.
@@ -208,6 +208,28 @@ function messageModeFor(item) {
 }
 
 /**
+ * A throw's dice, or the 1d20 default.
+ *
+ * The formula is a free-text field, so it holds whatever was typed — or whatever
+ * a book's prose gave it. Foundry's parser throws on an unparseable formula, and
+ * this roller is async, so that throw would surface as an unhandled rejection
+ * with no card and no explanation. The default already covers a blank formula;
+ * it covers an unrollable one too, and names the throw so it can be corrected.
+ */
+function rollableFormula(roll, item) {
+  const formula = String(roll?.formula ?? "").trim();
+  if (!formula) return "1d20";
+  if (Roll.validate(formula)) return formula;
+  ui.notifications.warn(
+    game.i18n.format("ACKS-ABILITIES.roll.badFormula", {
+      name: [item?.name, roll?.label].filter(Boolean).join(" — ") || game.i18n.localize("ACKS-ABILITIES.roll.unnamed"),
+      formula,
+    }),
+  );
+  return "1d20";
+}
+
+/**
  * Roll one of an ability's rolls and post the result.
  *
  * Success is reported only when a target is known. On a shared world item there
@@ -225,7 +247,7 @@ export async function rollAbility(item, key) {
   const actor = item.actor ?? null;
   const target = targetOf(roll, actor, item);
 
-  const evaluated = await new Roll(roll.formula || "1d20").evaluate();
+  const evaluated = await new Roll(rollableFormula(roll, item)).evaluate();
   const type = roll.rollType || "above";
   const total = evaluated.total;
   const success = target == null ? null : type === "below" ? total <= target : type === "result" ? total === target : total >= target;

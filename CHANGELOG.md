@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.1.1
+
+### Fixed
+- **A creature that strikes with whatever it is holding still strikes.** Plenty
+  of stat blocks state damage as prose rather than dice — a skeletal slayer
+  hits "by weapon", because what it does depends on the sword in its hands. One
+  unrollable word cost the entire attack: the dice parser gives up on the whole
+  formula when any part of it is not dice, so the click produced no roll, no
+  card, and nothing in the log to say why. Worse, the creature was charged for
+  it — the attack counter comes down before the roll is made, so a round's
+  attacks drained away against a swing that never happened. Such an attack now
+  rolls, does a die of damage until you give it a better one, and says which
+  item to correct. A weapon whose damage was already dice is untouched.
+- **The fall-back behind the attack roll can actually catch.** The remodeled
+  attack roll has always promised that any failure inside it hands off to the
+  system's own roll instead of breaking the attack. It could not keep that
+  promise: the roll is asynchronous, and the failure was being handed back to
+  the caller rather than to the guard waiting for it, so the guard only ever saw
+  errors raised before the roll began. Every failure now reaches it — which is
+  what makes the case above degrade into a usable roll rather than silence.
+- **A proficiency throw with an unrollable formula says so.** An ability's dice
+  are typed in by hand, and nothing checked them on the way in. A throw carrying
+  anything that is not dice failed the same silent way — no card, no complaint.
+  It now rolls a d20, names the throw, and points at the field to fix.
+
 ## 2.1.0
 
 ### Fixed
