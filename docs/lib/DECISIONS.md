@@ -423,3 +423,26 @@ off the live element before scoping to it.
 layout its colours freely. If it also wants to hand over its geometry, it has to
 give that layout the room, not take away the geometry.
 
+---
+
+### Goods the system leaves un-draggable are marked — and only those (2026-08-05)
+
+`ActorSheetV2` binds its drag sources with `dragSelector: ".draggable"`, and
+core's inventory template marks every row with that class except money. Coin
+therefore could not be dragged into a container or onto a place at all, and the
+failure was invisible in the worst way: no handler of ours ever ran, so there was
+nothing in the console to find. Every drop target in the family was waiting on a
+drag that could not begin.
+
+`patches/goods-drag.mjs` adds the class after render and then **re-binds the
+sheet's own DragDrop**. The re-bind is the fix, not a tidy-up — `DragDrop.bind`
+assigns `ondragstart` element by element, so a class added after that pass is
+inert until another one runs. Binding twice is safe precisely because those
+handlers are assigned rather than added.
+
+**Only rows whose `data-item-id` resolves to `isGoods` are marked.** Core also
+leaves the favourites panel and the languages list un-draggable, and making every
+row on the sheet a drag source is a wider behaviour change than this defect
+warrants. Gating on the predicate rather than on `type === "money"` means
+whatever the system forgets next is covered without another patch.
+

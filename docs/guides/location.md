@@ -47,6 +47,24 @@ character genuinely stops weighing on them.
 named after the place. The GM setting `storageDeletePolicy` can change that to
 "lose", for the campaign where a sacked city takes your warehouse with it.
 
+Coin stows like anything else you carry: drag a coin row onto a place or into a
+pouch, or pick it in **Deposit here**. Coin kept in the old **bank** column is
+not carried, so it cannot be stowed from there — it is swept into a vault first.
+
+## Give a character a vault
+
+A vault is a place of one character's own: only they and their players can reach
+it. You are given one automatically the first time a banked balance is swept out
+of the retired bank column.
+
+That sweep only visits a character who still has a balance to move, so a vault
+that is **deleted does not come back on its own** — by then there is nothing left
+to sweep. **Settings → Storage Manager → Give a character a vault** makes one on
+demand.
+
+This is not the same as **Let an actor hold goods**, which makes a *shared*
+place — a wagon, a stronghold, an inn — that anyone with access can reach.
+
 ## Add a market
 
 Most places have no market. **GM Settings → Add market** creates one, and four
@@ -68,3 +86,10 @@ one in an unloaded compendium. The chain renders as far as it resolves.
 **Retrieve isn't offered.** The goods are attributed to a character you do not
 own. A GM can reassign attribution in the **Storage Manager** (Settings →
 Storage Manager).
+
+**"Nothing was moved."** The stack you picked is empty. Coin sitting in the old
+bank column is not carried, so it cannot be stowed from there — it is swept into
+a vault at the next world load, and stows from the vault.
+
+**My character has no vault any more.** Deleting one does not regenerate it. A GM
+makes a new one with **Storage Manager → Give a character a vault**.

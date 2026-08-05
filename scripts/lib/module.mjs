@@ -55,6 +55,7 @@ import * as attackLogic from "./attack-logic.mjs";
 import * as damageType from "./damage-type.mjs";
 import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK } from "./patches/attack-roll.mjs";
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
+import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -183,6 +184,10 @@ Hooks.once("init", () => {
   registerMountCleanup();
   registerStorageCleanup();
   registerGroupCleanup();
+
+  // Coin is goods the system forgets to make draggable, so it cannot be dropped
+  // into a container or a place at all until the row is bound.
+  installGoodsDrag();
 
   // Vision/detection modes and the two status effects the ACKS senses need.
   // At init, not ready: a token drawn against an unregistered vision mode

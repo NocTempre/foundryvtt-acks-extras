@@ -11,6 +11,30 @@ tidy list of only the current answers.
 
 ---
 
+### A vault can be asked for, not only earned (2026-08-05)
+
+The sweep that retires the bank column makes a vault for any character with a
+balance to move, and that was the only way one ever came into existence. It
+reads as automatic until a vault is deleted — at which point the goods go back
+to their owner (the delete policy's default), which leaves that character with
+nothing banked, and a character with nothing banked is exactly the one the sweep
+skips. So the vault never returned, and nothing anywhere could make another.
+`Let an actor hold goods` is not that control and was never meant to be: it
+excludes characters on purpose and produces a *shared* place.
+
+`vaultFor()` is now exported from `vault-sweep.mjs` and is **the one definition
+of a vault** — name, art, ownership, the `vaultOf` flag. The storage manager's
+`Give a character a vault` builds on it rather than on a second copy of those
+four decisions, so a vault made by hand and a vault made by the sweep are the
+same object.
+
+**Rejected: regenerating vaults automatically.** A vault deleted deliberately —
+a GM consolidating everyone into one treasury, which is the manager's first job
+— must stay deleted. Re-creating it at the next ready would fight that tidy-up,
+and nothing distinguishes a deliberate deletion from an accidental one.
+
+---
+
 ### A place's notes answer to ownership, not to the Judge's seat (2026-08-05)
 
 The Contents tab gated the `system.notes` editor on `isGM` while `name` and

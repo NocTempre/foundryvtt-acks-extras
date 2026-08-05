@@ -38,8 +38,19 @@ function vaultOwnership(character) {
   return ownership;
 }
 
-/** This character's vault, made if they do not have one yet. */
-async function vaultFor(character) {
+/**
+ * This character's vault, made if they do not have one yet.
+ *
+ * THE ONE DEFINITION OF A VAULT — name, art, ownership and the `vaultOf` flag
+ * that binds it to its character. The sweep is not its only caller: a GM who
+ * deletes a vault gets the goods back but no vault, and nothing regenerates it
+ * (the sweep only ever visits a character with a banked balance, and by then
+ * there is none). The storage manager's "give a character a vault" builds on
+ * this rather than on a second copy of these four decisions.
+ *
+ * Idempotent: a character who already has one gets that one back.
+ */
+export async function vaultFor(character) {
   const existing = storage().findVaultOf(character.uuid);
   if (existing) return existing;
   return Actor.create({

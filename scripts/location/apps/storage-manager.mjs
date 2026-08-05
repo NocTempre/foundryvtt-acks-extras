@@ -15,6 +15,7 @@
  */
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
+import { vaultFor } from "../vault-sweep.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const { DialogV2 } = foundry.applications.api;
@@ -39,6 +40,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
       reassign: StorageManager.#onReassign,
       returnToOwners: StorageManager.#onReturnToOwners,
       enableStorage: StorageManager.#onEnableStorage,
+      createVault: StorageManager.#onCreateVault,
       openPlace: StorageManager.#onOpenPlace,
     },
   };
@@ -297,6 +299,45 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
     await api.setProvider(actor, true);
     ui.notifications.info(loc("manager.enabledOn", { name: actor.name }));
     this.#placeUuid = actor.uuid;
+    this.render();
+  }
+
+  /**
+   * Give a character a personal vault.
+   *
+   * The sweep makes these on its own, but only for a character with a banked
+   * balance to move — so a vault that is deleted never comes back by itself, and
+   * before this there was no way to ask for one. `#onEnableStorage` is not that
+   * way: it deliberately excludes characters and makes a SHARED place, which is
+   * a different thing from a vault bound to its owner.
+   */
+  static async #onCreateVault() {
+    const api = storage();
+    const candidates = game.actors.filter((a) => a.type === "character" && a.isOwner && !api.findVaultOf(a.uuid));
+    if (!candidates.length) {
+      ui.notifications.warn(loc("manager.everyoneHasVault"));
+      return;
+    }
+    const options = candidates
+      .map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)}</option>`)
+      .join("");
+    const uuid = await DialogV2.prompt({
+      window: { title: loc("manager.createVault") },
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      content: `<p>${loc("manager.createVaultPrompt")}</p><select name="actor" style="width:100%">${options}</select>`,
+      ok: { label: loc("manager.createVault"), callback: (_e, button) => button.form.elements.actor.value },
+    }).catch(() => null);
+    if (!uuid) return;
+    const character = api.resolveActorSync(uuid);
+    if (!character) return;
+
+    const vault = await vaultFor(character);
+    if (!vault) {
+      ui.notifications.error(loc("manager.vaultFailed", { name: character.name }));
+      return;
+    }
+    ui.notifications.info(loc("manager.vaultCreated", { name: character.name, place: vault.name }));
+    this.#placeUuid = vault.uuid;
     this.render();
   }
 }

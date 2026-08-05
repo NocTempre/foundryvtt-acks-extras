@@ -13,8 +13,9 @@ the next refresh.
 | Appearance | The system's own character sheet on a dark seat, in the ACKS palette | [guide](guides/appearance.md) | [v2.0.0](releases/v2.0.0/character-sheet-dark.png) |
 | Colour scheme | The per-player setting that holds the ACKS look steady | [guide](guides/appearance.md#pick-a-colour-scheme) | [v2.0.0](releases/v2.0.0/settings-colour-scheme.png) |
 | Character sheet | The system's sheet on a light seat: ruled page, boxed write-in fields | [guide](guides/appearance.md) | [v2.0.0](releases/v2.0.0/character-sheet.png) |
-| Locations | Goods kept at a place, and who is recorded there | [guide](guides/location.md) | [v2.0.0](releases/v2.0.0/location-sheet.png) |
-| Storage | Moving goods in and out of a place that holds them | [guide](guides/location.md) | [v2.0.0](releases/v2.0.0/location-storage-manager.png) |
+| Locations | Goods kept at a place — coin included — and who is recorded there | [guide](guides/location.md) | [v2.1.0](releases/v2.1.0/location-sheet.png) |
+| Storage | Moving goods in and out of a place that holds them, and giving a character a vault | [guide](guides/location.md) | [v2.1.0](releases/v2.1.0/location-storage-manager.png) |
+| Storage messages | What a refused stow tells you, in words rather than an identifier | [guide](guides/location.md) | [v2.1.0](releases/v2.1.0/storage-message.png) |
 | Henchmen | An employer's roster: who is hired, on what terms | [guide](guides/henchmen.md) | [v2.0.0](releases/v2.0.0/henchmen-roster.png) |
 | Equipment | An item's construction: where it sits and what it costs to reach | [guide](guides/equipment.md) | [v2.0.0](releases/v2.0.0/equipment-item-sheet.png) |
 | Formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v2.0.0](releases/v2.0.0/formation-party-sheet.png) |

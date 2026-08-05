@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.1.0
+
+### Fixed
+- **Coin goes where the rest of your gear goes.** A stack of coins was the one
+  thing on the sheet that could not be dragged. Pouches and locations both take
+  goods, and both ignored coin completely — no refusal, no warning, nothing in
+  the console to explain it, because nothing ran at all: the coin row was never
+  made a drag source, so the drag never began. Coin now drags into a container
+  or onto a place like anything else you carry. Rows that are not goods — the
+  favourites panel, your languages — are left exactly as the system draws them.
+- **When a stow is refused, it says so in words.** Storage turns a move down for
+  five honest reasons — an empty stack, ownership you do not have, an unlinked
+  token, a place that does not hold goods, a write that failed — and every one
+  of them arrived as `ACKS-LIB.storage.nothingToMove` or one of its siblings: an
+  identifier rather than a sentence, with nothing in the console to expand it.
+  Each now says what happened and what to do about it.
+
+### Added
+- **A character can be given a vault back.** Vaults are made for you by the sweep
+  that retires the bank column, and only for a character who still has a balance
+  to move — so a vault that is deleted never comes back on its own, because by
+  then there is nothing left to sweep. The storage manager gains **Give a
+  character a vault**, which makes one on demand, reachable by that character and
+  their players and nobody else. *Let an actor hold goods* is unchanged and still
+  makes a shared place — a wagon, a stronghold, an inn — which is a different
+  thing from a vault of your own.
+
 ## 2.0.0
 
 ### Changed
