@@ -126,7 +126,10 @@ pass exactly the same gates.
   A session whose cwd is under `.claude/worktrees/` is misplaced: its commits
   land on a throwaway `claude/*` branch. Merge back to `main` and say so.
   `.claude/hooks/single-branch-guard.mjs` denies the branch- and
-  worktree-creating git commands and warns a misplaced session at startup.
+  worktree-creating git commands, refuses the app's own worktree creation, and
+  warns a misplaced session at startup. `worktree.bgIsolation` is `none` so
+  background sessions edit the main checkout — but that is read at daemon
+  start, so restart the app after changing it.
 - `compatibility` minimum 14 / verified 14.364; system `acks` minimum 14.
 - Every `relationships.requires` entry carries a `reason` and
   `compatibility.minimum` (lib-wrapper for wrapping, socketlib for GM-routed

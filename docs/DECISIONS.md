@@ -278,3 +278,14 @@ in CLAUDE.md is now an instruction with the guard named.
 **Rejected:** blocking the worktree at the `WorktreeCreate` event alone — it
 fires too late to stop the session that is already being placed there, and it
 would not catch a hand-typed `git checkout -b`.
+
+> **Addendum, same day.** The "rejected" note above is superseded: `WorktreeCreate`
+> is now wired, and the setting alone was proven insufficient. Three minutes after
+> `bgIsolation: "none"` was committed, a background session spawned into a fresh
+> `.claude/worktrees/vibrant-kare-57829c` on a new `claude/*` branch. The setting
+> is read when the background daemon starts, so a daemon already running keeps
+> minting worktrees until it restarts. The Bash guard cannot see that path either
+> — the app creates the worktree itself, without shelling out. `WorktreeCreate`
+> is the only hook that sits in front of it, so it now returns `continue: false`.
+> Its blocking behaviour is unverified until the next background session spawns;
+> the setting and the Bash guard are both verified.

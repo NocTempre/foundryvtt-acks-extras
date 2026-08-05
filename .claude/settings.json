@@ -47,6 +47,17 @@
         ]
       }
     ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/single-branch-guard.mjs\" worktree-create"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

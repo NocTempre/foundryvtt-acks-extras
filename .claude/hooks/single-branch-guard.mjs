@@ -7,14 +7,18 @@
  * - `pretool` — reads a PreToolUse payload on stdin and denies Bash commands
  *   that create a branch or a worktree. Deleting, listing, renaming and
  *   checking out existing branches all pass through untouched.
+ * - `worktree-create` — refuses the app's own worktree creation, the path that
+ *   no Bash guard can see.
  * - `session-start` — warns when a session's cwd is inside
  *   `.claude/worktrees/`, which means it is about to commit onto a throwaway
  *   `claude/*` branch instead of `main`.
  *
  * Root cause this guards: background sessions default to worktree isolation
  * (`worktree.bgIsolation`), which mints a `claude/<name>` branch per session.
- * That default is turned off in settings; this hook catches the paths that
- * setting does not cover — `--worktree`, EnterWorktree, and hand-typed git.
+ * That default is turned off in settings, but the setting is read when the
+ * background daemon starts, so a daemon already running keeps making worktrees
+ * until it restarts — which is why the `worktree-create` mode exists rather
+ * than trusting the setting alone.
  */
 
 const MODE = process.argv[2];
@@ -106,6 +110,18 @@ if (MODE === "pretool") {
       process.exit(0);
     }
   }
+  process.exit(0);
+}
+
+if (MODE === "worktree-create") {
+  process.stdout.write(JSON.stringify({
+    continue: false,
+    stopReason:
+      "This repo is single-branch: no worktrees. Run in " +
+      "C:\\Proj\\foundryvtt-acks-extras on main. See CLAUDE.md, Conventions.",
+    systemMessage:
+      "Blocked a worktree: acks-extras is single-branch, work happens on main.",
+  }));
   process.exit(0);
 }
 
