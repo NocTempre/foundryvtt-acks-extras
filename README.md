@@ -199,18 +199,18 @@ transcription. The module ships no book text.
 
 ## Settings reference
 
-42 settings: 38 configurable, 4 internal (persisted world state, not shown in
+43 settings: 39 configurable, 4 internal (persisted world state, not shown in
 the UI).
 
-**Library** — `attackRollPatch`, `storageDeletePolicy`; per-client `sheetTheme`,
-`fontScale`.
+**Library** — `attackRollPatch`, `manageVision`, `advanceWorldTime`,
+`storageDeletePolicy`; per-client `sheetTheme`, `fontScale`.
 
 **Equipment** — `enforceMode`, `proficiencyEnforcement`, `rollAutomation`,
 `ammoTracking`, `defaultHandBudget`, plus six `overlay*` optional rules.
 
-**Formation** — `partyTokenImage`, `playersMoveParty`, `advanceWorldTime`,
-`publicTurnCards`, `lightItemEnforcement`, `encounterEvery`, `encounterTarget`,
-`manageFog`, `mapperNeedsLight`, `syncTokenLight`, `signalAffectsEncounters`,
+**Formation** — `partyTokenImage`, `playersMoveParty`, `publicTurnCards`,
+`lightItemEnforcement`, `encounterEvery`, `encounterTarget`, `manageFog`,
+`mapperNeedsLight`, `syncTokenLight`, `signalAffectsEncounters`,
 `fuzzMeasurement`.
 
 **Henchmen** — `daysPerMonth`, `autoRollCalamity`, `enforceHenchmanLimit`,

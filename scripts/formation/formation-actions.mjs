@@ -6,7 +6,9 @@ import {
   disband,
   getFrontage,
   getPartyActor,
+  getPartyScene,
   getPartyToken,
+  maxFrontage,
   removeBlank,
   removeMember,
   swapCells,
@@ -102,6 +104,7 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     const confirmed = await foundry.applications.api.DialogV2.confirm({
+      classes: ["acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize("ACKS-FORMATION.app.disband") },
       content: `<p>${game.i18n.format("ACKS-FORMATION.app.disbandConfirm", { name: formation.name })}</p>`,
     });
@@ -416,6 +419,7 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     const confirmed = await foundry.applications.api.DialogV2.confirm({
+      classes: ["acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize("ACKS-FORMATION.map.newMap") },
       content: `<p>${game.i18n.localize("ACKS-FORMATION.map.newMapConfirm")}</p>`,
     });
@@ -501,12 +505,43 @@ export const SHARED_ACTIONS = {
   },
 };
 
+/**
+ * The frontage the Judge typed, or null to leave the width alone.
+ *
+ * Any positive whole number is a line: a war party crossing open ground is as
+ * wide as it likes. A zero, a negative or a fraction is REFUSED out loud rather
+ * than rounded into something legal — a field that silently corrects what was
+ * typed reads as a field that ignored it. Blank is not an error; it is a
+ * half-finished edit.
+ *
+ * The ceiling is the map. A line wider than the scene has nowhere to put its
+ * flanks, so the request is honoured as far as the scene goes and the Judge is
+ * told where it stopped.
+ */
+function readFrontage(value, formation) {
+  if (value === "" || value === null || value === undefined) return null;
+  const wanted = Number(value);
+  if (!Number.isInteger(wanted) || wanted < 1) {
+    ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.warn.frontageInvalid"));
+    return null;
+  }
+  const max = maxFrontage(getPartyScene(formation) ?? game.scenes?.viewed);
+  if (max && wanted > max) {
+    ui.notifications.warn(game.i18n.format("ACKS-FORMATION.warn.frontageMax", { max }));
+    return max;
+  }
+  return wanted;
+}
+
 /** Form submit handler: formation rename, default table, frontage (GM only). */
 export async function onChangeForm(event, form, formData) {
   const data = foundry.utils.expandObject(formData.object);
   const formation = gmFormation(this);
   if (!formation) return;
   let changed = false;
+  // A refused or clamped entry writes nothing but must still redraw, or the
+  // field keeps showing the number the formation did not take.
+  let redraw = false;
   if (typeof data.name === "string" && data.name.trim() && data.name !== formation.name) {
     formation.name = data.name.trim();
     // The actor mirrors the formation identity (and vice versa on rename).
@@ -517,15 +552,16 @@ export async function onChangeForm(event, form, formData) {
     formation.tableId = data.tableId || null;
     changed = true;
   }
-  const frontage = Number(data.frontage);
-  if (frontage >= 1 && frontage <= 3 && frontage !== (Number(formation.frontage) || 1)) {
-    formation.frontage = frontage;
-    changed = true;
+  if ("frontage" in data) {
+    const frontage = readFrontage(data.frontage, formation);
+    if (frontage === null || frontage !== Number(data.frontage)) redraw = true;
+    if (frontage !== null && frontage !== getFrontage(formation)) {
+      formation.frontage = frontage;
+      changed = true;
+    }
   }
-  if (changed) {
-    await updateFormation(formation);
-    this.render();
-  }
+  if (changed) await updateFormation(formation);
+  if (changed || redraw) this.render();
 }
 
 /** Bind GM drag-drop of actors/tokens as new members. */

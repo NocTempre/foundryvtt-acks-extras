@@ -325,6 +325,30 @@
   border-color: rgba(160, 96, 16, 0.5);
 }
 
+/* --- Stacked occupants ------------------------------------------------
+ * A marching-order row whose occupant is an acks-lib.group stands for the
+ * bodies it counts, not for one. Both selectors are scoped to that row, so
+ * nothing here reaches the rest of the sheet.
+ */
+.acks-extras:is(.party-sheet, .skill-audit) .member.acks-extras-stacked {
+  border-color: rgba(64, 96, 160, 0.45);
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .member .acks-extras-stack-badge {
+  width: auto;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border-light-2, #7a7971);
+  border-radius: 8px;
+  background: rgba(64, 96, 160, 0.12);
+  font-size: var(--font-size-10, 10px);
+  font-weight: normal;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* --- end stacked occupants ------------------------------------------- */
+
 .acks-extras:is(.party-sheet, .skill-audit) .member .rank {
   flex: 0 0 18px;
   text-align: center;
@@ -766,4 +790,20 @@
 
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster .ruling.off {
   text-decoration: line-through;
+}
+
+/* --- Arbitrary frontage: the grid scrolls sideways ---------------------
+ * A rank is as wide as the frontage says it is, and a member cell has a floor
+ * it cannot shrink past — portrait, rank number and the control column are all
+ * fixed-width. Past that floor the grid is wider than the sheet, and
+ * window-content hides horizontal overflow, so the far files would simply be
+ * cut off with nothing to drag. The members section takes the sideways scroll
+ * and the columns keep a legible minimum.
+ */
+.acks-extras:is(.party-sheet, .skill-audit) .members {
+  overflow-x: auto;
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .members ol {
+  grid-template-columns: repeat(var(--frontage, 1), minmax(7rem, 1fr));
 }

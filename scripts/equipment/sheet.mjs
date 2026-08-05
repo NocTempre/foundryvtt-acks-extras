@@ -537,6 +537,7 @@ function containerHeader(actor, c, onRerender) {
               ? game.i18n.format("ACKS-EQUIPMENT.container.bashConfirmFragile", { name: c.item.name })
               : game.i18n.format("ACKS-EQUIPMENT.container.bashConfirm", { name: c.item.name });
             const ok = await foundry.applications.api.DialogV2.confirm({
+              classes: ["acks-extras", "acks-extras-scroll"],
               window: { title: game.i18n.localize("ACKS-EQUIPMENT.container.bash") },
               content: `<p>${warning}</p>`,
               rejectClose: false,

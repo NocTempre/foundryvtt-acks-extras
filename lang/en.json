@@ -24,6 +24,8 @@
   "ACKS-LIB.animal.training.war": "War",
   "ACKS-LIB.animal.training.hunting": "Hunting",
   "ACKS-LIB.animal.training.herding": "Herding",
+  "ACKS-LIB.settings.advanceWorldTime.name": "Advance the world clock",
+  "ACKS-LIB.settings.advanceWorldTime.hint": "Let this module move Foundry's world time: dungeon turns advance it 10 minutes per turn, and a location's \"Advance 1 week\" button advances it seven days. Keeps Active Effect durations and calendar modules in step. Turn it off if another module (e.g. Simple Timekeeping) is the only clock authority — everything else still works, this module just stops writing the time.",
   "ACKS-LIB.settings.manageVision.name": "Token vision from ACKS senses",
   "ACKS-LIB.settings.manageVision.hint": "Set each token's sight from its sheet: ordinary eyes see only what is lit, lightless vision and a thief's shadowy senses see their own radius as dim light, and night vision brightens dim light without piercing true dark. Also emits light from a lit torch, lantern or candle the character carries. Edit a token's vision by hand and this leaves that token alone from then on.",
   "ACKS-LIB.vision.lightless": "Lightless Vision",
@@ -673,10 +675,8 @@
       "blankSlot": "— empty —",
       "shieldedBadge": "closed",
       "shieldHint": "Close/open the lantern shutter: sheds no light while closed but keeps burning oil (RR equipment). Mapping needs an open light.",
-      "frontage1": "Single file (≤5')",
-      "frontage2": "Two abreast (≥6')",
-      "frontage3": "Three abreast (≥9')",
-      "frontageHint": "How many march abreast (RR p. 264: single file in corridors 5' or narrower, two columns at 6'+). Groups the list into ranks and shapes combat deployment; the party token itself stays 1×1.",
+      "frontageHint": "How many march abreast (RR p. 264: single file in corridors 5' or narrower, two columns at 6'+). Any width the scene can hold. Groups the list into ranks and shapes combat deployment; the party token itself stays 1×1.",
+      "stackHint": "Stands for several bodies. Open its sheet to record casualties — they come off in one stroke, not one at a time.",
       "autoArrange": "Auto-arrange",
       "autoArrangeHint": "Build an I-formation per RR p. 264: a FULL front line (scouts and best-armored melee, spears next) and a FULL back line (Rear Guard, then missile users) are staffed first; non-combatants, the mapper, and spellcasters hold the middle ranks, centered with blank slots. Tweak afterwards with the arrows.",
       "emptyMembers": "Drag actors or tokens into this sheet, or right-click a token on the canvas and use its \"Add to party\" HUD button.",
@@ -928,6 +928,8 @@
       "duplicatePartyToken": "This formation already has a party token on the canvas — delete it first to re-place the party.",
       "alreadyMember": "{name} is already in the formation.",
       "noSelection": "No eligible tokens selected.",
+      "frontageInvalid": "Frontage is a whole number of ranks, one or more.",
+      "frontageMax": "This scene is only {max} squares wide — the party marches {max} abreast at most.",
       "overburdened": "Party exploration speed is 0 — someone is overburdened!",
       "needLightItem": "{bearer} needs {items} to light this.",
       "spellNeedsName": "Pick a spell or enter a name to track.",
@@ -955,10 +957,6 @@
       "playersMoveParty": {
         "name": "All players can move the party token",
         "hint": "Coarse override: grants every player owner rights on party actors. Normally unnecessary — players who own a member of a formation automatically get vision through, and control of, its party token."
-      },
-      "advanceWorldTime": {
-        "name": "Advance world time",
-        "hint": "Advance the Foundry world clock by 10 minutes per dungeon turn (keeps Active Effect durations and calendar modules in sync)."
       },
       "publicTurnCards": {
         "name": "Public turn summaries",
@@ -1552,8 +1550,6 @@
   "ACKS-HENCHMEN.command.noLocations": "No recruitment locations exist yet. Create a Location actor first.",
   "ACKS-HENCHMEN.setting.daysPerMonth": "Days per game month",
   "ACKS-HENCHMEN.setting.daysPerMonthHint": "Used for wage cycles and monthly availability rolls (default 30).",
-  "ACKS-HENCHMEN.setting.advanceWorldTime": "Allow module buttons to advance world time",
-  "ACKS-HENCHMEN.setting.advanceWorldTimeHint": "Disable if another module (e.g. Simple Timekeeping) is the only clock authority.",
   "ACKS-HENCHMEN.setting.autoRollCalamity": "Auto-roll loyalty on calamity",
   "ACKS-HENCHMEN.setting.autoRollCalamityHint": "Skip the GM prompt and roll the secret loyalty check immediately when a calamity is detected.",
   "ACKS-HENCHMEN.setting.enforceHenchmanLimit": "Henchman limit enforcement",
@@ -1887,6 +1883,7 @@
   "ACKS-INFLUENCE.mode.irrefusable.hesitate": "Hesitates — the monster accepts reluctantly; loyalty starts at −2.",
   "ACKS-INFLUENCE.mode.irrefusable.accept": "Accepts — the monster enters service at loyalty 0.",
   "ACKS-INFLUENCE.mode.irrefusable.elan": "Élan — the monster accepts eagerly; loyalty starts at +1.",
+  "ACKS-LOCATION.sheet.location": "ACKS Location",
   "ACKS-LOCATION.browser.menuName": "Imported Rules Tables",
   "ACKS-LOCATION.browser.menuLabel": "Open Ruledata Browser",
   "ACKS-LOCATION.browser.menuHint": "Audit every imported table, export it as a Foundry document prefilled with the imported values, and drop a tweaked replacement back to override it (revert any time).",

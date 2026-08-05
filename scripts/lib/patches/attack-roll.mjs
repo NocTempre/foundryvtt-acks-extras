@@ -121,6 +121,7 @@ async function rollDetailsDialog(title, formula) {
       <select name="rollMode">${modes.join("")}</select></div>`;
   try {
     return await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-extras", "acks-extras-scroll"],
       window: { title },
       content,
       ok: {
@@ -187,7 +188,10 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   });
 
   // The auditable line: target stated as a target, bonuses as roll-adds.
-  const vsAc = ctx.targetAc != null ? game.i18n.format("ACKS-LIB.attack.vsAc", { ac: ctx.targetAc, need: res.effectiveTarget }) : "";
+  // The defender's AC earns its place only by changing the number needed. Against
+  // AC 0 it restates the throw, so it is dropped rather than printed twice.
+  const acShifts = ctx.targetAc != null && res.effectiveTarget !== ctx.throwTarget;
+  const vsAc = acShifts ? game.i18n.format("ACKS-LIB.attack.vsAc", { ac: ctx.targetAc, need: res.effectiveTarget }) : "";
   const stack = `${die}${ctx.terms.map((t) => ` ${t.value >= 0 ? "+" : "−"} ${Math.abs(t.value)} (${t.label})`).join("")} = ${res.total}`;
   let outcome;
   if (res.isFumble) outcome = game.i18n.localize("ACKS-LIB.attack.fumble");
@@ -274,27 +278,53 @@ function patchedRollAttack(attData, options = {}) {
  */
 const composed = [];
 
-/** Register a wrapper to run around the patched rollAttack. */
+/** Register a wrapper to run around the innermost rollAttack. */
 export function wrapRollAttack(fn) {
   if (typeof fn === "function" && !composed.includes(fn)) composed.push(fn);
 }
 
-/** patchedRollAttack with every registered wrapper folded around it. */
-function chainedRollAttack(attData, options = {}) {
-  let next = (a, o) => patchedRollAttack.call(this, a, o);
+/**
+ * Fold every registered wrapper around `inner`, innermost-last, and return the
+ * resulting `(attData, options)` entry point. Built per call, not per install:
+ * a feature that registers after the install still composes.
+ */
+function foldComposed(actor, inner) {
+  let next = inner;
   for (const w of [...composed].reverse()) {
-    const inner = next;
-    next = (a, o) => w.call(this, inner, a, o);
+    const outer = next;
+    next = (a, o) => w.call(actor, outer, a, o);
   }
-  return next(attData, options);
+  return next;
+}
+
+/** OVERRIDE form: the remodeled roll sits innermost. */
+function chainedRollAttack(attData, options = {}) {
+  return foldComposed(this, (a, o) => patchedRollAttack.call(this, a, o))(attData, options);
 }
 
 /**
- * Install at `ready` (the actor class is final), gated by the world setting.
- * Registered through libWrapper as OVERRIDE when available; other features'
- * wrappers compose through `wrapRollAttack` rather than a second registration.
+ * WRAPPER form: core's own roll sits innermost, because the world switched the
+ * remodeled roll off. libWrapper's `wrapped` is used rather than the captured
+ * `coreRollAttack` — with another package's OVERRIDE in play the captured
+ * method is libWrapper's own dispatcher, and calling it re-enters the chain.
  */
-export function installAttackRollPatch() {
+function chainedCoreRollAttack(wrapped, attData, options = {}) {
+  return foldComposed(this, (a, o) => wrapped(a, o))(attData, options);
+}
+
+/**
+ * Install at `ready` (the actor class is final).
+ *
+ * ONE registration always lands, whichever way `useModel` falls: `composed` is
+ * reachable only from the installed chain, so every feature that registered
+ * through `wrapRollAttack` — acks-equipment's per-weapon RAW modifiers and its
+ * ammunition spend — is silently dead without it. Never gate the install on the
+ * remodeled roll's setting; that setting chooses only what sits INNERMOST.
+ *
+ * @param {boolean} useModel  true → the remodeled roll replaces core's (OVERRIDE);
+ *                            false → core's roll runs, carrying the chain (WRAPPER).
+ */
+export function installAttackRollPatch(useModel = true) {
   if (game.system?.id !== "acks") return false;
   const proto = CONFIG.Actor.documentClass?.prototype;
   if (typeof proto?.rollAttack !== "function") {
@@ -306,12 +336,23 @@ export function installAttackRollPatch() {
     globalThis.libWrapper.register(
       MODULE_ID,
       "CONFIG.Actor.documentClass.prototype.rollAttack",
-      chainedRollAttack,
-      "OVERRIDE",
+      useModel ? chainedRollAttack : chainedCoreRollAttack,
+      useModel ? "OVERRIDE" : "WRAPPER",
     );
-  } else {
+  } else if (useModel) {
     proto.rollAttack = chainedRollAttack;
+  } else {
+    // No libWrapper: nothing else has replaced the prototype method, so the
+    // method captured above IS core's and is safe as the innermost link.
+    const core = coreRollAttack;
+    proto.rollAttack = function (attData, options = {}) {
+      return chainedCoreRollAttack.call(this, (a, o) => core.call(this, a, o), attData, options);
+    };
   }
-  console.log(`${MODULE_ID} | attack roll patched: throw as target, bonuses as auditable terms.`);
+  console.log(
+    useModel
+      ? `${MODULE_ID} | attack roll patched: throw as target, bonuses as auditable terms.`
+      : `${MODULE_ID} | remodeled attack roll off; core's roll stands, carrying ${composed.length} feature wrapper(s).`,
+  );
   return true;
 }

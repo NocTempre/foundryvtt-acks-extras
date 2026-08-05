@@ -89,6 +89,7 @@ const content =
 
 const go = await foundry.applications.api.DialogV2.confirm({
   window: { title: "ACKS II — Clean Up After the Merge" },
+  classes: ["acks-extras", "acks-extras-scroll"],
   content,
   yes: { label: "Remove them" },
   no: { label: "Cancel", default: true },

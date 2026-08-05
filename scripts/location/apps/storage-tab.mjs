@@ -79,6 +79,12 @@ const stripBankColumn = (root) => {
   for (const cell of root.querySelectorAll('.tab[data-tab="inventory"] .money__count-bank')) cell.remove();
 };
 
+/**
+ * Is there anywhere in the world to keep coin at all? Nothing about banked coin
+ * is retired before storage exists to replace it.
+ */
+const worldHasStorage = () => !!storage()?.providers?.().length;
+
 function injectSummary(root, data) {
   if (!data.hasGoods) return;
   const header = root.querySelector('.tab[data-tab="inventory"] .money__count')?.closest(".item-list-section")?.querySelector(".list-header");
@@ -190,8 +196,6 @@ export function installStorageTab() {
       // location sheet do not, and neither wants one bolted on.
       if (!root?.querySelector("nav.tabs") || !root.querySelector('section.tab[data-group="primary"]')) return;
 
-      stripBankColumn(root);
-
       // Rendering the tab body is async and a second render can start while we
       // await it. Only the newest pass may touch the DOM.
       const mine = ++epoch;
@@ -206,6 +210,10 @@ export function installStorageTab() {
       }
       injectSummary(root, data);
       injectTab(app, root, actor, html);
+      // The bank column is only removed where its replacement is injected: a
+      // sheet that gets no Storage tab keeps core's column, so a world with
+      // nowhere to store coin is never left with neither.
+      stripBankColumn(root);
     } catch (err) {
       console.error(`${MODULE_ID} | storage tab injection failed`, err);
     }
@@ -216,6 +224,9 @@ export function installStorageTab() {
     try {
       if (game.system?.id !== "acks") return;
       if ((app.document ?? app.item)?.type !== "money") return;
+      // Same rule as the column: an item sheet has no storage tab to replace the
+      // field with, so a world with no providers keeps core's field.
+      if (!worldHasStorage()) return;
       const root = element instanceof HTMLElement ? element : element?.[0];
       root?.querySelector('[name="system.quantitybank"]')?.closest(".form-group")?.remove();
     } catch (err) {

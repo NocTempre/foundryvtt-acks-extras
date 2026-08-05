@@ -111,8 +111,9 @@ Everything is anchored on `game.time.worldTime` seconds. A GM-client
 tranches, weekly fees, month rollover — watermarked, never double-charged).
 Months are day-counted via the `daysPerMonth` setting (the v14 calendar month
 component advances 0 seconds). Any worldTime clock works — Simple Timekeeping
-is the recommended UI; fallback "Advance 1 week" buttons are gated by the
-`advanceWorldTime` setting.
+is the recommended UI; fallback "Advance 1 week" buttons are gated by lib's
+world-clock policy ([../lib/MODEL.md](../lib/MODEL.md)), the same switch dungeon
+turns obey, and say so in a notice rather than doing nothing when it is off.
 
 ## 6. Public API & hooks
 

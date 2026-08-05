@@ -26,10 +26,11 @@ import {
   getPartyToken,
   patchFormation,
   pruneFormations,
+  removeMembers,
   syncPartyActorSpeed,
   updateFormation,
 } from "./formation-model.mjs";
-import { leashBreach, memberForDeployedToken, reanchorDetached } from "./deployment.mjs";
+import { findDeployedMember, leashBreach, reanchorDetached } from "./deployment.mjs";
 import { anchorMap, archiveSession, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
 import { registerFuzzyRulers } from "./measure-fuzz.mjs";
 import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
@@ -74,15 +75,6 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: false,
-  });
-
-  game.settings.register(MODULE_ID, "advanceWorldTime", {
-    name: "ACKS-FORMATION.settings.advanceWorldTime.name",
-    hint: "ACKS-FORMATION.settings.advanceWorldTime.hint",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
   });
 
   game.settings.register(MODULE_ID, "publicTurnCards", {
@@ -208,6 +200,9 @@ Hooks.once("init", () => {
     advanceTurns,
     advanceRounds,
     getFormations,
+    // Drop several members at the cost of one write — the batched primitive a
+    // caller with a whole squad to disband uses instead of a remove per name.
+    removeMembers,
     rollPartyCheck,
     PARTY_CHECKS,
     startMapSession,
@@ -330,7 +325,7 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
  */
 Hooks.on("preUpdateToken", (tokenDoc, changes) => {
   if (!("x" in changes) && !("y" in changes)) return;
-  const found = memberForDeployedToken(Object.values(getFormations()), tokenDoc.id);
+  const found = findDeployedMember(tokenDoc.id);
   if (!found?.member?.detached) return;
   const target = { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y };
   const actor = game.actors.get(found.member.actorId);

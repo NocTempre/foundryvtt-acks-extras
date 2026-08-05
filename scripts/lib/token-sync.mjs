@@ -70,27 +70,36 @@ const enabled = () => {
 /*  The two guarded writes                      */
 /* -------------------------------------------- */
 
-/**
- * Point a token's sight at `{sightRange, visionMode}`. Returns true if written.
- * Declines when the token has no vision, or when a human has edited the sight
- * since our last write — in which case the stamp is dropped and the token is
- * never managed again.
+/*
+ * Each guarded write is computed as an UPDATE DELTA first and applied second, so
+ * a sweep over many tokens can send one document call instead of two per token.
+ * Every decision — including the two flag-only outcomes, releasing a token to a
+ * human and claiming a stock one — is expressed as part of that delta, because a
+ * `setFlag` taken outside it is a write that no batch can gather up.
  */
-export async function applyTokenVision(tokenDoc, { sightRange, visionMode, detection = {} }) {
-  if (!tokenDoc?.sight?.enabled) return false;
+
+/**
+ * The sight update this profile wants, or null when there is nothing to write.
+ * Declines when the token has no vision, or when a human has edited the sight
+ * since our last write — in which case the delta drops the stamp and the token
+ * is never managed again.
+ * @returns {{update: object, claim: boolean}|null} `claim` marks a delta that
+ *   only stamps ownership: nothing about the token's vision actually changes.
+ */
+function visionDelta(tokenDoc, { sightRange, visionMode, detection = {} }) {
+  if (!tokenDoc?.sight?.enabled) return null;
   const stamp = tokenDoc.getFlag(MODULE_ID, FLAG_VISION);
   const current = { range: tokenDoc.sight.range, visionMode: tokenDoc.sight.visionMode };
 
   // Released for good. This has to be a POSITIVE marker, not the absence of a
   // stamp: clearing the flag on override meant the next sync saw an unclaimed
   // token and took it straight back, so a hand-edit survived exactly one sweep.
-  if (stamp?.released) return false;
+  if (stamp?.released) return null;
 
   if (stamp) {
     const untouched = current.range === stamp.range && current.visionMode === stamp.visionMode;
     if (!untouched) {
-      await tokenDoc.setFlag(MODULE_ID, FLAG_VISION, { released: true });
-      return false;
+      return { update: { [`flags.${MODULE_ID}.${FLAG_VISION}`]: { released: true } }, claim: true };
     }
   }
 
@@ -128,29 +137,32 @@ export async function applyTokenVision(tokenDoc, { sightRange, visionMode, detec
     // then indistinguishable from a stock token and gets overwritten on the
     // next sweep. Caught live: the edit survived one sync and vanished on the
     // next. One flag write, once per token, buys the guard for every token.
-    if (!stamp) await tokenDoc.setFlag(MODULE_ID, FLAG_VISION, { range: sightRange, visionMode });
-    return false;
+    if (stamp) return null;
+    return { update: { [`flags.${MODULE_ID}.${FLAG_VISION}`]: { range: sightRange, visionMode } }, claim: true };
   }
 
-  await tokenDoc.update({
-    sight: { range: sightRange, visionMode },
-    detectionModes: detectionDelta,
-    [`flags.${MODULE_ID}.${FLAG_VISION}`]: { range: sightRange, visionMode },
-  });
-  return true;
+  return {
+    update: {
+      sight: { range: sightRange, visionMode },
+      detectionModes: detectionDelta,
+      [`flags.${MODULE_ID}.${FLAG_VISION}`]: { range: sightRange, visionMode },
+    },
+    claim: false,
+  };
 }
 
 /**
- * Emit `{bright, dim}` feet of light from a token. Returns true if written.
- * A computed 0/0 on a token we never lit is someone else's light: left alone.
+ * The light update `{bright, dim}` feet wants, or null when there is nothing to
+ * write. A computed 0/0 on a token we never lit is someone else's light: left
+ * alone.
  */
-export async function applyTokenLight(tokenDoc, { bright, dim }) {
-  if (!tokenDoc) return false;
-  if (tokenDoc.light.bright === bright && tokenDoc.light.dim === dim) return false;
+function lightDelta(tokenDoc, { bright, dim }) {
+  if (!tokenDoc) return null;
+  if (tokenDoc.light.bright === bright && tokenDoc.light.dim === dim) return null;
   const managed = tokenDoc.getFlag(MODULE_ID, FLAG_LIGHT) ?? false;
-  if (bright === 0 && dim === 0 && !managed) return false;
+  if (bright === 0 && dim === 0 && !managed) return null;
 
-  await tokenDoc.update({
+  return {
     light: {
       bright,
       dim,
@@ -159,7 +171,26 @@ export async function applyTokenLight(tokenDoc, { bright, dim }) {
       animation: bright > 0 ? { type: "torch", speed: 2, intensity: 3 } : { type: null },
     },
     [`flags.${MODULE_ID}.${FLAG_LIGHT}`]: bright > 0 || dim > 0,
-  });
+  };
+}
+
+/**
+ * Point a token's sight at `{sightRange, visionMode}`. Returns true if the
+ * token's vision changed (a bare ownership stamp reads as false: nothing about
+ * what the token sees is different).
+ */
+export async function applyTokenVision(tokenDoc, profile) {
+  const delta = visionDelta(tokenDoc, profile);
+  if (!delta) return false;
+  await tokenDoc.update(delta.update);
+  return !delta.claim;
+}
+
+/** Emit `{bright, dim}` feet of light from a token. Returns true if written. */
+export async function applyTokenLight(tokenDoc, light) {
+  const delta = lightDelta(tokenDoc, light);
+  if (!delta) return false;
+  await tokenDoc.update(delta);
   return true;
 }
 
@@ -167,49 +198,69 @@ export async function applyTokenLight(tokenDoc, { bright, dim }) {
 /*  Driving the pass                            */
 /* -------------------------------------------- */
 
+/**
+ * Everything one token needs written to match its actor's senses and carried
+ * lights, as a single update — or null when it already matches.
+ *
+ * Sight and light are merged rather than sent separately: two awaited writes per
+ * token is what made a scene sweep visibly slow, and the two deltas share no
+ * keys, so one call carries both.
+ */
+function tokenSyncDelta(tokenDoc) {
+  const actor = tokenDoc?.actor;
+  if (!actor || actor.type === PARTY_ACTOR_TYPE) return null;
+  const vision = visionDelta(tokenDoc, senseProfile(actor));
+  const light = lightDelta(tokenDoc, emittedLight(bearerLights(actor)));
+  if (!vision && !light) return null;
+  return Object.assign({}, vision?.update, light);
+}
+
 /** Sync one token from its own actor's senses and carried lights. */
 export async function syncTokenFromActor(tokenDoc) {
-  const actor = tokenDoc?.actor;
-  if (!actor || actor.type === PARTY_ACTOR_TYPE) return;
   if (!enabled()) return;
-  await applyTokenVision(tokenDoc, senseProfile(actor));
-  await applyTokenLight(tokenDoc, emittedLight(bearerLights(actor)));
+  const update = tokenSyncDelta(tokenDoc);
+  if (update) await tokenDoc.update(update);
+}
+
+/**
+ * Sync a batch of tokens on ONE scene with a single document call.
+ *
+ * The DERIVATION stays fault-isolated per token — a creature with an unreadable
+ * stat block must not cost the rest of the scene its senses — but the write is
+ * one call: a sweep that writes per token spends a round trip on every creature
+ * standing on the map.
+ */
+async function syncTokenBatch(scene, tokenDocs) {
+  const updates = [];
+  for (const tokenDoc of tokenDocs) {
+    try {
+      const update = tokenSyncDelta(tokenDoc);
+      if (update) updates.push({ _id: tokenDoc.id, ...update });
+    } catch (err) {
+      console.error(`${MODULE_ID} | token sense sync failed for ${tokenDoc.name}`, err);
+    }
+  }
+  if (updates.length) await scene.updateEmbeddedDocuments("Token", updates);
 }
 
 /** Every token of this actor, across every scene (unlinked copies included). */
 function tokensOf(actor) {
-  const out = [];
+  const byScene = new Map();
   for (const scene of game.scenes ?? []) {
-    for (const token of scene.tokens) {
-      if (token.actor?.id === actor.id) out.push(token);
-    }
+    const tokens = scene.tokens.filter((t) => t.actor?.id === actor.id);
+    if (tokens.length) byScene.set(scene, tokens);
   }
-  return out;
+  return byScene;
 }
 
-/**
- * Re-sync everything this actor stands on. Fault-isolated per token: one
- * token failing to update must not strand the rest of the scene unsynced.
- */
+/** Re-sync everything this actor stands on, one write per scene it stands in. */
 export async function syncActorTokens(actor) {
-  if (!actor || !isPrimaryGM()) return;
-  for (const tokenDoc of tokensOf(actor)) {
-    try {
-      await syncTokenFromActor(tokenDoc);
-    } catch (err) {
-      console.error(`${MODULE_ID} | token sense sync failed for ${tokenDoc.name}`, err);
-    }
-  }
+  if (!actor || !isPrimaryGM() || !enabled()) return;
+  for (const [scene, tokens] of tokensOf(actor)) await syncTokenBatch(scene, tokens);
 }
 
 /** Re-sync every token on a scene — used at canvas ready and after a sweep. */
 export async function syncSceneTokens(scene) {
-  if (!scene || !isPrimaryGM()) return;
-  for (const tokenDoc of scene.tokens) {
-    try {
-      await syncTokenFromActor(tokenDoc);
-    } catch (err) {
-      console.error(`${MODULE_ID} | token sense sync failed for ${tokenDoc.name}`, err);
-    }
-  }
+  if (!scene || !isPrimaryGM() || !enabled()) return;
+  await syncTokenBatch(scene, [...scene.tokens]);
 }

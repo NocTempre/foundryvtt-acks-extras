@@ -58,9 +58,9 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
 
   static DEFAULT_OPTIONS = {
     tag: "form",
-    classes: ["acks", "acks-extras", "acks-abilities-roll-editor"],
+    classes: ["acks", "acks-extras", "acks-extras-scroll", "acks-abilities-roll-editor"],
     position: { width: 460, height: "auto" },
-    window: { icon: "fa-solid fa-dice-d20", contentClasses: ["standard-form"] },
+    window: { icon: "fa-solid fa-dice-d20", contentClasses: ["standard-form"], resizable: true },
     form: { handler: AbilityRollEditor.#onChange, submitOnChange: true, closeOnSubmit: false },
     actions: { addStep: AbilityRollEditor.#onAddStep, removeStep: AbilityRollEditor.#onRemoveStep },
   };
@@ -267,6 +267,7 @@ async function deleteRoll(event, target) {
   if (index < 0) return;
   const name = rolls[index].label || game.i18n.localize("ACKS-ABILITIES.roll.unnamed");
   const ok = await foundry.applications.api.DialogV2.confirm({
+    classes: ["acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.localize("ACKS-ABILITIES.roll.deleteTitle") },
     content: `<p>${game.i18n.format("ACKS-ABILITIES.roll.deleteConfirm", { name: foundry.utils.escapeHTML(name) })}</p>`,
   });

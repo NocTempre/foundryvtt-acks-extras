@@ -117,6 +117,16 @@
   opacity: 1;
 }
 
+/* The roll editor grows a ladder row per character level, so its body is the
+   window's scroller. `min-height: 0` is required: window-content is a column
+   flex parent and a child without it will not shrink below its content, which
+   leaves the frame clipped at the viewport cap with no scrollbar. */
+.acks-abilities-roll-editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 /* The roll editor's level table: two narrow columns and a delete control, laid
    out on a grid so the rungs line up as a printed table does. */
 .acks-abilities-steps {

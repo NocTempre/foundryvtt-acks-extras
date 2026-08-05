@@ -191,3 +191,36 @@ crates and the hands of a team lifting a body all ask the same question, so a
 container function is the wrong home going forward. That refactor is a major
 release and is scoped in [../ROADMAP.md](../ROADMAP.md); this entry records only
 the move off the container record.
+
+### The world clock has one owner, and it is lib (2026-08-04)
+
+`advanceWorldTime` was registered twice under the one module id — by
+`formation/module.mjs` and by `henchmen/settings.mjs`, with different names and
+different hints. Foundry keeps one entry per (namespace, key), so it was already
+a single shared toggle: whichever registration ran last supplied the label, and
+one feature's switch was described to the GM in the other feature's words. The
+types and defaults happened to agree, so nothing misbehaved — but a change to
+either default would have silently applied to both.
+
+**Ruled: one key, owned by lib** (`scripts/world-time.mjs` holds the constant
+and the `mayAdvanceWorldTime()` predicate; `lib/module.mjs` registers it). Both
+clock writers now read the same predicate instead of the same string. lib owns
+it because it already owns the module-wide policies — `manageVision`,
+`storageDeletePolicy` — and because there are only two `game.time.advance` calls
+in the module and both are gated by this one key.
+
+**Rejected: two distinct keys** (`formation.advanceWorldTime`,
+`henchmen.advanceWorldTime`). The step sizes differ — ten minutes a dungeon
+turn against seven days a button press — but the question does not: both write
+Foundry's one world clock through the same contract, and the reason to say no is
+the same reason in both cases, that some other module (Simple Timekeeping, a
+calendar) is the clock authority. Splitting the key would have made a GM answer
+that twice and let the two answers disagree.
+
+**Cost:** the setting moves out of the Formations group in Configure Settings
+and into Library, so a GM who knew where it was has to look somewhere else. The
+key string and namespace are unchanged, so existing worlds keep their stored
+value and no migration is needed. Three lang strings were retired
+(`ACKS-FORMATION.settings.advanceWorldTime.*` and
+`ACKS-HENCHMEN.setting.advanceWorldTime*`) for one reconciled pair under
+`ACKS-LIB`; a translation carrying the old keys loses them.

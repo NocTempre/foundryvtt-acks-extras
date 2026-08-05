@@ -164,7 +164,20 @@
     {{!-- ---- Notes ---- --}}
     <details class="section">
       <summary>{{localize "ACKS-LOCATION.place.notes"}}</summary>
+      {{#if isGM}}
+      {{!-- The sheet's ONLY editable render of system.notes: a second control of
+            the same name in this one form is last-write-wins. `toggled` holds
+            the change event back until save, so form.submitOnChange writes once
+            per save rather than once per keystroke, and the enriched HTML is
+            what shows while the editor is closed. `content-sized` returns the
+            editor content to flow (core lays it out absolutely, contributing no
+            height); `--min-height` keeps the edit affordance reachable when the
+            notes are empty. --}}
+      <prose-mirror class="acks-extras-place-notes content-sized" name="system.notes" value="{{system.notes}}" toggled
+                    data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{notesHTML}}}</prose-mirror>
+      {{else}}
       <div class="acks-extras-place-notes">{{{notesHTML}}}</div>
+      {{/if}}
     </details>
   </section>
 
@@ -628,11 +641,6 @@
       </button>
     </div>
     {{/unless}}
-
-    <details class="section">
-      <summary>{{localize "ACKS-HENCHMEN.location.notesHeader"}}</summary>
-      <textarea name="system.notes" rows="4">{{system.notes}}</textarea>
-    </details>
   </section>
 
   {{!-- ------------------------- GM view ------------------------- --}}

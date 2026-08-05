@@ -15,14 +15,6 @@ export function registerSettings() {
     type: Number,
     default: 28, // 4 weeks — the no-calendar market cadence
   });
-  reg("advanceWorldTime", {
-    name: "ACKS-HENCHMEN.setting.advanceWorldTime",
-    hint: "ACKS-HENCHMEN.setting.advanceWorldTimeHint",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true,
-  });
   reg("autoRollCalamity", {
     name: "ACKS-HENCHMEN.setting.autoRollCalamity",
     hint: "ACKS-HENCHMEN.setting.autoRollCalamityHint",

@@ -2,14 +2,16 @@ import { makeLoc } from "../lib/util.mjs";
 import { announce } from "./announce.mjs";
 import { MODULE_ID, ROLES } from "./constants.mjs";
 import { formationForToken, getFormations, getPartyToken, updateFormation } from "./formation-model.mjs";
-import { deployMembers, recallMembers } from "./deployment.mjs";
+import { deployMembers, deployedTokens, isMemberDeployed, recallMembers } from "./deployment.mjs";
 import { advanceRounds } from "./turn-engine.mjs";
 
 /**
  * Combat integration (runs on the primary GM client):
  *
  * - Adding the party token to a combat deploys the member tokens around it in
- *   marching order and swaps the party combatant for one combatant per member.
+ *   marching order and swaps the party combatant for one combatant per BODY on
+ *   the field — a member who is a stack fights as the crowd it put there, not
+ *   as the one row it holds in the marching order.
  *   Members flagged Non-combatant stay inside the party token and out of the
  *   initiative; the party token hides if nobody stays behind.
  * - When the combat ends the party reforms automatically: member tokens are
@@ -41,7 +43,7 @@ export async function onPartyCombatantCreated(combatant) {
   // exactly who walks into a fight, and treating their token as "already
   // deployed" would leave the rest of the party inside the party token for the
   // whole battle.
-  const alreadyFighting = formation.members.some((m) => m.deployedTokenId && !m.detached);
+  const alreadyFighting = formation.members.some((m) => isMemberDeployed(m) && !m.detached);
   if (formation.combat?.active || alreadyFighting) {
     await combatant.delete();
     return;
@@ -54,7 +56,7 @@ export async function onPartyCombatantCreated(combatant) {
     (m) => m && !m.blank && m.actorId && !m.roles?.includes(ROLES.NONCOMBATANT),
   );
   await deployMembers(formation, { members: fighters });
-  const onField = fighters.filter((m) => m.deployedTokenId);
+  const onField = fighters.filter(isMemberDeployed);
 
   if (!onField.length) {
     await announce(formation, loc("chat.combatNoCombatants"), { whisper: true });
@@ -69,12 +71,19 @@ export async function onPartyCombatantCreated(combatant) {
   }
   await updateFormation(formation);
 
-  const combatants = onField.map((member) => ({
-    tokenId: member.deployedTokenId,
-    actorId: scene.tokens.get(member.deployedTokenId)?.actorId,
-    sceneId: scene.id,
-    hidden: combatant.hidden,
-  }));
+  // Every body its own combatant, gathered per member and created in ONE call:
+  // a stack of forty rolls forty initiatives at the cost of one document write.
+  const combatants = [];
+  for (const member of onField) {
+    for (const token of await deployedTokens(member, scene)) {
+      combatants.push({
+        tokenId: token.id,
+        actorId: token.actorId,
+        sceneId: scene.id,
+        hidden: combatant.hidden,
+      });
+    }
+  }
 
   await combat.createEmbeddedDocuments("Combatant", combatants);
   await combatant.delete();
@@ -85,7 +94,7 @@ export async function onPartyCombatantCreated(combatant) {
 
   formation.combat = { combatId: combat.id, active: true, roundsCounted: 0 };
   await updateFormation(formation);
-  await announce(formation, loc("chat.combatDeployed", { n: onField.length }));
+  await announce(formation, loc("chat.combatDeployed", { n: combatants.length }));
 }
 
 /* -------------------------------------------- */
@@ -119,7 +128,7 @@ export async function onCombatEnd(combat) {
       // deploy even when the combat flag is missing (a crash, or a stale
       // concurrent write having clobbered it). Reforming on evidence beats
       // stranding the whole party on the field.
-      f.members.some((m) => m.deployedTokenId),
+      f.members.some(isMemberDeployed),
   );
   for (const formation of formations) {
     try {

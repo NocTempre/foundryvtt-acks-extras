@@ -93,6 +93,7 @@ async function serveAsHenchman() {
   let managerId = null;
   try {
     managerId = await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize("ACKS-MONSTERS.henchman.serveTitle") },
       content: `<p>${game.i18n.localize("ACKS-MONSTERS.henchman.servePrompt")}</p>
         <select name="managerId" style="width:100%">${optionsHtml}</select>`,

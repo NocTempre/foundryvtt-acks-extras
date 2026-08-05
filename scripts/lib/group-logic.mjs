@@ -8,6 +8,37 @@
  * Nothing here touches a Foundry global at module-eval time; `Hooks` is guarded
  * and `structuredClone` is a standard built-in in both Node and the browser.
  */
+import { MODULE_ID } from "./constants.mjs";
+
+/** The registered actor sub-type a stack is stored as. */
+export const GROUP_ACTOR_TYPE = `${MODULE_ID}.group`;
+
+/**
+ * Is this actor a stack? The TYPE-ONLY test, for consumers that must not pull in
+ * the data model — group-data.mjs subclasses a Foundry class at module scope, so
+ * importing it from a Foundry-free module (or from one loaded under a partial
+ * mock) evaluates that subclassing. group.mjs's `isGroup` is the richer test and
+ * defers to this one.
+ */
+export function isGroupActor(actor) {
+  return actor?.type === GROUP_ACTOR_TYPE;
+}
+
+/**
+ * How many BODIES an actor stands for: a stack stands for its living bodies
+ * across every stack it holds, and any other actor stands for itself.
+ *
+ * This is the one place that answers "how many people is this row?", so a
+ * formation cell, a headcount and a marching block all agree. Reads the derived
+ * total when the data model is live and falls back to summing the raw stacks, so
+ * a plain source object answers the same.
+ */
+export function bodyCount(actor) {
+  if (!isGroupActor(actor)) return actor ? 1 : 0;
+  const sys = actor.system ?? {};
+  if (typeof sys.totalCurrent === "number") return Math.max(0, sys.totalCurrent);
+  return (sys.stacks ?? []).reduce((n, s) => n + Math.max(0, s?.size?.current ?? 0), 0);
+}
 
 /**
  * The next never-used ordinal for a STACK. Ordinals are assigned once and never

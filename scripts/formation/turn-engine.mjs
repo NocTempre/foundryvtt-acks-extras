@@ -1,5 +1,6 @@
 /* global game, foundry, ui, ChatMessage, Roll, fromUuid, Hooks */
 import { announceChange, makeLoc, gmIds } from "../lib/util.mjs";
+import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import {
   LIGHT_SOURCES,
@@ -383,8 +384,9 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
   let completedTurns = 0;
 
   // Advance world time so effect durations & calendar modules stay in sync
-  // (60 seconds per bookkeeping round).
-  if (game.settings.get(MODULE_ID, "advanceWorldTime")) {
+  // (60 seconds per bookkeeping round). The clock is shared with henchmen
+  // downtime, so the gate lives in lib.
+  if (mayAdvanceWorldTime()) {
     await game.time.advance((TURN_SECONDS / ROUNDS_PER_TURN) * rounds);
   }
 

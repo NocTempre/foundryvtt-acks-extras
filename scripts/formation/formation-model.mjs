@@ -10,6 +10,7 @@ import {
   ROLE_LABELS,
 } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
+import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
 import { carriesItem } from "../lib/item-model.mjs";
@@ -47,19 +48,38 @@ export const SETTING_FORMATIONS = "formations";
 /*  Storage                                     */
 /* -------------------------------------------- */
 
+/** Every formation, as a deep copy the caller may mutate before saving it back. */
 export function getFormations() {
-  return foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_FORMATIONS) ?? {});
+  return foundry.utils.deepClone(readFormations());
+}
+
+/**
+ * The stored blob ITSELF — no copy, and therefore READ-ONLY. Mutating a record
+ * from here edits the live setting cache without ever persisting it, and the
+ * next save writes the mutation as if it had been asked for.
+ *
+ * This exists because the copy is the expensive part: a record carries a full
+ * token snapshot per stashed member, so a forty-strong party costs forty token
+ * documents to clone for a question as small as "is this actor holding a
+ * torch?". The hot paths — a token moving, a loadout recomputing, a scene
+ * sweep — ask exactly those questions and never write.
+ */
+export function readFormations() {
+  return game.settings.get(MODULE_ID, SETTING_FORMATIONS) ?? {};
 }
 
 export function getFormation(id) {
-  return id ? (getFormations()[id] ?? null) : null;
+  const record = id ? readFormations()[id] : null;
+  return record ? foundry.utils.deepClone(record) : null;
 }
 
 /** The formation an actor is a member of, or null. (An actor is in at most one.) */
 export function getFormationForActor(actorId) {
   if (!actorId) return null;
-  for (const f of Object.values(getFormations())) {
-    if (f?.members?.some((m) => m?.actorId === actorId)) return f;
+  for (const f of Object.values(readFormations())) {
+    // Callers write to what they get back (the equipment sheet lights a torch
+    // through it), so the match is copied even though the search is not.
+    if (f?.members?.some((m) => m?.actorId === actorId)) return foundry.utils.deepClone(f);
   }
   return null;
 }
@@ -85,7 +105,7 @@ export function heldLightCount(actorId) {
 export function handsOccupied(actorId) {
   const busy = { lights: 0, mapping: 0, total: 0 };
   if (!actorId) return busy;
-  for (const f of Object.values(getFormations())) {
+  for (const f of Object.values(readFormations())) {
     for (const l of f?.lights ?? []) {
       if (l.bearerId === actorId && (l.lit || l.shielded)) busy.lights++;
     }
@@ -110,11 +130,13 @@ export function handsOccupied(actorId) {
 export function lightsForBearer(actorId) {
   if (!actorId) return null;
   let found = null;
-  for (const f of Object.values(getFormations())) {
+  for (const f of Object.values(readFormations())) {
     if (!f?.members?.some((m) => m?.actorId === actorId)) continue;
     found ??= [];
+    // Shallow copies: the search reads the stored blob directly, and a light
+    // handed out of here must not be an editable handle on the setting cache.
     for (const l of f.lights ?? []) {
-      if (l.bearerId === actorId) found.push(l);
+      if (l.bearerId === actorId) found.push({ ...l });
     }
   }
   return found;
@@ -248,6 +270,47 @@ export function explorationSpeedOf(actor) {
 /** Real members of the marching order (grid cells minus blank slots). */
 export function realMembers(formation) {
   return formation.members.filter((m) => m && !m.blank && m.actorId);
+}
+
+/**
+ * Is this cell held by a STACK — one `acks-lib.group` actor standing for the
+ * bodies it counts, rather than for itself?
+ *
+ * A formation occupant is either an individual or a stack, and that is the only
+ * difference between them: a stack marches, fights, takes casualties and is
+ * removed through the same model an individual is, at the headcount its own
+ * sheet keeps.
+ */
+export function isStackMember(member) {
+  return isGroupActor(getMemberActor(member));
+}
+
+/**
+ * How many bodies this cell puts on the ground. One for an individual, one for
+ * a blank (a gap is a square somebody deliberately left empty), and a stack's
+ * whole living headcount for a stack.
+ *
+ * A member whose actor is gone still holds its square: the marching order should
+ * not silently close up around a character whose sheet was deleted.
+ */
+export function cellBodies(member) {
+  if (!member || member.blank || !member.actorId) return 1;
+  const actor = getMemberActor(member);
+  return actor ? bodyCount(actor) : 1;
+}
+
+/** Every body the marching order lays out, blank squares included. */
+export function formationBodies(formation) {
+  return (formation?.members ?? []).reduce((n, m) => n + cellBodies(m), 0);
+}
+
+/**
+ * How many bodies the party musters — the number a Judge counts heads to get.
+ * Blanks are gaps, not people, so they do not count here; a stack counts as the
+ * bodies it holds, not as the one row it occupies.
+ */
+export function partyHeadcount(formation) {
+  return realMembers(formation).reduce((n, m) => n + cellBodies(m), 0);
 }
 
 /** Down: at or below zero hit points (carried, dead, or dying). */
@@ -529,56 +592,121 @@ export async function addMember(formation, actor, tokenDoc = null) {
     if (needsPartyToken) await ensurePartyToken(formation, scene, x, y);
   }
 
+  // No second write: the member is already stored, and `ensurePartyToken`
+  // persists its own linkage. Re-saving the record here would only replay a
+  // copy that is now older than what those steps wrote.
   await syncPartyActorSpeed(formation);
-  await updateFormation(formation);
   return formation;
 }
 
-/** Ring of grid offsets used to place restored member tokens around the party. */
-export const RESTORE_OFFSETS = [
-  [1, 0], [-1, 0], [0, 1], [0, -1],
-  [1, 1], [-1, 1], [1, -1], [-1, -1],
-  [2, 0], [-2, 0], [0, 2], [0, -2],
-  [2, 1], [-2, 1], [2, -1], [-2, -1],
-];
+/**
+ * Hand out free squares around a point, spiralling outward.
+ *
+ * Squares already holding a token are skipped, and so is every square handed out
+ * earlier in the same pass — that is what keeps a crowd from landing on one
+ * cell. Off-scene squares are skipped too, until the spiral has offered as many
+ * squares as the scene holds; past that a party is bigger than its map and gets
+ * clamped onto it rather than marched off the edge.
+ * @returns {() => {x: number, y: number}} call once per token to place
+ */
+function freeCellPlacer(scene, anchor) {
+  const gs = scene.grid.size;
+  const bounds = sceneBounds(scene);
+  const extent = sceneGridExtent(scene);
+  const capacity = extent ? extent.cols * extent.rows : 0;
+  const taken = new Set();
+  for (const token of scene.tokens) {
+    taken.add(`${Math.round((token.x - anchor.x) / gs)},${Math.round((token.y - anchor.y) / gs)}`);
+  }
+  let slot = 0;
+  return () => {
+    for (;;) {
+      const [dx, dy] = ringOffset(slot++);
+      const key = `${dx},${dy}`;
+      if (taken.has(key)) continue;
+      const x = anchor.x + dx * gs;
+      const y = anchor.y + dy * gs;
+      const inside = !bounds || (x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY);
+      if (!inside && slot <= capacity) continue;
+      taken.add(key);
+      return clampToScene(scene, x, y);
+    }
+  };
+}
 
-async function restoreMemberToken(formation, member, { grid = null, ringSlot = 0 } = {}) {
-  if (!member.tokenData) return;
+/**
+ * Put stashed member tokens back on the map in ONE creation call.
+ *
+ * `grid` restores the marching-order SHAPE (used when the whole formation comes
+ * apart at once); otherwise each token takes the next free square spiralling out
+ * from the party. Either way the block is fitted to the scene, so a wide or deep
+ * formation cannot deposit its rear ranks past the edge of the map.
+ *
+ * Consumes `tokenData` on the member records it is given — clearing the stash is
+ * the caller's cue that these characters are back on the canvas.
+ * @param {object[]} members the member records to restore
+ * @returns {Promise<number>} how many tokens were created
+ */
+async function restoreMemberTokens(formation, members, { grid = false } = {}) {
+  const stashed = members.filter((m) => m?.tokenData);
+  if (!stashed.length) return 0;
   const scene = getPartyScene(formation) ?? game.scenes.viewed;
-  if (!scene) return;
-
-  const data = foundry.utils.deepClone(member.tokenData);
-  delete data._id;
+  if (!scene) return 0;
 
   const partyToken = getPartyToken(formation);
-  if (partyToken) {
-    const gs = scene.grid.size;
-    if (grid !== null) {
-      // Marching-order shape on the party token's footprint.
-      const { dx, dy } = formationOffset(formation, grid);
-      data.x = partyToken.x + dx * gs;
-      data.y = partyToken.y + dy * gs;
-    } else {
-      const [ox, oy] = RESTORE_OFFSETS[ringSlot % RESTORE_OFFSETS.length];
-      data.x = partyToken.x + ox * gs;
-      data.y = partyToken.y + oy * gs;
+  const anchor = partyToken ? { x: partyToken.x, y: partyToken.y } : null;
+  const origin = anchor && grid ? blockOrigin(formation, scene, anchor) : null;
+  const nextFree = anchor && !grid ? freeCellPlacer(scene, anchor) : null;
+
+  const toCreate = stashed.map((member) => {
+    const data = foundry.utils.deepClone(member.tokenData);
+    delete data._id;
+    if (anchor) {
+      const { x, y } = grid
+        ? cellPosition(formation, scene, origin, formation.members.indexOf(member))
+        : nextFree();
+      data.x = x;
+      data.y = y;
     }
-  }
-  await scene.createEmbeddedDocuments("Token", [data]);
-  member.tokenData = null;
+    return data;
+  });
+
+  await scene.createEmbeddedDocuments("Token", toCreate);
+  for (const member of stashed) member.tokenData = null;
+  return toCreate.length;
+}
+
+/**
+ * Take several members out of the formation at the cost of ONE write.
+ *
+ * The batched primitive: every departing member's token is restored in one
+ * creation call and the record is saved once, so the sheet refresh and the
+ * environment sync that ride on that save happen once too — not once per
+ * character. `removeMember` is this called with a single id.
+ *
+ * @param {string[]} actorIds the actors to drop
+ * @param {object} [opts]
+ * @param {boolean} [opts.restore] put their stashed tokens back on the map
+ */
+export async function removeMembers(formation, actorIds, { restore = true } = {}) {
+  const leaving = new Set((actorIds ?? []).filter(Boolean));
+  if (!leaving.size) return formation;
+  const departing = formation.members.filter((m) => m?.actorId && leaving.has(m.actorId));
+  if (!departing.length) return formation;
+
+  formation.members = formation.members.filter((m) => !(m?.actorId && leaving.has(m.actorId)));
+  // Drop lights borne by, and spells cast by, the departing members.
+  formation.lights = formation.lights.filter((l) => !leaving.has(l.bearerId));
+  formation.spells = (formation.spells ?? []).filter((s) => !leaving.has(s.casterId));
+
+  if (restore) await restoreMemberTokens(formation, departing);
+  await syncPartyActorSpeed(formation);
+  await updateFormation(formation);
+  return formation;
 }
 
 export async function removeMember(formation, actorId, { restore = true } = {}) {
-  const idx = formation.members.findIndex((m) => m.actorId === actorId);
-  if (idx < 0) return formation;
-  const [member] = formation.members.splice(idx, 1);
-  if (restore) await restoreMemberToken(formation, member, { ringSlot: Math.floor(Math.random() * RESTORE_OFFSETS.length) });
-  // Drop lights borne by, and spells cast by, the departing member.
-  formation.lights = formation.lights.filter((l) => l.bearerId !== actorId);
-  formation.spells = (formation.spells ?? []).filter((s) => s.casterId !== actorId);
-  await syncPartyActorSpeed(formation);
-  await updateFormation(formation);
-  return formation;
+  return removeMembers(formation, [actorId], { restore });
 }
 
 /**
@@ -590,21 +718,19 @@ export async function removeMember(formation, actorId, { restore = true } = {}) 
  * party" and resurrecting its actor.
  */
 export async function dissolveFormation(formation) {
-  const members = [...formation.members];
-  for (let i = 0; i < members.length; i++) {
-    const member = members[i];
-    if (!member?.tokenData) continue;
-    try {
-      await restoreMemberToken(formation, member, { grid: i });
-      // Persist each cleared stash: a failure mid-loop must not re-restore
-      // (duplicate) the already-placed tokens on a retry.
+  try {
+    const restored = await restoreMemberTokens(formation, formation.members, { grid: true });
+    // Clear every stash in one write, and only when there was a stash to clear.
+    // The creation above is a single call, so there is no half-restored state to
+    // guard against: either the tokens are on the canvas and the stashes go, or
+    // nothing happened and a retry starts over from an untouched record.
+    if (restored) {
       await patchFormation(formation.id, (rec) => {
-        const stored = rec.members.find((m) => m.actorId === member.actorId);
-        if (stored) stored.tokenData = null;
+        for (const stored of rec.members ?? []) stored.tokenData = null;
       });
-    } catch (err) {
-      console.error(`${MODULE_ID} | failed to restore a member token`, err);
     }
+  } catch (err) {
+    console.error(`${MODULE_ID} | failed to restore member tokens`, err);
   }
   const scene = getPartyScene(formation);
   if (scene && formation.tokenId && scene.tokens.get(formation.tokenId)) {
@@ -667,20 +793,176 @@ export async function removeBlank(formation, index) {
   return formation;
 }
 
-/** How many march abreast (1 = single file; RR p. 264: 2 in corridors ≥6'). */
+/* -------------------------------------------- */
+/*  Marching shape & placement                  */
+/* -------------------------------------------- */
+
+/**
+ * How many march abreast (1 = single file; RR p. 264: 2 in corridors ≥6').
+ *
+ * ANY positive whole number is a formation width — a war party crossing open
+ * ground lines up as wide as it likes. This is a read of stored state, so a
+ * missing or corrupt value degrades to single file; the number a Judge TYPES is
+ * validated where it is typed, so a bad entry is refused rather than rounded.
+ */
 export function getFrontage(formation) {
-  return Math.min(Math.max(Number(formation.frontage) || 1, 1), 3);
+  const stored = Math.floor(Number(formation?.frontage));
+  return Number.isFinite(stored) && stored >= 1 ? stored : 1;
 }
 
-/** Ranks deep at the current frontage. */
-export function partyDepth(formation, count = formation.members.length) {
+/** Ranks deep at the current frontage. Measured in BODIES, so a stack takes up
+ *  the ground it actually covers. */
+export function partyDepth(formation, count = formationBodies(formation)) {
   return Math.max(1, Math.ceil(Math.max(count, 1) / getFrontage(formation)));
 }
 
-/** Grid offset (in grid units) of the index-th position in formation shape. */
+/** Grid offset (in grid units) of the index-th BODY in formation shape. */
 export function formationOffset(formation, index) {
   const frontage = getFrontage(formation);
   return { dx: index % frontage, dy: Math.floor(index / frontage) };
+}
+
+/**
+ * Which BODY the given marching-order cell starts at.
+ *
+ * Cells and bodies are the same thing only while every occupant is one person.
+ * A stack of forty pushes everything behind it forty squares down the line, so
+ * the ground position of a cell is read from the bodies ahead of it and never
+ * from its own index.
+ */
+export function cellBodyIndex(formation, cell) {
+  const cells = formation?.members ?? [];
+  let index = 0;
+  for (let i = 0; i < cell && i < cells.length; i++) index += cellBodies(cells[i]);
+  return index;
+}
+
+/**
+ * How many grid cells across and down the PLAYABLE area of a scene holds, or
+ * null when the scene cannot say (no grid, or dimensions not computed yet).
+ * @returns {{cols: number, rows: number}|null}
+ */
+export function sceneGridExtent(scene) {
+  const gs = scene?.grid?.size;
+  const rect = scene?.dimensions?.sceneRect ?? scene?.dimensions?.rect ?? null;
+  if (!gs || !rect?.width || !rect?.height) return null;
+  return { cols: Math.max(1, Math.floor(rect.width / gs)), rows: Math.max(1, Math.floor(rect.height / gs)) };
+}
+
+/**
+ * The widest line this scene can actually hold, or null when it cannot say.
+ * The ceiling on frontage is the map, never a number chosen here.
+ */
+export function maxFrontage(scene) {
+  return sceneGridExtent(scene)?.cols ?? null;
+}
+
+/** Pixel range a 1×1 token may occupy on this scene, or null with no scene. */
+function sceneBounds(scene) {
+  const gs = scene?.grid?.size;
+  const rect = scene?.dimensions?.sceneRect ?? scene?.dimensions?.rect ?? null;
+  if (!gs || !rect?.width || !rect?.height) return null;
+  return {
+    minX: rect.x,
+    minY: rect.y,
+    maxX: rect.x + Math.max(0, rect.width - gs),
+    maxY: rect.y + Math.max(0, rect.height - gs),
+  };
+}
+
+/** A position pinned inside the scene. Unbounded scenes pass through. */
+export function clampToScene(scene, x, y) {
+  const bounds = sceneBounds(scene);
+  if (!bounds) return { x, y };
+  return {
+    x: Math.min(Math.max(x, bounds.minX), bounds.maxX),
+    y: Math.min(Math.max(y, bounds.minY), bounds.maxY),
+  };
+}
+
+/**
+ * Where the marching block's front-left cell goes so that the WHOLE block lands
+ * on the scene.
+ *
+ * The block is shifted, never squashed: pinning each token to the edge instead
+ * would pile every rear rank onto the last row. A block deeper or wider than the
+ * scene itself starts at the top-left corner and the per-cell clamp takes over.
+ *
+ * @param {{x: number, y: number}} anchor where the block would start unclamped
+ *   (the party token)
+ */
+export function blockOrigin(formation, scene, anchor, { count } = {}) {
+  const gs = scene?.grid?.size ?? 0;
+  const bounds = sceneBounds(scene);
+  if (!bounds || !gs) return { x: anchor.x, y: anchor.y };
+  const bodies = count ?? formationBodies(formation);
+  // The block is as wide as the bodies actually FILL, not as wide as the frontage
+  // allows: a five-strong party ordered twelve abreast is five squares wide, and
+  // reserving twelve would shove it away from where the party stands.
+  const span = (Math.min(getFrontage(formation), Math.max(bodies, 1)) - 1) * gs;
+  const depth = (partyDepth(formation, bodies) - 1) * gs;
+  return {
+    x: Math.max(bounds.minX, Math.min(anchor.x, bounds.maxX - span)),
+    y: Math.max(bounds.minY, Math.min(anchor.y, bounds.maxY - depth)),
+  };
+}
+
+/** Scene position of one marching-order cell, measured from a block origin. For
+ *  a stack this is where its FIRST body stands — see `cellPositions`. */
+export function cellPosition(formation, scene, origin, cell) {
+  return bodyPosition(formation, scene, origin, cellBodyIndex(formation, cell));
+}
+
+/** Scene position of the index-th body of the block. */
+export function bodyPosition(formation, scene, origin, body) {
+  const gs = scene?.grid?.size ?? 0;
+  const { dx, dy } = formationOffset(formation, body);
+  return clampToScene(scene, origin.x + dx * gs, origin.y + dy * gs);
+}
+
+/**
+ * Every square one marching-order cell occupies, in order: one for an
+ * individual, and one per living body for a stack.
+ *
+ * This is what lets a stack lie in the line instead of beside it — forty
+ * mercenaries at a frontage of seven fill the rest of their rank and flow into
+ * the ranks behind, and the occupant that follows them starts after the last of
+ * them rather than on top of the first.
+ *
+ * @returns {{x: number, y: number}[]} one position per body of the cell
+ */
+export function cellPositions(formation, scene, origin, cell) {
+  const first = cellBodyIndex(formation, cell);
+  const bodies = cellBodies(formation?.members?.[cell]);
+  return Array.from({ length: bodies }, (_, i) => bodyPosition(formation, scene, origin, first + i));
+}
+
+/**
+ * Grid offsets around a token as a square spiral: the eight neighbours first,
+ * then the ring beyond, outward without limit.
+ *
+ * Unbounded and repeat-free is the whole point — a fixed table of positions runs
+ * out, and any party larger than the table lands on top of itself.
+ * @returns {[number, number]} the `[dx, dy]` of the slot-th position out
+ */
+export function ringOffset(slot) {
+  let n = Math.max(0, Math.floor(Number(slot) || 0));
+  for (let r = 1; ; r++) {
+    const perimeter = 8 * r;
+    if (n < perimeter) {
+      // Walk the ring clockwise from its top-left corner: top row, right
+      // column, bottom row, left column — 8r cells, each visited once.
+      const width = 2 * r + 1;
+      if (n < width) return [n - r, -r];
+      n -= width;
+      if (n < 2 * r) return [r, n - r + 1];
+      n -= 2 * r;
+      if (n < 2 * r) return [r - 1 - n, r];
+      n -= 2 * r;
+      return [-r, r - 1 - n];
+    }
+    n -= perimeter;
+  }
 }
 
 /**

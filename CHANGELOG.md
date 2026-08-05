@@ -1,5 +1,104 @@
 # Changelog
 
+## 1.4.0
+
+### Added
+- **A line marches as wide as the corridor allows.** Marching order offered a
+  choice of one, two or three abreast; it is now a number you type, and a
+  formation is as wide as the scene can hold. A width of nought, a fraction or a
+  negative is refused out loud rather than quietly corrected, and a line ordered
+  wider than the map says so instead of marching its rear ranks off the edge.
+  Deployment now fits the whole block onto the scene, keeping its shape.
+- **A formation occupant can be a stack.** Drop the group actor you hired your
+  mercenaries as into a party and the marching order shows it as the bodies it
+  holds, in the group's own words, rather than as one person. It deploys as
+  those bodies — a platoon of forty at a frontage of seven fills its ranks, and
+  the occupant behind it starts after the last of them, not on top of the first.
+- **Casualties come off a stack in one stroke.** The badge on a stacked row
+  opens the group sheet, where typing a number and pressing **Record
+  casualties** removes that many bodies at once — the control that has always
+  been there, now reachable from the party. The bodies not in play are taken
+  first, and any body it does have to take comes off the map with it, so a unit
+  can no longer report two dozen dead while two dozen of them still stand on the
+  canvas.
+- **A stack that has been in a fight can march again.** A group's strength now
+  follows the canvas: a member's token deleted at nought hit points drops the
+  stack's count, and one deleted unhurt folds back in. Members left pointing at
+  tokens that no longer exist are freed rather than reported as nothing left to
+  deploy.
+
+### Fixed
+- **The Location sheet is named in the sheet picker.** Sheet Configuration
+  listed it as `ACKS-LOCATION.sheet.location` — the key itself, never given an
+  English name — leaving the right sheet to be picked by position. It reads
+  "ACKS Location", as the module's other sheets always have.
+- **A place's notes are written where they are read.** The Notes section on the
+  Contents tab was a pane of text with nothing to type into, while a second copy
+  of the same field sat on the GM settings tab and worked — so notes appeared to
+  save or not depending on which one you had found. Contents now carries the
+  one editor, the duplicate is gone, and a note can no longer be overwritten by
+  the copy you were not looking at. Notes stay the Judge's to write; a market
+  was never what made the difference.
+- **A window shows what it holds.** Every window in the module now scrolls its
+  contents instead of cutting them off, so an accept button can no longer sit
+  below the bottom edge where no amount of dragging reaches it. Lists inside a
+  resizable window grow with it rather than stopping at a fixed height and
+  leaving dead space beneath. Configure Proficiencies is the one this was worst
+  for: it opened taller than a 1080p screen and lost its Save button.
+- **Fighting styles are named where they are looked for.** The Configure
+  Proficiencies dialog offers the three fighting styles first of all, but under
+  a heading a Judge hunting for "weapon style proficiencies" could read past.
+  The legend now carries both names. Single-weapon and missile styles are still
+  unlisted, because the page makes them everyone's.
+- **A cancelled attack costs nothing.** Dismissing the roll dialog spent the
+  round anyway; ammunition is now spent only once a roll has actually resolved.
+  One shot at several targets spends one round rather than one per target.
+- **Ammunition is counted even with the remodelled attack roll switched off.**
+  The chain that per-weapon rules modifiers and ammunition ride on was installed
+  only when the attack-roll setting was on, so turning that setting off silently
+  stopped arrows and bolts being counted, along with the non-proficiency
+  penalty, Weapon Finesse, two-handed damage and thrown-weapon Strength. The
+  chain now installs either way; the setting chooses only whose roll runs
+  innermost.
+- **The attack line states the defence once.** Against an unarmoured foe the
+  result card read "Attack throw 7+ vs AC 0 → needs 7+", saying the same number
+  twice. The defender's armour class is now named only where it changes what the
+  roll must reach.
+- **The banked-coin column outlives the tab that replaces it.** A world with no
+  storage places had the system's banked-coin column taken away and the Storage
+  tab that supersedes it never arrived, leaving nowhere at all to record coin.
+  The column is now retired only where its replacement is actually on the sheet.
+- **A large party is quick again.** Adding or removing members, restoring their
+  tokens, and syncing a scene each wrote once per character; they now write once
+  for the whole group, so a party of dozens no longer stalls the interface on
+  every change, and dragging a token is smooth again. Restored tokens spiral
+  outward into free squares rather than piling onto the same handful of cells.
+- **One world-clock switch, in one place, under one name.** "Advance world
+  time" was registered twice — once by Formations, once by Henchmen — and
+  Foundry keeps only one setting per name, so the two features had been sharing
+  a single toggle that wore whichever label loaded last. Nothing misbehaved,
+  because both sides happened to agree on the default; but the switch found
+  under Formations described the henchmen buttons, and a change to either
+  default would have silently moved the other. It is now one setting under
+  **Library**, "Advance the world clock", worded to cover both the ten minutes
+  a dungeon turn spends and the seven days a location's **Advance 1 week**
+  button spends. Turning it off still hands the clock to Simple Timekeeping or
+  a calendar module, exactly as before. Worlds upgrading from 1.3.2 keep
+  whatever they had it set to — the setting moved groups, not identities.
+- **The settings reference counts what the module actually registers.** The
+  README undercounted at 42, and listed neither the Library's token-vision
+  setting nor the henchmen clock toggle. It now reads 43 — 39 configurable, 4
+  internal — and the published settings page no longer carries the
+  registered-twice caution.
+
+### Upgrading
+- Frontage was one of three fixed choices and is now a number. A formation saved
+  at one, two or three keeps that width; nothing needs re-entering.
+- Worlds carrying the merge's clean-up already have their storage places. A
+  world upgraded straight from a pre-merge install has none until a Location
+  actor is made, which is why the Storage tab and the banked-coin column can
+  both be absent at once — creating one place restores both.
+
 ## 1.3.2
 
 ### Fixed

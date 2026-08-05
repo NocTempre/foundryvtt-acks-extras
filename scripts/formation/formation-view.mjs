@@ -16,14 +16,17 @@ import {
   getFrontage,
   getMapperActor,
   getMemberActor,
+  getPartyScene,
   hasAbility,
   isDown,
   isHurried,
   isPartyInDark,
   mapperIsProficient,
+  maxFrontage,
   missingRoleGear,
   partySpeed,
 } from "./formation-model.mjs";
+import { isMemberDeployed } from "./deployment.mjs";
 import { senseProfile } from "../lib/senses.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS } from "./party-rolls.mjs";
@@ -48,13 +51,12 @@ export function buildFormationView(formation) {
     inCombat: !!formation.combat?.active,
   };
 
+  // Frontage is a free width, so the field is a number and the only ceiling
+  // offered is the one the map imposes. A scene that cannot be measured (none
+  // loaded yet) offers no ceiling rather than an invented one.
   const frontage = getFrontage(formation);
   view.frontage = frontage;
-  view.frontageOptions = [1, 2, 3].map((value) => ({
-    value,
-    label: game.i18n.localize(`ACKS-FORMATION.app.frontage${value}`),
-    active: value === frontage,
-  }));
+  view.frontageMax = maxFrontage(getPartyScene(formation) ?? canvas?.scene ?? game.scenes?.viewed);
 
   const dark = isPartyInDark(formation);
   view.dark = dark;
@@ -97,11 +99,11 @@ export function buildFormationView(formation) {
       })(),
       encMax: actor?.system?.encumbrance?.max ?? "—",
       stashed: !!member.tokenData,
-      deployed: !!member.deployedTokenId,
+      deployed: isMemberDeployed(member),
       // Out on their own feet rather than swept out by a combat. Only a detach
       // can be undone from here; a fighter is recalled when the fight ends.
       detached: !!member.detached,
-      canDetach: !formation.combat?.active && !isDown(actor) && (!member.deployedTokenId || member.detached),
+      canDetach: !formation.combat?.active && !isDown(actor) && (!isMemberDeployed(member) || member.detached),
       // How far this character sees with no light at all, for the chip that
       // explains why the scout can go where the rest of the party cannot.
       darkSight: senseProfile(actor).sightRange,

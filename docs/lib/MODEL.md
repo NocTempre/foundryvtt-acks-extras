@@ -195,3 +195,16 @@ sets the one capacity above 1 (two, and a third stops all of them working).
 both give `slotsOf` an empty list, and every name-heuristic fallback in the
 family gates on the former so a deliberate ruling is not undone by an item's
 name.
+
+## The world clock
+
+`scripts/world-time.mjs` owns the module's one clock policy: the
+`advanceWorldTime` world setting and the `mayAdvanceWorldTime()` predicate that
+gates every `game.time.advance` the module performs. Two features spend the
+clock — formation's dungeon turns (a minute per bookkeeping round) and the
+location sheet's "Advance 1 week" button — and both go through this gate, so a
+GM whose table runs Simple Timekeeping or a calendar module answers once.
+
+The setting is registered here, in `module.mjs`, rather than by either feature.
+Nothing else about time lives here: worldTime is Foundry's, and each feature
+still decides its own step size and what it does when the gate is shut.

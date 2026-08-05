@@ -48,6 +48,7 @@ import { GroupSheet } from "./apps/group-sheet.mjs";
 import { TemplateSheet } from "./apps/template-sheet.mjs";
 import { registerMountCleanup } from "./mount.mjs";
 import { registerStorageCleanup, DELETE_POLICY_SETTING } from "./storage.mjs";
+import { registerGroupCleanup } from "./group.mjs";
 import { FollowerCardSheet } from "./apps/follower-card-sheet.mjs";
 import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from "./follower-card.mjs";
 import * as attackLogic from "./attack-logic.mjs";
@@ -64,6 +65,7 @@ import {
   syncSceneTokens,
   syncTokenFromActor,
 } from "./token-sync.mjs";
+import { SETTING_ADVANCE_WORLD_TIME } from "./world-time.mjs";
 
 /** The actor sub-types this library adds to the system. */
 export const ANIMAL_TYPE = `${MODULE_ID}.animal`;
@@ -180,6 +182,7 @@ Hooks.once("init", () => {
 
   registerMountCleanup();
   registerStorageCleanup();
+  registerGroupCleanup();
 
   // Vision/detection modes and the two status effects the ACKS senses need.
   // At init, not ready: a token drawn against an unregistered vision mode
@@ -216,6 +219,19 @@ Hooks.once("init", () => {
     type: Boolean,
     default: true,
     onChange: () => syncSceneTokens(game.scenes?.current).catch(() => {}),
+  });
+
+  // Whether this module may write to game.time (world-time.mjs). Registered
+  // here rather than in either feature that advances the clock: dungeon turns
+  // and the location sheet's week button spend the same shared resource, so one
+  // key answers for both and neither can drift a default the other reads.
+  game.settings.register(MODULE_ID, SETTING_ADVANCE_WORLD_TIME, {
+    name: `${LANG_PREFIX}.settings.advanceWorldTime.name`,
+    hint: `${LANG_PREFIX}.settings.advanceWorldTime.hint`,
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
   });
 
   // What happens to goods stored at a place when that place is deleted. A
@@ -336,13 +352,20 @@ Hooks.once("ready", () => {
   if (game.system?.id !== "acks") return;
 
   // Own the attack roll (throw = target, bonuses = auditable stack) unless the
-  // world opted out. At ready: the system's Actor class is final here. The
-  // display patch supersedes the core sheet's folded Melee/Ranged boxes so the
-  // wrong number is unreachable — same setting, one model everywhere.
-  if (game.settings.get(MODULE_ID, "attackRollPatch")) {
-    installAttackRollPatch();
-    installAttackDisplayPatch();
-  }
+  // world opted out. At ready: the system's Actor class is final here.
+  //
+  // The install itself is UNCONDITIONAL: it also hosts the composition chain
+  // other features register into (`wrapRollAttack`), and that chain has no other
+  // reader — skipping the install would silently kill acks-equipment's
+  // per-weapon RAW modifiers and ammunition spend along with the model. Never
+  // gate it on this setting; the setting only chooses whose roll runs innermost.
+  //
+  // The display patch DOES follow the setting: it supersedes the core sheet's
+  // folded Melee/Ranged boxes so the wrong number is unreachable, which only
+  // holds while the model is the one rolling.
+  const useAttackModel = game.settings.get(MODULE_ID, "attackRollPatch");
+  installAttackRollPatch(useAttackModel);
+  if (useAttackModel) installAttackDisplayPatch();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const MonsterSheet = entries.find((e) => e.default)?.cls ?? entries[0]?.cls ?? null;

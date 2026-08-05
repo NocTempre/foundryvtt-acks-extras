@@ -60,8 +60,10 @@ export async function openStashDialog(sources, provider) {
       : "";
 
   const result = await foundry.applications.api.DialogV2.prompt({
-    window: { title: loc("storage.stashTitle") },
-    classes: ["acks-extras"],
+    // A row per stowable item, so the picker is as tall as the pack is full.
+    window: { title: loc("storage.stashTitle"), resizable: true },
+    position: { width: 520 },
+    classes: ["acks-extras", "acks-extras-scroll"],
     content: `<div class="acks-location-stash-dialog">
         <p>${loc("storage.stashInto", { place: esc(provider.name) })}</p>
         ${chooser}

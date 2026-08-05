@@ -2,6 +2,11 @@
 
 .acks-extras.ruledata-browser .ruledata-browser-body {
   padding: 0.5rem;
+  /* One row per imported table: the list is as long as the rules data is, so
+     the body scrolls. It can only do that once it may shrink inside
+     window-content's column flex — hence `min-height: 0`. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 .acks-extras.ruledata-browser .ruledata-table {
@@ -33,10 +38,20 @@
 .acks-extras.ruledata-browser [data-entry-key]:hover {
   background: rgba(28, 96, 165, 0.08);
 }
-.acks-location-json.ruledata-json {
-  max-height: 420px;
+/* The two ruledata inspectors are resizable windows, so their one big element
+   takes whatever height the window has rather than a pixel cap that dragging
+   the frame taller cannot beat. The floor keeps a short table readable. */
+.acks-location-ruledata-view .acks-location-json.ruledata-json {
+  flex: 1 1 auto;
+  min-height: 10rem;
+  margin: 0;
   overflow: auto;
   font-size: 12px;
+}
+
+.acks-location-ruledata-edit textarea {
+  flex: 1 1 auto;
+  min-height: 10rem;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -163,9 +178,26 @@
   cursor: pointer;
 }
 
-/* Stash picker */
+/* Stash picker. The dialog is resizable, so the item list takes the height the
+   window has instead of a pixel cap dragging the frame taller cannot beat. The
+   chain from the dialog root down to the list is column flex for the whole way,
+   because a `flex` child only grows when every ancestor passes the height on. */
+.acks-location-stash-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.acks-location-pick-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .acks-location-picks {
-  max-height: 340px;
+  flex: 1 1 auto;
+  min-height: 8rem;
   padding: 0;
   margin: 0;
   overflow-y: auto;

@@ -36,7 +36,11 @@
           {{#if this.hasTemplate}}{{this.label}}{{else}}{{localize "ACKS-LIB.group.emptyStack"}}{{/if}}
           {{#if this.type}}<span class="proto-type">{{this.type}}</span>{{/if}}
         </h3>
-        <span class="stack-count">{{this.size.current}} / {{this.size.initial}}</span>
+        {{!-- The same words the marching order uses for this stack: a count and
+              the group's collective noun, so one concept reads one way. --}}
+        <span class="stack-count">{{this.size.current}} / {{this.size.initial}}
+          <span class="size-noun">{{@root.noun}}</span>
+        </span>
         {{#if @root.editable}}
           <button type="button" class="icon" data-action="removeStack"
                   title="{{localize 'ACKS-LIB.group.removeStack'}}">✕</button>

@@ -9,6 +9,7 @@
  */
 import { SECONDS_PER_DAY, SECONDS_PER_WEEK } from "./constants.mjs";
 import { getSetting } from "./settings.mjs";
+import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 
 export function now() {
   return Math.floor(game.time.worldTime);
@@ -122,10 +123,14 @@ export function monthsBetween(t0, t1) {
   return Math.floor((t1 - t0) / secondsPerMonth());
 }
 
-/** GM convenience: advance the shared world clock (gated by setting). */
+/**
+ * GM convenience: advance the shared world clock. Gated by lib's world-clock
+ * policy, the same switch dungeon turns obey; the notice is here because this
+ * path is a button press and a silently inert button is a bug report.
+ */
 export async function advanceDays(days) {
   if (!game.user.isGM) return;
-  if (!getSetting("advanceWorldTime")) {
+  if (!mayAdvanceWorldTime()) {
     ui.notifications.info(game.i18n.localize("ACKS-HENCHMEN.time.advanceDisabled"));
     return;
   }

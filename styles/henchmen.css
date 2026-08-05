@@ -38,6 +38,12 @@
 .acks-extras.posting-dialog .posting-dialog-body {
   padding: 0.5rem;
   font-size: var(--acks-fs-body);
+  /* Both bodies are open-ended lists — a throw carries as many modifier rows as
+     the effects on the actor produce — so the body is the window's scroller.
+     `min-height: 0` is what lets it shrink inside window-content's column flex. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 :is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier {

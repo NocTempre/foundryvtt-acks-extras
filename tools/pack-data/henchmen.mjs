@@ -363,6 +363,7 @@ if (!employers.length) return ui.notifications.info("No employers found.");
 const names = employers.map((e) => e.name).join(", ");
 const ok = await foundry.applications.api.DialogV2.confirm({
   window: { title: "Forgive wage arrears?" },
+  classes: ["acks-extras", "acks-extras-scroll"],
   content: \`<p>Forgive all recorded wage arrears and missed-wage loyalty penalties for the hirelings and units of: <b>\${names}</b>?</p>
     <p class="notes">Select employer tokens first to limit the sweep; with nothing selected it covers every employer in the world. Nothing is deleted — the forgiven penalties are marked compensated in each hireling's roster ledger, where you can restore them. Unit morale drops are left for you to judge.</p>\`,
   rejectClose: false,
@@ -391,6 +392,7 @@ if (!preview.repaired.length) {
 const lines = preview.repaired.map((r) => "<li>" + acksExtras.henchmen.repair.describeRepair(r) + "</li>").join("");
 const go = await foundry.applications.api.DialogV2.confirm({
   window: { title: "Repair Henchmen References" },
+  classes: ["acks-extras", "acks-extras-scroll"],
   content: \`<p>Found dangling references on <b>\${preview.repaired.length}</b> of \${preview.scanned} actor(s):</p><ul>\${lines}</ul><p>Remove them?</p>\`,
 });
 if (!go) return;
@@ -412,6 +414,7 @@ const monster = game.user.targets.first()?.actor;
 if (!employer || !monster) return ui.notifications.warn("Select your character's token and TARGET the monster.");
 const captured = await foundry.applications.api.DialogV2.confirm({
   window: { title: "Recruit " + monster.name },
+  classes: ["acks-extras", "acks-extras-scroll"],
   content: "<p>Was the monster defeated and captured (Irrefusable Offer, MM 351)? Choose No for a peaceful/market offer.</p>",
 });
 acksExtras.henchmen.recruitMonster(monster, employer, { captured });`

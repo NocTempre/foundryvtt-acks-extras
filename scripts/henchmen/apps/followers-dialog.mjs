@@ -66,6 +66,7 @@ export async function openFollowersDialog(actor) {
     : game.i18n.localize("ACKS-HENCHMEN.followers.strongholdMissing");
 
   const classKey = await foundry.applications.api.DialogV2.prompt({
+    classes: ["acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.format("ACKS-HENCHMEN.followers.title", { name: actor.name }) },
     content: `<p>${strongholdLine}</p><select name="classKey">${options}</select>`,
     ok: { callback: (_e, button) => button.form.elements.classKey.value },

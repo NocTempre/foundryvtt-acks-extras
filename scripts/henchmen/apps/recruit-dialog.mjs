@@ -40,6 +40,7 @@ export async function pickEmployer(preferred) {
   if (choices.length === 1) return choices[0];
   const options = choices.map((a) => `<option value="${a.id}">${a.name}</option>`).join("");
   const id = await foundry.applications.api.DialogV2.prompt({
+    classes: ["acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.localize("ACKS-HENCHMEN.recruit.pickEmployer") },
     content: `<select name="employerId">${options}</select>`,
     ok: {

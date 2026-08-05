@@ -500,7 +500,15 @@ globalThis.game = {
   folders: new Coll(),
   modules: { get: () => ({ active: true }) },
   system: { id: "acks" },
-  time: { advance: async () => sleep() },
+  // `advanced` records what the module asked the world clock for, so the gated
+  // write can be asserted rather than assumed.
+  time: {
+    advanced: [],
+    advance: async (seconds) => {
+      game.time.advanced.push(seconds);
+      await sleep();
+    },
+  },
   paused: false,
   socket: { emit() {} },
 };
@@ -515,6 +523,18 @@ const engine = await import("../scripts/formation/turn-engine.mjs");
 const requests = await import("../scripts/formation/player-requests.mjs");
 const sceneSync = await import("../scripts/formation/scene-sync.mjs");
 const deployment = await import("../scripts/formation/deployment.mjs");
+// The world-clock gate belongs to lib, which this harness does not load (it
+// would drag in the sheets, data models and core patches). Register it here,
+// with lib's own default, so a dungeon turn takes the same path it takes at a
+// table — an unregistered key reads as "off" and would silently stop testing
+// the write.
+const { SETTING_ADVANCE_WORLD_TIME } = await import("../scripts/lib/world-time.mjs");
+game.settings.register("acks-extras", SETTING_ADVANCE_WORLD_TIME, {
+  scope: "world",
+  config: true,
+  type: Boolean,
+  default: true,
+});
 Hooks.call("init");
 Hooks.call("ready");
 // socketlib: in-process loopback — executeAsGM invokes the registered handler
@@ -1445,6 +1465,7 @@ await scenario("moving the party token advances the clock", async () => {
   // Drag one full exploration move (speed feet) → should be a whole turn.
   const gs = scene.grid.size;
   const squares = Math.round(speed / scene.grid.distance);
+  game.time.advanced.length = 0; // count only this drag's world-clock writes
   await partyToken.update({ x: partyToken.x + squares * gs });
   await drain();
 
@@ -1452,6 +1473,12 @@ await scenario("moving the party token advances the clock", async () => {
   const roundsAfter = (after.turnsTotal * 10) + (after.roundsPartial ?? 0);
   console.log(`      [probe] rounds ${roundsBefore} -> ${roundsAfter}`);
   assert.ok(roundsAfter > roundsBefore, "movement advanced the dungeon clock");
+
+  // The dungeon clock is the module's own; the Foundry world clock is the
+  // shared one, written only through lib's gate. A minute per round.
+  const worldSeconds = game.time.advanced.reduce((a, b) => a + b, 0);
+  console.log(`      [probe] world clock +${worldSeconds}s`);
+  assert.equal(worldSeconds, (roundsAfter - roundsBefore) * 60, "world clock moved a minute per round");
 
   await model.disband(model.getFormation(id));
   await drain();

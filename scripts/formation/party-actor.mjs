@@ -1,7 +1,7 @@
-/* global game, foundry */
+/* global game, foundry, document, CSS */
 import { MODULE_ID } from "./constants.mjs";
 import { SHARED_ACTIONS, bindMemberDrop, onChangeForm } from "./formation-actions.mjs";
-import { getFormations } from "./formation-model.mjs";
+import { cellBodies, getFormations, getMemberActor, isStackMember, partyHeadcount } from "./formation-model.mjs";
 import { buildFormationView, buildGMExtras, buildPlayerPanel } from "./formation-view.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
 
@@ -56,13 +56,39 @@ export function formationForActor(actor) {
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
 /**
+ * What a stack calls itself: its own collective noun, else the default for the
+ * kind of unit it is. The marching order says the same word the group sheet
+ * says, so "40 mercenaries" in the party window is "40 mercenaries" on the sheet
+ * that edits them — one concept, one vocabulary.
+ */
+function stackNoun(actor) {
+  const own = actor?.system?.noun;
+  if (own) return own;
+  const key = `ACKS-LIB.group.noun.${actor?.system?.unit?.category || "monster"}`;
+  return game.i18n.has(key) ? game.i18n.localize(key) : "";
+}
+
+/**
+ * The marching-order rows whose occupant is a stack, by actor id: how many
+ * bodies it stands for and what it calls them.
+ */
+function stackRows(formation) {
+  const rows = new Map();
+  for (const member of formation.members ?? []) {
+    if (!member?.actorId || !isStackMember(member)) continue;
+    rows.set(member.actorId, { bodies: cellBodies(member), noun: stackNoun(getMemberActor(member)) });
+  }
+  return rows;
+}
+
+/**
  * The party actor's sheet: members and their marching order, the exploration
  * clock, lights and spells. Reads the formation record rather than the actor,
  * which carries almost no state of its own.
  */
 export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-extras", "party-sheet"],
+    classes: ["acks-extras", "acks-extras-scroll", "party-sheet"],
     position: { width: 540, height: 700 },
     window: { resizable: true },
     // Replace the document sheet's submit pipeline: form inputs configure the
@@ -120,7 +146,42 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     Object.assign(context, buildFormationView(formation));
     if (context.isGM) Object.assign(context, buildGMExtras(formation));
     else Object.assign(context, buildPlayerPanel(formation));
+
+    // An occupant may stand for a crowd, so the party is counted in BODIES and
+    // the rows that hold a stack say how many. The count is the group actor's
+    // own headcount — it is never tracked a second time here.
+    const stacks = stackRows(formation);
+    context.headcount = partyHeadcount(formation);
+    for (const row of context.members ?? []) {
+      const stack = row?.actorId ? stacks.get(row.actorId) : null;
+      if (stack) row.stack = stack;
+    }
     return context;
+  }
+
+  /**
+   * Say what a stacked row stands for, and point at where it is edited.
+   *
+   * The badge carries the `openSheet` action, so the one route to a stack's
+   * headcount and its casualties is the group's own sheet — the formation never
+   * grows a second way to do the same thing. Attached after render and skipped
+   * where a badge already exists, so row markup that renders one itself wins.
+   */
+  #markStacks(context) {
+    for (const row of context.members ?? []) {
+      if (!row?.stack || !this.element) continue;
+      const cell = this.element.querySelector(`li.member[data-actor-id="${CSS.escape(row.actorId)}"]`);
+      if (!cell || cell.querySelector(".acks-extras-stack-badge")) continue;
+      cell.classList.add("acks-extras-stacked");
+      const badge = document.createElement("button");
+      badge.type = "button";
+      badge.className = "acks-extras-stack-badge";
+      badge.dataset.action = "openSheet";
+      badge.textContent = row.stack.noun ? `${row.stack.bodies} ${row.stack.noun}` : `×${row.stack.bodies}`;
+      const hint = "ACKS-FORMATION.app.stackHint";
+      if (game.i18n.has(hint)) badge.dataset.tooltip = game.i18n.localize(hint);
+      (cell.querySelector(".info .name") ?? cell).append(badge);
+    }
   }
 
   /** Preserve the window-content scroll position across live re-renders. */
@@ -136,6 +197,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
   async _onRender(context, options) {
     await super._onRender(context, options);
     bindMemberDrop(this);
+    this.#markStacks(context);
     const content = this.element?.querySelector(".window-content");
     if (content && this.#scrollTop) content.scrollTop = this.#scrollTop;
   }

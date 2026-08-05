@@ -31,7 +31,7 @@ export const GROUP_TYPE = `${MODULE_ID}.group`;
  */
 export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-extras", "acks-lib-group-sheet"],
+    classes: ["acks-extras", "acks-extras-scroll", "acks-lib-group-sheet"],
     position: { width: 600, height: 680 },
     window: { resizable: true },
     form: { submitOnChange: true, closeOnSubmit: false },

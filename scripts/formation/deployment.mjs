@@ -1,5 +1,17 @@
 /* global game, foundry */
-import { formationOffset, getMemberActor, getPartyToken, isDown, patchFormation, updateFormation } from "./formation-model.mjs";
+import { MODULE_ID } from "../lib/constants.mjs";
+import {
+  blockOrigin,
+  cellPosition,
+  cellPositions,
+  getMemberActor,
+  getPartyToken,
+  isDown,
+  isStackMember,
+  patchFormation,
+  readFormations,
+  updateFormation,
+} from "./formation-model.mjs";
 
 /**
  * Putting members on the map and gathering them back in.
@@ -24,11 +36,80 @@ import { formationOffset, getMemberActor, getPartyToken, isDown, patchFormation,
  */
 
 /**
+ * The group lifecycle ops (deploy/recall of a stack's bodies), loaded on demand.
+ *
+ * Nothing in this file may evaluate a Foundry class at module scope: the leash
+ * predicates below are pure geometry and are imported with no Foundry globals at
+ * all, while `lib/group.mjs` reaches a data model that subclasses one. Only the
+ * stack paths need it, and they run inside Foundry by definition.
+ */
+function groupOps() {
+  return import("../lib/group.mjs");
+}
+
+/* -------------------------------------------- */
+/*  Who is on the canvas                        */
+/* -------------------------------------------- */
+
+/**
+ * Is this member out of the party token — standing on the map rather than
+ * riding inside it?
+ *
+ * An individual names the one token it went out as. A stack went out as bodies
+ * that belong to the group actor and carry no member token id, so it answers
+ * with its own marker. Both are deployed, and everything that asks the question
+ * asks it here: either field read on its own is half an answer, and the half it
+ * misses is a whole occupant.
+ */
+export function isMemberDeployed(member) {
+  return !!(member?.deployedTokenId || member?.deployedStack);
+}
+
+/**
+ * Every token on `scene` this member is standing on: one for an individual, one
+ * per body for a stack, and none for a member who is inside the party token or
+ * whose tokens are already gone.
+ *
+ * A stack's bodies are found by the group flag the deploy stamped on them — the
+ * same reconciliation `groups.recall` gathers them by, so the two can never
+ * disagree about which tokens belong to the crowd, and a body orphaned by a
+ * crash is still counted.
+ *
+ * Async because the group flag lives behind the on-demand import above; the
+ * individual path never reaches it. Enumeration only: nothing here writes.
+ *
+ * @param {object} member the formation member record
+ * @param {Scene} scene the scene the party is standing on
+ * @returns {Promise<TokenDocument[]>} the member's tokens, in placement order
+ */
+export async function deployedTokens(member, scene) {
+  if (!scene || !isMemberDeployed(member)) return [];
+  if (member.deployedStack) {
+    const actor = getMemberActor(member);
+    if (!actor) return [];
+    const { GROUP_FLAG } = await groupOps();
+    return scene.tokens.filter((t) => t.getFlag(MODULE_ID, GROUP_FLAG) === actor.uuid);
+  }
+  const token = scene.tokens.get(member.deployedTokenId);
+  return token ? [token] : [];
+}
+
+/**
  * Create tokens for `members` around the party token, in marching-order shape.
  *
  * Blanks leave real gaps in the line, and the down are carried rather than
  * deployed. Members already on the map are skipped, so a second call cannot
  * duplicate anyone.
+ *
+ * A STACK goes out as the bodies it holds rather than as the one token that
+ * stands for them: each of its stacks is laid into the squares its cell occupies
+ * (`cellPositions`), so the occupant behind it starts after the last of them.
+ * Those bodies belong to the group actor, not to the cell, so the cell records
+ * only THAT it is out and `groups.recall` is what gathers them back.
+ *
+ * The block is fitted to the scene before anyone is placed: a wide frontage or a
+ * deep column is SHIFTED onto the map, never allowed to march its rear ranks off
+ * the edge, and never squashed flat against it.
  *
  * @param {object} formation
  * @param {object[]} members  which members to send out (default: all of them)
@@ -40,42 +121,83 @@ export async function deployMembers(formation, { members = formation.members, de
   const partyToken = getPartyToken(formation);
   const scene = partyToken?.parent;
   if (!scene) return [];
-  const gs = scene.grid.size;
   const wanted = new Set(members.filter(Boolean));
+  const origin = blockOrigin(formation, scene, { x: partyToken.x, y: partyToken.y });
 
   const toCreate = [];
+  const stacked = [];
   for (let cell = 0; cell < formation.members.length; cell++) {
     const member = formation.members[cell];
     if (!member || member.blank || !member.actorId) continue;
     if (!wanted.has(member)) continue;
-    if (member.deployedTokenId) continue; // already out
+    if (isMemberDeployed(member)) continue; // already out
     const actor = getMemberActor(member);
     if (isDown(actor)) continue; // the down are carried, not deployed
+    if (isStackMember(member)) {
+      // Held out of the individuals' batch: the group model does its own batched
+      // creation, once per stack, after theirs.
+      stacked.push({ member, actor, cell });
+      continue;
+    }
     let data = member.tokenData ? foundry.utils.deepClone(member.tokenData) : null;
     if (!data && actor) data = (await actor.getTokenDocument()).toObject();
     if (!data) continue;
     delete data._id;
-    const { dx, dy } = formationOffset(formation, cell);
-    data.x = partyToken.x + dx * gs;
-    data.y = partyToken.y + dy * gs;
+    const { x, y } = cellPosition(formation, scene, origin, cell);
+    data.x = x;
+    data.y = y;
     data.hidden = false;
     toCreate.push({ member, data });
   }
-  if (!toCreate.length) return [];
+  if (!toCreate.length && !stacked.length) return [];
 
-  const created = await scene.createEmbeddedDocuments(
-    "Token",
-    toCreate.map((c) => c.data),
-  );
-  created.forEach((token, i) => {
-    const member = toCreate[i].member;
-    member.deployedTokenId = token.id;
-    if (detached) {
-      member.detached = true;
-      // The leash measures from where they stood when they stepped out.
-      member.detach = { anchor: { x: token.x, y: token.y } };
+  const created = [];
+  if (toCreate.length) {
+    const tokens = await scene.createEmbeddedDocuments(
+      "Token",
+      toCreate.map((c) => c.data),
+    );
+    tokens.forEach((token, i) => {
+      const member = toCreate[i].member;
+      member.deployedTokenId = token.id;
+      if (detached) {
+        member.detached = true;
+        // The leash measures from where they stood when they stepped out.
+        member.detach = { anchor: { x: token.x, y: token.y } };
+      }
+    });
+    created.push(...tokens);
+  }
+
+  const groups = stacked.length ? await groupOps() : null;
+  for (const { member, actor, cell } of stacked) {
+    const spots = cellPositions(formation, scene, origin, cell);
+    const before = created.length;
+    let body = 0;
+    for (const stack of actor.system.stacks ?? []) {
+      const n = stack.size?.current ?? 0;
+      if (n <= 0) continue;
+      const first = body;
+      // One creation call per stack, whatever its headcount. The last square
+      // catches a stack that grew after the squares were measured, so a body
+      // never lands at 0,0.
+      const bodies = await groups.deploy(actor, scene, {
+        stackKey: stack.key,
+        count: n,
+        place: (k) => spots[first + k] ?? spots.at(-1),
+      });
+      created.push(...bodies);
+      body += n;
     }
-  });
+    // Marked only once bodies are really on the map: a cell that claims to be
+    // out with nothing standing can never be deployed again. There is no token
+    // id to keep — the bodies are the group's, and the group recalls them — and
+    // no leash anchor, because a crowd has no one square it stepped out from.
+    if (created.length > before) {
+      member.deployedStack = true;
+      if (detached) member.detached = true;
+    }
+  }
   // Record the deployed tokens at once so a recall can always gather them,
   // even if whatever the caller does next fails.
   await updateFormation(formation);
@@ -85,6 +207,11 @@ export async function deployMembers(formation, { members = formation.members, de
 /**
  * Bring members back inside the party token, keeping everything that happened
  * to them while they were out.
+ *
+ * A cell that went out as a STACK comes back through the group model, which
+ * folds every body's delta home and takes the fallen off the headcount in one
+ * write. It reports its losses under its own name, one entry per body, because
+ * no body of a stack is named in the marching order.
  *
  * @returns {Promise<{fallen: string[], anchor: {x, y}|null}>} the names of any
  *   who came back at 0 hp (to be carried or abandoned), and the position to
@@ -101,19 +228,33 @@ export async function recallMembers(formation, { members = formation.members } =
 
   for (const member of formation.members) {
     if (!wanted.has(member)) continue;
-    const tokenId = member.deployedTokenId;
+    // Collected while the bodies still stand: the markers naming them are
+    // cleared next, and the group recall below (like the batched delete at the
+    // end) takes them off the canvas.
+    const bodies = await deployedTokens(member, scene);
+    const wasStack = member.deployedStack;
     delete member.deployedTokenId;
+    delete member.deployedStack;
     delete member.detached;
     delete member.detach;
-    if (!tokenId) continue;
-    const token = scene?.tokens.get(tokenId);
+    // The party re-forms where its people actually stood, whether the first of
+    // them out was one character or the front rank of a crowd.
+    if (!anchor && bodies.length) anchor = { x: bodies[0].x, y: bodies[0].y };
+    if (wasStack) {
+      const actor = getMemberActor(member);
+      if (!actor) continue; // the stack's sheet is gone; the marker is cleared regardless
+      const groups = await groupOps();
+      const { casualties } = await groups.recall(actor, { scene });
+      for (let i = 0; i < casualties; i++) fallen.push(actor.name);
+      continue;
+    }
+    const [token] = bodies;
     if (!token) continue; // token already gone; keep the pre-deploy stash
 
     const hp = token.actor?.system?.hp?.value;
     if (typeof hp === "number" && hp <= 0) fallen.push(token.actor?.name ?? token.name);
 
     member.tokenData = token.toObject();
-    if (!anchor) anchor = { x: token.x, y: token.y };
     toDelete.push(token.id);
   }
 
@@ -140,7 +281,7 @@ export async function toggleDetachMember(formation, actorId) {
   if (!member) return null;
   if (formation.combat?.active) return null;
 
-  if (member.deployedTokenId) {
+  if (isMemberDeployed(member)) {
     if (!member.detached) return null; // deployed by a combat, not by a detach
     await recallMembers(formation, { members: [member] });
     return "recalled";
@@ -151,7 +292,7 @@ export async function toggleDetachMember(formation, actorId) {
 
 /** Is any member currently out of the party token? */
 export function anyDeployed(formation) {
-  return formation.members.some((m) => m?.deployedTokenId);
+  return formation.members.some(isMemberDeployed);
 }
 
 /** The members currently out on a deliberate detach (not a combat deploy). */
@@ -166,6 +307,18 @@ export function memberForDeployedToken(formations, tokenId) {
     if (member) return { formation, member };
   }
   return null;
+}
+
+/**
+ * The same answer, read straight out of storage without copying it.
+ *
+ * This is what the drag path asks: `preUpdateToken` fires on every step of every
+ * token movement, and copying the whole formations blob (a token snapshot per
+ * stashed member) to answer "is this one of ours?" is what makes dragging choppy
+ * in a large party. The result is READ-ONLY — it is the stored record itself.
+ */
+export function findDeployedMember(tokenId) {
+  return memberForDeployedToken(Object.values(readFormations()), tokenId);
 }
 
 /* -------------------------------------------- */

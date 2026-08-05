@@ -18,8 +18,11 @@
  *   5. module.json invariants: semver version, compatibility.minimum present,
  *      declared esmodules/scripts/styles/languages/packs paths exist,
  *      manifest/download point at releases/latest/download.
- *   6. i18n: every "<ID-UPPERCASED>.x" key referenced in scripts/templates/
- *      ruledata exists in lang/en.json (dynamic-suffix tolerant).
+ *   6. i18n: every ACKS-family key referenced in scripts/templates/ruledata/
+ *      tools exists in lang/en.json (dynamic-suffix tolerant). Roots written as
+ *      `${LANG_PREFIX}.x` are resolved from module-level string constants,
+ *      following named imports; a root that stays unresolvable fails. The
+ *      count of keys actually checked is always printed.
  *   7. Namespacing (one form per registry, no legacy exceptions — the
  *      2026-07-15 migration brought every module into conformance):
  *      globalThis exposures, custom hooks, and Handlebars helpers start with
@@ -216,19 +219,148 @@ if (module_?.id && fs.existsSync(path.join(ROOT, "lang", "en.json"))) {
    * none of a merged module's keys, so `referenced` would come back empty and
    * this section would print OK having checked nothing. */
   const keyRe = new RegExp(`${LANG_FAMILY}[A-Z0-9]+\\.[A-Za-z0-9._-]+`, "g");
-  const referenced = new Set();
+
+  /* Most code names its lang root through a constant — `${LANG_PREFIX}.ui.x`,
+   * the shape the scaffold itself seeds — so a scanner that only reads quoted
+   * literals sees NO keys in such a repo and prints OK having checked nothing.
+   * Resolving the interpolation is what makes this section cover the family's
+   * own idiom. Resolution is per file: local `const NAME = "…"` plus named
+   * imports followed through relative specifiers. It can never be a repo-wide
+   * name→value map — one merged module legitimately declares several different
+   * LANG_PREFIX constants (ACKS-LIB, ACKS-LOCATION, …), and flattening them
+   * would attribute keys to the wrong root. */
+  const CONST_RE = /(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(["'`])([^"'`\\\n]*)\2/g;
+  const IMPORT_RE = /import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
+  const INTERP_RE = /\$\{\s*([A-Za-z_$][\w$]*)\s*\}/g;
+  /* The same root, one indirection further out: a factory handed a lang root
+   * returns a bound localizer, and every `loc("some.key")` after it names a key
+   * no literal scan can see. Matched on shape, not on the helper's name — a
+   * value that reaches a factory as a lang root and comes back callable with
+   * dotted strings IS a localizer, whatever the repo calls it. */
+  const BINDER_RE = /(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*[A-Za-z_$][\w$]*\s*\(\s*(?:(["'`])([^"'`\\\n]*)\2|([A-Za-z_$][\w$]*))\s*\)/g;
+  /* Only a value shaped like a lang root (or a dot-path under one) is ever
+   * substituted, so an unrelated `${…}` can never be rewritten into something
+   * that merely looks like a key — including this validator's own LANG_FAMILY,
+   * which lives one directory below and is scanned like any other source. */
+  const LANG_ROOT_RE = new RegExp(`^${LANG_FAMILY}[A-Z0-9]+(?:\\.[A-Za-z0-9._-]+)?$`);
+  /* An i18n call whose key STARTS with an interpolation this pass could not
+   * resolve is a key the section cannot see at all. That silence is the defect
+   * — it reads as "no problems found" — so it fails instead. Only a root named
+   * by something constant-shaped counts: a generic factory interpolating its
+   * own `prefix` parameter is unknowable by construction, and its call sites
+   * are reached through the binder pass rather than here. */
+  const OPAQUE_I18N_RE = /\bi18n\s*\.\s*(?:localize|format|has)\(\s*`\$\{([^}`]*)\}/g;
+  const CONSTANTISH = /[A-Z][A-Z0-9_]{2,}/;
+
+  const files = [];
   for (const dir of ["scripts", "templates", "ruledata", "tools"]) {
     walk(path.join(ROOT, dir), (full) => {
-      if (!/[.](mjs|hbs|json)$/.test(full)) return;
-      const text = fs.readFileSync(full, "utf8");
-      for (const match of text.matchAll(keyRe)) referenced.add(match[0].replace(/[.,]$/, ""));
+      if (/[.](mjs|hbs|json)$/.test(full)) files.push(full);
     });
+  }
+  const sources = new Map(files.map((full) => [full, fs.readFileSync(full, "utf8")]));
+
+  const substitute = (text, scope) =>
+    text.replace(INTERP_RE, (whole, name) => {
+      const value = scope.get(name);
+      return value !== undefined && LANG_ROOT_RE.test(value) ? value : whole;
+    });
+
+  const resolveSpecifier = (fromFile, specifier) => {
+    if (!specifier.startsWith(".")) return null; // bare/absolute: not ours to walk
+    const base = path.resolve(path.dirname(fromFile), specifier);
+    for (const candidate of [base, `${base}.mjs`, `${base}.js`, path.join(base, "index.mjs")]) {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
+    }
+    return null;
+  };
+  // Module-level string constants per file, plus the named-import edges that
+  // carry them between files.
+  const constsOf = new Map();
+  const importsOf = new Map();
+  for (const full of files) {
+    if (!full.endsWith(".mjs")) continue;
+    const local = new Map();
+    for (const m of sources.get(full).matchAll(CONST_RE)) local.set(m[1], m[3]);
+    constsOf.set(full, local);
+    const edges = [];
+    for (const m of sources.get(full).matchAll(IMPORT_RE)) {
+      const source = resolveSpecifier(full, m[2]);
+      if (!constsOf.has(source) && !files.includes(source)) continue;
+      for (const specifier of m[1].split(",")) {
+        const [imported, alias] = specifier.trim().split(/\s+as\s+/);
+        if (imported) edges.push({ source, imported, local: alias ?? imported });
+      }
+    }
+    importsOf.set(full, edges);
+  }
+  const scopeFor = (full) => {
+    const scope = new Map(constsOf.get(full));
+    for (const edge of importsOf.get(full) ?? []) {
+      const value = constsOf.get(edge.source)?.get(edge.imported);
+      if (value !== undefined) scope.set(edge.local, value);
+    }
+    return scope;
+  };
+  /* A root composed from another constant — `const SUB = `${LANG_PREFIX}.ui`` —
+   * only resolves once the constant it chains off has, and that one usually
+   * arrives by import. So the fixed point runs across ALL files rather than
+   * within each: resolving one file's constants can unblock another's. */
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (const [full, local] of constsOf) {
+      const scope = scopeFor(full);
+      for (const [name, value] of local) {
+        const next = substitute(value, scope);
+        if (next !== value) (local.set(name, next), (changed = true));
+      }
+    }
+    if (!changed) break;
+  }
+
+  const referenced = new Set();
+  const literal = new Set(); // what a quoted-literal-only scan would have seen
+  const collect = (text, into) => {
+    for (const match of text.matchAll(keyRe)) into.add(match[0].replace(/[.,]$/, ""));
+  };
+  for (const full of files) {
+    collect(sources.get(full), literal);
+    if (!full.endsWith(".mjs")) {
+      collect(sources.get(full), referenced);
+      continue;
+    }
+    const scope = scopeFor(full);
+    const resolved = substitute(sources.get(full), scope);
+    collect(resolved, referenced);
+    for (const m of resolved.matchAll(OPAQUE_I18N_RE)) {
+      if (!CONSTANTISH.test(m[1])) continue;
+      fail(rel(full), `i18n key starts with unresolvable \${${m[1]}} — declare the root as a module-level string const so this check can read the key`);
+    }
+    for (const m of resolved.matchAll(BINDER_RE)) {
+      const root = m[3] ?? scope.get(m[4]);
+      if (root === undefined || !LANG_ROOT_RE.test(root)) continue;
+      const callRe = new RegExp(`\\b${m[1]}\\(\\s*(["'\`])([A-Za-z0-9._-]+)\\1`, "g");
+      for (const call of resolved.matchAll(callRe)) referenced.add(`${root}.${call[2]}`);
+    }
   }
   for (const key of referenced) {
     // Dynamic families: code builds `PREFIX.${value}` — the captured prefix is
     // fine as long as some real key extends it.
     if (langKeys.some((k) => k.startsWith(key))) continue;
     fail("lang/en.json", `missing key referenced in code: ${key}`);
+  }
+  /* Always report the count. A silent OK cannot distinguish "found no problems"
+   * from "found no keys", and it was the second that let a missing key ship. */
+  const recovered = referenced.size - literal.size;
+  console.log(
+    `validate: i18n checked ${referenced.size} referenced key${referenced.size === 1 ? "" : "s"} ` +
+      `across ${files.length} file${files.length === 1 ? "" : "s"}` +
+      (recovered > 0 ? ` (${recovered} invisible to a quoted-literal scan: constant roots and bound localizers)` : "") +
+      ` against ${langKeys.length} in lang/en.json`
+  );
+  const familyKeys = langKeys.filter((k) => k.startsWith(LANG_FAMILY));
+  if (familyKeys.length && !referenced.size) {
+    console.warn(`WARN lang/en.json: ${familyKeys.length} ${LANG_FAMILY}* keys defined but not one is referenced in code — this check verified nothing`);
   }
 }
 

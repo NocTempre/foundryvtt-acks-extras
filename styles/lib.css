@@ -1,10 +1,69 @@
-/* acks-lib styles. Scope every selector under a module-specific class. */
+/* acks-lib styles, plus the window contract every acks-extras window shares.
+   Scope every selector under a module-specific class. */
+
+/* --- Window scroll contract -------------------------------------------------
+ * Core caps every ApplicationV2 frame at the viewport
+ * (`max-height: calc(100vh - 1.5 * var(--hotbar-height))`) and gives
+ * `.application .window-content` `flex: 1; display: flex; flex-flow: column
+ * nowrap; overflow: hidden` — no scroll region anywhere, so content past the
+ * cap is amputated, footer first, with no scrollbar. Core's `.scrollable`
+ * (0,1,0) cannot reach it either: `.application .window-content` is (0,2,0).
+ *
+ * Every window in this module carries `acks-extras-scroll` in its `classes`,
+ * and the rules below are the whole contract:
+ *   - the leading class keeps the selector namespaced (validate reads the FIRST
+ *     class on the line) while `.application` lifts it to (0,3,0), which is what
+ *     out-specifies core;
+ *   - `min-height: 0` is load-bearing — a flex child in a column flex parent
+ *     refuses to shrink below its content without it, so `overflow-y: auto`
+ *     alone leaves the frame clipped exactly as before.
+ * A window that wants its own inner scroller simply overflows less; this stays
+ * the backstop.
+ */
+.acks-extras-scroll.application .window-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* DialogV2 nests `form.dialog-form > (.dialog-content, footer.form-footer)`
+   inside window-content. Passing the shrink down to the content div keeps the
+   button footer on screen instead of scrolling it out of reach. */
+.acks-extras-scroll.application .window-content > form.dialog-form {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.acks-extras-scroll.application .window-content > form.dialog-form > .dialog-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Core tunes `.standard-form fieldset` for a handful of form-groups
+   (`gap: var(--spacer-16)`). This module's dialogs pack LISTS into fieldsets —
+   the proficiency picker alone is forty checkbox rows, which that spacing
+   spreads over a thousand pixels — so a dialog's fieldsets get a list's
+   spacing. `.dialog` keeps this off the module's own sheets, whose fieldsets
+   are laid out by their feature stylesheet. */
+.acks-extras-scroll.dialog fieldset {
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem;
+}
+
+/* --- acks-lib.group sheet --- */
 
 .acks-lib-group-sheet .acks-lib-group-body {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.4rem 0.6rem;
+  /* The body is the sheet's scroller: a group holds arbitrarily many stacks,
+     each with its own roster. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .acks-lib-group-sheet section > header h3 {
@@ -140,6 +199,10 @@
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.5rem;
+  /* `overflow-y` only bites once the body may shrink inside the column flex
+     window-content. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 .acks-lib-template-sheet section > header h3 {

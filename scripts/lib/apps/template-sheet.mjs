@@ -29,7 +29,7 @@ export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
  */
 export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-extras", "acks-lib-template-sheet"],
+    classes: ["acks-extras", "acks-extras-scroll", "acks-lib-template-sheet"],
     position: { width: 520, height: 600 },
     window: { resizable: true },
     form: { submitOnChange: true, closeOnSubmit: false },
@@ -193,6 +193,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
   static async #prompt(title, label, initial = "") {
     const esc = foundry.utils.escapeHTML;
     return foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-extras", "acks-extras-scroll"],
       window: { title },
       content: `<label>${esc(label)} <input type="text" name="value" value="${esc(initial)}" autofocus /></label>`,
       ok: { callback: (event, button) => button.form.elements.value.value.trim() },

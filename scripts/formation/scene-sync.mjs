@@ -1,5 +1,6 @@
 /* global game, ChatMessage, CONST */
 import { MODULE_ID, ROLES } from "./constants.mjs";
+import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
 import { getFormations, getPartyActor, getPartyToken, mapperIsProficient } from "./formation-model.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
@@ -208,10 +209,10 @@ async function syncPartyTokenVision(formation) {
   await applyTokenVision(token, best);
 }
 
-/** Is this member currently out of the party token (combat deploy or detach)? */
+/** Is the member holding this actor currently out of the party token? */
 function isDeployed(formation, actorId) {
   if (!actorId) return false;
-  return formation.members.some((m) => m?.actorId === actorId && m.deployedTokenId);
+  return formation.members.some((m) => m?.actorId === actorId && isMemberDeployed(m));
 }
 
 /**
@@ -222,14 +223,17 @@ function isDeployed(formation, actorId) {
  *
  * This is what makes a detach worth doing: the scout walks into the dark with
  * whatever their character can actually see by.
+ *
+ * A member out as a STACK is synced body by body: each body stands on its own
+ * token over its own actor, so the one that took a wound or lit a lamp is not
+ * made to see and burn like the rest of the crowd.
  */
 async function syncDeployedMemberTokens(formation) {
   const scene = getPartyToken(formation)?.parent ?? game.scenes.get(formation.sceneId);
   if (!scene) return;
   for (const member of formation.members) {
-    if (!member?.deployedTokenId) continue;
-    const token = scene.tokens.get(member.deployedTokenId);
-    if (token) await syncTokenFromActor(token);
+    if (!isMemberDeployed(member)) continue;
+    for (const token of await deployedTokens(member, scene)) await syncTokenFromActor(token);
   }
 }
 

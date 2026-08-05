@@ -168,8 +168,25 @@ function applyMods(attData, mods) {
   return { ...attData, item };
 }
 
+/**
+ * Shots that have already paid for themselves, keyed by the attack's own data
+ * object.
+ *
+ * ONE SHOT, ONE ROUND. Core's `targetAttack` builds a single attData per user
+ * action and reuses it — mutating only `roll.target` — across one `rollAttack`
+ * call per persistent target, so firing with three tokens targeted is three
+ * rolls of one shot and must cost one bolt. Object identity IS the shot: every
+ * fresh action (`rollWeapon`, the sheet's attack header, the range selector)
+ * builds a new literal, and nothing else reuses one. A WeakSet needs no expiry
+ * window — the entry dies with the throwaway object it keys.
+ */
+const spentShots = new WeakSet();
+
 /** WRAPPER around AcksActor#rollAttack. Fails safe: any error → core's roll. */
-function onRollAttack(wrapped, attData, options = {}) {
+async function onRollAttack(wrapped, attData, options = {}) {
+  // Captured before applyMods swaps in its copy: the ORIGINAL object is the
+  // one core reuses per target, so it is the only valid shot key.
+  const shot = attData;
   try {
     const mods = computeAttackMods(this, attData, options);
     if (mods) {
@@ -180,12 +197,18 @@ function onRollAttack(wrapped, attData, options = {}) {
   } catch (err) {
     console.error(`${MODULE_ID} | attack-roll wrap failed; using the unmodified core roll`, err);
   }
-  const result = wrapped(attData, options);
-  // Consume ammunition / mark a thrown weapon as a side effect AFTER the roll —
-  // fire-and-forget, self-guarded, so it can never block or fail the attack.
+  const result = await wrapped(attData, options);
+  // Consume ammunition / mark a thrown weapon only once the roll RESOLVED, and
+  // only once per shot. A cancelled roll spends nothing: both the remodeled roll
+  // and core's own return nullish when the details dialog is dismissed. The shot
+  // is marked BEFORE the async spend, so the next target in core's loop sees it
+  // marked no matter how the write settles; fire-and-forget past that point, so
+  // a failed decrement can never block or fail the attack.
   try {
     const realItem = attData?.item?._id ? this.items?.get?.(attData.item._id) : null;
-    if (realItem?.type === "weapon") {
+    const keyable = !!shot && typeof shot === "object"; // WeakSet.add throws on a primitive
+    if (result != null && realItem?.type === "weapon" && keyable && !spentShots.has(shot)) {
+      spentShots.add(shot);
       consumeForAttack(this, realItem, classifyWeapon(realItem), options).catch((err) =>
         console.error(`${MODULE_ID} | ammunition consumption failed`, err),
       );

@@ -42,7 +42,13 @@ const content = \`<div class="acks-equipment-loadout">
   <table><thead><tr><th>Weapon</th><th>Size</th><th>Hands</th></tr></thead><tbody>\${rows || "<tr><td colspan=3><em>none equipped</em></td></tr>"}</tbody></table>
   <p><b>Armour</b> \${lo.armor?.name ?? "none"}\${lo.shield ? " · <b>Shield</b> " + lo.shield.name : ""}\${lo.hasHelmet ? " · helmet" : ""}</p>
   \${viol}</div>\`;
-new foundry.applications.api.DialogV2({ window: { title: \`Loadout — \${actor.name}\` }, content, buttons: [{ action: "ok", label: "Close", default: true }] }).render(true);`,
+new foundry.applications.api.DialogV2({
+  classes: ["acks-extras", "acks-extras-scroll"],
+  window: { title: \`Loadout — \${actor.name}\`, resizable: true },
+  position: { width: 520 },
+  content,
+  buttons: [{ action: "ok", label: "Close", default: true }],
+}).render(true);`,
   },
   {
     _id: "acksEqContainer0",
@@ -84,6 +90,7 @@ const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token."); return; }
 const types = ["acidic","arcane","bludgeoning","piercing","poisonous","slashing","cold","electric","fire","luminous","necrotic","seismic"];
 const form = await foundry.applications.api.DialogV2.prompt({
+  classes: ["acks-extras", "acks-extras-scroll"],
   window: { title: \`Item Loss — \${actor.name}\` },
   content: \`<div style="display:grid;gap:.5rem">
     <p>Applies only when the creature was reduced to <b>-6 hp or lower</b> by an area attack it did not save against.</p>
@@ -186,9 +193,11 @@ const box = (name, value, label, checked, note) =>
   \`<label style="display:flex;gap:.4rem;align-items:baseline"><input type="checkbox" name="\${name}" value="\${value}"\${checked ? " checked" : ""}>
     <span>\${label}\${note ? \` <span style="opacity:.6;font-size:.9em">— \${note}</span>\` : ""}</span></label>\`;
 
-const render = (st) => \`<div style="display:grid;gap:.75rem">
-  <fieldset><legend>Fighting styles</legend>
-    <p class="notes">Single-weapon and missile styles are always trained (RR p. 106) and are not listed.</p>
+const render = (st) => \`<div style="display:grid;gap:.75rem;align-content:start">
+  <fieldset><legend>Fighting styles (weapon style proficiencies)</legend>
+    <p class="notes">How the character is trained to hold weapons — the book calls these <em>fighting styles</em>;
+      character sheets and class tables often call the same thing <em>weapon style proficiencies</em>.
+      Single-weapon and missile styles are always trained (RR p. 106) and are not listed.</p>
     \${STYLES.map(([k, l]) => box("style", k, l, on(st.styles, k))).join("")}
   </fieldset>
   <fieldset><legend>Weapon proficiency</legend>
@@ -213,8 +222,12 @@ const render = (st) => \`<div style="display:grid;gap:.75rem">
 let typed = [];
 for (;;) {
   const form = await foundry.applications.api.DialogV2.prompt({
+    // Forty checkboxes in two fieldsets: the window opens at a workable height
+    // and the body scrolls, rather than the frame being amputated at the
+    // viewport cap with the Save button below the cut.
+    classes: ["acks-extras", "acks-extras-scroll"],
     window: { title: \`Proficiencies — \${actor.name}\`, resizable: true },
-    position: { width: 520 },
+    position: { width: 560, height: 640 },
     content: render(state),
     ok: { label: "Save", callback: (_ev, btn) => new FormData(btn.form) },
     rejectClose: false,
@@ -230,6 +243,7 @@ for (;;) {
   const unknown = typed.filter((t) => api.classifyGrantToken(t) === "unknown");
   if (!unknown.length) break;
   const ok = await foundry.applications.api.DialogV2.confirm({
+    classes: ["acks-extras", "acks-extras-scroll"],
     window: { title: "Unrecognised weapons" },
     content: \`<p>These match no weapon this module knows, so they will grant nothing:
       <b>\${foundry.utils.escapeHTML(unknown.join(", "))}</b>.</p>
@@ -268,6 +282,7 @@ if (!game.user.isGM) { ui.notifications.warn("GM only."); return; }
 const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
 if (!api?.stripModuleData) { ui.notifications.error("ACKS Equipment is not active."); return; }
 const form = await foundry.applications.api.DialogV2.prompt({
+  classes: ["acks-extras", "acks-extras-scroll"],
   window: { title: "Strip ACKS Equipment data from this world?" },
   content: \`<p>This removes the managed loadout effects, reveals any
     disguised items, and deletes every equipment flag from actors and items

@@ -159,11 +159,12 @@
       {{localize "ACKS-FORMATION.app.marchingOrder"}}
       {{#if isGM}}
       <span class="march-controls">
-        <select name="frontage" data-tooltip="{{localize 'ACKS-FORMATION.app.frontageHint'}}">
-          {{#each frontageOptions}}
-          <option value="{{this.value}}" {{#if this.active}}selected{{/if}}>{{this.label}}</option>
-          {{/each}}
-        </select>
+        <label class="frontage-field" data-tooltip="{{localize 'ACKS-FORMATION.app.frontageHint'}}">
+          {{localize "ACKS-FORMATION.app.frontage"}}
+          <input type="number" name="frontage" value="{{frontage}}" min="1" step="1"
+                 {{#if frontageMax}}max="{{frontageMax}}"{{/if}}
+                 style="width: 4em; height: 22px;" />
+        </label>
         <button type="button" data-action="autoArrange" data-tooltip="{{localize 'ACKS-FORMATION.app.autoArrangeHint'}}">
           <i class="fa-solid fa-arrow-down-wide-short"></i> {{localize "ACKS-FORMATION.app.autoArrange"}}
         </button>

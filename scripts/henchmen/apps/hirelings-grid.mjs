@@ -109,6 +109,7 @@ function onMonsterAction(ev, employer) {
 
 async function dismissMonster(employer, monster) {
   const confirmed = await foundry.applications.api.DialogV2.confirm({
+    classes: ["acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.format("ACKS-HENCHMEN.roster.dismissTitle", { name: monster.name }) },
     content: `<p>${game.i18n.format("ACKS-HENCHMEN.roster.dismissBody", { name: monster.name })}</p>`,
   }).catch(() => false);
