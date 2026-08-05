@@ -10,18 +10,35 @@
  * chassis) but is deliberately not automated (docs/classes/DECISIONS.md).
  */
 import { acksExtras } from "../namespace.mjs";
-import { MODULE_ID, CLASS_TYPE, FLAG_CLASSES, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, CLASS_TYPE, FLAG_CLASSES, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import ClassData, { AWARD_KINDS } from "./class-data.mjs";
 import ClassSheet from "./class-sheet.mjs";
 import * as registry from "./registry.mjs";
 import { applyClass, classUpdateData, normalizeHd } from "./apply.mjs";
 import { openClassPicker, registerAssignUi } from "./assign.mjs";
+import * as casting from "./casting.mjs";
+import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
 import { savesUpdateData, repairSaveReferences, BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 
 Hooks.once("init", () => {
   CONFIG.Item.dataModels ??= {};
   CONFIG.Item.dataModels[CLASS_TYPE] = ClassData;
+
+  // How a gained level rolls HP. RAW (user-confirmed ruling): reroll the full
+  // Hit Dice, minimum one over the old maximum; additive is the house rule.
+  game.settings.register(MODULE_ID, HP_MODE_SETTING, {
+    name: `${LANG_PREFIX}.settings.levelUpHpMode.name`,
+    hint: `${LANG_PREFIX}.settings.levelUpHpMode.hint`,
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      raw: `${LANG_PREFIX}.settings.levelUpHpMode.raw`,
+      additive: `${LANG_PREFIX}.settings.levelUpHpMode.additive`,
+    },
+    default: "raw",
+  });
   try {
     foundry.documents.collections.Items.registerSheet(MODULE_ID, ClassSheet, {
       types: [CLASS_TYPE],
@@ -50,7 +67,10 @@ Hooks.once("init", () => {
     applyClass,
     classUpdateData,
     normalizeHd,
+    parseHd,
     openClassPicker,
+    openLevelUp,
+    casting,
     choiceOptions,
     savesUpdateData,
     repairSaveReferences,
@@ -61,4 +81,6 @@ Hooks.once("init", () => {
 });
 
 registerAssignUi();
+casting.registerCastingUi();
+registerLevelUp();
 registry.registerRegistryHooks();

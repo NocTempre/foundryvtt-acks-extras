@@ -66,6 +66,29 @@ is injected beside the system's free-text class input on character sheets and
 binds the actor to a class document (`flags["acks-extras"].classes` +
 `details.class` for system compat).
 
+## Level-up
+
+[scripts/classes/levelup.mjs](../../scripts/classes/levelup.mjs) watches XP
+cross the class document's next-level threshold and notifies — never applies.
+The wizard rolls HP per the world setting (RAW default: reroll the full Hit
+Dice, Constitution per die and never on the printed flat bonus past 9th,
+minimum one over the old maximum), lists the new level's fixed awards, opens
+a picker per choice award (its ChoiceSpec resolved against the class
+inventory or the world's general list), then grants the abilities (deduped
+by cookbook ref), writes HP, applies the class row for the new level, and
+posts a chat summary.
+
+## Casting
+
+[scripts/classes/casting.mjs](../../scripts/classes/casting.mjs): the class
+document is authoritative for CAPACITY (slot row or pool schedule at the
+character's level); the actor stores only what is SPENT
+(`flags["acks-extras"].classes.pools`). The character sheet gains a
+per-tradition strip — slot pips to spend/refund, a rest control — and it is
+the only surface that can show two traditions at once. The system's own
+`spells.1..6.max` grid stays the single-tradition compatibility surface
+applyClass writes.
+
 ## Save-reference repair
 
 `repairSaveReferences` (lib/actor-compat.mjs) finds references to save keys

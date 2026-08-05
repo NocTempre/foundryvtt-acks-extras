@@ -3,14 +3,11 @@
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
-- **Level-up engine** — XP watch (notify when `details.xp.value` crosses
-  `xp.next`; never auto-apply), and the wizard: level+1, HP reroll (full HD,
-  minimum +1, flat past 9th), award-ladder consumption (fixed grants applied,
-  choice awards opening the ChoiceSpec picker), slot bumps, title.
-- **Casting pools & sheet strip** — per-tradition resource tracking in extras
-  flags, the per-tradition slot/pool strip on the character sheet, the
-  Nobiran's dual pools live at once; points/ritual/ceremonial/gnosis kinds
-  get consumers when their books' recipes land.
+- **Points/ritual/ceremonial/gnosis consumers** — the pool schedules and the
+  strip already carry non-vancian kinds; their spend/refresh rules arrive
+  with their books' recipes (BTA gnosis, HFH ceremonial).
+- **Nobiran dual traditions** — lands with the demi-human batch, on the
+  existing per-tradition strip.
 - **Sheet editors for casting and templates** — both are stored and preserved
   now; the constructor tabs that edit them arrive with the phases that
   consume them.

@@ -120,10 +120,60 @@
   border-radius: 3px;
 }
 
-/* The picker control injected beside the system's class input. */
-.acks-extras-classes-pick {
+/* The picker + level-up controls injected beside the system's class input. */
+.acks-extras-classes-pick,
+.acks-extras-classes-levelup {
   flex: 0;
   margin-left: 0.25rem;
+  cursor: pointer;
+}
+.acks-extras-classes-levelup {
+  color: var(--color-level-success, #2c8a2c);
+}
+
+/* The per-tradition casting strip. */
+.acks-extras-classes-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 2px 4px;
+  margin: 2px 0;
+  border: 1px solid var(--color-border-light-primary, #7a7971);
+  border-radius: 3px;
+}
+.acks-extras-classes-tradition {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.acks-extras-classes-tradition > label {
+  font-size: var(--font-size-11, 11px);
+  font-weight: bold;
+}
+.acks-extras-classes-slotgroup {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+.acks-extras-classes-slotgroup > label {
+  font-size: var(--font-size-10, 10px);
+  opacity: 0.7;
+}
+.acks-extras-classes-pip {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--color-border-highlight, #ff6400);
+  border-radius: 50%;
+  display: inline-block;
+  cursor: pointer;
+}
+.acks-extras-classes-pip.spent {
+  background: var(--color-border-highlight, #ff6400);
+  opacity: 0.45;
+}
+.acks-extras-classes-rest {
+  margin-left: auto;
   cursor: pointer;
 }
 
