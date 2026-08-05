@@ -1,0 +1,142 @@
+/* Classes subsystem: the class constructor sheet, the sheet-header picker,
+ * and the apply-diff dialog. All hooks are acks-extras-classes-*. */
+
+.acks-extras-classes-sheet .acks-extras-classes-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+.acks-extras-classes-sheet .acks-extras-classes-header .profile-img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+}
+.acks-extras-classes-sheet .acks-extras-classes-headmain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.acks-extras-classes-sheet .acks-extras-classes-source {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+.acks-extras-classes-sheet .acks-extras-classes-source label {
+  font-size: var(--font-size-12, 12px);
+  opacity: 0.8;
+}
+
+.acks-extras-classes-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.25rem 0;
+}
+.acks-extras-classes-tabs button {
+  flex: 1;
+  padding: 0.2rem 0.4rem;
+}
+.acks-extras-classes-tabs button.active {
+  text-shadow: 0 0 6px var(--color-shadow-primary, #ff6400);
+  font-weight: bold;
+}
+
+.acks-extras-classes-body {
+  overflow-y: auto;
+  height: calc(100% - 110px);
+  padding-right: 0.25rem;
+}
+
+.acks-extras-classes-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.acks-extras-classes-table th {
+  font-size: var(--font-size-11, 11px);
+  text-align: left;
+}
+.acks-extras-classes-table td {
+  padding: 1px 2px;
+}
+.acks-extras-classes-table input[type="number"] {
+  width: 3.5rem;
+}
+
+.acks-extras-classes-row,
+.acks-extras-classes-award {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  margin: 2px 0;
+}
+.acks-extras-classes-row input[type="text"],
+.acks-extras-classes-award input[type="text"] {
+  flex: 1;
+  min-width: 4rem;
+}
+.acks-extras-classes-award input[type="number"] {
+  width: 3rem;
+}
+
+.acks-extras-classes-rungs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-left: 1rem;
+}
+.acks-extras-classes-rung {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+.acks-extras-classes-rung input[type="number"] {
+  width: 3rem;
+}
+.acks-extras-classes-rung input[type="text"] {
+  width: 3.5rem;
+}
+
+.acks-extras-classes-refname {
+  font-size: var(--font-size-11, 11px);
+  opacity: 0.75;
+  white-space: nowrap;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acks-extras-classes-chip {
+  display: inline-block;
+  padding: 0 0.4rem;
+  margin: 1px;
+  border: 1px solid var(--color-border-light-primary, #7a7971);
+  border-radius: 0.5rem;
+  font-size: var(--font-size-11, 11px);
+}
+
+[data-accept-drop] {
+  border: 1px dashed var(--color-border-light-tertiary, #7a797133);
+  border-radius: 3px;
+}
+
+/* The picker control injected beside the system's class input. */
+.acks-extras-classes-pick {
+  flex: 0;
+  margin-left: 0.25rem;
+  cursor: pointer;
+}
+
+/* The apply-diff table inside the confirm dialog. */
+.acks-extras-classes-diff {
+  width: 100%;
+  border-collapse: collapse;
+}
+.acks-extras-classes-diff td,
+.acks-extras-classes-diff th {
+  padding: 2px 6px;
+  text-align: left;
+}
+.acks-extras-classes-diff tr.acks-extras-classes-hand-edited td {
+  color: var(--color-level-warning, #ee9b3a);
+}

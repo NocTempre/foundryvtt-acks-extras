@@ -1,0 +1,238 @@
+<div class="acks-extras-classes-root">
+<header class="acks-extras-classes-header">
+  <img class="profile-img" src="{{item.img}}" data-edit="img" title="{{item.name}}" />
+  <div class="acks-extras-classes-headmain">
+    <input name="name" type="text" value="{{item.name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
+    <div class="acks-extras-classes-source">
+      <label>{{localize "ACKS-CLASSES.sheet.key"}}</label>
+      <input name="system.key" type="text" value="{{system.key}}" />
+      <label>{{localize "ACKS-CLASSES.sheet.cite"}}</label>
+      <input name="system.source.cite" type="text" value="{{system.source.cite}}" />
+      <input name="system.source.book" type="hidden" value="{{system.source.book}}" />
+      <input name="system.source.ref" type="hidden" value="{{system.source.ref}}" />
+    </div>
+  </div>
+</header>
+
+{{#if isStub}}<p class="notification info">{{localize "ACKS-CLASSES.sheet.stubNotice"}}</p>{{/if}}
+
+<nav class="acks-extras-classes-tabs">
+  {{#each tabs}}
+    <button type="button" data-action="tab" data-tab="{{id}}" class="{{#if active}}active{{/if}}">{{label}}</button>
+  {{/each}}
+</nav>
+
+<div class="acks-extras-classes-body">
+
+  <section class="acks-extras-classes-tabpane" {{#unless show.overview}}hidden{{/unless}}>
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.sheet.maximumLevel"}}</label>
+      <input name="system.maximumLevel" type="number" value="{{system.maximumLevel}}" min="1" step="1" />
+      <label>{{localize "ACKS-CLASSES.sheet.hitDie"}}</label>
+      <input name="system.hitDie" type="text" value="{{system.hitDie}}" placeholder="1d8" />
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.sheet.keyAttributes"}}</label>
+      <div class="acks-extras-classes-checks">
+        {{#each keyAttributes}}
+          <label class="checkbox"><input type="checkbox" name="system.keyAttributes" value="{{value}}" {{#if checked}}checked{{/if}} /> {{label}}</label>
+        {{/each}}
+      </div>
+    </div>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.requirements"}}
+        <a data-action="rowAdd" data-array="requirements"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#each requirements}}
+        <div class="acks-extras-classes-row">
+          <select name="system.requirements.{{index}}.attr">
+            {{#each attrOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+          <input name="system.requirements.{{index}}.min" type="number" value="{{min}}" placeholder="{{localize "ACKS-CLASSES.sheet.min"}}" />
+          <a data-action="rowDelete" data-array="requirements" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+    </fieldset>
+    <div class="form-group">
+      <label>{{localize "ACKS-CLASSES.sheet.saveChassis"}}</label>
+      <select name="system.saveChassis">
+        {{#each saveChassisOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+      <label>{{localize "ACKS-CLASSES.sheet.attackChassis"}}</label>
+      <select name="system.attackChassis">
+        {{#each attackChassisOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.sheet.factoredHint"}}">
+        <input type="checkbox" name="system.factored" {{#if system.factored}}checked{{/if}} />
+        {{localize "ACKS-CLASSES.sheet.factored"}}
+      </label>
+    </div>
+    <div class="form-group stacked">
+      <label>{{localize "ACKS-CLASSES.sheet.description"}}</label>
+      <textarea name="system.description" rows="4">{{system.description}}</textarea>
+    </div>
+    <div class="form-group stacked">
+      <label>{{localize "ACKS-CLASSES.sheet.codeOfBehavior"}}</label>
+      <textarea name="system.codeOfBehavior" rows="3">{{system.codeOfBehavior}}</textarea>
+    </div>
+    <p class="hint">{{localize "ACKS-CLASSES.sheet.castingSummary"}}:
+      {{#each castingSummary}}{{label}} ({{kind}}, {{rows}}) {{/each}}
+      · {{localize "ACKS-CLASSES.sheet.templatesSummary"}}: {{templateCount}}
+      · {{localize "ACKS-CLASSES.sheet.laterPhase"}}</p>
+  </section>
+
+  <section class="acks-extras-classes-tabpane" {{#unless show.progression}}hidden{{/unless}}>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.levels"}}
+        <a data-action="rowAdd" data-array="levels"><i class="fa-solid fa-plus"></i></a></legend>
+      <table class="acks-extras-classes-table">
+        <tr><th>{{localize "ACKS-CLASSES.sheet.level"}}</th><th>{{localize "ACKS-CLASSES.sheet.xp"}}</th><th>{{localize "ACKS-CLASSES.sheet.title"}}</th><th>{{localize "ACKS-CLASSES.sheet.hd"}}</th><th></th></tr>
+        {{#each levels}}
+          <tr>
+            <td><input name="system.levels.{{index}}.level" type="number" value="{{level}}" /></td>
+            <td><input name="system.levels.{{index}}.xp" type="number" value="{{xp}}" /></td>
+            <td><input name="system.levels.{{index}}.title" type="text" value="{{title}}" /></td>
+            <td><input name="system.levels.{{index}}.hd" type="text" value="{{hd}}" /></td>
+            <td><a data-action="rowDelete" data-array="levels" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+          </tr>
+        {{/each}}
+      </table>
+    </fieldset>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.saves"}}
+        <a data-action="rowAdd" data-array="saves"><i class="fa-solid fa-plus"></i></a></legend>
+      <table class="acks-extras-classes-table">
+        <tr><th>{{localize "ACKS-CLASSES.sheet.minLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.maxLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.paralysis"}}</th><th>{{localize "ACKS-CLASSES.sheet.death"}}</th><th>{{localize "ACKS-CLASSES.sheet.blast"}}</th><th>{{localize "ACKS-CLASSES.sheet.implements"}}</th><th>{{localize "ACKS-CLASSES.sheet.spells"}}</th><th></th></tr>
+        {{#each saves}}
+          <tr>
+            <td><input name="system.saves.{{index}}.minLevel" type="number" value="{{minLevel}}" /></td>
+            <td><input name="system.saves.{{index}}.maxLevel" type="number" value="{{maxLevel}}" /></td>
+            <td><input name="system.saves.{{index}}.paralysis" type="number" value="{{paralysis}}" /></td>
+            <td><input name="system.saves.{{index}}.death" type="number" value="{{death}}" /></td>
+            <td><input name="system.saves.{{index}}.blast" type="number" value="{{blast}}" /></td>
+            <td><input name="system.saves.{{index}}.implements" type="number" value="{{implements}}" /></td>
+            <td><input name="system.saves.{{index}}.spells" type="number" value="{{spells}}" /></td>
+            <td><a data-action="rowDelete" data-array="saves" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+          </tr>
+        {{/each}}
+      </table>
+    </fieldset>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.attack"}}
+        <a data-action="rowAdd" data-array="attack"><i class="fa-solid fa-plus"></i></a></legend>
+      <table class="acks-extras-classes-table">
+        <tr><th>{{localize "ACKS-CLASSES.sheet.minLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.maxLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.throw"}}</th><th></th></tr>
+        {{#each attack}}
+          <tr>
+            <td><input name="system.attack.{{index}}.minLevel" type="number" value="{{minLevel}}" /></td>
+            <td><input name="system.attack.{{index}}.maxLevel" type="number" value="{{maxLevel}}" /></td>
+            <td><input name="system.attack.{{index}}.throw" type="number" value="{{throw}}" /></td>
+            <td><a data-action="rowDelete" data-array="attack" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+          </tr>
+        {{/each}}
+      </table>
+    </fieldset>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.ladders"}}
+        <a data-action="rowAdd" data-array="ladders"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#each ladders}}
+        <div class="acks-extras-classes-ladder">
+          <div class="acks-extras-classes-row">
+            <input name="system.ladders.{{index}}.key" type="text" value="{{key}}" placeholder="{{localize "ACKS-CLASSES.sheet.ladderKey"}}" />
+            <input name="system.ladders.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" />
+            <a data-action="rowAdd" data-array="ladders.{{index}}.values"><i class="fa-solid fa-plus"></i></a>
+            <a data-action="rowDelete" data-array="ladders" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          </div>
+          <div class="acks-extras-classes-rungs">
+            {{#each values}}
+              <span class="acks-extras-classes-rung">
+                <input name="system.ladders.{{../index}}.values.{{index}}.atLevel" type="number" value="{{atLevel}}" title="{{localize "ACKS-CLASSES.sheet.atLevel"}}" />
+                <input name="system.ladders.{{../index}}.values.{{index}}.value" type="number" value="{{value}}" title="{{localize "ACKS-CLASSES.sheet.value"}}" />
+                <input name="system.ladders.{{../index}}.values.{{index}}.text" type="text" value="{{text}}" title="{{localize "ACKS-CLASSES.sheet.text"}}" />
+                <a data-action="rowDelete" data-array="ladders.{{../index}}.values" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
+              </span>
+            {{/each}}
+          </div>
+        </div>
+      {{/each}}
+    </fieldset>
+  </section>
+
+  <section class="acks-extras-classes-tabpane" {{#unless show.awards}}hidden{{/unless}}>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.awards"}}
+        <a data-action="rowAdd" data-array="awards"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#each awards}}
+        <div class="acks-extras-classes-award" data-accept-drop data-award="{{index}}">
+          <input name="system.awards.{{index}}.atLevel" type="number" value="{{atLevel}}" title="{{localize "ACKS-CLASSES.sheet.atLevel"}}" />
+          <select name="system.awards.{{index}}.kind">
+            {{#each kindOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+          {{#if isChoice}}
+            <select name="system.awards.{{index}}.choice.from">
+              {{#each fromOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+            <select name="system.awards.{{index}}.choice.filter">
+              {{#each filterOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+            <input name="system.awards.{{index}}.choice.count" type="number" value="{{choice.count}}" min="1" title="{{localize "ACKS-CLASSES.sheet.count"}}" />
+            <input name="system.awards.{{index}}.choice.label" type="text" value="{{choice.label}}" placeholder="{{localize "ACKS-CLASSES.sheet.choiceLabel"}}" />
+          {{else}}
+            <input name="system.awards.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" />
+            <span class="acks-extras-classes-refname">{{#if refName}}{{refName}}{{else}}{{name}}{{/if}}</span>
+            <input name="system.awards.{{index}}.name" type="hidden" value="{{name}}" />
+          {{/if}}
+          <input name="system.awards.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" />
+          <a data-action="rowDelete" data-array="awards" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+    </fieldset>
+  </section>
+
+  <section class="acks-extras-classes-tabpane" {{#unless show.inventory}}hidden{{/unless}}>
+    <fieldset data-accept-drop data-list="classProfs">
+      <legend>{{localize "ACKS-CLASSES.sheet.inventory.classProfs"}}
+        <a data-action="rowAdd" data-array="inventory.classProfs"><i class="fa-solid fa-plus"></i></a></legend>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.dropHere"}}</p>
+      {{#each inventory.classProfs}}
+        <div class="acks-extras-classes-row">
+          <input name="system.inventory.classProfs.{{index}}" type="text" value="{{ref}}" />
+          <span class="acks-extras-classes-refname">{{name}}</span>
+          <a data-action="rowDelete" data-array="inventory.classProfs" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+    </fieldset>
+    <fieldset data-accept-drop data-list="powers">
+      <legend>{{localize "ACKS-CLASSES.sheet.inventory.powers"}}
+        <a data-action="rowAdd" data-array="inventory.powers"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#each inventory.powers}}
+        <div class="acks-extras-classes-row">
+          <input name="system.inventory.powers.{{index}}" type="text" value="{{ref}}" />
+          <span class="acks-extras-classes-refname">{{name}}</span>
+          <a data-action="rowDelete" data-array="inventory.powers" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+    </fieldset>
+    <fieldset data-accept-drop data-list="skills">
+      <legend>{{localize "ACKS-CLASSES.sheet.inventory.skills"}}
+        <a data-action="rowAdd" data-array="inventory.skills"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#each inventory.skills}}
+        <div class="acks-extras-classes-row">
+          <input name="system.inventory.skills.{{index}}.ref" type="text" value="{{ref}}" />
+          <input name="system.inventory.skills.{{index}}.ladderKey" type="text" value="{{ladderKey}}" placeholder="{{localize "ACKS-CLASSES.sheet.ladderKey"}}" />
+          <span class="acks-extras-classes-refname">{{name}}</span>
+          <a data-action="rowDelete" data-array="inventory.skills" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+    </fieldset>
+    {{#if unresolvedProfs.length}}
+      <fieldset>
+        <legend>{{localize "ACKS-CLASSES.sheet.unresolved"}}</legend>
+        <p>{{#each unresolvedProfs}}<span class="acks-extras-classes-chip">{{this}}</span>{{/each}}</p>
+      </fieldset>
+    {{/if}}
+  </section>
+
+</div>
+</div>

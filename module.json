@@ -23,6 +23,7 @@
     "styles/lib-sheet-theme.css",
     "styles/lib-follower-card.css",
     "styles/abilities.css",
+    "styles/classes.css",
     "styles/equipment.css",
     "styles/formation.css",
     "styles/henchmen.css",
@@ -65,7 +66,13 @@
       "encounterZone": {}
     },
     "Item": {
-      "attitude": {}
+      "attitude": {},
+      "class": {
+        "htmlFields": [
+          "description",
+          "codeOfBehavior"
+        ]
+      }
     }
   },
   "packs": [

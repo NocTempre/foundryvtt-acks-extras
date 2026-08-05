@@ -25,6 +25,7 @@
 import "./lib/module.mjs";
 import "./abilities/module.mjs";
 import "./equipment/module.mjs";
+import "./classes/module.mjs";
 import "./formation/module.mjs";
 import "./influence/module.mjs";
 import "./henchmen/module.mjs";

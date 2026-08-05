@@ -1,6 +1,8 @@
-/* global foundry */
+/* global foundry, game */
 /**
- * System compatibility stubs for module-provided actor sub-types.
+ * System compatibility stubs for module-provided actor sub-types, and the
+ * family's one owner of the BOOK↔RELEASED saving-throw key mapping (the
+ * builders and repair pass at the bottom of this file).
  *
  * The acks system's `AcksActor` document class runs for EVERY actor, and a few
  * of its methods touch fields unguarded (the rest bail on `type !== "character"`):
@@ -96,4 +98,129 @@ export function savingThrowFields() {
     }),
     save: new SchemaField({ mod: new NumberField({ initial: 0 }) }),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Book ↔ released save keys: the write layer                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The BOOK's five save names → the RELEASED system's actor keys. ACKS II
+ * prints Blast where the released schema still says `breath`, and Spells
+ * where it says `spell`; `wand` has no book column (wands folded into
+ * Implements) and is deliberately not written. When the system releases its
+ * breath→blast rename, this map is the one place that changes.
+ */
+export const BOOK_TO_RELEASED_SAVES = Object.freeze({
+  paralysis: "paralysis",
+  death: "death",
+  blast: "breath",
+  implements: "implements",
+  spells: "spell",
+});
+
+/** Every save key the released actor schema carries. */
+export const RELEASED_SAVE_KEYS = Object.freeze(["paralysis", "death", "breath", "implements", "spell", "wand"]);
+
+/**
+ * Update paths for one set of book-vocabulary save values. Null/undefined
+ * values are skipped (a band that does not print a cell must not zero the
+ * actor), so the result is always safe to spread into a larger update.
+ *
+ * @param {object} book - `{paralysis, death, blast, implements, spells}`
+ * @returns {object} `{"system.saves.<releasedKey>.value": number, …}`
+ */
+export function savesUpdateData(book = {}) {
+  const update = {};
+  for (const [bookKey, releasedKey] of Object.entries(BOOK_TO_RELEASED_SAVES)) {
+    const value = book[bookKey];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      update[`system.saves.${releasedKey}.value`] = value;
+    }
+  }
+  return update;
+}
+
+/* Aliases a dangling reference may carry: the book/dev-branch names for keys
+ * the released schema spells differently. `wand` stays: it is released. */
+const SAVE_KEY_ALIASES = Object.freeze({ blast: "breath", spells: "spell" });
+
+/**
+ * Find (and optionally fix) references to save keys the released schema does
+ * not carry: stray `system.saves.blast` data on actors (dev-schema drift),
+ * ability items whose `system.save` names a book key, and Active Effects
+ * whose change keys target an aliased save path.
+ *
+ * Dry-run by default: returns the report without writing. With
+ * `{dryRun: false}` (GM only) each finding is repaired in place and the
+ * report says so. Entries: `{uuid, name, kind, from, to, applied}`.
+ */
+export async function repairSaveReferences({ dryRun = true } = {}) {
+  const report = [];
+  const canWrite = !dryRun && game.user?.isGM;
+
+  const effectFindings = (doc) => {
+    const out = [];
+    for (const effect of doc.effects ?? []) {
+      (effect.changes ?? []).forEach((change, index) => {
+        const m = /^system\.saves\.([a-z]+)\b/.exec(change.key ?? "");
+        const alias = m && SAVE_KEY_ALIASES[m[1]];
+        if (alias) out.push({ effect, index, from: change.key, to: change.key.replace(`.${m[1]}`, `.${alias}`) });
+      });
+    }
+    return out;
+  };
+
+  const scanAbility = async (item) => {
+    const save = String(item.system?.save ?? "");
+    const alias = SAVE_KEY_ALIASES[save];
+    if (alias) {
+      const entry = { uuid: item.uuid, name: item.name, kind: "item-save", from: save, to: alias, applied: false };
+      if (canWrite) {
+        await item.update({ "system.save": alias });
+        entry.applied = true;
+      }
+      report.push(entry);
+    }
+    for (const f of effectFindings(item)) {
+      const entry = { uuid: item.uuid, name: item.name, kind: "effect-key", from: f.from, to: f.to, applied: false };
+      if (canWrite) {
+        const changes = f.effect.changes.map((c, i) => (i === f.index ? { ...c, key: f.to } : c));
+        await f.effect.update({ changes });
+        entry.applied = true;
+      }
+      report.push(entry);
+    }
+  };
+
+  for (const actor of game.actors ?? []) {
+    // Stray dev-schema keys in the stored source (a schema field would have
+    // filtered them; these survive only as loose data on older worlds).
+    const savesSource = actor._source?.system?.saves ?? {};
+    for (const [key, alias] of Object.entries(SAVE_KEY_ALIASES)) {
+      if (!(key in savesSource)) continue;
+      const value = savesSource[key]?.value;
+      const entry = { uuid: actor.uuid, name: actor.name, kind: "actor-save-key", from: key, to: alias, applied: false };
+      if (canWrite) {
+        const update = { [`system.saves.-=${key}`]: null };
+        if (typeof value === "number") update[`system.saves.${alias}.value`] = value;
+        await actor.update(update);
+        entry.applied = true;
+      }
+      report.push(entry);
+    }
+    for (const f of effectFindings(actor)) {
+      const entry = { uuid: actor.uuid, name: actor.name, kind: "effect-key", from: f.from, to: f.to, applied: false };
+      if (canWrite) {
+        const changes = f.effect.changes.map((c, i) => (i === f.index ? { ...c, key: f.to } : c));
+        await f.effect.update({ changes });
+        entry.applied = true;
+      }
+      report.push(entry);
+    }
+    for (const item of actor.items ?? []) if (item.type === "ability") await scanAbility(item);
+  }
+  for (const item of game.items ?? []) if (item.type === "ability") await scanAbility(item);
+
+  return report;
 }
