@@ -122,6 +122,17 @@ export async function applyClass(actor, classItem, { level, confirm = true } = {
     rows.push({ path, from: now ?? "—", to: next, handEdited });
   }
 
+  // Requirements gate: a demi-human class's minimums are checked, named, and
+  // overridable — the Judge decides, the dialog informs.
+  const unmet = (classItem.system.requirements ?? []).filter(
+    (r) => r.attr && typeof r.min === "number" && (Number(actor.system?.scores?.[r.attr]?.value) || 0) < r.min,
+  );
+  const unmetNote = unmet.length
+    ? `<p class="notification warning">${game.i18n.format(`${LANG_PREFIX}.apply.unmet`, {
+        parts: unmet.map((r) => `${r.attr.toUpperCase()} ${r.min}`).join(", "),
+      })}</p>`
+    : "";
+
   if (!rows.length) {
     ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.apply.noChanges`, { name: actor.name }));
   } else if (confirm) {
@@ -134,7 +145,7 @@ export async function applyClass(actor, classItem, { level, confirm = true } = {
           }</td><td>${r.from}</td><td>${r.to}</td></tr>`,
       )
       .join("");
-    const content = `<p>${game.i18n.format(`${LANG_PREFIX}.apply.prompt`, {
+    const content = `${unmetNote}<p>${game.i18n.format(`${LANG_PREFIX}.apply.prompt`, {
       actor: actor.name,
       class: classItem.name,
       level: clamped,

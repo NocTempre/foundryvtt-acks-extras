@@ -78,6 +78,7 @@
   "ACKS-CLASSES.apply.noChanges": "{name} already matches the class tables — nothing to change.",
   "ACKS-CLASSES.apply.stub": "{name} has no progression rows yet; fill or import it before applying.",
   "ACKS-CLASSES.apply.missing": "No printed table covered: {parts}. Those fields were left untouched.",
+  "ACKS-CLASSES.apply.unmet": "Requirements not met: {parts}. Applying anyway is the Judge's call.",
   "ACKS-CLASSES.pick.title": "Class for {name}",
   "ACKS-CLASSES.pick.class": "Class",
   "ACKS-CLASSES.pick.level": "Level",
