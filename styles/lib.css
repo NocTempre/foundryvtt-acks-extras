@@ -1,5 +1,12 @@
 /* acks-lib styles, plus the window contract every acks-extras window shares.
-   Scope every selector under a module-specific class. */
+   Scope every selector under a module-specific class.
+
+   Colour, type and line work read the ACKS design tokens BARE — no literal
+   fallback. A fallback masks a missing token instead of failing loudly, and
+   Foundry's own `--color-*` variables are declared once globally with no theme
+   scoping, so they are light-theme constants that render wrong on a dark seat.
+   acks-lib loads vendor/acks-design/tokens.css unconditionally, so every name
+   below resolves at :root in both themes. */
 
 /* --- Window scroll contract -------------------------------------------------
  * Core caps every ApplicationV2 frame at the viewport
@@ -66,27 +73,37 @@
   overflow-y: auto;
 }
 
+/* A section head is the sheet's one piece of banner type: spot-colour INK on
+   paper (Rule 1 — the burgundy is a surface only under reversed text), ruled
+   off from the body by the soft hairline. */
 .acks-lib-group-sheet section > header h3 {
   margin: 0 0 0.2rem;
-  font-size: 0.95rem;
-  border-bottom: 1px solid var(--color-border-light-primary, #b5b3a4);
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-banner);
+  letter-spacing: var(--acks-tracking-caps);
+  color: var(--acks-spot);
+  border-bottom: var(--acks-border-soft);
 }
 
 .acks-lib-group-sheet .muted {
-  color: var(--color-text-dark-secondary, #7a7971);
+  color: var(--acks-ink-soft);
   font-weight: normal;
 }
 
 .acks-lib-group-sheet .hint {
   font-style: italic;
-  color: var(--color-text-dark-secondary, #7a7971);
+  color: var(--acks-ink-soft);
   margin: 0.2rem 0;
 }
 
+/* The broken-invariant banner is the sheet's one alarm: a danger tint carrying
+   the danger rule, with the text in the `-ink` variant — the plain danger red
+   is a FILL colour and fails AA as type on its own tint. */
 .acks-lib-group-warning {
-  background: rgba(180, 40, 40, 0.12);
-  border: 1px solid rgba(180, 40, 40, 0.5);
-  border-radius: 3px;
+  background: var(--acks-danger-tint);
+  border: var(--acks-rule-hair) solid var(--acks-danger);
+  border-radius: var(--acks-radius);
+  color: var(--acks-danger-ink);
   padding: 0.3rem 0.5rem;
   margin: 0;
 }
@@ -100,8 +117,8 @@
   font-weight: bold;
 }
 .acks-lib-group-sheet .proto-type {
-  font-size: 0.8rem;
-  color: var(--color-text-dark-secondary, #7a7971);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
 }
 
 .acks-lib-group-sheet .size-figure {
@@ -110,19 +127,19 @@
   gap: 0.35rem;
 }
 .acks-lib-group-sheet .size-current {
-  font-size: 1.8rem;
+  font-size: var(--acks-fs-h1);
   font-weight: bold;
   line-height: 1;
 }
 .acks-lib-group-sheet .size-of {
-  color: var(--color-text-dark-secondary, #7a7971);
+  color: var(--acks-ink-soft);
 }
 .acks-lib-group-sheet .size-noun {
   font-style: italic;
 }
 .acks-lib-group-sheet .size-detail {
-  font-size: 0.85rem;
-  color: var(--color-text-dark-secondary, #7a7971);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
 }
 .acks-lib-group-sheet .size-fields,
 .acks-lib-group-sheet .unit-fields {
@@ -134,10 +151,11 @@
 .acks-lib-group-sheet label {
   display: flex;
   flex-direction: column;
-  font-size: 0.8rem;
+  font-size: var(--acks-fs-label);
 }
+/* Destructive action: ink, not fill, so it takes the `-ink` variant. */
 .acks-lib-group-sheet button.danger {
-  color: #7a1f1f;
+  color: var(--acks-danger-ink);
 }
 .acks-lib-group-sheet button.icon {
   flex: 0 0 auto;
@@ -160,37 +178,47 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.15rem 0.3rem;
-  border-radius: 3px;
+  border-radius: var(--acks-radius);
 }
+/* Banded roster: the tint IS the books' only row shading, and it inverts with
+   the theme, which a flat black wash cannot. */
 .acks-lib-group-sheet .member:nth-child(odd) {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--acks-tint);
 }
 .acks-lib-group-sheet .member-name {
   flex: 1 1 auto;
 }
 .acks-lib-group-sheet .member.dead .member-name {
   text-decoration: line-through;
-  color: var(--color-text-dark-secondary, #7a7971);
+  color: var(--acks-ink-soft);
 }
+/* The badge spells its own state, so the chip carries no categorical hue: the
+   resting states are caps-set metadata on a nested tint. The word IS the chip's
+   entire content, so it takes full ink — a softened ink on this tint falls
+   under the text floor. */
 .acks-lib-group-sheet .member-state {
-  font-size: 0.72rem;
+  font-size: var(--acks-fs-label);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--acks-tracking-caps);
   padding: 0.05rem 0.3rem;
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.08);
+  border-radius: var(--acks-radius);
+  background: var(--acks-tint-2);
+  color: var(--acks-ink);
 }
+/* Deployed is the one live state — a body is on the canvas right now — so it
+   takes the reversed band idiom rather than a hue of its own. */
 .acks-lib-group-sheet .member-state.state-deployed {
-  background: rgba(40, 100, 180, 0.18);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
 }
 .acks-lib-group-sheet .member-hp {
   font-variant-numeric: tabular-nums;
-  font-size: 0.85rem;
+  font-size: var(--acks-fs-label);
 }
 .acks-lib-group-sheet .member-note {
   font-style: italic;
-  font-size: 0.8rem;
-  color: var(--color-text-dark-secondary, #7a7971);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
 }
 
 /* --- acks-lib.template builder sheet --- */
@@ -206,21 +234,27 @@
   overflow-y: auto;
 }
 .acks-lib-template-sheet section > header h3 {
-  font-size: 0.95rem;
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-banner);
+  letter-spacing: var(--acks-tracking-caps);
+  color: var(--acks-spot);
   margin: 0 0 0.25rem;
-  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-bottom: var(--acks-border-soft);
 }
 .acks-lib-template-sheet .hint {
-  font-size: 0.8rem;
-  color: var(--color-text-dark-secondary, #7a7971);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
   margin: 0.15rem 0;
 }
+/* A stub template is a caution, not an alarm — warning tint, warning rule, and
+   `-ink` for the type that sits on it. */
 .acks-lib-template-warning {
-  background: rgba(180, 120, 40, 0.15);
-  border: 1px solid rgba(180, 120, 40, 0.5);
-  border-radius: 3px;
+  background: var(--acks-warning-tint);
+  border: var(--acks-rule-hair) solid var(--acks-warning);
+  border-radius: var(--acks-radius);
+  color: var(--acks-warning-ink);
   padding: 0.3rem 0.5rem;
-  font-size: 0.85rem;
+  font-size: var(--acks-fs-label);
 }
 .acks-lib-template-sheet .base-row {
   display: flex;
@@ -245,16 +279,16 @@
 }
 .acks-lib-template-sheet .acks-lib-template-controls button {
   width: 100%;
-  font-size: 1rem;
+  font-size: var(--acks-fs-body);
 }
 .acks-lib-template-sheet .acks-lib-template-description {
-  border-top: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-top: var(--acks-border-soft);
   padding-top: 0.4rem;
-  font-size: 0.85rem;
+  font-size: var(--acks-fs-label);
 }
 
 .acks-lib-template-sheet .acks-lib-template-editor {
-  border-top: 1px dashed var(--color-border-light-tertiary, #7a7971);
+  border-top: var(--acks-rule-hair) dashed var(--acks-rule-color-soft);
   padding-top: 0.4rem;
 }
 .acks-lib-template-sheet .editor-axis header {
@@ -267,16 +301,19 @@
   margin: 0.2rem 0 0.5rem;
   padding: 0;
 }
+/* The dashed outline is reserved space: it holds the row's box so revealing it
+   on hover cannot reflow the list. */
 .acks-lib-template-sheet .editor-option {
   display: flex;
   gap: 0.5rem;
   align-items: center;
   padding: 0.15rem 0.3rem;
-  border: 1px dashed transparent;
-  border-radius: 3px;
+  border: var(--acks-rule-hair) dashed transparent;
+  border-radius: var(--acks-radius);
 }
+/* Hover is a focus affordance, so it takes the focus colour, not a rule tint. */
 .acks-lib-template-sheet .editor-option:hover {
-  border-color: var(--color-border-light-tertiary, #7a7971);
+  border-color: var(--acks-focus-color);
 }
 .acks-lib-template-sheet .editor-option.is-empty span {
   opacity: 0.7;
@@ -289,7 +326,7 @@
   flex: 1;
 }
 .acks-lib-template-sheet .axis-multi-options label {
-  font-size: 0.85rem;
+  font-size: var(--acks-fs-label);
   display: flex;
   align-items: center;
   gap: 0.25rem;

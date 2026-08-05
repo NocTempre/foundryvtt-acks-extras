@@ -1,25 +1,50 @@
-/* acks-abilities styles. Scope every selector under a module-specific class. */
+/* acks-abilities styles. Scope every selector under a module-specific class.
+   Every colour, rule and type value reads an --acks-* token BARE: a literal
+   fallback pins the declaration to the light palette on any seat where the
+   token is missing, which is the failure this sheet must not carry. */
 
 /* Mechanics tab: structured effect rows */
 .acks-abilities-effects { list-style: none; margin: 0; padding: 0; }
-.acks-abilities-effects li { display: flex; gap: 0.5rem; align-items: baseline; padding: 2px 0; border-bottom: 1px solid rgba(0,0,0,0.08); }
-.acks-abilities-effect-kind { flex: 0 0 auto; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7; min-width: 7.5rem; }
+.acks-abilities-effects li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: var(--acks-sp-1) 0;
+  border-bottom: var(--acks-border-soft);
+}
+
+/* The kind names the row rather than carrying it, so it sits in soft ink. Ink
+   rather than opacity: a faded black is only faint over pale paper, and these
+   rows sit on whatever panel the sheet gives them. */
+.acks-abilities-effect-kind {
+  flex: 0 0 auto;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--acks-tracking-caps);
+  color: var(--acks-ink-soft);
+  min-width: 7.5rem;
+}
 .acks-abilities-effect-text { flex: 1 1 auto; }
 
 /* Capability tokens: compact chips, not a bulleted list. */
 .acks-abilities-caps {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--acks-sp-2);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* A chip is a nested surface on the panel — the heavier tint, squared off,
+   because the books round nothing. */
 .acks-abilities-caps code {
-  padding: 1px 6px;
-  border-radius: 3px;
-  background: rgba(128, 128, 128, 0.18);
+  padding: 1px var(--acks-sp-3);
+  border-radius: var(--acks-radius);
+  font-family: var(--acks-font-mono);
+  background: var(--acks-tint-2);
+  color: var(--acks-ink);
 }
 
 /* A per-level progression read off a printed table renders as a table. It
@@ -27,25 +52,28 @@
    sheet, and a wrapped grid stops reading as a progression. */
 .acks-abilities-ladder-wrap {
   overflow-x: auto;
-  margin-top: 4px;
+  margin-top: var(--acks-sp-2);
 }
 
 .acks-abilities-ladder {
   border-collapse: collapse;
-  font-size: var(--font-size-11, 11px);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
 }
 
 .acks-abilities-ladder th,
 .acks-abilities-ladder td {
-  border: 1px solid rgba(128, 128, 128, 0.35);
+  border: var(--acks-border-soft);
   padding: 1px 5px;
   text-align: center;
   white-space: nowrap;
 }
 
+/* The row head names the axis; the numbers are the reading, so the head sits
+   back in soft ink. */
 .acks-abilities-ladder th {
   text-align: right;
-  opacity: 0.75;
+  color: var(--acks-ink-soft);
 }
 
 /* Rolls tab: one clickable row per roll, its progression underneath, and the
@@ -57,38 +85,46 @@
 }
 
 .acks-abilities-roll + .acks-abilities-roll {
-  margin-top: 6px;
+  margin-top: var(--acks-sp-3);
 }
 
 .acks-abilities-roll-head {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--acks-sp-2);
 }
 
 .acks-abilities-roll-go {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--acks-sp-4);
   flex: 1;
   text-align: left;
 }
 
 .acks-abilities-roll-add {
-  margin-top: 8px;
+  margin-top: var(--acks-sp-4);
 }
 
 /* Row controls: the same small square affordance on the Rolls tab and inside
-   the roll editor's table, because they do the same job in both. */
+   the roll editor's table, because they do the same job in both. The mark rests
+   in soft ink and comes up to the spot colour under the pointer. The glyph is
+   named alongside the anchor so a core rule on `a` cannot out-specify the ink
+   and drag the control back to the unthemed link colour. */
+.acks-abilities-mini,
+.acks-abilities-mini i {
+  color: var(--acks-ink-soft);
+}
+
 .acks-abilities-mini {
   flex: 0 0 auto;
-  padding: 2px 5px;
-  opacity: 0.7;
+  padding: var(--acks-sp-1) 5px;
   cursor: pointer;
 }
 
-.acks-abilities-mini:hover {
-  opacity: 1;
+.acks-abilities-mini:hover,
+.acks-abilities-mini:hover i {
+  color: var(--acks-spot);
 }
 
 .acks-abilities-roll-label {
@@ -96,7 +132,7 @@
 }
 
 .acks-abilities-roll-value {
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
   white-space: nowrap;
 }
 
@@ -105,16 +141,24 @@
 }
 
 /* A count above 1 on an ability the book says cannot be taken twice. The data
-   contradicts itself, so the field argues with you instead of looking settled. */
+   contradicts itself, so the field argues with you instead of looking settled.
+   The alarm red is a fill/mark colour on the rules that frame the field and on
+   the glyph; the hint's prose takes the -ink variant, which is the tone that
+   holds contrast against the paper in either theme. The glyph is what makes the
+   fault survive a reader who cannot separate the reds. */
 .acks-abilities-conflict input,
 .acks-abilities-conflict select {
-  border-color: var(--color-level-error, #b60205);
-  outline: 1px solid var(--color-level-error, #b60205);
+  border-color: var(--acks-danger);
+  outline: var(--acks-rule-hair) solid var(--acks-danger);
 }
 
 .acks-abilities-conflict .hint {
-  color: var(--color-level-error, #b60205);
+  color: var(--acks-danger-ink);
   opacity: 1;
+}
+
+.acks-abilities-conflict .hint i {
+  color: var(--acks-danger);
 }
 
 /* The roll editor grows a ladder row per character level, so its body is the
@@ -130,40 +174,49 @@
 /* The roll editor's level table: two narrow columns and a delete control, laid
    out on a grid so the rungs line up as a printed table does. */
 .acks-abilities-steps {
-  margin: 4px 0 8px;
+  margin: var(--acks-sp-2) 0 var(--acks-sp-4);
 }
 
 .acks-abilities-steps-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-weight: bold;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.35);
-  padding-bottom: 2px;
-  margin-bottom: 4px;
+  font-weight: var(--acks-weight-bold);
+  border-bottom: var(--acks-border-soft);
+  padding-bottom: var(--acks-sp-1);
+  margin-bottom: var(--acks-sp-2);
 }
 
 .acks-abilities-step {
   display: grid;
   grid-template-columns: 1fr 1fr 1.75rem;
-  gap: 4px;
+  gap: var(--acks-sp-2);
   align-items: center;
   margin-bottom: 3px;
 }
 
 .acks-abilities-step-labels {
-  font-size: var(--font-size-11, 11px);
-  opacity: 0.7;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
   margin-bottom: 1px;
 }
 
 /* What the throw reads as for the character holding it — the answer to "did I
-   type that table right", so it is the one line in the window that stands out. */
+   type that table right", so it is the one line in the window that stands out.
+   It stands out the way a callout does in print: a tinted band and a heavier
+   setting, with the die struck in the spot colour. */
 .acks-abilities-roll-preview {
-  margin: 6px 0 2px;
-  padding: 4px 6px;
-  border-radius: 3px;
-  background: rgba(128, 128, 128, 0.15);
+  margin: var(--acks-sp-3) 0 var(--acks-sp-1);
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border-radius: var(--acks-radius);
+  background: var(--acks-tint);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-ui);
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-abilities-roll-preview i {
+  color: var(--acks-spot);
 }
 
 /* Selection picks: a checkbox per canonical pick (acks-lib SELECTION_VOCAB),
@@ -171,14 +224,14 @@
 .acks-abilities-picks {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 10px;
+  gap: var(--acks-sp-1) 10px;
   margin-bottom: 3px;
 }
 .acks-abilities-pick {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 0.9em;
+  font-size: var(--acks-fs-label);
   white-space: nowrap;
 }
 .acks-abilities-pick input {

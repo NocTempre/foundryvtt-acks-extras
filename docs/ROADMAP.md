@@ -102,3 +102,24 @@ One primitive over any document — `capacityStone` / `loadStone` / `overCapacit
 — replaces all four, and the formation bug disappears as a consequence rather
 than as a separate fix. Scheduled as a major release: it moves the load model
 that monster and party sheets read.
+
+## The light palette is published once, the dark palette three ways
+
+`vendor/acks-design/tokens.css` publishes light at `:root` and dark at a selector
+list — `.theme-dark`, `[data-acks-theme="dark"]`, minus two `:not()` guards that
+withhold it from a forced-light subtree. That asymmetry is why one host
+configuration still renders wrong: with Foundry's `colorScheme.interface` set
+dark and `colorScheme.applications` set light, the dark block publishes at
+`<body>` and nothing below re-publishes light, so an application Foundry stamped
+light draws ACKS dark tokens. `theme: "Always light"` is the remedy today.
+
+The fix is symmetry: give the light palette the same multi-selector treatment, so
+`.theme-light` and a forced-light root restore it wherever they appear. It cannot
+be done by adding a second block — that would put every colour in the file in two
+places, which the 2026-08-05 ruling rejected. It needs the colour declarations
+split from the type/space/layout ones so the colour block alone can carry the
+extra selectors, while `--acks-fs-base` and the density-pinned steps stay
+`:root`-only (a knob pinned inline on `<html>` must not be re-declared lower, or
+`fontScale` stops reaching anything inside a themed application).
+
+Scheduled as a major: it restructures the file every module in the family reads.

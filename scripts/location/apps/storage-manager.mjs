@@ -225,7 +225,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
     const options = owners.map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
     const uuid = await DialogV2.prompt({
       window: { title: loc("manager.reassign") },
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       content: `<p>${loc("manager.reassignPrompt", { count: spec.length })}</p>
         <select name="owner" style="width:100%">${options}</select>`,
       ok: { label: loc("manager.reassign"), callback: (_e, button) => button.form.elements.owner.value },
@@ -287,7 +287,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
       .join("");
     const uuid = await DialogV2.prompt({
       window: { title: loc("manager.enable") },
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       content: `<p>${loc("manager.enablePrompt")}</p><select name="actor" style="width:100%">${options}</select>`,
       ok: { label: loc("manager.enable"), callback: (_e, button) => button.form.elements.actor.value },
     }).catch(() => null);

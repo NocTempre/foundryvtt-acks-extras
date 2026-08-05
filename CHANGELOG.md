@@ -1,5 +1,76 @@
 # Changelog
 
+## 2.0.0
+
+### Changed
+- **Every ACKS window is drawn from one palette.** Each feature used to carry its
+  own colours — golds in the influence roller, purples and blues on the party
+  sheet, four different reds for the same warning — so the module read as eight
+  modules wearing eight coats. They are now one: the burgundy spot colour and
+  warm black the books are printed in, on parchment or on tooled leather
+  depending on your seat. Every window the module opens carries the ACKS frame —
+  the porphyry running head, the square letterpress rules, the small-caps banner
+  lettering — instead of Foundry's default chrome. Nothing moved: this changes
+  what the module is coloured with, not where anything sits.
+- **The system's own sheets follow your colour scheme.** Every window the ACKS
+  system opens now draws from the same palette as this module's, so a dark seat
+  is dark all the way through instead of stopping at the module's own windows.
+  The system's sheets keep their own spacing — they are laid out around field
+  sizes this module has no business changing — and take the printed-sheet
+  treatment on top: the porphyry banner, the ruled page, the boxed write-in
+  fields.
+- **A distinction you could only see in colour is now drawn, not tinted.** A lit
+  lamp and an unlit one were the same icon in two hues; a magical light and a
+  mundane one were purple and blue. The books have no such palette to spend, so
+  those differences are carried by the mark itself — which glyph, and how heavy
+  it is drawn. They survive a colourblind seat and a greyscale print, which the
+  hues did not.
+
+### Removed
+- **The Character-sheet theme setting is gone, and the theme it toggled is now
+  simply on.** Turning it off did not return you to a neutral Foundry; it left
+  the module's own windows themed and the system's not, which is the split this
+  release exists to close. It could not be made safe either way: the ACKS system
+  publishes no dark palette at all, so with the theme off a dark seat put the
+  module's regions on a page drawn for a light one. Nothing replaces it — the new
+  ACKS colour scheme setting is the knob that was actually wanted.
+
+### Added
+- **You can hold the ACKS look steady while the rest of your client goes the
+  other way.** A new per-player setting, ACKS colour scheme, offers Follow
+  Foundry (the default), Always light and Always dark. Follow Foundry is the
+  honest default and now genuinely follows — including the split configuration
+  where your application windows are themed differently from the rest of the
+  interface.
+
+### Fixed
+- **A dark seat is drawn in dark-seat colours.** Seven of the module's
+  stylesheets asked Foundry for their borders and their secondary text through
+  variables Foundry only ever defines once, for a light client — so on a dark
+  seat the module answered with light-theme ink on a dark ground, and had done
+  since those sheets were written. Every colour now comes from the ACKS palette,
+  which carries a value for both seats. This was the visible half of the
+  complaint that the module "doesn't do dark mode"; it was never a missing
+  feature, it was 88 borrowed constants.
+- **The printed-sheet theme follows a window themed on its own.** Foundry lets
+  you theme application windows differently from the rest of the interface. The
+  character-sheet theme decided which seat it was on by looking at the page
+  rather than at the window, so in that configuration a sheet drew light-seat
+  rules over dark-seat colours — white write-in boxes under pale text. No rule
+  asks the page any more.
+- **A themed panel is no longer dropped onto an unthemed page.** Six parts of
+  this module add their own content to the system's sheets — the wear buckets on
+  your inventory, the hirelings grid, the influence row, stored goods, the attack
+  line. Those panels followed your colour scheme while the sheet underneath them
+  could not, so on a dark seat they were pale text on cream. The sheet under them
+  now follows the same scheme they do.
+
+### Notes
+- One configuration is still imperfect and has a remedy: with the interface set
+  dark and application windows set light, ACKS surfaces stay dark inside those
+  windows. Set ACKS colour scheme to Always light. The proper fix restructures
+  the shared token file and is recorded in the roadmap.
+
 ## 1.4.2
 
 ### Fixed

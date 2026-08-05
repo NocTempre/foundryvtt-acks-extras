@@ -251,16 +251,22 @@ Hooks.once("init", () => {
     default: "return",
   });
 
-  // Printed-character-sheet theme (styles/sheet-theme.css): the stylesheet is
-  // inert until this class lands on <body>, so the setting is a pure toggle.
-  game.settings.register(MODULE_ID, "sheetTheme", {
-    name: `${LANG_PREFIX}.settings.sheetTheme.name`,
-    hint: `${LANG_PREFIX}.settings.sheetTheme.hint`,
+  // WHICH PALETTE the ACKS surfaces draw in. Foundry's own colour scheme is the
+  // default source of truth; this only exists so a player can hold the ACKS look
+  // steady while the rest of their client goes the other way.
+  game.settings.register(MODULE_ID, "theme", {
+    name: `${LANG_PREFIX}.settings.theme.name`,
+    hint: `${LANG_PREFIX}.settings.theme.hint`,
     scope: "client",
     config: true,
-    type: Boolean,
-    default: true,
-    onChange: (on) => document.body.classList.toggle("acks-lib-sheet-theme", on),
+    type: String,
+    choices: {
+      follow: `${LANG_PREFIX}.settings.theme.follow`,
+      light: `${LANG_PREFIX}.settings.theme.light`,
+      dark: `${LANG_PREFIX}.settings.theme.dark`,
+    },
+    default: "follow",
+    onChange: (mode) => applyTheme(mode),
   });
 
   // THE font knob. Every ACKS surface (follower card, module apps, and — with
@@ -308,6 +314,62 @@ Hooks.once("setup", () => {
 });
 
 /**
+ * Pin the ACKS palette from the `theme` setting, or release it to Foundry.
+ *
+ * `follow` REMOVES the attribute rather than writing a value: with nothing
+ * pinned, the token file's dark block tracks Foundry's own `.theme-dark`
+ * wherever it lands — on <body>, or on an individual application root when the
+ * client's `colorScheme.applications` differs from `colorScheme.interface`.
+ *
+ * The pin lands on <html>, NOT <body>, for the reason applyFontScale documents
+ * below and for one more: forcing LIGHT works by *withholding* the dark block
+ * from the pinned element and its whole subtree (see the `:not()` guards in
+ * tokens.css), so the pin has to sit above every element Foundry might mark
+ * dark. A pin on <body> would not cover a per-application `.theme-dark`, which
+ * sits deeper.
+ */
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === "light" || mode === "dark") root.setAttribute("data-acks-theme", mode);
+  else root.removeAttribute("data-acks-theme");
+}
+
+/**
+ * Mark every ACKS surface the SYSTEM renders as an ACKS surface.
+ *
+ * The design system is scoped to `.acks-ui` on an application root, and the
+ * module's own windows declare it in their `classes`. Core's windows cannot —
+ * so without this the family renders two ways: module windows in the ACKS
+ * frame, the system's character sheet, item sheet, Mortal Wounds, Stat
+ * Generator, Surprise Matrix and Party Overview in Foundry's default chrome.
+ *
+ * The class carries the design system's REMAP of Foundry's own custom
+ * properties, which is the load-bearing part. The `acks` system publishes no
+ * dark palette at all — its stylesheet has zero `.theme-dark` rules and its
+ * sheet ground is a fixed light parchment image — so on a dark seat its widgets
+ * would otherwise draw light-theme values under themed module regions injected
+ * into the same sheet. Remapping at the root is what makes one window one
+ * colour scheme.
+ *
+ * `acks-palette`, NOT `acks-ui`: the palette without the chrome. Core sizes its
+ * attribute grid around its own field metrics, and the design system's roomier
+ * control padding pushes that grid 89px past the sheet's own edge — measured on
+ * the character sheet, invisible until a label clips. The banners, small-caps
+ * and sheet ground that make these windows read as ACKS come from
+ * styles/lib-sheet-theme.css, which changes no geometry at all.
+ *
+ * `renderApplicationV2` reaches every ApplicationV2: core fires render hooks for
+ * each class in the inheritance chain, not just the concrete one.
+ *
+ * `acks2` is included because the system's dialogs carry it without `acks`.
+ */
+Hooks.on("renderApplicationV2", (_app, element) => {
+  const root = element instanceof HTMLElement ? element : element?.[0];
+  if (!root?.classList) return;
+  if (root.classList.contains("acks") || root.classList.contains("acks2")) root.classList.add("acks-palette");
+});
+
+/**
  * Drive --acks-fs-base (the family-wide type knob) from the fontScale setting.
  * At the token default (14) the inline property is REMOVED so the stylesheet
  * value governs. The pin lands on <html>, NOT <body>, and that is load-bearing:
@@ -345,8 +407,13 @@ function applyFontScale(px) {
  * world failing to load — and the console says which.
  */
 Hooks.once("ready", () => {
-  // Theme class lands once settings are readable; onChange handles the rest.
-  document.body.classList.toggle("acks-lib-sheet-theme", game.settings.get(MODULE_ID, "sheetTheme"));
+  // UNCONDITIONAL. The class is no longer a toggle — it is the marker that says
+  // "ACKS surfaces are themed", which is now always true. It stays a class
+  // rather than becoming a bare selector because it is also what lets these
+  // rules out-specify the system's own: core ships `.acks.sheet.actor` pairings
+  // at (0,4,0), and the body class is how the override clears them.
+  document.body.classList.add("acks-lib-sheet-theme");
+  applyTheme(game.settings.get(MODULE_ID, "theme"));
   applyFontScale(game.settings.get(MODULE_ID, "fontScale"));
 
   if (game.system?.id !== "acks") return;

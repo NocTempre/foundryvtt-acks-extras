@@ -23,7 +23,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-henchmen-posting-{id}",
     tag: "form",
-    classes: ["acks-extras", "acks-extras-scroll", "posting-dialog"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "posting-dialog"],
     position: { width: 480 },
     window: { resizable: true, contentClasses: ["standard-form"] },
     form: { handler: PostingDialog.#onSubmit, closeOnSubmit: true },

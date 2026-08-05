@@ -58,8 +58,12 @@
       <div class="form-fields">
         <input type="number" step="1" min="1" name="{{x}}.qty" value="{{extras.qty}}">
       </div>
+      {{!-- The fault is marked by a glyph as well as by the alarm colour, so it
+            still reads where hue does not: a monochrome seat, or an eye that
+            does not separate the reds. --}}
       <p class="hint">
-        {{#if qtyConflict}}{{localize "ACKS-ABILITIES.mech.qtyConflict"}}
+        {{#if qtyConflict}}<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        {{localize "ACKS-ABILITIES.mech.qtyConflict"}}
         {{else}}{{localize "ACKS-ABILITIES.mech.qtyHint"}}{{/if}}
       </p>
     </div>

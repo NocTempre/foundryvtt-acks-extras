@@ -33,7 +33,7 @@ export async function openUnitMoraleDialog(group) {
     </div>`;
 
   const total = await foundry.applications.api.DialogV2.prompt({
-    classes: ["acks-extras", "acks-extras-scroll"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     // A row per situational modifier: the list grows with the rules table.
     window: { title: game.i18n.localize("ACKS-HENCHMEN.unitMorale.title"), resizable: true },
     content,

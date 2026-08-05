@@ -88,7 +88,7 @@ function stackRows(formation) {
  */
 export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-extras", "acks-extras-scroll", "party-sheet"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "party-sheet"],
     position: { width: 540, height: 700 },
     window: { resizable: true },
     // Replace the document sheet's submit pipeline: form inputs configure the

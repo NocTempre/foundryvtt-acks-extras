@@ -1,33 +1,56 @@
-/* ACKS II — Equipment & Fighting Styles */
+/* ACKS II — Equipment & Fighting Styles
+
+   Every colour, rule and type size reads a design-system token
+   (vendor/acks-design/tokens.css) BARE, with no literal fallback: a fallback
+   masks a missing token, and Foundry's own --color-* variables are declared once
+   globally with no theme scoping, so reading one paints a dark seat with
+   light-theme values. Sizes ride --acks-fs-*, so the family-wide fontScale knob
+   reaches them.
+
+   State colour here is always TEXT, never a fill, so it takes the -ink variants
+   — those are the tones that stay readable when the ground inverts. Category is
+   never carried by hue: the palette has none, so a glyph or a label carries it
+   and the ink only ranks the row. */
 
 .acks-equipment-loadout {
-  font-size: var(--font-size-13, 13px);
+  font-size: var(--acks-fs-body);
 }
 
+/* The three verdicts the loadout check returns: illegal, allowed-but-untrained,
+   clean. */
 .acks-equipment-loadout .violation {
-  color: var(--color-level-error, #b60205);
+  color: var(--acks-danger-ink);
 }
 
 .acks-equipment-loadout .advisory {
-  color: var(--color-level-warning, #b8860b);
+  color: var(--acks-warning-ink);
 }
 
 .acks-equipment-loadout .ok {
-  color: var(--color-level-success, #18520b);
+  color: var(--acks-success-ink);
 }
 
 /* --- Container Manager ------------------------------------------------- */
 
 .acks-equipment-container {
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 4px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
   padding: 0.35rem 0.5rem;
 }
 
-/* Drop affordance — deliberately loud, since drag targets are otherwise invisible. */
-.acks-equipment-container.drop-hover {
-  border-color: var(--color-shadow-primary, #ff6400);
-  box-shadow: 0 0 6px var(--color-shadow-primary, #ff6400);
+/* Drop affordance. A drag target is otherwise invisible, so it draws a struck
+   keyline in the focus colour over a tinted ground — that pair IS the rendering,
+   with no ring and no outline stacked on top of it.
+
+   Both zones the equipment tab accepts a drop on are listed here. The loose zone
+   is core's own inventory section, which has no keyline of its own, so the wash
+   is what carries it there; sheet.mjs tags that section with the module class so
+   this rule reaches only drop targets equipment owns. A bare
+   `[data-drop-target]` compound would match any feature's. */
+.acks-equipment-container.drop-hover,
+.acks-equipment-drop-loose.drop-hover {
+  border-color: var(--acks-focus-color);
+  background: var(--acks-tint-2);
 }
 
 .acks-equipment-container__header {
@@ -53,7 +76,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.15rem 0.25rem;
-  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-bottom: var(--acks-border-soft);
   font-weight: bold;
 }
 
@@ -67,7 +90,7 @@
 }
 
 .acks-equipment-wear__status.advisory {
-  color: var(--color-level-warning, #b8860b);
+  color: var(--acks-warning-ink);
   opacity: 1;
 }
 
@@ -80,9 +103,9 @@
   align-items: baseline;
   gap: 0.4rem;
   padding: 0.1rem 0.25rem;
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--acks-tracking-caps);
   opacity: 0.7;
 }
 
@@ -95,16 +118,22 @@
   text-transform: none;
 }
 
+/* Over capacity: the load line is the only place the breach shows, so it takes
+   the alarm ink and full weight. */
 .acks-equipment-wear__bucket.over .acks-equipment-wear__bucket-note {
-  color: var(--color-level-error, #b60205);
+  color: var(--acks-danger-ink);
   font-weight: bold;
   opacity: 1;
 }
 
+/* Hint prose is muted with INK, not opacity: an opacity mute composites toward
+   whatever ground the bucket happens to sit on, so the same hint lands on a
+   different tone in a container than in a bare section. The soft ink is one
+   value in both themes. */
 .acks-equipment-wear__hint {
   margin: 0.25rem;
-  opacity: 0.7;
-  font-size: var(--font-size-12, 12px);
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
 }
 
 /*
@@ -159,15 +188,11 @@
   font-style: italic;
 }
 
+/* The shut edge is DRAWN, not coloured — locked is a state, not an alarm, and
+   the header's fa-lock glyph is what names it. The soft hairline simply thickens
+   to a full spot-colour rule, at the same 2px, so nothing shifts on locking. */
 .acks-equipment-container.locked {
-  border-left: 2px solid var(--color-level-warning, #c9a227);
-}
-
-/* The drop target has to be visible while dragging or nobody finds it. */
-.acks-equipment-container.drop-hover,
-[data-drop-target].drop-hover {
-  outline: 2px dashed var(--color-shadow-primary, #ff6400);
-  outline-offset: -2px;
+  border-left: var(--acks-border);
 }
 
 /* --- Injected row controls ------------------------------------------- *
@@ -199,31 +224,36 @@
 /* --- Grip control (wear buckets) -------------------------------------- */
 
 .acks-equipment-grip {
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   font-weight: bold;
   white-space: nowrap;
   padding: 0 0.25rem;
 }
 
+/* The control's own label already reads 1H / 2H / 2H ✗; the ink only ranks the
+   three: honoured, and refused because both hands are not free. */
 .acks-equipment-grip--twoHand {
-  color: var(--color-level-success, #18520b);
+  color: var(--acks-success-ink);
 }
 
 .acks-equipment-grip--blocked {
-  color: var(--color-level-error, #b60205);
+  color: var(--acks-danger-ink);
 }
 
 /* --- Strap control (shield rows) — small text label + icon ------------ */
 
 .acks-equipment-strap {
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   white-space: nowrap;
   padding: 0 0.25rem;
 }
 
+/* Slung, not held. The glyph carries it (fa-shield-halved against fa-hand) and
+   the label names which side, so this only lets the resting state sit back from
+   the in-hand one — no hue is spent on the distinction. */
 .acks-equipment-strap--back,
 .acks-equipment-strap--front {
-  color: var(--color-level-info, #0b5394);
+  color: var(--acks-ink-soft);
 }
 
 
@@ -234,7 +264,7 @@
 .acks-equipment-props {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid var(--color-border-light-tertiary, #782e2244);
+  border-top: var(--acks-border-soft);
 }
 
 .acks-equipment-props__row {
@@ -246,19 +276,22 @@
 
 .acks-equipment-props__label {
   flex: 0 0 8em;
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
 }
 
 .acks-equipment-props__btn,
 .acks-equipment-props__select {
   flex: 1;
   min-height: 1.7rem;
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
 }
 
+/* The ON-TOGGLE tier of "selected": spot ink plus weight, the way the books mark
+   a live entry — no fill, because the button is not a row or a chip. Not a state
+   colour either; nothing here is right or wrong. */
 .acks-equipment-props__btn.active {
   font-weight: bold;
-  color: var(--color-level-warning, #b8860b);
+  color: var(--acks-spot);
 }
 
 /* Inline controls: a row may hold a bucket, fields and a narrow action button. */
@@ -278,7 +311,7 @@
   flex: 1;
   min-width: 3rem;
   min-height: 1.7rem;
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
 }
 
 .acks-equipment-props__btn.narrow {
@@ -287,22 +320,26 @@
   white-space: nowrap;
 }
 
+/* Spell lines are one per row and must align, so the page list is set monospaced
+   rather than in the sheet's proportional UI face. */
 .acks-equipment-props__spells {
   flex: 1;
-  font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-12, 12px);
+  font-family: var(--acks-font-mono);
+  font-size: var(--acks-fs-label);
   resize: vertical;
 }
 
 .acks-equipment-props__note {
   flex: 1;
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   opacity: 0.8;
   font-style: italic;
 }
 
+/* A note that reports something unfinished or concealed — a disguise in force, a
+   named item with no unlock order set. */
 .acks-equipment-props__note--warn {
-  color: var(--color-level-warning, #b8860b);
+  color: var(--acks-warning-ink);
   opacity: 1;
 }
 
@@ -340,14 +377,17 @@
 }
 
 .acks-equipment-idbar__badge {
-  font-size: var(--font-size-14, 14px);
+  font-size: var(--acks-fs-body);
   opacity: 0.55;
   cursor: pointer;
 }
 
+/* The overlay this badge opens is in force (the item is named, or disguised).
+   The glyph already says WHICH — fa-signature against fa-mask — so the ink only
+   says "in force". The ON-TOGGLE tier: spot ink, no fill. */
 .acks-equipment-idbar__badge.active {
   opacity: 1;
-  color: var(--color-level-warning, #b8860b);
+  color: var(--acks-spot);
 }
 
 /* Sits in the window-content COLUMN flex: it must only ever be as tall as its
@@ -367,11 +407,11 @@
   align-items: center;
   gap: 0.3rem;
   padding: 0.35rem 0.6rem;
-  border-bottom: 1px solid var(--color-border-light-tertiary, #782e2244);
+  border-bottom: var(--acks-border-soft);
 }
 
 .acks-equipment-idbar__label {
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
   font-weight: bold;
   opacity: 0.85;
 }
@@ -391,14 +431,17 @@
   align-items: center;
 }
 
+/* Sealed rungs are faint ink, unlocked ones are spot ink. The glyph carries the
+   same fact independently (fa-circle-dot sealed, fa-circle unlocked), so the
+   track still reads where colour does not — which is why the rung does not lean
+   on opacity to dim itself. */
 .acks-equipment-named-track__rung {
-  font-size: var(--font-size-12, 12px);
-  opacity: 0.35;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-faint);
 }
 
 .acks-equipment-named-track__rung.lit {
-  opacity: 1;
-  color: var(--color-level-warning, #b8860b);
+  color: var(--acks-spot);
 }
 
 /* --- Unarmed strike row ----------------------------------------------- */

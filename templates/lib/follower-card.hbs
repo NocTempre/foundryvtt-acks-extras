@@ -196,7 +196,13 @@
       </div>
       <div class="fc-panel fc-equipment">
         <div class="fc-panel-title">{{localize "ACKS-LIB.followerCard.equipment"}}</div>
-        {{#if equipment.length}}<ul>{{#each equipment}}<li>{{#if @root.editable}}{{#if this.equippable}}<a data-action="fcToggleEquip" data-item-id="{{this.id}}" class="fc-equip{{#if this.equipped}} on{{/if}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.equipToggle'}}"><i class="fas fa-shield-halved"></i></a> {{/if}}{{else}}{{#if this.equipped}}<i class="fas fa-shield-halved fc-equipped-mark"></i> {{/if}}{{/if}}{{this.name}}</li>{{/each}}</ul>{{/if}}
+        {{!-- The toggle shows on every equippable item, so equipped-vs-not is
+              carried by the GLYPH WEIGHT (solid shield / outline shield) as well
+              as by the ink. Colour alone cannot say it: the palette has one spot
+              hue, and a hue-only signal disappears for a colour-blind reader and
+              flattens on a dark seat. Read-only mode emits the mark only when
+              equipped, so there presence is already the signal. --}}
+        {{#if equipment.length}}<ul>{{#each equipment}}<li>{{#if @root.editable}}{{#if this.equippable}}<a data-action="fcToggleEquip" data-item-id="{{this.id}}" class="fc-equip{{#if this.equipped}} on{{/if}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.equipToggle'}}"><i class="{{#if this.equipped}}fa-solid{{else}}fa-regular{{/if}} fa-shield-halved"></i></a> {{/if}}{{else}}{{#if this.equipped}}<i class="fas fa-shield-halved fc-equipped-mark"></i> {{/if}}{{/if}}{{this.name}}</li>{{/each}}</ul>{{/if}}
       </div>
     </div>
 

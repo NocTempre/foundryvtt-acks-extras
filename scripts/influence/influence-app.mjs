@@ -144,7 +144,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   }
 
   static DEFAULT_OPTIONS = {
-    classes: ["acks-extras", "acks-extras-scroll", "acks-influence-dialog"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-influence-dialog"],
     sheetConfig: false,
     window: { resizable: true, title: "ACKS-INFLUENCE.app.title" },
     position: { width: 560, height: "auto" },

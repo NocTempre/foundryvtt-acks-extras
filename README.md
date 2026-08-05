@@ -203,7 +203,7 @@ transcription. The module ships no book text.
 the UI).
 
 **Library** — `attackRollPatch`, `manageVision`, `advanceWorldTime`,
-`storageDeletePolicy`; per-client `sheetTheme`, `fontScale`.
+`storageDeletePolicy`; per-client `theme`, `fontScale`.
 
 **Equipment** — `enforceMode`, `proficiencyEnforcement`, `rollAutomation`,
 `ammoTracking`, `defaultHandBudget`, plus six `overlay*` optional rules.

@@ -36,7 +36,7 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
 
   static DEFAULT_OPTIONS = {
     id: "acks-formation-skill-audit",
-    classes: ["acks-extras", "acks-extras-scroll", "skill-audit"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "skill-audit"],
     window: { resizable: true, title: "ACKS-FORMATION.audit.title" },
     position: { width: 640, height: 640 },
     actions: {
@@ -58,7 +58,7 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
       async resetAbilityOverrides() {
         if (!game.user.isGM) return;
         const confirmed = await foundry.applications.api.DialogV2.confirm({
-          classes: ["acks-extras", "acks-extras-scroll"],
+          classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
           window: { title: game.i18n.localize("ACKS-FORMATION.audit.reset") },
           content: `<p>${game.i18n.localize("ACKS-FORMATION.audit.resetConfirm")}</p>`,
         });

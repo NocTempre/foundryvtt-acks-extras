@@ -112,7 +112,7 @@ export async function openHireGroupDialog(location) {
     </div>`;
 
   const picks = await foundry.applications.api.DialogV2.prompt({
-    classes: ["acks-extras", "acks-extras-scroll"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     // One cell per troop type on offer, so the grid is as tall as the market is
     // deep: the window has to be draggable and the content has to scroll.
     window: { title: game.i18n.localize("ACKS-HENCHMEN.group.hireTitle"), resizable: true },

@@ -66,7 +66,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static DEFAULT_OPTIONS = {
     id: "acks-henchmen-roster-{id}",
-    classes: ["acks-extras", "acks-extras-scroll", "roster-app"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "roster-app"],
     position: { width: 640, height: 560 },
     window: { resizable: true },
     actions: {
@@ -219,7 +219,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const actor = this.#actor(target);
     if (!actor) return;
     const note = await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize("ACKS-HENCHMEN.roster.calamityPrompt") },
       content: `<input type="text" name="note" placeholder="${game.i18n.localize("ACKS-HENCHMEN.roster.calamityPlaceholder")}" />`,
       ok: { callback: (_e, button) => button.form.elements.note.value },
@@ -242,7 +242,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
       .map(([key, delta]) => `<option value="${key}">${game.i18n.localize(`ACKS-HENCHMEN.penalty.${key}`)} (${delta})</option>`)
       .join("");
     const key = await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.format("ACKS-HENCHMEN.roster.penaltyTitle", { name: actor.name }) },
       content: `<p class="hint">${game.i18n.localize("ACKS-HENCHMEN.roster.penaltyHint")}</p><select name="key">${options}</select>`,
       ok: { callback: (_e, button) => button.form.elements.key.value },
@@ -289,7 +289,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!candidates.length) return;
     const options = candidates.map((a) => `<option value="${a.id}">${a.name}</option>`).join("");
     const newId = await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.format("ACKS-HENCHMEN.roster.transferTitle", { name: actor.name }) },
       content: `<select name="employerId">${options}</select>`,
       ok: { callback: (_e, button) => button.form.elements.employerId.value },
@@ -319,7 +319,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const actor = this.#actor(target);
     if (!actor) return;
     const confirmed = await foundry.applications.api.DialogV2.confirm({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.format("ACKS-HENCHMEN.roster.dismissTitle", { name: actor.name }) },
       content: `<p>${game.i18n.format("ACKS-HENCHMEN.roster.dismissBody", { name: actor.name })}</p>`,
     }).catch(() => false);

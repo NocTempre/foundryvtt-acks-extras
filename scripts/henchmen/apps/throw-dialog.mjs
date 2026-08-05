@@ -47,7 +47,7 @@ export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-henchmen-throw-{id}",
     tag: "form",
-    classes: ["acks-extras", "acks-extras-scroll", "throw-dialog"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "throw-dialog"],
     position: { width: 460 },
     window: { resizable: true, contentClasses: ["standard-form"] },
     form: {

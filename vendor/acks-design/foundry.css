@@ -22,8 +22,19 @@
  * Foundry reads these for core form controls, prose, links and headings.
  * Redefining them at the ACKS root makes untouched core widgets inherit the
  * ACKS look with no per-widget override at all.
+ *
+ * TWO CLASSES, ON PURPOSE. `.acks-palette` is this block and nothing else:
+ * colour, type face, and no geometry. `.acks-ui` is this block PLUS the ACKS
+ * chrome below — window band, tabs, control padding, scrollbars.
+ *
+ * A surface laid out by someone else takes the palette only. The `acks`
+ * system's character sheet sizes its attribute grid around its own field
+ * metrics, so the roomier control padding further down this file — right for a
+ * window the module lays out itself — pushes that grid 89px past its own edge.
+ * Colour crosses that boundary safely; spacing does not.
  * ------------------------------------------------------------------------ */
-.acks-ui {
+.acks-ui,
+.acks-palette {
   /* Type */
   --font-primary: var(--acks-font-body);
   --font-body: var(--acks-font-body);
@@ -56,7 +67,11 @@
   --color-border-highlight: var(--acks-spot);
   --color-border-highlight-alt: var(--acks-danger);
 
-  /* Form geometry — the books are dense; match them. */
+}
+
+/* Form geometry — the books are dense; match them. GEOMETRY, so `.acks-ui`
+   only: a host that took `.acks-palette` keeps its own field metrics. */
+.acks-ui {
   --form-field-height: 28px;
   --form-padding: var(--acks-sp-5);
 }

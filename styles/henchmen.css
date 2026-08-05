@@ -6,8 +6,8 @@
 .acks-henchmen-follower-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 8px;
-  padding: 6px 4px;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-2);
 }
 /* Neutralise the system's list-row `.item` styling on the card cells. */
 .acks-henchmen-follower-grid .item {
@@ -19,15 +19,18 @@
 }
 .acks-henchmen-grid-head {
   font-variant: small-caps;
-  letter-spacing: 0.04em;
-  font-weight: 600;
-  margin-top: 6px;
-  padding: 4px 2px 2px;
+  letter-spacing: var(--acks-tracking-caps);
+  font-weight: var(--acks-weight-medium);
+  margin-top: var(--acks-sp-3);
+  padding: var(--acks-sp-2) var(--acks-sp-1) var(--acks-sp-1);
   /* Heading and rule sit ON the sheet's own ground, so they are the INK role:
      --acks-spot, not --acks-burgundy. The surface token stays dark on a dark
-     seat and this bar measured 1.5:1 there — the group titles were invisible. */
+     seat and this bar measured 1.5:1 there — the group titles were invisible.
+     The soft composite mixes that same ink at 35%, so rule and text track: the
+     underline reads as a keyline beneath the title, not as a second heading
+     weight. It is decoration — the title's own ink is what marks the group. */
   color: var(--acks-spot);
-  border-bottom: 1px solid var(--acks-spot);
+  border-bottom: var(--acks-border-soft);
 }
 
 /* ------------------------------ dialogs ------------------------------ */
@@ -65,7 +68,7 @@
 }
 
 :is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .form-group.modifier .mod-value {
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
   flex: 0 0 4.5em;
   text-align: right;
   white-space: nowrap;
@@ -104,26 +107,32 @@
 :is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .secret-badge {
   margin-left: 0.5rem;
   padding: 0 0.4em;
-  border: 1px solid var(--color-border-dark-tertiary, #7a7971);
-  border-radius: 3px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
   font-size: 0.85em;
 }
 
+/* Secondary prose is muted with the INK token and never with opacity: an
+   opacity mute composites toward whatever ground the row happens to sit on,
+   and these bodies render over paper, tint and the callout wash alike. */
 :is(.acks-extras.throw-dialog, .acks-extras.posting-dialog, .acks-extras.roster-app, .acks-extras-location-sheet) .hint {
-  color: var(--color-text-dark-secondary, #4b4a44);
-  font-size: 0.9em;
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
 }
 
 /* ------------------------------ chat cards ------------------------------ */
+/* The card is ruled, not boxed: a soft hairline in the spot colour, no radius —
+   `.secret` below re-styles this same border to dashed, so the shorthand has to
+   stay a shorthand for that override to apply cleanly. */
 .acks-henchmen-card {
-  border: 1px solid var(--color-border-dark-tertiary, #7a7971);
-  border-radius: 4px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
   padding: 0.35rem 0.5rem;
 }
 
 .acks-henchmen-card .card-header h3 {
   margin: 0 0 0.25rem;
-  border-bottom: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-bottom: var(--acks-border-soft);
   font-size: 1.05em;
 }
 
@@ -144,11 +153,14 @@
   justify-content: space-between;
 }
 
+/* Outcome callout: a heavy ink rule against a spot tint. Both come from the
+   palette rather than a fixed wash, so the block still recesses on a dark seat —
+   a black overlay there lightens nothing and the callout reads as a hole. */
 .acks-henchmen-card .outcome {
   margin-top: 0.25rem;
   padding: 0.25rem 0.4rem;
-  border-left: 3px solid var(--color-border-highlight, #ff6400);
-  background: rgba(0, 0, 0, 0.05);
+  border-left: var(--acks-rule-heavy) solid var(--acks-rule-color);
+  background: var(--acks-tint);
 }
 
 .acks-henchmen-card.secret {
@@ -192,7 +204,7 @@
 .acks-extras.acks-extras-location-sheet input.location-name {
   width: 100%;
   font-size: 1.4em;
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
   border: none;
   background: transparent;
 }
@@ -207,8 +219,8 @@
 /* .market-class-badge now rides acks-design's .acks-tag (applied in the template). */
 
 .acks-extras.acks-extras-location-sheet details.section {
-  border: 1px solid var(--acks-rule-color-soft, rgba(98, 7, 48, 0.35));
-  border-radius: var(--acks-radius, 0);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
   padding: 0.25rem 0.5rem;
   margin-block: 0.25rem;
 }
@@ -218,11 +230,14 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: var(--acks-font-display, "Cinzel", serif);
-  font-weight: 600;
+  /* A section head inside the sheet, not a title above it: the banner face is
+     the one cut for uppercase running heads, and the caps tracking is what
+     makes an inscriptional setting legible at label size. */
+  font-family: var(--acks-font-banner);
+  font-weight: var(--acks-weight-medium);
   text-transform: uppercase;
-  letter-spacing: var(--acks-tracking-caps, 0.07em);
-  font-size: var(--acks-fs-label, 0.9em);
+  letter-spacing: var(--acks-tracking-caps);
+  font-size: var(--acks-fs-label);
   color: var(--acks-spot);
 }
 
@@ -270,7 +285,7 @@
 
 .acks-extras.acks-extras-location-sheet .bucket-header {
   margin: 0.5rem 0 0.15rem;
-  border-bottom: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-bottom: var(--acks-border-soft);
 }
 
 .acks-extras.acks-extras-location-sheet .candidates-table th[data-sortable] {
@@ -324,7 +339,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
   margin-top: 0.35rem;
 }
 
@@ -344,20 +359,22 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--color-border-dark-tertiary, #7a7971);
+  border-bottom: var(--acks-border-soft);
   padding-bottom: 0.35rem;
 }
 
 .acks-extras.roster-app .limit-meter {
   padding: 0.15em 0.5em;
-  border: 1px solid var(--color-border-dark-tertiary, #7a7971);
-  border-radius: 3px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
 }
 
+/* Over the henchman limit: the keyline takes the alarm FILL token, the count
+   takes the -ink variant that still reads as text on either ground. */
 .acks-extras.roster-app .limit-meter.over {
   border-color: var(--acks-danger);
   color: var(--acks-danger-ink);
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
 }
 
 .acks-extras.roster-app .wage-summary {
@@ -373,13 +390,15 @@
 }
 
 .acks-extras.roster-app details.roster-row {
-  border: 1px solid var(--color-border-light-tertiary, #b5b3a4);
-  border-radius: 4px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
   padding: 0.2rem 0.4rem;
 }
 
+/* Wages owed: a heavy warning rule down the edge. The glyph in the row's wage
+   cell carries the same state, so the bar is reinforcement, not the only signal. */
 .acks-extras.roster-app details.roster-row.wage-due {
-  border-left: 3px solid var(--acks-warning);
+  border-left: var(--acks-rule-heavy) solid var(--acks-warning);
 }
 
 .acks-extras.roster-app .roster-row summary {
@@ -397,7 +416,7 @@
 }
 
 .acks-extras.roster-app .row-name {
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
 }
 
 .acks-extras.roster-app .row-tag {
@@ -437,12 +456,14 @@
 .acks-extras.roster-app .event-log td,
 .acks-extras.roster-app .loyalty-ledger td {
   padding: 0.1rem 0.3rem;
-  border-top: 1px dotted var(--color-border-light-tertiary, #b5b3a4);
+  /* Dotted, so the composite border tokens (all `solid`) cannot be used here —
+     the hairline width and the soft rule colour are taken separately. */
+  border-top: var(--acks-rule-hair) dotted var(--acks-rule-color-soft);
 }
 
 .acks-extras.roster-app .loyalty-ledger caption {
   text-align: left;
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
   opacity: 0.8;
 }
 
@@ -454,7 +475,7 @@
 .acks-extras.roster-app .loyalty-ledger .ledger-delta {
   width: 2.5em;
   text-align: right;
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
 }
 
 .acks-extras.roster-app .loyalty-ledger .ledger-toggle {
@@ -490,15 +511,28 @@
    and tinted for the posting recruiter, available the whole month. */
 .acks-extras.acks-extras-location-sheet tr.search-hit td:first-child {
   color: var(--acks-spot);
-  font-weight: bold;
+  font-weight: var(--acks-weight-bold);
 }
+/* The star is the ONLY mark that says "your search turned this one up", so it
+   has to clear the 3:1 mark floor on every ground this table draws — plain,
+   striped AND hovered — in both themes. No gilt does: --acks-gold is
+   theme-invariant and fails on paper, and --acks-gold-deep drops to 2.87:1 on
+   the hover ground (--acks-tint-2) on a dark seat. So the star carries no hue
+   of its own and takes the row's ink, which clears every ground with margin.
+   Nothing is lost: the glyph appears on no other row, so its PRESENCE is the
+   signal — the colour never was. */
 .acks-extras.acks-extras-location-sheet tr.search-hit .fa-star {
-  color: var(--acks-gold);
+  color: var(--acks-spot);
 }
 
 /* --- Hire-as-Group dialog: capped stepper grid + officer dropdown ---
    Every rule is rooted at .acks-henchmen-hire-group so the child classes ride
-   as descendants (validate only namespaces the FIRST class on a line). */
+   as descendants (validate only namespaces the FIRST class on a line).
+
+   Type takes --acks-fs-* and not rem: the fontScale setting drives
+   --acks-fs-base on <html>, which a rem does not read — it tracks the browser
+   root font size, so a rem-sized cell stays put while the rest of the dialog
+   grows. The cell keeps its three tiers: stepper over name over max. */
 .acks-henchmen-hire-group .hg-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
@@ -510,12 +544,12 @@
   flex-direction: column;
   gap: 0.2rem;
   padding: 0.35rem 0.4rem;
-  border: 1px solid var(--color-border-light-tertiary, #b5b3a4);
-  border-radius: 4px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
 }
 .acks-henchmen-hire-group .hg-name {
-  font-weight: bold;
-  font-size: 0.82rem;
+  font-weight: var(--acks-weight-bold);
+  font-size: var(--acks-fs-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -541,8 +575,8 @@
   height: 1.7rem;
   line-height: 1;
   padding: 0;
-  font-size: 1.1rem;
-  font-weight: bold;
+  font-size: var(--acks-fs-banner);
+  font-weight: var(--acks-weight-bold);
   cursor: pointer;
 }
 .acks-henchmen-hire-group .hg-max {
@@ -552,8 +586,12 @@
   padding: 0;
   width: auto;
   cursor: pointer;
-  font-size: 0.72rem;
-  color: var(--color-text-hyperlink, #1c60a5);
+  font-size: var(--acks-fs-label);
+  /* A link-styled control on a bare button. The palette has one spot colour and
+     it also rules headings here, so the underline — not the hue — is what marks
+     this as clickable. */
+  color: var(--acks-spot);
+  text-decoration: underline;
 }
 .acks-henchmen-hire-group .hg-officer {
   display: flex;

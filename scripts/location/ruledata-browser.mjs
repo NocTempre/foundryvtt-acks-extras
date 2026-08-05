@@ -25,7 +25,7 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-location-ruledata-browser",
-    classes: ["acks-extras", "acks-extras-scroll", "ruledata-browser"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "ruledata-browser"],
     position: { width: 640, height: 640 },
     window: { title: "ACKS-LOCATION.browser.title", resizable: true },
     actions: {
@@ -120,7 +120,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!entry) return;
     const data = entryData(entry);
     await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-extras", "acks-extras-scroll", "acks-location-ruledata-view"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-location-ruledata-view"],
       // A whole rules table serialised: only the window's own height bounds it.
       window: { title: entry.key, resizable: true },
       position: { width: 560, height: 600 },
@@ -134,7 +134,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!entry || !game.user.isGM) return;
     const current = JSON.stringify(entryData(entry), null, 2);
     await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-extras", "acks-extras-scroll", "acks-location-ruledata-edit"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-location-ruledata-edit"],
       window: { title: game.i18n.format("ACKS-LOCATION.browser.editTitle", { key: entry.key }), resizable: true },
       position: { width: 560, height: 600 },
       content: `<textarea class="ruledata-editor" name="json" rows="20" style="width:100%;font-family:monospace;">${current

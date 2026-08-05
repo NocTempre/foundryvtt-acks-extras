@@ -1,4 +1,24 @@
-/* ACKS II — Exploration Formations */
+/* ACKS II — Exploration Formations
+
+   Every colour and type size here comes from the design-system tokens
+   (vendor/acks-design/tokens.css), read BARE. A literal fallback masks a
+   missing token — that is how --acks-field once rendered white boxes on a dark
+   seat — and module.json loads the token file ahead of this one, so the names
+   are always in scope. No Foundry --color-* / --font-size-* variable is read:
+   those are declared once globally with no theme scoping, so they are
+   light-theme constants and render wrong on a dark seat.
+
+   The spot colour has two roles and they diverge in dark: --acks-burgundy is a
+   SURFACE (fills that reversed text sits on), --acks-spot is INK (rules,
+   borders, marks on the ground). State colours pair the same way: the plain
+   token fills bars and icons, the -ink token carries text.
+
+   The party sheet is not a system sheet, so styles/lib-sheet-theme.css does not
+   reach it and no font-family is set here — typography arrives with the design
+   system's own .acks-ui layer. Sizes ride --acks-fs-base so the acks-lib
+   fontScale setting reaches them, and every line-height is a unitless multiple
+   for the same reason: a px leading pins a control row at one height while its
+   label rides the ramp, so a raised fontScale clips the row. */
 
 /* One scroller: the window content. The window root is hard-capped to the
    viewport so the frame can never grow past the screen; the content then
@@ -44,24 +64,24 @@
 
 .acks-extras:is(.party-sheet, .skill-audit) .march-controls select {
   width: auto;
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
   height: 22px;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .march-controls button {
   width: auto;
-  font-size: var(--font-size-11, 11px);
-  line-height: 20px;
+  font-size: var(--acks-fs-label);
+  line-height: 1.6;
   padding: 0 6px;
   white-space: nowrap;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .rank-divider {
   list-style: none;
-  font-size: var(--font-size-10, 10px);
+  font-size: var(--acks-fs-fine);
   text-transform: uppercase;
   opacity: 0.6;
-  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-bottom: var(--acks-border-soft);
   margin: 2px 0 1px;
   padding-left: 4px;
 }
@@ -80,7 +100,7 @@
   flex: 0 0 auto;
   width: auto;
   padding: 0 8px;
-  line-height: 24px;
+  line-height: 1.7;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .name-row {
@@ -94,18 +114,20 @@
   font-weight: bold;
 }
 
+/* The party portrait is a full-weight keyline, not the soft rule the panels
+   use — it frames an image, so it has to hold its own against the artwork. */
 .acks-extras:is(.party-sheet, .skill-audit) .name-row .party-img {
   flex: 0 0 auto;
   width: 32px;
   height: 32px;
   object-fit: cover;
-  border: 1px solid var(--color-border-dark, #555);
-  border-radius: 4px;
+  border: var(--acks-border);
+  border-radius: var(--acks-radius);
   cursor: pointer;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .name-row .party-img:hover {
-  box-shadow: 0 0 4px var(--color-shadow-highlight, #ff6400);
+  box-shadow: var(--acks-focus-ring);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .table-row {
@@ -116,7 +138,7 @@
 
 .acks-extras:is(.party-sheet, .skill-audit) .table-row label {
   flex: 0 0 auto;
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
   white-space: nowrap;
 }
 
@@ -125,15 +147,15 @@
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) section {
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 4px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
   padding: 6px;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) section h3 {
   margin: 0 0 4px 0;
-  font-size: var(--font-size-14, 14px);
-  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+  font-size: var(--acks-fs-h3);
+  border-bottom: var(--acks-border-soft);
 }
 
 /* --- Clock --- */
@@ -147,24 +169,26 @@
 
 .acks-extras:is(.party-sheet, .skill-audit) .clock .stat label {
   display: block;
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   text-transform: uppercase;
   opacity: 0.75;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .clock .stat .value {
-  font-size: var(--font-size-18, 18px);
+  font-size: var(--acks-fs-banner);
   font-weight: bold;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .clock .stat .sub {
   display: block;
-  font-size: var(--font-size-10, 10px);
+  font-size: var(--acks-fs-fine);
   opacity: 0.7;
 }
 
+/* Winded / hurried readouts are text, so they take the -ink variant: the plain
+   state token is a fill and misses AA at this size. */
 .acks-extras:is(.party-sheet, .skill-audit) .clock .stat.bad .value {
-  color: #a02020;
+  color: var(--acks-danger-ink);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .clock .buttons {
@@ -177,33 +201,35 @@
 .acks-extras:is(.party-sheet, .skill-audit) .clock .buttons button {
   flex: 1 1 auto;
   width: auto;
-  font-size: var(--font-size-12, 12px);
-  line-height: 22px;
+  font-size: var(--acks-fs-label);
+  line-height: 1.75;
   padding: 0 6px;
   white-space: nowrap;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) button.danger {
-  color: #a02020;
+  color: var(--acks-danger-ink);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) button.paused {
-  color: #a06010;
+  color: var(--acks-warning-ink);
 }
 
 /* --- Warnings --- */
 
 .acks-extras:is(.party-sheet, .skill-audit) .warnings {
-  background: rgba(160, 96, 16, 0.08);
+  background: var(--acks-warning-tint);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .warnings p {
   margin: 2px 0;
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
 }
 
+/* The glyph is an icon on the tint, so it takes the fill token; the prose
+   beside it keeps the panel ink. */
 .acks-extras:is(.party-sheet, .skill-audit) .warnings i {
-  color: #a06010;
+  color: var(--acks-warning);
   margin-right: 4px;
 }
 
@@ -223,12 +249,14 @@
   grid-column: 1 / -1;
 }
 
+/* An empty file in the rank is drawn, not dimmed. The dashed keyline carries
+   "no one stands here" on its own, and an opacity mute here would composite the
+   hint inside the cell a second time, past what its own ink token allows. */
 .acks-extras:is(.party-sheet, .skill-audit) .member.blank-cell {
-  border: 1px dashed var(--color-border-light-tertiary, #7a7971);
-  border-radius: 4px;
+  border: var(--acks-rule-hair) dashed var(--acks-rule-color-soft);
+  border-radius: var(--acks-radius);
   justify-content: center;
   min-height: 44px;
-  opacity: 0.7;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .member.blank-cell .hint {
@@ -237,7 +265,7 @@
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .stat.quiet .value {
-  color: #a06010;
+  color: var(--acks-warning-ink);
 }
 
 /* --- Map items & skill audit --- */
@@ -247,18 +275,18 @@
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .map-item .label.clickable:hover {
-  text-shadow: 0 0 6px var(--color-shadow-primary, #782e22);
+  text-shadow: 0 0 6px var(--acks-focus-color);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .audit-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .audit-table th,
 .acks-extras:is(.party-sheet, .skill-audit) .audit-table td {
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border: var(--acks-border-soft);
   padding: 3px 5px;
   text-align: left;
   vertical-align: top;
@@ -283,7 +311,7 @@
 
 .acks-extras:is(.party-sheet, .skill-audit) .audit-table .src {
   opacity: 0.7;
-  font-size: var(--font-size-10, 10px);
+  font-size: var(--acks-fs-fine);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .audit-table select,
@@ -291,7 +319,7 @@
   width: 100%;
   min-width: 70px;
   height: 22px;
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .member-controls.grid-controls {
@@ -312,38 +340,42 @@
   grid-column: 1 / -1;
 }
 
+/* The transparent border is a reservation: state rules below only recolour it,
+   so a member cell never changes size when it becomes slowest or stacked. */
 .acks-extras:is(.party-sheet, .skill-audit) .member {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 3px;
-  border: 1px solid transparent;
-  border-radius: 4px;
+  border: var(--acks-rule-hair) solid transparent;
+  border-radius: var(--acks-radius);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .member.slowest {
-  border-color: rgba(160, 96, 16, 0.5);
+  border-color: var(--acks-warning);
 }
 
 /* --- Stacked occupants ------------------------------------------------
  * A marching-order row whose occupant is an acks-lib.group stands for the
  * bodies it counts, not for one. Both selectors are scoped to that row, so
- * nothing here reaches the rest of the sheet.
+ * nothing here reaches the rest of the sheet. The badge states the count in
+ * words, so the row is ruled in the spot colour rather than tinted a
+ * category hue — the palette carries no categorical hues.
  */
 .acks-extras:is(.party-sheet, .skill-audit) .member.acks-extras-stacked {
-  border-color: rgba(64, 96, 160, 0.45);
+  border-color: var(--acks-spot);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .member .acks-extras-stack-badge {
   width: auto;
   margin-left: 6px;
   padding: 0 6px;
-  border: 1px solid var(--color-border-light-2, #7a7971);
-  border-radius: 8px;
-  background: rgba(64, 96, 160, 0.12);
-  font-size: var(--font-size-10, 10px);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  background: var(--acks-tint);
+  font-size: var(--acks-fs-fine);
   font-weight: normal;
-  line-height: 16px;
+  line-height: 1.7;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -362,7 +394,7 @@
   height: 36px;
   object-fit: cover;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--acks-radius);
   cursor: pointer;
 }
 
@@ -378,12 +410,12 @@
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .member .name i {
-  font-size: var(--font-size-10, 10px);
+  font-size: var(--acks-fs-fine);
   opacity: 0.6;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .member .details {
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   opacity: 0.75;
 }
 
@@ -396,18 +428,20 @@
 
 .acks-extras:is(.party-sheet, .skill-audit) .role-chip {
   width: auto;
-  font-size: var(--font-size-10, 10px);
-  line-height: 16px;
+  font-size: var(--acks-fs-fine);
+  line-height: 1.7;
   padding: 0 6px;
-  border-radius: 8px;
+  border-radius: var(--acks-radius);
   opacity: 0.55;
   background: transparent;
 }
 
+/* A held role is the selected-band idiom: burgundy as a SURFACE with reversed
+   lettering on it. Both tokens stay dark-enough / light-enough in either seat. */
 .acks-extras:is(.party-sheet, .skill-audit) .role-chip.active {
   opacity: 1;
-  background: var(--color-shadow-primary, #782e22);
-  color: #fff;
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
   border-color: transparent;
 }
 
@@ -420,8 +454,8 @@
 .acks-extras:is(.party-sheet, .skill-audit) .member-controls button {
   width: 22px;
   height: 16px;
-  line-height: 12px;
-  font-size: var(--font-size-10, 10px);
+  line-height: var(--acks-lh-snug);
+  font-size: var(--acks-fs-fine);
   padding: 0;
 }
 
@@ -439,22 +473,37 @@
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .light .remaining {
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   opacity: 0.75;
 }
 
-.acks-extras:is(.party-sheet, .skill-audit) .light i.lit {
-  color: #d08020;
+/* The status glyph that opens a .light row — the flame, the spell wand and the
+   map sheet all sit in this slot, in the lights, spells and maps sections
+   alike. Running is the spot colour on a solid glyph; spent is faint ink on an
+   outline glyph, so the state survives a greyscale seat instead of resting on
+   a hue the palette does not carry. The templates switch the weight. Only the
+   direct child matches, so the icons inside a row's label and buttons keep
+   their own colours. */
+.acks-extras:is(.party-sheet, .skill-audit) .light > i {
+  color: var(--acks-ink-faint);
 }
 
+.acks-extras:is(.party-sheet, .skill-audit) .light > i.lit {
+  color: var(--acks-spot);
+}
+
+/* A spent row recedes in INK, never in opacity. Opacity dims the whole row —
+   the glyph with it — and the glyph is the only structural carrier the state
+   has, so muting it composites the one mark that must stay readable. The prose
+   drops to soft ink instead and the glyph keeps the faint ink set above. */
 .acks-extras:is(.party-sheet, .skill-audit) .light.unlit {
-  opacity: 0.55;
+  color: var(--acks-ink-soft);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .light button {
   flex: 0 0 24px;
   width: 24px;
-  line-height: 18px;
+  line-height: var(--acks-lh-snug);
   padding: 0;
 }
 
@@ -472,13 +521,16 @@
   flex: 0 0 auto;
   width: auto;
   padding: 0 8px;
-  line-height: 24px;
+  line-height: 1.7;
   white-space: nowrap;
 }
 
+/* Secondary prose recedes in ink. An opacity mute composites toward whatever
+   ground the row happens to sit on, and that ground is not the same tone in
+   both seats; the ink token is theme-correct by construction. */
 .acks-extras:is(.party-sheet, .skill-audit) .hint {
-  font-size: var(--font-size-12, 12px);
-  opacity: 0.75;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
   font-style: italic;
 }
 
@@ -499,17 +551,13 @@
   min-width: 70px;
 }
 
-.acks-extras:is(.party-sheet, .skill-audit) .spells .light i.lit {
-  color: #7040a0;
-}
-
 /* --- Party saves --- */
 
 .acks-extras:is(.party-sheet, .skill-audit) .magical-toggle {
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   white-space: nowrap;
   flex: 0 0 auto;
 }
@@ -519,7 +567,7 @@
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .save-label {
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   text-transform: uppercase;
   opacity: 0.75;
   align-self: center;
@@ -546,15 +594,15 @@
 
 .acks-extras:is(.party-sheet, .skill-audit) .party-sheet-body .buttons button {
   width: auto;
-  font-size: var(--font-size-12, 12px);
-  line-height: 22px;
+  font-size: var(--acks-fs-label);
+  line-height: 1.75;
   padding: 0 8px;
 }
 
 /* --- Chat cards --- */
 
 .acks-formation-card header {
-  border-bottom: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-bottom: var(--acks-border-soft);
   margin-bottom: 4px;
   padding-bottom: 2px;
 }
@@ -564,32 +612,36 @@
   padding-left: 18px;
 }
 
+/* Turn-report severities. Each is a line of prose, so all three take the -ink
+   variant, which is the readable tone in either seat. */
 .acks-formation-card li.bad {
-  color: #a02020;
+  color: var(--acks-danger-ink);
   font-weight: bold;
 }
 
 .acks-formation-card li.warn {
-  color: #a06010;
+  color: var(--acks-warning-ink);
 }
 
 .acks-formation-card li.good {
-  color: #207020;
+  color: var(--acks-success-ink);
 }
 
 .acks-formation-card .warning {
-  color: #a02020;
+  color: var(--acks-danger-ink);
 }
 
+/* The encounter card's spine is a bar, not text, so it takes the fill token at
+   the measured heavy stroke. */
 .acks-formation-card.encounter {
-  border-left: 3px solid #a02020;
+  border-left: var(--acks-rule-heavy) solid var(--acks-danger);
   padding-left: 6px;
 }
 
 .acks-formation-card .hint {
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   font-style: italic;
-  opacity: 0.8;
+  color: var(--acks-ink-soft);
   margin: 2px 0;
 }
 
@@ -614,8 +666,8 @@
 .acks-extras:is(.party-sheet, .skill-audit) .maps .buttons button {
   flex: 0 1 auto;
   width: auto;
-  font-size: var(--font-size-12, 12px);
-  line-height: 22px;
+  font-size: var(--acks-fs-label);
+  line-height: 1.75;
   padding: 0 8px;
   white-space: nowrap;
 }
@@ -627,28 +679,27 @@
   white-space: nowrap;
 }
 
-.acks-extras:is(.party-sheet, .skill-audit) .maps i.lit {
-  color: #2060a0;
-}
-
+/* A map drawn without the proficiency is unreliable, and a downed or blinded
+   member is out of the march — both are alarms carried by an icon, which takes
+   the fill token. */
 .acks-extras:is(.party-sheet, .skill-audit) .maps i.distorted,
 .acks-extras:is(.party-sheet, .skill-audit) .session i.distorted {
-  color: #a02020;
+  color: var(--acks-danger);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .maps .warn {
-  color: #a06010;
-  font-size: var(--font-size-11, 11px);
+  color: var(--acks-warning-ink);
+  font-size: var(--acks-fs-label);
 }
 .acks-extras:is(.party-sheet, .skill-audit) .down-badge {
-  color: #a02020;
+  color: var(--acks-danger);
 }
 
 .acks-formation-flags {
   margin-top: 6px;
   padding: 4px 6px;
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 4px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
 }
 
 .acks-formation-flags .acks-formation-flag-row {
@@ -659,7 +710,7 @@
 }
 
 .acks-formation-flags label {
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
   white-space: nowrap;
 }
 
@@ -668,7 +719,7 @@
   width: auto;
   min-width: 80px;
   height: 22px;
-  font-size: var(--font-size-11, 11px);
+  font-size: var(--acks-fs-label);
 }
 
 .acks-formation-flags input[type="number"] {
@@ -678,8 +729,8 @@
 
 .acks-formation-flags .hint {
   margin: 2px 0 0;
-  font-size: var(--font-size-11, 11px);
-  opacity: 0.75;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
 }
 
 /* Injected Skill tab on ability item sheets */
@@ -702,26 +753,30 @@
   align-items: center;
   min-width: 34px;
   padding: 2px 4px;
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 3px;
-  font-size: var(--font-size-12, 12px);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  font-size: var(--acks-fs-label);
 }
 
 .acks-formation-skill-tab .acks-formation-progression .cell label {
-  font-size: var(--font-size-10, 10px);
+  font-size: var(--acks-fs-fine);
   opacity: 0.7;
 }
 
+/* The owner's current rung on the ladder. This is a PERSISTENT mark, not a
+   hover or focus state, so it takes the gilt keyline rather than the focus
+   colour: gold is fixed in both themes, and it does not collide with the spot
+   ink every other cell on the ladder is already ruled in. Weight and keyline
+   both carry it, so no glow is needed — the books draw none. */
 .acks-formation-skill-tab .acks-formation-progression .cell.current {
-  border-color: var(--color-shadow-highlight, #ff6400);
-  box-shadow: 0 0 3px var(--color-shadow-highlight, #ff6400);
+  border-color: var(--acks-gold-deep);
   font-weight: bold;
 }
 
 .acks-formation-skill-tab .acks-formation-resolution {
   margin: 2px 0;
   padding-left: 16px;
-  font-size: var(--font-size-12, 12px);
+  font-size: var(--acks-fs-label);
 }
 
 /* --- Skill Audit: party ability roster --- */
@@ -736,8 +791,8 @@
   flex: 0 0 auto;
   width: auto;
   padding: 0 8px;
-  line-height: 22px;
-  font-size: var(--font-size-11, 11px);
+  line-height: 1.75;
+  font-size: var(--acks-fs-label);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster tr.inactive .member-cell,
@@ -749,27 +804,31 @@
   display: inline-block;
   margin: 1px 2px 1px 0;
   padding: 0 5px;
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 3px;
-  font-size: var(--font-size-11, 11px);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  font-size: var(--acks-fs-label);
 }
 
-/* A name-only match is the fragile one — mark it so it is visible at a glance. */
+/* A name-only match is the fragile one — mark it so it is visible at a glance.
+   The dashed keyline is the signal; the hue only reinforces it, so the border
+   takes the warning fill and the label its readable -ink pair. */
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster .binding.route-name {
   border-style: dashed;
-  border-color: #a06010;
-  color: #a06010;
+  border-color: var(--acks-warning);
+  color: var(--acks-warning-ink);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster .binding.route-capability {
-  border-color: #2d6a2d;
-  color: #2d6a2d;
+  border-color: var(--acks-success);
+  color: var(--acks-success-ink);
 }
 
+/* The fa-user-pen glyph already says a person set this, so the mark carries no
+   hue of its own — it recedes to soft ink and lets the glyph speak. */
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster .gm-set {
   margin-left: 4px;
-  color: #4a6fa5;
-  font-size: var(--font-size-11, 11px);
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster .toggle-cell {
@@ -779,12 +838,14 @@
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster .ruling {
   width: 100%;
   padding: 0 4px;
-  line-height: 22px;
-  font-size: var(--font-size-11, 11px);
+  line-height: 1.75;
+  font-size: var(--acks-fs-label);
 }
 
+/* A forced ruling overrides what the audit computed: ruled in the spot colour
+   and set bold, so weight and keyline both mark it. */
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster .ruling.forced {
-  border-color: #4a6fa5;
+  border-color: var(--acks-spot);
   font-weight: bold;
 }
 

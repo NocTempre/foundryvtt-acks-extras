@@ -18,7 +18,9 @@
             <div class="item__text"><a data-action="toggleSummary">{{item.name}}</a></div>
             <div class="acksm-inv-meta">{{acksExtrasVal item.system.weight6 0}}/6 st · {{acksExtrasVal item.system.cost 0}} gp</div>
             {{#with item.flags.[acks-extras] as |mf|}}
-              {{#if mf.component}}<div class="acksm-cat-tag">{{localize "ACKS-MONSTERS.item.componentShort"}}</div>{{/if}}
+              {{!-- The glyph, not a hue, marks this tag as a classification
+                    keyword next to the research-effect tags beside it. --}}
+              {{#if mf.component}}<div class="acksm-cat-tag"><i class="fa-solid fa-tag"></i> {{localize "ACKS-MONSTERS.item.componentShort"}}</div>{{/if}}
               {{#each mf.researchEffects as |eff|}}<div class="acksm-dmg-tag">{{eff}}</div>{{/each}}
             {{/with}}
             {{#if ../owner}}

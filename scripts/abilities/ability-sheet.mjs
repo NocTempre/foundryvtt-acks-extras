@@ -237,7 +237,7 @@ export function createAbilitySheet(Base) {
 
   return class AcksAbilitySheet extends Base {
     static DEFAULT_OPTIONS = {
-      classes: ["acks", "acks2", "item-v2", "acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks", "acks2", "item-v2", "acks-extras", "acks-extras-scroll"],
       actions: { ...ROLL_ACTIONS },
     };
     static PARTS = parts;

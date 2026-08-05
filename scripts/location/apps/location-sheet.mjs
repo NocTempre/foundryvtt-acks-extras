@@ -785,7 +785,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const entry = this.#specialHire(target);
     if (!entry) return;
     const days = await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.format("ACKS-HENCHMEN.special.limitTitle", { name: entry.name }) },
       content: `<input type="number" name="days" min="0" step="1" placeholder="${game.i18n.localize("ACKS-HENCHMEN.special.limitPlaceholder")}" />`,
       ok: { callback: (_e, button) => button.form.elements.days.value },
@@ -926,7 +926,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** Make a new place inside this one — the ordinary way to build a hierarchy. */
   static async #onAddChildPlace() {
     const name = await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: loc("place.newChildTitle") },
       content: `<input type="text" name="name" value="${game.i18n.localize(`${LANG_PREFIX}.place.newChildDefault`)}" />`,
       ok: { callback: (_e, button) => button.form.elements.name.value },
@@ -1030,7 +1030,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ? `<ul>${tally.map((row) => `<li>${row.n} × ${game.i18n.localize(`${LANG_PREFIX}.place.discard.${row.key}`)}</li>`).join("")}</ul>`
       : `<p>${game.i18n.localize(`${LANG_PREFIX}.place.discardNothing`)}</p>`;
     const ok = await foundry.applications.api.DialogV2.confirm({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.format(`${LANG_PREFIX}.place.removeMarketTitle`, { name: this.actor.name }) },
       content: `<p>${game.i18n.localize(`${LANG_PREFIX}.place.removeMarketWarn`)}</p>${detail}`,
     }).catch(() => false);

@@ -286,3 +286,136 @@ Follower Card sheet and its retainer default for `["character", "monster"]`, and
 `type === "monster"`. An animal reached through core's `henchmenList` now renders
 correctly; one recruited into the module's own monster list is still dropped
 before the card is asked for.
+
+### One palette, both seats — sheet theming retires into the tokens (2026-08-05)
+
+The module drew its own colours. Seven feature stylesheets carried 32 distinct
+hex literals — golds, purples, blues, four separate reds — plus 88 reads of
+Foundry's legacy `--color-*` variables. Those variables are the load-bearing
+part: Foundry v14 defines every one of them ONCE, globally, with no theme
+scoping (they are v10-era light-theme constants kept for back-compat and absent
+from all 185 of its `.theme-dark` blocks). So the module's borders and secondary
+text were pinned to the light theme in seven files, and a dark seat rendered
+light-theme ink on dark ground. The literal fallbacks in those reads were a red
+herring — the variables resolve; they resolve to the wrong value.
+
+**Ruled: every colour comes from an `--acks-*` token, read bare.** The design
+system already published both palettes; nothing needed inventing. Two
+consequences were chosen deliberately.
+
+**Category is not encoded by hue.** Blues and purples marked magical vs mundane
+light sources, and "the GM set this, not the rules". The palette is one burgundy
+spot plus a warm black — "resist adding hues" is the design system's own
+instruction, and a categorical ramp would have been the first exception. The
+distinctions are now carried structurally: the glyph (`fa-moon` / `fa-lightbulb`
+already differed), the glyph's weight where both states shared one, and rule
+weight. Gold was the exception that proved it — `--acks-gold` already existed as
+a real token, so those uses were migrations, not inventions.
+
+**No rule branches on the seat's colour scheme.** `lib-sheet-theme.css` used to
+carry nine `:not(.theme-dark)` / `.theme-dark` pairs. Every token it spends
+already holds both values, so the branches were removed rather than repaired —
+one declaration serves both seats. This also closed a defect the branches
+created: Foundry v14 lets `colorScheme.applications` differ from
+`colorScheme.interface` and stamps `.themed.theme-dark` on the APPLICATION root
+while `<body>` stays light. The token file follows that class; a body-scoped gate
+does not, so the pair rendered hybrid — dark tokens under light-seat rules.
+
+**Rejected: a second token publisher for forced light.** The `theme` client
+setting pins `data-acks-theme` on `<html>`. Forcing dark needs nothing new. But
+forcing light has to defeat a `.theme-dark` that Foundry may have put *below* the
+pin, and an ancestor cannot undo a descendant's declaration — the obvious fix is
+to re-publish the light palette in a second block. That would put every colour in
+the file in two places, which is how a theme drifts out of sync. Instead the dark
+block WITHHOLDS itself: two `:not()` guards exclude the pinned element and its
+whole subtree, and the `:root` values simply inherit. Excluding is cheaper than
+restating. Verified in Chromium across eight host/override combinations.
+
+**Known limitation, accepted:** the inverse split — `interface: dark` with
+`applications: light` — leaves ACKS tokens dark inside an application Foundry
+stamped light. The dark block is published at `<body>` and nothing below
+re-publishes light, which is the one case the withholding technique cannot reach.
+It is not visibly broken (`.acks-ui` remaps Foundry's own variables inside an
+ACKS root, so those windows read as uniformly dark rather than mixed), and the
+`theme` setting's "Always light" is a direct remedy. The real fix is to give the
+light palette the same multi-selector treatment the dark block gets, which means
+restructuring the vendored token file — out of scope for the release that found
+it.
+
+### The sheet theme stops being a setting (2026-08-05)
+
+`sheetTheme` toggled `body.acks-lib-sheet-theme`, the layer that restyles markup
+the **system** renders. It shipped default-on with an opt-out, on the reasoning
+that a table might want the system's sheets left alone.
+
+**Ruled (owner): extras overrides core, and there is no off-state.** The opt-out
+did not do what its name suggested. Turning it off did not return a neutral
+Foundry — it left this module's own windows in the ACKS look and the system's in
+Foundry's default one, which is precisely the split this release exists to close.
+
+It could not be made safe in the off position either. The `acks` system publishes
+no dark palette: its stylesheet has zero `.theme-dark` rules and its sheet ground
+is a fixed light parchment image, so a core sheet is a LIGHT surface whatever the
+seat. Six features inject their own DOM into those sheets through
+`renderActorSheetV2` / `renderItemSheetV2`, and once the token sweep put those
+regions on theme-aware colours they resolved dark against that fixed cream —
+about 1.55:1. Before the sweep they spent light-theme constants and stayed
+readable, so the off position was a regression this work introduced and could
+only have been fixed by re-pinning light constants, which is the defect the sweep
+removed.
+
+**Consequences.** The class stays and lands unconditionally at `ready` — it is
+still what lets these rules clear core's own `.acks.sheet.actor` pairings at
+(0,4,0). A `renderApplicationV2` hook adds `acks-ui` to every root carrying
+`acks` or `acks2`, which carries the design system's remap of Foundry's own
+custom properties onto the system's sheets and dialogs; that remap, not the
+decoration, is the load-bearing half. Core fires render hooks for each class in
+an application's inheritance chain, so the base hook name reaches every
+ApplicationV2 rather than needing one registration per sheet class.
+
+**Cost:** a table that preferred the system's stock look no longer has a switch
+for it, and the setting count is unchanged only because `theme` replaced it.
+Accepted: the thing being asked for was a colour scheme, and that is what `theme`
+now is.
+
+**Rejected: gating the module's injected colour on the setting instead.** It
+would have made the off position legible by letting those regions inherit core's
+colours, but it preserves the two-ways-rendered split as a supported state, which
+is the thing being removed.
+
+### The palette crosses to core's sheets; the chrome does not (2026-08-05)
+
+Carrying the ACKS look onto the system's own windows began as one class:
+`renderApplicationV2` added `acks-ui` to every root carrying `acks` or `acks2`.
+It looked right and it was wrong. Measured live on the character sheet, the
+attributes tab rendered 871px of content in a 782px box — 89px past its own
+edge, clipping the last column's labels.
+
+The cause was not typography, which was the obvious suspect and the wrong one:
+the computed font size is 14px with the frame on or off. It was
+`vendor/acks-design/foundry.css` giving every input, select and textarea
+`4px 6px` of padding. Core's attribute grid is sized around core's own field
+metrics, and a dozen widened fields is 89px.
+
+**Ruled: `.acks-palette` — the variable remap alone, no geometry.** The design
+system now publishes the remap under both `.acks-ui` and `.acks-palette`, and
+keeps the chrome (window band, tabs, control padding, scrollbars, form geometry)
+under `.acks-ui` only. Windows this module lays out itself take `.acks-ui`;
+surfaces laid out by someone else take `.acks-palette`. Verified: 782px and zero
+overflow with the palette applied, and `--color-text-primary` still remapped to
+the ACKS ink rather than core's own value.
+
+Nothing is lost visually. What makes a core sheet read as ACKS — the porphyry
+banner, the small-caps lettering, the ruled page, the boxed write-in fields —
+comes from `styles/lib-sheet-theme.css`, and that layer was measured at core's
+own 782px both before and after. The chrome was never what carried the look
+there.
+
+**The general rule this establishes:** a design system may hand another owner's
+layout its colours, never its spacing. Every token in the remap is a colour or a
+face; every geometry knob stayed behind.
+
+**Cost:** two classes to keep straight, and a module window that also carries a
+system class now gets both (harmless — the palette is a strict subset). The
+alternative was neutralising core's field padding from the override layer, which
+means this module guessing at core's metrics and re-guessing whenever they move.

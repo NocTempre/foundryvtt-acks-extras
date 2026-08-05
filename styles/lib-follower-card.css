@@ -24,8 +24,11 @@
   line-height: 1.25;
   color: var(--acks-ink);
   background: var(--acks-neutral);
-  border: 1px solid var(--acks-ink);
-  border-radius: 3px;
+  /* The card belongs to the SHEET register — a thing you write on, drawn in ink
+     — not to the books' spot-colour rule work, so every keyline here is the ink
+     hairline. The books have no rounded corners; --acks-radius is 0 on purpose. */
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
 }
 
 /* The card FILLS its window. The sheet asks to size to content, but a window the
@@ -48,23 +51,24 @@
   align-items: center;
   gap: 6px;
   padding: 3px 6px;
-  background: var(--acks-banner, var(--acks-burgundy));
+  background: var(--acks-banner);
   color: var(--acks-on-burgundy);
-  border-radius: 2px;
+  border-radius: var(--acks-radius);
 }
+/* The portrait sits ON the band, so its keyline is the reversed one. */
 .acks-lib-follower-card .fc-portrait {
   width: 28px;
   height: 28px;
   object-fit: cover;
-  border: 1px solid var(--acks-on-burgundy);
-  border-radius: 2px;
+  border: var(--acks-rule-hair) solid var(--acks-on-burgundy);
+  border-radius: var(--acks-radius);
   flex: 0 0 auto;
 }
 .acks-lib-follower-card .fc-open {
   color: var(--acks-on-burgundy);
   font-family: var(--acks-font-banner);
   font-variant: small-caps;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--acks-tracking-caps);
   font-size: 1.15em;
   font-weight: 600;
   text-decoration: none;
@@ -79,7 +83,7 @@
 .acks-lib-follower-card label {
   font-family: var(--acks-font-banner);
   font-variant: small-caps;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--acks-tracking-caps);
   font-size: 0.82em;
   color: var(--acks-spot);
   font-weight: 600;
@@ -100,8 +104,8 @@
 .acks-lib-follower-card .fc-ability input,
 .acks-lib-follower-card .fc-ability .fc-ability-value {
   background: var(--acks-field);
-  border: 1px solid var(--acks-ink);
-  border-radius: 2px;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
   padding: 1px 4px;
   min-height: 18px;
   color: var(--acks-ink);
@@ -197,8 +201,8 @@
   text-decoration: none;
   color: var(--acks-ink);
   background: var(--acks-field);
-  border: 1px solid var(--acks-ink);
-  border-radius: 2px;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
   padding: 1px 4px;
 }
 
@@ -210,17 +214,17 @@
   gap: 6px;
 }
 .acks-lib-follower-card .fc-panel {
-  border: 1px solid var(--acks-ink);
-  border-radius: 2px;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
   background: var(--acks-field);
   overflow: hidden;
 }
 .acks-lib-follower-card .fc-panel-title {
-  background: var(--acks-banner, var(--acks-burgundy));
+  background: var(--acks-banner);
   color: var(--acks-on-burgundy);
   font-family: var(--acks-font-banner);
   font-variant: small-caps;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--acks-tracking-caps);
   font-size: 0.82em;
   padding: 1px 5px;
 }
@@ -233,7 +237,7 @@
   gap: 1px;
 }
 .acks-lib-follower-card .fc-panel li {
-  border-bottom: 1px dotted rgb(from var(--acks-ink) r g b / 0.3);
+  border-bottom: var(--acks-rule-hair) dotted var(--acks-rule-color-soft);
   padding: 1px 0;
 }
 .acks-lib-follower-card .fc-notes-body {
@@ -262,8 +266,8 @@
 
 /* --- Attacks: Melee / Missile · #AT · DMG --- */
 .acks-lib-follower-card .fc-attacks {
-  border: 1px solid var(--acks-ink);
-  border-radius: 2px;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
   background: var(--acks-field);
 }
 /* Four columns: label · #AT · DMG · edit. The pencil is a real column — as an
@@ -328,9 +332,11 @@
    editable sheet. They used to drop to a hardcoded 11px — the smallest text
    in the client, on the surface players actually read at the table. */
 
-/* --- Interactive affordances (editable sheet only) --- */
+/* --- Interactive affordances (editable sheet only) ---
+   Equipped is carried by the ink pair, not by a hue: the faint step for the
+   unequipped shield, the spot for the equipped one. */
 .acks-lib-follower-card .fc-equip {
-  color: rgb(from var(--acks-ink) r g b / 0.35);
+  color: var(--acks-ink-faint);
   text-decoration: none;
   cursor: pointer;
 }
@@ -429,8 +435,8 @@
 }
 .acks-lib-follower-card .fc-adv-row input {
   background: var(--acks-field);
-  border: 1px solid var(--acks-ink);
-  border-radius: 2px;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
   padding: 1px 3px;
   text-align: center;
   color: var(--acks-ink);
@@ -447,7 +453,9 @@
   gap: 4px 12px;
   padding: 4px 6px 2px;
   margin-top: 2px;
-  border-top: 1px solid rgb(from var(--acks-spot) r g b / 0.35);
+  /* The strips are ruled off in the spot colour, not the ink: this is a printed
+     divider between card and build data, so it takes the soft rule. */
+  border-top: var(--acks-border-soft);
 }
 .acks-lib-follower-card .fc-build-group {
   display: inline-flex;
@@ -457,7 +465,7 @@
 .acks-lib-follower-card .fc-build-label {
   font-family: var(--acks-font-banner);
   font-variant: small-caps;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--acks-tracking-caps);
   font-size: 0.72em;
   color: var(--acks-spot);
   margin-right: 1px;
@@ -469,17 +477,19 @@
   min-width: 1.5em;
   height: 1.5em;
   padding: 0 3px;
-  border: 1px solid rgb(from var(--acks-ink) r g b / 0.25);
-  border-radius: 2px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
   font-size: 0.78em;
   line-height: 1;
   /* Untrained: present but clearly inert — the slot still shows. */
-  color: rgb(from var(--acks-ink) r g b / 0.3);
+  color: var(--acks-ink-faint);
   background: transparent;
 }
+/* Chips carry two-letter category codes and slot counters — caps-set content,
+   so it takes the caps tracking. */
 .acks-lib-follower-card .fc-pill.chip {
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--acks-tracking-caps);
 }
 .acks-lib-follower-card .fc-pill.on {
   color: var(--acks-on-burgundy);
@@ -502,7 +512,7 @@
 .acks-lib-follower-card .fc-pill.unset {
   color: var(--acks-ink-faint);
   background: var(--acks-tint-2);
-  border-color: rgb(from var(--acks-ink-faint) r g b / 0.5);
+  border-color: var(--acks-rule-color-soft);
 }
 
 /* Weapon size, as pips (tiny 1 → large 4). */
@@ -528,10 +538,11 @@
   grid-template-columns: 1fr 1fr;
   gap: 2px 4px;
   padding: 3px 5px 4px;
-  /* A tint of the INK-role spot, not the surface: at 6% the dark-seat surface
-     burgundy is indistinguishable from the card, while rose reads as a lift. */
-  background: rgb(from var(--acks-spot) r g b / 0.08);
-  border-top: 1px dotted rgb(from var(--acks-ink) r g b / 0.3);
+  /* The editor is a callout inside the attacks panel, so it takes the callout
+     wash — one tint step off the field well it opens in, inverting with the
+     theme, where a surface burgundy would read as a band rather than a lift. */
+  background: var(--acks-tint);
+  border-top: var(--acks-rule-hair) dotted var(--acks-rule-color-soft);
 }
 .acks-lib-follower-card .fc-attack-wrap.editing .fc-attack-editor {
   display: grid;
@@ -546,8 +557,8 @@
   flex: 1 1 auto;
   min-width: 0;
   background: var(--acks-field);
-  border: 1px solid var(--acks-ink);
-  border-radius: 2px;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
   padding: 0 3px;
   color: var(--acks-ink);
 }

@@ -90,7 +90,13 @@
   --acks-tint: #f2ebec;           /* ~5% burgundy: shaded rows, callouts     */
   --acks-tint-2: #e6d9da;         /* ~12% burgundy: nested surfaces, hover   */
   --acks-neutral: #e6e7e8;        /* neutral grey panel (character sheet)    */
-  --acks-neutral-2: #d1d3d4;      /* grey lettering on burgundy bands        */
+  /* A second neutral step: the panel grey driven one shade deeper, for nested
+   * surfaces and keylines drawn ON --acks-neutral. It INVERTS with the theme.
+   * It is not the token for lettering on a burgundy band, however close the two
+   * look in light — that role belongs to --acks-on-burgundy-soft below, which is
+   * theme-FIXED because the band is dark in both. Spending this one there lands
+   * at 1.43:1 on a dark seat. */
+  --acks-neutral-2: #d1d3d4;
   /* Boxed write-in field on the sheet panel: the pure-white well ruled in ink.
    * PROMOTED 2026-08-01 from acks-lib's sheet-theme layer, which was its only
    * declarer — the follower card read the name everywhere and a literal
@@ -303,9 +309,23 @@
  * This is where --acks-burgundy and --acks-spot part company. Every value below
  * is checked by the live contrast audit in preview/index.html — flip the Dark
  * toggle there and read the table before changing any of them.
+ *
+ * THE TWO `:not()` GUARDS ARE WHAT MAKE A FORCED LIGHT SEAT POSSIBLE, and they
+ * are why this file needs no light counterpart to the block below. A consumer
+ * that wants light regardless of the host's own scheme sets
+ * `data-acks-theme="light"` on a root; the guards then withhold this block from
+ * that element and everything under it, and the `:root` values simply inherit.
+ * The alternative — re-publishing the whole light palette in a second block —
+ * would put every colour in the file in two places, which is how a theme drifts
+ * out of sync. Excluding is cheaper than restating.
+ *
+ * Both guards are needed: the first covers a root that carries the dark class
+ * AND the light override (an element is not its own descendant, so the second
+ * guard would miss it), the second covers everything below such a root —
+ * including Foundry v14's per-application `.themed.theme-dark`, which sits
+ * deeper than <body> and would otherwise out-scope the override.
  * ========================================================================== */
-.theme-dark,
-[data-acks-theme="dark"] {
+:is(.theme-dark, [data-acks-theme="dark"]):not([data-acks-theme="light"]):not([data-acks-theme="light"] *) {
   --acks-burgundy: #8e1442;       /* SURFACE — still carries white text 9.0:1 */
   --acks-spot: #e79bab;           /* INK — rose, reads on dark paper   6.6:1  */
   --acks-burgundy-deep: #5c0a2b;

@@ -1,10 +1,15 @@
 /* ACKS II printed-character-sheet theme (acks-lib override layer).
  *
  * This file owns override RULES for markup the `acks` system itself renders —
- * banners, boxed fields, tabs, sheet grounds, type scale — every one gated by
- * `body.acks-lib-sheet-theme` (the client setting `sheetTheme`, default ON),
- * which both keeps the theme opt-out and out-specifies the system rules it
- * overrides.
+ * banners, boxed fields, tabs, sheet grounds, type scale — every one prefixed
+ * `body.acks-lib-sheet-theme`.
+ *
+ * THAT CLASS IS NOT A TOGGLE. It lands unconditionally at `ready`. It stays a
+ * class because it is doing the other half of its old job: core ships
+ * `.acks.sheet.actor` pairings at (0,4,0), and the body class is what lets
+ * these rules clear them. The opt-out it used to gate is gone — a seat that
+ * themed the module's own windows but left the system's alone rendered one
+ * family two ways, and the system publishes no dark palette to fall back to.
  *
  * IT DECLARES NO PALETTE, and must not start. Every colour comes from the
  * vendored design-system tokens (vendor/acks-design/tokens.css), which
@@ -14,6 +19,18 @@
  * and every dependent layer then grows counter-defences of its own.
  * See docs/lib/DECISIONS.md § "One token publisher".
  *
+ * NO RULE HERE BRANCHES ON THE SEAT'S COLOUR SCHEME, and none may. Every token
+ * this file spends already carries both values, so one declaration serves both
+ * seats: `--acks-field` is a white well on paper and a recessed dark well on
+ * leather, `--acks-neutral` is the grey page and the dark panel, `--acks-ink`
+ * inverts. A `:not(.theme-dark)` gate here would also silently break the seat
+ * that needs it most: Foundry v14 lets `colorScheme.applications` differ from
+ * `colorScheme.interface`, and stamps `.themed.theme-dark` on the APPLICATION
+ * root while `<body>` stays light. The token file's dark block is keyed to a
+ * bare `.theme-dark`, so it follows that per-application class; a body-scoped
+ * gate does not, and the pair renders hybrid — dark tokens under light-seat
+ * rules. Spend a token that flips; never ask which seat you are on.
+ *
  * The two roles of the spot colour still matter in every rule here:
  *   --acks-burgundy  SURFACE — bands, fills; things white text sits ON.
  *   --acks-spot      INK     — borders, focus rings, rules on the ground.
@@ -22,19 +39,47 @@
 
 body.acks-lib-sheet-theme {
   /* System vars, retuned: everything core that reads them follows the theme.
-     --acks-purple takes the SURFACE role — the system spends it on 9
-     backgrounds against 3 outline/border uses, and on a dark seat the surface
-     value is the brighter of the two, so those keylines gain contrast. These
-     are REMAPS of another package's knobs, not palette declarations. */
+     These are REMAPS of another package's knobs, not palette declarations.
+
+     --acks-purple takes the SURFACE role because the system spends it on 9
+     backgrounds against 3 outline/border uses — the majority reading wins the
+     variable, and the minority is re-drawn below. It cannot serve both: on a
+     dark seat SURFACE is #8e1442 and INK lifts to #e79bab, so a keyline drawn
+     in the surface value lands at 1.74:1 on the sheet ground.
+
+     --acks-sheet-tabs-background replaces a theme-FIXED light khaki, so every
+     foreground core pairs with it must be re-drawn too — core hardcodes a dark
+     grey against it and has no reason not to. Remapping a ground without its
+     foreground is how this layer manufactures its own contrast failures. */
   --acks-purple: var(--acks-burgundy);
   --acks-sheet-tabs-background: var(--acks-neutral);
 }
 
+/* The 3 places core spends --acks-purple as a BOUNDARY rather than a fill.
+   The remap above hands them the surface value, which is the darker of the two
+   on a dark seat and disappears against the sheet ground; ink is the role a
+   keyline wants. */
+body.acks-lib-sheet-theme .sheet.acks.item-v2 :is(a.button, button):is(.active, :focus) {
+  outline-color: var(--acks-spot);
+  box-shadow: 0 0 4px var(--acks-spot);
+}
+
+body.acks-lib-sheet-theme .sheet.acks.actor-v2 .item__icon.item-usable:hover .item__image {
+  border-color: var(--acks-spot);
+}
+
+/* Mortal Wounds sets its controls in a hardcoded dark grey chosen against
+   core's fixed khaki. The tabs-background remap moves that ground with the
+   theme, so the text has to move with it. */
+body.acks-lib-sheet-theme .mortal-wounds-dialog :is(select, input) {
+  color: var(--acks-ink);
+}
+
 /* --- Type scale: the whole sheet rides --acks-fs-base. -------------------
    One knob (the acks-lib `fontScale` client setting writes --acks-fs-base
-   inline on body); the system sheets' own em/% hierarchy scales from these
-   roots. At the default base (14px) this matches Foundry's stock size, so
-   the rule is a no-op until the knob moves. */
+   inline on the root element); the system sheets' own em/% hierarchy scales
+   from these roots. At the default base (14px) this matches Foundry's stock
+   size, so the rule is a no-op until the knob moves. */
 body.acks-lib-sheet-theme .acks.sheet .window-content,
 body.acks-lib-sheet-theme .sheet.acks.actor-v2 .window-content,
 body.acks-lib-sheet-theme .sheet.acks.item-v2 .window-content {
@@ -112,58 +157,42 @@ body.acks-lib-sheet-theme .acks.sheet.item .sheet-tabs .item.active {
   color: var(--acks-on-burgundy);
 }
 
-/* --- Sheet ground --------------------------------------------------------
-   The printed sheet is a neutral gray page, so LIGHT-schemed seats get that
-   ground and white boxed fields. A DARK-schemed seat keeps Foundry's dark
-   surfaces — forcing white fields under dark-theme text made them illegible
-   — and takes only the boxing, banners and typography. Foundry marks the
-   client scheme as body.theme-dark; light-only rules use :not(.theme-dark)
-   so an unthemed client still reads as the printed page. --- */
-body.acks-lib-sheet-theme:not(.theme-dark) .acks.sheet.actor {
+/* --- Sheet ground: the printed page. --acks-neutral is the grey stock on a
+   light seat and the dark panel on a dark one, so this is one rule, not two. */
+body.acks-lib-sheet-theme .acks.sheet.actor,
+body.acks-lib-sheet-theme .acks.sheet.actor .window-content {
   background: var(--acks-neutral);
 }
 
-body.acks-lib-sheet-theme:not(.theme-dark) .acks.sheet.actor .window-content {
-  background: var(--acks-neutral);
-}
-
-body.acks-lib-sheet-theme:not(.theme-dark) .sheet.acks.actor-v2 .window-content,
-body.acks-lib-sheet-theme:not(.theme-dark) .sheet.acks.item-v2 .window-content {
+body.acks-lib-sheet-theme .sheet.acks.actor-v2 .window-content,
+body.acks-lib-sheet-theme .sheet.acks.item-v2 .window-content {
   background: var(--acks-neutral);
   color: var(--acks-ink);
 }
 
-/* --- Fields: boxed by a thin rule, as printed. Light seats get the white
-   box with dark ink; dark seats keep a dark box and their own text color.
-   The dark box is a translucent overlay on Foundry's own surface — an
-   intentional non-token pair, it must read as "the seat's ground, recessed"
-   whatever that ground is. */
-body.acks-lib-sheet-theme:not(.theme-dark) .acks .window-content input:not([type="checkbox"]) {
+/* --- Fields: boxed by a thin rule, as printed. --acks-field is the well and
+   --acks-ink the rule around it; both invert with the seat, so the box reads
+   as "the ground, recessed" on paper and on leather alike. The books rule
+   square corners, which is what --acks-radius is zero for. */
+body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]) {
   background: var(--acks-field);
-  border: 1px solid var(--acks-ink);
-  border-radius: 2px;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
   color: var(--acks-ink);
 }
 
-body.acks-lib-sheet-theme.theme-dark .acks .window-content input:not([type="checkbox"]) {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 2px;
-}
-
-/* Hover and focus are drawn in the INK role, not the surface role: this rule
-   is shared by both seats, and a surface-dark burgundy here is what audited
-   at 1.46:1 against a dark ground. --acks-spot lifts to rose there. */
+/* Hover and focus are drawn in the INK role, not the surface role: a
+   surface-dark burgundy here is what audited at 1.46:1 against a dark ground.
+   --acks-spot lifts to rose there. */
 body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]):hover:not(:disabled),
 body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]):focus:not(:disabled) {
-  box-shadow: 0 0 3px var(--acks-spot);
-  border-color: var(--acks-spot);
+  box-shadow: 0 0 3px var(--acks-focus-color);
+  border-color: var(--acks-focus-color);
 }
 
 /* Inputs drawn over artwork (shield, hearts) or inside tight spinner rows
    stay unboxed — a field box would cover the art. !important because these
-   guards must beat both the light and dark field rules above regardless of
-   selector arithmetic. */
+   guards must beat the field rule above regardless of selector arithmetic. */
 body.acks-lib-sheet-theme .acks.sheet.actor.character .sheet-body .health input,
 body.acks-lib-sheet-theme .acks .window-content input.health-top,
 body.acks-lib-sheet-theme .acks .window-content input.health-bottom,
@@ -187,7 +216,7 @@ body.acks-lib-sheet-theme .acks.sheet.item .sheet-header .tag-list .tag {
   color: var(--acks-on-burgundy);
 }
 
-body.acks-lib-sheet-theme:not(.theme-dark) .acks.sheet.actor.character .encumbrance {
+body.acks-lib-sheet-theme .acks.sheet.actor.character .encumbrance {
   background: var(--acks-neutral);
 }
 

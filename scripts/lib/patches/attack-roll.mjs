@@ -121,7 +121,7 @@ async function rollDetailsDialog(title, formula) {
       <select name="rollMode">${modes.join("")}</select></div>`;
   try {
     return await foundry.applications.api.DialogV2.prompt({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title },
       content,
       ok: {

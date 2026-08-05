@@ -247,7 +247,7 @@
     <h3>{{localize "ACKS-FORMATION.app.lights"}}</h3>
     {{#each lights}}
     <div class="light {{#unless this.lit}}unlit{{/unless}}" data-light-id="{{this.id}}">
-      <i class="fa-solid {{#if this.lit}}fa-fire-flame-curved lit{{else}}fa-fire-flame-curved{{/if}}"></i>
+      <i class="{{#if this.lit}}fa-solid fa-fire-flame-curved lit{{else}}fa-regular fa-fire-flame-curved{{/if}}"></i>
       <span class="label">{{this.label}} — {{this.bearer}}</span>
       <span class="remaining">{{this.remaining}} {{localize "ACKS-FORMATION.app.turnsLeft"}}{{#if this.shielded}} · {{localize "ACKS-FORMATION.app.shieldedBadge"}}{{/if}}</span>
       {{#if this.canControl}}
@@ -350,7 +350,7 @@
     {{/if}}
     {{#each mapItems}}
     <div class="light map-item" data-item-uuid="{{this.uuid}}">
-      <i class="fa-solid fa-map {{#if this.active}}lit{{/if}}"></i>
+      <i class="{{#if this.active}}fa-solid fa-map lit{{else}}fa-regular fa-map{{/if}}"></i>
       <span class="label clickable" data-action="openMapItem" data-tooltip="{{localize 'ACKS-FORMATION.map.openHint'}}">
         {{this.name}} — {{this.holder}} <em>({{this.sceneName}})</em>
         {{#if this.distorted}}<i class="fa-solid fa-pen-nib distorted" data-tooltip="{{localize 'ACKS-FORMATION.map.distortedHint'}}"></i>{{/if}}

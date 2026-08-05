@@ -104,7 +104,7 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     const confirmed = await foundry.applications.api.DialogV2.confirm({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize("ACKS-FORMATION.app.disband") },
       content: `<p>${game.i18n.format("ACKS-FORMATION.app.disbandConfirm", { name: formation.name })}</p>`,
     });
@@ -419,7 +419,7 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     const confirmed = await foundry.applications.api.DialogV2.confirm({
-      classes: ["acks-extras", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize("ACKS-FORMATION.map.newMap") },
       content: `<p>${game.i18n.localize("ACKS-FORMATION.map.newMapConfirm")}</p>`,
     });

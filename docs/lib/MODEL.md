@@ -22,6 +22,77 @@ only one feature needs stays with that feature.
 when the behavior is unique to that feature's domain, and says so in its own
 MODEL. One owner per wrapped core method.
 
+## Theming: one palette, three layers
+
+Every colour any ACKS surface draws comes from an `--acks-*` token. There are no
+hex literals in `styles/`, and no reads of Foundry's `--color-*` variables —
+those are defined once globally in v14 with no theme scoping, so they are
+light-theme constants and cannot follow a dark seat.
+
+| Layer | File | Applies to |
+|---|---|---|
+| Tokens | `vendor/acks-design/tokens.css` | the whole page; inert on its own |
+| Chrome | `vendor/acks-design/foundry.css` | any application root carrying `acks-ui` |
+| Core sheets | `styles/lib-sheet-theme.css` | markup the **system** renders, prefixed `body.acks-lib-sheet-theme` |
+
+**Core's own windows are ACKS surfaces too.** A `renderApplicationV2` hook adds
+`acks-palette` to any application root carrying `acks` or `acks2`, which is every
+sheet and dialog the system renders. This is not decoration: the `acks` system
+publishes no dark palette — zero `.theme-dark` rules, and a sheet ground that is
+a fixed light parchment image — so without the remap its widgets draw light-theme
+values underneath themed module regions injected into the same sheet. There is no
+setting for this and no off-state; a seat that themed the module's windows but
+left the system's alone rendered one family two ways.
+
+**`acks-palette` is the colour half of `acks-ui`, and the split is load-bearing.**
+`acks-ui` is the remap PLUS the ACKS chrome — window band, tabs, control padding,
+scrollbars — and belongs on windows this module lays out itself. A surface laid
+out by someone else takes `acks-palette` alone: core sizes its attribute grid
+around its own field metrics, and the design system's roomier control padding
+pushes that grid 89px past the sheet's own edge. Colour crosses that boundary
+safely; spacing does not. What makes a core sheet still *read* as ACKS — the
+banner, the small-caps, the ruled page, the boxed fields — is
+`styles/lib-sheet-theme.css`, which changes no geometry at all.
+
+**Tokens are published once.** Light at `:root`, dark at a single override block.
+Nothing else declares a palette value — a second publisher at higher specificity
+out-scopes the dark block, which is how a component ends up rendering four ways.
+Consumers read tokens **bare**: `var(--acks-spot)`, never with a literal
+fallback, because a fallback masks a missing token rather than revealing it.
+
+**Two roles, one colour.** `--acks-burgundy` is the spot colour as a SURFACE
+(bands, fills, anything white text sits on); `--acks-spot` is the same colour as
+INK (headings, rules, borders, focus). They are identical in light and diverge in
+dark — surface darkens to carry white text, ink lifts to a rose that reads on
+dark paper. Using one where the other belongs is invisible on a light seat and
+illegible on a dark one. The same split governs `--acks-danger` / `-ink`,
+`--acks-warning` / `-ink` and `--acks-success` / `-ink`: the plain token fills,
+the `-ink` variant is text.
+
+**No rule asks which seat it is on.** Because every token carries both values, a
+single declaration serves both themes, and `styles/` contains no
+`:not(.theme-dark)` branches. This is what makes Foundry v14's split colour
+scheme work: when `colorScheme.applications` differs from `colorScheme.interface`
+the theme class lands on the *application* root, not `<body>`, and a body-scoped
+branch would miss it.
+
+**Category is never encoded by hue.** The palette is one burgundy spot plus a
+warm black; distinctions that a hue used to carry — magical vs mundane, GM-set vs
+by-the-rules — are carried by the glyph, the glyph's weight, or the rule weight.
+`--acks-gold` is the one accent beyond the spot colour, and it is a real measured
+token, not a per-feature invention.
+
+**Two client settings drive it**, both in `lib/module.mjs` and both per player:
+
+- `theme` — `follow` (default), `light`, `dark`. Pins `data-acks-theme` on
+  `<html>`; `follow` removes the attribute so Foundry's own scheme governs.
+- `fontScale` — writes `--acks-fs-base` inline on `<html>`, rescaling every ACKS
+  surface from one knob.
+
+Both pins land on `<html>`, never `<body>`, and that is load-bearing: custom
+properties inherit as *already-substituted* values, so a token pinned on `<body>`
+never reaches derived tokens whose substitution ran at `:root`.
+
 ## Perception: senses, light, and the token
 
 Three files answer "what can this creature see, and how brightly does it burn?"

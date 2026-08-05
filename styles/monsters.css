@@ -1,25 +1,38 @@
 /* ACKS II — Full Monster Sheet: styles for the ADDED tabs only.
    The sheet subclasses the system's monster sheet, so header, item lists, and
-   base form controls inherit the acks/Foundry styling; we only tune our extras. */
+   base form controls inherit the acks/Foundry styling; we only tune our extras.
+
+   Every colour here reads an --acks-* token BARE. A literal fallback would hide
+   a token that never got declared and repaint a dark seat in light values, so
+   there are none. Type sizes ride the --acks-fs-* ramp so the fontScale setting
+   reaches them. Body and control FACES are left alone deliberately, because
+   these tabs sit inside the system's own header and item lists and must match
+   that chrome; the section legends are the exception — a section head carries
+   the banner face family-wide, and that identity outranks the local chrome. */
 
 .acks-extras.monster-v2 .acksm-content {
-  gap: 8px;
-  padding: 6px 8px;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
 }
 
 .acks-extras.monster-v2 .acksm-content fieldset {
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 5px;
-  padding: 4px 8px 8px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  padding: var(--acks-sp-2) var(--acks-sp-4) var(--acks-sp-4);
   margin: 0;
 }
 
+/* Section head of an added panel: the family's legend rendering — the banner
+   face, letterspaced, because its inscriptional caps close up and stop reading
+   without tracking. */
 .acks-extras.monster-v2 .acksm-content legend {
-  font-weight: 700;
-  padding: 0 4px;
+  font-family: var(--acks-font-banner);
+  letter-spacing: var(--acks-tracking-caps);
+  font-weight: var(--acks-weight-bold);
+  padding: 0 var(--acks-sp-2);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--acks-sp-4);
 }
 
 /* Grouped rows: tight, wrapping. */
@@ -45,7 +58,7 @@
 .acks-extras.monster-v2 .acksm-content .form-group > label,
 .acks-extras.monster-v2 .acksm-lore-label,
 .acks-extras.monster-v2 .acksm-rows-head {
-  font-size: 0.72rem;
+  font-size: var(--acks-fs-label);
   text-transform: uppercase;
   opacity: 0.75;
 }
@@ -54,27 +67,34 @@
 .acks-extras.monster-v2 multi-checkbox.acksm-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 6px;
+  gap: var(--acks-sp-2) var(--acks-sp-3);
   border: none;
-  padding: 2px 0;
+  padding: var(--acks-sp-1) 0;
 }
 .acks-extras.monster-v2 multi-checkbox.acksm-chips label.checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--acks-sp-2);
   margin: 0;
-  padding: 2px 8px 2px 6px;
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.04);
-  font-size: 0.82rem;
+  padding: var(--acks-sp-1) var(--acks-sp-4) var(--acks-sp-1) var(--acks-sp-3);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  background: var(--acks-tint);
+  font-size: var(--acks-fs-label);
   white-space: nowrap;
   cursor: pointer;
 }
+/* Checked: this is the SELECTED CHIP THAT CONTAINS A CONTROL tier — deeper tint,
+   the soft keyline hardened to a full-strength spot rule, medium weight. It is
+   NOT the selected-row tier (a burgundy band under reversed text), and must not
+   be converted to it: the chip encloses its own checkbox, and a solid burgundy
+   fill would strand that glyph on a dark ground. Selection is carried by tint
+   depth, rule weight and type weight together, so it survives without a second
+   hue and without a fill. */
 .acks-extras.monster-v2 multi-checkbox.acksm-chips label.checkbox:has(input:checked) {
-  background: rgba(130, 38, 80, 0.18);
-  border-color: rgba(130, 38, 80, 0.5);
-  font-weight: 600;
+  background: var(--acks-tint-2);
+  border-color: var(--acks-rule-color);
+  font-weight: var(--acks-weight-medium);
 }
 .acks-extras.monster-v2 multi-checkbox.acksm-chips input {
   width: auto;
@@ -86,9 +106,9 @@
 .acks-extras.monster-v2 .acksm-cb {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--acks-sp-2);
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: var(--acks-fs-label);
 }
 .acks-extras.monster-v2 .acksm-cb input {
   flex: 0 0 auto;
@@ -106,7 +126,7 @@
   cursor: pointer;
 }
 .acks-extras.monster-v2 .acksm-saves .rollable-header__label {
-  font-size: 0.68rem;
+  font-size: var(--acks-fs-fine);
   text-transform: uppercase;
   opacity: 0.8;
 }
@@ -117,15 +137,15 @@
 }
 .acks-extras.monster-v2 .acksm-enc-grid .form-fields {
   display: flex;
-  gap: 4px;
+  gap: var(--acks-sp-2);
 }
 
 /* Repeatable rows (speeds, senses, values, variants). */
 .acks-extras.monster-v2 .acksm-rows {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
+  gap: var(--acks-sp-2);
+  margin-top: var(--acks-sp-2);
 }
 .acks-extras.monster-v2 .acksm-rows-head {
   display: flex;
@@ -134,7 +154,7 @@
 }
 .acks-extras.monster-v2 .acksm-row {
   display: flex;
-  gap: 6px;
+  gap: var(--acks-sp-3);
   align-items: center;
 }
 .acks-extras.monster-v2 .acksm-row > select,
@@ -162,95 +182,117 @@
   min-width: 60px;
 }
 
+/* Explanatory prose under a section head. Muted with the soft ink token, never
+   with opacity: these hints sit on the plain panel on some tabs and on a tinted
+   list section on others, and an opacity mute composites toward whatever ground
+   it lands on instead of holding one theme-correct value. */
 .acks-extras.monster-v2 .acksm-hint {
-  font-size: 0.78rem;
-  opacity: 0.72;
-  margin: 2px 0 6px;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  margin: var(--acks-sp-1) 0 var(--acks-sp-3);
 }
 
-/* --- Item-row tags (damage, category, inventory meta) --- */
+/* --- Item-row tags (damage, category, inventory meta) ---
+   An emphasis tag and a keyword tag can share one row, so the difference cannot
+   ride hue. The emphasis tag (damage, roll target, research effect) takes the
+   deeper tint and full ink; the keyword tag (ability category, component) takes
+   the faint tint, soft ink and letterspaced caps, behind the tag glyph its
+   template carries. */
 .acks-extras.monster-v2 .acksm-dmg-tag,
 .acks-extras.monster-v2 .acksm-cat-tag,
 .acks-extras.monster-v2 .acksm-inv-meta {
   flex: 0 0 auto;
-  font-size: 0.72rem;
-  opacity: 0.85;
+  font-size: var(--acks-fs-label);
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: var(--acks-radius);
 }
 .acks-extras.monster-v2 .acksm-dmg-tag {
-  background: rgba(130, 38, 80, 0.14);
-  font-weight: 600;
+  background: var(--acks-tint-2);
+  color: var(--acks-ink);
+  font-weight: var(--acks-weight-medium);
 }
 .acks-extras.monster-v2 .acksm-cat-tag {
-  background: rgba(40, 90, 140, 0.16);
-  text-transform: capitalize;
+  background: var(--acks-tint);
+  color: var(--acks-ink-soft);
+  text-transform: uppercase;
+  letter-spacing: var(--acks-tracking-caps);
 }
 .acks-extras.monster-v2 .acksm-inv-meta {
-  opacity: 0.7;
+  color: var(--acks-ink-soft);
 }
 /* --- Encumbrance readout (Inventory tab) --- */
 .acks-extras.monster-v2 .acksm-enc {
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 5px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
   padding: 5px 8px 6px;
-  margin: 0 0 8px;
+  margin: 0 0 var(--acks-sp-4);
 }
 .acks-extras.monster-v2 .acksm-enc-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
-  font-size: 0.85rem;
+  gap: var(--acks-sp-4);
+  font-size: var(--acks-fs-body);
 }
 .acks-extras.monster-v2 .acksm-enc-state {
-  font-weight: 700;
-  font-size: 0.78rem;
+  font-weight: var(--acks-weight-bold);
+  font-size: var(--acks-fs-label);
 }
 .acks-extras.monster-v2 .acksm-enc-bar {
   position: relative;
   height: 8px;
   margin: 5px 0 4px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.12);
+  border-radius: var(--acks-radius);
+  background: var(--acks-tint-2);
   overflow: hidden;
 }
+/* The load states are the one place this sheet spends a state colour. The bar is
+   a FILL, so it takes the plain state token; its label is TEXT, so it takes the
+   -ink variant, which inverts to the lighter tone on a dark ground. */
 .acks-extras.monster-v2 .acksm-enc-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  border-radius: 4px;
-  background: rgba(80, 140, 80, 0.75);
+  border-radius: var(--acks-radius);
+  background: var(--acks-success);
   transition: width 0.2s;
 }
+/* Normal-load tick: a hairline rule across the bar, eased back so it reads as a
+   graduation rather than as a fourth state. */
 .acks-extras.monster-v2 .acksm-enc-mark {
   position: absolute;
   top: -1px;
   bottom: -1px;
-  width: 2px;
-  background: var(--color-text-dark-primary, #111);
+  width: var(--acks-rule);
+  background: var(--acks-ink);
   opacity: 0.6;
 }
+/* Graduation caption under the bar: secondary prose, so it takes the soft ink
+   token rather than an opacity mute, which would composite against the bar's
+   tint instead of holding one theme-correct value. */
 .acks-extras.monster-v2 .acksm-enc-legend {
-  font-size: 0.74rem;
-  opacity: 0.75;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
 }
 .acks-extras.monster-v2 .acksm-enc-encumbered .acksm-enc-fill {
-  background: rgba(190, 140, 30, 0.8);
+  background: var(--acks-warning);
 }
 .acks-extras.monster-v2 .acksm-enc-encumbered .acksm-enc-state {
-  color: #a9791b;
+  color: var(--acks-warning-ink);
 }
 .acks-extras.monster-v2 .acksm-enc-overloaded .acksm-enc-fill {
-  background: rgba(170, 45, 45, 0.85);
+  background: var(--acks-danger);
 }
 .acks-extras.monster-v2 .acksm-enc-overloaded .acksm-enc-state {
-  color: #a52d2d;
+  color: var(--acks-danger-ink);
 }
 
+/* Empty-state row standing in for an item row: secondary prose, muted with the
+   soft ink token rather than opacity. The SIZE stays inherited — this row sits
+   in the system's own item list and has to measure like the rows it replaces. */
 .acks-extras.monster-v2 .acksm-empty {
-  opacity: 0.6;
+  color: var(--acks-ink-soft);
   font-style: italic;
-  padding: 4px 6px;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
   list-style: none;
 }
 
@@ -259,33 +301,33 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--acks-sp-4);
+  margin-top: var(--acks-sp-3);
 }
 .acks-extras.monster-v2 .acksm-readout {
-  gap: 6px;
+  gap: var(--acks-sp-3);
 }
 .acks-extras.monster-v2 .acksm-ro {
   flex: 1 1 70px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
+  padding: var(--acks-sp-2);
+  background: var(--acks-tint);
+  border-radius: var(--acks-radius);
 }
 .acks-extras.monster-v2 .acksm-ro label {
-  font-size: 0.65rem;
+  font-size: var(--acks-fs-fine);
   text-transform: uppercase;
   opacity: 0.7;
 }
 .acks-extras.monster-v2 .acksm-ro span {
-  font-weight: 700;
+  font-weight: var(--acks-weight-bold);
 }
 
 /* Description prose editors */
 .acks-extras.monster-v2 .acksm-lore {
-  gap: 4px;
+  gap: var(--acks-sp-2);
 }
 .acks-extras.monster-v2 .acksm-lore prose-mirror {
   /* The tab content is a flexcol with align-items:flex-start (system CSS), and
@@ -293,12 +335,12 @@
      a 2px border sliver. */
   align-self: stretch;
   min-height: 70px;
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 4px;
-  margin-bottom: 6px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  margin-bottom: var(--acks-sp-3);
 }
 .acks-extras.monster-v2 .acksm-lore prose-mirror .editor-content {
-  padding: 4px 8px;
+  padding: var(--acks-sp-2) var(--acks-sp-4);
 }
 /* Display (not editing): the editors should grow to fit their content — most
    importantly acks-content's streamed book text — rather than each capping at
@@ -324,16 +366,19 @@
   display: none;
 }
 
-/* --- Injected item-sheet flag fieldset (NOT scoped to .acks-monsters) --- */
+/* --- Injected item-sheet flag fieldset (NOT scoped to .acks-monsters) ---
+   This lands on the system's own item sheets, which carry no acks-extras root;
+   the tokens still resolve because they are declared at :root and the dark
+   branch keys off the body theme class. */
 .acks-monsters-flags {
-  margin: 6px 0 2px;
-  border: 1px solid var(--color-border-light-tertiary, #7a7971);
-  border-radius: 5px;
-  padding: 4px 8px 8px;
+  margin: var(--acks-sp-3) 0 var(--acks-sp-1);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  padding: var(--acks-sp-2) var(--acks-sp-4) var(--acks-sp-4);
 }
 .acks-monsters-flags > legend {
-  font-weight: 700;
-  padding: 0 4px;
+  font-weight: var(--acks-weight-bold);
+  padding: 0 var(--acks-sp-2);
 }
 .acks-monsters-flags .acksm-flag-row {
   display: flex;
@@ -342,13 +387,13 @@
   align-items: center;
 }
 .acks-monsters-flags .acksm-flag-row label {
-  font-size: 0.72rem;
+  font-size: var(--acks-fs-label);
   text-transform: uppercase;
   opacity: 0.75;
 }
 .acks-monsters-flags .acksm-flag-row label.checkbox {
   text-transform: none;
   display: inline-flex;
-  gap: 4px;
+  gap: var(--acks-sp-2);
   align-items: center;
 }

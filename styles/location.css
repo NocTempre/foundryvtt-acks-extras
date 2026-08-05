@@ -12,31 +12,48 @@
 .acks-extras.ruledata-browser .ruledata-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-13, 13px);
+  font-size: var(--acks-fs-label);
 }
 .acks-extras.ruledata-browser .ruledata-table td,
 .acks-extras.ruledata-browser .ruledata-table th {
   padding: 0.15rem 0.4rem;
   text-align: left;
-  border-top: 1px dotted var(--color-border-light-tertiary, #b5b3a4);
+  /* Spelled out rather than the --acks-border-soft composite: that composite is
+     solid, and the dotted stroke is what separates imported rows from a ruled
+     table. */
+  border-top: var(--acks-rule-hair) dotted var(--acks-rule-color-soft);
 }
+/* An overridden entry is named in spot ink and bolded — the weight carries the
+   distinction where a tinted seat washes the hue out. */
 .acks-extras.ruledata-browser tr.overridden td:first-child {
-  color: var(--color-text-hyperlink, #1c60a5);
+  color: var(--acks-spot);
   font-weight: bold;
 }
+/* The badge is a filled band, so it takes the SURFACE burgundy and reversed
+   lettering, never the ink token. */
 .acks-extras.ruledata-browser .override-badge {
-  background: var(--color-text-hyperlink, #1c60a5);
-  color: #fff;
-  border-radius: 3px;
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  border-radius: var(--acks-radius);
   padding: 0 0.35rem;
   font-size: 0.85em;
 }
 .acks-extras.ruledata-browser .row-actions a {
   margin-right: 0.35rem;
 }
-.acks-extras.ruledata-browser [data-entry-key].drag-over,
 .acks-extras.ruledata-browser [data-entry-key]:hover {
-  background: rgba(28, 96, 165, 0.08);
+  background: var(--acks-tint-2);
+}
+/* The one drop rendering used across this module: focus keyline plus the tint-2
+   ground, with no ring and no dashed outline behind it. The keyline is declared
+   whole rather than as a bare `border-color`, because the row itself carries no
+   border to recolour — its rule lives on the cells. Solid at hair width, so
+   collapse resolution ranks it above the cells' dotted separator and the band
+   closes on all four sides; declaring it only in this state keeps the separator
+   dotted at rest, which a transparent base border would erase. */
+.acks-extras.ruledata-browser [data-entry-key].drag-over {
+  background: var(--acks-tint-2);
+  border: var(--acks-rule-hair) solid var(--acks-focus-color);
 }
 /* The two ruledata inspectors are resizable windows, so their one big element
    takes whatever height the window has rather than a pixel cap that dragging
@@ -46,7 +63,7 @@
   min-height: 10rem;
   margin: 0;
   overflow: auto;
-  font-size: 12px;
+  font-size: var(--acks-fs-label);
 }
 
 .acks-location-ruledata-edit textarea {
@@ -59,7 +76,8 @@
 /*  Everything here roots at an `acks-location*` class — the character-sheet    */
 /*  pieces are injected into a sheet this module does not own, so they must     */
 /*  not restyle anything of the system's by reaching outward.                   */
-/* -------------------------------------------------------------------------- */.acks-location-storage-body,
+/* -------------------------------------------------------------------------- */
+.acks-location-storage-body,
 .acks-location-manager-body {
   display: flex;
   flex-direction: column;
@@ -90,8 +108,8 @@
 .acks-location-place {
   padding: 0.35rem 0.5rem;
   margin-bottom: 0.4rem;
-  border: 1px solid var(--color-border-light-tertiary, #b5b3a4);
-  border-radius: 4px;
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
 }
 .acks-location-owner-head,
 .acks-location-place-head {
@@ -99,7 +117,8 @@
   gap: 0.5rem;
   align-items: center;
   padding-bottom: 0.25rem;
-  border-bottom: 1px dotted var(--color-border-light-tertiary, #b5b3a4);
+  /* Dotted, so the soft-border composite (solid) cannot be used here. */
+  border-bottom: var(--acks-rule-hair) dotted var(--acks-rule-color-soft);
 }
 .acks-location-owner-name,
 .acks-location-place-name {
@@ -107,8 +126,10 @@
   font-weight: bold;
   cursor: pointer;
 }
+/* A dangling owner is a text warning, not a fill, so it takes the -ink variant:
+   the plain state token is tuned for bars and icons and fails AA as body text. */
 .acks-location-dangling {
-  color: var(--color-level-warning, #ee9b3a);
+  color: var(--acks-warning-ink);
   cursor: help;
 }
 .acks-location-place-img {
@@ -116,7 +137,7 @@
   height: 28px;
   object-fit: cover;
   border: none;
-  border-radius: 3px;
+  border-radius: var(--acks-radius);
 }
 .acks-location-place-tools {
   display: flex;
@@ -155,24 +176,33 @@
   white-space: nowrap;
   cursor: pointer;
 }
+/* Sized off the ramp rather than in `em`: these buttons render inside the
+   character sheet and the dialogs, none of which declare an --acks-fs-*, so a
+   relative size there would sit outside the fontScale setting entirely. */
 .acks-location-btn--sm {
   width: auto;
   height: auto;
   padding: 0 0.4rem;
-  font-size: 0.85em;
+  font-size: var(--acks-fs-label);
   line-height: 1.6;
 }
+/* Secondary prose is muted in INK, never by opacity: an opacity mute composites
+   toward whatever ground the row happens to sit on, and these strings are
+   injected into sheets and dialogs this module does not own. */
 .acks-location-empty,
 .acks-location-hint {
   font-style: italic;
-  opacity: 0.75;
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
 }
 
 /* The coin summary replaces the system's retired bank column, so it sits
-   inside core's money section and must stay visually subordinate to it. */
+   inside core's money section and must stay visually subordinate to it. Core's
+   root declares no --acks-fs-*, so the size is taken from the ramp directly —
+   an `em` there would scale off a base the fontScale setting cannot reach. */
 .acks-location-coin-summary {
   padding: 0.1rem 0.5rem 0.25rem;
-  font-size: 0.9em;
+  font-size: var(--acks-fs-label);
 }
 .acks-location-coin-summary a {
   cursor: pointer;
@@ -247,7 +277,7 @@
   gap: 0.35rem;
   padding-right: 0.5rem;
   overflow-y: auto;
-  border-right: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-right: var(--acks-border-soft);
 }
 .acks-location-manager-places ul {
   padding: 0;
@@ -260,10 +290,14 @@
   align-items: center;
   padding: 0.2rem 0.3rem;
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--acks-radius);
 }
+/* The selected place is a filled band: SURFACE burgundy with reversed lettering,
+   which the child count/name spans inherit. Their `opacity` dimming rides on top
+   of the reversed ink, so it must not be swapped for a grey ink token. */
 .acks-location-manager-place.active {
-  background: rgba(28, 96, 165, 0.12);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
 }
 .acks-location-manager-place img {
   width: 24px;
@@ -292,7 +326,7 @@
   flex-direction: column;
   gap: 0.35rem;
   padding-top: 0.4rem;
-  border-top: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-top: var(--acks-border-soft);
 }
 .acks-location-manager-target {
   display: flex;
@@ -332,7 +366,7 @@
   flex-wrap: wrap;
   gap: 0.2rem;
   align-items: center;
-  font-size: var(--acks-fs-sm, 0.8em);
+  font-size: var(--acks-fs-label);
   opacity: 0.85;
 }
 .acks-extras-place-crumbs a {
@@ -371,7 +405,7 @@
   gap: 0.4rem;
   align-items: center;
   padding: 0.15rem 0.25rem;
-  border-bottom: 1px solid var(--color-border-light-tertiary, #b5b3a4);
+  border-bottom: var(--acks-border-soft);
 }
 .acks-extras-place-row img {
   width: 20px;
@@ -387,10 +421,13 @@
 .acks-extras-place-name {
   flex: 1;
 }
+/* Row metadata and the drop prompt are the same secondary-prose role: muted in
+   INK at label size. An opacity mute would composite toward the row's ground
+   rather than following the theme's own soft ink. */
 .acks-extras-place-owner,
 .acks-extras-place-hint {
-  font-size: var(--acks-fs-sm, 0.8em);
-  opacity: 0.7;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
 }
 .acks-extras-place-detach {
   cursor: pointer;
@@ -438,8 +475,14 @@
   cursor: pointer;
   text-decoration: none;
 }
+/* A PERSISTENT CURRENT MARKER, not a hover or a focus state: "the map I am on"
+   holds while nothing is being pointed at, so it never takes --acks-focus-color,
+   which names the hover/focus role only. Deep gold is theme-invariant and clears
+   the 3:1 mark floor on both seats (4.75:1 light, 3.69:1 dark) where flat gold
+   fails on paper; it also keeps the chip legible on a dark seat, where a
+   spot-ink outline would sit too close to the tag's own rule. */
 .acks-extras-place-scene.is-active {
-  outline: 1px solid var(--acks-color-accent, #7a5c2e);
+  outline: var(--acks-rule-hair) solid var(--acks-gold-deep);
 }
 
 .acks-extras-place-admin {
@@ -453,8 +496,9 @@
   gap: 0.6rem;
   align-items: center;
   padding: 0.6rem;
-  border: 1px dashed var(--color-border-light-tertiary, #b5b3a4);
-  border-radius: 4px;
+  /* Dashed marks an unbuilt slot, so the soft-border composite (solid) is out. */
+  border: var(--acks-rule-hair) dashed var(--acks-rule-color-soft);
+  border-radius: var(--acks-radius);
 }
 .acks-extras-place-nomarket .hint {
   flex: 1;

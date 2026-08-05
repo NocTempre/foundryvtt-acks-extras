@@ -14,8 +14,11 @@
       "acks-extras.attitude": "Attitude"
     }
   },
-  "ACKS-LIB.settings.sheetTheme.name": "Character-sheet theme",
-  "ACKS-LIB.settings.sheetTheme.hint": "Style the ACKS windows like the printed ACKS II character sheet: burgundy banners with small-caps lettering, gray sheet, white boxed fields. Per player.",
+  "ACKS-LIB.settings.theme.name": "ACKS colour scheme",
+  "ACKS-LIB.settings.theme.hint": "Which palette the ACKS windows draw in. Follow Foundry matches whatever colour scheme the rest of your client uses; Always light and Always dark hold the ACKS look steady regardless. Per player.",
+  "ACKS-LIB.settings.theme.follow": "Follow Foundry",
+  "ACKS-LIB.settings.theme.light": "Always light",
+  "ACKS-LIB.settings.theme.dark": "Always dark",
   "ACKS-LIB.settings.fontScale.name": "ACKS font size",
   "ACKS-LIB.settings.fontScale.hint": "Base size (px) for every ACKS surface — follower cards, module apps, and (with the theme on) the system sheets. One knob for the whole family; Foundry's own UI scale applies on top. Per player.",
   "ACKS-LIB.animal.training.untrained": "Untrained",

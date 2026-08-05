@@ -537,7 +537,7 @@ function containerHeader(actor, c, onRerender) {
               ? game.i18n.format("ACKS-EQUIPMENT.container.bashConfirmFragile", { name: c.item.name })
               : game.i18n.format("ACKS-EQUIPMENT.container.bashConfirm", { name: c.item.name });
             const ok = await foundry.applications.api.DialogV2.confirm({
-              classes: ["acks-extras", "acks-extras-scroll"],
+              classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
               window: { title: game.i18n.localize("ACKS-EQUIPMENT.container.bash") },
               content: `<p>${warning}</p>`,
               rejectClose: false,
@@ -694,9 +694,15 @@ function regroup(actor, tab) {
   for (const node of [worn, stowed].filter(Boolean)) column.insertBefore(node, after);
 
   // Core's own type lists are the "take it back out" target: dragging a stowed
-  // item back down to the ordinary inventory un-stows it.
+  // item back down to the ordinary inventory un-stows it. The section belongs to
+  // core, so it is also tagged with the module class: the drop-hover rendering
+  // keys on that class rather than on the bare `[data-drop-target]` attribute,
+  // which as a selector would reach every feature's drop zone.
   const loose = column.querySelector(".item-list-section:not(.acks-equipment-wear)");
-  if (loose) loose.dataset.dropTarget = "loose";
+  if (loose) {
+    loose.dataset.dropTarget = "loose";
+    loose.classList.add("acks-equipment-drop-loose");
+  }
 
   if (actor.isOwner) wireDropTargets(actor, column);
 }

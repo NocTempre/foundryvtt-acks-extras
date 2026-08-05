@@ -57,7 +57,7 @@ export function createEquipmentItemSheet(Base) {
 
   return class AcksEquipmentItemSheet extends Base {
     static DEFAULT_OPTIONS = {
-      classes: ["acks", "acks2", "item-v2", "acks-equipment-item", "acks-extras-scroll"],
+      classes: ["acks-ui", "acks", "acks2", "item-v2", "acks-equipment-item", "acks-extras-scroll"],
     };
 
     static PARTS = {

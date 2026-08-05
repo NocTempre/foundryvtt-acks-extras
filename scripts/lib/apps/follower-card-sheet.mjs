@@ -23,7 +23,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   foundry.applications.sheets.ActorSheetV2,
 ) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks", "acks-lib-follower-card-sheet", "acks-extras-scroll"],
+    classes: ["acks-ui", "acks", "acks-lib-follower-card-sheet", "acks-extras-scroll"],
     // Size to content (grow with the card), not a fixed height that leaves an
     // empty window-content bar below a short card. The card part scrolls if it
     // outgrows the viewport.
