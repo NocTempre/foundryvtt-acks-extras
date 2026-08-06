@@ -192,6 +192,23 @@ export const MASTERWORK = Object.freeze({
 });
 
 /**
+ * The Silver quality (RR ch.4 Weapon Qualities).
+ *
+ * Silver is the ONLY material in ACKS II that changes what a weapon can do —
+ * there is no cold iron, mithril or adamantine. Its whole mechanical weight is
+ * what the blade COUNTS AS, never a stat: a monster whose immunity or
+ * resistance carries the silver flaw treats a silver weapon as magic, and the
+ * spells that turn aside mundane damage do not turn silver aside. So this table
+ * holds a price and nothing else.
+ *
+ * `priceMultiplier` scales the weapon's own listed price and is applied ONLY to
+ * an item a reader explicitly plated (properties.mjs) — the RAW price list
+ * already charges "Silver Dagger" and "Silver Arrow" at their silvered price,
+ * and multiplying those again would bill the same plating twice.
+ */
+export const SILVER = Object.freeze({ priceMultiplier: 10, quality: "silver" });
+
+/**
  * RAW carrying devices (RR pp. 142–145, 293–294). Core's
  * acks-adventuring-equipment pack already ships these items, so we ANNOTATE
  * them in place (see the Annotate macro) rather than duplicating them.

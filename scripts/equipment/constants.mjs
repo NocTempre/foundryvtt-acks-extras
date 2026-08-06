@@ -76,6 +76,7 @@ export const ITEM_FLAGS = Object.freeze({
   MASTERWORK: "masterwork", // {toHit,toDamage,acWeight,ac}
   HELMET: "helmet", // "light" | "heavy"
   MATERIAL: "material", // primary material, for the item-loss materials table
+  SILVERED: "silvered", // RR ch.4 Silver quality: true = plated (price layer), false = explicitly not
   LOSS_CATEGORY: "lossCategory", // explicit position in the item-loss order
   LAYER: "layer", // clothing: "over" | "under" (armour)
   // {capacity: <stone>, locked, opened, concealed, fragile, lockMod} — marks an

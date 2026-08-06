@@ -125,8 +125,15 @@ export function weaponKey(item) {
   const key = slug(item?.name);
   if (WEAPONS[key]) return key;
   if (WEAPON_ALIASES[key] && WEAPONS[WEAPON_ALIASES[key]]) return WEAPON_ALIASES[key];
-  // partial contains match (e.g. "long bow, masterwork" → "longbow")
-  for (const k of Object.keys(WEAPONS)) {
+  // Partial contains match (e.g. "long bow, masterwork" → "longbow"), LONGEST
+  // key first. Table order would otherwise let a shorter key that is contained
+  // in a longer one win on the strength of being declared earlier: "Silver
+  // Dagger, masterwork" contains both `dagger` and `silverdagger`, and `dagger`
+  // is declared first — so the answer was a plain dagger and the Silver quality
+  // went with it. Length ordering picks the most specific weapon the name
+  // actually contains, whatever order the table happens to be in.
+  const byLength = Object.keys(WEAPONS).sort((a, b) => b.length - a.length);
+  for (const k of byLength) {
     if (key.includes(k)) return k;
   }
   return null;

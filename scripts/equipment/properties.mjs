@@ -22,10 +22,21 @@
  * "1d6 + 1-1"), which is also what a reader expects to see on the sheet.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
-import { MASTERWORK } from "./config.mjs";
+import { MASTERWORK, SILVER } from "./config.mjs";
 
 /** The flag holding the item's unmodified field values. */
 export const PRISTINE = "pristine";
+
+/**
+ * The reader's explicit answer about silver plating: `true` plated, `false`
+ * explicitly not, `null` never stated (so `isSilvered` in silver.mjs guesses).
+ * The price layer below keys on `true` alone — only plating a reader ASKED for
+ * bills them for it.
+ */
+export function silveredFlagOf(item) {
+  const v = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED);
+  return v === undefined || v === null ? null : !!v;
+}
 
 /** Split a damage string into its die text and trailing flat modifier. */
 export function splitDamage(damage) {
@@ -71,12 +82,20 @@ export const scavengedOf = (item) => item?.getFlag?.(MODULE_ID, "scavenged") ?? 
  * The combined deltas of every active layer.
  * @returns {{bonus:number, damage:number, ac:number, weight6:number}}
  */
-export function layerDeltas(item, { masterwork = masterworkTierOf(item), scavenged = scavengedOf(item) } = {}) {
-  // `costAdd` is added to the pristine price; `costMul` then scales the whole —
-  // a masterwork item costs its surcharge MORE, and a scavenged one is worth a
-  // fraction of whatever it would otherwise fetch (RR p160 sells scavenged gear
-  // "in volumes determined by their actual (reduced) value").
-  const d = { bonus: 0, damage: 0, ac: 0, weight6: 0, costAdd: 0, costMul: 1 };
+export function layerDeltas(
+  item,
+  { masterwork = masterworkTierOf(item), scavenged = scavengedOf(item), silvered = silveredFlagOf(item) === true } = {},
+) {
+  // `costBaseMul` scales the weapon's OWN listed price, `costAdd` is then added,
+  // and `costMul` scales the whole. The order is the rules': silver is "10× the
+  // listed price of the weapon" (RR ch.4) and so cannot multiply a masterwork
+  // surcharge that RAW states as a flat "additional 80gp" (RR p159); a scavenged
+  // item is then worth a fraction of whatever it would otherwise fetch (RR p160
+  // sells scavenged gear "in volumes determined by their actual (reduced) value").
+  const d = { bonus: 0, damage: 0, ac: 0, weight6: 0, costAdd: 0, costMul: 1, costBaseMul: 1 };
+  // Silver moves no other number: "apart from gaining the Silver feature, the
+  // weapon's characteristics do not change" (RR ch.4).
+  if (silvered) d.costBaseMul *= SILVER.priceMultiplier;
   const mw = masterwork && masterwork !== "none" ? MASTERWORK[masterwork] : null;
   if (mw) {
     d.bonus += mw.toHit ?? 0;
@@ -107,7 +126,8 @@ export async function recomputeItemFields(item, overrides = {}) {
   if (!item) return;
   const masterwork = "masterwork" in overrides ? overrides.masterwork : masterworkTierOf(item);
   const scavenged = "scavenged" in overrides ? overrides.scavenged : scavengedOf(item);
-  const anyLayer = !!(masterwork && masterwork !== "none") || !!scavenged;
+  const silvered = "silvered" in overrides ? overrides.silvered : silveredFlagOf(item) === true;
+  const anyLayer = !!(masterwork && masterwork !== "none") || !!scavenged || silvered;
 
   const stored = item.getFlag?.(MODULE_ID, PRISTINE) ?? null;
   // With no snapshot yet, the item as it stands IS pristine — capture it before
@@ -127,14 +147,14 @@ export async function recomputeItemFields(item, overrides = {}) {
     return;
   }
 
-  const d = layerDeltas(item, { masterwork, scavenged });
+  const d = layerDeltas(item, { masterwork, scavenged, silvered });
   update["system.bonus"] = base.bonus + d.bonus;
   if (item.type === "weapon") update["system.damage"] = withFlatDelta(base.damage, d.damage);
   if (item.type === "armor") update["system.aac.value"] = Math.max(0, base.ac + d.ac);
   update["system.weight6"] = Math.max(0, base.weight6 + d.weight6);
-  // Price follows the layers: surcharge first, resale fraction second. Rounded
-  // to a hundredth so a 67% of 3gp reads 2.01, not a float tail.
-  const cost = (Number(base.cost ?? 0) + d.costAdd) * d.costMul;
+  // Price follows the layers: plating first, surcharge second, resale fraction
+  // last. Rounded to a hundredth so a 67% of 3gp reads 2.01, not a float tail.
+  const cost = (Number(base.cost ?? 0) * d.costBaseMul + d.costAdd) * d.costMul;
   update["system.cost"] = Math.round(cost * 100) / 100;
   if (!stored) update[`flags.${MODULE_ID}.${PRISTINE}`] = base;
   await item.update?.(update);
@@ -156,8 +176,8 @@ export function layerSummary(item) {
   // Say what happened to the PRICE, since that is the whole point of a resale
   // percentage and the number on the sheet otherwise looks unexplained.
   const base = pristineOf(item);
-  if (d.costAdd || d.costMul !== 1) {
-    const priced = Math.round((Number(base.cost ?? 0) + d.costAdd) * d.costMul * 100) / 100;
+  if (d.costAdd || d.costMul !== 1 || d.costBaseMul !== 1) {
+    const priced = Math.round((Number(base.cost ?? 0) * d.costBaseMul + d.costAdd) * d.costMul * 100) / 100;
     bits.push(`${priced}gp (was ${base.cost ?? 0}gp)`);
   }
   return bits.join(", ");

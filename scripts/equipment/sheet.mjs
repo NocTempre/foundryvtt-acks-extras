@@ -27,7 +27,8 @@ import {
   scavengeItem, clearScavenged, setScavengedRow, scavengedOptions, setShieldVariant, SHIELD_VARIANT_KEYS,
   setGearSlots, setGearAccess, setGearCapacity, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
 } from "./actions.mjs";
-import { masterworkTierOf, scavengedOf, layerSummary } from "./properties.mjs";
+import { masterworkTierOf, scavengedOf, layerSummary, silveredFlagOf } from "./properties.mjs";
+import { canBeSilvered, isSilvered, setSilvered } from "./silver.mjs";
 import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
 import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf } from "../lib/item-model.mjs";
 import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity } from "../lib/vocab.mjs";
@@ -787,8 +788,38 @@ export function buildConstructionPanel(item) {
       async () => { const r = await scavengeItem(item); if (r) await postScavengeCard(item, r); }, "narrow"));
     row("ACKS-EQUIPMENT.props.condition", g);
 
+    // Masterwork buys numbers, never eligibility: a masterwork blade still
+    // cannot touch a magical monster "unless forged of a material otherwise
+    // capable of doing so (e.g. silver)" (RR p159). Said here because the tier
+    // picker is exactly where a reader forms the opposite impression.
+    if (item.type === "weapon" && tier !== "none" && !isSilvered(item)) {
+      row("", el("span", "acks-equipment-props__note", game.i18n.localize("ACKS-EQUIPMENT.props.masterworkReachNote")));
+    }
+
     const summary = layerSummary(item);
     if (summary) row("ACKS-EQUIPMENT.props.net", el("span", "acks-equipment-props__note", summary));
+  }
+
+  // SILVER (RR ch.4) — a weapon quality, so weapons and ammunition only. "Auto"
+  // hands the answer back to the weapon table and the name; picking Silvered
+  // outright is what applies the 10× price, since the RAW list already charges
+  // a Silver Dagger its silvered price and must not be billed twice.
+  if (canBeSilvered(item)) {
+    const flag = silveredFlagOf(item);
+    row("ACKS-EQUIPMENT.props.silver", select(
+      [{ value: "auto", label: game.i18n.format("ACKS-EQUIPMENT.props.silverAuto", {
+        guess: game.i18n.localize(isSilvered(item) ? "ACKS-EQUIPMENT.props.silverYes" : "ACKS-EQUIPMENT.props.silverNo") }) },
+      { value: "true", label: game.i18n.localize("ACKS-EQUIPMENT.props.silverYes") },
+      { value: "false", label: game.i18n.localize("ACKS-EQUIPMENT.props.silverNo") }],
+      flag === null ? "auto" : String(flag),
+      (v) => setSilvered(item, v === "auto" ? "auto" : v === "true"),
+    ));
+    // Silver moves no number — it decides what the blade COUNTS AS. Saying so
+    // stops it reading as a picker that silently does nothing.
+    row("", el("span", "acks-equipment-props__note",
+      game.i18n.localize(isSilvered(item)
+        ? "ACKS-EQUIPMENT.props.silverNote"
+        : "ACKS-EQUIPMENT.props.silverNoneNote")));
   }
 
   // MATERIAL (any physical item) — "Auto" clears the flag → the name/type guess.

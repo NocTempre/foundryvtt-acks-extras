@@ -31,7 +31,7 @@ behavior.
 | **Noncombatant** | extras | `.noncombatant` |
 | **Secondary characteristics** | extras | `.secondary.*` (expeditionSpeed, supplyCost, trainingMonths, intelligence, trainingModifier, battleRating, lifespan, oviparous, reproduction, untrainedValue, trainedValue[]) |
 | **Encounter (rich)** | extras | `.encounter.{lairChance, dungeon, wilderness}` |
-| **Immunities / resistances / susceptibilities** | extras | `.defenses.{immunities,resistances,susceptibilities}` = `{damage:Set, mundane, extraordinary, effects, note}` |
+| **Immunities / resistances / susceptibilities** | extras | `.defenses.{immunities,resistances,susceptibilities}` = `{damage:Set, mundane, extraordinary, silverFlaw, effects, note}`. `silverFlaw` is RR ch.6's common flaw — silver counts as magic against this defence — and rides immunities and resistances only, never a susceptibility. |
 | **Spellcasting** | extras | `.spellcasting.{class,level,note}` (repertoire = core spell items + `system.spells` slots) |
 | **HD / save ranges** | extras | `.hd.countMax`, `.saveAs.levelMax` (e.g. hydra "5 to 12") |
 | **Related stat lines** | extras | `.variants[]` = `{label, uuid}` |

@@ -1762,6 +1762,62 @@ const noop = await clearHands(alreadyFree, 1);
 check("clearHands disturbs nothing when a hand is already free", noop.released.length === 0 && noop.handsSpare === 2);
 
 /* ---------------------------------------------------------------------- */
+/*  Silver (RR ch.4) — the one material that changes what a weapon counts as */
+/* ---------------------------------------------------------------------- */
+
+const { isSilvered, canBeSilvered, dealsExtraordinaryDamage } = await import(new URL("silver.mjs", S));
+const { layerDeltas } = await import(new URL("properties.mjs", S));
+const { weaponKey } = await import(new URL("profiles.mjs", S));
+const weaponKeyOf = (name) => weaponKey({ name });
+
+/** An item whose silver flag (and any other) is whatever the caller states. */
+const silverItem = (name, type = "weapon", flags = {}) => ({
+  name, type,
+  system: { cost: 10, weight6: 1, damage: "1d4" },
+  getFlag: (_m, k) => flags[k],
+});
+
+// The table entry. Silver Dagger is the one RAW weapon carrying the quality.
+check("the RAW Silver Dagger counts as silver", isSilvered(silverItem("Silver Dagger")));
+check("an ordinary dagger does not", !isSilvered(silverItem("Dagger")));
+
+// The name, for the 10× silver version of any other common weapon RAW allows.
+check("a silvered sword counts as silver", isSilvered(silverItem("Silvered Sword")));
+check("a silver-coated spear counts as silver", isSilvered(silverItem("Silver-Coated Spear")));
+
+// An explicit answer overrules both. `false` is a real answer, not an absence:
+// it is how a reader denies a name that says silver when the item is not.
+check("an explicit yes silvers an ordinary blade", isSilvered(silverItem("Sword", "weapon", { silvered: true })));
+check("an explicit no overrules the name", !isSilvered(silverItem("Silver Dagger", "weapon", { silvered: false })));
+
+// Silver is a WEAPON quality. Armour and ordinary gear cannot carry it however
+// they are named, so nothing downstream reads silver off a silver ring.
+check("armour cannot be silvered", !canBeSilvered(silverItem("Silvered Plate", "armor")));
+check("a silver ring is not a silver weapon", !isSilvered(silverItem("Silver Ring", "item")));
+check("ammunition can be silvered", isSilvered(silverItem("Silver Arrow", "item")));
+
+// The three rulings collapse into one question, which the monsters feature's
+// own weapon flag already asks.
+check("silver deals extraordinary damage", dealsExtraordinaryDamage(silverItem("Silver Dagger")));
+check("an already-extraordinary weapon still does", dealsExtraordinaryDamage(silverItem("Sword", "weapon", { extraordinary: true })));
+check("an ordinary sword does not", !dealsExtraordinaryDamage(silverItem("Sword")));
+
+// PRICE. Plating multiplies the weapon's own listed price; a masterwork
+// surcharge is a flat "additional 80gp" (RR p159) and must not be multiplied
+// with it. 10gp blade → 100gp silvered → 180gp silvered AND masterworked.
+const silverOnly = layerDeltas(silverItem("Sword"), { silvered: true, masterwork: null, scavenged: null });
+check("silver multiplies the listed price tenfold", silverOnly.costBaseMul === 10 && silverOnly.costAdd === 0);
+check("silver moves no other number", !silverOnly.bonus && !silverOnly.damage && !silverOnly.ac && !silverOnly.weight6);
+const silverMw = layerDeltas(silverItem("Sword"), { silvered: true, masterwork: "weaponToHit", scavenged: null });
+const silverMwPrice = 10 * silverMw.costBaseMul + silverMw.costAdd;
+check("a masterwork surcharge is added after plating, never multiplied by it", silverMwPrice === 180);
+
+// The quality survives a decorated name. `dagger` is declared before
+// `silverdagger` in the weapon table, so table order alone answered "dagger".
+check("a decorated Silver Dagger keeps its quality", weaponKeyOf("Silver Dagger, masterwork") === "silverdagger");
+check("an ordinary decorated dagger is still a dagger", weaponKeyOf("Dagger, masterwork") === "dagger");
+
+/* ---------------------------------------------------------------------- */
 /*  Shipped macros compile                                                 */
 /* ---------------------------------------------------------------------- */
 

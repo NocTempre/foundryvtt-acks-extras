@@ -85,10 +85,17 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
       //     `damage` is a set of damage types; `effects` is free text (open
       //     keywords like "enchantment", "all death effects"). ---
       defenses: new SchemaField({
+        // `silverFlaw` is the common flaw of RR ch.6: the monster "treats
+        // weapons made of silver as if they were magic for purposes of its
+        // resistance", which the MM states per monster as "silver weapons deal
+        // extraordinary damage against it". It rides immunities and resistances
+        // only — a susceptibility is a weakness, and has no defence to poke a
+        // hole in.
         immunities: new SchemaField({
           damage: choiceSet(DAMAGE_TYPES),
           mundane: bool(false),
           extraordinary: bool(false),
+          silverFlaw: bool(false),
           effects: str(),
           note: str(),
         }),
@@ -96,6 +103,7 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
           damage: choiceSet(DAMAGE_TYPES),
           mundane: bool(false),
           extraordinary: bool(false),
+          silverFlaw: bool(false),
           effects: str(),
           note: str(),
         }),

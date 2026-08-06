@@ -21,6 +21,7 @@
  */
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "./constants.mjs";
 import { WEAPON_CATEGORY } from "./config.mjs";
+import { isSilvered } from "./silver.mjs";
 import { slug } from "../lib/vocab.mjs";
 
 /** Ammo-name pattern a launcher consumes, or null if it is not a launcher. */
@@ -128,12 +129,30 @@ export async function consumeForAttack(actor, item, profile, options = {}) {
   // Otherwise it is a launcher: find and decrement the matching ammunition.
   const pattern = launcherAmmoPattern(item, profile);
   if (!pattern) return; // a pure-thrown missile (bola/oil) is handled above; unknown → skip
-  const ammo = actor.items.find((i) => pattern.test(i.name) && roundsOf(i) > 0);
+  const ammo = pickAmmo(actor, pattern);
   if (!ammo) {
     notify("outOf", { item: item.name });
     return;
   }
   const left = roundsOf(ammo) - 1;
   await setRounds(ammo, left);
-  notify("fired", { ammo: ammo.name, left });
+  notify(isSilvered(ammo) ? "firedSilver" : "fired", { ammo: ammo.name, left });
+}
+
+/**
+ * Which stack the shot comes out of. Silvered ammunition costs ten times what
+ * ordinary ammunition costs (RR ch.4) and is bought for one fight in particular,
+ * so it is never spent by default: an EQUIPPED stack is the archer's declared
+ * choice and wins outright, and failing that plain ammunition goes first. Silver
+ * is fired only once it is what is left — which is also the moment the archer
+ * most wants to be told, hence its own message.
+ */
+function pickAmmo(actor, pattern) {
+  const stacks = actor.items.filter((i) => pattern.test(i.name) && roundsOf(i) > 0);
+  return (
+    stacks.find((i) => i.system?.equipped) ??
+    stacks.find((i) => !isSilvered(i)) ??
+    stacks[0] ??
+    null
+  );
 }

@@ -68,6 +68,35 @@ A slot's only rule is that you cannot wear two of the same thing, so a wrong
 guess costs nothing but that. Rings are the exception the Treasure Tome spells
 out: you benefit from **two**, and a third stops all of them working.
 
+## Silvered weapons
+
+RAW lets you commission a silver version of **any** common weapon for 10× its
+listed price, not just the Silver Dagger on the price list. Open the weapon, go
+to **Construction**, and set *Silver* to **Silvered** — the price goes up tenfold
+and nothing else about the weapon changes, which is exactly what the rules say
+happens.
+
+| Choice | Means |
+|---|---|
+| *Auto (…)* | read it off the weapon table and the name — a Silver Dagger or a "Silvered Sword" is already silver, and costs nothing extra because you bought it that way |
+| *Silvered* | plate this weapon now: 10× the listed price |
+| *Not silvered* | it is not silver whatever it is called |
+
+What silver buys is not a bonus — it is what the blade **counts as**. A monster
+whose defence has the silver flaw treats it as magic, and the spells that turn
+aside mundane damage do not turn it aside. Mark the flaw on the monster's
+**Defenses** tab, beside *Mundane* and *Extraordinary*; the stat block will say
+"silver weapons deal extraordinary damage against it" when it applies.
+
+Masterwork is a separate thing and does not help here: it buys +1 to hit or
+damage, never the ability to harm something that shrugs off ordinary weapons.
+The sheet says so under the tier picker.
+
+**Silver arrows are never spent by accident.** With both plain and silver
+ammunition in your pack, shots come out of the plain stack until it is empty. To
+fire the silver deliberately, **equip** that stack — an equipped stack is your
+declared choice and wins. When a silver round does go, the notification says so.
+
 ## Containers
 
 **New container** on the equipment tab. Drop items onto its bucket to stow them.

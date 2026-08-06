@@ -172,3 +172,60 @@ a pouch on your belt and a sack on your back differ by what they are. So `access
 sits on the gear model beside `slots`, and the container profile table carries
 both — one table, because capacity, slot and access are all the same fact about
 one piece of kit.
+
+### Silver is a quality, not a material (2026-08-06)
+
+The construction tab already had a **Material** picker, but its whole meaning was
+destructibility for the JJ p398 item-loss overlay — its vocabulary is `metal`,
+`wood`, `cloth` and the like, and it says so on the sheet. A reader who wanted a
+silvered blade found the field that looked like the answer and got nothing, which
+is the report this work came from.
+
+Reading the books settled what "more materials" amounts to: **there is no second
+material.** ACKS II has no cold iron, no mithril, no adamantine. Silver is the
+only one, it is printed as a *weapon quality* beside Cleave and Impact rather
+than as a substance, and it moves no number — "apart from gaining the Silver
+feature, the weapon's characteristics do not change" (RR ch.4).
+
+So silver is modelled where the book puts it, as a quality, and the Material
+picker was left exactly as it was. Two things follow from that:
+
+- **Silver rides its own flag, not the material vocabulary.** Adding `silver`
+  beside `metal` in `MATERIALS_BY_DAMAGE_TYPE` would have been the cheap move and
+  it would have been wrong twice over: it would claim a silvered sword is
+  destroyed by a different set of damage types than a steel one (it is not), and
+  it would make the two facts mutually exclusive when a silvered blade is still
+  metal for item loss.
+- **Three rulings, one question.** A monster's silver flaw (RR ch.6), the spells
+  that turn aside mundane damage, and the masterwork caveat at RR p159 all reduce
+  to "does this attack deal extraordinary damage" — which the monsters feature
+  already asks of a weapon through its own `extraordinary` flag. Silver answers
+  that question (`dealsExtraordinaryDamage`) rather than opening a second one
+  beside it.
+
+**The price layer keys on an explicit answer only.** Silvering costs 10× the
+weapon's listed price, but the RAW price list already sells Silver Dagger and
+Silver Arrow at their silvered price — so multiplying anything that merely
+*reads* as silver would bill the plating twice. Only plating a reader asked for
+through the control charges for it. That is also why `false` is a storable
+answer and not just an absence: it is how a Judge denies a name that says silver.
+
+**What was rejected: deciding the outcome.** The module says what the weapon
+counts as; whether a given monster's resistance carries the flaw is the Judge's
+reading of its stat block, and the attack-roll pipeline was left alone. Its
+`notes` reach `console.debug` and never the chat card, so a silver note added
+there would have been invisible to the player anyway.
+
+### The weapon table is searched longest-key-first (2026-08-06)
+
+`weaponKey()`'s substring fallback walked the table in declaration order, and
+`dagger` is declared one line before `silverdagger`. "Silver Dagger, masterwork"
+therefore resolved to a plain dagger and dropped the Silver quality without a
+word — a shorter key winning purely on being written first. Sorting the keys by
+length picks the most specific weapon the name actually contains, whatever order
+the table happens to be in.
+
+This does **not** cover every spelling: "Silvered Dagger" slugs to
+`silvereddagger`, which does not contain `silverdagger` at all. That is the
+reason `isSilvered` consults the name in its own right rather than depending on
+the weapon table to carry the quality.

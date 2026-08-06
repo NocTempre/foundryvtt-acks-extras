@@ -1,5 +1,71 @@
 # Changelog
 
+## 3.3.0
+
+### Fixed
+- **Resting refreshes spent magic again.** The rest control on the casting
+  strip wrote an empty spend record over the old one, but Foundry merges
+  updates — merging nothing changes nothing, so every pip stayed spent
+  through any number of rests, for every caster, since the strip shipped.
+  The record is now deleted outright and a night's rest clears the strip.
+- **A decorated name keeps the weapon it names.** "Silver Dagger, masterwork"
+  was read as a plain dagger and quietly lost its silver, because the weapon
+  table was searched in the order it happens to be written and `dagger` is
+  written one line above `silverdagger`. The most specific weapon a name
+  contains now wins, whatever order the table is in.
+
+### Added
+- **Silver is something a blade can be given, not a substance it is made of.**
+  The Material field on an item's Construction tab has only ever decided what
+  destroys a thing, and said so — so a reader after a silvered sword found the
+  field that looked like the answer and got nothing. Weapons and ammunition now
+  carry a *Silver* control of their own: silvering any common weapon costs ten
+  times its listed price and changes nothing else about it, exactly as the rules
+  have it. What it buys is what the blade counts as — extraordinary damage
+  against a defence with the silver flaw, and against the spells that turn aside
+  mundane damage. The Material field is untouched, and a Silver Dagger bought
+  off the price list still costs what the list charges.
+- **A monster's defence can be flawed against silver.** Immunities and
+  resistances take a *Silver flaw* box beside Mundane and Extraordinary, for the
+  stat blocks that read "silver weapons deal extraordinary damage against it".
+  Whether a given monster has it stays the Judge's reading; the module says what
+  the weapon counts as and stops there.
+- **Silver arrows are not spent by accident.** With plain and silver ammunition
+  both in the pack, shots come out of the plain stack first. Equipping a stack
+  declares it as the one to fire, and a silver round announces itself when it
+  goes.
+- **Masterwork no longer looks like it buys reach.** A masterwork weapon that is
+  not silvered now says on its own sheet that the tier buys numbers and not the
+  ability to harm what shrugs off ordinary weapons.
+- **Point pools spend and refresh on the strip.** A tradition kept as a pool
+  of points (the schema has carried the kind since 3.0.0; content arrives
+  with the eldritch and ceremonial chapters) now shows its total with −/+
+  controls beside the slot pips, spends by click, and clears on the same
+  rest. A tradition whose measure is a ladder rung — the gnostic invocation
+  level — shows that rung as a capacity line instead of pips.
+- **The sheet files what a class hands out.** Ability lists grow a filter
+  bar — fighting skills, thief skills, general proficiencies, class
+  proficiencies, class powers, racial traits — and the spell list files by
+  casting tradition, one tab per tradition the world's spells actually name.
+  The bars only appear where a sheet holds more than one kind.
+- **A skinned item says what it is.** Gear granted from a template under a
+  printed descriptor — the long bearded axe that is a great axe — carries a
+  badge on its sheet naming the base item, with the descriptor's own words
+  set apart from the base name.
+- **A template's spellbook teaches its spells.** Where a starting package
+  prints a spellbook with named contents, chargen now grants those spells as
+  spell items alongside the book — matched against the world's imported
+  spells, reported when a name finds nothing.
+- **The constructor edits casting and templates.** The class sheet's two
+  read-only summaries are gone; in their place, a Casting tab (traditions,
+  kind, slot grid, pool schedule, caster-level ladder) and a Templates tab
+  (the eight 3d6 bands with their abilities, items and spells) — so a
+  homebrew class can be authored whole, not just imported. Description and
+  code-of-behavior use the system's own rich-text editor.
+- **A throw can progress as any class the world holds.** The roll editor's
+  progression picker now offers every class document — imported or homebrew
+  — not just the four chassis.
+
 ## 3.2.0
 
 ### Added

@@ -107,6 +107,16 @@ export const weightStoneOf = (item) => weight6Of(item) / STONE;
  */
 export const isClothing = (item) => item?.type === "item" && item?.system?.subtype === "clothing";
 
+/** Every ammunition name RAW recognises, across all three launcher families. */
+const AMMO_NAME = /arrow|bolt|quarrel|bullet|sling\s*stone|shot/i;
+
+/**
+ * Is this item a stack of ammunition? The schema has no ammo sub-type, so this
+ * reads the name — the same basis the per-launcher patterns in the equipment
+ * feature's `ammo.mjs` use, kept here because more than one feature asks.
+ */
+export const isAmmoItem = (item) => AMMO_NAME.test(item?.name ?? "");
+
 /**
  * What this item contributes to encumbrance, in `weight6`.
  *

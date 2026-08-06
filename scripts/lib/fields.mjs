@@ -127,6 +127,10 @@ export function defensesField() {
       conditions: choiceSet(CONDITION_KEYS),
       mundane: bool(), // only harmed by extraordinary
       extraordinary: bool(), // only harmed by mundane
+      // RR ch.6's common flaw: silver counts as magic against this defence, so
+      // a silver weapon deals extraordinary damage. Meaningless on a
+      // susceptibility, which is a weakness rather than a defence.
+      silverFlaw: bool(),
     });
   return new SchemaField({ immunities: band(), resistances: band(), susceptibilities: band() });
 }

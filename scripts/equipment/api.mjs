@@ -14,6 +14,7 @@ import { FLAG_GEAR } from "../lib/constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
 import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATERIALS } from "./overlays/item-loss.mjs";
+import { isSilvered, canBeSilvered, setSilvered, dealsExtraordinaryDamage } from "./silver.mjs";
 import { maneuverMods, MANEUVERS } from "./overlays/maneuvers.mjs";
 import * as named from "./overlays/named.mjs";
 import { consumeForAttack, recoverThrown, isThrownAway, consumeItem } from "./ammo.mjs";
@@ -199,6 +200,11 @@ export function buildApi() {
     HELM_MODIFIERS,
     setMaterial,
     MATERIALS,
+    // Silver (RR ch.4) — the one material that changes what a weapon counts as
+    isSilvered,
+    canBeSilvered,
+    setSilvered,
+    dealsExtraordinaryDamage,
     isSpellbook,
     spellbookValue,
     pagesUsed,
