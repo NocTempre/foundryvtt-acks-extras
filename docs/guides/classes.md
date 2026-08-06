@@ -4,11 +4,12 @@ Screenshots land here with each release (see [GALLERY](../GALLERY.md)).
 
 ## Getting class documents
 
-Import them from your own book: connect the Revised Rulebook in ACKS
-Importer, then run `acksImporter.importClasses()` (or the macro). Every class
-arrives as a **Class** item — progressions, saves, awards, starting
-templates — read from your PDF. Or build homebrew from scratch: **Create
-Item → Class** opens the same constructor.
+Import them from your own book: connect the Revised Rulebook — and By This
+Axe, if you own it — in ACKS Importer, then run
+`acksImporter.importClasses()` (or the macro). Every class arrives as a
+**Class** item — progressions, saves, awards, starting templates — read from
+your PDF. Or build homebrew from scratch: **Create Item → Class** opens the
+same constructor.
 
 ## On the character sheet
 
