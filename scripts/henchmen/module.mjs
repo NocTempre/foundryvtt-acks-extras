@@ -21,6 +21,7 @@ import * as diceRules from "./rules/dice.mjs";
 import * as adapter from "./acks-adapter.mjs";
 import { collectEffectModifiers, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 import HenchmanRecord from "./data/henchman-record.mjs";
+import { isGroupActor } from "../lib/group-logic.mjs";
 import { LocationSheet } from "../location/apps/location-sheet.mjs";
 import { ThrowDialog, openThrowDialog } from "./apps/throw-dialog.mjs";
 import { openPostingDialog } from "./apps/posting-dialog.mjs";
@@ -306,8 +307,8 @@ Hooks.on("renderActorSheetV2", (app, element) => {
   else header.append(button);
 });
 
-/* "Roll Unit Morale" on an acks-lib.group actor's directory context menu — the
- * group sheet lives in acks-lib, so this stays out of it. */
+/* "Roll Unit Morale" on a group actor's directory context menu — the group
+ * sheet lives in the library half, so this stays out of it. */
 Hooks.on("getActorContextOptions", (_directory, options) => {
   const findActor = (li) => {
     const el = li instanceof HTMLElement ? li : li?.[0];
@@ -317,7 +318,7 @@ Hooks.on("getActorContextOptions", (_directory, options) => {
   options.push({
     label: "ACKS-HENCHMEN.unitMorale.menu",
     icon: '<i class="fas fa-flag"></i>',
-    visible: (li) => findActor(li)?.type === "acks-lib.group",
+    visible: (li) => isGroupActor(findActor(li)),
     onClick: async (_event, li) => {
       const actor = findActor(li);
       if (!actor) return;

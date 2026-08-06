@@ -1,5 +1,26 @@
 # Changelog
 
+## 3.1.3
+
+### Fixed
+- **Hiring a unit as a group works again, and that unit's morale and wages come
+  with it.** Three places in the henchmen code still called the group actor by
+  the module id it carried before the nine modules merged into one. Foundry does
+  not recognise that name, so it refused every actor "Hire as Group" tried to
+  create — the hire stopped with an error instead of fielding a unit, and
+  nothing reached the world. The same stale name kept "Roll Unit Morale" off a
+  group's right-click menu, because the entry was asking for an actor type that
+  can no longer exist, and left the monthly wage, arrears and unit-adoption
+  passes hunting for units they were never going to find. A mercenary company
+  hired through a location's market is now created, shows its morale roll where
+  a Judge would reach for it, and is billed each month like any other retainer.
+  All three sites now read the single shared constant the rest of the module
+  already reads, so they cannot drift from the registered type again. **No world
+  data was affected and nothing needs repairing**: the refused creations never
+  landed, so no world holds a half-made unit. Actors left behind by the
+  pre-merge modules remain the "Clean Up After the Merge (GM)" macro's business,
+  exactly as before.
+
 ## 3.1.2
 
 ### Fixed

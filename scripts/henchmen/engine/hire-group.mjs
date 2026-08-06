@@ -13,6 +13,7 @@
  * an officer leads across an army) and Battles integration are acks-troops.
  */
 import { MODULE_ID, HOOKS } from "../constants.mjs";
+import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { hire, employerOwnership, updateCandidate } from "./hire.mjs";
 import { mercenaryMorale } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
@@ -23,7 +24,6 @@ import { now } from "../time.mjs";
  *  henchman-cap slot). `{ lastPaidTime, arrearsGp }`. */
 export const FLAG_GROUP_PAY = "groupPay";
 
-const GROUP_TYPE = "acks-lib.group";
 const acksGroups = () => globalThis.acksExtras?.lib?.groups ?? null;
 
 /** Mounted troop types — they count DOUBLE toward the RR 169 command capacity

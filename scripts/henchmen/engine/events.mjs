@@ -18,6 +18,7 @@ import HenchmanRecord from "../data/henchman-record.mjs";
 import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey } from "../rules/loyalty.mjs";
 import { henchmanWage, mercenaryWage } from "../rules/wages.mjs";
 import { FLAG_GROUP_PAY } from "./hire-group.mjs";
+import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { collectEffectModifiers, sumEffectModifiers, toDialogModifiers, hasEffectFlag } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { openThrowDialog } from "../apps/throw-dialog.mjs";
@@ -325,8 +326,6 @@ function dueHirelings(employer, currentTime) {
   }
   return due;
 }
-
-const GROUP_TYPE = "acks-lib.group";
 
 /** A mercenary group's monthly wage (RR 168): every living body's troop wage,
  *  read from each stack's troop type. The officer is a lone retainer paid through
