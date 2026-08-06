@@ -18,7 +18,7 @@
 
 <nav class="acks-extras-classes-tabs">
   {{#each tabs}}
-    <button type="button" data-action="tab" data-tab="{{id}}" class="{{#if active}}active{{/if}}">{{label}}</button>
+    <button type="button" data-action="classTab" data-tab="{{id}}" class="{{#if active}}active{{/if}}">{{label}}</button>
   {{/each}}
 </nav>
 
@@ -42,6 +42,7 @@
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.requirements"}}
         <a data-action="rowAdd" data-array="requirements"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#unless requirements.length}}<p class="hint">{{localize "ACKS-CLASSES.sheet.noRequirements"}}</p>{{/unless}}
       {{#each requirements}}
         <div class="acks-extras-classes-row">
           <select name="system.requirements.{{index}}.attr">
@@ -69,14 +70,24 @@
       </label>
     </div>
     <div class="form-group stacked">
-      <label>{{localize "ACKS-CLASSES.sheet.description"}}</label>
-      <textarea name="system.description" rows="4">{{system.description}}</textarea>
+      <label>{{localize "ACKS-CLASSES.sheet.description"}}
+        <a data-action="editProse" data-field="description" data-tooltip="{{localize "ACKS-CLASSES.sheet.editSource"}}"><i class="fa-solid fa-pen"></i></a></label>
+      {{#if prose.description.editing}}
+        <textarea name="system.description" rows="4">{{prose.description.source}}</textarea>
+      {{else}}
+        <div class="acks-extras-classes-prose">{{{prose.description.html}}}</div>
+      {{/if}}
     </div>
     <div class="form-group stacked">
-      <label>{{localize "ACKS-CLASSES.sheet.codeOfBehavior"}}</label>
-      <textarea name="system.codeOfBehavior" rows="3">{{system.codeOfBehavior}}</textarea>
+      <label>{{localize "ACKS-CLASSES.sheet.codeOfBehavior"}}
+        <a data-action="editProse" data-field="codeOfBehavior" data-tooltip="{{localize "ACKS-CLASSES.sheet.editSource"}}"><i class="fa-solid fa-pen"></i></a></label>
+      {{#if prose.codeOfBehavior.editing}}
+        <textarea name="system.codeOfBehavior" rows="3">{{prose.codeOfBehavior.source}}</textarea>
+      {{else}}
+        <div class="acks-extras-classes-prose">{{{prose.codeOfBehavior.html}}}</div>
+      {{/if}}
     </div>
-    <p class="hint">{{localize "ACKS-CLASSES.sheet.castingSummary"}}:
+    <p class="hint acks-extras-classes-footnote">{{localize "ACKS-CLASSES.sheet.castingSummary"}}:
       {{#each castingSummary}}{{label}} ({{kind}}, {{rows}}) {{/each}}
       · {{localize "ACKS-CLASSES.sheet.templatesSummary"}}: {{templateCount}}
       · {{localize "ACKS-CLASSES.sheet.laterPhase"}}</p>

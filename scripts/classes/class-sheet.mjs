@@ -48,9 +48,12 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     form: { submitOnChange: true, closeOnSubmit: false },
     window: { resizable: true },
     actions: {
-      tab: ClassSheet.#onTab,
+      // NEVER "tab": ApplicationV2 reserves that action for its own tab
+      // machinery, which throws without a data-group and swallows the click.
+      classTab: ClassSheet.#onTab,
       rowAdd: ClassSheet.#onRowAdd,
       rowDelete: ClassSheet.#onRowDelete,
+      editProse: ClassSheet.#onEditProse,
     },
   };
 
@@ -60,6 +63,9 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
 
   /** The active sheet-local tab. */
   #tab = "overview";
+
+  /** Prose fields flipped from enriched view to source editing. */
+  #editingProse = new Set();
 
   /** @override */
   async _prepareContext(options) {
@@ -75,6 +81,23 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     }));
     context.show = Object.fromEntries(TABS.map((id) => [id, id === this.#tab]));
     context.isStub = sys.isStub;
+
+    // Prose renders ENRICHED (an imported class's @PdfText tag resolves to
+    // the reader's own page text); the raw source appears only behind the
+    // per-field edit toggle. Never reach for the bare TextEditor global.
+    const enrich = (html) =>
+      foundry.applications.ux.TextEditor.implementation.enrichHTML(html ?? "", {
+        relativeTo: this.item,
+        secrets: this.item.isOwner,
+      });
+    context.prose = {};
+    for (const field of ["description", "codeOfBehavior"]) {
+      context.prose[field] = {
+        editing: this.#editingProse.has(field),
+        html: await enrich(sys[field]),
+        source: sys[field] ?? "",
+      };
+    }
 
     // --- overview ---
     const chassisBlank = game.i18n.localize(`${LANG_PREFIX}.sheet.ownTables`);
@@ -158,6 +181,14 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
 
   static #onTab(event, target) {
     this.#tab = target.dataset.tab ?? "overview";
+    this.render();
+  }
+
+  static #onEditProse(event, target) {
+    const field = target.dataset.field;
+    if (!field) return;
+    if (this.#editingProse.has(field)) this.#editingProse.delete(field);
+    else this.#editingProse.add(field);
     this.render();
   }
 
