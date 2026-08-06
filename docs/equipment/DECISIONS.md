@@ -181,11 +181,32 @@ destructibility for the JJ p398 item-loss overlay — its vocabulary is `metal`,
 silvered blade found the field that looked like the answer and got nothing, which
 is the report this work came from.
 
-Reading the books settled what "more materials" amounts to: **there is no second
-material.** ACKS II has no cold iron, no mithril, no adamantine. Silver is the
-only one, it is printed as a *weapon quality* beside Cleave and Impact rather
-than as a substance, and it moves no number — "apart from gaining the Silver
-feature, the weapon's characteristics do not change" (RR ch.4).
+Reading the books settled what "more materials" amounts to: **no second material
+changes what a weapon or a suit can do.** Silver is the only one, it is printed
+as a *weapon quality* beside Cleave and Impact rather than as a substance, and it
+moves no number — "apart from gaining the Silver feature, the weapon's
+characteristics do not change" (RR ch.4).
+
+Stated carefully, because the words turn up without the rules behind them. Swept:
+RR, MM, JJ, the Treasure Tome and By This Axe (the Heroic Fantasy Handbook is
+ACKS I, so out of scope).
+
+- **Cold iron** is in ACKS II — as the *name* of "Sword +2, Cold Iron", a
+  domination ring, and a surgeon's saw, plus one in-world essay musing that
+  "even such crude material as cold iron can demonstrate occult properties".
+  Names and lore; no material rule anywhere.
+- **Dragonhide** appears exactly once in the Treasure Tome, on a flavour collar.
+  It is not an armour material.
+- **Monster parts are a real system and a different one.** MM pp. 366–370
+  (mundane) turns antlers, pelts and venoms into *trade goods* priced in gp and
+  weighed in stone — rugs, capes, coats, trophies — and pp. 371–384 (special)
+  makes them components for magic research, which is what a dragon's "dorsal
+  scales (armor +1)" means: an input to research, not a hide anyone wears. That
+  belongs to the monsters feature's spoils model, not to item materials, and
+  nothing here touches it.
+- The Treasure Tome only reinforces silver: silver weapons "have been proven to
+  have potency against the incorporeal shadows of the Outer Darkness, without any
+  enchantment laid on them."
 
 So silver is modelled where the book puts it, as a quality, and the Material
 picker was left exactly as it was. Two things follow from that:
