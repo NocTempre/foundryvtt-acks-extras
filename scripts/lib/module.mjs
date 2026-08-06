@@ -181,6 +181,25 @@ Hooks.once("init", () => {
   const api = resolveApi();
   acksExtras.lib = api;
 
+  /*
+   * The sub-type data models register HERE, and never later.
+   *
+   * The system is not modified: this ADDS types alongside its own, declared in
+   * module.json `documentTypes` and given their models here.
+   *
+   * `Game#setupGame` builds every world Document — `initializeDocuments()` —
+   * BEFORE it fires the `setup` hook, and a Document whose sub-type has no
+   * registered model keeps its `system` as a plain Object for the life of the
+   * session. Nothing re-initializes it, so the actor never gains a schema and
+   * any sheet that reads one throws. Registering at `init` is the only phase
+   * that runs before the documents exist; Foundry's own module sub-type
+   * documentation prescribes it, and nothing between `init` and `ready`
+   * rewrites `CONFIG.Actor.dataModels`.
+   */
+  CONFIG.Actor.dataModels[ANIMAL_TYPE] = AnimalData;
+  CONFIG.Actor.dataModels[GROUP_TYPE] = GroupData;
+  CONFIG.Actor.dataModels[TEMPLATE_TYPE] = TemplateData;
+
   registerMountCleanup();
   registerStorageCleanup();
   registerGroupCleanup();
@@ -309,31 +328,6 @@ Hooks.once("init", () => {
   });
 
   console.log(`${MODULE_ID} | primitives ready (apiVersion ${api.apiVersion}).`);
-});
-
-/**
- * Register the animal data model in `setup`, NOT `init`.
- *
- * The system is not modified: this ADDS a type alongside its own, declared in
- * module.json `documentTypes` and given its model here.
- *
- * WHY setup and not init: acks-lib is `library: true`, so Foundry loads it
- * before dependent modules and runs its `init` hook FIRST — before Foundry
- * finalizes `CONFIG.Actor.dataModels` from the manifests' `documentTypes`. An
- * assignment made in acks-lib's init is therefore overwritten by that
- * finalization (verified live: the init assignment logged success but the entry
- * was gone by `ready`, and the actor's system data fell back to a plain
- * Object). A non-library module's init runs after the finalization, which is
- * why the sibling sub-types survive. `setup` runs strictly after init for every
- * module, so the assignment lands after the overwrite and before any actor of
- * this type is constructed (world actors load at ready; imports are later
- * still).
- */
-Hooks.once("setup", () => {
-  CONFIG.Actor.dataModels[ANIMAL_TYPE] = AnimalData;
-  CONFIG.Actor.dataModels[GROUP_TYPE] = GroupData;
-  CONFIG.Actor.dataModels[TEMPLATE_TYPE] = TemplateData;
-  console.log(`${MODULE_ID} | ${ANIMAL_TYPE}, ${GROUP_TYPE}, ${TEMPLATE_TYPE} data models registered.`);
 });
 
 /**

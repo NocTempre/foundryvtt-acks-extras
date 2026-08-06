@@ -1,5 +1,160 @@
 # Changelog
 
+## 3.1.1
+
+### Fixed
+- **An animal is an animal from the moment the world opens, not from the moment
+  you make one.** Clicking any animal a world had already saved — the war dog,
+  the mule, the horses — threw an error and opened nothing, while an animal
+  created during that same session opened perfectly. Foundry builds every actor
+  in a world before this module was getting round to saying what an animal is,
+  so the ones already on the shelf came up as loose data with no stat block
+  behind them, and the sheet had nothing to read. That declaration now happens
+  early enough that every animal in the world is built as one. Monster templates
+  were quietly the same story — they opened, but on empty fields — and the same
+  change fixes them. Nothing stored was lost: an affected actor was intact on
+  disk the whole time, and reads correctly on the first load after this update.
+
+## 3.1.0
+
+### Added
+- **A class document dropped on a character binds it.** Dragging a class onto a
+  character sheet did the only thing Foundry knows to do with an item — it put
+  a copy in their inventory, where an entire class spread sat among the rations
+  and torches doing nothing at all. A class dropped on a sheet now binds the
+  character to it and opens the same confirm the graduation cap opens, listing
+  every field it will change before a word is written, and never embeds itself
+  as a carried item. Every other kind of item drops exactly as it always did.
+- **The class pickers lead with the six you actually play.** Both the bind
+  picker and the character-generation dialog listed every class document in the
+  world in one alphabetical run, so a world holding the Revised Rulebook's
+  classes, a campaign's own, and a shelf of homebrew opened on a list you had to
+  read through to find the Fighter. They now offer the core six, plus whatever
+  the character is already bound to, with **Show all classes** one click away
+  for the rest. Any class document can mark itself core, so a campaign built on
+  its own roster is a checkbox away from leading with it.
+- **The Judge can hand out a template the dice did not roll.** Character
+  generation offers the template you rolled and any band below it, which is the
+  printed rule and stays the default. The dialog now carries an override that
+  offers every template on the class whatever the roll — for the character who
+  was made before the table sat down, or the concession a Judge decides to make.
+  It appears for the Judge only; a player's dialog is unchanged.
+
+### Changed
+- **A skinned item carries its count as a count.** A template that prints "2
+  flasks of holy water" produced a single item named exactly that, quantity one
+  — so the sheet showed one thing, the encumbrance was wrong by a flask, and
+  using one of them left you holding a numeral. The count now goes on the
+  quantity field where the sheet can read it, and the item is named for what it
+  is. Each skinned piece also records which ordinary item it is an embellished
+  instance of, so a starting outfit's finery can still be recognised as the
+  gear underneath it.
+
+### Fixed
+- **The constructor's tabs open the pages they name.** Every tab on the class
+  sheet — progression, awards, casting, templates — was unreachable: clicking
+  one threw and left you looking at Overview, so a class could be read but only
+  the first page of it could be edited. `tab` is vocabulary the application
+  framework reserves for its own tab machinery, which took every one of those
+  clicks and failed on them. The sheet's tabs answer to a name of their own now.
+- **The constructor scrolls once.** The sheet body carried two scrollbars nested
+  one inside the other, so a long progression table scrolled the wrong one first
+  and reaching the bottom of a page meant two separate drags. There is one, and
+  it belongs to the page you are reading.
+- **An imported class reads the way your page reads.** Description and code of
+  behaviour showed the import's own reference tag rather than the book text it
+  points at, which made a correctly imported class look like a failed one. They
+  now render as a reader sees them, with the raw source behind a per-field
+  **Edit source** toggle for when you mean to change it rather than read it.
+- **A class with no requirements says so.** An empty requirements box was
+  indistinguishable from an import that had not finished, so a class anyone may
+  take looked broken. It now says that any character may take this class.
+
+## 3.0.0
+
+### Added
+- **A class is a document, not a word in a field.** The system holds a
+  character's class as free text: you type "Fighter" and every number on that
+  spread is yours to copy in by hand and keep straight thereafter. A class is
+  now a document of its own — **Create Item → Class** opens a constructor
+  holding what a class spread prints. Requirements and key attributes, hit die
+  and maximum level, the level rows with their experience and titles, saving
+  throw and attack bands exactly as printed, the named columns a spread adds
+  (damage bonus, armour-class bonus, backstab dice, caster level, the
+  assassin's and bard's skill ladders), cleaves, racial traits, the class's own
+  proficiency and power lists, a per-level award ladder, casting traditions,
+  and the eight starting templates. A class that borrows another's bands names
+  it rather than repeating the numbers — the Explorer saves as a Fighter — and
+  the two borrowings are independent, because the priestess takes a crusader's
+  saves with a mage's attacks. **The module ships no class values.** Nothing is
+  read off a page for you: a document is filled by ACKS Importer from books you
+  have connected yourself, or typed in by hand. Both produce the same document
+  and open in the same sheet, so reviewing an import and building homebrew are
+  one workflow rather than two.
+- **A character bound to a class is given the printed numbers, and told what
+  changes.** A graduation cap sits beside the class field on every character
+  sheet. It binds the character to a class document and writes that document's
+  values for their current level — saving throws, attack throw, title,
+  experience to the next level, hit dice, cleaves, spell slots — behind a
+  confirm that lists every field old value against new before anything is
+  written. Anything you hand-edited since the last apply is flagged as such, so
+  a deliberate departure from the book is not quietly undone by the next apply.
+  A cell the book leaves blank is skipped rather than zeroed.
+- **A demi-human class names its minimums and leaves them to the Judge.** The
+  confirm lists every attribute minimum the character falls short of, then
+  applies anyway if you say so — the module states the rule and does not
+  enforce it. Demi-human spreads print their racial saving-throw modifiers
+  already worked in, and the document records that, so nothing applies them a
+  second time on top.
+- **A first-level character is dealt the printed starting template.** A dice
+  control beside the class field rolls 3d6 and offers the template that number
+  lands on, or any band below it. Applying grants the whole bundle: the
+  proficiencies as owned abilities, a rank of two granting two copies and a
+  named selection carried through; the equipment as each piece reads on the
+  page, worn over the mechanics of the ordinary item underneath it, so the
+  starting spellbook is named as printed and still behaves as a spellbook; the
+  coin as money; and the general proficiency picks an Intellect bonus earns. A
+  printed piece nothing in the world matches still arrives, plainly named and
+  visibly so, rather than being dropped in silence.
+- **A gained level is offered, never taken for you.** Crossing the class's
+  experience threshold raises a rising-arrow control and says so; nothing is
+  applied until you open it. The wizard rerolls hit points as written — the
+  full hit dice rerolled, Constitution counted per die, never on the flat bonus
+  past ninth level, and never leaving you worse off than the maximum you
+  already had. Rolling a single new die instead is a world setting for tables
+  that play it that way, and it is not the default. The new level's fixed
+  awards are granted, a picker opens for each award that says choose from the
+  class's own list or the world's general one, the printed row for the new
+  level is applied, and a summary of the whole thing is posted to chat.
+- **A caster's day fits on one strip.** A caster's slots lived in the system's
+  single grid of numbers, which counts what you may cast and nothing about what
+  you have spent, and cannot describe a Nobiran at all. Casters now get a
+  per-tradition strip under the class field: a pip per slot, click to spend,
+  click a spent one to refund, and a rest control that gives the day back. The
+  class document is authoritative for what you may cast, and the character
+  stores only what has been spent — so gaining a level, or correcting a spread
+  after the fact, changes the strip with nothing to rewrite. The Nobiran's
+  arcane and divine pools sit side by side, which no other surface can show.
+  The system's own grid is still written, so anything reading it keeps working.
+
+### Changed
+- **"As a fighter of half his level" now resolves to a number.** It was the one
+  kind of value the abilities engine could not work out, because nothing in the
+  world held the tables it refers to. Class documents publish those tables as
+  they change — the four chassis attack and saving-throw progressions, and each
+  class's own bands and named columns — so an ability whose effect is printed
+  as another class's progression is now read off the same spread a Judge would
+  have opened the book to.
+- **The book's save names and the system's are kept apart, and a stale
+  reference can be repaired.** The book prints *blast* and *spells* where the
+  released system stores *breath* and *spell*, and a mismatch between the two
+  is invisible until something silently fails to apply. Class documents keep the
+  book's vocabulary as printed, and the translation happens once, at the moment
+  a character is written. For references already scattered through a world,
+  `repairSaveReferences` under `acksExtras.classes` sweeps for save keys the
+  system does not carry — on ability items, on Active Effect change keys, in
+  leftover data — and reports them. It is a dry run unless you ask it to write.
+
 ## 2.2.0
 
 ### Changed

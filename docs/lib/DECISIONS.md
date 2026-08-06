@@ -446,3 +446,32 @@ row on the sheet a drag source is a wider behaviour change than this defect
 warrants. Gating on the predicate rather than on `type === "money"` means
 whatever the system forgets next is covered without another patch.
 
+
+---
+
+- **2026-08-05 — Sub-type data models register at `init`, never at `setup`.**
+  This module declares three actor sub-types (`animal`, `group`, `template`) and
+  gave them their models in the `setup` hook. `Game#setupGame` calls
+  `initializeDocuments()` — which constructs every world Document — *before* it
+  fires `setup`, and a Document whose sub-type has no registered model keeps a
+  plain Object as its `system` for the rest of the session. Nothing
+  re-initializes it. So every animal and every monster template already in a
+  world came up with no schema behind it, while one created later in that same
+  session was correct: an animal sheet threw
+  `Cannot read properties of undefined (reading 'fields')` from the system's own
+  `_prepareContext`, and templates rendered on empty fields. Sub-types owned by
+  other features (`party`, `location`, the `encounterZone` region behaviour)
+  registered at `init` and were never affected — the outlier was the bug.
+
+  **Supersedes the earlier ruling that `setup` was required.** That entry held
+  that Foundry finalized `CONFIG.Actor.dataModels` from the manifests'
+  `documentTypes` after a `library: true` module's `init`, overwriting an
+  assignment made there. No such finalization exists in v14 — nothing between
+  `init` and `ready` rewrites that object (verified live: the models were
+  present at `ready` under both timings, and only the construction order
+  differed), and Foundry's own module sub-type documentation prescribes `init`.
+  The merge dropped `library: true` in any case.
+
+  **No data was ever at risk.** A model-less `system` is the stored source
+  passed through untouched, so an affected actor was intact on disk the whole
+  time — `actor.reset()` alone restored one, which is what proved the diagnosis.
