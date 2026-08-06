@@ -1,4 +1,4 @@
-/* global game, foundry, ui, Hooks, Actor, Roll, ChatMessage */
+/* global game, foundry, ui, Hooks, Actor, Roll, ChatMessage, fromUuid */
 /**
  * Chargen: applying a starting template — the printed selection rule and the
  * named-item skinning layer.
@@ -77,10 +77,37 @@ function skinPayload(entry) {
   delete data._id;
   data.name = skinName;
   foundry.utils.setProperty(data, "system.quantity.value", entry.qty || 1);
-  // The instance layer: which generic this is an embellished example of.
+  // The instance layer: which generic this is an embellished example of, and
+  // the embellishment on its own — the descriptor with the base's name (or
+  // its paren-stripped form) excised: "Crudely-crafted shortbow" over Short
+  // Bow leaves "Crudely-crafted".
+  const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  let embellishment = "";
+  {
+    const words = String(entry.name).split(/\s+/);
+    const baseFolds = [fold(base.name), fold(base.name.replace(/\([^)]*\)/g, " "))].filter((x) => x.length >= 4);
+    // Drop the shortest run of trailing/leading words whose fold matches the
+    // base; whatever remains is the embellishment.
+    for (let start = 0; start < words.length && !embellishment; start++) {
+      for (let end = words.length; end > start; end--) {
+        const seg = fold(words.slice(start, end).join(""));
+        if (baseFolds.some((b) => seg === b)) {
+          embellishment = [...words.slice(0, start), ...words.slice(end)].join(" ").replace(/^[\s,-]+|[\s,-]+$/g, "");
+          break;
+        }
+      }
+    }
+  }
   data.flags = {
     ...(data.flags ?? {}),
-    [MODULE_ID]: { skin: { base: entry.ref || `uuid:${base.uuid}`, baseName: base.name, descriptor: entry.name } },
+    [MODULE_ID]: {
+      skin: {
+        base: entry.ref || `uuid:${base.uuid}`,
+        baseName: base.name,
+        descriptor: entry.name,
+        ...(embellishment ? { embellishment } : {}),
+      },
+    },
   };
   return data;
 }
@@ -124,6 +151,29 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
     await actor.createEmbeddedDocuments("Item", [
       { name: "Gold Pieces", type: "money", system: { quantity: template.gp } },
     ]);
+  }
+  // The spells a spellbook carries land as spell ITEMS — a linked uuid first,
+  // else the printed name matched against the world's spells; what no world
+  // spell answers to stays visible on the unresolved list.
+  for (const s of template.spells ?? []) {
+    const name = s.name ?? "";
+    let doc = null;
+    if (s.uuid) doc = await fromUuid(s.uuid).catch(() => null);
+    if (!doc && name) {
+      const f = fold(name);
+      doc =
+        game.items.find((i) => i.type === "spell" && fold(i.name) === f) ??
+        game.items.find((i) => i.type === "spell" && f.length >= 6 && fold(i.name).includes(f)) ??
+        null;
+    }
+    if (doc) {
+      const data = doc.toObject();
+      delete data._id;
+      await actor.createEmbeddedDocuments("Item", [data]);
+      report.granted.push(doc.name);
+    } else if (name) {
+      report.unresolved.push(name);
+    }
   }
   for (const ref of generalRefs) await grantRanked(actor, { ref, rank: 1 }, report);
   return report;
@@ -292,7 +342,24 @@ function onRenderCharacterSheet(app, element) {
   pick.insertAdjacentElement("afterend", btn);
 }
 
+/** A skinned item's sheet names what it is an instance of. */
+function onRenderItemSheet(app, element) {
+  const root = element instanceof HTMLElement ? element : element?.[0];
+  if (!root) return;
+  const doc = app.document;
+  const skin = doc?.flags?.[MODULE_ID]?.skin;
+  if (!skin?.baseName || root.querySelector(".acks-extras-classes-skinbadge")) return;
+  const badge = document.createElement("p");
+  badge.className = "acks-extras-classes-skinbadge hint";
+  badge.textContent = skin.embellishment
+    ? game.i18n.format(`${LANG_PREFIX}.skin.badgeEmbellished`, { embellishment: skin.embellishment, base: skin.baseName })
+    : game.i18n.format(`${LANG_PREFIX}.skin.badge`, { base: skin.baseName });
+  const anchor = root.querySelector(".sheet-header, header") ?? root.firstElementChild;
+  anchor?.insertAdjacentElement("afterend", badge);
+}
+
 /** Register the chargen sheet control (called once from classes/module.mjs). */
 export function registerChargen() {
   Hooks.on("renderApplicationV2", onRenderCharacterSheet);
+  Hooks.on("renderApplicationV2", onRenderItemSheet);
 }

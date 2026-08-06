@@ -14,13 +14,15 @@
  * Save button and no draft to lose. Every write goes through `writeRolls()`, so
  * this window has no privileged access to the store.
  *
- * The table is INTERNAL — its rungs live on the roll. A shared table other
- * abilities could point at is the next step and is deliberately not built; the
- * seam is `docs/abilities/ROADMAP.md`.
+ * The table is INTERNAL — its rungs live on the roll. The alternative is the
+ * `progression` kind, which NAMES a published table instead: the four chassis
+ * or any class document the world holds, resolved through the classes
+ * registry at roll time.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { blankRoll, keyOf, readRolls, rollAbility, rollsOf, targetOf, writeRolls, scalesFor } from "./ability-rolls.mjs";
 import { choicesOf, ROLL_TYPES, VALUE_KINDS, VALUE_ROUNDING, VALUE_SCALES, PROGRESSION_CLASSES, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
+import { classItems } from "../classes/registry.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -127,7 +129,21 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
       kind: Object.fromEntries(TARGET_KINDS.map((k) => [k, VALUE_KINDS[k].label])),
       scale: choicesOf(VALUE_SCALES),
       round: choicesOf(VALUE_ROUNDING),
-      as: choicesOf(PROGRESSION_CLASSES),
+      // The four chassis, then every class DOCUMENT the world holds — a
+      // published table is named here instead of retyping its rungs. A class
+      // whose key matches a chassis takes the class's own label.
+      as: {
+        ...choicesOf(PROGRESSION_CLASSES),
+        ...Object.fromEntries(
+          (() => {
+            try {
+              return classItems().map((c) => [c.system.key, c.name]);
+            } catch {
+              return [];
+            }
+          })(),
+        ),
+      },
       atLevel: choicesOf(PROGRESSION_LEVELS),
     };
     context.preview = this.#preview(context.roll);

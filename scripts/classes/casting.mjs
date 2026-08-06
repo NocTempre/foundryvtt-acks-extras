@@ -57,11 +57,22 @@ export function poolState(actor) {
         if (typeof max === "number" && max > 0) slots.push({ n, max, used: Math.min(Number(used[`s${n}`]) || 0, max) });
       }
       if (slots.length) out.push({ key: t.key, label: t.label || t.key, kind: t.kind, slots });
-    } else {
-      const max = poolValueAt(t, level);
-      if (typeof max === "number" && max > 0) {
-        out.push({ key: t.key, label: t.label || t.key, kind: t.kind, pool: { max, used: Math.min(Number(used.points) || 0, max) } });
-      }
+      continue;
+    }
+    const max = poolValueAt(t, level);
+    if (typeof max === "number" && max > 0) {
+      out.push({ key: t.key, label: t.label || t.key, kind: t.kind, pool: { max, used: Math.min(Number(used.points) || 0, max) } });
+      continue;
+    }
+    // No slots and no pool schedule: a tradition whose capacity is a LADDER
+    // rung (the gnostic classes' maximum invocation level) still shows what
+    // the character can reach — the slot-equivalent, without a spend.
+    const ladder = t.casterLevel ? (classItem.system.ladders ?? []).find((l) => l.key === t.casterLevel) : null;
+    if (ladder) {
+      const rungs = (ladder.values ?? []).filter((v) => v.atLevel <= level);
+      const rung = rungs.length ? rungs.reduce((b, r) => (r.atLevel > b.atLevel ? r : b)) : null;
+      const cap = rung ? (rung.text || (rung.value != null ? String(rung.value) : "")) : "";
+      if (cap) out.push({ key: t.key, label: t.label || t.key, kind: t.kind, capacity: cap });
     }
   }
   return out;
@@ -77,7 +88,9 @@ export async function adjustPool(actor, traditionKey, slotKey, delta) {
 
 /** A night's rest: every tradition's spent count returns to zero. */
 export async function restPools(actor) {
-  await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.pools`]: {} });
+  // `update` MERGES objects — an empty object merged into pools changes
+  // nothing, so the key must be deleted for the spend to reset.
+  await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.-=pools`]: null });
 }
 
 /** Render the strip markup for one actor (empty string when nothing casts). */
@@ -96,7 +109,17 @@ function stripHtml(actor) {
         .join("");
       return `<div class="acks-extras-classes-tradition"><label>${foundry.utils.escapeHTML(t.label)}</label>${cells}</div>`;
     }
-    return `<div class="acks-extras-classes-tradition"><label>${foundry.utils.escapeHTML(t.label)}</label><span class="acks-extras-classes-slotgroup">${t.pool.used}/${t.pool.max}</span></div>`;
+    if (t.pool) {
+      // A points pool spends by count, not by pip — the +/− pair adjusts the
+      // spent total and rest clears it like any other tradition.
+      return `<div class="acks-extras-classes-tradition"><label>${foundry.utils.escapeHTML(t.label)}</label><span class="acks-extras-classes-slotgroup acks-extras-classes-pool">
+        <a class="acks-extras-classes-ptbtn" data-tradition="${t.key}" data-delta="-1" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.casting.refundTip`)}"><i class="fa-solid fa-minus"></i></a>
+        <span class="acks-extras-classes-poolcount">${t.pool.used}/${t.pool.max}</span>
+        <a class="acks-extras-classes-ptbtn" data-tradition="${t.key}" data-delta="1" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.casting.spendTip`)}"><i class="fa-solid fa-plus"></i></a>
+      </span></div>`;
+    }
+    // Capacity-only (the gnostic invocation level): shown, never spent.
+    return `<div class="acks-extras-classes-tradition"><label>${foundry.utils.escapeHTML(t.label)}</label><span class="acks-extras-classes-slotgroup">${foundry.utils.escapeHTML(t.capacity ?? "")}</span></div>`;
   });
   return `<div class="acks-extras-classes-strip">${parts.join("")}<a class="acks-extras-classes-rest" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.casting.restTip`)}"><i class="fa-solid fa-bed"></i></a></div>`;
 }
@@ -119,6 +142,12 @@ function onRenderCharacterSheet(app, element) {
     if (pip) {
       event.preventDefault();
       adjustPool(doc, pip.dataset.tradition, pip.dataset.slot, pip.classList.contains("spent") ? -1 : 1);
+      return;
+    }
+    const pt = event.target.closest(".acks-extras-classes-ptbtn");
+    if (pt) {
+      event.preventDefault();
+      adjustPool(doc, pt.dataset.tradition, "points", Number(pt.dataset.delta) || 0);
       return;
     }
     if (event.target.closest(".acks-extras-classes-rest")) {

@@ -19,6 +19,7 @@ import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
 import { openChargen, applyTemplate, legalTemplates, intBonusPicks, resolveBase, registerChargen } from "./chargen.mjs";
+import { registerSheetTabs } from "./sheet-tabs.mjs";
 import { savesUpdateData, repairSaveReferences, BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 
@@ -90,4 +91,5 @@ registerAssignUi();
 casting.registerCastingUi();
 registerLevelUp();
 registerChargen();
+registerSheetTabs();
 registry.registerRegistryHooks();

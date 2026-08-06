@@ -76,27 +76,13 @@
       </label>
     </div>
     <div class="form-group stacked">
-      <label>{{localize "ACKS-CLASSES.sheet.description"}}
-        <a data-action="editProse" data-field="description" data-tooltip="{{localize "ACKS-CLASSES.sheet.editSource"}}"><i class="fa-solid fa-pen"></i></a></label>
-      {{#if prose.description.editing}}
-        <textarea name="system.description" rows="4">{{prose.description.source}}</textarea>
-      {{else}}
-        <div class="acks-extras-classes-prose">{{{prose.description.html}}}</div>
-      {{/if}}
+      <label>{{localize "ACKS-CLASSES.sheet.description"}}</label>
+      <prose-mirror name="system.description" value="{{prose.description.source}}" document-uuid="{{item.uuid}}" compact toggled>{{{prose.description.html}}}</prose-mirror>
     </div>
     <div class="form-group stacked">
-      <label>{{localize "ACKS-CLASSES.sheet.codeOfBehavior"}}
-        <a data-action="editProse" data-field="codeOfBehavior" data-tooltip="{{localize "ACKS-CLASSES.sheet.editSource"}}"><i class="fa-solid fa-pen"></i></a></label>
-      {{#if prose.codeOfBehavior.editing}}
-        <textarea name="system.codeOfBehavior" rows="3">{{prose.codeOfBehavior.source}}</textarea>
-      {{else}}
-        <div class="acks-extras-classes-prose">{{{prose.codeOfBehavior.html}}}</div>
-      {{/if}}
+      <label>{{localize "ACKS-CLASSES.sheet.codeOfBehavior"}}</label>
+      <prose-mirror name="system.codeOfBehavior" value="{{prose.codeOfBehavior.source}}" document-uuid="{{item.uuid}}" compact toggled>{{{prose.codeOfBehavior.html}}}</prose-mirror>
     </div>
-    <p class="hint acks-extras-classes-footnote">{{localize "ACKS-CLASSES.sheet.castingSummary"}}:
-      {{#each castingSummary}}{{label}} ({{kind}}, {{rows}}) {{/each}}
-      · {{localize "ACKS-CLASSES.sheet.templatesSummary"}}: {{templateCount}}
-      · {{localize "ACKS-CLASSES.sheet.laterPhase"}}</p>
   </section>
 
   <section class="acks-extras-classes-tabpane" {{#unless show.progression}}hidden{{/unless}}>
@@ -202,6 +188,122 @@
           {{/if}}
           <input name="system.awards.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" />
           <a data-action="rowDelete" data-array="awards" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+    </fieldset>
+  </section>
+
+  <section class="acks-extras-classes-tabpane" {{#unless show.casting}}hidden{{/unless}}>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.casting.traditions"}}
+        <a data-action="rowAdd" data-array="casting"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#unless casting.length}}<p class="hint">{{localize "ACKS-CLASSES.sheet.casting.none"}}</p>{{/unless}}
+      {{#each casting}}
+        <div class="acks-extras-classes-tradition-edit">
+          <div class="acks-extras-classes-row">
+            <input name="system.casting.{{index}}.key" type="text" value="{{key}}" placeholder="{{localize "ACKS-CLASSES.sheet.casting.key"}}" />
+            <input name="system.casting.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" />
+            <select name="system.casting.{{index}}.kind">
+              {{#each kindOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+            <select name="system.casting.{{index}}.repertoire">
+              {{#each repertoireOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+            <input name="system.casting.{{index}}.casterLevel" type="text" value="{{casterLevel}}" placeholder="{{localize "ACKS-CLASSES.sheet.casting.casterLevel"}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.casting.casterLevelHint"}}" />
+            <a data-action="rowDelete" data-array="casting" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          </div>
+          <fieldset>
+            <legend>{{localize "ACKS-CLASSES.sheet.casting.slots"}}
+              <a data-action="rowAdd" data-array="casting.{{index}}.slots"><i class="fa-solid fa-plus"></i></a></legend>
+            <table class="acks-extras-classes-table">
+              <tr><th>{{localize "ACKS-CLASSES.sheet.atLevel"}}</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th></th></tr>
+              {{#each slots}}
+                <tr>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.atLevel" type="number" value="{{atLevel}}" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s1" type="number" value="{{s1}}" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s2" type="number" value="{{s2}}" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s3" type="number" value="{{s3}}" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s4" type="number" value="{{s4}}" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s5" type="number" value="{{s5}}" /></td>
+                  <td><input name="system.casting.{{../index}}.slots.{{index}}.s6" type="number" value="{{s6}}" /></td>
+                  <td><a data-action="rowDelete" data-array="casting.{{../index}}.slots" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+                </tr>
+              {{/each}}
+            </table>
+          </fieldset>
+          <fieldset>
+            <legend>{{localize "ACKS-CLASSES.sheet.casting.pool"}}
+              <a data-action="rowAdd" data-array="casting.{{index}}.pool"><i class="fa-solid fa-plus"></i></a></legend>
+            <table class="acks-extras-classes-table">
+              <tr><th>{{localize "ACKS-CLASSES.sheet.atLevel"}}</th><th>{{localize "ACKS-CLASSES.sheet.casting.points"}}</th><th></th></tr>
+              {{#each pool}}
+                <tr>
+                  <td><input name="system.casting.{{../index}}.pool.{{index}}.atLevel" type="number" value="{{atLevel}}" /></td>
+                  <td><input name="system.casting.{{../index}}.pool.{{index}}.value" type="number" value="{{value}}" /></td>
+                  <td><a data-action="rowDelete" data-array="casting.{{../index}}.pool" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a></td>
+                </tr>
+              {{/each}}
+            </table>
+          </fieldset>
+        </div>
+      {{/each}}
+    </fieldset>
+  </section>
+
+  <section class="acks-extras-classes-tabpane" {{#unless show.templates}}hidden{{/unless}}>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.templates.list"}}
+        <a data-action="rowAdd" data-array="templates"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#unless templatesEdit.length}}<p class="hint">{{localize "ACKS-CLASSES.sheet.templates.none"}}</p>{{/unless}}
+      {{#each templatesEdit}}
+        <div class="acks-extras-classes-template-edit">
+          <div class="acks-extras-classes-row">
+            <input name="system.templates.{{index}}.rollMin" type="number" value="{{rollMin}}" title="{{localize "ACKS-CLASSES.sheet.templates.rollMin"}}" />
+            <input name="system.templates.{{index}}.rollMax" type="number" value="{{rollMax}}" title="{{localize "ACKS-CLASSES.sheet.templates.rollMax"}}" />
+            <input name="system.templates.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
+            <input name="system.templates.{{index}}.annotation" type="text" value="{{annotation}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.annotation"}}" />
+            <input name="system.templates.{{index}}.caste" type="text" value="{{caste}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.caste"}}" />
+            <input name="system.templates.{{index}}.gp" type="number" value="{{gp}}" title="gp" />
+            <input name="system.templates.{{index}}.enc" type="text" value="{{enc}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.enc"}}" />
+            <a data-action="rowDelete" data-array="templates" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          </div>
+          <fieldset>
+            <legend>{{localize "ACKS-CLASSES.sheet.templates.abilities"}}
+              <a data-action="rowAdd" data-array="templates.{{index}}.abilities"><i class="fa-solid fa-plus"></i></a></legend>
+            {{#each abilities}}
+              <div class="acks-extras-classes-row">
+                <input name="system.templates.{{../index}}.abilities.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" />
+                <span class="acks-extras-classes-refname">{{#if refName}}{{refName}}{{else}}{{name}}{{/if}}</span>
+                <input name="system.templates.{{../index}}.abilities.{{index}}.rank" type="number" value="{{rank}}" title="{{localize "ACKS-CLASSES.sheet.templates.rank"}}" />
+                <input name="system.templates.{{../index}}.abilities.{{index}}.selection" type="text" value="{{selection}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.selection"}}" />
+                <a data-action="rowDelete" data-array="templates.{{../index}}.abilities" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
+              </div>
+            {{/each}}
+          </fieldset>
+          <fieldset>
+            <legend>{{localize "ACKS-CLASSES.sheet.templates.items"}}
+              <a data-action="rowAdd" data-array="templates.{{index}}.items"><i class="fa-solid fa-plus"></i></a></legend>
+            {{#each items}}
+              <div class="acks-extras-classes-row">
+                <input name="system.templates.{{../index}}.items.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
+                <input name="system.templates.{{../index}}.items.{{index}}.qty" type="number" value="{{qty}}" title="{{localize "ACKS-CLASSES.sheet.templates.qty"}}" />
+                <input name="system.templates.{{../index}}.items.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.baseRef"}}" />
+                <input name="system.templates.{{../index}}.items.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" />
+                <a data-action="rowDelete" data-array="templates.{{../index}}.items" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
+              </div>
+            {{/each}}
+          </fieldset>
+          <fieldset>
+            <legend>{{localize "ACKS-CLASSES.sheet.templates.spells"}}
+              <a data-action="rowAdd" data-array="templates.{{index}}.spells"><i class="fa-solid fa-plus"></i></a></legend>
+            {{#each spells}}
+              <div class="acks-extras-classes-row">
+                <input name="system.templates.{{../index}}.spells.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
+                <input name="system.templates.{{../index}}.spells.{{index}}.uuid" type="text" value="{{uuid}}" placeholder="uuid" />
+                <a data-action="rowDelete" data-array="templates.{{../index}}.spells" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
+              </div>
+            {{/each}}
+          </fieldset>
         </div>
       {{/each}}
     </fieldset>

@@ -13,7 +13,7 @@
  * form): every field of every tab stays in the DOM, so submitOnChange always
  * carries the whole system object and array round-trips stay whole-document.
  */
-import { LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS } from "./constants.mjs";
+import { LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import { AWARD_KINDS } from "./class-data.mjs";
 import ClassData from "./class-data.mjs";
 import { findByRef } from "./registry.mjs";
@@ -24,7 +24,7 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
 const MODULE_ID = "acks-extras";
-const TABS = ["overview", "progression", "awards", "inventory"];
+const TABS = ["overview", "progression", "awards", "casting", "templates", "inventory"];
 
 /** Options list from a vocab enum, with the current value marked selected. */
 const optionsOf = (enumObj, current, { blankLabel } = {}) => {
@@ -53,7 +53,6 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       classTab: ClassSheet.#onTab,
       rowAdd: ClassSheet.#onRowAdd,
       rowDelete: ClassSheet.#onRowDelete,
-      editProse: ClassSheet.#onEditProse,
     },
   };
 
@@ -63,9 +62,6 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
 
   /** The active sheet-local tab. */
   #tab = "overview";
-
-  /** Prose fields flipped from enriched view to source editing. */
-  #editingProse = new Set();
 
   /** @override */
   async _prepareContext(options) {
@@ -83,8 +79,9 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     context.isStub = sys.isStub;
 
     // Prose renders ENRICHED (an imported class's @PdfText tag resolves to
-    // the reader's own page text); the raw source appears only behind the
-    // per-field edit toggle. Never reach for the bare TextEditor global.
+    // the reader's own page text) inside a toggled prose-mirror — the same
+    // view-then-edit element the system's own sheets use. Never reach for
+    // the bare TextEditor global.
     const enrich = (html) =>
       foundry.applications.ux.TextEditor.implementation.enrichHTML(html ?? "", {
         relativeTo: this.item,
@@ -93,7 +90,6 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     context.prose = {};
     for (const field of ["description", "codeOfBehavior"]) {
       context.prose[field] = {
-        editing: this.#editingProse.has(field),
         html: await enrich(sys[field]),
         source: sys[field] ?? "",
       };
@@ -163,12 +159,36 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     };
     context.unresolvedProfs = sys.unresolvedProfs ?? [];
 
-    context.castingSummary = (sys.casting ?? []).map((t) => ({
-      label: t.label || t.key,
-      kind: CASTING_KINDS[t.kind]?.label ?? t.kind,
-      rows: (t.slots ?? []).length + (t.pool ?? []).length,
+    // --- casting ---
+    context.casting = (sys.casting ?? []).map((t, index) => ({
+      index,
+      key: t.key,
+      label: t.label,
+      casterLevel: t.casterLevel,
+      kindOptions: optionsOf(CASTING_KINDS, t.kind),
+      repertoireOptions: optionsOf(REPERTOIRE_KINDS, t.repertoire, { blankLabel: "—" }),
+      slots: (t.slots ?? []).map((row, rowIndex) => ({ index: rowIndex, ...row })),
+      pool: (t.pool ?? []).map((row, rowIndex) => ({ index: rowIndex, ...row })),
     }));
-    context.templateCount = (sys.templates ?? []).length;
+
+    // --- templates ---
+    context.templatesEdit = (sys.templates ?? []).map((t, index) => ({
+      index,
+      rollMin: t.rollMin,
+      rollMax: t.rollMax,
+      name: t.name,
+      annotation: t.annotation,
+      caste: t.caste,
+      gp: t.gp,
+      enc: t.enc,
+      abilities: (t.abilities ?? []).map((a, ai) => ({
+        index: ai,
+        ...a,
+        refName: a.ref ? (findByRef(a.ref)?.name ?? null) : null,
+      })),
+      items: (t.items ?? []).map((it, ii) => ({ index: ii, ...it })),
+      spells: (t.spells ?? []).map((s, si) => ({ index: si, ...s })),
+    }));
     return context;
   }
 
@@ -184,16 +204,10 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     this.render();
   }
 
-  static #onEditProse(event, target) {
-    const field = target.dataset.field;
-    if (!field) return;
-    if (this.#editingProse.has(field)) this.#editingProse.delete(field);
-    else this.#editingProse.add(field);
-    this.render();
-  }
-
   /* Row templates a fresh array entry starts from; the schema's own initials
-   * fill everything not named here. String lists push "" (a blank ref row). */
+   * fill everything not named here. String lists push "" (a blank ref row).
+   * Nested-array paths are keyed with N standing for any index
+   * ("casting.N.slots"), matched after the live path's indices are erased. */
   static #ROW_DEFAULTS = {
     levels: (sys) => ({ level: (sys.levels?.at(-1)?.level ?? 0) + 1 }),
     saves: (sys) => ({ minLevel: (sys.saves?.at(-1)?.maxLevel ?? 0) + 1 }),
@@ -201,6 +215,17 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     awards: (sys) => ({ atLevel: sys.awards?.at(-1)?.atLevel ?? 1 }),
     requirements: () => ({}),
     ladders: () => ({}),
+    casting: () => ({ key: "arcane", kind: "vancian" }),
+    templates: (sys) => {
+      const last = sys.templates?.at(-1);
+      const min = last ? (Number(last.rollMax) || 2) + 1 : 3;
+      return { rollMin: min, rollMax: min + 1 };
+    },
+    "casting.N.slots": () => ({ atLevel: 1 }),
+    "casting.N.pool": () => ({ atLevel: 1 }),
+    "templates.N.items": () => ({ qty: 1 }),
+    "templates.N.abilities": () => ({ rank: 1 }),
+    "templates.N.spells": () => ({}),
     "inventory.classProfs": () => "",
     "inventory.powers": () => "",
     "inventory.skills": () => ({}),
@@ -211,7 +236,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     if (!path) return;
     const sys = this.item.system;
     const current = foundry.utils.deepClone(foundry.utils.getProperty(sys, path) ?? []);
-    const make = ClassSheet.#ROW_DEFAULTS[path];
+    const make = ClassSheet.#ROW_DEFAULTS[path] ?? ClassSheet.#ROW_DEFAULTS[path.replace(/\.\d+\./g, ".N.")];
     current.push(make ? make(sys) : {});
     await this.item.update({ [`system.${path}`]: current });
   }
