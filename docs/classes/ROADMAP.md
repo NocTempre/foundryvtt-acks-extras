@@ -20,5 +20,11 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   display, caster-level ladders wired to spell progressions.
 - **Roll-editor progression picker** — name a published table instead of
   typing rungs (the abilities ROADMAP seam's UI half).
+- **The instance layer, fully** — a skinned item records which generic it is
+  an example of (`flags.skin.base/baseName/descriptor`); still unbuilt: the
+  embellishment parsed apart from the base ("iron-shod", the spells a
+  spellbook carries as linked spell items), a sheet surface that shows
+  "instance of <base>", and compound descriptors ("spear and short sword")
+  splitting into their pieces.
 - **Prose editors** — description/code fields are textareas; ProseMirror
   polish later.

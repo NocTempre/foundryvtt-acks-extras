@@ -19,6 +19,7 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classItems, findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
+import { offeredClasses } from "./assign.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -34,10 +35,21 @@ export function resolveBase(entry) {
   }
   const f = fold(entry.name);
   let best = null;
+  let bestLen = 0;
   for (const i of game.items) {
     if (!["weapon", "armor", "item"].includes(i.type)) continue;
     const nf = fold(i.name);
-    if (nf.length >= 6 && f.includes(nf) && (!best || nf.length > fold(best.name).length)) best = i;
+    const nfStripped = fold(i.name.replace(/\([^)]*\)/g, " "));
+    // The paren-stripped name is what an embellished instance contains:
+    // "iron-shod spellbook…" holds "spellbook", never "(blank)".
+    const hit =
+      (nf.length >= 6 && f.includes(nf) && nf.length) ||
+      (nfStripped.length >= 6 && f.includes(nfStripped) && nfStripped.length) ||
+      0;
+    if (hit > bestLen) {
+      best = i;
+      bestLen = hit;
+    }
   }
   return best;
 }
@@ -45,7 +57,13 @@ export function resolveBase(entry) {
 /** Build the embedded-item payload for one template item entry (skinned). */
 function skinPayload(entry) {
   const base = resolveBase(entry);
-  const skinName = entry.skinName || entry.name.replace(/^\w/, (c) => c.toUpperCase());
+  // The count lives on the quantity field — "2 flasks of holy water" is two
+  // of an item CALLED "Flasks of holy water", never one item with a numeral
+  // in its name.
+  const displayName = (entry.qty > 1 ? entry.name.replace(/^\d+\s+/, "") : entry.name).replace(/^\w/, (c) =>
+    c.toUpperCase(),
+  );
+  const skinName = entry.skinName || displayName;
   if (!base) {
     return {
       name: skinName,
@@ -58,7 +76,11 @@ function skinPayload(entry) {
   delete data._id;
   data.name = skinName;
   foundry.utils.setProperty(data, "system.quantity.value", entry.qty || 1);
-  data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { skin: { base: entry.ref || `uuid:${base.uuid}`, descriptor: entry.name } } };
+  // The instance layer: which generic this is an embellished example of.
+  data.flags = {
+    ...(data.flags ?? {}),
+    [MODULE_ID]: { skin: { base: entry.ref || `uuid:${base.uuid}`, baseName: base.name, descriptor: entry.name } },
+  };
   return data;
 }
 
@@ -113,11 +135,11 @@ export const legalTemplates = (templates, roll) =>
 /** Run the chargen wizard for one character. */
 export async function openChargen(actor) {
   const classItem = classForActor(actor) ?? null;
-  const classes = classItems().sort((a, b) => a.name.localeCompare(b.name));
-  if (!classes.length) {
+  if (!classItems().length) {
     ui.notifications?.info(game.i18n.localize(`${LANG_PREFIX}.pick.empty`));
     return;
   }
+  let classes = offeredClasses(actor, false);
   const roll = await new Roll("3d6").evaluate();
   const intScore = Number(actor.system?.scores?.int?.value) || 0;
   const bonusPicks = intBonusPicks(intScore);
@@ -130,9 +152,12 @@ export async function openChargen(actor) {
       return `<option value="${foundry.utils.escapeHTML(ref)}">${foundry.utils.escapeHTML(i.name)}</option>`;
     })
     .join("");
-  const classOptions = classes
-    .map((c) => `<option value="${c.uuid}"${classItem?.uuid === c.uuid ? " selected" : ""}>${foundry.utils.escapeHTML(c.name)}</option>`)
-    .join("");
+  const classOptionsHtml = (list) =>
+    list
+      .map((c) => `<option value="${c.uuid}"${classItem?.uuid === c.uuid ? " selected" : ""}>${foundry.utils.escapeHTML(c.name)}</option>`)
+      .join("");
+  const classOptions = classOptionsHtml(classes);
+  const isGM = game.user.isGM;
   const bonusBlocks = Array.from({ length: bonusPicks }, (_, i) =>
     `<div class="form-group"><label>${game.i18n.format(`${LANG_PREFIX}.chargen.bonusPick`, { n: i + 1 })}</label><select name="bonus-${i}">${generalOptions}</select></div>`,
   ).join("");
@@ -141,8 +166,12 @@ export async function openChargen(actor) {
     <p>${game.i18n.format(`${LANG_PREFIX}.chargen.prompt`, { name: actor.name, roll: roll.total })}</p>
     <div class="form-group"><label>${game.i18n.localize(`${LANG_PREFIX}.pick.class`)}</label>
       <select name="uuid">${classOptions}</select></div>
+    <div class="form-group">
+      <label class="checkbox"><input type="checkbox" name="showAll" /> ${game.i18n.localize(`${LANG_PREFIX}.pick.showAll`)}</label>
+    </div>
     <div class="form-group"><label>${game.i18n.localize(`${LANG_PREFIX}.chargen.template`)}</label>
       <select name="template"></select></div>
+    ${isGM ? `<div class="form-group"><label class="checkbox"><input type="checkbox" name="judge" /> ${game.i18n.localize(`${LANG_PREFIX}.chargen.judgeOverride`)}</label></div>` : ""}
     ${bonusBlocks}
     <p class="hint">${game.i18n.localize(`${LANG_PREFIX}.chargen.rule`)}</p>`;
 
@@ -153,19 +182,31 @@ export async function openChargen(actor) {
       const form = dialog.element.querySelector("form") ?? dialog.element;
       const classSel = form.querySelector('select[name="uuid"]');
       const tplSel = form.querySelector('select[name="template"]');
+      const showAll = form.querySelector('input[name="showAll"]');
+      const judge = form.querySelector('input[name="judge"]');
       const refresh = () => {
-        const cls = classes.find((c) => c.uuid === classSel.value);
-        const legal = legalTemplates(cls?.system.templates ?? [], roll.total);
-        tplSel.innerHTML = legal
+        const cls = classes.find((c) => c.uuid === classSel.value) ?? classes[0];
+        // The Judge override lifts the at-or-below rule; players never see it.
+        const offered =
+          judge?.checked && isGM
+            ? [...(cls?.system.templates ?? [])].sort((a, b) => a.rollMin - b.rollMin)
+            : legalTemplates(cls?.system.templates ?? [], roll.total);
+        tplSel.innerHTML = offered
           .map(
             (t, i) =>
-              `<option value="${t.rollMin}"${i === legal.length - 1 ? " selected" : ""}>${foundry.utils.escapeHTML(
+              `<option value="${t.rollMin}"${i === offered.length - 1 ? " selected" : ""}>${foundry.utils.escapeHTML(
                 t.name + (t.annotation ? ` (${t.annotation})` : ""),
               )} [${t.rollMin}–${t.rollMax}]</option>`,
           )
           .join("");
       };
       classSel.addEventListener("change", refresh);
+      judge?.addEventListener("change", refresh);
+      showAll?.addEventListener("change", () => {
+        classes = offeredClasses(actor, showAll.checked);
+        classSel.innerHTML = classOptionsHtml(classes);
+        refresh();
+      });
       refresh();
     },
     ok: {

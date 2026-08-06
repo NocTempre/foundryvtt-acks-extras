@@ -192,6 +192,9 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       /** Demi-human tables carry racial modifiers pre-applied — consumers must
        *  never add a racial-trait save bonus on top of a factored table. */
       factored: bool(),
+      /** Offered by default in the pickers; everything else sits behind the
+       *  show-all toggle. The book's six core classes ship marked. */
+      core: bool(),
       racialTraits: new ArrayField(new SchemaField({ name: str(), ref: str(), html: html() })),
 
       /** The class's pool of available abilities — every class-scoped chooser
