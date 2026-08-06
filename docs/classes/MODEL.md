@@ -97,10 +97,23 @@ chosen refs granted on confirm.
 document is authoritative for CAPACITY (slot row or pool schedule at the
 character's level); the actor stores only what is SPENT
 (`flags["acks-extras"].classes.pools`). The character sheet gains a
-per-tradition strip — slot pips to spend/refund, a rest control — and it is
-the only surface that can show two traditions at once. The system's own
-`spells.1..6.max` grid stays the single-tradition compatibility surface
-applyClass writes.
+per-tradition strip — slot pips to spend/refund, a +/− pair on a points
+pool, a capacity line for a ladder-backed tradition (the gnostic invocation
+level), and a rest control that DELETES the pools key (update merges
+objects, so writing an empty object resets nothing). It is the only surface
+that can show two traditions at once. The system's own `spells.1..6.max`
+grid stays the single-tradition compatibility surface applyClass writes.
+
+## Sheet category tabs
+
+[scripts/classes/sheet-tabs.mjs](../../scripts/classes/sheet-tabs.mjs)
+filters the character sheet's ability list by bucket — fighting (the
+training flag), thief skills, general and class proficiencies, class
+powers, and racial (whatever the bound class awards with a racial-trait
+note) — and the spell list by tradition (`system.class`), so new tradition
+tabs appear the day such spells exist. A skinned item's sheet carries a
+badge naming what it is an instance of, with the embellishment parsed
+apart from the base at grant time (`flags.skin.embellishment`).
 
 ## Save-reference repair
 
