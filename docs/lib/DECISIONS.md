@@ -475,3 +475,38 @@ whatever the system forgets next is covered without another patch.
   **No data was ever at risk.** A model-less `system` is the stored source
   passed through untouched, so an affected actor was intact on disk the whole
   time — `actor.reset()` alone restored one, which is what proved the diagnosis.
+
+---
+
+### The attack roll delegates its audience to core, and offers four modes (2026-08-05)
+
+`core.rollMode` and `CONFIG.Dice.rollModes` are deprecated in v14 and removed in
+v16, and the remodeled attack roll used both. The trap is that the replacement
+changed the values, not just the accessor: `core.messageMode` yields
+`public/gm/blind/self`, while `core.rollMode` yields `publicroll/gmroll/
+blindroll/selfroll` — v14 keeps the old name working by mapping the new value
+back (`client/game.mjs`, `rollModeField.initialize`). So the roll was correct
+throughout; only the console suffered.
+
+That back-mapping is what makes the obvious fix dangerous. This roll compared
+the value against the legacy spellings to build `whisper` and `blind`. Changing
+the settings read alone leaves those comparisons matching nothing, and a blind
+or private attack is then created with no whisper list — **broadcast to every
+player, with no error anywhere.** The offline suite passes, and a smoke test in
+Public mode passes.
+
+The rule: **this roll states a mode and lets `ChatMessage.applyMode` decide the
+audience.** It holds no list of mode names to compare against, so there is no
+second copy to fall out of step with core's, and a mode added later is handled
+without an edit here. It also returns `whisper` as user ids, which is what the
+Dice So Nice call downstream wants — `getWhisperRecipients` returns User
+documents, and that mismatch was live in the previous shape.
+
+Rejected: renaming the three comparisons to the new spellings. It restores
+correctness but keeps the duplicated vocabulary that caused the hazard, and the
+next vocabulary change breaks it the same silent way.
+
+**The dialog offers four modes, not five.** `CONFIG.ChatMessage.modes` also
+carries `ic`, which styles a message as in-character rather than deciding who
+may read it — a different question from "who sees this roll". Adding it would
+also be a new user-facing surface. Do not enumerate the config directly here.
