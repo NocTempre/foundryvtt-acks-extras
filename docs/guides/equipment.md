@@ -93,9 +93,10 @@ damage, never the ability to harm something that shrugs off ordinary weapons.
 The sheet says so under the tier picker.
 
 **Silver arrows are never spent by accident.** With both plain and silver
-ammunition in your pack, shots come out of the plain stack until it is empty. To
-fire the silver deliberately, **equip** that stack — an equipped stack is your
-declared choice and wins. When a silver round does go, the notification says so.
+ammunition in your pack, shots come out of the plain stack until it is empty, and
+when a silver round does go the notification says so. There is no way yet to
+declare "fire the silver ones now" — to shoot silver deliberately, keep it as the
+only ammunition to hand, or spend it by hand on the stack.
 
 ## Containers
 

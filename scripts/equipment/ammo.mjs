@@ -141,18 +141,18 @@ export async function consumeForAttack(actor, item, profile, options = {}) {
 
 /**
  * Which stack the shot comes out of. Silvered ammunition costs ten times what
- * ordinary ammunition costs (RR ch.4) and is bought for one fight in particular,
- * so it is never spent by default: an EQUIPPED stack is the archer's declared
- * choice and wins outright, and failing that plain ammunition goes first. Silver
- * is fired only once it is what is left — which is also the moment the archer
- * most wants to be told, hence its own message.
+ * ordinary ammunition costs (RR ch.4) and is bought for one fight in
+ * particular, so PLAIN AMMUNITION IS SPENT FIRST and silver is fired only once
+ * it is what is left — which is also the moment the archer most wants to be
+ * told, hence its own message.
+ *
+ * Never gate this on `system.equipped`: an ammunition stack is an `item`, and
+ * only `weapon` and `armor` carry that field — the test would read undefined
+ * forever and the rule would be dead. Declaring which stack to fire is unbuilt
+ * (see ROADMAP); until it is, keeping the precious stack out of reach is the
+ * archer's own business.
  */
 function pickAmmo(actor, pattern) {
   const stacks = actor.items.filter((i) => pattern.test(i.name) && roundsOf(i) > 0);
-  return (
-    stacks.find((i) => i.system?.equipped) ??
-    stacks.find((i) => !isSilvered(i)) ??
-    stacks[0] ??
-    null
-  );
+  return stacks.find((i) => !isSilvered(i)) ?? stacks[0] ?? null;
 }

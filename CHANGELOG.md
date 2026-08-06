@@ -31,9 +31,9 @@
   Whether a given monster has it stays the Judge's reading; the module says what
   the weapon counts as and stops there.
 - **Silver arrows are not spent by accident.** With plain and silver ammunition
-  both in the pack, shots come out of the plain stack first. Equipping a stack
-  declares it as the one to fire, and a silver round announces itself when it
-  goes.
+  both in the pack, shots come out of the plain stack first, and a silver round
+  announces itself when it goes. Declaring "fire the silver ones now" is not
+  built — to shoot silver deliberately, keep it as the only ammunition to hand.
 - **Masterwork no longer looks like it buys reach.** A masterwork weapon that is
   not silvered now says on its own sheet that the tier buys numbers and not the
   ability to harm what shrugs off ordinary weapons.
