@@ -1,8 +1,8 @@
-{
+﻿{
   "id": "acks-extras",
-  "title": "ACKS II — Extras",
-  "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations, henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block — over shared primitives and one rules-table registry.",
-  "version": "3.2.0",
+  "title": "ACKS II â€” Extras",
+  "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations, henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block â€” over shared primitives and one rules-table registry.",
+  "version": "3.3.0",
   "socket": true,
   "compatibility": {
     "minimum": "14",
