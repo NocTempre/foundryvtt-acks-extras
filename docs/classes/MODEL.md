@@ -38,7 +38,7 @@ sheet. Both produce the same document and open in the same sheet.
   grid or a pool schedule and a repertoire kind.
 - **Templates** — the eight printed 3d6 templates, each an inventory bundle
   of abilities and items (with the printed skin descriptor per item) plus
-  spells, gp and the encumbrance note. Applied by chargen (later phase).
+  spells, gp and the encumbrance note. Applied by chargen.
 
 ## The registry
 
@@ -77,6 +77,19 @@ a picker per choice award (its ChoiceSpec resolved against the class
 inventory or the world's general list), then grants the abilities (deduped
 by cookbook ref), writes HP, applies the class row for the new level, and
 posts a chat summary.
+
+## Chargen
+
+[scripts/classes/chargen.mjs](../../scripts/classes/chargen.mjs) rolls 3d6
+and offers the rolled template or any lower band (a GM-only Judge override
+lifts the rule), applies the class at level 1, then the template bundle —
+proficiencies as owned abilities, equipment as skins over base items, gp —
+plus the Intellect bonus general picks. The class's own first-level awards
+land in the same pass: every fixed award is granted (deduped by ref against
+what the template carried), and every level-1 choice award renders a select
+in the dialog — the warlock's dark path, the witch's tradition, the class
+proficiency picks — re-built whenever the class selection changes, with the
+chosen refs granted on confirm.
 
 ## Casting
 

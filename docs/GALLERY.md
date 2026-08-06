@@ -11,7 +11,7 @@ the next refresh.
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
 | Class constructor | A class as a document: enriched prose, chassis, the core-offer mark | [guide](guides/classes.md) | [v3.1.0](releases/v3.1.0/classes-constructor.png) |
-| Starting templates | The chargen roll: legal templates, the show-all toggle, the Judge override | [guide](guides/classes.md) | [v3.1.0](releases/v3.1.0/classes-chargen.png) |
+| Starting templates | The chargen roll: legal templates, the class's first-level picks, the Judge override | [guide](guides/classes.md) | [v3.2.0](releases/v3.2.0/classes-chargen.png) |
 | Level up | The wizard: the HP reroll it will apply, the powers granted, the picks offered | [guide](guides/classes.md) | [v3.0.0](releases/v3.0.0/classes-levelup.png) |
 | Casting strip | The Nobiran's arcane and divine pools side by side under the class field | [guide](guides/classes.md) | [v3.0.0](releases/v3.0.0/classes-casting-strip.png) |
 | Class apply | Every change old → new before it lands, hand edits flagged | [guide](guides/classes.md) | [v3.0.0](releases/v3.0.0/classes-apply-diff.png) |

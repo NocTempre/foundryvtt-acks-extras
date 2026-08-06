@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.2.0
+
+### Added
+- **A first level arrives with its choices made.** Chargen now hands over
+  everything the class grants at 1st level, not just the template bundle:
+  the fixed starting powers land as owned abilities (racial traits included,
+  deduped against what the template already carried), and every first-level
+  pick renders as its own select in the dialog — the class and general
+  proficiency picks, and the path choices the importer's class documents now
+  carry: a warlock chooses a dark path, a witch her tradition, a barbarian a
+  tribal origin, a By This Axe earthforger a sigil. The selects rebuild when
+  the class selection changes, and the options taken are granted with the
+  rest on confirm.
+
 ## 3.1.3
 
 ### Fixed

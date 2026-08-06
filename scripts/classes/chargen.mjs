@@ -20,6 +20,7 @@ import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classItems, findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 import { offeredClasses } from "./assign.mjs";
+import { grantAbility, optionsForChoice } from "./levelup.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -172,6 +173,7 @@ export async function openChargen(actor) {
     <div class="form-group"><label>${game.i18n.localize(`${LANG_PREFIX}.chargen.template`)}</label>
       <select name="template"></select></div>
     ${isGM ? `<div class="form-group"><label class="checkbox"><input type="checkbox" name="judge" /> ${game.i18n.localize(`${LANG_PREFIX}.chargen.judgeOverride`)}</label></div>` : ""}
+    <div data-role="starting"></div>
     ${bonusBlocks}
     <p class="hint">${game.i18n.localize(`${LANG_PREFIX}.chargen.rule`)}</p>`;
 
@@ -199,6 +201,22 @@ export async function openChargen(actor) {
               )} [${t.rollMin}–${t.rollMax}]</option>`,
           )
           .join("");
+        // The class's own first-level picks (a dark path, a tradition, the
+        // proficiency selections) re-render with the class: each choice award
+        // at level 1 gets a select over its ChoiceSpec's options.
+        const startBox = form.querySelector('[data-role="starting"]');
+        if (startBox) {
+          const choices = (cls?.system.awards ?? []).filter((a) => a.atLevel === 1 && a.kind === "choice");
+          startBox.innerHTML = choices
+            .map((a, i) => {
+              const options = optionsForChoice(a.choice, cls)
+                .map((o) => `<option value="${foundry.utils.escapeHTML(o.ref)}">${foundry.utils.escapeHTML(o.name)}</option>`)
+                .join("");
+              const label = a.choice.label || game.i18n.localize(`${LANG_PREFIX}.levelup.pick`);
+              return `<div class="form-group"><label>${foundry.utils.escapeHTML(label)}</label><select name="award-${i}">${options}</select></div>`;
+            })
+            .join("");
+        }
       };
       classSel.addEventListener("change", refresh);
       judge?.addEventListener("change", refresh);
@@ -215,6 +233,9 @@ export async function openChargen(actor) {
         uuid: button.form.elements.uuid?.value,
         rollMin: Number(button.form.elements.template?.value),
         bonus: Array.from({ length: bonusPicks }, (_, i) => button.form.elements[`bonus-${i}`]?.value).filter(Boolean),
+        awardPicks: Array.from(button.form.querySelectorAll('select[name^="award-"]'))
+          .map((el) => el.value)
+          .filter(Boolean),
       }),
     },
     rejectClose: false,
@@ -226,6 +247,18 @@ export async function openChargen(actor) {
 
   await applyClass(actor, cls, { level: 1, confirm: false });
   const report = await applyTemplate(actor, cls, template, { generalRefs: picked.bonus });
+  // The class's own first-level awards land with the template: every fixed
+  // award granted, every pick taken above granted as chosen. grantAbility
+  // dedupes by ref, so a power the template already carried is not doubled.
+  const startingGrants = [];
+  for (const a of (cls.system.awards ?? []).filter((x) => x.atLevel === 1 && x.kind === "fixed" && x.ref)) {
+    await grantAbility(actor, a.ref, startingGrants);
+  }
+  for (const ref of picked.awardPicks ?? []) {
+    await grantAbility(actor, ref, startingGrants);
+  }
+  report.granted.push(...startingGrants.filter((g) => !g.missing).map((g) => g.name));
+  report.unresolved.push(...startingGrants.filter((g) => g.missing).map((g) => g.name));
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<p>${game.i18n.format(`${LANG_PREFIX}.chargen.chat`, {

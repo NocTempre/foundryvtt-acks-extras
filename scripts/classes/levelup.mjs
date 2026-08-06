@@ -36,7 +36,7 @@ const ownsRef = (actor, ref) =>
   );
 
 /** Create one granted ability on the actor from a world item ref. */
-async function grantAbility(actor, ref, grants) {
+export async function grantAbility(actor, ref, grants) {
   if (!ref || ownsRef(actor, ref)) return;
   const source = findByRef(ref);
   if (!source) {
@@ -50,7 +50,7 @@ async function grantAbility(actor, ref, grants) {
 }
 
 /** Resolve a ChoiceSpec's options against this class doc and the world. */
-function optionsForChoice(choice, classItem) {
+export function optionsForChoice(choice, classItem) {
   const generalRefs = (game.items ?? [])
     .filter((i) => i.type === "ability" && i.system.proficiencytype === "general")
     .map(refOf);
