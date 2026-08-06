@@ -673,22 +673,22 @@ Hooks.on("getActorContextOptions", (application, options) => {
   const actorFor = (li) => game.actors.get(li?.dataset?.entryId);
   options.push(
     {
-      name: "ACKS-LIB.sheet.useCard",
+      label: "ACKS-LIB.sheet.useCard",
       icon: '<i class="fa-solid fa-address-card"></i>',
-      condition: (li) => {
+      visible: (li) => {
         const actor = actorFor(li);
         return !!actor && actor.isOwner && FOLLOWER_TYPES.has(actor.type) && actor.getFlag("core", "sheetClass") !== FOLLOWER_SHEET_KEY;
       },
-      callback: (li) => setFollowerSheet(actorFor(li), true),
+      onClick: (_event, li) => setFollowerSheet(actorFor(li), true),
     },
     {
-      name: "ACKS-LIB.sheet.useFull",
+      label: "ACKS-LIB.sheet.useFull",
       icon: '<i class="fa-solid fa-file-lines"></i>',
-      condition: (li) => {
+      visible: (li) => {
         const actor = actorFor(li);
         return !!actor && actor.isOwner && actor.getFlag("core", "sheetClass") === FOLLOWER_SHEET_KEY;
       },
-      callback: (li) => setFollowerSheet(actorFor(li), false),
+      onClick: (_event, li) => setFollowerSheet(actorFor(li), false),
     },
   );
 });

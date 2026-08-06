@@ -132,17 +132,23 @@ function damageParts(actor, attData, type) {
   return parts;
 }
 
+/* The message modes this dialog offers, in display order. CONFIG.ChatMessage.modes
+ * also carries `ic`, which styles a message as in-character rather than deciding
+ * who may see it — it answers a different question than "who sees this roll", so
+ * the roll dialog does not offer it. */
+const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
+
 /** Minimal situational-bonus + roll-mode dialog (core's getRollDetails shape). */
 async function rollDetailsDialog(title, formula) {
-  const modes = Object.entries(CONFIG.Dice.rollModes).map(
-    ([k, v]) => `<option value="${k}">${game.i18n.localize(v.label ?? v)}</option>`,
+  const modes = VISIBILITY_MODES.map(
+    (k) => `<option value="${k}">${game.i18n.localize(CONFIG.ChatMessage.modes[k].label)}</option>`,
   );
   const content = `
     <p class="hint">${formula}</p>
     <div class="form-group"><label>${L("situational", "Situational bonus")}</label>
       <input type="number" name="bonus" value="0" step="1" autofocus /></div>
     <div class="form-group"><label>${game.i18n.localize("CHAT.RollVisibility")}</label>
-      <select name="rollMode">${modes.join("")}</select></div>`;
+      <select name="messageMode">${modes.join("")}</select></div>`;
   try {
     return await foundry.applications.api.DialogV2.prompt({
       classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
@@ -152,7 +158,7 @@ async function rollDetailsDialog(title, formula) {
         label: game.i18n.localize("ACKS-LIB.attack.roll"),
         callback: (_ev, button) => ({
           bonus: Number(button.form.elements.bonus.value) || 0,
-          rollMode: button.form.elements.rollMode.value,
+          messageMode: button.form.elements.messageMode.value,
         }),
       },
       rejectClose: true,
@@ -183,7 +189,7 @@ async function acksLibRollAttack(actor, attData, options = {}) {
   }
 
   const attackParts = [exploding ? "1d20x" : "1d20", ...ctx.terms.map(termPart)];
-  let rollMode = game.settings.get("core", "rollMode");
+  let messageMode = game.settings.get("core", "messageMode");
   if (!skipDialog) {
     const details = await rollDetailsDialog(label, attackParts.join(" + "));
     if (!details) return null; // cancelled
@@ -191,7 +197,7 @@ async function acksLibRollAttack(actor, attData, options = {}) {
       ctx.terms.push({ key: "situational", value: details.bonus, label: L("situational", "Situational") });
       attackParts.push(termPart(ctx.terms.at(-1)));
     }
-    rollMode = details.rollMode || rollMode;
+    messageMode = details.messageMode || messageMode;
   }
 
   const roll = new Roll(attackParts.join(" + "));
@@ -236,13 +242,15 @@ async function acksLibRollAttack(actor, attData, options = {}) {
       target: attData?.roll?.target,
     },
   };
+  // Core owns the audience. `applyMode` sets `whisper` (as user ids, which is
+  // what the Dice So Nice call below wants) and `blind` for every mode it
+  // knows, so no mode name is ever compared here — a vocabulary that lives in
+  // exactly one place cannot drift out of step with itself.
   const chatData = { user: game.user.id, speaker: ChatMessage.getSpeaker({ actor }) };
-  if (["gmroll", "blindroll"].includes(rollMode)) chatData.whisper = ChatMessage.getWhisperRecipients("GM");
-  if (rollMode === "selfroll") chatData.whisper = [game.user.id];
-  else if (rollMode === "blindroll") {
-    chatData.blind = true;
-    rollData.roll.blindroll = true;
-  }
+  ChatMessage.applyMode(chatData, messageMode);
+  // The system's roll-attack.hbs reads this to hide the numbers; it is a
+  // template flag of ours, not something applyMode knows about.
+  if (messageMode === "blind") rollData.roll.blindroll = true;
 
   const templateData = {
     title: label,

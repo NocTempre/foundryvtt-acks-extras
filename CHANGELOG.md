@@ -1,6 +1,41 @@
 # Changelog
 
-## 3.1.1
+## 3.1.2
+
+### Fixed
+- **A missing-tables notice names only what a Judge can go and import.** Every
+  world load opened with a warning that the followers and monsters tables were
+  not installed, and that market, wage and hiring automation would stay disabled
+  until they were. Neither claim held. Those two were the only entries on the
+  list that no import produces — there is no recipe for either — so the notice
+  could never be cleared however much of the book you imported, and the
+  automation it said was disabled had been running the whole time on the six
+  tables that *had* arrived. The notice now lists only documents an import can
+  actually supply, which means an empty console on a world that has imported its
+  books and a warning you can act on where one is genuinely missing. The
+  followers tables are still required for follower generation, and the Followers
+  dialog still says so — at the moment you open it, where it can name the pages
+  to import.
+- **An attack roll asks who may see it in the words Foundry 14 uses.** Rolling
+  an attack wrote a block of red deprecation errors to the console, once per
+  roll and again for every different button that started one. The roll itself
+  was never wrong: the old names still resolved, so a private roll stayed
+  private. They stop resolving in Foundry 16, so the roll now reads the setting
+  and builds its audience through Foundry's own current interface, and hands the
+  visibility question to core rather than keeping its own list of mode names to
+  fall out of step. Public, private, blind and self-only behave exactly as
+  before. The visibility dropdown offers the same four choices and not core's
+  new in-character option, which styles a message rather than deciding who reads
+  it. The ACKS system makes the same deprecated calls from its own hit-dice,
+  initiative and chat-command rolls, so the console does not fall silent — but
+  nothing left in it comes from this module.
+- **A right-click menu is built the way Foundry 14 expects.** Opening the actor
+  or scene directory's context menu logged a deprecation error for each entry
+  this module adds. The entries always worked and still work identically — the
+  keys naming them were the ones Foundry retired. Two further entries carried a
+  third retired key that only complained when a player actually clicked them,
+  and those are corrected too, so the whole set is current rather than the two
+  the console happened to report.
 
 ### Fixed
 - **An animal is an animal from the moment the world opens, not from the moment

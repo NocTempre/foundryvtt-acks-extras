@@ -1256,7 +1256,7 @@
   "ACKS-HENCHMEN.repair.swept": "acks-henchmen: repaired dangling hireling references on {count} actor(s) — deleted hirelings were still listed on their employers (this crashed character sheets).",
   "ACKS-HENCHMEN.setting.autoRepairReferences": "Auto-repair dangling hireling references",
   "ACKS-HENCHMEN.setting.autoRepairReferencesHint": "At world load, remove references to deleted hirelings from employers' rosters. A dangling reference crashes character-sheet rendering in acks 14.0.1. Turn off only if you repair manually with the \"Repair Henchmen References\" macro.",
-  "ACKS-HENCHMEN.tablesMissing": "acks-henchmen: rules tables not installed ({list}). Book tables are no longer shipped — they will be imported per-world from your own ACKS II PDFs (import path in development). Market, wage, and hiring automation stays disabled until then.",
+  "ACKS-HENCHMEN.tablesMissing": "ACKS Extras | rules tables not imported ({list}). Book tables ship with no world — import them from your own ACKS II PDFs with the ACKS Importer. Market, wage, and hiring automation stays disabled until then.",
   "ACKS-HENCHMEN.posting.error.unknown-level": "Unknown henchman level.",
   "ACKS-HENCHMEN.posting.error.unknown-troop-type": "Unknown mercenary troop type.",
   "ACKS-HENCHMEN.posting.error.unknown-specialist": "Unknown specialist type.",

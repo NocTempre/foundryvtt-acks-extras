@@ -154,3 +154,43 @@ class of escaping bugs across the whole surface.
 
 A sweep of every DialogV2 `content` string in `scripts/henchmen/apps/` against
 the real allowlist regexes found no other dropped attribute.
+
+---
+
+### The ready-time table check names only ids an import can supply (2026-08-05)
+
+Field report: every world load warned `rules tables not installed (followers,
+monsters)`, and the reporter read it as a load-order fault — the check running
+before the tables were mirrored in.
+
+It is not. `scripts/location/module.mjs` mirrors the persisted set from its
+`init` hook, synchronously (`table-store.mjs` `registerPersisted` is a plain
+loop, no await), and this check runs at `ready`. Those are different phases, so
+the registry is always fully populated by the time the check runs, whatever the
+import order in `scripts/module.mjs`. The warning's own text proved it: it named
+two ids out of eight, so the other six were present.
+
+The real fault was that `RULEDATA` listed two ids no GM could ever satisfy.
+`acks-importer` defines extraction recipes for equipment, rarity, wages, people,
+slavery, settlement and availability — there is none for `followers` and none
+for `monsters`. So the notice was permanent, unclearable, and told the GM their
+market and wage automation was disabled when it was not.
+
+The rule: **`RULEDATA` holds only ids an import path can actually supply**, which
+makes it exactly the set already declared through `expectTables`. `monsters` was
+additionally dead — nothing in the tree read it. `followers` is still read, but
+gates at the point of use in `apps/followers-dialog.mjs`, where the message can
+name the pages to import instead of shouting at world load. Re-add an id here,
+with its `expectTables` declaration, when a recipe for it ships.
+
+Rejected for this fix: a "notice seen" world flag. A new setting takes the change
+out of hotfix range, and once the list is honest the notice clears itself the
+moment the GM imports.
+
+Deferred, and still open: `hasDoc` tests document presence, not table coverage,
+and this module registers its own `rarity` doc (`RARITY_AUTOMATION`) at SAMPLE
+priority — so `hasDoc("rarity")` is true in every world and the check can never
+report a genuinely missing rarity import. Counting `Object.keys(doc.tables)` does
+not fix it either: `RARITY_AUTOMATION` ships one table, so the count is always
+≥ 1. Closing it needs an intersection against `expectedTables()`, which makes a
+warning appear where none did before — a minor, not a patch.

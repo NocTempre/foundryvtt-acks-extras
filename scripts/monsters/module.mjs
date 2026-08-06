@@ -150,7 +150,7 @@ Hooks.on("getActorContextOptions", (_directory, options) => {
     label: "ACKS-MONSTERS.context.openFull",
     icon: '<i class="fa-solid fa-dragon"></i>',
     visible: (li) => !!FullMonsterSheet && sheetTypes.includes(findActor(li)?.type),
-    callback: (li) => {
+    onClick: (_event, li) => {
       const actor = findActor(li);
       if (actor && FullMonsterSheet) new FullMonsterSheet({ document: actor }).render(true);
     },

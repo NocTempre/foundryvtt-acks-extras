@@ -14,17 +14,23 @@ export const FLAG_MONSTER_LIST = "monsterHenchmenList";
 export const FLAG_RETAIN_BONUS = "retainBonus";
 
 /**
- * Book-table document ids expected from per-world import (acks-content
- * extraction). `throws` is NOT here — it is this module's own roll-automation
- * config, shipped in scripts/data/throws-data.mjs and registered at setup.
+ * Book-table document ids checked at `ready` and named to the GM when absent.
+ * `throws` is NOT here — it is this module's own roll-automation config,
+ * shipped in scripts/data/throws-data.mjs and registered at setup.
+ *
+ * Only ids an import can actually supply belong here, so every id this list
+ * puts in front of a GM is one they can go and resolve. It therefore matches
+ * the `expectTables` declarations in module.mjs exactly. `followers` is
+ * deliberately outside it: no extraction recipe produces that document, and
+ * apps/followers-dialog.mjs gates on it at the point of use, where the message
+ * can name the pages to import. Add an id here — with its `expectTables`
+ * declaration — only once a recipe for it ships.
  */
 export const RULEDATA = Object.freeze([
   "availability",
   "rarity",
   "wages",
-  "followers",
   "settlement",
-  "monsters",
   "slavery",
   "people",
 ]);

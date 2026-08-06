@@ -155,16 +155,16 @@ export function registerSceneContextMenu() {
     const sceneFor = (li) => game.scenes.get(li?.dataset?.entryId);
     options.push(
       {
-        name: `${LANG_PREFIX}.place.openLocation`,
+        label: `${LANG_PREFIX}.place.openLocation`,
         icon: '<i class="fa-solid fa-map-location-dot"></i>',
-        condition: (li) => !!locationOfScene(sceneFor(li)),
-        callback: (li) => locationOfScene(sceneFor(li))?.sheet?.render(true),
+        visible: (li) => !!locationOfScene(sceneFor(li)),
+        onClick: (_event, li) => locationOfScene(sceneFor(li))?.sheet?.render(true),
       },
       {
-        name: `${LANG_PREFIX}.place.createLocation`,
+        label: `${LANG_PREFIX}.place.createLocation`,
         icon: '<i class="fa-solid fa-house-circle-check"></i>',
-        condition: (li) => game.user.isGM && !locationOfScene(sceneFor(li)),
-        callback: (li) => createLocationForScene(sceneFor(li)),
+        visible: (li) => game.user.isGM && !locationOfScene(sceneFor(li)),
+        onClick: (_event, li) => createLocationForScene(sceneFor(li)),
       }
     );
   });

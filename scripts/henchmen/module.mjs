@@ -318,7 +318,7 @@ Hooks.on("getActorContextOptions", (_directory, options) => {
     label: "ACKS-HENCHMEN.unitMorale.menu",
     icon: '<i class="fas fa-flag"></i>',
     visible: (li) => findActor(li)?.type === "acks-lib.group",
-    callback: async (li) => {
+    onClick: async (_event, li) => {
       const actor = findActor(li);
       if (!actor) return;
       const { openUnitMoraleDialog } = await import("./apps/unit-morale-dialog.mjs");
