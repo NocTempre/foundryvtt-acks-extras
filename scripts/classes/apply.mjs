@@ -14,13 +14,9 @@
 import { savesUpdateData } from "../lib/actor-compat.mjs";
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue } from "./registry.mjs";
+import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
 
-/** "9d8 + 2*" → "9d8+2": the printed cell as a rollable formula. */
-export function normalizeHd(cell) {
-  return String(cell ?? "")
-    .replace(/\*/g, "")
-    .replace(/\s+/g, "");
-}
+export { normalizeHd };
 
 /** The vancian slot row for `level`: exact rung, else the highest below it. */
 function slotRowAt(tradition, level) {
@@ -101,7 +97,7 @@ const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
  *
  * @returns {Promise<{applied: boolean, update?: object, missing?: string[]}>}
  */
-export async function applyClass(actor, classItem, { level, confirm = true } = {}) {
+export async function applyClass(actor, classItem, { level, confirm = true, rebuildVitals = false } = {}) {
   if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { applied: false };
   if (classItem.system.isStub) {
     ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.stub`, { name: classItem.name }));
@@ -109,6 +105,25 @@ export async function applyClass(actor, classItem, { level, confirm = true } = {
   }
   const targetLevel = level ?? Math.max(1, Number(actor.system?.details?.level) || 1);
   const { update, level: clamped, missing } = classUpdateData(actor, classItem, targetLevel);
+
+  // Setting a level by hand leaves hit points and experience describing the
+  // character you no longer have — a 4th-level thief keeping 1st-level hit
+  // points and an experience total three bands away. Only the PICKER asks for
+  // this: chargen builds its own 1st level and the level-up wizard has already
+  // rolled the one die it means to add, so neither wants the whole total
+  // rebuilt underneath it.
+  let hpSteps = null;
+  if (rebuildVitals) {
+    const previousLevel = Math.max(1, Number(actor.system?.details?.level) || 1);
+    const built = await rebuildHitPoints(actor, classItem, clamped);
+    hpSteps = built.steps;
+    update["system.hp.max"] = built.max;
+    // A rebuilt maximum with the old current value beside it reads as a wound
+    // nobody took, so a fresh build arrives whole.
+    update["system.hp.value"] = built.max;
+    const xp = xpForLevel(classItem, clamped, previousLevel);
+    if (xp != null) update["system.details.xp.value"] = xp;
+  }
 
   // The stored ledger's dotted paths expanded into nested objects on write,
   // so lookups navigate with getProperty rather than key membership.
@@ -151,7 +166,15 @@ export async function applyClass(actor, classItem, { level, confirm = true } = {
       level: clamped,
     })}</p><table class="acks-extras-classes-diff"><tr><th></th><th>${game.i18n.localize(
       `${LANG_PREFIX}.apply.from`,
-    )}</th><th>${game.i18n.localize(`${LANG_PREFIX}.apply.to`)}</th></tr>${list}</table>`;
+    )}</th><th>${game.i18n.localize(`${LANG_PREFIX}.apply.to`)}</th></tr>${list}</table>${
+      // The dice are shown, not just their conclusion — a rebuilt total is a
+      // handful of rolls the player did not watch happen.
+      hpSteps?.length
+        ? `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.apply.hpRolls`)} ${hpSteps
+            .map((s) => `${s.level}: ${s.formula} → ${s.total}`)
+            .join(", ")}</p>`
+        : ""
+    }`;
     const ok = await foundry.applications.api.DialogV2.confirm({
       window: { title: game.i18n.localize(`${LANG_PREFIX}.apply.title`) },
       content,

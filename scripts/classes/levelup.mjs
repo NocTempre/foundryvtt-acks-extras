@@ -15,19 +15,16 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, findByRef } from "./registry.mjs";
-import { applyClass, normalizeHd } from "./apply.mjs";
+import { applyClass } from "./apply.mjs";
+import { normalizeHd, parseHd, rollHitDice } from "./hitpoints.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
 
 export const HP_MODE_SETTING = "levelUpHpMode";
 
+export { parseHd };
+
 /** The ref a world item is addressed by (the importer's stamp, else uuid). */
 const refOf = (item) => item.flags?.["acks-importer"]?.cookbook?.id ?? `uuid:${item.uuid}`;
-
-/** "9d8+4" → {dice: 9, sides: 8, flat: 4}; null when unparseable. */
-export function parseHd(formula) {
-  const m = /^(\d+)d(\d+)(?:\+(\d+))?$/.exec(String(formula ?? "").replace(/\s+/g, ""));
-  return m ? { dice: parseInt(m[1], 10), sides: parseInt(m[2], 10), flat: m[3] ? parseInt(m[3], 10) : 0 } : null;
-}
 
 /** Does the actor already own an ability carrying this ref? */
 const ownsRef = (actor, ref) =>
@@ -98,8 +95,12 @@ export async function openLevelUp(actor) {
       newMax = oldMax + Math.max(1, hd.flat - (prevHd?.flat ?? 0));
     }
   } else if (hd) {
-    hpRoll = await new Roll(`${hd.dice}d${hd.sides}`).evaluate();
-    newMax = Math.max(hpRoll.total + hd.dice * conMod + hd.flat, oldMax + 1);
+    // Constitution applies to each die and cannot take any of them below one
+    // (hitpoints.mjs) — the same arithmetic the picker's rebuild uses, so a
+    // character built at 5th and one levelled to 5th are rolled alike.
+    const rolled = await rollHitDice(hd, conMod);
+    hpRoll = rolled.roll;
+    newMax = Math.max(rolled.total, oldMax + 1);
   } else {
     newMax = oldMax + 1;
   }
