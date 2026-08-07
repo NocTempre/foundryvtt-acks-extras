@@ -21,6 +21,7 @@
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
+import { depositReach, pinnedPlaces, setPinnedPlace } from "../reach.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
 const TAB_CLASS = "acks-location-storage-tab";
@@ -36,25 +37,35 @@ const loc = makeLoc(LANG_PREFIX);
 function collect(actor) {
   const api = storage();
   const held = api.providersFor(actor);
-  const entry = (provider, items, coinGC) => ({
+  const entry = (provider, items, coinGC) => {
+    // `canReach` decides whether the DEPOSIT control is offered. Retrieval is
+    // deliberately not gated by it (reach.mjs): a player who cannot reach
+    // their own belongings at all is a worse failure than one who withdraws
+    // from a distance.
+    const reach = depositReach(actor, provider);
+    return {
     uuid: provider.uuid,
     name: provider.name,
     img: provider.img,
     isVault: !!api.vaultOwnerUuid(provider),
-    canReach: provider.isOwner,
+    canReach: reach.can,
+    reachReason: reach.can ? null : loc(`storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
     coinGC,
     rows: items.map((item) => {
       const qty = api.quantityOf(item.toObject())?.value ?? null;
       return { id: item.id, name: item.name, img: item.img, quantity: qty, stackable: qty != null };
     }),
-  });
+    };
+  };
 
   const places = held.map(({ provider, items, coinGC }) => entry(provider, items, coinGC));
-  // Places you own but have nothing at yet still belong here — otherwise there
-  // is nowhere to put the first thing.
+  // Places with nothing of yours at them yet still belong here — otherwise
+  // there is nowhere to put the first thing. Reachable ones, and the ones
+  // pinned to this sheet, which is what pinning is FOR.
+  const pinned = pinnedPlaces(actor);
   const empty = api
     .providers()
-    .filter((p) => p.isOwner && !places.some((e) => e.uuid === p.uuid))
+    .filter((p) => !places.some((e) => e.uuid === p.uuid) && (p.isOwner || pinned.has(p.uuid) || depositReach(actor, p).can))
     .map((p) => entry(p, [], 0));
 
   return {
@@ -174,6 +185,45 @@ async function onAction(event, actor) {
   }
 }
 
+/**
+ * Dropping a PLACE on a character's sheet pins it to them.
+ *
+ * The third way to reach an unlinked place (reach.mjs): a wagon, a cellar or a
+ * caravan a character has standing access to without owning it and without
+ * standing on its map. Dropping the location actor onto the sheet records it;
+ * the Storage tab then offers it like any place they can reach.
+ *
+ * Capture phase, so the core sheet's own drop handler never tries to embed a
+ * location actor as an owned item.
+ */
+function bindPlaceDrop(root, actor) {
+  if (root.dataset.acksPlaceDrop) return;
+  root.dataset.acksPlaceDrop = "1";
+  root.addEventListener(
+    "drop",
+    (event) => {
+      let data;
+      try {
+        data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+      } catch {
+        return;
+      }
+      if (data?.type !== "Actor" || !data.uuid) return;
+      const dropped = storage()?.resolveActorSync?.(data.uuid);
+      if (!dropped || !storage()?.isProvider?.(dropped)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setPinnedPlace(actor, dropped.uuid, true)
+        .then(() => {
+          ui.notifications.info(loc("storage.pinned", { name: dropped.name }));
+          refresh(actor);
+        })
+        .catch((err) => console.error(`${MODULE_ID} | pinning a place failed`, err));
+    },
+    { capture: true },
+  );
+}
+
 /* -------------------------------------------- */
 /*  Install                                      */
 /* -------------------------------------------- */
@@ -210,6 +260,7 @@ export function installStorageTab() {
       }
       injectSummary(root, data);
       injectTab(app, root, actor, html);
+      bindPlaceDrop(root, actor);
       // The bank column is only removed where its replacement is injected: a
       // sheet that gets no Storage tab keeps core's column, so a world with
       // nowhere to store coin is never left with neither.

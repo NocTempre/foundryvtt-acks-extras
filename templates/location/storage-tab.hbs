@@ -24,17 +24,19 @@
             <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="deposit">
               <i class="fas fa-down-long"></i> {{localize "ACKS-LOCATION.storage.deposit"}}
             </button>
-          {{/if}}
-          {{#if place.canReach}}
-            {{#if place.rows.length}}
-              <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="retrieveAll">
-                <i class="fas fa-up-long"></i> {{localize "ACKS-LOCATION.storage.retrieveAll"}}
-              </button>
-            {{/if}}
           {{else}}
-            <span class="acks-location-hint" data-tooltip="{{localize 'ACKS-LOCATION.storage.outOfReachHint'}}">
+            {{! Leaving something somewhere needs you to be there; taking your
+                own goods back does not, so retrieval stays below whatever this
+                says. The reason is named rather than the control just being
+                gone, which reads as a broken module. }}
+            <span class="acks-location-hint" data-tooltip="{{place.reachReason}}">
               <i class="fas fa-lock"></i> {{localize "ACKS-LOCATION.storage.outOfReach"}}
             </span>
+          {{/if}}
+          {{#if place.rows.length}}
+            <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="retrieveAll">
+              <i class="fas fa-up-long"></i> {{localize "ACKS-LOCATION.storage.retrieveAll"}}
+            </button>
           {{/if}}
         </span>
       </header>
@@ -51,12 +53,10 @@
                        data-quantity placeholder="{{row.quantity}}"
                        data-tooltip="{{localize 'ACKS-LOCATION.storage.quantityPrompt'}}" />
               {{/if}}
-              {{#if place.canReach}}
-                <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="retrieve"
-                        data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieve'}}">
-                  <i class="fas fa-up-long"></i>
-                </button>
-              {{/if}}
+              <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="retrieve"
+                      data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieve'}}">
+                <i class="fas fa-up-long"></i>
+              </button>
             </li>
           {{/each}}
         </ul>
