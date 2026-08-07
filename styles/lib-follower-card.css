@@ -654,11 +654,24 @@
 }
 
 /* An overridden target reads in the spot colour, so you can see the quick change. */
-.acks-lib-follower-card .fc-ac.overridden input,
 .acks-lib-follower-card .fc-ac.overridden span,
-.acks-lib-follower-card .fc-adv-row.overridden input,
-.acks-lib-follower-card .fc-adv-row.overridden .fc-adv-val,
-.acks-lib-follower-card .fc-vitals .fc-field.overridden input {
+.acks-lib-follower-card .fc-adv-row.overridden .fc-adv-val {
+  color: var(--acks-spot);
+  font-weight: 600;
+}
+
+/* The INPUTS need a heavier selector than the spans above, and the weight is not
+   decoration. The sheet theme dresses every field on an ACKS window —
+   `body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"])`
+   — which lands at (0,4,2). A rule leading with this card's own class reaches
+   (0,4,1) at best and loses by a single element selector, silently and only for
+   `color`: `font-weight` has nothing competing for it, so an override announced
+   itself in bold and in ordinary ink, which reads as the highlight simply not
+   existing. Each selector below therefore carries a fourth class AND the
+   negation, for (0,5,1). Never let one of these drop back to three classes. */
+.acks-lib-follower-card .fc-acx .fc-ac.overridden input:not([type="checkbox"]),
+.acks-lib-follower-card .fc-adv-list .fc-adv-row.overridden input:not([type="checkbox"]),
+.acks-lib-follower-card .fc-vitals .fc-field.overridden input:not([type="checkbox"]) {
   color: var(--acks-spot);
   font-weight: 600;
 }

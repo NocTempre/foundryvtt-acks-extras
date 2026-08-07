@@ -16,15 +16,18 @@ What that needs: an agreed signal (core marks the element `[open]` and
 audit of the sheets that embed an editor in a narrow column — the group and
 template sheets first.
 
-## The override highlight never reaches an input
+## Audit the rest of the card against the sheet theme's field rule
 
-`.overridden` is meant to print a card-only override in the spot colour. On an
-`<input>` only the `font-weight: 600` half lands: the colour loses the cascade
-to a core rule, so AC, the adventuring skills and the vitals all show an
-override in ordinary ink. The read-only spans and the attack rows are unaffected
-— they are not inputs.
+The override highlight is fixed, but the fault it exposed is general. The sheet
+theme dresses every field on an ACKS window at (0,4,2):
 
-Confirmed live 2026-08-07 on a monster card: `--acks-spot` resolves correctly on
-the element and the selector matches (the weight proves it), so this is a
-specificity loss, not a token or markup fault. The competing declaration is not
-in this module's CSS or in the vendored design sheet.
+    body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"])
+
+Any card rule that colours an input while leading with `.acks-lib-follower-card`
+tops out at (0,4,1) and loses — silently, and only for the properties the theme
+also sets, so the rest of the rule lands and the loss reads as "that rule does
+nothing" rather than as a conflict. `background` and `border` are set there too
+and are equally reachable.
+
+Worth a sweep of every input-colouring rule in this module, and of the group and
+template sheets, which sit under the same theme.
