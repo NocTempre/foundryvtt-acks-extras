@@ -80,6 +80,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     // Roll-target inputs write CARD-ONLY overrides (a flag the main sheet ignores),
     // not the base fields. They carry no name=, so they don't ride the form submit.
     this.element?.querySelector("input[data-fc-ac]")?.addEventListener("change", (ev) => this.#onAcInput(ev));
+    this.element?.querySelector("input[data-fc-speed]")?.addEventListener("change", (ev) => this.#onSpeedInput(ev));
+    this.element?.querySelector("input[data-fc-enc]")?.addEventListener("change", (ev) => this.#onEncInput(ev));
     for (const inp of this.element?.querySelectorAll("input[data-fc-adv]") ?? []) {
       inp.addEventListener("change", (ev) => this.#onAdvInput(ev));
     }
@@ -153,6 +155,18 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     if (Number.isFinite(v)) await this.#setOverride({ ac: v });
   }
 
+  async #onSpeedInput(ev) {
+    ev.stopPropagation();
+    const v = Math.round(Number(ev.target.value));
+    if (Number.isFinite(v)) await this.#setOverride({ speed: v });
+  }
+
+  async #onEncInput(ev) {
+    ev.stopPropagation();
+    const v = Math.round(Number(ev.target.value));
+    if (Number.isFinite(v)) await this.#setOverride({ enc: v });
+  }
+
   async #onAdvInput(ev) {
     ev.stopPropagation();
     const key = ev.target.dataset.fcAdv;
@@ -198,6 +212,14 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       } else {
         upd["system.aac.value"] = num(ov.ac);
       }
+    }
+    // Speed bakes onto whichever rate the model actually declares. `enc` is
+    // absent here on purpose: the carried figure is summed from the items on the
+    // body, so there is no base field to bake it into — it stays an override
+    // until Reset, like an unarmed attack's edit below.
+    if (ov.speed != null) {
+      if (actorProvides(this.actor, "movementacks.combat")) upd["system.movementacks.combat"] = num(ov.speed);
+      else if (actorProvides(this.actor, "movement.base")) upd["system.movement.base"] = num(ov.speed);
     }
     for (const [k, v] of Object.entries(ov.adventuring ?? {})) upd[`system.adventuring.${k}`] = num(v);
     if (Object.keys(upd).length) await this.actor.update(upd);

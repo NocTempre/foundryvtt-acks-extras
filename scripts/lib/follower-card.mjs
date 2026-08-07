@@ -277,7 +277,10 @@ export async function followerCardContext(actor, { editable = false, interactive
     : [];
 
   // Speed: the ACKS II block (combat / exploration) where the model declares it,
-  // else the creature's base rate and its own printed movement string.
+  // else the creature's base rate and its own printed movement string. The
+  // PRIMARY rate takes an override like AC does; the secondary stays derived,
+  // because the two are one printed pair and a card that let both drift would
+  // say a thing the book never does.
   if (actorProvides(actor, "movementacks.combat")) {
     ctx.speed = { primary: num(sys.movementacks?.combat), secondary: num(sys.movementacks?.exploration) };
   } else if (actorProvides(actor, "movement.base")) {
@@ -285,14 +288,27 @@ export async function followerCardContext(actor, { editable = false, interactive
   } else {
     ctx.speed = null;
   }
+  if (ctx.speed && overrides.speed != null) {
+    ctx.speed.primary = num(overrides.speed);
+    ctx.speed.overridden = true;
+  }
 
   // Encumbrance — only for a model that tracks a carrying limit. The 1/6-stone
   // figures themselves are derived (core computes them for owners only), so the
   // row is gated on the DECLARED limit and shows zeroes where the derived pass
   // did not run, never a row for a body that carries no load at all.
+  //
+  // Its override is CARD-ONLY by construction: the carried figure is summed from
+  // the items on the body, so there is no base field to bake it into. Commit
+  // therefore leaves it standing, exactly as it leaves an unarmed attack's edit
+  // standing — Reset is how it goes away.
   ctx.enc = actorProvides(actor, "encumbrance.max")
     ? { value: stones(sys.encumbrance?.value6), max: stones(sys.encumbrance?.max6) }
     : null;
+  if (ctx.enc && overrides.enc != null) {
+    ctx.enc.value = num(overrides.enc);
+    ctx.enc.overridden = true;
+  }
 
   // ATTACKS — one row per option the body actually has, each with its damage-type
   // icon. Target vs bonus stays DISTINCT (the ACKS model the patched roll uses):
@@ -376,7 +392,11 @@ export async function followerCardContext(actor, { editable = false, interactive
 
   ctx.strips = profileStrips(actor);
   ctx.hasOverrides =
-    overrides.ac != null || Object.keys(advOv).length > 0 || Object.keys(overrides.attacks ?? {}).length > 0;
+    overrides.ac != null ||
+    overrides.speed != null ||
+    overrides.enc != null ||
+    Object.keys(advOv).length > 0 ||
+    Object.keys(overrides.attacks ?? {}).length > 0;
   return ctx;
 }
 

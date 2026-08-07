@@ -102,16 +102,32 @@
       {{/if}}
 
       <div class="fc-vitals">
+        {{!-- SPD and ENC take a card-only override the same way AC does, so a
+              Judge can say "this one is slowed" without editing the actor. The
+              secondary rate and the carrying limit stay derived and read-only:
+              they are the pair's other half, not a second thing to set. --}}
         {{#if speed}}
-          <div class="fc-field">
+          <div class="fc-field{{#if speed.overridden}} overridden{{/if}}">
             <label>{{localize "ACKS-LIB.followerCard.speed"}}</label>
-            <span>{{speed.primary}}{{#if speed.secondary}} / {{speed.secondary}}{{/if}}</span>
+            {{#if editable}}
+              <span class="fc-pair">
+                <input type="number" data-fc-speed value="{{speed.primary}}" data-dtype="Number" />{{#if speed.secondary}}<span class="fc-pair-rest"> / {{speed.secondary}}</span>{{/if}}
+              </span>
+            {{else}}
+              <span>{{speed.primary}}{{#if speed.secondary}} / {{speed.secondary}}{{/if}}</span>
+            {{/if}}
           </div>
         {{/if}}
         {{#if enc}}
-          <div class="fc-field">
+          <div class="fc-field{{#if enc.overridden}} overridden{{/if}}">
             <label>{{localize "ACKS.Encumbrance"}}</label>
-            <span>{{enc.value}} / {{enc.max}}</span>
+            {{#if editable}}
+              <span class="fc-pair">
+                <input type="number" data-fc-enc value="{{enc.value}}" data-dtype="Number" /><span class="fc-pair-rest"> / {{enc.max}}</span>
+              </span>
+            {{else}}
+              <span>{{enc.value}} / {{enc.max}}</span>
+            {{/if}}
           </div>
         {{/if}}
         <div class="fc-field">

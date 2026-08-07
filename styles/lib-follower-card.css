@@ -133,7 +133,11 @@
 .acks-lib-follower-card .fc-box {
   text-align: center;
 }
-.acks-lib-follower-card .fc-hp-edit {
+/* The element selector is load-bearing: this is the row that HOLDS the two hit
+   point fields, not a value box itself, and the generic `.fc-box span` fill
+   above matches it at equal specificity. Without `span` here that rule wins on
+   source order and the pair renders as a box drawn around two boxes. */
+.acks-lib-follower-card .fc-box span.fc-hp-edit {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -190,12 +194,44 @@
   justify-content: space-between;
   gap: 4px;
 }
+/* One box width down the whole rail. A span stops at its content, but an input
+   answers to core's `width: 100%` unless this says otherwise — which is why SPD
+   read as a chip and MORALE as a full-width field in the same column, 40px
+   against 195px. The floor is shared so the boxes line up; only a span may grow
+   past it, for a speed that prints two figures. */
 .acks-lib-follower-card .fc-vitals .fc-field span,
 .acks-lib-follower-card .fc-vitals .fc-field a,
 .acks-lib-follower-card .fc-vitals .fc-field input {
   flex: 0 0 auto;
-  min-width: 3.2em;
+  min-width: 5em;
+  box-sizing: border-box;
   text-align: center;
+}
+.acks-lib-follower-card .fc-vitals .fc-field input {
+  width: 5em;
+}
+
+/* SPD and ENC pair an editable figure with a derived one. The wrapper and the
+   printed remainder are layout, not value boxes, so the generic `.fc-field span`
+   fill has to be lifted off both — the element selector is what outranks it, the
+   same trick the hit point row needs. */
+.acks-lib-follower-card .fc-vitals .fc-field span.fc-pair,
+.acks-lib-follower-card .fc-vitals .fc-field span.fc-pair-rest {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: 0;
+}
+.acks-lib-follower-card .fc-vitals .fc-field span.fc-pair-rest {
+  min-width: 0;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+.acks-lib-follower-card .fc-vitals .fc-field .fc-pair input {
+  width: 3em;
+  min-width: 0;
 }
 .acks-lib-follower-card .fc-roll {
   text-decoration: none;
@@ -262,6 +298,24 @@
   border: none;
   background: none;
   color: var(--acks-ink);
+}
+
+/* An open editor takes the whole card. The notes panel lives in the third
+   column of a three-column grid — about 177px — and ProseMirror's toolbar wants
+   roughly 870px of controls, so a panel that clips (it must, or a long note
+   would stretch the card) clipped every control out of existence: the editor
+   looked like it had no buttons at all. Editing is a mode, not a column, so the
+   right-hand stack spans the full width for as long as it lasts and falls back
+   the moment the editor is closed.
+
+   The menu still wraps rather than trusting the card to be wide enough — a
+   narrow window must cost rows of toolbar, never the toolbar. */
+.acks-lib-follower-card .fc-body:has(prose-mirror[open]) .fc-right {
+  grid-column: 1 / -1;
+}
+.acks-lib-follower-card .fc-notes prose-mirror[open] :is(menu, .editor-menu, .ProseMirror-menubar) {
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 /* --- Attacks: Melee / Missile · #AT · DMG --- */
@@ -354,10 +408,17 @@
   color: var(--acks-spot);
   text-decoration: underline;
 }
+/* `.fc-roll` draws a box, which is right for the vitals links it was built for
+   and wrong here: the attacks panel is already a bordered field, so an attack
+   arrived as a box on identical ground inside that box. Only the box is
+   dropped — the link keeps its ink and its pointer. */
 .acks-lib-follower-card .fc-attack-row a.fc-roll {
   cursor: pointer;
   color: var(--acks-ink);
   text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
 }
 .acks-lib-follower-card .fc-ac-edit {
   display: flex;
@@ -596,7 +657,8 @@
 .acks-lib-follower-card .fc-ac.overridden input,
 .acks-lib-follower-card .fc-ac.overridden span,
 .acks-lib-follower-card .fc-adv-row.overridden input,
-.acks-lib-follower-card .fc-adv-row.overridden .fc-adv-val {
+.acks-lib-follower-card .fc-adv-row.overridden .fc-adv-val,
+.acks-lib-follower-card .fc-vitals .fc-field.overridden input {
   color: var(--acks-spot);
   font-weight: 600;
 }
