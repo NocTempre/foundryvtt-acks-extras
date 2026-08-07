@@ -89,7 +89,22 @@
   font-weight: 600;
 }
 
-/* --- Boxed value fields --- */
+/* --- Boxed value fields ---
+   The four dressing properties below RESTATE what the sheet theme's field rule
+   gives an `<input>`, and the restatement is load-bearing rather than
+   redundant. This card is a published render surface — `renderFollowerCard`,
+   exported as `acksExtras.lib.followerCard.render` — so its own sheet is only
+   one of its hosts. It also goes into the chat log, which sits in the sidebar
+   under no `.window-content` and carries no `.acks`, and into whatever
+   application another module renders it in, which carries neither. The theme's
+   rule needs both, so on those hosts nothing dresses these fields but this.
+   Only on the card's own sheet does the theme reach them and win; the values
+   are kept identical so the card is one object wherever it is opened.
+
+   The spans and `.fc-ability-value` are not inputs and were never reachable by
+   the theme at all — they are here for the same parity. Keep every value in
+   this block equal to the theme's; a divergence would show up only off-sheet,
+   which is where it would be seen last. */
 .acks-lib-follower-card .fc-field,
 .acks-lib-follower-card .fc-box {
   display: flex;

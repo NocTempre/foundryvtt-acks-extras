@@ -719,12 +719,30 @@
   width: auto;
   min-width: 80px;
   height: 22px;
-  font-size: var(--acks-fs-label);
 }
 
 .acks-formation-flags input[type="number"] {
   min-width: 55px;
   max-width: 60px;
+}
+
+/* The row's TYPE SIZE needs a heavier selector than its geometry does, and the
+   split is not tidiness. The vendored design system dresses every field on an
+   `.acks-ui` root — `.acks-ui :is(input[type="text"], …, select, textarea)` —
+   at (0,2,1), and it claims `font-size`. It claims nothing the two rules above
+   set, so `width`, `min-width` and `height` land from (0,1,1) and only the size
+   was discarded: the labels beside these controls are not form controls, took
+   their label size unopposed, and the row rendered small labels against
+   body-size fields.
+
+   Adding the row class and the negation reaches (0,3,1), clear of the vendored
+   rule. Keep the geometry at its own weight — lifting it here would out-rank
+   the number-field widths above and stretch every spinner to the 80px floor.
+   Both hosts this row renders into carry `acks-ui`, so never scope this on the
+   sheet theme instead: the audit window does not carry `acks` and the theme
+   never reaches it. */
+.acks-formation-flags .acks-formation-flag-row :is(select, input:not([type="checkbox"])) {
+  font-size: var(--acks-fs-label);
 }
 
 .acks-formation-flags .hint {

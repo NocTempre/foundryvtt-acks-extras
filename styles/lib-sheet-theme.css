@@ -192,7 +192,27 @@ body.acks-lib-sheet-theme .sheet.acks.item-v2 .window-content {
 /* --- Fields: boxed by a thin rule, as printed. --acks-field is the well and
    --acks-ink the rule around it; both invert with the seat, so the box reads
    as "the ground, recessed" on paper and on leather alike. The books rule
-   square corners, which is what --acks-radius is zero for. */
+   square corners, which is what --acks-radius is zero for.
+
+   WHAT THIS REACHES IS NARROWER THAN "every ACKS field", and the boundary is
+   deliberate. The rule needs `.acks` on an application root AND a
+   `.window-content` between it and the field, so it dresses the system's own
+   sheets and the handful of module applications that name `acks` in their
+   `classes` — nothing else. A module window that does not name `acks`, a
+   DialogV2, a chat card, and a card another module embeds in an application of
+   its own are all outside it, by construction: this file themes the SYSTEM's
+   windows, and reaching further would restyle surfaces the system never drew.
+
+   Off those surfaces the field dressing belongs to whoever draws them —
+   vendor/acks-design's `.acks-ui` layer for a module window, the follower
+   card's own rules for the card. Do not widen this selector to cover a field
+   that arrived undressed; give that surface its owner instead. A rule elsewhere
+   that repeats these four declarations is doing exactly that and is not
+   redundant — check which hosts it serves before deleting it.
+
+   The weight is (0,4,2), which is more than a module rule leading with its own
+   class can reach. A module rule that must win here needs a fifth class-level
+   component and says so where it is written. */
 body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]) {
   background: var(--acks-field);
   border: var(--acks-border-ink);

@@ -145,9 +145,30 @@
    The alarm red is a fill/mark colour on the rules that frame the field and on
    the glyph; the hint's prose takes the -ink variant, which is the tone that
    holds contrast against the paper in either theme. The glyph is what makes the
-   fault survive a reader who cannot separate the reds. */
-.acks-abilities-conflict input,
-.acks-abilities-conflict select {
+   fault survive a reader who cannot separate the reds.
+
+   TWO field dressings compete for this keyline and the selector has to clear
+   both. The sheet theme dresses every field on an `.acks` window —
+   `body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"])`
+   — at (0,4,2); the vendored design system dresses every field on an `.acks-ui`
+   root — `.acks-ui :is(input[type="text"], …, select, textarea)` — at (0,2,1).
+   Both set `border` as a SHORTHAND, so both claim the colour longhands. This
+   sheet carries `acks` and `acks-ui` together, so a rule leading with the
+   conflict class alone reaches (0,1,1) and loses to each of them, silently and
+   only for `border-color`: `outline` has nothing competing for it and landed,
+   so a contradicted count drew a red ring around a field still keyed in
+   ordinary ink, which reads as the ring being the whole design.
+
+   The selector therefore spends the tab class, the host `.form-group`, the
+   `.form-fields` wrapper and the negation, for (0,5,1) — one class-level
+   component clear of the theme. Never let this drop back to four classes.
+
+   It deliberately stops short of hover and focus. Those are drawn at (0,6,2)
+   in the focus colour, and a fault marker is not worth blinding the affordance
+   that tells you which field you are in; the outline and the glyph carry the
+   fault while the pointer is on it. */
+.acks-abilities-mechanics .acks-abilities-conflict.form-group .form-fields
+  :is(input:not([type="checkbox"]), select) {
   border-color: var(--acks-danger);
   outline: var(--acks-rule-hair) solid var(--acks-danger);
 }
