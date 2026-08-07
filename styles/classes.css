@@ -227,9 +227,12 @@
 
 /* --- Chargen on the system's Scores Generator --- */
 
-/* Neither family dressing reaches this page: its root carries `acks2` and
-   `stat-gen-app`, so there is no `.acks` for the sheet theme and no `.acks-ui`
-   for the vendored one. Everything the block needs is stated here. */
+/* One of the two family dressings reaches this page: its root carries
+   `acks2 stat-gen-app acks-ui`, so the sheet theme's field rule never applies
+   (no `.acks`) but the vendored `.acks-ui` one does, at (0,2,1), claiming
+   background, border, colour, font and padding on a select. This rule leads
+   with its own module class and clears it — do not weaken the selector on the
+   assumption that nothing is competing. */
 .acks-extras-classes-chargen {
   margin-top: var(--acks-sp-3);
 }
@@ -270,4 +273,39 @@
 }
 .acks-extras-classes-reset:hover {
   color: var(--acks-spot);
+}
+
+/* The Scores Generator, with a fourth control on every rollable row.
+
+   The page lays each row out as label + .form-fields, and the fields row was
+   already carrying two inputs and three dice buttons. Adding the reset pushed
+   the inputs to nothing — a score box with no room to show a score — so the
+   inputs are given a floor and the buttons are told not to grow into it.
+   Scoped to a class this module puts on the page root, because the page's own
+   classes belong to the system. */
+.acks-extras-classes-statgen .form-fields {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+}
+.acks-extras-classes-statgen .form-fields > input[type="number"] {
+  min-width: 3.25rem;
+  flex: 0 1 auto;
+}
+.acks-extras-classes-statgen .form-fields > button {
+  flex: 0 0 auto;
+}
+
+/* A checkbox under a control is a second row of the same group, not a second
+   label competing for the label column — where the grid squeezes it to one
+   word per line. */
+.acks-extras-classes-statgen .acks-extras-classes-chargen label.checkbox {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.acks-extras-classes-statgen .acks-extras-classes-chargen .hint {
+  grid-column: 1 / -1;
 }

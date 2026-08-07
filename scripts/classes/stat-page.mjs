@@ -23,10 +23,13 @@
  * character's Intellect has to be on the actor before the bonus proficiencies
  * are counted against it.
  *
- * NEITHER FAMILY DRESSING REACHES THIS PAGE — its root carries `acks2` and
- * `stat-gen-app`, so it has no `.acks` for the sheet theme and no `.acks-ui`
- * for the vendored one. Controls added here are styled by this module or not
- * at all.
+ * ONE OF THE TWO FAMILY DRESSINGS REACHES THIS PAGE. Its root carries
+ * `acks2 stat-gen-app acks-ui`: no `.acks`, so the sheet theme's field rule
+ * never applies, but the vendored `.acks-ui` one does — and that rule claims
+ * `background`, `border`, `border-radius`, `color`, `font-size`, `font-family`
+ * and `padding` on selects at (0,2,1). The block's own select rule leads with
+ * its module class and clears it; do not weaken that selector on the
+ * assumption that nothing is competing.
  */
 import { LANG_PREFIX } from "./constants.mjs";
 import { classItems } from "./registry.mjs";
@@ -35,6 +38,7 @@ import { optionsForChoice } from "./levelup.mjs";
 
 const BLOCK = "acks-extras-classes-chargen";
 const RESET = "acks-extras-classes-reset";
+const PAGE_CLASS = "acks-extras-classes-statgen";
 
 const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
 const loc = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.${key}`));
@@ -237,6 +241,12 @@ function recomputeStats(root) {
 }
 
 function inject(app, root, state) {
+  // Our own marker on the page root. The page's own classes are `acks2` and
+  // `stat-gen-app`, neither of which this module may write rules against
+  // (CSS here is namespaced `acks-extras-`), so the styles that keep the score
+  // rows legible with a fourth control in them hang off this.
+  root.classList.add(PAGE_CLASS);
+
   // Resets: one per score row, plus the template and gold rows.
   for (const input of root.querySelectorAll('input[data-kind="score"]')) {
     const fields = input.closest(".form-fields");

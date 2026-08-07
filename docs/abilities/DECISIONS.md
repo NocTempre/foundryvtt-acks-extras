@@ -7,6 +7,50 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A modifier must name what it modifies, and may name the throw (2026-08-06)
+
+`targetOf` resolved a throw's own ladder and nothing else, so every modifier the
+books state against a proficiency sat inert. Measured live: of the world's
+ability effects, 42 were proficiency-throw modifiers, 9 named what they
+modified, and none named anything but themselves.
+
+Ruled: modifiers are folded in at `targetOf`, so the strip, the roller, the chat
+card and Favorites cannot disagree about what a throw comes to. Two guards:
+
+- **A modifier must NAME its subject** (`forWhat`). An unattributed "+2 to
+  proficiency throws" is what the importer's generic scan left behind when it
+  dropped the activity from the sentence; applying those would give a character
+  every bonus in their list on every roll they make. acks-importer now captures
+  the name.
+- **One ability counts once.** Holding a proficiency twice is RANK (RR §III.3),
+  which the ladder's own `rank` scale already answers; counting both copies
+  would apply the bonus twice and then let the ladder apply it again.
+
+**A modifier scoped to one way of attempting a thing names that THROW**
+(`appliesToRoll`), because the variants are already separate keyed throws.
+*Rejected: matching the modifier's `condition` prose* — Lockpicking's names both
+of its throws in a single string ("methodical attempt (one turn); not a hasty
+attempt"), so any reading of it lands the +4 on the hasty attempt too.
+
+A conditioned modifier naming no throw is returned unapplied rather than guessed
+at: that is a gap in what was captured, and the importer closes it.
+
+---
+
+### An ability has a default throw, stored per item (2026-08-06)
+
+Core reaches an ability's roll from one control and can only make one throw, so
+every route that cannot name one — the row icon, the chat card button,
+`item.use()`, a hotbar macro — reached whichever throw happened to be first.
+
+Ruled: the ability carries which throw those routes reach, cycled from the
+sheet. Stored per ITEM, so one character's Lockpicking can default to the
+methodical throw while another's does not. Blank, or naming a throw since
+deleted, reads as the first — an ability that silently rolls its first throw is
+better than one that rolls nothing.
+
+---
+
 - **2026-07-18 — flag-stored model, not a document sub-type** (the same shape
   the monsters feature uses): reuse the system's own `ability` item, add data via
   a flag DataModel + alternate sheet. Nothing mutates the acks system.

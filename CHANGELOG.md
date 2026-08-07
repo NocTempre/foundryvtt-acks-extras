@@ -1,5 +1,109 @@
 # Changelog
 
+## 3.4.0
+
+### Fixed
+- **Every throw an ability offers can be rolled.** The system stores one roll
+  per ability and reaches it from one control, so a proficiency the book prints
+  with two ways of attempting it — picking a lock hastily, or methodically for
+  a turn and a bonus — had one of them reachable and the other only from inside
+  the item. The strip in an expanded row now rolls the throw it prints, so the
+  thing showing you "methodically 9+" is the thing you press. A favourited
+  ability offers one control per throw, because a favourite exists to be rolled
+  without going looking for it. And an ability with more than one throw carries
+  a control that says which throw everything else reaches — the row's own icon,
+  the chat card's button, a hotbar macro — and steps to the next one.
+- **A bonus reaches the ladder it names.** The books state a great many —
+  Lockpicking Expertise adds two to Lockpicking throws, a methodical attempt
+  adds four to its own — and every one of them was recorded against the
+  ability granting it and read by nothing, so none of them ever moved a number.
+  A fourth-level thief with Lockpicking Expertise now picks at 13+ rather than
+  15+, and methodically at 9+. A bonus that does not say what it is a bonus to
+  is still not applied to anything: guessing would give a character every bonus
+  in their list on every roll they make. Taking a proficiency twice is
+  unchanged — that is rank, which its own ladder already answers.
+- **Setting a level by hand builds the character that level describes.**
+  Choosing a class or a level from the picker wrote the printed cells and left
+  hit points and experience describing somebody else — a fourth-level thief
+  with first-level hit points, and an experience total three bands from the
+  level beside it. Hit points are now rolled from first level upward, each
+  level after the first rerolling the whole Hit Dice and keeping at least a
+  point more than the level before, and the dice are shown before anything is
+  written. Experience moves the shortest distance that makes it agree with the
+  level: to the floor of the new band when the level rises, to one short of the
+  next when it falls, and not at all where the class prints no number to move
+  to. Levelling up normally is untouched, and so is chargen.
+- **Constitution applies to each Hit Die, and cannot take any of them below a
+  point.** It was applied to the total instead — the same arithmetic only while
+  Constitution is a bonus. A third-level character with a penalty rolling 1, 1
+  and 2 holds three points by the book and fewer than none by the shortcut.
+- **A starting package follows the class and the template it was chosen for.**
+  The proficiency picks offered during character generation were built once and
+  never rebuilt, and the template list did not follow the class, so the picks
+  could belong to a template nobody had selected.
+- **Leaving something somewhere means being there.** Storage asked only whether
+  you owned a place and then offered every place that said yes, so a character
+  standing in a dungeon was invited to put a chest into a warehouse three
+  hundred miles away. A place with a map is now reached by standing on it — any
+  scene, not only the one you are looking at, so a party split across two maps
+  can still bank at the inn half of it is sitting in. A place with no map is
+  reached by holding it, and your own vault is yours wherever you stand.
+  Anyone you travel with holding a place lends you their access, asked of a
+  formation's marching order and of a party actor alike. None of this gates
+  taking your goods back: retrieval is offered wherever the goods are, and
+  where the deposit control is withheld the tab says which rule withheld it.
+- **An open editor takes the whole card.** A follower card's notes editor wants
+  more width than the column it sits in, so every one of its controls was
+  clipped away and it read as an editor that had none.
+- **A value box holds one value.** Hit points drew a box around its own two
+  boxes, an attack drew one inside the panel that already framed it, and a rail
+  could hold a narrow box and a full-width one claiming to be the same field.
+- **An override says so in colour, not only in weight.** A number overridden on
+  a card was meant to print in the spot colour and printed in bold ordinary ink
+  instead, because the sheet theme's own field colour outweighed the card's by
+  a hair — so the one signal saying a value was yours rather than the actor's
+  never appeared.
+- **A count that contradicts its own rules prints as a fault.** An ability taken
+  more times than it may be was ringed in the alarm colour while its own figure
+  stayed in ordinary ink, so a contradicted count looked much like a settled one.
+- **The skill audit's settings row sets as one line.** Its labels were smaller
+  than the dropdowns and number fields they named.
+
+### Added
+- **A character is built on the page that rolls them.** The Scores Generator
+  rolled six attributes, a template die and a purse, and then threw the template
+  die away — it was never read. Character generation now happens there: a class
+  is chosen once the scores are known and before the template is rolled,
+  offering only those whose requirements the scores actually meet, and the
+  template die is read against that class under the printed rule — the band you
+  rolled or any below it. The class's own first-level picks and the Intellect
+  bonus proficiencies are chosen on the same page, and everything rebuilds as
+  the scores change. A Judge can offer any class or any template regardless.
+  The separate chargen window is gone; it asked the same questions again and
+  rolled a second, different template die.
+- **Anything rolled can be taken back.** Every score, the template die and the
+  starting purse carry a control that clears them, and the sum, average and
+  spread follow rather than describing scores that are no longer there.
+- **A template that assumes an Intellect its character has not got no longer
+  hands out what they cannot hold.** The studious spellcasters' packages are
+  built assuming a bonus — one proficiency, listed last, and one spell, listed
+  second. A character below that band is now given neither, and one above it
+  chooses only the difference rather than the whole bonus a second time. Which
+  classes those are is a fact off the page: it arrives with the class from your
+  own book, so re-import your classes to pick it up. A class you have not
+  re-imported assumes nothing and behaves exactly as it did.
+- **A place can be pinned to a character.** Drag a location onto a sheet and it
+  stays offered for storage from then on — for the cellar or the caravan a
+  character has standing access to without owning it and without standing on
+  its map.
+- **A card's derived numbers can be told otherwise.** Speed and encumbrance were
+  printed and nothing more, in boxes that looked exactly like the ones beside
+  them that accept typing. Both now take a card-only override the way armour
+  class already did — the row reads in the override colour while it holds one,
+  Reset drops it, and Commit writes the speed onto the actor. Encumbrance is
+  summed from what the body carries, so it has nothing to be written onto and
+  stays a card note until Reset.
+
 ## 3.3.0
 
 ### Fixed

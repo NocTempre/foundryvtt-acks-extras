@@ -20,3 +20,12 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   "instance of <base>".
 - **Prose editors** — description/code fields are textareas; ProseMirror
   polish later.
+- **Reaching chargen again after the first write** — the Scores Generator is
+  offered only while the system considers a character new (`system.isNew`,
+  which core clears on the first update touching scores), so a character built
+  by hand cannot be sent back through it. What is missing is a way to reopen
+  the page deliberately; the surface itself is complete.
+- **Unifying the two notions of party** — storage reach asks both a formation's
+  marching order and Foundry's party actor, and takes either
+  ([location/DECISIONS.md](../location/DECISIONS.md)). Which one is
+  authoritative is the owner's call and not yet made.

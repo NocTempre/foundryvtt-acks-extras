@@ -11,6 +11,35 @@ tidy list of only the current answers.
 
 ---
 
+### Leaving something at a place needs reach; taking it back does not (2026-08-06)
+
+Storage offered a deposit control at every place the viewing user owned, so a
+character in a dungeon was invited to stow a chest in a warehouse across the
+map. Ruled (user), and the rule has two halves because places do:
+
+- A place with a **linked scene** is somewhere on the map, so a token of the
+  character must stand on that scene. Deliberately NOT the active scene: a party
+  split across two maps can still bank at the inn one half is sitting in. This
+  outranks ownership — a player who owns the inn but is not at it is refused.
+- A place with **no linked scene** has no map to be absent from. Ownership
+  answers, as does a place pinned to the character's own sheet, and a personal
+  vault is always its owner's wherever they stand.
+
+**Companions count, from two sources, deliberately unreconciled.** The user
+named the formation module's party; Foundry's own party actor (v13+) exists
+too and they are not unified. Both are asked and either answering yes is
+enough, pending a later unification that is the owner's to make. The `group`
+actor is NOT one of them — it is a troop stack, not a company of characters.
+
+**Retrieval is not gated at all.** A player who cannot reach their own
+belongings is a worse failure than one who withdraws from a distance. Where the
+deposit control is withheld the tab names the rule that withheld it rather than
+leaving a gap, which reads as a broken module.
+
+*Cost:* a GM sees the same refusals a player does, because ownership is not a
+bypass. That is deliberate — a tab that shows two different truths depending on
+who is looking is harder to reason about than one rule.
+
 ### A vault can be asked for, not only earned (2026-08-05)
 
 The sweep that retires the bank column makes a vault for any character with a

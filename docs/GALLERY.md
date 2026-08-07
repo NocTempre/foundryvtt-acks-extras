@@ -11,7 +11,7 @@ the next refresh.
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
 | Class constructor | The Casting editor: traditions, slot grid, pool schedule, caster-level ladder | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-constructor.png) |
-| Starting templates | A chargen'd mage: the spellbook's spells granted as spell items | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-chargen.png) |
+| Character generation | Class chosen after the scores, the template die read against it | [guide](guides/classes.md) | [v3.4.0](releases/v3.4.0/classes-chargen.png) |
 | Level up | The wizard: the HP reroll it will apply, the powers granted, the picks offered | [guide](guides/classes.md) | [v3.0.0](releases/v3.0.0/classes-levelup.png) |
 | Casting strip | Slot pips, a points pool with its −/+ pair, the gnostic capacity rung, the rest control | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-casting-strip.png) |
 | Sheet filing | The ability list's filter bar: fighting, thief skills, general, powers | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-category-tabs.png) |
@@ -31,12 +31,14 @@ the next refresh.
 | Colour scheme | The per-player setting that holds the ACKS look steady | [guide](guides/appearance.md#pick-a-colour-scheme) | [v3.3.0](releases/v3.3.0/settings-colour-scheme.png) |
 | Storage | Moving goods in and out of a place that holds them, and giving a character a vault | [guide](guides/location.md) | [v3.3.0](releases/v3.3.0/location-storage-manager.png) |
 | Storage messages | What a refused stow tells you, in words rather than an identifier | [guide](guides/location.md) | [v3.3.0](releases/v3.3.0/storage-message.png) |
+| Storage reach | A mapped place you are not standing at, beside ones you can reach | [guide](guides/location.md) | [v3.4.0](releases/v3.4.0/location-storage-reach.png) |
 | Read aloud | A named power posted to chat for the table to read | [guide](guides/monsters.md#what-opens-first) | [v3.3.0](releases/v3.3.0/monster-card-chat.png) |
 | Monsters | The extended stat block's defenses: the silver flaw beside Mundane and Extraordinary | [guide](guides/monsters.md) | [v3.3.0](releases/v3.3.0/monster-sheet.png) |
 | Silver ammunition | Plain and silver stacks side by side; the silver one declared for firing | [guide](guides/equipment.md#silvered-weapons) | [v3.3.0](releases/v3.3.0/equipment-silver-ammo.png) |
 | Sheet light controls | A lit lantern's row: douse and shutter where the item sits | [guide](guides/equipment.md#lighting-a-lamp-from-your-own-sheet) | [v3.3.0](releases/v3.3.0/equipment-light-controls.png) |
 | Vision & light | A token under its own lantern's glow on a dark canvas | [guide](guides/formation.md#seeing-in-the-dark) | [v3.3.0](releases/v3.3.0/token-vision.png) |
 | Ability throws | A progression throw whose source is picked from every class the world holds | [guide](guides/abilities.md#typing-in-a-throw) | [v3.3.0](releases/v3.3.0/ability-roll-editor.png) |
+| Rolling a proficiency | Every throw an ability offers, each rolling its own | [guide](guides/abilities.md) | [v3.4.0](releases/v3.4.0/abilities-throws.png) |
 | Wear slots | Where a piece of gear is worn, what it holds, and what reaching in costs | [guide](guides/equipment.md#where-gear-is-worn) | [v3.3.0](releases/v3.3.0/equipment-slot-picker.png) |
 
 The long-stale nine (unshot since before 3.0.0) were all re-staged and re-shot

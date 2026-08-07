@@ -80,16 +80,33 @@ posts a chat summary.
 
 ## Chargen
 
-[scripts/classes/chargen.mjs](../../scripts/classes/chargen.mjs) rolls 3d6
-and offers the rolled template or any lower band (a GM-only Judge override
-lifts the rule), applies the class at level 1, then the template bundle —
-proficiencies as owned abilities, equipment as skins over base items, gp —
-plus the Intellect bonus general picks. The class's own first-level awards
-land in the same pass: every fixed award is granted (deduped by ref against
-what the template carried), and every level-1 choice award renders a select
-in the dialog — the warlock's dark path, the witch's tradition, the class
-proficiency picks — re-built whenever the class selection changes, with the
-chosen refs granted on confirm.
+Chargen happens on the system's own Scores Generator — the page that already
+rolls the attributes, a 3d6 template die and starting gold.
+[scripts/classes/stat-page.mjs](../../scripts/classes/stat-page.mjs) injects
+the rest of it: a reset beside everything rollable, a class chosen once the
+scores are known and before the template is rolled (offering only classes
+whose requirements those scores meet, with a GM-only Judge override), the
+template die read against that class under the printed at-or-below rule
+(its own Judge override), the class's level-1 choice awards, and the
+Intellect bonus general picks. All of it rebuilds on every change, because
+all of it is downstream of the scores. Picks are read at submit and applied
+at close — the first moment core's own write of the scores is known to have
+landed, which the Intellect count depends on.
+
+[chargen.mjs](../../scripts/classes/chargen.mjs) applies what was chosen:
+the class at level 1, then the template bundle — proficiencies as owned
+abilities, equipment as skins over base items, gp, the spellbook's spells —
+then the class's own first-level awards (fixed grants deduped by ref against
+what the template carried, plus the chosen picks).
+
+**Intellect is netted against the template.** Most templates assume no bonus
+(RR Ch. 2 §II.1), so the whole bonus is the player's to spend. The studious
+spellcasters' templates assume one — a proficiency listed last and a spell
+listed second — recorded as `templatesAssumeIntBonus` on the class document
+and filled by acks-importer, because it cannot be derived from the document
+([DECISIONS.md](DECISIONS.md)). Below that band the two printed entries are
+withheld and named in the chat summary; above it only the difference is
+offered.
 
 ## Casting
 

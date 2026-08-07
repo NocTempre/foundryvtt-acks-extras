@@ -35,6 +35,7 @@ import {
   sceneOfLocation,
   unlinkScene,
 } from "./scene-link.mjs";
+import { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds } from "./reach.mjs";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/location/location-sheet.hbs`,
@@ -122,6 +123,12 @@ Hooks.once("ready", () => {
     LocationSheet,
     /** Scene ↔ place linking (scene-link.mjs). The scene's flag is canonical. */
     scenes: { locationOfScene, sceneOfLocation, linkScene, unlinkScene, createLocationForScene },
+    /**
+     * Who can leave something where (reach.mjs). Exposed because it is a RULE
+     * a consumer must not re-derive: a sibling deciding for itself whether a
+     * character is at a place would answer differently from the tab beside it.
+     */
+    reach: { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds },
   };
 
   if (game.system?.id !== "acks") return;
