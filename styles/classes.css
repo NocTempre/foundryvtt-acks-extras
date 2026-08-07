@@ -233,11 +233,49 @@
    background, border, colour, font and padding on a select. This rule leads
    with its own module class and clears it — do not weaken the selector on the
    assumption that nothing is competing. */
-.acks-extras-classes-chargen {
-  margin-top: var(--acks-sp-3);
+/* Three columns: the attributes and the rule they are rolled under, the class
+   and the die read against it, then what is left to choose and what it comes
+   to. Core lays its own two out with `.acks2 .row {display:flex}`, so the third
+   only needs a share of the width — and the attribute column carries the most
+   per line, so it takes the larger one. */
+.acks-extras-classes-statgen .row {
+  align-items: flex-start;
+}
+.acks-extras-classes-statgen .row > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.acks-extras-classes-statgen .row > *:first-child {
+  flex: 1.8 1 0;
 }
 
-.acks-extras-classes-chargen select {
+.acks-extras-classes-chargen,
+.acks-extras-classes-tplbox,
+.acks-extras-classes-picks,
+.acks-extras-classes-rules {
+  margin-top: var(--acks-sp-3);
+}
+.acks-extras-classes-rules {
+  margin: 0 0 var(--acks-sp-3);
+}
+
+/* The sum, average and spread of the roll. Hidden rather than removed — core
+   writes into them after every score and does not check they are still there. */
+.acks-extras-classes-statgen .acks-extras-classes-rollstats {
+  display: none;
+}
+
+/* A die the campaign's rule does not allow is shown spent rather than removed:
+   what a method costs you is part of learning it. */
+.acks-extras-classes-statgen button.acks-extras-classes-spent {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.acks-extras-classes-chargen select,
+.acks-extras-classes-tplbox select,
+.acks-extras-classes-picks select,
+.acks-extras-classes-rules select {
   width: 100%;
   font-family: var(--acks-font-ui);
   color: var(--acks-ink);
@@ -250,7 +288,10 @@
 /* The rule that governs the choice above it, and the warning that a template
    is about to hand out less than it prints. Soft ink so it reads as a note on
    the control rather than as a second control. */
-.acks-extras-classes-chargen .hint {
+.acks-extras-classes-chargen .hint,
+.acks-extras-classes-tplbox .hint,
+.acks-extras-classes-picks .hint,
+.acks-extras-classes-rules .hint {
   color: var(--acks-ink-soft);
   font-size: var(--acks-fs-label);
   margin: 3px 0 0;
@@ -277,35 +318,73 @@
 
 /* The Scores Generator, with a fourth control on every rollable row.
 
-   The page lays each row out as label + .form-fields, and the fields row was
-   already carrying two inputs and three dice buttons. Adding the reset pushed
-   the inputs to nothing — a score box with no room to show a score — so the
-   inputs are given a floor and the buttons are told not to grow into it.
-   Scoped to a class this module puts on the page root, because the page's own
-   classes belong to the system. */
+   The page lays each row out as label + .form-fields, and core's own rule
+   gives every field `flex: 1` inside a row that MAY wrap. A row carrying two
+   inputs, three dice buttons and the reset has to stay one row.
+
+   Never give an input in one of these rows a flex-basis of `auto`: Foundry
+   sizes `input[type="number"]` at `width: 100%`, so `auto` makes each box's
+   flex base a whole line, every box claims one, and a six-row grid becomes
+   eighteen. Core's own `flex: 1` (basis zero) is what keeps a row a row. The
+   boxes therefore keep it, and are given only an explicit floor — which also
+   replaces the automatic minimum that would otherwise refuse to shrink. */
 .acks-extras-classes-statgen .form-fields {
-  flex-wrap: wrap;
-  align-items: center;
+  flex-wrap: nowrap;
   gap: 3px;
 }
-.acks-extras-classes-statgen .form-fields > input[type="number"] {
-  min-width: 3.25rem;
-  flex: 0 1 auto;
+
+/* A score row is label + fields, and core lets the group wrap. The labels are
+   single long words — INTELLIGENCE, CONSTITUTION — which cannot shrink below
+   their own width, so the longer ones pushed their dice onto a second line and
+   the six rows stopped lining up. The row is held to one line and the label is
+   allowed to give ground instead. */
+.acks-extras-classes-statgen .acks-extras-classes-scorerow {
+  flex-wrap: nowrap;
 }
-.acks-extras-classes-statgen .form-fields > button {
-  flex: 0 0 auto;
+.acks-extras-classes-statgen .acks-extras-classes-scorerow > label {
+  /* One basis for all six, or each row sizes its own boxes to the length of
+     its own label and the column stops reading as a column. */
+  flex: 0 0 7.25rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acks-extras-classes-statgen .form-fields > input[type="number"] {
+  min-width: 2.5rem;
+}
+.acks-extras-classes-statgen .form-fields > .acks-extras-classes-reset {
+  padding-inline: 0.25rem;
+}
+
+/* The dice button that opens the generator announces itself by blinking, and
+   it blinks for as long as the character is new — which is for as long as it is
+   on screen, since that is the condition it appears under. A control that never
+   stops flashing reads as an error rather than an invitation, so the animation
+   settles after a few passes and the button stays where it was. */
+.acks-extras-classes-charsheet button.blink {
+  animation-iteration-count: 3;
+}
+
+/* The window is made resizable so a Judge can see the whole build at once
+   (scripts/classes/stat-page.mjs). Core's `.application .window-content` is
+   `overflow: hidden`, so dragging it larger would otherwise reveal nothing and
+   dragging it smaller would clip the Save button off the bottom. The content
+   scrolls instead — and a flex column's scrolling child needs its min-height
+   floor released or it refuses to shrink. */
+.acks-extras-classes-statgen > .window-content {
+  overflow: auto;
+  min-height: 0;
 }
 
 /* A checkbox under a control is a second row of the same group, not a second
-   label competing for the label column — where the grid squeezes it to one
-   word per line. */
+   label competing for the label column. `.form-group` is a wrapping flex row,
+   so a full-width child asks for a whole basis rather than a grid span. */
 .acks-extras-classes-statgen .acks-extras-classes-chargen label.checkbox {
-  grid-column: 1 / -1;
+  flex: 0 0 100%;
   display: flex;
   align-items: center;
   gap: 5px;
-  white-space: nowrap;
 }
 .acks-extras-classes-statgen .acks-extras-classes-chargen .hint {
-  grid-column: 1 / -1;
+  flex: 0 0 100%;
 }

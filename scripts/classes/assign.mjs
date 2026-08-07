@@ -9,16 +9,17 @@
  * inheritance level is harmless.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { classItems, classForActor } from "./registry.mjs";
+import { classItems, classForActor, byBookOrder } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 
 /** The pickers OFFER core classes (plus whatever the actor is already bound
- *  to); everything else waits behind the show-all toggle. */
+ *  to); everything else waits behind the show-all toggle. Listed as the books
+ *  print them, which is the order a reader looks a class up in. */
 export function offeredClasses(actor, showAll = false) {
   const bound = classForActor(actor);
   return classItems()
     .filter((i) => showAll || i.system.core || i.uuid === bound?.uuid)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(byBookOrder);
 }
 
 /** Open the class picker for one character and apply the chosen class. */
@@ -78,11 +79,16 @@ export async function openClassPicker(actor) {
   await applyClass(actor, item, { level: picked.level, rebuildVitals: true });
 }
 
+/** Our marker on a character sheet, so this module's rules have something of
+ *  its own to hang off a surface whose classes belong to the system. */
+const SHEET_CLASS = "acks-extras-classes-charsheet";
+
 function onRenderCharacterSheet(app, element) {
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root) return;
   const doc = app.document;
   if (!(doc instanceof Actor) || doc.type !== "character" || !doc.isOwner) return;
+  root.classList.add(SHEET_CLASS);
 
   // A class document DRAGGED onto the sheet binds it (with the usual apply
   // confirm) instead of embedding as an owned item. Capture phase, so the

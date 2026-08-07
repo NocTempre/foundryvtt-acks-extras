@@ -3,6 +3,84 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-07 — The page is three columns, and it enforces the campaign's dice
+
+Ruled (user): the attributes and the rule they are rolled under stand in the
+first column, the class above the template die in the second, and what is left
+to choose with the summary and the coin in the third. Core's own template row is
+MOVED rather than duplicated — a die that means nothing until a class is chosen
+belongs beneath the class it answers to, and two surfaces asking the same
+question is how this feature's first version went wrong (below).
+
+The generation rule is a campaign setting, not a per-character one, so the world
+holds it and every player's page obeys it. `standard` is held as an ALLOWANCE
+rather than a fixed order: RR Ch. 1 §I.2 says "pick one attribute … pick a second
+and third", so which attribute gets the good dice is the player's choice and only
+the counts are the rule's. The Judges Journal options (JJ Ch. 16) are one formula
+for every attribute.
+
+**A raised score re-derives its modifier from the actor, not from a table.** The
+system's modifier table is not exposed, and no repo in this family ships a value
+read off a page — so a detached clone of the actor is asked
+(`computeModifiers`), and a blank box is the honest fallback if that fails.
+
+**Rejected: leaving core's three dice buttons unconditional and explaining the
+rule in a hint.** The page already had every formula on every row with no limit,
+which is what let a character be rolled six times on 5d6 without anyone noticing.
+
+## 2026-08-07 — A starting template answers the level-1 proficiency picks
+
+RR Ch. 2: a template arrives "with weapons, armor, equipment, proficiencies, and
+spells ready for play", and §II.1 spends the Intellect bonus "on top of those
+listed for the template". The page had been asking for the class proficiency and
+the general proficiency beside the template that already printed them, so every
+generated character began with two proficiencies the book never gave them — and
+the general dropdown defaulted to the first name alphabetically, which is
+Adventuring, which RR Ch. 3 §III.4 gives everybody for free anyway.
+
+Ruled: a level-1 choice drawing on the class inventory or the general list is
+the template's to make, and the page shows what the package brings instead of
+asking. A choice among NAMED alternatives — a warlock's dark path, a witch's
+tradition, an earthforger's sigil — is not a proficiency a template lists, so it
+is still offered. Adventuring is granted with the class and never offered as a
+pick, at chargen and at level-up alike.
+
+**Not migrated.** A character generated before this keeps the two proficiencies
+they were handed; nothing rewrites existing characters, and a silent sweep over
+player-owned items to take abilities away is worse than the surplus.
+
+## 2026-08-07 — An unrolled score disqualifies nothing
+
+The class filter read a score that had not been rolled as zero, which is below
+every printed minimum — so before a single die was thrown every class with a
+requirement was withheld, and the page said nothing about having withheld them.
+The list looked unfiltered because what remained was exactly the classes the
+book gives no requirement.
+
+Ruled: absence is unknown, not failure — the same way an unrolled template die
+legalises no package rather than disqualifying every one. A class leaves the
+list when a score contradicts it, not before.
+
+## 2026-08-07 — One Judge unlock, remembered on the Judge
+
+Two checkboxes governed two halves of the same authority. Ruled (user): one
+control for the whole page — every class, every template, and the rolled fields
+editable by hand — remembered so it comes back the next time that Judge opens
+the page.
+
+Remembered as a flag on the user document rather than a registered setting:
+there is nothing for a settings panel to configure, the control is GM-only, and
+an absent flag reads exactly as today's default.
+
+The derived boxes stay locked. The summary statistics are recomputed from the
+scores; a score's modifier box is a path UNDER a field that submits, so freeing
+it would put both into the form data core expands.
+
+**Generating a character replaces the last attempt** (user ruling): a class
+rerolled is a character rebuilt, not a character with two starting packages.
+Under the unlock a second control adds instead of replacing, for the Judge who
+means it.
+
 ## 2026-08-06 — Chargen lives on the Scores Generator, not in a window of its own
 
 The system's Scores Generator already rolled the six attributes, a 3d6 template

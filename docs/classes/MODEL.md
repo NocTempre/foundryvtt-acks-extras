@@ -84,20 +84,83 @@ Chargen happens on the system's own Scores Generator — the page that already
 rolls the attributes, a 3d6 template die and starting gold.
 [scripts/classes/stat-page.mjs](../../scripts/classes/stat-page.mjs) injects
 the rest of it: a reset beside everything rollable, a class chosen once the
-scores are known and before the template is rolled (offering only classes
-whose requirements those scores meet, with a GM-only Judge override), the
-template die read against that class under the printed at-or-below rule
-(its own Judge override), the class's level-1 choice awards, and the
-Intellect bonus general picks. All of it rebuilds on every change, because
-all of it is downstream of the scores. Picks are read at submit and applied
-at close — the first moment core's own write of the scores is known to have
-landed, which the Intellect count depends on.
+scores are known and before the template is rolled, the template die read
+against that class under the printed at-or-below rule, whatever level-1 choice
+the template does not itself answer, and the Intellect bonus general picks.
+All of it rebuilds on every change, because all of it is downstream of the
+scores — but only when the markup actually differs, so nothing flickers and
+nothing loses focus. Picks are read at submit and applied at close: close is
+the first moment core's own write of the scores is known to have landed, which
+the Intellect count depends on, and the submitted page is re-read at that point
+rather than trusted from an earlier pass.
+
+**The page is laid out in three columns**, in the order a character is built:
+the attributes and the rule they are rolled under; the class and the template
+die read against it (core's own die row is MOVED into that column, because a
+die means nothing until a class is chosen); then what is left to choose, the
+summary and the coin. The columns are built once and the moved row is
+recognised by where it now lives.
+
+A roll writes its result straight onto a readonly input, fires no event, and
+does so only after awaiting the dice — an animation that can outlast any fixed
+delay. The three roll actions are therefore wrapped on the application's own
+options, which is where they hang and where they can be reached; awaiting the
+original is what guarantees the value is on the page before it is read. The
+page is also made resizable and given room, in `preRenderApplicationV2` —
+the frame's resize handle is built once, from the option, before that hook's
+successor runs.
+
+**The campaign's attribute rule is enforced on the page** (`METHODS`, world
+setting `chargenAttributeMethod`). `standard` is the printed method (RR Ch. 1
+§I.2) held as an ALLOWANCE rather than an order, because the book lets the
+player choose which attribute gets which dice: one 5d6-drop-two raised to 13,
+two 4d6-drop-one raised to 9, three 3d6. A spent formula's buttons are struck
+through, and a row that claims a different formula gives its old one back. The
+other three are the Judges Journal's options (JJ Ch. 16) — one formula for every
+attribute, no minimum. The formulas themselves are core's, carried on its own
+buttons; nothing here decides how dice are thrown, only how many times.
+
+A score raised to its floor re-derives the modifier beside it by asking a
+detached clone of the actor (`computeModifiers`), never by carrying a copy of
+the book's table — no repo in this family ships a value read off a page.
+
+Classes are listed as the books print them (registry `byBookOrder`): the book's
+rank times a thousand plus the printed page, taken from `system.sortOrder` where
+a class states its own place and derived from `source` where it does not.
+
+**A class is offered unless the scores rule it out.** A score not yet rolled is
+unknown rather than zero, so it disqualifies nothing; a class leaves the list
+the moment the deciding die contradicts its requirement.
+
+**One Judge unlock governs the page** (GM only, remembered on the Judge's own
+user document): it offers every class and every template whatever the dice say,
+and frees the rolled fields to be set by hand. The derived boxes stay locked —
+the summary statistics are recomputed from the scores, and a score's modifier
+box is a path under a field that submits.
 
 [chargen.mjs](../../scripts/classes/chargen.mjs) applies what was chosen:
 the class at level 1, then the template bundle — proficiencies as owned
-abilities, equipment as skins over base items, gp, the spellbook's spells —
-then the class's own first-level awards (fixed grants deduped by ref against
-what the template carried, plus the chosen picks).
+abilities, equipment as skins over base items, coin, the spellbook's spells —
+then Adventuring (free with every class, RR Ch. 3 §III.4) and the class's own
+first-level awards (fixed grants deduped by ref against what the template
+carried, plus the chosen picks).
+
+**A template's printed proficiencies ARE the character's level-1 picks.** RR
+Ch. 2 hands a template over "with weapons, armor, equipment, proficiencies, and
+spells ready for play", and the Intellect bonus is chosen "on top of those
+listed for the template" — so a level-1 offer drawing on the class inventory or
+the general list is answered by the template and not asked again beside it. An
+offer among named alternatives (a warlock's dark path, a witch's tradition) is
+not something a template lists, and stays on offer.
+
+**The template pays the starting coin**, into the money item named `Gold` — the
+one the system's own `manageMoney` can find, at its gold valuation rather than a
+copper one. The page's gold row shows the figure that will be written, and is
+cleared at submit so the system is not asked to pay it a second time.
+
+**Generating a character replaces the last attempt**, so a class rerolled is a
+character rebuilt rather than one carrying two starting packages. Under the
+Judge unlock a second control offers the additive behaviour instead.
 
 **Intellect is netted against the template.** Most templates assume no bonus
 (RR Ch. 2 §II.1), so the whole bonus is the player's to spend. The studious

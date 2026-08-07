@@ -46,11 +46,34 @@ export async function grantAbility(actor, ref, grants) {
   grants.push({ ref, name: source.name });
 }
 
+/** The cookbook ref of the proficiency every character already has. */
+export const ADVENTURING_REF = "def.prof.adventuring";
+
+/** Is this world item the Adventuring proficiency? Matched by the importer's
+ *  stamp, and by name for a world's hand-made copy that carries none. */
+const isAdventuring = (item) =>
+  refOf(item) === ADVENTURING_REF || String(item.name ?? "").trim().toLowerCase() === "adventuring";
+
+/**
+ * Every general proficiency a character may still CHOOSE.
+ *
+ * "All player characters are assumed to have Adventuring" (RR Ch. 3 §III.4),
+ * so it is never on offer: a pick spent on it buys nothing.
+ */
+export const choosableGenerals = () =>
+  (game.items ?? []).filter(
+    (i) => i.type === "ability" && i.system.proficiencytype === "general" && !isAdventuring(i),
+  );
+
+/** Grant the free-with-every-class Adventuring proficiency, once. */
+export async function grantAdventuring(actor, grants) {
+  const doc = (game.items ?? []).find((i) => i.type === "ability" && isAdventuring(i));
+  if (doc) await grantAbility(actor, refOf(doc), grants);
+}
+
 /** Resolve a ChoiceSpec's options against this class doc and the world. */
 export function optionsForChoice(choice, classItem) {
-  const generalRefs = (game.items ?? [])
-    .filter((i) => i.type === "ability" && i.system.proficiencytype === "general")
-    .map(refOf);
+  const generalRefs = choosableGenerals().map(refOf);
   const refs = choiceOptions(choice, {
     inventory: classItem.system.inventory,
     generalRefs,

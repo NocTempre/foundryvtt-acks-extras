@@ -1,5 +1,97 @@
 # Changelog
 
+## 3.5.0
+
+### Added
+- **The Scores Generator is laid out in the order a character is built.** The
+  attributes and the rule they are rolled under stand on the left, the class and
+  the template die read against it in the middle — a die that means nothing
+  until a class is chosen now sits directly beneath the class it answers to —
+  and what is left to choose, with what the character comes to, on the right.
+  The window opens wide enough to hold all three and can be dragged wider. The
+  sum, average and spread of the roll are gone — they described the dice rather
+  than the character, and the rule governing those dice is now stated beside
+  them.
+- **A package says what it brings before you take it.** Under the template
+  selection the page now lists the proficiencies, the starting equipment and the
+  spellbook the chosen template hands over, and the printed encumbrance stands
+  with the coin it is carried alongside. The die and the package it reaches are
+  no longer two rows both labelled Template.
+- **A campaign says how attributes are rolled, and the page enforces it.** The
+  printed method is the default: one attribute on 5d6 drop two, raised to 13 if
+  it falls short, two on 4d6 drop one raised to 9, and 3d6 for the remaining
+  three, with you choosing which attribute gets which. The dice you have spent
+  are struck through and the page says what is left to roll. The Judges Journal
+  options — gritty, heroic and legendary — are offered beside it, each a single
+  formula for every attribute. A Judge override ignores all of it.
+- **One Judge override governs the whole page**, in place of the two that
+  governed half each. It offers every class and every template whatever the dice
+  say, lets a Judge type into any rolled field by hand, and is remembered, so it
+  comes back the next time that Judge opens the page. The summary statistics and
+  a score's modifier stay derived — they are computed from the scores rather
+  than set.
+- **Generating a character replaces the last attempt.** Rerolling a class used
+  to leave the previous package sitting underneath the new one. A Judge who
+  means to add rather than replace now says so, on the same page.
+- **A class can state where it sits in book order**, on its own sheet — the
+  book's rank times a thousand plus the printed page. A class that says nothing
+  has it worked out from its citation, so nothing needs re-importing.
+
+### Fixed
+- **A character built on the Scores Generator is a character that gets built.**
+  Rolling the scores, choosing a class and rolling the template die ended with
+  "only the scores were saved" and an otherwise empty character sheet. The page
+  had been waiting a fixed eight-tenths of a second for a roll to appear on
+  screen, and a roll does not appear until the dice have finished being thrown —
+  which, with 3D dice, takes several seconds. The template die was the last
+  thing rolled, so it was the one thing never seen. The page now waits for the
+  roll itself rather than for a stopwatch, and reads the page as submitted
+  before it builds anything, so what you were looking at is what you get.
+- **A score you have not rolled yet rules nothing out.** An empty score box
+  counted as a zero, which is below every requirement in print — so before the
+  first die was thrown the class list silently withheld every class that asks
+  for anything, which in a fully imported world is fourteen of thirty-two. What
+  was left looked like the whole list. A class now leaves the list at the moment
+  a rolled score contradicts it, and not before.
+- **A starting template brings the proficiencies it prints.** The page asked for
+  a class proficiency and a general proficiency beside a template that had
+  already chosen both, so every character began with two proficiencies the book
+  never gave them. The template now says what it brings, and is not asked again
+  for it. A choice among named alternatives — a warlock's dark path, a witch's
+  tradition — is not something a template lists, so it is still yours to make,
+  and the Intellect bonus is still spent on top of the package exactly as
+  printed.
+- **Adventuring is free with every class.** It sorts first among the general
+  proficiencies, so an untouched dropdown handed a character their one starting
+  general proficiency spent on the one thing every character already has. It is
+  now granted with the class and never offered as a pick — at chargen and on
+  gaining a level alike. Characters generated before this keep the surplus;
+  nothing reaches back into a sheet to take a proficiency away.
+- **The template pays the starting coin, into the purse the system counts.**
+  The coin a template prints landed in a pile named "Gold Pieces", which the
+  system's own money handling cannot find and which valued the whole purse at
+  copper. It now lands in the character's `Gold`, at a gold piece's worth,
+  topping up a purse that already exists rather than starting a second one. The
+  page's gold row shows the figure the chosen package pays.
+- **A score row is one row.** Each score sat with its two boxes stacked and its
+  dice wrapped onto a second line, three lines deep, six times over — the row
+  rule that gave the reset button its place had let a score box claim a whole
+  line to itself. The rows are rows again.
+- **A group calls its members what its kind calls them.** A group sheet showed
+  `ACKS-LIB.group.noun.mercenary` where it meant "unit", and the same for a
+  pack, a team and a band, and for all four category names. Two labels on that
+  sheet were named the same thing as the group of words beneath them, and a name
+  cannot be both — so the eight words underneath were discarded when the file
+  was read. Worth knowing because the same mistake made one line further along
+  costs the whole translation file rather than eight words of it.
+- **The dice button that opens the generator stops flashing.** It announced
+  itself for as long as the character was new, which is for as long as it was on
+  screen. It settles after a few passes and stays where it was.
+- **Classes are listed as the books print them** — the Revised Rulebook, then By
+  This Axe, each in page order — rather than alphabetically across both. A class
+  may state its own place on its sheet; one that does not has it worked out from
+  its citation, so nothing needs re-importing.
+
 ## 3.4.0
 
 ### Fixed

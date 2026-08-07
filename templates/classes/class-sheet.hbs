@@ -75,6 +75,10 @@
         {{localize "ACKS-CLASSES.sheet.core"}}
       </label>
     </div>
+    <div class="form-group">
+      <label data-tooltip="{{localize "ACKS-CLASSES.sheet.sortOrderHint"}}">{{localize "ACKS-CLASSES.sheet.sortOrder"}}</label>
+      <input name="system.sortOrder" type="number" value="{{system.sortOrder}}" min="0" step="1" />
+    </div>
     <div class="form-group stacked">
       <label>{{localize "ACKS-CLASSES.sheet.description"}}</label>
       <prose-mirror name="system.description" value="{{prose.description.source}}" document-uuid="{{item.uuid}}" compact toggled>{{{prose.description.html}}}</prose-mirror>

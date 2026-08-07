@@ -28,7 +28,7 @@ import {
   resolveBase,
   registerChargen,
 } from "./chargen.mjs";
-import { registerChargenPage } from "./stat-page.mjs";
+import { registerChargenPage, METHODS, METHOD_SETTING } from "./stat-page.mjs";
 import { registerSheetTabs } from "./sheet-tabs.mjs";
 import { savesUpdateData, repairSaveReferences, BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
@@ -50,6 +50,18 @@ Hooks.once("init", () => {
       additive: `${LANG_PREFIX}.settings.levelUpHpMode.additive`,
     },
     default: "raw",
+  });
+  // How a campaign rolls attributes: the printed method (RR Ch. 1 §I.2), or
+  // one of the Judges Journal's options (JJ Ch. 16). A campaign rule, so the
+  // world holds it and every player's generator obeys it.
+  game.settings.register(MODULE_ID, METHOD_SETTING, {
+    name: `${LANG_PREFIX}.settings.chargenAttributeMethod.name`,
+    hint: `${LANG_PREFIX}.settings.chargenAttributeMethod.hint`,
+    scope: "world",
+    config: true,
+    type: String,
+    choices: Object.fromEntries(Object.keys(METHODS).map((k) => [k, `${LANG_PREFIX}.chargen.methods.${k}`])),
+    default: "standard",
   });
   try {
     foundry.documents.collections.Items.registerSheet(MODULE_ID, ClassSheet, {

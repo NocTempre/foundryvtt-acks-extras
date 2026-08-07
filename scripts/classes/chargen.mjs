@@ -20,9 +20,12 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
-import { grantAbility } from "./levelup.mjs";
+import { grantAbility, grantAdventuring } from "./levelup.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** The one money item the system's own coin bookkeeping recognises by name. */
+const GOLD_ITEM = "gold";
 
 /** Resolve a template item entry to its BASE world item (null = no base). */
 export function resolveBase(entry) {
@@ -55,16 +58,26 @@ export function resolveBase(entry) {
   return best;
 }
 
+/**
+ * What one template equipment entry is CALLED.
+ *
+ * The count lives on the quantity field — "2 flasks of holy water" is two of an
+ * item called "Flasks of holy water", never one item with a numeral in its
+ * name. The page that lists a package and the grant that materializes it read
+ * this one rule, so neither says "3 javelins ×3".
+ */
+export function templateItemName(entry) {
+  const printed = (entry.qty > 1 ? String(entry.name ?? "").replace(/^\d+\s+/, "") : String(entry.name ?? "")).replace(
+    /^\w/,
+    (c) => c.toUpperCase(),
+  );
+  return entry.skinName || printed;
+}
+
 /** Build the embedded-item payload for one template item entry (skinned). */
 function skinPayload(entry) {
   const base = resolveBase(entry);
-  // The count lives on the quantity field — "2 flasks of holy water" is two
-  // of an item CALLED "Flasks of holy water", never one item with a numeral
-  // in its name.
-  const displayName = (entry.qty > 1 ? entry.name.replace(/^\d+\s+/, "") : entry.name).replace(/^\w/, (c) =>
-    c.toUpperCase(),
-  );
-  const skinName = entry.skinName || displayName;
+  const skinName = templateItemName(entry);
   if (!base) {
     return {
       name: skinName,
@@ -161,9 +174,17 @@ async function grantRanked(actor, entry, report) {
   report.granted.push(copies.length > 1 ? `${data.name} ×${copies.length}` : data.name);
 }
 
-/** Apply one template's full bundle to the actor. */
-export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null } = {}) {
-  const report = { granted: [], items: [], unresolved: [], gp: template.gp || 0, dropped: [] };
+/**
+ * Apply one template's full bundle to the actor.
+ *
+ * @param {object} [options]
+ * @param {number|null} [options.gold] the coin actually granted; the printed
+ *   `gp` when nothing overrides it (the page shows the figure it will write,
+ *   and a Judge may set it there)
+ */
+export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null, gold = null } = {}) {
+  const gp = Number(gold ?? template.gp) || 0;
+  const report = { granted: [], items: [], unresolved: [], gp, dropped: [] };
   // A template that assumes an Intellect bonus its character does not have
   // prints more than they may hold. The book names the entries to remove
   // rather than leaving it to taste — the LAST proficiency and the SECOND
@@ -186,10 +207,25 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
     await actor.createEmbeddedDocuments("Item", payloads);
     report.items = payloads.map((p) => (p.system?.quantity?.value > 1 ? `${p.name} ×${p.system.quantity.value}` : p.name));
   }
-  if (template.gp) {
-    await actor.createEmbeddedDocuments("Item", [
-      { name: "Gold Pieces", type: "money", system: { quantity: template.gp } },
-    ]);
+  // The template names the coin a character starts with, so this is the one
+  // write of it — and it goes into the purse the system itself keeps books
+  // against. That purse is the money item named "Gold": `Actor#manageMoney`
+  // finds a coin pile by that exact name and by nothing else, and a pile built
+  // from nothing takes the schema's copper valuation rather than a gold one.
+  // So an existing purse is topped up, and a missing one is cloned from the
+  // world's own Gold item where there is one.
+  if (gp) {
+    const isGold = (i) => i.type === "money" && i.name.toLowerCase() === GOLD_ITEM;
+    const purse = actor.items.find(isGold);
+    if (purse) {
+      await purse.update({ "system.quantity": (Number(purse.system.quantity) || 0) + gp });
+    } else {
+      const source = game.items.find(isGold);
+      const data = source ? source.toObject() : { name: "Gold", type: "money", system: { coppervalue: 100 } };
+      delete data._id;
+      data.system = { ...(data.system ?? {}), quantity: gp };
+      await actor.createEmbeddedDocuments("Item", [data]);
+    }
   }
   // The spells a spellbook carries land as spell ITEMS — a linked uuid first,
   // else the printed name matched against the world's spells; what no world
@@ -242,17 +278,37 @@ export const legalTemplates = (templates, roll) =>
  * character who already has their level-1 row, and the class's own first-level
  * awards land last so `grantAbility`'s dedupe can see what the template
  * already gave.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.wipe] clear what the character already holds
+ *   first. Generating a character REPLACES the last run of the page, so a
+ *   class rerolled is a character rebuilt rather than a character carrying two
+ *   starting packages. A Judge who means to add a second one says so on the
+ *   page.
  */
-export async function applyChargen(actor, cls, template, { generalRefs = [], awardPicks = [], roll = null } = {}) {
+export async function applyChargen(
+  actor,
+  cls,
+  template,
+  { generalRefs = [], awardPicks = [], roll = null, gold = null, wipe = true } = {},
+) {
   if (!actor || !cls || !template) return null;
   const intScore = Number(actor.system?.scores?.int?.value) || 0;
 
+  if (wipe) {
+    const ids = actor.items.map((i) => i.id);
+    if (ids.length) await actor.deleteEmbeddedDocuments("Item", ids);
+  }
+
   await applyClass(actor, cls, { level: 1, confirm: false });
-  const report = await applyTemplate(actor, cls, template, { generalRefs, intScore });
+  const report = await applyTemplate(actor, cls, template, { generalRefs, intScore, gold });
   // The class's own first-level awards land with the template: every fixed
   // award granted, every pick taken above granted as chosen. grantAbility
   // dedupes by ref, so a power the template already carried is not doubled.
   const startingGrants = [];
+  // Adventuring is free with every class (RR Ch. 3 §III.4), so it is granted
+  // rather than offered as a pick.
+  await grantAdventuring(actor, startingGrants);
   for (const a of (cls.system.awards ?? []).filter((x) => x.atLevel === 1 && x.kind === "fixed" && x.ref)) {
     await grantAbility(actor, a.ref, startingGrants);
   }

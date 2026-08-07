@@ -19,7 +19,7 @@
     </div>
     {{#if editable}}
       <div class="summary-fields">
-        <label>{{localize "ACKS-LIB.group.noun"}}
+        <label>{{localize "ACKS-LIB.group.nounLabel"}}
           <input type="text" name="system.noun" value="{{system.noun}}" placeholder="{{noun}}" />
         </label>
         <button type="button" data-action="recall">{{localize "ACKS-LIB.group.recall"}}</button>
@@ -139,7 +139,7 @@
     <section class="acks-lib-group-unit">
       <header><h3>{{localize "ACKS-LIB.group.unit"}}</h3></header>
       <div class="unit-fields">
-        <label>{{localize "ACKS-LIB.group.category"}}
+        <label>{{localize "ACKS-LIB.group.categoryLabel"}}
           <select name="system.unit.category">
             {{#each categories as |label key|}}
               <option value="{{key}}" {{#if (eq key @root.system.unit.category)}}selected{{/if}}>{{label}}</option>

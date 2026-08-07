@@ -163,6 +163,12 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         cite: str(), // "RR p.24"
         ref: str(), // cookbook entry id ("def.class.fighter")
       }),
+      // Where this class sits when classes are listed as the books print them:
+      // the book's rank times a thousand plus the printed page. Filled by an
+      // import, typed by hand on a homebrew class. Zero means "derive it from
+      // `source`" (registry.mjs `classSortKey`), so a world that re-imports
+      // nothing still lists its classes in book order.
+      sortOrder: int(0, { min: 0 }),
 
       description: html(), // lazy @PdfText content, or hand-written homebrew prose
       codeOfBehavior: html(),

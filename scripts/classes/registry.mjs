@@ -22,6 +22,34 @@ export function classItems() {
   return game.items?.filter((i) => i.type === CLASS_TYPE) ?? [];
 }
 
+/* ------------------------------------------------------------------ */
+/*  Book order                                                         */
+/* ------------------------------------------------------------------ */
+
+/** Which book a class comes from decides which block it sorts into. */
+export const BOOK_ORDER = ["rr", "bta"];
+
+/**
+ * Where a class sits when classes are listed as the books print them: the
+ * book's rank times a thousand, plus the page its spread starts on.
+ *
+ * A class may state its own place in `system.sortOrder` — what an import
+ * assigns and what a homebrew class is given by hand. Zero means "work it
+ * out from `source`", so a world that re-imports nothing still lists its
+ * classes in book order. A class naming no book sorts after every printed
+ * one and can never displace it.
+ */
+export function classSortKey(item) {
+  const sys = item?.system ?? {};
+  if (sys.sortOrder) return sys.sortOrder;
+  const rank = BOOK_ORDER.indexOf(String(sys.source?.book ?? "").toLowerCase());
+  const page = Number(/\bp\.\s*(\d+)/i.exec(sys.source?.cite ?? "")?.[1]);
+  return ((rank < 0 ? BOOK_ORDER.length : rank) + 1) * 1000 + (Number.isFinite(page) ? Math.min(page, 999) : 999);
+}
+
+/** Sort classes as the books print them, ties broken by name. */
+export const byBookOrder = (a, b) => classSortKey(a) - classSortKey(b) || a.name.localeCompare(b.name);
+
 /** The class Item whose slug is `key` (case-insensitive), or null. */
 export function classByKey(key) {
   const k = String(key ?? "").toLowerCase();
