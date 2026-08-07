@@ -478,16 +478,19 @@ Hooks.once("ready", () => {
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const MonsterSheet = entries.find((e) => e.default)?.cls ?? entries[0]?.cls ?? null;
+  // A failed monster-sheet lookup costs the ANIMAL alias its sheet and nothing
+  // more — never a return out of the whole ready hook, which would also drop
+  // the unrelated sheet registrations and one-time sweeps below.
   if (!MonsterSheet) {
     console.warn(`${MODULE_ID} | could not resolve the acks monster sheet; ${ANIMAL_TYPE} has no sheet.`);
-    return;
+  } else {
+    foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, MonsterSheet, {
+      types: [ANIMAL_TYPE],
+      makeDefault: true,
+      label: "ACKS-LIB.sheet.animal",
+    });
+    console.log(`${MODULE_ID} | ${ANIMAL_TYPE} uses the system's monster sheet.`);
   }
-  foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, MonsterSheet, {
-    types: [ANIMAL_TYPE],
-    makeDefault: true,
-    label: "ACKS-LIB.sheet.animal",
-  });
-  console.log(`${MODULE_ID} | ${ANIMAL_TYPE} uses the system's monster sheet.`);
 
   // The group ships its OWN sheet: a stack is a headcount and a roster, not a
   // stat block, so unlike the animal it does not borrow the monster sheet.

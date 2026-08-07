@@ -19,9 +19,13 @@ import { satisfies } from "./vocab.mjs";
 
 /**
  * The importer owns its provenance flags; they persist even when it is
- * uninstalled. Declared locally rather than shared: the flag-scope validator
- * resolves every scope to its literal VALUE inside the calling file, so a scope
- * imported from elsewhere reads as unresolvable and fails the check.
+ * uninstalled. Read them via the raw flag path, never `getFlag` — getFlag
+ * throws for any scope that is not a currently ACTIVE module, and this module
+ * does not require the importer, so the raw read is what makes the persistence
+ * usable in a world running without it. Declared locally rather than shared:
+ * the flag-scope validator resolves every scope to its literal VALUE inside
+ * the calling file, so a scope imported from elsewhere reads as unresolvable
+ * and fails the check.
  */
 const DEFINITION_SCOPE = "acks-importer";
 
@@ -37,7 +41,7 @@ const ABILITIES_ID = "acks-extras";
  * simply has no capability — a caller's name path still covers it.
  */
 function abilityRef(item) {
-  const id = item?.getFlag?.(DEFINITION_SCOPE, "cookbook")?.id ?? null;
+  const id = item?.flags?.[DEFINITION_SCOPE]?.cookbook?.id ?? null;
   const provides = item?.getFlag?.(ABILITIES_ID, "extras")?.provides ?? [];
   if (!id && !provides.length) return null;
   return { id, provides };

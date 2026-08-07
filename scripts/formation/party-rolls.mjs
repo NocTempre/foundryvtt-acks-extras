@@ -172,7 +172,9 @@ function skillCandidates(actor, cfg) {
  * what makes it scale — see `scaledSkillTarget`.
  */
 export function inferredThiefSkill(item) {
-  const id = item.getFlag?.("acks-importer", "cookbook")?.id ?? "";
+  // Raw flag path, never getFlag: the importer need not be active (getFlag
+  // throws for an inactive scope) while the data it wrote persists on the item.
+  const id = item.flags?.["acks-importer"]?.cookbook?.id ?? "";
   return /^def\.skill\.([a-zA-Z]+)$/.exec(id)?.[1] ?? null;
 }
 

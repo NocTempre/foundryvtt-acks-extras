@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.6.1
+
+### Fixed
+- **An imported ability answers even when the importer is away.** In a world
+  running acks-extras without acks-importer, reading an ability's imported
+  identity threw: opening an ability's sheet failed outright, and every
+  question built on those identities — the sense model's lightless-vision
+  check, the formation bridge's roll candidates and skill ladders, the party
+  skill roller — failed with it. The importer's provenance flags persist on
+  the item whether or not the module is present, and they are now read in a
+  way that never requires it to be active. A world running both modules sees
+  no change.
+- **A missing monster sheet costs the animal alias its sheet, and nothing
+  else.** When the system's monster sheet cannot be resolved at ready, the
+  group, template and follower-card sheets still register and the one-time
+  sheet sweeps still run; before, everything after the failed lookup was
+  silently dropped along with the animal sheet, and the warning named only
+  the animal.
+
 ## 3.6.0
 
 ### Added

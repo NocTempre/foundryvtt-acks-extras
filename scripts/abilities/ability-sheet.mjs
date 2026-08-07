@@ -23,7 +23,9 @@ const T = `modules/${MODULE_ID}/templates/abilities`;
  */
 function refName(ref) {
   if (!ref) return ref;
-  const match = (i) => i.getFlag?.("acks-importer", "cookbook")?.id === ref;
+  // Raw flag path, never getFlag: the importer need not be active (getFlag
+  // throws for an inactive scope) while the data it wrote persists on the item.
+  const match = (i) => i.flags?.["acks-importer"]?.cookbook?.id === ref;
   const item = game.items?.find?.(match);
   if (item) return item.name;
   // acks-content can import into world compendiums instead of the sidebar, in
@@ -362,7 +364,7 @@ export function createAbilitySheet(Base) {
       context.provides = (extras.provides ?? []).map((token) => {
         const slug = String(token).replace(/^kw:/, "");
         const owner = game.items?.find?.((i) => {
-          const id = i.getFlag?.("acks-importer", "cookbook")?.id;
+          const id = i.flags?.["acks-importer"]?.cookbook?.id;
           return id && !i.getFlag("acks-extras", "extras")?.aliasOf && V.capabilityForId?.(id) === token;
         });
         return { token, label: owner?.name ?? slug };
