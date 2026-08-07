@@ -21,6 +21,8 @@ import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelu
 import {
   applyChargen,
   applyTemplate,
+  grantCoin,
+  coinLine,
   legalTemplates,
   intBonusPicks,
   netBonusPicks,
@@ -96,6 +98,10 @@ Hooks.once("init", () => {
     openLevelUp,
     applyChargen,
     applyTemplate,
+    // The starting coin, in the denominations a package prints it in, and the
+    // one way this family writes it down.
+    grantCoin,
+    coinLine,
     legalTemplates,
     intBonusPicks,
     // Bonus picks NET of what a template already spends, and what a template

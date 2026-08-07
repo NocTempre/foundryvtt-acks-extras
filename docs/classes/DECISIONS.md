@@ -3,6 +3,28 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-07 — A package pays its own coin; only a package-less build rolls for it
+
+Ruled (user): the gold row is not rolled and not rollable while a starting
+package governs the character — the package prints what they begin with, so a
+die beside it is the same decoration the template die used to be. The one case
+the book has a character roll for their own money is the Judges Journal's
+template-less option (JJ Ch. 16: "the players roll 3d6 × 10"), which is core's
+own gold formula, so nothing new throws dice.
+
+**Building without a package is a Judge's option**, reachable only under the
+override: no equipment and no spellbook, and every level-1 choice asked rather
+than answered by a printed list.
+
+**Templates pay in the coin they print.** The document had `gp` alone, and five
+RR templates print silver — three of them ONLY silver, so a proselytizer, a
+priest and a tribal warrior began play with an empty purse. `sp` joins `gp` on
+the template, and each lands in the money item of that name because that name is
+the only handle the system's `manageMoney` has on a purse. Not migrated: a class
+document carries no silver until it is imported again, which is the honest
+state — the value is one acks-importer reads off the page, and extras ships no
+value read off a page.
+
 ## 2026-08-07 — The page is three columns, and it enforces the campaign's dice
 
 Ruled (user): the attributes and the rule they are rolled under stand in the

@@ -148,7 +148,12 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         abilities: new ArrayField(templateAbility()),
         items: new ArrayField(templateItem()),
         spells: new ArrayField(spellRefField()),
+        // Printed starting coin. Most templates pay in gold; a few pay partly
+        // or wholly in silver ("20sp for alms", "1gp, 8sp"), and a template
+        // that prints only silver leaves a character with nothing at all if
+        // only the gold is read.
         gp: num(),
+        sp: num(),
         enc: str(), // printed encumbrance parenthetical, display only
         alt: str(), // Notes-driven alternates ("without banner", elemental spell swaps)
       });

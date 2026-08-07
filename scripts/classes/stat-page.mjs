@@ -39,7 +39,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { classItems, byBookOrder, findByRef } from "./registry.mjs";
-import { legalTemplates, netBonusPicks, templateShortfall, applyChargen, templateItemName } from "./chargen.mjs";
+import { legalTemplates, netBonusPicks, templateShortfall, applyChargen, templateItemName, coinLine } from "./chargen.mjs";
 import { optionsForChoice, choosableGenerals } from "./levelup.mjs";
 
 const PAGE_CLASS = "acks-extras-classes-statgen";
@@ -247,6 +247,9 @@ function refresh(root, state) {
   const rolled = templateRollOn(root);
   const isGM = game.user.isGM;
   const judge = isGM && state.judge;
+  // Building without a package at all (JJ Ch. 16) — a Judge's option, so it is
+  // only reachable behind the override.
+  const manual = judge && state.manual;
   const method = currentMethod();
 
   const all = classItems().sort(byBookOrder);
@@ -258,7 +261,7 @@ function refresh(root, state) {
   if (!offered.some((c) => c.uuid === state.classUuid)) state.classUuid = offered[0]?.uuid ?? "";
   const cls = offered.find((c) => c.uuid === state.classUuid) ?? null;
 
-  const templates = cls?.system?.templates ?? [];
+  const templates = manual ? [] : (cls?.system?.templates ?? []);
   const legal = judge ? [...templates].sort((a, b) => a.rollMin - b.rollMin) : legalTemplates(templates, rolled ?? -1);
   if (!legal.some((t) => t.rollMin === state.templateMin)) state.templateMin = legal[legal.length - 1]?.rollMin ?? null;
   const template = legal.find((t) => t.rollMin === state.templateMin) ?? null;
@@ -312,9 +315,12 @@ function refresh(root, state) {
              } /> ${esc(loc("chargen.judgeUnlock"))}</label>
              ${
                judge
-                 ? `<label class="checkbox" data-tooltip="${esc(loc("chargen.keepHint"))}"><input type="checkbox" name="acks-keep"${
-                     state.keep ? " checked" : ""
-                   } /> ${esc(loc("chargen.keep"))}</label>`
+                 ? `<label class="checkbox" data-tooltip="${esc(loc("chargen.manualHint"))}"><input type="checkbox" name="acks-manual"${
+                     state.manual ? " checked" : ""
+                   } /> ${esc(loc("chargen.manual"))}</label>
+                    <label class="checkbox" data-tooltip="${esc(loc("chargen.keepHint"))}"><input type="checkbox" name="acks-keep"${
+                      state.keep ? " checked" : ""
+                    } /> ${esc(loc("chargen.keep"))}</label>`
                  : ""
              }
            </div>`
@@ -348,7 +354,7 @@ function refresh(root, state) {
           )
           .join("")}</select>
       </div>
-      <p class="hint">${esc(rolled == null ? loc("chargen.rollFirst") : loc("chargen.rule"))}</p>
+      <p class="hint">${esc(manual ? loc("chargen.manualRule") : rolled == null ? loc("chargen.rollFirst") : loc("chargen.rule"))}</p>
       ${
         // What the package actually hands over, said before it is applied
         // rather than only in the chat card afterwards. The proficiencies ARE
@@ -358,6 +364,11 @@ function refresh(root, state) {
       }
       ${brings("chargen.templateItems", template?.items, itemLabel)}
       ${brings("chargen.templateSpells", template?.spells, spellLabel)}
+      ${
+        template && coinLine(template)
+          ? `<p class="hint">${esc(loc("chargen.templateCoin", { parts: coinLine(template) }))}</p>`
+          : ""
+      }
       ${
         // A template that prints more than this character may hold says so
         // BEFORE it is applied, not only in the chat card afterwards.
@@ -403,11 +414,21 @@ function refresh(root, state) {
   // row shows what the chosen package pays instead of a figure rolled beside
   // it. Written only when the chosen template CHANGES, so a Judge's own number
   // stands until they choose a different package.
-  const stamp = template ? `${cls?.uuid}|${template.rollMin}` : "";
+  const stamp = manual ? "manual" : template ? `${cls?.uuid}|${template.rollMin}` : "";
   if (stamp !== state.templateStamp) {
     state.templateStamp = stamp;
     const gold = root.querySelector('input[name="scores.gold"]');
-    if (gold && template) gold.value = template.gp ?? "";
+    if (gold) gold.value = template ? (template.gp ?? "") : "";
+  }
+
+  // Coin is the package's to pay, so it is not rolled beside it. Building
+  // WITHOUT a package is the one case the book has a character roll for their
+  // own money (3d6×10), which is the formula core's own button already carries.
+  const goldButton = root.querySelector('button[data-action="rollGold"]');
+  if (goldButton) {
+    goldButton.disabled = !judge;
+    goldButton.classList.toggle(SPENT, !judge);
+    goldButton.dataset.tooltip = judge ? loc("chargen.goldRoll") : loc("chargen.goldFromTemplate");
   }
 
   applyRule(root, state, judge);
@@ -591,6 +612,7 @@ function inject(app, root, state) {
       if (name === "acks-class") state.classUuid = event.target.value;
       else if (name === "acks-template") state.templateMin = Number(event.target.value);
       else if (name === "acks-keep") state.keep = event.target.checked;
+      else if (name === "acks-manual") state.manual = event.target.checked;
       else if (name === "acks-method") {
         // The generation rule is the campaign's, not this character's, so it
         // is written where the campaign keeps its rules. Only a Judge can.
@@ -647,10 +669,10 @@ function inject(app, root, state) {
         const gold = field?.valueAsNumber;
         state.gold = Number.isNaN(gold) ? null : gold;
         // Core's own submit hands the gold field to the system's coin
-        // bookkeeping. Where a template is about to pay the character, that
-        // would pay them twice — so the field is cleared and the template
-        // stays the single writer.
-        if (field && state.cls && state.template) field.value = "";
+        // bookkeeping. Whatever is about to pay this character — a package or a
+        // 3d6×10 roll — would then pay them twice, so the field is cleared and
+        // chargen stays the single writer.
+        if (field && state.cls && (state.template || state.manual)) field.value = "";
       },
       { capture: true },
     );
@@ -712,6 +734,7 @@ export function registerChargenPage() {
           rolledWith: {},
           judge: !!game.user.getFlag(MODULE_ID, JUDGE_FLAG),
           keep: false,
+          manual: false,
           submitted: false,
           roll: null,
           gold: null,
@@ -732,7 +755,8 @@ export function registerChargenPage() {
     if (!state?.submitted) return;
     states.delete(app);
     try {
-      if (!state.cls || !state.template) {
+      // A build with no package is a deliberate choice, not an unfinished one.
+      if (!state.cls || (!state.template && !state.manual)) {
         ui.notifications?.info(loc("chargen.nothingApplied"));
         return;
       }

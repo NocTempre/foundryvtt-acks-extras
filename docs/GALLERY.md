@@ -14,6 +14,7 @@ the next refresh.
 | Character generation | Three columns: the attribute rule and the scores, the class above the template die, what is left to choose | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen.png) |
 | Chargen, built | A character rolled under the printed rule, its package listed before it is taken | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen-built.png) |
 | Chargen, Judge override | Every class and template offered, the rolled fields freed, add-rather-than-replace | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen-judge.png) |
+| Chargen, no package | The Judges Journal's template-less build: proficiencies chosen, gold rolled, no equipment | [guide](guides/classes.md) | [v3.6.0](releases/v3.6.0/classes-chargen-manual.png) |
 | Class book order | The constructor's Book order field, and what a class derives when it says nothing | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-constructor-order.png) |
 | Level up | The wizard: the HP reroll it will apply, the powers granted, the picks offered | [guide](guides/classes.md) | [v3.0.0](releases/v3.0.0/classes-levelup.png) |
 | Casting strip | Slot pips, a points pool with its −/+ pair, the gnostic capacity rung, the rest control | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-casting-strip.png) |

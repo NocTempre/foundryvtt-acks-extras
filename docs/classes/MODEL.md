@@ -153,10 +153,18 @@ the general list is answered by the template and not asked again beside it. An
 offer among named alternatives (a warlock's dark path, a witch's tradition) is
 not something a template lists, and stays on offer.
 
-**The template pays the starting coin**, into the money item named `Gold` — the
-one the system's own `manageMoney` can find, at its gold valuation rather than a
-copper one. The page's gold row shows the figure that will be written, and is
-cleared at submit so the system is not asked to pay it a second time.
+**The template pays the starting coin**, in the denominations it prints — most
+pay gold, a few pay silver, and three pay silver alone. Each lands in the money
+item of that name, which is the only handle `Actor#manageMoney` has on a purse,
+and a missing one is cloned from the world's own item so it keeps that coin's
+valuation. The page's gold row shows the figure that will be written and is
+cleared at submit, so the system is never asked to pay it a second time.
+
+**A build with no package** is the Judges Journal's option (JJ Ch. 16), reachable
+only under the Judge unlock: no equipment and no spellbook, every level-1 choice
+asked rather than answered, and the character's coin rolled on the gold row —
+3d6×10, the formula core's own button already carries. That row is the only
+thing on the page whose die a package silences.
 
 **Generating a character replaces the last attempt**, so a class rerolled is a
 character rebuilt rather than one carrying two starting packages. Under the

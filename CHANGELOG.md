@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.6.0
+
+### Added
+- **A Judge may build a character without a package at all.** Under the override
+  there is now the Judges Journal's template-less option: no equipment and no
+  spellbook, every proficiency the character is owed chosen from the class and
+  general lists rather than printed, and 3d6×10 gold to outfit them with. The
+  gold row is where that roll happens, and it is the only circumstance in which
+  it is rolled — a package pays its own coin, so with one chosen the gold die
+  says so and stays out of reach.
+
+### Fixed
+- **A package hands over the coin it prints, in the coin it prints.** Starting
+  money was gold and only gold, so a package paying in silver paid nothing: a
+  proselytizer's twenty silver for alms, a priest's twenty-five and a tribal
+  warrior's sixty-five never arrived, and those three characters began play with
+  an empty purse. Silver now lands in the character's silver, gold in their
+  gold, and the page names both before the package is taken. Existing class
+  documents carry no silver until they are imported again.
+
 ## 3.5.0
 
 ### Added

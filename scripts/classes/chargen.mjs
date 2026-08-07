@@ -24,8 +24,77 @@ import { grantAbility, grantAdventuring } from "./levelup.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/** The one money item the system's own coin bookkeeping recognises by name. */
-const GOLD_ITEM = "gold";
+/**
+ * The money items the system's own coin bookkeeping recognises, by name.
+ *
+ * `Actor#manageMoney` finds a coin pile BY NAME and by nothing else, so these
+ * are the names a purse has to carry to be reachable afterwards.
+ */
+const PURSES = { gp: "gold", sp: "silver" };
+
+/** Coin documents already found this session, by lowercased name. */
+const _coinCache = new Map();
+
+/**
+ * The document a purse of this coin is made from.
+ *
+ * A money item built from nothing takes the schema's copper valuation whatever
+ * coin it claims to be, and what a gold piece is worth is a value read off a
+ * page — which no repo in this family ships. So the coin is CLONED from the
+ * system's own item: the world directory first, then the compendia, which is
+ * where a system keeps the coins it shipped.
+ */
+async function coinSource(name) {
+  if (_coinCache.has(name)) return _coinCache.get(name);
+  const matches = (i) => i.type === "money" && String(i.name).toLowerCase() === name;
+  let found = game.items?.find(matches)?.toObject() ?? null;
+  if (!found) {
+    for (const pack of game.packs?.filter((p) => p.documentName === "Item") ?? []) {
+      const index = await pack.getIndex({ fields: ["type"] }).catch(() => null);
+      const hit = index?.find((e) => e.type === "money" && String(e.name).toLowerCase() === name);
+      if (!hit) continue;
+      found = (await pack.getDocument(hit._id).catch(() => null))?.toObject() ?? null;
+      if (found) break;
+    }
+  }
+  _coinCache.set(name, found);
+  return found;
+}
+
+/** Coin written the way a page prints it: "34 gp, 5 sp", or "" for nothing. */
+export const coinLine = (coin = {}) =>
+  Object.keys(PURSES)
+    .map((key) => (Number(coin[key]) ? `${Number(coin[key])} ${key}` : ""))
+    .filter(Boolean)
+    .join(", ");
+
+/**
+ * Put the starting coin in the character's purses.
+ *
+ * A pile built from nothing takes the schema's copper valuation rather than the
+ * coin's own, so a missing purse is CLONED from the world's item of that name
+ * and only its quantity set; an existing one is topped up rather than
+ * duplicated. Whether a template pays the coin or a 3d6×10 roll does, it lands
+ * here.
+ *
+ * @param {object} coin - amounts by denomination key (`gp`, `sp`)
+ */
+export async function grantCoin(actor, coin = {}) {
+  for (const [key, name] of Object.entries(PURSES)) {
+    const amount = Number(coin[key]) || 0;
+    if (!amount) continue;
+    const matches = (i) => i.type === "money" && i.name.toLowerCase() === name;
+    const purse = actor.items.find(matches);
+    if (purse) {
+      await purse.update({ "system.quantity": (Number(purse.system.quantity) || 0) + amount });
+      continue;
+    }
+    const data = (await coinSource(name)) ?? { name: name.replace(/^\w/, (c) => c.toUpperCase()), type: "money", system: {} };
+    delete data._id;
+    data.system = { ...(data.system ?? {}), quantity: amount };
+    await actor.createEmbeddedDocuments("Item", [data]);
+  }
+}
 
 /** Resolve a template item entry to its BASE world item (null = no base). */
 export function resolveBase(entry) {
@@ -184,7 +253,8 @@ async function grantRanked(actor, entry, report) {
  */
 export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null, gold = null } = {}) {
   const gp = Number(gold ?? template.gp) || 0;
-  const report = { granted: [], items: [], unresolved: [], gp, dropped: [] };
+  const sp = Number(template.sp) || 0;
+  const report = { granted: [], items: [], unresolved: [], gp, sp, dropped: [] };
   // A template that assumes an Intellect bonus its character does not have
   // prints more than they may hold. The book names the entries to remove
   // rather than leaving it to taste — the LAST proficiency and the SECOND
@@ -208,25 +278,10 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
     report.items = payloads.map((p) => (p.system?.quantity?.value > 1 ? `${p.name} ×${p.system.quantity.value}` : p.name));
   }
   // The template names the coin a character starts with, so this is the one
-  // write of it — and it goes into the purse the system itself keeps books
-  // against. That purse is the money item named "Gold": `Actor#manageMoney`
-  // finds a coin pile by that exact name and by nothing else, and a pile built
-  // from nothing takes the schema's copper valuation rather than a gold one.
-  // So an existing purse is topped up, and a missing one is cloned from the
-  // world's own Gold item where there is one.
-  if (gp) {
-    const isGold = (i) => i.type === "money" && i.name.toLowerCase() === GOLD_ITEM;
-    const purse = actor.items.find(isGold);
-    if (purse) {
-      await purse.update({ "system.quantity": (Number(purse.system.quantity) || 0) + gp });
-    } else {
-      const source = game.items.find(isGold);
-      const data = source ? source.toObject() : { name: "Gold", type: "money", system: { coppervalue: 100 } };
-      delete data._id;
-      data.system = { ...(data.system ?? {}), quantity: gp };
-      await actor.createEmbeddedDocuments("Item", [data]);
-    }
-  }
+  // write of it. Core's own gold row adds to a money item the character ALREADY
+  // owns and returns silently when they own none — which is every character
+  // being generated — so there is nothing here to double.
+  await grantCoin(actor, { gp, sp });
   // The spells a spellbook carries land as spell ITEMS — a linked uuid first,
   // else the printed name matched against the world's spells; what no world
   // spell answers to stays visible on the unresolved list.
@@ -292,7 +347,7 @@ export async function applyChargen(
   template,
   { generalRefs = [], awardPicks = [], roll = null, gold = null, wipe = true } = {},
 ) {
-  if (!actor || !cls || !template) return null;
+  if (!actor || !cls) return null;
   const intScore = Number(actor.system?.scores?.int?.value) || 0;
 
   if (wipe) {
@@ -301,7 +356,19 @@ export async function applyChargen(
   }
 
   await applyClass(actor, cls, { level: 1, confirm: false });
-  const report = await applyTemplate(actor, cls, template, { generalRefs, intScore, gold });
+
+  // No template is a build made the Judges Journal's way (JJ Ch. 16,
+  // Generating Characters without Templates): no package, so no equipment and
+  // no spellbook, every proficiency the character is owed chosen rather than
+  // printed, and 3d6×10 gold to outfit themselves with.
+  let report;
+  if (template) {
+    report = await applyTemplate(actor, cls, template, { generalRefs, intScore, gold });
+  } else {
+    report = { granted: [], items: [], unresolved: [], gp: Number(gold) || 0, sp: 0, dropped: [] };
+    for (const ref of generalRefs) await grantRanked(actor, { ref, rank: 1 }, report);
+    await grantCoin(actor, { gp: report.gp });
+  }
   // The class's own first-level awards land with the template: every fixed
   // award granted, every pick taken above granted as chosen. grantAbility
   // dedupes by ref, so a power the template already carried is not doubled.
@@ -322,10 +389,10 @@ export async function applyChargen(
     content: `<p>${game.i18n.format(`${LANG_PREFIX}.chargen.chat`, {
       name: actor.name,
       class: cls.name,
-      template: template.name,
+      template: template?.name ?? game.i18n.localize(`${LANG_PREFIX}.chargen.manualPackage`),
       roll: roll ?? "—",
     })}</p><p>${[...report.granted, ...report.items].map((n) => foundry.utils.escapeHTML(n)).join(", ")}${
-      report.gp ? ` — ${report.gp} gp` : ""
+      coinLine(report) ? ` — ${coinLine(report)}` : ""
     }</p>${
       // What the template printed but this character may not hold is said out
       // loud — a silently shorter starting package reads as a missing import.
