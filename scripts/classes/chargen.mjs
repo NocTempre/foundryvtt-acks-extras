@@ -1,11 +1,12 @@
-/* global game, foundry, ui, Hooks, Actor, Roll, ChatMessage, fromUuid */
+/* global game, foundry, Hooks, ChatMessage, fromUuid */
 /**
- * Chargen: applying a starting template — the printed selection rule and the
- * named-item skinning layer.
+ * Chargen: applying a starting template — the printed selection rule, the
+ * Intellect accounting, and the named-item skinning layer.
  *
  * RAW (RR p.23): roll 3d6, then take the rolled template or any template
  * from a LOWER band, never a higher one; a Judge may allow a straight pick.
- * The wizard rolls, offers exactly the legal set, and applies the bundle:
+ * The rolling and the choosing happen on the character's own Scores Generator
+ * ([stat-page.mjs](stat-page.mjs)); this file applies what was chosen —
  * proficiencies as owned abilities (a printed rank N grants N copies — the
  * family's taken-multiple-times convention), equipment as SKINS — the
  * printed descriptor becomes the item's name over the base item's mechanics
@@ -16,11 +17,10 @@
  * What resolves to nothing imports as a bare named item — visible, never
  * dropped.
  */
-import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
-import { classForActor, classItems, findByRef } from "./registry.mjs";
+import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
-import { offeredClasses } from "./assign.mjs";
-import { grantAbility, optionsForChoice } from "./levelup.mjs";
+import { grantAbility } from "./levelup.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -120,6 +120,32 @@ export function intBonusPicks(intScore) {
   return 0;
 }
 
+/**
+ * The general picks the PLAYER still gets to make, after what the template has
+ * already spent.
+ *
+ * Most templates assume no Intellect bonus (RR Ch. 2 §II.1: "we assumed that
+ * the character had an Intellect score of 12 or less"), so the whole bonus is
+ * theirs. A studious spellcaster's templates assume one, so a character in the
+ * 13–15 band has already been given it and chooses nothing further.
+ */
+export const netBonusPicks = (intScore, assumed = 0) =>
+  Math.max(0, intBonusPicks(intScore) - (Number(assumed) || 0));
+
+/**
+ * What a template hands out that its character cannot hold.
+ *
+ * A studious spellcaster below the band its templates assume "has more
+ * proficiencies and spells than the character is eligible to possess", and the
+ * book says which to remove: the bonus proficiency is the one listed LAST and
+ * the bonus spell is the one listed SECOND. Returns how many of each to drop —
+ * zero for every class whose templates assume nothing, which is most of them.
+ */
+export function templateShortfall(intScore, assumed = 0) {
+  const short = Math.max(0, (Number(assumed) || 0) - intBonusPicks(intScore));
+  return { profs: short, spells: short };
+}
+
 /** Grant one ability ref N times (rank N = N copies, the family convention). */
 async function grantRanked(actor, entry, report) {
   const source = findByRef(entry.ref);
@@ -136,9 +162,22 @@ async function grantRanked(actor, entry, report) {
 }
 
 /** Apply one template's full bundle to the actor. */
-export async function applyTemplate(actor, classItem, template, { generalRefs = [] } = {}) {
-  const report = { granted: [], items: [], unresolved: [], gp: template.gp || 0 };
-  for (const entry of template.abilities ?? []) {
+export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null } = {}) {
+  const report = { granted: [], items: [], unresolved: [], gp: template.gp || 0, dropped: [] };
+  // A template that assumes an Intellect bonus its character does not have
+  // prints more than they may hold. The book names the entries to remove
+  // rather than leaving it to taste — the LAST proficiency and the SECOND
+  // spell — so the drop is positional, taken before anything is granted.
+  const assumed = classItem?.system?.templatesAssumeIntBonus ?? 0;
+  const short = intScore == null ? { profs: 0, spells: 0 } : templateShortfall(intScore, assumed);
+
+  let abilities = [...(template.abilities ?? [])];
+  if (short.profs > 0) {
+    const kept = abilities.slice(0, Math.max(0, abilities.length - short.profs));
+    for (const gone of abilities.slice(kept.length)) report.dropped.push(gone.name || gone.ref);
+    abilities = kept;
+  }
+  for (const entry of abilities) {
     if (entry.ref) await grantRanked(actor, entry, report);
     else if (entry.name) report.unresolved.push(entry.name);
   }
@@ -155,7 +194,15 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
   // The spells a spellbook carries land as spell ITEMS — a linked uuid first,
   // else the printed name matched against the world's spells; what no world
   // spell answers to stays visible on the unresolved list.
-  for (const s of template.spells ?? []) {
+  // The bonus spell is the one listed SECOND, so a shortfall removes that
+  // entry rather than the last — the spellbook's first spell is the one every
+  // character of the class begins with.
+  let spells = [...(template.spells ?? [])];
+  if (short.spells > 0 && spells.length > 1) {
+    const removed = spells.splice(1, Math.min(short.spells, spells.length - 1));
+    for (const gone of removed) report.dropped.push(gone.name || gone.uuid);
+  }
+  for (const s of spells) {
     const name = s.name ?? "";
     let doc = null;
     if (s.uuid) doc = await fromUuid(s.uuid).catch(() => null);
@@ -183,120 +230,25 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
 export const legalTemplates = (templates, roll) =>
   templates.filter((t) => t.rollMin <= roll).sort((a, b) => a.rollMin - b.rollMin);
 
-/** Run the chargen wizard for one character. */
-export async function openChargen(actor) {
-  const classItem = classForActor(actor) ?? null;
-  if (!classItems().length) {
-    ui.notifications?.info(game.i18n.localize(`${LANG_PREFIX}.pick.empty`));
-    return;
-  }
-  let classes = offeredClasses(actor, false);
-  const roll = await new Roll("3d6").evaluate();
+/**
+ * Apply a chosen class and template to a character.
+ *
+ * The CHOOSING happens on the character's own Scores Generator (stat-page.mjs)
+ * — the page that already rolls the attributes and the template die — so this
+ * takes the decisions rather than asking for them. Keeping it separate is what
+ * lets the same sequence be driven from a page, a macro or a test.
+ *
+ * Order matters: the class lands first so the template's grants sit on a
+ * character who already has their level-1 row, and the class's own first-level
+ * awards land last so `grantAbility`'s dedupe can see what the template
+ * already gave.
+ */
+export async function applyChargen(actor, cls, template, { generalRefs = [], awardPicks = [], roll = null } = {}) {
+  if (!actor || !cls || !template) return null;
   const intScore = Number(actor.system?.scores?.int?.value) || 0;
-  const bonusPicks = intBonusPicks(intScore);
-  const generals = (game.items ?? [])
-    .filter((i) => i.type === "ability" && i.system.proficiencytype === "general")
-    .sort((a, b) => a.name.localeCompare(b.name));
-  const generalOptions = generals
-    .map((i) => {
-      const ref = i.flags?.["acks-importer"]?.cookbook?.id ?? `uuid:${i.uuid}`;
-      return `<option value="${foundry.utils.escapeHTML(ref)}">${foundry.utils.escapeHTML(i.name)}</option>`;
-    })
-    .join("");
-  const classOptionsHtml = (list) =>
-    list
-      .map((c) => `<option value="${c.uuid}"${classItem?.uuid === c.uuid ? " selected" : ""}>${foundry.utils.escapeHTML(c.name)}</option>`)
-      .join("");
-  const classOptions = classOptionsHtml(classes);
-  const isGM = game.user.isGM;
-  const bonusBlocks = Array.from({ length: bonusPicks }, (_, i) =>
-    `<div class="form-group"><label>${game.i18n.format(`${LANG_PREFIX}.chargen.bonusPick`, { n: i + 1 })}</label><select name="bonus-${i}">${generalOptions}</select></div>`,
-  ).join("");
-
-  const content = `
-    <p>${game.i18n.format(`${LANG_PREFIX}.chargen.prompt`, { name: actor.name, roll: roll.total })}</p>
-    <div class="form-group"><label>${game.i18n.localize(`${LANG_PREFIX}.pick.class`)}</label>
-      <select name="uuid">${classOptions}</select></div>
-    <div class="form-group">
-      <label class="checkbox"><input type="checkbox" name="showAll" /> ${game.i18n.localize(`${LANG_PREFIX}.pick.showAll`)}</label>
-    </div>
-    <div class="form-group"><label>${game.i18n.localize(`${LANG_PREFIX}.chargen.template`)}</label>
-      <select name="template"></select></div>
-    ${isGM ? `<div class="form-group"><label class="checkbox"><input type="checkbox" name="judge" /> ${game.i18n.localize(`${LANG_PREFIX}.chargen.judgeOverride`)}</label></div>` : ""}
-    <div data-role="starting"></div>
-    ${bonusBlocks}
-    <p class="hint">${game.i18n.localize(`${LANG_PREFIX}.chargen.rule`)}</p>`;
-
-  const picked = await foundry.applications.api.DialogV2.prompt({
-    window: { title: game.i18n.format(`${LANG_PREFIX}.chargen.title`, { name: actor.name }) },
-    content,
-    render: (_event, dialog) => {
-      const form = dialog.element.querySelector("form") ?? dialog.element;
-      const classSel = form.querySelector('select[name="uuid"]');
-      const tplSel = form.querySelector('select[name="template"]');
-      const showAll = form.querySelector('input[name="showAll"]');
-      const judge = form.querySelector('input[name="judge"]');
-      const refresh = () => {
-        const cls = classes.find((c) => c.uuid === classSel.value) ?? classes[0];
-        // The Judge override lifts the at-or-below rule; players never see it.
-        const offered =
-          judge?.checked && isGM
-            ? [...(cls?.system.templates ?? [])].sort((a, b) => a.rollMin - b.rollMin)
-            : legalTemplates(cls?.system.templates ?? [], roll.total);
-        tplSel.innerHTML = offered
-          .map(
-            (t, i) =>
-              `<option value="${t.rollMin}"${i === offered.length - 1 ? " selected" : ""}>${foundry.utils.escapeHTML(
-                t.name + (t.annotation ? ` (${t.annotation})` : ""),
-              )} [${t.rollMin}–${t.rollMax}]</option>`,
-          )
-          .join("");
-        // The class's own first-level picks (a dark path, a tradition, the
-        // proficiency selections) re-render with the class: each choice award
-        // at level 1 gets a select over its ChoiceSpec's options.
-        const startBox = form.querySelector('[data-role="starting"]');
-        if (startBox) {
-          const choices = (cls?.system.awards ?? []).filter((a) => a.atLevel === 1 && a.kind === "choice");
-          startBox.innerHTML = choices
-            .map((a, i) => {
-              const options = optionsForChoice(a.choice, cls)
-                .map((o) => `<option value="${foundry.utils.escapeHTML(o.ref)}">${foundry.utils.escapeHTML(o.name)}</option>`)
-                .join("");
-              const label = a.choice.label || game.i18n.localize(`${LANG_PREFIX}.levelup.pick`);
-              return `<div class="form-group"><label>${foundry.utils.escapeHTML(label)}</label><select name="award-${i}">${options}</select></div>`;
-            })
-            .join("");
-        }
-      };
-      classSel.addEventListener("change", refresh);
-      judge?.addEventListener("change", refresh);
-      showAll?.addEventListener("change", () => {
-        classes = offeredClasses(actor, showAll.checked);
-        classSel.innerHTML = classOptionsHtml(classes);
-        refresh();
-      });
-      refresh();
-    },
-    ok: {
-      label: game.i18n.localize(`${LANG_PREFIX}.chargen.apply`),
-      callback: (_event, button) => ({
-        uuid: button.form.elements.uuid?.value,
-        rollMin: Number(button.form.elements.template?.value),
-        bonus: Array.from({ length: bonusPicks }, (_, i) => button.form.elements[`bonus-${i}`]?.value).filter(Boolean),
-        awardPicks: Array.from(button.form.querySelectorAll('select[name^="award-"]'))
-          .map((el) => el.value)
-          .filter(Boolean),
-      }),
-    },
-    rejectClose: false,
-  });
-  if (!picked?.uuid) return;
-  const cls = classes.find((c) => c.uuid === picked.uuid);
-  const template = (cls.system.templates ?? []).find((t) => t.rollMin === picked.rollMin);
-  if (!template) return;
 
   await applyClass(actor, cls, { level: 1, confirm: false });
-  const report = await applyTemplate(actor, cls, template, { generalRefs: picked.bonus });
+  const report = await applyTemplate(actor, cls, template, { generalRefs, intScore });
   // The class's own first-level awards land with the template: every fixed
   // award granted, every pick taken above granted as chosen. grantAbility
   // dedupes by ref, so a power the template already carried is not doubled.
@@ -304,7 +256,7 @@ export async function openChargen(actor) {
   for (const a of (cls.system.awards ?? []).filter((x) => x.atLevel === 1 && x.kind === "fixed" && x.ref)) {
     await grantAbility(actor, a.ref, startingGrants);
   }
-  for (const ref of picked.awardPicks ?? []) {
+  for (const ref of awardPicks ?? []) {
     await grantAbility(actor, ref, startingGrants);
   }
   report.granted.push(...startingGrants.filter((g) => !g.missing).map((g) => g.name));
@@ -315,31 +267,20 @@ export async function openChargen(actor) {
       name: actor.name,
       class: cls.name,
       template: template.name,
-      roll: roll.total,
+      roll: roll ?? "—",
     })}</p><p>${[...report.granted, ...report.items].map((n) => foundry.utils.escapeHTML(n)).join(", ")}${
       report.gp ? ` — ${report.gp} gp` : ""
-    }</p>${report.unresolved.length ? `<p><em>?</em> ${report.unresolved.map((n) => foundry.utils.escapeHTML(n)).join(", ")}</p>` : ""}`,
+    }</p>${
+      // What the template printed but this character may not hold is said out
+      // loud — a silently shorter starting package reads as a missing import.
+      report.dropped.length
+        ? `<p><em>${game.i18n.localize(`${LANG_PREFIX}.chargen.dropped`)}</em> ${report.dropped
+            .map((n) => foundry.utils.escapeHTML(n))
+            .join(", ")}</p>`
+        : ""
+    }${report.unresolved.length ? `<p><em>?</em> ${report.unresolved.map((n) => foundry.utils.escapeHTML(n)).join(", ")}</p>` : ""}`,
   });
-}
-
-/** Inject the chargen control beside the picker for fresh characters. */
-function onRenderCharacterSheet(app, element) {
-  const root = element instanceof HTMLElement ? element : element?.[0];
-  if (!root) return;
-  const doc = app.document;
-  if (!(doc instanceof Actor) || doc.type !== "character" || !doc.isOwner) return;
-  if ((Number(doc.system?.details?.level) || 1) > 1) return;
-  const pick = root.querySelector(".acks-extras-classes-pick");
-  if (!pick || pick.parentElement.querySelector(".acks-extras-classes-chargen")) return;
-  const btn = document.createElement("a");
-  btn.className = "acks-extras-classes-chargen";
-  btn.dataset.tooltip = game.i18n.localize(`${LANG_PREFIX}.chargen.tooltip`);
-  btn.innerHTML = '<i class="fa-solid fa-dice"></i>';
-  btn.addEventListener("click", (event) => {
-    event.preventDefault();
-    openChargen(doc);
-  });
-  pick.insertAdjacentElement("afterend", btn);
+  return report;
 }
 
 /** A skinned item's sheet names what it is an instance of. */
@@ -358,8 +299,15 @@ function onRenderItemSheet(app, element) {
   anchor?.insertAdjacentElement("afterend", badge);
 }
 
-/** Register the chargen sheet control (called once from classes/module.mjs). */
+/**
+ * Register the chargen hooks (called once from classes/module.mjs).
+ *
+ * There is no dice control beside the class picker any more: the character's
+ * own Scores Generator already rolls the attributes and the template die, so a
+ * second button opening a second dialog asked the same questions twice and
+ * rolled the template a second time. The page carries the whole of chargen
+ * (stat-page.mjs); what remains here is the skin badge.
+ */
 export function registerChargen() {
-  Hooks.on("renderApplicationV2", onRenderCharacterSheet);
   Hooks.on("renderApplicationV2", onRenderItemSheet);
 }

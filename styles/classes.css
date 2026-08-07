@@ -121,10 +121,11 @@
   border-radius: 3px;
 }
 
-/* The picker, level-up and chargen controls beside the system's class input. */
+/* The picker and level-up controls beside the system's class input. Chargen
+   is no longer among them — it lives on the Scores Generator, which already
+   rolls the attributes and the template die. */
 .acks-extras-classes-pick,
-.acks-extras-classes-levelup,
-.acks-extras-classes-chargen {
+.acks-extras-classes-levelup {
   flex: 0;
   margin-left: 0.25rem;
   cursor: pointer;
@@ -222,4 +223,51 @@
 }
 .acks-extras-classes-diff tr.acks-extras-classes-hand-edited td {
   color: var(--color-level-warning, #ee9b3a);
+}
+
+/* --- Chargen on the system's Scores Generator --- */
+
+/* Neither family dressing reaches this page: its root carries `acks2` and
+   `stat-gen-app`, so there is no `.acks` for the sheet theme and no `.acks-ui`
+   for the vendored one. Everything the block needs is stated here. */
+.acks-extras-classes-chargen {
+  margin-top: var(--acks-sp-3);
+}
+
+.acks-extras-classes-chargen select {
+  width: 100%;
+  font-family: var(--acks-font-ui);
+  color: var(--acks-ink);
+  background: var(--acks-paper-pure);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  padding: 4px 6px;
+}
+
+/* The rule that governs the choice above it, and the warning that a template
+   is about to hand out less than it prints. Soft ink so it reads as a note on
+   the control rather than as a second control. */
+.acks-extras-classes-chargen .hint {
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
+  margin: 3px 0 0;
+}
+
+.acks-extras-classes-chargen label.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--acks-fs-label);
+  margin-top: 3px;
+}
+
+/* Clearing a roll sits with the dice that made it, at the same weight as the
+   other controls on the row rather than competing with them. */
+.acks-extras-classes-reset {
+  flex: 0 0 auto;
+  color: var(--acks-ink-soft);
+  cursor: pointer;
+}
+.acks-extras-classes-reset:hover {
+  color: var(--acks-spot);
 }

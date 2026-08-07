@@ -18,7 +18,17 @@ import { applyClass, classUpdateData, normalizeHd } from "./apply.mjs";
 import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
-import { openChargen, applyTemplate, legalTemplates, intBonusPicks, resolveBase, registerChargen } from "./chargen.mjs";
+import {
+  applyChargen,
+  applyTemplate,
+  legalTemplates,
+  intBonusPicks,
+  netBonusPicks,
+  templateShortfall,
+  resolveBase,
+  registerChargen,
+} from "./chargen.mjs";
+import { registerChargenPage } from "./stat-page.mjs";
 import { registerSheetTabs } from "./sheet-tabs.mjs";
 import { savesUpdateData, repairSaveReferences, BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
@@ -72,10 +82,14 @@ Hooks.once("init", () => {
     parseHd,
     openClassPicker,
     openLevelUp,
-    openChargen,
+    applyChargen,
     applyTemplate,
     legalTemplates,
     intBonusPicks,
+    // Bonus picks NET of what a template already spends, and what a template
+    // hands out that its character may not hold (RR Ch.2 §II.1).
+    netBonusPicks,
+    templateShortfall,
     resolveBase,
     casting,
     choiceOptions,
@@ -91,5 +105,6 @@ registerAssignUi();
 casting.registerCastingUi();
 registerLevelUp();
 registerChargen();
+registerChargenPage();
 registerSheetTabs();
 registry.registerRegistryHooks();

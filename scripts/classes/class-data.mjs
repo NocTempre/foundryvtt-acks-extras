@@ -171,6 +171,22 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       keyAttributes: choiceSet(ATTRIBUTES),
       maximumLevel: int(14, { min: 1 }),
       hitDie: str(), // "1d8"
+      // How much Intellect bonus this class's printed TEMPLATES already spend.
+      //
+      // Most classes' templates assume no bonus, so a character's whole
+      // Intellect bonus is theirs to choose with. The studious spellcasters'
+      // templates assume one (RR Ch. 2 §II.1) — one bonus proficiency, listed
+      // last, and one bonus spell, listed second — so offering their full
+      // bonus on top grants it twice, and a character below the assumed band
+      // holds more than they are entitled to.
+      //
+      // WHICH classes those are is a fact off the page: it cannot be derived
+      // from the document (the repertoire kind splits them wrongly, and the
+      // printed proficiency counts of studious and plain classes overlap in
+      // both directions), so acks-importer fills this from the reader's own
+      // book. 0 is the honest default — a class nobody has re-imported keeps
+      // behaving exactly as it did.
+      templatesAssumeIntBonus: int(0, { min: 0 }),
 
       levels: new ArrayField(levelRow()),
       ladders: new ArrayField(
