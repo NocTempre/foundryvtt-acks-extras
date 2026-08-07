@@ -167,6 +167,15 @@ export function effectField() {
     // its victims is indistinguishable from one the character suffers, which
     // inverts the ability. Defaults to self, so existing effects are unchanged.
     appliesTo: choice(EFFECT_SUBJECTS, { initial: "self" }),
+    // WHICH of the ability's throws this modifier belongs to, by that throw's
+    // key. The books scope a great many modifiers to one way of attempting a
+    // thing — "+4 when picking methodically", "not on a hasty attempt" — and
+    // those variants are already separate keyed throws, so the throw's own name
+    // is the guard. `condition` still carries the prose for the reader; this
+    // carries the part a machine may act on, because deciding from the prose
+    // gets it wrong (Lockpicking's condition names BOTH its throws in one
+    // string). Blank means the modifier is not scoped to a single throw.
+    appliesToRoll: str(),
     roll: str(), // e.g. "1d20"
     rollType: choice(ROLL_TYPES),
     /* --- attributeSubstitution ---

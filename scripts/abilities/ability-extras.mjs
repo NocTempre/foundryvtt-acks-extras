@@ -106,6 +106,14 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
       // which cannot express that, so the set lives here and the Rolls tab
       // presents them individually.
       rolls: rollsField(),
+      // Which of them the single d20 reaches — the row's icon, the chat card's
+      // Roll button, `item.use()`, a hotbar macro. Holds a roll's KEY, and the
+      // key is the handle precisely because it survives a relabelling. Blank
+      // (or naming a throw that has since been deleted) reads as the first
+      // roll, so an ability nobody has chosen for still rolls what it always
+      // did. Stored per ITEM, so one character's Lockpicking can default to
+      // the methodical throw while another's does not.
+      defaultRoll: str(),
       // --- The structured, level-aware effects (acks-lib vocabulary) ---
       effects: effectsField(),
       // --- Immunities / resistances / susceptibilities (mostly monster abilities) ---

@@ -258,3 +258,40 @@
 .acks-abilities-pick input {
   margin: 0;
 }
+
+/* --- Reaching an ability's throws from the character sheet --- */
+
+/* A tag in the summary strip is the throw itself: the reader is already
+   looking at "methodically 11+", so that is what they press. Styled as a
+   pressable chip rather than a label, because a tag that rolls and a tag that
+   merely states must not look alike. */
+.acks-extras-abilities-throw.tag {
+  cursor: pointer;
+  border: 1px solid var(--acks-rule);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.acks-extras-abilities-throw.tag:hover {
+  background: var(--acks-tint);
+  border-color: var(--acks-spot);
+}
+
+/* Which throw the row's own icon reaches. Marked on the strip so the cycle
+   control's tooltip is not the only place that answer exists. */
+.acks-extras-abilities-throw-default.tag {
+  border-color: var(--acks-spot);
+  font-weight: var(--acks-weight-medium);
+}
+
+/* Favorites: one control per throw, each carrying its own target. The number
+   is the point of the row, so it sets beside the die rather than under it. */
+.acks-extras-abilities-fav-throw {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: var(--acks-sp-2);
+  white-space: nowrap;
+}
+.acks-extras-abilities-fav-throw span {
+  font-size: var(--acks-fs-label);
+  font-family: var(--acks-font-ui);
+}

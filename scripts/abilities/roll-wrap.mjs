@@ -26,7 +26,8 @@
  * roll them — the store, not the roller, is the thing that has to change.
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
-import { rollAbility, rollsOf, targetOf } from "./ability-rolls.mjs";
+import { rollAbility, rollsOf, targetOf, keyOf, defaultKeyOf } from "./ability-rolls.mjs";
+import { THROW_TAG_CLASS, THROW_DEFAULT_CLASS } from "./sheet-rolls.mjs";
 
 /**
  * Route an ability's roll through the multi-roll roller.
@@ -59,15 +60,26 @@ function onGetTags(wrapped) {
   const rolls = rollsOf(this);
   if (!rolls.length) return wrapped();
 
-  const tag = (text) => (text ? `<li class='tag'>${foundry.utils.escapeHTML?.(text) ?? text}</li>` : "");
+  const esc = (text) => foundry.utils.escapeHTML?.(text) ?? text;
+  const tag = (text) => (text ? `<li class='tag'>${esc(text)}</li>` : "");
   const suffix = (t) => (t === "below" ? "-" : t === "result" ? "" : "+");
+  const current = defaultKeyOf(this);
 
-  const parts = rolls.map((r) => {
+  // Each throw's tag carries its own KEY, which is what turns the strip the
+  // reader is already looking at into the way to roll it (sheet-rolls.mjs
+  // binds the click). The tag stays an <li> because core wraps this string in
+  // its own <ol class="tag-list">, and a strip that renders somewhere with no
+  // handler bound is simply a strip again.
+  const parts = rolls.map((r, i) => {
     const target = targetOf(r, this.actor, this);
     // A ladder with no actor to resolve against says so, rather than printing
     // a number that is only true at one rank.
     const shown = target == null ? "—" : `${target}${suffix(r.rollType)}`;
-    return tag([r.label, shown].filter(Boolean).join(" "));
+    const text = [r.label, shown].filter(Boolean).join(" ");
+    if (!text) return "";
+    const key = keyOf(r, i);
+    const isDefault = rolls.length > 1 && key === current;
+    return `<li class='tag ${THROW_TAG_CLASS}${isDefault ? ` ${THROW_DEFAULT_CLASS}` : ""}' data-acks-throw='${esc(key)}'>${esc(text)}</li>`;
   });
 
   return `${tag(this.system.requirements)}${parts.join("")}`;

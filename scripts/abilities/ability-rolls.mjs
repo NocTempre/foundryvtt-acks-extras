@@ -44,6 +44,84 @@ export function scalesFor(actor, item) {
   };
 }
 
+/** The vocabulary key a proficiency-throw modifier is written against. */
+const THROW_TARGET = "proficiencyThrow";
+
+/**
+ * What this character's abilities do to THIS ability's throws.
+ *
+ * The books state a great many of these — Lockpicking Expertise gives "+2 on
+ * Lockpicking proficiency throws", a methodical attempt gives +4 on its own
+ * throw — and they are extracted onto the granting ability as modifiers naming
+ * the activity they apply to. Nothing read them, so every one of them sat
+ * inert: a character holding both Lockpicking and Lockpicking Expertise showed
+ * the bare class ladder, and the Lockbreaker template grants exactly that pair.
+ *
+ * Two rules keep this from over-applying:
+ *
+ * - **One ability, counted once.** Holding a proficiency twice is RANK (RR
+ *   §III.3 — the target drops by 4 per selection), which the ladder's `rank`
+ *   scale already answers. Iterating both copies would apply the bonus twice
+ *   and then let the ladder apply it again.
+ * - **A modifier must NAME what it modifies.** An unattributed "+2 to
+ *   proficiency throws" is not evidence of anything: it is what the importer's
+ *   generic scan leaves behind when it drops the activity from the sentence,
+ *   and applying those to every throw would give a character every bonus in
+ *   their list on every roll they make.
+ *
+ * A modifier scoped to ONE way of attempting the thing names that throw
+ * (`appliesToRoll`), and the name is the guard: "methodical" is a key, not a
+ * reading of prose. Deciding it from `condition` instead would get Lockpicking
+ * wrong, whose condition names both of its throws in a single string
+ * ("methodical attempt (one turn); not a hasty attempt").
+ *
+ * A modifier that is conditioned but names no throw is a gap in what was
+ * captured, not a modifier to guess at; it is returned unapplied so a caller
+ * can say so rather than silently dropping it.
+ *
+ * @param {object} [roll] the throw being resolved; omit for the ability's
+ *   unscoped total
+ * @returns {{bonus: number, pending: Array<{name: string, amount: number, condition: string}>}}
+ */
+export function throwModifiers(actor, item, roll = null) {
+  const out = { bonus: 0, pending: [] };
+  if (!actor || !item) return out;
+  const mine = slug(item.name);
+  const resolve = globalThis.acksExtras?.lib?.resolveLevelValue;
+
+  const seen = new Set();
+  for (const other of actor.items ?? []) {
+    if (other.type !== item.type) continue;
+    const name = slug(other.name);
+    if (seen.has(name)) continue;
+    seen.add(name);
+
+    for (const effect of other.getFlag(MODULE_ID, FLAG_EXTRAS)?.effects ?? []) {
+      if (effect?.type !== "modifier" || effect.target !== THROW_TARGET) continue;
+      // A penalty an ability imposes on its VICTIMS is not one its holder
+      // suffers. Without this the two are indistinguishable and the ability
+      // reads inverted.
+      if ((effect.appliesTo ?? "self") !== "self") continue;
+      if (effect.mode && effect.mode !== "add") continue;
+      if (!effect.forWhat || slug(effect.forWhat) !== mine) continue;
+
+      const scales = scalesFor(actor, other);
+      const amount = resolve ? resolve(effect.value, scales.level, scales) : (effect.value?.flat ?? null);
+      if (typeof amount !== "number" || !amount) continue;
+
+      const scoped = String(effect.appliesToRoll ?? "");
+      if (scoped) {
+        // Named a throw: it applies to that one and to no other.
+        if (roll && roll.key === scoped) out.bonus += amount;
+        continue;
+      }
+      if (effect.condition) out.pending.push({ name: other.name, amount, condition: effect.condition });
+      else out.bonus += amount;
+    }
+  }
+  return out;
+}
+
 /**
  * Resolve a roll's target number, or null when it cannot be known here.
  * Delegates to acks-lib so the ladder semantics have one definition.
@@ -64,7 +142,27 @@ export function targetOf(roll, actor, item) {
   // computes them yet). A flat target still answers; a ladder does not, and the
   // sheet shows the whole ladder rather than a number read at the wrong rung.
   if (at == null) return (target?.kind ?? "flat") === "flat" ? (target?.flat ?? null) : null;
-  return resolve(target, at, scales);
+  return withModifiers(resolve(target, at, scales), roll, actor, item);
+}
+
+/**
+ * A resolved target with the character's standing bonuses folded in.
+ *
+ * The books state these as bonuses to the ROLL; the sheet shows a target, and
+ * the two are the same statement read from opposite ends — so a bonus lowers a
+ * throw that must reach its target and raises one that must stay under it. An
+ * exact-match throw takes neither: there is no "easier" to be had.
+ *
+ * Applied HERE rather than at each caller, so the strip, the roller, the chat
+ * card and Favorites cannot disagree about what a throw comes to.
+ */
+function withModifiers(target, roll, actor, item) {
+  if (typeof target !== "number" || !actor) return target;
+  const { bonus } = throwModifiers(actor, item, roll);
+  if (!bonus) return target;
+  const type = roll?.rollType || "above";
+  if (type === "result") return target;
+  return type === "below" ? target + bonus : target - bonus;
 }
 
 /**
@@ -137,6 +235,43 @@ function settleKeys(rolls) {
     if (!roll.key) roll.key = uniqueKey(slug(roll.label) || `roll${i}`, taken);
   });
   return settled;
+}
+
+/**
+ * The key of the throw a bare roll reaches — the stored default, or the first.
+ *
+ * Resolved leniently on READ rather than repaired on write, because the two
+ * things that invalidate a default (the throw deleted, the ability re-imported
+ * with a different set) both leave a key naming nothing, and an ability that
+ * silently rolls its first throw is better than one that rolls nothing.
+ */
+export function defaultKeyOf(item) {
+  const rolls = rollsOf(item);
+  if (!rolls.length) return null;
+  const stored = item?.getFlag(MODULE_ID, FLAG_EXTRAS)?.defaultRoll || "";
+  const found = rolls.findIndex((r, i) => keyOf(r, i) === stored);
+  return found >= 0 ? stored : keyOf(rolls[0], 0);
+}
+
+/**
+ * Make one throw the ability's default. Writes the KEY, never the index — a
+ * later edit that reorders or inserts a throw must not move the default onto a
+ * different one.
+ */
+export async function setDefaultKey(item, key) {
+  const raw = foundry.utils.deepClone(item.getFlag(MODULE_ID, FLAG_EXTRAS) ?? {});
+  raw.defaultRoll = String(key ?? "");
+  await item.update({ [`flags.${MODULE_ID}.${FLAG_EXTRAS}`]: AbilityExtras.normalize(raw) });
+  return raw.defaultRoll;
+}
+
+/** The throw AFTER the current default, wrapping — what the cycle control steps to. */
+export function nextKeyAfter(item, key) {
+  const rolls = rollsOf(item);
+  if (rolls.length < 2) return null;
+  const keys = rolls.map((r, i) => keyOf(r, i));
+  const at = keys.indexOf(key);
+  return keys[(at + 1) % keys.length];
 }
 
 /** A new, empty roll — what "add a roll" puts in the list. */
@@ -242,7 +377,12 @@ function rollableFormula(roll, item) {
  */
 export async function rollAbility(item, key) {
   const rolls = rollsOf(item);
-  const roll = rolls.find((r, i) => keyOf(r, i) === key) ?? rolls[0];
+  // No key names the ability's DEFAULT throw, not its first. Every route that
+  // cannot pass one — the row's icon, the chat card's button, `item.use()`, a
+  // macro — arrives here that way, so the choice has to be honoured at the
+  // bottom rather than at each of them.
+  const wanted = key ?? defaultKeyOf(item);
+  const roll = rolls.find((r, i) => keyOf(r, i) === wanted) ?? rolls[0];
   if (!roll) return null;
   const actor = item.actor ?? null;
   const target = targetOf(roll, actor, item);

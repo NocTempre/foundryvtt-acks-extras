@@ -11,8 +11,9 @@ import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, ABILITY_TYPE } from "./constants.mjs";
 import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
 import { createAbilitySheet } from "./ability-sheet.mjs";
-import { rankOf, scalesFor, targetOf, rollsOf, rollAbility } from "./ability-rolls.mjs";
+import { rankOf, scalesFor, targetOf, rollsOf, rollAbility, defaultKeyOf, setDefaultKey, throwModifiers } from "./ability-rolls.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
+import { registerSheetRolls } from "./sheet-rolls.mjs";
 
 /** The dynamically-created sheet class (base is resolved at ready). */
 let AcksAbilitySheet = null;
@@ -42,13 +43,23 @@ Hooks.once("init", () => {
     rankOf,
     scalesFor,
     targetOf,
+    // What the character's OTHER abilities do to this one's throws. `targetOf`
+    // already folds the unconditional ones in; this is how a consumer sees the
+    // parts, including the conditioned ones that are stated rather than
+    // applied.
+    throwModifiers,
     // Every roll an ability offers, in one shape — this module's store, with
     // core's singleton folded in when it has not been edited here yet. THE read
     // path: never assemble an ability's rolls from `system.roll` yourself, or
     // you will see one throw where the book prints four.
     rollsOf,
-    /** Roll one of them by key (omit the key for the first). */
+    /** Roll one of them by key (omit the key for the ability's default throw). */
     rollAbility,
+    // WHICH throw a bare roll reaches. An ability offering several has one of
+    // them chosen — by the sheet's cycle control, or by a consumer here — and
+    // every route that cannot name a key honours it.
+    defaultKeyOf,
+    setDefaultKey,
     // The picks a character's copy records (Martial Training's weapon group,
     // Fighting Style Specialization's style, …). Reads the stored `selections`
     // array and absorbs the legacy "(X)" name-suffix convention — consumers
@@ -106,6 +117,9 @@ Hooks.once("ready", async () => {
   // makes the character sheet, the chat card and `item.use()` agree with this
   // module's sheet instead of quietly rolling something else.
   registerRollWrap();
+  // The wrap makes every route roll the right throw; this makes the sheet
+  // offer more than one of them to press.
+  registerSheetRolls();
 
   AcksAbilitySheet = createAbilitySheet(Base);
   // DEFAULT, because a sheet nobody selects shows nobody the mechanics — which
