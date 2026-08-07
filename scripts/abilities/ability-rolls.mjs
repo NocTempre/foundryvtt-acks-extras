@@ -47,6 +47,12 @@ export function scalesFor(actor, item) {
 /** The vocabulary key a proficiency-throw modifier is written against. */
 const THROW_TARGET = "proficiencyThrow";
 
+/** Does `forWhat` name this ability? Splits the "A and B" the books write. */
+const namesActivity = (forWhat, wanted) =>
+  String(forWhat)
+    .split(/\s*(?:,|\band\b|\bor\b|&|\/)\s*/i)
+    .some((part) => slug(part) === wanted);
+
 /**
  * What this character's abilities do to THIS ability's throws.
  *
@@ -103,7 +109,10 @@ export function throwModifiers(actor, item, roll = null) {
       // reads inverted.
       if ((effect.appliesTo ?? "self") !== "self") continue;
       if (effect.mode && effect.mode !== "add") continue;
-      if (!effect.forWhat || slug(effect.forWhat) !== mine) continue;
+      // A modifier may name more than one activity — the books state plenty
+      // as "on Hiding and Sneaking proficiency throws" — so the field holds a
+      // list and any member matching is a match.
+      if (!effect.forWhat || !namesActivity(effect.forWhat, mine)) continue;
 
       const scales = scalesFor(actor, other);
       const amount = resolve ? resolve(effect.value, scales.level, scales) : (effect.value?.flat ?? null);
