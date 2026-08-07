@@ -47,12 +47,19 @@ function plain(md) {
  * Copy the design system in, re-pointing its dark branch at Starlight's switch.
  *
  * The tokens file keys dark on an `:is(.theme-dark, [data-acks-theme="dark"])`
- * list (Foundry's class and its own preview harness) wrapped in the two
- * forced-light `:not()` guards; Starlight stamps `data-theme="dark"` on
- * `<html>`. Adding `:root[data-theme="dark"]` inside the `:is()` list — guards
- * intact — is what lets the palette stay authored once; the alternative,
- * re-declaring the dark values here, is exactly the duplication the tokens
- * file's own header warns against.
+ * list — Foundry's class and its own preview harness — followed by a chain of
+ * `:not()` guards that withhold the block (forced light, and the `core` look).
+ * Starlight stamps `data-theme="dark"` on `<html>`. Adding
+ * `:root[data-theme="dark"]` inside the `:is()` list is what lets the palette
+ * stay authored once; the alternative, re-declaring the dark values here, is
+ * exactly the duplication the tokens file's own header warns against.
+ *
+ * ONLY THE `:is()` LIST IS MATCHED, deliberately. The guard chain after it is
+ * the part that grows — it gained two components when the `core` look landed —
+ * and matching the whole selector meant every widening broke this build with a
+ * message about a change that did not concern it. Matching the list alone still
+ * fails loudly if the thing this function actually rewrites changes shape, and
+ * passes a guard chain of any length through untouched.
  */
 function stageDesignSystem() {
   const from = path.join(REPO, "vendor", "acks-design");
@@ -61,8 +68,7 @@ function stageDesignSystem() {
   copyDir(path.join(from, "fonts"), path.join(to, "fonts"));
 
   const tokens = fs.readFileSync(path.join(from, "tokens.css"), "utf8");
-  const marker =
-    ':is(.theme-dark, [data-acks-theme="dark"]):not([data-acks-theme="light"]):not([data-acks-theme="light"] *) {';
+  const marker = ':is(.theme-dark, [data-acks-theme="dark"])';
   if (!tokens.includes(marker)) {
     throw new Error(
       "vendor/acks-design/tokens.css no longer opens its dark block with the expected selector list; " +
@@ -71,7 +77,7 @@ function stageDesignSystem() {
   }
   const patched = tokens.replace(
     marker,
-    ':is(.theme-dark, [data-acks-theme="dark"], :root[data-theme="dark"]):not([data-acks-theme="light"]):not([data-acks-theme="light"] *) {',
+    ':is(.theme-dark, [data-acks-theme="dark"], :root[data-theme="dark"])',
   );
   write(
     path.join(to, "tokens.css"),

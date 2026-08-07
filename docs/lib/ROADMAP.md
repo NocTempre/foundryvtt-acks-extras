@@ -31,3 +31,40 @@ and are equally reachable.
 
 Worth a sweep of every input-colouring rule in this module, and of the group and
 template sheets, which sit under the same theme.
+
+## Sweep the legacy `--color-*` reads out of styles/classes.css
+
+`styles/classes.css` carries nine reads of Foundry's **legacy** `--color-*`
+names, each with a hex fallback:
+
+    :41  --color-shadow-primary        :145 --color-border-light-primary
+    :114 --color-border-light-primary  :169 --color-border-highlight
+    :120 --color-border-light-tertiary :175 --color-border-highlight
+    :134 --color-level-success         :201 --color-border-light-2
+                                       :225 --color-level-warning
+
+That set is the v10-era one Foundry v14 declares once with no theme scoping, so
+the names are light-theme constants — which is exactly what the 2026-08-01 token
+sweep removed everywhere else, and what MODEL.md's theming section otherwise
+claims is true of all of `styles/`.
+
+**They are invisible today, and that is the trap.** `vendor/acks-design/foundry.css`
+re-points five of these same names at ACKS tokens inside `.acks-ui` /
+`.acks-palette`, so on a book-style seat they resolve to the right value by
+accident. Under the `core` look those classes come off and the reads fall
+through to Foundry's own light-theme constants — or, where v14 has dropped the
+name entirely, to the hex fallback, which is the failure mode the sweep called
+out: a fallback masks a missing token instead of revealing it.
+
+What this needs: map each read to the token that carries the same role
+(`--color-border-light-primary` → `--acks-rule-color`, `--color-border-light-tertiary`
+→ `--acks-neutral-2`, `--color-border-highlight` → `--acks-spot` as INK and
+`--acks-burgundy` as SURFACE at :175, and a decision on the two `--color-level-*`
+reads, which have no ACKS equivalent and may want `--acks-success` /
+`--acks-warning`). Drop every hex fallback in the same pass.
+
+Deliberately not done during the 3.6.2 `look` work: five of the nine are masked
+today, so changing them moves existing book-style seats, and that belongs in a
+change whose subject is the sweep rather than one whose subject is the opt-out.
+Worth pairing with a `tools/validate.mjs` check so the doctrine stops relying on
+a doc claim nothing enforces.

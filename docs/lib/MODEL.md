@@ -29,10 +29,11 @@ hex literals in `styles/`. Reads of Foundry's *legacy* `--color-*` variables are
 avoided — that set is defined once globally in v14 with no theme scoping, so
 those names are light-theme constants and cannot follow a dark seat. (This is a
 rule the code does not yet fully keep: `styles/classes.css` still carries a
-handful of legacy reads. They are masked while an ACKS class is on the root,
-because `foundry.css` re-points those same names at ACKS tokens — so the drift
+nine legacy reads. They are masked while an ACKS class is on the root, because
+`foundry.css` re-points five of those same names at ACKS tokens — so the drift
 is invisible today and would surface under the `core` look. Tracked in
-ROADMAP.) The *modern* v14 variables — `--color-text-primary`, `--color-border`,
+[ROADMAP.md](ROADMAP.md) § "Sweep the legacy `--color-*` reads out of
+styles/classes.css".) The *modern* v14 variables — `--color-text-primary`, `--color-border`,
 `--font-primary` — are a different set and genuinely theme-aware; the `core` look
 below is built on them.
 
