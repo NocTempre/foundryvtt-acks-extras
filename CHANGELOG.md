@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.6.3
+
+### Fixed
+- **A window that takes the ACKS lettering takes the ACKS page under it.** With
+  styling on system sheets set to *Palette only* and the ACKS colour scheme
+  pinned against the rest of the client — light ACKS on a dark seat, or the
+  reverse — the system's plainer dialogs took their lettering from the ACKS
+  palette and their page from Foundry, and the two answered to different
+  settings. Mortal Wounds, the Stat Generator, Party Overview and the Surprise
+  Matrix rendered near-black on near-black, near enough to invisible. The page
+  now travels with the lettering, so no combination of the two settings can
+  separate them. The character and item sheets already had a page of their own
+  and are unchanged.
+
 ## 3.6.2
 
 ### Added

@@ -75,6 +75,26 @@
   --form-padding: var(--acks-sp-5);
 }
 
+/* GROUND AND INK TOGETHER, or neither. The remap above hands a palette host
+   ACKS ink through `--color-text-primary` but paints no ground, which is safe
+   only while something else paints one. For the sheets it usually does — the
+   consumer's own sheet layer covers them at a specificity this cannot reach, so
+   this rule is inert there and they are unaffected. For a plain DIALOG nothing
+   does: the ink came from the ACKS branch and the ground stayed the host's, and
+   the two are chosen by different authorities the moment a consumer pins its
+   palette against the host's colour scheme. That pairing renders near-black on
+   near-black, ~1.05:1.
+
+   Pairing them here closes it by construction rather than by arithmetic: a
+   surface that takes this ink also takes this ground, so there is no
+   combination of host scheme and pinned palette that can separate them. This is
+   COLOUR, not geometry, so it belongs to `.acks-palette` as much as to
+   `.acks-ui` — the split is about furniture, never about legibility. */
+.acks-palette.application .window-content {
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+}
+
 /* ---------------------------------------------------------------------------
  * 2. WINDOW CHROME
  * The header band becomes the books' running head: porphyry, white
