@@ -415,3 +415,152 @@
   scrollbar-color: color-mix(in srgb, var(--acks-burgundy) 65%, var(--acks-paper))
     var(--acks-tint);
 }
+
+/* ---------------------------------------------------------------------------
+ * 8. LOOK — handing the tokens back to the host.
+ *
+ * Everything above dresses a surface the host OPTED IN by putting `.acks-ui`
+ * (or `.acks-palette`) on its application root. This block is the opposite
+ * operation, and the only one in the package that runs without such a class:
+ * with `data-acks-look="core"` set, every `--acks-*` colour and face is
+ * re-pointed at the equivalent Foundry variable, so a consumer that spends the
+ * tokens bare — which, after the token sweep, is all of them — draws in the
+ * HOST's palette instead of the books'. No class to strip from a hundred
+ * selectors, no second copy of any stylesheet.
+ *
+ * IT DECLARES NO COLOUR AND NO FACE OF ITS OWN. Every value below is a `var()`
+ * read of a Foundry token, which is what makes this an ADAPTER rather than the
+ * second palette publisher that tokens.css forbids: there is nothing here that
+ * can drift out of step with the book palette, because none of it is a copy of
+ * it. Add a literal and that stops being true.
+ *
+ * The fallbacks are part of that discipline, not an exception to it: every one
+ * is RELATIVE or NEUTRAL — `currentColor`, a wash mixed from the host's own
+ * text colour, a generic font family, a plain black scrim — so none of them is
+ * a palette value either. A fallback is needed because Foundry's variables are
+ * not all in scope at the same depth (measured, v14.365: the text ramp, the
+ * font faces and the palette primitives resolve at `<body>`; `--color-border`,
+ * `--color-header-background` and `--background` only from `.application`
+ * inward; `--input-background-color` nowhere on an ordinary window). A bare
+ * read of a name that is out of scope resolves to nothing and takes the whole
+ * declaration with it — which is how the first cut of this block silently
+ * unset every border and font-family in the module.
+ *
+ * THE SELECTOR RE-SUBSTITUTES AT EVERY THEMED ROOT, and that is load-bearing.
+ * Custom properties inherit as ALREADY-SUBSTITUTED values, so a block written
+ * only at the element carrying the attribute would bake in whatever
+ * `--color-text-primary` meant THERE — and Foundry v14 re-declares its theme
+ * variables further down, on `<body>` and again on each `.themed` application
+ * root when `colorScheme.applications` differs from `colorScheme.interface`.
+ * Naming those roots re-runs substitution where the host's values are actually
+ * in scope. Same physics the dark block documents in tokens.css; opposite
+ * direction.
+ *
+ * THE THREE SELECTORS ARE EACH LOAD-BEARING, and `.themed` alone is not enough.
+ * `Game##configureColorScheme` adds the bare `theme-<scheme>` class to <body>
+ * (client/game.mjs:1855) and adds `themed` only to the interface elements it
+ * walks afterwards (:1874); `DocumentSheetV2` pushes `themed` into a sheet's
+ * classes only when `colorScheme.applications` is explicitly set
+ * (document-sheet.mjs:143). So on a default client most windows carry no
+ * `.themed` at all. `body` catches the seat and everything outside a window
+ * (chat cards, the sidebar); `.application` catches the per-window variables
+ * that only exist from a window root inward; `.themed` catches the split
+ * colour-scheme case where a single window disagrees with the interface.
+ *
+ * NOTHING IS DECLARED AT <html>, deliberately. The attribute lives there, but
+ * Foundry defines none of its variables at `:root` — verified live: every name
+ * this block reads is empty at `document.documentElement`. Declaring here would
+ * therefore publish a set of empty tokens for the whole document, and empty is
+ * not "falls back to the book value", it is "declaration dropped".
+ *
+ * THE HOST MUST STRIP `.acks-ui` / `.acks-palette` BEFORE SETTING THIS. Those
+ * classes point Foundry's variables AT the ACKS tokens (§1 above); this points
+ * the ACKS tokens at Foundry's. Both at once is a var() cycle, and a cycle
+ * resolves to the guaranteed-invalid value — every affected property silently
+ * falls back to unset. acks-lib's `look` setting strips them in the same pass
+ * that sets the attribute.
+ *
+ * SURFACES GO TRANSPARENT RATHER THAN PICKING A FOUNDRY BACKGROUND. A region
+ * that paints no ground inherits the window's, whatever the host made it, so
+ * ground and ink can never be chosen by two different authorities — which is
+ * the exact failure mode (~1.55:1) that the previous attempt at an opt-out
+ * hit. Where a region genuinely needs to read as recessed, it gets a wash mixed
+ * FROM the host's own text colour, so it inverts with the seat by construction.
+ * ------------------------------------------------------------------------ */
+[data-acks-look="core"] body,
+[data-acks-look="core"] .application,
+[data-acks-look="core"] .themed {
+  /* -- Ink. Foundry's text ramp is theme-aware and, unlike most of its
+   *    variables, is in scope at <body> — so it reaches chat cards and the
+   *    sidebar as well as windows. --------------------------------------- */
+  --acks-ink: var(--color-text-primary, currentColor);
+  --acks-ink-soft: var(--color-text-secondary, currentColor);
+  --acks-ink-faint: var(--color-text-subtle, currentColor);
+
+  /* -- The spot colour loses its two roles here, because the host has no spot
+   *    colour to split. INK becomes emphatic text; SURFACE becomes the host's
+   *    own header ground, which is a dark scrim in both seats and so still
+   *    carries the reversed lettering the banner tokens below assume. ----- */
+  --acks-spot: var(--color-text-emphatic, currentColor);
+  --acks-burgundy: var(--color-header-background, rgba(0, 0, 0, 0.5));
+  --acks-burgundy-deep: var(--color-header-background, rgba(0, 0, 0, 0.5));
+  --acks-burgundy-mid: var(--color-header-background, rgba(0, 0, 0, 0.5));
+  --acks-burgundy-lit: var(--color-header-background, rgba(0, 0, 0, 0.5));
+  --acks-burgundy-ink: var(--color-header-background, rgba(0, 0, 0, 0.5));
+
+  /* -- Paper. Transparent, not a colour: the window's own ground shows
+   *    through, so nothing can disagree with it. ------------------------- */
+  --acks-paper: transparent;
+  --acks-paper-pure: transparent;
+  --acks-paper-warm: transparent;
+  --acks-paper-deep: transparent;
+  --acks-neutral: transparent;
+
+  /* -- Washes, mixed from the host's ink so they invert with it. --------- */
+  --acks-tint: color-mix(in srgb, var(--color-text-primary, currentColor) 7%, transparent);
+  --acks-tint-2: color-mix(in srgb, var(--color-text-primary, currentColor) 14%, transparent);
+  --acks-neutral-2: color-mix(in srgb, var(--color-text-primary, currentColor) 22%, transparent);
+  --acks-field: var(--input-background-color,
+    color-mix(in srgb, var(--color-text-primary, currentColor) 10%, transparent));
+
+  /* -- Type: the host's faces. `--font-primary` is deliberately NOT read —
+   *    it is absent in v14 (`--font-sans` replaced it) and a bare read of it
+   *    resolves to nothing, which drops the whole font-family declaration. */
+  --acks-font-display: var(--font-h1, var(--font-serif, serif));
+  --acks-font-banner: var(--font-h2, var(--font-serif, serif));
+  --acks-font-caps: var(--font-h1, var(--font-serif, serif));
+  --acks-font-body: var(--font-sans, sans-serif);
+  --acks-font-ui: var(--font-sans, sans-serif);
+  --acks-font-script: var(--font-serif, serif);
+
+  /* -- The books' letterpress mannerisms stand down with the palette: no
+   *    inscriptional tracking, no procedural stone or parchment, and the
+   *    host's own corner radius rather than the books' hard square. ------ */
+  --acks-tracking-banner: 0;
+  --acks-tracking-display: 0;
+  --acks-tracking-caps: 0;
+  --acks-tx-porphyry-opacity: 0;
+  --acks-tx-parchment-opacity: 0;
+  --acks-radius: 4px;
+  --acks-radius-lozenge: 4px;
+
+  /* -- DERIVED tokens, RE-DECLARED. Identical reasoning to the dark block in
+   *    tokens.css: every token whose :root definition CONTAINS a var() baked
+   *    the book palette in at :root and would arrive here already
+   *    substituted. Re-declaring re-runs substitution against the values
+   *    above. Everything before this comment is a literal or a bare host
+   *    read and needs no repeat. ----------------------------------------- */
+  --acks-rule-color: var(--color-border,
+    color-mix(in srgb, var(--color-text-primary, currentColor) 30%, transparent));
+  --acks-rule-color-soft: color-mix(in srgb, var(--acks-rule-color) 45%, transparent);
+  --acks-border-hair: var(--acks-rule-hair) solid var(--acks-rule-color);
+  --acks-border: var(--acks-rule-hair) solid var(--acks-rule-color);
+  --acks-border-soft: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  --acks-border-ink: var(--acks-rule-hair) solid var(--acks-rule-color);
+  --acks-shape-fill: var(--acks-ink);
+  --acks-shape-stroke: var(--acks-ink);
+  --acks-shape-keyline: transparent;
+  --acks-focus-color: var(--color-text-emphatic, currentColor);
+  --acks-focus-ring: 0 0 0 2px transparent, 0 0 0 4px var(--acks-focus-color);
+  --acks-banner: var(--color-header-background, rgba(0, 0, 0, 0.5));
+}

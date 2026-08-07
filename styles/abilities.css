@@ -267,7 +267,12 @@
    merely states must not look alike. */
 .acks-extras-abilities-throw.tag {
   cursor: pointer;
-  border: 1px solid var(--acks-rule);
+  /* `--acks-rule` is the stroke WIDTH; the colour is `--acks-rule-color`. Naming
+     the width here made the shorthand `1px solid 2px`, which is invalid, so the
+     whole declaration was dropped and the chip had no border at all — taking the
+     hover and default-throw `border-color` rules below with it, since there was
+     no border for them to colour. */
+  border: var(--acks-rule-hair) solid var(--acks-rule-color);
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 .acks-extras-abilities-throw.tag:hover {

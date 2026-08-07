@@ -342,7 +342,24 @@ light palette the same multi-selector treatment the dark block gets, which means
 restructuring the vendored token file — out of scope for the release that found
 it.
 
-### The sheet theme stops being a setting (2026-08-05)
+### The sheet theme stops being a setting (2026-08-05) — SUPERSEDED IN PART 2026-08-07
+
+**Superseded by "The look becomes a setting; the palette is handed back rather
+than withheld" below.** The ruling "extras overrides core, and there is no
+off-state" is reversed. The *reasoning* recorded here does not survive
+re-examination either, and the reason it does not is worth keeping: the
+"fixed light parchment" premise was measured against `.acks.sheet.actor
+.window-content` (`acks.css:63`), a selector that is **inert** — the system's v2
+actor sheet root carries `acks actor-v2 character-v2 sheet` and no bare `.actor`,
+which is the same class-list mistake recorded two entries down. What the v2
+sheets actually take is Foundry's own `.application { background: var(--background) }`,
+which *is* theme-aware. The half that does survive: the system publishes no dark
+palette of its own (0 `.theme-dark`, 0 `prefers-color-scheme`), which still
+governs its own hardcoded light-on-light pairs.
+
+The rest of the entry stands as the record of what was ruled at the time.
+
+
 
 `sheetTheme` toggled `body.acks-lib-sheet-theme`, the layer that restyles markup
 the **system** renders. It shipped default-on with an opt-out, on the reasoning
@@ -510,3 +527,85 @@ next vocabulary change breaks it the same silent way.
 carries `ic`, which styles a message as in-character rather than deciding who
 may read it — a different question from "who sees this roll". Adding it would
 also be a new user-facing surface. Do not enumerate the config directly here.
+
+### The look becomes a setting; the palette is handed back rather than withheld (2026-08-07)
+
+Players reported the palette and lettering as an irritant and asked for a way
+out. The 2026-08-05 ruling above had removed exactly that, on the grounds that an
+off-state could not be made legible.
+
+**Ruled (owner): there is an off-state, and it is a `look` setting — `book` or
+`core` — that covers every ACKS surface including this module's own windows.**
+Not a third value on `sheetStyle`: that setting answers "how much of the ACKS
+palette do the SYSTEM's sheets take", and the thing being asked for was "not this
+palette, anywhere", which is a different question and a different axis.
+
+**The mechanism is a hand-back, not a withholding, and that is the whole reason
+it works this time.** The 2026-08-05 token sweep left one publisher and made every
+consumer read `--acks-*` bare. So `core` does not strip a class from a hundred
+selectors or ship a second stylesheet — it re-points the tokens themselves at the
+equivalent Foundry variables (`foundry.css` § 8), and every surface in the module
+follows for free. This is what the owner meant by the cleanup making it a light
+change, and it is correct: the runtime is one setting, one attribute, and a
+three-way in the code that already existed.
+
+**Why this cannot reproduce the ~1.55:1 the old opt-out hit.** That failure needed
+two authorities: the host choosing a region's ground and the ACKS dark block
+choosing its ink, disagreeing. Three things now make disagreement unrepresentable:
+surfaces in the adapter are `transparent`, so a region inherits the window's own
+ground rather than naming one; washes that must read as recessed are `color-mix`ed
+*from* the host's own text colour, so they invert with it by construction; and the
+`theme` pin stands down under `core`, which removes the only remaining way to
+force the ACKS branch against the host's. The pin was in fact the real decoupler
+all along — `tokens.css` keys on Foundry's own `.theme-dark`, so with `theme:
+follow` the two authorities are the same class and *cannot* diverge.
+
+**Rejected: authoring an ACKS-flavoured "system" palette.** Considered, because it
+would keep every surface deliberately designed. It means writing a second real
+palette — including a dark counterpart the `acks` system does not ship — and
+auditing it, which is a design project rather than an opt-out, and it would have
+put literal colours in a second file: the exact second-publisher shape
+"One token publisher" forbids. The adapter earns its keep by containing **no
+literal colour and no literal face at all**; every value is a `var()` read of a
+host token, so there is nothing in it that can drift.
+
+**Rejected: `data-acks-look` on `<body>`, and a selector keyed on `.themed`
+alone.** Both are substitution bugs. Custom properties inherit as
+already-substituted values, so the adapter has to re-run substitution wherever the
+host re-declares its own theme variables. Foundry v14 does that on `<body>` and
+again on each `.themed` application root — but `Game##configureColorScheme` adds
+the bare `theme-<scheme>` class to `<body>` and `themed` only to the interface
+elements it walks afterwards (`client/game.mjs:1855` vs `:1874`). A selector
+trusting `.themed` would miss the ordinary case and bake the light ramp in at
+`<html>`. The block names `body` explicitly for that reason.
+
+**The dark block's guards are widened, not duplicated.** `core` needs the ACKS
+dark palette withheld wherever the adapter applies, and `tokens.css` already had
+the withholding technique built for the forced-light pin. Two more `:not()`
+components on the existing key; no new declaration, no light counterpart block.
+Same trade the file documents: excluding is cheaper than restating.
+
+**Ownership is read off the declaration, not the DOM.** Under `book` +
+`palette`, the hook was stripping `acks-ui` from the five module sheets that
+extend a core sheet and inherit `acks`/`acks2` into their class list — so this
+module's own ability sheet, roll editor, equipment item sheet, Full Monster Sheet
+and Follower Card lost their chrome on a palette seat. The class list cannot
+distinguish them (and the hook writes to it, so reading it back is circular);
+`app.options.classes` can, because it is computed once at construction. Fixing
+this was not optional here: `core` has to decide the same question, and having two
+different ownership tests would guarantee they drift.
+
+**Cost.** `theme` and `sheetStyle` become inert under `core`, which is three
+settings where two would do if the looks were merged into one list. Kept separate
+because collapsing them would cost "Follow Foundry" — the default, and the answer
+most players want — and because the two questions really are independent under
+`book`. The hints now say when a setting is ignored, which is the honest version
+of that cost rather than a fix for it.
+
+**Not fixed here, found while reading:** `styles/abilities.css:270` sets
+`border: 1px solid var(--acks-rule)`, and `--acks-rule` is `2px`, not a colour —
+`1px solid 2px` is invalid, so the declaration is dropped entirely and the
+throw-tag has no border at all. Intended token is `--acks-rule-color`. Left alone
+because fixing it moves every seat, `book` included, and it is unrelated to the
+look. Same for the legacy `--color-*` reads in `styles/classes.css`, which are
+masked under `book` and would surface under `core`.

@@ -4,9 +4,38 @@ Every window this module opens — and every window the ACKS system opens — is
 drawn from one palette: the burgundy spot colour and warm black the books are
 printed in, on parchment or on tooled leather depending on your seat.
 
+If that is not what you want, **ACKS look → System style** turns all of it off.
+Start there; the rest of this page describes the settings that shape the book
+look, and they only apply while you are using it.
+
 ![](../releases/v2.0.0/character-sheet-dark.png)
 
 *The system's own character sheet on a dark seat, wearing the ACKS frame.*
+
+## Turn the ACKS look off
+
+**Configure Settings → Module Settings → Extras → ACKS look.** Per player; it
+changes nothing for anyone else at the table.
+
+| Setting | What it does |
+|---|---|
+| **Book style** (default) | The ACKS palette and lettering, everywhere this module draws |
+| **System style** | No ACKS palette and no ACKS lettering anywhere — every surface uses the colours and faces your client already uses |
+
+System style is a genuine opt-out rather than a lighter version of the same
+thing. It covers this module's own windows too — follower cards, the location
+and henchmen sheets, every dialog — not just the system's. Your roll cards in
+chat change the most visibly, because those are dressed by this module and
+nothing else.
+
+Two honest limits. **It gives you the ACKS *system's* look, not a neutral
+Foundry**: the system itself paints every window header and hardcodes some of its
+own dialog colours, and turning this module down cannot turn that off. And
+**light versus dark becomes Foundry's business** — the ACKS colour scheme setting
+below stops applying, because there is no ACKS palette left for it to pin. Set
+your seat in **Configure Settings → Core → Colour Scheme** instead.
+
+Text size is not part of the look and keeps working either way; see below.
 
 ## Pick a colour scheme
 
@@ -54,11 +83,13 @@ rather than made to do without them — and it is a minimum, not a fixed width, 
 if you drag the sheet wider it stays where you put it. If you would rather keep
 the sheet exactly as the system draws it, that is what **Palette only** is for.
 
-There used to be a **Character-sheet theme** on/off toggle. Off never returned
-you to a neutral Foundry — it left this module's windows in the ACKS look and the
-system's in Foundry's default one — and the ACKS system publishes no dark palette
-of its own, so on a dark seat it put the module's panels on a page drawn for a
-light one. The choice above replaces it.
+There used to be a **Character-sheet theme** on/off toggle, and it was removed
+because off never returned you to anything coherent: it left this module's
+windows in the ACKS look and the system's in Foundry's default one, and on a dark
+seat it could put ACKS panels on a page drawn for a light one. **ACKS look →
+System style** is the opt-out done properly — everything stands down together, so
+there is no half-dressed state to land in, and nothing is left picking its
+colours from a different scheme than the window around it.
 
 ## Colour is never the only signal
 

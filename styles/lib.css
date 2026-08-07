@@ -331,3 +331,34 @@
   align-items: center;
   gap: 0.25rem;
 }
+
+/* --- Legibility repairs to markup the SYSTEM renders. ------------------------
+ * DELIBERATELY OUTSIDE THE LOOK GATE. Everything else that overrides the
+ * system's markup lives in lib-sheet-theme.css, behind `body.acks-lib-sheet-theme`,
+ * so the `look` setting can stand it all down. These rules may not go there: they
+ * do not express the ACKS look, they repair a contrast failure the system ships
+ * on its own, and a player who turned the ACKS look OFF still has to be able to
+ * read their sheet.
+ *
+ * Keep this section for that one purpose. A rule that would merely look nicer in
+ * the ACKS palette belongs in lib-sheet-theme.css where the setting can reach it.
+ */
+
+/* The encumbrance bar is a DARK band in every seat and every look — core paints
+ * it `--color-cool-4` (acks.css:2337), a cool near-black that Foundry does not
+ * theme — while the label over it declares no colour at all (acks.css:2354) and
+ * so inherits the seat's body text. On a LIGHT seat that inherited ink is dark,
+ * and "Unencumbered" renders at 1.12:1 on its own bar.
+ *
+ * Reversed lettering is the fix, and `--acks-on-burgundy` is the role token for
+ * it: text that sits on a band which is dark in BOTH themes, and therefore
+ * theme-fixed by design. The band here is core's rather than a burgundy one, but
+ * the role — and so the value — is exactly the same, and it is one of the few
+ * tokens the `core` look deliberately leaves alone.
+ *
+ * The leading `body` is not decoration: it lifts this over core's own (0,4,0)
+ * pairing, and it keeps the line out of the top-level-class namespacing check,
+ * which only reads selectors that begin with a bare class. */
+body .sheet.acks.actor-v2 .encumbrance-label {
+  color: var(--acks-on-burgundy);
+}

@@ -1,5 +1,45 @@
 # Changelog
 
+## 3.6.2
+
+### Added
+- **A table that wants its own colours keeps them.** **ACKS look** is a new
+  per-player setting with two values. *Book style* is everything as it was —
+  burgundy, inscriptional capitals, square corners. *System style* stands the
+  whole look down: no ACKS palette and no ACKS lettering on any surface,
+  including this module's own windows, so every panel draws in the colours and
+  faces the client is already using. Roll cards in chat change the most
+  visibly, because those are dressed by this module and nothing else. Two things
+  it deliberately does not promise: it hands the sheets back to the ACKS
+  *system*, not to a neutral Foundry — the system paints its own window headers
+  and dialog colours, and no setting here reaches those — and light against dark
+  becomes Foundry's own colour scheme, because there is no ACKS palette left to
+  hold steady. The **ACKS colour scheme** and **ACKS styling on system sheets**
+  settings say so, and are ignored while System style is chosen. Text size is
+  not part of the look and keeps working either way.
+
+### Fixed
+- **A window this module opens wears this module's look, whatever the system's
+  sheets are set to.** With styling on system sheets set to *Palette only*, five
+  of the module's own windows — the ability sheet, the roll editor, the
+  equipment item sheet, the Full Monster Sheet and the Follower Card — lost their
+  banners and controls along with the system's. Those five are built on top of a
+  system sheet and so answer to the same name in the markup; each is now
+  recognised by what it declares itself to be rather than by that inherited
+  name, and the setting speaks only for the windows the system opens.
+- **A throw you can press looks like one.** The chip that rolls an ability's
+  throw from the character sheet asked for a border in a measurement rather than
+  a colour, which is not a border a browser can draw — so it drew none, and the
+  heavier outline that marks which throw the row's own icon reaches had nothing
+  to outline. Both are back: the chip is ruled, and the default throw is ruled
+  more strongly than the rest.
+- **The encumbrance reading is legible on a light seat.** "Unencumbered" and its
+  companions are printed on a bar the system paints near-black in every colour
+  scheme, while the lettering took its colour from the page — so on a light seat
+  the words were dark on dark and effectively invisible. They are reversed out
+  in white now, as lettering on a dark band should be, on both seats and under
+  either look.
+
 ## 3.6.1
 
 ### Fixed

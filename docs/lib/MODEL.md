@@ -25,14 +25,22 @@ MODEL. One owner per wrapped core method.
 ## Theming: one palette, three layers
 
 Every colour any ACKS surface draws comes from an `--acks-*` token. There are no
-hex literals in `styles/`, and no reads of Foundry's `--color-*` variables —
-those are defined once globally in v14 with no theme scoping, so they are
-light-theme constants and cannot follow a dark seat.
+hex literals in `styles/`. Reads of Foundry's *legacy* `--color-*` variables are
+avoided — that set is defined once globally in v14 with no theme scoping, so
+those names are light-theme constants and cannot follow a dark seat. (This is a
+rule the code does not yet fully keep: `styles/classes.css` still carries a
+handful of legacy reads. They are masked while an ACKS class is on the root,
+because `foundry.css` re-points those same names at ACKS tokens — so the drift
+is invisible today and would surface under the `core` look. Tracked in
+ROADMAP.) The *modern* v14 variables — `--color-text-primary`, `--color-border`,
+`--font-primary` — are a different set and genuinely theme-aware; the `core` look
+below is built on them.
 
 | Layer | File | Applies to |
 |---|---|---|
 | Tokens | `vendor/acks-design/tokens.css` | the whole page; inert on its own |
-| Chrome | `vendor/acks-design/foundry.css` | any application root carrying `acks-ui` |
+| Chrome | `vendor/acks-design/foundry.css` § 1–7 | any application root carrying `acks-ui` |
+| Look | `vendor/acks-design/foundry.css` § 8 | everything, when `data-acks-look="core"` is set |
 | Core sheets | `styles/lib-sheet-theme.css` | markup the **system** renders, prefixed `body.acks-lib-sheet-theme` |
 
 **Core's own windows are ACKS surfaces too.** A `renderApplicationV2` hook marks
@@ -53,6 +61,53 @@ The `sheetStyle` client setting picks which one lands on the system's windows:
 |---|---|---|
 | `full` (default) | `acks-ui` | nothing — banners, tabs and ACKS fields throughout |
 | `palette` | `acks-palette` | its own layout, spacing and field metrics |
+
+**Which windows `sheetStyle` governs is decided by the declaration, not the DOM.**
+Five of this module's own sheets extend a core sheet and therefore inherit
+`acks`/`acks2` into their class list (Foundry concatenates `classes` up the
+inheritance chain), so the rendered class list cannot tell a module window from a
+system one — and the hook writes to that class list itself, so reading it back is
+circular. `app.options.classes.includes("acks-ui")` is the honest test: every
+application this module declares names `acks-ui`, no core application does, and
+`options.classes` is computed once at construction. A window that declared itself
+an ACKS surface always wears the full dress; `sheetStyle` speaks only for the
+system's.
+
+### The `look` setting: whose palette, not how much of it
+
+`look` sits above both of the above. `book` is everything described here. `core`
+sets `data-acks-look="core"` on `<html>`, and § 8 of `foundry.css` re-points every
+`--acks-*` colour and face at the equivalent **Foundry** variable — so consumers
+that spend the tokens bare (after the token sweep, all of them) draw in the host's
+palette with no second stylesheet and no class to strip from a hundred selectors.
+
+Three properties make it safe, and each is load-bearing:
+
+- **The adapter declares no colour and no face of its own.** Every value is a
+  `var()` read of a Foundry token. That is what keeps it from being the second
+  palette publisher the token rules forbid: nothing in it can drift out of step
+  with the book palette, because none of it is a copy of it.
+- **Surfaces go `transparent` rather than picking a host background.** A region
+  that paints no ground inherits the window's, so ground and ink can never be
+  chosen by two different authorities — which is precisely the ~1.55:1 failure the
+  2026-08-05 opt-out foundered on. Where a region must read as recessed it gets a
+  wash mixed *from* the host's own text colour, so it inverts with the seat.
+- **The dress classes come off in the same pass that sets the attribute.**
+  `acks-ui`/`acks-palette` point Foundry's variables at the ACKS tokens; the `core`
+  look points the ACKS tokens at Foundry's. Both at once is a `var()` cycle, which
+  resolves to the guaranteed-invalid value and silently unsets everything
+  downstream. `dressFor()` returns "wear nothing" under `core` for exactly this
+  reason.
+
+`core` also withholds `body.acks-lib-sheet-theme` — the only vehicle by which this
+module dresses surfaces that are not application roots at all, namely core's chat
+cards and every window header in the client.
+
+**`core` is the system's own look, not a neutral Foundry.** The `acks` system
+paints every window header from its own *unscoped* `.window-header` and
+`.application .window-header` rules, and its dialogs hardcode their own
+foregrounds. Standing down returns those to the system; it cannot return them to
+stock Foundry, and the setting's hint must not promise that.
 
 **Full dress needs a wider sheet, and gets one.** The ACKS fields are roomier
 than core's, and core sizes its attribute grid around core's own metrics, so the
@@ -91,19 +146,36 @@ by-the-rules — are carried by the glyph, the glyph's weight, or the rule weigh
 `--acks-gold` is the one accent beyond the spot colour, and it is a real measured
 token, not a per-feature invention.
 
-**Three client settings drive it**, all in `lib/module.mjs` and all per player:
+**Four client settings drive it**, all in `lib/module.mjs` and all per player:
 
+- `look` — `book` (default) or `core`, per the section above. Sets
+  `data-acks-look` on `<html>`, toggles the body class, and re-dresses open
+  windows. `applyLook()` is the single place the whole client state is applied,
+  and `ready` calls it rather than setting anything itself.
 - `theme` — `follow` (default), `light`, `dark`. Pins `data-acks-theme` on
   `<html>`; `follow` removes the attribute so Foundry's own scheme governs.
-- `sheetStyle` — `full` (default) or `palette`, per the table above. Its
-  `onChange` re-dresses already-open windows in place, or the setting appears to
-  do nothing until each is reopened.
+  **Stands down under `look: core`**, and must: the tokens then resolve to
+  Foundry's own theme-aware variables, so the seat's light and dark are Foundry's
+  to decide, and a pin here could only put the ACKS palette back underneath the
+  host's. It is also what keeps one authority choosing ground and ink inside a
+  window this module no longer dresses.
+- `sheetStyle` — `full` (default) or `palette`, per the table above. Not
+  consulted under `look: core`.
 - `fontScale` — writes `--acks-fs-base` inline on `<html>`, rescaling every ACKS
-  surface from one knob.
+  surface from one knob. It survives `core`, because size is a player's own
+  accessibility knob rather than part of the look; the ACKS *faces* do stand down.
 
-Both pins land on `<html>`, never `<body>`, and that is load-bearing: custom
+`applyRootPin()` exists so `applyTheme` and `applyLook` can both write the pin
+without calling each other — `core` has to be able to clear a pin `book` set, and
+a cycle between the two appliers is the easy way to get that wrong.
+
+Every pin lands on `<html>`, never `<body>`, and that is load-bearing: custom
 properties inherit as *already-substituted* values, so a token pinned on `<body>`
-never reaches derived tokens whose substitution ran at `:root`.
+never reaches derived tokens whose substitution ran at `:root`. The `core`
+adapter is the one block that must name `body` and `.themed` explicitly in its
+selector for the mirror-image reason — it *reads* the host's variables, and
+Foundry re-declares those on `<body>` (which it does **not** mark `.themed`) and
+again on each themed application root.
 
 ## Perception: senses, light, and the token
 

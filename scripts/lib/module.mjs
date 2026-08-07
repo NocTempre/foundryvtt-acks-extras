@@ -293,6 +293,34 @@ Hooks.once("init", () => {
     onChange: (mode) => applyTheme(mode),
   });
 
+  // WHOSE LOOK the family draws in at all. `book` is the ACKS design system —
+  // burgundy, Cinzel, letterpress-flat. `core` hands every token back to
+  // Foundry's own variables, so the module's surfaces draw in whatever palette
+  // and faces the client is already using.
+  //
+  // This is the OUTER of the two look settings and it governs the other: with
+  // `core` chosen there is no ACKS palette on any surface, so `sheetStyle` —
+  // which only ever chose how much of that palette core's sheets took — has
+  // nothing left to decide and is not consulted.
+  //
+  // Deliberately NOT a colour scheme. The seat's light/dark under `core` is
+  // Foundry's own, because the tokens now resolve to Foundry's theme-aware
+  // variables; that is the whole point of handing them over, and it is why
+  // `theme` stands down alongside `sheetStyle` (see applyTheme).
+  game.settings.register(MODULE_ID, "look", {
+    name: `${LANG_PREFIX}.settings.look.name`,
+    hint: `${LANG_PREFIX}.settings.look.hint`,
+    scope: "client",
+    config: true,
+    type: String,
+    choices: {
+      book: `${LANG_PREFIX}.settings.look.book`,
+      core: `${LANG_PREFIX}.settings.look.core`,
+    },
+    default: "book",
+    onChange: () => applyLook(),
+  });
+
   // HOW MUCH of the ACKS look the SYSTEM's own windows take. Not whether they
   // follow your colour scheme — both settings carry the same palette, so a dark
   // seat is dark either way. Full dress restyles the furniture too and needs a
@@ -308,7 +336,7 @@ Hooks.once("init", () => {
       palette: `${LANG_PREFIX}.settings.sheetStyle.palette`,
     },
     default: "full",
-    onChange: () => redressOpenSheets(),
+    onChange: () => applyLook(),
   });
 
   // THE font knob. Every ACKS surface (follower card, module apps, and — with
@@ -331,21 +359,65 @@ Hooks.once("init", () => {
 });
 
 /**
- * Re-dress the system windows that are already open when `sheetStyle` changes.
+ * Which classes an application root should be wearing right now.
  *
- * The class is applied on render, so without this the setting appears to do
- * nothing until each sheet is closed and reopened. Swapping the classes in
- * place is enough — both are pure CSS hooks, and the min-width that the full
- * dress needs is a stylesheet rule, not a stored position.
+ * One answer for both the render hook and the re-dress sweep, so a window that
+ * was already open when a setting changed cannot end up dressed differently
+ * from one opened a moment later.
+ *
+ * Under the `core` look NOTHING is worn, and that is not merely cosmetic
+ * restraint: `.acks-ui`/`.acks-palette` point Foundry's variables at the ACKS
+ * tokens, while the `core` look points the ACKS tokens at Foundry's variables.
+ * Both at once is a var() cycle, which resolves to the guaranteed-invalid value
+ * and silently unsets every property downstream of it. The classes come off in
+ * the same pass that sets the attribute — never one without the other.
+ *
+ * @param {boolean} owned whether the application DECLARED itself an ACKS surface.
+ * @returns {{ui: boolean, palette: boolean}} which of the two dress classes belong on the root.
  */
-function redressOpenSheets() {
-  const full = game.settings.get(MODULE_ID, "sheetStyle") !== "palette";
+function dressFor(owned) {
+  if (game.settings.get(MODULE_ID, "look") === "core") return { ui: false, palette: false };
+  // A window this module DECLARED as an ACKS surface always wears the full
+  // dress: `sheetStyle` governs how much of the look the SYSTEM's windows take,
+  // and five of this module's own sheets extend a core sheet and therefore
+  // inherit `acks`/`acks2` into their class list, so the class list alone
+  // cannot tell the two apart. The declared options can — `options.classes` is
+  // computed once at construction and is never touched by the classList writes
+  // below.
+  if (owned) return { ui: true, palette: false };
+  const style = game.settings.get(MODULE_ID, "sheetStyle");
+  return { ui: style === "full", palette: style === "palette" };
+}
+
+/**
+ * Apply the `look` / `sheetStyle` pair to the whole client, including windows
+ * that are already open.
+ *
+ * The classes are applied on render, so without the sweep a setting change
+ * appears to do nothing until each window is closed and reopened. Swapping them
+ * in place is enough — they are pure CSS hooks, and the min-width the full dress
+ * needs is a stylesheet rule, not a stored position.
+ *
+ * The `core` look additionally withholds `body.acks-lib-sheet-theme`, which is
+ * the only vehicle by which this module dresses surfaces that are not
+ * application roots at all — core's chat cards, and every window header in the
+ * client.
+ */
+function applyLook() {
+  const core = game.settings.get(MODULE_ID, "look") === "core";
+  const html = document.documentElement;
+  if (core) html.setAttribute("data-acks-look", "core");
+  else html.removeAttribute("data-acks-look");
+  document.body?.classList.toggle("acks-lib-sheet-theme", !core);
+  applyRootPin(game.settings.get(MODULE_ID, "theme"));
   for (const app of foundry.applications.instances.values()) {
     const root = app.element;
     if (!root?.classList) continue;
-    if (!root.classList.contains("acks") && !root.classList.contains("acks2")) continue;
-    root.classList.toggle("acks-ui", full);
-    root.classList.toggle("acks-palette", !full);
+    const owned = app.options?.classes?.includes("acks-ui");
+    if (!owned && !root.classList.contains("acks") && !root.classList.contains("acks2")) continue;
+    const { ui, palette } = dressFor(owned);
+    root.classList.toggle("acks-ui", ui);
+    root.classList.toggle("acks-palette", palette);
   }
 }
 
@@ -365,8 +437,28 @@ function redressOpenSheets() {
  * sits deeper.
  */
 function applyTheme(mode) {
+  applyRootPin(mode);
+}
+
+/**
+ * Write (or clear) the `data-acks-theme` pin on <html>.
+ *
+ * Split out from applyTheme so applyLook can re-run it without the two calling
+ * each other — the `core` look has to be able to drop a pin that `book` had set,
+ * and a cycle between the two appliers is the easy way to get that wrong.
+ *
+ * THE PIN STANDS DOWN UNDER THE `core` LOOK, and it must. Under `core` the ACKS
+ * tokens resolve to Foundry's own theme-aware variables, so the seat's light and
+ * dark are Foundry's to decide; a pin here could only put the ACKS palette back
+ * underneath the host's, which is the entire thing `core` exists to stop. It is
+ * also what keeps ground and ink chosen by ONE authority inside a window this
+ * module no longer dresses — the split authority is what the previous opt-out
+ * foundered on.
+ */
+function applyRootPin(mode) {
   const root = document.documentElement;
-  if (mode === "light" || mode === "dark") root.setAttribute("data-acks-theme", mode);
+  const core = game.settings.get(MODULE_ID, "look") === "core";
+  if (!core && (mode === "light" || mode === "dark")) root.setAttribute("data-acks-theme", mode);
   else root.removeAttribute("data-acks-theme");
 }
 
@@ -402,13 +494,14 @@ function applyTheme(mode) {
  *
  * `acks2` is included because the system's dialogs carry it without `acks`.
  */
-Hooks.on("renderApplicationV2", (_app, element) => {
+Hooks.on("renderApplicationV2", (app, element) => {
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root?.classList) return;
-  if (!root.classList.contains("acks") && !root.classList.contains("acks2")) return;
-  const full = game.settings.get(MODULE_ID, "sheetStyle") !== "palette";
-  root.classList.toggle("acks-ui", full);
-  root.classList.toggle("acks-palette", !full);
+  const owned = app?.options?.classes?.includes("acks-ui");
+  if (!owned && !root.classList.contains("acks") && !root.classList.contains("acks2")) return;
+  const { ui, palette } = dressFor(owned);
+  root.classList.toggle("acks-ui", ui);
+  root.classList.toggle("acks-palette", palette);
 });
 
 /**
@@ -449,13 +542,14 @@ function applyFontScale(px) {
  * world failing to load — and the console says which.
  */
 Hooks.once("ready", () => {
-  // UNCONDITIONAL. The class is no longer a toggle — it is the marker that says
-  // "ACKS surfaces are themed", which is now always true. It stays a class
-  // rather than becoming a bare selector because it is also what lets these
-  // rules out-specify the system's own: core ships `.acks.sheet.actor` pairings
-  // at (0,4,0), and the body class is how the override clears them.
-  document.body.classList.add("acks-lib-sheet-theme");
-  applyTheme(game.settings.get(MODULE_ID, "theme"));
+  // The body class is a toggle again, owned by `look`: it is the marker that
+  // says "ACKS surfaces are themed", and under the `core` look they are not.
+  // It stays a class rather than becoming a bare selector because it is also
+  // what lets these rules out-specify the system's own — the system paints
+  // EVERY window header in the client from an unscoped `.window-header` and
+  // `.application .window-header` pair, and the body class is how the override
+  // clears them.
+  applyLook();
   applyFontScale(game.settings.get(MODULE_ID, "fontScale"));
 
   if (game.system?.id !== "acks") return;
