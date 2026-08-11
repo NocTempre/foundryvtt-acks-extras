@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Guides & feature gallery
+    url: https://noctempre.github.io/foundryvtt-acks-extras/
+    about: The behaviour you hit may be documented — the guides cover every feature area.
+  - name: Book linking or import problems
+    url: https://github.com/NocTempre/foundryvtt-acks-importer/issues/new?template=bug_report.yml
+    about: Connecting books, importing content or tables, and the Getting Started dialog belong to ACKS II — Importer.

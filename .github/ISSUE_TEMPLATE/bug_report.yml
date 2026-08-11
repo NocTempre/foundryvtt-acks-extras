@@ -1,0 +1,60 @@
+# MODULE-OWNED, kept twinned with foundryvtt-acks-importer's copy — an edit to
+# one is an edit to both, differing only in the importer's book-connection
+# fields. The site's "Report a bug" page describes these fields; keep it in
+# step. Reports filed here are triaged through the acks-bug-triage pipeline.
+name: Bug report
+description: Something in ACKS II — Extras misbehaved at the table
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. One rule before anything else: **never paste
+        book text or attach page scans** — cite the book and page instead
+        (e.g. "ACKS II Revised Rulebook p. 47"). The guides at
+        [noctempre.github.io/foundryvtt-acks-extras](https://noctempre.github.io/foundryvtt-acks-extras/)
+        may already cover the behaviour you hit — worth a look first.
+  - type: input
+    id: module-version
+    attributes:
+      label: Module version
+      description: Foundry → Game Settings → Manage Modules, next to ACKS II — Extras.
+      placeholder: "3.6.3"
+    validations:
+      required: true
+  - type: input
+    id: foundry-version
+    attributes:
+      label: Foundry VTT version
+      placeholder: "14.364"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did and what you saw. Step by step if you can — which sheet, which button, which actor or item.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: The rule as you understand it. A book-and-page citation helps (citation only — no quoted text).
+    validations:
+      required: false
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Press F12, open the Console tab, and paste anything red from the moment it went wrong.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: other-modules
+    attributes:
+      label: Other modules enabled
+      description: Especially other ACKS family modules and their versions. "Does it still happen with only this module and its requirements enabled?" is the first question we will ask.
+    validations:
+      required: false

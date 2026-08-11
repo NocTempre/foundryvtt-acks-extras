@@ -47,6 +47,7 @@ export default defineConfig({
             { label: "Install", slug: "start/install" },
             { label: "Getting started", slug: "start/getting-started" },
             { label: "Where to buy ACKS II", slug: "start/buying" },
+            { label: "Report a bug", slug: "start/report-a-bug" },
           ],
         },
         {
