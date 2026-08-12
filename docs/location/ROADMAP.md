@@ -44,3 +44,29 @@ Two constraints the implementation inherits from the surrounding model:
 
 Until this lands the fields are write-only; the ruling that keeps them rather
 than deleting them is in [DECISIONS.md](DECISIONS.md) (2026-08-05).
+
+## A hoard nobody owns yet
+
+Storage is owner-attributed by construction: `storageFlagOf` stamps whose a row
+is, `storedItems` lists only stamped rows, and the sheet buckets them by owner.
+So there is no way to stock a place with treasure that belongs to nobody —
+a Judge filling a bugbear lair ahead of the session has no owner to file it
+under, and `_onDropItem` refuses a sidebar or compendium item for exactly that
+reason. The ruling and the alternatives weighed are in
+[DECISIONS.md](DECISIONS.md) (2026-08-11).
+
+The workaround is a placeholder character to hold the hoard until the party
+takes it, which works and is what field reports describe people doing.
+
+What is missing is a **house pile**: an owner slot that is the place itself
+rather than a character. The pieces it would have to answer for —
+
+- Who may retrieve from it. Attribution currently decides which rows show a
+  Retrieve button; an unowned bucket has no such answer and would need one
+  (GM-only, anyone present, or a lock the Judge sets).
+- What the delete policy does with it. `storageDeletePolicy` returns goods to
+  their owners; a pile with no owner has nowhere to be returned TO, so it needs
+  either a designated inheritor or an explicit "lost with the place".
+- Whether it is a third owner kind or the absence of one. A sentinel owner uuid
+  keeps every existing bucket-by-owner path working unchanged; a nullable owner
+  touches every reader.

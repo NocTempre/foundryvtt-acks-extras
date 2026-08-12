@@ -68,6 +68,7 @@ export const STORAGE_HOOKS = Object.freeze({
   STASHED: "acksLibStorageStashed",
   RETRIEVED: "acksLibStorageRetrieved",
   MOVED: "acksLibStorageMoved",
+  HANDED: "acksLibStorageHanded",
   RETURNED: "acksLibStorageReturned",
   LOST: "acksLibStorageLost",
   PROVIDER_CHANGED: "acksLibStorageProviderChanged",
@@ -296,6 +297,18 @@ export const retrieve = (provider, target, spec) =>
  */
 export const moveStored = (from, to, spec) =>
   transfer(from, to, spec, { hook: STORAGE_HOOKS.MOVED, stampOwner: true, preserveOwner: true });
+
+/**
+ * Character → character. Attribution is dropped, on the same rule as `retrieve`:
+ * you own what you carry. This is what a coin row dragged onto somebody else's
+ * sheet means — the stack LEAVES the giver, merging into a matching denomination
+ * on the receiver rather than making a second row of the same coin.
+ *
+ * Both seats must be owned by whoever drags, which is `transfer`'s own check: a
+ * player cannot help themselves from a sheet they do not control.
+ */
+export const handOver = (from, to, spec) =>
+  transfer(from, to, spec, { hook: STORAGE_HOOKS.HANDED, stampOwner: false });
 
 /* -------------------------------------------- */
 /*  Coin helpers                                 */

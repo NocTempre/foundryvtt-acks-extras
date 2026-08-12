@@ -32,9 +32,18 @@
  * guard belongs here beside the class that opened it — the two halves are one
  * change. Money, and only money: a BUNDLE dropped on its owner unpacks by
  * design, and a blanket same-actor guard would silently take that away.
+ *
+ * THIRD: coin dragged onto SOMEBODY ELSE minted money too, and worse. The same
+ * core method's other branch copies the stack to the receiver, adds one to it,
+ * and never takes it off the giver — 100 gold handed over left 100 behind and
+ * put 101 in front, so the table gained 101 gold by dragging. A coin row dragged
+ * onto another sheet means a hand-over, so it is routed to `handOver`, which is
+ * the family's existing transfer: it merges by denomination, checks that the
+ * dragger owns both seats, and compensates loudly if half the move fails.
  */
 import { isGoods } from "../item-model.mjs";
 import { MODULE_ID } from "../constants.mjs";
+import { handOver } from "../storage.mjs";
 
 /** The system's item type for coin. Matches `isGoods`'s own rider. */
 const MONEY_TYPE = "money";
@@ -76,11 +85,21 @@ function guardMoneySelfDrop(app) {
 
   const inner = proto._onDropItem;
   proto._onDropItem = async function (event, item, ...rest) {
-    if (item?.type === MONEY_TYPE && item.parent?.uuid === this.actor?.uuid) {
-      // Exactly what the Foundry base class does for every other type: the drop
-      // reorders the row and writes nothing to quantity.
-      await this._onSortItem?.(event, item);
-      return item;
+    if (item?.type === MONEY_TYPE) {
+      const source = item.parent;
+      if (source?.uuid === this.actor?.uuid) {
+        // Exactly what the Foundry base class does for every other type: the
+        // drop reorders the row and writes nothing to quantity.
+        await this._onSortItem?.(event, item);
+        return item;
+      }
+      // Coin off another ACTOR is a hand-over. Coin with no actor behind it —
+      // a compendium purse, a bundle's payout — is an arrival with nobody to
+      // debit, and keeps the system's credit.
+      if (source?.documentName === "Actor") {
+        await handOver(source, this.actor, [{ id: item.id }]);
+        return null;
+      }
     }
     return inner.call(this, event, item, ...rest);
   };

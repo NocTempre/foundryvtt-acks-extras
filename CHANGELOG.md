@@ -31,6 +31,16 @@
   dragging coin around should expect the count they see to be the count they
   have from here; the earlier drift cannot be told apart from spending after the
   fact, so nothing is unwound.
+- **Handing coin to another character moves it instead of minting it.** Dragging
+  a coin row onto somebody else's sheet used to copy the whole stack to them, add
+  one to the copy, and leave the original where it was — hand over 100 gold and
+  the table came away with 201. It now does what the gesture means: the stack
+  leaves the giver and arrives on the receiver, merging into their existing row
+  of that denomination rather than opening a second one, with their other coin
+  untouched. It is the same transfer that stowing goods at a place already used,
+  so it refuses politely if you do not control both sheets and says so loudly
+  rather than quietly if only half the move lands. Coin from a compendium or a
+  bundle has no giver to debit and still simply arrives.
 - **A warning, an alarm or a success mark is legible on every seat.** Reported on
   the exploration party sheet, where the warnings — no mapper, no lit light
   source, someone carrying more than they can lift — rendered as pale type on a
