@@ -111,6 +111,14 @@ take up one more object?" reads `handsSpare` (API: `spareHands`) — reading
 `formationHands(actor)` is the one call into the formation feature for hands the party
 sheet has already filled: lights borne, and the mapper's kit.
 
+Those hands hold nothing the equipment sheet lists, so every surface quoting a
+hand total says so: `heldHandsClause(source)` turns a Loadout — or a hand-overflow
+violation's `detail`, which carries the same two counts — into a display clause,
+and the Worn & Wielded status line, the `handOverflow` violation and the
+auto-unequip notice all append it. A total the visible gear cannot add up to
+reads as a miscount, and sends the player unequipping things that were never the
+problem.
+
 ### Giving gear, and making room for it — `grant.mjs`
 
 `grantGear(actor, specs)` puts named gear in a character's pack, preferring a
@@ -168,6 +176,13 @@ where the behavior is unique to equipment, and §1 says which and why.
 The Container Manager popout is retired. It existed only because there was
 nowhere to put its controls; the equipment tab is that place, and a container
 opened next to the gear it holds matches the gesture at the table.
+
+**Gear moves by drag, both ways.** A container's bucket is a drop target that
+stows what lands on it; every one of core's inventory lists — Weapons, Armor,
+Items, Clothes, Money — is a `loose` target that takes gear back out. All of
+them, because the lists are split by item type and the drop happens wherever the
+item belongs: wiring one makes un-stowing work only for gear whose type core
+printed first.
 
 **Visibility is inherited from ownership, gated by the lock.** Picking up a
 locked crate tells you that you are carrying a locked crate, not what is inside.

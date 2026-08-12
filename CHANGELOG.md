@@ -1,5 +1,130 @@
 # Changelog
 
+## 3.7.0
+
+### Fixed
+- **An occupied hand says what is holding it.** A character wielding a mace
+  one-handed read `Hands 2/2`, and equipping a shield raised a yellow notice that
+  removed the shield again without saying why. Both were a lit torch: the party
+  sheet counts a burning or shuttered light as a hand held, which is the rule, but
+  the light appears nowhere in Worn & Wielded — so the sheet looked like it was
+  charging two hands for a one-handed weapon and then refusing a legal shield.
+  The status line now names those hands (`Hands 2/2 · Single Weapon · 1 held for
+  light`), and the notice leads with the count it was working from and what is
+  using it. Douse the light and the shield goes on as before; nothing about what
+  occupies a hand has changed.
+- **Gear comes back out of a pack wherever you drop it.** Dragging a single item
+  out of a worn backpack did nothing, while the container's empty-all button
+  worked — so a pack could only be unloaded whole. Core prints one inventory list
+  per item type, and only the first of them was wired to accept gear back; a rope
+  released over Items, where a rope belongs, landed on nothing. Every list takes
+  it now. Dropping gear onto a container to stow it is unchanged.
+- **A warning, an alarm or a success mark is legible on every seat.** Reported on
+  the exploration party sheet, where the warnings — no mapper, no lit light
+  source, someone carrying more than they can lift — rendered as pale type on a
+  pale panel: there, and impossible to read. It was never only that panel. With
+  **ACKS look** set to *System style*, the module hands its colours back to
+  Foundry, and the three state colours were the ones it forgot to hand over — so
+  a warning drew its panel from the ACKS palette and its lettering from Foundry's,
+  and on a dark seat those are opposite answers. Everywhere the two met was
+  affected. The states now follow the host like everything else under System
+  style: the panel is a tint of Foundry's own warning colour with the window
+  showing through, and the type on it keeps the warning's hue while staying
+  readable on whatever ground the client is using. Six alarm glyphs that were
+  drawn in the fill colour rather than the reading colour — the party sheet's
+  warnings and distorted-map marks, a downed member's badge, the ability
+  conflict hint, and two influence badges — are readable on both seats too.
+- **A proficiency throw arrives on the same card as every other roll.** Throws
+  posted as a bare line of text — no banner, no portrait, no marked result —
+  beside attack and saving throws that had all three. A throw now posts on the
+  system's own card: the ability named across the top, its image beside it, and
+  the verdict with the number it was read against. A condition the book puts on
+  the throw sits under the result, and a throw made from a compendium item still
+  says why it cannot be scored.
+- **Armour says what it is where you are reading about it.** An armour's AC and
+  armour type, and an ordinary item's subtype and quantity, sat behind a tab
+  called Rolls — where nothing is rolled, and one click away from the description
+  they belong beside. They are back in the column next to the prose, and the
+  Rolls tab now appears on weapons alone, holding the throws it is named for:
+  damage, attack bonus, melee or missile, range and save.
+- **The marching order's Frontage field is labelled.** It read
+  `ACKS-FORMATION.APP.FRONTAGE` — the identifier behind the label rather than
+  the label. Its tooltip was there the whole time and is unchanged.
+- **A class power that grants a proficiency's rule now moves the same dice.**
+  The bladedancer's three combat powers were inert: Weapon Finesse did not put
+  Dexterity in place of Strength on her melee attack throws, Strength of Faith
+  did not put Wisdom in place of Strength on her damage, and Graceful Fighting
+  granted no initiative — all three had to be typed into the Tweaks tab by hand.
+  Abilities were recognised by name, and a class power is filed under the class
+  that grants it, so a power naming the very rule a proficiency already
+  automated reached nothing. Powers are now read from what they *declare* rather
+  than what they are called, so these three work on any bladedancer — and so
+  does any other ability whose book states its mechanic, whatever its class
+  calls it. Graceful Fighting's initiative applies only while she is dressed for
+  it: light armour or less, five stone or less, the same clause Swashbuckling
+  carries. A weapon that takes no damage bonus at all, such as a torch, still
+  takes none.
+- **A character with nobody else around can light their lantern.** The Light,
+  Douse and Shutter controls only appeared for a character in a marching party.
+  Alone, a lantern showed no control at all, so a lamp dragged onto a character
+  sat there unlightable — and the flame icon on a bundle of torches is Ready,
+  which pulls one out to carry, not a match. Any character can now strike, close
+  and douse their own light from their sheet, and their token lights the room
+  for it. It costs the same as it always did: a free hand, the lamp and a flask
+  of oil, one of which is burnt. A party's lights are still the party's, tracked
+  and burnt down by the marching order; a light struck alone has no dungeon turn
+  to burn against, so it stays lit until it is put out.
+- **A quiver of arrows is arrows.** "Quiver, 20 Arrows" was read as an empty
+  quiver — the sheet showed it as *0 / 1 st, empty*, offered nowhere to put the
+  arrows, and firing a bow spent nothing, because the twenty were written in its
+  name rather than counted anywhere. It is now the ammunition it says it is, with
+  a count that goes down as you shoot; it still rides your belt and is still free
+  to draw from. A bolt case and a bundle of sling stones read the same way.
+  **A quiver already in your world clears its phantom capacity when you run
+  Annotate carrying gear** — and a half-empty one is not refilled by doing so.
+- **A robe can be worn.** Clothing was recognised either by a marking the system
+  puts on its own clothing items or by name, and the list of names covered
+  belts, boots, gloves, cloaks, hats, necklaces and rings. A garment for the
+  body was on neither list, so a character who arrived wearing low boots and a
+  blue robe could put on the boots and not the robe. Robes, tunics, gowns,
+  dresses, shirts, coats, jerkins, breeches, skirts and their kin are worn now.
+  Nothing is assumed about their pockets.
+- **A character cannot be made into a warehouse by accident, and can be made
+  back.** The Enable Storage Here macro took whatever token was selected — so
+  selecting your own and running it turned your character into a place other
+  people leave their belongings, which the storage manager had always refused to
+  do for exactly that reason. The macro now refuses too, and points at Give a
+  character a vault. For a world where it already happened, see below.
+
+### Added
+- **Night vision sees twice as far as the light it is seeing by.** Only half of
+  the sense was built: it brightened dim light to daylight, but indoors it
+  granted nothing, so a creature with night vision and no lightless vision saw
+  exactly as far as the torches reached and no further. Indoors it now carries
+  **twice** the reach of the brightest light covering it — a creature standing in
+  a torch's 15' bright radius sees 30' — and the light need not be its own, which
+  is the creature watching your party from past the edge of your lamp. Nothing
+  burning nearby means nothing to double, so total darkness still blinds it, and
+  it still cannot march without a light. It updates as the light does: strike a
+  torch, douse it, or carry it across the room and the creature's sight follows.
+  Distance is measured straight through walls for now.
+- **Migrate Token Vision**, a new macro in the ACKS Extras compendium, derives
+  every token's sight from its sheet across every scene in the world and reports
+  how many it rewrote. Until now that only happened on the scene you had open or
+  the actor you had just edited, so a campaign already under way kept whatever
+  its other scenes were last set to. It asks one question before it runs: tokens
+  whose vision you edited by hand are left alone permanently, and taking that
+  protection back is a deliberate answer, defaulting to no — those edits cannot
+  be recovered afterwards.
+- **Stop holding goods**, a new control on the storage manager, turns storage
+  off for a place — the way back that never existed. Anything at all could be
+  made a place that holds goods, and nothing could ever stop being one, so a
+  character flagged by mistake stayed a shared warehouse permanently. Its
+  shelves must be empty first: clearing the flag moves nothing, and goods left
+  at a place that has stopped being a place cannot be asked for back, so return
+  them to their owners with the button beside it. A Disable Storage Here macro
+  does the same for a selected token.
+
 ## 3.6.3
 
 ### Fixed

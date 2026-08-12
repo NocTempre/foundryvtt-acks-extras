@@ -356,3 +356,41 @@ catches lands in `worn`, which is uncapped, rather than `body`, which is the one
 suit of armour — a robe and a mail hauberk are not competing for the same place.
 No capacity is invented for any of it: whether a coat has usable pockets is a
 ruling about that coat.
+
+---
+
+**2026-08-11 — an occupied hand names its occupant, wherever the count is shown.**
+
+Field report: a mace wielded one-handed read `Hands 2/2`, and equipping a shield
+raised a yellow "auto-unequipped" toast that named only the shield. Both were the
+party sheet holding a hand — a lit torch, counted by `handsOccupied` — for a
+character whose Worn & Wielded section listed one weapon and nothing else. The
+count was right, and unreadable: the only hand the player could see held the
+mace, so the sheet appeared to charge two hands for a one-handed weapon and then
+refuse a legal shield for no stated reason.
+
+**Ruled: the rule stands, the silence does not.** A burning or shuttered light
+occupies a hand (RR p. 266; `formation-model.mjs`) and a shield needs a free one,
+so both the count and the refusal were correct. What was wrong is that no surface
+quoting a hand total could account for it. `heldHandsClause` names the hands
+holding nothing the equipment sheet lists, and the status line, the hand-overflow
+violation and the auto-unequip toast all state it.
+
+The toast also now leads with the violation it already had in hand. Rejected:
+suppressing the light's hand while a weapon is wielded, which would have made the
+shield equip by making the torch weightless — a rules change dressed as a UI fix.
+
+---
+
+**2026-08-11 — every inventory list takes gear back out of a container.**
+
+Stowing gear works by dropping onto a container's bucket, and un-stowing by
+dropping back onto core's ordinary inventory. Core prints one list per item type
+— Weapons, Armor, Items, Clothes, Money — and only the first of them was ever
+wired as the "loose" target. So dragging a rope out of a backpack worked if it
+was released over Weapons and did nothing over Items, where a rope belongs and
+where the gesture actually ends. The container's empty-all button was unaffected,
+which is why the report read as "only the button works".
+
+**Ruled: wire them all.** The target is "the ordinary inventory", which is every
+one of those lists, not whichever one core happened to print first.

@@ -11,7 +11,7 @@
  *   advisory          — never block or change; just flag the illegal loadout.
  */
 import { MODULE_ID, SETTINGS, ENFORCE, HOOKS } from "./constants.mjs";
-import { getLoadout, VIOLATION } from "./loadout.mjs";
+import { getLoadout, VIOLATION, heldHandsClause } from "./loadout.mjs";
 import { syncLoadoutEffect } from "./effects.mjs";
 import { isEquippable } from "../lib/item-model.mjs";
 
@@ -60,10 +60,16 @@ function blockingViolations(loadout) {
 function violationMessage(v) {
   const key = `ACKS-EQUIPMENT.violation.${v.type}`;
   const names = (v.items ?? []).map((i) => i.name).join(", ");
-  if (game.i18n.has(key)) return game.i18n.format(key, { items: names, ...(v.detail ?? {}) });
+  // A hand overflow quotes a total the listed items cannot add up to whenever
+  // the party sheet is holding a hand, so it states that alongside the count
+  // rather than after the sentence — a separate key, because the ordinary
+  // overflow has no held hands and must not grow an empty clause.
+  const held = v.type === VIOLATION.HAND_OVERFLOW ? heldHandsClause(v.detail) : "";
+  const useKey = held && game.i18n.has(`${key}Held`) ? `${key}Held` : key;
+  if (game.i18n.has(useKey)) return game.i18n.format(useKey, { items: names, held, ...(v.detail ?? {}) });
   switch (v.type) {
     case VIOLATION.HAND_OVERFLOW:
-      return `Not enough hands (${v.detail.handsUsed}/${v.detail.budget}) — free up: ${names}.`;
+      return `Not enough hands (${v.detail.handsUsed}/${v.detail.budget}${held ? `, ${held}` : ""}) — free up: ${names}.`;
     case VIOLATION.MULTIPLE_ARMOR:
       return `Only one suit of armour may be worn; ${names} is already worn.`;
     case VIOLATION.TOO_MANY_SHIELDS:
@@ -148,10 +154,16 @@ async function autoResolve(actor, loadout, blocking) {
   const updates = [...toUnequip.values()].map((it) => ({ _id: it.id, "system.equipped": false }));
   await actor.updateEmbeddedDocuments("Item", updates);
   const names = [...toUnequip.values()].map((i) => i.name).join(", ");
+  // SAY WHY, not just what. Naming only the item removed describes a sheet
+  // refusing an equip for no stated reason; the violation that forced it is
+  // already in hand, and it is the half the player can act on.
+  const reason = blocking.map(violationMessage).join(" ");
   ui.notifications.warn(
-    game.i18n.has("ACKS-EQUIPMENT.notify.autoUnequipped")
-      ? game.i18n.format("ACKS-EQUIPMENT.notify.autoUnequipped", { items: names })
-      : `Auto-unequipped to keep a legal loadout: ${names}.`,
+    `${reason} ${
+      game.i18n.has("ACKS-EQUIPMENT.notify.autoUnequipped")
+        ? game.i18n.format("ACKS-EQUIPMENT.notify.autoUnequipped", { items: names })
+        : `Auto-unequipped to keep a legal loadout: ${names}.`
+    }`,
   );
   for (const v of blocking) Hooks.callAll(HOOKS.EQUIP_BLOCKED, actor, v.items?.[0], { reason: violationMessage(v), resolution: "resolve" });
 }

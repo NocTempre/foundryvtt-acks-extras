@@ -59,6 +59,29 @@ export function heldLightHands(actor) {
 }
 
 /**
+ * Name the hands that hold nothing this sheet lists — a torch the party sheet
+ * is tracking, the mapper's quill and parchment — as a short display clause,
+ * or "" when every occupied hand is accounted for by gear.
+ *
+ * A hand count the visible gear cannot explain reads as a miscount, and the
+ * player's only remedy is to unequip things that were never the problem. Every
+ * surface quoting a hand total states this alongside it.
+ *
+ * @param {{heldLights?: number, mappingHands?: number}} source a Loadout, or a
+ *   hand-overflow violation's `detail` — both carry the two counts.
+ */
+export function heldHandsClause(source) {
+  const say = (key, n) => {
+    const full = `ACKS-EQUIPMENT.wear.${key}`;
+    return game.i18n?.has?.(full) ? game.i18n.format(full, { n }) : `${n} ${key}`;
+  };
+  const parts = [];
+  if (source?.heldLights > 0) parts.push(say("handsLights", source.heldLights));
+  if (source?.mappingHands > 0) parts.push(say("handsMapping", source.mappingHands));
+  return parts.join(", ");
+}
+
+/**
  * The order in which held gear gives up a hand: shields first, then weapons
  * newest-first. Shields lead because a shield's only cost IS the hand — putting
  * one on the back loses an AC point, while sheathing a weapon disarms.
@@ -221,7 +244,10 @@ export function getLoadout(actor, opts = {}) {
     violations.push({
       type: VIOLATION.HAND_OVERFLOW,
       items: candidates.map((c) => c.item),
-      detail: { handsUsed, budget },
+      // The party-sheet hands travel with the violation. They are the only
+      // occupied hands holding nothing this sheet lists, so a message built
+      // from `items` alone can never account for the count it quotes.
+      detail: { handsUsed, budget, heldLights, mappingHands },
     });
   }
   if (suits.length > 1) {

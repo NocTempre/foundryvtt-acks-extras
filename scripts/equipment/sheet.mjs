@@ -21,7 +21,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { WEAR_ICONS, SHIELD_VARIANTS } from "./config.mjs";
-import { getLoadout, cycleGrip } from "./loadout.mjs";
+import { getLoadout, cycleGrip, heldHandsClause } from "./loadout.mjs";
 import {
   prepareTorch, rollUnarmed, setMasterwork, masterworkTiersFor, drawItem, sheatheItem,
   scavengeItem, clearScavenged, setScavengedRow, scavengedOptions, setShieldVariant, SHIELD_VARIANT_KEYS,
@@ -100,6 +100,10 @@ function buildWornSection(actor, tab, loadout) {
 
   // The two facts a player checks constantly, next to the gear that drives them.
   const style = loadout.styleProficient ? "" : ` — ${game.i18n.localize("ACKS-EQUIPMENT.wear.untrained")}`;
+  // The hands a torch or the mapper's kit is using hold nothing this section
+  // lists, so the total has to name them or it cannot be reconciled with the
+  // gear under it.
+  const held = heldHandsClause(loadout);
   head.append(
     el(
       "span",
@@ -108,7 +112,7 @@ function buildWornSection(actor, tab, loadout) {
         used: loadout.handsUsed,
         budget: loadout.handBudget,
         style: wearLabel(`style.${loadout.activeStyle}`),
-      }) + style,
+      }) + (held ? ` · ${held}` : "") + style,
     ),
   );
   section.append(head);
@@ -723,8 +727,13 @@ function regroup(actor, tab) {
   // core, so it is also tagged with the module class: the drop-hover rendering
   // keys on that class rather than on the bare `[data-drop-target]` attribute,
   // which as a selector would reach every feature's drop zone.
-  const loose = column.querySelector(".item-list-section:not(.acks-equipment-wear)");
-  if (loose) {
+  //
+  // EVERY such list, never the first one found. The lists are split by item type
+  // — Weapons, Armor, Items, Clothes, Money — and a player drags a rope back to
+  // Items, which is where a rope lives. Wiring one of them makes un-stowing work
+  // only when the gesture happens to land on whichever list core printed first,
+  // and reads as a drag-out that does nothing.
+  for (const loose of column.querySelectorAll(".item-list-section:not(.acks-equipment-wear)")) {
     loose.dataset.dropTarget = "loose";
     loose.classList.add("acks-equipment-drop-loose");
   }
