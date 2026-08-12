@@ -317,3 +317,33 @@ that same screen.
 Judge who deliberately made a character a caravan's quartermaster, and it would
 move a player's belongings without being asked. A visible control the Judge
 drives is the right shape for a mistake this rare and this easy to see.
+
+---
+
+### Stored goods are always somebody's; there is no unowned pile (2026-08-11)
+
+Reported from the field: a Judge built a treasure item in the Items sidebar and
+dragged it onto a location to serve as a lootable hoard. The drop was refused,
+and they concluded that items must belong to an actor and worked around it with
+a generic "Treasure" character.
+
+They read it correctly. Storage is **owner-attributed by construction**:
+`storageFlagOf` stamps whose a row is, `storedItems` lists only flagged rows,
+and the sheet buckets them by owner. A sidebar or compendium item has no owner
+to stamp, so `_onDropItem` refuses it rather than filing it under nobody.
+
+**Why the refusal rather than a fallback owner.** Every candidate default is
+worse than the notice. Attributing to the dropping GM puts the party's hoard in
+one user's name; a null owner makes a row no bucket claims, that `providersFor`
+never surfaces and no Retrieve button reaches. Embedding it unflagged — which is
+what a directory drop already does — is the worst of the three: the item is
+genuinely on the actor and appears nowhere on its sheet.
+
+**Ruled: unchanged, and the guide now says so.** The refusal stands, the notice
+stays, and `docs/guides/location.md` states that goods are stowed from a
+character's sheet and that stowing is a move where a sheet-to-sheet drag is the
+system's copy.
+
+**Not ruled: whether an unowned house pile should exist.** A GM-stocked hoard
+that no character owns yet is a real gap, not a misunderstanding — the workaround
+(a placeholder actor) is what the model currently offers. Left open.

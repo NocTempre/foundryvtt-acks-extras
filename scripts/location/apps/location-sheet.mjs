@@ -1161,9 +1161,12 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   async _onDropItem(event, item) {
     const source = item?.parent;
     if (!source || source.documentName !== "Actor") {
-      // A compendium or sidebar item is not anybody's property yet; there is no
-      // owner to attribute it to. GMs stock a location through the item
-      // directory onto the actor directly.
+      // A compendium or sidebar item is not anybody's property yet, and every
+      // stored row is filed under an owner. Refusing is the whole handling:
+      // dropping such an item on the actor by other routes (the directory)
+      // embeds it WITHOUT the storage flag, and `storedItems` lists only
+      // flagged rows — so it would sit on the place invisibly. Stocking a
+      // place means giving the goods to a character and stowing them.
       ui.notifications.warn(loc("storage.dropNeedsOwner"));
       return null;
     }

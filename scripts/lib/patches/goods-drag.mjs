@@ -22,9 +22,22 @@
  * `isGoods` that storage and containers already gate on. That covers coin today
  * and anything the system forgets tomorrow, while leaving rows that are not
  * goods (the favourites panel, the languages list) exactly as core renders them.
+ *
+ * SECOND HALF: a coin row dropped back on its own sheet must never MINT coin.
+ * Foundry's `ActorSheetV2._onDropItem` treats a drop whose item already belongs
+ * to this actor as a re-SORT. The system's override switches on item type before
+ * it ever reaches that guard, so money is routed to `_onDropItemMoney`, which
+ * finds the row already on the actor and adds one to its quantity. Making the
+ * row draggable at all is what puts that path within a player's reach, so the
+ * guard belongs here beside the class that opened it — the two halves are one
+ * change. Money, and only money: a BUNDLE dropped on its owner unpacks by
+ * design, and a blanket same-actor guard would silently take that away.
  */
 import { isGoods } from "../item-model.mjs";
 import { MODULE_ID } from "../constants.mjs";
+
+/** The system's item type for coin. Matches `isGoods`'s own rider. */
+const MONEY_TYPE = "money";
 
 function markGoodsDraggable(app, element) {
   if (game.system?.id !== "acks") return;
@@ -44,10 +57,41 @@ function markGoodsDraggable(app, element) {
   if (marked) app._dragDrop?.bind?.(root);
 }
 
+let dropGuarded = false;
+
+/**
+ * Close the self-drop credit on the sheet class the rendered app inherits from.
+ *
+ * The system's sheet classes are module-private — there is no global path for
+ * libWrapper to name — so the prototype is reached through a live instance. It
+ * is found by asking WHO OWNS `_onDropItemMoney`, never by walking a fixed
+ * number of links: the character and monster sheets both subclass the shared
+ * base, and the depth is the system's business, not ours.
+ */
+function guardMoneySelfDrop(app) {
+  if (dropGuarded) return;
+  let proto = Object.getPrototypeOf(app);
+  while (proto && !Object.hasOwn(proto, "_onDropItemMoney")) proto = Object.getPrototypeOf(proto);
+  if (typeof proto?._onDropItem !== "function") return;
+
+  const inner = proto._onDropItem;
+  proto._onDropItem = async function (event, item, ...rest) {
+    if (item?.type === MONEY_TYPE && item.parent?.uuid === this.actor?.uuid) {
+      // Exactly what the Foundry base class does for every other type: the drop
+      // reorders the row and writes nothing to quantity.
+      await this._onSortItem?.(event, item);
+      return item;
+    }
+    return inner.call(this, event, item, ...rest);
+  };
+  dropGuarded = true;
+}
+
 /** Install the patch. Every actor sheet render is checked; only goods are touched. */
 export function installGoodsDrag() {
   Hooks.on("renderActorSheetV2", (app, element) => {
     try {
+      if (game.system?.id === "acks") guardMoneySelfDrop(app);
       markGoodsDraggable(app, element);
     } catch (err) {
       console.error(`${MODULE_ID} | goods drag patch failed`, err);

@@ -32,13 +32,23 @@ first load is not a favour.
 
 Drag an item onto the sheet's **Storage** tab, or use **Deposit here**.
 
+**Drag it from a character's sheet, not from the Items sidebar.** Goods are
+filed under whose they are, and an item in the sidebar or a compendium belongs
+to nobody yet — there is no owner to file it under, so that drop is refused with
+a notice rather than landing unattributed. To put a hoard into play, give it to
+a character first (or to the party's pack mule) and stow it from there.
+
 Goods are grouped by **whose they are**, because a warehouse holding three
 characters' gear is three inventories in one actor, not a shared pile. Each
 character sees a **Retrieve** button on their own rows; the GM sees it on all of
 them.
 
 Stored goods are real items on the location actor, so an item that has left a
-character genuinely stops weighing on them.
+character genuinely stops weighing on them. Stowing is a **move, not a copy**:
+the item leaves the character. Dragging between two ordinary character sheets is
+the system's own copy, which is why a plain "treasure actor" leaves the original
+behind — a place is the surface built to hand goods over without duplicating
+them.
 
 > Attribution is a UI convention, not a security boundary. Anything that must
 > genuinely stay private belongs on a GM-owned actor.

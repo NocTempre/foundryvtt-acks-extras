@@ -19,6 +19,18 @@
   per item type, and only the first of them was wired to accept gear back; a rope
   released over Items, where a rope belongs, landed on nothing. Every list takes
   it now. Dropping gear onto a container to stow it is unchanged.
+- **Dragging a coin row no longer mints a coin.** Picking up a currency entry and
+  releasing it anywhere on your own sheet added one to that denomination, as if
+  the coin had arrived from somewhere else — quietly, with no notice, every time.
+  Foundry treats a drop whose item is already yours as a re-ordering, but the
+  system reads the item's type first and sends money down the path that credits
+  an incoming payment, which then found the row already on the sheet and topped
+  it up. Coin dropped on its owner's sheet now sorts like every other row and
+  writes nothing. Dragging coin into a pouch or out to a place is unchanged, and
+  a purse arriving from a bundle still pays out as before. Worlds that have been
+  dragging coin around should expect the count they see to be the count they
+  have from here; the earlier drift cannot be told apart from spending after the
+  fact, so nothing is unwound.
 - **A warning, an alarm or a success mark is legible on every seat.** Reported on
   the exploration party sheet, where the warnings — no mapper, no lit light
   source, someone carrying more than they can lift — rendered as pale type on a
