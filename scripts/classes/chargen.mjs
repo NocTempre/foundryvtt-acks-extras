@@ -21,6 +21,7 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 import { grantAbility, grantAdventuring } from "./levelup.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -46,12 +47,12 @@ const _coinCache = new Map();
  */
 async function coinSource(name) {
   if (_coinCache.has(name)) return _coinCache.get(name);
-  const matches = (i) => i.type === "money" && String(i.name).toLowerCase() === name;
+  const matches = (i) => i.type === ITEM_TYPE.money && String(i.name).toLowerCase() === name;
   let found = game.items?.find(matches)?.toObject() ?? null;
   if (!found) {
     for (const pack of game.packs?.filter((p) => p.documentName === "Item") ?? []) {
       const index = await pack.getIndex({ fields: ["type"] }).catch(() => null);
-      const hit = index?.find((e) => e.type === "money" && String(e.name).toLowerCase() === name);
+      const hit = index?.find((e) => e.type === ITEM_TYPE.money && String(e.name).toLowerCase() === name);
       if (!hit) continue;
       found = (await pack.getDocument(hit._id).catch(() => null))?.toObject() ?? null;
       if (found) break;
@@ -83,7 +84,7 @@ export async function grantCoin(actor, coin = {}) {
   for (const [key, name] of Object.entries(PURSES)) {
     const amount = Number(coin[key]) || 0;
     if (!amount) continue;
-    const matches = (i) => i.type === "money" && i.name.toLowerCase() === name;
+    const matches = (i) => i.type === ITEM_TYPE.money && i.name.toLowerCase() === name;
     const purse = actor.items.find(matches);
     if (purse) {
       await purse.update({ "system.quantity": (Number(purse.system.quantity) || 0) + amount });
@@ -101,7 +102,7 @@ export function resolveBase(entry) {
   if (entry.ref) {
     if (entry.ref.startsWith("name:")) {
       const name = entry.ref.slice(5);
-      return game.items.find((i) => ["weapon", "armor", "item"].includes(i.type) && i.name.toLowerCase() === name.toLowerCase()) ?? null;
+      return game.items.find((i) => [ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item].includes(i.type) && i.name.toLowerCase() === name.toLowerCase()) ?? null;
     }
     const doc = findByRef(entry.ref);
     if (doc) return doc;
@@ -110,7 +111,7 @@ export function resolveBase(entry) {
   let best = null;
   let bestLen = 0;
   for (const i of game.items) {
-    if (!["weapon", "armor", "item"].includes(i.type)) continue;
+    if (![ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item].includes(i.type)) continue;
     const nf = fold(i.name);
     const nfStripped = fold(i.name.replace(/\([^)]*\)/g, " "));
     // The paren-stripped name is what an embellished instance contains:
@@ -300,8 +301,8 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
     if (!doc && name) {
       const f = fold(name);
       doc =
-        game.items.find((i) => i.type === "spell" && fold(i.name) === f) ??
-        game.items.find((i) => i.type === "spell" && f.length >= 6 && fold(i.name).includes(f)) ??
+        game.items.find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === f) ??
+        game.items.find((i) => i.type === ITEM_TYPE.spell && f.length >= 6 && fold(i.name).includes(f)) ??
         null;
     }
     if (doc) {

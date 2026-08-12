@@ -18,7 +18,7 @@ import {
   gearProfileFor, CLOTHING_SLOT_PATTERNS,
 } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
-import { SLOT, slug } from "../lib/vocab.mjs";
+import { SLOT, slug, ITEM_TYPE } from "../lib/vocab.mjs";
 
 /* -------------------------------------------- */
 /*  Armour classification                        */
@@ -47,7 +47,7 @@ export function isShield(item) {
  * fallback deliberately matches what core would say.
  */
 export function isHelmet(item) {
-  if (item?.type !== "armor") return false;
+  if (item?.type !== ITEM_TYPE.armor) return false;
   if (item.getFlag?.(MODULE_ID, ITEM_FLAGS.HELMET)) return true;
   if (declaresSlots(item)) return slotsOf(item).includes(SLOT.head);
   return /helm/i.test(item.name ?? "");
@@ -84,14 +84,14 @@ export function inferGear(item) {
     };
   }
 
-  if (item.type === "armor") {
+  if (item.type === ITEM_TYPE.armor) {
     // A shield is the one piece of gear with a real choice of place: in the
     // hand, or slung (JJ variants). Both are declared; the wearer picks.
     if (isShield(item)) return { ...none, slots: [SLOT.offHand, SLOT.strapped] };
     return { ...none, slots: [isHelmet(item) ? SLOT.head : SLOT.body] };
   }
 
-  if (item.type === "weapon") return { ...none, slots: [SLOT.mainHand, SLOT.offHand, SLOT.bothHands] };
+  if (item.type === ITEM_TYPE.weapon) return { ...none, slots: [SLOT.mainHand, SLOT.offHand, SLOT.bothHands] };
 
   for (const { re, slots } of CLOTHING_SLOT_PATTERNS) {
     if (re.test(item.name ?? "")) return { ...none, slots: [...slots] };

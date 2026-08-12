@@ -19,6 +19,7 @@
  * scribed in it.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 export const SPELLBOOK_PAGES = 100; // RR p145
 export const SPELL_VALUE_PER_LEVEL = 1000; // RR p390 (Material Cost)
@@ -38,7 +39,7 @@ export function spellbookOf(item) {
  * renamed). Never true for a weapon, a backpack, or ordinary gear.
  */
 export function isSpellbook(item) {
-  if (item?.type !== "item") return false;
+  if (item?.type !== ITEM_TYPE.item) return false;
   return SPELLBOOK_NAME.test(item.name ?? "") || !!spellbookOf(item);
 }
 

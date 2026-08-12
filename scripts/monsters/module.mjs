@@ -47,17 +47,29 @@ function registerHelpers() {
 /**
  * Resolve the system's default monster sheet class (our base to extend).
  *
- * Only the SYSTEM's sheets are candidates: this module registers into the same
- * map — this sheet, and lib's Follower Card — and a resolution that accepted one
- * of ours would subclass this module's own output, growing a fresh layer on
- * every reload. Never widen this to the whole registry.
+ * Only the SYSTEM's sheets are candidates — registry keys are `<scope>.<class>`
+ * and only scope `acks` qualifies. This module registers into the same map (this
+ * sheet, and lib's Follower Card), and a resolution that accepted one of ours
+ * would subclass this module's own output, growing a fresh layer on every
+ * reload; a third party's sheet is just as wrong a base. Never widen this to
+ * the whole registry. Absence returns null, and the caller skips registration.
  */
 function resolveMonsterSheetBase() {
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.entries(registered)
-    .filter(([key]) => !key.startsWith(`${MODULE_ID}.`))
+    .filter(([key]) => key.startsWith("acks."))
     .map(([, entry]) => entry);
-  return entries.find((e) => e.default)?.cls ?? entries[0]?.cls ?? null;
+  const defaulted = entries.find((e) => e.default) ?? null;
+  const chosen = defaulted ?? entries[0] ?? null;
+  // Registry order is not a choice: when several candidates remain and none is
+  // flagged default, name the class adopted so a wrong base is diagnosable from
+  // the console. A lone candidate is unambiguous — this module's own later
+  // makeDefault registrations legitimately clear the system entry's flag, and
+  // warning on that expected state would cry wolf every load.
+  if (!defaulted && entries.length > 1) {
+    console.warn(`${MODULE_ID} | no acks monster sheet is flagged default; extending ${chosen.cls?.name} by registry order.`);
+  }
+  return chosen?.cls ?? null;
 }
 
 Hooks.once("init", () => {

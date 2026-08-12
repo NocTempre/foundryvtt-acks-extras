@@ -92,7 +92,9 @@ Hooks.once("init", () => {
   registerSceneContextMenu();
   registerSceneLinkSync();
 
-  foundry.applications.handlebars.loadTemplates(TEMPLATES).catch(() => {});
+  foundry.applications.handlebars
+    .loadTemplates(TEMPLATES)
+    .catch((err) => console.warn(`${MODULE_ID} | template preload skipped`, err));
 
   /**
    * A location is a shared place: players need ownership to leave anything

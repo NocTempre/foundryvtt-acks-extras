@@ -24,6 +24,7 @@ import { sumPermanents, reasonKey, WOUND_PENALTIES, penaltyReason } from "../rul
 import { henchmanWage } from "../rules/wages.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { now, secondsPerMonth } from "../time.mjs";
+import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -154,7 +155,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
           uuid: actor.uuid,
           name: actor.name,
           img: actor.img,
-          isMonster: actor.type === "monster",
+          isMonster: actor.type === ACTOR_TYPE.monster,
           category: game.i18n.localize(`ACKS-HENCHMEN.category.${retainer.category || "henchman"}`),
           level: adapter.getWageLevel(actor),
           loyalty: effectiveLoyaltyFor(actor),
@@ -284,7 +285,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const actor = this.#actor(target);
     if (!actor) return;
     const candidates = game.actors.filter(
-      (a) => a.type === "character" && !a.system?.retainer?.enabled && a.id !== this.employer.id
+      (a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && a.id !== this.employer.id
     );
     if (!candidates.length) return;
     const options = candidates.map((a) => `<option value="${a.id}">${a.name}</option>`).join("");
@@ -325,7 +326,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }).catch(() => false);
     if (!confirmed) return;
     await HenchmanRecord.logEvent(actor, { type: "dismissed", note: "" });
-    if (actor.type === "monster") {
+    if (actor.type === ACTOR_TYPE.monster) {
       const list = (this.employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? []).filter((id) => id !== actor.id);
       await this.employer.setFlag(MODULE_ID, FLAG_MONSTER_LIST, list);
       await adapter.setRetainer(actor, { enabled: false, managerid: "" });

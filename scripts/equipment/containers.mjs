@@ -37,6 +37,7 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // through it. `isStowable` is where coin's missing cost/weight6 is reconciled:
 // coin is goods without being physical, so asking `isPhysical` here loses it.
 import { weight6Of, isStowable, isWorn, isClothing, gearOf, capacityOf, holdsGear, STONE } from "../lib/item-model.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 
 /**
@@ -302,7 +303,7 @@ export function containerReport(actor) {
 function harnessEligible6(actor, harnessId) {
   return actor.items
     .filter((i) => i.id !== harnessId)
-    .filter((i) => i.type === "item" && !isClothing(i))
+    .filter((i) => i.type === ITEM_TYPE.item && !isClothing(i))
     // Per-UNIT heavy check stays RAW (not weight6Of): a stack of six 1/6-stone
     // torches sums to a stone but no single one is heavy, so quantity must NOT
     // enter here. The reduce below is over type==="item" rows only, where
@@ -313,7 +314,7 @@ function harnessEligible6(actor, harnessId) {
 
 /** Worn armour category, for the harness's "not over heavy armour" clause. */
 function wornArmourType(actor) {
-  const worn = actor.items.find((i) => i.type === "armor" && isWorn(i) && !isShield(i) && !isHelmet(i));
+  const worn = actor.items.find((i) => i.type === ITEM_TYPE.armor && isWorn(i) && !isShield(i) && !isHelmet(i));
   return worn?.system?.type ?? "unarmored";
 }
 

@@ -22,6 +22,7 @@ import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 import { depositReach, pinnedPlaces, setPinnedPlace } from "../reach.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
 const TAB_CLASS = "acks-location-storage-tab";
@@ -240,7 +241,7 @@ export function installStorageTab() {
     try {
       if (game.system?.id !== "acks") return;
       const actor = app.actor ?? app.document;
-      if (actor?.type !== "character") return;
+      if (actor?.type !== ACTOR_TYPE.character) return;
       const root = element instanceof HTMLElement ? element : element?.[0];
       // The core sheet has a primary tab strip; the Follower Card and our own
       // location sheet do not, and neither wants one bolted on.
@@ -274,7 +275,7 @@ export function installStorageTab() {
   Hooks.on("renderItemSheetV2", (app, element) => {
     try {
       if (game.system?.id !== "acks") return;
-      if ((app.document ?? app.item)?.type !== "money") return;
+      if ((app.document ?? app.item)?.type !== ITEM_TYPE.money) return;
       // Same rule as the column: an item sheet has no storage tab to replace the
       // field with, so a world with no providers keeps core's field.
       if (!worldHasStorage()) return;
@@ -300,7 +301,7 @@ export function installStorageTab() {
 
   Hooks.on("deleteActor", (doc) => {
     if (!storage()?.isProvider?.(doc)) return;
-    for (const actor of game.actors?.filter((a) => a.type === "character" && Object.keys(a.apps ?? {}).length) ?? []) {
+    for (const actor of game.actors?.filter((a) => a.type === ACTOR_TYPE.character && Object.keys(a.apps ?? {}).length) ?? []) {
       refresh(actor);
     }
   });

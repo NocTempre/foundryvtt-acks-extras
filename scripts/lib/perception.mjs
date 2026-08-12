@@ -37,6 +37,7 @@
 
 import { MODULE_ID } from "./constants.mjs";
 import { hasCapability } from "./capabilities.mjs";
+import { ITEM_TYPE } from "./vocab.mjs";
 
 /** Status effect ids this module adds to `CONFIG.statusEffects`. */
 export const STATUS_HIDING = `${MODULE_ID}.hiding`;
@@ -73,7 +74,7 @@ const HIDING_PATTERN = /hid(e|ing)\b|hide\s*in\s*shadows/i;
 function hidesFromLightless(actor) {
   if (!actor) return false;
   if (hasCapability(actor, CAP_HIDING)) return true;
-  return actor.items?.some?.((i) => i.type === "ability" && HIDING_PATTERN.test(i.name)) ?? false;
+  return actor.items?.some?.((i) => i.type === ITEM_TYPE.ability && HIDING_PATTERN.test(i.name)) ?? false;
 }
 
 /** Does the perceiving token currently carry this status? */

@@ -11,6 +11,7 @@ import {
 } from "./ability-bridge.mjs";
 import { getMemberActor, hasAbility, isDown, isHurried, updateFormation } from "./formation-model.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 export { hasAbility };
 
@@ -138,7 +139,7 @@ const loc = makeLoc("ACKS-FORMATION");
  */
 function skillCandidates(actor, cfg) {
   return actor.items.filter((i) => {
-    if (i.type !== "ability") return false;
+    if (i.type !== ITEM_TYPE.ability) return false;
 
     // A GM ruling from the audit window is final in both directions, and
     // outranks the per-item Skill checkbox — it is the surface that shows what

@@ -8,6 +8,7 @@
  *  - optional-rule gating for compendium effects (BTA dwarven caste).
  */
 import { MODULE_ID } from "./constants.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** Normalize a race/kind token to a lowercase slug ("Demi-Human " → "demi-human"). */
 export function slugKind(value) {
@@ -74,7 +75,7 @@ export function kindOf(actor) {
   const categories = new Set();
   if (!actor) return { race: "", categories };
 
-  if (actor.type === "character") {
+  if (actor.type === ACTOR_TYPE.character) {
     const race = inferRace(actor);
     categories.add(race);
     if (DEMI_HUMAN_RACES.has(race)) categories.add("demi-human");

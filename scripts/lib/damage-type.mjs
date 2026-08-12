@@ -24,7 +24,7 @@
  * meant to override.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { DAMAGE_TYPES } from "./vocab.mjs";
+import { DAMAGE_TYPES, ITEM_TYPE } from "./vocab.mjs";
 
 /**
  * Font Awesome 6 FREE icons per damage type (Foundry bundles the free set; the
@@ -111,7 +111,7 @@ export async function setDamageType(item, type) {
  */
 export function attackOptionsFor(actor) {
   const items = actor?.items?.contents ?? [];
-  const weapons = items.filter((i) => i.type === "weapon" && i.system?.equipped);
+  const weapons = items.filter((i) => i.type === ITEM_TYPE.weapon && i.system?.equipped);
   const options = [];
   for (const w of weapons) {
     const damageType = damageTypeOf(w);

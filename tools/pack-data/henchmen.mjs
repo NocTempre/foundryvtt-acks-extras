@@ -37,8 +37,10 @@ function effect(itemName, { label, changes, condition, target }) {
   };
 }
 
-const ADD = 2; // CONST.ACTIVE_EFFECT_MODES.ADD
-const CUSTOM = 0; // read by the module, ignored by core prepareData
+// v14 string change types (CONST.ACTIVE_EFFECT_CHANGE_TYPES keys); the numeric
+// ACTIVE_EFFECT_MODES enum is a deprecated shim since v14.
+const ADD = "add";
+const CUSTOM = "custom"; // handled by the module, ignored by core prepareData
 
 function ability(name, { type = "general", description, requirements = "", effects = [] }) {
   const id = did(`item:${name}`);
@@ -73,7 +75,7 @@ export function buildProficienciesPowers() {
         "Smooth-tongued and familiar with protocol: +1 to reaction rolls when parleying. Stacks with Mystic Aura, not with Intimidation or Seduction. (RR 108)",
       effects: [
         effect("Diplomacy", {
-          changes: [{ key: `${K}.hiring`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.hiring`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.parley",
         }),
       ],
@@ -83,7 +85,7 @@ export function buildProficienciesPowers() {
         "Bullies others: +1 to reaction rolls when implicitly or explicitly threatening; targets must be under 5 HD or outnumbered/outranked. Stacks with Mystic Aura, not with Diplomacy or Seduction. (RR 113)",
       effects: [
         effect("Intimidation", {
-          changes: [{ key: `${K}.hiring`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.hiring`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.threats",
         }),
       ],
@@ -93,7 +95,7 @@ export function buildProficienciesPowers() {
         "Naturally alluring: +1 to reaction rolls with others potentially attracted to the character. Stacks with Mystic Aura, not with Diplomacy or Intimidation. (RR 118)",
       effects: [
         effect("Seduction", {
-          changes: [{ key: `${K}.hiring`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.hiring`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.attracted",
         }),
       ],
@@ -104,7 +106,7 @@ export function buildProficienciesPowers() {
         "Projects magical presence: +1 to reaction rolls to impress and intimidate; on a total of 12+ subjects act as if bewitched while in the character's presence. (RR 115)",
       effects: [
         effect("Mystic Aura", {
-          changes: [{ key: `${K}.hiring`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.hiring`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.impress",
         }),
       ],
@@ -119,7 +121,7 @@ export function buildProficienciesPowers() {
         "Mastered the art of command: the character's henchmen, mercenaries, and other troops receive +2 to morale. (RR 108)",
       effects: [
         effect("Command", {
-          changes: [{ key: `${K}.henchmanMorale`, mode: ADD, value: "2" }],
+          changes: [{ key: `${K}.henchmanMorale`, type: ADD, value: "2" }],
         }),
       ],
     }),
@@ -128,7 +130,7 @@ export function buildProficienciesPowers() {
         "An inspirational authority figure: may hire one more henchman than Charisma would otherwise permit; the base morale of any ruled domain increases by 1. (RR 114)",
       effects: [
         effect("Leadership", {
-          changes: [{ key: `${K}.retainBonus`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.retainBonus`, type: ADD, value: "1" }],
         }),
       ],
     }),
@@ -140,8 +142,8 @@ export function buildProficienciesPowers() {
         effect("Beast Friendship", {
           label: "Beast Friendship — animal reactions",
           changes: [
-            { key: `${K}.hiring`, mode: ADD, value: "2" },
-            { key: `${K}.recruitKinds`, mode: CUSTOM, value: "animal" },
+            { key: `${K}.hiring`, type: ADD, value: "2" },
+            { key: `${K}.recruitKinds`, type: CUSTOM, value: "animal" },
           ],
           condition: "ACKS-HENCHMEN.cond.animals",
           target: "ACKS-HENCHMEN.target.animals",
@@ -155,8 +157,8 @@ export function buildProficienciesPowers() {
       effects: [
         effect("Blood of Ancient Kings", {
           changes: [
-            { key: `${K}.retainBonus`, mode: ADD, value: "1" },
-            { key: `${K}.baseLoyalty`, mode: ADD, value: "1" },
+            { key: `${K}.retainBonus`, type: ADD, value: "1" },
+            { key: `${K}.baseLoyalty`, type: ADD, value: "1" },
           ],
         }),
       ],
@@ -168,8 +170,8 @@ export function buildProficienciesPowers() {
       effects: [
         effect("Friends of Birds and Beasts", {
           changes: [
-            { key: `${K}.hiring`, mode: ADD, value: "2" },
-            { key: `${K}.recruitKinds`, mode: CUSTOM, value: "animal" },
+            { key: `${K}.hiring`, type: ADD, value: "2" },
+            { key: `${K}.recruitKinds`, type: CUSTOM, value: "animal" },
           ],
           condition: "ACKS-HENCHMEN.cond.animals",
           target: "ACKS-HENCHMEN.target.animals",
@@ -182,7 +184,7 @@ export function buildProficienciesPowers() {
         "Henchmen and mercenaries hired by the character gain +1 to their morale score whenever he personally leads them. (JJ powers)",
       effects: [
         effect("Battlefield Prowess", {
-          changes: [{ key: `${K}.henchmanMorale`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.henchmanMorale`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.personallyLed",
         }),
       ],
@@ -193,7 +195,7 @@ export function buildProficienciesPowers() {
         "Henchmen and mercenaries gain +1 to their morale score if the character is there to witness and record their deeds. (JJ powers — Bard)",
       effects: [
         effect("Chronicles of Battle", {
-          changes: [{ key: `${K}.henchmanMorale`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.henchmanMorale`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.witnessed",
         }),
       ],
@@ -204,7 +206,7 @@ export function buildProficienciesPowers() {
         "Hirelings of the same religion as the character gain +1 to their morale score whenever he is present. (JJ powers — Paladin, Flagellant)",
       effects: [
         effect("Holy Fervor", {
-          changes: [{ key: `${K}.henchmanMorale`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.henchmanMorale`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.sameReligion",
         }),
       ],
@@ -215,7 +217,7 @@ export function buildProficienciesPowers() {
         "Chaotic characters or monsters in the character's service gain +1 to their morale score whenever he personally leads them. (JJ powers — Zaharan Ruinguard)",
       effects: [
         effect("Dark Charisma", {
-          changes: [{ key: `${K}.henchmanMorale`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.henchmanMorale`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.chaoticServants",
         }),
       ],
@@ -226,7 +228,7 @@ export function buildProficienciesPowers() {
         "Hirelings on a wilderness adventure led by this character gain +1 to their morale score; stacks with Charisma and proficiency modifiers. (JJ powers — Explorer)",
       effects: [
         effect("Experience and Hardiness", {
-          changes: [{ key: `${K}.henchmanMorale`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.henchmanMorale`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.wilderness",
         }),
       ],
@@ -238,9 +240,9 @@ export function buildProficienciesPowers() {
       effects: [
         effect("Familial Loyalty", {
           changes: [
-            { key: `${K}.retainBonus`, mode: ADD, value: "1" },
-            { key: `${K}.baseLoyalty`, mode: ADD, value: "1" },
-            { key: `${K}.henchmanMorale`, mode: ADD, value: "1" },
+            { key: `${K}.retainBonus`, type: ADD, value: "1" },
+            { key: `${K}.baseLoyalty`, type: ADD, value: "1" },
+            { key: `${K}.henchmanMorale`, type: ADD, value: "1" },
           ],
           condition: "ACKS-HENCHMEN.cond.related",
         }),
@@ -252,7 +254,7 @@ export function buildProficienciesPowers() {
         "In a market previously entered, the character may treat the market as one class larger than its actual size (Class I stays Class I) when buying, selling, and hiring retainers. (JJ powers — Venturer)",
       effects: [
         effect("Mercantile Network", {
-          changes: [{ key: `${K}.marketClass`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.marketClass`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.knownMarket",
         }),
       ],
@@ -263,7 +265,7 @@ export function buildProficienciesPowers() {
         "Commands the battlefield like a god of war: permanent +1 to strategic ability, leadership ability, and morale modifier when commanding troops. (JJ powers — Chosen)",
       effects: [
         effect("Military Genius", {
-          changes: [{ key: `${K}.henchmanMorale`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.henchmanMorale`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.commanding",
         }),
       ],
@@ -274,7 +276,7 @@ export function buildProficienciesPowers() {
         "A few moments of oration inspire up to 30 allies within 50': +1 to attack throws, AC, morale rolls, and saves vs. magical fear for 1 turn. Once per day per class level. (RR 106 — Bard)",
       effects: [
         effect("Inspire Courage", {
-          changes: [{ key: `${K}.moraleRoll`, mode: ADD, value: "1" }],
+          changes: [{ key: `${K}.moraleRoll`, type: ADD, value: "1" }],
           condition: "ACKS-HENCHMEN.cond.inspired",
         }),
       ],
@@ -286,8 +288,8 @@ export function buildProficienciesPowers() {
       effects: [
         effect("Utter Domination", {
           changes: [
-            { key: `${K}.skipCalamityLoyalty`, mode: CUSTOM, value: "1" },
-            { key: `${K}.moraleBase`, mode: ADD, value: "4" },
+            { key: `${K}.skipCalamityLoyalty`, type: CUSTOM, value: "1" },
+            { key: `${K}.moraleBase`, type: ADD, value: "4" },
           ],
         }),
       ],

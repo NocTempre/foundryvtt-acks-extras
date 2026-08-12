@@ -19,6 +19,7 @@ import {
 } from "./constants.mjs";
 import { getActorHD, monthlyWageForHD, getProficiencies, getEffectReactionMods } from "./actor-data.mjs";
 import { kindOf, matchesKind, registerRaceRelations, relationFor } from "./racial.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
 
@@ -136,7 +137,7 @@ Hooks.once("ready", () => {
  */
 function characterOf(app) {
   const doc = app?.document ?? null;
-  if (doc?.documentName !== "Actor" || doc.type !== "character") return null;
+  if (doc?.documentName !== "Actor" || doc.type !== ACTOR_TYPE.character) return null;
   return doc;
 }
 

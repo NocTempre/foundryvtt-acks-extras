@@ -25,6 +25,7 @@ import { monsterHd } from "./actor-read.mjs";
 import { isEquippable, isEquipped } from "./item-model.mjs";
 import { attackOptionsFor, damageTypeLabel, DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 import { profileStrips, isProfileAbility, sizePips } from "./proficiency-strip.mjs";
+import { ITEM_TYPE } from "./vocab.mjs";
 
 export const FOLLOWER_CARD_TEMPLATE = `modules/${MODULE_ID}/templates/lib/follower-card.hbs`;
 
@@ -113,7 +114,7 @@ function withMod(dice, mod) {
  */
 export function isSpellcaster(actor) {
   if (actor?.system?.spells?.enabled) return true;
-  return (actor?.items?.contents ?? []).some((i) => i.type === "spell");
+  return (actor?.items?.contents ?? []).some((i) => i.type === ITEM_TYPE.spell);
 }
 
 /**
@@ -139,7 +140,7 @@ export async function followerCardContext(actor, { editable = false, interactive
   const overrides = actor?.getFlag?.(MODULE_ID, "fcOverrides") ?? {};
   const advOv = overrides.adventuring ?? {};
 
-  const weapons = items.filter((i) => i.type === "weapon");
+  const weapons = items.filter((i) => i.type === ITEM_TYPE.weapon);
   // Powers/prof and equipment carry ids so the editable sheet can roll them and
   // toggle equipped state; the read-only grid just reads `.name`.
   // Proficiencies that DO something. The ones that merely record a fighting
@@ -149,10 +150,10 @@ export async function followerCardContext(actor, { editable = false, interactive
   // book supplies is the thing a table stops to read out ("Terrifying Visage"),
   // and it is worth posting whether or not it also rolls.
   const powers = items
-    .filter((i) => i.type === "ability" && !isProfileAbility(i))
+    .filter((i) => i.type === ITEM_TYPE.ability && !isProfileAbility(i))
     .map((i) => ({ id: i.id, name: i.name, rollable: !!i.system?.roll, hasText: !!i.system?.description }));
   const equipment = items
-    .filter((i) => i.type === "weapon" || i.type === "armor" || i.type === "item")
+    .filter((i) => i.type === ITEM_TYPE.weapon || i.type === ITEM_TYPE.armor || i.type === ITEM_TYPE.item)
     .map((i) => {
       const q = num(i.system?.quantity?.value, 1);
       return {
@@ -177,7 +178,7 @@ export async function followerCardContext(actor, { editable = false, interactive
   // it is read up on, so the names belong where the block is — the full sheet
   // keeps the page that memorizes and resets them.
   const byLevel = new Map();
-  for (const s of items.filter((i) => i.type === "spell")) {
+  for (const s of items.filter((i) => i.type === ITEM_TYPE.spell)) {
     const lvl = String(num(s.system?.lvl, 1));
     if (!byLevel.has(lvl)) byLevel.set(lvl, []);
     byLevel.get(lvl).push({ id: s.id, name: s.name, hasText: !!s.system?.description });
@@ -388,7 +389,7 @@ export async function followerCardContext(actor, { editable = false, interactive
       }))
     : [];
   ctx.hasAdventuring =
-    !!ctx.adventuring.length && items.some((i) => i.type === "ability" && /adventuring/i.test(i.name ?? ""));
+    !!ctx.adventuring.length && items.some((i) => i.type === ITEM_TYPE.ability && /adventuring/i.test(i.name ?? ""));
 
   ctx.strips = profileStrips(actor);
   ctx.hasOverrides =

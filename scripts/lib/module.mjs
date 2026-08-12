@@ -81,7 +81,7 @@ export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
  * these types — keyed on the core `system.retainer.enabled` flag, so one rule
  * covers character AND monster hirelings without depending on acks-henchmen.
  */
-const FOLLOWER_TYPES = new Set(["character", "monster"]);
+const FOLLOWER_TYPES = new Set([vocab.ACTOR_TYPE.character, vocab.ACTOR_TYPE.monster]);
 const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
@@ -232,7 +232,9 @@ Hooks.once("init", () => {
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
   // acks-henchmen, cross-module) has no fetch miss on first paint.
-  foundry.applications.handlebars.loadTemplates([FOLLOWER_CARD_TEMPLATE]).catch(() => {});
+  foundry.applications.handlebars
+    .loadTemplates([FOLLOWER_CARD_TEMPLATE])
+    .catch((err) => console.warn(`${MODULE_ID} | Follower Card template preload skipped`, err));
 
   // The attack-roll core patch (patches/attack-roll.mjs). World-scoped so the
   // whole table rolls one model; requiresReload because the method is patched
@@ -273,7 +275,8 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true,
-    onChange: () => syncSceneTokens(game.scenes?.current).catch(() => {}),
+    onChange: () =>
+      syncSceneTokens(game.scenes?.current).catch((err) => console.warn(`${MODULE_ID} | scene sense sync failed`, err)),
   });
 
   // Whether this module may write to game.time (world-time.mjs). Registered
@@ -607,13 +610,20 @@ Hooks.once("ready", () => {
   installSurpriseCardPatch();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
-  const MonsterSheet = entries.find((e) => e.default)?.cls ?? entries[0]?.cls ?? null;
+  const defaulted = entries.find((e) => e.default) ?? null;
+  const MonsterSheet = defaulted?.cls ?? entries[0]?.cls ?? null;
   // A failed monster-sheet lookup costs the ANIMAL alias its sheet and nothing
   // more — never a return out of the whole ready hook, which would also drop
   // the unrelated sheet registrations and one-time sweeps below.
   if (!MonsterSheet) {
     console.warn(`${MODULE_ID} | could not resolve the acks monster sheet; ${ANIMAL_TYPE} has no sheet.`);
   } else {
+    // Registry order is not a choice: when several entries compete and none is
+    // flagged default, name the class adopted so a wrong alias sheet is
+    // diagnosable from the console. A lone entry is unambiguous and stays quiet.
+    if (!defaulted && entries.length > 1) {
+      console.warn(`${MODULE_ID} | no monster sheet is flagged default; ${ANIMAL_TYPE} adopts ${MonsterSheet.name} by registry order.`);
+    }
     foundry.applications.apps.DocumentSheetConfig.registerSheet(Actor, MODULE_ID, MonsterSheet, {
       types: [ANIMAL_TYPE],
       makeDefault: true,
@@ -721,7 +731,7 @@ Hooks.on("createToken", (tokenDoc) => {
 for (const hook of ["createItem", "updateItem", "deleteItem"]) {
   Hooks.on(hook, (item) => {
     if (game.system?.id !== "acks" || !item?.parent?.id) return;
-    syncActorTokens(item.parent).catch(() => {});
+    syncActorTokens(item.parent).catch((err) => console.warn(`${MODULE_ID} | actor sense sync failed`, err));
   });
 }
 
@@ -729,7 +739,7 @@ for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEff
   Hooks.on(hook, (effect) => {
     const actor = effect?.parent instanceof Actor ? effect.parent : effect?.parent?.parent;
     if (game.system?.id !== "acks" || !actor?.id) return;
-    syncActorTokens(actor).catch(() => {});
+    syncActorTokens(actor).catch((err) => console.warn(`${MODULE_ID} | actor sense sync failed`, err));
   });
 }
 
@@ -745,7 +755,7 @@ for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEff
 Hooks.on("updateActor", (actor, changes) => {
   if (game.system?.id !== "acks") return;
   if (!foundry.utils.hasProperty(changes, `flags.${MODULE_ID}`)) return;
-  syncActorTokens(actor).catch(() => {});
+  syncActorTokens(actor).catch((err) => console.warn(`${MODULE_ID} | actor sense sync failed`, err));
 });
 
 /* Catch up a scene the GM was not on when any of the above happened. */

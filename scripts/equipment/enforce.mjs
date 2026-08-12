@@ -14,6 +14,7 @@ import { MODULE_ID, SETTINGS, ENFORCE, HOOKS } from "./constants.mjs";
 import { getLoadout, VIOLATION, heldHandsClause } from "./loadout.mjs";
 import { syncLoadoutEffect } from "./effects.mjs";
 import { isEquippable } from "../lib/item-model.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /**
  * Is this an equip-state change on a wearable item of a character?
@@ -50,7 +51,7 @@ export function primaryResponder(actor) {
  * storm of "ActiveEffect does not exist" races when another module rewrote a
  * monster's embedded items. This is the single gate every write path checks.
  */
-export const managesLoadout = (actor) => actor?.type === "character";
+export const managesLoadout = (actor) => actor?.type === ACTOR_TYPE.character;
 
 /** Blocking (non-advisory) violations of a loadout. */
 function blockingViolations(loadout) {

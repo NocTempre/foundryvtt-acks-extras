@@ -11,6 +11,7 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { classItems, classForActor, byBookOrder } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** The pickers OFFER core classes (plus whatever the actor is already bound
  *  to); everything else waits behind the show-all toggle. Listed as the books
@@ -87,7 +88,7 @@ function onRenderCharacterSheet(app, element) {
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root) return;
   const doc = app.document;
-  if (!(doc instanceof Actor) || doc.type !== "character" || !doc.isOwner) return;
+  if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character || !doc.isOwner) return;
   root.classList.add(SHEET_CLASS);
 
   // A class document DRAGGED onto the sheet binds it (with the usual apply

@@ -24,7 +24,7 @@
  */
 
 import { MODULE_ID } from "./constants.mjs";
-import { slug, resolveLevelValue } from "../lib/vocab.mjs";
+import { slug, resolveLevelValue, ITEM_TYPE } from "../lib/vocab.mjs";
 
 // Declared here as well as in lib/capabilities.mjs: the flag-scope validator
 // resolves a scope to its literal value within the calling file. Read via the
@@ -132,7 +132,7 @@ export function invalidateLadders() {
 }
 
 function takeLadder(map, item) {
-  const id = item?.type === "ability" ? item.flags?.[DEFINITION_SCOPE]?.cookbook?.id : null;
+  const id = item?.type === ITEM_TYPE.ability ? item.flags?.[DEFINITION_SCOPE]?.cookbook?.id : null;
   if (!id?.startsWith(SKILL_PREFIX)) return;
   const ladder = ladderOf(item);
   if (ladder && !map.has(id.slice(SKILL_PREFIX.length))) map.set(id.slice(SKILL_PREFIX.length), ladder);
@@ -180,7 +180,7 @@ export function importedLadderFor(key, actor = null) {
   if (!key) return null;
   const id = skillDefId(key);
   const carries = (item) =>
-    item?.type === "ability" && item.flags?.[DEFINITION_SCOPE]?.cookbook?.id === id ? ladderOf(item) : null;
+    item?.type === ITEM_TYPE.ability && item.flags?.[DEFINITION_SCOPE]?.cookbook?.id === id ? ladderOf(item) : null;
   // Everything readable synchronously is read synchronously, so a world that
   // imports into the item directory never depends on the cache at all.
   for (const item of actor?.items ?? []) {

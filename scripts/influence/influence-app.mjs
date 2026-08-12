@@ -31,6 +31,7 @@ import {
 } from "./actor-data.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -87,6 +88,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   #subtotal = 0;
   /** Effective modifier applied to the roll (#subtotal + GM adjustment). */
   #finalModifier = 0;
+  /** DragDrop instances for the declared configs; _onRender only re-binds them. */
+  #dragDrop;
 
   /** socketlib module socket, set in module.mjs on `socketlib.ready`. */
   static socket = null;
@@ -139,6 +142,20 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       targetKindOverridden: false,
     };
 
+    // One DragDrop per declared config, built once here so drop wiring is
+    // configuration, not per-render DOM work.
+    this.#dragDrop = (this.options.dragDrop ?? []).map(
+      (config) =>
+        new foundry.applications.ux.DragDrop.implementation({
+          ...config,
+          callbacks: {
+            dragover: (ev) => ev.currentTarget.classList.add("drop-hover"),
+            dragleave: (ev) => ev.currentTarget.classList.remove("drop-hover"),
+            drop: (ev) => this.#onDropActor(ev, ev.currentTarget.dataset.side),
+          },
+        })
+    );
+
     this.#loadAttitude();
     this.#recalculate();
   }
@@ -159,6 +176,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       setAttitude: InfluenceApp.#onSetAttitude,
       resetDefaults: InfluenceApp.#onResetDefaults,
     },
+    // Actors/tokens dropped on either party panel become that side's actor.
+    dragDrop: [{ dropSelector: ".influence-party[data-side]" }],
     actor: null,
   };
 
@@ -838,25 +857,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /** @override */
   _onRender(context, options) {
     super._onRender?.(context, options);
-    for (const el of this.element.querySelectorAll(".influence-party[data-side]")) {
-      el.addEventListener("dragover", (ev) => {
-        ev.preventDefault();
-        el.classList.add("drop-hover");
-      });
-      el.addEventListener("dragleave", () => el.classList.remove("drop-hover"));
-      el.addEventListener("drop", (ev) => this.#onDropActor(ev, el.dataset.side));
-    }
+    for (const dragDrop of this.#dragDrop) dragDrop.bind(this.element);
   }
 
   async #onDropActor(event, side) {
-    event.preventDefault();
     event.currentTarget?.classList?.remove("drop-hover");
-    let data;
-    try {
-      data = JSON.parse(event.dataTransfer.getData("text/plain"));
-    } catch {
-      return;
-    }
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     let actor = null;
     if (data?.type === "Actor") actor = (await fromUuid(data.uuid)) ?? game.actors.get(data.id);
     else if (data?.type === "Token") actor = (await fromUuid(data.uuid))?.actor ?? null;
@@ -986,7 +992,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
 
   /** Adjust an actor's Gold money item by `delta` gp (creating it on credit). */
   async #adjustGold(actor, delta) {
-    const gold = actor.items.find((i) => i.type === "money" && /gold/i.test(i.name));
+    const gold = actor.items.find((i) => i.type === ITEM_TYPE.money && /gold/i.test(i.name));
     if (!gold) {
       if (delta > 0) {
         await actor.createEmbeddedDocuments("Item", [

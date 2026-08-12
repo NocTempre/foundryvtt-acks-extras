@@ -19,7 +19,7 @@
  */
 import { MODULE_ID, HOOKS, ITEM_FLAGS } from "./constants.mjs";
 import { containerOf, isLocked, setOpened, contentsOf, isFragile } from "./containers.mjs";
-import { slug, SLOT } from "../lib/vocab.mjs";
+import { slug, SLOT, ITEM_TYPE } from "../lib/vocab.mjs";
 import { isWorn, slotsOf, declaresSlots } from "../lib/item-model.mjs";
 
 /**
@@ -38,7 +38,7 @@ const BASH_NAMES = ["dungeonbashing", "dungeonbash", "bashing"];
 function findAbility(actor, names) {
   return (
     actor?.items?.find((i) => {
-      if (i.type !== "ability") return false;
+      if (i.type !== ITEM_TYPE.ability) return false;
       const n = slug(i.name);
       return names.some((want) => n.startsWith(want));
     }) ?? null

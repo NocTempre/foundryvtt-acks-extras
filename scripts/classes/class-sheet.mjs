@@ -19,7 +19,7 @@ import ClassData from "./class-data.mjs";
 import { findByRef } from "./registry.mjs";
 import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabel } from "./builder.mjs";
 import { CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
-import { ATTRIBUTES } from "../lib/vocab.mjs";
+import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -320,7 +320,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (data?.type !== "Item" || !data.uuid) return;
     const dropped = await fromUuid(data.uuid);
-    if (dropped?.type !== "ability") return;
+    if (dropped?.type !== ITEM_TYPE.ability) return;
     const ref = refOf(dropped);
     const zone = event.target.closest("[data-accept-drop]");
     const list = zone?.dataset.list;

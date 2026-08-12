@@ -40,6 +40,41 @@ export const slug = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "
 /*  Shared vocabulary — defined here, re-exported by monsters/config */
 /* ---------------------------------------------------------------- */
 
+/**
+ * The core system's Item document sub-types, as named constants — write
+ * `ITEM_TYPE.weapon`, never a bare `"weapon"`. Mirrors the system's own
+ * `ITEM_TYPE` enum (core `src/module/constants.mjs`), which a module cannot
+ * import: core does not publish its constants on any API surface, and the
+ * system tree is an unmodifiable reference. Key equals value (the `SLOT`
+ * convention below), so the constant reads as the literal it stands for.
+ *
+ * DOCUMENT types only. `system.type` ("shield", "melee"), light kinds,
+ * request kinds and every other domain `.type` field keep their own
+ * vocabulary — this enum names what `Item#type` can be, nothing else.
+ */
+export const ITEM_TYPE = Object.freeze({
+  item: "item",
+  weapon: "weapon",
+  armor: "armor",
+  spell: "spell",
+  ability: "ability",
+  language: "language",
+  money: "money",
+  bundle: "bundle",
+});
+
+/**
+ * The core system's Actor document sub-types. The library's OWN actor
+ * sub-types (`acks-extras.animal` / `.group` / `.template`) are module-id-
+ * prefixed and already named by `ANIMAL_TYPE` / `GROUP_TYPE` / `TEMPLATE_TYPE`
+ * in lib/module.mjs — they stay there because they embed `MODULE_ID`, which
+ * this Foundry-free file deliberately does not re-export.
+ */
+export const ACTOR_TYPE = Object.freeze({
+  character: "character",
+  monster: "monster",
+});
+
 /** Damage types (MM Overview p.12; core system damage set). */
 export const DAMAGE_TYPES = {
   acidic: { label: "Acidic" },

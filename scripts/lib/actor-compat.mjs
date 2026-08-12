@@ -29,6 +29,7 @@
  * @see docs/API.md — "actorCompat"
  */
 
+import { ITEM_TYPE } from "./vocab.mjs";
 const F = () => foundry.data.fields;
 const int = (initial) => new (F().NumberField)({ required: true, integer: true, initial });
 
@@ -218,9 +219,9 @@ export async function repairSaveReferences({ dryRun = true } = {}) {
       }
       report.push(entry);
     }
-    for (const item of actor.items ?? []) if (item.type === "ability") await scanAbility(item);
+    for (const item of actor.items ?? []) if (item.type === ITEM_TYPE.ability) await scanAbility(item);
   }
-  for (const item of game.items ?? []) if (item.type === "ability") await scanAbility(item);
+  for (const item of game.items ?? []) if (item.type === ITEM_TYPE.ability) await scanAbility(item);
 
   return report;
 }

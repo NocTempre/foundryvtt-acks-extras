@@ -23,6 +23,7 @@
  */
 import { makeLoc, libStorage as storage } from "../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, FLAG_PENDING_DEPOSIT } from "./constants.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -70,7 +71,7 @@ export async function vaultFor(character) {
 function bankedLedger(character) {
   const ledger = [];
   for (const item of character.items) {
-    if (item.type !== "money") continue;
+    if (item.type !== ITEM_TYPE.money) continue;
     const quantity = Number(item.system?.quantitybank ?? 0);
     if (!(quantity > 0)) continue;
     ledger.push({
@@ -103,7 +104,7 @@ async function depositLedger(character, ledger) {
   // A coin row that was pure bank balance is now an empty stack; drop it.
   const spent = ledger.map((e) => e.sourceItemId);
   const empties = character.items
-    .filter((i) => spent.includes(i.id) && i.type === "money")
+    .filter((i) => spent.includes(i.id) && i.type === ITEM_TYPE.money)
     .filter((i) => !(Number(i.system?.quantity ?? 0) > 0) && !(Number(i.system?.quantitybank ?? 0) > 0))
     .map((i) => i.id);
   if (empties.length) await character.deleteEmbeddedDocuments("Item", empties);
@@ -120,14 +121,14 @@ export async function runVaultSweep({ announce = true } = {}) {
 
   // Resume first: a ledger means a previous run zeroed the field but died
   // before the coin landed. The ledger is the truth, not the (now zero) field.
-  for (const character of game.actors.filter((a) => a.type === "character")) {
+  for (const character of game.actors.filter((a) => a.type === ACTOR_TYPE.character)) {
     const pending = character.getFlag(MODULE_ID, FLAG_PENDING_DEPOSIT);
     if (!pending?.length) continue;
     const vault = await depositLedger(character, pending);
     moved.push({ character, vault, ledger: pending, resumed: true });
   }
 
-  for (const character of game.actors.filter((a) => a.type === "character")) {
+  for (const character of game.actors.filter((a) => a.type === ACTOR_TYPE.character)) {
     const ledger = bankedLedger(character);
     if (!ledger.length) continue;
 

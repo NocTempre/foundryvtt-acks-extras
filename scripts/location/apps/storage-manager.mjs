@@ -16,6 +16,7 @@
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
 import { vaultFor } from "../vault-sweep.mjs";
+import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const { DialogV2 } = foundry.applications.api;
@@ -117,7 +118,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
       groups,
       empty: !groups.length,
       targets: all.filter((p) => p.uuid !== this.#placeUuid).map((p) => ({ uuid: p.uuid, name: p.name })),
-      owners: game.actors.filter((a) => a.type === "character").map((a) => ({ uuid: a.uuid, name: a.name })),
+      owners: game.actors.filter((a) => a.type === ACTOR_TYPE.character).map((a) => ({ uuid: a.uuid, name: a.name })),
       selected: this.#selection.size,
     };
   }
@@ -222,7 +223,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
       ui.notifications.warn(loc("manager.nothingPicked"));
       return;
     }
-    const owners = game.actors.filter((a) => a.type === "character");
+    const owners = game.actors.filter((a) => a.type === ACTOR_TYPE.character);
     if (!owners.length) return;
 
     const options = owners.map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
@@ -280,7 +281,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Turn any actor into a place that holds goods — a wagon, a stronghold, a market. */
   static async #onEnableStorage() {
     const api = storage();
-    const candidates = game.actors.filter((a) => !api.isProvider(a) && a.type !== "character");
+    const candidates = game.actors.filter((a) => !api.isProvider(a) && a.type !== ACTOR_TYPE.character);
     if (!candidates.length) {
       ui.notifications.warn(loc("manager.nothingToEnable"));
       return;
@@ -349,7 +350,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   static async #onCreateVault() {
     const api = storage();
-    const candidates = game.actors.filter((a) => a.type === "character" && a.isOwner && !api.findVaultOf(a.uuid));
+    const candidates = game.actors.filter((a) => a.type === ACTOR_TYPE.character && a.isOwner && !api.findVaultOf(a.uuid));
     if (!candidates.length) {
       ui.notifications.warn(loc("manager.everyoneHasVault"));
       return;

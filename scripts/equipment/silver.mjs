@@ -32,6 +32,7 @@ import { SILVER, WEAPONS } from "./config.mjs";
 import { weaponKey } from "./profiles.mjs";
 import { silveredFlagOf, recomputeItemFields } from "./properties.mjs";
 import { isAmmoItem } from "../lib/item-model.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
  * Silver is a WEAPON quality, so only a weapon — or a stack of ammunition, which
@@ -39,7 +40,7 @@ import { isAmmoItem } from "../lib/item-model.mjs";
  * silver without any of this meaning a thing.
  */
 export function canBeSilvered(item) {
-  return item?.type === "weapon" || (item?.type === "item" && isAmmoItem(item));
+  return item?.type === ITEM_TYPE.weapon || (item?.type === ITEM_TYPE.item && isAmmoItem(item));
 }
 
 /**

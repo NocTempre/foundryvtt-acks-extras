@@ -28,7 +28,7 @@
  * its contribution.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
-import { slug } from "../lib/vocab.mjs";
+import { slug, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 const DEFINITION_SCOPE = "acks-importer"; // the importer owns its provenance flags; they persist even when it is uninstalled
 const ABILITIES_FLAG_SCOPE = "acks-extras";
@@ -296,7 +296,7 @@ function addTypedEffects(actor, item, { addNum, addStr, booleans }) {
  */
 export function bridgeContributions(actor) {
   const out = { numeric: new Map(), strings: new Map(), booleans: new Set() };
-  if (actor?.type !== "character") return out;
+  if (actor?.type !== ACTOR_TYPE.character) return out;
 
   const addNum = (domain, label, value) => {
     if (!out.numeric.has(domain)) out.numeric.set(domain, []);
@@ -309,7 +309,7 @@ export function bridgeContributions(actor) {
   };
 
   for (const item of actor.items ?? []) {
-    if (item.type !== "ability") continue;
+    if (item.type !== ITEM_TYPE.ability) continue;
     if (speaksNative(item)) continue; // native effect items are not bridged
 
     // The typed model first, and independently of the slug tables: an ability

@@ -94,7 +94,7 @@ Hooks.once("init", () => {
       `modules/${MODULE_ID}/templates/classes/class-sheet.hbs`,
       `modules/${MODULE_ID}/templates/classes/race-sheet.hbs`,
     ])
-    .catch(() => {});
+    .catch((err) => console.warn(`${MODULE_ID} | template preload skipped`, err));
 
   acksExtras.classes = {
     CLASS_TYPE,

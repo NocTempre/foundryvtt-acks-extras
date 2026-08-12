@@ -18,6 +18,7 @@ import { classForActor, findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 import { normalizeHd, parseHd, rollHitDice } from "./hitpoints.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 export const HP_MODE_SETTING = "levelUpHpMode";
 
@@ -62,12 +63,12 @@ const isAdventuring = (item) =>
  */
 export const choosableGenerals = () =>
   (game.items ?? []).filter(
-    (i) => i.type === "ability" && i.system.proficiencytype === "general" && !isAdventuring(i),
+    (i) => i.type === ITEM_TYPE.ability && i.system.proficiencytype === "general" && !isAdventuring(i),
   );
 
 /** Grant the free-with-every-class Adventuring proficiency, once. */
 export async function grantAdventuring(actor, grants) {
-  const doc = (game.items ?? []).find((i) => i.type === "ability" && isAdventuring(i));
+  const doc = (game.items ?? []).find((i) => i.type === ITEM_TYPE.ability && isAdventuring(i));
   if (doc) await grantAbility(actor, refOf(doc), grants);
 }
 
@@ -188,7 +189,7 @@ export async function openLevelUp(actor) {
 /** Notify (once per level) when a character's XP reaches its threshold. */
 function onActorUpdate(actor, changes, _options, userId) {
   if (userId !== game.userId) return;
-  if (!(actor instanceof Actor) || actor.type !== "character") return;
+  if (!(actor instanceof Actor) || actor.type !== ACTOR_TYPE.character) return;
   if (foundry.utils.getProperty(changes, "system.details.xp.value") === undefined) return;
   const classItem = classForActor(actor);
   if (!classItem) return;
@@ -208,7 +209,7 @@ function onRenderCharacterSheet(app, element) {
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root) return;
   const doc = app.document;
-  if (!(doc instanceof Actor) || doc.type !== "character" || !doc.isOwner) return;
+  if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character || !doc.isOwner) return;
   const pick = root.querySelector(".acks-extras-classes-pick");
   if (!pick || pick.parentElement.querySelector(".acks-extras-classes-levelup")) return;
   const classItem = classForActor(doc);

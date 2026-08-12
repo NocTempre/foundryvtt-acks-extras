@@ -1,4 +1,4 @@
-/* global game, ui, foundry, fromUuid, TextEditor */
+/* global game, ui, foundry, fromUuid */
 /**
  * Ruledata Browser — the GM's audit-and-tweak surface over every imported
  * table. Imported tables become Foundry documents, prefilled with the current
@@ -34,6 +34,8 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
       editEntry: RuledataBrowser.#onEdit,
       viewEntry: RuledataBrowser.#onView,
     },
+    // Every table row is an override-by-drop target (see the file header).
+    dragDrop: [{ dropSelector: "[data-entry-key]" }],
   };
 
   static PARTS = {
@@ -61,12 +63,19 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
     return context;
   }
 
+  /** DragDrop instances for the declared configs; _onRender only re-binds them. */
+  #dragDrop;
+
   _onRender(context, options) {
     super._onRender(context, options);
-    for (const rowEl of this.element.querySelectorAll("[data-entry-key]")) {
-      rowEl.addEventListener("dragover", (ev) => ev.preventDefault());
-      rowEl.addEventListener("drop", (ev) => this.#onDrop(ev, rowEl.dataset.entryKey));
-    }
+    this.#dragDrop ??= (this.options.dragDrop ?? []).map(
+      (config) =>
+        new foundry.applications.ux.DragDrop.implementation({
+          ...config,
+          callbacks: { drop: (ev) => this.#onDrop(ev, ev.currentTarget.dataset.entryKey) },
+        })
+    );
+    for (const dragDrop of this.#dragDrop) dragDrop.bind(this.element);
   }
 
   #entry(key) {
@@ -74,16 +83,9 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async #onDrop(event, key) {
-    event.preventDefault();
     const entry = this.#entry(key);
     if (!entry || !game.user.isGM) return;
-    let dropData;
-    try {
-      const TE = foundry.applications?.ux?.TextEditor?.implementation ?? TextEditor;
-      dropData = TE.getDragEventData(event);
-    } catch {
-      return;
-    }
+    const dropData = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     try {
       const { data, sourceUuid, sourceName } = await parseDrop(entry, dropData);
       await setOverride(entry.docId, entry.tableId, data, { sourceUuid, sourceName });

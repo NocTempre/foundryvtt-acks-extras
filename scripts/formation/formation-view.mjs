@@ -31,6 +31,7 @@ import { senseProfile } from "../lib/senses.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS } from "./party-rolls.mjs";
 import { formatTurns, parseSpellTurns } from "./turn-engine.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
  * Build the display context shared by the GM formation window and the party
@@ -340,7 +341,7 @@ export function buildGMExtras(formation) {
     const actor = getMemberActor(member);
     const level = actor?.system?.details?.level ?? 1;
     for (const item of actor?.items ?? []) {
-      if (item.type !== "spell") continue;
+      if (item.type !== ITEM_TYPE.spell) continue;
       const turns = parseSpellTurns(item.system?.duration, level);
       extras.spellOptions.push({
         key: `${actor.id}|${item.id}`,
@@ -382,7 +383,7 @@ export function buildPlayerPanel(formation) {
   for (const actor of owned) {
     const level = actor.system?.details?.level ?? 1;
     for (const item of actor.items) {
-      if (item.type !== "spell") continue;
+      if (item.type !== ITEM_TYPE.spell) continue;
       const turns = parseSpellTurns(item.system?.duration, level);
       panel.playerSpells.push({
         key: `${actor.id}|${item.id}`,

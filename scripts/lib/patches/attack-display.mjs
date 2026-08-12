@@ -19,13 +19,14 @@
  */
 import { toNum as num } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
+import { ACTOR_TYPE } from "../vocab.mjs";
 
 const signed = (n) => (n >= 0 ? `+${n}` : `${n}`);
 
 function fixAttackDisplays(app, element) {
   if (game.system?.id !== "acks") return;
   const actor = app.actor ?? app.document;
-  if (actor?.type !== "character") return;
+  if (actor?.type !== ACTOR_TYPE.character) return;
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root) return;
   const sys = actor.system;

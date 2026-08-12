@@ -20,6 +20,7 @@ import { MODULE_ID, FLAG_MONSTER_LIST, HOOKS } from "../constants.mjs";
 import { openLoyaltyRoll } from "../engine/events.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
+import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const GRID_CLASS = "acks-henchmen-follower-grid";
 
@@ -28,7 +29,7 @@ async function gridifyHirelings(app, element) {
   const api = globalThis.acksExtras?.lib?.followerCard;
   if (!api?.render) return; // older acks-lib — leave the stock list intact
   const employer = app.actor ?? app.document;
-  if (employer?.type !== "character") return;
+  if (employer?.type !== ACTOR_TYPE.character) return;
   const root = element instanceof HTMLElement ? element : element?.[0];
   const tab = root?.querySelector('.tab[data-tab="hirelings"]');
   if (!tab) return;
@@ -49,7 +50,7 @@ async function gridifyHirelings(app, element) {
   );
   const monsters = (employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [])
     .map((id) => game.actors.get(id))
-    .filter((a) => a && a.type === "monster");
+    .filter((a) => a && a.type === ACTOR_TYPE.monster);
   const groups = [
     { title: game.i18n.localize("ACKS-HENCHMEN.bucket.henchmen"), list: [...(buckets.henchman ?? []), ...monsters] },
     { title: game.i18n.localize("ACKS-HENCHMEN.bucket.mercenaries"), list: buckets.mercenary ?? [] },
@@ -68,7 +69,7 @@ async function gridifyHirelings(app, element) {
     const cells = await Promise.all(
       g.list.map(async (h) => {
         let card = await api.render(h, { editable: false });
-        if (h.type === "monster") card = card.replaceAll('data-action="hireling', 'data-action="acksHmMon');
+        if (h.type === ACTOR_TYPE.monster) card = card.replaceAll('data-action="hireling', 'data-action="acksHmMon');
         // The .item wrapper carries data-item-id so both the system's hireling
         // actions (characters) and this module's handler (monsters) resolve the
         // hireling via closest(".item").dataset.itemId.

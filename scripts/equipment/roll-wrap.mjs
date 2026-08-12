@@ -40,6 +40,7 @@ import { isWeaponProficient } from "./proficiency.mjs";
 import { hasEffectFlag, collectStringFlags } from "./effects.mjs";
 import { encumbranceDelta6 } from "./containers.mjs";
 import { consumeForAttack } from "./ammo.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** Sizes eligible for Weapon Finesse (RR p. 121). */
 const FINESSE_SIZES = [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM];
@@ -79,14 +80,14 @@ const withDelta = (formula, delta) => (delta > 0 ? `${formula} + ${delta}` : `${
  * @returns {{bonusDelta:number, damage:string|null, notes:string[]}|null}
  */
 export function computeAttackMods(actor, attData, options = {}) {
-  if (actor?.type !== "character") return null; // monster natural attacks are not proficiency-gated
+  if (actor?.type !== ACTOR_TYPE.character) return null; // monster natural attacks are not proficiency-gated
   const itemId = attData?.item?._id;
   // KNOWN GAP: an item-less attack (the sheet's bare attack button) has no
   // `item.system.bonus` for the wrap to carry a delta through, so the
   // non-proficient-use degradation below cannot reach it. Judge-side.
   if (!itemId) return null;
   const item = actor.items.get(itemId);
-  if (item?.type !== "weapon") return null; // non-weapon item rolls stay untouched
+  if (item?.type !== ITEM_TYPE.weapon) return null; // non-weapon item rolls stay untouched
 
   const profile = item ? classifyWeapon(item) : null;
   const loadout = getLoadout(actor);
@@ -263,7 +264,7 @@ async function onRollAttack(wrapped, attData, options = {}) {
   try {
     const realItem = attData?.item?._id ? this.items?.get?.(attData.item._id) : null;
     const keyable = !!shot && typeof shot === "object"; // WeakSet.add throws on a primitive
-    if (result != null && realItem?.type === "weapon" && keyable && !spentShots.has(shot)) {
+    if (result != null && realItem?.type === ITEM_TYPE.weapon && keyable && !spentShots.has(shot)) {
       spentShots.add(shot);
       consumeForAttack(this, realItem, classifyWeapon(realItem), options).catch((err) =>
         console.error(`${MODULE_ID} | ammunition consumption failed`, err),
@@ -296,7 +297,7 @@ async function onRollAttack(wrapped, attData, options = {}) {
 function onComputeEncumbrance(wrapped, ...args) {
   const result = wrapped(...args);
   try {
-    if (this.type !== "character") return result;
+    if (this.type !== ACTOR_TYPE.character) return result;
     const delta6 = encumbranceDelta6(this);
     if (!delta6) return result; // common case: nothing RAW-specific applies
     const enc = this.system.encumbrance;

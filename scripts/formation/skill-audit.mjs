@@ -14,6 +14,7 @@ import {
 } from "./ability-bridge.mjs";
 import { getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
 import { PARTY_CHECKS, resolveCheck, scaledSkillTarget, inferredThiefSkill } from "./party-rolls.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -123,7 +124,7 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
           return { label: `${check.target}+${bonus}`, source: check.source };
         }),
         items: actor.items
-          .filter((i) => i.type === "ability")
+          .filter((i) => i.type === ITEM_TYPE.ability)
           .map((item) => ({
             uuid: item.uuid,
             name: item.name,
@@ -195,7 +196,7 @@ function collectPartyAbilities(formation) {
     const actor = getMemberActor(member);
     if (!actor) continue;
     for (const item of actor.items) {
-      if (item.type !== "ability") continue;
+      if (item.type !== ITEM_TYPE.ability) continue;
       const key = abilityKey(item);
       let row = rows.get(key);
       if (!row) {
@@ -277,7 +278,7 @@ export function registerSkillFlagEditor() {
   Hooks.on("renderApplicationV2", (app, element) => {
     try {
       const item = app?.document;
-      if (item?.documentName !== "Item" || item.type !== "ability") return;
+      if (item?.documentName !== "Item" || item.type !== ITEM_TYPE.ability) return;
       const root = element instanceof HTMLElement ? element : element?.[0];
       if (!root) return;
       injectSkillUI(app, root, item);

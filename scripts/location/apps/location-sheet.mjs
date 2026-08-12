@@ -1,4 +1,4 @@
-/* global game, ui, foundry, fromUuidSync, fromUuid, Actor, RollTable, TextEditor, Hooks, CONST */
+/* global game, ui, foundry, fromUuidSync, fromUuid, Actor, RollTable, Hooks, CONST */
 /**
  * LocationSheet — ActorSheetV2 for the `acks-extras.location` sub-type.
  *
@@ -33,6 +33,7 @@ import { openPostingDialog } from "../../henchmen/apps/posting-dialog.mjs";
 import { openRecruitDialog, openRecruitSpecial } from "../../henchmen/apps/recruit-dialog.mjs";
 import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
+import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -117,6 +118,10 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       addMarket: LocationSheet.#onAddMarket,
       removeMarket: LocationSheet.#onRemoveMarket,
     },
+    // Culture mix by drag-and-drop: drop a RollTable of cultures on the
+    // demographics block to SET this town's mix (result text = culture,
+    // weight = result weight/range width). The exported mix round-trips.
+    dragDrop: [{ dropSelector: ".demographics-block" }],
   };
 
   static PARTS = {
@@ -531,6 +536,9 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       }));
   }
 
+  /** DragDrop instances for the declared configs; _onRender only re-binds them. */
+  #dragDrop;
+
   /**
    * Candidate-list ergonomics for big markets: a text filter and
    * click-to-sort headers, both pure DOM (no re-render, keeps the sheet
@@ -541,14 +549,17 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     super._onRender(context, options);
     const root = this.element;
 
-    // Culture mix by drag-and-drop: drop a RollTable of cultures on the
-    // demographics block to SET this town's mix (result text = culture,
-    // weight = result weight/range width). The exported mix round-trips.
-    const demoBlock = root.querySelector(".demographics-block");
-    if (demoBlock && game.user.isGM) {
-      demoBlock.addEventListener("dragover", (ev) => ev.preventDefault());
-      demoBlock.addEventListener("drop", (ev) => this.#onDropDemographics(ev));
-    }
+    // The GM-only permission gates the bind itself: a player's demographics
+    // block gets no drop handlers at all.
+    this.#dragDrop ??= (this.options.dragDrop ?? []).map(
+      (config) =>
+        new foundry.applications.ux.DragDrop.implementation({
+          ...config,
+          permissions: { drop: () => game.user.isGM },
+          callbacks: { drop: (ev) => this.#onDropDemographics(ev) },
+        })
+    );
+    for (const dragDrop of this.#dragDrop) dragDrop.bind(root);
 
     // One filter per candidate tab, scoped to its own tables.
     root.querySelectorAll("[data-candidate-filter]").forEach((filterInput) => {
@@ -838,15 +849,10 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   /** Drop a RollTable on the demographics block → set the culture mix. */
   async #onDropDemographics(event) {
-    event.preventDefault();
+    // Without this the drop bubbles to the sheet root, where ActorSheetV2's own
+    // DragDrop would treat it as a document drop on the actor.
     event.stopPropagation();
-    let dropData;
-    try {
-      const TE = foundry.applications?.ux?.TextEditor?.implementation ?? TextEditor;
-      dropData = TE.getDragEventData(event);
-    } catch {
-      return;
-    }
+    const dropData = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (dropData?.type !== "RollTable") return;
     const table = await fromUuid(dropData.uuid).catch(() => null);
     if (!table) return;
@@ -1059,7 +1065,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.vaultOwner = api.resolveActorSync(api.vaultOwnerUuid(actor))?.name ?? null;
     // The characters this user could stash FROM — the deposit button is
     // pointless (and its dialog empty) without one.
-    context.canDeposit = game.actors.some((a) => a.type === "character" && a.isOwner);
+    context.canDeposit = game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
 
     const groups = [];
     for (const bucket of api.storesByOwner(actor).values()) {
@@ -1133,7 +1139,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   static async #onDepositHere() {
-    const mine = game.actors.filter((a) => a.type === "character" && a.isOwner);
+    const mine = game.actors.filter((a) => a.type === ACTOR_TYPE.character && a.isOwner);
     if (!mine.length) {
       ui.notifications.warn(loc("storage.noCharacter"));
       return;

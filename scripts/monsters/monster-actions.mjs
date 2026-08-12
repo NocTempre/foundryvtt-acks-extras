@@ -9,6 +9,7 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import MonsterExtras from "./monster-extras.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** Default blank row for each array-valued extras path. */
 function defaultRow(path) {
@@ -81,7 +82,7 @@ async function removeRow(event, target) {
  * retainer fields and append to the manager's henchmenList directly.
  */
 async function serveAsHenchman() {
-  const managers = game.actors.filter((a) => a.type === "character");
+  const managers = game.actors.filter((a) => a.type === ACTOR_TYPE.character);
   if (!managers.length) {
     ui.notifications.warn(game.i18n.localize("ACKS-MONSTERS.notify.noManagers"));
     return;

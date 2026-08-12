@@ -25,6 +25,7 @@ import { openThrowDialog } from "../apps/throw-dialog.mjs";
 import { postEventCard, registerCardAction, postRevealCard } from "../chat/cards.mjs";
 import { getSetting } from "../settings.mjs";
 import { now, secondsPerMonth, onTimeAdvanced } from "../time.mjs";
+import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 /* ------------------------- effective scores ------------------------- */
 
@@ -400,7 +401,7 @@ export function allEmployers() {
   const anyGroups = game.actors.some((g) => g.type === GROUP_TYPE);
   return game.actors.filter(
     (a) =>
-      a.type === "character" &&
+      a.type === ACTOR_TYPE.character &&
       !a.system?.retainer?.enabled &&
       (a.system?.henchmenList?.length ||
         (a.getFlag(MODULE_ID, "monsterHenchmenList") ?? []).length ||

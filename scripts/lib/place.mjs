@@ -61,6 +61,7 @@ import {
   visibleOccupants,
   wouldCycle,
 } from "./place-logic.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "./vocab.mjs";
 
 // Re-export the Foundry-free half so consumers reach it all through
 // `acksLib.places`, while the pure half stays independently Node-importable.
@@ -352,7 +353,7 @@ export function occupantKindOf(actor) {
   if (!actor) return OCCUPANT_KIND.ACTOR;
   if (actor.type === `${MODULE_ID}.group`) return OCCUPANT_KIND.GROUP;
   if (actor.system?.retainer?.enabled) return OCCUPANT_KIND.HENCHMAN;
-  if (actor.type === "monster") return OCCUPANT_KIND.MONSTER;
+  if (actor.type === ACTOR_TYPE.monster) return OCCUPANT_KIND.MONSTER;
   return OCCUPANT_KIND.ACTOR;
 }
 
@@ -502,7 +503,7 @@ export function coinRollupGC(doc, nodes = null) {
 /** Coin stored at one provider, in gold. */
 function coinAt(actor) {
   return storedItems(actor)
-    .filter((i) => i.type === "money")
+    .filter((i) => i.type === ITEM_TYPE.money)
     .reduce((sum, i) => sum + (Number(i.system?.quantity) || 0) * ((Number(i.system?.coppervalue) || 0) / 100), 0);
 }
 

@@ -30,15 +30,24 @@ import {
   pagesUsed, pagesCapacity, spellbookValue,
 } from "./spellbook.mjs";
 import * as named from "./overlays/named.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 const T = `modules/${MODULE_ID}/templates/equipment`;
-export const EQUIPMENT_SHEET_TYPES = ["weapon", "armor", "item"];
+export const EQUIPMENT_SHEET_TYPES = [ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item];
 
 /** The system's registered (default) item sheet class — our base. */
 export function resolveItemSheetBase() {
   const registered = CONFIG.Item?.sheetClasses?.weapon ?? {};
   const entries = Object.values(registered);
-  return entries.find((e) => e.default)?.cls ?? entries[0]?.cls ?? null;
+  const defaulted = entries.find((e) => e.default) ?? null;
+  const chosen = defaulted ?? entries[0] ?? null;
+  // Registry order is not a choice: when several entries compete and none is
+  // flagged default, name the class adopted so a wrong base is diagnosable
+  // from the console. A lone entry is unambiguous and stays quiet.
+  if (!defaulted && entries.length > 1) {
+    console.warn(`${MODULE_ID} | no weapon sheet is flagged default; extending ${chosen.cls?.name} by registry order.`);
+  }
+  return chosen?.cls ?? null;
 }
 
 function el(tag, className, text) {
@@ -101,7 +110,7 @@ export function createEquipmentItemSheet(Base) {
      * description with an empty column beside it.
      */
     get #hasRolls() {
-      return this.item.type === "weapon";
+      return this.item.type === ITEM_TYPE.weapon;
     }
 
     /** The Spells tab exists ONLY on a recognised Spell Book. */
@@ -285,9 +294,9 @@ export function createEquipmentItemSheet(Base) {
       const ap = d?.apparent ?? {};
       const nameF = this.#stripField(ap.name ?? item.name, "ACKS-EQUIPMENT.disguise.nameHint");
       const costF = this.#stripField(ap.cost ?? item.system?.cost ?? 0, "ACKS-EQUIPMENT.disguise.cost", "number");
-      const statF = item.type === "weapon"
+      const statF = item.type === ITEM_TYPE.weapon
         ? this.#stripField(ap.damage ?? item.system?.damage ?? "", "ACKS-EQUIPMENT.disguise.damage")
-        : item.type === "armor"
+        : item.type === ITEM_TYPE.armor
           ? this.#stripField(ap.ac ?? item.system?.aac?.value ?? 0, "ACKS-EQUIPMENT.disguise.ac", "number")
           : null;
       strip.append(
@@ -296,8 +305,8 @@ export function createEquipmentItemSheet(Base) {
         this.#stripButton(d ? "ACKS-EQUIPMENT.disguise.update" : "ACKS-EQUIPMENT.disguise.apply", () =>
           disguiseItem(item, {
             name: nameF.value, cost: costF.value,
-            ...(item.type === "weapon" ? { damage: statF.value } : {}),
-            ...(item.type === "armor" ? { ac: statF.value } : {}),
+            ...(item.type === ITEM_TYPE.weapon ? { damage: statF.value } : {}),
+            ...(item.type === ITEM_TYPE.armor ? { ac: statF.value } : {}),
           })),
         ...(d ? [this.#stripButton("ACKS-EQUIPMENT.disguise.reveal", () => revealItem(item))] : []),
         el("span", `acks-equipment-props__note${d ? " acks-equipment-props__note--warn" : ""}`,
@@ -414,8 +423,8 @@ export function createEquipmentItemSheet(Base) {
             const base = named.baseOf(item);
             await item.update({
               "system.bonus": base.bonus,
-              ...(item.type === "weapon" ? { "system.damage": base.damage } : {}),
-              ...(item.type === "armor" ? { "system.aac.value": base.aac } : {}),
+              ...(item.type === ITEM_TYPE.weapon ? { "system.damage": base.damage } : {}),
+              ...(item.type === ITEM_TYPE.armor ? { "system.aac.value": base.aac } : {}),
               "system.weight6": base.weight6,
             });
             await item.unsetFlag(MODULE_ID, ITEM_FLAGS.NAMED);

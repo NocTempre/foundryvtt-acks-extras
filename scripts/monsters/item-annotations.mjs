@@ -12,6 +12,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES, NATURAL_WEAPONS, SPECIAL_ABILITIES, USAGE, choicesOf } from "./config.mjs";
+import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
 
 /** Build <option> markup from a { key: i18nLabelKey } choices map. */
 function options(choices, current, blankKey) {
@@ -29,7 +30,7 @@ function options(choices, current, blankKey) {
 function fieldsFor(item) {
   const flag = (key, fallback = "") => item.getFlag(MODULE_ID, key) ?? fallback;
   switch (item.type) {
-    case "weapon":
+    case ITEM_TYPE.weapon:
       return `
         <div class="acksm-flag-row">
           <label>${game.i18n.localize("ACKS-MONSTERS.item.naturalWeapon")}</label>
@@ -41,7 +42,7 @@ function fieldsFor(item) {
             ${game.i18n.localize("ACKS-MONSTERS.item.extraordinary")}
           </label>
         </div>`;
-    case "ability":
+    case ITEM_TYPE.ability:
       return `
         <div class="acksm-flag-row">
           <label>${game.i18n.localize("ACKS-MONSTERS.item.abilityCategory")}</label>
@@ -49,7 +50,7 @@ function fieldsFor(item) {
           <label>${game.i18n.localize("ACKS-MONSTERS.item.usage")}</label>
           <select data-field="usage">${options(choicesOf(USAGE), flag("usage"), "ACKS-MONSTERS.item.none")}</select>
         </div>`;
-    case "item":
+    case ITEM_TYPE.item:
       return `
         <div class="acksm-flag-row">
           <label class="checkbox">
@@ -91,8 +92,8 @@ export function registerItemAnnotations() {
       const item = app?.document;
       if (item?.documentName !== "Item") return;
       // Only annotate monster-owned attack/ability/spoil items.
-      if (item.parent?.type !== "monster") return;
-      if (!["weapon", "ability", "item"].includes(item.type)) return;
+      if (item.parent?.type !== ACTOR_TYPE.monster) return;
+      if (![ITEM_TYPE.weapon, ITEM_TYPE.ability, ITEM_TYPE.item].includes(item.type)) return;
 
       const root = element instanceof HTMLElement ? element : element?.[0];
       if (!root || root.querySelector(".acks-monsters-flags")) return;

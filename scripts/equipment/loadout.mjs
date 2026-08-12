@@ -12,6 +12,7 @@ import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, lightInit, enforcementActive } from "./proficiency.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /** Violation type keys (for i18n + auto-resolve). */
 export const VIOLATION = Object.freeze({
@@ -138,8 +139,8 @@ export function specializedStyles(actor) {
 export function getLoadout(actor, opts = {}) {
   const budget = handBudget(actor);
   const isEq = (i) => (opts.overrides?.has(i.id) ? opts.overrides.get(i.id) : !!i.system?.equipped);
-  const equippedWeapons = actor.items.filter((i) => i.type === "weapon" && isEq(i));
-  const equippedArmor = actor.items.filter((i) => i.type === "armor" && isEq(i));
+  const equippedWeapons = actor.items.filter((i) => i.type === ITEM_TYPE.weapon && isEq(i));
+  const equippedArmor = actor.items.filter((i) => i.type === ITEM_TYPE.armor && isEq(i));
 
   const shields = equippedArmor.filter(isShield);
   const helmets = equippedArmor.filter((a) => !isShield(a) && isHelmet(a));

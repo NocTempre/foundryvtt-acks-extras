@@ -18,6 +18,7 @@ import { registerSheet } from "./sheet.mjs";
 import { registerEquipmentItemSheet } from "./item-sheet.mjs";
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
 import { isWearable } from "../lib/item-model.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 
 Hooks.once("init", () => {
@@ -71,7 +72,7 @@ Hooks.once("ready", async () => {
   // it live.
   for (const hook of ["acksExtras.lightChanged", "acksExtras.roleChanged"]) {
     Hooks.on(hook, (actor) => {
-      if (actor?.type === "character" && actor.isOwner) {
+      if (actor?.type === ACTOR_TYPE.character && actor.isOwner) {
         refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | ${hook} loadout sync failed`, err));
       }
     });
@@ -79,7 +80,7 @@ Hooks.once("ready", async () => {
 
   // Rebuild loadout effects for owned characters on load (repairs after config
   // changes, migrations, or a session where enforcement was off).
-  const owned = game.actors.filter((a) => a.type === "character" && a.isOwner);
+  const owned = game.actors.filter((a) => a.type === ACTOR_TYPE.character && a.isOwner);
   for (const actor of owned) {
     refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | initial loadout sync failed for ${actor.name}`, err));
   }
@@ -88,7 +89,7 @@ Hooks.once("ready", async () => {
   // strand managed loadout effect(s) on a non-character actor — e.g. a monster
   // whose embedded items another module rewrote, sometimes several duplicates.
   // Remove every such stray in a single pass.
-  for (const actor of game.actors.filter((a) => a.type !== "character" && a.isOwner)) {
+  for (const actor of game.actors.filter((a) => a.type !== ACTOR_TYPE.character && a.isOwner)) {
     if (!primaryResponder(actor)) continue;
     const strays = actor.effects.filter((e) => e.getFlag?.(MODULE_ID, LOADOUT_EFFECT_FLAG) === true).map((e) => e.id);
     if (strays.length) {
@@ -122,7 +123,7 @@ Hooks.on("updateItem", (item, changes) => {
  * refresh it too — and proficiencies (ability items carrying
  * flags.acks-extras.* markers). */
 function affectsLoadout(item) {
-  return isWearable(item) || item?.type === "ability";
+  return isWearable(item) || item?.type === ITEM_TYPE.ability;
 }
 function onLoadoutItemChange(item) {
   const actor = item?.parent;

@@ -42,8 +42,22 @@ export function getStronghold(actor) {
   return null;
 }
 
+/** One console line per session when acks-domains' shape stops matching the probe. */
+let domainShapeWarned = false;
+function warnDomainShape(detail) {
+  if (domainShapeWarned) return;
+  domainShapeWarned = true;
+  console.warn(`${MODULE_ID} | acks-domains is active but its domain shape no longer matches; domain income falls back to flag/marker.`, detail ?? "");
+}
+
 /**
  * Monthly domain income in gp (vassal-wage waiver, RR 168).
+ *
+ * acks-domains stores no income field — income is derived — so the probe finds
+ * the domain the actor rules (`system.ruler` UUID) and asks the module's own
+ * published arithmetic (`api.rules.monthlyStatement`) for the net, feeding it
+ * the domain's schema fields. A shape mismatch warns once and falls through to
+ * the flag/marker chain rather than silently returning null.
  * @returns {number|null}
  */
 export function getDomainIncome(actor) {
@@ -51,12 +65,25 @@ export function getDomainIncome(actor) {
   if (domains?.active) {
     try {
       const domain = game.actors.find(
-        (a) => a.type === "acks-domains.domain" && a.system?.rulerUuid === actor.uuid
+        (a) => a.type === "acks-domains.domain" && a.system?.ruler === actor.uuid
       );
-      const income = Number(domain?.system?.monthlyIncome);
-      if (Number.isFinite(income)) return income;
-    } catch {
-      /* WIP module — shape may differ; fall through */
+      if (domain) {
+        const s = domain.system;
+        const statement = domains.api?.rules?.monthlyStatement?.({
+          families: s.families?.peasant ?? 0,
+          urbanFamilies: s.families?.urban ?? 0,
+          landValue: s.landValue,
+          taxGpPerFamily: s.rates?.taxGpPerFamily,
+          garrisonGpPerFamily: s.garrison?.gpPerFamily,
+          liturgyGpPerFamily: s.rates?.liturgyGpPerFamily,
+          tithesPaid: s.rates?.payTithes,
+        });
+        const income = Number(statement?.net);
+        if (Number.isFinite(income)) return income;
+        warnDomainShape(statement);
+      }
+    } catch (err) {
+      warnDomainShape(err);
     }
   }
   const flag = Number(actor?.getFlag?.(MODULE_ID, "domainIncome"));

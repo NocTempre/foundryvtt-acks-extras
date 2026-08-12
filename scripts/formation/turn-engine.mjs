@@ -16,6 +16,7 @@ import {
 import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, updateFormation } from "./formation-model.mjs";
 import { prepareToLight } from "../lib/light.mjs";
 import { equipForLight } from "./judge-override.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /**
  * The dungeon-turn engine. Implements step 5 of the Judges Journal sequence of
@@ -695,7 +696,7 @@ export async function rollPartySave(formation, save, { magical = true } = {}) {
     if (typeof target !== "number") continue;
     if (isDown(actor)) continue; // the down do not roll
     let bonus = 0;
-    if (magical && actor.type === "character") {
+    if (magical && actor.type === ACTOR_TYPE.character) {
       bonus += Number(actor.system.save?.mod ?? 0) + Number(actor.system.scores?.wis?.mod ?? 0);
     }
     const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";

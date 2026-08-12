@@ -10,7 +10,7 @@
 import { LANG_PREFIX } from "./constants.mjs";
 import RaceData from "./race-data.mjs";
 import { findByRef } from "./registry.mjs";
-import { ATTRIBUTES } from "../lib/vocab.mjs";
+import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -140,7 +140,7 @@ export default class RaceSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (data?.type !== "Item" || !data.uuid) return;
     const dropped = await fromUuid(data.uuid);
-    if (dropped?.type !== "ability") return;
+    if (dropped?.type !== ITEM_TYPE.ability) return;
     const ref = refOf(dropped);
     const zone = event.target.closest("[data-accept-drop]");
     if (zone?.dataset.rung != null) {

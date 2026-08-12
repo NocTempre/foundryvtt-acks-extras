@@ -22,7 +22,15 @@ let AcksAbilitySheet = null;
 function resolveAbilitySheetBase() {
   const registered = CONFIG.Item?.sheetClasses?.[ABILITY_TYPE] ?? {};
   const entries = Object.values(registered);
-  return entries.find((e) => e.default)?.cls ?? entries[0]?.cls ?? null;
+  const defaulted = entries.find((e) => e.default) ?? null;
+  const chosen = defaulted ?? entries[0] ?? null;
+  // Registry order is not a choice: when several entries compete and none is
+  // flagged default, name the class adopted so a wrong base is diagnosable
+  // from the console. A lone entry is unambiguous and stays quiet.
+  if (!defaulted && entries.length > 1) {
+    console.warn(`${MODULE_ID} | no ${ABILITY_TYPE} sheet is flagged default; extending ${chosen.cls?.name} by registry order.`);
+  }
+  return chosen?.cls ?? null;
 }
 
 Hooks.once("init", () => {

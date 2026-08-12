@@ -35,7 +35,7 @@
  */
 
 import { MODULE_ID, FLAG_GEAR } from "./constants.mjs";
-import { WEAR_SLOTS, slotCapacity } from "./vocab.mjs";
+import { WEAR_SLOTS, slotCapacity, ITEM_TYPE } from "./vocab.mjs";
 
 const F = () => foundry.data.fields;
 
@@ -105,7 +105,7 @@ export const weightStoneOf = (item) => weight6Of(item) / STONE;
  * (`system.subtype`), and the only place the schema distinguishes a tunic from
  * a coil of rope.
  */
-export const isClothing = (item) => item?.type === "item" && item?.system?.subtype === "clothing";
+export const isClothing = (item) => item?.type === ITEM_TYPE.item && item?.system?.subtype === "clothing";
 
 /** Every ammunition name RAW recognises, across all three launcher families. */
 const AMMO_NAME = /arrow|bolt|quarrel|bullet|sling\s*stone|shot/i;
@@ -189,7 +189,7 @@ export async function setEquipped(item, equipped = true) {
  * `bundle` is excluded: it holds uuid references rather than being a thing, so
  * stowing one would nest a pointer, not an object.
  */
-export const isGoods = (item) => isPhysical(item) || item?.type === "money";
+export const isGoods = (item) => isPhysical(item) || item?.type === ITEM_TYPE.money;
 
 /**
  * Goods a container can hold. The same question as `isGoods` — kept as its own

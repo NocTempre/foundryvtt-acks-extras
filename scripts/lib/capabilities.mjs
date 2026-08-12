@@ -15,7 +15,7 @@
  * creature needs a torch). Pure reads; nothing here writes.
  */
 
-import { satisfies } from "./vocab.mjs";
+import { satisfies, ITEM_TYPE } from "./vocab.mjs";
 
 /**
  * The importer owns its provenance flags; they persist even when it is
@@ -40,8 +40,18 @@ const ABILITIES_ID = "acks-extras";
  * acks-abilities effect model. An item with neither is a hand-made ability and
  * simply has no capability — a caller's name path still covers it.
  */
+/**
+ * The register definition id stamped on an imported item ("def.power.longeval"),
+ * or null for a hand-made one. THE read path for import provenance: features
+ * call this instead of spelling the importer's flag scope themselves, so the
+ * scope literal lives in this file alone.
+ */
+export function definitionId(item) {
+  return item?.flags?.[DEFINITION_SCOPE]?.cookbook?.id ?? null;
+}
+
 function abilityRef(item) {
-  const id = item?.flags?.[DEFINITION_SCOPE]?.cookbook?.id ?? null;
+  const id = definitionId(item);
   const provides = item?.getFlag?.(ABILITIES_ID, "extras")?.provides ?? [];
   if (!id && !provides.length) return null;
   return { id, provides };
@@ -51,7 +61,7 @@ function abilityRef(item) {
 export function abilityRefs(actor) {
   const out = [];
   for (const item of actor?.items ?? []) {
-    if (item.type !== "ability") continue;
+    if (item.type !== ITEM_TYPE.ability) continue;
     const ref = abilityRef(item);
     if (ref) out.push(ref);
   }

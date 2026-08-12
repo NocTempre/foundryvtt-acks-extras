@@ -28,6 +28,7 @@
 import { EFFECT_PREFIX, EFFECT_DOMAINS, INFLUENCE_REACTION_KEY, MODULE_ID } from "./constants.mjs";
 import { NAME_FALLBACKS } from "./config.mjs";
 import { appliedEffects, localizeKey as localize, makeEffectMeta, activeNumericChanges, csvFlagSet, sumModifiers } from "../lib/effect-scan.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
  * The exact set of change keys this feature speaks. Membership, NOT a prefix
@@ -106,7 +107,7 @@ export function collectEffectModifiers(actor, domain) {
   const fallbacks = NAME_FALLBACKS[domain] ?? [];
   if (fallbacks.length && actor?.items) {
     for (const item of actor.items) {
-      if (item.type !== "ability" && item.type !== "item") continue;
+      if (item.type !== ITEM_TYPE.ability && item.type !== ITEM_TYPE.item) continue;
       if (seenItems.has(item.id)) continue;
       const hasOwnChanges = Array.from(item.effects ?? []).some((e) =>
         (e.changes ?? []).some((c) => c.key?.startsWith(EFFECT_PREFIX))
@@ -156,7 +157,7 @@ export function collectStringFlags(actor, domain) {
   // Name fallback: Beast Friendship / Friend(s) of Birds and Beasts unlock animals.
   if (domain === "recruitKinds" && actor?.items) {
     for (const item of actor.items) {
-      if (item.type !== "ability" && item.type !== "item") continue;
+      if (item.type !== ITEM_TYPE.ability && item.type !== ITEM_TYPE.item) continue;
       if (/^beast friendship|^close friend of birds|^friends? of birds? and beasts?/i.test(item.name ?? "")) out.add("animal");
       if (/^fungal friendship/i.test(item.name ?? "")) out.add("fungal");
     }

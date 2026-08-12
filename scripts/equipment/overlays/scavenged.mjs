@@ -16,6 +16,7 @@
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS } from "../constants.mjs";
+import { ITEM_TYPE } from "../../lib/vocab.mjs";
 
 /** d20 → condition. `reroll` means roll twice more and apply both (19-20). */
 export const SCAVENGED_TABLES = Object.freeze({
@@ -172,8 +173,8 @@ export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_SCAVENGED);
 
 /** Which table applies to an item. */
 export function tableFor(item, profile) {
-  if (item?.type === "armor") return "armourEquipment";
-  if (item?.type === "weapon") {
+  if (item?.type === ITEM_TYPE.armor) return "armourEquipment";
+  if (item?.type === ITEM_TYPE.weapon) {
     const type = String(profile?.type ?? "").toLowerCase();
     return type === "bludgeoning" ? "bludgeoning" : "piercingSlashing";
   }
@@ -227,14 +228,14 @@ export function needsReroll(tableKey, roll) {
  */
 export function toItemUpdates(item, cond) {
   const updates = {};
-  if (item.type === "weapon") {
+  if (item.type === ITEM_TYPE.weapon) {
     if (cond.attack) updates["system.bonus"] = Number(item.system?.bonus ?? 0) + cond.attack;
     if (cond.damage) {
       const base = String(item.system?.damage ?? "1d6");
       updates["system.damage"] = `${base}${cond.damage}`; // e.g. "1d6" + "-1"
     }
   }
-  if (item.type === "armor" && cond.ac) {
+  if (item.type === ITEM_TYPE.armor && cond.ac) {
     updates["system.aac.value"] = Math.max(0, Number(item.system?.aac?.value ?? 0) + cond.ac);
   }
   if (cond.encumbrance) {

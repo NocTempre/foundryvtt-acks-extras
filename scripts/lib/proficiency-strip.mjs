@@ -14,6 +14,7 @@
  * (the card simply omits them) rather than guessed at.
  */
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "./vocab.mjs";
 
 const equipmentApi = () => globalThis.acksExtras?.equipment ?? game.modules?.get("acks-extras")?.api?.equipment ?? null;
 
@@ -104,7 +105,7 @@ const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
  * same way acks-equipment matches its own proficiency names.
  */
 export const isProfileAbility = (item) =>
-  item?.type === "ability" && /^(fightingstyle|armou?rproficiency|weaponproficiency|weaponfocus)/.test(norm(item.name));
+  item?.type === ITEM_TYPE.ability && /^(fightingstyle|armou?rproficiency|weaponproficiency|weaponfocus)/.test(norm(item.name));
 
 /**
  * Synonyms for the free-text picks on an imported proficiency. acks-abilities
@@ -159,7 +160,7 @@ function abilityGrants(actor) {
   const api = globalThis.acksExtras?.abilities ?? game.modules?.get("acks-extras")?.api?.abilities ?? null;
   if (!api?.selectionsOf) return out;
   for (const item of actor?.items ?? []) {
-    if (item.type !== "ability") continue;
+    if (item.type !== ITEM_TYPE.ability) continue;
     let category = "";
     try {
       category = api.getExtras?.(item)?.category ?? "";
@@ -205,7 +206,7 @@ function abilityGrants(actor) {
  * @returns {{styles: object[], weapons: object[], armour: object[], any: boolean}}
  */
 export function profileStrips(actor) {
-  if (actor?.type !== "character") return { styles: [], weapons: [], armour: [], any: false };
+  if (actor?.type !== ACTOR_TYPE.character) return { styles: [], weapons: [], armour: [], any: false };
   const api = equipmentApi();
   // The character's own imported proficiency items are a first-class source, so
   // the strips work with acks-abilities alone (no acks-equipment profile needed).

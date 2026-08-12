@@ -18,10 +18,11 @@ import * as adapter from "../acks-adapter.mjs";
 import { executeAsGM, registerHandler } from "../../lib/sockets.mjs";
 import { hostsModes, openHiringViaInfluence } from "../integrations/influence.mjs";
 import { now } from "../time.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 function hasBribery(employer) {
   return (employer?.items ?? []).some(
-    (i) => (i.type === "ability" || i.type === "item") && /^bribery/i.test(i.name ?? "")
+    (i) => (i.type === ITEM_TYPE.ability || i.type === ITEM_TYPE.item) && /^bribery/i.test(i.name ?? "")
   );
 }
 
@@ -32,7 +33,7 @@ export async function pickEmployer(preferred) {
   if (game.user.character) return game.user.character;
   const choices = game.actors.filter(
     (a) =>
-      a.type === "character" &&
+      a.type === ACTOR_TYPE.character &&
       !a.system?.retainer?.enabled &&
       (game.user.isGM || a.testUserPermission(game.user, "OWNER"))
   );

@@ -31,13 +31,13 @@
         {
           "priority": 20,
           "key": "flags.acks-extras.hiring",
-          "mode": 2,
+          "type": "add",
           "value": "2"
         },
         {
           "priority": 20,
           "key": "flags.acks-extras.recruitKinds",
-          "mode": 0,
+          "type": "custom",
           "value": "animal"
         }
       ],

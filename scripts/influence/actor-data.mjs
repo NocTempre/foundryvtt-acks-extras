@@ -9,6 +9,7 @@ import { inferRace, optionalRuleEnabled, parseKindList } from "./racial.mjs";
 // schema). hitDiceOrLevel also anchors the HD parse, fixing the old "d8" → 8
 // mis-read where a die size was taken for a rating.
 import { abilityMod, hitDiceOrLevel } from "../lib/actor-read.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 const GENERIC_IMG = "icons/svg/mystery-man.svg";
 
@@ -90,7 +91,7 @@ export function getProficiencyItems(actor, keys = Object.keys(PROFICIENCY_MATCHE
   for (const key of keys) if (PROFICIENCY_MATCHERS[key]) found[key] = [];
   if (!actor?.items) return found;
   for (const item of actor.items) {
-    if (item.type !== "ability") continue;
+    if (item.type !== ITEM_TYPE.ability) continue;
     const name = item.name ?? "";
     for (const [key, ids] of Object.entries(found)) {
       if (PROFICIENCY_MATCHERS[key].test(name)) ids.push(item.id);

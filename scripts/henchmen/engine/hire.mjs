@@ -33,6 +33,7 @@ import { sumEffectModifiers, hasEffectFlag } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { now } from "../time.mjs";
+import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 async function roll(formula) {
   return (await new Roll(formula).evaluate()).total;
@@ -133,7 +134,7 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
   if (!target) return { error: "no-candidate" };
 
   let result;
-  if (target.type === "monster") {
+  if (target.type === ACTOR_TYPE.monster) {
     const { hireMonster } = await import("./monster.mjs");
     result = await hireMonster(target, employer, { ...opts });
   } else {

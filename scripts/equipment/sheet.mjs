@@ -31,7 +31,7 @@ import { masterworkTierOf, scavengedOf, layerSummary, silveredFlagOf } from "./p
 import { canBeSilvered, isSilvered, setSilvered } from "./silver.mjs";
 import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
 import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf } from "../lib/item-model.mjs";
-import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity } from "../lib/vocab.mjs";
+import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { cycleStrap, strapOf, variantOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
 import { overlayEnabled as scavengedOverlayEnabled, tableFor } from "./overlays/scavenged.mjs";
 import { helmetType } from "./overlays/enclosing-helm.mjs";
@@ -259,7 +259,7 @@ function injectLightControls(list, actor) {
     // control instead — but that is a pure equipment action, so it lives in
     // injectTorchReady (which runs without acks-formation). Skip it here so a
     // torch bundle never also picks up a formation Light control.
-    if (type === "torch" && item.type === "item") continue;
+    if (type === "torch" && item.type === ITEM_TYPE.item) continue;
     const lit = mine.find((l) => l.type === type && l.lit);
     const held = lit || mine.find((l) => l.type === type && l.shielded);
     const add = (icon, key, run) => {
@@ -356,7 +356,7 @@ function injectTorchReady(tab, actor) {
   if (!actor?.isOwner) return;
   for (const li of tab.querySelectorAll("li.item[data-item-id]")) {
     const item = actor.items.get(li.dataset.itemId);
-    if (item?.type !== "item" || lightTypeOf(item) !== "torch" || li.querySelector(".acks-equipment-ready")) continue;
+    if (item?.type !== ITEM_TYPE.item || lightTypeOf(item) !== "torch" || li.querySelector(".acks-equipment-ready")) continue;
     const a = el("a", "item-control acks-equipment-ready");
     a.innerHTML = `<i class="fas fa-fire-flame-simple"></i>`;
     a.dataset.tooltip = game.i18n.localize("ACKS-EQUIPMENT.action.readyHint");
@@ -380,7 +380,7 @@ function injectDrawSheathe(tab, actor) {
   if (!actor?.isOwner) return;
   for (const li of tab.querySelectorAll("li.item[data-item-id]")) {
     const item = actor.items.get(li.dataset.itemId);
-    if (item?.type !== "weapon" || li.querySelector(".acks-equipment-draw")) continue;
+    if (item?.type !== ITEM_TYPE.weapon || li.querySelector(".acks-equipment-draw")) continue;
     if (item.getFlag?.(MODULE_ID, ITEM_FLAGS.THROWN_STATE)) continue;
     const equipped = !!item.system?.equipped;
     const a = el("a", `item-control acks-equipment-draw acks-equipment-draw--${equipped ? "sheathe" : "draw"}`);
@@ -441,7 +441,7 @@ function injectStrapControls(tab, actor) {
   if (!actor?.isOwner || !shieldOverlayEnabled()) return;
   for (const li of tab.querySelectorAll("li.item[data-item-id]")) {
     const item = actor.items.get(li.dataset.itemId);
-    if (item?.type !== "armor" || item.system?.type !== "shield" || li.querySelector(".acks-equipment-strap")) continue;
+    if (item?.type !== ITEM_TYPE.armor || item.system?.type !== "shield" || li.querySelector(".acks-equipment-strap")) continue;
     const strap = strapOf(item);
     const a = el("a", `item-control acks-equipment-strap acks-equipment-strap--${strap}`);
     a.innerHTML = `<i class="fas ${strap === "hand" ? "fa-hand" : "fa-shield-halved"}"></i> ${game.i18n.localize(`ACKS-EQUIPMENT.strap.${strap}`)}`;
@@ -617,7 +617,7 @@ function buildStowedSection(actor, tab) {
       ctrl("fa-wand-magic-sparkles", "ACKS-EQUIPMENT.container.annotateAll", async () => {
         let n = 0;
         for (const item of actor.items) {
-          if (item.type !== "item" || isContainer(item)) continue;
+          if (item.type !== ITEM_TYPE.item || isContainer(item)) continue;
           if (await annotateItem(item)) n++;
         }
         ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.container.annotated", { n }));
@@ -678,36 +678,34 @@ function buildStowedSection(actor, tab) {
  * the "loose" zone takes an item back out.
  */
 function wireDropTargets(actor, root) {
-  for (const zone of root.querySelectorAll("[data-drop-target]")) {
-    zone.addEventListener("dragover", (ev) => {
-      ev.preventDefault();
-      zone.classList.add("drop-hover");
-    });
-    zone.addEventListener("dragleave", () => zone.classList.remove("drop-hover"));
-    zone.addEventListener("drop", async (ev) => {
-      ev.preventDefault();
-      zone.classList.remove("drop-hover");
-      let data;
-      try {
-        data = JSON.parse(ev.dataTransfer.getData("text/plain"));
-      } catch {
-        return; // not a Foundry drag payload
-      }
-      if (data?.type !== "Item" || !data.uuid) return;
+  // The framework helper owns the drop wiring and the payload parse; a non-item
+  // or non-Foundry payload reads as an empty object and falls through. Handlers
+  // land by IDL property, so wiring per regroup never stacks listeners.
+  new foundry.applications.ux.DragDrop.implementation({
+    dropSelector: "[data-drop-target]",
+    callbacks: {
+      dragover: (ev) => ev.currentTarget.classList.add("drop-hover"),
+      dragleave: (ev) => ev.currentTarget.classList.remove("drop-hover"),
+      drop: async (ev) => {
+        const zone = ev.currentTarget;
+        zone.classList.remove("drop-hover");
+        const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(ev);
+        if (data?.type !== "Item" || !data.uuid) return;
 
-      const item = await fromUuid(data.uuid);
-      // Only this actor's own embedded items are stowed. A drop from a
-      // compendium or another actor is a copy operation we deliberately
-      // do not perform behind the player's back.
-      if (!item || item.parent?.id !== actor.id) {
-        ui.notifications.warn(game.i18n.localize("ACKS-EQUIPMENT.container.foreignItem"));
-        return;
-      }
-      const target = zone.dataset.dropTarget;
-      if (target === "loose") await takeOut(item);
-      else await storeIn(actor, item, actor.items.get(target));
-    });
-  }
+        const item = await fromUuid(data.uuid);
+        // Only this actor's own embedded items are stowed. A drop from a
+        // compendium or another actor is a copy operation we deliberately
+        // do not perform behind the player's back.
+        if (!item || item.parent?.id !== actor.id) {
+          ui.notifications.warn(game.i18n.localize("ACKS-EQUIPMENT.container.foreignItem"));
+          return;
+        }
+        const target = zone.dataset.dropTarget;
+        if (target === "loose") await takeOut(item);
+        else await storeIn(actor, item, actor.items.get(target));
+      },
+    },
+  }).bind(root);
 }
 
 function regroup(actor, tab) {
@@ -788,7 +786,7 @@ export function buildConstructionPanel(item) {
     return s;
   };
 
-  if (item.type === "weapon" || item.type === "armor") {
+  if (item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor) {
     // MASTERWORK — a bucket of the RR p159 tiers.
     const tier = masterworkTierOf(item) ?? "none";
     row("ACKS-EQUIPMENT.props.masterwork", select(
@@ -802,7 +800,7 @@ export function buildConstructionPanel(item) {
     // roll it. Both read the reader's OWN imported table (RR p160, extracted
     // by acks-content) when the world has one; the built-in RAW table is the
     // fallback. "Pristine" clears.
-    const profile = item.type === "weapon" ? classifyWeapon(item) : null;
+    const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
     const tableKey = tableFor(item, profile);
     const opts = scavengedOptions(tableKey);
     const sc = scavengedOf(item);
@@ -825,7 +823,7 @@ export function buildConstructionPanel(item) {
     // cannot touch a magical monster "unless forged of a material otherwise
     // capable of doing so (e.g. silver)" (RR p159). Said here because the tier
     // picker is exactly where a reader forms the opposite impression.
-    if (item.type === "weapon" && tier !== "none" && !isSilvered(item)) {
+    if (item.type === ITEM_TYPE.weapon && tier !== "none" && !isSilvered(item)) {
       row("", el("span", "acks-equipment-props__note", game.i18n.localize("ACKS-EQUIPMENT.props.masterworkReachNote")));
     }
 
@@ -872,7 +870,7 @@ export function buildConstructionPanel(item) {
       ? game.i18n.format("ACKS-EQUIPMENT.props.materialNote", { types: harms.join(", ") })
       : game.i18n.localize("ACKS-EQUIPMENT.props.materialNoneNote")));
 
-  if (item.type === "armor" && item.system?.type === "shield") {
+  if (item.type === ITEM_TYPE.armor && item.system?.type === "shield") {
     row("ACKS-EQUIPMENT.props.variant", select(
       SHIELD_VARIANT_KEYS.map((k) => ({ value: k, label: SHIELD_VARIANTS[k]?.label ?? k })),
       item.getFlag(MODULE_ID, ITEM_FLAGS.SHIELD_VARIANT) ?? "standard",
@@ -948,7 +946,7 @@ function onRenderCharacterSheet(app, element) {
     // modules' windows expose an `.actor` (Paper Doll's own does) — so the gate
     // is "this is an Actor's sheet", not "this has an actor". Without it a
     // foreign window reaches the injectors below and gets dressed as a sheet.
-    if (app?.document?.documentName !== "Actor" || app.document.type !== "character") return;
+    if (app?.document?.documentName !== "Actor" || app.document.type !== ACTOR_TYPE.character) return;
     const tab = element?.querySelector?.(".sheet-inventory");
     // Dedupe: ApplicationV2 fires a render hook per class in the chain, and we
     // listen on three of them so the system's class name can change freely.

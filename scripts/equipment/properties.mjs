@@ -23,6 +23,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /** The flag holding the item's unmodified field values. */
 export const PRISTINE = "pristine";
@@ -138,8 +139,8 @@ export async function recomputeItemFields(item, overrides = {}) {
   if (!anyLayer) {
     // Nothing left: restore exactly, then forget the baseline.
     update["system.bonus"] = base.bonus;
-    if (item.type === "weapon") update["system.damage"] = base.damage;
-    if (item.type === "armor") update["system.aac.value"] = base.ac;
+    if (item.type === ITEM_TYPE.weapon) update["system.damage"] = base.damage;
+    if (item.type === ITEM_TYPE.armor) update["system.aac.value"] = base.ac;
     update["system.weight6"] = base.weight6;
     if (base.cost != null) update["system.cost"] = base.cost;
     await item.update?.(update);
@@ -149,8 +150,8 @@ export async function recomputeItemFields(item, overrides = {}) {
 
   const d = layerDeltas(item, { masterwork, scavenged, silvered });
   update["system.bonus"] = base.bonus + d.bonus;
-  if (item.type === "weapon") update["system.damage"] = withFlatDelta(base.damage, d.damage);
-  if (item.type === "armor") update["system.aac.value"] = Math.max(0, base.ac + d.ac);
+  if (item.type === ITEM_TYPE.weapon) update["system.damage"] = withFlatDelta(base.damage, d.damage);
+  if (item.type === ITEM_TYPE.armor) update["system.aac.value"] = Math.max(0, base.ac + d.ac);
   update["system.weight6"] = Math.max(0, base.weight6 + d.weight6);
   // Price follows the layers: plating first, surcharge second, resale fraction
   // last. Rounded to a hundredth so a 67% of 3gp reads 2.01, not a float tail.

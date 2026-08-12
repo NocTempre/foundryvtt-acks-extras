@@ -18,6 +18,7 @@
  */
 
 /** An ability-score modifier ("cha", "wis", …), 0 when absent. */
+import { ACTOR_TYPE } from "./vocab.mjs";
 export const abilityMod = (actor, key) => Number(actor?.system?.scores?.[key]?.mod ?? 0);
 
 /** A character's class level, 0 when absent. */
@@ -45,4 +46,4 @@ export function monsterHd(actor) {
  * wage-level read.
  */
 export const hitDiceOrLevel = (actor) =>
-  actor?.type === "character" ? classLevel(actor) : monsterHd(actor);
+  actor?.type === ACTOR_TYPE.character ? classLevel(actor) : monsterHd(actor);

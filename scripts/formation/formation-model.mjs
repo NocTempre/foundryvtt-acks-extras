@@ -16,6 +16,7 @@ import { canSeeInDark } from "../lib/senses.mjs";
 import { carriesItem } from "../lib/item-model.mjs";
 import { announceChange } from "../lib/util.mjs";
 import { equipForRole } from "./judge-override.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /** World-setting key holding all formation records, keyed by formation id. */
 export const SETTING_FORMATIONS = "formations";
@@ -240,7 +241,7 @@ export function getMemberActor(member) {
 
 /** Does this actor have a proficiency/class power matching the pattern? */
 export function hasAbility(actor, pattern) {
-  return actor?.items?.some((i) => i.type === "ability" && pattern.test(i.name)) ?? false;
+  return actor?.items?.some((i) => i.type === ITEM_TYPE.ability && pattern.test(i.name)) ?? false;
 }
 
 /** The formation's mapper actor, if a member has the Mapper role. */
@@ -980,8 +981,8 @@ export async function autoArrange(formation) {
     const actor = getMemberActor(member);
     const items = actor?.items ?? [];
     const roles = member.roles ?? [];
-    const equipped = [...items].filter((i) => i.type === "weapon" && i.system?.equipped);
-    const caster = [...items].some((i) => i.type === "spell");
+    const equipped = [...items].filter((i) => i.type === ITEM_TYPE.weapon && i.system?.equipped);
+    const caster = [...items].some((i) => i.type === ITEM_TYPE.spell);
     const ac = Number(actor?.system?.aac?.value ?? actor?.system?.aac ?? 0);
 
     // Pools: front-capable, back-capable, utility (middle).

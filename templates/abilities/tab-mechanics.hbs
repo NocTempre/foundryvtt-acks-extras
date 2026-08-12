@@ -174,7 +174,7 @@
       system's own partial; it just lives here now. }}
   <fieldset class="acks-abilities-active-effects">
     <legend>{{localize "ACKS.category.effects"}}</legend>
-    {{> "systems/acks/templates/items/v2/common/item-active-effects.hbs"}}
+    {{> (lookup this "coreEffectsPartial")}}
   </fieldset>
 
 </section>

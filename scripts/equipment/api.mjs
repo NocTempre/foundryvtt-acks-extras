@@ -43,6 +43,7 @@ import { stripModuleData } from "./uninstall.mjs";
 import { collectEffectModifiers, sumEffectModifiers, collectStringFlags, hasEffectFlag } from "./effects.mjs";
 import { bridgeContributions } from "./abilities-bridge.mjs";
 import * as CONFIG_DATA from "./config.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
  * Stamp module profile flags onto a core item from its RAW profile.
@@ -69,7 +70,7 @@ export async function annotateItem(item) {
   const updates = {};
   let key = null;
 
-  if (item.type === "weapon") {
+  if (item.type === ITEM_TYPE.weapon) {
     key = weaponKey(item);
     if (key) {
       const base = CONFIG_DATA.WEAPONS[key];

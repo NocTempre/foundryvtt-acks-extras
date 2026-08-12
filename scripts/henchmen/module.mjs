@@ -43,6 +43,7 @@ import { openFollowersDialog } from "./apps/followers-dialog.mjs";
 import * as slaveryRules from "./rules/slavery.mjs";
 import * as facts from "./facts.mjs";
 import * as influenceIntegration from "./integrations/influence.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 const { registerInfluenceIntegration, openInfluenceFor } = influenceIntegration;
 
 Hooks.once("init", () => {
@@ -292,7 +293,7 @@ Hooks.on("renderChatMessageHTML", (_message, html) => bindCardListeners(html));
 Hooks.on("renderActorSheetV2", (app, element) => {
   if (game.system?.id !== "acks") return;
   const actor = app.actor ?? app.document;
-  if (actor?.type !== "character" || actor.system?.retainer?.enabled) return;
+  if (actor?.type !== ACTOR_TYPE.character || actor.system?.retainer?.enabled) return;
   if (!actor.isOwner) return;
   const root = element instanceof HTMLElement ? element : element?.[0];
   const header = root?.querySelector(".window-header");

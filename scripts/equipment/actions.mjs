@@ -7,6 +7,7 @@
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { setWorn } from "../lib/item-model.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
 import { equipmentClass, classifyWeapon } from "./profiles.mjs";
 import { consumeItem, roundsOf } from "./ammo.mjs";
@@ -202,8 +203,8 @@ export const addToDamage = withFlatDelta;
 
 /** The masterwork tiers that apply to a given item type (drives the picker). */
 export function masterworkTiersFor(type) {
-  if (type === "weapon") return ["weaponToHit", "weaponToDamage", "weaponBoth"];
-  if (type === "armor") return ["armorLight", "armorAC"];
+  if (type === ITEM_TYPE.weapon) return ["weaponToHit", "weaponToDamage", "weaponBoth"];
+  if (type === ITEM_TYPE.armor) return ["armorLight", "armorAC"];
   return [];
 }
 
@@ -308,8 +309,8 @@ export async function setScavengedRow(item, tableKey, bandMax) {
  * @returns {Promise<{rolls:number[], tableKey:string, cond:object, table:string|null}|null>}
  */
 export async function scavengeItem(item, { roll } = {}) {
-  if (!item || (item.type !== "weapon" && item.type !== "armor")) return null;
-  const profile = item.type === "weapon" ? classifyWeapon(item) : null;
+  if (!item || (item.type !== ITEM_TYPE.weapon && item.type !== ITEM_TYPE.armor)) return null;
+  const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
   const tableKey = tableFor(item, profile);
 
   // THE READER'S OWN TABLE WINS. acks-content extracts RR p160 from the seat's
@@ -374,8 +375,8 @@ export async function disguiseItem(item, apparent = {}) {
   const update = { name: apparent.name ?? truth.name };
   if (apparent.img) update.img = apparent.img;
   if (apparent.cost != null && apparent.cost !== "") update["system.cost"] = Number(apparent.cost);
-  if (item.type === "weapon" && apparent.damage != null && apparent.damage !== "") update["system.damage"] = apparent.damage;
-  if (item.type === "armor" && apparent.ac != null && apparent.ac !== "") update["system.aac.value"] = Number(apparent.ac);
+  if (item.type === ITEM_TYPE.weapon && apparent.damage != null && apparent.damage !== "") update["system.damage"] = apparent.damage;
+  if (item.type === ITEM_TYPE.armor && apparent.ac != null && apparent.ac !== "") update["system.aac.value"] = Number(apparent.ac);
   if (apparent.description != null) update["system.description"] = apparent.description;
   await item.update?.(update);
   await item.setFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE, { true: truth, apparent });
@@ -398,8 +399,8 @@ export async function revealItem(item) {
   const update = { name: t.name };
   if (ap.img) update.img = t.img;
   if (ap.cost != null && ap.cost !== "") update["system.cost"] = t.cost;
-  if (item.type === "weapon" && ap.damage != null && ap.damage !== "") update["system.damage"] = t.damage;
-  if (item.type === "armor" && ap.ac != null && ap.ac !== "") update["system.aac.value"] = t.ac;
+  if (item.type === ITEM_TYPE.weapon && ap.damage != null && ap.damage !== "") update["system.damage"] = t.damage;
+  if (item.type === ITEM_TYPE.armor && ap.ac != null && ap.ac !== "") update["system.aac.value"] = t.ac;
   if (ap.description != null) update["system.description"] = t.description;
   await item.update?.(update);
   await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE);

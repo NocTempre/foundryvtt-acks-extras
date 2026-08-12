@@ -21,6 +21,7 @@ import { containedIn } from "./containers.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
 import { isHelmet, isShield } from "./profiles.mjs";
 import { isWorn, wornSlotOf } from "../lib/item-model.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
  * Where does this item sit?
@@ -39,7 +40,7 @@ export function wearLocation(actor, item, loadout = getLoadout(actor)) {
 
   if (!isWorn(item)) return WEAR.carried;
 
-  if (item.type === "armor") {
+  if (item.type === ITEM_TYPE.armor) {
     if (isShield(item)) {
       // A strapped shield rides the back or front and leaves the hand free.
       if (!occupiesHand(item)) return WEAR.strapped;
@@ -48,7 +49,7 @@ export function wearLocation(actor, item, loadout = getLoadout(actor)) {
     return isHelmet(item) ? WEAR.head : WEAR.body;
   }
 
-  if (item.type === "weapon") {
+  if (item.type === ITEM_TYPE.weapon) {
     const entry = loadout.weapons.find((w) => w.item.id === item.id);
     if (entry?.wieldTwoHanded) return WEAR.bothHands;
     // `hand` is set when a weapon is drawn into a specific hand; without it a

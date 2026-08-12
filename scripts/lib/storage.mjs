@@ -45,6 +45,7 @@ import {
   storageFlagOf,
 } from "./storage-logic.mjs";
 import { isGoods } from "./item-model.mjs";
+import { ITEM_TYPE } from "./vocab.mjs";
 
 // Re-export the Foundry-free half so consumers reach it all through
 // `acksLib.storage`, while the pure half stays independently Node-importable.
@@ -322,7 +323,7 @@ export const handOver = (from, to, spec) =>
 export async function depositCoin(provider, { ownerUuid, ownerName = "", coppervalue = 100, quantity = 0, name = "Gold", img } = {}) {
   if (!provider || !(quantity > 0)) return null;
   const existing = provider.items.find(
-    (i) => i.type === "money" && Number(i.system?.coppervalue) === Number(coppervalue) && storageFlagOf(i)?.ownerUuid === ownerUuid,
+    (i) => i.type === ITEM_TYPE.money && Number(i.system?.coppervalue) === Number(coppervalue) && storageFlagOf(i)?.ownerUuid === ownerUuid,
   );
   if (existing) {
     await existing.update({ "system.quantity": Number(existing.system.quantity ?? 0) + Number(quantity) });
@@ -345,7 +346,7 @@ export async function depositCoin(provider, { ownerUuid, ownerName = "", copperv
  * can leave two "Gold" rows attributed to the same character; this is the tidy-up.
  */
 export async function consolidateMoney(provider, ownerUuid) {
-  const rows = storedItems(provider, { ownerUuid }).filter((i) => i.type === "money");
+  const rows = storedItems(provider, { ownerUuid }).filter((i) => i.type === ITEM_TYPE.money);
   const keep = new Map();
   const updates = [];
   const deletes = [];
@@ -403,8 +404,8 @@ export const deletePolicy = () => {
  */
 export async function returnGoodsTo(owner, plainGoods, { containerName = "Storage" } = {}) {
   if (!owner || !plainGoods?.length) return { ok: false };
-  const coin = plainGoods.filter((g) => g.type === "money");
-  const goods = plainGoods.filter((g) => g.type !== "money");
+  const coin = plainGoods.filter((g) => g.type === ITEM_TYPE.money);
+  const goods = plainGoods.filter((g) => g.type !== ITEM_TYPE.money);
 
   let containerId = null;
   if (goods.length) {
@@ -457,7 +458,7 @@ async function depositCoinOnCharacter(owner, plainMoney) {
   const cv = Number(plainMoney.system?.coppervalue ?? 1);
   const qty = Number(plainMoney.system?.quantity ?? 0);
   if (!(qty > 0)) return;
-  const existing = owner.items.find((i) => i.type === "money" && Number(i.system?.coppervalue) === cv);
+  const existing = owner.items.find((i) => i.type === ITEM_TYPE.money && Number(i.system?.coppervalue) === cv);
   if (existing) {
     await existing.update({ "system.quantity": Number(existing.system.quantity ?? 0) + qty });
     return;

@@ -20,6 +20,7 @@
  *    carries the pointer.
  */
 import { toNum as num } from "./util.mjs";
+import { ITEM_TYPE } from "./vocab.mjs";
 
 /** The flag scope/key attribution lives under, on both providers and stored items. */
 export const LIB_ID = "acks-extras";
@@ -29,7 +30,7 @@ export const STORAGE_KEY = "storage";
 const EQUIPMENT_ID = "acks-extras";
 const CONTAINED_IN = "containedIn";
 
-const isMoney = (plain) => plain?.type === "money";
+const isMoney = (plain) => plain?.type === ITEM_TYPE.money;
 
 /* -------------------------------------------- */
 /*  Reading the two foreign vocabularies         */

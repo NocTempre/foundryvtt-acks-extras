@@ -21,7 +21,7 @@ import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 import { containedIn, isContainer } from "../containers.mjs";
 import { isClothing, isPhysical, slotsOf, declaresSlots, STONE } from "../../lib/item-model.mjs";
-import { SLOT } from "../../lib/vocab.mjs";
+import { SLOT, ITEM_TYPE } from "../../lib/vocab.mjs";
 
 /** Positional order when damaged from the FRONT (JJ p. 398). */
 export const LOSS_ORDER_FRONT = Object.freeze([
@@ -94,7 +94,7 @@ export function materialOf(item) {
   if (/pot|jug|amphora|ceramic/.test(n)) return "ceramic";
   if (/stone|rock/.test(n)) return "stone";
   if (/bow|staff|pole|spear|club|haft|wood/.test(n)) return "wood";
-  if (item?.type === "armor" || item?.type === "weapon") return "metal";
+  if (item?.type === ITEM_TYPE.armor || item?.type === ITEM_TYPE.weapon) return "metal";
   return "metal";
 }
 

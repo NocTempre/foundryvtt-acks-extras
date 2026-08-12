@@ -16,6 +16,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 const ABILITY_ORDER = ["fighting", "thief", "general", "class", "powers", "racial"];
 
@@ -84,15 +85,15 @@ function onRenderCharacterSheet(app, element) {
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root) return;
   const doc = app.document;
-  if (!(doc instanceof Actor) || doc.type !== "character") return;
+  if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character) return;
   const racialRefs = new Set(
     (classForActor(doc)?.system.awards ?? [])
       .filter((a) => /racial trait/i.test(a.note ?? ""))
       .map((a) => a.ref)
       .filter(Boolean),
   );
-  wireBar(app, root, doc, "abilities", (it) => it.type === "ability", (it) => categorize(it, racialRefs));
-  wireBar(app, root, doc, "spells", (it) => it.type === "spell", (it) => String(it.system?.class || "other").toLowerCase());
+  wireBar(app, root, doc, "abilities", (it) => it.type === ITEM_TYPE.ability, (it) => categorize(it, racialRefs));
+  wireBar(app, root, doc, "spells", (it) => it.type === ITEM_TYPE.spell, (it) => String(it.system?.class || "other").toLowerCase());
 }
 
 /** Register the category-tab render hook (called once from classes/module.mjs). */

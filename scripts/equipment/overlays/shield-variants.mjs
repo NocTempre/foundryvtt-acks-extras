@@ -36,6 +36,7 @@
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 import { SHIELD_VARIANTS, STYLE } from "../config.mjs";
+import { ITEM_TYPE } from "../../lib/vocab.mjs";
 
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_SHIELD_VARIANTS);
 
@@ -176,7 +177,7 @@ export function shieldEncumbranceDelta6(actor) {
   if (!overlayEnabled()) return 0;
   let delta = 0;
   for (const item of actor?.items ?? []) {
-    if (item.type !== "armor" || item.system?.type !== "shield" || !item.system?.equipped) continue;
+    if (item.type !== ITEM_TYPE.armor || item.system?.type !== "shield" || !item.system?.equipped) continue;
     const want = shieldEnc6(item, actor);
     if (want == null) continue;
     delta += want - Number(item.system?.weight6 ?? 0);

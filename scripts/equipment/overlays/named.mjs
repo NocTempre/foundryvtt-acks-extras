@@ -25,6 +25,7 @@
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
+import { ITEM_TYPE } from "../../lib/vocab.mjs";
 
 /** Bonus categories a named item can unlock (JJ p. 399). */
 export const NAMED_CATEGORIES = Object.freeze({
@@ -242,11 +243,11 @@ export function advanceOnLevelUp(item) {
 export function toItemUpdates(item, base = {}) {
   const b = unlockedBonuses(item);
   const updates = {};
-  if (item.type === "weapon") {
+  if (item.type === ITEM_TYPE.weapon) {
     if (b.hit) updates["system.bonus"] = Number(base.bonus ?? item.system?.bonus ?? 0) + b.hit;
     if (b.damage) updates["system.damage"] = `${base.damage ?? item.system?.damage ?? "1d6"}+${b.damage}`;
   }
-  if (item.type === "armor" && b.ac) {
+  if (item.type === ITEM_TYPE.armor && b.ac) {
     updates["system.aac.value"] = Number(base.aac ?? item.system?.aac?.value ?? 0) + b.ac;
   }
   if (b.encumbrance) {

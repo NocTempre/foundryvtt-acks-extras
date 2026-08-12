@@ -1,4 +1,4 @@
-/* global game, ui, Hooks, CONFIG, foundry */
+/* global game, ui, Hooks, libWrapper */
 /**
  * Dangling-reference repair.
  *
@@ -119,15 +119,20 @@ export function describeRepair(result) {
  * Wrap core's unguarded `getTotalWages` so a dangling id cannot break sheet
  * render. The original runs untouched in the healthy case; only on a throw do
  * we recompute over the resolvable ids. Never writes.
+ *
+ * libWrapper MIXED, and this module registers the method nowhere else — the
+ * one-owner-per-wrapped-method rule. libWrapper itself enforces the idempotence
+ * the old raw patch hand-rolled: a second register of the same target by the
+ * same package throws instead of stacking.
  */
 export function installWageGuard() {
-  const proto = CONFIG?.Actor?.documentClass?.prototype;
-  if (!proto?.getTotalWages || proto.getTotalWages[`_${MODULE_ID}Guarded`]) return false;
-
-  const original = proto.getTotalWages;
-  const guarded = function (...args) {
+  if (typeof libWrapper === "undefined") {
+    console.warn(`${MODULE_ID} | lib-wrapper is not active — a deleted hireling left on an employer's list breaks that character sheet.`);
+    return false;
+  }
+  const onGetTotalWages = function (wrapped, ...args) {
     try {
-      return original.apply(this, args);
+      return wrapped(...args);
     } catch (err) {
       const list = Array.isArray(this.system?.henchmenList) ? this.system.henchmenList : [];
       const dangling = list.filter(isMissing);
@@ -151,8 +156,7 @@ export function installWageGuard() {
       return total;
     }
   };
-  guarded[`_${MODULE_ID}Guarded`] = true;
-  proto.getTotalWages = guarded;
+  libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.getTotalWages", onGetTotalWages, "MIXED");
   return true;
 }
 

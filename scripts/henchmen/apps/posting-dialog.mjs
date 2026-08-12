@@ -11,6 +11,7 @@ import { createPosting, PRIVATE_KINDS } from "../engine/recruitment.mjs";
 import { maxHenchmanLevel } from "../rules/wages.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { executeAsGM } from "../../lib/sockets.mjs";
+import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -43,11 +44,11 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     // Players post on behalf of characters they OWN; GMs see every PC.
     const mayUse = (a) => game.user.isGM || a.testUserPermission(game.user, "OWNER");
     context.employers = game.actors
-      .filter((a) => a.type === "character" && a.hasPlayerOwner && !a.system?.retainer?.enabled && mayUse(a))
+      .filter((a) => a.type === ACTOR_TYPE.character && a.hasPlayerOwner && !a.system?.retainer?.enabled && mayUse(a))
       .map((a) => ({ id: a.id, name: a.name, level: adapter.getLevel(a) }));
     if (!context.employers.length) {
       context.employers = game.actors
-        .filter((a) => a.type === "character" && !a.system?.retainer?.enabled && mayUse(a))
+        .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
         .map((a) => ({ id: a.id, name: a.name, level: adapter.getLevel(a) }));
     }
     context.levels = [0, 1, 2, 3, 4].map((l) => ({ level: l }));

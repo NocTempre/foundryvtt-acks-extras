@@ -15,6 +15,7 @@ import { sumEffectModifiers } from "./effects.mjs";
 // up the "1/2"-HD form this module's own parser missed. Henchman-specific reads
 // (retainer, henchmenList, gold) stay here.
 import { abilityMod, classLevel, monsterHd } from "../lib/actor-read.mjs";
+import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /* ------------------------------ reads ------------------------------ */
 
@@ -183,7 +184,7 @@ export const getMonsterHd = monsterHd;
  * present (integrations/monsters.mjs passes them through here).
  */
 export function getWageLevel(actor) {
-  if (actor?.type === "monster") {
+  if (actor?.type === ACTOR_TYPE.monster) {
     const extras = game.modules.get("acks-extras")?.api?.monsters?.getExtras?.(actor);
     const hd = Number(extras?.hd?.count);
     return Number.isFinite(hd) && hd > 0 ? hd : getMonsterHd(actor);
@@ -197,7 +198,7 @@ export function getWageLevel(actor) {
 export function getGold(actor) {
   let copper = 0;
   for (const item of actor?.items ?? []) {
-    if (item.type !== "money") continue;
+    if (item.type !== ITEM_TYPE.money) continue;
     const cv = Number(item.system?.coppervalue ?? 0);
     copper += cv * (Number(item.system?.quantity ?? 0) + Number(item.system?.quantitybank ?? 0));
   }
@@ -224,7 +225,7 @@ export async function spendGold(actor, gp, reason, { chat = true } = {}) {
   }
   const slots = [];
   for (const item of actor.items) {
-    if (item.type !== "money") continue;
+    if (item.type !== ITEM_TYPE.money) continue;
     slots.push({ item, field: "quantity", cv: Number(item.system.coppervalue ?? 0), qty: Number(item.system.quantity ?? 0) });
     slots.push({ item, field: "quantitybank", cv: Number(item.system.coppervalue ?? 0), qty: Number(item.system.quantitybank ?? 0) });
   }
@@ -271,7 +272,7 @@ export async function spendGold(actor, gp, reason, { chat = true } = {}) {
 export async function grantGold(actor, gp, { toBank = false } = {}) {
   const copper = Math.round(gp * 100);
   if (copper <= 0) return 0;
-  const coins = actor.items.filter((i) => i.type === "money");
+  const coins = actor.items.filter((i) => i.type === ITEM_TYPE.money);
   let target =
     coins.find((c) => Number(c.system.coppervalue) === 100) ??
     coins.sort((a, b) => Number(b.system.coppervalue) - Number(a.system.coppervalue))[0];

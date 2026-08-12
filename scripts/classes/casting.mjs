@@ -17,6 +17,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** The vancian slot row for `level`: exact rung, else the highest below it. */
 export function slotRowAt(tradition, level) {
@@ -128,7 +129,7 @@ function onRenderCharacterSheet(app, element) {
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root) return;
   const doc = app.document;
-  if (!(doc instanceof Actor) || doc.type !== "character") return;
+  if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character) return;
   root.querySelector(".acks-extras-classes-strip")?.remove();
   const html = stripHtml(doc);
   if (!html) return;

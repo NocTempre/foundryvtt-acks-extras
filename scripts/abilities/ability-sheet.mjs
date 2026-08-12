@@ -9,11 +9,18 @@
  * `effects` for Foundry Active Effects, which are a different thing entirely.
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
+import { definitionId } from "../lib/capabilities.mjs";
 import AbilityExtras from "./ability-extras.mjs";
 import { keyOf, rollsOf, targetOf, scalesFor } from "./ability-rolls.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
 
 const T = `modules/${MODULE_ID}/templates/abilities`;
+
+// The system's Active Effects partial, folded into the mechanics tab. This is
+// the ONE place the path is named: the mechanics part preloads it (a core
+// rename fails at part load, loudly) and tab-mechanics.hbs receives it through
+// context rather than hardcoding a reach into core's template tree.
+const CORE_EFFECTS_PARTIAL = "systems/acks/templates/items/v2/common/item-active-effects.hbs";
 
 /**
  * A definition id ("def.power.longeval") reads as noise on a sheet, so show the
@@ -23,9 +30,9 @@ const T = `modules/${MODULE_ID}/templates/abilities`;
  */
 function refName(ref) {
   if (!ref) return ref;
-  // Raw flag path, never getFlag: the importer need not be active (getFlag
-  // throws for an inactive scope) while the data it wrote persists on the item.
-  const match = (i) => i.flags?.["acks-importer"]?.cookbook?.id === ref;
+  // lib owns the provenance-flag read (and the importer's scope name with it);
+  // it survives on the item whether or not the importer is active.
+  const match = (i) => definitionId(i) === ref;
   const item = game.items?.find?.(match);
   if (item) return item.name;
   // acks-content can import into world compendiums instead of the sidebar, in
@@ -230,7 +237,7 @@ export function createAbilitySheet(Base) {
   const parts = { header: P.header, tabs: P.tabs };
   if (P.description) parts.description = P.description;
   parts.rolls = { template: `${T}/tab-rolls.hbs`, scrollable: [""] };
-  parts.mechanics = { template: `${T}/tab-mechanics.hbs`, scrollable: [""] };
+  parts.mechanics = { template: `${T}/tab-mechanics.hbs`, templates: [CORE_EFFECTS_PARTIAL], scrollable: [""] };
 
   const tabList = [];
   if (P.description) tabList.push({ id: "description", icon: "fa-solid fa-scroll", label: "ACKS.category.description" });
@@ -364,7 +371,7 @@ export function createAbilitySheet(Base) {
       context.provides = (extras.provides ?? []).map((token) => {
         const slug = String(token).replace(/^kw:/, "");
         const owner = game.items?.find?.((i) => {
-          const id = i.flags?.["acks-importer"]?.cookbook?.id;
+          const id = definitionId(i);
           return id && !i.getFlag("acks-extras", "extras")?.aliasOf && V.capabilityForId?.(id) === token;
         });
         return { token, label: owner?.name ?? slug };
@@ -410,6 +417,7 @@ export function createAbilitySheet(Base) {
       context = await super._preparePartContext(partId, context, options);
       if (partId === "mechanics") {
         context.tab = context.tabs[partId];
+        context.coreEffectsPartial = CORE_EFFECTS_PARTIAL;
         // Reuse the system's own preparation — the Active Effects list is its
         // data, rendered through its partial, just on a different tab.
         if (typeof this._prepareEffectsContext === "function") {
