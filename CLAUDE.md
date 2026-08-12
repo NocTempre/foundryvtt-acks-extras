@@ -131,9 +131,10 @@ pass exactly the same gates.
   background sessions edit the main checkout — but that is read at daemon
   start, so restart the app after changing it.
 - `compatibility` minimum 14 / verified 14.364; system `acks` minimum 14.
-- Every `relationships.requires` entry carries a `reason` and
-  `compatibility.minimum` (lib-wrapper for wrapping, socketlib for GM-routed
-  writes).
+- Every `relationships.requires` entry carries a `reason`; third-party entries
+  (lib-wrapper for wrapping, socketlib for GM-routed writes) also carry
+  `compatibility.minimum` — intra-family acks-* entries do not (TOOLCHAIN §3
+  waiver).
 - Declare a pack in `module.json` only once it has content.
 - Namespacing (validate-enforced): globals/custom hooks/HB helpers start with
   the camelCased module id; top-level pack `_id`s start with the

@@ -16,12 +16,21 @@
  *   4. Pack-source invariants: 16-char alphanumeric _id, _key ending in _id,
  *      no duplicate _id within a pack.
  *   5. module.json invariants: semver version, compatibility.minimum present,
- *      declared esmodules/scripts/styles/languages/packs paths exist,
- *      manifest/download point at releases/latest/download.
+ *      declared esmodules/scripts/styles/languages/packs paths exist (checked
+ *      CASE-SENSITIVELY against the real directory entries, since existsSync
+ *      follows the local filesystem's case rules and NTFS lets a mismatch
+ *      pass locally that case-sensitive CI rejects), every
+ *      relationships.requires entry carries a reason and
+ *      compatibility.minimum, manifest/download point at
+ *      releases/latest/download.
  *   6. i18n: every ACKS-family key referenced in scripts/templates/ruledata/
- *      tools exists in lang/en.json (dynamic-suffix tolerant). Roots written as
- *      `${LANG_PREFIX}.x` are resolved from module-level string constants,
- *      following named imports; a root that stays unresolvable fails. The
+ *      tools exists in lang/en.json. Roots written as `${LANG_PREFIX}.x` are
+ *      resolved from module-level string constants, following named imports;
+ *      a root that stays unresolvable fails. A reference captured WHOLE (a
+ *      quoted literal) must match a key exactly; only a reference truncated
+ *      at an interpolation (`PREFIX.${value}`) is dynamic-suffix tolerant —
+ *      exact literals shielded by a longer sibling (foo passing because
+ *      fooHint exists) are the miss this distinction exists to catch. The
  *      count of keys actually checked is always printed.
  *   7. Namespacing (one form per registry, no legacy exceptions — the
  *      2026-07-15 migration brought every module into conformance):
@@ -67,6 +76,35 @@ const fail = (file, message) => {
   failed = true;
 };
 const rel = (full) => path.relative(ROOT, full).replaceAll(path.sep, "/");
+
+/* fs.existsSync follows the local filesystem's case rules — NTFS and APFS are
+ * case-insensitive, so a declared path whose case mismatches the repo passes
+ * on a dev machine and fails on case-sensitive CI. Verify each segment against
+ * the parent directory's real entries instead. */
+function existsExact(relPath) {
+  let dir = ROOT;
+  for (const segment of String(relPath).split(/[\\/]/)) {
+    if (!segment || segment === ".") continue;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir);
+    } catch {
+      return false;
+    }
+    if (!entries.includes(segment)) return false;
+    dir = path.join(dir, segment);
+  }
+  return true;
+}
+
+/* null when relPath exists with exactly this case; otherwise the reason —
+ * naming the case mismatch when the path exists only under different casing. */
+function pathProblem(relPath) {
+  if (existsExact(relPath)) return null;
+  return fs.existsSync(path.join(ROOT, relPath))
+    ? "exists only under a different case — case-sensitive CI will not find it"
+    : "does not exist";
+}
 
 function walk(dir, cb) {
   if (!fs.existsSync(dir)) return;
@@ -175,19 +213,43 @@ if (module_) {
   if (!m.compatibility?.minimum) fail("module.json", "missing compatibility.minimum");
   for (const field of ["esmodules", "scripts", "styles"]) {
     for (const p of m[field] ?? []) {
-      if (!fs.existsSync(path.join(ROOT, p))) fail("module.json", `${field} entry "${p}" does not exist`);
+      const problem = pathProblem(p);
+      if (problem) fail("module.json", `${field} entry "${p}" ${problem}`);
     }
   }
   for (const l of m.languages ?? []) {
-    if (!fs.existsSync(path.join(ROOT, l.path))) fail("module.json", `language "${l.lang}" path "${l.path}" does not exist`);
+    const problem = pathProblem(l.path);
+    if (problem) fail("module.json", `language "${l.lang}" path "${l.path}" ${problem}`);
   }
   for (const p of m.packs ?? []) {
-    const compiled = path.join(ROOT, p.path);
-    const source = path.join(sourceRoot, p.name);
-    if (!fs.existsSync(compiled) && !fs.existsSync(source)) {
-      fail("module.json", `declared pack "${p.name}" has neither ${p.path} nor packs/_source/${p.name}`);
+    if (existsExact(p.path) || existsExact(`packs/_source/${p.name}`)) continue;
+    const caseHit = [p.path, `packs/_source/${p.name}`].find((c) => fs.existsSync(path.join(ROOT, c)));
+    fail(
+      "module.json",
+      caseHit
+        ? `declared pack "${p.name}": "${caseHit}" exists only under a different case — case-sensitive CI will not find it`
+        : `declared pack "${p.name}" has neither ${p.path} nor packs/_source/${p.name}`
+    );
+  }
+  /* Every relationships.requires entry carries a human reason; third-party
+   * entries also carry compatibility.minimum. Intra-family (acks-*) entries are
+   * exempt from the minimum by the §3 waiver — sibling modules co-develop at
+   * current versions, so a computed floor there is development-tracking noise,
+   * not a contract. The count is printed so a green line cannot mean the check
+   * read nothing. */
+  const requires = m.relationships?.requires ?? [];
+  for (const entry of requires) {
+    const who = entry.id ?? "(entry without id)";
+    if (!entry.id) fail("module.json", "relationships.requires entry is missing its id");
+    if (typeof entry.reason !== "string" || !entry.reason.trim()) {
+      fail("module.json", `relationships.requires "${who}" is missing its reason`);
+    }
+    const intraFamily = typeof entry.id === "string" && entry.id.startsWith("acks-");
+    if (!intraFamily && !entry.compatibility?.minimum) {
+      fail("module.json", `relationships.requires "${who}" is missing compatibility.minimum`);
     }
   }
+  console.log(`validate: module.json relationships.requires checked ${requires.length} entr${requires.length === 1 ? "y" : "ies"}`);
   for (const [field, suffix] of [["manifest", "module.json"], ["download", "module.zip"]]) {
     if (m[field] && !m[field].endsWith(`/releases/latest/download/${suffix}`)) {
       fail("module.json", `${field} should end with /releases/latest/download/${suffix}`);
@@ -318,20 +380,46 @@ if (module_?.id && fs.existsSync(path.join(ROOT, "lang", "en.json"))) {
     if (!changed) break;
   }
 
-  const referenced = new Set();
+  /* referenced: key -> truncated. `truncated` stays true only while EVERY
+   * capture of the key was cut short — at a `${…}` interpolation or a trailing
+   * dot (a concat prefix; a whole key never ends in a dot) — or sat unquoted
+   * in prose (a comment naming a key family). Those get the dynamic-family
+   * tolerance: any longer sibling satisfies them. One capture of the whole key
+   * inside quotes pins it exact for good — an exact literal must match an
+   * exact key, because prefix tolerance lets a deleted `foo` hide behind its
+   * own `fooHint`, and roughly a tenth of a real repo's keys are strict
+   * prefixes of a sibling under the foo/fooHint labelling convention. */
+  const referenced = new Map();
   const literal = new Set(); // what a quoted-literal-only scan would have seen
-  const collect = (text, into) => {
-    for (const match of text.matchAll(keyRe)) into.add(match[0].replace(/[.,]$/, ""));
+  const QUOTE_RE = /["'`]/;
+  /* A quoted WHOLE literal handed to something that names itself a prefix —
+   * `static LOCALIZATION_PREFIXES = ["…"]`, `labelPrefix: "…"` — is a prefix
+   * by API contract, not a key, and keeps the dynamic-family tolerance. */
+  const PREFIX_CTX_RE = /prefix(?:es)?\s*[:=]\s*\[?\s*$/i;
+  const addRef = (key, truncated) => referenced.set(key, (referenced.get(key) ?? true) && truncated);
+  const collectLiteral = (text) => {
+    for (const match of text.matchAll(keyRe)) literal.add(match[0].replace(/[.,]$/, ""));
+  };
+  const collectRefs = (text) => {
+    for (const match of text.matchAll(keyRe)) {
+      const key = match[0].replace(/[.,]$/, "");
+      const truncated =
+        key !== match[0] ||
+        text.startsWith("${", match.index + match[0].length) ||
+        !QUOTE_RE.test(text[match.index - 1] ?? "") ||
+        PREFIX_CTX_RE.test(text.slice(Math.max(0, match.index - 64), match.index - 1));
+      addRef(key, truncated);
+    }
   };
   for (const full of files) {
-    collect(sources.get(full), literal);
+    collectLiteral(sources.get(full));
     if (!full.endsWith(".mjs")) {
-      collect(sources.get(full), referenced);
+      collectRefs(sources.get(full));
       continue;
     }
     const scope = scopeFor(full);
     const resolved = substitute(sources.get(full), scope);
-    collect(resolved, referenced);
+    collectRefs(resolved);
     for (const m of resolved.matchAll(OPAQUE_I18N_RE)) {
       if (!CONSTANTISH.test(m[1])) continue;
       fail(rel(full), `i18n key starts with unresolvable \${${m[1]}} — declare the root as a module-level string const so this check can read the key`);
@@ -340,14 +428,21 @@ if (module_?.id && fs.existsSync(path.join(ROOT, "lang", "en.json"))) {
       const root = m[3] ?? scope.get(m[4]);
       if (root === undefined || !LANG_ROOT_RE.test(root)) continue;
       const callRe = new RegExp(`\\b${m[1]}\\(\\s*(["'\`])([A-Za-z0-9._-]+)\\1`, "g");
-      for (const call of resolved.matchAll(callRe)) referenced.add(`${root}.${call[2]}`);
+      for (const call of resolved.matchAll(callRe)) addRef(`${root}.${call[2]}`, false);
     }
   }
-  for (const key of referenced) {
+  const langKeySet = new Set(langKeys);
+  for (const [key, truncated] of referenced) {
     // Dynamic families: code builds `PREFIX.${value}` — the captured prefix is
-    // fine as long as some real key extends it.
-    if (langKeys.some((k) => k.startsWith(key))) continue;
-    fail("lang/en.json", `missing key referenced in code: ${key}`);
+    // fine as long as some real key extends it. Only a TRUNCATED capture gets
+    // that tolerance; an exact literal reference demands the exact key.
+    if (truncated ? langKeys.some((k) => k.startsWith(key)) : langKeySet.has(key)) continue;
+    const sibling = truncated ? undefined : langKeys.find((k) => k !== key && k.startsWith(key));
+    fail(
+      "lang/en.json",
+      `missing key referenced in code: ${key}` +
+        (sibling ? ` (a longer sibling "${sibling}" exists, but an exact literal reference requires the exact key)` : "")
+    );
   }
   /* Always report the count. A silent OK cannot distinguish "found no problems"
    * from "found no keys", and it was the second that let a missing key ship. */
