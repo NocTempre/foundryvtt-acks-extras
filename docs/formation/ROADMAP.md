@@ -77,21 +77,41 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 8. Spell "per level" duration parsing (quick win, batch with the next release).
 9. Week-ration uses counter (quick win).
 
-## validate does not check that a referenced i18n key exists
+## validate's missing-i18n-key check is defeated by a longer sibling
 
-`tools/validate.mjs` checks that every key in `lang/en.json` sits under a declared
-namespace root. It does not check the other direction: that a key a template or a
-script passes to `localize` / `format` is actually defined. A missing one renders
-as the raw identifier on screen and passes every offline gate — which is how
-`ACKS-FORMATION.app.frontage` shipped (see [DECISIONS.md](DECISIONS.md)).
+`tools/validate.mjs` **does** check that every key referenced in code exists — the
+guard is at line 350, `missing key referenced in code`. It has one hole, and
+`ACKS-FORMATION.app.frontage` went through it (see [DECISIONS.md](DECISIONS.md)).
 
-What that needs: scan `templates/**/*.hbs` and `scripts/**/*.mjs` for literal
-`localize`/`format`/`has` arguments beginning with a declared root, and fail on
-any that `lang/en.json` does not define once its nested objects are flattened —
-the file mixes flat dotted keys with nested blocks, so a check that does not
-flatten reports hundreds of false positives. Keys built from a variable, and the
-prefix roots Foundry expands itself (`LOCALIZATION_PREFIXES`, `labelPrefix`), have
-to be excluded rather than reported.
+Line 349 tolerates dynamic families, where code builds `PREFIX.${value}` and only
+the prefix can be captured:
+
+```js
+if (langKeys.some((k) => k.startsWith(key))) continue;
+```
+
+It cannot tell that prefix from an **exact literal reference**. A literal
+`localize("…app.frontage")` is passed as long as *any* defined key starts with
+that string — and `…app.frontageHint` did, sitting on the next line of
+`lang/en.json`.
+
+Measured, and not a rare coincidence: **217 of 2279 keys (9.5%) are strict
+prefixes of a longer sibling**, so any one of them could go missing today and
+`validate` would stay green. The `foo` / `fooHint` convention this family writes
+labels in is what makes it systematic, and `foo` — the visible label — is always
+the shielded one.
+
+Confirmed by experiment: delete `…app.frontage` alone and `validate` passes
+clean; delete `…app.frontageHint` as well and it fails on **both** keys. So the
+reference is scanned correctly and the flattening is right — only the tolerance
+is wrong.
+
+What that needs: distinguish a reference the scanner captured *whole* from one it
+truncated at a `${…}`. Only the truncated kind may use `startsWith`; an exact
+literal must demand an exact key. The scanner already knows which is which — §6
+resolves constant roots and bound localizers, and `OPAQUE_I18N_RE` already
+detects the interpolated case — so this is a matter of carrying that fact as far
+as the check rather than new analysis.
 
 It belongs in **acks-module-template**, since every repo in the family has the
 same exposure; this repo only consumes the synced copy.

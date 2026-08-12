@@ -172,23 +172,42 @@ their own choice rather than a silently blank select.
 
 ---
 
-**2026-08-11 — a missing i18n key ships as the identifier, and nothing catches it.**
+**2026-08-11 — a missing i18n key ships as the identifier, shielded by its own
+`Hint`.**
 
 `ACKS-FORMATION.app.frontage` was absent from `lang/en.json`, so the marching
 order's Frontage field was labelled `ACKS-FORMATION.APP.FRONTAGE` on screen. Its
 `frontageHint` sat directly beside it in the file and was present, which is what
-made the gap survive: the tooltip worked, so the field behaved correctly in every
-way except the one a reader sees first. Found while shooting the v3.7.0 release
-snapshot — the frame is what surfaced it, not the code.
+made the gap survive at the table: the tooltip worked, so the field behaved
+correctly in every way except the one a reader sees first. Found while shooting
+the v3.7.0 release snapshot — the frame is what surfaced it, not the code.
 
-`npm run validate` passes on this. It checks that every key in `lang/en.json` is
-under a declared namespace root — the reverse direction — but not that a key a
-template or script asks for actually exists. A one-off scan of every literal
-`localize` / `format` argument across `templates/` and `scripts/` found this as
-the only real gap; the two other hits were prefix roots (`LOCALIZATION_PREFIXES`
-on the encounter-zone data model, and the henchmen location sheet's `labelPrefix`)
-whose leaves all exist.
+**CORRECTED 2026-08-11, same day.** This entry first said `validate` does not
+check that a referenced key exists. That is wrong, and the correction matters
+because the sibling `Hint` is not incidental — it is the mechanism.
 
-Closing that hole belongs in `tools/validate.mjs`, which is **synced from
-acks-module-template and never hand-edited here** — so it is recorded in
-[ROADMAP.md](ROADMAP.md) rather than fixed in this repo.
+`tools/validate.mjs:350` **does** fail on `missing key referenced in code`. Line
+349 tolerates dynamic families, where code builds `PREFIX.${value}` and only the
+prefix can be captured:
+
+```js
+if (langKeys.some((k) => k.startsWith(key))) continue;
+```
+
+It cannot tell that prefix from an exact literal reference, so a literal
+`localize("…app.frontage")` passes as long as *any* defined key starts with it —
+and `…app.frontageHint` did. Confirmed by experiment: delete `…app.frontage`
+alone and `validate` passes clean; delete `…app.frontageHint` too and it fails on
+**both**. The reference was scanned correctly all along; only the tolerance was
+wrong.
+
+**217 of 2279 keys (9.5%) are strict prefixes of a longer sibling**, so this is
+not a one-off. The `foo` / `fooHint` pairing this family writes labels in makes it
+systematic, and `foo` — the visible label — is always the shielded one.
+
+Closing it belongs in `tools/validate.mjs`, which is **synced from
+acks-module-template and never hand-edited here** — so the fix is recorded in
+[ROADMAP.md](ROADMAP.md) rather than made in this repo. Two hits in a one-off
+scan were genuine non-problems and should stay excluded: prefix roots Foundry
+expands itself (`LOCALIZATION_PREFIXES` on the encounter-zone data model, the
+henchmen location sheet's `labelPrefix`).
