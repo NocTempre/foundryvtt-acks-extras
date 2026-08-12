@@ -146,7 +146,7 @@ async function rollDetailsDialog(title, formula) {
   const content = `
     <p class="hint">${formula}</p>
     <div class="form-group"><label>${L("situational", "Situational bonus")}</label>
-      <input type="number" name="bonus" value="0" step="1" autofocus /></div>
+      <input type="number" name="bonus" placeholder="0" step="1" autofocus /></div>
     <div class="form-group"><label>${game.i18n.localize("CHAT.RollVisibility")}</label>
       <select name="messageMode">${modes.join("")}</select></div>`;
   try {

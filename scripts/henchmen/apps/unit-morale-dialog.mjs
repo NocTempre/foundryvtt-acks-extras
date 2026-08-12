@@ -29,7 +29,7 @@ export async function openUnitMoraleDialog(group) {
       <p>${game.i18n.format("ACKS-HENCHMEN.unitMorale.base", { name: foundry.utils.escapeHTML(group.name), base: base >= 0 ? "+" + base : base })}</p>
       ${rows}
       <label style="display:block">${game.i18n.localize("ACKS-HENCHMEN.unitMorale.other")}
-        <input type="number" name="other" value="0" style="width:5em" /></label>
+        <input type="number" name="other" placeholder="0" style="width:5em" /></label>
     </div>`;
 
   const total = await foundry.applications.api.DialogV2.prompt({
