@@ -15,6 +15,8 @@
  *     clause lives in the loadout effect; class powers/XP are Judge-side and
  *     surfaced as a violation)
  *   - Weapon Finesse: DEX instead of STR on tiny/small/medium melee attacks
+ *   - a damage-attribute substitution (Strength of Faith: WIS instead of STR on
+ *     the damage rolls Strength would have modified)
  *   - two-handed damage upsize for medium weapons wielded in both hands (1d6→1d8)
  *
  * Technique (deliberately non-invasive): `AcksItem#rollWeapon` passes
@@ -35,12 +37,42 @@ import { SIZE } from "./config.mjs";
 import { getLoadout } from "./loadout.mjs";
 import { classifyWeapon } from "./profiles.mjs";
 import { isWeaponProficient } from "./proficiency.mjs";
-import { hasEffectFlag } from "./effects.mjs";
+import { hasEffectFlag, collectStringFlags } from "./effects.mjs";
 import { encumbranceDelta6 } from "./containers.mjs";
 import { consumeForAttack } from "./ammo.mjs";
 
 /** Sizes eligible for Weapon Finesse (RR p. 121). */
 const FINESSE_SIZES = [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM];
+
+/**
+ * How much a damage-attribute substitution changes this attack's damage.
+ *
+ * The bladedancer's Strength of Faith applies Wisdom "to damage rolls Strength
+ * would modify", so this returns the DIFFERENCE between the substitute
+ * attribute and Strength — the two cancel to nothing when they are equal, and
+ * the caller folds a non-zero result into the damage string exactly as it does
+ * the two-handed upsize.
+ *
+ * Substituting for a bonus the character is not receiving would invent one, so
+ * this is asked only where Strength genuinely reaches the damage roll: a melee
+ * attack, or a thrown weapon at range. A weapon that takes no damage bonus at
+ * all is not asked.
+ *
+ * @returns {{delta:number, attribute:string}|null} null when nothing applies.
+ */
+function damageAttributeDelta(actor) {
+  const [attribute] = collectStringFlags(actor, EFFECT_DOMAINS.DAMAGE_ATTRIBUTE);
+  if (!attribute) return null;
+  const scores = actor.system?.scores ?? {};
+  // An attribute the actor does not carry is not a substitution, it is a typo
+  // in someone's ability: leave Strength alone rather than swap in a zero.
+  if (scores[attribute]?.mod == null) return null;
+  const delta = Number(scores[attribute].mod) - Number(scores.str?.mod ?? 0);
+  return Number.isFinite(delta) && delta !== 0 ? { delta, attribute } : null;
+}
+
+/** Fold a signed modifier into a damage formula. */
+const withDelta = (formula, delta) => (delta > 0 ? `${formula} + ${delta}` : `${formula} - ${Math.abs(delta)}`);
 
 /**
  * Compute the per-weapon RAW modifiers for one attack.
@@ -120,6 +152,22 @@ export function computeAttackMods(actor, attData, options = {}) {
     notes.push(`two-handed grip (${profile.damage2h})`);
   }
 
+  // A damage-attribute substitution (Strength of Faith: Wisdom in place of
+  // Strength). Core's melee branch pushes str.mod onto the damage parts, so
+  // fold the difference into the damage string — the same technique the
+  // two-handed upsize above uses, and it composes with it because the upsize
+  // has already chosen the die by this point. Skipped for a weapon that takes
+  // no damage bonus: the strip below is about to remove Strength entirely, and
+  // there is no bonus left to substitute for.
+  if (item && options.type === "melee" && !profile.special?.includes("noDamageBonus")) {
+    const sub = damageAttributeDelta(actor);
+    if (sub) {
+      const base = damage ?? item.system?.damage ?? profile.damage ?? "1d6";
+      damage = withDelta(base, sub.delta);
+      notes.push(`${sub.attribute.toUpperCase()} instead of STR on damage (${sub.delta > 0 ? "+" : "−"}${Math.abs(sub.delta)})`);
+    }
+  }
+
   // No-damage-bonus weapons (a torch, RR p148/p300): it deals its bare die and
   // gains NO bonus from STR, class, or the like. Core's rollAttack pushes the
   // weapon's damage string, THEN str.mod (melee), THEN damage.mod.melee/missile
@@ -144,13 +192,21 @@ export function computeAttackMods(actor, attData, options = {}) {
   // So when a thrown weapon is used at range, contribute str.mod to its damage.
   // Splash flasks (burning oil, holy water) are excluded by RAW and already carry
   // `noDamageBonus`, so the strip above owns them and this never doubles up.
+  //
+  // A damage-attribute substitution applies here too — this IS a damage roll
+  // Strength modifies, which is the clause Strength of Faith is written
+  // against. Unlike the melee branch it is applied to the attribute BEFORE the
+  // contribution rather than as a correction after it, because core pushed
+  // nothing here to correct.
   if (item && options.type === "missile" && profile.thrown &&
       !profile.special?.includes("splash") && !profile.special?.includes("noDamageBonus")) {
-    const str = Number(actor.system?.scores?.str?.mod ?? 0);
+    const sub = damageAttributeDelta(actor);
+    const str = Number(actor.system?.scores?.str?.mod ?? 0) + (sub?.delta ?? 0);
     if (str) {
       const base = damage ?? item.system?.damage ?? profile.damage ?? "1d6";
-      damage = str > 0 ? `${base} + ${str}` : `${base} - ${Math.abs(str)}`;
-      notes.push(`thrown weapon: Strength ${str > 0 ? "+" : "−"}${Math.abs(str)} to damage`);
+      damage = withDelta(base, str);
+      const label = sub ? sub.attribute.toUpperCase() : "Strength";
+      notes.push(`thrown weapon: ${label} ${str > 0 ? "+" : "−"}${Math.abs(str)} to damage`);
     }
   }
 

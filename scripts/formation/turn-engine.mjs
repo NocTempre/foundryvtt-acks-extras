@@ -11,10 +11,9 @@ import {
   TURN_SECONDS,
   TURNS_PER_DAY,
   WINDED_EFFECT_NAME,
-  lightGear,
 } from "./constants.mjs";
 import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, updateFormation } from "./formation-model.mjs";
-import { findCarried } from "../lib/item-model.mjs";
+import { prepareToLight } from "../lib/light.mjs";
 import { equipForLight } from "./judge-override.mjs";
 
 /**
@@ -577,76 +576,12 @@ export async function addLight(formation, type, bearerId, { override = false } =
   // they meant to describe: gear in the pack, a hand free to hold the flame.
   if (override) await equipForLight(bearer, type);
 
-  // Two-way hand check (acks-equipment, optional): a light is held in hand, so
-  // lighting one needs a free hand. Degrade-gracefully — no equipment module,
-  // no check. This is the reverse of handsOccupied: equipment counts a held
-  // light as a used hand, and here we refuse to light with none to hold it.
-  //
-  // BLOCKING BY DESIGN for a player. Sheathe or stow something first;
-  // acks-equipment's own sheet controls (drawItem/sheatheItem) are where a hand
-  // is freed. Only the call is defended — a companion module throwing must never
-  // break a core mutation, and an unreadable hand count means no check, not a
-  // refusal.
-  //
-  // ROOM, not free hands: a lone sword widens to a two-handed grip whenever a
-  // hand is going spare and gives it straight back for the torch, so asking what
-  // is FREE would refuse a swordsman with an empty off hand.
-  let freeHands;
-  try {
-    const equipment = globalThis.acksExtras?.equipment;
-    freeHands = equipment?.spareHands?.(bearer) ?? equipment?.freeHands?.(bearer);
-  } catch (err) {
-    console.error(`${MODULE_ID} | acks-equipment hand count failed`, err);
-  }
-  if (Number.isFinite(freeHands) && freeHands <= 0) {
-    ui.notifications.warn(
-      game.i18n.has("ACKS-FORMATION.warn.noFreeHand")
-        ? game.i18n.format("ACKS-FORMATION.warn.noFreeHand", { bearer: bearer.name })
-        : `${bearer.name} has no free hand to hold a light.`,
-    );
-    // Hands the override could not empty are full of lit sources, which
-    // sheathing cannot fix. Say so; do not stop a Judge over it.
-    if (!override) return;
-  }
-
-  // Equipment requirement (RR p265). "require" (default) blocks lighting without
-  // the gear; "warn" lights anyway with a warning; "off" ignores it. The gear a
-  // light needs is the light table's to state (`lightGear`): a torch/candle IS
-  // its own fuel, while a lantern needs the lamp (kept) AND a flask of oil
-  // (consumed). A torch supplied as an equipped WEAPON (it is both a light and a
-  // 1d4 weapon) is tolerated — quantity-bearing or not.
-  const enforcement = game.settings.get(MODULE_ID, "lightItemEnforcement");
-  if (enforcement !== "off") {
-    const gear = lightGear(type);
-    const fuel = findCarried(bearer, gear.find((g) => g.fuel).pattern);
-    const missing = gear
-      .filter((g) => !findCarried(bearer, g.pattern))
-      .map((g) => game.i18n.localize(g.label));
-
-    if (missing.length) {
-      const msg = game.i18n.has("ACKS-FORMATION.warn.needLightItem")
-        ? game.i18n.format("ACKS-FORMATION.warn.needLightItem", { bearer: bearer.name, items: missing.join(", ") })
-        : `${bearer.name} needs ${missing.join(", ")} to light this.`;
-      ui.notifications.warn(msg);
-      // "require" blocks — unless the Judge overrode and the world simply had no
-      // such item to hand over. "warn" falls through and lights anyway.
-      if (enforcement === "require" && !override) return;
-    }
-
-    // Consume one unit of the FUEL, but only when it is a genuine STACK. A
-    // stackable light item (a bundle of torches, a flask of oil, candles) has a
-    // core `system.quantity` and loses one to the flame. A torch carried as a
-    // WEAPON has no quantity field (core weapons don't) — it is a single
-    // wielded torch that simply burns out on its own timer, so there is nothing
-    // to decrement. A lantern (the reusable device) is never consumed; only its
-    // oil is. Reuse acks-equipment's ammunition-tracker decrement when present so
-    // fuel burn-down and ammo share one code path.
-    if (fuel && fuel.system?.quantity?.value != null) {
-      const consume = globalThis.acksExtras?.equipment?.consumeItem;
-      if (typeof consume === "function") await consume(fuel, 1);
-      else await fuel.update({ "system.quantity.value": Math.max(0, fuel.system.quantity.value - 1) });
-    }
-  }
+  // A hand to hold it, the gear RAW requires, and one unit of fuel off the
+  // stack — asked and spent in lib, because a character lighting a lamp from
+  // their own sheet with no formation in sight must clear the same bar.
+  // BLOCKING BY DESIGN for a player: sheathe or stow something first, through
+  // acks-equipment's own draw/sheathe controls.
+  if (!(await prepareToLight(bearer, type, { override }))) return;
 
   const light = {
     id: foundry.utils.randomID(),

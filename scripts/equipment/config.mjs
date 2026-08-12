@@ -242,14 +242,45 @@ export const GEAR_PROFILES = Object.freeze({
   barrel: { capacity: 15 },
 });
 
-/** Resolve a gear profile from an item name, or null. */
+/**
+ * A carrying device sold WITH its load, and how much of it: "Quiver, 20
+ * Arrows", "Case, 20 Bolts". RAW prices and packs these as one line, and core's
+ * own equipment pack ships each as a single `item` carrying `quantity: 20` —
+ * the bundle IS the ammunition.
+ *
+ * @returns {number|null} how many it carries, or null if it is not one of these.
+ */
+export function bundledAmmoCount(name) {
+  const text = String(name ?? "");
+  // "(holds 4 stone)" is a CAPACITY, not a load — core names every pack, sack
+  // and pouch that way, and `stone` is both the unit they are measured in and
+  // the shot a sling throws. The word `holds` is what tells the two apart.
+  if (/\bholds\b/i.test(text)) return null;
+  const m = /\b(\d+)\s+(?:sling\s+)?(arrows?|bolts?|quarrels?|bullets?|darts?|stones?)\b/i.exec(text);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Resolve a gear profile from an item name, or null.
+ *
+ * A LOADED DEVICE KEEPS ITS PLACE AND LOSES ITS CAPACITY. Where it rides and
+ * what it costs to draw from are facts about the quiver and stay true — RR
+ * pp293-294 make a quiver free to reach into, which is the whole reason an
+ * archer wears one. What it is not is somewhere to put things: it arrives full
+ * of its own arrows. Stamping a capacity on it showed a full quiver as
+ * "0 / 1 st — empty", with the twenty arrows readable only in its name and no
+ * way to put anything in it, while the count sat where nothing could spend it.
+ */
 export function gearProfileFor(name) {
   const key = slug(name);
-  if (GEAR_PROFILES[key]) return GEAR_PROFILES[key];
-  for (const [k, v] of Object.entries(GEAR_PROFILES)) {
-    if (key.startsWith(k) || key.includes(k)) return v;
+  const profile = GEAR_PROFILES[key] ?? Object.entries(GEAR_PROFILES).find(([k]) => key.startsWith(k) || key.includes(k))?.[1];
+  if (!profile) return null;
+  if (profile.capacity != null && bundledAmmoCount(name) != null) {
+    const { capacity, ...rest } = profile;
+    void capacity;
+    return Object.freeze(rest);
   }
-  return null;
+  return profile;
 }
 
 /**
@@ -274,6 +305,25 @@ export const CLOTHING_SLOT_PATTERNS = Object.freeze([
   { re: /\b(hat|skullcap|veil|crown|circlet|tiara|coif|hood|headdress)\b/i, slots: [SLOT.head] },
   { re: /\b(necklace|amulet|torc|pendant|collar)\b/i, slots: [SLOT.neck] },
   { re: /\b(ring)\b/i, slots: [SLOT.ring] },
+  // Garments worn ON THE BODY, and the reason the list ends with a broad one:
+  // the slots above are all the places a single named thing goes, and anything
+  // that clothes the torso or legs simply goes ON. It lands in `worn`, which is
+  // uncapped, rather than `body`, which is the one suit of armour — a robe and
+  // a mail hauberk are not competing for the same place.
+  //
+  // LAST, so every named slot above wins its own word first: a leather BELT is
+  // belt-worn though it is also clothing, and low BOOTS are feet.
+  //
+  // A NAME TEST IS THE ONLY TEST THERE IS for gear that arrived from outside
+  // the clothing pack. The structural answer (`isClothing`) reads
+  // `system.subtype`, which core sets on its own clothing items and nothing
+  // sets on an item built from a book's starting-equipment list — so a robe
+  // imported with a character was unwearable while boots from the same line
+  // were fine, purely because "boots" had a pattern and "robe" did not.
+  {
+    re: /\b(robes?|gowns?|dress(?:es)?|tunics?|shirts?|blouses?|chitons?|togas?|cassocks?|habits?|vestments?|surcoats?|tabards?|doublets?|jerkins?|jackets?|coats?|vests?|smocks?|frocks?|breeches|trousers|pants|leggings|hose|kilts?|skirts?|loincloths?|aprons?)\b/i,
+    slots: [SLOT.worn],
+  },
 ]);
 
 /**

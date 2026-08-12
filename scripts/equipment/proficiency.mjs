@@ -231,14 +231,35 @@ export function isArmorGatedSkill(name) {
 }
 
 /**
- * Swashbuckling AC bonus (RR p. 117): +1 (→+2 at L7, +3 at L13) while wearing
- * ≤ light armour and carrying ≤ 5 stone. 0 unless the actor has the proficiency.
+ * "In light, very light, or no armor, carrying 5 stone or less" — the clause
+ * ACKS II attaches to the bonuses a character fights unencumbered for.
+ * Swashbuckling (RR p. 117) and the bladedancer's Graceful Fighting are the two
+ * that reach the sheet, and they are written with the same words, so they ask
+ * the same question here rather than each testing armour and weight its own way.
+ */
+export function lightlyEquipped(actor, loadout) {
+  const armorCat = loadout?.armor?.system?.type ?? "unarmored";
+  const enc = Number(actor.system?.encumbrance?.value ?? 0);
+  return armorRank(armorCat) <= armorRank("light") && enc <= 5;
+}
+
+/**
+ * Swashbuckling AC bonus (RR p. 117): +1 (→+2 at L7, +3 at L13) while lightly
+ * equipped. 0 unless the actor has the proficiency.
  */
 export function swashbucklingAC(actor, loadout) {
   if (!hasEffectFlag(actor, EFFECT_DOMAINS.SWASHBUCKLING)) return 0;
-  const armorCat = loadout?.armor?.system?.type ?? "unarmored";
-  const enc = Number(actor.system?.encumbrance?.value ?? 0);
-  if (armorRank(armorCat) > armorRank("light") || enc > 5) return 0;
+  if (!lightlyEquipped(actor, loadout)) return 0;
   const level = Number(actor.system?.details?.level ?? 1);
   return level >= 13 ? 3 : level >= 7 ? 2 : 1;
+}
+
+/**
+ * Initiative that applies only while lightly equipped — the bladedancer's
+ * Graceful Fighting. The bonus itself is whatever the ability declared; this
+ * decides only whether she is dressed for it.
+ */
+export function lightInit(actor, loadout) {
+  const bonus = sumEffectModifiers(actor, EFFECT_DOMAINS.LIGHT_INIT);
+  return bonus && lightlyEquipped(actor, loadout) ? bonus : 0;
 }

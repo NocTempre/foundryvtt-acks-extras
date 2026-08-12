@@ -300,6 +300,36 @@ check("Weapon Finesse does not apply to missile attacks", computeAttackMods(a, a
 // Lone medium sword is wielded two-handed → damage upsized 1d6 → 1d8.
 check("two-handed grip upsizes damage to 1d8", m.damage === "1d8");
 
+/* --- Strength of Faith: WIS in place of STR on damage ---------------------- */
+//
+// Core pushes str.mod onto the damage parts, so the wrap contributes the
+// DIFFERENCE. It composes with the two-handed upsize because the upsize has
+// already chosen the die by the time the substitution folds its number in.
+const faith = { scores: { str: { mod: 1 }, wis: { mod: 3 } } };
+a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: faith });
+m = computeAttackMods(a, attData(swordItem), { type: "melee" });
+check("WIS (+3) replaces STR (+1) on melee damage → +2 on the upsized die", m?.damage === "1d8 + 2");
+check("the substitution is named in the roll's notes", m.notes.some((n) => /WIS instead of STR/.test(n)));
+
+// Equal modifiers cancel to nothing — no note, no phantom "+0".
+a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: { scores: { str: { mod: 2 }, wis: { mod: 2 } } } });
+check("an equal substitute changes no damage", !/[+-]/.test(computeAttackMods(a, attData(swordItem), { type: "melee" })?.damage ?? ""));
+
+// A WORSE substitute still applies: the rule is a replacement, not a bonus.
+a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: { scores: { str: { mod: 2 }, wis: { mod: 0 } } } });
+check("a weaker substitute still replaces STR", computeAttackMods(a, attData(swordItem), { type: "melee" })?.damage === "1d8 - 2");
+
+// An attribute the actor does not carry is a typo in somebody's ability, not a
+// substitution: leave Strength alone rather than swap in a zero.
+a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "cha")], system: faith });
+check("an attribute the actor lacks leaves STR alone", computeAttackMods(a, attData(swordItem), { type: "melee" })?.damage === "1d8");
+
+// A torch takes no damage bonus at all, so there is nothing to substitute for.
+const torchItem = weapon("Torch", { melee: true, id: "to", damage: "1d4" });
+a = rollActor([torchItem], { flags: { styles: "single,twoHanded" }, effects: [marker("damageAttribute", "wis")], system: faith });
+check("a no-damage-bonus weapon gains nothing from the substitution",
+  !/\+/.test(computeAttackMods(a, attData(torchItem), { type: "melee" })?.damage ?? ""));
+
 // A large weapon has no 1H/2H split → no damage override.
 const greatItem = weapon("Two-Handed Sword", { melee: true, id: "gs" });
 a = rollActor([greatItem], { flags: { styles: "single,twoHanded" }, system: { scores: { str: { mod: 1 }, dex: { mod: 1 } } } });
@@ -612,6 +642,33 @@ check("inference carries capacity, so annotate has one home to write", inferGear
 // A garment gets NO capacity guessed for it: whether a coat has usable pockets
 // is a ruling about that coat, not something its name can be read for.
 check("no capacity is invented for a garment", inferGear(clothing("Cloak, Silk, Hooded")).capacity === null);
+
+// A device sold WITH its load is the ammunition, not somewhere to put it. It
+// keeps where it rides and what it costs to draw from — both facts about the
+// quiver — and loses the capacity that showed a full one as "0 / 1 st, empty".
+const { bundledAmmoCount } = await import(new URL("config.mjs", S));
+check("a loaded quiver keeps its belt slot and free draw",
+  inferGear(goods("Quiver, 20 Arrows")).slots.join() === "belt" && inferGear(goods("Quiver, 20 Arrows")).access === "free");
+check("a loaded quiver is not a container", inferGear(goods("Quiver, 20 Arrows")).capacity === null);
+check("a loaded bolt case is not a container", inferGear(goods("Case, 20 Bolts")).capacity === null);
+check("the load is read off the name so the tracker can spend it",
+  bundledAmmoCount("Quiver, 20 Arrows") === 20 && bundledAmmoCount("Case, 20 Bolts") === 20 && bundledAmmoCount("30 Sling Stones") === 30);
+// "holds 4 stone" is a capacity, and `stone` is also what a sling throws — the
+// packs must not read as bundles of shot and lose the capacity they exist for.
+check("a pack that HOLDS stone is still a container",
+  bundledAmmoCount("Backpack (holds 4 stone)") === null && inferGear(goods("Backpack (holds 4 stone)")).capacity === 4);
+check("an ordinary item carries no load", bundledAmmoCount("Rope, 50'") === null);
+
+// Clothing that no named slot claims is still worn. The structural test reads
+// `system.subtype`, which nothing sets on an item built from a book's starting
+// equipment list — so a robe was unwearable while boots from the same printed
+// line were fine, purely on which words had patterns.
+check("a robe is worn", inferGear(goods("Blue robe with crescents")).slots.join() === "worn");
+check("a tunic is worn", inferGear(goods("Homespun tunic")).slots.join() === "worn");
+check("boots still beat the garment rule to the feet", inferGear(goods("Low boots")).slots.join() === "feet");
+check("a leather belt is still belt-worn", inferGear(goods("Leather belt")).slots.join() === "belt");
+check("goods that are not garments are worn nowhere",
+  inferGear(goods("Waterskin")).slots.length === 0 && inferGear(goods("1 week's iron rations")).slots.length === 0);
 
 // Capacity is a property of gear, so a coat with hidden pockets is a container
 // exactly as a sack is — which is the whole point of moving it off the
@@ -1108,7 +1165,7 @@ globalThis.acksExtras.abilities = priorAbilities;
 /*  Abilities bridge — proficiency facts FROM the acks-abilities model      */
 /* ---------------------------------------------------------------------- */
 
-const { hasEffectFlag, sumEffectModifiers } = await import(new URL("effects.mjs", S));
+const { hasEffectFlag, sumEffectModifiers, collectStringFlags } = await import(new URL("effects.mjs", S));
 const { trainedStyles, specializedStyles } = await import(new URL("loadout.mjs", S));
 const { resolveStylePick, resolveWeaponGroupPick, resolveFocusPick } =
   await import(new URL("abilities-bridge.mjs", S));
@@ -1177,6 +1234,92 @@ check("bridge: native-effect items are not double-counted",
 // The same ability WITHOUT native effects bridges to the same value.
 check("bridge: pure abilities item contributes the same +1",
   sumEffectModifiers(withItems([abil("Combat Reflexes", null, {})]), "styleInit") === 1);
+
+/* --- The typed effect model: a CLASS POWER granting a proficiency's rule --- */
+//
+// The slug tables key on the definition id's last segment, which carries the
+// owning class for a power: `def.power.bladedancerWeaponFinesse` reaches no
+// table entry and never will. The bladedancer's three combat powers reached no
+// roll at all until the bridge read what the abilities model already says.
+//
+// The importer stamps its provenance under its OWN scope, so these use it —
+// a test written against the wrong scope passes on the name fallback and
+// proves nothing about the id.
+const power = (name, defId, effects) => ({
+  id: name.replace(/\W/g, ""),
+  name,
+  type: "ability",
+  system: {},
+  flags: { "acks-importer": { cookbook: { id: defId } }, "acks-extras": { extras: { effects } } },
+  getFlag: () => undefined,
+  effects: [],
+});
+
+const bdFinesse = power("Weapon Finesse", "def.power.bladedancerWeaponFinesse", [
+  { type: "attributeSubstitution", attribute: "dex", insteadOf: "str", target: "attackThrow" },
+]);
+check("typed model: a class power flips the finesse domain",
+  hasEffectFlag(withItems([bdFinesse]), "finesse"));
+
+const bdFaith = power("Strength of Faith", "def.power.bladedancerStrengthOfFaith", [
+  { type: "attributeSubstitution", attribute: "wis", insteadOf: "str", target: "damage" },
+]);
+check("typed model: a damage substitution names the attribute that replaces STR",
+  collectStringFlags(withItems([bdFaith]), "damageAttribute").has("wis"));
+
+// Only a swap AWAY from Strength is expressible — Strength is the only
+// attribute core pushes onto an attack throw or a damage roll.
+const notStr = power("Odd Power", "def.power.oddPower", [
+  { type: "attributeSubstitution", attribute: "wis", insteadOf: "int", target: "damage" },
+]);
+check("typed model: a substitution for something other than STR is left alone",
+  collectStringFlags(withItems([notStr]), "damageAttribute").size === 0);
+
+const bdGraceful = power("Graceful Fighting", "def.power.bladedancerGracefulFighting", [
+  { type: "modifier", target: "initiative", mode: "add", value: 1, condition: "light, very light, or no armor; 5 stones or less" },
+]);
+check("typed model: a gated initiative bonus lands in the gated domain",
+  sumEffectModifiers(withItems([bdGraceful]), "lightInit") === 1 &&
+  sumEffectModifiers(withItems([bdGraceful]), "styleInit") === 0);
+check("typed model: an ungated initiative bonus is always on",
+  sumEffectModifiers(withItems([power("Quick", "def.power.quick", [{ type: "modifier", target: "initiative", mode: "add", value: 2 }])]), "styleInit") === 2);
+
+// A ladder nobody can resolve contributes NOTHING, not its first rung: a bonus
+// reported at the wrong level is worse than one the sheet says is missing.
+check("typed model: an unresolvable level ladder contributes nothing",
+  sumEffectModifiers(withItems([power("Ladder", "def.power.ladder",
+    [{ type: "modifier", target: "initiative", mode: "add", value: { kind: "level", pairs: [[1, 1], [7, 2]] } }])]), "styleInit") === 0);
+check("typed model: a flat-shaped value still resolves",
+  sumEffectModifiers(withItems([power("Flat", "def.power.flat",
+    [{ type: "modifier", target: "initiative", mode: "add", value: { kind: "flat", flat: 3 } }])]), "styleInit") === 3);
+
+// The gate is applied where the loadout is known, and it is the SAME clause
+// Swashbuckling is written with: light armour or less, 5 stone or less.
+const gracefulLight = withItems([bdGraceful, weapon("Sword", { melee: true, id: "gsw" })]);
+gracefulLight.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
+const initOf = (ch) =>
+  buildLoadoutChanges(ch, getLoadout(ch))
+    .filter((c) => c.key === "system.initiative.mod")
+    .reduce((s, c) => s + Number(c.value), 0);
+check("Graceful Fighting grants its initiative unarmoured", initOf(gracefulLight) === 1);
+
+const gracefulPlate = withItems([bdGraceful, weapon("Sword", { melee: true, id: "gsw" }), armor("Plate", "heavy", { id: "gpl" })]);
+gracefulPlate.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : k === "armorMax" ? "heavy" : undefined);
+check("Graceful Fighting grants nothing in plate", initOf(gracefulPlate) === 0);
+
+const gracefulLaden = withItems([bdGraceful, weapon("Sword", { melee: true, id: "gsw" })]);
+gracefulLaden.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
+gracefulLaden.system = { encumbrance: { value: 7 } };
+check("Graceful Fighting grants nothing over 5 stone", initOf(gracefulLaden) === 0);
+
+// Combat Reflexes classified from a connected book declares the very bonus its
+// table entry hardcodes. Paying both would give the seats that own the book a
+// silently different number.
+const reflexesBothWays = withItems([
+  power("Combat Reflexes", "def.prof.combatReflexes", [{ type: "modifier", target: "initiative", mode: "add", value: 1 }]),
+]);
+check("typed model: the slug table stands down on a domain the model claimed",
+  sumEffectModifiers(reflexesBothWays, "styleInit") === 1);
 
 // Pick resolvers.
 check("resolveStylePick handles 'Weapon and Shield'", resolveStylePick("Weapon and Shield") === "weaponshield");
@@ -1816,6 +1959,76 @@ check("a masterwork surcharge is added after plating, never multiplied by it", s
 // `silverdagger` in the weapon table, so table order alone answered "dagger".
 check("a decorated Silver Dagger keeps its quality", weaponKeyOf("Silver Dagger, masterwork") === "silverdagger");
 check("an ordinary decorated dagger is still a dagger", weaponKeyOf("Dagger, masterwork") === "dagger");
+
+/* ---------------------------------------------------------------------- */
+/*  One loadout effect, however many syncs ask for it                       */
+/* ---------------------------------------------------------------------- */
+//
+// `syncLoadoutEffect` is read-modify-write. Every route into it is an async
+// hook, and one user action routinely fires several at once — creating a
+// character's items is ONE `createEmbeddedDocuments` call and one `createItem`
+// hook PER ITEM, which is what importing a character does. Run concurrently
+// they all read "no effect yet" before any has finished writing, and the actor
+// ends up wearing four copies of its own loadout effect with every bonus
+// multiplied by four. Caught live on a bladedancer: +4 initiative for a +1
+// power.
+const { syncLoadoutEffect: syncLE } = await import(new URL("effects.mjs", S));
+const { refreshLoadout: refreshLO } = await import(new URL("enforce.mjs", S));
+
+/** An actor whose embedded-document writes settle asynchronously, as real ones do. */
+const effectActor = (items) => {
+  const a = withItems(items);
+  a.uuid = "Actor.race";
+  a.isOwner = true;
+  a.effects = [];
+  a.effects.find = Array.prototype.find.bind(a.effects);
+  a.effects.filter = Array.prototype.filter.bind(a.effects);
+  a.createEmbeddedDocuments = async (_t, docs) => {
+    await new Promise((r) => setTimeout(r, 5)); // the write is not instant
+    for (const d of docs) {
+      a.effects.push({
+        id: `fx${a.effects.length}`,
+        ...d,
+        getFlag: (_m, k) => (k === "loadout" ? true : undefined),
+        update: async (patch) => Object.assign(a.effects.find((e) => e.id === `fx${0}`) ?? {}, patch),
+        delete: async () => { a.effects.splice(a.effects.findIndex((e) => e.id === `fx${0}`), 1); },
+      });
+    }
+    return docs;
+  };
+  a.deleteEmbeddedDocuments = async (_t, ids) => {
+    await new Promise((r) => setTimeout(r, 5));
+    for (const id of ids) {
+      const i = a.effects.findIndex((e) => e.id === id);
+      if (i >= 0) a.effects.splice(i, 1);
+    }
+    return ids;
+  };
+  return a;
+};
+
+const managedCount = (a) => a.effects.filter((e) => e.getFlag?.("acks-extras", "loadout") === true).length;
+
+// Four hooks firing at once is the ordinary case, not a stress test.
+const racer = effectActor([abil("Combat Reflexes", null, {}), weapon("Sword", { melee: true, id: "rsw" })]);
+racer.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
+await Promise.all([refreshLO(racer), refreshLO(racer), refreshLO(racer), refreshLO(racer)]);
+check("four concurrent syncs leave exactly one loadout effect", managedCount(racer) === 1);
+check("and it carries the bonus once, not four times",
+  racer.effects[0].changes.filter((c) => c.key === "system.initiative.mod").reduce((s, c) => s + Number(c.value), 0) === 1);
+
+// A world that already has duplicates is repaired on the next ordinary sync,
+// so nobody has to be told to go looking for them.
+const dupes = effectActor([abil("Combat Reflexes", null, {}), weapon("Sword", { melee: true, id: "dsw" })]);
+dupes.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
+await dupes.createEmbeddedDocuments("ActiveEffect", [
+  { changes: [{ key: "system.initiative.mod", type: "add", value: "1" }], flags: { "acks-extras": { loadout: true } } },
+  { changes: [{ key: "system.initiative.mod", type: "add", value: "1" }], flags: { "acks-extras": { loadout: true } } },
+  { changes: [{ key: "system.initiative.mod", type: "add", value: "1" }], flags: { "acks-extras": { loadout: true } } },
+]);
+check("three duplicates exist before the repair", managedCount(dupes) === 3);
+await syncLE(dupes, getLoadout(dupes));
+check("an ordinary sync collapses them to one", managedCount(dupes) === 1);
 
 /* ---------------------------------------------------------------------- */
 /*  Shipped macros compile                                                 */

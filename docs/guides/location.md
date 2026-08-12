@@ -93,3 +93,15 @@ a vault at the next world load, and stows from the vault.
 
 **My character has no vault any more.** Deleting one does not regenerate it. A GM
 makes a new one with **Storage Manager → Give a character a vault**.
+
+**My character has become a warehouse.** Something turned storage on for them —
+most likely the **Enable Storage Here** macro run with their token selected. Open
+**Storage Manager**, pick them in the list, and use **Stop holding goods**; the
+Disable Storage Here macro does the same for a selected token. If anything is
+stored on them, return it to its owners first — the button is on that same
+screen. Clearing the flag moves nothing, so goods left behind would sit on an
+actor that no longer appears as a place to anyone.
+
+A character can no longer be made a place by accident: the macro refuses one and
+points at **Give a character a vault**, which is the thing you almost certainly
+wanted. A place is somewhere goods are left; a character is who leaves them.

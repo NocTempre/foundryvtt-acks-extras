@@ -44,7 +44,7 @@ import {
   canSeeInDark,
   senseProfile,
 } from "../scripts/lib/senses.mjs";
-import { emittedLight } from "../scripts/lib/light.mjs";
+import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import {
   capacityOf,
@@ -1026,6 +1026,57 @@ t("senseProfile: night vision brightens dim light but never pierces total dark",
   assert.deepEqual(profile.detection, {}); // ordinary sight finds things
 });
 
+t("senseProfile: night vision sees twice as far as the light reaching it", () => {
+  // MM §5: "indoors 2× light range". A torch's 15' bright radius carries a
+  // night-vision creature to 30' — and the doubling is of SOMEONE ELSE'S light,
+  // so it is read from the square, not from the sheet.
+  const creature = mockActor({ vision: ["night"] });
+  assert.equal(senseProfile(creature, { litBy: 15 }).sightRange, 30);
+  assert.equal(senseProfile(creature, { litBy: 5 }).sightRange, 10);
+
+  // Unlit, it collapses to the total-dark reading — which is the last clause of
+  // the same sentence, not a separate rule.
+  assert.equal(senseProfile(creature, { litBy: 0 }).sightRange, 0);
+
+  // Still not dark sight: a night-vision creature marches blind without a lamp.
+  assert.equal(senseProfile(creature, { litBy: 15 }).seesInDark, false);
+
+  // Nobody else reads the light. An ordinary creature standing in the same
+  // torchlight gains nothing, and a dark sense keeps its own recorded range.
+  assert.equal(senseProfile(mockActor(), { litBy: 15 }).sightRange, 0);
+  assert.equal(senseProfile(mockActor({ vision: ["lightless"], lightlessRange: 60 }), { litBy: 15 }).sightRange, 60);
+});
+
+t("brightestLightReaching: the strongest source whose bright radius covers the square", () => {
+  // 100px grid squares, 10' apiece — so 10px is a foot.
+  const scene = { grid: { size: 100, distance: 10 }, lights: [], tokens: [] };
+  const at = (x, y, extra = {}) => ({ x, y, width: 1, height: 1, parent: scene, ...extra });
+  const me = at(0, 0);
+
+  // Nothing burning: the unlit corridor, which is what keeps night vision dark.
+  assert.equal(brightestLightReaching(me), 0);
+
+  // A 30' lamp two squares (20') away reaches; the same lamp hidden does not.
+  scene.lights = [{ x: 200, y: 0, width: 0, height: 0, config: { bright: 30 } }];
+  assert.equal(brightestLightReaching(me), 30);
+  scene.lights[0].hidden = true;
+  assert.equal(brightestLightReaching(me), 0);
+
+  // A brighter source out of range loses to a weaker one in range: what counts
+  // is being lit by it, not its being the biggest light on the map.
+  scene.lights = [
+    { x: 5000, y: 0, width: 0, height: 0, config: { bright: 60 } },
+    { x: 100, y: 0, width: 0, height: 0, config: { bright: 15 } },
+  ];
+  assert.equal(brightestLightReaching(me), 15);
+
+  // A torch-bearing token counts like any other light, the creature's own
+  // included — a monster holding a lantern lights its own square.
+  scene.lights = [];
+  scene.tokens = [at(0, 0, { light: { bright: 15 } })];
+  assert.equal(brightestLightReaching(me), 15);
+});
+
 t("senseProfile: a blind creature navigates by its senses, not by nothing", () => {
   // Blind WITH a ranged sense uses that sense's range...
   const bat = senseProfile(mockActor({ vision: ["blind"], otherSenses: [{ type: "echolocation", range: 60 }] }));
@@ -1110,6 +1161,59 @@ t("senseProfile: a condition does NOT switch off lightless vision", () => {
 
 t("senseProfile: infravision by name reads as lightless vision", () => {
   assert.equal(senseProfile(mockActor(null, ["Infravision"])).sightRange, DEFAULT_LIGHTLESS_RANGE);
+});
+
+/* --- Shadowy Senses is not the monsters' lightless vision ------------------ */
+//
+// The register has Shadowy Senses `provides: kw:lightlessvision`, so a
+// prerequisite written against lightless vision is satisfied by a thief who has
+// it. That is a claim about what the sense COUNTS AS, and says nothing about how
+// far it reaches — but it used to be read as a lightless SOURCE, which granted
+// the monsters' 60' default. An imported thief therefore saw twice what RR §4
+// allows, through a sense that deafness, silence and running do not switch off.
+const capableActor = (names, provides, statuses = []) => ({
+  getFlag: () => undefined,
+  items: names.map((name) => ({
+    type: "ability",
+    name,
+    flags: { "acks-importer": { cookbook: { id: "def.skill.shadowySenses" } } },
+    getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { provides } : undefined),
+  })),
+  effects: [],
+  statuses: new Set(statuses),
+});
+
+t("senseProfile: an imported thief reads 30', not the monsters' 60'", () => {
+  const profile = senseProfile(capableActor(["Shadowy Senses"], ["kw:lightlessvision"]));
+  assert.equal(profile.sightRange, SHADOWY_SENSE_RANGE);
+  assert.equal(profile.visionMode, VISION_MODES.SHADOWY);
+  assert.deepEqual(profile.detection, { [DETECTION_MODES.SHADOWY]: SHADOWY_SENSE_RANGE });
+});
+
+t("senseProfile: and it is still switched off by deafness", () => {
+  // The whole point of getting the sense right: lightless vision is not hearing,
+  // so reading it as lightless left the thief seeing through a silence spell.
+  const profile = senseProfile(capableActor(["Shadowy Senses"], ["kw:lightlessvision"], ["deaf"]));
+  assert.equal(profile.sightRange, 0);
+  assert.equal(profile.seesInDark, false);
+});
+
+t("senseProfile: naming lightless vision outright still grants its own reach", () => {
+  // An elf with real infravision AND thief training has both senses, at their
+  // own ranges, and looks through the longer one. A capability alone never
+  // outranks a shadowy sense; a NAME does.
+  const profile = senseProfile(capableActor(["Shadowy Senses", "Infravision"], ["kw:lightlessvision"]));
+  assert.equal(profile.sightRange, DEFAULT_LIGHTLESS_RANGE);
+  assert.deepEqual(profile.detection, {
+    [DETECTION_MODES.SHADOWY]: SHADOWY_SENSE_RANGE,
+    [DETECTION_MODES.LIGHTLESS]: DEFAULT_LIGHTLESS_RANGE,
+  });
+});
+
+t("senseProfile: a capability with no shadowy sense behind it still reads lightless", () => {
+  const profile = senseProfile(capableActor(["Deep Sight"], ["kw:lightlessvision"]));
+  assert.equal(profile.sightRange, DEFAULT_LIGHTLESS_RANGE);
+  assert.equal(profile.visionMode, VISION_MODES.LIGHTLESS);
 });
 
 t("canSeeInDark agrees with senseProfile on every path", () => {

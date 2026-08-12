@@ -20,10 +20,19 @@ inside it overflows.
 
 ## Lighting a lamp from your own sheet
 
-A character in a party formation gets light controls on the lamp itself — one to
-**light** it, and once it is burning, **douse / re-light** plus, on a lantern,
-**open / close the shutter**. They do the same thing as the party sheet's light
-panel, on the row where the gear already is.
+Every character gets light controls on the lamp itself — one to **light** it,
+and once it is burning, **douse / re-light** plus, on a lantern, **open / close
+the shutter**. They sit on the row where the gear already is.
+
+You do not need to be in a party to use them. A character marching with nobody
+keeps their own lights, and their token lights the room for it. What it costs is
+the same either way: a free hand, the lamp, and a flask of oil — one of which is
+burnt when you strike it.
+
+The difference is what happens next. A party's lights belong to the marching
+order, which burns them down as the dungeon turns pass and warns you when one is
+about to go out. A light struck alone has no dungeon turn to burn against, so it
+stays lit until you put it out.
 
 ![](../releases/v1.3.0/equipment-light-controls.png)
 
@@ -122,6 +131,16 @@ the **Recover** macro to clear the state.
 There is no automatic recovery percentage, because the rules give none: recovery
 is the Judge's call and thrown weapons come back by being picked up.
 
+**A quiver of arrows is arrows.** "Quiver, 20 Arrows" and "Case, 20 Bolts" are
+sold packed, so they are the ammunition rather than something to put ammunition
+in — the count on the row is what you have, and it goes down as you shoot. They
+still ride your belt and are still free to draw from.
+
+If a quiver in your world shows a capacity it should not have — *0 / 1 st,
+empty*, next to a name that says twenty arrows — run **Annotate carrying gear**
+from the inventory header once. It clears the capacity and leaves the count
+alone, so a half-empty quiver is not refilled.
+
 ## Proficiency
 
 With enforcement on (the default), a character wielding a weapon with no
@@ -141,6 +160,19 @@ Optional overlays add: named-item rung tracking (advancing on levels gained
 while wielding, not on the wielder's absolute level), masterwork and scavenged
 condition, enclosing helms, JJ shield variants and combat maneuvers. Each is a
 separate setting.
+
+## What is on which tab of an item
+
+An item sheet opens on **Description**, with core's own stats column beside the
+prose — for armour that is its AC and armour type, for gear its subtype and
+quantity. **Construction** holds what the thing *is*: masterwork, condition,
+material, shield variant, helmet. Identity — a named item's tracker, and the
+Judge's apparent-identity mask — rides the header rather than a tab, because an
+item wears its identity everywhere.
+
+**Rolls appears on weapons only**, and holds core's throw fields: damage, attack
+bonus, melee or missile, range and save. Nothing else in the inventory throws
+dice, so nothing else grows the tab.
 
 ## Common problems
 

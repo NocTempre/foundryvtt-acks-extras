@@ -34,6 +34,11 @@ export function buildMacros() {
       `if (!game.user.isGM) return ui.notifications.warn("The storage manager is a GM tool.");
 game.modules.get("acks-extras").api.location.openStorageManager();`,
     ),
+    // A CHARACTER is refused here for the same reason the manager's Enable
+    // dialog leaves characters out of its list: a place is somewhere goods are
+    // left, and a character is who leaves them. Flagging one made the character
+    // a shared warehouse, which is not what a personal vault is and not what
+    // anyone selecting their own token meant to ask for.
     macro(
       "Enable Storage Here",
       "icons/svg/village.svg",
@@ -41,8 +46,21 @@ game.modules.get("acks-extras").api.location.openStorageManager();`,
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a token first (or assign yourself a character).");
 if (actor.isToken) return ui.notifications.warn("Link the token to its actor first — an unlinked token cannot hold goods.");
+if (actor.type === "character") return ui.notifications.warn(actor.name + " is a character, not a place. Use the storage manager's Create Vault for a personal vault, or select a cart, wagon or stronghold.");
 await acksExtras.lib.storage.setProvider(actor, true);
 ui.notifications.info(actor.name + " can now hold goods for people.");`,
+    ),
+    macro(
+      "Disable Storage Here",
+      "icons/svg/village.svg",
+      `if (!game.user.isGM) return ui.notifications.warn("Only a GM can turn storage off for an actor.");
+const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
+if (!actor) return ui.notifications.warn("Select a token first (or assign yourself a character).");
+if (!acksExtras.lib.storage.isProvider(actor)) return ui.notifications.warn(actor.name + " is not holding goods for anyone.");
+const held = acksExtras.lib.storage.storedItems(actor).length;
+if (held) return ui.notifications.warn(actor.name + " still holds " + held + " stored item(s). Return them to their owners first — the storage manager has a button for it.");
+await acksExtras.lib.storage.setProvider(actor, false);
+ui.notifications.info(actor.name + " is no longer a place that holds goods.");`,
     ),
     macro(
       "My Stored Goods",

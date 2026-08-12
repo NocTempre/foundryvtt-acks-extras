@@ -40,6 +40,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
       reassign: StorageManager.#onReassign,
       returnToOwners: StorageManager.#onReturnToOwners,
       enableStorage: StorageManager.#onEnableStorage,
+      disableStorage: StorageManager.#onDisableStorage,
       createVault: StorageManager.#onCreateVault,
       openPlace: StorageManager.#onOpenPlace,
     },
@@ -299,6 +300,41 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
     await api.setProvider(actor, true);
     ui.notifications.info(loc("manager.enabledOn", { name: actor.name }));
     this.#placeUuid = actor.uuid;
+    this.render();
+  }
+
+  /**
+   * Stop an actor being a place that holds goods.
+   *
+   * The counterpart to #onEnableStorage, and the only way back: `setProvider`
+   * has always taken `false`, but until now nothing called it with one, so an
+   * actor flagged by mistake — the "Enable Storage Here" macro used to accept a
+   * selected CHARACTER token — stayed a warehouse forever.
+   *
+   * GOODS BLOCK IT. Clearing the flag does not move anything: the items stay
+   * embedded on the actor, still stamped with whose they are, but the place
+   * they are stored at stops being a place, so no sheet lists them and no owner
+   * can ask for them back. Return them first — the button for it is on this
+   * same screen — and this refuses until the shelves are bare.
+   */
+  static async #onDisableStorage() {
+    const api = storage();
+    const place = this.place;
+    if (!place) return;
+    const held = api.storedItems(place).length;
+    if (held) {
+      ui.notifications.warn(loc("manager.disableHasGoods", { name: place.name, count: held }));
+      return;
+    }
+    const ok = await DialogV2.confirm({
+      window: { title: loc("manager.disable") },
+      classes: ["acks-ui", "acks-extras"],
+      content: `<p>${loc("manager.disablePrompt", { name: foundry.utils.escapeHTML(place.name) })}</p>`,
+    }).catch(() => false);
+    if (!ok) return;
+    await api.setProvider(place, false);
+    ui.notifications.info(loc("manager.disabled", { name: place.name }));
+    this.#placeUuid = null;
     this.render();
   }
 

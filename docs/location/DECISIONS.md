@@ -286,3 +286,34 @@ shims, and henchmen's shipped tables were purged the same day.
 **No sibling edges.** Consumers read `acksLib.tables`; this feature registers
 into it. Neither side names the other — FAMILY.md §2 discipline, adopted here
 from day one even though the wider refactor had not landed.
+
+---
+
+### Storage can be turned off again (2026-08-11)
+
+`setProvider` has always taken `false`, and until now nothing called it with one.
+There was no control, no macro and no route back: an actor flagged as a place
+that holds goods stayed one forever.
+
+The way in was the shipped **Enable Storage Here** macro, which took
+`canvas.tokens.controlled[0]?.actor` with no type check. Selecting your own token
+and running it made your CHARACTER a shared warehouse. The storage manager's own
+Enable dialog had always excluded characters — deliberately, because a shared
+place is a different thing from a personal vault — but the macro never learned
+the same rule.
+
+**Ruled: both halves.** The macro refuses a character and points at Create Vault;
+and a **Stop holding goods** control on the manager, plus a Disable Storage Here
+macro, undo the flag wherever it was set. The guard alone would have been no help
+to the world that already has the flag on a character.
+
+**Goods block it.** Clearing the flag moves nothing — the items stay embedded on
+the actor, still stamped with whose they are, but the place they are stored at
+stops being a place, so no sheet lists them and no owner can ask for them back.
+Disabling is refused while anything is stored, and points at Return to Owners on
+that same screen.
+
+**Rejected: a migration that un-flags characters on load.** It would decide for a
+Judge who deliberately made a character a caravan's quartermaster, and it would
+move a player's belongings without being asked. A visible control the Judge
+drives is the right shape for a mistake this rare and this easy to see.

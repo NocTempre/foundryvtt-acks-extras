@@ -164,6 +164,25 @@ function lightTypeOf(item) {
 }
 
 /**
+ * The same three actions for a character in no formation, written to their own
+ * actor flag. Same record shape, same three verbs; what it does NOT do is track
+ * burn-down, because outside a formation there is no dungeon-turn clock to burn
+ * against. The flame lights, shutters and goes out when told.
+ */
+function lightAlone(actor, type, payload) {
+  const lights = globalThis.acksExtras?.lib?.light;
+  if (!lights) return;
+  switch (type) {
+    case "light":
+      return lights.addActorLight(actor, payload.lightType);
+    case "lightToggle":
+      return lights.toggleActorLight(actor, payload.lightId);
+    case "lightShield":
+      return lights.toggleActorShield(actor, payload.lightId);
+  }
+}
+
+/**
  * Declare one light action on `actor`'s behalf, by the route the party sheet
  * uses for the same three buttons.
  *
@@ -186,7 +205,12 @@ function lightTypeOf(item) {
 export function declareLightAction(actor, type, payload) {
   const fm = globalThis.acksExtras?.formation;
   const formation = fm?.getFormationForActor?.(actor.id);
-  if (!formation) return;
+  // NO FORMATION, NO RELAY. The lights of a character marching with nobody are
+  // their own — a flag on their own actor — so the write needs no GM and no
+  // declaration card. This is the whole reason the lone path exists rather
+  // than being a formation of one: a player alone in a corridor can strike a
+  // light, which through the party record they never could.
+  if (!formation) return lightAlone(actor, type, payload);
   // NEVER gate this on the executing client: a relayed declaration runs on a GM
   // client, where `game.user.isGM` is true for whoever declared it.
   if (!game.user.isGM) return fm.requestPartyAction(formation.id, type, payload);
@@ -203,12 +227,16 @@ export function declareLightAction(actor, type, payload) {
 }
 
 /**
- * Put light controls on each equipped light source — Light / Douse, plus Shutter
- * for a lantern. These drive acks-formation's light state by actor (the module
- * owns it; this is the sheet-side control the two-way hook enables). No
- * formation module, or the actor is not in a party formation → no controls
- * (nothing to hold the light record). Every click goes through
- * declareLightAction, so a player's button works like the party sheet's.
+ * Put light controls on each carried light source — Light / Douse, plus Shutter
+ * for a lantern. Every click goes through declareLightAction, which routes to
+ * the formation's light record when the actor is in one and to the actor's own
+ * flag when they are not.
+ *
+ * NEVER GATE THESE ON A FORMATION. A character alone with a lantern is the
+ * ordinary case, not the exceptional one, and requiring a party record to hold
+ * the state meant a lone character had no way to light anything at all — the
+ * lantern simply showed no control. `bearerLights` already answers "whose
+ * record owns this actor's lights" for every reader; the controls ask it too.
  *
  * Owner-gated like every other injector here: an observer's click could only be
  * refused GM-side, and a control that answers "request sent" then nothing is
@@ -216,11 +244,7 @@ export function declareLightAction(actor, type, payload) {
  */
 function injectLightControls(list, actor) {
   if (!actor?.isOwner) return;
-  const fm = globalThis.acksExtras?.formation;
-  if (!fm?.getFormationForActor) return;
-  const formation = fm.getFormationForActor(actor.id);
-  if (!formation) return;
-  const mine = (formation.lights ?? []).filter((l) => l.bearerId === actor.id);
+  const mine = globalThis.acksExtras?.lib?.light?.bearerLights?.(actor) ?? [];
   for (const li of list.querySelectorAll("li.item[data-item-id]")) {
     const item = actor.items.get(li.dataset.itemId);
     const type = lightTypeOf(item);

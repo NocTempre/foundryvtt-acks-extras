@@ -169,6 +169,121 @@ const NUMERIC_DOMAINS = Object.freeze({
 });
 
 /* ---------------------------------------------------------------------- */
+/*  The typed effect model                                                 */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * The slug tables above key on the definition id's LAST segment, which is the
+ * ability's own name for a proficiency (`def.prof.weaponFinesse`) but carries
+ * the owning class for a class power (`def.power.bladedancerWeaponFinesse`).
+ * So a power that grants a proficiency's mechanic verbatim reaches no table
+ * entry, and never will: the tables cannot be made to cover every class's name
+ * for a rule without restating the rule once per class.
+ *
+ * The ability items already carry the answer. acks-importer classifies each
+ * entry into `flags["acks-extras"].extras.effects` as TYPED specs — the same
+ * shape acks-lib's `effectField()` declares — so `attributeSubstitution
+ * dex insteadOf str on attackThrow` says what the mechanic is without anyone
+ * naming the ability. Reading the model covers every ability that declares one,
+ * whatever it is called and whichever book it came from.
+ *
+ * The name tables stay for the abilities whose mechanics the model does not yet
+ * express (fighting styles, weapon groups, armour training). Nothing is read
+ * twice: an ability contributing through the model contributes the same domain
+ * once, because each spec maps to exactly one domain.
+ */
+const ATTRIBUTE_SUBSTITUTION_TARGETS = Object.freeze({
+  attackThrow: EFFECT_DOMAINS.FINESSE,
+  damage: EFFECT_DOMAINS.DAMAGE_ATTRIBUTE,
+});
+
+/** The typed effect specs an ability carries, or an empty list. */
+function typedEffects(item) {
+  const effects = item?.flags?.[ABILITIES_FLAG_SCOPE]?.extras?.effects;
+  return Array.isArray(effects) ? effects : [];
+}
+
+/**
+ * Resolve a level-scaled value to a flat number for `actor`.
+ *
+ * A materialized value is either a plain number or a `{kind, ...}` ladder the
+ * abilities model resolves against the character. Ask that model when it is
+ * live — interpreting a ladder is its job, not ours — and otherwise take only
+ * the shapes that need no interpretation. An unresolvable ladder contributes
+ * NOTHING rather than its first rung: a bonus reported at the wrong level is
+ * worse than a bonus the sheet says is missing.
+ */
+function flatValue(actor, value) {
+  if (value == null) return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const api = globalThis.acksExtras?.abilities;
+  if (api?.resolveValue) {
+    try {
+      const n = Number(api.resolveValue(actor, value));
+      if (Number.isFinite(n)) return n;
+    } catch {
+      /* fall through to the literal shapes */
+    }
+  }
+  if (value.kind === "flat") {
+    const n = Number(value.flat);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+/**
+ * Translate one ability's typed specs into domains.
+ *
+ * Deliberately narrow: only the specs this feature can act on are read, and an
+ * unrecognised one is left alone for whichever feature owns it. Claiming a spec
+ * we cannot honour would report a bonus on the sheet that never reaches a roll.
+ *
+ * @returns {Set<string>} the domains this item contributed to. The slug tables
+ *   below stand down on a domain already claimed here — the two describe the
+ *   same ability, and Combat Reflexes classified from a connected book declares
+ *   the very initiative bonus its table entry hardcodes. Summing both would
+ *   pay it twice, and only for the seats that own the book.
+ */
+function addTypedEffects(actor, item, { addNum, addStr, booleans }) {
+  const claimed = new Set();
+  for (const spec of typedEffects(item)) {
+    switch (spec?.type) {
+      case "attributeSubstitution": {
+        // Only a swap AWAY FROM Strength is expressible here: the roll-wrap
+        // corrects what core already pushed, and Strength is the only attribute
+        // core pushes onto an attack throw or a damage roll.
+        if (spec.insteadOf !== "str" || !spec.attribute) break;
+        const domain = ATTRIBUTE_SUBSTITUTION_TARGETS[spec.target];
+        if (!domain) break;
+        if (domain === EFFECT_DOMAINS.DAMAGE_ATTRIBUTE) addStr(domain, spec.attribute);
+        else booleans.add(domain);
+        claimed.add(domain);
+        break;
+      }
+      case "modifier": {
+        if (spec.target !== "initiative" || (spec.mode && spec.mode !== "add")) break;
+        const value = flatValue(actor, spec.value);
+        if (!value) break;
+        // A modifier the book gates on how heavily the character is equipped
+        // goes to the gated domain; one it states flatly is always on. The
+        // distinction is the presence of a condition, not what it says — the
+        // gate itself is applied where the loadout is known.
+        const domain = spec.condition ? EFFECT_DOMAINS.LIGHT_INIT : EFFECT_DOMAINS.STYLE_INIT;
+        addNum(domain, item.name, value);
+        // A gated bonus also stands down the flat table entry: the ability is
+        // the same one, stated more precisely.
+        claimed.add(domain).add(EFFECT_DOMAINS.STYLE_INIT);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  return claimed;
+}
+
+/* ---------------------------------------------------------------------- */
 /*  The contribution set                                                   */
 /* ---------------------------------------------------------------------- */
 
@@ -196,14 +311,20 @@ export function bridgeContributions(actor) {
   for (const item of actor.items ?? []) {
     if (item.type !== "ability") continue;
     if (speaksNative(item)) continue; // native effect items are not bridged
+
+    // The typed model first, and independently of the slug tables: an ability
+    // that declares its mechanic needs no name to be recognised, which is what
+    // lets a class power grant a proficiency's rule without being listed here.
+    const claimed = addTypedEffects(actor, item, { addNum, addStr, booleans: out.booleans });
+
     const slug = defSlug(item) ?? baseNameSlug(item);
     if (!slug) continue;
 
     const presence = PRESENCE_DOMAINS[slug];
-    if (presence) out.booleans.add(presence);
+    if (presence && !claimed.has(presence)) out.booleans.add(presence);
 
     const numeric = NUMERIC_DOMAINS[slug];
-    if (numeric) addNum(numeric.domain, item.name, numeric.value);
+    if (numeric && !claimed.has(numeric.domain)) addNum(numeric.domain, item.name, numeric.value);
 
     switch (slug) {
       case "fightingstylespecialization": {

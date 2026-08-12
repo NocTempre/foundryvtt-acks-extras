@@ -250,3 +250,109 @@ This does **not** cover every spelling: "Silvered Dagger" slugs to
 `silvereddagger`, which does not contain `silverdagger` at all. That is the
 reason `isSilvered` consults the name in its own right rather than depending on
 the weapon table to carry the quality.
+
+---
+
+**2026-08-11 — a Rolls tab only where core's details field-set is rolls.**
+
+The sheet moved core's `.field-set--narrow` out of the description's side-column
+into a Rolls tab for every equipment type. That reads correctly for a weapon,
+whose field-set *is* throws: damage, attack bonus, melee/missile, range, save.
+It reads as nothing for the other two. An armour's field-set is its AC and armour
+type; an item's is its subtype and quantity. Both are facts about what the thing
+IS, and sending them to a tab labelled Rolls both hid them behind a click and
+left the description with an empty column where they used to sit.
+
+**Ruled: `weapon` alone gets the tab.** Armour and items keep core's own sidebar
+beside their prose, and the tab is dropped for them entirely rather than shown
+empty — the same treatment Spells already gets on anything that is not a spell
+book. Leaving the node where core put it is also strictly safer than putting it
+back would be: it is never detached, so no core binding is even briefly orphaned.
+
+Not done: splitting the weapon field-set so its non-roll members (the tag input,
+Favorite) stay with the description. They are core's markup in core's order, and
+re-templating them to sort two controls would forfeit the reason the whole node
+is moved rather than rebuilt.
+
+---
+
+**2026-08-11 — the abilities bridge reads the typed effect model, not the name.**
+
+The bridge translated an imported ability into effect domains through slug
+tables keyed on the definition id's LAST segment. That is the ability's own name
+for a proficiency (`def.prof.weaponFinesse` → `weaponfinesse`) but carries the
+owning class for a class power (`def.power.bladedancerWeaponFinesse` →
+`bladedancerweaponfinesse`). So the bladedancer's Weapon Finesse, Strength of
+Faith and Graceful Fighting reached no domain, and none of the three moved a
+die — Weapon Finesse in particular failed while the `finesse` domain and the
+roll-wrap consuming it both worked perfectly, with nothing feeding them.
+
+**Rejected: adding the class-power slugs to the tables.** It fixes exactly the
+three powers reported and nothing else, and it commits the tables to carrying
+one entry per class per rule — every class that grants Weapon Finesse under its
+own name, forever.
+
+**Ruled: read `flags["acks-extras"].extras.effects`.** acks-importer already
+classifies each entry into typed specs, so `attributeSubstitution dex insteadOf
+str on attackThrow` states the mechanic without anyone naming the ability. Every
+ability that declares one is covered, whatever it is called and whichever book
+it came from. The slug tables stay for the mechanics the model does not yet
+express (fighting styles, weapon groups, armour training).
+
+Cost, and the guard it needed: an ability can now be described twice. Combat
+Reflexes hardcodes +1 initiative in the numeric table AND, on a seat that owns
+the book, classifies the same +1 out of its prose — so the bridge returns the
+domains a typed spec claimed and the tables stand down on those. Without it the
+seats with the book would have silently paid twice.
+
+Not done: honouring the *narrowing* each substitution prints. The proficiency's
+Weapon Finesse covers tiny/small/medium melee weapons; the bladedancer's covers
+the weapons she is proficient with, and the page says the two do not stack. That
+distinction lives only in the spec's `condition` prose, and reading a restriction
+out of prose is how a bonus gets granted where RAW does not grant it. Both map to
+the one size-gated `finesse` domain, which can only ever withhold the swap on a
+weapon larger than medium — the safe direction to be wrong.
+
+---
+
+**2026-08-11 — a device sold with its load is the ammunition, not a container.**
+
+"Quiver, 20 Arrows" contains the word `quiver`, so the gear-profile match
+claimed it and stamped a 1-stone capacity on it. The sheet then showed a full
+quiver as **0 / 1 st — empty**, with the twenty arrows readable only in its name
+and no way to put anything in it; and because the count lived in the name rather
+than in `system.quantity`, firing a bow could never spend one.
+
+**Ruled: it keeps its place and loses its capacity.** Where it rides and what it
+costs to draw from are facts about the quiver and stay true — RR pp293-294 make
+a quiver free to reach into, which is the whole reason an archer wears one. What
+it is not is somewhere to put things: it arrives full of its own arrows. Core's
+own equipment pack agrees, shipping it as one `item` carrying `quantity: 20`.
+
+The load is read off the name so the ammunition tracker can spend it, and the
+annotate pass is the one place that UNDOES its own earlier answer: a world
+already carrying the wrong capacity clears it by re-running the annotate button,
+because nothing else will. The count is written only onto an item that has none,
+so a half-spent quiver does not refill itself every time gear is annotated.
+
+`holds` is what separates a load from a capacity — core names every pack, sack
+and pouch "(holds N stone)", and `stone` is both the unit they are measured in
+and the shot a sling throws.
+
+---
+
+**2026-08-11 — clothing the named slots do not claim is still worn.**
+
+`inferGear` had patterns for belts, boots, gloves, cloaks, hats, necklaces and
+rings, and a structural fallback (`isClothing`) that reads
+`system.subtype === "clothing"`. Core sets that subtype on its own clothing
+items; nothing sets it on an item built from a book's starting-equipment list.
+So a character imported with "low boots" and a "blue robe with crescents" could
+wear the boots and not the robe — purely on which words had patterns.
+
+**Ruled: a broad body-garment pattern, last in the list.** Every named slot wins
+its own word first, so a leather belt is still belt-worn. What the pattern
+catches lands in `worn`, which is uncapped, rather than `body`, which is the one
+suit of armour — a robe and a mail hauberk are not competing for the same place.
+No capacity is invented for any of it: whether a coat has usable pockets is a
+ruling about that coat.

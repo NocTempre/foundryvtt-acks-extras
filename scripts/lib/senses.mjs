@@ -57,6 +57,15 @@ const CAP_LIGHTLESS = "kw:lightlessvision";
 const DARK_VISION = new Set(["lightless", "blind"]);
 
 /**
+ * How far Night Vision carries indoors: TWICE the range of the light it is
+ * seeing by (MM §5 — "moonlight → daylight; indoors 2× light range; not total
+ * dark"). It is a multiplier on someone else's torch, never a radius of its
+ * own, which is what keeps the last clause true: no light reaching the creature
+ * means nothing to double, and the sense goes dark with the room.
+ */
+const NIGHT_LIGHT_FACTOR = 2;
+
+/**
  * Non-visual senses that substitute for sight in darkness (their "sight" counts
  * as dim light, MM p. 13): echolocation and the mechanoreception family. Acute
  * hearing/olfaction only aid surprise, so they do NOT count.
@@ -204,10 +213,24 @@ function sensesOf(actor) {
   }
 
   // No stat block: the capability register, then names.
-  if (hasCapability(actor, CAP_LIGHTLESS) || matchesByName(actor, LIGHTLESS_PATTERN)) {
+  //
+  // SHADOWY SENSES ARE ASKED FIRST, because the capability does not settle the
+  // range. Shadowy Senses `provides: kw:lightlessvision` — correctly, so that a
+  // prerequisite written against lightless vision is satisfied by a thief who
+  // has it — but that is a claim about what the sense COUNTS AS, not about how
+  // far it reaches. Read as a lightless source it granted the monsters' 60'
+  // default, so a thief saw twice what RR §4 allows, through a sense that
+  // deafness, silence and running do not switch off. Both halves were wrong.
+  //
+  // A capability alone therefore never outranks a shadowy sense. Naming
+  // lightless vision outright still does: an elf with real infravision AND
+  // thief training has both senses, at their own ranges, and looks through the
+  // longer one.
+  const shadowy = matchesByName(actor, SHADOWY_PATTERN);
+  if (shadowy) found.push({ key: "shadowy", range: SHADOWY_SENSE_RANGE });
+  if (matchesByName(actor, LIGHTLESS_PATTERN) || (!shadowy && hasCapability(actor, CAP_LIGHTLESS))) {
     found.push({ key: "lightless", range: DEFAULT_LIGHTLESS_RANGE });
   }
-  if (matchesByName(actor, SHADOWY_PATTERN)) found.push({ key: "shadowy", range: SHADOWY_SENSE_RANGE });
   return found.sort((a, b) => b.range - a.range);
 }
 
@@ -215,6 +238,11 @@ function sensesOf(actor) {
 function suppressed(key, statuses) {
   if (key !== "shadowy") return false;
   return SHADOWY_SUPPRESSORS.some((s) => statuses.has(s));
+}
+
+/** Does this creature's stat block record Night Vision? */
+export function hasNightVision(actor) {
+  return Array.from(getMonsterExtras(actor)?.vision ?? []).includes("night");
 }
 
 /**
@@ -229,8 +257,15 @@ function suppressed(key, statuses) {
  *
  * A creature with several senses looks through its longest, and detects with all
  * of them at their own ranges.
+ *
+ * @param {object} [context]
+ * @param {number} [context.litBy] the bright radius, in scene units, of the
+ *   strongest light reaching this creature — the number Night Vision doubles.
+ *   Only that sense reads it; every other answer here is a property of the
+ *   sheet alone. Omitted (0) it yields the total-dark reading, which is the
+ *   right answer for any caller asking about the creature rather than a square.
  */
-export function senseProfile(actor) {
+export function senseProfile(actor, { litBy = 0 } = {}) {
   const statuses = statusesOf(actor);
   const senses = sensesOf(actor);
   const live = senses.filter((s) => !suppressed(s.key, statuses));
@@ -242,12 +277,15 @@ export function senseProfile(actor) {
   }
 
   if (!live.length) {
-    // Night Vision is the one light-based sense: it brightens dim light but
-    // leaves total darkness dark, so it never grants a range.
-    const night = Array.from(getMonsterExtras(actor)?.vision ?? []).includes("night");
+    // Night Vision is the one LIGHT-BASED sense: it doubles the reach of
+    // whatever is burning nearby and grants nothing of its own, so an unlit
+    // room leaves it at 0 and the creature is as blind as anyone else. Reported
+    // as seesInDark FALSE regardless — that flag asks whether the creature can
+    // march without a light at all, and this one cannot.
+    const night = hasNightVision(actor);
     return {
       seesInDark: false,
-      sightRange: 0,
+      sightRange: night ? NIGHT_LIGHT_FACTOR * litBy : 0,
       visionMode: night ? VISION_MODES.NIGHT : VISION_MODES.BASIC,
       detection,
       suppressed: senses.length > 0,

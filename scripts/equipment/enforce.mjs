@@ -105,19 +105,24 @@ export async function onUpdateItem(item, changes) {
   const actor = item.parent;
   if (!managesLoadout(actor) || !primaryResponder(actor)) return;
 
-  const loadout = getLoadout(actor);
-  const blocking = blockingViolations(loadout);
+  // Serialised with every other sync on this actor — see queueSync. The loadout
+  // is READ INSIDE the queued step, not before it: a loadout computed while an
+  // earlier sync was still settling describes a state that has already moved on.
+  return queueSync(actor, async () => {
+    const loadout = getLoadout(actor);
+    const blocking = blockingViolations(loadout);
 
-  if (blocking.length && mode() === ENFORCE.RESOLVE) {
-    await autoResolve(actor, loadout, blocking);
-    return; // autoResolve triggers a fresh updateItem which rebuilds the effect
-  }
-  if (blocking.length && mode() === ENFORCE.ADVISORY) {
-    ui.notifications.info(`${actor.name}: ${blocking.map(violationMessage).join(" ")}`);
-  }
+    if (blocking.length && mode() === ENFORCE.RESOLVE) {
+      await autoResolve(actor, loadout, blocking);
+      return; // autoResolve triggers a fresh updateItem which rebuilds the effect
+    }
+    if (blocking.length && mode() === ENFORCE.ADVISORY) {
+      ui.notifications.info(`${actor.name}: ${blocking.map(violationMessage).join(" ")}`);
+    }
 
-  await syncLoadoutEffect(actor, loadout);
-  Hooks.callAll(HOOKS.LOADOUT_CHANGED, actor, loadout);
+    await syncLoadoutEffect(actor, loadout);
+    Hooks.callAll(HOOKS.LOADOUT_CHANGED, actor, loadout);
+  });
 }
 
 /**
@@ -151,10 +156,45 @@ async function autoResolve(actor, loadout, blocking) {
   for (const v of blocking) Hooks.callAll(HOOKS.EQUIP_BLOCKED, actor, v.items?.[0], { reason: violationMessage(v), resolution: "resolve" });
 }
 
+/**
+ * ONE SYNC AT A TIME PER ACTOR.
+ *
+ * `syncLoadoutEffect` is read-modify-write: it looks for the managed effect and
+ * creates one if it finds none. Every route into it is an async hook, and a
+ * single user action routinely fires several at once — creating a character's
+ * items is one `createEmbeddedDocuments` call and one `createItem` hook PER
+ * ITEM, which is what importing a character does. Run concurrently they all
+ * read "no effect yet" before any of them has finished creating one, and the
+ * actor ends up wearing four copies of its own loadout effect with every bonus
+ * multiplied by four.
+ *
+ * `primaryResponder` does not help: it settles WHICH CLIENT writes, not how
+ * many writes that client has in flight.
+ *
+ * Chaining onto the actor's own pending sync serialises them without blocking
+ * anything else, and the entry is dropped once the queue drains so a long-lived
+ * world does not accumulate one per actor ever touched. A failed sync must not
+ * poison the chain, so the link swallows — the error is reported by the caller.
+ */
+const syncQueue = new Map();
+
+function queueSync(actor, run) {
+  const key = actor.uuid ?? actor.id;
+  const previous = syncQueue.get(key) ?? Promise.resolve();
+  const next = previous.catch(() => {}).then(run);
+  syncQueue.set(key, next);
+  next.catch(() => {}).finally(() => {
+    if (syncQueue.get(key) === next) syncQueue.delete(key);
+  });
+  return next;
+}
+
 /** Rebuild the loadout effect without an equip toggle (e.g. style/prof change). */
 export async function refreshLoadout(actor) {
   if (!managesLoadout(actor) || !primaryResponder(actor)) return;
-  const loadout = getLoadout(actor);
-  await syncLoadoutEffect(actor, loadout);
-  Hooks.callAll(HOOKS.LOADOUT_CHANGED, actor, loadout);
+  return queueSync(actor, async () => {
+    const loadout = getLoadout(actor);
+    await syncLoadoutEffect(actor, loadout);
+    Hooks.callAll(HOOKS.LOADOUT_CHANGED, actor, loadout);
+  });
 }

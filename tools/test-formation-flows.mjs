@@ -1081,6 +1081,73 @@ await scenario("a player lights their own lamp from the character sheet", async 
   await drain();
 });
 
+await scenario("a character in no formation lights their own lamp", async () => {
+  // THE ORDINARY CASE, and it used to be the impossible one: the sheet's light
+  // controls were gated on the actor being in a party formation, so a character
+  // alone in a corridor saw no control on their lantern at all and a dragged-in
+  // lamp did nothing. The lights of someone marching with nobody are their own —
+  // a flag on their own actor — so this needs no formation, no GM and no relay.
+  const { declareLightAction } = await import("../scripts/equipment/sheet.mjs");
+  // The sheet reaches lib through the shared namespace, exactly as it does live.
+  const lightLib = await import("../scripts/lib/light.mjs");
+  globalThis.acksExtras.lib = { ...(globalThis.acksExtras.lib ?? {}), light: lightLib };
+
+  const solo = await ActorMock.create({
+    name: "Solo",
+    type: "character",
+    ownership: { default: 0, PL1: 3 },
+    system: { hp: { value: 6, max: 6 }, details: { level: 1 }, encumbrance: { value: 2, max: 20 } },
+  });
+  await game.settings.set(MODULE_ID, "formations", {}); // nobody is in a formation
+  await game.settings.set(MODULE_ID, "lightItemEnforcement", "require");
+  await drain();
+
+  const gmUser = game.user;
+  try {
+    game.user = game.users.get("PL1");
+
+    // The gear rule bites here exactly as it does in a formation: same check,
+    // one implementation, whichever record ends up holding the flame.
+    await declareLightAction(solo, "light", { lightType: "lantern", bearerId: solo.id });
+    await drain();
+    assert.equal(lightLib.bearerLights(solo).length, 0, "no gear, no light, formation or not");
+
+    await solo.createEmbeddedDocuments("Item", [
+      { name: "Lantern", type: "item", system: {} },
+      { name: "Flask of Oil", type: "item", system: { quantity: { value: 2 } } },
+    ]);
+    await drain();
+    await declareLightAction(solo, "light", { lightType: "lantern", bearerId: solo.id });
+    await drain();
+
+    const lights = lightLib.bearerLights(solo);
+    assert.equal(lights.length, 1, "a lone character lights their own lantern");
+    assert.ok(lights[0].lit, "and it is burning");
+    assert.equal(
+      solo.items.find((i) => /oil/i.test(i.name)).system.quantity.value,
+      1,
+      "striking it burns a flask of oil, the same as it would in a party",
+    );
+    assert.deepEqual(lightLib.emittedLight(lights), { bright: 15, dim: 30 }, "the token sheds a lantern's light");
+
+    // The other two buttons on that same row, with nobody's permission needed.
+    const lightId = lights[0].id;
+    await declareLightAction(solo, "lightShield", { lightId });
+    await drain();
+    assert.ok(lightLib.bearerLights(solo)[0].shielded, "the shutter closes");
+    assert.deepEqual(
+      lightLib.emittedLight(lightLib.bearerLights(solo)),
+      { bright: 0, dim: 0 },
+      "a shuttered lantern sheds nothing though it keeps burning",
+    );
+    await declareLightAction(solo, "lightToggle", { lightId });
+    await drain();
+    assert.ok(!lightLib.bearerLights(solo)[0].lit, "and it can be doused");
+  } finally {
+    game.user = gmUser;
+  }
+});
+
 await scenario("light-source equipment enforcement (require / warn / consume)", async () => {
   const noKit = await member("Nolan"); // carries nothing
   const withKit = await member("Wanda");

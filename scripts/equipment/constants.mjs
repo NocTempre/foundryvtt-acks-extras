@@ -21,6 +21,12 @@ export const EFFECT_DOMAINS = Object.freeze({
   HAND_BUDGET: "handBudget", // raises the base 2-hand budget (Four Arms, monster anatomy)
   STYLE_AC: "styleAC", // Weapon & Shield spec, variant-shield AC, Swashbuckling/Blade-Dancing
   STYLE_INIT: "styleInit", // Single-weapon spec, Combat Reflexes
+  // Initiative that applies only while lightly equipped (≤ light armour, ≤ 5
+  // stone) — the bladedancer's Graceful Fighting. Separate from STYLE_INIT
+  // because that domain is always-on and folding a gated bonus into it would
+  // grant it in plate. Shares its gate with SWASHBUCKLING, which RAW writes
+  // with the same clause.
+  LIGHT_INIT: "lightInit",
   STYLE_ATTACK_MELEE: "styleAttackMelee", // Dual spec, slayer flats
   STYLE_ATTACK_MISSILE: "styleAttackMissile", // Missile spec
   STYLE_DAMAGE_MELEE: "styleDamageMelee", // Two-handed spec
@@ -40,8 +46,20 @@ export const EFFECT_DOMAINS = Object.freeze({
   ARMOR_PROF: "armourProficiency", // highest armour category granted by class training
   ARMOR_TRAINING: "armorTraining", // integer: armour categories added above class
   MANEUVER_TRICKERY: "maneuverTrickery", // CSV of Combat Trickery maneuvers
+  // The ATTRIBUTE that replaces Strength on damage rolls Strength would have
+  // modified — the bladedancer's Strength of Faith swaps in Wisdom. A string
+  // domain rather than a number: the swap follows the attribute's own modifier
+  // as the character's scores change, and storing the resolved number would
+  // freeze it at whatever it was when the ability was granted.
+  DAMAGE_ATTRIBUTE: "damageAttribute",
   // Boolean-ish domains (presence tested).
-  FINESSE: "finesse", // Weapon Finesse
+  // Weapon Finesse — DEX instead of STR on the melee attack throw, on
+  // tiny/small/medium weapons. One domain serves both printed versions of the
+  // rule: the size restriction is the proficiency's, and applying it to the
+  // bladedancer's broader version narrows her only on a weapon larger than
+  // medium. Withholding a bonus RAW grants is the safe direction to be wrong;
+  // the alternative reads the restriction out of prose. See DECISIONS.md.
+  FINESSE: "finesse",
   PRECISE_SHOOTING: "preciseShooting",
   SNIPING: "sniping",
   AMBUSHING: "ambushing",

@@ -609,3 +609,137 @@ throw-tag has no border at all. Intended token is `--acks-rule-color`. Left alon
 because fixing it moves every seat, `book` included, and it is unrelated to the
 look. Same for the legacy `--color-*` reads in `styles/classes.css`, which are
 masked under `book` and would surface under `core`.
+
+---
+
+- **2026-08-11 — Night Vision doubles a light it did not light.** The sense was
+  implemented as the dim→bright promotion alone (`sight.range: 0`), which is half
+  of MM §5: *moonlight → daylight; indoors 2× light range; not total dark*. The
+  indoor clause was never built, so a night-eyed creature saw exactly as far as
+  the torches reached and no further — and there was no way to give a monster
+  working indoor sight short of writing a `lightlessRange` it does not have, or
+  hand-editing its token.
+
+  **Ruled: the range is read off the SQUARE, not the sheet.**
+  `brightestLightReaching` finds the largest bright radius covering the token —
+  ambient lights and light-emitting tokens alike, the creature's own lamp
+  included — and `senseProfile` doubles it. This is the only sense that takes an
+  argument, and it is the only one whose reach is not a property of the creature.
+
+  Three things fall out of that shape rather than needing rules of their own.
+  "Not total dark" holds because an unlit square has nothing to double. Foundry's
+  `sight.range` means *sees in darkness*, which would otherwise contradict that
+  clause outright; keyed to a live light it cannot. And `seesInDark` stays false,
+  because the formation asks that flag whether a creature can march with no light
+  at all, which this one cannot.
+
+  **Rejected: 2× the light the creature BEARS.** Exact where it applies and much
+  cheaper — the bearer's lights are already in hand, with no scene sweep and no
+  new invalidation. Rejected because it almost never applies: monsters do not
+  carry torches, and the case the rule exists for is the creature watching a lit
+  party from the dark.
+
+  **Cost: an invalidation surface the sheet hooks cannot cover.** A torch being
+  struck, doused or simply carried across the room changes the answer without
+  touching any sheet, so light and token movement now re-run the pass. Held down
+  by debouncing it and narrowing it to the creatures that have the sense; a
+  scene with none pays nothing. Distance is straight-line and ignores walls
+  ([ROADMAP.md](ROADMAP.md)) — occlusion needs the live canvas, and this answers
+  for scenes nobody is looking at.
+
+- **2026-08-11 — the world sweep is a macro, and reclaiming is opt-in.** Every
+  vision pass was local: the scene on screen, the actor just edited. Turning
+  `manageVision` on mid-campaign left every unopened scene as it was, with no way
+  to ask for all of them. `migrateWorldVision` is that ask, surfaced as the
+  **Migrate Token Vision** macro, and it reports counts rather than finishing
+  silently — a sweep that says nothing is indistinguishable from one that did
+  nothing.
+
+  Taking back tokens stamped `released` is a **separate question the macro puts
+  to the Judge**, defaulting to no. The release marker is the override working as
+  designed; undoing every one of them as a side effect of the word "migrate"
+  would be the destructive reading, and the edits it discarded are not
+  recoverable.
+
+- **2026-08-11 — the `core` adapter re-points the STATE tokens too.** Reported as
+  unreadable warnings on the exploration party sheet. Two faults, found in that
+  order, and only the second was the reported one.
+
+  **The local fault.** `.warnings` set `background: var(--acks-warning-tint)` and
+  no `color`, so its prose inherited the *window's* ink — a colour the token file
+  knows nothing about. A ground and the type on it must come from the same block
+  or they are free to disagree. Ruled: take the design system's
+  `.acks-callout--warning` **whole** rather than restate a piece of it; every
+  other warning surface in the family already does, and the component carries the
+  keyline and padding the bespoke version had also skipped.
+
+  **The real fault.** That alone did not reproduce the report, which measured
+  **1.06:1** — a cream panel under near-white type. `foundry.css` §8 withholds the
+  ACKS dark palette under `look = core` and re-points ink, paper, washes, rules
+  and faces at the host — but it never re-pointed `--acks-danger/-warning/-success`
+  or their `-ink`/`-tint` variants. So on a dark seat under `core` a state tint
+  fell through to the LIGHT `:root` literal while the ink beside it came from the
+  host's dark ramp. **Every surface in the family pairing a state tint with ink
+  had it**, not just this panel; the party sheet is only where it was noticed.
+
+  Ruled: re-point the three states at Foundry's own severity ramp
+  (`--color-level-*`, in scope at `<body>` like the text ramp), keeping §8's two
+  standing disciplines. The **tint** is a wash mixed to transparent, so the
+  window's own ground shows through and it inverts with the seat by construction.
+  The **ink** carries the state hue into the host's text colour, so it keeps the
+  severity while staying legible on whatever ground the host chose — a bare
+  `--color-level-error` is a mid red that reads on neither seat. No literal is
+  introduced, so §8 stays an adapter rather than a second palette publisher.
+
+  **Third fault, exposed by the second.** Six rules coloured a GLYPH with the
+  plain state token, each with a comment asserting an icon takes the fill token.
+  That only held while the tint was an opaque book colour. The plain token is for
+  bars and buttons — a saturated mark with nothing read through it; anything drawn
+  as **type takes `-ink`**, glyphs included. Fixed in `formation.css` (warnings
+  icon, distorted-map alarms, down badge), `abilities.css` (conflict hint) and
+  `influence.css` (effect and unaudited badges).
+
+  **Measured after, all four combinations** (text / icon contrast):
+  book-dark 11.7 / 8.2 · book-light 14.3 / 6.1 · core-dark 14.2 / 10.8 ·
+  core-light 10.4 / 4.1. The reported configuration was 1.06.
+
+  **Cost.** The `core` seat no longer gets the books' state hues at all — a
+  warning there is Foundry's amber, not the books' gold. That is what `core`
+  already promises for every other colour, and matching the host was the point.
+
+---
+
+### A character alone can strike a light (2026-08-11)
+
+The sheet's Light / Douse / Shutter controls were gated on the actor being in a
+party formation: `injectLightControls` returned early when there was none, so a
+character standing alone in a corridor saw **no control at all** on a lantern.
+Dragging one in from a compendium did nothing visible, which is exactly what it
+looked like from the outside — a lamp that could not be lit.
+
+`light.mjs` had promised the lone case in its own header from the beginning ("a
+lone actor with a torch must burn just as brightly with no formation in sight")
+and `bearerLights` already fell back to the actor's own flag. Only the READ half
+existed. Nothing ever wrote that flag, because every mutator lived in the
+formation's turn engine.
+
+**Rejected: putting a lone character in a formation of one.** The formation
+record is a world setting only a GM may write, which is why a player's click has
+to travel through the GM relay to reach it. A player alone with a lantern would
+then need a Judge connected to light it. Their own actor is a document they
+already own.
+
+**Ruled: mutators on the actor's own flag, and one shared gate above both.** The
+rules that decide whether a flame may be struck — a hand to hold it, the gear RR
+p265 requires, one unit of fuel off the stack — belong to the light source, not
+to whether anyone happens to be marching in formation. They moved to
+`prepareToLight` in lib, and the turn engine now asks it too, so the two ways of
+lighting a lamp cannot drift apart. The equipment-enforcement setting is read
+there for the same reason.
+
+**Cost: no burn-down outside a formation.** Duration is tracked by the dungeon-
+turn engine, and a lone character has no clock to burn against. These mutators
+track the STATE of a flame — lit, doused, shuttered — and say nothing about how
+long it lasts. That is the honest half, and it is the half that was missing
+entirely. The token lights up because the actor's flag write already fires the
+`updateActor` hook the vision sync listens on.

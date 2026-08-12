@@ -1,0 +1,10 @@
+{
+  "_id": "acksl5cf1e104b2a",
+  "_key": "!macros!acksl5cf1e104b2a",
+  "name": "Disable Storage Here",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/village.svg",
+  "command": "if (!game.user.isGM) return ui.notifications.warn(\"Only a GM can turn storage off for an actor.\");\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a token first (or assign yourself a character).\");\nif (!acksExtras.lib.storage.isProvider(actor)) return ui.notifications.warn(actor.name + \" is not holding goods for anyone.\");\nconst held = acksExtras.lib.storage.storedItems(actor).length;\nif (held) return ui.notifications.warn(actor.name + \" still holds \" + held + \" stored item(s). Return them to their owners first — the storage manager has a button for it.\");\nawait acksExtras.lib.storage.setProvider(actor, false);\nui.notifications.info(actor.name + \" is no longer a place that holds goods.\");",
+  "folder": "acks420ff1a0388a"
+}

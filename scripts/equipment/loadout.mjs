@@ -10,7 +10,7 @@ import { STYLE } from "./config.mjs";
 import { classifyWeapon, handCost, inferStyle, canOneHand, isTwoHandedOnly, isHelmet, isShield } from "./profiles.mjs";
 import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
-import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, enforcementActive } from "./proficiency.mjs";
+import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, lightInit, enforcementActive } from "./proficiency.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
 
 /** Violation type keys (for i18n + auto-resolve). */
@@ -305,6 +305,7 @@ export function getLoadout(actor, opts = {}) {
     nonProficientUse,
     thiefSkillsGated: thiefGated,
     condAC: swashbucklingAC(actor, { armor }),
+    condInit: lightInit(actor, { armor }),
     violations,
     legal: violations.every((v) => v.advisory),
   };
@@ -331,6 +332,8 @@ function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
  * @property {Set<string>} trainedStyles
  * @property {Set<string>} specStyles
  * @property {boolean} styleProficient
+ * @property {number} condAC AC that applies only while lightly equipped
+ * @property {number} condInit initiative that applies only while lightly equipped
  * @property {{type,items,advisory?,detail?}[]} violations
  * @property {boolean} legal
  */

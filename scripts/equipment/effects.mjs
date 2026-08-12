@@ -132,8 +132,11 @@ export function buildLoadoutChanges(actor, loadout) {
   add("system.damage.mod.melee", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_DAMAGE_MELEE));
   add("system.aac.mod", sumEffectModifiers(actor, EFFECT_DOMAINS.STYLE_AC));
 
-  // Conditional AC (Swashbuckling / Blade-Dancing) computed in the loadout.
+  // Conditional AC (Swashbuckling / Blade-Dancing) and conditional initiative
+  // (Graceful Fighting), both computed in the loadout because both turn on how
+  // heavily the character is currently dressed.
   add("system.aac.mod", loadout.condAC ?? 0);
+  add("system.initiative.mod", loadout.condInit ?? 0);
 
   // Non-proficient use (RR p. 106): "regardless of level, the characters will
   // receive no bonus on their ... armor class from attributes". Bonuses only —
@@ -163,9 +166,32 @@ function changesHash(changes) {
   return JSON.stringify(changes.map((c) => [c.key, c.type, c.value]).sort());
 }
 
+/** Every module-managed loadout effect on an actor. There should be exactly one. */
+function loadoutEffects(actor) {
+  return (actor.effects ?? []).filter((e) => e.getFlag?.(MODULE_ID, LOADOUT_EFFECT_FLAG) === true);
+}
+
 /** Find the module-managed loadout effect on an actor, if any. */
 export function findLoadoutEffect(actor) {
-  return actor.effects.find((e) => e.getFlag?.(MODULE_ID, LOADOUT_EFFECT_FLAG) === true) ?? null;
+  return loadoutEffects(actor)[0] ?? null;
+}
+
+/**
+ * Delete every managed loadout effect but the first.
+ *
+ * There must only ever be one — its changes are the WHOLE loadout, so a second
+ * copy does not add detail, it doubles every bonus on the actor. Concurrent
+ * syncs used to be able to create several (creating a character's items fires
+ * one hook per item, and each read "no effect yet" before any had finished
+ * writing); `queueSync` in enforce.mjs stops that happening now. This is the
+ * repair for a world that already has them, and it runs on the ordinary sync
+ * path so nobody has to be told to go looking.
+ */
+async function collapseDuplicates(actor) {
+  const extra = loadoutEffects(actor).slice(1);
+  if (!extra.length) return;
+  console.warn(`${MODULE_ID} | ${actor.name} carried ${extra.length + 1} loadout effects; keeping one.`);
+  await actor.deleteEmbeddedDocuments("ActiveEffect", extra.map((e) => e.id));
 }
 
 /**
@@ -177,6 +203,7 @@ export function findLoadoutEffect(actor) {
 export async function syncLoadoutEffect(actor, loadout) {
   if (!actor?.isOwner) return;
   const changes = buildLoadoutChanges(actor, loadout);
+  await collapseDuplicates(actor);
   const existing = findLoadoutEffect(actor);
 
   if (!changes.length) {

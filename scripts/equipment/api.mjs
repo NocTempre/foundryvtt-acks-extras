@@ -11,6 +11,7 @@ import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, he
 import { grantGear, clearHands, findGearSource } from "./grant.mjs";
 import { classifyWeapon, handCost, focusGroup, weaponKey, equipmentClass, inferGear, isHelmet, isShield } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
+import { capacityOf } from "../lib/item-model.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
 import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATERIALS } from "./overlays/item-loss.mjs";
@@ -109,6 +110,27 @@ export async function annotateItem(item) {
       capacity: gear.capacity,
     };
     key ??= gear.capacity != null ? "container" : "gear";
+  }
+
+  // A device sold with its load — "Quiver, 20 Arrows" — is the ammunition, and
+  // an earlier pass that read it as an empty quiver left a capacity on it. This
+  // is the one place the annotate step UNDOES its own earlier answer rather
+  // than merely refining it, because the stale flag is what shows a full quiver
+  // as empty and nothing else will clear it. Re-running the annotate button is
+  // how a world already carrying the wrong answer gets the right one.
+  const rounds = CONFIG_DATA.bundledAmmoCount(item.name ?? "");
+  if (rounds != null) {
+    if (capacityOf(item) != null) {
+      updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = { slots: gear.slots, access: gear.access, capacity: null };
+      key = "ammunition";
+    }
+    // Put the count where the ammunition tracker can spend it. Only when the
+    // item has none of its own: a half-spent quiver must not refill itself
+    // every time somebody re-annotates their gear.
+    if (item.system?.quantity?.value == null) {
+      updates["system.quantity.value"] = rounds;
+      key ??= "ammunition";
+    }
   }
 
   if (!Object.keys(updates).length) return null;
