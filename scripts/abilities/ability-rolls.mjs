@@ -374,6 +374,54 @@ function rollableFormula(roll, item) {
 }
 
 /**
+ * The system's OWN throw card — the template it posts every save, reaction and
+ * exploration roll through, and the sibling of the one attacks use.
+ *
+ * Reused rather than reproduced: a proficiency throw is a throw, and it should
+ * arrive wearing the same banner, portrait and success rule as everything else
+ * the table rolls. Posting it as a bare flavour line is what made it the one
+ * roll with no headline. Nothing here re-templates the card, so a system that
+ * restyles its chat carries this along with it.
+ */
+const CARD_TEMPLATE = "systems/acks/templates/chat/roll-result.hbs";
+
+/** Text safe to drop into the card's `{{{triple-stashed}}}` details slot. */
+const esc = (text) => foundry.utils.escapeHTML?.(text) ?? text;
+
+/**
+ * The card's context, in the shape core's template reads.
+ *
+ * The target rides the SUCCESS row (`Success (14+)`) rather than a line of its
+ * own — core's template already prints it there, and stating it twice is how
+ * the old flavour line read. The details slot is left for what core has no
+ * field for: the condition the book puts on the throw, and the reason a shared
+ * world item cannot be scored at all.
+ */
+function cardData(item, actor, roll, { target, success, suffix }) {
+  const details = [
+    target == null ? esc(game.i18n.localize("ACKS-ABILITIES.roll.noTarget")) : "",
+    roll.condition ? `<em>${esc(roll.condition)}</em>` : "",
+  ].filter(Boolean).join("<br>");
+
+  return {
+    title: [item.name, roll.label].filter(Boolean).join(" — "),
+    data: {
+      item: { img: item.img },
+      actor: { img: actor?.img ?? item.img },
+      // Core's template hides the body of a blind card behind this; the message
+      // mode below is what actually withholds it. Both read the same field.
+      roll: { blindroll: !!item.system?.blindroll },
+    },
+    result: {
+      details,
+      isSuccess: success === true,
+      isFailure: success === false,
+      target: target == null ? "" : `${target}${suffix}`,
+    },
+  };
+}
+
+/**
  * Roll one of an ability's rolls and post the result.
  *
  * Success is reported only when a target is known. On a shared world item there
@@ -401,20 +449,43 @@ export async function rollAbility(item, key) {
   const total = evaluated.total;
   const success = target == null ? null : type === "below" ? total <= target : type === "result" ? total === target : total >= target;
 
+  const suffix = type === "above" ? "+" : type === "below" ? "-" : "";
+
+  // The card, or the plain line it replaced. A system that has moved or renamed
+  // its chat template must cost the throw its banner, never its result — this
+  // roller is the ONE place an ability's throw is posted, so a throw here is a
+  // throw the player already made.
+  let content = null;
+  try {
+    content = await foundry.applications.handlebars.renderTemplate(
+      CARD_TEMPLATE,
+      cardData(item, actor, roll, { target, success, suffix }),
+    );
+  } catch (err) {
+    console.error(`${MODULE_ID} | could not render ${CARD_TEMPLATE}; posting the throw without its card`, err);
+  }
+
   const label = [item.name, roll.label].filter(Boolean).join(" — ");
   const targetText =
     target == null
       ? game.i18n.localize("ACKS-ABILITIES.roll.noTarget")
-      : `${game.i18n.localize("ACKS-ABILITIES.roll.target")} ${target}${type === "above" ? "+" : type === "below" ? "-" : ""}`;
+      : `${game.i18n.localize("ACKS-ABILITIES.roll.target")} ${target}${suffix}`;
   const verdict =
     success == null ? "" : success ? game.i18n.localize("ACKS-ABILITIES.roll.success") : game.i18n.localize("ACKS-ABILITIES.roll.failure");
 
   await evaluated.toMessage(
     {
       speaker: ChatMessage.getSpeaker({ actor }),
-      flavor: `${foundry.utils.escapeHTML?.(label) ?? label}<br><span class="acks-abilities-roll-target">${targetText}${
-        verdict ? ` — <strong>${verdict}</strong>` : ""
-      }</span>${roll.condition ? `<br><em>${foundry.utils.escapeHTML?.(roll.condition) ?? roll.condition}</em>` : ""}`,
+      // The card carries the throw's own dice display; `toMessage` attaches the
+      // Roll either way, so the card deliberately renders WITHOUT `rollACKS` and
+      // lets the message show the one box every other roll shows.
+      ...(content
+        ? { content }
+        : {
+            flavor: `${esc(label)}<br><span class="acks-abilities-roll-target">${targetText}${
+              verdict ? ` — <strong>${verdict}</strong>` : ""
+            }</span>${roll.condition ? `<br><em>${esc(roll.condition)}</em>` : ""}`,
+          }),
     },
     // An undefined mode falls through to the seat's own default, which is what
     // toMessage does when nothing is passed at all.

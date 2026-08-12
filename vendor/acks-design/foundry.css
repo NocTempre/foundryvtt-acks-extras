@@ -543,6 +543,33 @@
   --acks-field: var(--input-background-color,
     color-mix(in srgb, var(--color-text-primary, currentColor) 10%, transparent));
 
+  /* -- State. The host has its own severity ramp (`--color-level-*`), in scope
+   *    at <body> like the text ramp, so the three ACKS states re-point at it
+   *    rather than being left behind — which is what they were. The dark block
+   *    in tokens.css is WITHHELD under `core`, so a bare state token fell
+   *    through to the LIGHT :root literal while the ink beside it came from the
+   *    host's dark ramp: a light tint under near-white type, measured at
+   *    ~1.06:1 on the party sheet's warnings. Any surface pairing a state tint
+   *    with ink had it.
+   *
+   *    Both disciplines above still hold. The TINT is a wash mixed to
+   *    transparent, so the window's own ground shows through and it inverts
+   *    with the seat by construction rather than by a second declaration. The
+   *    INK carries the state hue INTO the host's text colour, so it keeps the
+   *    severity while staying legible on whatever ground the host chose — a
+   *    bare `--color-level-error` is a mid red that reads on neither seat. The
+   *    plain token stays the host's own level colour, because it fills icons
+   *    and bars rather than setting type. ------------------------------- */
+  --acks-danger: var(--color-level-error, currentColor);
+  --acks-danger-ink: color-mix(in srgb, var(--color-level-error, currentColor) 45%, var(--color-text-primary, currentColor));
+  --acks-danger-tint: color-mix(in srgb, var(--color-level-error, currentColor) 15%, transparent);
+  --acks-warning: var(--color-level-warning, currentColor);
+  --acks-warning-ink: color-mix(in srgb, var(--color-level-warning, currentColor) 45%, var(--color-text-primary, currentColor));
+  --acks-warning-tint: color-mix(in srgb, var(--color-level-warning, currentColor) 15%, transparent);
+  --acks-success: var(--color-level-success, currentColor);
+  --acks-success-ink: color-mix(in srgb, var(--color-level-success, currentColor) 45%, var(--color-text-primary, currentColor));
+  --acks-success-tint: color-mix(in srgb, var(--color-level-success, currentColor) 15%, transparent);
+
   /* -- Type: the host's faces. `--font-primary` is deliberately NOT read —
    *    it is absent in v14 (`--font-sans` replaced it) and a bare read of it
    *    resolves to nothing, which drops the whole font-family declaration. */

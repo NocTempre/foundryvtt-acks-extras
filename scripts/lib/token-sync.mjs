@@ -31,9 +31,9 @@
 
 import { MODULE_ID } from "./constants.mjs";
 import { isPrimaryGM } from "./util.mjs";
-import { senseProfile } from "./senses.mjs";
+import { hasNightVision, senseProfile } from "./senses.mjs";
 import { DETECTION_MODES } from "./perception.mjs";
-import { bearerLights, emittedLight } from "./light.mjs";
+import { bearerLights, brightestLightReaching, emittedLight } from "./light.mjs";
 
 /**
  * The detection modes this module manages. A token that stops having a sense
@@ -209,7 +209,11 @@ export async function applyTokenLight(tokenDoc, light) {
 function tokenSyncDelta(tokenDoc) {
   const actor = tokenDoc?.actor;
   if (!actor || actor.type === PARTY_ACTOR_TYPE) return null;
-  const vision = visionDelta(tokenDoc, senseProfile(actor));
+  // Only Night Vision reads the light around the token, and finding it costs a
+  // pass over every light and token on the scene. Asked for that one sense
+  // rather than for all of them, so an ordinary sweep is unchanged.
+  const litBy = hasNightVision(actor) ? brightestLightReaching(tokenDoc) : 0;
+  const vision = visionDelta(tokenDoc, senseProfile(actor, { litBy }));
   const light = lightDelta(tokenDoc, emittedLight(bearerLights(actor)));
   if (!vision && !light) return null;
   return Object.assign({}, vision?.update, light);
@@ -241,6 +245,7 @@ async function syncTokenBatch(scene, tokenDocs) {
     }
   }
   if (updates.length) await scene.updateEmbeddedDocuments("Token", updates);
+  return updates.length;
 }
 
 /** Every token of this actor, across every scene (unlinked copies included). */
@@ -263,4 +268,73 @@ export async function syncActorTokens(actor) {
 export async function syncSceneTokens(scene) {
   if (!scene || !isPrimaryGM() || !enabled()) return;
   await syncTokenBatch(scene, [...scene.tokens]);
+}
+
+/**
+ * Re-sync only the creatures whose sight depends on the light AROUND them.
+ *
+ * Night Vision doubles the reach of a light the creature did not light, so its
+ * range changes when a torch is struck, doused, or simply carried across the
+ * room — none of which touches the creature's own sheet, and so none of which
+ * the sheet-driven hooks would ever notice. Narrowed to that one sense because
+ * the trigger is every light and every step: sweeping the whole scene on each
+ * would re-derive the entire cast to answer for a handful of it.
+ */
+export async function syncNightVisionTokens(scene) {
+  if (!scene || !isPrimaryGM() || !enabled()) return;
+  const watchers = [...scene.tokens].filter((t) => hasNightVision(t.actor));
+  if (watchers.length) await syncTokenBatch(scene, watchers);
+}
+
+/* -------------------------------------------- */
+/*  The world sweep                             */
+/* -------------------------------------------- */
+
+/**
+ * Derive vision for every token in the WORLD, and report what that came to.
+ *
+ * The per-scene passes above only ever reach the scene someone is looking at or
+ * the actor someone just changed. A world that turns the setting on mid-campaign
+ * — or upgrades into a corrected sense model — has scenes nobody will open for
+ * months still carrying the system's stock 60' sight on every creature. This is
+ * how a Judge asks for all of them at once.
+ *
+ * `reclaim` drops the release marker first. A token a human edited is stamped
+ * released and is never managed again, which is the override working as
+ * intended; taking it back is a deliberate act, so it is a separate answer and
+ * never the default. Reported rather than silent: a sweep that says nothing is
+ * indistinguishable from one that did nothing.
+ *
+ * @param {object} [opts]
+ * @param {boolean} [opts.reclaim] take back tokens released to a hand edit
+ * @returns {Promise<{ran: boolean, scenes: number, tokens: number,
+ *   reclaimed: number, written: number, released: number}>}
+ */
+export async function migrateWorldVision({ reclaim = false } = {}) {
+  const report = { ran: false, scenes: 0, tokens: 0, reclaimed: 0, written: 0, released: 0 };
+  if (!isPrimaryGM() || !enabled()) return report;
+  report.ran = true;
+
+  const isReleased = (t) => !!t.getFlag(MODULE_ID, FLAG_VISION)?.released;
+
+  for (const scene of game.scenes ?? []) {
+    const tokens = [...scene.tokens];
+    if (!tokens.length) continue;
+    report.scenes++;
+    report.tokens += tokens.length;
+
+    if (reclaim) {
+      const drops = tokens.filter(isReleased).map((t) => ({ _id: t.id, [`flags.${MODULE_ID}.-=${FLAG_VISION}`]: null }));
+      if (drops.length) {
+        await scene.updateEmbeddedDocuments("Token", drops);
+        report.reclaimed += drops.length;
+      }
+    }
+
+    // Counted AFTER the reclaim, so the number reported is what is still being
+    // left alone rather than what was a moment ago.
+    report.released += tokens.filter(isReleased).length;
+    report.written += await syncTokenBatch(scene, tokens);
+  }
+  return report;
 }

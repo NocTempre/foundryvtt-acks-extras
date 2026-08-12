@@ -72,6 +72,16 @@ instead of a number.
 but tests a field that defaults to `"1d20"` and is therefore never empty — so a
 proficiency that makes no throw used to post a d20 against a target of 0.
 
+## What a throw looks like in chat
+
+A proficiency throw posts on the same card the system uses for every other roll:
+the ability's name in the banner, its image beside it, and the verdict with the
+target it was read against — `Success (14+)`. If the book puts a condition on the
+throw ("only on a domesticated animal"), it sits under the result, so the table
+can see what the roll assumed. A throw on a shared compendium item says so
+instead of scoring itself, because there is no character to read its ladder
+against.
+
 ## Selections
 
 Ticking a selection box is guaranteed to light the matching proficiency pill —

@@ -5,10 +5,11 @@
  * contents parts verbatim; core stays untouched) registered as the default for
  * weapon / armor / item documents. It restructures the sheet:
  *
- *   description   prose only — the stats side-column moves out
- *   rolls         core's details field-set (damage, bonus, melee/missile,
- *                 range, save, AC, type, quantity…), MOVED here as core's own
- *                 nodes so every core binding and data-action keeps working
+ *   description   prose, plus core's own stats side-column for everything that
+ *                 does not throw dice
+ *   rolls         WEAPONS ONLY: core's details field-set (damage, bonus,
+ *                 melee/missile, range, save), MOVED here as core's own nodes
+ *                 so every core binding and data-action keeps working
  *   construction  what the item IS — masterwork, condition, material, shield
  *                 variant, helmet — the module's property layers
  *   spells        ONLY on a recognised Spell Book (a specific item class, never
@@ -89,16 +90,33 @@ export function createEquipmentItemSheet(Base) {
 
     tabGroups = { primary: "description" };
 
+    /**
+     * A Rolls tab exists only where core's details field-set is ROLLS.
+     *
+     * It is one field-set per item type and only the weapon's holds throws —
+     * damage, attack bonus, melee/missile, range, save. An armour's is its AC
+     * and armour type and an item's is its subtype and quantity: facts about
+     * what the thing IS, which belong beside the prose that describes it. Sent
+     * to a tab labelled Rolls they read as dice nobody can find, and leave the
+     * description with an empty column beside it.
+     */
+    get #hasRolls() {
+      return this.item.type === "weapon";
+    }
+
     /** The Spells tab exists ONLY on a recognised Spell Book. */
     _configureRenderParts(options) {
       const parts = super._configureRenderParts(options);
       if (!isSpellbook(this.item)) delete parts.spells;
+      if (!this.#hasRolls) delete parts.rolls;
       return parts;
     }
 
     _prepareTabs(group) {
       const tabs = super._prepareTabs(group);
-      if (group === "primary" && !isSpellbook(this.item)) delete tabs.spells;
+      if (group !== "primary") return tabs;
+      if (!isSpellbook(this.item)) delete tabs.spells;
+      if (!this.#hasRolls) delete tabs.rolls;
       return tabs;
     }
 
@@ -126,11 +144,16 @@ export function createEquipmentItemSheet(Base) {
 
     /**
      * Core's details field-set renders inside the description part (its left
-     * side-column). MOVE the node — core's own markup, inputs and data-actions
-     * — into the Rolls pane, so nothing is re-templated and everything keeps
-     * submitting through the same form.
+     * side-column). For a WEAPON, MOVE the node — core's own markup, inputs and
+     * data-actions — into the Rolls pane, so nothing is re-templated and
+     * everything keeps submitting through the same form.
+     *
+     * Everything else is left exactly where core put it, which is the sidebar
+     * beside the description. Leaving it is not the same as putting it back: the
+     * node is never detached, so no core binding is even briefly orphaned.
      */
     #moveDetailsIntoRolls() {
+      if (!this.#hasRolls) return;
       const rollsPane = this.element.querySelector(".acks-equipment-tab-rolls");
       const details = this.element.querySelector('[data-tab="description"] .field-set--narrow');
       if (!rollsPane || !details) return;

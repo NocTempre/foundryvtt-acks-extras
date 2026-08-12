@@ -76,3 +76,22 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 7. Wilderness/expedition mode (needs 📖 wilderness chapter; actor `movementacks.expedition` already computed by the system).
 8. Spell "per level" duration parsing (quick win, batch with the next release).
 9. Week-ration uses counter (quick win).
+
+## validate does not check that a referenced i18n key exists
+
+`tools/validate.mjs` checks that every key in `lang/en.json` sits under a declared
+namespace root. It does not check the other direction: that a key a template or a
+script passes to `localize` / `format` is actually defined. A missing one renders
+as the raw identifier on screen and passes every offline gate — which is how
+`ACKS-FORMATION.app.frontage` shipped (see [DECISIONS.md](DECISIONS.md)).
+
+What that needs: scan `templates/**/*.hbs` and `scripts/**/*.mjs` for literal
+`localize`/`format`/`has` arguments beginning with a declared root, and fail on
+any that `lang/en.json` does not define once its nested objects are flattened —
+the file mixes flat dotted keys with nested blocks, so a check that does not
+flatten reports hundreds of false positives. Keys built from a variable, and the
+prefix roots Foundry expands itself (`LOCALIZATION_PREFIXES`, `labelPrefix`), have
+to be excluded rather than reported.
+
+It belongs in **acks-module-template**, since every repo in the family has the
+same exposure; this repo only consumes the synced copy.

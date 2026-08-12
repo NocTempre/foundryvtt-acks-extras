@@ -179,7 +179,7 @@
 }
 
 .acks-abilities-conflict .hint i {
-  color: var(--acks-danger);
+  color: var(--acks-danger-ink);
 }
 
 /* The roll editor grows a ladder row per character level, so its body is the

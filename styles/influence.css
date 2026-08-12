@@ -173,11 +173,12 @@
   color: var(--acks-spot);
   font-size: 0.85em;
 }
-/* An Active Effect is contributing here: a state icon, so the plain state token
-   rather than its -ink variant, which is reserved for text on the tint. */
+/* An Active Effect is contributing here: a state icon — but an icon drawn as
+   TYPE, so it takes the -ink token like any other mark that has to be read on
+   the panel ground. The plain token fills bars and buttons. */
 .acks-influence-dialog .influence-effect-badge {
   margin-left: 0.25rem;
-  color: var(--acks-success);
+  color: var(--acks-success-ink);
   font-size: 0.85em;
 }
 /* An unverified machine draft. Warning rather than danger: the mechanic is
@@ -185,7 +186,7 @@
    the page, so it must not look like a settled ruling. */
 .acks-influence-dialog .influence-unaudited-badge {
   margin-left: 0.25rem;
-  color: var(--acks-warning);
+  color: var(--acks-warning-ink);
   font-size: 0.85em;
 }
 

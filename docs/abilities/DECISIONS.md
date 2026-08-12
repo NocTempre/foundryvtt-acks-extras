@@ -172,3 +172,24 @@ better than one that rolls nothing.
   writes core's roll fields, and there is no migration to run. A core record
   sitting at its schema defaults (`1d20`, target 0) is **not** a roll — those
   are field initials, not a throw anyone entered.
+- **A proficiency throw wears the system's own chat card.** Throws posted as a
+  bare `Roll.toMessage` flavour line — the one roll at the table with no banner,
+  no portrait and no success rule, sitting beside attack and save cards that had
+  all three. Ruled: render **core's own** `chat/roll-result.hbs`, the template
+  the system posts its saves and reactions through, rather than grow a second
+  card here. A system that restyles its chat carries proficiency throws along
+  with it, and there is no second card to keep in step.
+
+  The resolved target rides core's success row (`Success (14+)`) instead of a
+  line of its own, because the template already prints it there and the old
+  flavour line stated it twice. The details slot keeps only what core has no
+  field for: the book's condition on the throw, and the reason a shared world
+  item cannot be scored at all.
+
+  The card is rendered **without** `rollACKS`, deliberately. `toMessage` attaches
+  the Roll to the message either way, so embedding the dice in the card as well
+  would show them twice; leaving it out keeps blind rolls, roll modes and Dice So
+  Nice on the one path every other roll uses. A template the system has moved or
+  renamed costs the throw its card and never its result — this roller is the one
+  place an ability's throw is posted, and a throw that reached it is one the
+  player already made.

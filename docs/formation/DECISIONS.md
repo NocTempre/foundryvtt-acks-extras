@@ -169,3 +169,26 @@ their own choice rather than a silently blank select.
     Military (1 pint)", with `oil` FIRST. A party's thrown-weapon oil read as
     lamp fuel and would have been burnt. Now the whole name is rejected when it
     mentions military.
+
+---
+
+**2026-08-11 — a missing i18n key ships as the identifier, and nothing catches it.**
+
+`ACKS-FORMATION.app.frontage` was absent from `lang/en.json`, so the marching
+order's Frontage field was labelled `ACKS-FORMATION.APP.FRONTAGE` on screen. Its
+`frontageHint` sat directly beside it in the file and was present, which is what
+made the gap survive: the tooltip worked, so the field behaved correctly in every
+way except the one a reader sees first. Found while shooting the v3.7.0 release
+snapshot — the frame is what surfaced it, not the code.
+
+`npm run validate` passes on this. It checks that every key in `lang/en.json` is
+under a declared namespace root — the reverse direction — but not that a key a
+template or script asks for actually exists. A one-off scan of every literal
+`localize` / `format` argument across `templates/` and `scripts/` found this as
+the only real gap; the two other hits were prefix roots (`LOCALIZATION_PREFIXES`
+on the encounter-zone data model, and the henchmen location sheet's `labelPrefix`)
+whose leaves all exist.
+
+Closing that hole belongs in `tools/validate.mjs`, which is **synced from
+acks-module-template and never hand-edited here** — so it is recorded in
+[ROADMAP.md](ROADMAP.md) rather than fixed in this repo.

@@ -68,3 +68,18 @@ today, so changing them moves existing book-style seats, and that belongs in a
 change whose subject is the sweep rather than one whose subject is the opt-out.
 Worth pairing with a `tools/validate.mjs` check so the doctrine stops relying on
 a doc claim nothing enforces.
+
+## Night Vision reaches through walls
+
+`brightestLightReaching` measures straight-line distance from every lit source to
+the token, so a torch on the far side of a closed door counts as reaching it. A
+night-eyed creature therefore sees twice a light it could not actually see by.
+
+Resolving it needs real occlusion — `CONFIG.Canvas.polygonBackends.sight`, or a
+`ClockwiseSweepPolygon` per candidate source — and that needs the live canvas.
+The pass has to answer for every scene in the world, including the ones nobody
+has open, so it cannot depend on one being drawn.
+
+What that needs: a split between the sweep (geometry only, every scene) and the
+active scene (which may test line of sight), plus a decision about which answer a
+token on an undrawn scene should carry in the meantime.
