@@ -17,7 +17,7 @@ export default defineConfig({
     starlight({
       title: "ACKS II — Extras",
       description:
-        "Tutorials and a feature gallery for ACKS II — Extras, a Foundry VTT module automating the Adventurer Conqueror King System II: proficiencies, equipment, formations, henchmen, influence, locations and the Monstrous Manual stat block.",
+        "Tutorials and a feature gallery for ACKS II — Extras, a Foundry VTT module automating the Adventurer Conqueror King System II: classes, proficiencies, equipment, formations, henchmen, influence, locations and the Monstrous Manual stat block.",
       logo: {
         src: "./src/assets/mark.svg",
         alt: "ACKS II — Extras",
@@ -67,8 +67,14 @@ export default defineConfig({
           // Explicit order, not `autogenerate`: these are staged copies of
           // docs/guides/*.md and the reading order is the README's feature
           // order, which alphabetical would scramble.
+          //
+          // ONE ENTRY PER FILE IN docs/guides/. A staged guide with no entry
+          // still builds and still answers search, so it publishes as a page
+          // nothing links to — `npm run sync` fails the build on the mismatch
+          // rather than letting it go quiet again.
           label: "Guides",
           items: [
+            { label: "Classes & the class builder", slug: "guides/classes" },
             { label: "Proficiencies & class powers", slug: "guides/abilities" },
             { label: "Equipment & fighting styles", slug: "guides/equipment" },
             { label: "Exploration formations", slug: "guides/formation" },
@@ -76,6 +82,7 @@ export default defineConfig({
             { label: "Influence & reactions", slug: "guides/influence" },
             { label: "Places, storage & markets", slug: "guides/location" },
             { label: "The Monstrous Manual stat block", slug: "guides/monsters" },
+            { label: "Appearance & theming", slug: "guides/appearance" },
           ],
         },
         {

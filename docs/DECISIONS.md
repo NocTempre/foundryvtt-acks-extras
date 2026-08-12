@@ -321,3 +321,40 @@ link resolving.
 > the correction, not a second attempt at the same job: the icon is a
 > destination for someone already looking, the line is the only place the site
 > says what the module costs.
+
+---
+
+## 14. The site's stale sections, and the two guards that end them
+
+A sweep of the published site found four kinds of drift, all of the same shape:
+a fact the site stated in its own words while the code stated it in another.
+
+**Guides that published to nobody.** `guides/classes` and `guides/appearance`
+were staged, built, indexed by search and linked from the gallery — but had no
+sidebar entry, so nothing in the navigation reached them. The classes guide had
+been live and unlisted since 3.3.0, through the whole run of class releases.
+`tools/sync.mjs` now reads the sidebar's `guides/*` slugs out of
+`astro.config.mjs` and fails the build in both directions: a staged guide with
+no entry, and an entry naming a guide that no longer exists.
+
+**A hand-typed count.** The landing page advertised "All 44 registrations" while
+the extractor was reporting 48 — it had been wrong for four releases, and
+nothing could notice, because the number was prose. `sync.mjs` now writes
+`src/data/counts.json` and `index.mdx` imports it. A count that appears on a
+page is now the extractor's count or it is not on the page.
+
+**Feature areas the site did not know about.** The landing page's grid was
+missing Monsters and Classes, its tagline said seven areas, and the root
+README's `## Features` — which *is* the site's "What this is" page — had no
+Classes section at all. So the class builder shipped in 3.8.0 to a site whose
+front door never mentioned classes. Fixed at the source: the README section is
+written, and the page follows.
+
+**A compendium that had been renamed.** "Getting started" told readers to open
+**Bestiary**; the pack is `ACKS Full Monsters (Example)`. Nothing links a
+prose pack name to a declared one, and this is the residue.
+
+**Rejected:** generating the sidebar from `docs/guides/` with `autogenerate`.
+It would have prevented the orphans, but guide order is the README's feature
+order and alphabetical scrambles it — the guard buys the same safety and keeps
+the order hand-held.

@@ -1,7 +1,5 @@
 # Classes — using them at the table
 
-Screenshots land here with each release (see [GALLERY](../GALLERY.md)).
-
 ## Getting class documents
 
 Import them from your own book: connect the Revised Rulebook — and By This
@@ -10,6 +8,11 @@ Axe, if you own it — in ACKS Importer, then run
 **Class** item — progressions, saves, awards, starting templates — read from
 your PDF. Or build homebrew from scratch: **Create Item → Class** opens the
 same constructor.
+
+![](../releases/v3.3.0/classes-constructor.png)
+
+*The constructor's Casting editor: traditions, slot grid, pool schedule and
+caster-level ladder.*
 
 ## On the character sheet
 
@@ -29,6 +32,11 @@ Three small controls appear beside the class field:
   9th, minimum one over the old maximum — an additive house rule is a world
   setting), the new level's powers granted, class/general proficiency picks
   offered, slots bumped.
+
+![](../releases/v3.5.0/classes-chargen.png)
+
+*Rolling a starting template: the attribute rule and the scores, the class
+above the template die, and what is left to choose.*
 
 Casters get a per-tradition slot strip under the class field — click a pip to
 spend, click a spent pip to refund, the bed icon to rest. The Nobiran's
@@ -54,6 +62,11 @@ cleaves, casting grids, ladders, racial traits — plus every question the
 imported tables could not answer, and applies it as one update you can
 tweak afterwards.
 
+![](../releases/v3.8.0/classes-builder.png)
+
+*The Builder tab on an imported Ready-for-Play example: build values, the
+accounting line, and Derive.*
+
 Everything numeric comes from your own book: run the ACKS Importer table
 import with the Judges Journal connected and the builder tables,
 the Dwarf and Elf race documents, and the printed Ready-for-Play builds on
@@ -64,6 +77,11 @@ A **race document** (its own item type) carries the racial value ladder:
 each rung's XP cost and granted powers, the race's attribute floors, how it
 stacks with a magic category, and its post-8th XP increases. Simple-mode
 classes may bind one too.
+
+![](../releases/v3.8.0/classes-race.png)
+
+*A race document's value ladder — rung XP costs, granted powers, attribute
+floors and always-on traits.*
 
 ## Keeping documents current
 

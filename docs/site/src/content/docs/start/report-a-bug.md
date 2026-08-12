@@ -17,7 +17,7 @@ getting it wrong; a misfiled report is rerouted, not dropped.
 <ul class="acks-buy">
   <li>
     <h3>ACKS II — Extras</h3>
-    <p>Everything on the sheet and at the table: proficiencies and class powers, equipment and encumbrance, formations and marching order, henchmen and hirelings, influence and reactions, places and markets, monster stat blocks.</p>
+    <p>Everything on the sheet and at the table: class documents and the class builder, proficiencies and class powers, equipment and encumbrance, formations and marching order, henchmen and hirelings, influence and reactions, places and markets, monster stat blocks.</p>
     <p><a href="https://github.com/NocTempre/foundryvtt-acks-extras/issues/new?template=bug_report.yml">File an Extras bug report</a></p>
   </li>
   <li>

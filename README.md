@@ -62,9 +62,9 @@ anything, and it is safe to run twice.
 2. Open **Settings → Configure Settings → ACKS II — Extras**. World-scoped
    toggles are grouped by feature; the optional-rule *overlays* are all off
    unless the rule is already core.
-3. Import a couple of items from the **Equipment Samples** compendium to see
-   equipment automation working, or open a monster from **Bestiary** to see the
-   Full Monster Sheet.
+3. Import a couple of items from **ACKS Equipment Samples** to see equipment
+   automation working, or open a monster from **ACKS Full Monsters (Example)**
+   to see the Full Monster Sheet.
 4. If you own the books and want the real tables, add the Importer.
 
 ---
@@ -95,6 +95,35 @@ The foundation the other features are built on, and useful on its own.
   including the ones the *system* renders — measured from the books and carrying
   a light and a dark value for every colour. Per-client controls for colour
   scheme, how much styling the system's own sheets take, and font size.
+
+### Classes and the class builder
+
+A class held as a document rather than as prose: requirements and key
+attributes, the level progression, save and attack bands as printed, the named
+ladders a spread's extra columns carry, casting traditions with their slot
+grids, the printed templates, and the per-level award ladder. Class documents
+arrive from your own book through ACKS Importer, or are typed by hand — both
+produce the same document in the same sheet.
+
+- **The constructor.** Create Item → Class opens the sheet that builds one.
+  Simple mode is the printed spread, entered directly.
+- **Advanced mode** — the *Judges Journal*'s class builder, automated. Enter
+  build values (Hit Die, Fighting with its 1a/1b split, Thievery with chosen
+  skills, magic values, a racial value) plus trade-offs and custom powers; the
+  Builder tab shows the accounting and derives the whole spread on demand — XP
+  schedule with its smoothing and post-8th climbs, attack throws, saves
+  chassis, cleaves, damage-bonus and thief-skill ladders, and a casting
+  tradition per magic value including the delayed-acquisition grids. It is a
+  tool for balanced homebrew, never a validator: nothing blocks.
+- **Races are documents too**, carrying the racial-value ladder — each rung's
+  XP cost, level cap and granted powers — attribute minimums, always-on
+  traits, and how the race stacks with a magic category.
+- **Magic values are an open set.** Arcane and divine are only the first rows
+  a world imports; ceremonial, gnostic, alchemical or homebrew traditions are
+  rows of the same shape.
+
+The module ships **no class values**. Derivation writes the same fields an
+import fills, so applying, levelling and chargen cannot tell the two apart.
 
 ### Proficiencies, class powers and skills
 

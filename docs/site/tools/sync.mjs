@@ -172,6 +172,38 @@ const packs = await extractPacks();
 write(path.join(DOCS, "reference", "settings.md"), renderSettings(settings));
 write(path.join(DOCS, "reference", "compendia.md"), renderCompendia(packs));
 
+// Counts the hand-authored pages quote. Prose that states "44 settings" is the
+// second place a fact is stated, and it drifts the moment a feature registers
+// one more — index.mdx reads these instead of carrying its own number.
+write(
+  path.join(SITE, "src", "data", "counts.json"),
+  JSON.stringify(
+    {
+      settings: settings.length,
+      guides: guides.length,
+      packs: packs.length,
+      documents: packs.reduce((n, p) => n + p.count, 0),
+    },
+    null,
+    2,
+  ) + "\n",
+);
+
+// A staged guide with no sidebar entry still builds and still answers search,
+// so it ships as a page nothing links to. Compare the two lists rather than
+// trusting either.
+const sidebarGuides = new Set(
+  [...fs.readFileSync(path.join(SITE, "astro.config.mjs"), "utf8").matchAll(/slug: "guides\/([\w-]+)"/g)].map((m) => m[1]),
+);
+const stagedGuides = guides.map((g) => g.slug);
+const unlinked = stagedGuides.filter((slug) => !sidebarGuides.has(slug));
+const dangling = [...sidebarGuides].filter((slug) => !stagedGuides.includes(slug));
+if (unlinked.length || dangling.length) {
+  if (unlinked.length) console.error(`sync: guide(s) staged but absent from the sidebar in astro.config.mjs: ${unlinked.join(", ")}`);
+  if (dangling.length) console.error(`sync: sidebar names guide(s) that docs/guides/ does not have: ${dangling.join(", ")}`);
+  process.exitCode = 1;
+}
+
 const unresolved = settings.filter((r) => !r.resolved);
 if (unresolved.length) {
   console.error(`sync: ${unresolved.length} setting key(s) could not be resolved: ${unresolved.map((r) => r.keyExpr).join(", ")}`);

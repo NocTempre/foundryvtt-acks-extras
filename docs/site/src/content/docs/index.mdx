@@ -1,6 +1,6 @@
 ---
 title: ACKS II — Extras
-description: Rules automation for the Adventurer Conqueror King System II in Foundry VTT — proficiencies and class powers, equipment and fighting styles, exploration formations, henchmen, influence, locations, and the full Monstrous Manual stat block.
+description: Rules automation for the Adventurer Conqueror King System II in Foundry VTT — classes and the class builder, proficiencies and class powers, equipment and fighting styles, exploration formations, henchmen, influence, locations, and the full Monstrous Manual stat block.
 template: splash
 editUrl: false
 # Without this the tab reads "ACKS II — Extras | ACKS II — Extras", because the
@@ -9,7 +9,7 @@ head:
   - tag: title
     content: ACKS II — Extras — rules automation for Foundry VTT
 hero:
-  tagline: Rules automation for the Adventurer Conqueror King System II in Foundry VTT. Seven feature areas over one set of shared primitives — and nothing you have to use.
+  tagline: Rules automation for the Adventurer Conqueror King System II in Foundry VTT. Eight feature areas over one set of shared primitives — and nothing you have to use.
   image:
     file: ../../assets/mark.svg
   actions:
@@ -27,6 +27,10 @@ hero:
 ---
 
 import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+// Written by tools/sync.mjs from the registration calls themselves. A count
+// typed here instead goes stale the moment a feature registers one more — and
+// did, sitting at 44 through four releases.
+import counts from "../../data/counts.json";
 
 ## What it does
 
@@ -38,6 +42,12 @@ attention on the decisions instead.
 Every feature is opt-in through its own settings, and the defaults are RAW.
 
 <CardGrid>
+  <Card title="Classes & the class builder" icon="seti:shield">
+    Class items imported from your own book, and a constructor that lays out an
+    XP schedule, spell grids, attack and save chassis and racial traits from
+    build values you choose.
+    [Read the guide](/foundryvtt-acks-extras/guides/classes/)
+  </Card>
   <Card title="Equipment & fighting styles" icon="seti:pipeline">
     Equip limits and a hand budget, fighting styles detected from what is
     equipped, containers that carry their own encumbrance, ammunition and thrown
@@ -68,6 +78,11 @@ Every feature is opt-in through its own settings, and the defaults are RAW.
     optionally carries a recruitment market.
     [Read the guide](/foundryvtt-acks-extras/guides/location/)
   </Card>
+  <Card title="The Monstrous Manual stat block" icon="seti:pytorch">
+    The full stat block on the sheet and in chat — the way the book prints it,
+    for monsters imported from your own copy.
+    [Read the guide](/foundryvtt-acks-extras/guides/monsters/)
+  </Card>
 </CardGrid>
 
 ## Start here
@@ -86,7 +101,7 @@ Every feature is opt-in through its own settings, and the defaults are RAW.
   <LinkCard
     title="Settings reference"
     href="/foundryvtt-acks-extras/reference/settings/"
-    description="All 44 registrations — what each does, its default, and its scope."
+    description={`All ${counts.settings} registrations — what each does, its default, and its scope.`}
   />
   <LinkCard
     title="Where to buy ACKS II"
