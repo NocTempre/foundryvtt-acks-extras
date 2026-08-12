@@ -1,6 +1,7 @@
 /* global game, foundry, ui, ChatMessage, Roll, fromUuid, Hooks */
 import { announceChange, makeLoc, gmIds } from "../lib/util.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
+import { renderRollCard } from "../lib/roll-card.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import {
   LIGHT_SOURCES,
@@ -704,18 +705,23 @@ export async function rollPartySave(formation, save, { magical = true } = {}) {
   }
   if (!rows.length) return;
 
-  let html = `<div class="acks-formation-card party-rolls">`;
-  html += `<header><strong>${foundry.utils.escapeHTML(formation.name)}</strong> — ${loc("chat.saveTitle", { save: label })}`;
-  html += ` <em>(${game.i18n.localize(magical ? "ACKS-FORMATION.chat.saveMagical" : "ACKS-FORMATION.chat.saveMundane")})</em></header>`;
-  html += `<ul class="results">`;
-  for (const row of rows) {
-    html += `<li class="${row.success ? "good" : "bad"}"><strong>${foundry.utils.escapeHTML(row.name)}</strong>: `;
-    html += `${row.total} vs ${row.target}+ — `;
-    html += row.success
-      ? `<strong>${game.i18n.localize("ACKS-FORMATION.rolls.success")}</strong>`
-      : game.i18n.localize("ACKS-FORMATION.rolls.failure");
-    html += `</li>`;
-  }
-  html += `</ul></div>`;
+  // Rendered by the shared multi-roller card (lib/roll-card.mjs), the same one
+  // the party's checks and the Surprise Matrix use.
+  const html = renderRollCard({
+    title: loc("chat.saveTitle", { save: label }),
+    subtitle: formation.name,
+    note: game.i18n.localize(magical ? "ACKS-FORMATION.chat.saveMagical" : "ACKS-FORMATION.chat.saveMundane"),
+    sections: [
+      {
+        rows: rows.map((row) => ({
+          name: row.name,
+          total: row.total,
+          target: row.target,
+          outcome: game.i18n.localize(`ACKS-FORMATION.rolls.${row.success ? "success" : "failure"}`),
+          emphasis: row.success ? "success" : "failure",
+        })),
+      },
+    ],
+  });
   await ChatMessage.create({ content: html, rolls, speaker: { alias: formation.name } });
 }

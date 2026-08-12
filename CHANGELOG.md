@@ -146,6 +146,35 @@
   at a place that has stopped being a place cannot be asked for back, so return
   them to their owners with the button beside it. A Disable Storage Here macro
   does the same for a selected token.
+- **A surprise roll answers for the whole encounter on one card.** Starting a
+  combat and picking a square of the Surprise Matrix posted a separate chat
+  message per combatant — six one-line messages for six fighters, in roll order,
+  each having to be read on its own to work out the one thing being asked: who
+  is surprised. The results now arrive as a single card, monsters in one table
+  and adventurers in the other, each with the name, the total and the verdict,
+  and the surprised rows marked. Hovering a total shows the dice and every
+  modifier that went into it. The rolls themselves are the system's and are
+  untouched — the same numbers, the same threshold, the same Surprised condition
+  applied to the same creatures. A hidden monster keeps its privacy: those rows
+  travel on a second card the Judges alone can see, exactly as their individual
+  messages used to, so with nothing hidden there is one card and with something
+  hidden there are two. **Surprise results on one card** is a new setting; turn
+  it off for the system's original per-combatant messages.
+
+### Changed
+- **Every roll the whole party makes at once now arrives on the same card.** The
+  party's checks — Listen, Search, Bash, Track — and the party's saving throws
+  posted as bulleted lists, each built its own way, and the new surprise card
+  made a third. They are now one card: a table of who rolled, what they got, the
+  number they needed and whether it landed, with numbers that line up in their
+  column and the row marked by its result. The modifier stack behind a check has
+  moved from a parenthesis on the end of the line to a small line under the
+  name, so it is still there and no longer crowds the number, and the target has
+  a column of its own. A saving throw's terse `(magical)` tag is now a line
+  saying which bonuses that actually applies. Nothing about what is rolled or
+  how it is scored has changed, and the checks card is still whispered to the
+  Judges. The turn report and encounter notices are unchanged — those are prose
+  about what happened, not one row per character.
 
 ## 3.6.3
 

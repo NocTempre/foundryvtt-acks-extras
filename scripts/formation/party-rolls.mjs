@@ -1,5 +1,6 @@
-/* global game, foundry, ChatMessage, Roll, ui */
+/* global game, ChatMessage, Roll, ui */
 import { makeLoc } from "../lib/util.mjs";
+import { renderRollCard } from "../lib/roll-card.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   hasCapability,
@@ -346,24 +347,27 @@ export async function rollPartyCheck(formation, checkKey) {
     return 0;
   }
 
-  let html = `<div class="acks-formation-card party-rolls">`;
-  html += `<header><strong>${foundry.utils.escapeHTML(formation.name)}</strong> — ${game.i18n.localize(cfg.label)}</header>`;
-  if (cfg.note) html += `<p class="hint">${game.i18n.localize(cfg.note)}</p>`;
-  for (const note of preNotes) html += `<p class="warning">${note}</p>`;
-  html += `<ul class="results">`;
-  for (const row of rows) {
-    html += `<li class="${row.success ? "good" : "bad"}"><strong>${foundry.utils.escapeHTML(row.name)}</strong>: `;
-    html += `${row.total} vs ${row.target}+ <em>(${foundry.utils.escapeHTML(row.source)})</em> — `;
-    html += row.success
-      ? `<strong>${game.i18n.localize("ACKS-FORMATION.rolls.success")}</strong>`
-      : game.i18n.localize("ACKS-FORMATION.rolls.failure");
-    html += `</li>`;
-  }
-  html += `</ul>`;
-  if (incapable.length) {
-    html += `<p class="hint">${loc("rolls.notCapable", { names: incapable.join(", ") })}</p>`;
-  }
-  html += `</div>`;
+  // One shared renderer for every card where several people rolled at once
+  // (lib/roll-card.mjs) — the party's saves and the Surprise Matrix post the
+  // same shape, and did so three different ways before.
+  const html = renderRollCard({
+    title: game.i18n.localize(cfg.label),
+    subtitle: formation.name,
+    note: [cfg.note ? game.i18n.localize(cfg.note) : null, ...preNotes].filter(Boolean).join(" "),
+    sections: [
+      {
+        rows: rows.map((row) => ({
+          name: row.name,
+          detail: row.source,
+          total: row.total,
+          target: row.target,
+          outcome: game.i18n.localize(`ACKS-FORMATION.rolls.${row.success ? "success" : "failure"}`),
+          emphasis: row.success ? "success" : "failure",
+        })),
+      },
+    ],
+    footnote: incapable.length ? loc("rolls.notCapable", { names: incapable.join(", ") }) : undefined,
+  });
 
   await ChatMessage.create({
     content: html,

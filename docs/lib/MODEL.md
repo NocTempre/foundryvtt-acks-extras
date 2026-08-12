@@ -221,10 +221,49 @@ sense and keeps the dim-to-bright promotion, without `lightAmplification`'s gree
 | Mechanoreception, terrestrial | its recorded range | `…Echolocation` | core `feelTremor` (MOVE) |
 | Mechanoreception, other | its recorded range | `…Echolocation` | `…Mechanoreception` (MOVE) |
 | Blind | its best sense range, else 30' | that sense's | that sense's |
-| Night Vision | 0 | `…Night` | core's own |
+| Night Vision | **twice** the bright radius reaching it, else 0 | `…Night` | core's own |
 
 A creature looks through its **longest** sense and detects with **all** of them,
 each at its own range.
+
+### Night Vision is the one sense read off the square
+
+Every other row above is a property of the sheet. Night Vision is not: MM §5
+gives it as *moonlight → daylight; indoors 2× light range; not total dark*, so
+its reach is a multiplier on a light somebody else lit and somebody else carries.
+
+`brightestLightReaching` (`scripts/light.mjs`) answers what that light is — the
+largest bright radius, among the scene's ambient lights and every light-emitting
+token, whose source actually covers the creature's square. `senseProfile` takes
+it as `litBy` and doubles it. Nothing else reads it, and the pass only computes
+it for creatures that have the sense, because finding it costs a sweep of the
+scene.
+
+The last clause of the rule then holds by construction rather than by a check: an
+unlit corridor has nothing to double, so the range is 0 and a night-eyed creature
+is as blind as anyone else. `seesInDark` stays **false** either way — that flag
+asks whether a creature can march with no light at all.
+
+Because the answer depends on the light rather than the sheet, the sheet-driven
+hooks cannot see it change. `syncNightVisionTokens` is re-run — debounced, and
+narrowed to the creatures that have the sense — whenever an ambient light or a
+token's position, light or visibility changes.
+
+Straight-line distance, ignoring **walls**: a torch beyond a closed door still
+reads as reaching. Resolving occlusion needs the live canvas, and this has to
+answer for scenes nobody is looking at.
+
+### Asking for the whole world at once
+
+Every pass above is local — the scene on screen, the actor just edited. A world
+that switches `manageVision` on mid-campaign, or upgrades into a corrected sense
+model, keeps whatever its untouched scenes were last set to.
+`migrateWorldVision` sweeps every scene in the world and reports what it wrote;
+the **Migrate Token Vision** macro is its one user-facing surface.
+
+Taking back tokens released to a hand edit is a second, opt-in answer, never part
+of the sweep: a released token is a Judge's override, and undoing all of them
+silently is the destructive reading of "migrate".
 
 ### Why the detection modes matter
 
@@ -364,3 +403,63 @@ GM whose table runs Simple Timekeeping or a calendar module answers once.
 The setting is registered here, in `module.mjs`, rather than by either feature.
 Nothing else about time lives here: worldTime is Foundry's, and each feature
 still decides its own step size and what it does when the gate is shut.
+
+## The multi-roller chat card
+
+`scripts/lib/roll-card.mjs` is the one renderer for every card where several
+people roll at once: the exploration party's checks (Listen, Search, Bash,
+Track), the party's saving throws, and the Surprise Matrix's results. It owns
+the card — banner, note, tables, footnote — and nothing about any particular
+throw; what a row means, what counts as success, and every localized word on it
+are the caller's.
+
+A row is `{name, total, target?, detail?, tooltip?, outcome, emphasis?}`. The
+Target column appears only when some row in that section has one, so a card with
+no target to hit (surprise) does not print an empty column. `emphasis` is
+`success` / `failure` — a verdict against a target — or `neutral`, which is
+emphasis with NO verdict attached: the surprise card's marked rows, where
+whether the result is good news depends on which table you are reading.
+
+The markup is the design system's `acks-chat` plus `acks-table`. That is what
+makes the card carry its own GROUND as well as its ink — a chat message's panel
+is not ACKS-themed, so a card that set only colours draws dark-theme lettering
+onto a light panel. **`acks-ui` is deliberately absent**, though the vendored
+component's own header pairs the two: `.acks-ui :is(h1,h2,h3,h4)` (base.css)
+paints headings the spot colour at (0,2,0) and out-specifies `.acks-chat-title`
+(0,1,0), which puts burgundy lettering on the burgundy banner.
+
+## The consolidated surprise card
+
+`scripts/lib/patches/surprise-card.mjs` replaces the Surprise Matrix's output —
+one chat message per combatant — with one card (rendered by `roll-card.mjs`
+above) holding a Monsters table and an Adventurers table. The roll stays the system's: the matrix cell, the modifier
+stack, the surprise threshold and the `surprised` status effect are all core's,
+and none of them is reachable from a module. The system ships as a single
+minified bundle with no exports, and the matrix constant and both roll methods
+are private.
+
+So the patch owns presentation only. It swaps the instance's `rollSurprise`
+action for a wrapper, runs core's handler inside a scoped `preCreateChatMessage`
+hook that captures and blocks the per-combatant messages, and posts the rows as
+tables. Each total and formula is read back out of the message using the very
+i18n template that rendered it — the key is formatted with sentinels to locate
+`{result}` and `{formula}`, so the reader follows a translation of those strings
+and holds no copy of their English. A template that carries no `{result}` stands
+the whole patch down for that click, and core's messages post untouched.
+
+Three details are load-bearing:
+
+- **The app is matched by `surprise-matrix-app` in its `options.classes`, never
+  by class name.** `render<ClassName>` cannot be used: the released system is
+  terser-minified, so `SurpriseMatrix` arrives as `E` and the hook name is
+  whatever that build's mangler chose.
+- **The action is swapped on the instance, not on `DEFAULT_OPTIONS`.**
+  ApplicationV2 shallow-freezes `this.options` but deep-clones `options.actions`
+  per instance, and looks the handler up at click time.
+- **A hidden combatant's row goes to a second, Judges-only card.** Core whispers
+  those results, and one chat message cannot be part public. With nothing
+  hidden — the ordinary case — there is exactly one card.
+
+The `surpriseCard` world setting gates it, read per click so it takes effect
+with no reload; off, the wrapper defers to core's handler and nothing is
+intercepted.

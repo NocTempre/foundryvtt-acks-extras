@@ -217,8 +217,19 @@
 
 /* --- Warnings --- */
 
+/* The design system's warning callout, taken whole (.acks-callout
+   .acks-callout--warning on the section) rather than restated here as a bare
+   tint. A ground and the type on it come from the SAME token block or they do
+   not agree: styling only the background left the prose inheriting the window's
+   own colour, which the token file knows nothing about and which inverts with
+   the seat — pale window ink on the light tint, unreadable. Never give an
+   element a token background without the token ink that pairs with it.
+
+   Only the two local departures stay: the section is a stack of terse lines
+   rather than body copy, and the flex column above owns the spacing between
+   sections, so the callout's own block margin would double it. */
 .acks-extras:is(.party-sheet, .skill-audit) .warnings {
-  background: var(--acks-warning-tint);
+  margin-block: 0;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .warnings p {
@@ -226,10 +237,11 @@
   font-size: var(--acks-fs-label);
 }
 
-/* The glyph is an icon on the tint, so it takes the fill token; the prose
-   beside it keeps the panel ink. */
+/* The glyph is drawn as TYPE on the panel ground, so it takes the -ink token
+   like the prose beside it. The plain token fills bars and buttons, where a
+   saturated mark is wanted and nothing has to be read through it. */
 .acks-extras:is(.party-sheet, .skill-audit) .warnings i {
-  color: var(--acks-warning);
+  color: var(--acks-warning-ink);
   margin-right: 4px;
 }
 
@@ -645,11 +657,6 @@
   margin: 2px 0;
 }
 
-.acks-formation-card.party-rolls .results {
-  list-style: none;
-  padding-left: 4px;
-}
-
 /* --- Maps --- */
 
 .acks-extras:is(.party-sheet, .skill-audit) .maps .session {
@@ -680,11 +687,12 @@
 }
 
 /* A map drawn without the proficiency is unreliable, and a downed or blinded
-   member is out of the march — both are alarms carried by an icon, which takes
-   the fill token. */
+   member is out of the march — both are alarms carried by an icon, and an icon
+   drawn as type takes the -ink token, which is the one guaranteed to read on
+   the panel ground it sits on. */
 .acks-extras:is(.party-sheet, .skill-audit) .maps i.distorted,
 .acks-extras:is(.party-sheet, .skill-audit) .session i.distorted {
-  color: var(--acks-danger);
+  color: var(--acks-danger-ink);
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .maps .warn {
@@ -692,7 +700,7 @@
   font-size: var(--acks-fs-label);
 }
 .acks-extras:is(.party-sheet, .skill-audit) .down-badge {
-  color: var(--acks-danger);
+  color: var(--acks-danger-ink);
 }
 
 .acks-formation-flags {

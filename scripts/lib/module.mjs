@@ -56,13 +56,16 @@ import * as damageType from "./damage-type.mjs";
 import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK } from "./patches/attack-roll.mjs";
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
+import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
 import { registerPerceptionModes } from "./perception.mjs";
 import {
   SETTING_MANAGE_VISION,
+  migrateWorldVision,
   syncActorTokens,
+  syncNightVisionTokens,
   syncSceneTokens,
   syncTokenFromActor,
 } from "./token-sync.mjs";
@@ -114,6 +117,20 @@ const localImpl = Object.freeze({
   light,
   /** The ACKS senses as Foundry vision/detection modes (perception.mjs). */
   perception,
+  /**
+   * Writing those senses onto tokens (token-sync.mjs). `migrateWorld` is the
+   * world-wide sweep the Migrate Token Vision macro drives — the only one of
+   * these a Judge reaches directly; the rest are the per-scene and per-actor
+   * passes the hooks run, exposed so a world with its own automation can drive
+   * them at a moment this module has no hook for.
+   */
+  vision: {
+    SETTING: SETTING_MANAGE_VISION,
+    migrateWorld: migrateWorldVision,
+    syncScene: syncSceneTokens,
+    syncActor: syncActorTokens,
+    syncNightVision: syncNightVisionTokens,
+  },
   /**
    * Storage at a place (storage.mjs): goods that belong to a character but are
    * not on them. Any actor flagged a PROVIDER holds real embedded items stamped
@@ -228,6 +245,20 @@ Hooks.once("init", () => {
     type: Boolean,
     default: true,
     requiresReload: true,
+  });
+
+  // The Surprise Matrix's results on one card (patches/surprise-card.mjs).
+  // World-scoped: the card is a shared reading of the encounter, and half a
+  // table looking at a table of results while the other half scrolls a pile of
+  // one-liners is two different conversations. Read at click time, so it takes
+  // effect on the next encounter with no reload.
+  game.settings.register(MODULE_ID, SETTING_SURPRISE_CARD, {
+    name: `${LANG_PREFIX}.settings.surpriseCard.name`,
+    hint: `${LANG_PREFIX}.settings.surpriseCard.hint`,
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
   });
 
   // Token vision and light derived from the sheet (senses.mjs / light.mjs).
@@ -569,6 +600,11 @@ Hooks.once("ready", () => {
   const useAttackModel = game.settings.get(MODULE_ID, "attackRollPatch");
   installAttackRollPatch(useAttackModel);
   if (useAttackModel) installAttackDisplayPatch();
+
+  // The consolidated surprise card. Installed UNCONDITIONALLY — the wrapper
+  // reads its own setting per click and defers to core's handler when off, so
+  // the toggle needs no reload and nothing is intercepted while it is off.
+  installSurpriseCardPatch();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const MonsterSheet = entries.find((e) => e.default)?.cls ?? entries[0]?.cls ?? null;
@@ -716,6 +752,39 @@ Hooks.on("updateActor", (actor, changes) => {
 Hooks.on("canvasReady", (canvas) => {
   if (game.system?.id !== "acks") return;
   syncSceneTokens(canvas?.scene).catch((err) => console.error(`${MODULE_ID} | scene sense sync failed`, err));
+});
+
+/*
+ * Night Vision is the one sense whose reach is not a property of the creature:
+ * it is twice the range of a light burning nearby, which somebody else lit and
+ * somebody else carries. Nothing on the sheet moves when that torch does, so
+ * none of the hooks above can see it — these watch the light instead.
+ *
+ * Debounced, and narrowed to the night-vision cast, because the trigger is
+ * every light and every step: a lit torch crossing a room fires `updateToken`
+ * on each square of the walk.
+ */
+const relightNightVision = foundry.utils.debounce((scene) => {
+  syncNightVisionTokens(scene).catch((err) => console.error(`${MODULE_ID} | night vision sync failed`, err));
+}, 250);
+
+for (const hook of ["createAmbientLight", "updateAmbientLight", "deleteAmbientLight", "deleteToken"]) {
+  Hooks.on(hook, (doc) => {
+    if (game.system?.id !== "acks") return;
+    relightNightVision(doc?.parent);
+  });
+}
+
+Hooks.on("updateToken", (tokenDoc, changes) => {
+  if (game.system?.id !== "acks") return;
+  // Only a MOVE, a change of what the token is burning, or its appearing and
+  // vanishing can change who is standing in light; every other update is left
+  // alone. The sync's own light writes DO land here, and should — a torch that
+  // just came alight changes who can see. That settles rather than loops: the
+  // second pass finds every delta already satisfied and writes nothing, so no
+  // further update is emitted.
+  if (!("x" in changes || "y" in changes || "light" in changes || "hidden" in changes)) return;
+  relightNightVision(tokenDoc?.parent);
 });
 
 Hooks.on("preCreateActor", (doc, data) => {

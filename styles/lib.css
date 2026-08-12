@@ -362,3 +362,82 @@
 body .sheet.acks.actor-v2 .encumbrance-label {
   color: var(--acks-on-burgundy);
 }
+
+/* --- The multi-roller chat card (roll-card.mjs) ------------------------------
+ * ONE card for every surface where several people roll at once: the party's
+ * checks, the party's saving throws, and the Surprise Matrix's results.
+ *
+ * Almost nothing is declared here on purpose. The card root is the design
+ * system's `acks-chat` component — which is what supplies its GROUND as well as
+ * its ink, the thing a bare div cannot do: a chat message's own panel is not
+ * ACKS-themed, so a card that set only colours draws dark-theme lettering and
+ * dark-theme tables onto a light panel. The tables are `.acks-table`, so the
+ * frame, the porphyry header row and the banded body rows come from there too.
+ * What follows is only what a CHAT-WIDTH card needs on top.
+ */
+
+/* `.acks-table-title` carries the type; this only tightens its print margins
+   for a card that can stack two of them in a ~290px column, and closes the gap
+   above the first one, which sits directly under the banner. */
+.acks-extras-roll-section {
+  margin-block: var(--acks-sp-4) var(--acks-sp-2);
+}
+
+.acks-extras-roll-card .acks-chat-body > .acks-extras-roll-section:first-child {
+  margin-block-start: 0;
+}
+
+.acks-extras-roll-note,
+.acks-extras-roll-footnote {
+  font-size: var(--acks-fs-fine);
+  font-style: italic;
+  color: var(--acks-ink-soft);
+  margin: 0 0 var(--acks-sp-2);
+}
+
+.acks-extras-roll-footnote {
+  margin: var(--acks-sp-2) 0 0;
+}
+
+/* The modifier stack under the name: its own line, fine print, so the column
+   stays a column of names. */
+.acks-extras-roll-detail {
+  display: block;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+
+/* Number and verdict columns hold their own line; Name takes the slack.
+   Without this the header wraps mid-word ("Tot / al") at chat width. */
+.acks-extras-roll-card .acks-table th:not(:first-child),
+.acks-extras-roll-card .acks-table td:not(:first-child) {
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* A verdict row takes the state TINT as its ground and the matching `-ink` for
+   its type — the plain state colours are fills and fail as text on their own
+   tint. `is-neutral` is emphasis with no verdict attached (a surprised row:
+   whether that is good news depends on which table you are reading), so it
+   takes the palette's plain nested-surface tint and full ink. */
+.acks-extras-roll-card .acks-table tbody tr.is-success > td {
+  background: var(--acks-success-tint);
+  color: var(--acks-success-ink);
+}
+
+.acks-extras-roll-card .acks-table tbody tr.is-failure > td {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-roll-card .acks-table tbody tr.is-neutral > td {
+  background: var(--acks-tint-2);
+  color: var(--acks-ink);
+}
+
+/* The detail line keeps its softened tone inside a tinted row rather than
+   inheriting the verdict colour, which would make the stack shout. */
+.acks-extras-roll-card .acks-table tbody tr > td .acks-extras-roll-detail {
+  color: inherit;
+  opacity: 0.8;
+}

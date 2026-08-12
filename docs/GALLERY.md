@@ -44,6 +44,12 @@ the next refresh.
 | Ability throws | A progression throw whose source is picked from every class the world holds | [guide](guides/abilities.md#typing-in-a-throw) | [v3.3.0](releases/v3.3.0/ability-roll-editor.png) |
 | Rolling a proficiency | Every throw an ability offers, each rolling its own | [guide](guides/abilities.md) | [v3.4.0](releases/v3.4.0/abilities-throws.png) |
 | Wear slots | Where a piece of gear is worn, what it holds, and what reaching in costs | [guide](guides/equipment.md#where-gear-is-worn) | [v3.3.0](releases/v3.3.0/equipment-slot-picker.png) |
+| Party warnings | The exploration warnings reading as a warning does, on either seat and either look | [guide](guides/formation.md) | [v3.7.0](releases/v3.7.0/formation-warnings.png) |
+| Proficiency throw card | A throw posted on the system's own card: banner, portrait, condition, verdict | [guide](guides/abilities.md#what-a-throw-looks-like-in-chat) | [v3.7.0](releases/v3.7.0/abilities-throw-card.png) |
+| Armour at a glance | AC and armour type beside the prose that describes it, with no Rolls tab to hunt through | [guide](guides/equipment.md#what-is-on-which-tab-of-an-item) | [v3.7.0](releases/v3.7.0/equipment-armour-sidebar.png) |
+| Migrating token vision | The world-wide sweep, and the question it asks before touching a hand-edited token | [guide](guides/formation.md#bringing-old-scenes-up-to-date) | [v3.7.0](releases/v3.7.0/lib-migrate-vision.png) |
+| Surprise results | The whole encounter on one card: monsters and adventurers, name, total and verdict | [guide](guides/formation.md#surprise-on-one-card) | [v3.7.0](releases/v3.7.0/lib-surprise-card.png) |
+| Party rolls | A check every member made, on the same card the saves and surprise use: total, target, verdict, and the stack behind each one | [guide](guides/formation.md#party-checks) | [v3.7.0](releases/v3.7.0/formation-party-roll-card.png) |
 
 The long-stale nine (unshot since before 3.0.0) were all re-staged and re-shot
 for 3.3.0. Rows still pointing at v3.0.0–v3.2.0 show features unchanged since

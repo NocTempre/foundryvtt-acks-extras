@@ -61,8 +61,21 @@ party. Ordinary eyes see **only what a light source reveals** — walk a torchle
 character into a black corridor and they see nothing, which is the rule. A
 character with **lightless vision** (or infravision) sees its recorded range,
 and a thief's **shadowy senses** reach 30'; both see as dim light — colourless,
-no reading, no fine detail. **Night vision** brightens dim light but is just as
-blind in total dark.
+no reading, no fine detail.
+
+**Night vision** works differently from either, because it is not sight without
+light — it is sight that makes more of the light there is. It brightens dim light
+to daylight, and indoors it carries **twice as far as the light it is seeing
+by**: a creature standing in a torch's 15' bright radius sees 30'. It does not
+need to be *its* torch — the party's lamp will do, which is exactly the creature
+watching you from beyond the edge of your own light. In a corridor with nothing
+burning at all there is nothing to double, and a night-eyed creature is as blind
+as you are.
+
+> So if you want a monster to see indoors and it has no lightless vision, you do
+> not need to give it any: put Night Vision on its stat block and make sure
+> something nearby is lit. If you want it to see in *pitch dark*, that is
+> lightless vision, and it is a different line on the sheet.
 
 Monsters answer from their Full Monster Sheet stat block, so a creature with
 lightless vision or echolocation gets it without you configuring anything. The
@@ -92,6 +105,20 @@ If you want a token to see differently, **edit its vision by hand** — from the
 on that token is yours and the module leaves it alone. The world setting
 *Token vision from ACKS senses* turns the whole thing off.
 
+### Bringing old scenes up to date
+
+Tokens are re-derived when you open their scene or change the creature's sheet,
+so a campaign already under way has scenes carrying whatever their tokens were
+last set to. The **Migrate Token Vision** macro (in the ACKS Extras macro
+compendium) does the lot at once: it walks every scene in the world, re-derives
+every token from its sheet, and tells you how many it rewrote.
+
+It asks one question first. Tokens you edited by hand are normally left alone
+forever — that is the override working. Answer **Take hand-edited tokens back**
+and it drops that protection so they follow their sheets again; those edits are
+not recoverable afterwards, so the default is to leave them be. Run it after
+switching the setting on, or after an update that changes how a sense is read.
+
 ## Sending a scout ahead
 
 The party travels as one token, but any member can **detach** — the arrow button
@@ -114,7 +141,14 @@ normal and the leash lifts for the combat.
 ## Party checks
 
 **Party roll** resolves the check for every member and posts **one GM-whispered
-card**, not a wall of per-member public cards.
+card**, not a wall of per-member public cards: a table of who rolled, what they
+got, the number they needed and whether it landed, with the modifier stack under
+each name and anyone who could not attempt it named at the foot.
+
+![](../releases/v3.7.0/formation-party-roll-card.png)
+
+Party **saving throws** post the same card, and so does the Surprise Matrix
+(below) — one shape for every roll the whole party makes at once.
 
 Every number comes from your own imported book by way of acks-importer — this
 module ships no skill ladder. Resolution order:
@@ -126,6 +160,26 @@ module ships no skill ladder. Resolution order:
 Anything else falls back to the sheet's roll target.
 
 The GM can overturn what the automation decided — the card is theirs.
+
+## Surprise, on one card
+
+Starting a combat opens the system's **Surprise Matrix**. Pick the square that
+describes the encounter and the results come back as **one card** rather than a
+chat message per combatant: monsters in one table, adventurers in the other,
+each row naming the creature, its total and whether it was surprised.
+
+![](../releases/v3.7.0/lib-surprise-card.png)
+
+Hover a total to see the dice and every modifier behind it. The rolls are the
+system's own and are not changed by this — same numbers, same threshold, same
+**Surprised** condition applied to the same creatures.
+
+A **hidden** monster's result stays private: those rows travel on a second card
+only the Judges can see, which is what the system already did for them one
+message at a time. Nothing hidden means one card; something hidden means two.
+
+Turn **Surprise results on one card** off to go back to the system's original
+per-combatant messages. It takes effect on the next encounter — no reload.
 
 ## Skill audit
 

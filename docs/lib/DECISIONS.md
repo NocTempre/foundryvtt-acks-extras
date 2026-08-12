@@ -743,3 +743,100 @@ track the STATE of a flame — lit, doused, shuttered — and say nothing about 
 long it lasts. That is the honest half, and it is the half that was missing
 entirely. The token lights up because the actor's flag write already fires the
 `updateActor` hook the vision sync listens on.
+
+## 2026-08-11 — Surprise results consolidate onto one card
+
+The Surprise Matrix posted one chat message per combatant. Six fighters meant
+six one-line messages in roll order, each read separately to answer the single
+question the matrix exists to answer. Party saves and party checks had already
+settled the family's answer to this shape — one card, one row per member — so
+surprise was the odd one out.
+
+**Ruled: presentation only, and the roll stays core's.** The matrix cell, the
+modifier stack, the threshold and the `surprised` condition are the system's.
+They are also unreachable — the released system is one minified bundle with no
+exports, and `SURPRISE_MATRIX`, `#rollSurprise` and `#rollSurpriseForGroup` are
+a private constant and two private methods. So the patch wraps the instance's
+`rollSurprise` action, lets core's handler run inside a scoped
+`preCreateChatMessage` hook that captures and blocks its messages, and reprints
+the rows.
+
+**Rejected: reimplementing the matrix.** A module-side copy of the table would
+be inventing what the system provides, and would silently disagree with the
+book the first time the system corrected a cell.
+
+**Rejected: parsing the message text against hardcoded English.** Each total is
+read back using the very i18n template that rendered it — the key is formatted
+with sentinels to find where `{result}` and `{formula}` landed — so the reader
+follows any translation of those two strings. A template carrying no `{result}`
+stands the patch down for that click rather than blocking output it cannot
+reproduce.
+
+**Ruled: two cards when something is hidden, not one wider audience.** Core
+whispers a hidden monster's result to the Judges, and a chat message cannot be
+part public. Widening the card to everyone would leak; narrowing it to the
+Judges would take from players results they can see today. The hidden rows get
+their own Judges-only card instead, so the ordinary encounter still posts
+exactly one.
+
+**Cost: no dice-roll animation, unchanged.** Core attaches no `Roll` to these
+messages, so there was none to lose; the formula survives as the total's
+tooltip.
+
+**A setting, defaulting to the new card.** The usual promise — a default that
+preserves existing behaviour — is deliberately not kept here: the card is what
+the release is for. **Surprise results on one card** turns it off, and is read
+at click time so it needs no reload.
+
+**Found live, and only live: the class name is not usable as a hook.** The first
+build bound `renderSurpriseMatrix`, which never fired — the released system is
+terser-minified and the class arrives as `E`. The app is matched on
+`surprise-matrix-app` in its own `options.classes` instead, which survives
+minification. Offline validation could not have caught this; it mocks the
+globals, not the shipped bundle.
+
+**Found live: `acks-ui` defeats the chat component's own banner.** The design
+system's chat card documents `acks-ui acks-chat` on the root, but
+`.acks-ui :is(h1,h2,h3,h4)` in base.css paints headings the spot colour at
+(0,2,0) and out-specifies `.acks-chat-title` (0,1,0) — burgundy lettering on the
+burgundy banner. The card carries `acks-chat` alone; nothing it needs is
+`acks-ui`-scoped. The vendored component's guidance is wrong on this point and
+the next consumer will hit it too.
+
+## 2026-08-11 — One renderer for every card where several people roll
+
+Three surfaces post the same shape — the exploration party's checks, the party's
+saving throws, and the Surprise Matrix's results — and each had its own
+renderer: two hand-built `<ul class="results">` lists in the formation feature
+and, as of the surprise work above, a third that used the design system's table.
+
+**Ruled: one renderer, `lib/roll-card.mjs`, and the lists go.** Same question
+every time (who rolled, what did they get, did it land), so three answers were
+three chances to drift — and they already had. Only the checks card showed the
+modifier stack, only two showed a target, and neither list had the design
+system's tabular figures, banded rows or column rules. Folding them in also
+carried the surprise card's own fixes backwards for free: the tables now line up
+their numbers, and the cards take their ground and their ink from one place.
+
+**Ruled: the card owns the CARD, and nothing about any throw.** What a row
+means, what counts as success and every localized word are the caller's; the
+module knows only rows, sections, and three kinds of emphasis. That is what lets
+the surprise card sit on it without teaching it about surprise.
+
+**`neutral` is a third emphasis, not a missing verdict.** A surprised row is
+marked but not scored: whether being surprised is good news depends on which of
+the two tables you are reading. Success and failure take the state tint and its
+`-ink` variant; neutral takes the palette's plain nested-surface tint.
+
+**Cost: two visible changes to cards that were not broken.** The party's checks
+and saves now arrive as a table rather than a bulleted list, the modifier stack
+moved from an inline parenthesis to a small line under the name, and the target
+moved into its own column. Both were re-shot. `success`/`failure` gained capital
+letters, which they needed once they were a Result column rather than the tail
+of a sentence, and the saving-throw card's bare `(magical)` tag became a line
+saying which bonuses that means are applying.
+
+**Not folded in: the turn report and encounter cards.** They also use
+`.acks-formation-card` with a `<ul>`, but they are lines of prose about what
+happened during a turn, not one row per person with a number and a verdict.
+Forcing them into a table would be a worse card, not a shared one.
