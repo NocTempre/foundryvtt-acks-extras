@@ -11,6 +11,8 @@ the next refresh.
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
 | Class constructor | The Casting editor: traditions, slot grid, pool schedule, caster-level ladder | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-constructor.png) |
+| Class builder (advanced mode) | The Builder tab on an imported Ready-for-Play example: build values, the accounting line, and Derive | [guide](guides/classes.md) | [v3.8.0](releases/v3.8.0/classes-builder.png) |
+| Race documents | The racial value ladder — rung XP costs, granted powers, attribute floors, always-on traits | [guide](guides/classes.md) | [v3.8.0](releases/v3.8.0/classes-race.png) |
 | Character generation | Three columns: the attribute rule and the scores, the class above the template die, what is left to choose | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen.png) |
 | Chargen, built | A character rolled under the printed rule, its package listed before it is taken | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen-built.png) |
 | Chargen, Judge override | Every class and template offered, the rolled fields freed, add-rather-than-replace | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen-judge.png) |

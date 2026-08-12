@@ -38,6 +38,10 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
     "casting",
     "racialTraits",
     "templates",
+    "builder.magic",
+    "builder.powers",
+    "builder.tradeoffs",
+    "builder.thievery.skills",
   ];
 
   static defineSchema() {
@@ -240,6 +244,72 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       casting: new ArrayField(tradition()),
 
       templates: new ArrayField(template()),
+
+      /** The race document this class is an expression of (cookbook id or
+       *  uuid:…). Meaningful in BOTH modes: a simple-mode imported class may
+       *  bind its race so racial traits resolve from the race document. */
+      race: str(),
+
+      /**
+       * Advanced mode — the Judges Journal's class-builder workflow held as
+       * INPUT state. Derivation (builder-logic.mjs) turns these values into
+       * the simple-mode fields above; nothing downstream reads `builder`
+       * directly, so a class built either way applies identically. Every
+       * number the derivation needs comes from the `acks.classBuilder`
+       * ruledata document — the model stores only what was chosen.
+       */
+      builder: new SchemaField({
+        enabled: bool(),
+        /** Hit Die value (a ladder row of the ruledata `hd` table). */
+        hdValue: int(0, { min: 0 }),
+        fighting: new SchemaField({
+          value: int(0, { min: 0 }),
+          /** The 1-point split: "a" (Crusader) or "b" (Thief); "" elsewhere. */
+          sub: str(),
+          /** Damage-bonus election where the value offers one: "", "melee",
+           *  "missile", "both". Vocabulary is the table's, not an enum. */
+          damageBonus: str(),
+        }),
+        thievery: new SchemaField({
+          value: int(0, { min: 0 }),
+          /** Chosen thief skills (ability refs); count is checked against
+           *  the thievery value's printed allowance. */
+          skills: refList(),
+        }),
+        /**
+         * Magic values — an OPEN list of typed value categories. `type` keys
+         * a row of the ruledata `magicTypes` table (arcane, divine,
+         * ceremonial, gnostic, alchemy, eldritch, fairie, or any imported /
+         * hand-authored tradition); nothing in the schema closes the set.
+         */
+        magic: new ArrayField(
+          new SchemaField({
+            type: str(),
+            label: str(), // display override ("Runecasting"); "" = the type's
+            value: int(0, { min: 0 }),
+            /** JJ's delayed-progress option (value gains start late). Stored;
+             *  derivation flags it rather than silently ignoring it. */
+            delayed: bool(),
+          }),
+        ),
+        /** Racial value spent, against the bound race document's ladder. */
+        race: new SchemaField({ value: int(0, { min: 0 }) }),
+        /** Trade-off elections (keys of the ruledata `tradeoffs` table:
+         *  armour/weapon/style narrowings and their kin). */
+        tradeoffs: refList(),
+        /** Custom powers chosen with the picks the trade-offs yield. */
+        powers: new ArrayField(
+          new SchemaField({
+            ref: str(),
+            name: str(),
+            cost: num(),
+            note: str(),
+          }),
+        ),
+        /** Judge's manual XP delta for anything the tables cannot say. */
+        xpAdjustment: num({ integer: true }),
+        notes: str(),
+      }),
     };
   }
 
@@ -258,6 +328,9 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       return foundry.utils.getProperty(obj, path);
     };
     for (const path of ClassData.ARRAY_PATHS) toArray(data, path);
+    // A checkbox group submits a lone checked box as a scalar string.
+    const tradeoffs = foundry.utils.getProperty(data, "builder.tradeoffs");
+    if (typeof tradeoffs === "string") foundry.utils.setProperty(data, "builder.tradeoffs", tradeoffs ? [tradeoffs] : []);
     for (const ladder of data.ladders ?? []) toArray(ladder, "values");
     for (const trad of data.casting ?? []) {
       toArray(trad, "slots");

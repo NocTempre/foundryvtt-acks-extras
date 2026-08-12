@@ -34,6 +34,37 @@ Casters get a per-tradition slot strip under the class field — click a pip to
 spend, click a spent pip to refund, the bed icon to rest. The Nobiran's
 arcane and divine pools sit side by side.
 
+## Advanced mode — the class builder
+
+The constructor's **Builder** tab is the Judges Journal's custom-class
+workflow as a tool for balanced homebrew — it never replaces the simple
+constructor, and it never blocks: the printed tables stay hand-editable in
+both modes, and the accounting line reports (points spent, power picks
+left, the 2nd-level XP cost) rather than enforces.
+
+Tick *Advanced mode*, set your build values — Hit Die, Fighting (with the
+1-point a/b split), Thievery and its chosen skills, one row per **magic
+value** (arcane and divine arrive with the Judges Journal import;
+ceremonial, gnostic, alchemy, eldritch, fairie or your own tradition are
+rows of the same shape once their tables are in the world), and a racial
+value spent against a bound **race document**. Trade-offs and custom powers
+have their own lists. **Derive class tables** then shows exactly what it
+will write — XP schedule, hit die, maximum level, attack throws, saves-as,
+cleaves, casting grids, ladders, racial traits — plus every question the
+imported tables could not answer, and applies it as one update you can
+tweak afterwards.
+
+Everything numeric comes from your own book: run the ACKS Importer table
+import with the Judges Journal connected and the builder tables,
+the Dwarf and Elf race documents, and the printed Ready-for-Play builds on
+the core and demi-human classes all land together — open any of those
+classes on the Builder tab and Derive reproduces its printed spread.
+
+A **race document** (its own item type) carries the racial value ladder:
+each rung's XP cost and granted powers, the race's attribute floors, how it
+stacks with a magic category, and its post-8th XP increases. Simple-mode
+classes may bind one too.
+
 ## Keeping documents current
 
 After reconnecting your book, `acksImporter.cookbookUpdateClasses()` rewrites

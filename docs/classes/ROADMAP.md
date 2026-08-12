@@ -7,6 +7,25 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   strip already carry non-vancian kinds, and the gnostic classes bind a
   caster-level ladder; their spend/refresh rules arrive with their books'
   recipes (BTA invocation throws, HFH ceremonial).
+- **Builder cookbook, the rest of it** — the JJ import now covers the core
+  builder tables, the dwarf and elf races, and the twelve RR Ready-for-Play
+  builds. Still importer-side work: the halfling / Nobiran / Zaharan races
+  (JJ p304–307), the JJ campaign classes' builds (barbarian, paladin,
+  priestess, shaman, venturer, warlock, witch, wonderworker, ruinguard),
+  the custom-power index with costs (JJ p308–331) and drawbacks, magic
+  types beyond arcane/divine (ceremonial, gnostic, alchemy, eldritch,
+  fairie — each its own `magicTypes` row from its book), and the boosted
+  Arcane + Elf/Zaharan 5–8 rows.
+- **Racial power name resolution** — a race rung's powers resolve to world
+  ability items by exact printed name; the misses land in the rung's note
+  ("Hardy" vs the proficiency list's "Hardy People"). An alias pass through
+  the importer's registers would close them.
+- **Builder fidelity still open** — trade-off ELECTIONS are recorded as
+  prose in `builder.notes` (the Ready-for-Play paragraphs name them; the
+  Judge ticks the boxes by hand); custom-power EFFECTS (a chosen power
+  grants its ability doc; what the power does is the abilities subsystem's
+  business); attack bands generated from bare progression parameters
+  (Monster/Hero) are flagged for verification against a printed table.
 - **Sheet editors for casting and templates** — both are stored and preserved
   now; the constructor tabs that edit them arrive with the phases that
   consume them.

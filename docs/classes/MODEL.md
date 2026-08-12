@@ -40,6 +40,76 @@ sheet. Both produce the same document and open in the same sheet.
   of abilities and items (with the printed skin descriptor per item) plus
   spells, gp and the encumbrance note. Applied by chargen.
 
+## Advanced mode — the builder
+
+The class document carries the Judges Journal's builder workflow as INPUT
+state (`system.builder`): a Hit Die value, Fighting and Thievery values with
+their elections, **magic values as an open typed list** (each row keys a
+`magicTypes` table entry — arcane, divine, ceremonial, gnostic, alchemy,
+eldritch, fairie, or anything a world's tables define), a racial value spent
+against the bound race document, trade-off elections and chosen custom
+powers, plus a Judge's manual XP adjustment.
+
+The engine ([builder-logic.mjs](../../scripts/classes/builder-logic.mjs),
+pure; [builder.mjs](../../scripts/classes/builder.mjs) resolves documents)
+turns that state into a PLAN:
+
+- **XP schedule** — 2nd level costs the summed category values (a stacking
+  race's discount applied); thresholds double through 8th with the budget's
+  smoothing level rounded to its printed nearest; past 8th a flat increment
+  keyed on the SAVES chassis, plus any racial increase the race document
+  carries.
+- **Maximum level** — the budget's racial cap table by TOTAL build points
+  when a racial value is spent; 14 otherwise.
+- **Attack** — an imported attack-throw grid if one exists, else the chassis
+  class the fighting row names (its printed table is already in the world),
+  else the row's progression parameters based off the fighter chassis's
+  first printed throw (flagged for verification).
+- **Saves-as chassis** — largest category value; ties by the printed
+  precedence. The racial value NEVER counts here, even when it stacks —
+  the book is explicit.
+- **Casting** — one tradition per magic value: the value row's own printed
+  grid (the delayed variant when elected), else the type's 100% grid scaled
+  by the fraction, halves up. A printed caster-level column that lags class
+  level becomes a ladder the tradition names. A stacking race (elf → arcane)
+  raises the effective value before the row is looked up.
+- **Ladders** — mortal wounds from the HD row; the damage bonus borrowed
+  from the fighter chassis's printed ladder when the fighting row grants
+  one; each chosen thief skill's ladder copied from the progenitor thief.
+- **Racial traits and requirements** — every power the race ladder grants
+  up to the chosen rung, and the race's attribute floors.
+
+The sheet's Builder tab shows the accounting (points, power picks, base XP)
+and every issue the tables could not answer; **Derive** writes the plan as
+one update after showing it. Derived fields are the SAME simple-mode fields
+an import fills — nothing downstream reads builder state, and a field the
+tables cannot answer is skipped, never zeroed.
+
+Every number the engine consumes arrives per world as the
+`acks.classBuilder` ruledata document (expected tables declared via lib
+`expectTables`: budget, hd, fighting, thievery, magicTypes, tradeoffs) —
+acks-importer extracts the raw JJ tables and assembles this shape
+(its `builder-binding.mjs`), or a world hand-authors an OVERRIDE layer.
+Extras ships none of it. The same import materializes race documents
+(`def.race.dwarf`, `def.race.elf`) and stamps the JJ's Ready-for-Play
+builds onto the twelve matching RR class documents, so every imported core
+and demi-human class opens as a WORKING advanced-mode example whose derive
+reproduces its own printed spread.
+
+## Race documents
+
+`acks-extras.race` ([race-data.mjs](../../scripts/classes/race-data.mjs))
+holds a race as a document: the racial-value ladder (one rung per spendable
+value — XP cost, level cap, the racial powers granted at that rung),
+attribute minimums, always-on traits, and the same `factored` warning the
+class carries. Rung power lists and traits accept ability drops on the race
+sheet; nothing is offered from a catalogue.
+
+A class binds a race by ref (`system.race`, cookbook id / uuid / key). The
+builder spends the bound race's ladder; a simple-mode imported class may
+bind one so its racial identity lives on the race document rather than
+being restated per class.
+
 ## The registry
 
 [scripts/classes/registry.mjs](../../scripts/classes/registry.mjs) publishes

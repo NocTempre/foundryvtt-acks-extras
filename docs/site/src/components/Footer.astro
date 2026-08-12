@@ -1,0 +1,35 @@
+---
+/**
+ * Starlight's page footer, plus one line about supporting the module.
+ *
+ * Registered as a component override in `astro.config.mjs`. The default
+ * implementation is rendered first and unmodified — edit links, "last updated"
+ * and prev/next pagination all still come from Starlight — so this file only
+ * adds. The line sits below the pagination, after everything a reader came for.
+ *
+ * Colour and face come from the mapped Starlight tokens rather than the ACKS
+ * ones directly, so it matches the "last updated" line it sits under and cannot
+ * fork the palette.
+ */
+import Default from "@astrojs/starlight/components/Footer.astro";
+
+const PATREON = "https://www.patreon.com/cw/NocTempre";
+---
+
+<Default><slot /></Default>
+
+<p class="acks-support">
+  Every feature here is free and none of it is gated. If it earns its keep at
+  your table, you can <a href={PATREON} rel="me">chip in on Patreon</a>.
+</p>
+
+<style>
+  .acks-support {
+    margin-top: 1.5rem;
+    font-size: var(--sl-text-xs);
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+    text-align: center;
+    text-wrap: balance;
+  }
+</style>

@@ -89,6 +89,144 @@
     </div>
   </section>
 
+  <section class="acks-extras-classes-tabpane" {{#unless show.builder}}hidden{{/unless}}>
+    <div class="form-group">
+      <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.builder.enabledHint"}}">
+        <input type="checkbox" name="system.builder.enabled" {{#if builderState.enabled}}checked{{/if}} />
+        {{localize "ACKS-CLASSES.builder.enabled"}}
+      </label>
+    </div>
+    {{#unless builderHasTables}}<p class="notification warning">{{localize "ACKS-CLASSES.builder.noTables"}}</p>{{/unless}}
+
+    {{#if builderState.enabled}}
+    {{#if builderSummary}}
+      <fieldset>
+        <legend>{{localize "ACKS-CLASSES.builder.summary"}}</legend>
+        <p>
+          {{localize "ACKS-CLASSES.builder.points"}}: {{builderSummary.points.spent}}{{#if builderSummary.points.base}} / {{builderSummary.points.base}}{{/if}}
+          &nbsp;·&nbsp; {{localize "ACKS-CLASSES.builder.powersLeft"}}: {{builderSummary.powers.left}}
+          &nbsp;·&nbsp; {{localize "ACKS-CLASSES.builder.baseXp"}}: {{builderSummary.baseXp}}
+          &nbsp;·&nbsp; {{localize "ACKS-CLASSES.sheet.maximumLevel"}}: {{builderSummary.maxLevel}}
+        </p>
+        {{#if builderIssues.length}}
+          <ul class="acks-extras-classes-issues">
+            {{#each builderIssues}}<li>{{this}}</li>{{/each}}
+          </ul>
+        {{/if}}
+        <button type="button" data-action="builderDerive" {{#unless builderHasTables}}disabled{{/unless}}>
+          <i class="fa-solid fa-gears"></i> {{localize "ACKS-CLASSES.builder.derive"}}
+        </button>
+        <p class="hint">{{localize "ACKS-CLASSES.builder.deriveHint"}}</p>
+      </fieldset>
+    {{/if}}
+
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.builder.categories"}}</legend>
+      <div class="form-group">
+        <label>{{localize "ACKS-CLASSES.builder.hdValue"}}</label>
+        <input name="system.builder.hdValue" type="number" value="{{builderState.hdValue}}" min="0" step="1" />
+        <label>{{localize "ACKS-CLASSES.builder.fightingValue"}}</label>
+        <input name="system.builder.fighting.value" type="number" value="{{builderState.fighting.value}}" min="0" step="1" />
+        <input name="system.builder.fighting.sub" type="text" value="{{builderState.fighting.sub}}" maxlength="1" placeholder="a/b" title="{{localize "ACKS-CLASSES.builder.fightingSub"}}" class="acks-extras-classes-subinput" />
+        <label>{{localize "ACKS-CLASSES.builder.thieveryValue"}}</label>
+        <input name="system.builder.thievery.value" type="number" value="{{builderState.thievery.value}}" min="0" step="1" />
+      </div>
+      <div class="form-group">
+        <label data-tooltip="{{localize "ACKS-CLASSES.builder.damageBonusHint"}}">{{localize "ACKS-CLASSES.builder.damageBonus"}}</label>
+        <input name="system.builder.fighting.damageBonus" type="text" value="{{builderState.fighting.damageBonus}}" />
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.builder.magicValues"}}
+        <a data-action="rowAdd" data-array="builder.magic"><i class="fa-solid fa-plus"></i></a></legend>
+      <p class="hint">{{localize "ACKS-CLASSES.builder.magicHint"}}</p>
+      {{#each builderMagic}}
+        <div class="acks-extras-classes-row">
+          <input name="system.builder.magic.{{index}}.type" type="text" value="{{type}}" list="acks-extras-magic-types" placeholder="{{localize "ACKS-CLASSES.builder.magicType"}}" />
+          <span class="acks-extras-classes-refname">{{typeLabel}}</span>
+          <input name="system.builder.magic.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" />
+          <input name="system.builder.magic.{{index}}.value" type="number" value="{{value}}" min="0" step="1" title="{{localize "ACKS-CLASSES.builder.value"}}" />
+          <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.builder.delayedHint"}}">
+            <input type="checkbox" name="system.builder.magic.{{index}}.delayed" {{#if delayed}}checked{{/if}} />
+            {{localize "ACKS-CLASSES.builder.delayed"}}
+          </label>
+          <a data-action="rowDelete" data-array="builder.magic" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+      <datalist id="acks-extras-magic-types">
+        {{#each magicTypeKeys}}<option value="{{this}}"></option>{{/each}}
+      </datalist>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.builder.race"}}</legend>
+      <div class="form-group">
+        <label>{{localize "ACKS-CLASSES.builder.raceDoc"}}</label>
+        <select name="system.race">
+          <option value="" {{#unless system.race}}selected{{/unless}}>—</option>
+          {{#each builderRaces}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        <label>{{localize "ACKS-CLASSES.builder.racialValue"}}</label>
+        <input name="system.builder.race.value" type="number" value="{{builderState.race.value}}" min="0" step="1" />
+      </div>
+      {{#if raceUnresolved}}<p class="notification warning">{{localize "ACKS-CLASSES.builder.raceUnresolved"}}</p>{{/if}}
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.builder.thieverySkills"}}
+        <a data-action="rowAdd" data-array="builder.thievery.skills"><i class="fa-solid fa-plus"></i></a></legend>
+      <div data-accept-drop data-list="builderSkills">
+        <p class="hint">{{localize "ACKS-CLASSES.sheet.dropHere"}}</p>
+        {{#each builderSkills}}
+          <div class="acks-extras-classes-row">
+            <input name="system.builder.thievery.skills.{{index}}" type="text" value="{{ref}}" />
+            <span class="acks-extras-classes-refname">{{name}}</span>
+            <a data-action="rowDelete" data-array="builder.thievery.skills" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          </div>
+        {{/each}}
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.builder.tradeoffs"}}</legend>
+      {{#unless builderTradeoffs.length}}<p class="hint">{{localize "ACKS-CLASSES.builder.noTradeoffs"}}</p>{{/unless}}
+      <div class="acks-extras-classes-checks">
+        {{#each builderTradeoffs}}
+          <label class="checkbox"><input type="checkbox" name="system.builder.tradeoffs" value="{{key}}" {{#if checked}}checked{{/if}} /> {{label}}</label>
+        {{/each}}
+      </div>
+      {{#if builderUnknownTradeoffs.length}}
+        <p class="hint">{{localize "ACKS-CLASSES.builder.unknownTradeoffs"}}:
+          {{#each builderUnknownTradeoffs}}<span class="acks-extras-classes-chip">{{this}}</span>{{/each}}</p>
+      {{/if}}
+    </fieldset>
+
+    <fieldset data-accept-drop data-list="builderPowers">
+      <legend>{{localize "ACKS-CLASSES.builder.powers"}}
+        <a data-action="rowAdd" data-array="builder.powers"><i class="fa-solid fa-plus"></i></a></legend>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.dropHere"}}</p>
+      {{#each builderPowers}}
+        <div class="acks-extras-classes-row">
+          <input name="system.builder.powers.{{index}}.ref" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" />
+          <span class="acks-extras-classes-refname">{{#if refName}}{{refName}}{{else}}{{name}}{{/if}}</span>
+          <input name="system.builder.powers.{{index}}.name" type="hidden" value="{{name}}" />
+          <input name="system.builder.powers.{{index}}.cost" type="number" value="{{cost}}" step="0.5" title="{{localize "ACKS-CLASSES.builder.powerCost"}}" />
+          <input name="system.builder.powers.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" />
+          <a data-action="rowDelete" data-array="builder.powers" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+    </fieldset>
+
+    <div class="form-group">
+      <label data-tooltip="{{localize "ACKS-CLASSES.builder.xpAdjustmentHint"}}">{{localize "ACKS-CLASSES.builder.xpAdjustment"}}</label>
+      <input name="system.builder.xpAdjustment" type="number" value="{{builderState.xpAdjustment}}" step="1" />
+      <label>{{localize "ACKS-CLASSES.sheet.note"}}</label>
+      <input name="system.builder.notes" type="text" value="{{builderState.notes}}" />
+    </div>
+    {{/if}}
+  </section>
+
   <section class="acks-extras-classes-tabpane" {{#unless show.progression}}hidden{{/unless}}>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.levels"}}

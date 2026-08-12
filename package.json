@@ -11,7 +11,7 @@
     "build:packs": "node tools/build-packs.mjs",
     "validate": "node tools/validate.mjs",
     "prepare": "git config core.hooksPath .githooks",
-    "test": "node tools/test-lib.mjs && node tools/test-equipment.mjs && node tools/test-formation-flows.mjs && node tools/test-influence.mjs",
+    "test": "node tools/test-lib.mjs && node tools/test-equipment.mjs && node tools/test-formation-flows.mjs && node tools/test-influence.mjs && node tools/test-classes.mjs",
     "find:dead-config": "node tools/find-dead-config.mjs"
   },
   "devDependencies": {

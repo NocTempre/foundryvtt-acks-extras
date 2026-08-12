@@ -1,18 +1,25 @@
 /* global Hooks, CONFIG, foundry, console */
 /**
- * Classes subsystem entry: registers the `acks-extras.class` Item sub-type
- * and its constructor sheet, publishes the class-derived rules tables, wires
- * the character-sheet class picker, and exposes the subsystem API.
+ * Classes subsystem entry: registers the `acks-extras.class` and
+ * `acks-extras.race` Item sub-types and their constructor sheets, publishes
+ * the class-derived rules tables, wires the character-sheet class picker,
+ * and exposes the subsystem API.
  *
  * The document model stores what an RR class spread PRINTS (tables, bands,
- * awards, templates); the Judges Journal's custom-class builder explains how
- * those spreads are arranged under the hood (category progressions — the
- * chassis) but is deliberately not automated (docs/classes/DECISIONS.md).
+ * awards, templates). Advanced mode holds the Judges Journal's builder
+ * workflow as INPUT state and derives those same printed fields from the
+ * world's imported builder tables (builder-logic.mjs) — simple mode types
+ * them, advanced mode computes them, and everything downstream reads one
+ * shape.
  */
 import { acksExtras } from "../namespace.mjs";
-import { MODULE_ID, LANG_PREFIX, CLASS_TYPE, FLAG_CLASSES, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, CLASS_TYPE, RACE_TYPE, FLAG_CLASSES, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import ClassData, { AWARD_KINDS } from "./class-data.mjs";
 import ClassSheet from "./class-sheet.mjs";
+import RaceData from "./race-data.mjs";
+import RaceSheet from "./race-sheet.mjs";
+import * as builder from "./builder.mjs";
+import { BUILDER_DOC_ID, derivePlan, xpSchedule } from "./builder-logic.mjs";
 import * as registry from "./registry.mjs";
 import { applyClass, classUpdateData, normalizeHd } from "./apply.mjs";
 import { openClassPicker, registerAssignUi } from "./assign.mjs";
@@ -38,6 +45,8 @@ import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spe
 Hooks.once("init", () => {
   CONFIG.Item.dataModels ??= {};
   CONFIG.Item.dataModels[CLASS_TYPE] = ClassData;
+  CONFIG.Item.dataModels[RACE_TYPE] = RaceData;
+  builder.registerBuilderExpectations();
 
   // How a gained level rolls HP. RAW (user-confirmed ruling): reroll the full
   // Hit Dice, minimum one over the old maximum; additive is the house rule.
@@ -71,16 +80,26 @@ Hooks.once("init", () => {
       makeDefault: true,
       label: "ACKS-CLASSES.sheet.sheetName",
     });
+    foundry.documents.collections.Items.registerSheet(MODULE_ID, RaceSheet, {
+      types: [RACE_TYPE],
+      makeDefault: true,
+      label: "ACKS-CLASSES.race.sheetName",
+    });
   } catch (err) {
     console.warn(`${MODULE_ID} | class sheet registration failed`, err);
   }
 
   foundry.applications.handlebars
-    .loadTemplates([`modules/${MODULE_ID}/templates/classes/class-sheet.hbs`])
+    .loadTemplates([
+      `modules/${MODULE_ID}/templates/classes/class-sheet.hbs`,
+      `modules/${MODULE_ID}/templates/classes/race-sheet.hbs`,
+    ])
     .catch(() => {});
 
   acksExtras.classes = {
     CLASS_TYPE,
+    RACE_TYPE,
+    BUILDER_DOC_ID,
     FLAG_CLASSES,
     PROGRESSIONS_DOC_ID,
     CLASS_DOC_PREFIX,
@@ -115,6 +134,10 @@ Hooks.once("init", () => {
     repairSaveReferences,
     BOOK_TO_RELEASED_SAVES,
     resolveLevelValue: registry.resolveLevelValue,
+    // Advanced mode: the builder derivation and the race documents it spends.
+    builder,
+    derivePlan,
+    xpSchedule,
   };
   console.log(`${MODULE_ID} | classes subsystem ready (${CLASS_TYPE}).`);
 });

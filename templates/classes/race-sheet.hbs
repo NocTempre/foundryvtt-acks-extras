@@ -1,0 +1,89 @@
+<div class="acks-extras-classes-root">
+<header class="acks-extras-classes-header">
+  <img class="profile-img" src="{{item.img}}" data-edit="img" title="{{item.name}}" />
+  <div class="acks-extras-classes-headmain">
+    <input name="name" type="text" value="{{item.name}}" placeholder="{{localize "ACKS-CLASSES.race.name"}}" />
+    <div class="acks-extras-classes-source">
+      <label>{{localize "ACKS-CLASSES.sheet.key"}}</label>
+      <input name="system.key" type="text" value="{{system.key}}" />
+      <label>{{localize "ACKS-CLASSES.sheet.cite"}}</label>
+      <input name="system.source.cite" type="text" value="{{system.source.cite}}" />
+      <input name="system.source.book" type="hidden" value="{{system.source.book}}" />
+      <input name="system.source.ref" type="hidden" value="{{system.source.ref}}" />
+    </div>
+  </div>
+</header>
+
+<div class="acks-extras-classes-body">
+
+  <fieldset>
+    <legend>{{localize "ACKS-CLASSES.race.minimumAttributes"}}
+      <a data-action="rowAdd" data-array="minimumAttributes"><i class="fa-solid fa-plus"></i></a></legend>
+    {{#unless minimumAttributes.length}}<p class="hint">{{localize "ACKS-CLASSES.race.noMinimums"}}</p>{{/unless}}
+    {{#each minimumAttributes}}
+      <div class="acks-extras-classes-row">
+        <select name="system.minimumAttributes.{{index}}.attr">
+          {{#each attrOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        <input name="system.minimumAttributes.{{index}}.min" type="number" value="{{min}}" placeholder="{{localize "ACKS-CLASSES.sheet.min"}}" />
+        <a data-action="rowDelete" data-array="minimumAttributes" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+      </div>
+    {{/each}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-CLASSES.race.values"}}
+      <a data-action="rowAdd" data-array="values"><i class="fa-solid fa-plus"></i></a></legend>
+    <p class="hint">{{localize "ACKS-CLASSES.race.valuesHint"}}</p>
+    {{#each values}}
+      <div class="acks-extras-classes-ladder" data-accept-drop data-rung="{{index}}">
+        <div class="acks-extras-classes-row">
+          <input name="system.values.{{index}}.value" type="number" value="{{value}}" min="0" title="{{localize "ACKS-CLASSES.race.value"}}" />
+          <input name="system.values.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" />
+          <input name="system.values.{{index}}.xpCost" type="number" value="{{xpCost}}" placeholder="{{localize "ACKS-CLASSES.race.xpCost"}}" title="{{localize "ACKS-CLASSES.race.xpCost"}}" />
+          <input name="system.values.{{index}}.maxLevel" type="number" value="{{maxLevel}}" placeholder="{{localize "ACKS-CLASSES.sheet.maximumLevel"}}" title="{{localize "ACKS-CLASSES.sheet.maximumLevel"}}" />
+          <input name="system.values.{{index}}.note" type="text" value="{{note}}" placeholder="{{localize "ACKS-CLASSES.sheet.note"}}" />
+          <a data-action="rowAdd" data-array="values.{{index}}.powers" title="{{localize "ACKS-CLASSES.race.addPower"}}"><i class="fa-solid fa-plus"></i></a>
+          <a data-action="rowDelete" data-array="values" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+        <div class="acks-extras-classes-rungs">
+          {{#each powers}}
+            <span class="acks-extras-classes-rung">
+              <input name="system.values.{{../index}}.powers.{{index}}" type="text" value="{{ref}}" placeholder="{{localize "ACKS-CLASSES.sheet.dropHint"}}" />
+              <span class="acks-extras-classes-refname">{{name}}</span>
+              <a data-action="rowDelete" data-array="values.{{../index}}.powers" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
+            </span>
+          {{/each}}
+        </div>
+      </div>
+    {{/each}}
+  </fieldset>
+
+  <fieldset data-accept-drop data-list="traits">
+    <legend>{{localize "ACKS-CLASSES.race.traits"}}
+      <a data-action="rowAdd" data-array="traits"><i class="fa-solid fa-plus"></i></a></legend>
+    <p class="hint">{{localize "ACKS-CLASSES.sheet.dropHere"}}</p>
+    {{#each traits}}
+      <div class="acks-extras-classes-row">
+        <input name="system.traits.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
+        <input name="system.traits.{{index}}.ref" type="text" value="{{ref}}" />
+        <span class="acks-extras-classes-refname">{{refName}}</span>
+        <a data-action="rowDelete" data-array="traits" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+      </div>
+    {{/each}}
+  </fieldset>
+
+  <div class="form-group">
+    <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.sheet.factoredHint"}}">
+      <input type="checkbox" name="system.factored" {{#if system.factored}}checked{{/if}} />
+      {{localize "ACKS-CLASSES.sheet.factored"}}
+    </label>
+  </div>
+
+  <div class="form-group stacked">
+    <label>{{localize "ACKS-CLASSES.sheet.description"}}</label>
+    <prose-mirror name="system.description" value="{{prose.description.source}}" document-uuid="{{item.uuid}}" compact toggled>{{{prose.description.html}}}</prose-mirror>
+  </div>
+
+</div>
+</div>

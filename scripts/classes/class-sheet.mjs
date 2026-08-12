@@ -17,6 +17,7 @@ import { LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS, REPERTOIRE_KINDS } from "./co
 import { AWARD_KINDS } from "./class-data.mjs";
 import ClassData from "./class-data.mjs";
 import { findByRef } from "./registry.mjs";
+import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabel } from "./builder.mjs";
 import { CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 import { ATTRIBUTES } from "../lib/vocab.mjs";
 
@@ -24,7 +25,7 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
 const MODULE_ID = "acks-extras";
-const TABS = ["overview", "progression", "awards", "casting", "templates", "inventory"];
+const TABS = ["overview", "builder", "progression", "awards", "casting", "templates", "inventory"];
 
 /** Options list from a vocab enum, with the current value marked selected. */
 const optionsOf = (enumObj, current, { blankLabel } = {}) => {
@@ -53,6 +54,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       classTab: ClassSheet.#onTab,
       rowAdd: ClassSheet.#onRowAdd,
       rowDelete: ClassSheet.#onRowDelete,
+      builderDerive: ClassSheet.#onBuilderDerive,
     },
   };
 
@@ -117,6 +119,51 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       min: row.min,
       attrOptions: optionsOf(ATTRIBUTES, row.attr, { blankLabel: "—" }),
     }));
+
+    // --- builder (advanced mode) ---
+    const tables = builderTables();
+    const b = sys.builder ?? {};
+    context.builderState = b;
+    context.builderHasTables = !!tables;
+    const magicTypes = tables?.magicTypes ?? {};
+    context.magicTypeKeys = Object.keys(magicTypes);
+    context.builderMagic = (b.magic ?? []).map((m, index) => ({
+      index,
+      type: m.type,
+      label: m.label,
+      value: m.value,
+      delayed: m.delayed,
+      typeLabel: magicTypes[m.type]?.label ?? null,
+    }));
+    const boundRace = raceForClass(this.item);
+    context.builderRaces = raceItems().map((race) => {
+      const value = refOf(race);
+      return { value, label: race.name, selected: race === boundRace };
+    });
+    context.raceUnresolved = !!sys.race && !boundRace;
+    context.builderTradeoffs = (tables?.tradeoffs ?? []).map((row) => ({
+      key: row.key,
+      label: row.label ?? row.key,
+      checked: (b.tradeoffs ?? []).includes(row.key),
+    }));
+    context.builderUnknownTradeoffs = (b.tradeoffs ?? []).filter(
+      (key) => !(tables?.tradeoffs ?? []).some((row) => row.key === key),
+    );
+    context.builderPowers = (b.powers ?? []).map((p, index) => ({
+      index,
+      ...p,
+      refName: p.ref ? (findByRef(p.ref)?.name ?? null) : null,
+    }));
+    context.builderSkills = (b.thievery?.skills ?? []).map((ref, index) => ({
+      index,
+      ref,
+      name: findByRef(ref)?.name ?? null,
+    }));
+    if (b.enabled) {
+      const plan = planFor(this.item);
+      context.builderSummary = plan.summary;
+      context.builderIssues = plan.issues.map(issueLabel);
+    }
 
     // --- progression ---
     context.levels = (sys.levels ?? []).map((row, index) => ({ index, ...row }));
@@ -204,6 +251,11 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     this.render();
   }
 
+  static async #onBuilderDerive() {
+    await applyBuilder(this.item);
+    this.render();
+  }
+
   /* Row templates a fresh array entry starts from; the schema's own initials
    * fill everything not named here. String lists push "" (a blank ref row).
    * Nested-array paths are keyed with N standing for any index
@@ -229,6 +281,9 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     "inventory.classProfs": () => "",
     "inventory.powers": () => "",
     "inventory.skills": () => ({}),
+    "builder.magic": () => ({ type: "", value: 0 }),
+    "builder.powers": () => ({}),
+    "builder.thievery.skills": () => "",
   };
 
   static async #onRowAdd(event, target) {
@@ -275,6 +330,18 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       if (!current.includes(ref)) {
         current.push(ref);
         await this.item.update({ [`system.${path}`]: current });
+      }
+    } else if (list === "builderPowers") {
+      const current = foundry.utils.deepClone(this.item.system.builder?.powers ?? []);
+      if (!current.some((p) => p.ref === ref)) {
+        current.push({ ref, name: dropped.name, cost: null, note: "" });
+        await this.item.update({ "system.builder.powers": current });
+      }
+    } else if (list === "builderSkills") {
+      const current = foundry.utils.deepClone(this.item.system.builder?.thievery?.skills ?? []);
+      if (!current.includes(ref)) {
+        current.push(ref);
+        await this.item.update({ "system.builder.thievery.skills": current });
       }
     } else if (list === "skills") {
       const current = foundry.utils.deepClone(this.item.system.inventory?.skills ?? []);

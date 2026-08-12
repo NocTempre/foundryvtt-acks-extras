@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
 const REPO = "https://github.com/NocTempre/foundryvtt-acks-extras";
+const PATREON = "https://www.patreon.com/cw/NocTempre";
 
 // Project page, not a user page: everything is served under the repo name, so
 // `base` must be set or every internal link 404s once deployed. Astro prefixes
@@ -23,12 +24,20 @@ export default defineConfig({
         replacesTitle: false,
       },
       favicon: "/favicon.svg",
-      social: [{ icon: "github", label: "GitHub", href: REPO }],
+      // Header icons only — the module is free and nothing here is gated, so
+      // the Patreon link stays the same size as the GitHub one rather than
+      // becoming a call to action.
+      social: [
+        { icon: "github", label: "GitHub", href: REPO },
+        { icon: "patreon", label: "Support on Patreon", href: PATREON },
+      ],
       // Resolves against this Astro project, which is where the hand-authored
       // pages live. Every STAGED page overrides `editUrl` in its own
       // frontmatter to point at the real source instead — the staged copy is
       // generated and gitignored, so editing it would be undone by the next sync.
       editLink: { baseUrl: `${REPO}/edit/main/docs/site/` },
+      // Renders Starlight's own footer unchanged and appends the support line.
+      components: { Footer: "./src/components/Footer.astro" },
       lastUpdated: true,
       customCss: [
         // Order matters and mirrors the design system's own entry point: fonts,

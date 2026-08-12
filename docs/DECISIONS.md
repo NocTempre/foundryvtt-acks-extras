@@ -289,3 +289,35 @@ would not catch a hand-typed `git checkout -b`.
 > is the only hook that sits in front of it, so it now returns `continue: false`.
 > Its blocking behaviour is unverified until the next background session spawns;
 > the setting and the Bash guard are both verified.
+
+---
+
+## 13. The Patreon link — header icon and one footer line
+
+A funding link is on the docs site, in two places and no others: a Patreon icon
+in the Starlight header beside GitHub, at the same 16px and the same treatment,
+and one line at the foot of every page below the prev/next pagination. The
+footer line comes from `src/components/Footer.astro`, a component override that
+renders Starlight's own footer unmodified and appends to it — edit links, "last
+updated" and pagination are still Starlight's.
+
+The line states the terms before it asks: everything is free and nothing is
+gated, *then* the link. That ordering is the whole point — a reader who wants
+none of it has already been told they lose nothing.
+
+**It does not go on `start/buying.md`.** That page opens with "nothing on this
+page is sold by, or earns anything for, this project" — a sentence that is the
+reason the page can list the publisher's prices without reading as a storefront.
+A funding link there makes it false, and the page is the module's only claim
+about money.
+
+**Rejected:** a hero action on the landing page, and a full footer band. Both
+make supporting the module a thing the site asks for. The module is free,
+nothing in it is gated behind the Patreon, and no feature or page depends on the
+link resolving.
+
+> **Same-day revision.** The header icon shipped alone first and read as too
+> quiet to find — an unlabelled 16px glyph among two others. The footer line is
+> the correction, not a second attempt at the same job: the icon is a
+> destination for someone already looking, the line is the only place the site
+> says what the module costs.

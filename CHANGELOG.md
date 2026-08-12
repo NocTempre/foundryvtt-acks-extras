@@ -1,5 +1,46 @@
 # Changelog
 
+## 3.8.0
+
+### Added
+- **The class constructor gains an advanced mode — the Judges Journal's class
+  builder, automated.** A Builder tab on the class sheet takes build values
+  (Hit Die, Fighting with its 1a/1b split, Thievery with chosen skills, magic
+  values, a racial value) plus trade-offs and custom powers, shows the
+  accounting (points spent, power picks, the 2nd-level XP cost), and derives
+  the whole printed spread on demand: XP schedule with the printed smoothing
+  and post-8th increments, hit die and mortal-wounds bonus, maximum level from
+  the racial cap table, attack throws, the saves chassis, cleaves, damage-bonus
+  and thief-skill ladders, and one casting tradition per magic value from the
+  printed per-value spell grids — including the delayed-acquisition variants.
+  Derivation writes the same fields an import fills, so applying, levelling
+  and chargen see no difference, and every value it uses arrives from your own
+  book: the tables ship nowhere. Magic values are an open set — arcane and
+  divine are just the first rows a world imports; ceremonial, gnostic,
+  alchemy, eldritch, fairie or homebrew traditions are rows of the same shape.
+- **Races are documents.** A new race item (`ACKS Race` sheet) holds the
+  racial-value ladder — each rung's XP cost, level cap and granted powers —
+  plus attribute minimums, always-on traits, and how the race stacks with a
+  magic category (an elf's points raise its arcane value, at the printed
+  discount). The builder spends the ladder of the race a class binds; a
+  simple-mode imported class may bind one too.
+- **Imported classes arrive as working examples.** With ACKS Importer 2.5.0,
+  the Judges Journal table import stamps the printed Ready-for-Play builds
+  onto the core and demi-human classes and materializes the Dwarf and Elf race
+  documents — open any of the twelve on the Builder tab and Derive reproduces
+  that class's own printed tables.
+- **The docs site names its Patreon, twice and no more.** A header icon beside
+  GitHub, and one line under every page's pagination that states the terms
+  before the link: everything is free, nothing is gated.
+
+### Fixed
+- **Adjustment fields start empty, not standing in a zero you must clear
+  first.** Situational bonus on attack rolls, the morale dialog's other
+  modifier, and a throw's misc field all pre-filled with 0, so typing an
+  adjustment meant selecting and deleting first. They now sit blank with a 0
+  placeholder, matching core's own roll dialog; every reader of these values
+  already falls back to 0 on empty input.
+
 ## 3.7.0
 
 ### Fixed

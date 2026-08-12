@@ -54,7 +54,8 @@ first) stages the content it publishes:
 Every staged path is gitignored and carries a generated header, and each page's
 "Edit page" link points at its real source. **Editing a staged copy is undone by
 the next sync** — change the source instead. Only `index.mdx`, `start/buying.md`,
-`404.md`, the gallery template and the theme CSS are authored in `site/`.
+`404.md`, the gallery template, the `Footer` override and the theme CSS are
+authored in `site/`.
 
 The sync fails the build if a setting key cannot be resolved or `GALLERY.md`
 points at a missing screenshot, so a docs change that breaks either is caught in

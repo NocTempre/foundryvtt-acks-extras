@@ -9,6 +9,10 @@ export const LANG_PREFIX = "ACKS-CLASSES";
 /** The class Item sub-type (declared in module.json `documentTypes.Item`). */
 export const CLASS_TYPE = `${MODULE_ID}.class`;
 
+/** The race Item sub-type — the racial-value ladder the builder spends and
+ *  simple-mode classes bind by ref (declared in module.json alongside class). */
+export const RACE_TYPE = `${MODULE_ID}.race`;
+
 /**
  * Actor flag key under `flags["acks-extras"]`: `{ uuid, key, appliedLevel,
  * applied }` — which class document the character is bound to and the exact

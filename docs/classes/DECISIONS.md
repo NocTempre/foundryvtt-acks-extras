@@ -3,6 +3,84 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-12 — Import makes the examples: builds stamped, races materialized
+
+Ruled (user): the JJ import must leave WORKING examples — after the table
+import, the twelve RR classes (seven-plus-one core humans and the four
+demi-humans) carry their printed Ready-for-Play build as advanced-mode
+state, bound to materialized `def.race.dwarf` / `def.race.elf` documents,
+and derive reproduces each class's own printed spread. Live-verified exact
+on Fighter (2,000 → 250,000 XP) and Elven Spellsword (4,000 → 430,000 XP,
+cap 10, the L5 slot row equal to the printed grid). The rest of the JJ
+roster and races is ROADMAP by the same ruling ("just the core classes and
+the demihumans for now").
+
+**The saves chassis ignores the racial value** — JJ p301 is explicit
+("not used … even when the Racial Value stacks"), and the first live derive
+caught the engine counting elf stacking toward saves (mage instead of the
+spellsword's printed fighter). Casting stacking and saves independence are
+now separate paths, tested.
+
+**The build paragraphs' trade-offs stay prose.** The Ready-for-Play text
+names each class's trade-offs in sentences ("Armor selection is reduced to
+Broad for one class power"); parsing those into elections is a judgment the
+binding does not make. The paragraph lands whole in `builder.notes` and the
+Judge ticks the trade-off boxes with the source in view.
+
+## 2026-08-11 — The builder IS automated: advanced mode derives the spread
+
+Ruled (user), superseding 2026-08-05 "…and is not automated": the class
+document gains an advanced mode that emulates the Judges Journal's builder
+workflow — build values in (Hit Die, Fighting, Thievery, magic values,
+Racial), the printed-spread fields out (XP schedule, hit die, max level,
+attack bands, saves-as chassis, cleaves, casting grids, racial traits).
+
+**Derivation writes the simple-mode fields; nothing downstream reads builder
+state.** applyClass, level-up, chargen and the registry see one document
+shape, so an imported simple-mode class and a derived one are
+indistinguishable to every consumer — and the builder's output stays
+hand-editable afterwards, which is the same review-and-tweak workflow the
+constructor sheet already rules.
+
+**Every number is imported, none ships.** The engine
+([builder-logic.mjs](../../scripts/classes/builder-logic.mjs)) is structure
+only; the JJ builder tables (category XP costs, the attack-throw grid, magic
+value ladders and fractions, trade-off yields, power costs) reach a world as
+the `acks.classBuilder` ruledata document — an acks-importer cookbook recipe
+from the GM's own book, or a hand-authored OVERRIDE layer. A missing table
+degrades to a named issue on the plan, never a shipped fallback. What IS code
+is the arrangement the spreads share: thresholds double to 8th then climb by
+a flat rounded increment, halves round up on scaled spell slots, the largest
+category decides the saves chassis.
+
+**Rejected: deriving on every builder edit.** The derive is an explicit
+action with a shown plan (what will be written, what the tables left open) —
+a silent write under submitOnChange would clobber hand tweaks on every
+keystroke.
+
+## 2026-08-11 — Race is an Item sub-type; the ladder lives on the race
+
+Ruled (user): a race is a document (`acks-extras.race`), not rows in a global
+table — its racial-value ladder (per-rung XP cost, level cap, granted
+powers), attribute minimums and always-on traits are the race's own, filled
+by acks-importer (`def.race.<key>`) or typed by hand, exactly like classes.
+The builder spends the ladder of the race the class binds (`system.race`);
+a SIMPLE-mode imported class may bind the same ref so its racial traits
+resolve from the race document instead of being restated per class — the
+existing demi-human classes benefit without entering advanced mode.
+
+## 2026-08-11 — Magic values are an open, data-defined set
+
+Ruled (user): magic build categories are not two columns. Arcane and divine
+are merely the first rows of the `magicTypes` table; ceremonial, gnostic,
+alchemy, eldritch, fairie and any later or homebrew tradition are rows of
+the same shape (value ladder with costs and fractions, casting kind,
+repertoire, saves-as, progenitor grid). The class document stores magic
+values as a typed LIST keyed by those row names; no enum in code closes the
+set. The casting-kind vocabulary (vancian, points, ritual, ceremonial,
+gnosis) stays a code enum because it names MECHANISMS the module implements,
+not content.
+
 ## 2026-08-07 — A package pays its own coin; only a package-less build rolls for it
 
 Ruled (user): the gold row is not rolled and not rollable while a starting
@@ -181,7 +259,7 @@ hold tables). Imported and hand-made classes share one sheet deliberately —
 review-and-tweak and homebrew are the same workflow (user ruling: editable
 constructor from v1, composition-first over primitives).
 
-## 2026-08-05 — The JJ custom-class builder informs the model, and is not automated
+## 2026-08-05 — The JJ custom-class builder informs the model, and is not automated (SUPERSEDED 2026-08-11, above)
 
 The Judges Journal's custom-class rules are how the printed spreads are
 arranged under the hood — every class is category progressions (the four
