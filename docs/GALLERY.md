@@ -31,7 +31,8 @@ the next refresh.
 | Formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v3.0.0](releases/v3.0.0/formation-party-sheet.png) |
 | Groups | A retinue kept as one document rather than a dozen | [guide](guides/formation.md) | [v3.0.0](releases/v3.0.0/group-sheet.png) |
 | Templates | The generator that stats a creature when you need one | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/template-sheet.png) |
-| Influence | A social roll with its modifier stack itemized | [guide](guides/influence.md) | [v3.0.0](releases/v3.0.0/influence-dialog.png) |
+| Influence | A social roll with its modifier stack itemized — here with a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v3.9.0](releases/v3.9.0/influence-bribe.png) |
+| Ability mechanics | A proficiency's Mechanics tab: classification, selections (the picks a grant reads), and its Active Effects | [guide](guides/abilities.md) | [v3.9.0](releases/v3.9.0/combat-trickery.png) |
 | Abilities | An ability item's sheet, with its rolls and mechanics | [guide](guides/abilities.md) | [v3.0.0](releases/v3.0.0/ability-sheet.png) |
 | Monster card | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/monster-card.png) |
 | Colour scheme | The per-player setting that holds the ACKS look steady | [guide](guides/appearance.md#pick-a-colour-scheme) | [v3.3.0](releases/v3.3.0/settings-colour-scheme.png) |

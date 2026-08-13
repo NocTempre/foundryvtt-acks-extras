@@ -1,5 +1,42 @@
 # Changelog
 
+## 3.9.0
+
+Stabilization release — the 2026-08-07 hygiene sweep's backlog applied whole,
+plus two live bugs its full-coverage follow-up caught.
+
+### Fixed
+- **Combat Trickery picks crashed the equipment ability bridge** — a local
+  variable shadowed the shared slug normalizer, so declaring a trickery
+  maneuver threw instead of granting it. The maneuver grants flow again.
+- **An unpayable bribe minted gold.** The bribe flow deducted what it could
+  (down to zero), reported success, and credited the recipient the full fee.
+  A fee the payer's gold cannot cover now fails cleanly: nothing is deducted,
+  nothing is credited, and the "no gold" warning names the payer.
+- Domain income for henchmen facts read fields the acks-domains schema does
+  not have (and silently found nothing); it now asks the domains module's own
+  published API, and warns once if the shape ever drifts.
+- Henchmen pack Active Effects carried v14-deprecated numeric change modes;
+  they now use the string forms, with a test guarding the contract.
+
+### Changed
+- Document-type checks across the module read one frozen vocabulary
+  (`ITEM_TYPE` / `ACTOR_TYPE` in the shared lib) instead of ~160 scattered
+  string literals.
+- Sheet-base resolution (abilities, equipment, monsters, animal landing sheet)
+  no longer adopts an arbitrary registry entry silently: real ambiguity warns
+  with the chosen class, and the monster resolver only accepts the acks
+  system's own registration.
+- Drag-and-drop on the equipment sheet, influence app, and location sheet
+  goes through the framework's DragDrop plumbing (declared options, cached
+  instances, `getDragEventData`), and the deprecated `TextEditor` global
+  fallbacks are gone.
+- The wage guard registers through libWrapper (MIXED) so the one-owner-per-
+  wrapped-method gate can see it.
+- Swallowed failures now say what failed: template preloads, token sense
+  syncs, and the abilities feature's silent catches log through the module
+  prefix.
+
 ## 3.8.0
 
 ### Added
