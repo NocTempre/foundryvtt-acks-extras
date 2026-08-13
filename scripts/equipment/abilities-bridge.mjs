@@ -317,16 +317,19 @@ export function bridgeContributions(actor) {
     // lets a class power grant a proficiency's rule without being listed here.
     const claimed = addTypedEffects(actor, item, { addNum, addStr, booleans: out.booleans });
 
-    const slug = defSlug(item) ?? baseNameSlug(item);
-    if (!slug) continue;
+    // Named abilitySlug, not slug: the vocab.mjs slug() import must stay
+    // reachable inside this block (the combattrickery case normalizes picks
+    // through it).
+    const abilitySlug = defSlug(item) ?? baseNameSlug(item);
+    if (!abilitySlug) continue;
 
-    const presence = PRESENCE_DOMAINS[slug];
+    const presence = PRESENCE_DOMAINS[abilitySlug];
     if (presence && !claimed.has(presence)) out.booleans.add(presence);
 
-    const numeric = NUMERIC_DOMAINS[slug];
+    const numeric = NUMERIC_DOMAINS[abilitySlug];
     if (numeric && !claimed.has(numeric.domain)) addNum(numeric.domain, item.name, numeric.value);
 
-    switch (slug) {
+    switch (abilitySlug) {
       case "fightingstylespecialization": {
         // The pick is the style: specialization implies training in it, and
         // spec carries the free draw/sheathe/ready swap.

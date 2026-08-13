@@ -980,7 +980,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     let credited = false;
     try {
       if (from?.isOwner) deducted = await this.#adjustGold(from, -fee);
-      if (to && to !== from && to.isOwner) credited = await this.#adjustGold(to, fee);
+      // Credit only what was actually deducted — an unpaid fee must not mint
+      // gold on the receiving side.
+      if (deducted && to && to !== from && to.isOwner) credited = await this.#adjustGold(to, fee);
     } catch (err) {
       console.error(`${MODULE_ID} | bribe gold move failed`, err);
     }
@@ -1003,7 +1005,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       return false;
     }
     const current = Number(gold.system?.quantity) || 0;
-    await gold.update({ "system.quantity": Math.max(0, current + delta) });
+    const next = current + delta;
+    // A deduction the stack cannot cover does not happen at all: report
+    // failure instead of clamping to zero and claiming success.
+    if (next < 0) return false;
+    await gold.update({ "system.quantity": next });
     return true;
   }
 
