@@ -5,7 +5,8 @@
       "acks-extras.group": "Group",
       "acks-extras.template": "Template (Generator)",
       "acks-extras.party": "Party Formation",
-      "acks-extras.location": "Location"
+      "acks-extras.location": "Location",
+      "acks-extras.vehicle": "Vehicle"
     },
     "RegionBehavior": {
       "acks-extras.encounterZone": "ACKS Encounter Zone"

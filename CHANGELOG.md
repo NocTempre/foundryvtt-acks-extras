@@ -1,5 +1,44 @@
 # Changelog
 
+## 4.2.0
+
+Vehicles arrive, and the formation burn-down finishes: the party can now get
+through a door, past a wall, and down a road with something pulling it.
+
+### Added
+- **Carts, wagons, galleys and ships as documents.** A vehicle is four things
+  at once and the sheet keeps them straight: a hold weighed against what is
+  actually loaded, a crew whose gaps slow the vessel in proportion, a team of
+  animals with the book's substitutions built in (an ox or two mules pull as
+  one heavy horse), and a speed derived from all of it. The speed panel shows
+  the real number and names every factor that reduced it — short-handed, a
+  hungry crew, a stowed mast, the wind, or simply too heavy a load. Drag an
+  animal onto the team to hitch it; a lame one stays on the roster and stops
+  pulling.
+- **The door helper, with spikes.** The four ways past a stuck door, and the
+  state that makes one interesting: a spike takes a round, a door holds four,
+  and each after the first costs -4 to force. The throw is shown before it is
+  rolled and broken into its parts — Strength, a second pair of shoulders, a
+  crowbar, size — so the party can decide whether heaving is worth the round.
+  When no roll can succeed it says so instead of letting you find out. Forcing
+  a door tears its spikes out with it.
+- **Obstacles**, one member at a time: easy climbs and crawling traverses any
+  adventurer may try, sheer faces and precarious ledges that need a real
+  climbing proficiency — reported before anyone rolls, not as a failure. A
+  fixed rope or a supervising mountaineer turns a sheer face into an easy
+  climb for whoever follows.
+- **Wandering monsters met on the wrong floor** come in different numbers and
+  in a different mood: half again as many per level deeper, an equal penalty
+  to their reaction, and the reverse going up. Set the dungeon level on an
+  Encounter Zone and the monster level on the table; without both, nothing is
+  scaled.
+
+### Fixed
+- Vehicles no longer log a data-preparation error on every update (the system
+  prepares every actor type alike and expects fields a wagon has no use for).
+- A door dialog label that shadowed its own children in the translation file,
+  which silently blanked the surrounding text.
+
 ## 4.1.0
 
 Roadmap burn-down: languages become real, the sidebar stops showing two of
