@@ -27,6 +27,60 @@
  * Every function here is arithmetic over plain objects: no documents, no dice.
  */
 
+/**
+ * Ground, and what it does to a day's travel (RR ch. 6). The road row is the
+ * one a proficiency touches: a road is worth half again to anyone, and DOUBLE
+ * to a driver with the Driving proficiency.
+ */
+export const TERRAIN = Object.freeze({
+  grassland: { label: "ACKS-VEHICLES.terrain.grassland", multiplier: 1 },
+  scrubland: { label: "ACKS-VEHICLES.terrain.scrubland", multiplier: 1 },
+  barrens: { label: "ACKS-VEHICLES.terrain.barrens", multiplier: 2 / 3 },
+  desert: { label: "ACKS-VEHICLES.terrain.desert", multiplier: 2 / 3, wheelsNeedRoad: true },
+  hills: { label: "ACKS-VEHICLES.terrain.hills", multiplier: 2 / 3 },
+  forest: { label: "ACKS-VEHICLES.terrain.forest", multiplier: 2 / 3, wheelsNeedRoad: true },
+  jungle: { label: "ACKS-VEHICLES.terrain.jungle", multiplier: 1 / 2 },
+  mountains: { label: "ACKS-VEHICLES.terrain.mountains", multiplier: 1 / 2, wheelsNeedRoad: true },
+  swamp: { label: "ACKS-VEHICLES.terrain.swamp", multiplier: 1 / 2, wheelsNeedRoad: true },
+  mud: { label: "ACKS-VEHICLES.terrain.mud", multiplier: 1 / 2 },
+  snow: { label: "ACKS-VEHICLES.terrain.snow", multiplier: 1 / 2 },
+});
+
+/** A road is worth this much, and this much again to a proficient driver. */
+export const ROAD = Object.freeze({ plain: 3 / 2, driver: 2 });
+
+/**
+ * What the ground does to a vehicle's speed.
+ *
+ * ORDER MATTERS and the book says so: the road multiplier is applied AFTER the
+ * terrain it passes through, so a road through a swamp is ½ × 3⁄2, not the
+ * road rate outright — the road makes bad country passable, it does not make
+ * it good country.
+ *
+ * Rain is the exception that proves the road: an earthen road in heavy rain is
+ * worth nothing at all, which is exactly when a caravan wishes it were.
+ *
+ * @param {object} o
+ * @param {string} o.terrain          a key of TERRAIN
+ * @param {boolean} o.road            travelling on a road or trail
+ * @param {boolean} o.driverProficient the reins are held by someone with Driving
+ * @param {boolean} o.raining         heavy rain, which un-metals an earthen road
+ * @param {boolean} o.pavedRoad       a paved road keeps its worth in the wet
+ */
+export function travelMultiplier({ terrain = "grassland", road = false, driverProficient = false, raining = false, pavedRoad = false } = {}) {
+  const ground = TERRAIN[terrain] ?? TERRAIN.grassland;
+  const parts = [{ key: `terrain.${terrain}`, factor: ground.multiplier }];
+  let multiplier = ground.multiplier;
+
+  if (road) {
+    const washedOut = raining && !pavedRoad;
+    const roadFactor = washedOut ? 1 : driverProficient ? ROAD.driver : ROAD.plain;
+    multiplier *= roadFactor;
+    parts.push({ key: washedOut ? "roadWashedOut" : driverProficient ? "roadDriver" : "road", factor: roadFactor });
+  }
+  return { multiplier, parts, ground };
+}
+
 /** Wind strengths, their sail and oar multipliers, and the 2d6 bands. */
 export const WIND = Object.freeze({
   still: { label: "ACKS-VEHICLES.wind.still", band: [2, 4], sail: 0, oar: 1, nextDay: -2 },
@@ -80,6 +134,9 @@ export function crewFraction(roles = []) {
  * @returns {{oarSprint, oarCruise, oarSlow, sail, voyageOar, voyageSail, reasons: object[]}}
  */
 export function seaSpeeds(vehicle, { wind = "moderate" } = {}) {
+  // Seafaring taken three times is a master mariner (RR ch. 3), and that is
+  // the rank the wind rules care about.
+  const masterMariner = (Number(vehicle?.seafaringRank) || 0) >= 3;
   const s = vehicle?.speeds ?? {};
   const w = WIND[wind] ?? WIND.moderate;
   const crew = crewFraction(vehicle?.crew?.roles ?? []);
@@ -107,7 +164,12 @@ export function seaSpeeds(vehicle, { wind = "moderate" } = {}) {
     voyageSail: round1((Number(s.voyageSail) || 0) * cond * w.sail),
     reasons,
     becalmed: w.sail === 0,
-    canTack: !w.noTack,
+    // Strong and very strong winds forbid tacking to everyone EXCEPT a master
+    // mariner, who manages it at two-ninths speed. That is not a small thing:
+    // it is the difference between beating upwind slowly and not at all.
+    canTack: !w.noTack || masterMariner,
+    tackSpeed: w.noTack && masterMariner ? round5((Number(s.sail) || 0) * cond * (2 / 9)) : null,
+    masterMariner,
   };
 }
 
@@ -123,7 +185,7 @@ export function seaSpeeds(vehicle, { wind = "moderate" } = {}) {
  * @param {number} loadStone what is aboard right now
  * @returns {{feetPerTurn, tier, overloaded, pull, reasons: object[]}}
  */
-export function landSpeed(vehicle, loadStone = 0) {
+export function landSpeed(vehicle, loadStone = 0, ground = null) {
   const pull = draftPull(vehicle);
   const reasons = [];
   // Only the rows this team can actually pull are on the table.
@@ -145,11 +207,19 @@ export function landSpeed(vehicle, loadStone = 0) {
   const cond = conditionMultiplier(vehicle?.condition);
   if (cond < 1) reasons.push({ key: vehicle?.condition?.starving ? "starving" : "underfed", factor: cond });
 
+  // The ground, and whoever is holding the reins. Driving is worth nothing off
+  // a road — it buys a better road, not better country.
+  const terrain = ground
+    ? travelMultiplier({ ...ground, driverProficient: !!vehicle?.driverProficient })
+    : { multiplier: 1, parts: [] };
+  for (const p of terrain.parts) if (p.factor !== 1) reasons.push({ key: p.key, factor: p.factor });
+
   return {
-    feetPerTurn: round5((Number(tier.feetPerTurn) || 0) * cond),
+    feetPerTurn: round5((Number(tier.feetPerTurn) || 0) * cond * terrain.multiplier),
     tier,
     overloaded: false,
     pull,
+    terrain: terrain.multiplier,
     reasons,
   };
 }
@@ -168,7 +238,7 @@ export function draftPull(vehicle, equivalents = null) {
  */
 export function canEnter(vehicle, terrain, { road = false } = {}) {
   if (vehicle?.kind !== "land") return { ok: true };
-  const gated = ["desert", "mountains", "forest", "swamp"].includes(String(terrain));
+  const gated = !!TERRAIN[String(terrain)]?.wheelsNeedRoad;
   if (gated && !road) return { ok: false, reason: "needsRoad" };
   return { ok: true };
 }

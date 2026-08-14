@@ -1,4 +1,8 @@
 /* global game, foundry, ui, Actor, CONST */
+import { vehicleOf } from "../lib/aboard.mjs";
+import { landSpeed } from "../vehicles/vehicle-speed.mjs";
+import { load6 } from "../lib/capacity.mjs";
+import { STONE } from "../lib/item-model.mjs";
 import {
   BODY_STONE,
   DEFAULT_PARTY_IMAGE,
@@ -367,10 +371,33 @@ export function carriedLoad(formation) {
   };
 }
 
+
 /**
- * The party moves at the pace of its slowest walking member. Down members do
- * not walk; Carriers move at the speed of their own encumbrance PLUS their
- * share of the carried load.
+ * A vehicle's pace in the same unit the party's other speeds use (feet per
+ * turn), for the ground the formation is travelling.
+ *
+ * A vessel is not asked: a party at sea moves at the ship's voyage speed,
+ * which is a different clock entirely (miles per day, not feet per turn) and
+ * belongs to the voyage rules rather than to marching order.
+ */
+function vehicleSpeedFor(vehicle, formation) {
+  if (vehicle?.system?.kind !== "land") return null;
+  const aboardStone = load6(vehicle) / STONE;
+  const ground = formation?.ground ?? null;
+  return landSpeed(vehicle.system, aboardStone, ground).feetPerTurn;
+}
+
+/**
+ * The party moves at the pace of its slowest WALKING member — and a member
+ * riding in a wagon is not walking.
+ *
+ * Down members do not walk either; Carriers move at the speed of their own
+ * encumbrance PLUS their share of the carried load. A passenger aboard a
+ * vehicle contributes the VEHICLE's pace instead of their own, which is the
+ * whole point of putting the heavily-laden merchant in the cart: their legs
+ * stop setting the party's speed, and the wagon's wheels start. Every
+ * passenger of one wagon contributes the same number, so a full cart counts
+ * once in effect.
  */
 export function partySpeed(formation) {
   const load = carriedLoad(formation);
@@ -380,7 +407,13 @@ export function partySpeed(formation) {
     const actor = getMemberActor(member);
     if (!actor || isDown(actor)) continue;
     let speed;
-    if (load.down.length && member.roles?.includes(ROLES.CARRIER)) {
+    const vehicle = vehicleOf(actor);
+    if (vehicle) {
+      // The wagon's pace, for the ground the party says it is on. A vehicle
+      // that cannot move at all (nothing in harness, or overloaded) makes the
+      // party's speed zero, which is exactly what a stuck cart does to a road.
+      speed = vehicleSpeedFor(vehicle, formation);
+    } else if (load.down.length && member.roles?.includes(ROLES.CARRIER)) {
       const enc = Number(actor.system?.encumbrance?.value ?? 0) + load.sharePerCarrier;
       speed = encToExplorationSpeed(enc, actor.system?.scores?.str?.mod ?? 0);
     } else {

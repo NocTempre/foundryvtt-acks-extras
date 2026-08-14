@@ -142,3 +142,80 @@ assert.equal(hold.passengerStone, 200, "four passengers ride as 50 stone each");
 assert.equal(hold.free, 300, "1000 less 500 aboard less 200 of passengers");
 
 console.log("test-vehicles: OK (wind, hunger, manning, galleys, teams, tiers, terrain, passengers)");
+
+/* ========================================================================== */
+/*  Ground, and the proficiencies that answer to it (RR ch. 3 + ch. 6)        */
+/* ========================================================================== */
+import { travelMultiplier, TERRAIN, ROAD } from "../scripts/vehicles/vehicle-speed.mjs";
+
+/* --- the printed terrain multipliers ------------------------------------ */
+assert.equal(TERRAIN.grassland.multiplier, 1);
+assert.equal(TERRAIN.forest.multiplier, 2 / 3);
+assert.equal(TERRAIN.swamp.multiplier, 1 / 2);
+assert.equal(TERRAIN.snow.multiplier, 1 / 2);
+
+/* --- a road is worth half again, and DOUBLE to a driver ----------------- */
+assert.equal(ROAD.plain, 3 / 2);
+assert.equal(ROAD.driver, 2);
+assert.equal(travelMultiplier({ terrain: "grassland", road: true }).multiplier, 3 / 2);
+assert.equal(travelMultiplier({ terrain: "grassland", road: true, driverProficient: true }).multiplier, 2,
+  "Driving turns the road bonus from 3/2 into 2");
+
+/* --- Driving buys a better ROAD, not better country --------------------- */
+assert.equal(travelMultiplier({ terrain: "forest", driverProficient: true }).multiplier, 2 / 3,
+  "off a road the proficiency is worth nothing at all");
+
+/* --- the road multiplies AFTER the terrain, as the book says ------------ */
+assert.equal(travelMultiplier({ terrain: "swamp", road: true }).multiplier, 1 / 2 * 3 / 2,
+  "a road through a swamp is still a swamp");
+assert.equal(travelMultiplier({ terrain: "swamp", road: true, driverProficient: true }).multiplier, 1,
+  "a driver on a swamp road makes exactly open-country pace");
+
+/* --- heavy rain un-metals an earthen road ------------------------------- */
+assert.equal(travelMultiplier({ terrain: "grassland", road: true, raining: true }).multiplier, 1,
+  "an earthen road in the rain is worth nothing");
+assert.equal(travelMultiplier({ terrain: "grassland", road: true, raining: true, driverProficient: true }).multiplier, 1,
+  "and no amount of skill re-metals it");
+assert.equal(travelMultiplier({ terrain: "grassland", road: true, raining: true, pavedRoad: true }).multiplier, 3 / 2,
+  "a paved road keeps its worth in the wet");
+
+/* --- the gating list is the same table, not a second hardcoded one ------ */
+for (const t of ["desert", "mountains", "forest", "swamp"]) {
+  assert.equal(TERRAIN[t].wheelsNeedRoad, true, `${t} needs a road for wheels`);
+  assert.equal(canEnter({ kind: "land" }, t).ok, false);
+  assert.equal(canEnter({ kind: "land" }, t, { road: true }).ok, true);
+}
+for (const t of ["grassland", "hills", "barrens", "scrubland"]) {
+  assert.equal(canEnter({ kind: "land" }, t).ok, true, `${t} is open to a cart`);
+}
+
+/* --- the ground reaches landSpeed, and names itself --------------------- */
+const carted = {
+  kind: "land", driverProficient: true,
+  team: { animals: [{ kind: "heavyHorse", pulling: true }] },
+  speeds: { tiers: [{ team: 1, maxLoadStone: 80, feetPerTurn: 60 }] },
+  condition: {},
+};
+assert.equal(landSpeed(carted, 0).feetPerTurn, 60, "no ground given, the printed speed");
+assert.equal(landSpeed(carted, 0, { terrain: "grassland", road: true }).feetPerTurn, 120,
+  "60 x 1 x 2 for a driver on a good road");
+assert.equal(landSpeed(carted, 0, { terrain: "forest", road: true }).feetPerTurn, 80,
+  "60 x 2/3 x 2 through forest on a road");
+const named = landSpeed(carted, 0, { terrain: "swamp", road: true });
+assert.ok(named.reasons.some((r) => r.key === "terrain.swamp"), "the sheet can name the ground");
+assert.ok(named.reasons.some((r) => r.key === "roadDriver"), "and name the driver's road");
+
+/* --- a master mariner tacks where nobody else can ----------------------- */
+const crewed = { kind: "sea", speeds: { sail: 180 }, crew: { roles: [] }, condition: {} };
+let t = seaSpeeds(crewed, { wind: "strong" });
+assert.equal(t.canTack, false, "a strong wind forbids tacking");
+assert.equal(t.tackSpeed, null);
+t = seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "strong" });
+assert.equal(t.canTack, true, "unless a master mariner has the helm");
+assert.equal(t.tackSpeed, 40, "180 x 2/9 = 40, the price of beating upwind");
+assert.equal(seaSpeeds({ ...crewed, seafaringRank: 2 }, { wind: "strong" }).canTack, false,
+  "two ranks is a captain, not a master mariner");
+assert.equal(seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "moderate" }).tackSpeed, null,
+  "in a moderate wind everyone tacks normally, so there is no reduced rate to show");
+
+console.log("test-vehicles: OK (terrain, road, Driving, rain, master mariner tacking)");

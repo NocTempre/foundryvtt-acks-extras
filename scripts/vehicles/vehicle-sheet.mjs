@@ -12,8 +12,9 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS } from "./vehicle-data.mjs";
-import { seaSpeeds, landSpeed, cargoRemaining, WIND, draftPull } from "./vehicle-speed.mjs";
+import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN, draftPull } from "./vehicle-speed.mjs";
 import { load6 } from "../lib/capacity.mjs";
+import { passengersOf, passengerStone, board, disembark } from "../lib/aboard.mjs";
 import { STONE } from "../lib/item-model.mjs";
 
 const LANG_PREFIX = "ACKS-VEHICLES";
@@ -33,8 +34,9 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       removeTier: VehicleSheet.#removeTier,
       removeAnimal: VehicleSheet.#removeAnimal,
       togglePulling: VehicleSheet.#togglePulling,
+      disembark: VehicleSheet.#disembark,
     },
-    dragDrop: [{ dropSelector: ".acks-extras-vehicle-team" }],
+    dragDrop: [{ dropSelector: ".acks-extras-vehicle-team" }, { dropSelector: ".acks-extras-vehicle-hold" }],
   };
 
   static PARTS = {
@@ -44,6 +46,9 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
   /** The wind the Judge is looking at; a view choice, not stored on the boat. */
   #wind = "moderate";
 
+  /** The ground the cart is on — likewise a view choice, not a property of it. */
+  #ground = { terrain: "grassland", road: false, raining: false, pavedRoad: false };
+
   async _prepareContext() {
     const sys = this.actor.system;
     const isSea = sys.kind === "sea";
@@ -52,9 +57,15 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     // sixths of stone, then shown in the stone the book prints.
     const aboard6 = load6(this.actor);
     const aboardStone = aboard6 / STONE;
-    const hold = cargoRemaining(sys, aboardStone);
+    // Everyone aboard rides as fifty stone, named or not, and both are charged
+    // against the hold together.
+    const riders = passengersOf(this.actor);
+    const hold = cargoRemaining(
+      { ...sys, cargo: { ...sys.cargo, passengers: (Number(sys.cargo?.passengers) || 0) + riders.length } },
+      aboardStone,
+    );
 
-    const speed = isSea ? seaSpeeds(sys, { wind: this.#wind }) : landSpeed(sys, aboardStone);
+    const speed = isSea ? seaSpeeds(sys, { wind: this.#wind }) : landSpeed(sys, aboardStone, this.#ground);
     const reasons = (speed.reasons ?? []).map((r) => ({
       label: game.i18n.localize(`${LANG_PREFIX}.reason.${r.key}`),
       // A factor reads better as the fraction the book prints than as 0.667.
@@ -85,6 +96,13 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
         value, label: game.i18n.localize(w.label), selected: value === this.#wind,
       })),
       wind: this.#wind,
+      ground: this.#ground,
+      terrains: Object.entries(TERRAIN).map(([value, t]) => ({
+        value, label: game.i18n.localize(t.label), selected: value === this.#ground.terrain,
+        needsRoad: !!t.wheelsNeedRoad,
+      })),
+      // A cart on ground it may not enter without a road is stopped, not slow.
+      blockedByGround: !isSea && !!TERRAIN[this.#ground.terrain]?.wheelsNeedRoad && !this.#ground.road,
       roles: (sys.crew?.roles ?? []).map((r, index) => ({
         ...r, index,
         short: r.motive && r.required > 0 && r.aboard < r.required,
@@ -96,6 +114,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
         pull: DRAFT_EQUIVALENTS[a.kind] ?? 0,
       })),
       pull: draftPull(sys),
+      riders: riders.map((r) => ({ uuid: r.uuid, name: r.name })),
       // A team that cannot pull what the vehicle was built for is worth
       // flagging even before a load makes it matter.
       underTeamed: !isSea && sys.team?.required > 0 && draftPull(sys) < sys.team.required,
@@ -123,8 +142,15 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
 
   /** The wind selector re-renders without touching the document. */
   async _onChangeForm(config, event) {
-    if (event.target?.name === "wind") {
-      this.#wind = event.target.value;
+    const el = event.target;
+    if (el?.name === "wind") {
+      this.#wind = el.value;
+      return this.render();
+    }
+    // The ground is a view choice too: where the cart is TODAY, not what it is.
+    if (el?.name?.startsWith("ground.")) {
+      const key = el.name.slice("ground.".length);
+      this.#ground = { ...this.#ground, [key]: el.type === "checkbox" ? el.checked : el.value };
       return this.render();
     }
     return super._onChangeForm(config, event);
@@ -140,6 +166,12 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     if (data?.type !== "Actor") return super._onDrop?.(event);
     const doc = await fromUuid(data.uuid);
     if (!doc) return;
+    // A drop on the HOLD is a passenger boarding; a drop on the team is an
+    // animal being hitched. Same event, two meanings, told apart by target.
+    if (event.target?.closest?.(".acks-extras-vehicle-hold")) {
+      await board(doc, this.actor);
+      return this.render();
+    }
     const animals = [...(this.actor.system.team?.animals ?? [])];
     if (animals.some((a) => a.uuid === doc.uuid)) {
       ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.alreadyInHarness`, { name: doc.name }));
@@ -177,6 +209,12 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     await this.actor.update({ "system.team.animals": animals });
   }
 
+  static async #disembark(_e, target) {
+    const doc = await fromUuid(target.dataset.uuid).catch(() => null);
+    if (doc) await disembark(doc);
+    this.render();
+  }
+
   static async #togglePulling(_e, target) {
     const animals = [...(this.actor.system.team?.animals ?? [])];
     const i = Number(target.dataset.index);
@@ -200,9 +238,14 @@ function guessDraftKind(doc) {
   return "heavyHorse";
 }
 
-/** 0.6667 → "2/3", because that is how the book says it. */
+/**
+ * 0.6667 → "2/3", because that is how the book says it. Whole numbers stay
+ * whole ("2", not "200%"), so a row of factors reads in one idiom rather than
+ * mixing fractions and percentages.
+ */
 function fractionLabel(f) {
-  const known = [[1 / 3, "1/3"], [1 / 2, "1/2"], [2 / 3, "2/3"], [3 / 2, "3/2"], [0, "0"]];
+  if (Math.abs(f - Math.round(f)) < 0.001) return String(Math.round(f));
+  const known = [[1 / 3, "1/3"], [1 / 2, "1/2"], [2 / 3, "2/3"], [3 / 2, "3/2"], [2 / 9, "2/9"], [1 / 4, "1/4"], [3 / 4, "3/4"]];
   const hit = known.find(([v]) => Math.abs(v - f) < 0.001);
   return hit ? hit[1] : `${Math.round(f * 100)}%`;
 }

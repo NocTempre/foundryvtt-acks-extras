@@ -1,5 +1,33 @@
 # Changelog
 
+## 4.3.0
+
+The ground a vehicle is on, and the two proficiencies that answer to it.
+
+### Added
+- **Terrain, and what a road is worth.** Grassland goes at full pace, barrens
+  and desert and hills and forest at two thirds, jungle and mountain and swamp
+  and mud and snow at half — and a road is worth half again on top, applied
+  AFTER the country it runs through, because a road makes bad country passable
+  rather than good. Heavy rain washes an earthen road out entirely, which is
+  exactly when a caravan most wishes it hadn't.
+- **Driving doubles the road.** A cart handled by someone with the Driving
+  proficiency takes a road at twice speed rather than half again — and gains
+  nothing at all off one, because what the proficiency buys is a better road,
+  not better country. A driver on a swamp road makes exactly open-country pace.
+- **Seafaring ranks**, and the one that matters at sea: taken three times it
+  makes a master mariner, who alone can tack in a strong or very strong wind,
+  at two-ninths speed. Everyone else simply cannot beat upwind in that weather.
+- Land vehicles now say when the country ahead is closed to wheels rather than
+  merely slow — desert, mountains, forest and swamp need a road.
+- **Passengers ride, and the party knows it.** Drag a character onto a
+  vehicle's hold to put them aboard: they weigh their fifty stone against the
+  cargo like any other passenger, and — the point of the exercise — the party
+  no longer marches at their pace. A member riding contributes the VEHICLE's
+  speed to the slowest-member reckoning instead of their own legs, so loading
+  the footsore merchant into the cart does what putting him in a cart should.
+  A wagon with nothing in harness stops the party dead, which is also correct.
+
 ## 4.2.0
 
 Vehicles arrive, and the formation burn-down finishes: the party can now get

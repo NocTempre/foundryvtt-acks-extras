@@ -171,8 +171,18 @@ export default class VehicleData extends foundry.abstract.TypeDataModel {
       /** A stowed mast costs a galley speed; a Judge toggles it, RAW applies it. */
       mastStowed: bool(false),
 
-      /** Whether a driver with the Driving proficiency holds the reins. */
+      /**
+       * Whether a driver with the Driving proficiency holds the reins. Worth a
+       * road multiplier of 2 instead of 3/2 — and worth nothing off a road.
+       */
       driverProficient: bool(false),
+
+      /**
+       * Ranks of Seafaring aboard (RR ch. 3): one to sail or row, two to do
+       * both and captain her, three for a master mariner — who alone can tack
+       * in a strong wind, at two-ninths speed.
+       */
+      seafaringRank: int(0, { min: 0, max: 3 }),
     };
   }
 

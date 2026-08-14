@@ -30,9 +30,28 @@
         <p class="hint">{{localize "ACKS-VEHICLES.speed.noTack"}}</p>
       {{/unless}}
     {{else}}
+      {{! Where it is today. A view choice, not a property of the wagon. }}
+      <div class="form-group">
+        <label>{{localize "ACKS-VEHICLES.terrain.legend"}}</label>
+        <div class="form-fields">
+          <select name="ground.terrain">
+            {{#each terrains}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+          <label class="checkbox">
+            <input type="checkbox" name="ground.road" {{checked ground.road}}> {{localize "ACKS-VEHICLES.terrain.road"}}
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="ground.raining" {{checked ground.raining}}> {{localize "ACKS-VEHICLES.terrain.raining"}}
+          </label>
+        </div>
+      </div>
+
       <p class="acks-extras-vehicle-landspeed">
         <strong>{{speed.feetPerTurn}}'</strong> {{localize "ACKS-VEHICLES.speed.perTurn"}}
       </p>
+      {{#if blockedByGround}}
+        <p class="notification warning">{{localize "ACKS-VEHICLES.terrain.needsRoad"}}</p>
+      {{/if}}
       {{#if speed.overloaded}}
         <p class="notification warning">{{localize "ACKS-VEHICLES.speed.overloaded"}}</p>
       {{/if}}
@@ -51,7 +70,7 @@
   {{! The hold. }}
   <fieldset>
     <legend>{{localize "ACKS-VEHICLES.cargo.legend"}}</legend>
-    <div class="acks-extras-vehicle-hold{{#if hold.over}} is-over{{/if}}">
+    <div class="acks-extras-vehicle-hold{{#if hold.over}} is-over{{/if}}" data-accept-drop>
       <div class="acks-extras-vehicle-bar"><span style="width:{{hold.pct}}%"></span></div>
       <p>{{hold.aboardStone}} / {{hold.capacity}} {{localize "ACKS-VEHICLES.cargo.stone"}}
          {{#if hold.passengerStone}}<span class="hint">({{hold.passengerStone}} {{localize "ACKS-VEHICLES.cargo.asPassengers"}})</span>{{/if}}</p>
@@ -60,6 +79,19 @@
       <label>{{localize "ACKS-VEHICLES.cargo.capacity"}}</label>
       <div class="form-fields"><input type="number" name="system.cargo.capacityStone" min="0" value="{{system.cargo.capacityStone}}"></div>
     </div>
+    {{! Named passengers. Drag a character onto the hold to put them aboard. }}
+    {{#if riders.length}}
+      <ol class="acks-extras-vehicle-riders">
+        {{#each riders}}
+          <li><span>{{name}}</span>
+            {{#if @root.editable}}<a data-action="disembark" data-uuid="{{uuid}}"
+              data-tooltip="{{localize 'ACKS-VEHICLES.cargo.disembark'}}"><i class="fa-solid fa-person-walking-arrow-right"></i></a>{{/if}}
+          </li>
+        {{/each}}
+      </ol>
+    {{/if}}
+    <p class="hint">{{localize "ACKS-VEHICLES.cargo.boardHint"}}</p>
+
     <div class="form-group">
       <label>{{localize "ACKS-VEHICLES.cargo.passengers"}}</label>
       <div class="form-fields"><input type="number" name="system.cargo.passengers" min="0" value="{{system.cargo.passengers}}"></div>
@@ -164,6 +196,25 @@
       <p class="hint">{{localize "ACKS-VEHICLES.vessel.mastHint"}}</p>
     </div>
     {{/if}}
+    {{#if isLand}}
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.vessel.driving"}}</label>
+      <div class="form-fields"><input type="checkbox" name="system.driverProficient" {{checked system.driverProficient}}></div>
+      <p class="hint">{{localize "ACKS-VEHICLES.vessel.drivingHint"}}</p>
+    </div>
+    {{else}}
+    <div class="form-group">
+      <label>{{localize "ACKS-VEHICLES.vessel.seafaring"}}</label>
+      <div class="form-fields">
+        <input type="number" name="system.seafaringRank" min="0" max="3" value="{{system.seafaringRank}}">
+      </div>
+      <p class="hint">{{localize "ACKS-VEHICLES.vessel.seafaringHint"}}</p>
+    </div>
+    {{#if speed.tackSpeed}}
+      <p class="hint">{{localize "ACKS-VEHICLES.speed.masterTack"}} <strong>{{speed.tackSpeed}}'</strong></p>
+    {{/if}}
+    {{/if}}
+
     <div class="form-group">
       <label>{{localize "ACKS-VEHICLES.vessel.underfed"}}</label>
       <div class="form-fields"><input type="checkbox" name="system.condition.underfed" {{checked system.condition.underfed}}></div>
