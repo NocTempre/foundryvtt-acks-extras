@@ -2846,5 +2846,7 @@
   "ACKS-LOCATION.market.exchanged": "The changer counts it out for {name}.",
   "ACKS-MARKETS.market.exchange": "Change coin",
   "ACKS-MARKETS.market.exchangeHint": "Exchange denominations at face value — a market's changer does this freely; elsewhere you barter with what you hold.",
-  "ACKS-LIB.money.noChanger": "No changer here — barter with the stacks you hold, or find a market."
+  "ACKS-LIB.money.noChanger": "No changer here — barter with the stacks you hold, or find a market.",
+  "ACKS-MARKETS.setting.familyIncome": "Family income (gp/month, placeholder)",
+  "ACKS-MARKETS.setting.familyIncomeHint": "What one urban family produces per month, used to size a market's till (families × income). This is a PLACEHOLDER until your books supply the economy table through the importer — set it to your campaign's real figure if you know it."
 }

@@ -166,6 +166,13 @@ export async function processImports(location) {
   const goods = location.system.market?.goods;
   if (!goods) return { resolved: 0 };
   const t = now();
+  // The till replenishes with the month before anything spends from it.
+  try {
+    const { refreshTill } = await import("./till.mjs");
+    await refreshTill(location);
+  } catch (e) {
+    console.warn(`${MODULE_ID} | till refresh failed for ${location.name}`, e);
+  }
   // Extended-search days resolve FIRST, as their own write, so the rest of
   // the sweep (searches especially) reads the raised caps.
   let resolvedSearchDays = 0;

@@ -17,6 +17,14 @@ export function registerSettings() {
     type: Boolean,
     default: true,
   });
+  reg("marketsFamilyIncomeGp", {
+    name: `${LANG}.setting.familyIncome`,
+    hint: `${LANG}.setting.familyIncomeHint`,
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 10,
+  });
   reg("marketsEnforceCaps", {
     name: `${LANG}.setting.enforceCaps`,
     hint: `${LANG}.setting.enforceCapsHint`,

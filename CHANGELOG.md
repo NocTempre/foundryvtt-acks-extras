@@ -31,6 +31,12 @@ real branch, and the formation record is a contract.
   apiVersion 1: `marchingOrder()` (rank/file rows without token payloads),
   `ROLES`, `getFormations`, `rollPartyCheck`, `PARTY_CHECKS` — the surface a
   trap module keys on.
+- **Market tills refresh to their market level.** Each market month the
+  house till tops up to `system.market.tillTargetGp` — a stored field, not a
+  buried formula, because trade routes will turn it. Unset, it derives once
+  from urban families × monthly family income (an imported economy table
+  when your books supply one; an explicitly-placeholder world setting until
+  then) and writes itself back.
 - A coin kind is its name AND rate: a debased local gold is a separate stack
   everywhere it travels; what a place gives for it is valuation, never baked
   into the stack.

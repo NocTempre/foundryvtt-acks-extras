@@ -223,6 +223,14 @@ function marketSchema() {
     // Null defers to the derivation — see lib money's exchangeTermsAt.
     exchangeOverride: str(),
     urbanFamilies: num({ integer: true, min: 0 }),
+    // The till float this market keeps in coin, in gp — STORED, never a
+    // buried derivation, because it is a knob other systems turn (trade
+    // routes will raise and drain it). Null means "derive once and write it
+    // back": families × income, RAW-table incomes when imported, an
+    // explicitly-placeholder setting otherwise. The month sweep tops the
+    // house coin up to it; `tillRefreshTime` is that sweep's watermark.
+    tillTargetGp: num({ min: 0 }),
+    tillRefreshTime: num({ min: 0 }),
     domainUuid: str(),
     classRarityTableId: new fields.StringField({ required: true, initial: "default" }),
     // Settlement alignment: directed searches for opposed-alignment classes
