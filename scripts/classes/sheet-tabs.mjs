@@ -18,12 +18,15 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
-const ABILITY_ORDER = ["fighting", "thief", "general", "class", "powers", "racial"];
+const ABILITY_ORDER = ["fighting", "thief", "general", "class", "powers", "racial", "language"];
 
 /** The bucket one ability item belongs to. Racial outranks powers: racial
  *  traits ARE power defs, distinguished only by how the class awards them. */
 function categorize(item, racialRefs) {
   const id = item.flags?.["acks-importer"]?.cookbook?.id ?? "";
+  // A language is declared, never inferred from its name: "Goblin" is a
+  // language and a monster and a class restriction, and only the record knows.
+  if (item.flags?.[MODULE_ID]?.extras?.category === "language" || id.startsWith("def.language.")) return "language";
   if (item.flags?.[MODULE_ID]?.training) return "fighting";
   if (id && racialRefs.has(id)) return "racial";
   if (id.startsWith("def.skill.")) return "thief";

@@ -187,6 +187,12 @@ export const ABILITY_CATEGORIES = {
   weaponProficiency: { label: "Weapon Proficiency" },
   armorProficiency: { label: "Armor Proficiency" },
   fightingStyle: { label: "Fighting Style" },
+  // A language a character speaks (or reads). A CATEGORY rather than a type of
+  // its own: the books hand languages out exactly as they hand out
+  // proficiencies — a class or a high INT grants so many, a race brings its
+  // own — so everything the ability model already does for a proficiency
+  // (granting, counting, listing, importing) is what a language needs.
+  language: { label: "Language" },
 };
 
 /**

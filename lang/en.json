@@ -2861,5 +2861,6 @@
   "ACKS-INFLUENCE.result.opposedTied": "Neither prevails — the contest is a tie",
   "ACKS-INFLUENCE.result.opposedNoShift": "No attitude moves: the Judge reads the contest.",
   "ACKS-LIB.settings.hideSuperseded.name": "Hide replaced system compendiums",
-  "ACKS-LIB.settings.hideSuperseded.hint": "Once you have imported content from your own books, the matching ACKS system compendiums are duplicates — this folds them out of the sidebar so there is one of each thing to open. Display only: the packs stay loaded, their links keep working, and a pack whose imported replacement is missing stays visible. Turn it off to show them again."
+  "ACKS-LIB.settings.hideSuperseded.hint": "Once you have imported content from your own books, the matching ACKS system compendiums are duplicates — this folds them out of the sidebar so there is one of each thing to open. Display only: the packs stay loaded, their links keep working, and a pack whose imported replacement is missing stays visible. Turn it off to show them again.",
+  "ACKS-CLASSES.cattabs.language": "Languages"
 }

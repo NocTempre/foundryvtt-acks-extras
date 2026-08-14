@@ -75,6 +75,31 @@ export function supersededPackIds() {
   return hidden;
 }
 
+const STYLE_ID = `${MODULE_ID}-pack-dedupe`;
+
+/**
+ * Publish the hide as a STYLESHEET rather than as inline styles on the rows.
+ * The directory rebuilds its list during render — an element hidden in the
+ * render hook is replaced by a fresh visible one a moment later (measured: the
+ * row came back with `display: flex`). A rule keyed on `data-pack` applies to
+ * whatever rows exist, whenever they exist, and needs no re-application.
+ */
+function publishHideRule() {
+  const ids = [...supersededPackIds()];
+  let style = document.getElementById(STYLE_ID);
+  if (!ids.length) {
+    style?.remove();
+    return 0;
+  }
+  if (!style) {
+    style = document.createElement("style");
+    style.id = STYLE_ID;
+    document.head.appendChild(style);
+  }
+  style.textContent = `${ids.map((id) => `[data-pack="${id}"]`).join(",\n")} { display: none !important; }`;
+  return ids.length;
+}
+
 /**
  * Fold the replaced rows out of the compendium sidebar. A DISPLAY rule: the
  * packs remain loaded and reachable by uuid, by the importer, and by any macro
@@ -88,16 +113,17 @@ export function installPackDedupe() {
     config: true,
     type: Boolean,
     default: false,
-    onChange: () => ui.compendium?.render(),
+    onChange: () => publishHideRule(),
   });
 
-  Hooks.on("renderCompendiumDirectory", (_app, element) => {
-    const hidden = supersededPackIds();
-    if (!hidden.size) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
-    for (const id of hidden) {
-      const row = root?.querySelector(`[data-pack="${id}"]`);
-      if (row) row.style.display = "none";
-    }
-  });
+  // Coverage changes as documents arrive and leave, so the rule is refreshed
+  // on the events that can change it — cheaply, and never during a render.
+  Hooks.once("ready", () => publishHideRule());
+  for (const hook of ["createActor", "deleteActor", "createItem", "deleteItem", "createRollTable", "deleteRollTable"]) {
+    Hooks.on(hook, () => publishHideRule());
+  }
 }
+
+/** Recompute and republish the rule. Exposed for a world that imports through
+ *  its own automation and wants the sidebar to catch up at once. */
+export const refreshPackDedupe = () => publishHideRule();
