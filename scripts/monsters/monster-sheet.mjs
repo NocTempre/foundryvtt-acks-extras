@@ -16,29 +16,24 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { ACTIONS } from "./monster-actions.mjs";
 import * as CFG from "./config.mjs";
-import { encumbering6 } from "../lib/item-model.mjs";
+import { loadStone, load6, capacityStone, RIDER_BODY6 } from "../lib/capacity.mjs";
+import { riderOf } from "../lib/mount.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 
 /**
- * Derived monster encumbrance (the system's computeEncumbrance early-returns for
- * non-characters). Sums CARRIED item weight — weapons, armor, and non-clothing
- * generic items, plus money — in stone (weight6 is 1/6-stone, matching the core
- * character calc). Spoils are the monster's own harvestable parts, not carried
- * gear, so they are excluded. Compared against Normal Load (full speed) and Max
- * Load (2× normal → half speed) per MM p.13.
+ * Derived monster encumbrance, read through lib's capacity primitive (the
+ * system's computeEncumbrance early-returns for non-characters). The load is
+ * what the creature carries — items, coin, and a mounted rider at body weight
+ * plus carried encumbrance (RR ch.6) — compared against Normal Load (full
+ * speed) and Max Load (2× normal → half speed) per MM p.13.
  */
 function computeEncumbrance(actor, extras) {
-  let weight6 = 0;
-  for (const item of actor.items) {
-    if (item.getFlag(MODULE_ID, "spoil")) continue;
-    weight6 += encumbering6(item);
-  }
-  const money = actor.getTotalMoneyEncumbrance?.() ?? { stone: 0 };
-  const stone = weight6 / 6 + (money.stone ?? 0);
+  const stone = loadStone(actor);
+  const rider = riderOf(actor);
 
   const normal = extras.load?.normal;
-  const max = extras.load?.capacity ?? (normal != null ? normal * 2 : null);
+  const max = capacityStone(actor);
   let state = "unknown";
   let speedFactor = null;
   let pct = null;
@@ -60,6 +55,7 @@ function computeEncumbrance(actor, extras) {
     state,
     speedFactor,
     stateLabel: game.i18n.localize(`ACKS-MONSTERS.enc.${state}`),
+    rider: rider ? { name: rider.name, stone: Math.round((RIDER_BODY6 + load6(rider)) / 6 * 10) / 10 } : null,
   };
 }
 
@@ -79,6 +75,8 @@ function choices() {
     trainedRole: CFG.choicesOf(CFG.TRAINED_ROLES),
     treasure: CFG.choicesOf(CFG.TREASURE_TYPES),
     damage: CFG.choicesOf(CFG.DAMAGE_TYPES),
+    effect: CFG.choicesOf(CFG.EFFECT_KEYS),
+    condition: CFG.choicesOf(CFG.CONDITION_KEYS),
     alignment: { Lawful: "Lawful", Neutral: "Neutral", Chaotic: "Chaotic" },
     category: { henchman: "Henchman", mercenary: "Mercenary", specialist: "Specialist" },
   };
@@ -190,6 +188,12 @@ export function createFullMonsterSheet(Base) {
         immDamage: Array.from(def.immunities?.damage ?? []),
         resDamage: Array.from(def.resistances?.damage ?? []),
         susDamage: Array.from(def.susceptibilities?.damage ?? []),
+        immEffects: Array.from(def.immunities?.effects ?? []),
+        resEffects: Array.from(def.resistances?.effects ?? []),
+        susEffects: Array.from(def.susceptibilities?.effects ?? []),
+        immConditions: Array.from(def.immunities?.conditions ?? []),
+        resConditions: Array.from(def.resistances?.conditions ?? []),
+        susConditions: Array.from(def.susceptibilities?.conditions ?? []),
       };
       return context;
     }

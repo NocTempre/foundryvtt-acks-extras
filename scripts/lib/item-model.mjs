@@ -330,6 +330,35 @@ export function capacityOf(item) {
 /** Can gear be put inside this at all? */
 export const holdsGear = (item) => capacityOf(item) !== null;
 
+/* --- Containment READS. The stow/unstow writes and their warnings stay in the
+ * equipment feature; the relation itself is one flag, and the capacity
+ * primitive has to read it from lib — same promotion capacityOf took. --- */
+
+/** The container item id this item is stored inside, if any. */
+export function containedIn(item) {
+  return item?.getFlag?.(MODULE_ID, "containedIn") ?? item?.flags?.[MODULE_ID]?.containedIn ?? null;
+}
+
+/** Items stored directly inside a container. */
+export function contentsOf(actor, containerId) {
+  return actor?.items?.filter((i) => containedIn(i) === containerId) ?? [];
+}
+
+/** A thing gear can go inside: declared capacity, or the legacy container
+ * record (which may state no capacity and still contain). */
+export const isContainer = (item) =>
+  holdsGear(item) || !!(item?.getFlag?.(MODULE_ID, "container") ?? item?.flags?.[MODULE_ID]?.container);
+
+/** Total weight6 of a container's contents (one level; nesting recurses). */
+export function contentsWeight6(actor, containerId, seen = new Set()) {
+  if (seen.has(containerId)) return 0; // guard against a container inside itself
+  seen.add(containerId);
+  return contentsOf(actor, containerId).reduce(
+    (sum, i) => sum + weight6Of(i) + (isContainer(i) ? contentsWeight6(actor, i.id, seen) : 0),
+    0,
+  );
+}
+
 /**
  * Everything the actor has in a given slot. The basis of the exclusivity check:
  * a slot holds `slotCapacity(slot)` items and no more.

@@ -14,6 +14,7 @@ import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
 import { carriesItem } from "../lib/item-model.mjs";
+import { capacityStone } from "../lib/capacity.mjs";
 import { announceChange } from "../lib/util.mjs";
 import { equipForRole } from "./judge-override.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
@@ -347,7 +348,9 @@ export function carriedLoad(formation) {
     down: down.map((e) => e.actor),
     carriers: carriers.map((e) => {
       const baseEnc = Number(e.actor?.system?.encumbrance?.value ?? 0);
-      const capacity = 20 + (e.actor?.system?.scores?.str?.mod ?? 0);
+      // The primitive answers with core's own maximum, which resolves a GM's
+      // forced max against 20 + STR — never re-derive the formula here.
+      const capacity = capacityStone(e.actor) ?? 20 + (e.actor?.system?.scores?.str?.mod ?? 0);
       const effEnc = Math.round((baseEnc + sharePerCarrier) * 10) / 10;
       return {
         actor: e.actor,

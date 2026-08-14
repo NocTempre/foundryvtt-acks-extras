@@ -38,6 +38,7 @@ import {
   speedsField,
   sensesField,
   visionField,
+  defensesField,
 } from "../lib/fields.mjs";
 
 const fields = foundry.data.fields;
@@ -84,37 +85,13 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
       // --- Defenses: type & special immunities/resistances/susceptibilities.
       //     `damage` is a set of damage types; `effects` is free text (open
       //     keywords like "enchantment", "all death effects"). ---
-      defenses: new SchemaField({
-        // `silverFlaw` is the common flaw of RR ch.6: the monster "treats
-        // weapons made of silver as if they were magic for purposes of its
-        // resistance", which the MM states per monster as "silver weapons deal
-        // extraordinary damage against it". It rides immunities and resistances
-        // only — a susceptibility is a weakness, and has no defence to poke a
-        // hole in.
-        immunities: new SchemaField({
-          damage: choiceSet(DAMAGE_TYPES),
-          mundane: bool(false),
-          extraordinary: bool(false),
-          silverFlaw: bool(false),
-          effects: str(),
-          note: str(),
-        }),
-        resistances: new SchemaField({
-          damage: choiceSet(DAMAGE_TYPES),
-          mundane: bool(false),
-          extraordinary: bool(false),
-          silverFlaw: bool(false),
-          effects: str(),
-          note: str(),
-        }),
-        susceptibilities: new SchemaField({
-          damage: choiceSet(DAMAGE_TYPES),
-          mundane: bool(false),
-          extraordinary: bool(false),
-          effects: str(),
-          note: str(),
-        }),
-      }),
+      // The shared defence shape (lib defensesField): the same bands the
+      // ability model stores, so a granted immunity and a printed one read
+      // identically. Differences from the pre-4.0 local shape — `effects` is
+      // a closed set (was free prose) and `conditions` exists — are migrated
+      // once at ready by the monsters module's defence sweep; the prose that
+      // does not parse lands in each band's `note`.
+      defenses: defensesField(),
 
       // --- Spellcasting (repertoire uses core spell items + system.spells slots). ---
       spellcasting: new SchemaField({

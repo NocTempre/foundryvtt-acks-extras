@@ -24,6 +24,7 @@
         {{/if}}
         <div class="acksm-enc-legend">
           {{localize "ACKS-MONSTERS.field.loadNormal"}}: {{acksExtrasVal encumbrance.normal "—"}} · {{localize "ACKS-MONSTERS.field.loadCapacity"}}: {{acksExtrasVal encumbrance.max "—"}}
+          {{#if encumbrance.rider}} · {{localize "ACKS-MONSTERS.enc.rider" name=encumbrance.rider.name stone=encumbrance.rider.stone}}{{/if}}
           {{#unless encumbrance.normal}} · <em>{{localize "ACKS-MONSTERS.enc.setLoad"}}</em>{{/unless}}
         </div>
       </div>

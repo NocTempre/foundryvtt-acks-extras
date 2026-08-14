@@ -17,8 +17,20 @@
         <label class="checkbox acksm-cb" data-tooltip="{{localize 'ACKS-MONSTERS.hint.silverFlaw'}}"><input type="checkbox" name="{{x}}.defenses.immunities.silverFlaw" {{#if extras.defenses.immunities.silverFlaw}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.silverFlaw"}}</label>
       </div>
       <div class="flexrow">
-        <div class="form-group flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
-          <div class="form-fields"><input type="text" name="{{x}}.defenses.immunities.effects" value="{{extras.defenses.immunities.effects}}" placeholder="{{localize 'ACKS-MONSTERS.hint.effectKeywords'}}"/></div></div>
+        <div class="form-group stacked flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
+          <multi-checkbox name="{{x}}.defenses.immunities.effects" class="acksm-chips">
+            {{#each choices.effect as |label key|}}
+            <option value="{{key}}" {{#if (acksExtrasHas @root.selected.immEffects key)}}selected{{/if}}>{{localize label}}</option>
+            {{/each}}
+          </multi-checkbox>
+        </div>
+        <div class="form-group stacked flex-2"><label>{{localize "ACKS-MONSTERS.field.conditions"}}</label>
+          <multi-checkbox name="{{x}}.defenses.immunities.conditions" class="acksm-chips">
+            {{#each choices.condition as |label key|}}
+            <option value="{{key}}" {{#if (acksExtrasHas @root.selected.immConditions key)}}selected{{/if}}>{{localize label}}</option>
+            {{/each}}
+          </multi-checkbox>
+        </div>
         <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.note"}}</label>
           <div class="form-fields"><input type="text" name="{{x}}.defenses.immunities.note" value="{{extras.defenses.immunities.note}}"/></div></div>
       </div>
@@ -40,8 +52,20 @@
         <label class="checkbox acksm-cb" data-tooltip="{{localize 'ACKS-MONSTERS.hint.silverFlaw'}}"><input type="checkbox" name="{{x}}.defenses.resistances.silverFlaw" {{#if extras.defenses.resistances.silverFlaw}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.silverFlaw"}}</label>
       </div>
       <div class="flexrow">
-        <div class="form-group flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
-          <div class="form-fields"><input type="text" name="{{x}}.defenses.resistances.effects" value="{{extras.defenses.resistances.effects}}" placeholder="{{localize 'ACKS-MONSTERS.hint.effectKeywords'}}"/></div></div>
+        <div class="form-group stacked flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
+          <multi-checkbox name="{{x}}.defenses.resistances.effects" class="acksm-chips">
+            {{#each choices.effect as |label key|}}
+            <option value="{{key}}" {{#if (acksExtrasHas @root.selected.resEffects key)}}selected{{/if}}>{{localize label}}</option>
+            {{/each}}
+          </multi-checkbox>
+        </div>
+        <div class="form-group stacked flex-2"><label>{{localize "ACKS-MONSTERS.field.conditions"}}</label>
+          <multi-checkbox name="{{x}}.defenses.resistances.conditions" class="acksm-chips">
+            {{#each choices.condition as |label key|}}
+            <option value="{{key}}" {{#if (acksExtrasHas @root.selected.resConditions key)}}selected{{/if}}>{{localize label}}</option>
+            {{/each}}
+          </multi-checkbox>
+        </div>
         <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.note"}}</label>
           <div class="form-fields"><input type="text" name="{{x}}.defenses.resistances.note" value="{{extras.defenses.resistances.note}}"/></div></div>
       </div>
@@ -62,8 +86,20 @@
         <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.defenses.susceptibilities.extraordinary" {{#if extras.defenses.susceptibilities.extraordinary}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.extraordinary"}}</label>
       </div>
       <div class="flexrow">
-        <div class="form-group flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
-          <div class="form-fields"><input type="text" name="{{x}}.defenses.susceptibilities.effects" value="{{extras.defenses.susceptibilities.effects}}" placeholder="{{localize 'ACKS-MONSTERS.hint.effectKeywords'}}"/></div></div>
+        <div class="form-group stacked flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
+          <multi-checkbox name="{{x}}.defenses.susceptibilities.effects" class="acksm-chips">
+            {{#each choices.effect as |label key|}}
+            <option value="{{key}}" {{#if (acksExtrasHas @root.selected.susEffects key)}}selected{{/if}}>{{localize label}}</option>
+            {{/each}}
+          </multi-checkbox>
+        </div>
+        <div class="form-group stacked flex-2"><label>{{localize "ACKS-MONSTERS.field.conditions"}}</label>
+          <multi-checkbox name="{{x}}.defenses.susceptibilities.conditions" class="acksm-chips">
+            {{#each choices.condition as |label key|}}
+            <option value="{{key}}" {{#if (acksExtrasHas @root.selected.susConditions key)}}selected{{/if}}>{{localize label}}</option>
+            {{/each}}
+          </multi-checkbox>
+        </div>
         <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.note"}}</label>
           <div class="form-fields"><input type="text" name="{{x}}.defenses.susceptibilities.note" value="{{extras.defenses.susceptibilities.note}}"/></div></div>
       </div>

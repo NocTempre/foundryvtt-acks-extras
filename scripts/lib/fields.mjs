@@ -131,6 +131,9 @@ export function defensesField() {
       // a silver weapon deals extraordinary damage. Meaningless on a
       // susceptibility, which is a weakness rather than a defence.
       silverFlaw: bool(),
+      // Printed qualifiers the closed sets cannot carry ("except from its own
+      // kind", a named spell). Prose for the reader; the sets are the machine's.
+      note: str(),
     });
   return new SchemaField({ immunities: band(), resistances: band(), susceptibilities: band() });
 }

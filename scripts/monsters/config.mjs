@@ -29,6 +29,8 @@ export {
   SENSE_TYPES,
   MOVEMENT_TYPES,
   ALIGNMENTS,
+  EFFECT_KEYS,
+  CONDITION_KEYS,
 } from "../lib/vocab.mjs";
 
 /* -------------------------------------------- */

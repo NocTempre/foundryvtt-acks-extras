@@ -2329,6 +2329,7 @@
       "overloaded": "Overloaded — cannot move",
       "unknown": "Set a Normal Load to track encumbrance",
       "setLoad": "set Normal Load in Classification",
+      "rider": "Rider {name}: {stone} st (body + gear)",
       "barTip": "Carried weight vs. Max Load. The tick marks the Normal Load; carrying more than Normal halves speed, more than Max is immobile."
     },
     "section": {
@@ -2390,6 +2391,7 @@
       "extraordinary": "Extraordinary",
       "silverFlaw": "Silver flaw",
       "effectKeywords": "Effects",
+      "conditions": "Conditions",
       "casterClass": "Caster Class",
       "casterLevel": "Caster Level",
       "expeditionSpeed": "Expedition Speed (mi/day)",

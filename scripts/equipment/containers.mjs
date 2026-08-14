@@ -36,7 +36,10 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // wanted instead (harness heavy-check, shield baseline), which do NOT go
 // through it. `isStowable` is where coin's missing cost/weight6 is reconciled:
 // coin is goods without being physical, so asking `isPhysical` here loses it.
-import { weight6Of, isStowable, isWorn, isClothing, gearOf, capacityOf, holdsGear, STONE } from "../lib/item-model.mjs";
+import { weight6Of, isStowable, isWorn, isClothing, gearOf, capacityOf, holdsGear, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
+// Containment READS live in lib now (the capacity primitive needs them);
+// re-exported here so this feature's importers keep one door.
+export { containedIn, contentsOf, contentsWeight6 };
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 
@@ -142,14 +145,6 @@ export async function setConcealed(item, concealed = true) {
   await item.setFlag(MODULE_ID, ITEM_FLAGS.CONTAINER, c);
   return true;
 }
-/** The container item id this item is stored inside, if any. */
-export function containedIn(item) {
-  return item?.getFlag?.(MODULE_ID, ITEM_FLAGS.CONTAINED_IN) ?? null;
-}
-/** Items stored directly inside a container. */
-export function contentsOf(actor, containerId) {
-  return actor.items.filter((i) => containedIn(i) === containerId);
-}
 
 /** Items carried loose — not inside anything (containers themselves included). */
 export function looseItems(actor) {
@@ -250,15 +245,6 @@ function warn(key, data = {}) {
   ui.notifications?.warn(msg);
 }
 
-/** Total weight6 of a container's contents (one level; nesting recurses). */
-export function contentsWeight6(actor, containerId, seen = new Set()) {
-  if (seen.has(containerId)) return 0; // guard against a container inside itself
-  seen.add(containerId);
-  return contentsOf(actor, containerId).reduce(
-    (sum, i) => sum + weight6Of(i) + (isContainer(i) ? contentsWeight6(actor, i.id, seen) : 0),
-    0,
-  );
-}
 
 /** Is a container carrying more than its RAW capacity? */
 export function overCapacity(actor, container) {

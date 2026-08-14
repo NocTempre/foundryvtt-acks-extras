@@ -149,7 +149,60 @@ Hooks.once("ready", () => {
     });
   }
   console.log(`${MODULE_ID} | Full Monster sheet registered for ${sheetTypes.join("/")} (default for ${animalType ?? "none"}).`);
+
+  // One-time GM sweep: pre-4.0 defence bands stored `effects` as free prose and
+  // had no `conditions` set. Shape-gated — it fires only for an actor whose
+  // band still holds a STRING there, and the write it makes no longer matches,
+  // so it cannot fire twice. Prose tokens that name a known effect or condition
+  // become set members; what does not parse is prepended to the band's note, so
+  // nothing printed is lost.
+  if (game.user.isGM) migrateDefenseBands().catch((err) => console.error(`${MODULE_ID} | defence-band migration failed`, err));
 });
+
+/** Parse one legacy free-prose effects string into the closed sets. */
+function parseLegacyEffects(prose) {
+  const effects = new Set();
+  const conditions = new Set();
+  const leftovers = [];
+  for (const token of String(prose).split(",").map((t) => t.trim()).filter(Boolean)) {
+    const lower = token.toLowerCase();
+    const eff = Object.entries(config.EFFECT_KEYS).find(([k, v]) => lower === k.toLowerCase() || lower === v.label.toLowerCase());
+    const cond = Object.entries(config.CONDITION_KEYS).find(([k, v]) => lower === k.toLowerCase() || lower === v.label.toLowerCase());
+    if (eff) effects.add(eff[0]);
+    else if (cond) conditions.add(cond[0]);
+    else leftovers.push(token);
+  }
+  return { effects: [...effects], conditions: [...conditions], leftover: leftovers.join(", ") };
+}
+
+async function migrateDefenseBands() {
+  const updates = [];
+  for (const actor of game.actors) {
+    const defenses = actor.flags?.[MODULE_ID]?.[FLAG_EXTRAS]?.defenses;
+    if (!defenses) continue;
+    const patch = {};
+    for (const band of ["immunities", "resistances", "susceptibilities"]) {
+      const old = defenses[band];
+      if (typeof old?.effects !== "string" || old.effects === "") {
+        // An empty-string legacy field still needs its type moved.
+        if (typeof old?.effects === "string") patch[`${band}.effects`] = [];
+        continue;
+      }
+      const { effects, conditions, leftover } = parseLegacyEffects(old.effects);
+      patch[`${band}.effects`] = effects;
+      patch[`${band}.conditions`] = conditions;
+      if (leftover) patch[`${band}.note`] = old.note ? `${leftover}; ${old.note}` : leftover;
+    }
+    if (Object.keys(patch).length) {
+      const flat = {};
+      for (const [k, v] of Object.entries(patch)) flat[`flags.${MODULE_ID}.${FLAG_EXTRAS}.defenses.${k}`] = v;
+      updates.push({ _id: actor.id, ...flat });
+    }
+  }
+  if (!updates.length) return;
+  await Actor.updateDocuments(updates);
+  console.log(`${MODULE_ID} | defence bands migrated on ${updates.length} actor(s): prose effects became sets, remainders kept in notes.`);
+}
 
 /* Actor-directory convenience: open the Full Monster sheet directly. */
 Hooks.on("getActorContextOptions", (_directory, options) => {

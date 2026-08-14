@@ -47,3 +47,19 @@ Entries are dated and append-only. A superseded entry stays, marked.
   lookup could therefore pick one of ours and subclass this module's own output,
   growing a fresh inheritance layer on every reload. The filter is on the
   registration key prefix, so it covers both without naming either class.
+
+## 2026-08-14 — Defence bands adopt the shared shape; capacity answers once
+
+**Ruled:** `defenses` in the monster extras model is lib's `defensesField()` —
+the same bands the ability model stores, so a granted immunity and a printed
+one read identically. The lib band gains a per-band `note` (additive) for
+printed qualifiers the closed sets cannot carry. The pre-4.0 free-prose
+`effects` string is migrated once at ready, shape-gated: tokens naming a known
+effect or condition become set members, the remainder joins the note. The
+sheet's encumbrance now reads lib's capacity primitive — items, coin, and a
+mounted rider at body weight plus carried encumbrance (RR ch.6's 15-stone
+adventurer) against MM p.13's normal/max loads.
+
+**Rejected:** keeping a monster-local defence shape (two shapes for one
+concept across the family), and a setting-gated migration (the shape itself
+is the gate — a fired migration cannot match again).

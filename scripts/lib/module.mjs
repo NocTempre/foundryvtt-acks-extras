@@ -33,6 +33,7 @@ import * as tables from "./tables.mjs";
 import * as services from "./services.mjs";
 import * as itemModel from "./item-model.mjs";
 import * as mount from "./mount.mjs";
+import * as capacity from "./capacity.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
 import * as actorRead from "./actor-read.mjs";
@@ -108,6 +109,12 @@ const localImpl = Object.freeze({
   templateLogic,
   /** Mount binding: mountOf / riderOf / isMounted / mountActor / dismount / unseat. */
   mount,
+  /**
+   * Capacity over any document (capacity.mjs): capacity6/load6/overCapacity
+   * in sixths of a stone, capacityStone/loadStone for display. One answer for
+   * a character, a monster or mount (rider included), and a container item.
+   */
+  capacity,
   /**
    * What a creature perceives (senses.mjs): canSeeInDark for the movement
    * rules, senseProfile for the Foundry sight a token should carry.
