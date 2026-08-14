@@ -301,7 +301,13 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
       await adapter.delHenchman(this.employer, actor.id);
       await adapter.addHenchman(newEmployer, actor.id);
     } catch (err) {
+      // The employment record must keep pointing at whoever actually holds the
+      // hireling — a failed move must not rewrite it to the intended employer.
       console.warn(`${MODULE_ID} | transfer roster ops failed`, err);
+      ui.notifications?.error(
+        game.i18n.format("ACKS-HENCHMEN.roster.transferFailed", { name: actor.name })
+      );
+      return;
     }
     const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
     await actor.setFlag(MODULE_ID, FLAG_RECORD, { ...record, employerUuid: newEmployer.uuid });

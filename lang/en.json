@@ -1813,6 +1813,7 @@
   "ACKS-HENCHMEN.roster.calamityPlaceholder": "e.g. missed rations, cursed, reduced to 0 hp",
   "ACKS-HENCHMEN.roster.transferTitle": "Transfer {name} to…",
   "ACKS-HENCHMEN.roster.transferNote": "From {from} to {to}",
+  "ACKS-HENCHMEN.roster.transferFailed": "Transferring {name} failed — the roster is unchanged.",
   "ACKS-HENCHMEN.roster.transferCalamity": "Transferred to a new employer",
   "ACKS-HENCHMEN.roster.dismissTitle": "Dismiss {name}?",
   "ACKS-HENCHMEN.roster.dismissBody": "{name} leaves the roster. The actor is not deleted.",

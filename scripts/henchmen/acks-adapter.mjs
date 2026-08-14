@@ -243,16 +243,27 @@ export async function spendGold(actor, gp, reason, { chat = true } = {}) {
     u[`system.${slot.field}`] = slot.qty - take;
     updates.set(slot.item.id, u);
   }
-  // Over-payment in small coin: credit change back on the smallest spent slot.
+  // Over-payment: the completing slot is always the smallest denomination
+  // spent, so change can never be repaid in the SAME coin — make it in the
+  // actor's other denominations instead, largest coppervalue first, credited
+  // to carried quantity. A remainder below the smallest owned coin cannot be
+  // represented in this purse and is forgone (logged, not silent).
   if (need < 0) {
-    const smallest = slots.filter((s) => updates.has(s.item.id)).sort((a, b) => a.cv - b.cv)[0];
-    if (smallest && smallest.cv > 0) {
-      const back = Math.floor(-need / smallest.cv);
-      if (back > 0) {
-        const u = updates.get(smallest.item.id);
-        const key = `system.${smallest.field}`;
-        u[key] = (u[key] ?? smallest.qty) + back;
-      }
+    let owed = -need;
+    const kinds = [...new Map(
+      slots.filter((s) => s.cv > 0).map((s) => [s.item.id, s])
+    ).values()].sort((a, b) => b.cv - a.cv);
+    for (const kind of kinds) {
+      if (owed < kind.cv) continue;
+      const back = Math.floor(owed / kind.cv);
+      owed -= back * kind.cv;
+      const u = updates.get(kind.item.id) ?? { _id: kind.item.id };
+      const key = "system.quantity";
+      u[key] = (u[key] ?? Number(kind.item.system.quantity ?? 0)) + back;
+      updates.set(kind.item.id, u);
+    }
+    if (owed > 0) {
+      console.debug(`${MODULE_ID} | spendGold: ${owed} cp change unrepresentable in ${actor.name}'s denominations, forgone`);
     }
   }
   await actor.updateEmbeddedDocuments("Item", [...updates.values()]);

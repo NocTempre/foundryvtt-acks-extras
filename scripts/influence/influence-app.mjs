@@ -31,22 +31,14 @@ import {
 } from "./actor-data.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
-import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { ITEM_TYPE, scopeApplies } from "../lib/vocab.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-// scopeApplies is acks-lib's gating authority; every effect modifier — including
-// this module's own Active Effect convention — passes through it, so there must
-// be exactly ONE implementation. We reach the lib's own through the public
-// global (as abilities reaches resolveLevelValue) rather than a static deep
-// import: same implementation, no second copy, but a missing or late-loading lib
-// degrades to "undetermined" (offered, never asserted) instead of throwing at
-// module load. acks-lib is a hard requirement, so this fallback is a safety net
-// for a broken world, not a supported no-lib mode.
-function scopeApplies(effect, ctx) {
-  const fn = globalThis.acksExtras?.lib?.vocab?.scopeApplies;
-  return fn ? fn(effect, ctx) : { applies: false, sign: 1, undetermined: true };
-}
+// scopeApplies is lib's gating authority; every effect modifier — including
+// this module's own Active Effect convention — passes through it, so there is
+// exactly ONE implementation, imported statically above. vocab.mjs is
+// Foundry-free, so the import carries no load-order risk.
 
 const ATTITUDE_COUNT = INFLUENCE_RELATIONSHIP_MOD.length; // 5 rungs
 const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;

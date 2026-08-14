@@ -240,7 +240,24 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     }
     if (itemUpdates.length) await this.actor.updateEmbeddedDocuments("Item", itemUpdates);
 
-    await this.actor.unsetFlag(MODULE_ID, "fcOverrides");
+    // Clear ONLY what was baked. `enc` has no base field to bake into and an
+    // itemless attack row has nothing to write to — both stay overrides until
+    // Reset, so a whole-flag unset here would destroy live state. Deletion
+    // must be spelled per key (`-=`): writing a smaller object would deep-merge
+    // and remove nothing.
+    const cleared = {};
+    if (ov.ac != null) cleared["-=ac"] = null;
+    if (ov.speed != null && (actorProvides(this.actor, "movementacks.combat") || actorProvides(this.actor, "movement.base"))) {
+      cleared["-=speed"] = null;
+    }
+    if (ov.adventuring) cleared["-=adventuring"] = null;
+    for (const key of Object.keys(ov.attacks ?? {})) {
+      const itemId = String(key).split(":")[0];
+      if (this.actor.items.get(itemId)) cleared[`attacks.-=${key}`] = null;
+    }
+    if (Object.keys(cleared).length) {
+      await this.actor.update({ [`flags.${MODULE_ID}.fcOverrides`]: cleared });
+    }
   }
 
   /* -------------------------------------------- */

@@ -1,11 +1,11 @@
 /* global game, foundry, ChatMessage, ui, fromUuid */
 import { makeLoc } from "../lib/util.mjs";
 import { getFormation, getFrontage, swapCells, toggleRole } from "./formation-model.mjs";
-import { ROLE_LABELS } from "./constants.mjs";
+import { ROLE_LABELS, LIGHT_SOURCES } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
 import { toggleDetachMember } from "./deployment.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
-import { rollPartyCheck } from "./party-rolls.mjs";
+import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./turn-engine.mjs";
 
 /**
@@ -57,9 +57,12 @@ async function executeRequest(formation, user, type, payload) {
   switch (type) {
     case "light": {
       if (!userOwnsMember(formation, user, payload.bearerId)) return;
+      // The light type becomes a localization KEY: only known sources may pass,
+      // or a crafted payload string would surface raw in chat on lookup miss.
+      if (!(payload.lightType in LIGHT_SOURCES)) return;
       await announceDeclaration(formation, user, loc("request.light", {
         light: game.i18n.localize(`ACKS-LIB.light.${payload.lightType}`),
-        bearer: game.actors.get(payload.bearerId)?.name ?? "?",
+        bearer: foundry.utils.escapeHTML(game.actors.get(payload.bearerId)?.name ?? "?"),
       }));
       // The DECLARING user's authority, not this client's: every player request
       // executes on a GM client, so `game.user.isGM` would hand the override to
@@ -72,7 +75,7 @@ async function executeRequest(formation, user, type, payload) {
       if (!payload.name || !(payload.turns > 0)) return;
       await announceDeclaration(formation, user, loc("request.spell", {
         spell: foundry.utils.escapeHTML(payload.name),
-        caster: game.actors.get(payload.casterId)?.name ?? "?",
+        caster: foundry.utils.escapeHTML(game.actors.get(payload.casterId)?.name ?? "?"),
         turns: payload.turns,
       }));
       await addSpell(formation, { name: payload.name, casterId: payload.casterId, turns: payload.turns });
@@ -86,6 +89,9 @@ async function executeRequest(formation, user, type, payload) {
     }
     case "check": {
       if (!userOwnsMember(formation, user)) return;
+      // Same closed-set rule as lightType: the key names both a localization
+      // entry and a roll route, so unknown keys stop here.
+      if (!(payload.key in PARTY_CHECKS)) return;
       const label = game.i18n.localize(`ACKS-FORMATION.rolls.${payload.key}`);
       await announceDeclaration(formation, user, loc("request.check", { check: label }));
       await rollPartyCheck(formation, payload.key);
@@ -126,6 +132,9 @@ async function executeRequest(formation, user, type, payload) {
     /* --- Roles: a player declares their own character's job --- */
     case "role": {
       if (!userOwnsMember(formation, user, payload.actorId)) return;
+      // Unknown roles stop here, so the label fallback below can never feed a
+      // crafted payload string into the announcement.
+      if (!(payload.role in ROLE_LABELS)) return;
       const had = formation.members.find((m) => m.actorId === payload.actorId)?.roles?.includes(payload.role) ?? false;
       const after = await toggleRole(formation, payload.actorId, payload.role, { override: user.isGM }); // kit gate inside
       const holds = after.members.find((m) => m.actorId === payload.actorId)?.roles?.includes(payload.role) ?? false;
@@ -133,7 +142,7 @@ async function executeRequest(formation, user, type, payload) {
       // a player's request, and the table should not be told they took the job.
       if (holds === had) return;
       await announceDeclaration(formation, user, loc(holds ? "request.roleOn" : "request.roleOff", {
-        name: game.actors.get(payload.actorId)?.name ?? "?",
+        name: foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?"),
         role: game.i18n.localize(ROLE_LABELS[payload.role] ?? payload.role),
       }));
       break;
@@ -145,7 +154,7 @@ async function executeRequest(formation, user, type, payload) {
       const result = await toggleDetachMember(formation, payload.actorId);
       if (!result) return; // declined GM-side (mid-combat, or not theirs to recall)
       await announceDeclaration(formation, user, loc(`request.${result}`, {
-        name: game.actors.get(payload.actorId)?.name ?? "?",
+        name: foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?"),
       }));
       break;
     }
@@ -155,7 +164,7 @@ async function executeRequest(formation, user, type, payload) {
     case "lightShield": {
       const light = formation.lights.find((l) => l.id === payload.lightId);
       if (!light || !userOwnsMember(formation, user, light.bearerId)) return;
-      const bearer = game.actors.get(light.bearerId)?.name ?? "?";
+      const bearer = foundry.utils.escapeHTML(game.actors.get(light.bearerId)?.name ?? "?");
       if (type === "lightShield") {
         await announceDeclaration(formation, user, loc(light.shielded ? "request.unshield" : "request.shield", { bearer }));
         await toggleShield(formation, payload.lightId);

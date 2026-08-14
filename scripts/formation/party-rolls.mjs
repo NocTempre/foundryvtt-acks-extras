@@ -137,20 +137,26 @@ const loc = makeLoc("ACKS-FORMATION");
  *      the register has not tagged (Eavesdropping does not yet declare
  *      `kw:listening`) and for hand-made items with no cookbook id.
  */
+/**
+ * The eligibility gate party rolls apply BEFORE any route matching, exported so
+ * the audit window reports exactly what rollPartyCheck will do. A GM ruling
+ * from the audit window is final in both directions and outranks the per-item
+ * Skill checkbox — it is the surface that shows what automation decided, so it
+ * has to be able to overturn it. With no ruling, unchecking "Skill" on the
+ * item sheet withdraws the item from party rolls even if its bindings remain
+ * (re-checking restores them).
+ */
+export function skillGateAllows(item) {
+  const ruling = overrideFor(item);
+  if (ruling === false) return false;
+  if (ruling !== true && item.getFlag?.(MODULE_ID, "isSkill") === false) return false;
+  return true;
+}
+
 function skillCandidates(actor, cfg) {
   return actor.items.filter((i) => {
     if (i.type !== ITEM_TYPE.ability) return false;
-
-    // A GM ruling from the audit window is final in both directions, and
-    // outranks the per-item Skill checkbox — it is the surface that shows what
-    // automation decided, so it has to be able to overturn it.
-    const ruling = overrideFor(i);
-    if (ruling === false) return false;
-    if (ruling !== true) {
-      // Unchecking "Skill" on the item sheet withdraws it from party rolls
-      // even if its bindings remain (re-checking restores them).
-      if (i.getFlag?.(MODULE_ID, "isSkill") === false) return false;
-    }
+    if (!skillGateAllows(i)) return false;
 
     // 1. Capability — precise, and immune to renaming.
     if (cfg.capability && itemHasCapability(i, cfg.capability)) return true;

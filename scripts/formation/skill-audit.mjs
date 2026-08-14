@@ -13,7 +13,7 @@ import {
   setOverride,
 } from "./ability-bridge.mjs";
 import { getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
-import { PARTY_CHECKS, resolveCheck, scaledSkillTarget, inferredThiefSkill } from "./party-rolls.mjs";
+import { PARTY_CHECKS, resolveCheck, scaledSkillTarget, inferredThiefSkill, skillGateAllows } from "./party-rolls.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -235,8 +235,10 @@ function collectPartyAbilities(formation) {
           nameOnly: bindings.length > 0 && bindings.every((b) => b.route === "name"),
           ruling,
           overridden: ruling !== null,
-          // Default state = what automation would do unaided.
-          active: ruling === null ? bindings.length > 0 : ruling,
+          // Default state = what automation would do unaided — through the
+          // SAME gate rollPartyCheck applies, so a Skill-unchecked item never
+          // reads as active here while the roll refuses it.
+          active: ruling === null ? bindings.length > 0 && skillGateAllows(item) : ruling,
         };
         rows.set(key, row);
       }

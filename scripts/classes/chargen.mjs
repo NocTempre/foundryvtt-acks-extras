@@ -51,10 +51,16 @@ async function coinSource(name) {
   let found = game.items?.find(matches)?.toObject() ?? null;
   if (!found) {
     for (const pack of game.packs?.filter((p) => p.documentName === "Item") ?? []) {
-      const index = await pack.getIndex({ fields: ["type"] }).catch(() => null);
+      const index = await pack.getIndex({ fields: ["type"] }).catch((err) => {
+        console.warn(`${MODULE_ID} | coin source: index of ${pack.metadata.id} unreadable`, err);
+        return null;
+      });
       const hit = index?.find((e) => e.type === ITEM_TYPE.money && String(e.name).toLowerCase() === name);
       if (!hit) continue;
-      found = (await pack.getDocument(hit._id).catch(() => null))?.toObject() ?? null;
+      found = (await pack.getDocument(hit._id).catch((err) => {
+        console.warn(`${MODULE_ID} | coin source: ${name} in ${pack.metadata.id} unreadable`, err);
+        return null;
+      }))?.toObject() ?? null;
       if (found) break;
     }
   }
