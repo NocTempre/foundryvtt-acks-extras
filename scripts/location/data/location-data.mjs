@@ -218,6 +218,10 @@ function marketSchema() {
     // families (local bracket table), then acks-domains courtesy read,
     // then default IV.
     marketClassOverride: num({ integer: true, min: 1, max: 6 }),
+    // The Judge's word on denomination exchange here, outranking the derived
+    // rule (a market changes freely; anywhere else barters): "market" | "none".
+    // Null defers to the derivation — see lib money's exchangeTermsAt.
+    exchangeOverride: str(),
     urbanFamilies: num({ integer: true, min: 0 }),
     domainUuid: str(),
     classRarityTableId: new fields.StringField({ required: true, initial: "default" }),

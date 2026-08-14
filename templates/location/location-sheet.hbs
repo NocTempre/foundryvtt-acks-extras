@@ -501,7 +501,23 @@
               {{#if row.stackable}}
                 <span class="acks-location-row-qty">&times;{{row.quantity}}</span>
               {{/if}}
-              {{#if group.canTake}}
+              {{#if row.spoil}}
+                <i class="fas fa-bone" data-tooltip="{{localize 'ACKS-LOCATION.storage.spoil'}}"></i>
+              {{/if}}
+              {{#if group.houseControls}}
+                <button type="button" class="acks-location-btn acks-location-btn--sm{{#if row.retrievable}} acks-location-btn--on{{/if}}"
+                        data-action="houseRetrievable"
+                        data-tooltip="{{localize 'ACKS-LOCATION.storage.houseRetrievable'}}">
+                  <i class="fas {{#if row.retrievable}}fa-lock-open{{else}}fa-lock{{/if}}"></i>
+                </button>
+              {{/if}}
+              {{#if row.canAttempt}}
+                <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="houseAttemptSpoil"
+                        data-tooltip="{{localize 'ACKS-LOCATION.storage.attemptSpoil'}}">
+                  <i class="fas fa-dice-d20"></i>
+                </button>
+              {{/if}}
+              {{#if row.canTake}}
                 {{#if row.stackable}}
                   <input class="acks-location-row-take" type="number" min="1" max="{{row.quantity}}"
                          data-quantity placeholder="{{row.quantity}}"

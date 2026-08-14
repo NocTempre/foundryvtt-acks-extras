@@ -251,6 +251,52 @@ export async function transferCoin({ from, to, gp, reason = "", at = null, gate 
   return { ok: true, changeCp: plan.changeCp };
 }
 
+/**
+ * Exchange one coin kind for another at a place, at face value — the changer's
+ * service. Only a market offers it (its till absorbs the old coin and pays
+ * the new, minting freely); anywhere else the answer is the barter warning.
+ * The remainder below the target denomination comes back in standard small
+ * coin, so the actor never loses value to the split.
+ * @returns {{ok: boolean, reason?: string, paidOutCp?: number}}
+ */
+export async function exchangeCoins({ actor, place, itemId, count, toCv, gate = true } = {}) {
+  const terms = exchangeTermsAt(place);
+  if (terms.mode !== "market") {
+    ui?.notifications?.warn(game.i18n.localize("ACKS-LIB.money.noChanger"));
+    return { ok: false, reason: "noChanger" };
+  }
+  if (gate) {
+    const reach = coinReach(actor, place);
+    if (!reach.can) {
+      ui?.notifications?.warn(game.i18n.format("ACKS-LIB.money.outOfReach", { reason: reach.reason ?? "?", detail: "" }));
+      return { ok: false, reason: reach.reason ?? "outOfReach" };
+    }
+  }
+  const item = actor.items.get(itemId);
+  const cv = num(item?.system?.coppervalue, 0);
+  const have = num(item?.system?.quantity, 0);
+  count = Math.min(Math.max(1, Math.round(num(count, 0))), have);
+  if (!item || cv <= 0 || count <= 0) return { ok: false, reason: "nothingToChange" };
+
+  const totalCp = cv * count;
+  // The old coin goes to the till; the new comes out of it.
+  await actor.updateEmbeddedDocuments("Item", [{ _id: item.id, "system.quantity": have - count }]);
+  await creditCoin(place, [{ name: item.name, img: item.img, cv, count }]);
+  const out = [];
+  const wanted = Math.floor(totalCp / toCv);
+  if (wanted > 0) {
+    const name = toCv === 100 ? game.i18n.localize("ACKS-LIB.money.gpName")
+      : toCv === 10 ? game.i18n.localize("ACKS-LIB.money.spName")
+      : toCv === 1 ? game.i18n.localize("ACKS-LIB.money.cpName")
+      : `${game.i18n.localize("ACKS-LIB.money.gpName")} (${toCv})`;
+    out.push({ name, cv: toCv, count: wanted });
+  }
+  const remainder = totalCp - wanted * toCv;
+  if (remainder > 0) out.push(...mintChange(remainder));
+  await creditCoin(actor, out);
+  return { ok: true, paidOutCp: totalCp };
+}
+
 /** Change minted by a market: standard denominations, largest first. */
 function mintChange(cp) {
   const denoms = [

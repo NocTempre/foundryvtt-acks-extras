@@ -869,3 +869,28 @@ withholds both).
 **Also:** the last nine v10-era `--color-*`/`--font-size-*` reads are swept
 from module styles (classes.css, markets.css), and validate-extra now fails
 any non-`foundry.css` stylesheet that reads a legacy Foundry variable.
+
+## 2026-08-14 — Money is physical; four rulings land at once
+
+**Ruled (owner, this date):** (1) one spend policy — smallest denomination
+first with change made by breaking the larger coin; (2) coin KIND is name and
+rate together, so a local variation is a separate stack everywhere it travels
+and only valuation is contextual; (3) a payment is a location-gated TRANSFER —
+reach checked before denomination math, coin landing on the payee's stacks
+(actor purse or location till under the `acks-extras:house` sentinel), change
+returned by the same planner, wages taking the exact-representable `upTo` road
+with the remainder booked as arrears; (4) markets exchange denominations
+freely (the till is liquid and mints its change), everywhere else barters —
+a GM `exchangeOverride` on the market subtree outranks the derivation.
+
+**Consequences:** every in-repo payment names a destination; grantGold without
+a payer and spendGold without a payee remain the Judge's mint and sink, as
+explicit choices; the house pile makes a location's own goods first-class —
+Judge takes freely, players take rows marked retrievable, spoils unlock
+through a proficiency throw whose specific proficiency is a rules extraction
+still owed; empty unremarkable locations self-clean at ready (setting-gated,
+default on).
+
+**Rejected:** burn-on-spend as any payment's default; per-location re-rating
+baked into stacks (splits every merge path); silently overcharging when no
+changer can split a coin.

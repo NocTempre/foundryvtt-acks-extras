@@ -18,6 +18,9 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
+
+/** World setting: empty, unremarkable locations self-clean at ready. */
+const PRUNE_SETTING = "pruneEmptyLocations";
 import { registerStoreSetting, registerPersisted, ruledataImport } from "./table-store.mjs";
 import { RuledataBrowser, openRuledataBrowser } from "./ruledata-browser.mjs";
 import { LocationData } from "./data/location-data.mjs";
@@ -56,6 +59,15 @@ Hooks.once("init", () => {
   lib.services.register("ruledata-import", ruledataImport);
   const n = registerPersisted();
   console.log(`${MODULE_ID} | ruledata-import provider ready (${n} persisted table layer(s) mirrored)`);
+
+  game.settings.register(MODULE_ID, PRUNE_SETTING, {
+    name: `${LANG_PREFIX}.settings.pruneEmpty.name`,
+    hint: `${LANG_PREFIX}.settings.pruneEmpty.hint`,
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
 
   game.settings.registerMenu(MODULE_ID, "ruledataBrowser", {
     name: "ACKS-LOCATION.browser.menuName",
@@ -138,4 +150,31 @@ Hooks.once("ready", () => {
   // the library elects its deletion fallback.
   if (!game.users.activeGM?.isSelf) return;
   runVaultSweep().catch((err) => console.error(`${MODULE_ID} | vault sweep failed`, err));
+  pruneEmptyLocations().catch((err) => console.error(`${MODULE_ID} | empty-location prune failed`, err));
 });
+
+/**
+ * Cleanup is the DEFAULT for an empty location (owner ruling 2026-08-14): a
+ * place holding nothing, remembering nobody, and being nothing in particular
+ * is scaffolding, and scaffolding comes down on its own. A location survives
+ * empty when it IS something: a market (any market class or a market subtree),
+ * someone's vault, or a scene-linked mapped place. Setting-gated for worlds
+ * that want their empty rooms kept.
+ */
+export async function pruneEmptyLocations() {
+  if (!game.settings.get(MODULE_ID, PRUNE_SETTING)) return { pruned: 0 };
+  const doomed = game.actors.filter((a) => {
+    if (a.type !== LOCATION_TYPE) return false;
+    if (a.items.size > 0) return false;
+    if ((a.system?.roster ?? []).length > 0) return false;
+    if (a.system?.market != null || a.system?.marketClass != null) return false;
+    if (a.getFlag(MODULE_ID, "storage")?.vaultOf) return false;
+    if (sceneOfLocation(a)) return false;
+    return true;
+  });
+  for (const a of doomed) await a.delete();
+  if (doomed.length) {
+    console.log(`${MODULE_ID} | pruned ${doomed.length} empty location(s): ${doomed.map((a) => a.name).join(", ")}`);
+  }
+  return { pruned: doomed.length };
+}

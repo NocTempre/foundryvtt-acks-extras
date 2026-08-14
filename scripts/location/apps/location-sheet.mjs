@@ -1,4 +1,4 @@
-/* global game, ui, foundry, fromUuidSync, fromUuid, Actor, RollTable, Hooks, CONST */
+/* global game, ui, foundry, fromUuidSync, fromUuid, Actor, RollTable, Hooks, CONST, Roll, ChatMessage */
 /**
  * LocationSheet — ActorSheetV2 for the `acks-extras.location` sub-type.
  *
@@ -23,6 +23,7 @@ import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import * as places from "../../lib/place.mjs";
 import { emptyMarket } from "../data/location-data.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "../constants.mjs";
+import { acksExtras } from "../../namespace.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
@@ -112,6 +113,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // --- storage tab ---
       retrieveRow: LocationSheet.#onRetrieveRow,
       retrieveAll: LocationSheet.#onRetrieveAll,
+      houseRetrievable: LocationSheet.#onHouseRetrievable,
+      houseAttemptSpoil: LocationSheet.#onHouseAttemptSpoil,
       depositHere: LocationSheet.#onDepositHere,
       openManager: LocationSheet.#onOpenManager,
       openOwner: LocationSheet.#onOpenOwner,
@@ -129,6 +132,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       openPurchase: LocationSheet.#onOpenPurchase,
       openSell: LocationSheet.#onOpenSell,
       marketsSearchDay: LocationSheet.#onMarketsSearchDay,
+      marketsExchange: LocationSheet.#onMarketsExchange,
       processImports: LocationSheet.#onProcessImports,
       openCommission: LocationSheet.#onOpenCommission,
       postSearch: LocationSheet.#onPostSearch,
@@ -1177,6 +1181,40 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
   }
 
+  /** Change coin at the market's till — the changer's service, face value. */
+  static async #onMarketsExchange(_event, _target) {
+    const trader =
+      game.user.character ??
+      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
+    if (!trader) return;
+    const stacks = trader.items.filter((i) => i.type === "money" && Number(i.system?.quantity ?? 0) > 0 && Number(i.system?.coppervalue ?? 0) > 0);
+    if (!stacks.length) {
+      ui.notifications.warn(loc("market.exchangeNothing", { name: trader.name }));
+      return;
+    }
+    const options = stacks.map((i) => `<option value="${i.id}">${foundry.utils.escapeHTML(i.name)} ×${i.system.quantity} (${i.system.coppervalue} cp)</option>`).join("");
+    const denoms = [[100, loc("market.exchangeGp")], [10, loc("market.exchangeSp")], [1, loc("market.exchangeCp")]]
+      .map(([cv, label]) => `<option value="${cv}">${label}</option>`).join("");
+    const form = await foundry.applications.api.DialogV2.prompt({
+      window: { title: loc("market.exchangeTitle") },
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      content: `<div class="form-group"><label>${loc("market.exchangeFrom")}</label><select name="itemId">${options}</select></div>
+        <div class="form-group"><label>${loc("market.exchangeCount")}</label><input type="number" name="count" min="1" value="1"/></div>
+        <div class="form-group"><label>${loc("market.exchangeTo")}</label><select name="toCv">${denoms}</select></div>`,
+      ok: { callback: (_e, button) => ({
+        itemId: button.form.elements.itemId.value,
+        count: Number(button.form.elements.count.value),
+        toCv: Number(button.form.elements.toCv.value),
+      }) },
+    }).catch(() => null);
+    if (!form) return;
+    const r = await acksExtras.lib.money.exchangeCoins({ actor: trader, place: this.actor, ...form });
+    if (r.ok) {
+      ui.notifications.info(loc("market.exchanged", { name: trader.name }));
+      this.render();
+    }
+  }
+
   /** Commission a catalog item's construction. */
   static async #onOpenCommission(_event, target) {
     const key = target?.dataset?.key;
@@ -1371,25 +1409,42 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // pointless (and its dialog empty) without one.
     context.canDeposit = game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
 
+    const HOUSE = acksExtras.lib?.money?.HOUSE_OWNER;
     const groups = [];
     for (const bucket of api.storesByOwner(actor).values()) {
-      const owner = api.resolveActorSync(bucket.ownerUuid);
+      const isHouse = HOUSE && bucket.ownerUuid === HOUSE;
+      const owner = isHouse ? null : api.resolveActorSync(bucket.ownerUuid);
+      // The house bucket is the place's OWN till and stock: the Judge takes
+      // freely; a player takes only rows the Judge marked retrievable, and a
+      // spoil row only after its unlocking throw.
+      const canTakeGroup = isHouse ? game.user.isGM : game.user.isGM || !!owner?.isOwner;
       groups.push({
         ownerUuid: bucket.ownerUuid,
         // A deleted owner keeps their name on the goods — that is exactly why
         // the name is stored alongside the uuid. The GM's manager reassigns it.
-        name: owner?.name || bucket.ownerName || loc("storage.unattributed"),
-        dangling: !owner,
-        canTake: game.user.isGM || !!owner?.isOwner,
+        name: isHouse ? loc("storage.house") : owner?.name || bucket.ownerName || loc("storage.unattributed"),
+        dangling: !isHouse && !owner,
+        isHouse,
+        houseControls: isHouse && game.user.isGM,
+        canTake: canTakeGroup,
         coinGC: api.coinTotalGC(bucket.items),
-        rows: bucket.items.map((item) => ({
-          id: item._id,
-          name: item.name,
-          img: item.img,
-          type: item.type,
-          quantity: api.quantityOf(item)?.value ?? null,
-          stackable: !!api.quantityOf(item),
-        })),
+        rows: bucket.items.map((item) => {
+          const sFlag = item.flags?.[MODULE_ID]?.storage ?? {};
+          const spoil = !!item.flags?.[MODULE_ID]?.spoil;
+          const retrievable = !!sFlag.retrievable;
+          return {
+            id: item._id,
+            name: item.name,
+            img: item.img,
+            type: item.type,
+            quantity: api.quantityOf(item)?.value ?? null,
+            stackable: !!api.quantityOf(item),
+            spoil,
+            retrievable,
+            canTake: canTakeGroup || (isHouse && retrievable),
+            canAttempt: isHouse && !game.user.isGM && spoil && !retrievable,
+          };
+        }),
       });
     }
     groups.sort((a, b) => a.name.localeCompare(b.name));
@@ -1399,6 +1454,11 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   /** The character this user is taking goods back to. */
   #claimant(ownerUuid) {
+    // House goods belong to the PLACE: whoever takes them takes them home —
+    // the user's own character, or any character a GM owns.
+    if (ownerUuid === acksExtras.lib?.money?.HOUSE_OWNER) {
+      return game.user.character ?? game.actors.find((a) => a.type === ACTOR_TYPE.character && a.isOwner) ?? null;
+    }
     const owner = storage().resolveActorSync(ownerUuid);
     if (owner?.isOwner) return owner;
     if (!game.user.isGM) return null;
@@ -1413,10 +1473,20 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return { itemId: row?.dataset.itemId ?? null, ownerUuid: group?.dataset.ownerUuid ?? "" };
   }
 
+  /** A non-GM may take a house row only once it is marked retrievable (a
+   * spoil row earns that mark through its throw). UI rule, like the rest of
+   * the storage surface — the Judge's manager outranks it. */
+  #houseRowBlocked(itemId, ownerUuid) {
+    if (game.user.isGM || ownerUuid !== acksExtras.lib?.money?.HOUSE_OWNER) return false;
+    const item = this.actor.items.get(itemId);
+    return !item?.flags?.[MODULE_ID]?.storage?.retrievable;
+  }
+
   static async #onRetrieveRow(_event, target) {
     const { itemId, ownerUuid } = this.#rowContext(target);
     const owner = this.#claimant(ownerUuid);
     if (!itemId) return;
+    if (this.#houseRowBlocked(itemId, ownerUuid)) return;
     if (!owner) {
       ui.notifications.warn(loc("storage.noClaimant"));
       return;
@@ -1436,9 +1506,46 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
     const spec = storage()
       .storedItems(this.actor, { ownerUuid })
+      .filter((i) => !this.#houseRowBlocked(i.id, ownerUuid))
       .map((i) => ({ id: i.id }));
     if (!spec.length) return;
     await storage().retrieve(this.actor, owner, spec);
+    this.render();
+  }
+
+  /** GM: mark or unmark a house row as player-retrievable. */
+  static async #onHouseRetrievable(_event, target) {
+    if (!game.user.isGM) return;
+    const { itemId } = this.#rowContext(target);
+    const item = this.actor.items.get(itemId);
+    if (!item) return;
+    const flag = item.getFlag(MODULE_ID, "storage") ?? {};
+    await item.setFlag(MODULE_ID, "storage", { ...flag, retrievable: !flag.retrievable });
+    this.render();
+  }
+
+  /**
+   * A spoil in the house pile is taken by winning a proficiency throw — the
+   * MECHANISM ships now (an Adventuring-target roll on the taker's own
+   * numbers, posted openly); which proficiency each spoil kind demands is a
+   * rules extraction still to come, and will slot in as the roll's target.
+   */
+  static async #onHouseAttemptSpoil(_event, target) {
+    const { itemId, ownerUuid } = this.#rowContext(target);
+    const item = this.actor.items.get(itemId);
+    const taker = this.#claimant(ownerUuid);
+    if (!item || !taker) return;
+    const targetNum = Number(taker.system?.adventuring ?? 11) || 11;
+    const roll = await new Roll("1d20").evaluate();
+    const success = roll.total >= targetNum;
+    await roll.toMessage({
+      speaker: ChatMessage.getSpeaker({ actor: taker }),
+      flavor: loc(success ? "storage.spoilUnlocked" : "storage.spoilHeld", { name: item.name, target: targetNum }),
+    });
+    if (success) {
+      const flag = item.getFlag(MODULE_ID, "storage") ?? {};
+      await item.setFlag(MODULE_ID, "storage", { ...flag, retrievable: true });
+    }
     this.render();
   }
 
