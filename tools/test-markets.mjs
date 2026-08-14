@@ -243,6 +243,82 @@ const orders = [
 assert.deepStrictEqual(dueImports(orders, 150).map((o) => o.id), ["a"], "due picks only ripe ordered rows");
 assert.deepStrictEqual(dueImports(orders, 500).map((o) => o.id), ["a", "b"], "delivered rows never re-resolve");
 
+/* ------------------------- arbitrage ------------------------- */
+
+const { parseStones, parseTollCpPerSt, marketImpact, assessmentOutcome, merchMarketPriceCp, negotiationOutcome, solicitedStones } =
+  await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
+
+assert.strictEqual(parseStones("30,000 st"), 30000, "stones with commas");
+assert.strictEqual(parseTollCpPerSt("0.2cp/st"), 0.2, "toll per stone");
+assert.strictEqual(parseTollCpPerSt("none"), 0, "no toll at class VI");
+
+{
+  // Fixture baselines, not book data.
+  const baselines = { 3: 4000, 4: 1000, 5: 400, 6: 150 };
+  const of = (cls) => baselines[cls];
+  assert.deepStrictEqual(
+    marketImpact({ cargoSt: 25600, baselineCargoSt: 30000, marketClass: 1, urbanFamilies: 3000 }),
+    { impact: 1, effectiveClass: 1 },
+    "0.85 rounds to impact 1"
+  );
+  assert.strictEqual(
+    marketImpact({ cargoSt: 25600, baselineCargoSt: 150, marketClass: 6 }).impact,
+    10,
+    "small markets cap impact at 10"
+  );
+  assert.strictEqual(
+    marketImpact({ cargoSt: 50000, baselineCargoSt: 30000, marketClass: 1, urbanFamilies: 40000 }).impact,
+    2,
+    "class I cap rises with families over 2,000"
+  );
+  const drop = marketImpact({ cargoSt: 300, baselineCargoSt: 4000, marketClass: 3, baselineOfClass: of });
+  assert.deepStrictEqual(drop, { impact: 1, effectiveClass: 5 }, "impact 0 trades down the classes until 1");
+  assert.deepStrictEqual(
+    marketImpact({ cargoSt: 0, baselineCargoSt: 150, marketClass: 6, baselineOfClass: of }),
+    { impact: 1, effectiveClass: 6 },
+    "class VI always trades at impact 1"
+  );
+}
+
+assert.strictEqual(assessmentOutcome(2), "false", "2- is a false assessment");
+assert.strictEqual(assessmentOutcome(5), "failed", "3-5 fails");
+assert.strictEqual(assessmentOutcome(8), "expertise", "6-8 needs expertise");
+assert.strictEqual(assessmentOutcome(11), "partial", "9-11 is partial");
+assert.strictEqual(assessmentOutcome(12), "success", "12+ succeeds");
+
+{
+  // 0.15gp base, 0.02gp step (the RULES.md salt worked example shapes).
+  const base = { basePriceCp: 15, stepCp: 2 };
+  assert.strictEqual(
+    merchMarketPriceCp({ ...base, roll4d4: 9, dm: -3, marketClass: 1 }).priceCp,
+    15 - 2 + 2 - 6,
+    "steps stack: 4d4-10, class I bump, demand"
+  );
+  assert.strictEqual(
+    merchMarketPriceCp({ ...base, roll4d4: 10, dm: 0, marketClass: 5 }).priceCp,
+    13,
+    "class V/VI shifts one step down"
+  );
+  assert.strictEqual(
+    merchMarketPriceCp({ ...base, roll4d4: 4, dm: -6, marketClass: 6 }).priceCp,
+    2,
+    "price never falls below one step"
+  );
+  assert.strictEqual(
+    merchMarketPriceCp({ basePriceCp: 12, stepCp: 1, roll4d4: 10, dm: 0, marketClass: 3, grain: true, season: "autumn" }).priceCp,
+    11,
+    "harvest season shifts grain down"
+  );
+}
+
+assert.strictEqual(negotiationOutcome(1, 5), "outrage", "adjusted 2- is outrage");
+assert.strictEqual(negotiationOutcome(9, 12), "agreement", "natural 12 always agrees");
+assert.strictEqual(negotiationOutcome(9, 2), "outrage", "natural 2 always outrages");
+assert.strictEqual(negotiationOutcome(10, 7), "grudging", "9-11 is grudging");
+assert.strictEqual(negotiationOutcome(7, 7), "continue", "6-8 continues");
+
+assert.strictEqual(solicitedStones({ baseStones: 0.4, impact: 2 }), 0.8, "fractional stones accumulate");
+
 /* ------------------------- commissions ------------------------- */
 
 assert.strictEqual(parseMoneyCp("3gp"), 300, "gp money string");
@@ -263,4 +339,4 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.strictEqual(commissionPlan({ costCp: 100, rateRow: { ratePerDay: "-" } }), null, "unreadable rate, no plan");
 }
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions)");
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage)");

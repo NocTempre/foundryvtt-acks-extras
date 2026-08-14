@@ -35,6 +35,10 @@ import {
   registerImportWatcher,
 } from "./engine/imports.mjs";
 import { identifyAttempt, availableMethods, candidateIdentifiers, METHODS } from "./engine/identify.mjs";
+import { postVentureAction, performVentureAction, tradeMerchandise, performVentureTrade, ventureOf } from "./engine/ventures.mjs";
+import { openVentureTradeDialog, VentureTradeDialog } from "./apps/venture-dialog.mjs";
+import { openCommissionDialog, CommissionDialog } from "./apps/commission-dialog.mjs";
+import * as arbitrageRules from "./rules/arbitrage.mjs";
 import { buildMagicPanel } from "./apps/magic-panel.mjs";
 
 Hooks.once("init", () => {
@@ -47,6 +51,7 @@ Hooks.once("init", () => {
       `${T}/purchase-dialog.hbs`,
       `${T}/sell-dialog.hbs`,
       `${T}/commission-dialog.hbs`,
+      `${T}/venture-dialog.hbs`,
     ]);
   } catch (err) {
     console.warn(`${MODULE_ID} | markets template preload skipped`, err);
@@ -59,8 +64,9 @@ Hooks.once("setup", () => {
   // materialize flow generate fillable placeholders for missing ones.
   try {
     acksExtras.lib?.tables?.expectTables?.("availability", ["equipmentAvailability"]);
-    acksExtras.lib?.tables?.expectTables?.("mercantile", ["merchandiseTypes"]);
+    acksExtras.lib?.tables?.expectTables?.("mercantile", ["merchandiseTypes", "marketCharacteristics"]);
     acksExtras.lib?.tables?.expectTables?.("magicItems", ["transactionsByMarketClass"]);
+    acksExtras.lib?.tables?.expectTables?.("construction", ["wageAndConstructionRates"]);
   } catch (err) {
     console.warn(`${MODULE_ID} | markets expectTables failed`, err);
   }
@@ -91,6 +97,12 @@ Hooks.once("setup", () => {
     abilityRanks,
     partyOf,
     partySize,
+    // ventures
+    postVentureAction,
+    performVentureAction,
+    tradeMerchandise,
+    performVentureTrade,
+    ventureOf,
     // identification
     identifyAttempt,
     availableMethods,
@@ -101,9 +113,13 @@ Hooks.once("setup", () => {
     PurchaseDialog,
     openSellDialog,
     SellDialog,
+    openCommissionDialog,
+    CommissionDialog,
+    openVentureTradeDialog,
+    VentureTradeDialog,
     buildMagicPanel,
     // rules (pure)
-    rules: { ...availabilityRules, ...pricingRules, imports: importRules, commissions: commissionRules },
+    rules: { ...availabilityRules, ...pricingRules, imports: importRules, commissions: commissionRules, arbitrage: arbitrageRules },
   };
   acksExtras.markets = api;
 });

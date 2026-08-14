@@ -1,0 +1,33 @@
+<div class="acks-extras-markets-dialog-body">
+  {{#if noRows}}
+  <p class="hint">{{localize "ACKS-MARKETS.ventures.noSolicitations"}}</p>
+  {{else}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.ventures.category"}}</label>
+    <select name="category">
+      {{#each rows}}
+      <option value="{{category}}">{{label}} — {{stones}} st @ {{priceGp}}gp/st</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.ventures.stones"}}</label>
+    <input type="number" name="stones" value="1" min="1" step="1">
+  </div>
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.ventures.direction"}}</label>
+    <select name="direction">
+      <option value="buy">{{localize "ACKS-MARKETS.ventures.buy"}}</option>
+      <option value="sell">{{localize "ACKS-MARKETS.ventures.sellLoads"}}</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.ventures.negotiate"}}</label>
+    <input type="checkbox" name="negotiate">
+  </div>
+  <p class="hint">{{localize "ACKS-MARKETS.ventures.negotiateHint"}}</p>
+  <footer class="form-footer">
+    <button type="submit"><i class="fas fa-scale-balanced"></i> {{localize "ACKS-MARKETS.ventures.tradeSubmit"}}</button>
+  </footer>
+  {{/if}}
+</div>

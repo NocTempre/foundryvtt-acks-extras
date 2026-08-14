@@ -13,7 +13,7 @@ export const LANG = "ACKS-MARKETS";
  * `availability` doc is shared with henchmen and already announced there —
  * only ids no other feature announces belong here.
  */
-export const RULEDATA = Object.freeze(["mercantile", "magicItems"]);
+export const RULEDATA = Object.freeze(["mercantile", "magicItems", "construction"]);
 
 /** Flag scope on Item documents holding this feature's per-item state. */
 export const ITEM_FLAG = "markets";

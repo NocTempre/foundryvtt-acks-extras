@@ -37,6 +37,11 @@ import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { buildCatalog, availabilityFor, performSearchDay, salePlan, demandStepsFor, categoryOf } from "../../markets/engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../../markets/engine/imports.mjs";
 import { openCommissionDialog } from "../../markets/apps/commission-dialog.mjs";
+import { performVentureAction, ventureOf } from "../../markets/engine/ventures.mjs";
+import { openVentureTradeDialog } from "../../markets/apps/venture-dialog.mjs";
+import { marketMonthStart } from "../../markets/engine/trade.mjs";
+import { partyOf } from "../../markets/engine/parties.mjs";
+import { MERCHANDISE_TYPES } from "../../markets/config.mjs";
 import { openPurchaseDialog } from "../../markets/apps/purchase-dialog.mjs";
 import { openSellDialog } from "../../markets/apps/sell-dialog.mjs";
 import { merchandiseLabel } from "../../markets/config.mjs";
@@ -128,6 +133,11 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       openCommission: LocationSheet.#onOpenCommission,
       postSearch: LocationSheet.#onPostSearch,
       cancelSearch: LocationSheet.#onCancelSearch,
+      ventureEnter: LocationSheet.#onVentureEnter,
+      ventureAssess: LocationSheet.#onVentureAssess,
+      ventureSolicit: LocationSheet.#onVentureSolicit,
+      ventureTrade: LocationSheet.#onVentureTrade,
+      setDemand: LocationSheet.#onSetDemand,
       toggleMasterworkContact: LocationSheet.#onToggleMasterworkContact,
       // --- the market gate ---
       addMarket: LocationSheet.#onAddMarket,
@@ -1100,13 +1110,37 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         statusLabel: game.i18n.localize(`ACKS-MARKETS.searches.status.${o.status}`),
         active: o.status === "active",
       }));
-    const seeDemand = context.isGM || goods.playersSeeDemand;
-    context.demandRows = seeDemand
-      ? (goods.demand ?? []).map((d) => ({
-          label: game.i18n.localize(merchandiseLabel(d.category)),
-          modifier: d.modifier > 0 ? `+${d.modifier}` : `${d.modifier}`,
-        }))
-      : [];
+    // Demand modifiers: the GM (or an open market) sees the truth; a party
+    // sees what its assessments taught it — right or wrong, it cannot tell.
+    const fmt = (n) => (n > 0 ? `+${n}` : `${n}`);
+    if (context.isGM || goods.playersSeeDemand) {
+      context.demandRows = (goods.demand ?? []).map((d) => ({
+        label: game.i18n.localize(merchandiseLabel(d.category)),
+        modifier: fmt(d.modifier),
+      }));
+    } else if (trader) {
+      const partyId = partyOf(trader).id;
+      context.demandRows = (goods.dmKnowledge ?? [])
+        .filter((k) => k.partyId === partyId)
+        .map((k) => ({ label: game.i18n.localize(merchandiseLabel(k.category)), modifier: fmt(k.believed) }));
+    } else {
+      context.demandRows = [];
+    }
+    // Venture state for the viewer's party, and its queue.
+    const monthStart = marketMonthStart(t);
+    const partyId = trader ? partyOf(trader).id : null;
+    context.venture = partyId ? ventureOf(this.actor, partyId, monthStart) ?? null : null;
+    context.ventureActions = (goods.actions ?? [])
+      .filter((a) => a.status === "pending" && (context.isGM || a.partyId === partyId))
+      .map((a) => ({
+        kindLabel: game.i18n.localize(`ACKS-MARKETS.ventures.kind.${a.kind}`),
+        category: a.category ? game.i18n.localize(merchandiseLabel(a.category)) : "",
+        etaDays: Math.max(0, Math.ceil((Number(a.resolveTime) - t) / SECONDS_PER_DAY)),
+      }));
+    context.merchOptions = MERCHANDISE_TYPES.map((m) => ({
+      key: m.key,
+      label: game.i18n.localize(merchandiseLabel(m.key)),
+    }));
   }
 
   /** Open the purchase dialog for a catalog row. */
@@ -1178,6 +1212,84 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
       return;
     }
+    this.render();
+  }
+
+  /** The viewer's acting character for venture actions. */
+  #ventureTrader() {
+    return (
+      game.user.character ??
+      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER")) ??
+      null
+    );
+  }
+
+  async #postVenture(kind, extra = {}) {
+    const trader = this.#ventureTrader();
+    if (!trader) return;
+    const result = await performVentureAction(this.actor, {
+      kind,
+      actorUuid: trader.uuid,
+      resolutionId: foundry.utils.randomID(),
+      ...extra,
+    });
+    if (result?.error) {
+      ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
+      return;
+    }
+    ui.notifications.info(game.i18n.localize("ACKS-MARKETS.ventures.posted"));
+    this.render();
+  }
+
+  /** Enter the market: a dedicated day, the toll paid at the gate. */
+  static async #onVentureEnter() {
+    const content = `<div class="form-group"><label>${game.i18n.localize("ACKS-MARKETS.ventures.cargo")}</label><input type="number" name="cargoSt" value="0" min="0" step="1"></div>`;
+    const cargoSt = await foundry.applications.api.DialogV2.prompt({
+      window: { title: game.i18n.localize("ACKS-MARKETS.ventures.enter") },
+      content,
+      ok: { callback: (_ev, button) => Number(button.form.elements.cargoSt?.value) || 0 },
+    }).catch(() => null);
+    if (cargoSt == null) return;
+    await this.#postVenture("enter", { cargoSt });
+  }
+
+  /** Assess supply and demand: a dedicated day. */
+  static async #onVentureAssess() {
+    await this.#postVenture("assess");
+  }
+
+  /** Solicit buyers/sellers in the selected merchandise: a dedicated day. */
+  static async #onVentureSolicit() {
+    const category = this.element.querySelector("[data-venture-category]")?.value;
+    if (!category) return;
+    await this.#postVenture("solicit", { category });
+  }
+
+  /** Trade merchandise a solicitation opened. */
+  static async #onVentureTrade() {
+    const trader = this.#ventureTrader();
+    if (trader) openVentureTradeDialog(this.actor, trader);
+  }
+
+  /** GM: set the market's true demand modifier for one category. */
+  static async #onSetDemand() {
+    if (!game.user.isGM) return;
+    const category = this.element.querySelector("[data-venture-category]")?.value;
+    if (!category) return;
+    const goods = this.actor.system.market.goods;
+    const demand = (goods.demand ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+    const current = demand.find((d) => d.category === category)?.modifier ?? 0;
+    const content = `<div class="form-group"><label>${game.i18n.localize("ACKS-MARKETS.ventures.dmValue")}</label><input type="number" name="modifier" value="${current}" min="-6" max="6" step="1"></div>`;
+    const modifier = await foundry.applications.api.DialogV2.prompt({
+      window: { title: game.i18n.localize("ACKS-MARKETS.ventures.setDemand") },
+      content,
+      ok: { callback: (_ev, button) => Number(button.form.elements.modifier?.value) || 0 },
+    }).catch(() => null);
+    if (modifier == null) return;
+    const row = demand.find((d) => d.category === category);
+    if (row) row.modifier = modifier;
+    else demand.push({ category, modifier });
+    await this.actor.update({ "system.market.goods.demand": demand });
     this.render();
   }
 

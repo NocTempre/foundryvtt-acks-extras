@@ -23,6 +23,7 @@ import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { findGearEntry } from "../../equipment/grant.mjs";
 import { partyOf } from "./parties.mjs";
+import { processVentureActions } from "./ventures.mjs";
 import {
   TRADE_TYPES,
   deliverGoods,
@@ -217,6 +218,17 @@ export async function processImports(location) {
     await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.commissions.doneLine`, { buyer: buyer.name, qty: order.qty, name: order.itemName })}</strong>`);
   }
   if (built.length) updates["system.market.goods.commissions"] = commissions;
+
+  // Venture actions: dedicated days resolve once their day has passed.
+  const ventureSweep = await processVentureActions(location, log, t);
+  if (ventureSweep) {
+    updates["system.market.goods.actions"] = ventureSweep.actions;
+    updates["system.market.goods.ventures"] = ventureSweep.ventures;
+    updates["system.market.goods.dmKnowledge"] = ventureSweep.dmKnowledge;
+    updates["system.market.goods.merchPrices"] = ventureSweep.merchPrices;
+    updates["system.market.goods.solicitations"] = ventureSweep.solicitations;
+    resolved += 1;
+  }
 
   // Directed searches: a fresh market month gets a fresh look.
   const goodsWrites = { goods: goodsOf(location), dirty: false };

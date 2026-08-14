@@ -147,6 +147,65 @@ export function goodsSchema() {
         lastResolutionId: str(),
       })
     ),
+    // Time-queued dedicated-day venture actions (RR §VIII.6): posted now,
+    // resolved by the due-work sweep when their day has passed.
+    actions: new f.ArrayField(
+      new f.SchemaField({
+        id: str(),
+        kind: new f.StringField({ required: true, initial: "assess", choices: ["enter", "assess", "solicit"] }),
+        partyId: str(),
+        actorUuid: str(),
+        category: str(), // solicit: merchandise-type key
+        cargoSt: int(0), // enter: declared cargo capacity
+        postedTime: int(),
+        resolveTime: int(),
+        status: new f.StringField({ required: true, initial: "pending", choices: ["pending", "done"] }),
+        detail: str(),
+      })
+    ),
+    // Venture state per party-month: entered, cargo, impact, toll paid.
+    ventures: new f.ArrayField(
+      new f.SchemaField({
+        partyId: str(),
+        monthStartTime: int(),
+        cargoSt: int(0),
+        impact: int(0),
+        effectiveClass: int(0),
+        tollCp: int(0),
+        entered: new f.BooleanField({ initial: false }),
+      })
+    ),
+    // What each party BELIEVES the demand modifiers to be (assessment
+    // results; a false assessment writes wrong numbers it cannot tell apart).
+    dmKnowledge: new f.ArrayField(
+      new f.SchemaField({
+        partyId: str(),
+        category: str(),
+        believed: int(0),
+        time: int(),
+      })
+    ),
+    // The month's rolled market price per merchandise type (step 4 — one
+    // price per type per market per month).
+    merchPrices: new f.ArrayField(
+      new f.SchemaField({
+        category: str(),
+        monthStartTime: int(),
+        priceCp: int(0),
+        detail: str(),
+      })
+    ),
+    // Solicited quantities: what a party's day of soliciting opened up,
+    // spendable until replaced by a fresh solicitation (fractions carry
+    // month-long for the sub-stone merchandise rows).
+    solicitations: new f.ArrayField(
+      new f.SchemaField({
+        partyId: str(),
+        category: str(),
+        monthStartTime: int(),
+        stones: num({ min: 0 }),
+      })
+    ),
     // Import-arrival watermark for idempotent onTimeAdvanced processing.
     lastProcessedTime: int(0),
   });
