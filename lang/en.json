@@ -2801,5 +2801,13 @@
   "ACKS-MARKETS.trade.error.noCharacteristics": "The Market Characteristics table has not been imported.",
   "ACKS-MARKETS.trade.error.notSolicited": "Not enough solicited stock — {remaining} st open. Spend a day soliciting.",
   "ACKS-MARKETS.trade.error.noLoads": "Not enough carried loads — {remaining} st held.",
-  "ACKS-MARKETS.trade.error.negotiationOutrage": "The merchant is outraged — no trade in this good today."
+  "ACKS-MARKETS.trade.error.negotiationOutrage": "The merchant is outraged — no trade in this good today.",
+  "ACKS-MARKETS.parties.title": "Market parties",
+  "ACKS-MARKETS.parties.open": "Configure parties",
+  "ACKS-MARKETS.parties.hint": "Market availability is per party. With no rosters, every player character and their henchmen trade as one party; explicit rosters ledger separately.",
+  "ACKS-MARKETS.parties.implicit": "No explicit parties — the whole table trades as one.",
+  "ACKS-MARKETS.parties.add": "Add party",
+  "ACKS-MARKETS.parties.remove": "Remove party",
+  "ACKS-MARKETS.parties.save": "Save",
+  "ACKS-MARKETS.parties.saved": "Market parties saved."
 }

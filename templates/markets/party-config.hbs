@@ -1,0 +1,27 @@
+<div class="acks-extras-markets-dialog-body">
+  <p class="hint">{{localize "ACKS-MARKETS.parties.hint"}}</p>
+
+  {{#if empty}}
+  <p class="hint">{{localize "ACKS-MARKETS.parties.implicit"}}</p>
+  {{/if}}
+
+  {{#each parties}}
+  <fieldset>
+    <legend>
+      <input type="text" name="parties.{{index}}.name" value="{{name}}">
+      <a data-action="removeParty" data-index="{{index}}" data-tooltip="{{localize 'ACKS-MARKETS.parties.remove'}}"><i class="fas fa-trash"></i></a>
+    </legend>
+    {{#each members}}
+    <label class="checkbox">
+      <input type="checkbox" name="parties.{{../index}}.members.{{acksExtrasDotsToPipes uuid}}" {{#if checked}}checked{{/if}}>
+      {{name}}
+    </label>
+    {{/each}}
+  </fieldset>
+  {{/each}}
+
+  <footer class="form-footer">
+    <button type="button" data-action="addParty"><i class="fas fa-plus"></i> {{localize "ACKS-MARKETS.parties.add"}}</button>
+    <button type="submit"><i class="fas fa-save"></i> {{localize "ACKS-MARKETS.parties.save"}}</button>
+  </footer>
+</div>

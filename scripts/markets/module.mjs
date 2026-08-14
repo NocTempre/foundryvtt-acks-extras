@@ -1,4 +1,4 @@
-/* global game, Hooks, ui, foundry */
+/* global game, Hooks, ui, foundry, Handlebars */
 /**
  * ACKS II — Item Markets. Entry point.
  *
@@ -37,12 +37,30 @@ import {
 import { identifyAttempt, availableMethods, candidateIdentifiers, METHODS } from "./engine/identify.mjs";
 import { postVentureAction, performVentureAction, tradeMerchandise, performVentureTrade, ventureOf } from "./engine/ventures.mjs";
 import { openVentureTradeDialog, VentureTradeDialog } from "./apps/venture-dialog.mjs";
+import { PartyConfigApp } from "./apps/party-config.mjs";
 import { openCommissionDialog, CommissionDialog } from "./apps/commission-dialog.mjs";
 import * as arbitrageRules from "./rules/arbitrage.mjs";
 import { buildMagicPanel } from "./apps/magic-panel.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
+
+  // Uuids carry dots, which expandObject would split; the party-config
+  // form encodes them as pipes and decodes on submit.
+  try {
+    Handlebars.registerHelper("acksExtrasDotsToPipes", (s) => String(s ?? "").replace(/\./g, "|"));
+  } catch (err) {
+    console.warn(`${MODULE_ID} | helper registration failed`, err);
+  }
+
+  game.settings.registerMenu(MODULE_ID, "marketPartiesMenu", {
+    name: `${LANG}.parties.title`,
+    label: `${LANG}.parties.open`,
+    hint: `${LANG}.parties.hint`,
+    icon: "fas fa-people-group",
+    type: PartyConfigApp,
+    restricted: true,
+  });
 
   try {
     const T = `modules/${MODULE_ID}/templates/markets`;
@@ -52,6 +70,7 @@ Hooks.once("init", () => {
       `${T}/sell-dialog.hbs`,
       `${T}/commission-dialog.hbs`,
       `${T}/venture-dialog.hbs`,
+      `${T}/party-config.hbs`,
     ]);
   } catch (err) {
     console.warn(`${MODULE_ID} | markets template preload skipped`, err);
