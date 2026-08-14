@@ -20,6 +20,9 @@
  *              finishes initializing first rather than leaving it to chance.
  *              The `location` Actor sub-type is registered once either way, by
  *              location/module.mjs, which owns it.
+ *   markets    after location — it consumes lib registries, equipment's gear
+ *              grant, henchmen's coin adapter/time/market-class rules, and
+ *              location's market subtree; nothing consumes it.
  *   monsters   last — leaf, nothing depends on it.
  */
 import "./lib/module.mjs";
@@ -30,4 +33,5 @@ import "./formation/module.mjs";
 import "./influence/module.mjs";
 import "./henchmen/module.mjs";
 import "./location/module.mjs";
+import "./markets/module.mjs";
 import "./monsters/module.mjs";
