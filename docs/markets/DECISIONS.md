@@ -50,3 +50,15 @@ class — a bigger share of the same market, not a bigger market. Where the
 effective class guarantees a find that the true class only chances (the RR
 heavy-warhorse example), the find stands: the market total floors at any
 party's find, even on a true-class none cell.
+
+**Addendum (user):** the tenfold market on a %-cell is TEN INDEPENDENT
+rolls at the cell's chance — the successes are the stock (binomial), never
+a fixed decomposition into guaranteed units. Supersedes the 230%→2+30%
+reading above.
+
+**Addendum (user, final):** the tenfold %-cell stock decomposes into
+guaranteed whole units plus AT MOST ONE d100 for the fractional remainder
+(230% → 2 + d100 vs 30). The asking party's own existence roll is made
+FIRST: it floors the stock, and where the floor alone decides the answer
+(no whole units, party found one) the market roll is skipped entirely.
+Quantity cells keep the printed tenfold total as RAW states.

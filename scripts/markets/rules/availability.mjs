@@ -77,20 +77,31 @@ export function marketCap(cell, { pctStock = 0, exists = false } = {}) {
 }
 
 /**
- * Roll the market-wide monthly stock for a %-cell: ten times the cell's
- * chance, split into guaranteed units plus a d100 for the remainder
- * (230% → 2 units + 30% chance of a third). Once per item per month.
+ * The market-wide monthly stock for a %-cell: ten times the cell's chance,
+ * as guaranteed whole units plus AT MOST ONE roll for the fractional
+ * remainder (230% → 2 units, d100 vs 30 for a third). The party's own
+ * existence roll comes FIRST: it floors the stock, and when the floor
+ * already decides the answer (no whole units, party found one) no market
+ * roll is made at all.
+ *
+ * Returns null when a d100 is required and not supplied — the caller rolls
+ * and asks again. Once per item per month.
+ *
  * @param {number} chance - the cell's percent (1–99)
- * @param {() => number} [rand] - percentile source, injectable for tests
+ * @param {object} [o]
+ * @param {boolean} [o.partyFound] - the asking party's existence roll succeeded
+ * @param {number|null} [o.d100] - percentile result for the remainder
+ * @returns {{stock:number, detail:string}|null}
  */
-export function pctMarketStock(chance, rand = Math.random) {
-  const total = Math.max(0, Number(chance) || 0) * MARKET_CAP_MULTIPLIER;
-  const base = Math.floor(total / 100);
-  const rem = total % 100;
-  if (rem <= 0) return { stock: base, detail: `${chance}%×${MARKET_CAP_MULTIPLIER} → ${base}` };
-  const d100 = Math.floor(rand() * 100) + 1;
-  const stock = base + (d100 <= rem ? 1 : 0);
-  return { stock, detail: `${chance}%×${MARKET_CAP_MULTIPLIER} = ${base} + ${rem}%: d100 ${d100} → ${stock}` };
+export function pctMarketStock(chance, { partyFound = false, d100 = null } = {}) {
+  const tenfold = Math.max(0, Number(chance) || 0) * MARKET_CAP_MULTIPLIER;
+  const base = Math.floor(tenfold / 100);
+  const rem = tenfold % 100;
+  if (rem <= 0) return { stock: base, detail: `${chance}% ×${MARKET_CAP_MULTIPLIER} → ${base}` };
+  if (base === 0 && partyFound) return { stock: 1, detail: "party find floors the stock" };
+  if (d100 == null) return null;
+  const stock = Math.max(base + (d100 <= rem ? 1 : 0), partyFound ? 1 : 0);
+  return { stock, detail: `${chance}% ×${MARKET_CAP_MULTIPLIER} = ${base} + ${rem}%: d100 ${d100} → ${stock}` };
 }
 
 /**

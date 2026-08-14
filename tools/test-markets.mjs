@@ -136,14 +136,16 @@ assert.strictEqual(
   "a party's find floors even a none cell at the town's class"
 );
 
-// Market-wide %-stock: ten times the cell's chance, remainder on a d100.
+// Market-wide %-stock: tenfold chance as guaranteed whole units plus at
+// most one roll for the fractional remainder, party roll first.
 {
-  const hi = pctMarketStock(23, () => 0.29); // d100 = 30 ≤ 30 → third unit
-  assert.strictEqual(hi.stock, 3, "230% with remainder success is 3 units");
-  const lo = pctMarketStock(23, () => 0.31); // d100 = 32 > 30
-  assert.strictEqual(lo.stock, 2, "230% with remainder failure is 2 units");
-  assert.strictEqual(pctMarketStock(10, () => 0.99).stock, 1, "100% needs no remainder roll");
-  assert.strictEqual(pctMarketStock(5, () => 0.99).stock, 0, "50% can roll zero market stock");
+  assert.strictEqual(pctMarketStock(23, { d100: 30 }).stock, 3, "230%: remainder d100 30 ≤ 30 stocks a third unit");
+  assert.strictEqual(pctMarketStock(23, { d100: 31 }).stock, 2, "230%: remainder failure keeps the two whole units");
+  assert.strictEqual(pctMarketStock(10, {}).stock, 1, "100% is one whole unit, no roll spent");
+  assert.strictEqual(pctMarketStock(5, {}), null, "50% remainder demands a roll when the floor cannot answer");
+  assert.strictEqual(pctMarketStock(5, { partyFound: true }).stock, 1, "the party's find answers a floor-only cell without a roll");
+  assert.strictEqual(pctMarketStock(5, { d100: 80 }).stock, 0, "a failed remainder with no find stocks nothing");
+  assert.strictEqual(pctMarketStock(15, { partyFound: true, d100: 90 }).stock, 1, "a rolled failure still floors at the party's find");
   assert.strictEqual(
     marketCap({ kind: "pct", chance: 5 }, { pctStock: 0, exists: true }),
     1,

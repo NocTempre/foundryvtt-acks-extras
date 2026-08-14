@@ -323,11 +323,14 @@ export async function purchase(location, payload) {
     }
   }
   if (marketCell.kind === "pct" && !totalsRow.pctStockRolled) {
-    const roll = await d100();
-    const { stock, detail } = pctMarketStock(marketCell.chance, () => (roll - 1) / 100);
-    totalsRow.pctStock = stock;
+    // Party roll first (above): it floors the stock, and when the floor
+    // already decides the answer no market roll is spent.
+    const partyFound = !!existRow?.exists;
+    let plan = pctMarketStock(marketCell.chance, { partyFound });
+    if (!plan) plan = pctMarketStock(marketCell.chance, { partyFound, d100: await d100() });
+    totalsRow.pctStock = plan.stock;
     totalsRow.pctStockRolled = true;
-    totalsRow.pctStockDetail = detail;
+    totalsRow.pctStockDetail = plan.detail;
   }
 
   const room = remainingFor({
@@ -585,11 +588,14 @@ export async function sell(location, payload) {
     }
   }
   if (marketCell.kind === "pct" && !totalsRow.pctStockRolled) {
-    const roll = await d100();
-    const { stock, detail } = pctMarketStock(marketCell.chance, () => (roll - 1) / 100);
-    totalsRow.pctStock = stock;
+    // Party roll first (above): it floors the stock, and when the floor
+    // already decides the answer no market roll is spent.
+    const partyFound = !!existRow?.exists;
+    let plan = pctMarketStock(marketCell.chance, { partyFound });
+    if (!plan) plan = pctMarketStock(marketCell.chance, { partyFound, d100: await d100() });
+    totalsRow.pctStock = plan.stock;
     totalsRow.pctStockRolled = true;
-    totalsRow.pctStockDetail = detail;
+    totalsRow.pctStockDetail = plan.detail;
   }
 
   const room = remainingFor({
