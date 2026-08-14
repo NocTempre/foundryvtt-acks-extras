@@ -16,6 +16,9 @@ import { sumEffectModifiers } from "./effects.mjs";
 // (retainer, henchmenList, gold) stay here.
 import { abilityMod, classLevel, monsterHd } from "../lib/actor-read.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+// A bare `export … from` re-export creates no local binding — spendGold's
+// receipt whisper needs the import itself.
+import { gmIds } from "../lib/util.mjs";
 
 /* ------------------------------ reads ------------------------------ */
 
@@ -324,7 +327,7 @@ export async function delHenchman(employer, hirelingId) {
 
 /* ------------------------------ misc ------------------------------ */
 
-export { gmIds } from "../lib/util.mjs";
+export { gmIds };
 
 export function firstActiveGm() {
   return game.users.activeGM ?? game.users.find((u) => u.isGM && u.active) ?? null;
