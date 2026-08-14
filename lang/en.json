@@ -2853,5 +2853,11 @@
   "ACKS-LOCATION.place.noteHint": "Judge's note on this row",
   "ACKS-LOCATION.place.noteTitle": "Note — {name}",
   "ACKS-ABILITIES.roll.moveUp": "Move up",
-  "ACKS-ABILITIES.roll.moveDown": "Move down"
+  "ACKS-ABILITIES.roll.moveDown": "Move down",
+  "ACKS-INFLUENCE.field.opposed": "Opposed",
+  "ACKS-INFLUENCE.field.opposedHint": "Both sides roll: the target answers with their own charisma and reaction effects. The contest reports who prevailed and by how much; it moves no attitude, because ACKS prints no band for an opposed reaction.",
+  "ACKS-INFLUENCE.result.opposedHeader": "Opposed",
+  "ACKS-INFLUENCE.result.opposedWon": "{name} prevails by {margin}",
+  "ACKS-INFLUENCE.result.opposedTied": "Neither prevails — the contest is a tie",
+  "ACKS-INFLUENCE.result.opposedNoShift": "No attitude moves: the Judge reads the contest."
 }

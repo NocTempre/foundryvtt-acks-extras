@@ -18,6 +18,23 @@
     <span class="influence-chat-dice">{{localize 'ACKS-INFLUENCE.chat.diceMod' dice=diceResult mod=(numberFormat modifier sign=true)}}</span>
   </div>
 
+  {{#if opposed}}
+  {{!-- An opposed contest: each side's own stack, the verdict, and no
+        attitude — ACKS prints no band for one, so none is invented. --}}
+  <div class="influence-chat-band"><strong>{{localize 'ACKS-INFLUENCE.result.opposedHeader'}}</strong></div>
+  <div class="influence-chat-opposed">
+    <span class="influence-chat-dice">{{opposed.name}}: {{opposed.total}}
+      {{localize 'ACKS-INFLUENCE.chat.diceMod' dice=opposed.dice mod=(numberFormat opposed.modifier sign=true)}}</span>
+  </div>
+  <div class="influence-chat-attitude">
+    {{#if opposed.tied}}
+      {{localize 'ACKS-INFLUENCE.result.opposedTied'}}
+    {{else}}
+      <span class="influence-chat-new">{{localize 'ACKS-INFLUENCE.result.opposedWon' name=opposed.winner margin=opposed.margin}}</span>
+    {{/if}}
+  </div>
+  <div class="influence-chat-shift">{{localize 'ACKS-INFLUENCE.result.opposedNoShift'}}</div>
+  {{else}}
   <div class="influence-chat-band"><strong>{{localize 'ACKS-INFLUENCE.chat.reaction'}}:</strong> {{bandLabel}}</div>
 
   <div class="influence-chat-attitude">
@@ -30,6 +47,7 @@
     {{#if timeLabel}}
       <div class="influence-chat-time"><strong>{{localize 'ACKS-INFLUENCE.chat.time'}}:</strong> {{timeLabel}}</div>
     {{/if}}
+  {{/if}}
   {{/if}}
 
   {{#if bribePaid}}

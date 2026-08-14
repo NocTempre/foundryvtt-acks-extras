@@ -32,6 +32,7 @@ import {
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
 import { ITEM_TYPE, scopeApplies } from "../lib/vocab.mjs";
+import { abilityMod } from "../lib/actor-read.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -128,6 +129,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       attempt: 0,
       currentAttitude: 2, // Neutral
       gmAdjustment: 0, // generic GM catch-all bucket
+      // Two actors rolling against each other rather than one actor against a
+      // situation. Off by default: the ordinary reaction roll is the rule.
+      opposed: false,
       bribeFeeOverridden: false, // true once the GM edits the bribe fee by hand
       // Detected target race/kind tokens (comma list); editable like other autos.
       targetKind: this.#autoTargetKind(),
@@ -771,6 +775,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     }
 
     // An edited target kind re-gates `vs`-scoped effects and the relations row.
+    // Opposed is a plain toggle: no defaults to reconcile, no override state.
+    if (data.opposed !== undefined) this.#system.opposed = !!data.opposed;
+
     if (data.targetKind !== undefined && String(data.targetKind) !== this.#system.targetKind) {
       this.#system.targetKind = String(data.targetKind);
       this.#system.targetKindOverridden = String(data.targetKind).trim() !== this.#autoTargetKind();
@@ -950,6 +957,39 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       default:
         return "";
     }
+  }
+
+  /**
+   * The target's side of an opposed contest, or null when the page is not in
+   * opposed mode (the ordinary reaction roll, against a situation).
+   *
+   * The target's stack is THEIRS: their charisma, and the reaction effects
+   * whose subject is the target — read through the same `getEffectReactionMods`
+   * the roller's side uses, just pointed at the other actor.
+   */
+  async #rollOpposed(actorRoll, actorTotal) {
+    if (!this.#system.opposed || !this.#targetActor) return null;
+    const cha = abilityMod(this.#targetActor, "cha");
+    const effectMods = getEffectReactionMods(this.#targetActor).filter((m) =>
+      scopeApplies(m, { tone: this.#system.tone, ...this.#ctx }, this.#optionalRules()).applies,
+    );
+    const effectTotal = effectMods.reduce((sum, m) => sum + (Number(m.value) || 0), 0);
+    const modifier = cha + effectTotal;
+    const roll = new Roll(`2d6 + (${modifier})`);
+    await roll.evaluate();
+    const total = roll.total;
+    const margin = actorTotal - total;
+    return {
+      name: this.#targetActor.name,
+      dice: roll.dice[0]?.total ?? total - modifier,
+      modifier,
+      total,
+      margin: Math.abs(margin),
+      winner: margin === 0 ? null : margin > 0 ? this.#actor?.name : this.#targetActor.name,
+      tied: margin === 0,
+      mods: effectMods.map((m) => ({ label: m.label ?? m.source ?? "", value: m.value })),
+      roll,
+    };
   }
 
   /* -------------------------------------------- */
@@ -1152,6 +1192,16 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     // If a bribe was offered with a fee, move the gold now.
     const bribePaid = await this.#maybePayBribe();
 
+    // OPPOSED: the target rolls their own stack against the influencer's,
+    // rather than the influencer rolling against a situation. Each side keeps
+    // its OWN modifiers — the target's CHA and the reaction effects that name
+    // the target as their subject — which is why the resolver carries a
+    // subject at all: an effect aimed at an opponent must not fold into the
+    // roller's total. The contest reports who prevailed and by how much; it
+    // moves no attitude, because ACKS prints no band for an opposed reaction
+    // and inventing one would be inventing a rule.
+    const opposed = await this.#rollOpposed(roll, total);
+
     const result = {
       toneLabel,
       bribePaid,
@@ -1171,6 +1221,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       bewitched: bewitchedActive && total >= 12,
       attempt: this.#system.attempt,
       timeLabel: isContinuing && timeStep ? game.i18n.localize(timeStep.label) : null,
+      opposed,
       ...this.#rawNotes(tone, newIndex, diceResult),
     };
 
@@ -1203,6 +1254,13 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         rolls: [roll],
         flags: { [MODULE_ID]: { influence: true, rollResult: result } },
       });
+    }
+
+    // An opposed contest resolves between the two rolls and nowhere else: it
+    // has no printed band, so it may not move the tracked attitude.
+    if (opposed) {
+      if (this.rendered) this.render();
+      return;
     }
 
     // Advance the tracker to the new attitude and step to the next attempt level

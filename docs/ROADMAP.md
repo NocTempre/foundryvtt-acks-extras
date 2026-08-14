@@ -65,15 +65,6 @@ parked here.
 
 ---
 
-## Influence
-
-An **opposed mode** — two actors rolling against each other rather than one actor
-against a situation. The subject of an effect is already carried through the
-resolver for this reason, so an effect aimed at an opponent is not silently
-folded in as a modifier on the roller.
-
----
-
 ## Groups
 
 `lib/group-logic.mjs` reads a monster's number-appearing to size a group. The

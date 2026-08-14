@@ -162,6 +162,14 @@
       <input type="number" name="finalTotal" id="{{@root.partId}}-total" value="{{finalModifier}}" data-dtype="Number"
              class="influence-final" data-tooltip="{{localize 'ACKS-INFLUENCE.field.finalModifierHint'}}"/>
     {{/if}}
+    {{#unless externalMode}}{{#if hasTarget}}
+    {{!-- Two actors rolling against each other. Hidden without a target and in
+          the external modes, which are single rolls by construction. --}}
+    <label class="checkbox influence-opposed" data-tooltip="{{localize 'ACKS-INFLUENCE.field.opposedHint'}}">
+      <input type="checkbox" name="opposed" {{#if system.opposed}}checked{{/if}}/>
+      {{localize 'ACKS-INFLUENCE.field.opposed'}}
+    </label>
+    {{/if}}{{/unless}}
     <button type="button" data-action="roll" class="influence-roll-btn">
       <i class="fa-solid fa-dice"></i> {{localize 'ACKS-INFLUENCE.action.roll'}}
     </button>
