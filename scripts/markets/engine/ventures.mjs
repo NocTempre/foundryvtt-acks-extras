@@ -96,7 +96,7 @@ export async function postVentureAction(location, payload) {
     if (!ch) return err("noCharacteristics");
     tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(cargoSt) || 0));
     if (tollCp > 0) {
-      const paid = await adapter.spendGold(actor, toGp(tollCp), game.i18n.localize(`${LANG}.ventures.tollReason`));
+      const paid = await adapter.spendGold(actor, toGp(tollCp), game.i18n.localize(`${LANG}.ventures.tollReason`), { to: location, at: location });
       if (!paid) return err("insufficientGold");
     }
   } else {
@@ -353,7 +353,7 @@ export async function tradeMerchandise(location, payload) {
   const label = game.i18n.localize(merchandiseLabel(category));
 
   if (direction === "buy") {
-    const paid = await adapter.spendGold(actor, totalGp, game.i18n.format(`${LANG}.ventures.buyReason`, { stones, label }));
+    const paid = await adapter.spendGold(actor, totalGp, game.i18n.format(`${LANG}.ventures.buyReason`, { stones, label }), { to: location, at: location });
     if (!paid) return err("insufficientGold");
     // Merchandise loads: one item per category, one unit per stone.
     const carried = actor.items.find(
@@ -385,7 +385,7 @@ export async function tradeMerchandise(location, payload) {
     if (!carried || held < stones) return err("noLoads", { remaining: held });
     if (held > stones) await carried.update({ "system.quantity.value": held - stones });
     else await carried.delete();
-    await adapter.grantGold(actor, totalGp);
+    await adapter.grantGold(actor, totalGp, { from: location, at: location, allowMint: true });
   }
 
   srow.stones -= stones;

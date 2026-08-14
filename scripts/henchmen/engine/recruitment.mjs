@@ -473,6 +473,8 @@ async function chargeWeeklyFee(location, employer, week = 1) {
   if (employer) {
     paid = await adapter.spendGold(employer, gp, game.i18n.format("ACKS-HENCHMEN.fee.reason", { name: location.name }), {
       chat: false, // the roll card above IS the receipt
+      to: location,
+      at: location,
     });
   }
   return { gp, paid };

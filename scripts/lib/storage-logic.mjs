@@ -246,7 +246,15 @@ function canon(value) {
 export function stackSignature(plain, { byOwner = false } = {}) {
   if (!quantityOf(plain)) return null; // unstackable: weapons, armour
   const owner = byOwner ? (storageFlagOf(plain)?.ownerUuid ?? "") : "";
-  if (isMoney(plain)) return `money|${owner}|${num(plain.system?.coppervalue, 1)}`;
+  // Coin identity is the KIND, not just the rate: a local variation ("Gold,
+  // debased") is a separate stack everywhere it travels, even at the same
+  // coppervalue — face value is intrinsic to the coin; what a place GIVES for
+  // it is valuation, applied at spend time, never baked into the stack
+  // (owner ruling 2026-08-14).
+  if (isMoney(plain)) {
+    const kind = String(plain.name ?? "").trim().toLowerCase();
+    return `money|${owner}|${num(plain.system?.coppervalue, 1)}|${kind}`;
+  }
   if (plain.effects?.length) return null;
 
   const wrapper = { system: structuredClone(plain.system ?? {}) };

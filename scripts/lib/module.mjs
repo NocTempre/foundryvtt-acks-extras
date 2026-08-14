@@ -34,6 +34,8 @@ import * as services from "./services.mjs";
 import * as itemModel from "./item-model.mjs";
 import * as mount from "./mount.mjs";
 import * as capacity from "./capacity.mjs";
+import * as money from "./money.mjs";
+import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
 import * as actorRead from "./actor-read.mjs";
@@ -115,6 +117,13 @@ const localImpl = Object.freeze({
    * a character, a monster or mount (rider included), and a container item.
    */
   capacity,
+  /**
+   * Money as a physical thing (money.mjs + money-logic.mjs): transferCoin —
+   * the location-gated payment that lands coin on the payee's stacks and
+   * makes change by the same arithmetic — with the smallest-first planner,
+   * exchange terms by place, the HOUSE_OWNER sentinel and creditCoin.
+   */
+  money: { ...moneyLogic, ...money },
   /**
    * What a creature perceives (senses.mjs): canSeeInDark for the movement
    * rules, senseProfile for the Foundry sight a token should carry.

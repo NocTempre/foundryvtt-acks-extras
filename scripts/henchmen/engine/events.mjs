@@ -21,6 +21,7 @@ import { FLAG_GROUP_PAY } from "./hire-group.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { collectEffectModifiers, sumEffectModifiers, toDialogModifiers, hasEffectFlag } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
+import { transferCoin } from "../../lib/money.mjs";
 import { openThrowDialog } from "../apps/throw-dialog.mjs";
 import { postEventCard, registerCardAction, postRevealCard } from "../chat/cards.mjs";
 import { getSetting } from "../settings.mjs";
@@ -476,19 +477,26 @@ export async function payWagesFor(employer, { markMissed = false } = {}) {
     return;
   }
   const total = due.reduce((s, d) => s + d.amount, 0);
-  if (!markMissed) {
-    const paid = await adapter.spendGold(employer, total, game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: due.length }));
+  if (!markMissed && adapter.getGold(employer) + 0.005 < total) {
     // Insufficient funds is a STOP, not a silent slide into "missed": no
-    // payday recorded, no arrears, no calamity. spendGold already told the
-    // table who cannot pay what; the GM can sell something and press Pay
-    // again, pay by hand, or press "Mark missed" meaning it.
-    if (!paid) return;
+    // payday recorded, no arrears, no calamity. The GM can sell something and
+    // press Pay again, pay by hand, or press "Mark missed" meaning it.
+    ui.notifications.warn(
+      game.i18n.format("ACKS-HENCHMEN.gold.insufficient", {
+        name: employer.name,
+        gp: total.toFixed(0),
+        reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: due.length }),
+      }),
+    );
+    return;
   }
   const toBank = getSetting("wagesToBank");
   for (const d of due) {
     if (d.isGroup) {
-      // A unit has no bank to credit — the gold already left the employer above.
-      // Record the payday; a missed month accrues arrears and drops morale.
+      // A unit is paid as a body: its wage physically lands on the GROUP
+      // actor's stacks (money always sits somewhere), representable coin
+      // only — what no changer can split books as arrears alongside a missed
+      // month's.
       const pay = d.group.getFlag(MODULE_ID, FLAG_GROUP_PAY) ?? {};
       if (markMissed) {
         await d.group.setFlag(MODULE_ID, FLAG_GROUP_PAY, {
@@ -497,7 +505,13 @@ export async function payWagesFor(employer, { markMissed = false } = {}) {
         });
         await adjustGroupMorale(d.group, -1);
       } else {
-        await d.group.setFlag(MODULE_ID, FLAG_GROUP_PAY, { ...pay, lastPaidTime: d.paidThrough });
+        const r = await transferCoin({ from: employer, to: d.group, gp: d.amount, upTo: true, reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: 1 }) });
+        const arrearsGp = (r.arrearsCp ?? 0) / 100;
+        await d.group.setFlag(MODULE_ID, FLAG_GROUP_PAY, {
+          ...pay,
+          lastPaidTime: d.paidThrough,
+          ...(arrearsGp > 0 ? { arrearsGp: (pay.arrearsGp ?? 0) + arrearsGp } : {}),
+        });
       }
       continue;
     }
@@ -510,11 +524,18 @@ export async function payWagesFor(employer, { markMissed = false } = {}) {
       await HenchmanRecord.logEvent(actor, { type: "wageMissed", note: `${amount} gp` });
       await recordCalamity(actor, game.i18n.localize("ACKS-HENCHMEN.wage.missedCalamity"));
     } else {
-      // The transfer: credit the hireling (bank by default).
-      await adapter.grantGold(actor, amount, { toBank });
+      // The transfer: the employer's coins land on the hireling (bank by
+      // default). What the purse cannot represent exactly — no changer in the
+      // wilderness — books as arrears until one is found.
+      const r = await transferCoin({ from: employer, to: actor, gp: amount, upTo: true, toBank, reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: 1 }) });
+      const owedGp = (r.arrearsCp ?? 0) / 100;
       await actor.setFlag(MODULE_ID, FLAG_RECORD, {
         ...record,
-        terms: { ...(record.terms ?? {}), lastPaidTime: paidThrough },
+        terms: {
+          ...(record.terms ?? {}),
+          lastPaidTime: paidThrough,
+          ...(owedGp > 0 ? { arrearsGp: (record.terms?.arrearsGp ?? 0) + owedGp } : {}),
+        },
       });
       await HenchmanRecord.logEvent(actor, {
         type: "wagePaid",
