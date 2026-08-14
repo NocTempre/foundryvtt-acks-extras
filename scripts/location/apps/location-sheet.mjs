@@ -34,8 +34,9 @@ import { openRecruitDialog, openRecruitSpecial } from "../../henchmen/apps/recru
 import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
-import { buildCatalog, availabilityFor, performSearchDay } from "../../markets/engine/trade.mjs";
+import { buildCatalog, availabilityFor, performSearchDay, salePlan, demandStepsFor, categoryOf } from "../../markets/engine/trade.mjs";
 import { openPurchaseDialog } from "../../markets/apps/purchase-dialog.mjs";
+import { openSellDialog } from "../../markets/apps/sell-dialog.mjs";
 import { merchandiseLabel } from "../../markets/config.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -119,6 +120,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       unlinkScene: LocationSheet.#onUnlinkScene,
       // --- trade tab (engine + dialogs live in the markets feature) ---
       openPurchase: LocationSheet.#onOpenPurchase,
+      openSell: LocationSheet.#onOpenSell,
       marketsSearchDay: LocationSheet.#onMarketsSearchDay,
       toggleMasterworkContact: LocationSheet.#onToggleMasterworkContact,
       // --- the market gate ---
@@ -1041,6 +1043,26 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     });
     context.masterworkContact = !!goods.masterworkContact;
     context.extendedSearchOn = game.settings.get(MODULE_ID, "marketsExtendedSearch");
+    // The viewer's sellable goods: priced mundane gear, or magic items whose
+    // flags give them a market value.
+    context.sellRows = !trader
+      ? []
+      : trader.items
+          .filter((i) => ["weapon", "armor", "item"].includes(i.type))
+          .map((i) => {
+            const data = i.toObject();
+            const plan = salePlan(data, { demandSteps: demandStepsFor(goods, categoryOf(data)) });
+            return plan.unitCp > 0 && plan.bandValueGp > 0
+              ? {
+                  id: i.id,
+                  name: i.name,
+                  img: i.img,
+                  qty: Number(data.system?.quantity?.value ?? 1) || 1,
+                  estimateGp: Math.round(plan.unitCp) / 100,
+                }
+              : null;
+          })
+          .filter(Boolean);
     const seeDemand = context.isGM || goods.playersSeeDemand;
     context.demandRows = seeDemand
       ? (goods.demand ?? []).map((d) => ({
@@ -1055,6 +1077,15 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const key = target?.dataset?.key;
     const row = (this._tradeCatalog ?? []).find((r) => r.key === key);
     if (row) openPurchaseDialog(this.actor, row);
+  }
+
+  /** Open the sell dialog for one of the viewer's carried items. */
+  static async #onOpenSell(_event, target) {
+    const trader =
+      game.user.character ??
+      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
+    const item = trader?.items.get(target?.dataset?.itemId);
+    if (trader && item) openSellDialog(this.actor, trader, item);
   }
 
   /** Spend a further dedicated day searching this market. */

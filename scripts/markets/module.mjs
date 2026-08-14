@@ -16,16 +16,17 @@ import * as availabilityRules from "./rules/availability.mjs";
 import * as pricingRules from "./rules/pricing.mjs";
 import * as importRules from "./rules/imports.mjs";
 // Importing the engine registers the GM socket handlers at module scope.
-import { purchase, performPurchase, performSearchDay, availabilityFor, buildCatalog, abilityRanks } from "./engine/trade.mjs";
+import { purchase, sell, performPurchase, performSell, performSearchDay, availabilityFor, buildCatalog, salePlan, abilityRanks } from "./engine/trade.mjs";
 import { partyOf, partySize } from "./engine/parties.mjs";
 import { openPurchaseDialog, PurchaseDialog } from "./apps/purchase-dialog.mjs";
+import { openSellDialog, SellDialog } from "./apps/sell-dialog.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
 
   try {
     const T = `modules/${MODULE_ID}/templates/markets`;
-    foundry.applications.handlebars.loadTemplates([`${T}/trade-tab.hbs`, `${T}/purchase-dialog.hbs`]);
+    foundry.applications.handlebars.loadTemplates([`${T}/trade-tab.hbs`, `${T}/purchase-dialog.hbs`, `${T}/sell-dialog.hbs`]);
   } catch (err) {
     console.warn(`${MODULE_ID} | markets template preload skipped`, err);
   }
@@ -49,16 +50,21 @@ Hooks.once("setup", () => {
     getSetting,
     // engine (local-first; relays through the GM socket when the seat cannot write)
     purchase,
+    sell,
     performPurchase,
+    performSell,
     performSearchDay,
     availabilityFor,
     buildCatalog,
+    salePlan,
     abilityRanks,
     partyOf,
     partySize,
     // apps
     openPurchaseDialog,
     PurchaseDialog,
+    openSellDialog,
+    SellDialog,
     // rules (pure)
     rules: { ...availabilityRules, ...pricingRules, imports: importRules },
   };

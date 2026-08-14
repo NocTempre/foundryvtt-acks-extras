@@ -55,4 +55,30 @@
   {{else}}
   <p class="hint">{{localize "ACKS-MARKETS.trade.emptyCatalog"}}</p>
   {{/if}}
+
+  {{#if sellRows.length}}
+  <h3><i class="fas fa-hand-holding-dollar"></i> {{localize "ACKS-MARKETS.sale.header"}}{{#if tradeActor}} — {{tradeActor.name}}{{/if}}</h3>
+  <table class="candidates-table acks-extras-markets-table">
+    <thead>
+      <tr>
+        <th>{{localize "ACKS-MARKETS.trade.item"}}</th>
+        <th>{{localize "ACKS-MARKETS.sale.carried"}}</th>
+        <th>{{localize "ACKS-MARKETS.sale.estimate"}}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each sellRows}}
+      <tr>
+        <td><img src="{{img}}" width="22" height="22" alt=""> {{name}}</td>
+        <td>{{qty}}</td>
+        <td>{{estimateGp}}gp</td>
+        <td class="row-actions">
+          <a data-action="openSell" data-item-id="{{id}}" data-tooltip="{{localize 'ACKS-MARKETS.sale.sell'}}"><i class="fas fa-hand-holding-dollar"></i></a>
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{/if}}
 </div>

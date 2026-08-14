@@ -1,0 +1,35 @@
+<div class="acks-extras-markets-dialog-body">
+  <div class="acks-extras-markets-itemline">
+    <img src="{{item.img}}" width="28" height="28" alt="">
+    <strong>{{item.name}}</strong>
+    <span>{{item.costGp}}gp</span>
+  </div>
+  <p class="hint">{{availability}}</p>
+  <p class="hint">{{localize "ACKS-MARKETS.sale.previewLabel"}}: {{previewGp}}gp ({{basis}})</p>
+
+  {{#if stackable}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.purchase.qty"}} (≤ {{carried}})</label>
+    <input type="number" name="qty" value="1" min="1" max="{{carried}}" step="1">
+  </div>
+  {{else}}
+  <input type="hidden" name="qty" value="1">
+  {{/if}}
+
+  {{#if isGM}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.purchase.merchantRanks"}}</label>
+    <input type="number" name="merchantRanks" value="0" min="0" max="3" step="1">
+  </div>
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.purchase.merchantCha"}}</label>
+    <input type="number" name="merchantCha" value="1" min="-3" max="3" step="1">
+  </div>
+  {{/if}}
+
+  <p class="hint">{{localize "ACKS-MARKETS.sale.destroyHint"}}</p>
+
+  <footer class="form-footer">
+    <button type="submit"><i class="fas fa-hand-holding-dollar"></i> {{localize "ACKS-MARKETS.sale.submit"}}</button>
+  </footer>
+</div>

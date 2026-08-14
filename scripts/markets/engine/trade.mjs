@@ -1,4 +1,4 @@
-/* global game, ui, foundry, ChatMessage, Roll, fromUuid */
+/* global game, ui, foundry, Hooks, ChatMessage, Roll, fromUuid */
 /**
  * The goods-trade engine: the ONLY writer of `system.market.goods`.
  *
@@ -17,10 +17,10 @@ import {
   pctMarketStock,
   itemKeyOf,
 } from "../rules/availability.mjs";
-import { quote, bargainWinner, toGp } from "../rules/pricing.mjs";
+import { quote, magicQuote, magicBandValueGp, bargainWinner, toGp } from "../rules/pricing.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { ITEM_TYPE, slug } from "../../lib/vocab.mjs";
-import { getTable } from "../../henchmen/rules/tables.mjs";
+import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { now, calendarMonthStart, secondsPerMonth } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
@@ -422,6 +422,207 @@ export async function purchase(location, payload) {
   return { ok: true, qty, unitGp: toGp(priced.unitCp), totalGp };
 }
 
+/** The markets flag bag on an item ({magic, apparentValueGp, identified…}). */
+const marketsFlag = (itemData) => itemData?.flags?.[MODULE_ID]?.[ITEM_FLAG] ?? {};
+
+/**
+ * Sale pricing and band placement for one owned item. Mundane gear sells at
+ * its condition-reduced value (the reduced value also picks its availability
+ * band, RR §IV.7) with demand and Bargaining applied; a magic item trades by
+ * identification — apparent value short of full identification, base cost
+ * (twice if self-made) at full — on the JJ transaction grid, which prints
+ * the equipment availability cells and substitutes for them when a world
+ * has not imported it separately.
+ */
+export function salePlan(itemData, { demandSteps = 0, bargain = null } = {}) {
+  const costGp = Number(itemData.system?.cost ?? 0);
+  const flag = marketsFlag(itemData);
+  if (flag.magic) {
+    const m = magicQuote({
+      baseCostGp: flag.baseCostGp ?? costGp,
+      apparentValueGp: flag.apparentValueGp ?? 0,
+      identified: flag.identified ?? "none",
+      selfMade: !!flag.selfMade,
+      direction: "sell",
+    });
+    return {
+      unitCp: m.unitCp,
+      basis: m.basis,
+      bandValueGp: magicBandValueGp({ baseCostGp: flag.baseCostGp ?? costGp, apparentValueGp: flag.apparentValueGp ?? 0, identified: flag.identified ?? "none" }),
+      magic: true,
+      breakdown: [{ label: m.basis, cp: m.unitCp }],
+    };
+  }
+  const valueMult = Number(itemData.flags?.[MODULE_ID]?.scavenged?.valueMultiplier ?? 1) || 1;
+  const priced = quote({ costGp, direction: "sell", valueMult, demandSteps, bargain });
+  return { unitCp: priced.unitCp, basis: "base", bandValueGp: costGp * valueMult, magic: false, breakdown: priced.breakdown };
+}
+
+/** The availability grid a sale (or magic purchase) prices volume on. */
+function bandRowsFor(magic) {
+  if (magic) {
+    const t = optTable("magicItems", "transactionsByMarketClass");
+    if (t?.rows?.length) return t.rows;
+  }
+  return getTable("availability", "equipmentAvailability").rows ?? [];
+}
+
+/**
+ * The atomic sale: same monthly cells as buying, charged to the independent
+ * `sold` counters. The sold document is DESTROYED — a quantity stack
+ * decrements, anything else leaves play (user ruling; the JJ removes items
+ * sold to the Tower from play).
+ */
+export async function sell(location, payload) {
+  const {
+    sellerUuid,
+    itemId,
+    qty: rawQty,
+    merchantRanks = 0,
+    merchantCha = 1,
+    requestUserId = null,
+    resolutionId = "",
+  } = payload;
+
+  const sellerDoc = await fromUuid(sellerUuid).catch(() => null);
+  const seller = sellerDoc?.actor ?? sellerDoc;
+  if (!seller) return err("noBuyer");
+  if (!location?.system?.market?.goods) return err("noMarket");
+  if (requestUserId) {
+    const user = game.users.get(requestUserId);
+    if (!user?.isGM && !seller.testUserPermission(user, "OWNER")) return err("notYours");
+  }
+  const item = seller.items.get(itemId);
+  if (!item) return err("noItem");
+  const itemData = item.toObject();
+  if (![ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item].includes(itemData.type)) return err("untradeable");
+
+  const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
+
+  const stackable = itemData.type === ITEM_TYPE.item;
+  const carried = stackable ? Number(itemData.system?.quantity?.value ?? 1) : 1;
+  const qty = Math.min(Math.max(1, Math.floor(Number(rawQty) || 1)), Math.max(1, carried));
+
+  // Price first (the plan also names the band value), then availability.
+  const goods = goodsOf(location);
+  const partyRanks = abilityRanks(seller, "Bargaining");
+  const flag = marketsFlag(itemData);
+  let opposed = null;
+  if (!flag.magic && partyRanks > 0 && merchantRanks > 0) {
+    opposed = await opposedBargain({ trader: seller, partyRanks, merchantRanks, merchantCha });
+  }
+  const bargain = flag.magic ? null : bargainWinner({ partyRanks, merchantRanks, opposedWinner: opposed?.winner ?? null });
+  const plan = salePlan(itemData, { demandSteps: demandStepsFor(goods, categoryOf(itemData)), bargain });
+  if (!(plan.unitCp > 0) || !(plan.bandValueGp > 0)) return err("untradeable");
+
+  const rows = bandRowsFor(plan.magic);
+  const band = priceBandOf(plan.bandValueGp, rows);
+  if (!band) return err("untradeable");
+  const marketClass = effectiveMarketClass(location, seller);
+  if (marketClass == null) return err("noMarket");
+  const cell = cellFor(band, marketClass);
+  if (cell.kind === "none") return err("unavailable");
+
+  const monthStart = marketMonthStart();
+  const key = itemKeyOf(itemData.name);
+  const party = partyOf(seller);
+  goods.ledger = thisMonth(goods.ledger, monthStart);
+  goods.existenceRolls = thisMonth(goods.existenceRolls, monthStart);
+  goods.totals = thisMonth(goods.totals, monthStart);
+  goods.partyMonths = thisMonth(goods.partyMonths, monthStart);
+
+  const partyMonth = ensureRow(
+    goods.partyMonths,
+    (r) => r.partyId === party.id,
+    { partyId: party.id, monthStartTime: monthStart, searchDays: 0, dedicated: false }
+  );
+  const totalsRow = ensureRow(
+    goods.totals,
+    (r) => r.itemKey === key,
+    { itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0, pctStock: 0, pctStockRolled: false, pctStockDetail: "" }
+  );
+  const ledgerRow = ensureRow(
+    goods.ledger,
+    (r) => r.partyId === party.id && r.itemKey === key,
+    { partyId: party.id, itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0 }
+  );
+
+  let existRow = null;
+  if (cell.kind === "pct") {
+    existRow = ensureRow(
+      goods.existenceRolls,
+      (r) => r.partyId === party.id && r.itemKey === key,
+      { partyId: party.id, itemKey: key, monthStartTime: monthStart, exists: false, detail: "" }
+    );
+    if (!existRow.detail) {
+      const roll = await d100();
+      existRow.exists = roll <= cell.chance;
+      existRow.detail = `d100 ${roll} vs ${cell.chance}%`;
+    }
+    if (!totalsRow.pctStockRolled) {
+      const roll = await d100();
+      const { stock, detail } = pctMarketStock(cell.chance, () => (roll - 1) / 100);
+      totalsRow.pctStock = stock;
+      totalsRow.pctStockRolled = true;
+      totalsRow.pctStockDetail = detail;
+    }
+  }
+
+  const room = remainingFor({
+    cell,
+    direction: "sold",
+    ledgerRow,
+    totalsRow,
+    doubled: !!partyMonth.dedicated,
+    extraSearchDays: Number(partyMonth.searchDays ?? 0),
+    exists: !!existRow?.exists,
+    pctStock: Number(totalsRow.pctStock ?? 0),
+  });
+  if (qty > room.remaining) {
+    if (getSetting("marketsEnforceCaps")) return err("capExceeded", { remaining: room.remaining });
+    ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining: room.remaining }));
+  }
+
+  const totalGp = toGp(plan.unitCp * qty);
+  await adapter.grantGold(seller, totalGp);
+
+  // The sold goods leave play.
+  if (stackable && carried > qty) {
+    await item.update({ "system.quantity.value": carried - qty });
+  } else {
+    await item.delete();
+  }
+
+  ledgerRow.sold += qty;
+  totalsRow.sold += qty;
+  const stamp = resolutionId ? ` [${resolutionId}]` : "";
+  const newLog = appendLog(log, {
+    time: now(),
+    type: "sale",
+    note: `${seller.name}: sold ${qty}× ${itemData.name} @ ${toGp(plan.unitCp)}gp = ${totalGp}gp${stamp}`,
+  });
+  await location.update({
+    "system.market.goods.ledger": goods.ledger,
+    "system.market.goods.existenceRolls": goods.existenceRolls,
+    "system.market.goods.totals": goods.totals,
+    "system.market.goods.partyMonths": goods.partyMonths,
+    "system.market.marketLog": newLog,
+  });
+
+  const lines = [
+    `<strong>${game.i18n.format(`${LANG}.trade.soldLine`, { seller: seller.name, qty, name: itemData.name, location: location.name })}</strong>`,
+    ...plan.breakdown.map((b) => `${game.i18n.localize(`${LANG}.trade.stage.${b.label}`)}: ${toGp(b.cp)}gp`),
+    opposed ? opposed.detail : null,
+    existRow ? `${game.i18n.localize(`${LANG}.trade.existence`)}: ${existRow.detail}` : null,
+    `<strong>${game.i18n.format(`${LANG}.trade.earnedLine`, { total: totalGp })}</strong>`,
+  ].filter(Boolean);
+  await postReceipt({ location, trader: seller, html: lines.join("<br>") });
+
+  Hooks.callAll(HOOKS.SOLD, { location, seller, itemName: itemData.name, qty, totalGp });
+  return { ok: true, qty, unitGp: toGp(plan.unitCp), totalGp };
+}
+
 /**
  * Spend one further dedicated day searching the market (setting-gated house
  * extension recorded in DECISIONS): raises this party's per-item cap by one
@@ -475,6 +676,13 @@ registerHandler("marketsPurchase", async ({ locationUuid, ...payload }) => {
   return purchase(location, payload);
 });
 
+registerHandler("marketsSale", async ({ locationUuid, ...payload }) => {
+  const doc = await fromUuid(locationUuid).catch(() => null);
+  const location = doc?.actor ?? doc;
+  if (!location) return err("noMarket");
+  return sell(location, payload);
+});
+
 registerHandler("marketsSearchDay", async ({ locationUuid, ...payload }) => {
   const doc = await fromUuid(locationUuid).catch(() => null);
   const location = doc?.actor ?? doc;
@@ -490,6 +698,16 @@ export async function performPurchase(location, payload) {
       (await fromUuid(payload.buyerUuid).catch(() => null))?.testUserPermission?.(game.user, "OWNER"));
   if (canLocal) return purchase(location, { ...payload, requestUserId: game.user.isGM ? null : game.user.id });
   return executeAsGM("marketsPurchase", { locationUuid: location.uuid, ...payload, requestUserId: game.user.id });
+}
+
+/** Local-first dispatch for a sale. */
+export async function performSell(location, payload) {
+  const canLocal =
+    game.user.isGM ||
+    (location.testUserPermission(game.user, "OWNER") &&
+      (await fromUuid(payload.sellerUuid).catch(() => null))?.testUserPermission?.(game.user, "OWNER"));
+  if (canLocal) return sell(location, { ...payload, requestUserId: game.user.isGM ? null : game.user.id });
+  return executeAsGM("marketsSale", { locationUuid: location.uuid, ...payload, requestUserId: game.user.id });
 }
 
 /** Local-first dispatch for the extended-search day. */
