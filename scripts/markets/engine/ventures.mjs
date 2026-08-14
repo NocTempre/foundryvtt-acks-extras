@@ -212,6 +212,8 @@ export async function processVentureActions(location, log, t) {
       row.cargoSt = action.cargoSt;
       row.impact = impact;
       row.effectiveClass = effectiveClass;
+      // The toll was paid when the action was posted; the row records it.
+      row.tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(action.cargoSt) || 0));
       row.entered = true;
       log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market, impact ${impact}` });
       await postCard(actor, `<strong>${game.i18n.format(`${LANG}.ventures.enteredLine`, { name: actor.name, location: location.name, impact })}</strong>`);

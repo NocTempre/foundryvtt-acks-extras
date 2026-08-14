@@ -152,7 +152,7 @@ export function goodsSchema() {
     actions: new f.ArrayField(
       new f.SchemaField({
         id: str(),
-        kind: new f.StringField({ required: true, initial: "assess", choices: ["enter", "assess", "solicit"] }),
+        kind: new f.StringField({ required: true, initial: "assess", choices: ["enter", "assess", "solicit", "extraSearch"] }),
         partyId: str(),
         actorUuid: str(),
         category: str(), // solicit: merchandise-type key

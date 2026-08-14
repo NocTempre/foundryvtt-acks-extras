@@ -33,6 +33,7 @@ import {
   demandStepsFor,
   marketMonthStart,
   resolveMonthlyAvailability,
+  resolveSearchDayActions,
   goodsOf,
 } from "./trade.mjs";
 
@@ -164,9 +165,17 @@ export async function processImports(location) {
   const goods = location.system.market?.goods;
   if (!goods) return { resolved: 0 };
   const t = now();
+  // Extended-search days resolve FIRST, as their own write, so the rest of
+  // the sweep (searches especially) reads the raised caps.
+  let resolvedSearchDays = 0;
+  try {
+    resolvedSearchDays = await resolveSearchDayActions(location, t);
+  } catch (e) {
+    console.error(`${MODULE_ID} | search-day resolution failed for ${location.name}`, e);
+  }
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   const updates = {};
-  let resolved = 0;
+  let resolved = resolvedSearchDays;
 
   // Imports: arrivals deliver, losses reveal, both on their rolled dates.
   const orders = (goods.imports ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
@@ -248,7 +257,7 @@ export async function processImports(location) {
     if (Number(goods.lastProcessedTime ?? 0) < t) {
       await location.update({ "system.market.goods.lastProcessedTime": t });
     }
-    return { resolved: 0 };
+    return { resolved };
   }
   updates["system.market.goods.lastProcessedTime"] = t;
   updates["system.market.marketLog"] = log.slice(-300);

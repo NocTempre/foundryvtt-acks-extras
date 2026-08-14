@@ -553,6 +553,8 @@ export async function sell(location, payload) {
   if (!item) return err("noItem");
   const itemData = item.toObject();
   if (![ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item].includes(itemData.type)) return err("untradeable");
+  // Merchandise loads trade as stones through the venture engine, never here.
+  if (marketsFlag(itemData).merchandise) return err("untradeable");
 
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
@@ -627,12 +629,13 @@ export async function sell(location, payload) {
 }
 
 /**
- * Spend one further dedicated day searching the market (RR §VIII.6:
+ * Post one further dedicated day of searching the market (RR §VIII.6:
  * soliciting is a dedicated activity repeatable each day, setting-gated
- * here): raises this party's per-item cap by one base increment and takes a
- * fresh look for scarce goods.
+ * here). Like every dedicated day it POSTS now and RESOLVES when its day
+ * has passed — the due-work sweep then raises the party's per-item cap by
+ * one base increment and takes a fresh look for scarce goods.
  */
-export async function spendSearchDay(location, { actorUuid, requestUserId = null }) {
+export async function postSearchDay(location, { actorUuid, requestUserId = null, resolutionId = "" }) {
   if (!getSetting("marketsExtendedSearch")) return err("searchDisabled");
   if (!location?.system?.market?.goods) return err("noMarket");
   const traderDoc = await fromUuid(actorUuid).catch(() => null);
@@ -642,33 +645,69 @@ export async function spendSearchDay(location, { actorUuid, requestUserId = null
     const user = game.users.get(requestUserId);
     if (!user?.isGM && !trader.testUserPermission(user, "OWNER")) return err("notYours");
   }
-  const monthStart = marketMonthStart();
+  const goods = location.system.market.goods;
+  const actions = (goods.actions ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  if (resolutionId && actions.some((a) => a.id === resolutionId)) return err("duplicate");
+  const t = now();
   const party = partyOf(trader);
+  actions.push({
+    id: resolutionId || foundry.utils.randomID(),
+    kind: "extraSearch",
+    partyId: party.id,
+    actorUuid: trader.uuid,
+    category: "",
+    cargoSt: 0,
+    postedTime: t,
+    resolveTime: t + 86400,
+    status: "pending",
+    detail: "",
+  });
+  const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  const newLog = appendLog(log, { time: t, type: "extraSearch", note: `${trader.name}: extended search day posted` });
+  await location.update({ "system.market.goods.actions": actions, "system.market.marketLog": newLog });
+  return { ok: true, resolveTime: t + 86400 };
+}
+
+/**
+ * Resolve due extended-search days (called FIRST in the due-work sweep, as
+ * its own write, so the rest of the sweep reads the raised caps). Each one
+ * adds a base increment to the party's month and clears its failed %-finds
+ * so the next ask re-rolls — successes stay found.
+ */
+export async function resolveSearchDayActions(location, t = now()) {
+  const goodsRaw = location.system.market?.goods;
+  if (!goodsRaw) return 0;
+  const actions = (goodsRaw.actions ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  const due = actions.filter((a) => a.kind === "extraSearch" && a.status === "pending" && Number(a.resolveTime) <= t);
+  if (!due.length) return 0;
+  const monthStart = marketMonthStart(t);
   const goods = goodsOf(location);
   goods.partyMonths = thisMonth(goods.partyMonths, monthStart);
-  const partyMonth = ensureRow(
-    goods.partyMonths,
-    (r) => r.partyId === party.id,
-    { partyId: party.id, monthStartTime: monthStart, searchDays: 0, dedicated: false }
-  );
-  partyMonth.searchDays += 1;
-  // A fresh look at the shelves: clear the party's failed %-finds so the
-  // next ask re-rolls (successes stay found).
-  goods.existenceRolls = thisMonth(goods.existenceRolls, monthStart).filter(
-    (r) => r.partyId !== party.id || r.exists
-  );
+  goods.existenceRolls = thisMonth(goods.existenceRolls, monthStart);
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
-  const newLog = appendLog(log, {
-    time: now(),
-    type: "extraSearch",
-    note: game.i18n.format(`${LANG}.trade.searchDayLog`, { party: party.name || party.id, days: partyMonth.searchDays }),
-  });
+  for (const action of due) {
+    action.status = "done";
+    const partyMonth = ensureRow(
+      goods.partyMonths,
+      (r) => r.partyId === action.partyId,
+      { partyId: action.partyId, monthStartTime: monthStart, searchDays: 0, dedicated: false }
+    );
+    partyMonth.searchDays += 1;
+    goods.existenceRolls = goods.existenceRolls.filter((r) => r.partyId !== action.partyId || r.exists);
+    log.push({ time: t, type: "extraSearch", note: game.i18n.format(`${LANG}.trade.searchDayLog`, { party: action.partyId, days: partyMonth.searchDays }) });
+    const traderDoc = await fromUuid(action.actorUuid).catch(() => null);
+    const trader = traderDoc?.actor ?? traderDoc;
+    if (trader) {
+      await postReceipt({ location, trader, html: `<strong>${game.i18n.format(`${LANG}.trade.searchDayDone`, { name: trader.name, days: partyMonth.searchDays })}</strong>` });
+    }
+  }
   await location.update({
+    "system.market.goods.actions": actions,
     "system.market.goods.partyMonths": goods.partyMonths,
     "system.market.goods.existenceRolls": goods.existenceRolls,
-    "system.market.marketLog": newLog,
+    "system.market.marketLog": log.slice(-300),
   });
-  return { ok: true, days: partyMonth.searchDays };
+  return due.length;
 }
 
 /* ------------------------- socket relays ------------------------- */
@@ -691,7 +730,7 @@ registerHandler("marketsSearchDay", async ({ locationUuid, ...payload }) => {
   const doc = await fromUuid(locationUuid).catch(() => null);
   const location = doc?.actor ?? doc;
   if (!location) return err("noMarket");
-  return spendSearchDay(location, payload);
+  return postSearchDay(location, payload);
 });
 
 /** Local-first dispatch: write directly when this seat can, else relay. */
@@ -717,6 +756,6 @@ export async function performSell(location, payload) {
 /** Local-first dispatch for the extended-search day. */
 export async function performSearchDay(location, payload) {
   const canLocal = game.user.isGM || location.testUserPermission(game.user, "OWNER");
-  if (canLocal) return spendSearchDay(location, { ...payload, requestUserId: game.user.isGM ? null : game.user.id });
+  if (canLocal) return postSearchDay(location, { ...payload, requestUserId: game.user.isGM ? null : game.user.id });
   return executeAsGM("marketsSearchDay", { locationUuid: location.uuid, ...payload, requestUserId: game.user.id });
 }

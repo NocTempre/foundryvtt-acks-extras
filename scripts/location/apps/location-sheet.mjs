@@ -1064,7 +1064,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.sellRows = !trader
       ? []
       : trader.items
-          .filter((i) => ["weapon", "armor", "item"].includes(i.type))
+          // Merchandise loads trade as stones through ventures, never here.
+          .filter((i) => ["weapon", "armor", "item"].includes(i.type) && !i.getFlag(MODULE_ID, "markets")?.merchandise)
           .map((i) => {
             const data = i.toObject();
             const plan = salePlan(data, { demandSteps: demandStepsFor(goods, categoryOf(data)) });
@@ -1165,13 +1166,13 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       game.user.character ??
       game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
     if (!trader) return;
-    const result = await performSearchDay(this.actor, { actorUuid: trader.uuid });
+    const result = await performSearchDay(this.actor, { actorUuid: trader.uuid, resolutionId: foundry.utils.randomID() });
     if (result?.error) {
       ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
       return;
     }
     if (result?.ok) {
-      ui.notifications.info(game.i18n.format("ACKS-MARKETS.trade.searchDaySpent", { days: result.days }));
+      ui.notifications.info(game.i18n.localize("ACKS-MARKETS.ventures.posted"));
       this.render();
     }
   }
