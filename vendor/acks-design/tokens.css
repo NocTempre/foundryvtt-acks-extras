@@ -14,16 +14,40 @@
  *   depth   : shadow, radius
  *   texture : tx
  *
- * THEMING. Light is the default; dark is a single override block at the bottom
- * of this file, keyed on `.theme-dark` (Foundry v14's own class) or
- * `[data-acks-theme="dark"]` (to force a branch for one application, or in the
- * preview harness).
+ * STRUCTURE. Two kinds of block, split on one question — does the token carry
+ * colour?
+ *
+ *   THE STRUCTURE BLOCK (`:root` alone) holds type, space, line widths, sheet
+ *   geometry, depth, texture knobs and layout. It is published exactly once.
+ *   `--acks-fs-base` and the density-pinned steps MUST stay here and nowhere
+ *   lower: the host pins the font-scale knob inline on `<html>`, and a
+ *   re-declaration on any deeper themed root would shadow that knob for
+ *   everything inside the themed application.
+ *
+ *   THE TWO PALETTE BLOCKS (light, dark) each carry a selector list naming
+ *   every root Foundry can stamp a scheme onto — `theme-<scheme>` lands on
+ *   <body>, and `.themed.theme-<scheme>` on each application root whose
+ *   `colorScheme.applications` disagrees with the interface (see foundry.css
+ *   § LOOK for the stamping mechanics). The blocks are SYMMETRIC on purpose:
+ *   a light-stamped application inside a dark interface needs the light
+ *   palette re-published AT ITS OWN ROOT, for the same two reasons the dark
+ *   block always needed its own — the values must out-cascade the inherited
+ *   ones, and the DERIVED tokens (the var()-containing tail each block ends
+ *   with) inherit as already-substituted values, so only a re-declaration on
+ *   the stamped root re-runs substitution against that root's palette.
+ *
+ * FORCING. `data-acks-theme="light|dark"` on any root forces a branch for that
+ * subtree (one application, or the preview harness). Forced light wins over
+ * everything — the dark block's `:not()` guards withhold it from a forced-light
+ * subtree, and the light block publishes there unguarded. `data-acks-look`
+ * roots (the `core` look) get NEITHER palette: those roots re-point the ACKS
+ * names at the host's own variables, and both palette blocks carry the same
+ * exclusion so nothing puts ACKS colours back underneath the re-point.
  *
  * Dark mode is deliberately OPT-IN rather than following `prefers-color-scheme`
- * directly, for two reasons: Foundry always applies an explicit theme class, so
- * the media query would be redundant there; and writing the palette twice — once
- * per mechanism — is exactly how themes drift out of sync. Outside Foundry,
- * mirror the OS preference yourself; `preview/index.html` does it in three lines.
+ * directly: Foundry always applies an explicit theme class, so the media query
+ * would be redundant there. Outside Foundry, mirror the OS preference yourself;
+ * `preview/index.html` does it in three lines.
  *
  * A NOTE ON `light-dark()`: the obvious way to write this file would be one
  * `light-dark(<light>, <dark>)` per token. It does not work. Inside a custom
@@ -39,15 +63,169 @@
 
 :root {
   /* ==========================================================================
-   * 1. COLOUR
-   * The books run on a two-colour press look: one burgundy spot plus a warm
-   * black, on near-white stock. Everything else is a tint of those. Resist
-   * adding hues — the whole identity is the discipline of this palette.
-   *
-   * The dark branch inverts the PAPER, never the SPOT: parchment becomes
-   * tooled oxblood leather and the burgundy stays burgundy.
+   * 1. TYPE
+   * Five roles, each a documented open-licence stand-in for the commercial
+   * Adobe face the books use. docs/FONT-MAPPING.md explains every choice.
+   * Fallback chains end in Foundry-bundled or system faces so a sheet still
+   * reads correctly if the webfonts fail to load.
    * ====================================================================== */
 
+  /* Trajan Pro 3 Bold/Semibold — chapter titles, headings, table titles.     */
+  --acks-font-display: "Cinzel", "Trajan Pro 3", "Modesto Condensed", Georgia, serif;
+  /* Imperator Small Caps Bold — running heads, banner lettering.            */
+  --acks-font-banner: "Cinzel", "Imperator Small Caps", "Modesto Condensed", Georgia, serif;
+  /* Minion Pro — body copy. Foundry ships neither; Crimson Pro is the match. */
+  --acks-font-body: "Crimson Pro", "Minion Pro", "EB Garamond", Georgia, serif;
+  /* Cronos Pro — tables, labels, form controls, anything UI-dense.          */
+  --acks-font-ui: "Source Sans 3", "Cronos Pro", "Signika", "Segoe UI", sans-serif;
+  /* Broadsheet Italic — in-world quotations and attributions only.          */
+  --acks-font-script: "IM Fell English", "Broadsheet", Georgia, serif;
+  /* Archeologicaps — drop caps and ornamental initials only.                */
+  --acks-font-caps: "Cinzel Decorative", "Archeologicaps", "Cinzel", Georgia, serif;
+  --acks-font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* -- Scale. The books set 9 pt Minion body on US Letter. Every other size
+   *    is expressed here as its MEASURED ratio to that body size, so the
+   *    printed hierarchy survives translation to screen. Change --fs-base
+   *    alone to rescale a whole sheet. NEVER move these into a palette block:
+   *    see the STRUCTURE note in the header. ------------------------------ */
+  --acks-fs-base: 14px;
+
+  --acks-fs-micro: calc(var(--acks-fs-base) * 0.58);  /*  5.2pt  table micro  */
+  --acks-fs-fine: calc(var(--acks-fs-base) * 0.67);   /*  6.0pt  fine print   */
+  --acks-fs-label: calc(var(--acks-fs-base) * 0.89);  /*  8.0pt  table labels */
+  --acks-fs-body: var(--acks-fs-base);                /*  9.0pt  body copy    */
+  --acks-fs-h3: var(--acks-fs-base);                  /*  9.0pt  Trajan caps  */
+  --acks-fs-banner: calc(var(--acks-fs-base) * 1.11); /* 10.0pt  running head */
+  --acks-fs-quote: calc(var(--acks-fs-base) * 1.17);  /* 10.5pt  Broadsheet   */
+  --acks-fs-h2: calc(var(--acks-fs-base) * 1.56);     /* 14.0pt  subsection   */
+  --acks-fs-h1: calc(var(--acks-fs-base) * 2.11);     /* 19.0pt  section head */
+  --acks-fs-display: calc(var(--acks-fs-base) * 3.2); /* chapter-opener scale */
+
+  /* -- Leading. Print body is 9/11.5; tables are set tight. --------------- */
+  --acks-lh-tight: 1.15;   /* headings, banners, table cells                 */
+  --acks-lh-snug: 1.28;    /* dense two-column body, sidebars                */
+  --acks-lh-body: 1.42;    /* screen body copy (looser than print, on purpose)*/
+  --acks-lh-quote: 1.5;    /* script quotations need air                      */
+
+  /* -- Tracking. Roman inscriptional caps need letterspacing to read; the
+   *    books letterspace every Trajan and Imperator setting. ------------- */
+  --acks-tracking-banner: 0.09em;   /* Imperator running heads              */
+  --acks-tracking-display: 0.045em; /* Trajan H1/H2                         */
+  --acks-tracking-caps: 0.07em;     /* small-caps UI labels                 */
+  --acks-tracking-body: 0;
+
+  --acks-weight-body: 400;
+  --acks-weight-medium: 600;
+  --acks-weight-bold: 700;
+
+  /* ==========================================================================
+   * 2. SPACE — 4px base, matching the books' 4pt gutter grid.
+   * ====================================================================== */
+  --acks-sp-0: 0;
+  --acks-sp-1: 2px;
+  --acks-sp-2: 4px;
+  --acks-sp-3: 6px;
+  --acks-sp-4: 8px;
+  --acks-sp-5: 12px;
+  --acks-sp-6: 16px;
+  --acks-sp-7: 24px;
+  --acks-sp-8: 32px;
+  --acks-sp-9: 48px;
+  --acks-gutter: 18px;   /* MEASURED column gutter, two-column body          */
+
+  /* ==========================================================================
+   * 3. LINE WORK — the widths. The colours these strokes are drawn in live in
+   * the palette blocks (--acks-rule-color and the --acks-border-* shorthands),
+   * because a stroke is ink and ink changes with the theme; its WEIGHT does
+   * not. MEASURED: 0.5pt hairline, 1.0pt standard, 1.5pt heavy — a clean
+   * 1:2:3 relationship, preserved here in crisp whole pixels.
+   * ====================================================================== */
+  --acks-rule-hair: 1px;
+  --acks-rule: 2px;
+  --acks-rule-heavy: 3px;
+
+  /* ==========================================================================
+   * 3b. THE SHEET REGISTER — the geometry. ACKS II has two geometric systems,
+   * not one. The BOOKS are ruled rectangles in the spot colour. The official
+   * CHARACTER SHEET is discs, hexagons and polygons drawn in INK with reversed
+   * (white) keylines — on its five pages, curves outnumber rectangles by two
+   * orders of magnitude, and only 5 burgundy vector fills appear at all, every
+   * one of them in the top banner. The distinction is functional: a sheet you
+   * write on is drawn in ink; a page you read is ruled in the spot colour.
+   * The fill/stroke/keyline COLOUR roles live in the palette blocks; the
+   * measured geometry lives here.
+   * MEASURED 1.25pt outer + 0.75pt inner, the sheet's double-stroke hexagon. */
+  --acks-shape-stroke-w: 2px;
+  --acks-shape-stroke-inner-w: 1px;
+  /* MEASURED 82.2pt outer / 75.3pt inner => the keyline sits 4.2% in. */
+  --acks-shape-inset: 4.2%;
+  --acks-shape-size: 76px;                     /* attribute disc / hexagon   */
+  --acks-shape-size-sm: 30px;                  /* modifier / AC pip          */
+  --acks-shape-size-lg: 96px;                  /* the LEVEL medallion        */
+
+  /* ==========================================================================
+   * 4. DEPTH — see the header note. Zero is deliberate.
+   * --acks-lift exists only for genuinely floating UI (tooltips, popouts)
+   * that has no print equivalent; its shadow tone is fixed in both themes.
+   * ====================================================================== */
+  --acks-radius: 0;
+  --acks-radius-lozenge: 2px;  /* the folio diamond's slightly clipped tip   */
+  --acks-shadow: none;
+  --acks-lift: 0 2px 10px rgb(35 31 32 / 0.28);
+
+  /* ==========================================================================
+   * 5. TEXTURE KNOBS
+   * The burgundy furniture is not flat — it is a speckled porphyry stone, and
+   * the page is a faint parchment. Both are reproduced PROCEDURALLY in
+   * styles/textures.css (SVG turbulence + gradients) so nothing from the
+   * copyrighted books is redistributed. These tokens are the knobs; the
+   * composed --acks-banner value is palette (it carries burgundy).
+   * ====================================================================== */
+  --acks-tx-porphyry-opacity: 0.55;
+  --acks-tx-porphyry-scale: 90px;
+  --acks-tx-parchment-opacity: 0.42;
+  --acks-tx-parchment-scale: 220px;
+
+  /* ==========================================================================
+   * 6. LAYOUT
+   * ====================================================================== */
+  --acks-banner-height: 30px;   /* running-head band, scaled from 65px@300dpi */
+  --acks-tab-width: 20px;       /* vertical chapter thumb tab                 */
+  --acks-folio-size: 34px;      /* folio lozenge across the diagonal          */
+  --acks-measure: 34rem;        /* comfortable single-column reading measure  */
+  --acks-duration: 120ms;       /* the books don't animate; keep motion terse */
+  --acks-ease: cubic-bezier(0.2, 0, 0.3, 1);
+}
+
+/* ============================================================================
+ * LIGHT PALETTE — the default, AND a real theme branch.
+ *
+ * Published at `:root` (the base every seat starts from) and re-published at
+ * every root Foundry stamps light — which is what lets a light application
+ * live inside a dark interface. Before this block carried those selectors, a
+ * `colorScheme.interface: dark` + `colorScheme.applications: light` client
+ * rendered ACKS dark tokens inside its light-stamped windows: the dark block
+ * published at <body> and nothing below re-published light. Symmetry is the
+ * fix, and splitting colour from structure (header note) is what keeps the
+ * symmetry affordable — this block can carry the selector list without
+ * dragging `--acks-fs-base` down with it.
+ *
+ * The forced-light arm (`data-acks-theme="light"`) is unguarded against forced
+ * dark on purpose: forced light wins over everything, exactly as the dark
+ * block's own `:not()` guards promise. The `.theme-light` arm yields to a
+ * forced-dark subtree. Both non-root arms carry the `data-acks-look` exclusion
+ * for the same reason the dark block does — a `core`-look root re-points these
+ * names at the host's variables, and neither palette may re-publish underneath
+ * the re-point.
+ *
+ * The books run on a two-colour press look: one burgundy spot plus a warm
+ * black, on near-white stock. Everything else is a tint of those. Resist
+ * adding hues — the whole identity is the discipline of this palette.
+ * ========================================================================== */
+:root,
+[data-acks-theme="light"]:not([data-acks-look="core"]):not([data-acks-look="core"] *),
+.theme-light:not([data-acks-theme="dark"]):not([data-acks-theme="dark"] *):not([data-acks-look="core"]):not([data-acks-look="core"] *) {
   /* -- The spot colour. #620730 is the flat vector value used for every rule,
    *    heading, table head and folio across all four core books.
    *
@@ -135,150 +313,30 @@
   --acks-gold-ink: #2b1c05;       /* text ON a gold fill                     */
   --acks-gold-deep: #8a6d13;      /* gold keyline / border                   */
 
-  /* ==========================================================================
-   * 2. TYPE
-   * Five roles, each a documented open-licence stand-in for the commercial
-   * Adobe face the books use. docs/FONT-MAPPING.md explains every choice.
-   * Fallback chains end in Foundry-bundled or system faces so a sheet still
-   * reads correctly if the webfonts fail to load.
-   * ====================================================================== */
-
-  /* Trajan Pro 3 Bold/Semibold — chapter titles, headings, table titles.     */
-  --acks-font-display: "Cinzel", "Trajan Pro 3", "Modesto Condensed", Georgia, serif;
-  /* Imperator Small Caps Bold — running heads, banner lettering.            */
-  --acks-font-banner: "Cinzel", "Imperator Small Caps", "Modesto Condensed", Georgia, serif;
-  /* Minion Pro — body copy. Foundry ships neither; Crimson Pro is the match. */
-  --acks-font-body: "Crimson Pro", "Minion Pro", "EB Garamond", Georgia, serif;
-  /* Cronos Pro — tables, labels, form controls, anything UI-dense.          */
-  --acks-font-ui: "Source Sans 3", "Cronos Pro", "Signika", "Segoe UI", sans-serif;
-  /* Broadsheet Italic — in-world quotations and attributions only.          */
-  --acks-font-script: "IM Fell English", "Broadsheet", Georgia, serif;
-  /* Archeologicaps — drop caps and ornamental initials only.                */
-  --acks-font-caps: "Cinzel Decorative", "Archeologicaps", "Cinzel", Georgia, serif;
-  --acks-font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
-
-  /* -- Scale. The books set 9 pt Minion body on US Letter. Every other size
-   *    is expressed here as its MEASURED ratio to that body size, so the
-   *    printed hierarchy survives translation to screen. Change --fs-base
-   *    alone to rescale a whole sheet. ----------------------------------- */
-  --acks-fs-base: 14px;
-
-  --acks-fs-micro: calc(var(--acks-fs-base) * 0.58);  /*  5.2pt  table micro  */
-  --acks-fs-fine: calc(var(--acks-fs-base) * 0.67);   /*  6.0pt  fine print   */
-  --acks-fs-label: calc(var(--acks-fs-base) * 0.89);  /*  8.0pt  table labels */
-  --acks-fs-body: var(--acks-fs-base);                /*  9.0pt  body copy    */
-  --acks-fs-h3: var(--acks-fs-base);                  /*  9.0pt  Trajan caps  */
-  --acks-fs-banner: calc(var(--acks-fs-base) * 1.11); /* 10.0pt  running head */
-  --acks-fs-quote: calc(var(--acks-fs-base) * 1.17);  /* 10.5pt  Broadsheet   */
-  --acks-fs-h2: calc(var(--acks-fs-base) * 1.56);     /* 14.0pt  subsection   */
-  --acks-fs-h1: calc(var(--acks-fs-base) * 2.11);     /* 19.0pt  section head */
-  --acks-fs-display: calc(var(--acks-fs-base) * 3.2); /* chapter-opener scale */
-
-  /* -- Leading. Print body is 9/11.5; tables are set tight. --------------- */
-  --acks-lh-tight: 1.15;   /* headings, banners, table cells                 */
-  --acks-lh-snug: 1.28;    /* dense two-column body, sidebars                */
-  --acks-lh-body: 1.42;    /* screen body copy (looser than print, on purpose)*/
-  --acks-lh-quote: 1.5;    /* script quotations need air                      */
-
-  /* -- Tracking. Roman inscriptional caps need letterspacing to read; the
-   *    books letterspace every Trajan and Imperator setting. ------------- */
-  --acks-tracking-banner: 0.09em;   /* Imperator running heads              */
-  --acks-tracking-display: 0.045em; /* Trajan H1/H2                         */
-  --acks-tracking-caps: 0.07em;     /* small-caps UI labels                 */
-  --acks-tracking-body: 0;
-
-  --acks-weight-body: 400;
-  --acks-weight-medium: 600;
-  --acks-weight-bold: 700;
-
-  /* ==========================================================================
-   * 3. SPACE — 4px base, matching the books' 4pt gutter grid.
-   * ====================================================================== */
-  --acks-sp-0: 0;
-  --acks-sp-1: 2px;
-  --acks-sp-2: 4px;
-  --acks-sp-3: 6px;
-  --acks-sp-4: 8px;
-  --acks-sp-5: 12px;
-  --acks-sp-6: 16px;
-  --acks-sp-7: 24px;
-  --acks-sp-8: 32px;
-  --acks-sp-9: 48px;
-  --acks-gutter: 18px;   /* MEASURED column gutter, two-column body          */
-
-  /* ==========================================================================
-   * 4. LINE WORK
-   * MEASURED stroke widths: 0.5pt hairline, 1.0pt standard, 1.5pt heavy —
-   * a clean 1:2:3 relationship, preserved here in crisp whole pixels.
-   * Rules are ink, so they follow --acks-spot, not the surface token.
-   * ====================================================================== */
-  --acks-rule-hair: 1px;
-  --acks-rule: 2px;
-  --acks-rule-heavy: 3px;
+  /* -- DERIVED tokens — the var()-containing tail. Each palette block ends
+   * with the SAME list, re-declared so substitution re-runs where that block's
+   * literals are in scope (custom properties inherit as already-substituted
+   * values; the dark block's tail documents the live failure that taught
+   * this). Rules are ink, so they follow --acks-spot, not the surface token.
+   * The shape roles default to --acks-ink, NOT --acks-spot — see the sheet
+   * register note in the structure block. ------------------------------- */
   --acks-rule-color: var(--acks-spot);
   --acks-rule-color-soft: color-mix(in srgb, var(--acks-spot) 35%, transparent);
-
   --acks-border-hair: var(--acks-rule-hair) solid var(--acks-rule-color);
   --acks-border: var(--acks-rule) solid var(--acks-rule-color);
   --acks-border-soft: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
   --acks-border-ink: var(--acks-rule-hair) solid var(--acks-ink);
-
-  /* ==========================================================================
-   * 4b. THE SHEET REGISTER
-   * ACKS II has two geometric systems, not one. The BOOKS are ruled rectangles
-   * in the spot colour. The official CHARACTER SHEET is discs, hexagons and
-   * polygons drawn in INK with reversed (white) keylines — on its five pages,
-   * curves outnumber rectangles by two orders of magnitude, and only 5 burgundy
-   * vector fills appear at all, every one of them in the top banner.
-   *
-   * The distinction is functional, and worth preserving: a sheet you write on
-   * is drawn in ink; a page you read is ruled in the spot colour. These tokens
-   * serve the shape primitives in styles/components/shapes.css. Note they
-   * default to --acks-ink, NOT --acks-spot.
-   * ====================================================================== */
   --acks-shape-fill: var(--acks-ink);          /* filled disc / hexagon      */
   --acks-shape-stroke: var(--acks-ink);        /* outline shapes             */
-  /* MEASURED 1.25pt outer + 0.75pt inner, the sheet's double-stroke hexagon. */
-  --acks-shape-stroke-w: 2px;
-  --acks-shape-stroke-inner-w: 1px;
   /* Reversed keyline: filled shapes carry a WHITE inset rule, the inverse of
    * how the books rule a tinted box. This is what gives them the engraved look. */
   --acks-shape-keyline: var(--acks-paper-pure);
-  /* MEASURED 82.2pt outer / 75.3pt inner => the keyline sits 4.2% in. */
-  --acks-shape-inset: 4.2%;
-  --acks-shape-size: 76px;                     /* attribute disc / hexagon   */
-  --acks-shape-size-sm: 30px;                  /* modifier / AC pip          */
-  --acks-shape-size-lg: 96px;                  /* the LEVEL medallion        */
-
-  /* ==========================================================================
-   * 5. DEPTH — see the header note. Zero is deliberate.
-   * --acks-lift exists only for genuinely floating UI (tooltips, popouts)
-   * that has no print equivalent.
-   * ====================================================================== */
-  --acks-radius: 0;
-  --acks-radius-lozenge: 2px;  /* the folio diamond's slightly clipped tip   */
-  --acks-shadow: none;
-  --acks-lift: 0 2px 10px rgb(35 31 32 / 0.28);
   --acks-focus-color: var(--acks-spot);
   --acks-focus-ring: 0 0 0 2px var(--acks-paper), 0 0 0 4px var(--acks-focus-color);
-
-  /* ==========================================================================
-   * 6. TEXTURE
-   * The burgundy furniture is not flat — it is a speckled porphyry stone, and
-   * the page is a faint parchment. Both are reproduced PROCEDURALLY in
-   * styles/textures.css (SVG turbulence + gradients) so nothing from the
-   * copyrighted books is redistributed. These tokens are the knobs.
-   * ====================================================================== */
-  --acks-tx-porphyry-opacity: 0.55;
-  --acks-tx-porphyry-scale: 90px;
-  --acks-tx-parchment-opacity: 0.42;
-  --acks-tx-parchment-scale: 220px;
-
   /* The porphyry BAND as a drop-in `background:` value — surface burgundy under
    * the measured tonal stops, gradient only (the turbulence overlay stays in
    * textures.css for roots a module owns). PROMOTED 2026-08-01 from acks-lib's
-   * sheet-theme. Re-declared in the dark block below — see the note there on
-   * derived tokens before assuming that repeat is redundant. */
+   * sheet-theme. */
   --acks-banner: var(--acks-burgundy) linear-gradient(
     100deg,
     color-mix(in srgb, var(--acks-burgundy-deep) 60%, transparent) 0%,
@@ -287,20 +345,10 @@
     transparent 74%,
     color-mix(in srgb, var(--acks-burgundy-deep) 55%, transparent) 100%
   );
-
-  /* ==========================================================================
-   * 7. LAYOUT
-   * ====================================================================== */
-  --acks-banner-height: 30px;   /* running-head band, scaled from 65px@300dpi */
-  --acks-tab-width: 20px;       /* vertical chapter thumb tab                 */
-  --acks-folio-size: 34px;      /* folio lozenge across the diagonal          */
-  --acks-measure: 34rem;        /* comfortable single-column reading measure  */
-  --acks-duration: 120ms;       /* the books don't animate; keep motion terse */
-  --acks-ease: cubic-bezier(0.2, 0, 0.3, 1);
 }
 
 /* ============================================================================
- * DARK CONTEXT — the only theme override block in the system.
+ * DARK PALETTE
  *
  * The books have no dark mode, so this is an interpretation, chosen on one
  * principle: invert the PAPER, never the SPOT. The parchment becomes tooled
@@ -310,14 +358,10 @@
  * is checked by the live contrast audit in preview/index.html — flip the Dark
  * toggle there and read the table before changing any of them.
  *
- * THE TWO `:not()` GUARDS ARE WHAT MAKE A FORCED LIGHT SEAT POSSIBLE, and they
- * are why this file needs no light counterpart to the block below. A consumer
- * that wants light regardless of the host's own scheme sets
- * `data-acks-theme="light"` on a root; the guards then withhold this block from
- * that element and everything under it, and the `:root` values simply inherit.
- * The alternative — re-publishing the whole light palette in a second block —
- * would put every colour in the file in two places, which is how a theme drifts
- * out of sync. Excluding is cheaper than restating.
+ * THE TWO `:not()` GUARDS ARE WHAT MAKE A FORCED LIGHT SEAT POSSIBLE. A
+ * consumer that wants light regardless of the host's own scheme sets
+ * `data-acks-theme="light"` on a root; the guards withhold this block from
+ * that element and everything under it, and the light block publishes there.
  *
  * Both guards are needed: the first covers a root that carries the dark class
  * AND the light override (an element is not its own descendant, so the second
@@ -330,8 +374,7 @@
  * `core` look — see foundry.css § LOOK) must not then have this block put ACKS
  * colours back underneath them: the re-point is declared at the host's themed
  * roots, and this block keys on a class that can sit on those same roots. The
- * exclusion is written the same way and for the same reason as the light pin
- * above — widening an existing guard, never restating a palette.
+ * light block carries the same exclusion on its non-root arms.
  * ========================================================================== */
 :is(.theme-dark, [data-acks-theme="dark"]):not([data-acks-theme="light"]):not([data-acks-theme="light"] *):not([data-acks-look="core"]):not([data-acks-look="core"] *) {
   --acks-burgundy: #8e1442;       /* SURFACE — still carries white text 9.0:1 */

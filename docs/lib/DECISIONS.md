@@ -840,3 +840,32 @@ saying which bonuses that means are applying.
 `.acks-formation-card` with a `<ul>`, but they are lines of prose about what
 happened during a turn, not one row per person with a number and a verdict.
 Forcing them into a table would be a worse card, not a shared one.
+
+## 2026-08-14 — Tokens split colour from structure; the light palette is a real branch
+
+**Ruled:** `vendor/acks-design/tokens.css` is restructured into one `:root`
+structure block (type, space, line widths, sheet geometry, depth, texture
+knobs, layout — `--acks-fs-base` and the density-pinned steps live here and
+nowhere lower, or the host's inline font-scale knob stops reaching themed
+applications) and two SYMMETRIC palette blocks. The light palette publishes at
+`:root` and re-publishes at every root Foundry stamps light; each palette
+block ends with the same var()-containing derived tail so substitution re-runs
+where that palette's literals are in scope.
+
+**Why:** with split `colorScheme` settings Foundry stamps `theme-<scheme>`
+per-region (body follows `applications`; interface elements and disagreeing
+windows get `.themed.theme-<scheme>`), and the old exclusion-only design left
+a light-stamped root under a dark body drawing dark tokens — including
+derived tokens already substituted dark at `<body>`, which exclusion cannot
+un-bake. Live-verified in both split directions, plus the font-scale knob
+reaching a themed root, the `data-acks-look="core"` exclusion withholding
+both palettes, and forced light under a dark body.
+
+**Rejected:** a duplicated light block (every colour in two places — the
+2026-08-05 ruling); four theme×look combinations (owner, 2026-08-14: light/
+dark and look on/off are separate toggles — two palettes only, the core look
+withholds both).
+
+**Also:** the last nine v10-era `--color-*`/`--font-size-*` reads are swept
+from module styles (classes.css, markets.css), and validate-extra now fails
+any non-`foundry.css` stylesheet that reads a legacy Foundry variable.

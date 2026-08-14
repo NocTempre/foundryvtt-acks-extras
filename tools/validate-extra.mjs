@@ -290,6 +290,29 @@ for (const f of walk(path.join(ROOT, "scripts"))) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Legacy style-variable gate. Module styles read --acks-* tokens only; the    */
+/* v10-era Foundry names (--color-*, --font-size-*) were swept in 4.0 and must */
+/* not creep back — a legacy read with a hex fallback silently detaches the    */
+/* surface from both palettes. foundry.css is the one deliberate reader: its   */
+/* LOOK block re-points ACKS names AT the host variables and must name them.   */
+/* -------------------------------------------------------------------------- */
+{
+  const LEGACY_VAR = /var\(\s*--(?:color|font-size)-/;
+  const styleFiles = [
+    ...walk(path.join(ROOT, "styles")),
+    ...walk(path.join(ROOT, "vendor", "acks-design")),
+  ].filter((f) => f.endsWith(".css") && !rel(f).endsWith("vendor/acks-design/foundry.css"));
+  for (const f of styleFiles) {
+    const lines = fs.readFileSync(f, "utf8").split("\n");
+    lines.forEach((line, i) => {
+      if (LEGACY_VAR.test(line)) {
+        fail(`${rel(f)}:${i + 1} reads a legacy Foundry style variable — use an --acks-* token (${line.trim().slice(0, 80)})`);
+      }
+    });
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Docs-site staging gate.                                                     */
 /*                                                                             */
 /* The site sync fails on a guide with no sidebar entry (and any other staging */
