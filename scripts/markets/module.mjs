@@ -21,6 +21,8 @@ import { partyOf, partySize } from "./engine/parties.mjs";
 import { openPurchaseDialog, PurchaseDialog } from "./apps/purchase-dialog.mjs";
 import { openSellDialog, SellDialog } from "./apps/sell-dialog.mjs";
 import { placeImportOrder, performImportOrder, processImports, processAllImports, registerImportWatcher } from "./engine/imports.mjs";
+import { identifyAttempt, availableMethods, candidateIdentifiers, METHODS } from "./engine/identify.mjs";
+import { buildMagicPanel } from "./apps/magic-panel.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
@@ -65,11 +67,17 @@ Hooks.once("setup", () => {
     abilityRanks,
     partyOf,
     partySize,
+    // identification
+    identifyAttempt,
+    availableMethods,
+    candidateIdentifiers,
+    METHODS,
     // apps
     openPurchaseDialog,
     PurchaseDialog,
     openSellDialog,
     SellDialog,
+    buildMagicPanel,
     // rules (pure)
     rules: { ...availabilityRules, ...pricingRules, imports: importRules },
   };

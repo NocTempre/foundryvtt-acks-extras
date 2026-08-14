@@ -259,8 +259,13 @@ export async function purchase(location, payload) {
   // Masterwork needs the Judge's contact at this market (RR §IV.6).
   if (isMasterwork(itemData) && !location.system.market.goods.masterworkContact) return err("masterworkGated");
 
-  const rows = getTable("availability", "equipmentAvailability").rows ?? [];
-  const band = priceBandOf(costGp, rows);
+  // A magic item buys as Tower stock (JJ ch.4): banded by base cost on the
+  // transaction grid, priced at 225% of base, no demand or Bargaining.
+  const mflag = marketsFlag(itemData);
+  const magic = !!mflag.magic;
+  const magicBaseGp = magic ? Number(mflag.baseCostGp ?? costGp) : 0;
+  const rows = bandRowsFor(magic);
+  const band = priceBandOf(magic ? magicBaseGp : costGp, rows);
   if (!band) return err("untradeable");
   // The party reads its cell at its EFFECTIVE class (mercantile networks);
   // the market total stays the town's TRUE class — a bigger share, not a
@@ -349,19 +354,25 @@ export async function purchase(location, payload) {
     ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining: room.remaining }));
   }
 
-  // Price: demand steps by category, Bargaining swing by winner.
+  // Price: demand steps by category and the Bargaining swing — or, for a
+  // magic item, the flat 225%-of-base Tower premium.
   const partyRanks = abilityRanks(buyer, "Bargaining");
   let opposed = null;
-  if (partyRanks > 0 && merchantRanks > 0) {
+  if (!magic && partyRanks > 0 && merchantRanks > 0) {
     opposed = await opposedBargain({ trader: buyer, partyRanks, merchantRanks, merchantCha });
   }
-  const bargain = bargainWinner({ partyRanks, merchantRanks, opposedWinner: opposed?.winner ?? null });
-  const priced = quote({
-    costGp,
-    direction: "buy",
-    demandSteps: demandStepsFor(goods, categoryOf(itemData)),
-    bargain,
-  });
+  const bargain = magic ? null : bargainWinner({ partyRanks, merchantRanks, opposedWinner: opposed?.winner ?? null });
+  const priced = magic
+    ? (() => {
+        const m = magicQuote({ baseCostGp: magicBaseGp, identified: "full", direction: "buy" });
+        return { unitCp: m.unitCp, breakdown: [{ label: m.basis, cp: m.unitCp }] };
+      })()
+    : quote({
+        costGp,
+        direction: "buy",
+        demandSteps: demandStepsFor(goods, categoryOf(itemData)),
+        bargain,
+      });
   const totalGp = toGp(priced.unitCp * qty);
 
   const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.trade.buyReason`, { qty, name: itemData.name }));

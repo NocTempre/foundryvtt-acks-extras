@@ -62,3 +62,17 @@ guaranteed whole units plus AT MOST ONE d100 for the fractional remainder
 FIRST: it floors the stock, and where the floor alone decides the answer
 (no whole units, party found one) the market roll is skipped entirely.
 Quantity cells keep the printed tenfold total as RAW states.
+
+## 2026-08-14 — Identification is a ladder anyone qualified may climb
+
+**Ruled (user):** the JJ identification methods are automated, and the
+qualifier may be any character or henchman the user acts through (a sage in
+the retinue identifies as well as a PC). Throw targets read from the
+identifier's own imported ability item (`rollTarget`), 11+ when absent; a
+failed throw locks that method for that identifier until a level is gained
+(recorded on the item). Automatic methods (trial by use, sipping, combat/
+training) always advance the state — their cost is adjudicated in the
+fiction, and the card says so. Only FULL identification (magic research)
+sells at base cost; partial still trades at apparent value. The equipment
+sheet mounts the markets-owned magic panel on its Construction tab, the
+same one-line composition as the goods schema.

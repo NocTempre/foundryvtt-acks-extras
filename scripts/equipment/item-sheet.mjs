@@ -30,6 +30,7 @@ import {
   pagesUsed, pagesCapacity, spellbookValue,
 } from "./spellbook.mjs";
 import * as named from "./overlays/named.mjs";
+import { buildMagicPanel } from "../markets/apps/magic-panel.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 const T = `modules/${MODULE_ID}/templates/equipment`;
@@ -173,6 +174,9 @@ export function createEquipmentItemSheet(Base) {
       const pane = this.element.querySelector(".acks-equipment-tab-construction");
       if (!pane || pane.querySelector(".acks-equipment-props")) return;
       pane.appendChild(buildConstructionPanel(this.item));
+      // The markets feature's magic-item panel (flags it owns; one mount
+      // line here — the goods-schema precedent).
+      pane.appendChild(buildMagicPanel(this.item));
     }
 
     /** The Spells tab: the book's recorded formulae, edited in place. */
