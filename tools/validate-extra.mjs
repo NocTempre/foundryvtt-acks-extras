@@ -289,6 +289,26 @@ for (const f of walk(path.join(ROOT, "scripts"))) {
   if (skipped.size) console.log(`validate-extra: icon check skipped for ${[...skipped].join(", ")} paths (no install/checkout found)`);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Docs-site staging gate.                                                     */
+/*                                                                             */
+/* The site sync fails on a guide with no sidebar entry (and any other staging */
+/* mismatch). CI runs it on every push — running it HERE surfaces the mismatch */
+/* at the first `npm run validate` after the guide is written, not as a red    */
+/* workflow discovered after a release is tagged (2026-08-14: the markets      */
+/* guide shipped unregistered and the Docs site stayed red for a day).         */
+/* -------------------------------------------------------------------------- */
+{
+  const siteSync = path.join(ROOT, "docs", "site", "tools", "sync.mjs");
+  if (fs.existsSync(siteSync)) {
+    try {
+      execFileSync(process.execPath, [siteSync], { cwd: path.dirname(path.dirname(siteSync)), stdio: "pipe" });
+    } catch (err) {
+      fail(`docs site staging: ${String(err.stderr ?? err.stdout ?? err.message).trim().split("\n")[0]}`);
+    }
+  }
+}
+
 console.log(
   failed
     ? "validate-extra: merge guards FAILED"
