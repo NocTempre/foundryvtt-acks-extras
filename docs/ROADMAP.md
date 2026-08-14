@@ -58,10 +58,10 @@ distribution is imported.
 
 ## Monsters
 
-The enum migration is **done** — `monsters/config.mjs` re-exports the shared
-vocabulary from `lib/vocab.mjs` rather than defining its own. What remains is the
-DataModel side: the defence, sense and speed field *shapes* in `lib/fields.mjs`
-are built and unused, waiting for the monster extras model to adopt them.
+The enum and DataModel migrations are **done** — `monsters/config.mjs`
+re-exports the shared vocabulary, and the extras model stores lib's shared
+field shapes (speeds, senses, vision, defences). Nothing monster-shaped is
+parked here.
 
 ---
 
@@ -93,44 +93,3 @@ richer seams — lair chance, supply cost, battle rating — are documented in
 give them somewhere to be spent.
 
 ---
-
-## Capacity is one concept, still answered in four places
-
-`lib/item-model.mjs` `capacityOf` (1.2.1) made capacity a property of gear rather
-than of the equipment feature's container record. It is the same question asked
-everywhere else, and the rest has not been collapsed yet:
-
-| Who asks | What it reads today |
-|---|---|
-| an item | `gear.capacity` — the one that moved |
-| a character | core's `system.encumbrance.max` (`20 + STR mod`, or the GM's `forcemax`) |
-| a monster or mount | the monster extras model's `load.normal` / `load.capacity` (MM p. 13) |
-| a party carrying a body | `formation-model.mjs` `carriedLoad`, which **re-derives `20 + STR mod` inline** and so ignores a forced maximum a GM has set |
-
-**Encumbrance is capacity applied to an actor** (owner, 2026-08-03), and mounts,
-wagons, crates and the hands of a team lifting a body all ask it the same way.
-One primitive over any document — `capacityStone` / `loadStone` / `overCapacity`
-— replaces all four, and the formation bug disappears as a consequence rather
-than as a separate fix. Scheduled as a major release: it moves the load model
-that monster and party sheets read.
-
-## The light palette is published once, the dark palette three ways
-
-`vendor/acks-design/tokens.css` publishes light at `:root` and dark at a selector
-list — `.theme-dark`, `[data-acks-theme="dark"]`, minus two `:not()` guards that
-withhold it from a forced-light subtree. That asymmetry is why one host
-configuration still renders wrong: with Foundry's `colorScheme.interface` set
-dark and `colorScheme.applications` set light, the dark block publishes at
-`<body>` and nothing below re-publishes light, so an application Foundry stamped
-light draws ACKS dark tokens. `theme: "Always light"` is the remedy today.
-
-The fix is symmetry: give the light palette the same multi-selector treatment, so
-`.theme-light` and a forced-light root restore it wherever they appear. It cannot
-be done by adding a second block — that would put every colour in the file in two
-places, which the 2026-08-05 ruling rejected. It needs the colour declarations
-split from the type/space/layout ones so the colour block alone can carry the
-extra selectors, while `--acks-fs-base` and the density-pinned steps stay
-`:root`-only (a knob pinned inline on `<html>` must not be re-declared lower, or
-`fontScale` stops reaching anything inside a themed application).
-
-Scheduled as a major: it restructures the file every module in the family reads.
