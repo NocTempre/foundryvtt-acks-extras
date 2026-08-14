@@ -2862,5 +2862,9 @@
   "ACKS-INFLUENCE.result.opposedNoShift": "No attitude moves: the Judge reads the contest.",
   "ACKS-LIB.settings.hideSuperseded.name": "Hide replaced system compendiums",
   "ACKS-LIB.settings.hideSuperseded.hint": "Once you have imported content from your own books, the matching ACKS system compendiums are duplicates — this folds them out of the sidebar so there is one of each thing to open. Display only: the packs stay loaded, their links keep working, and a pack whose imported replacement is missing stays visible. Turn it off to show them again.",
-  "ACKS-CLASSES.cattabs.language": "Languages"
+  "ACKS-CLASSES.cattabs.language": "Languages",
+  "ACKS-CLASSES.languages.knownName": "Tongues",
+  "ACKS-CLASSES.languages.knownHint": "<p>The languages this character speaks from birth and training — what their race and class simply know.</p>",
+  "ACKS-CLASSES.languages.openName": "Languages (open)",
+  "ACKS-CLASSES.languages.openHint": "<p>Language slots this character may still fill: what Intellect buys, plus any their class or race allows them to choose. A slot may be left open and filled during play.</p>"
 }

@@ -57,6 +57,18 @@ export default class RaceData extends foundry.abstract.TypeDataModel {
        *  and for simple-mode classes that bind this race by ref. */
       traits: new ArrayField(new SchemaField({ name: str(), ref: str(), html: html() })),
 
+      /**
+       * The tongues this race is born to (RR §I.10: a demi-human begins with
+       * its racial language, Common, and certain others). Same shape and same
+       * reasoning as the class's — names the book prints, resolved against
+       * the world at grant time — and the two ADD: an elven fighter speaks
+       * what the race brings and what the class brings.
+       */
+      languages: new SchemaField({
+        granted: refList(),
+        count: int(0, { min: 0 }),
+      }),
+
       /** The race's printed save modifiers are already factored into its
        *  classes' printed save tables — the same warning ClassData carries. */
       factored: bool(),

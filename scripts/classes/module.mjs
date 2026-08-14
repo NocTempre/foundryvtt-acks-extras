@@ -12,6 +12,7 @@
  * them, advanced mode computes them, and everything downstream reads one
  * shape.
  */
+import * as languages from "./languages.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, CLASS_TYPE, RACE_TYPE, FLAG_CLASSES, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import ClassData, { AWARD_KINDS } from "./class-data.mjs";
@@ -97,6 +98,12 @@ Hooks.once("init", () => {
     .catch((err) => console.warn(`${MODULE_ID} | template preload skipped`, err));
 
   acksExtras.classes = {
+    /**
+     * Who speaks what (languages.mjs): the RR §I.10 grant — what a class and
+     * race know outright, what Intellect buys, and the slot carriers that
+     * hold them.
+     */
+    languages,
     CLASS_TYPE,
     RACE_TYPE,
     BUILDER_DOC_ID,

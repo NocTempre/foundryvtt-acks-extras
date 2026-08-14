@@ -239,6 +239,22 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
        *  materialize time — surfaced by the sheet, never silently dropped. */
       unresolvedProfs: refList(),
 
+      /**
+       * What this class knows how to speak (RR §I.10). `granted` names the
+       * tongues it begins with outright; `count` is how many MORE it may pick
+       * — a class perk, distinct from the free picks Intellect buys, which are
+       * derived from the character and never stored here.
+       *
+       * Names, not refs: a language is a world document that may not exist
+       * yet, so the class records what the book prints and the grant resolves
+       * it against the world when it can (an unmatched name still fills its
+       * slot, visibly, rather than vanishing).
+       */
+      languages: new SchemaField({
+        granted: refList(),
+        count: int(0, { min: 0 }),
+      }),
+
       awards: new ArrayField(award()),
 
       casting: new ArrayField(tradition()),
