@@ -90,6 +90,7 @@
   {{/if}}
 
   {{!-- ------------------------- Ventures (RR §VIII.6) ------------------------- --}}
+  <div class="acks-extras-markets-ventures">
   <h3><i class="fas fa-scale-balanced"></i> {{localize "ACKS-MARKETS.ventures.header"}}</h3>
   {{#if venture.entered}}
   <p class="hint">{{localize "ACKS-MARKETS.ventures.statusLine"}}: {{localize "ACKS-MARKETS.ventures.entered"}} — {{localize "ACKS-MARKETS.ventures.impact"}} {{venture.impact}} ({{venture.cargoSt}} st)</p>
@@ -132,6 +133,7 @@
     {{/each}}
   </ul>
   {{/if}}
+  </div>
 
   {{#if searchRows.length}}
   <h3><i class="fas fa-binoculars"></i> {{localize "ACKS-MARKETS.searches.header"}}</h3>

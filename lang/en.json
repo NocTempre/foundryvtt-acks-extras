@@ -2815,5 +2815,7 @@
   "ACKS-MARKETS.parties.save": "Save",
   "ACKS-MARKETS.parties.saved": "Market parties saved.",
   "ACKS-MARKETS.ventures.kind.extraSearch": "Extended search day",
-  "ACKS-MARKETS.trade.searchDayDone": "{name}: the extra day of searching pays off — the market opens wider ({days} extra day(s) this month)."
+  "ACKS-MARKETS.trade.searchDayDone": "{name}: the extra day of searching pays off — the market opens wider ({days} extra day(s) this month).",
+  "ACKS-MARKETS.availability.tablesMissing": "Market tables not yet imported",
+  "ACKS-MARKETS.trade.error.tablesMissing": "The equipment availability table has not been imported — bring it in via ACKS Importer."
 }

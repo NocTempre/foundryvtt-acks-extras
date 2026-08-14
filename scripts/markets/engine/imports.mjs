@@ -88,7 +88,8 @@ export async function placeImportOrder(location, payload) {
   const localClass = effectiveMarketClass(location, buyer);
   if (localClass == null) return err("noMarket");
   const sourceClass = hubClass(localClass, hubShift);
-  const rows = getTable("availability", "equipmentAvailability").rows ?? [];
+  const rows = optTable("availability", "equipmentAvailability")?.rows;
+  if (!rows?.length) return err("tablesMissing");
   const band = priceBandOf(costGp, rows);
   if (!band) return err("untradeable");
   const cell = cellFor(band, sourceClass);

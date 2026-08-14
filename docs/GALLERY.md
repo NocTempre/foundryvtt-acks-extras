@@ -38,6 +38,10 @@ the next refresh.
 | Colour scheme | The per-player setting that holds the ACKS look steady | [guide](guides/appearance.md#pick-a-colour-scheme) | [v3.3.0](releases/v3.3.0/settings-colour-scheme.png) |
 | Storage | Moving goods in and out of a place that holds them, and giving a character a vault | [guide](guides/location.md) | [v3.3.0](releases/v3.3.0/location-storage-manager.png) |
 | Storage messages | What a refused stow tells you, in words rather than an identifier | [guide](guides/location.md) | [v3.3.0](releases/v3.3.0/storage-message.png) |
+| Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-trade-tab.png) |
+| Market purchases | The purchase dialog: buyer, quantity, hub sourcing with its 2d6 risk, and the merchant's Bargaining profile | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-purchase-dialog.png) |
+| Magic-item market | The magic panel on an item's Construction tab: kind, rarity, apparent value, identification | [guide](guides/markets.md#magic-items) | [v3.10.0](releases/v3.10.0/markets-magic-item.png) |
+| Mercantile ventures | The ventures block: in-market status with impact, and the dedicated-day actions | [guide](guides/markets.md#mercantile-ventures) | [v3.10.0](releases/v3.10.0/markets-ventures.png) |
 | Storage reach | A mapped place you are not standing at, beside ones you can reach | [guide](guides/location.md) | [v3.4.0](releases/v3.4.0/location-storage-reach.png) |
 | Read aloud | A named power posted to chat for the table to read | [guide](guides/monsters.md#what-opens-first) | [v3.3.0](releases/v3.3.0/monster-card-chat.png) |
 | Monsters | The extended stat block's defenses: the silver flaw beside Mundane and Extraordinary | [guide](guides/monsters.md) | [v3.3.0](releases/v3.3.0/monster-sheet.png) |

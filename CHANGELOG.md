@@ -1,5 +1,44 @@
 # Changelog
 
+## 3.10.0
+
+Item markets: buying and selling at ACKS II availability and prices, on a new
+Trade tab every market location carries.
+
+### Added
+- **Item markets** — the location sheet's market grows a Trade tab: every
+  priced item the world knows, with live monthly availability per party at
+  the settlement's class (scarce goods as percent chances, the party's own
+  roll first and the town's tenfold stock never contradicting a find).
+  Purchases stack (quantity merge, or one bundle for thirty swords); sales
+  price by condition-reduced value and leave play. Demand modifiers,
+  Bargaining with opposed rolls, extended search days, the twelve-adventurer
+  dedicated shopping day, and masterwork gear behind a Judge-set contact.
+- **Merchant imports, directed searches, and commissions** — source goods
+  from a local or regional hub (2d6 days or weeks, lost on a 12), post a
+  standing search the merchant re-examines each market month, or have a
+  craftsman build the item at the imported construction rates; everything
+  delivers through one due-work sweep as game time passes.
+- **The magic-item market** — items carry apparent value, rarity, and
+  identification state on a panel the equipment sheet hosts; the JJ
+  identification ladder is automated (any qualified character or henchman,
+  level-gated retries); unidentified items trade at apparent value, fully
+  identified ones at base cost, Tower purchases at 225%.
+- **Mercantile ventures** — market entry with tolls and cargo impact,
+  supply-and-demand assessment writing per-party beliefs (wrong ones
+  indistinguishable), merchandise soliciting and trading at monthly rolled
+  prices with spot-price negotiation; every dedicated day posts now and
+  resolves as time passes. Trade networks remain on the roadmap.
+- Market party rosters (settings menu); five new importer recipes deliver
+  the availability, merchandise, market characteristics, magic-item
+  transaction, and construction-rate tables from the GM's own books.
+
+### Fixed
+- Every gold-spending receipt threw at runtime (a bare re-export left
+  `gmIds` unbound in the coin adapter) — caught by the markets live gate on
+  its first purchase.
+
+
 ## 3.9.0
 
 Stabilization release — the 2026-08-07 hygiene sweep's backlog applied whole,

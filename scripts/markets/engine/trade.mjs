@@ -136,7 +136,8 @@ const err = (error, data = {}) => ({ error, ...data });
 export function availabilityFor(location, { itemName, costGp, trader = null, direction = "bought" }) {
   const goods = location.system.market?.goods;
   if (!goods) return { status: "noMarket" };
-  const rows = getTable("availability", "equipmentAvailability").rows ?? [];
+  const rows = bandRowsFor(false);
+  if (!rows) return { status: "tablesMissing" };
   const band = priceBandOf(costGp, rows);
   if (!band) return { status: "untradeable" };
   const trueClass = location.system.marketClass;
@@ -393,6 +394,7 @@ export async function deliverGoods(buyer, { entry, qty, locationName = "" }) {
  */
 export async function resolveMonthlyAvailability(location, goods, { itemData, bandValueGp, magic = false, trader, direction, claimDedicated = false }) {
   const rows = bandRowsFor(magic);
+  if (!rows) return err("tablesMissing");
   const band = priceBandOf(bandValueGp, rows);
   if (!band) return err("untradeable");
   // The party reads its cell at its EFFECTIVE class (mercantile networks);
@@ -515,13 +517,18 @@ export function salePlan(itemData, { demandSteps = 0, bargain = null } = {}) {
   return { unitCp: priced.unitCp, basis: "base", bandValueGp: costGp * valueMult, magic: false, breakdown: priced.breakdown };
 }
 
-/** The availability grid a sale (or magic purchase) prices volume on. */
+/**
+ * The availability grid a trade prices volume on, or null when the world
+ * has not imported it — a market without its tables must degrade to a
+ * message, never break the sheet.
+ */
 function bandRowsFor(magic) {
   if (magic) {
     const t = optTable("magicItems", "transactionsByMarketClass");
     if (t?.rows?.length) return t.rows;
   }
-  return getTable("availability", "equipmentAvailability").rows ?? [];
+  const rows = optTable("availability", "equipmentAvailability")?.rows;
+  return rows?.length ? rows : null;
 }
 
 /**
