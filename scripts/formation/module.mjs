@@ -37,6 +37,8 @@ import { anchorMap, archiveSession, registerMapSocket, saveFogAsMapItem, startMa
 import { registerFuzzyRulers } from "./measure-fuzz.mjs";
 import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
+import { installDoorControl, openDoorApp } from "./door-app.mjs";
+import * as doors from "./doors.mjs";
 import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { syncEnvironments } from "./scene-sync.mjs";
@@ -52,6 +54,9 @@ function openPartySheet() {
 
 
 Hooks.once("init", () => {
+  // The Walls layer gets a door tool: a door IS a wall, so that is where a
+  // Judge already is when a stuck one stops the party.
+  installDoorControl();
   /* --- Settings --- */
   game.settings.register(MODULE_ID, SETTING_FORMATIONS, {
     scope: "world",
@@ -203,8 +208,15 @@ Hooks.once("init", () => {
      * ({actorId, name, roles, rank, file}), `ROLES`, `getFormations()`,
      * `rollPartyCheck(formation, key)` and `PARTY_CHECKS`. Additions bump this;
      * removals or shape changes are a major of this module.
+     *
+     * 2 adds `doors` — `bashPlan()` (the throw as arithmetic, no dice),
+     * `bashDoor`/`spikeDoor`/`unspikeDoor`/`batterPlan`, `doorState(wall)` and
+     * `openDoorApp(wall)`. A trap module wanting to spike a door shut, or to
+     * ask what forcing one would take, calls these rather than re-deriving the
+     * modifiers.
      */
-    apiVersion: 1,
+    apiVersion: 2,
+    doors: { ...doors, openDoorApp },
     ROLES,
     marchingOrder,
     open: openPartySheet,

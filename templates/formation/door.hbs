@@ -1,0 +1,98 @@
+<section class="acks-extras-door">
+
+  <fieldset>
+    <legend>{{localize "ACKS-FORMATION.doors.theDoor"}}</legend>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-FORMATION.doors.construction"}}</label>
+      <div class="form-fields">
+        <select name="kind">
+          {{#each kinds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </div>
+    </div>
+
+    {{! Spikes are state, not a modifier the Judge types — they were hammered
+        in a round at a time and the door remembers them. }}
+    <div class="form-group">
+      <label>{{localize "ACKS-FORMATION.doors.spikes"}}</label>
+      <div class="form-fields acks-extras-door-spikes">
+        <span>{{state.spikes}} / {{maxSpikes}}</span>
+        {{#if canSpike}}
+          <button type="button" data-action="spike">
+            <i class="fa-solid fa-hammer"></i> {{localize "ACKS-FORMATION.doors.spikeIt"}}
+          </button>
+        {{/if}}
+        {{#if state.spikes}}
+          <button type="button" data-action="unspike">
+            <i class="fa-solid fa-minus"></i> {{localize "ACKS-FORMATION.doors.pullOne"}}
+          </button>
+        {{/if}}
+      </div>
+      <p class="hint">{{localize "ACKS-FORMATION.doors.spikeHint"}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-FORMATION.doors.heave"}}</legend>
+
+    <p class="acks-extras-door-who">{{localize "ACKS-FORMATION.doors.basher"}}: <strong>{{actorName}}</strong></p>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-FORMATION.doors.partner"}}</label>
+      <div class="form-fields">
+        <select name="partnerId">
+          <option value="">{{localize "ACKS-FORMATION.doors.alone"}}</option>
+          {{#each partners}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-FORMATION.doors.crowbar"}}</label>
+      <div class="form-fields"><input type="checkbox" name="crowbar" {{checked opts.crowbar}}></div>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-FORMATION.doors.sizeSteps"}}</label>
+      <div class="form-fields"><input type="number" name="sizeSteps" step="1" value="{{opts.sizeSteps}}"></div>
+      <p class="hint">{{localize "ACKS-FORMATION.doors.sizeHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-FORMATION.doors.judgeMod"}}</label>
+      <div class="form-fields"><input type="number" name="extra" step="1" value="{{opts.extra}}"></div>
+    </div>
+
+    {{! The throw, before anyone spends a round on it. }}
+    <div class="acks-extras-door-throw{{#if plan.hopeless}} is-hopeless{{/if}}">
+      {{#if plan.hopeless}}
+        <p><i class="fa-solid fa-ban"></i> {{localize "ACKS-FORMATION.doors.hopeless"}}</p>
+      {{else}}
+        <p class="acks-extras-door-needs">{{localize "ACKS-FORMATION.doors.needs"}} <strong>{{needs}}+</strong></p>
+      {{/if}}
+      {{#if parts.length}}
+        <ul class="acks-extras-door-parts">
+          {{#each parts}}<li>{{label}} <span>{{sign}}{{value}}</span></li>{{/each}}
+        </ul>
+      {{/if}}
+    </div>
+
+    <button type="button" data-action="bash" {{#if plan.hopeless}}disabled{{/if}}>
+      <i class="fa-solid fa-person-falling-burst"></i> {{localize "ACKS-FORMATION.doors.bashIt"}}
+    </button>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-FORMATION.doors.axe"}}</legend>
+    {{#if batter.ok}}
+      <p>{{localize "ACKS-FORMATION.doors.batterCost"}} <strong>{{batter.turns}}</strong></p>
+      <button type="button" data-action="batter">
+        <i class="fa-solid fa-axe"></i> {{localize "ACKS-FORMATION.doors.batterIt"}}
+      </button>
+    {{else}}
+      <p class="hint">{{localize "ACKS-FORMATION.doors.tooSolid"}}</p>
+    {{/if}}
+  </fieldset>
+
+</section>
