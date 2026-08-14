@@ -3,6 +3,56 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-14 — A level set is a level owed: applying a class grants its ladder
+
+Binding a class granted **no abilities at all**. `applyClass` wrote the printed
+numbers and (for the picker) rebuilt hit points and experience; `grantAbility`
+had exactly two callers, and neither was on that path — chargen granted a 1st
+level on the Scores Generator, and the level-up wizard granted the single rung
+it was climbing. So a character bound at 5th stood there with a 5th-level
+attack throw, 5th-level saves, 5th-level hit points and not one class power,
+not one proficiency, not even Adventuring. A character bound at 1st got the
+same nothing, which is the case that was reported.
+
+Ruled: the 2026-08-06 reading already decided this — the picker SETS a level
+rather than earning one, "so it rebuilds what that level implies". Abilities
+are as implied by a level as hit points are. `{grantAwards: true}` on the two
+paths that set a level hands over every award AT OR BELOW it.
+
+**Every rung, not the last one.** A ladder read as "the awards at level N" is
+the level-up wizard's question, because a level is earned one at a time. The
+question a set level asks is what a character who HOLDS 5th has taken, and the
+printed spread answers all five rungs.
+
+**The choices are asked in the apply dialog**, not deferred. The level-up
+wizard only ever offers the rung it is climbing, so a pick owed at 2nd is
+unreachable forever once a character stands at 5th — deferring would have left
+the character permanently short in a way no surface could repair.
+
+**The dialog opens for abilities alone.** It used to be skipped when no printed
+number changed, which would have made re-applying — the one way an
+already-bound character collects what they were owed — silently do nothing.
+
+**An owned copy is not the world item, and the dedupe never knew it.** Found by
+live-testing the re-apply above: `ownsRef` matched a `uuid:` ref against the
+owned item's own uuid, which is an embedded id and can never equal the world
+item's — so every hand-made (uuid-ref) ability was granted again on every pass,
+and the repair path this ruling creates doubled Adventuring and the first-level
+power. Recognition now runs importer stamp → a `grantedFrom` stamp written at
+grant time → the source's name, the same name-matching that already identified
+a world's hand-made Adventuring. The importer-stamped path was always sound,
+which is why level-up and chargen never showed it.
+
+**A choice rung answered is remembered** (`awardsTaken` on the class flag), so
+re-applying adds what is missing instead of asking every question again. Keyed
+by ladder position and level: a Judge who reorders a ladder afterwards may be
+asked a rung a second time, and the options a character already holds are
+filtered out either way, so the cost is a question rather than a duplicate.
+
+**Not migrated**, per the standing rule against dev-cycle migrations: existing
+characters are repaired by applying their class again, which the guide now
+says, rather than by a sweep that writes items onto player-owned actors.
+
 ## 2026-08-12 — Import makes the examples: builds stamped, races materialized
 
 Ruled (user): the JJ import must leave WORKING examples — after the table

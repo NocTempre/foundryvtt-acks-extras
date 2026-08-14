@@ -22,6 +22,17 @@ Three small controls appear beside the class field:
   printed numbers for the current level (saves, attack throw, title,
   XP-to-next, hit dice, cleaves, spell slots). The confirm lists every change
   old → new and flags anything you hand-edited since the last apply.
+
+  It also hands over **the abilities that level owes** — Adventuring, every
+  power and proficiency the class awards at or below the level you set, and a
+  picker for each choice the ladder leaves open. A character bound at 5th
+  arrives with all five levels' awards, not with the fifth level's alone. What
+  they already carry is not given twice, and what lands is posted to chat.
+  Dropping a class document onto the sheet does the same thing.
+
+  Applying the same class at the same level again is how a character who was
+  bound before this existed collects what they were always owed: the fields
+  will show nothing to change, and the abilities will still be listed.
 - **Dice** (level 1 characters) — roll a starting template: 3d6, then choose
   the rolled template or any lower band. Applying grants the proficiencies
   (ranks and selections included), the equipment — each piece named as

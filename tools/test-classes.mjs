@@ -24,6 +24,7 @@ import {
   valueRow,
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
+import { awardsThrough } from "../scripts/classes/grants.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -383,6 +384,115 @@ test("derivePlan skips what a partial table set cannot answer", () => {
   assert.equal(plan.update.attack, undefined); // no chassis map, no base → absent
   assert.ok(plan.issues.some((i) => i.key === "missingAttackBase" || i.key === "missingAttackResolution"));
   assert.ok(plan.issues.some((i) => i.key === "missingPostEight"));
+});
+
+/* ------------------- awards owed for a level held ------------------- */
+
+/* Whether an ability is already owned is partly a question about the WORLD —
+ * an owned copy carries its own uuid, so a ref that resolves to nothing has to
+ * fall back to the source's name. These cases supply the two lookups that
+ * answer it, empty: still Foundry-free, and every ref below resolves to
+ * nothing, which is what makes "not owned" the honest answer. */
+globalThis.game = { items: [] };
+globalThis.fromUuidSync = () => null;
+
+/** A world ability item as `refOf` addresses it: the importer's cookbook stamp. */
+const stamped = (id) => ({ flags: { "acks-importer": { cookbook: { id } } } });
+
+/** A class whose ladder prints one fixed and one choice award per level. */
+const LADDERED = {
+  system: {
+    inventory: ["def.prof.combatTrickery", "def.prof.berserkergang"],
+    awards: [
+      { atLevel: 1, kind: "fixed", ref: "def.power.ambush", name: "Ambush" },
+      { atLevel: 1, kind: "choice", choice: { label: "Class proficiency", from: "classInventory", filter: "any", count: 1 } },
+      { atLevel: 2, kind: "fixed", ref: "def.power.hearNoise", name: "Hear Noise" },
+      { atLevel: 4, kind: "fixed", ref: "def.power.backstab", name: "Backstab" },
+      { atLevel: 5, kind: "choice", choice: { label: "General proficiency", from: "generalList", filter: "any", count: 1 } },
+      { atLevel: 9, kind: "fixed", ref: "def.power.stronghold", name: "Stronghold" },
+    ],
+  },
+};
+
+test("a level owes every rung at or below it, not only the one just reached", () => {
+  const owed = awardsThrough({ items: [] }, LADDERED, 5);
+  assert.deepEqual(
+    owed.fixed.map((a) => a.ref),
+    ["def.power.ambush", "def.power.hearNoise", "def.power.backstab"],
+  );
+  assert.equal(owed.choices.length, 2);
+  // The rung above the held level stays unearned.
+  assert.ok(!owed.fixed.some((a) => a.ref === "def.power.stronghold"));
+});
+
+test("first level owes its own rung — the case a bound character got nothing for", () => {
+  const owed = awardsThrough({ items: [] }, LADDERED, 1);
+  assert.deepEqual(
+    owed.fixed.map((a) => a.ref),
+    ["def.power.ambush"],
+  );
+  assert.equal(owed.choices.length, 1);
+});
+
+test("a fixed award the character already carries is not offered again", () => {
+  const actor = { items: [stamped("def.power.ambush"), stamped("def.power.backstab")] };
+  const owed = awardsThrough(actor, LADDERED, 5);
+  assert.deepEqual(
+    owed.fixed.map((a) => a.ref),
+    ["def.power.hearNoise"],
+  );
+});
+
+test("an award with no printed level is a first-level award", () => {
+  const cls = { system: { awards: [{ kind: "fixed", ref: "def.power.unlevelled" }] } };
+  assert.equal(awardsThrough({ items: [] }, cls, 1).fixed.length, 1);
+});
+
+test("a class with an empty ladder owes nothing at any level", () => {
+  const owed = awardsThrough({ items: [] }, { system: {} }, 14);
+  assert.deepEqual(owed.fixed, []);
+  assert.deepEqual(owed.choices, []);
+});
+
+test("a choice rung already answered is not asked again on re-apply", () => {
+  const first = awardsThrough({ items: [] }, LADDERED, 5);
+  assert.equal(first.choices.length, 2);
+  // Answering both records their keys; the next apply offers neither.
+  const taken = first.choices.map((c) => c.key);
+  const again = awardsThrough({ items: [] }, LADDERED, 5, taken);
+  assert.deepEqual(again.choices, []);
+  // A rung answered at 5th does not suppress one that first appears later.
+  const higher = awardsThrough({ items: [] }, { system: { awards: [
+    ...LADDERED.system.awards,
+    { atLevel: 7, kind: "choice", choice: { label: "Later", from: "generalList", count: 1 } },
+  ] } }, 7, taken);
+  assert.equal(higher.choices.length, 1);
+  assert.equal(higher.choices[0].choice.label, "Later");
+});
+
+test("answering only one of two rungs leaves the other still owed", () => {
+  const owed = awardsThrough({ items: [] }, LADDERED, 5);
+  const again = awardsThrough({ items: [] }, LADDERED, 5, [owed.choices[0].key]);
+  assert.equal(again.choices.length, 1);
+  assert.equal(again.choices[0].key, owed.choices[1].key);
+});
+
+test("a hand-made ability is matched by uuid, so its award is not re-granted", () => {
+  const actor = { items: [{ uuid: "Item.abc123", flags: {} }] };
+  const cls = { system: { awards: [{ atLevel: 1, kind: "fixed", ref: "uuid:Item.abc123" }] } };
+  assert.deepEqual(awardsThrough(actor, cls, 3).fixed, []);
+});
+
+test("a copy this module granted is recognised by its stamp, not by its own uuid", () => {
+  // The trap that doubled abilities live: an OWNED copy has its own uuid, so
+  // matching a `uuid:` ref against it never succeeds. The grant stamp does.
+  const owned = { uuid: "Actor.a1.Item.copy9", flags: { "acks-extras": { grantedFrom: "uuid:Item.world7" } } };
+  const cls = { system: { awards: [{ atLevel: 1, kind: "fixed", ref: "uuid:Item.world7" }] } };
+  assert.deepEqual(awardsThrough({ items: [owned] }, cls, 1).fixed, []);
+  // Without the stamp the ref no longer matches, and the world lookup is what
+  // has to answer — empty here, so the award stands.
+  const bare = { uuid: "Actor.a1.Item.copy9", flags: {} };
+  assert.equal(awardsThrough({ items: [bare] }, cls, 1).fixed.length, 1);
 });
 
 console.log(`test-classes: ${passed} assertion groups passed.`);

@@ -131,6 +131,18 @@ written values are recorded at `flags["acks-extras"].classes.applied` so the
 next apply can make that distinction again. Cells the book leaves blank are
 skipped, never zeroed.
 
+**A set level grants what it owes.** `{grantAwards: true}` — passed by the
+picker and by a dropped class, the two paths that SET a level — also hands over
+every award at or below it: Adventuring, each fixed award, and one pick per
+choice award, offered in the same confirm dialog and granted after the level
+lands. [grants.mjs](../../scripts/classes/grants.mjs) owns the granting for all
+three consumers (`awardsThrough` reads the ladder, `grantAbility` writes one
+item, deduped by ref) — chargen builds its own 1st level and the level-up
+wizard has already granted the rung it climbed, so neither passes the flag and
+neither has the whole ladder handed over underneath it. A confirm dialog opens
+for owed abilities even when no printed number changes, which is how a
+character bound before this existed collects what they were owed.
+
 The picker ([scripts/classes/assign.mjs](../../scripts/classes/assign.mjs))
 is injected beside the system's free-text class input on character sheets and
 binds the actor to a class document (`flags["acks-extras"].classes` +

@@ -1,9 +1,10 @@
-/* global game, foundry, ui */
+/* global game, foundry, ui, ChatMessage */
 /**
  * Applying a class document to a character: one batched update carrying the
  * printed values for the character's level — saves and attack throw (via the
  * released-key write layer), title, XP-to-next, hit-dice formula, cleaves,
- * and the vancian slot grid.
+ * and the vancian slot grid — and, when the level is being SET rather than
+ * earned, the abilities that level owes.
  *
  * Never silent: `applyClass` shows what it is about to change (old → new) and
  * marks fields whose current value differs from what the LAST apply wrote —
@@ -13,8 +14,17 @@
  */
 import { savesUpdateData } from "../lib/actor-compat.mjs";
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
-import { saveBandAt, attackBandAt, resolveLevelValue } from "./registry.mjs";
+import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
 import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
+import {
+  adventuringDoc,
+  awardsThrough,
+  grantAbility,
+  grantAdventuring,
+  optionsForChoice,
+  ownsRef,
+  refOf,
+} from "./grants.mjs";
 
 export { normalizeHd };
 
@@ -95,9 +105,20 @@ const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
  * flagging hand-edited fields; `{confirm: false}` skips it (callers that
  * already confirmed). Records the applied ledger on the actor.
  *
- * @returns {Promise<{applied: boolean, update?: object, missing?: string[]}>}
+ * `{grantAwards: true}` also hands over the abilities the class owes AT AND
+ * BELOW that level — Adventuring, every fixed award, and one pick per choice
+ * award, asked in the same dialog. Only the paths that SET a level pass it
+ * (the picker and a dropped class); chargen grants its own 1st level and the
+ * level-up wizard has already granted the rung it just earned, so neither
+ * wants the whole ladder handed over underneath it.
+ *
+ * @returns {Promise<{applied: boolean, update?: object, missing?: string[], grants?: object[]}>}
  */
-export async function applyClass(actor, classItem, { level, confirm = true, rebuildVitals = false } = {}) {
+export async function applyClass(
+  actor,
+  classItem,
+  { level, confirm = true, rebuildVitals = false, grantAwards = false } = {},
+) {
   if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { applied: false };
   if (classItem.system.isStub) {
     ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.stub`, { name: classItem.name }));
@@ -148,7 +169,28 @@ export async function applyClass(actor, classItem, { level, confirm = true, rebu
       })}</p>`
     : "";
 
-  if (!rows.length) {
+  // What the class owes a character who HOLDS this level, not merely one who
+  // just reached it: every rung of the award ladder at or below it. A fixed
+  // award the character already carries is dropped, so the dialog offers only
+  // what would actually land.
+  const takenAlready = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.awardsTaken ?? [];
+  const owed = grantAwards
+    ? awardsThrough(actor, classItem, clamped, takenAlready)
+    : { fixed: [], choices: [] };
+  // Adventuring is free with every class (RR Ch. 3 §III.4) and is matched by
+  // the importer's stamp OR by name, so whether it is owed is asked of the
+  // document rather than of a constant.
+  const adventuring = grantAwards ? adventuringDoc() : null;
+  const owedAdventuring = !!adventuring && !ownsRef(actor, refOf(adventuring));
+  const awardCount = owed.fixed.length + owed.choices.length + (owedAdventuring ? 1 : 0);
+
+  /** Refs chosen in the dialog for this level's open choice awards. */
+  let picks = [];
+
+  // A level whose numbers already agree can still owe abilities — re-applying
+  // the same class at the same level is exactly how a character bound before
+  // this catch-up existed gets what they were always owed.
+  if (!rows.length && !awardCount) {
     ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.apply.noChanges`, { name: actor.name }));
   } else if (confirm) {
     const edited = game.i18n.localize(`${LANG_PREFIX}.apply.handEdited`);
@@ -160,13 +202,45 @@ export async function applyClass(actor, classItem, { level, confirm = true, rebu
           }</td><td>${r.from}</td><td>${r.to}</td></tr>`,
       )
       .join("");
+    // The abilities half of the dialog: what will be handed over, and one
+    // picker per choice the ladder leaves open. A choice is asked here because
+    // the level-up wizard only ever offers the rung it is climbing — a pick
+    // owed at 2nd is unreachable forever once a character stands at 5th.
+    const grantedNames = [
+      ...(owedAdventuring ? [adventuring.name] : []),
+      ...owed.fixed.map((a) => findByRef(a.ref)?.name ?? a.name ?? a.ref),
+    ];
+    const choiceBlocks = owed.choices
+      .map((a, index) => {
+        const options = optionsForChoice(a.choice, classItem).filter((o) => !ownsRef(actor, o.ref));
+        const label = a.choice.label || game.i18n.localize(`${LANG_PREFIX}.apply.pick`);
+        const opts = options
+          .map((o) => `<option value="${foundry.utils.escapeHTML(o.ref)}">${foundry.utils.escapeHTML(o.name)}</option>`)
+          .join("");
+        return `<div class="form-group"><label>${foundry.utils.escapeHTML(label)} <span class="acks-extras-classes-refname">(${game.i18n.format(
+          `${LANG_PREFIX}.apply.atLevel`,
+          { level: a.atLevel ?? 1 },
+        )})</span></label><select name="award-${index}">${opts}</select></div>`;
+      })
+      .join("");
+    const awardsBlock = awardCount
+      ? `<p><strong>${game.i18n.localize(`${LANG_PREFIX}.apply.awards`)}</strong></p>${
+          grantedNames.length
+            ? `<ul>${grantedNames.map((n) => `<li>${foundry.utils.escapeHTML(n)}</li>`).join("")}</ul>`
+            : ""
+        }${choiceBlocks}`
+      : "";
     const content = `${unmetNote}<p>${game.i18n.format(`${LANG_PREFIX}.apply.prompt`, {
       actor: actor.name,
       class: classItem.name,
       level: clamped,
-    })}</p><table class="acks-extras-classes-diff"><tr><th></th><th>${game.i18n.localize(
-      `${LANG_PREFIX}.apply.from`,
-    )}</th><th>${game.i18n.localize(`${LANG_PREFIX}.apply.to`)}</th></tr>${list}</table>${
+    })}</p>${
+      rows.length
+        ? `<p>${game.i18n.localize(`${LANG_PREFIX}.apply.fields`)}</p><table class="acks-extras-classes-diff"><tr><th></th><th>${game.i18n.localize(
+            `${LANG_PREFIX}.apply.from`,
+          )}</th><th>${game.i18n.localize(`${LANG_PREFIX}.apply.to`)}</th></tr>${list}</table>`
+        : ""
+    }${
       // The dice are shown, not just their conclusion — a rebuilt total is a
       // handful of rolls the player did not watch happen.
       hpSteps?.length
@@ -174,15 +248,31 @@ export async function applyClass(actor, classItem, { level, confirm = true, rebu
             .map((s) => `${s.level}: ${s.formula} → ${s.total}`)
             .join(", ")}</p>`
         : ""
-    }`;
+    }${awardsBlock}`;
     const ok = await foundry.applications.api.DialogV2.confirm({
       window: { title: game.i18n.localize(`${LANG_PREFIX}.apply.title`) },
       content,
       modal: true,
+      // The yes button submits, so its callback is where the pickers can still
+      // be read; returning the picks rather than `true` carries them out of the
+      // dialog without a second surface to collect them.
+      yes: {
+        // One entry per offered rung, EMPTY included — the position is what
+        // says which rung an answer belongs to.
+        callback: (_event, button) =>
+          owed.choices.map((_, index) => button.form?.elements?.[`award-${index}`]?.value ?? ""),
+      },
     });
     if (!ok) return { applied: false };
+    // Kept aligned with `owed.choices` so a rung that was answered can be
+    // remembered as answered; the duplicates are collapsed only at the grant.
+    picks = Array.isArray(ok) ? ok : [];
   }
 
+  // A choice rung that was answered is remembered as answered, so re-applying
+  // — the way a character collects what they were owed — adds what is missing
+  // rather than asking every question a second time.
+  const answered = owed.choices.filter((_, index) => picks[index]).map((c) => c.key);
   const applied = {};
   for (const [path, value] of Object.entries(update)) applied[path] = value;
   await actor.update({
@@ -192,10 +282,36 @@ export async function applyClass(actor, classItem, { level, confirm = true, rebu
       key: classItem.system.key || classItem.name.toLowerCase(),
       appliedLevel: clamped,
       applied,
+      ...(grantAwards ? { awardsTaken: [...new Set([...takenAlready, ...answered])] } : {}),
     },
   });
   if (missing.length) {
     ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.missing`, { parts: missing.join(", ") }));
   }
-  return { applied: true, update, missing };
+
+  // The abilities land AFTER the level does, so a granted ability reading the
+  // character's level reads the one they now hold. Every grant dedupes by ref,
+  // so nothing the character already carried is doubled.
+  const grants = [];
+  if (grantAwards) {
+    await grantAdventuring(actor, grants);
+    for (const a of owed.fixed) await grantAbility(actor, a.ref, grants);
+    for (const ref of new Set(picks.filter(Boolean))) await grantAbility(actor, ref, grants);
+    if (grants.length) {
+      // What a character was handed is a record, not a toast — the same place
+      // level-up and chargen put theirs. A ref the world cannot resolve is
+      // named with a question mark rather than dropped in silence.
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<p>${game.i18n.format(`${LANG_PREFIX}.apply.grantedChat`, {
+          name: actor.name,
+          class: classItem.name,
+          level: clamped,
+        })}</p><p>${grants
+          .map((g) => foundry.utils.escapeHTML(g.missing ? `${g.name} (?)` : g.name))
+          .join(", ")}</p>`,
+      });
+    }
+  }
+  return { applied: true, update, missing, grants };
 }

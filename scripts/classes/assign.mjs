@@ -75,9 +75,10 @@ export async function openClassPicker(actor) {
   if (!picked?.uuid) return;
   const item = await fromUuid(picked.uuid);
   if (!item) return;
-  // Chosen by hand, so hit points and experience are rebuilt to match — the
-  // picker is where a character's level is SET rather than earned.
-  await applyClass(actor, item, { level: picked.level, rebuildVitals: true });
+  // Chosen by hand, so hit points, experience and the abilities the level owes
+  // are all brought into line — the picker is where a character's level is SET
+  // rather than earned, and a level sets everything it implies.
+  await applyClass(actor, item, { level: picked.level, rebuildVitals: true, grantAwards: true });
 }
 
 /** Our marker on a character sheet, so this module's rules have something of
@@ -110,7 +111,11 @@ function onRenderCharacterSheet(app, element) {
         if (dropped?.type !== `${MODULE_ID}.class`) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        applyClass(doc, dropped, { level: Math.max(1, Number(doc.system?.details?.level) || 1), rebuildVitals: true });
+        applyClass(doc, dropped, {
+          level: Math.max(1, Number(doc.system?.details?.level) || 1),
+          rebuildVitals: true,
+          grantAwards: true,
+        });
       },
       { capture: true },
     );

@@ -17,73 +17,12 @@ import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 import { normalizeHd, parseHd, rollHitDice } from "./hitpoints.mjs";
-import { choiceOptions } from "../lib/choice-spec.mjs";
-import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { grantAbility, optionsForChoice } from "./grants.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 export const HP_MODE_SETTING = "levelUpHpMode";
 
 export { parseHd };
-
-/** The ref a world item is addressed by (the importer's stamp, else uuid). */
-const refOf = (item) => item.flags?.["acks-importer"]?.cookbook?.id ?? `uuid:${item.uuid}`;
-
-/** Does the actor already own an ability carrying this ref? */
-const ownsRef = (actor, ref) =>
-  actor.items.some(
-    (i) => refOf(i) === ref || (ref.startsWith("uuid:") && i.uuid === ref.slice(5)),
-  );
-
-/** Create one granted ability on the actor from a world item ref. */
-export async function grantAbility(actor, ref, grants) {
-  if (!ref || ownsRef(actor, ref)) return;
-  const source = findByRef(ref);
-  if (!source) {
-    grants.push({ ref, name: ref, missing: true });
-    return;
-  }
-  const data = source.toObject();
-  delete data._id;
-  await actor.createEmbeddedDocuments("Item", [data]);
-  grants.push({ ref, name: source.name });
-}
-
-/** The cookbook ref of the proficiency every character already has. */
-export const ADVENTURING_REF = "def.prof.adventuring";
-
-/** Is this world item the Adventuring proficiency? Matched by the importer's
- *  stamp, and by name for a world's hand-made copy that carries none. */
-const isAdventuring = (item) =>
-  refOf(item) === ADVENTURING_REF || String(item.name ?? "").trim().toLowerCase() === "adventuring";
-
-/**
- * Every general proficiency a character may still CHOOSE.
- *
- * "All player characters are assumed to have Adventuring" (RR Ch. 3 §III.4),
- * so it is never on offer: a pick spent on it buys nothing.
- */
-export const choosableGenerals = () =>
-  (game.items ?? []).filter(
-    (i) => i.type === ITEM_TYPE.ability && i.system.proficiencytype === "general" && !isAdventuring(i),
-  );
-
-/** Grant the free-with-every-class Adventuring proficiency, once. */
-export async function grantAdventuring(actor, grants) {
-  const doc = (game.items ?? []).find((i) => i.type === ITEM_TYPE.ability && isAdventuring(i));
-  if (doc) await grantAbility(actor, refOf(doc), grants);
-}
-
-/** Resolve a ChoiceSpec's options against this class doc and the world. */
-export function optionsForChoice(choice, classItem) {
-  const generalRefs = choosableGenerals().map(refOf);
-  const refs = choiceOptions(choice, {
-    inventory: classItem.system.inventory,
-    generalRefs,
-    spellRefs: [],
-  });
-  return refs
-    .map((ref) => ({ ref, name: findByRef(ref)?.name ?? ref }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
 
 /**
  * Run the level-up wizard for one character. Rolls HP up front so the dialog

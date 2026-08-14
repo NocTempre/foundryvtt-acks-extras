@@ -20,7 +20,7 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
-import { grantAbility, grantAdventuring } from "./levelup.mjs";
+import { grantAbility, grantAdventuring } from "./grants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");

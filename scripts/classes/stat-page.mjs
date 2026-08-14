@@ -40,7 +40,7 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { classItems, byBookOrder, findByRef } from "./registry.mjs";
 import { legalTemplates, netBonusPicks, templateShortfall, applyChargen, templateItemName, coinLine } from "./chargen.mjs";
-import { optionsForChoice, choosableGenerals } from "./levelup.mjs";
+import { optionsForChoice, choosableGenerals } from "./grants.mjs";
 
 const PAGE_CLASS = "acks-extras-classes-statgen";
 const COLUMN = "acks-extras-classes-col";
