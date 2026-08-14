@@ -11,12 +11,14 @@
  */
 import { MODULE_ID, LANG, HOOKS } from "../constants.mjs";
 import { priceBandOf, cellFor, itemKeyOf } from "../rules/availability.mjs";
-import { quote, toGp } from "../rules/pricing.mjs";
+import { quote, toGp, bargainWinner } from "../rules/pricing.mjs";
 import { importPlan, dueImports, hubClass } from "../rules/imports.mjs";
+import { commissionPlan } from "../rules/commissions.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
-import { getTable } from "../../henchmen/rules/tables.mjs";
+import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { now, onTimeAdvanced } from "../../henchmen/time.mjs";
+import { getSetting as henchmenSetting } from "../../henchmen/settings.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { findGearEntry } from "../../equipment/grant.mjs";
@@ -29,8 +31,11 @@ import {
   categoryOf,
   demandStepsFor,
   marketMonthStart,
+  resolveMonthlyAvailability,
+  goodsOf,
 } from "./trade.mjs";
-import { bargainWinner } from "../rules/pricing.mjs";
+
+const SECONDS_PER_DAY = 86400;
 
 const err = (error, data = {}) => ({ error, ...data });
 
@@ -158,16 +163,13 @@ export async function processImports(location) {
   const goods = location.system.market?.goods;
   if (!goods) return { resolved: 0 };
   const t = now();
+  const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  const updates = {};
+  let resolved = 0;
+
+  // Imports: arrivals deliver, losses reveal, both on their rolled dates.
   const orders = (goods.imports ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   const due = dueImports(orders, t);
-  if (!due.length) {
-    if (Number(goods.lastProcessedTime ?? 0) < t) {
-      await location.update({ "system.market.goods.lastProcessedTime": t });
-    }
-    return { resolved: 0 };
-  }
-  const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
-  let resolved = 0;
   for (const order of due) {
     const buyerDoc = await fromUuid(order.buyerUuid).catch(() => null);
     const buyer = buyerDoc?.actor ?? buyerDoc;
@@ -180,7 +182,7 @@ export async function processImports(location) {
     } else {
       const entry = await findGearEntry(order.itemName);
       if (!entry || !buyer) {
-        // Nothing to deliver to — leave the order for the Judge rather than
+        // Nothing to deliver to — leave the record for the Judge rather than
         // silently consuming it.
         log.push({ time: t, type: "importArrived", note: `${order.qty}× ${order.itemName}: arrived but undeliverable (missing ${buyer ? "source item" : "buyer"})` });
         order.status = "delivered";
@@ -195,12 +197,227 @@ export async function processImports(location) {
     resolved += 1;
     Hooks.callAll(HOOKS.IMPORT_RESOLVED, { location, order });
   }
+  if (due.length) updates["system.market.goods.imports"] = orders;
+
+  // Commissions: finished builds deliver.
+  const commissions = (goods.commissions ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  const built = commissions.filter((o) => o.status === "building" && Number(o.completionTime) <= t);
+  for (const order of built) {
+    const buyerDoc = await fromUuid(order.buyerUuid).catch(() => null);
+    const buyer = buyerDoc?.actor ?? buyerDoc;
+    const entry = await findGearEntry(order.itemName);
+    order.status = "delivered";
+    resolved += 1;
+    if (!entry || !buyer) {
+      log.push({ time: t, type: "commissionDone", note: `${order.qty}× ${order.itemName}: finished but undeliverable (missing ${buyer ? "source item" : "buyer"})` });
+      continue;
+    }
+    await deliverGoods(buyer, { entry, qty: order.qty, locationName: location.name });
+    log.push({ time: t, type: "commissionDone", note: `${buyer.name}: ${order.qty}× ${order.itemName} finished` });
+    await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.commissions.doneLine`, { buyer: buyer.name, qty: order.qty, name: order.itemName })}</strong>`);
+  }
+  if (built.length) updates["system.market.goods.commissions"] = commissions;
+
+  // Directed searches: a fresh market month gets a fresh look.
+  const goodsWrites = { goods: goodsOf(location), dirty: false };
+  const searchSweep = await processSearches(location, goodsWrites, log, t);
+  if (searchSweep.changed) {
+    updates["system.market.goods.searches"] = searchSweep.searches;
+    resolved += searchSweep.searches.filter((o) => o.status === "found").length;
+  }
+  if (goodsWrites.dirty) {
+    updates["system.market.goods.ledger"] = goodsWrites.goods.ledger;
+    updates["system.market.goods.existenceRolls"] = goodsWrites.goods.existenceRolls;
+    updates["system.market.goods.totals"] = goodsWrites.goods.totals;
+    updates["system.market.goods.partyMonths"] = goodsWrites.goods.partyMonths;
+  }
+
+  if (!Object.keys(updates).length) {
+    if (Number(goods.lastProcessedTime ?? 0) < t) {
+      await location.update({ "system.market.goods.lastProcessedTime": t });
+    }
+    return { resolved: 0 };
+  }
+  updates["system.market.goods.lastProcessedTime"] = t;
+  updates["system.market.marketLog"] = log.slice(-300);
+  await location.update(updates);
+  return { resolved };
+}
+
+/**
+ * Commission an item's construction (RR §IV.11): the item is a project of
+ * its base cost, built at the chosen worker's construction rate; the wages
+ * for the duration are paid up front and the finished goods deliver at
+ * completion through the same due-work sweep as imports.
+ */
+export async function placeCommission(location, payload) {
+  const { buyerUuid, itemName, qty: rawQty, worker, requestUserId = null, resolutionId = "" } = payload;
+  const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
+  const buyerDoc = await fromUuid(buyerUuid).catch(() => null);
+  const buyer = buyerDoc?.actor ?? buyerDoc;
+  if (!buyer) return err("noBuyer");
+  const goods = location?.system?.market?.goods;
+  if (!goods) return err("noMarket");
+  if (requestUserId) {
+    const user = game.users.get(requestUserId);
+    if (!user?.isGM && !buyer.testUserPermission(user, "OWNER")) return err("notYours");
+  }
+  const existing = (goods.commissions ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  if (resolutionId && existing.some((o) => o.id === resolutionId)) return err("duplicate");
+
+  const entry = await findGearEntry(itemName);
+  if (!entry) return err("noSource");
+  const itemData = entry.data;
+  if (!TRADE_TYPES.includes(itemData.type) || itemData.type === ITEM_TYPE.bundle) return err("untradeable");
+  const costGp = Number(itemData.system?.cost ?? 0);
+  if (!(costGp > 0)) return err("untradeable");
+  // A masterwork is a grandmaster's work — the same contact gate (RR §IV.6).
+  if (isMasterwork(itemData) && !goods.masterworkContact) return err("masterworkGated");
+
+  const rateRow = (optTable("construction", "wageAndConstructionRates")?.rows ?? []).find((r) => r.worker === worker);
+  if (!rateRow) return err("noRates");
+  const plan = commissionPlan({
+    costCp: Math.round(costGp * 100) * qty,
+    rateRow,
+    daysPerMonth: Number(henchmenSetting("daysPerMonth")) || 28,
+  });
+  if (!plan) return err("noRates");
+
+  const wagesGp = toGp(plan.wagesCp);
+  const paid = await adapter.spendGold(buyer, wagesGp, game.i18n.format(`${LANG}.commissions.payReason`, { qty, name: itemData.name }));
+  if (!paid) return err("insufficientGold");
+
+  const t = now();
+  const order = {
+    id: resolutionId || foundry.utils.randomID(),
+    buyerUuid: buyer.uuid,
+    itemKey: itemKeyOf(itemData.name),
+    itemName: itemData.name,
+    qty,
+    worker,
+    wagesCp: plan.wagesCp,
+    placedTime: t,
+    completionTime: t + plan.days * SECONDS_PER_DAY,
+    status: "building",
+    lastResolutionId: "",
+  };
+  const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  log.push({
+    time: t,
+    type: "commission",
+    note: `${buyer.name}: commissioned ${qty}× ${itemData.name} (${worker}, ${plan.days} days, ${wagesGp}gp wages) [${order.id}]`,
+  });
   await location.update({
-    "system.market.goods.imports": orders,
-    "system.market.goods.lastProcessedTime": t,
+    "system.market.goods.commissions": [...existing, order],
     "system.market.marketLog": log.slice(-300),
   });
-  return { resolved };
+  await postCard(
+    buyer,
+    `<strong>${game.i18n.format(`${LANG}.commissions.placedLine`, { buyer: buyer.name, qty, name: itemData.name, days: plan.days })}</strong><br>` +
+      `${game.i18n.format(`${LANG}.imports.paid`, { total: wagesGp })}`
+  );
+  return { ok: true, days: plan.days, wagesGp };
+}
+
+/**
+ * Post a directed search: a standing ask for one specific item the merchant
+ * keeps looking for. Re-examined at each new market month's availability by
+ * the due-work sweep; a find is announced, never auto-bought.
+ */
+export async function createItemSearch(location, payload) {
+  const { buyerUuid, itemName, qty: rawQty, requestUserId = null, resolutionId = "" } = payload;
+  const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
+  const buyerDoc = await fromUuid(buyerUuid).catch(() => null);
+  const buyer = buyerDoc?.actor ?? buyerDoc;
+  if (!buyer) return err("noBuyer");
+  const goods = location?.system?.market?.goods;
+  if (!goods) return err("noMarket");
+  if (requestUserId) {
+    const user = game.users.get(requestUserId);
+    if (!user?.isGM && !buyer.testUserPermission(user, "OWNER")) return err("notYours");
+  }
+  const existing = (goods.searches ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  if (resolutionId && existing.some((o) => o.id === resolutionId)) return err("duplicate");
+  const entry = await findGearEntry(itemName);
+  if (!entry) return err("noSource");
+  const key = itemKeyOf(itemName);
+  if (existing.some((o) => o.status === "active" && o.itemKey === key && o.partyId === partyOf(buyer).id)) {
+    return err("alreadySearching");
+  }
+  const t = now();
+  const search = {
+    id: resolutionId || foundry.utils.randomID(),
+    partyId: partyOf(buyer).id,
+    buyerUuid: buyer.uuid,
+    itemKey: key,
+    itemName: entry.data.name,
+    qty,
+    createdTime: t,
+    // This month's shelves were already in view when the search was posted;
+    // the first fresh look is next month's roll.
+    lastRolledMonth: marketMonthStart(t),
+    status: "active",
+  };
+  const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  log.push({ time: t, type: "search", note: `${buyer.name}: searching for ${qty}× ${entry.data.name} [${search.id}]` });
+  await location.update({
+    "system.market.goods.searches": [...existing, search],
+    "system.market.marketLog": log.slice(-300),
+  });
+  return { ok: true };
+}
+
+/** Cancel a directed search (its owner or the GM). */
+export async function cancelItemSearch(location, { searchId, requestUserId = null }) {
+  const goods = location?.system?.market?.goods;
+  if (!goods) return err("noMarket");
+  const searches = (goods.searches ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  const search = searches.find((o) => o.id === searchId);
+  if (!search) return err("noSearch");
+  if (requestUserId) {
+    const user = game.users.get(requestUserId);
+    const buyerDoc = await fromUuid(search.buyerUuid).catch(() => null);
+    const buyer = buyerDoc?.actor ?? buyerDoc;
+    if (!user?.isGM && !(buyer && buyer.testUserPermission(user, "OWNER"))) return err("notYours");
+  }
+  search.status = "cancelled";
+  await location.update({ "system.market.goods.searches": searches });
+  return { ok: true };
+}
+
+/**
+ * Re-examine active searches against a fresh market month. Rolls land in
+ * the shared goods rows (the searcher's own %-find first, then the town's
+ * stock), so a find here is the same find the buy flow will honor.
+ */
+async function processSearches(location, goodsWrites, log, t) {
+  const goods = location.system.market.goods;
+  const monthStart = marketMonthStart(t);
+  const searches = (goods.searches ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
+  let changed = false;
+  for (const search of searches) {
+    if (search.status !== "active" || Number(search.lastRolledMonth) >= monthStart) continue;
+    search.lastRolledMonth = monthStart;
+    changed = true;
+    const buyerDoc = await fromUuid(search.buyerUuid).catch(() => null);
+    const buyer = buyerDoc?.actor ?? buyerDoc;
+    const entry = buyer ? await findGearEntry(search.itemName) : null;
+    if (!entry) continue;
+    const state = await resolveMonthlyAvailability(location, goodsWrites.goods, {
+      itemData: entry.data,
+      bandValueGp: Number(entry.data.system?.cost ?? 0),
+      trader: buyer,
+      direction: "bought",
+    });
+    if (state.error) continue;
+    goodsWrites.dirty = true;
+    if (state.room.remaining >= Math.max(1, search.qty)) {
+      search.status = "found";
+      log.push({ time: t, type: "searchFound", note: `${search.qty}× ${search.itemName}: found for ${buyer.name}` });
+      await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.searches.foundLine`, { qty: search.qty, name: search.itemName, location: location.name })}</strong>`);
+    }
+  }
+  return { searches, changed };
 }
 
 /** Every market location's due imports (the GM time-hook target). */
@@ -229,12 +446,53 @@ registerHandler("marketsImportOrder", async ({ locationUuid, ...payload }) => {
   return placeImportOrder(location, payload);
 });
 
-/** Local-first dispatch for placing an import order. */
-export async function performImportOrder(location, payload) {
+registerHandler("marketsCommission", async ({ locationUuid, ...payload }) => {
+  const doc = await fromUuid(locationUuid).catch(() => null);
+  const location = doc?.actor ?? doc;
+  if (!location) return err("noMarket");
+  return placeCommission(location, payload);
+});
+
+registerHandler("marketsSearch", async ({ locationUuid, ...payload }) => {
+  const doc = await fromUuid(locationUuid).catch(() => null);
+  const location = doc?.actor ?? doc;
+  if (!location) return err("noMarket");
+  return createItemSearch(location, payload);
+});
+
+registerHandler("marketsSearchCancel", async ({ locationUuid, ...payload }) => {
+  const doc = await fromUuid(locationUuid).catch(() => null);
+  const location = doc?.actor ?? doc;
+  if (!location) return err("noMarket");
+  return cancelItemSearch(location, payload);
+});
+
+/** Local-first dispatch shared by the buyer-actor order paths. */
+async function dispatch(handler, fn, location, payload, buyerUuidField = "buyerUuid") {
+  const target = payload[buyerUuidField] ? await fromUuid(payload[buyerUuidField]).catch(() => null) : null;
   const canLocal =
     game.user.isGM ||
-    (location.testUserPermission(game.user, "OWNER") &&
-      (await fromUuid(payload.buyerUuid).catch(() => null))?.testUserPermission?.(game.user, "OWNER"));
-  if (canLocal) return placeImportOrder(location, { ...payload, requestUserId: game.user.isGM ? null : game.user.id });
-  return executeAsGM("marketsImportOrder", { locationUuid: location.uuid, ...payload, requestUserId: game.user.id });
+    (location.testUserPermission(game.user, "OWNER") && (target == null || target.testUserPermission?.(game.user, "OWNER")));
+  if (canLocal) return fn(location, { ...payload, requestUserId: game.user.isGM ? null : game.user.id });
+  return executeAsGM(handler, { locationUuid: location.uuid, ...payload, requestUserId: game.user.id });
+}
+
+/** Local-first dispatch for placing an import order. */
+export async function performImportOrder(location, payload) {
+  return dispatch("marketsImportOrder", placeImportOrder, location, payload);
+}
+
+/** Local-first dispatch for commissioning an item. */
+export async function performCommission(location, payload) {
+  return dispatch("marketsCommission", placeCommission, location, payload);
+}
+
+/** Local-first dispatch for posting a directed search. */
+export async function performItemSearch(location, payload) {
+  return dispatch("marketsSearch", createItemSearch, location, payload);
+}
+
+/** Local-first dispatch for cancelling a directed search. */
+export async function performSearchCancel(location, payload) {
+  return dispatch("marketsSearchCancel", cancelItemSearch, location, payload);
 }

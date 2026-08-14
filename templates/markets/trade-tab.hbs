@@ -46,7 +46,10 @@
         <td class="row-actions">
           {{#if canBuy}}
           <a data-action="openPurchase" data-key="{{key}}" data-tooltip="{{localize 'ACKS-MARKETS.trade.buy'}}"><i class="fas fa-coins"></i></a>
+          {{else}}
+          <a data-action="postSearch" data-key="{{key}}" data-tooltip="{{localize 'ACKS-MARKETS.searches.post'}}"><i class="fas fa-binoculars"></i></a>
           {{/if}}
+          <a data-action="openCommission" data-key="{{key}}" data-tooltip="{{localize 'ACKS-MARKETS.commissions.open'}}"><i class="fas fa-hammer"></i></a>
         </td>
       </tr>
       {{/each}}
@@ -80,6 +83,34 @@
         <td>{{qty}}</td>
         <td>{{hubLabel}}</td>
         <td>{{localize "ACKS-MARKETS.imports.etaDays" days=etaDays}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{/if}}
+
+  {{#if searchRows.length}}
+  <h3><i class="fas fa-binoculars"></i> {{localize "ACKS-MARKETS.searches.header"}}</h3>
+  <table class="candidates-table acks-extras-markets-table">
+    <thead>
+      <tr>
+        <th>{{localize "ACKS-MARKETS.trade.item"}}</th>
+        <th>{{localize "ACKS-MARKETS.purchase.qty"}}</th>
+        <th>{{localize "ACKS-MARKETS.searches.statusHeader"}}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each searchRows}}
+      <tr>
+        <td>{{itemName}}</td>
+        <td>{{qty}}</td>
+        <td>{{statusLabel}}</td>
+        <td class="row-actions">
+          {{#if active}}
+          <a data-action="cancelSearch" data-search-id="{{id}}" data-tooltip="{{localize 'ACKS-MARKETS.searches.cancel'}}"><i class="fas fa-xmark"></i></a>
+          {{/if}}
+        </td>
       </tr>
       {{/each}}
     </tbody>

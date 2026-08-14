@@ -15,12 +15,25 @@ import { registerSettings, getSetting } from "./settings.mjs";
 import * as availabilityRules from "./rules/availability.mjs";
 import * as pricingRules from "./rules/pricing.mjs";
 import * as importRules from "./rules/imports.mjs";
+import * as commissionRules from "./rules/commissions.mjs";
 // Importing the engine registers the GM socket handlers at module scope.
 import { purchase, sell, performPurchase, performSell, performSearchDay, availabilityFor, buildCatalog, salePlan, abilityRanks } from "./engine/trade.mjs";
 import { partyOf, partySize } from "./engine/parties.mjs";
 import { openPurchaseDialog, PurchaseDialog } from "./apps/purchase-dialog.mjs";
 import { openSellDialog, SellDialog } from "./apps/sell-dialog.mjs";
-import { placeImportOrder, performImportOrder, processImports, processAllImports, registerImportWatcher } from "./engine/imports.mjs";
+import {
+  placeImportOrder,
+  performImportOrder,
+  placeCommission,
+  performCommission,
+  createItemSearch,
+  performItemSearch,
+  cancelItemSearch,
+  performSearchCancel,
+  processImports,
+  processAllImports,
+  registerImportWatcher,
+} from "./engine/imports.mjs";
 import { identifyAttempt, availableMethods, candidateIdentifiers, METHODS } from "./engine/identify.mjs";
 import { buildMagicPanel } from "./apps/magic-panel.mjs";
 
@@ -29,7 +42,12 @@ Hooks.once("init", () => {
 
   try {
     const T = `modules/${MODULE_ID}/templates/markets`;
-    foundry.applications.handlebars.loadTemplates([`${T}/trade-tab.hbs`, `${T}/purchase-dialog.hbs`, `${T}/sell-dialog.hbs`]);
+    foundry.applications.handlebars.loadTemplates([
+      `${T}/trade-tab.hbs`,
+      `${T}/purchase-dialog.hbs`,
+      `${T}/sell-dialog.hbs`,
+      `${T}/commission-dialog.hbs`,
+    ]);
   } catch (err) {
     console.warn(`${MODULE_ID} | markets template preload skipped`, err);
   }
@@ -62,6 +80,12 @@ Hooks.once("setup", () => {
     salePlan,
     placeImportOrder,
     performImportOrder,
+    placeCommission,
+    performCommission,
+    createItemSearch,
+    performItemSearch,
+    cancelItemSearch,
+    performSearchCancel,
     processImports,
     processAllImports,
     abilityRanks,
@@ -79,7 +103,7 @@ Hooks.once("setup", () => {
     SellDialog,
     buildMagicPanel,
     // rules (pure)
-    rules: { ...availabilityRules, ...pricingRules, imports: importRules },
+    rules: { ...availabilityRules, ...pricingRules, imports: importRules, commissions: commissionRules },
   };
   acksExtras.markets = api;
 });

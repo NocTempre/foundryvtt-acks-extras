@@ -114,6 +114,39 @@ export function goodsSchema() {
         lastResolutionId: str(), // multi-GM-socket claim (candidateField precedent)
       })
     ),
+    // Directed searches: a standing ask for one specific item, re-examined
+    // at each market month's fresh availability until found (the recruiters
+    // analog — the merchant keeps looking so the party need not re-ask).
+    searches: new f.ArrayField(
+      new f.SchemaField({
+        id: str(),
+        partyId: str(),
+        buyerUuid: str(),
+        itemKey: str(),
+        itemName: str(),
+        qty: int(1),
+        createdTime: int(),
+        lastRolledMonth: int(0),
+        status: new f.StringField({ required: true, initial: "active", choices: ["active", "found", "cancelled"] }),
+      })
+    ),
+    // Item commissions (RR §IV.11): a craftsman builds the item at their
+    // construction rate; wages paid up front, delivery at completion.
+    commissions: new f.ArrayField(
+      new f.SchemaField({
+        id: str(),
+        buyerUuid: str(),
+        itemKey: str(),
+        itemName: str(),
+        qty: int(1),
+        worker: str(), // wageAndConstructionRates row key
+        wagesCp: int(0),
+        placedTime: int(),
+        completionTime: int(),
+        status: new f.StringField({ required: true, initial: "building", choices: ["building", "delivered"] }),
+        lastResolutionId: str(),
+      })
+    ),
     // Import-arrival watermark for idempotent onTimeAdvanced processing.
     lastProcessedTime: int(0),
   });

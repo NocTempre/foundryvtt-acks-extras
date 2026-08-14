@@ -36,7 +36,7 @@ export function marketMonthStart(t = now()) {
 }
 
 /** Deep-cloned goods arrays, ready to mutate and write back. */
-function goodsOf(location) {
+export function goodsOf(location) {
   const goods = location.system.market?.goods;
   const arr = (v) => (v ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   return {
@@ -264,91 +264,17 @@ export async function purchase(location, payload) {
   const mflag = marketsFlag(itemData);
   const magic = !!mflag.magic;
   const magicBaseGp = magic ? Number(mflag.baseCostGp ?? costGp) : 0;
-  const rows = bandRowsFor(magic);
-  const band = priceBandOf(magic ? magicBaseGp : costGp, rows);
-  if (!band) return err("untradeable");
-  // The party reads its cell at its EFFECTIVE class (mercantile networks);
-  // the market total stays the town's TRUE class — a bigger share, not a
-  // bigger market.
-  const trueClass = location.system.marketClass;
-  const marketClass = effectiveMarketClass(location, buyer);
-  if (marketClass == null) return err("noMarket");
-  const cell = cellFor(band, marketClass);
-  const marketCell = cellFor(band, trueClass ?? marketClass);
-  if (cell.kind === "none") return err("unavailable");
-
-  const monthStart = marketMonthStart();
-  const key = itemKeyOf(itemName);
-  const party = partyOf(buyer);
   const goods = goodsOf(location);
-
-  // Monthly rows: stale months prune on this write.
-  goods.ledger = thisMonth(goods.ledger, monthStart);
-  goods.existenceRolls = thisMonth(goods.existenceRolls, monthStart);
-  goods.totals = thisMonth(goods.totals, monthStart);
-  goods.partyMonths = thisMonth(goods.partyMonths, monthStart);
-
-  const partyMonth = ensureRow(
-    goods.partyMonths,
-    (r) => r.partyId === party.id,
-    { partyId: party.id, monthStartTime: monthStart, searchDays: 0, dedicated: false }
-  );
-
-  // The 12+-adventurer dedicated-shopping claim, checked against head-count.
-  if (dedicated && !partyMonth.dedicated) {
-    if (partySize(party.id) < 12) return err("partyTooSmall");
-    partyMonth.dedicated = true;
-  }
-
-  const totalsRow = ensureRow(
-    goods.totals,
-    (r) => r.itemKey === key,
-    { itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0, pctStock: 0, pctStockRolled: false, pctStockDetail: "" }
-  );
-  const ledgerRow = ensureRow(
-    goods.ledger,
-    (r) => r.partyId === party.id && r.itemKey === key,
-    { partyId: party.id, itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0 }
-  );
-
-  // %-cells: the party's own find (effective class), then the market's
-  // tenfold stock (true class) — both rolled once per month and cached so a
-  // re-ask can never re-roll.
-  let existRow = null;
-  if (cell.kind === "pct") {
-    existRow = ensureRow(
-      goods.existenceRolls,
-      (r) => r.partyId === party.id && r.itemKey === key,
-      { partyId: party.id, itemKey: key, monthStartTime: monthStart, exists: false, detail: "" }
-    );
-    if (!existRow.detail) {
-      const roll = await d100();
-      existRow.exists = roll <= cell.chance;
-      existRow.detail = `d100 ${roll} vs ${cell.chance}%`;
-    }
-  }
-  if (marketCell.kind === "pct" && !totalsRow.pctStockRolled) {
-    // Party roll first (above): it floors the stock, and when the floor
-    // already decides the answer no market roll is spent.
-    const partyFound = !!existRow?.exists;
-    let plan = pctMarketStock(marketCell.chance, { partyFound });
-    if (!plan) plan = pctMarketStock(marketCell.chance, { partyFound, d100: await d100() });
-    totalsRow.pctStock = plan.stock;
-    totalsRow.pctStockRolled = true;
-    totalsRow.pctStockDetail = plan.detail;
-  }
-
-  const room = remainingFor({
-    cell,
-    marketCell,
+  const monthState = await resolveMonthlyAvailability(location, goods, {
+    itemData,
+    bandValueGp: magic ? magicBaseGp : costGp,
+    magic,
+    trader: buyer,
     direction: "bought",
-    ledgerRow,
-    totalsRow,
-    doubled: !!partyMonth.dedicated,
-    extraSearchDays: Number(partyMonth.searchDays ?? 0),
-    exists: cell.kind === "qty" ? marketCell.kind !== "qty" : !!existRow?.exists,
-    pctStock: Number(totalsRow.pctStock ?? 0),
+    claimDedicated: dedicated,
   });
+  if (monthState.error) return monthState;
+  const { existRow, ledgerRow, totalsRow, room } = monthState;
   if (qty > room.remaining) {
     if (getSetting("marketsEnforceCaps")) return err("capExceeded", { remaining: room.remaining });
     ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining: room.remaining }));
@@ -457,6 +383,102 @@ export async function deliverGoods(buyer, { entry, qty, locationName = "" }) {
   ]);
 }
 
+
+/**
+ * Resolve one item's monthly market state — band, party/market cells at
+ * effective vs true class, this month's rows (stale months pruned), the
+ * cached %-rolls (party find first, then the town's stock), and the room
+ * left in `direction`. Shared by purchases, sales, and directed searches;
+ * mutates `goods` in place so the caller's write persists what was rolled.
+ */
+export async function resolveMonthlyAvailability(location, goods, { itemData, bandValueGp, magic = false, trader, direction, claimDedicated = false }) {
+  const rows = bandRowsFor(magic);
+  const band = priceBandOf(bandValueGp, rows);
+  if (!band) return err("untradeable");
+  // The party reads its cell at its EFFECTIVE class (mercantile networks);
+  // the market total stays the town's TRUE class — a bigger share, not a
+  // bigger market.
+  const trueClass = location.system.marketClass;
+  const marketClass = effectiveMarketClass(location, trader);
+  if (marketClass == null) return err("noMarket");
+  const cell = cellFor(band, marketClass);
+  const marketCell = cellFor(band, trueClass ?? marketClass);
+  if (cell.kind === "none") return err("unavailable");
+
+  const monthStart = marketMonthStart();
+  const key = itemKeyOf(itemData.name);
+  const party = partyOf(trader);
+
+  // Monthly rows: stale months prune on this write.
+  goods.ledger = thisMonth(goods.ledger, monthStart);
+  goods.existenceRolls = thisMonth(goods.existenceRolls, monthStart);
+  goods.totals = thisMonth(goods.totals, monthStart);
+  goods.partyMonths = thisMonth(goods.partyMonths, monthStart);
+
+  const partyMonth = ensureRow(
+    goods.partyMonths,
+    (r) => r.partyId === party.id,
+    { partyId: party.id, monthStartTime: monthStart, searchDays: 0, dedicated: false }
+  );
+
+  // The 12+-adventurer dedicated-shopping claim, checked against head-count.
+  if (claimDedicated && !partyMonth.dedicated) {
+    if (partySize(party.id) < 12) return err("partyTooSmall");
+    partyMonth.dedicated = true;
+  }
+
+  const totalsRow = ensureRow(
+    goods.totals,
+    (r) => r.itemKey === key,
+    { itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0, pctStock: 0, pctStockRolled: false, pctStockDetail: "" }
+  );
+  const ledgerRow = ensureRow(
+    goods.ledger,
+    (r) => r.partyId === party.id && r.itemKey === key,
+    { partyId: party.id, itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0 }
+  );
+
+  // %-cells: the party's own find (effective class), then the market's
+  // tenfold stock (true class) — both rolled once per month and cached so a
+  // re-ask can never re-roll.
+  let existRow = null;
+  if (cell.kind === "pct") {
+    existRow = ensureRow(
+      goods.existenceRolls,
+      (r) => r.partyId === party.id && r.itemKey === key,
+      { partyId: party.id, itemKey: key, monthStartTime: monthStart, exists: false, detail: "" }
+    );
+    if (!existRow.detail) {
+      const roll = await d100();
+      existRow.exists = roll <= cell.chance;
+      existRow.detail = `d100 ${roll} vs ${cell.chance}%`;
+    }
+  }
+  if (marketCell.kind === "pct" && !totalsRow.pctStockRolled) {
+    // Party roll first (above): it floors the stock, and when the floor
+    // already decides the answer no market roll is spent.
+    const partyFound = !!existRow?.exists;
+    let plan = pctMarketStock(marketCell.chance, { partyFound });
+    if (!plan) plan = pctMarketStock(marketCell.chance, { partyFound, d100: await d100() });
+    totalsRow.pctStock = plan.stock;
+    totalsRow.pctStockRolled = true;
+    totalsRow.pctStockDetail = plan.detail;
+  }
+
+  const room = remainingFor({
+    cell,
+    marketCell,
+    direction,
+    ledgerRow,
+    totalsRow,
+    doubled: !!partyMonth.dedicated,
+    extraSearchDays: Number(partyMonth.searchDays ?? 0),
+    exists: cell.kind === "qty" ? marketCell.kind !== "qty" : !!existRow?.exists,
+    pctStock: Number(totalsRow.pctStock ?? 0),
+  });
+  return { band, cell, marketCell, monthStart, key, party, partyMonth, totalsRow, ledgerRow, existRow, room };
+}
+
 /** The markets flag bag on an item ({magic, apparentValueGp, identified…}). */
 const marketsFlag = (itemData) => itemData?.flags?.[MODULE_ID]?.[ITEM_FLAG] ?? {};
 
@@ -551,75 +573,15 @@ export async function sell(location, payload) {
   const plan = salePlan(itemData, { demandSteps: demandStepsFor(goods, categoryOf(itemData)), bargain });
   if (!(plan.unitCp > 0) || !(plan.bandValueGp > 0)) return err("untradeable");
 
-  const rows = bandRowsFor(plan.magic);
-  const band = priceBandOf(plan.bandValueGp, rows);
-  if (!band) return err("untradeable");
-  const trueClass = location.system.marketClass;
-  const marketClass = effectiveMarketClass(location, seller);
-  if (marketClass == null) return err("noMarket");
-  const cell = cellFor(band, marketClass);
-  const marketCell = cellFor(band, trueClass ?? marketClass);
-  if (cell.kind === "none") return err("unavailable");
-
-  const monthStart = marketMonthStart();
-  const key = itemKeyOf(itemData.name);
-  const party = partyOf(seller);
-  goods.ledger = thisMonth(goods.ledger, monthStart);
-  goods.existenceRolls = thisMonth(goods.existenceRolls, monthStart);
-  goods.totals = thisMonth(goods.totals, monthStart);
-  goods.partyMonths = thisMonth(goods.partyMonths, monthStart);
-
-  const partyMonth = ensureRow(
-    goods.partyMonths,
-    (r) => r.partyId === party.id,
-    { partyId: party.id, monthStartTime: monthStart, searchDays: 0, dedicated: false }
-  );
-  const totalsRow = ensureRow(
-    goods.totals,
-    (r) => r.itemKey === key,
-    { itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0, pctStock: 0, pctStockRolled: false, pctStockDetail: "" }
-  );
-  const ledgerRow = ensureRow(
-    goods.ledger,
-    (r) => r.partyId === party.id && r.itemKey === key,
-    { partyId: party.id, itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0 }
-  );
-
-  let existRow = null;
-  if (cell.kind === "pct") {
-    existRow = ensureRow(
-      goods.existenceRolls,
-      (r) => r.partyId === party.id && r.itemKey === key,
-      { partyId: party.id, itemKey: key, monthStartTime: monthStart, exists: false, detail: "" }
-    );
-    if (!existRow.detail) {
-      const roll = await d100();
-      existRow.exists = roll <= cell.chance;
-      existRow.detail = `d100 ${roll} vs ${cell.chance}%`;
-    }
-  }
-  if (marketCell.kind === "pct" && !totalsRow.pctStockRolled) {
-    // Party roll first (above): it floors the stock, and when the floor
-    // already decides the answer no market roll is spent.
-    const partyFound = !!existRow?.exists;
-    let plan = pctMarketStock(marketCell.chance, { partyFound });
-    if (!plan) plan = pctMarketStock(marketCell.chance, { partyFound, d100: await d100() });
-    totalsRow.pctStock = plan.stock;
-    totalsRow.pctStockRolled = true;
-    totalsRow.pctStockDetail = plan.detail;
-  }
-
-  const room = remainingFor({
-    cell,
-    marketCell,
+  const monthState = await resolveMonthlyAvailability(location, goods, {
+    itemData,
+    bandValueGp: plan.bandValueGp,
+    magic: plan.magic,
+    trader: seller,
     direction: "sold",
-    ledgerRow,
-    totalsRow,
-    doubled: !!partyMonth.dedicated,
-    extraSearchDays: Number(partyMonth.searchDays ?? 0),
-    exists: cell.kind === "qty" ? marketCell.kind !== "qty" : !!existRow?.exists,
-    pctStock: Number(totalsRow.pctStock ?? 0),
   });
+  if (monthState.error) return monthState;
+  const { existRow, ledgerRow, totalsRow, room } = monthState;
   if (qty > room.remaining) {
     if (getSetting("marketsEnforceCaps")) return err("capExceeded", { remaining: room.remaining });
     ui?.notifications?.warn(game.i18n.format(`${LANG}.trade.capWaived`, { remaining: room.remaining }));

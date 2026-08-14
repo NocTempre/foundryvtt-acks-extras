@@ -14,6 +14,8 @@ const { quote, magicQuote, magicBandValueGp, bargainWinner, toCopper, toGp } =
   await import(new URL("../scripts/markets/rules/pricing.mjs", import.meta.url));
 const { importPlan, dueImports, hubClass, SECONDS_PER_DAY, SECONDS_PER_WEEK } =
   await import(new URL("../scripts/markets/rules/imports.mjs", import.meta.url));
+const { parseMoneyCp, commissionPlan } =
+  await import(new URL("../scripts/markets/rules/commissions.mjs", import.meta.url));
 
 /* ------------------------- cell grammar ------------------------- */
 
@@ -241,4 +243,24 @@ const orders = [
 assert.deepStrictEqual(dueImports(orders, 150).map((o) => o.id), ["a"], "due picks only ripe ordered rows");
 assert.deepStrictEqual(dueImports(orders, 500).map((o) => o.id), ["a", "b"], "delivered rows never re-resolve");
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports)");
+/* ------------------------- commissions ------------------------- */
+
+assert.strictEqual(parseMoneyCp("3gp"), 300, "gp money string");
+assert.strictEqual(parseMoneyCp("2sp"), 20, "sp money string");
+assert.strictEqual(parseMoneyCp("33cp"), 33, "cp money string");
+assert.strictEqual(parseMoneyCp("1gp, 33cp"), 133, "compound money string");
+assert.strictEqual(parseMoneyCp("10gp / 15gp"), 1000, "dual-rate cell takes the primary variant");
+assert.strictEqual(parseMoneyCp("1gp, 33cp / 1gp"), 133, "compound primary before the slash");
+assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
+
+{
+  // Fixture rates, not book data: 66cp/day rate, 20gp/month wage.
+  const rateRow = { ratePerDay: "66cp", wagePerMonth: "20gp" };
+  const plan = commissionPlan({ costCp: 1000, rateRow, daysPerMonth: 28 });
+  assert.strictEqual(plan.days, 16, "days = ceil(cost / daily rate)");
+  assert.strictEqual(plan.wagesCp, Math.round((2000 / 28) * 16), "wages prorate the monthly wage over the build");
+  assert.strictEqual(commissionPlan({ costCp: 0, rateRow }), null, "no cost, no plan");
+  assert.strictEqual(commissionPlan({ costCp: 100, rateRow: { ratePerDay: "-" } }), null, "unreadable rate, no plan");
+}
+
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions)");

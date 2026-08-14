@@ -35,7 +35,8 @@ import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { buildCatalog, availabilityFor, performSearchDay, salePlan, demandStepsFor, categoryOf } from "../../markets/engine/trade.mjs";
-import { processImports } from "../../markets/engine/imports.mjs";
+import { processImports, performItemSearch, performSearchCancel } from "../../markets/engine/imports.mjs";
+import { openCommissionDialog } from "../../markets/apps/commission-dialog.mjs";
 import { openPurchaseDialog } from "../../markets/apps/purchase-dialog.mjs";
 import { openSellDialog } from "../../markets/apps/sell-dialog.mjs";
 import { merchandiseLabel } from "../../markets/config.mjs";
@@ -124,6 +125,9 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       openSell: LocationSheet.#onOpenSell,
       marketsSearchDay: LocationSheet.#onMarketsSearchDay,
       processImports: LocationSheet.#onProcessImports,
+      openCommission: LocationSheet.#onOpenCommission,
+      postSearch: LocationSheet.#onPostSearch,
+      cancelSearch: LocationSheet.#onCancelSearch,
       toggleMasterworkContact: LocationSheet.#onToggleMasterworkContact,
       // --- the market gate ---
       addMarket: LocationSheet.#onAddMarket,
@@ -1066,14 +1070,35 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           })
           .filter(Boolean);
     // In-transit orders: players see the expected window, never the roll.
+    // Commissions ride the same table, labeled by their worker.
     const t = now();
-    context.importRows = (goods.imports ?? [])
-      .filter((o) => o.status === "ordered")
+    context.importRows = [
+      ...(goods.imports ?? [])
+        .filter((o) => o.status === "ordered")
+        .map((o) => ({
+          itemName: o.itemName,
+          qty: o.qty,
+          hubLabel: game.i18n.localize(`ACKS-MARKETS.imports.${o.hubShift === 2 ? "hubRegional" : "hubLocal"}`),
+          etaDays: Math.max(0, Math.ceil((Number(o.arrivalTime) - t) / SECONDS_PER_DAY)),
+        })),
+      ...(goods.commissions ?? [])
+        .filter((o) => o.status === "building")
+        .map((o) => ({
+          itemName: o.itemName,
+          qty: o.qty,
+          hubLabel: game.i18n.localize(`ACKS-MARKETS.commissions.worker.${o.worker}`),
+          etaDays: Math.max(0, Math.ceil((Number(o.completionTime) - t) / SECONDS_PER_DAY)),
+        })),
+    ];
+    // Directed searches: the standing asks and their outcomes.
+    context.searchRows = (goods.searches ?? [])
+      .filter((o) => o.status !== "cancelled")
       .map((o) => ({
+        id: o.id,
         itemName: o.itemName,
         qty: o.qty,
-        hubLabel: game.i18n.localize(`ACKS-MARKETS.imports.${o.hubShift === 2 ? "hubRegional" : "hubLocal"}`),
-        etaDays: Math.max(0, Math.ceil((Number(o.arrivalTime) - t) / SECONDS_PER_DAY)),
+        statusLabel: game.i18n.localize(`ACKS-MARKETS.searches.status.${o.status}`),
+        active: o.status === "active",
       }));
     const seeDemand = context.isGM || goods.playersSeeDemand;
     context.demandRows = seeDemand
@@ -1115,6 +1140,45 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ui.notifications.info(game.i18n.format("ACKS-MARKETS.trade.searchDaySpent", { days: result.days }));
       this.render();
     }
+  }
+
+  /** Commission a catalog item's construction. */
+  static async #onOpenCommission(_event, target) {
+    const key = target?.dataset?.key;
+    const row = (this._tradeCatalog ?? []).find((r) => r.key === key);
+    if (row) openCommissionDialog(this.actor, row);
+  }
+
+  /** Post a directed search for a catalog item the market cannot supply now. */
+  static async #onPostSearch(_event, target) {
+    const key = target?.dataset?.key;
+    const row = (this._tradeCatalog ?? []).find((r) => r.key === key);
+    const trader =
+      game.user.character ??
+      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
+    if (!row || !trader) return;
+    const result = await performItemSearch(this.actor, {
+      buyerUuid: trader.uuid,
+      itemName: row.name,
+      qty: 1,
+      resolutionId: foundry.utils.randomID(),
+    });
+    if (result?.error) {
+      ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
+      return;
+    }
+    ui.notifications.info(game.i18n.format("ACKS-MARKETS.searches.posted", { name: row.name }));
+    this.render();
+  }
+
+  /** Withdraw a directed search. */
+  static async #onCancelSearch(_event, target) {
+    const result = await performSearchCancel(this.actor, { searchId: target?.dataset?.searchId });
+    if (result?.error) {
+      ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
+      return;
+    }
+    this.render();
   }
 
   /** Resolve due import orders now (owners may; the clock is the GM's). */
