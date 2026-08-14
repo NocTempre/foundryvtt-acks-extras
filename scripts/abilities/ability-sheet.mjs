@@ -13,6 +13,7 @@ import { definitionId } from "../lib/capabilities.mjs";
 import AbilityExtras from "./ability-extras.mjs";
 import { keyOf, rollsOf, targetOf, scalesFor } from "./ability-rolls.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
+import { LANGUAGE_ACTIONS, slotsOf, onDropLanguage } from "./language-slots.mjs";
 
 const T = `modules/${MODULE_ID}/templates/abilities`;
 
@@ -247,7 +248,8 @@ export function createAbilitySheet(Base) {
   return class AcksAbilitySheet extends Base {
     static DEFAULT_OPTIONS = {
       classes: ["acks-ui", "acks", "acks2", "item-v2", "acks-extras", "acks-extras-scroll"],
-      actions: { ...ROLL_ACTIONS },
+      actions: { ...ROLL_ACTIONS, ...LANGUAGE_ACTIONS },
+      dragDrop: [{ dropSelector: ".acks-abilities-languages" }],
     };
     static PARTS = parts;
     static TABS = { primary: { tabs: tabList, initial: tabList[0].id } };
@@ -418,6 +420,14 @@ export function createAbilitySheet(Base) {
       if (partId === "mechanics") {
         context.tab = context.tabs[partId];
         context.coreEffectsPartial = CORE_EFFECTS_PARTIAL;
+        // A language carrier shows its slots here. `empty` is a list rather
+        // than a count so the template can render one placeholder per free
+        // slot without arithmetic in Handlebars.
+        const slots = slotsOf(this.item);
+        context.languageSlots = slots
+          ? { ...slots, free: Math.max(0, slots.capacity - slots.entries.length),
+              empty: Array.from({ length: Math.max(0, slots.capacity - slots.entries.length) }, (_, i) => i) }
+          : null;
         // Reuse the system's own preparation — the Active Effects list is its
         // data, rendered through its partial, just on a different tab.
         if (typeof this._prepareEffectsContext === "function") {
@@ -425,6 +435,16 @@ export function createAbilitySheet(Base) {
         }
       }
       return context;
+    }
+
+    /**
+     * A language dropped on the carrier fills a slot rather than being stored
+     * on the item — the model records the tongue, never consumes the document.
+     * @override
+     */
+    async _onDropItem(event, item) {
+      if (slotsOf(this.item) && (await onDropLanguage.call(this, item))) return null;
+      return super._onDropItem?.(event, item) ?? null;
     }
 
     /**

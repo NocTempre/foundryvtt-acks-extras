@@ -48,6 +48,9 @@ the next refresh.
 | The house pile | A location's own coin and stock: the Judge's locks, a spoil awaiting its throw | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-house-pile.png) |
 | Change coin | The market changer: denominations at face value, refused where no market stands | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-exchange.png) |
 | Monster load & rider | The capacity primitive on the sheet: carried weight, MM loads, and the rider named | [guide](guides/monsters.md) | [v4.0.0](releases/v4.0.0/monster-load-rider.png) |
+| Languages | The slots a character carries: what they speak, what is still open, and where a language drops in | [guide](guides/classes.md) | [v4.1.0](releases/v4.1.0/abilities-language-slots.png) |
+| Class languages | What a class speaks and how many more it may choose, beside its award ladder | [guide](guides/classes.md) | [v4.1.0](releases/v4.1.0/classes-languages-editor.png) |
+| Judge's notes | A place's private record, beside the shared one and readable only by the Judge | [guide](guides/location.md) | [v4.1.0](releases/v4.1.0/location-judge-notes.png) |
 | Storage reach | A mapped place you are not standing at, beside ones you can reach | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-storage-reach.png) |
 | Read aloud | A named power posted to chat for the table to read | [guide](guides/monsters.md#what-opens-first) | [v3.3.0](releases/v3.3.0/monster-card-chat.png) |
 | Monsters | The extended stat block's defenses: the silver flaw beside Mundane and Extraordinary | [guide](guides/monsters.md) | [v4.0.0](releases/v4.0.0/monster-defences.png) |

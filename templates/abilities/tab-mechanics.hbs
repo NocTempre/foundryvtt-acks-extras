@@ -168,6 +168,37 @@
     </fieldset>
   {{/if}}
 
+  {{#if languageSlots}}
+  {{! A carrier: the tongues this ability holds. Drop a language ability in,
+      or pick one; a filled slot names what it holds and can be emptied. }}
+  <fieldset class="acks-abilities-languages" data-accept-drop>
+    <legend>{{localize "ACKS-ABILITIES.languages.legend"}}
+      ({{languageSlots.entries.length}}/{{languageSlots.capacity}})</legend>
+    <ol class="acks-abilities-language-list">
+      {{#each languageSlots.entries}}
+        <li class="acks-abilities-language">
+          <span>{{this.name}}</span>
+          {{#if @root.editable}}
+          <a data-action="clearLanguage" data-index="{{@index}}"
+             data-tooltip="{{localize 'ACKS-ABILITIES.languages.clear'}}"><i class="fa-solid fa-xmark"></i></a>
+          {{/if}}
+        </li>
+      {{/each}}
+      {{#each languageSlots.empty}}
+        <li class="acks-abilities-language is-empty">{{localize "ACKS-ABILITIES.languages.empty"}}</li>
+      {{/each}}
+    </ol>
+    {{#if editable}}
+      {{#if languageSlots.free}}
+      <button type="button" data-action="pickLanguage">
+        <i class="fa-solid fa-plus"></i> {{localize "ACKS-ABILITIES.languages.pick"}}
+      </button>
+      <p class="hint">{{localize "ACKS-ABILITIES.languages.dropHint"}}</p>
+      {{/if}}
+    {{/if}}
+  </fieldset>
+  {{/if}}
+
   {{! Foundry Active Effects. They had a tab of their own next to this one, both
       called some variant of "effects" — a split that described the
       implementation, not the ability. Same list, same controls, and the

@@ -2870,5 +2870,18 @@
   "ACKS-CLASSES.sheet.languages": "Languages",
   "ACKS-CLASSES.sheet.languageName": "Language the class speaks",
   "ACKS-CLASSES.sheet.languageCount": "Free picks",
-  "ACKS-CLASSES.sheet.languageCountHint": "How many MORE languages this class may choose, beyond the ones it speaks outright. Intellect adds its own on top."
+  "ACKS-CLASSES.sheet.languageCountHint": "How many MORE languages this class may choose, beyond the ones it speaks outright. Intellect adds its own on top.",
+  "ACKS-ABILITIES.languages.legend": "Languages",
+  "ACKS-ABILITIES.languages.empty": "— empty slot —",
+  "ACKS-ABILITIES.languages.clear": "Empty this slot",
+  "ACKS-ABILITIES.languages.pick": "Add a language",
+  "ACKS-ABILITIES.languages.pickTitle": "Add a language",
+  "ACKS-ABILITIES.languages.known": "A language this world knows",
+  "ACKS-ABILITIES.languages.orType": "…or name one",
+  "ACKS-ABILITIES.languages.dropHint": "You can also drag a language ability onto this box.",
+  "ACKS-ABILITIES.languages.refuse.full": "Every slot is filled.",
+  "ACKS-ABILITIES.languages.refuse.duplicate": "This character already speaks that.",
+  "ACKS-ABILITIES.languages.refuse.unnamed": "A language needs a name.",
+  "ACKS-ABILITIES.languages.refuse.notACarrier": "This ability holds no language slots.",
+  "ACKS-ABILITIES.languages.refuse.notALanguage": "Only a language ability goes in a language slot."
 }

@@ -1,5 +1,48 @@
 # Changelog
 
+## 4.1.0
+
+Roadmap burn-down: languages become real, the sidebar stops showing two of
+everything, and six parked items ship.
+
+### Added
+- **Languages, as the books hand them out.** A class and a race each declare
+  the tongues they speak and how many more they may choose; the two ADD (an
+  elven fighter speaks what both bring, and a tongue printed twice is learned
+  once), an Intellect bonus buys that many open slots that may be left empty
+  and filled during play, and an Intellect penalty costs literacy rather than
+  tongues. A character carries them in a slot-holding ability — fill one from
+  the picker or by dragging a language onto it, empty one that was a mistake.
+  Applying a class grants and REFRESHES the carriers, so a character whose
+  Intellect rose gains the slots they are owed without losing what they chose.
+  Which languages exist stays your campaign's answer: they arrive from your
+  own books through the importer, or you name them yourself.
+- **The Judge's own notes on a place**, beside the shared ones and readable
+  only by the Judge, plus a note on any roster row or special hire — the
+  storage those rows always had, finally with a surface.
+- **Stock a lair by dropping treasure straight on it.** A compendium or
+  sidebar item dropped on a location is filed under the house, so a hoard
+  needs no placeholder character to own it.
+- **Declare which ammunition to fire.** "The silver ones, now" — a nocked
+  stack outranks the plain-before-silver default until it runs out.
+- **An opposed influence contest**: the target answers with their own
+  charisma and reaction effects, and the card reports who prevailed by how
+  much. It moves no attitude — ACKS prints no band for one.
+- Throws reorder in place on the Rolls tab.
+
+### Changed
+- **One of each thing in the compendium sidebar.** Once a world has imported
+  content from its own books, the system compendiums it replaced fold away —
+  coverage-gated, so a world that has imported nothing sees no change and a
+  pack whose replacement is deleted comes straight back. Off by default;
+  display only, with every pack still loaded and every link still working.
+- **The example compendiums retire**: the bestiary, spoils and treasure
+  samples, and the four sample characters. The importer builds 287 monsters,
+  stamps spoils onto every one, and materializes 23 tables from your books.
+  The equipment samples STAY — the JJ shield variants and masterwork gear
+  they demonstrate have no importer coverage yet, which is now a recorded gap
+  rather than a silent one.
+
 ## 4.0.0
 
 The major: capacity answers once, money is physical, the light palette is a
