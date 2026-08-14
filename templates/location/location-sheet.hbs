@@ -141,10 +141,16 @@
             <td>{{this.kindLabel}}</td>
             <td>{{#if this.quantity}}{{#unless (eq this.quantity 1)}}×{{this.quantity}}{{/unless}}{{/if}}</td>
             <td class="row-actions">
+              {{#if this.notes}}
+              <i class="fas fa-note-sticky acks-extras-row-note" data-tooltip="{{this.notes}}"></i>
+              {{/if}}
               {{#if this.derived}}
               <a data-action="keepOccupant" data-tooltip="{{localize 'ACKS-LOCATION.place.keepHint'}}"><i class="fas fa-thumbtack"></i></a>
               {{else}}
                 {{#if @root.isGM}}
+                {{!-- Only a STORED row can hold a note: a derived scene-token row
+                      is a live observation that leaves when the token does. --}}
+                <a data-action="editOccupantNote" data-tooltip="{{localize 'ACKS-LOCATION.place.noteHint'}}"><i class="fas fa-pen"></i></a>
                 <a data-action="toggleOccupantHidden" data-tooltip="{{localize 'ACKS-LOCATION.place.hideHint'}}">
                   <i class="fas {{#if this.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
                 </a>
@@ -290,10 +296,14 @@
             <td>{{refusalCount}}</td>
             <td>{{statusLabel}}</td>
             <td class="row-actions">
+              {{#if notes}}
+              <i class="fas fa-note-sticky acks-extras-row-note" data-tooltip="{{notes}}"></i>
+              {{/if}}
               {{#if isAvailable}}
               <a data-action="recruitSpecial" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.recruit'}}"><i class="fas fa-handshake"></i></a>
               {{/if}}
               {{#if @root.isGM}}
+              <a data-action="editSpecialNote" data-tooltip="{{localize 'ACKS-LOCATION.place.noteHint'}}"><i class="fas fa-pen"></i></a>
               <a data-action="setSpecialLimit" data-tooltip="{{localize 'ACKS-HENCHMEN.special.setLimit'}}"><i class="fas fa-hourglass-half"></i></a>
               <a data-action="removeSpecial" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.remove'}}"><i class="fas fa-trash"></i></a>
               {{/if}}
@@ -535,6 +545,20 @@
     {{/each}}
   </section>
   <section class="tab location-tab {{tabs.gmSettings.cssClass}}" data-group="primary" data-tab="gmSettings">
+
+    {{!-- ---- The Judge's own record. A second field beside the shared notes,
+           never a gate on them: what a place ACTUALLY is belongs somewhere the
+           table cannot read, and the two records stay visibly different. Lives
+           in the GM region, which is the whole of its protection. ---- --}}
+    <details class="section" open>
+      <summary>{{localize "ACKS-LOCATION.place.gmNotes"}}</summary>
+      {{#if editable}}
+      <prose-mirror class="acks-extras-place-notes content-sized" name="system.gmNotes" value="{{system.gmNotes}}" toggled
+                    data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{gmNotesHTML}}}</prose-mirror>
+      {{else}}
+      <div class="acks-extras-place-notes">{{{gmNotesHTML}}}</div>
+      {{/if}}
+    </details>
 
     {{!-- ---- The place itself: true of a chest and of a duchy alike ---- --}}
     <div class="grid-2">

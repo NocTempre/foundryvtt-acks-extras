@@ -125,6 +125,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       removeOccupant: LocationSheet.#onRemoveOccupant,
       keepOccupant: LocationSheet.#onKeepOccupant,
       toggleOccupantHidden: LocationSheet.#onToggleOccupantHidden,
+      editOccupantNote: LocationSheet.#onEditOccupantNote,
+      editSpecialNote: LocationSheet.#onEditSpecialNote,
       splitStack: LocationSheet.#onSplitStack,
       openScene: LocationSheet.#onOpenScene,
       unlinkScene: LocationSheet.#onUnlinkScene,
@@ -1011,6 +1013,47 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     await this.actor.update({ "system.roster": rows });
   }
 
+  /** One prompt, shared by both note editors. Empty clears the note. */
+  async #promptNote(current, title) {
+    return foundry.applications.api.DialogV2.prompt({
+      window: { title },
+      classes: ["acks-ui", "acks-extras"],
+      content: `<div class="form-group"><textarea name="note" rows="4">${foundry.utils.escapeHTML(current ?? "")}</textarea></div>`,
+      ok: { callback: (_e, button) => button.form.elements.note.value.trim() },
+    }).catch(() => null);
+  }
+
+  /**
+   * Why this garrison is billeted here. Stored rows only — a derived
+   * scene-token row is a live observation with nowhere to keep one.
+   */
+  static async #onEditOccupantNote(_event, target) {
+    if (!game.user.isGM) return;
+    const uuid = target.closest("[data-occupant-uuid]")?.dataset.occupantUuid;
+    const rows = (this.actor.system.roster ?? []).map((r) => r.toObject?.() ?? r);
+    const row = rows.find((r) => r.uuid === uuid);
+    if (!row) return;
+    const note = await this.#promptNote(row.notes, loc("place.noteTitle", { name: row.name ?? "" }));
+    if (note === null) return;
+    row.notes = note;
+    await this.actor.update({ "system.roster": rows });
+    this.render();
+  }
+
+  /** What the party promised the NPC they found in the ruins. */
+  static async #onEditSpecialNote(_event, target) {
+    if (!game.user.isGM) return;
+    const id = target.closest("[data-special-id]")?.dataset.specialId;
+    const rows = (this.actor.system.specialHires ?? []).map((r) => r.toObject?.() ?? r);
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    const note = await this.#promptNote(row.notes, loc("place.noteTitle", { name: row.name ?? "" }));
+    if (note === null) return;
+    row.notes = note;
+    await this.actor.update({ "system.market.specialHires": rows });
+    this.render();
+  }
+
   /** Split one instance out of a stacked place (eight bays → seven + one). */
   static async #onSplitStack() {
     const made = await places.splitPlace(this.actor, 1);
@@ -1404,6 +1447,11 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       actor.system.notes ?? "",
       { relativeTo: actor },
     );
+    // The Judge's private record. Enriched only for a GM: a player's context
+    // never carries the text at all, so nothing is hidden in markup they hold.
+    context.gmNotesHTML = game.user.isGM
+      ? await foundry.applications.ux.TextEditor.implementation.enrichHTML(actor.system.gmNotes ?? "", { relativeTo: actor })
+      : "";
     context.vaultOwner = api.resolveActorSync(api.vaultOwnerUuid(actor))?.name ?? null;
     // The characters this user could stash FROM — the deposit button is
     // pointless (and its dialog empty) without one.
@@ -1578,13 +1626,24 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   async _onDropItem(event, item) {
     const source = item?.parent;
     if (!source || source.documentName !== "Actor") {
-      // A compendium or sidebar item is not anybody's property yet, and every
-      // stored row is filed under an owner. Refusing is the whole handling:
-      // dropping such an item on the actor by other routes (the directory)
-      // embeds it WITHOUT the storage flag, and `storedItems` lists only
-      // flagged rows — so it would sit on the place invisibly. Stocking a
-      // place means giving the goods to a character and stowing them.
-      ui.notifications.warn(loc("storage.dropNeedsOwner"));
+      // A compendium or sidebar item belongs to nobody — which the house pile
+      // is exactly the owner for: a Judge stocking a lair ahead of the session
+      // drops the treasure straight on, and it files under the house rather
+      // than under a placeholder character. It must be STAMPED, though: an
+      // unflagged embed sits on the place invisibly, because `storedItems`
+      // lists only flagged rows.
+      if (!game.user.isGM) {
+        ui.notifications.warn(loc("storage.dropNeedsOwner"));
+        return null;
+      }
+      const data = item.toObject();
+      delete data._id;
+      foundry.utils.setProperty(data, `flags.${MODULE_ID}.storage`, {
+        ownerUuid: acksExtras.lib.money.HOUSE_OWNER,
+        ownerName: loc("storage.house"),
+      });
+      await this.actor.createEmbeddedDocuments("Item", [data]);
+      this.render();
       return null;
     }
     if (source.uuid === this.actor.uuid) return null;

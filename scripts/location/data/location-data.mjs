@@ -408,6 +408,14 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       // --- identity ------------------------------------------------------
       region: str(),
       notes: new fields.HTMLField({ required: false, blank: true, initial: "" }),
+      // The Judge's own record of what this place actually is — the faction
+      // that really owns the inn, what the cellar door hides. A SECOND field
+      // rather than a gate on `notes`, so the two are visibly different
+      // records instead of one field whose audience depends on a setting
+      // (2026-08-05 ruling: notes are shared). Rendered only inside the
+      // sheet's GM region, which is the whole of its protection — the same
+      // UI convention the roster's `hidden` follows, not a security boundary.
+      gmNotes: new fields.HTMLField({ required: false, blank: true, initial: "" }),
 
       // --- nesting -------------------------------------------------------
       // The place this place is inside of. A uuid, not an id, because a parent
