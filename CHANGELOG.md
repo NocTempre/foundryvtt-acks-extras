@@ -1,5 +1,52 @@
 # Changelog
 
+## 4.0.0
+
+The major: capacity answers once, money is physical, the light palette is a
+real branch, and the formation record is a contract.
+
+### Added
+- **Money is a physical thing that always sits somewhere.** A payment is a
+  location-gated transfer: the coins taken from the payer land on the payee's
+  stacks — a purse, or a location's own till — and change comes back by the
+  same smallest-first arithmetic, the one spend policy this release keeps.
+  Market buys, sells, tolls, fees, commissions and cargo pay through the
+  till; wages and signing bonuses land on the hireling, with what no changer
+  can split booked as arrears until one is found. A market exchanges
+  denominations freely (the Trade tab gains the changer); anywhere else
+  barters, and the Judge's `exchangeOverride` outranks the derivation.
+- **The house pile.** A location's own coin and stock are first-class storage
+  rows under the house owner: the Judge takes freely, players take what the
+  Judge marks retrievable, and a spoil is claimed through a proficiency
+  throw. Empty locations that are nothing in particular self-clean at world
+  start (setting-gated, default on).
+- **One capacity primitive over any document.** `capacityStone` / `loadStone`
+  / `overCapacity` in the shared lib answer for a character (core's own
+  maximum, forced max included), a monster or mount (MM p. 13 loads, with a
+  mounted rider counted at body weight plus carried gear per RR ch. 6, named
+  on the sheet), and a container item against its nested contents. The party
+  sheet's carry math reads the same primitive — a GM's forced maximum now
+  reaches it.
+- **The formation record is a published contract.** `api.formation` declares
+  apiVersion 1: `marchingOrder()` (rank/file rows without token payloads),
+  `ROLES`, `getFormations`, `rollPartyCheck`, `PARTY_CHECKS` — the surface a
+  trap module keys on.
+- A coin kind is its name AND rate: a debased local gold is a separate stack
+  everywhere it travels; what a place gives for it is valuation, never baked
+  into the stack.
+
+### Changed
+- **The design tokens split colour from structure, and light became a real
+  branch.** A light-stamped application inside a dark interface now draws the
+  light palette — derived tokens included, which exclusion alone could never
+  fix — and the font-scale knob still reaches every themed window. Two
+  palettes only; the core look withholds both.
+- The monster model's defence bands are the shared lib shape (the same bands
+  abilities store), each with a prose note; legacy free-text effects migrate
+  once into the closed sets with the remainder kept in the note.
+- The last v10-era `--color-*`/`--font-size-*` reads are swept from module
+  styles, and the validator now refuses new ones.
+
 ## 3.10.1
 
 ### Fixed

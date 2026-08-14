@@ -23,31 +23,34 @@ the next refresh.
 | Sheet filing | The ability list's filter bar: fighting, thief skills, general, powers | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-category-tabs.png) |
 | Item instances | A skinned item's badge naming its base, the embellishment set apart | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-skin-badge.png) |
 | Class apply | Every change old → new before it lands, hand edits flagged | [guide](guides/classes.md) | [v3.0.0](releases/v3.0.0/classes-apply-diff.png) |
-| Character sheet | The system's sheet on a light seat: ruled page, boxed write-in fields | [guide](guides/appearance.md) | [v3.0.0](releases/v3.0.0/character-sheet.png) |
-| Appearance | The same sheet on a dark seat, in the ACKS palette | [guide](guides/appearance.md) | [v3.0.0](releases/v3.0.0/character-sheet-dark.png) |
-| Locations | A place that holds goods, and who is recorded there | [guide](guides/location.md) | [v3.0.0](releases/v3.0.0/location-sheet.png) |
+| Character sheet | The system's sheet on a light seat: ruled page, boxed write-in fields | [guide](guides/appearance.md) | [v4.0.0](releases/v4.0.0/character-sheet.png) |
+| Appearance | The same sheet on a dark seat, in the ACKS palette | [guide](guides/appearance.md) | [v4.0.0](releases/v4.0.0/character-sheet-dark.png) |
+| Locations | A place that holds goods, and who is recorded there | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-sheet.png) |
 | Henchmen | An employer's roster tab: who is hired, on what terms | [guide](guides/henchmen.md) | [v3.0.0](releases/v3.0.0/henchmen-roster.png) |
 | Equipment | A silvered weapon's Construction tab: the Silver control and what the plating buys | [guide](guides/equipment.md#silvered-weapons) | [v3.3.0](releases/v3.3.0/equipment-item-sheet.png) |
-| Formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v3.0.0](releases/v3.0.0/formation-party-sheet.png) |
+| Formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v4.0.0](releases/v4.0.0/formation-party-sheet.png) |
 | Groups | A retinue kept as one document rather than a dozen | [guide](guides/formation.md) | [v3.0.0](releases/v3.0.0/group-sheet.png) |
 | Templates | The generator that stats a creature when you need one | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/template-sheet.png) |
-| Influence | A social roll with its modifier stack itemized — here with a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v3.9.0](releases/v3.9.0/influence-bribe.png) |
+| Influence | A social roll with its modifier stack itemized — here with a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v4.0.0](releases/v4.0.0/influence-bribe.png) |
 | Ability mechanics | A proficiency's Mechanics tab: classification, selections (the picks a grant reads), and its Active Effects | [guide](guides/abilities.md) | [v3.9.0](releases/v3.9.0/combat-trickery.png) |
 | Abilities | An ability item's sheet, with its rolls and mechanics | [guide](guides/abilities.md) | [v3.0.0](releases/v3.0.0/ability-sheet.png) |
 | Monster card | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/monster-card.png) |
 | Colour scheme | The per-player setting that holds the ACKS look steady | [guide](guides/appearance.md#pick-a-colour-scheme) | [v3.3.0](releases/v3.3.0/settings-colour-scheme.png) |
-| Storage | Moving goods in and out of a place that holds them, and giving a character a vault | [guide](guides/location.md) | [v3.3.0](releases/v3.3.0/location-storage-manager.png) |
+| Storage | Moving goods in and out of a place that holds them, and giving a character a vault | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-storage-manager.png) |
 | Storage messages | What a refused stow tells you, in words rather than an identifier | [guide](guides/location.md) | [v3.3.0](releases/v3.3.0/storage-message.png) |
-| Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-trade-tab.png) |
-| Market purchases | The purchase dialog: buyer, quantity, hub sourcing with its 2d6 risk, and the merchant's Bargaining profile | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-purchase-dialog.png) |
-| Magic-item market | The magic panel on an item's Construction tab: kind, rarity, apparent value, identification | [guide](guides/markets.md#magic-items) | [v3.10.0](releases/v3.10.0/markets-magic-item.png) |
-| Mercantile ventures | The ventures block: in-market status with impact, and the dedicated-day actions | [guide](guides/markets.md#mercantile-ventures) | [v3.10.0](releases/v3.10.0/markets-ventures.png) |
-| Commissions | The commission dialog: buyer, quantity, and who builds it at the imported construction rates | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-commission.png) |
-| Market entry | Entering a market with cargo: the toll and impact gate | [guide](guides/markets.md#mercantile-ventures) | [v3.10.0](releases/v3.10.0/markets-venture-entry.png) |
-| Market parties | The per-party roster behind availability | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-parties.png) |
-| Storage reach | A mapped place you are not standing at, beside ones you can reach | [guide](guides/location.md) | [v3.4.0](releases/v3.4.0/location-storage-reach.png) |
+| Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-trade-tab.png) |
+| Market purchases | The purchase dialog: buyer, quantity, hub sourcing with its 2d6 risk, and the merchant's Bargaining profile | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-purchase-dialog.png) |
+| Magic-item market | The magic panel on an item's Construction tab: kind, rarity, apparent value, identification | [guide](guides/markets.md#magic-items) | [v4.0.0](releases/v4.0.0/markets-magic-item.png) |
+| Mercantile ventures | The ventures block: in-market status with impact, and the dedicated-day actions | [guide](guides/markets.md#mercantile-ventures) | [v4.0.0](releases/v4.0.0/markets-ventures.png) |
+| Commissions | The commission dialog: buyer, quantity, and who builds it at the imported construction rates | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-commission.png) |
+| Market entry | Entering a market with cargo: the toll and impact gate | [guide](guides/markets.md#mercantile-ventures) | [v4.0.0](releases/v4.0.0/markets-venture-entry.png) |
+| Market parties | The per-party roster behind availability | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-parties.png) |
+| The house pile | A location's own coin and stock: the Judge's locks, a spoil awaiting its throw | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-house-pile.png) |
+| Change coin | The market changer: denominations at face value, refused where no market stands | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-exchange.png) |
+| Monster load & rider | The capacity primitive on the sheet: carried weight, MM loads, and the rider named | [guide](guides/monsters.md) | [v4.0.0](releases/v4.0.0/monster-load-rider.png) |
+| Storage reach | A mapped place you are not standing at, beside ones you can reach | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-storage-reach.png) |
 | Read aloud | A named power posted to chat for the table to read | [guide](guides/monsters.md#what-opens-first) | [v3.3.0](releases/v3.3.0/monster-card-chat.png) |
-| Monsters | The extended stat block's defenses: the silver flaw beside Mundane and Extraordinary | [guide](guides/monsters.md) | [v3.3.0](releases/v3.3.0/monster-sheet.png) |
+| Monsters | The extended stat block's defenses: the silver flaw beside Mundane and Extraordinary | [guide](guides/monsters.md) | [v4.0.0](releases/v4.0.0/monster-defences.png) |
 | Silver ammunition | Plain and silver stacks side by side; the silver one declared for firing | [guide](guides/equipment.md#silvered-weapons) | [v3.3.0](releases/v3.3.0/equipment-silver-ammo.png) |
 | Sheet light controls | A lit lantern's row: douse and shutter where the item sits | [guide](guides/equipment.md#lighting-a-lamp-from-your-own-sheet) | [v3.3.0](releases/v3.3.0/equipment-light-controls.png) |
 | Vision & light | A token under its own lantern's glow on a dark canvas | [guide](guides/formation.md#seeing-in-the-dark) | [v3.3.0](releases/v3.3.0/token-vision.png) |
