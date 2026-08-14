@@ -24,3 +24,14 @@ JJ's "removed from play" default for items sold to the Tower.
 search time) are extracted from the local ACKS II wiki snapshot into
 `acks-rules/acks-markets/RULES.md`, cross-checked against the RR PDF only
 where shapes disagree.
+
+## 2026-08-13 — %-cell market stock rolls at tenfold chance, floored by a party's find
+
+**Ruled (user):** for a percent availability cell, the market-wide monthly
+stock (the multi-party 10× cap) is its own roll at ten times the cell's
+chance, decomposed into guaranteed units plus a d100 on the remainder
+(23% → 230% → 2 units + 30% for a third), made once per item per month.
+A party's own successful existence roll floors the result at one — the
+market never contradicts what a party already found, so a 5% success
+stands even if the 50% market roll fails. Each party's access stays capped
+at its own existence roll.

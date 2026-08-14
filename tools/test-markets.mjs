@@ -8,7 +8,7 @@
  */
 import assert from "node:assert";
 
-const { parseCell, priceBandOf, cellFor, partyCap, marketCap, existenceRollsAllowed, remainingFor, itemKeyOf, MARKET_CAP_MULTIPLIER } =
+const { parseCell, priceBandOf, cellFor, partyCap, marketCap, pctMarketStock, existenceRollsAllowed, remainingFor, itemKeyOf, MARKET_CAP_MULTIPLIER } =
   await import(new URL("../scripts/markets/rules/availability.mjs", import.meta.url));
 const { quote, magicQuote, magicBandValueGp, bargainWinner, toCopper, toGp } =
   await import(new URL("../scripts/markets/rules/pricing.mjs", import.meta.url));
@@ -77,18 +77,33 @@ assert.strictEqual(
 assert.strictEqual(
   remainingFor({ cell: { kind: "pct", chance: 25 }, direction: "bought", ledgerRow: null, totalsRow: null, exists: true }).remaining,
   1,
-  "existing percent unit is one unit"
+  "existing percent unit is one unit even before the market stock rolls"
 );
 assert.strictEqual(
-  remainingFor({ cell: { kind: "pct", chance: 25 }, direction: "bought", ledgerRow: null, totalsRow: null, exists: false }).remaining,
+  remainingFor({ cell: { kind: "pct", chance: 25 }, direction: "bought", ledgerRow: null, totalsRow: null, exists: false, pctStock: 3 }).remaining,
   0,
-  "failed existence roll means none this month"
+  "market stock without a party success is still out of the party's reach"
 );
 assert.strictEqual(
-  remainingFor({ cell: { kind: "pct", chance: 25 }, direction: "bought", ledgerRow: { bought: 1 }, totalsRow: { bought: 1 }, exists: true }).remaining,
+  remainingFor({ cell: { kind: "pct", chance: 25 }, direction: "bought", ledgerRow: { bought: 1 }, totalsRow: { bought: 1 }, exists: true, pctStock: 3 }).remaining,
   0,
-  "the one percent unit cannot be bought twice"
+  "the party's one percent unit cannot be bought twice even with market stock left"
 );
+
+// Market-wide %-stock: ten times the cell's chance, remainder on a d100.
+{
+  const hi = pctMarketStock(23, () => 0.29); // d100 = 30 ≤ 30 → third unit
+  assert.strictEqual(hi.stock, 3, "230% with remainder success is 3 units");
+  const lo = pctMarketStock(23, () => 0.31); // d100 = 32 > 30
+  assert.strictEqual(lo.stock, 2, "230% with remainder failure is 2 units");
+  assert.strictEqual(pctMarketStock(10, () => 0.99).stock, 1, "100% needs no remainder roll");
+  assert.strictEqual(pctMarketStock(5, () => 0.99).stock, 0, "50% can roll zero market stock");
+  assert.strictEqual(
+    marketCap({ kind: "pct", chance: 5 }, { pctStock: 0, exists: true }),
+    1,
+    "a party's successful roll floors the market stock at one"
+  );
+}
 
 assert.strictEqual(itemKeyOf("  Sword "), "sword", "distinct-item key case-folds and trims");
 assert.notStrictEqual(itemKeyOf("Sword"), itemKeyOf("Battle Axe"), "distinct items ledger separately");

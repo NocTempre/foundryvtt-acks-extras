@@ -61,10 +61,32 @@ export function partyCap(cell, { doubled = false, extraSearchDays = 0 } = {}) {
   return cell.n * ((doubled ? 2 : 1) + Math.max(0, extraSearchDays));
 }
 
-/** The whole market's monthly cap for one distinct item (all parties). */
-export function marketCap(cell) {
+/**
+ * The whole market's monthly cap for one distinct item (all parties).
+ * %-cells pass the market's rolled stock (see `pctMarketStock`) and any
+ * party's own successful existence roll, which floors it — the market
+ * cannot hold fewer units than a party has already found.
+ */
+export function marketCap(cell, { pctStock = 0, exists = false } = {}) {
   if (cell.kind === "qty") return cell.n * MARKET_CAP_MULTIPLIER;
-  return cell.kind === "pct" ? 1 : 0;
+  return cell.kind === "pct" ? Math.max(pctStock, exists ? 1 : 0) : 0;
+}
+
+/**
+ * Roll the market-wide monthly stock for a %-cell: ten times the cell's
+ * chance, split into guaranteed units plus a d100 for the remainder
+ * (230% → 2 units + 30% chance of a third). Once per item per month.
+ * @param {number} chance - the cell's percent (1–99)
+ * @param {() => number} [rand] - percentile source, injectable for tests
+ */
+export function pctMarketStock(chance, rand = Math.random) {
+  const total = Math.max(0, Number(chance) || 0) * MARKET_CAP_MULTIPLIER;
+  const base = Math.floor(total / 100);
+  const rem = total % 100;
+  if (rem <= 0) return { stock: base, detail: `${chance}%×${MARKET_CAP_MULTIPLIER} → ${base}` };
+  const d100 = Math.floor(rand() * 100) + 1;
+  const stock = base + (d100 <= rem ? 1 : 0);
+  return { stock, detail: `${chance}%×${MARKET_CAP_MULTIPLIER} = ${base} + ${rem}%: d100 ${d100} → ${stock}` };
 }
 
 /**
@@ -86,14 +108,15 @@ export function existenceRollsAllowed(cell, { extraSearchDays = 0 } = {}) {
  * @param {object|null} o.totalsRow - the market's month row (bought/sold)
  * @param {number} o.extraSearchDays - party's extended-search days this month
  * @param {boolean} o.exists - %-cells: whether the cached roll found the unit
+ * @param {number} [o.pctStock] - %-cells: the market's rolled monthly stock
  * @returns {{remaining:number, capParty:number, capMarket:number}}
  */
-export function remainingFor({ cell, direction, ledgerRow, totalsRow, extraSearchDays = 0, exists = false }) {
+export function remainingFor({ cell, direction, ledgerRow, totalsRow, extraSearchDays = 0, exists = false, pctStock = 0 }) {
   const used = Number(ledgerRow?.[direction] ?? 0);
   const usedMarket = Number(totalsRow?.[direction] ?? 0);
   if (cell.kind === "pct") {
     const cap = exists ? 1 : 0;
-    const capM = marketCap(cell);
+    const capM = marketCap(cell, { pctStock, exists });
     return { remaining: Math.max(0, Math.min(cap - used, capM - usedMarket)), capParty: cap, capMarket: capM };
   }
   const capParty = partyCap(cell, { doubled: !!ledgerRow?.doubled, extraSearchDays });

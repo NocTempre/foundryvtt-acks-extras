@@ -50,7 +50,10 @@ export function goodsSchema() {
         detail: str(), // GM-only roll record
       })
     ),
-    // Cross-party market totals enforcing the 10× monthly cap.
+    // Cross-party market totals enforcing the 10× monthly cap. For %-cells
+    // the market's whole stock is rolled once per item-month at ten times
+    // the cell's chance (230% → 2 units + 30% for a third), floored by any
+    // party's own successful existence roll.
     totals: new f.ArrayField(
       new f.SchemaField({
         itemKey: str(),
@@ -58,6 +61,9 @@ export function goodsSchema() {
         monthStartTime: int(),
         bought: int(0),
         sold: int(0),
+        pctStock: int(0),
+        pctStockRolled: new f.BooleanField({ initial: false }),
+        pctStockDetail: str(), // GM-only roll record
       })
     ),
     // Extended-search days spent this month per party; each grants one
