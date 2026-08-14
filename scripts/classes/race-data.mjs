@@ -17,7 +17,7 @@ import { ATTRIBUTES } from "../lib/vocab.mjs";
 
 export default class RaceData extends foundry.abstract.TypeDataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric-keyed objects. */
-  static ARRAY_PATHS = ["values", "minimumAttributes", "traits", "postEight"];
+  static ARRAY_PATHS = ["values", "minimumAttributes", "traits", "postEight", "languages.granted"];
 
   static defineSchema() {
     const { ArrayField, SchemaField } = foundry.data.fields;

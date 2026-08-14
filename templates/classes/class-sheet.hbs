@@ -305,6 +305,26 @@
   </section>
 
   <section class="acks-extras-classes-tabpane" {{#unless show.awards}}hidden{{/unless}}>
+    {{!-- What this class speaks (RR §I.10). The race document carries its own
+          list and the two ADD; Intellect buys open slots on top, derived from
+          the character and never authored here. --}}
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.languages"}}
+        <a data-action="rowAdd" data-array="languages.granted"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#each languageRows}}
+        <div class="acks-extras-classes-row">
+          <input name="system.languages.granted.{{index}}" type="text" value="{{ref}}"
+                 placeholder="{{localize "ACKS-CLASSES.sheet.languageName"}}" />
+          <a data-action="rowDelete" data-array="languages.granted" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+        </div>
+      {{/each}}
+      <div class="acks-extras-classes-row">
+        <label>{{localize "ACKS-CLASSES.sheet.languageCount"}}</label>
+        <input name="system.languages.count" type="number" min="0" value="{{system.languages.count}}"
+               title="{{localize "ACKS-CLASSES.sheet.languageCountHint"}}" />
+      </div>
+    </fieldset>
+
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.awards"}}
         <a data-action="rowAdd" data-array="awards"><i class="fa-solid fa-plus"></i></a></legend>

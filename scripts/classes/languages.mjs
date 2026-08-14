@@ -132,6 +132,59 @@ export async function clearSlot(item, index) {
 }
 
 /**
+ * Give a character the tongues their class and race owe them, and the empty
+ * slots their Intellect buys.
+ *
+ * REFRESHES rather than duplicates. Applying a class again — the family's
+ * repair path for everything else — must not leave two "Tongues": an existing
+ * carrier has its capacity and granted list brought up to date, and every
+ * entry a player already chose is KEPT. A character whose Intellect rose
+ * gains the slots they are now owed; one whose granted list grew gains the
+ * tongue without losing what they filled.
+ *
+ * @param {Actor} actor
+ * @param {Item} classItem
+ * @param {string[]} [log] grant lines the caller is collecting for its receipt
+ */
+export async function grantLanguages(actor, classItem, log = []) {
+  const { raceForClass } = await import("./builder.mjs");
+  const race = raceForClass(classItem);
+  const grant = languageGrant({
+    intMod: abilityMod(actor, "int"),
+    classLanguages: classItem?.system?.languages ?? null,
+    raceLanguages: race?.system?.languages ?? null,
+  });
+
+  const creates = [];
+  for (const data of carrierData(grant)) {
+    const source = data.flags[MODULE_ID][SLOT_FLAG].source;
+    const existing = actor.items.find(
+      (i) => i.type === "ability" && (i.getFlag(MODULE_ID, SLOT_FLAG)?.source ?? null) === source,
+    );
+    if (!existing) {
+      creates.push(data);
+      const n = data.flags[MODULE_ID][SLOT_FLAG].capacity;
+      log.push(source === "granted" ? `${data.name} (${grant.granted.join(", ")})` : `${data.name} ×${n}`);
+      continue;
+    }
+    const now = slotsOf(existing);
+    const wanted = data.flags[MODULE_ID][SLOT_FLAG];
+    // Keep every filled entry; add any newly-granted tongue that is missing.
+    const kept = now.entries.slice();
+    for (const entry of wanted.entries) {
+      if (!kept.some((e) => e.name.toLowerCase() === entry.name.toLowerCase())) kept.push(entry);
+    }
+    const capacity = Math.max(wanted.capacity, kept.length);
+    if (capacity !== now.capacity || kept.length !== now.entries.length) {
+      await existing.setFlag(MODULE_ID, SLOT_FLAG, { ...now, capacity, entries: kept, source });
+      log.push(`${existing.name} → ${kept.length}/${capacity}`);
+    }
+  }
+  if (creates.length) await actor.createEmbeddedDocuments("Item", creates);
+  return grant;
+}
+
+/**
  * The two carriers a character is owed, as ability data ready to create or
  * update: the tongues their class and race simply KNOW, and the open slots
  * their Intellect (and any class or racial allowance) lets them fill.

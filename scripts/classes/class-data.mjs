@@ -35,6 +35,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
     "saves",
     "attack",
     "awards",
+    "languages.granted",
     "casting",
     "racialTraits",
     "templates",

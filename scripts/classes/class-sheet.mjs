@@ -176,6 +176,10 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       values: (ladder.values ?? []).map((rung, rungIndex) => ({ index: rungIndex, ...rung })),
     }));
 
+    // --- languages (RR §I.10): what the class speaks, and how many it may
+    // still choose. The race's own list adds to this at grant time. ---
+    context.languageRows = (sys.languages?.granted ?? []).map((ref, index) => ({ index, ref }));
+
     // --- awards ---
     context.awards = (sys.awards ?? []).map((award, index) => ({
       index,

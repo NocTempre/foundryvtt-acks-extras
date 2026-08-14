@@ -16,6 +16,7 @@ import { savesUpdateData } from "../lib/actor-compat.mjs";
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
 import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
+import { grantLanguages } from "./languages.mjs";
 import {
   adventuringDoc,
   awardsThrough,
@@ -297,6 +298,11 @@ export async function applyClass(
     await grantAdventuring(actor, grants);
     for (const a of owed.fixed) await grantAbility(actor, a.ref, grants);
     for (const ref of new Set(picks.filter(Boolean))) await grantAbility(actor, ref, grants);
+    // Tongues ride the same path: the class's list and the bound race's ADD,
+    // Intellect buys the open slots, and re-applying refreshes the carriers
+    // rather than making a second pair (a character whose Intellect rose owes
+    // more slots; one who already filled some keeps every entry).
+    await grantLanguages(actor, classItem, grants);
     if (grants.length) {
       // What a character was handed is a record, not a toast — the same place
       // level-up and chargen put theirs. A ref the world cannot resolve is
