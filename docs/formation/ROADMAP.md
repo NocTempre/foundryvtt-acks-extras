@@ -65,7 +65,7 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 
 ## 3. Other parked ideas (from DESIGN.md), re-prioritized
 
-1. **Trap Zones** — deferred by design: traps will live in a separate module. The link points this module should expose for it: the formation record (marching order, Pole/Scout roles) via `game.modules.get("acks-extras").api.formation`, and the party-roll engine (`rollPartyCheck`) for trap-related throws.
+1. **Trap Zones** — deferred by design: traps will live in a separate module. Its half of the link SHIPPED in 4.0: `api.formation` carries the versioned contract (apiVersion 1 — `marchingOrder()`, `ROLES`, `getFormations`, `rollPartyCheck`, `PARTY_CHECKS`). What remains here is nothing; what remains elsewhere is the trap module itself (owner ruling 2026-08-14: a later cycle, not 4.x).
 2. **Encounter scaling & reactions** (dungeon-level field on zones; §10 above).
 3. **Obstacle helper** (climb/squeeze/swim per-member throws).
 4. **Door helper** (bash/pick with time cost + botch states).
