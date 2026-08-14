@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.10.1
+
+### Fixed
+- **A magic item sold is not destroyed.** Mundane goods leave play when sold;
+  a magic item now passes into the market location's own holdings, markets
+  flag intact — a real object a party could buy back or steal.
+- The full-coverage hygiene sweep's High-severity findings: formation chat
+  escapes document names at the sink and validates player-supplied light
+  types, check keys and roles against their closed sets; the skill audit
+  reports what the party roll will actually do (a Skill-unchecked item no
+  longer shows active); committing follower-card overrides clears only what
+  was baked, so the encumbrance override and itemless attack edits survive to
+  Reset; a failed henchman transfer no longer rewrites the employment record
+  toward an employer who never received the hireling, and says so; spendGold
+  makes change in the purse's other denominations instead of silently keeping
+  an overpayment; chargen's compendium coin lookups and influence's lib
+  bindings fail loudly instead of degrading silently.
+
 ## 3.10.0
 
 Item markets: buying and selling at ACKS II availability and prices, on a new
@@ -11,8 +29,7 @@ Trade tab every market location carries.
   the settlement's class (scarce goods as percent chances, the party's own
   roll first and the town's tenfold stock never contradicting a find).
   Purchases stack (quantity merge, or one bundle for thirty swords); sales
-  price by condition-reduced value and leave play — except magic items,
-  which pass into the market's own holdings as real objects. Demand modifiers,
+  price by condition-reduced value and leave play. Demand modifiers,
   Bargaining with opposed rolls, extended search days, the twelve-adventurer
   dedicated shopping day, and masterwork gear behind a Judge-set contact.
 - **Merchant imports, directed searches, and commissions** — source goods
@@ -38,17 +55,6 @@ Trade tab every market location carries.
 - Every gold-spending receipt threw at runtime (a bare re-export left
   `gmIds` unbound in the coin adapter) — caught by the markets live gate on
   its first purchase.
-- The full-coverage hygiene sweep's High-severity findings: formation chat
-  escapes document names at the sink and validates player-supplied light
-  types, check keys and roles against their closed sets; the skill audit
-  reports what the party roll will actually do (a Skill-unchecked item no
-  longer shows active); committing follower-card overrides clears only what
-  was baked, so the encumbrance override and itemless attack edits survive to
-  Reset; a failed henchman transfer no longer rewrites the employment record
-  toward an employer who never received the hireling, and says so; spendGold
-  makes change in the purse's other denominations instead of silently keeping
-  an overpayment; chargen's compendium coin lookups and influence's lib
-  bindings fail loudly instead of degrading silently.
 
 
 ## 3.9.0
