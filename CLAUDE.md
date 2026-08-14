@@ -106,7 +106,9 @@ pass exactly the same gates.
      **hotfix** → none, unless UI-visible and requested.
    - Save to `docs/releases/v<X.Y.Z>/<feature-slug>.png` (kept out of
      module.zip); update `docs/GALLERY.md` — every row on a major, only the
-     re-shot rows on a minor. Never rewrite a past release's directory.
+     re-shot rows on a minor. A past release's directory may be rewritten
+     where its surface changed — a minor just never has to re-capture
+     surfaces its changes did not touch.
    - Shoot the disposable fixtures you built for the live check, and clip to
      the app window — that keeps world id / user name / server URL out of
      frame. Incidental book text in a feature's UI is not a concern.
