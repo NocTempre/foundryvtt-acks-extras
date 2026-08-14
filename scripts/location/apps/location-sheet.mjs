@@ -34,6 +34,9 @@ import { openRecruitDialog, openRecruitSpecial } from "../../henchmen/apps/recru
 import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { buildCatalog, availabilityFor, performSearchDay } from "../../markets/engine/trade.mjs";
+import { openPurchaseDialog } from "../../markets/apps/purchase-dialog.mjs";
+import { merchandiseLabel } from "../../markets/config.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -44,7 +47,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 const loc = makeLoc(LANG_PREFIX);
 
 /** The tabs that exist only where there is a market. */
-const MARKET_TABS = ["recruitment", "henchmen", "mercenaries", "specialists"];
+const MARKET_TABS = ["recruitment", "henchmen", "mercenaries", "specialists", "trade"];
 
 /**
  * Does a directed-search spec match this candidate? A directed CLASS search
@@ -114,6 +117,10 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       splitStack: LocationSheet.#onSplitStack,
       openScene: LocationSheet.#onOpenScene,
       unlinkScene: LocationSheet.#onUnlinkScene,
+      // --- trade tab (engine + dialogs live in the markets feature) ---
+      openPurchase: LocationSheet.#onOpenPurchase,
+      marketsSearchDay: LocationSheet.#onMarketsSearchDay,
+      toggleMasterworkContact: LocationSheet.#onToggleMasterworkContact,
       // --- the market gate ---
       addMarket: LocationSheet.#onAddMarket,
       removeMarket: LocationSheet.#onRemoveMarket,
@@ -138,6 +145,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         { id: "henchmen", icon: "fas fa-user-group" },
         { id: "mercenaries", icon: "fas fa-shield-halved" },
         { id: "specialists", icon: "fas fa-user-gear" },
+        { id: "trade", icon: "fas fa-coins" },
         { id: "storage", icon: "fas fa-boxes-stacked" },
         { id: "gmSettings", icon: "fas fa-gears" },
         { id: "gmView", icon: "fas fa-eye" },
@@ -192,6 +200,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // is a specialisation, prepared only where there is one.
     await this.#preparePlace(context);
     if (sys.hasMarket) this.#prepareMarket(context, t);
+    if (sys.hasMarket) await this.#prepareTrade(context);
 
     // Tabs: labels carry live counts. The market tabs exist only where there is
     // a market, and the GM tabs only for GMs.
@@ -207,6 +216,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       henchmen: context.henchmenRows?.length ?? 0,
       mercenaries: context.mercenaryRows?.length ?? 0,
       specialists: context.specialistRows?.length ?? 0,
+      trade: context.tradeRows?.length ?? 0,
       storage: context.groups.length,
     };
     for (const [id, tab] of Object.entries(context.tabs)) {
@@ -1005,6 +1015,73 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   /* ---------------------------- the market gate ------------------------- */
+
+  /**
+   * The trade half of the market: the catalog (built once per sheet open,
+   * refreshed by render), each row's live availability for the viewer's
+   * character, the party's month state, and the demand modifiers where the
+   * viewer may see them. All engine logic lives in the markets feature.
+   */
+  async #prepareTrade(context) {
+    const goods = this.actor.system.market.goods;
+    this._tradeCatalog ??= await buildCatalog(this.actor);
+    const trader =
+      game.user.character ??
+      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER")) ??
+      null;
+    context.tradeActor = trader;
+    context.tradeRows = this._tradeCatalog.map((row) => {
+      const avail = availabilityFor(this.actor, { itemName: row.name, costGp: row.costGp, trader });
+      return {
+        ...row,
+        availability: avail,
+        availabilityLabel: game.i18n.format(`ACKS-MARKETS.availability.${avail.status}`, avail),
+        canBuy: avail.status === "available" || avail.status === "pending",
+      };
+    });
+    context.masterworkContact = !!goods.masterworkContact;
+    context.extendedSearchOn = game.settings.get(MODULE_ID, "marketsExtendedSearch");
+    const seeDemand = context.isGM || goods.playersSeeDemand;
+    context.demandRows = seeDemand
+      ? (goods.demand ?? []).map((d) => ({
+          label: game.i18n.localize(merchandiseLabel(d.category)),
+          modifier: d.modifier > 0 ? `+${d.modifier}` : `${d.modifier}`,
+        }))
+      : [];
+  }
+
+  /** Open the purchase dialog for a catalog row. */
+  static async #onOpenPurchase(_event, target) {
+    const key = target?.dataset?.key;
+    const row = (this._tradeCatalog ?? []).find((r) => r.key === key);
+    if (row) openPurchaseDialog(this.actor, row);
+  }
+
+  /** Spend a further dedicated day searching this market. */
+  static async #onMarketsSearchDay(_event, _target) {
+    const trader =
+      game.user.character ??
+      game.actors.find((a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "OWNER"));
+    if (!trader) return;
+    const result = await performSearchDay(this.actor, { actorUuid: trader.uuid });
+    if (result?.error) {
+      ui.notifications.warn(game.i18n.localize(`ACKS-MARKETS.trade.error.${result.error}`));
+      return;
+    }
+    if (result?.ok) {
+      ui.notifications.info(game.i18n.format("ACKS-MARKETS.trade.searchDaySpent", { days: result.days }));
+      this.render();
+    }
+  }
+
+  /** GM gate: whether masterwork gear has a contact at this market (RR §IV.6). */
+  static async #onToggleMasterworkContact() {
+    if (!game.user.isGM) return;
+    const current = !!this.actor.system.market.goods.masterworkContact;
+    await this.actor.update({ "system.market.goods.masterworkContact": !current });
+    this._tradeCatalog = null;
+    this.render();
+  }
 
   /**
    * Give this place a market. One write of a fully-defaulted subtree — until

@@ -1,0 +1,58 @@
+<div class="acks-extras-markets-trade">
+  <div class="acks-extras-markets-toolbar">
+    {{#if extendedSearchOn}}
+    <button type="button" class="acks-location-btn" data-action="marketsSearchDay"
+            data-tooltip="{{localize 'ACKS-MARKETS.trade.searchDayHint'}}">
+      <i class="fas fa-magnifying-glass-dollar"></i> {{localize "ACKS-MARKETS.trade.searchDay"}}
+    </button>
+    {{/if}}
+    {{#if isGM}}
+    <button type="button" class="acks-location-btn {{#if masterworkContact}}active{{/if}}" data-action="toggleMasterworkContact"
+            data-tooltip="{{localize 'ACKS-MARKETS.trade.masterworkHint'}}">
+      <i class="fas fa-gem"></i> {{localize "ACKS-MARKETS.trade.masterworkContact"}}:
+      {{#if masterworkContact}}{{localize "ACKS-MARKETS.on"}}{{else}}{{localize "ACKS-MARKETS.off"}}{{/if}}
+    </button>
+    {{/if}}
+  </div>
+
+  {{#if demandRows.length}}
+  <div class="acks-extras-markets-demand">
+    <strong>{{localize "ACKS-MARKETS.trade.demandHeader"}}:</strong>
+    {{#each demandRows}}<span class="acks-extras-markets-demand-chip">{{label}} {{modifier}}</span>{{/each}}
+  </div>
+  {{/if}}
+
+  <div class="candidate-filter">
+    <i class="fas fa-magnifying-glass"></i>
+    <input type="text" data-candidate-filter placeholder="{{localize 'ACKS-MARKETS.trade.filter'}}" />
+  </div>
+
+  {{#if tradeRows.length}}
+  <table class="candidates-table acks-extras-markets-table">
+    <thead>
+      <tr>
+        <th>{{localize "ACKS-MARKETS.trade.item"}}</th>
+        <th>{{localize "ACKS-MARKETS.trade.cost"}}</th>
+        <th>{{localize "ACKS-MARKETS.trade.availability"}}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each tradeRows}}
+      <tr data-trade-name="{{name}}">
+        <td><img src="{{img}}" width="22" height="22" alt=""> {{name}}</td>
+        <td>{{costGp}}gp</td>
+        <td>{{availabilityLabel}}</td>
+        <td class="row-actions">
+          {{#if canBuy}}
+          <a data-action="openPurchase" data-key="{{key}}" data-tooltip="{{localize 'ACKS-MARKETS.trade.buy'}}"><i class="fas fa-coins"></i></a>
+          {{/if}}
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="hint">{{localize "ACKS-MARKETS.trade.emptyCatalog"}}</p>
+  {{/if}}
+</div>

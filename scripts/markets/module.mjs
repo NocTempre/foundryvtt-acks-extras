@@ -1,4 +1,4 @@
-/* global game, Hooks, ui */
+/* global game, Hooks, ui, foundry */
 /**
  * ACKS II — Item Markets. Entry point.
  *
@@ -12,9 +12,23 @@ import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, LANG, RULEDATA, HOOKS } from "./constants.mjs";
 import * as config from "./config.mjs";
 import { registerSettings, getSetting } from "./settings.mjs";
+import * as availabilityRules from "./rules/availability.mjs";
+import * as pricingRules from "./rules/pricing.mjs";
+import * as importRules from "./rules/imports.mjs";
+// Importing the engine registers the GM socket handlers at module scope.
+import { purchase, performPurchase, performSearchDay, availabilityFor, buildCatalog, abilityRanks } from "./engine/trade.mjs";
+import { partyOf, partySize } from "./engine/parties.mjs";
+import { openPurchaseDialog, PurchaseDialog } from "./apps/purchase-dialog.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
+
+  try {
+    const T = `modules/${MODULE_ID}/templates/markets`;
+    foundry.applications.handlebars.loadTemplates([`${T}/trade-tab.hbs`, `${T}/purchase-dialog.hbs`]);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | markets template preload skipped`, err);
+  }
 });
 
 Hooks.once("setup", () => {
@@ -33,6 +47,20 @@ Hooks.once("setup", () => {
     HOOKS,
     config,
     getSetting,
+    // engine (local-first; relays through the GM socket when the seat cannot write)
+    purchase,
+    performPurchase,
+    performSearchDay,
+    availabilityFor,
+    buildCatalog,
+    abilityRanks,
+    partyOf,
+    partySize,
+    // apps
+    openPurchaseDialog,
+    PurchaseDialog,
+    // rules (pure)
+    rules: { ...availabilityRules, ...pricingRules, imports: importRules },
   };
   acksExtras.markets = api;
 });

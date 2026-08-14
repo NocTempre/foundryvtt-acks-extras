@@ -90,28 +90,21 @@ export function pctMarketStock(chance, rand = Math.random) {
 }
 
 /**
- * How many existence rolls a party may make on a %-cell this month: the
- * base one, plus one per extended search day.
- */
-export function existenceRollsAllowed(cell, { extraSearchDays = 0 } = {}) {
-  return cell.kind === "pct" ? 1 + Math.max(0, extraSearchDays) : 0;
-}
-
-/**
  * Remaining units a party may trade for one distinct item this month, in
  * one direction, clamped by the cross-party market total.
  *
  * @param {object} o
  * @param {{kind:string}} o.cell - parsed availability cell
  * @param {"bought"|"sold"} o.direction - ledger counter to charge
- * @param {object|null} o.ledgerRow - this party's month row (bought/sold/doubled)
+ * @param {object|null} o.ledgerRow - this party's month row (bought/sold)
  * @param {object|null} o.totalsRow - the market's month row (bought/sold)
+ * @param {boolean} [o.doubled] - party claimed the 12+ dedicated-shopping day
  * @param {number} o.extraSearchDays - party's extended-search days this month
  * @param {boolean} o.exists - %-cells: whether the cached roll found the unit
  * @param {number} [o.pctStock] - %-cells: the market's rolled monthly stock
  * @returns {{remaining:number, capParty:number, capMarket:number}}
  */
-export function remainingFor({ cell, direction, ledgerRow, totalsRow, extraSearchDays = 0, exists = false, pctStock = 0 }) {
+export function remainingFor({ cell, direction, ledgerRow, totalsRow, doubled = false, extraSearchDays = 0, exists = false, pctStock = 0 }) {
   const used = Number(ledgerRow?.[direction] ?? 0);
   const usedMarket = Number(totalsRow?.[direction] ?? 0);
   if (cell.kind === "pct") {
@@ -122,7 +115,7 @@ export function remainingFor({ cell, direction, ledgerRow, totalsRow, extraSearc
     const cap = direction === "sold" ? (exists || pctStock > 0 ? 1 : 0) : exists ? 1 : 0;
     return { remaining: Math.max(0, Math.min(cap - used, capM - usedMarket)), capParty: cap, capMarket: capM };
   }
-  const capParty = partyCap(cell, { doubled: !!ledgerRow?.doubled, extraSearchDays });
+  const capParty = partyCap(cell, { doubled, extraSearchDays });
   const capMarket = marketCap(cell);
   return {
     remaining: Math.max(0, Math.min(capParty - used, capMarket - usedMarket)),

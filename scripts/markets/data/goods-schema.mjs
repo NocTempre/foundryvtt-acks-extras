@@ -34,9 +34,6 @@ export function goodsSchema() {
         monthStartTime: int(),
         bought: int(0),
         sold: int(0),
-        // The 12+-adventurer dedicated-shopping doubling, claimed once per
-        // party per month; stamped on every row of that party's month.
-        doubled: new f.BooleanField({ initial: false }),
       })
     ),
     // %-cell existence rolls, cached per (party, item, month) so a re-ask
@@ -66,15 +63,22 @@ export function goodsSchema() {
         pctStockDetail: str(), // GM-only roll record
       })
     ),
-    // Extended-search days spent this month per party; each grants one
-    // further increment of the base per-item cap (setting-gated).
-    searchDays: new f.ArrayField(
+    // Per-party month state: extended-search days spent (each grants one
+    // further increment of the base per-item cap, setting-gated) and the
+    // 12+-adventurer dedicated-shopping claim that doubles the month's
+    // purchasing power (RR §IV.3).
+    partyMonths: new f.ArrayField(
       new f.SchemaField({
         partyId: str(),
         monthStartTime: int(),
-        days: int(0),
+        searchDays: int(0),
+        dedicated: new f.BooleanField({ initial: false }),
       })
     ),
+    // The Judge's-discretion gate on masterwork purchases (RR §IV.6):
+    // masterwork gear enters this market's catalog only when the party has
+    // the right contact or skilled help here.
+    masterworkContact: new f.BooleanField({ initial: false }),
     // GM-set demand modifiers, one per merchandise-type key (config.mjs
     // vocabulary); price shifts one step per point.
     demand: new f.ArrayField(

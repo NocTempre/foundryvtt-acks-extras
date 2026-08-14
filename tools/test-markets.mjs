@@ -8,7 +8,7 @@
  */
 import assert from "node:assert";
 
-const { parseCell, priceBandOf, cellFor, partyCap, marketCap, pctMarketStock, existenceRollsAllowed, remainingFor, itemKeyOf, MARKET_CAP_MULTIPLIER } =
+const { parseCell, priceBandOf, cellFor, partyCap, marketCap, pctMarketStock, remainingFor, itemKeyOf, MARKET_CAP_MULTIPLIER } =
   await import(new URL("../scripts/markets/rules/availability.mjs", import.meta.url));
 const { quote, magicQuote, magicBandValueGp, bargainWinner, toCopper, toGp } =
   await import(new URL("../scripts/markets/rules/pricing.mjs", import.meta.url));
@@ -55,8 +55,6 @@ assert.strictEqual(partyCap(q10, { doubled: true }), 20, "12+ dedicated shopping
 assert.strictEqual(partyCap(q10, { extraSearchDays: 2 }), 30, "each extended day adds one base increment");
 assert.strictEqual(partyCap(q10, { doubled: true, extraSearchDays: 1 }), 30, "doubling and search stack additively");
 assert.strictEqual(marketCap(q10), 10 * MARKET_CAP_MULTIPLIER, "tenfold market total");
-assert.strictEqual(existenceRollsAllowed({ kind: "pct", chance: 25 }, { extraSearchDays: 2 }), 3, "extra days grant extra existence rolls");
-assert.strictEqual(existenceRollsAllowed(q10), 0, "quantity cells never roll existence");
 
 // Party remaining clamps against both its own cap and the market total.
 assert.deepStrictEqual(

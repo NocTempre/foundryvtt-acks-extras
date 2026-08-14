@@ -1,0 +1,44 @@
+/* Item markets: trade tab, purchase dialog, receipts. All selectors carry
+   the acks-extras-markets- prefix (validate-enforced). */
+
+.acks-extras-markets-trade {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.acks-extras-markets-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.acks-extras-markets-demand {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.acks-extras-markets-demand-chip {
+  border: 1px solid var(--color-border-light-2, #999);
+  border-radius: 3px;
+  padding: 0 0.35rem;
+  font-size: 0.9em;
+}
+
+.acks-extras-markets-table td img {
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
+.acks-extras-markets-itemline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.acks-extras-markets-receipt {
+  line-height: 1.5;
+}

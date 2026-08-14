@@ -29,6 +29,7 @@
     "styles/henchmen.css",
     "styles/influence.css",
     "styles/location.css",
+    "styles/markets.css",
     "styles/monsters.css"
   ],
   "languages": [

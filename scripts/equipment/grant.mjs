@@ -45,11 +45,21 @@ import { sheatheItem } from "./actions.mjs";
  * @returns {Promise<object|null>} creatable item data, or null if nothing matches
  */
 export async function findGearSource(name) {
+  return (await findGearEntry(name))?.data ?? null;
+}
+
+/**
+ * The same lookup, keeping the source document's address — for callers that
+ * must reference the found item rather than copy it (a purchase bundling
+ * thirty swords points its bundle rows at the source).
+ * @returns {Promise<{data: object, uuid: string, inCompendium: boolean}|null>}
+ */
+export async function findGearEntry(name) {
   if (!name) return null;
   const wanted = name.toLowerCase();
 
   const world = game.items?.find?.((i) => i.name?.toLowerCase() === wanted);
-  if (world) return world.toObject();
+  if (world) return { data: world.toObject(), uuid: world.uuid, inCompendium: false };
 
   for (const pack of game.packs ?? []) {
     if (pack.documentName !== "Item") continue;
@@ -57,7 +67,7 @@ export async function findGearSource(name) {
     if (!entry) continue;
     try {
       const doc = await pack.getDocument(entry._id);
-      if (doc) return doc.toObject();
+      if (doc) return { data: doc.toObject(), uuid: doc.uuid, inCompendium: true };
     } catch (err) {
       console.warn(`acks-extras | could not read ${name} from ${pack.collection}`, err);
     }

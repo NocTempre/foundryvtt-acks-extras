@@ -1,0 +1,47 @@
+<div class="acks-extras-markets-dialog-body">
+  <div class="acks-extras-markets-itemline">
+    <img src="{{item.img}}" width="28" height="28" alt="">
+    <strong>{{item.name}}</strong>
+    <span>{{item.costGp}}gp</span>
+  </div>
+  <p class="hint">{{availability.label}}</p>
+  <p class="hint">{{localize "ACKS-MARKETS.purchase.previewLabel"}}: {{previewGp}}gp</p>
+
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.purchase.buyer"}}</label>
+    <select name="buyerUuid">
+      {{#each buyers}}
+      <option value="{{id}}">{{name}}</option>
+      {{/each}}
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.purchase.qty"}}</label>
+    <input type="number" name="qty" value="1" min="1" step="1">
+  </div>
+
+  {{#if partyLarge}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.purchase.dedicated"}}</label>
+    <input type="checkbox" name="dedicated">
+  </div>
+  <p class="hint">{{localize "ACKS-MARKETS.purchase.dedicatedHint"}}</p>
+  {{/if}}
+
+  {{#if isGM}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.purchase.merchantRanks"}}</label>
+    <input type="number" name="merchantRanks" value="0" min="0" max="3" step="1">
+  </div>
+  <div class="form-group">
+    <label>{{localize "ACKS-MARKETS.purchase.merchantCha"}}</label>
+    <input type="number" name="merchantCha" value="1" min="-3" max="3" step="1">
+  </div>
+  <p class="hint">{{localize "ACKS-MARKETS.purchase.merchantHint"}}</p>
+  {{/if}}
+
+  <footer class="form-footer">
+    <button type="submit"><i class="fas fa-coins"></i> {{localize "ACKS-MARKETS.purchase.submit"}}</button>
+  </footer>
+</div>
