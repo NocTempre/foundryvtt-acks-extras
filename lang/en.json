@@ -2650,5 +2650,22 @@
   "ACKS-MARKETS.trade.earnedLine": "Total received: {total}gp",
   "ACKS-MARKETS.trade.error.noItem": "That item is no longer carried.",
   "ACKS-MARKETS.trade.stage.apparent": "Apparent value",
-  "ACKS-MARKETS.trade.stage.selfMade": "Maker's price"
+  "ACKS-MARKETS.trade.stage.selfMade": "Maker's price",
+  "ACKS-MARKETS.imports.header": "Imports in transit",
+  "ACKS-MARKETS.imports.hub": "Source",
+  "ACKS-MARKETS.imports.hubNone": "This market (immediate)",
+  "ACKS-MARKETS.imports.hubLocal": "Local hub (+1 class, 2d6 days)",
+  "ACKS-MARKETS.imports.hubRegional": "Regional hub (+2 classes, 2d6 weeks)",
+  "ACKS-MARKETS.imports.hubHint": "A merchant can import from a larger market: more is available, but it takes time — and on a 12 the goods are lost in transit with the payment forfeit.",
+  "ACKS-MARKETS.imports.eta": "Expected",
+  "ACKS-MARKETS.imports.etaDays": "in {days} days",
+  "ACKS-MARKETS.imports.placed": "Import order for {name} placed — expected in about {days} days.",
+  "ACKS-MARKETS.imports.payReason": "importing {qty}× {name}",
+  "ACKS-MARKETS.imports.orderedLine": "{buyer} ordered {qty}× {name} imported to {location}",
+  "ACKS-MARKETS.imports.paid": "Paid up front: {total}gp",
+  "ACKS-MARKETS.imports.arrivedLine": "{qty}× {name} arrived at {location} for {buyer}",
+  "ACKS-MARKETS.imports.lostLine": "{qty}× {name}: lost or stolen in transit — the goods never arrive and the payment is forfeit.",
+  "ACKS-MARKETS.imports.processed": "Resolved {n} due import order(s).",
+  "ACKS-MARKETS.trade.error.hubOut": "The hub has none available this month.",
+  "ACKS-MARKETS.imports.processNow": "Process due orders"
 }

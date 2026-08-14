@@ -6,6 +6,7 @@
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { performPurchase, availabilityFor, demandStepsFor, categoryOf } from "../engine/trade.mjs";
+import { performImportOrder } from "../engine/imports.mjs";
 import { quote, toGp } from "../rules/pricing.mjs";
 import { partySize, partyOf } from "../engine/parties.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
@@ -70,22 +71,35 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async #onSubmit(_event, _form, formData) {
     const data = foundry.utils.expandObject(formData.object);
-    const result = await performPurchase(this.location, {
-      buyerUuid: data.buyerUuid,
-      itemName: this.item.name,
-      qty: Number(data.qty) || 1,
-      dedicated: !!data.dedicated,
-      merchantRanks: Number(data.merchantRanks) || 0,
-      merchantCha: Number(data.merchantCha) || 0,
-      resolutionId: foundry.utils.randomID(),
-    });
+    const hubShift = Number(data.hub) || 0;
+    const result = hubShift
+      ? await performImportOrder(this.location, {
+          buyerUuid: data.buyerUuid,
+          itemName: this.item.name,
+          qty: Number(data.qty) || 1,
+          hubShift,
+          merchantRanks: Number(data.merchantRanks) || 0,
+          resolutionId: foundry.utils.randomID(),
+        })
+      : await performPurchase(this.location, {
+          buyerUuid: data.buyerUuid,
+          itemName: this.item.name,
+          qty: Number(data.qty) || 1,
+          dedicated: !!data.dedicated,
+          merchantRanks: Number(data.merchantRanks) || 0,
+          merchantCha: Number(data.merchantCha) || 0,
+          resolutionId: foundry.utils.randomID(),
+        });
     if (result?.error) {
       ui.notifications.warn(
         game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: result.remaining ?? 0 })
       );
       return;
     }
-    if (result?.ok) {
+    if (!result?.ok) return;
+    if (hubShift) {
+      ui.notifications.info(game.i18n.format(`${LANG}.imports.placed`, { name: this.item.name, days: result.etaDays }));
+    } else {
       ui.notifications.info(
         game.i18n.format(`${LANG}.trade.bought`, { qty: result.qty, name: this.item.name, total: result.totalGp })
       );

@@ -35,6 +35,7 @@ import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { buildCatalog, availabilityFor, performSearchDay, salePlan, demandStepsFor, categoryOf } from "../../markets/engine/trade.mjs";
+import { processImports } from "../../markets/engine/imports.mjs";
 import { openPurchaseDialog } from "../../markets/apps/purchase-dialog.mjs";
 import { openSellDialog } from "../../markets/apps/sell-dialog.mjs";
 import { merchandiseLabel } from "../../markets/config.mjs";
@@ -122,6 +123,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       openPurchase: LocationSheet.#onOpenPurchase,
       openSell: LocationSheet.#onOpenSell,
       marketsSearchDay: LocationSheet.#onMarketsSearchDay,
+      processImports: LocationSheet.#onProcessImports,
       toggleMasterworkContact: LocationSheet.#onToggleMasterworkContact,
       // --- the market gate ---
       addMarket: LocationSheet.#onAddMarket,
@@ -1063,6 +1065,16 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
               : null;
           })
           .filter(Boolean);
+    // In-transit orders: players see the expected window, never the roll.
+    const t = now();
+    context.importRows = (goods.imports ?? [])
+      .filter((o) => o.status === "ordered")
+      .map((o) => ({
+        itemName: o.itemName,
+        qty: o.qty,
+        hubLabel: game.i18n.localize(`ACKS-MARKETS.imports.${o.hubShift === 2 ? "hubRegional" : "hubLocal"}`),
+        etaDays: Math.max(0, Math.ceil((Number(o.arrivalTime) - t) / SECONDS_PER_DAY)),
+      }));
     const seeDemand = context.isGM || goods.playersSeeDemand;
     context.demandRows = seeDemand
       ? (goods.demand ?? []).map((d) => ({
@@ -1103,6 +1115,13 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ui.notifications.info(game.i18n.format("ACKS-MARKETS.trade.searchDaySpent", { days: result.days }));
       this.render();
     }
+  }
+
+  /** Resolve due import orders now (owners may; the clock is the GM's). */
+  static async #onProcessImports() {
+    const result = await processImports(this.actor);
+    ui.notifications.info(game.i18n.format("ACKS-MARKETS.imports.processed", { n: result.resolved }));
+    this.render();
   }
 
   /** GM gate: whether masterwork gear has a contact at this market (RR §IV.6). */

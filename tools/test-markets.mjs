@@ -104,6 +104,38 @@ assert.strictEqual(
   "no capacity and no find sells nothing"
 );
 
+// A venturer's effective class widens the party's share, not the market:
+// party cell reads at the effective class, the total stays the true class.
+assert.strictEqual(
+  remainingFor({
+    cell: { kind: "qty", n: 2 }, // effective class III
+    marketCell: { kind: "qty", n: 1 }, // true class IV
+    direction: "bought",
+    ledgerRow: null,
+    totalsRow: { bought: 9 },
+  }).remaining,
+  1,
+  "the true-class tenfold total clamps a venturer's wider access"
+);
+assert.strictEqual(
+  remainingFor({
+    cell: { kind: "qty", n: 1 }, // effective class guarantees the find
+    marketCell: { kind: "pct", chance: 25 }, // true class only chances it
+    direction: "bought",
+    ledgerRow: null,
+    totalsRow: null,
+    exists: true, // the guaranteed find floors the market stock
+    pctStock: 0,
+  }).remaining,
+  1,
+  "a guaranteed effective-class find stands even when the town's stock rolled zero"
+);
+assert.strictEqual(
+  marketCap({ kind: "none" }, { exists: true }),
+  1,
+  "a party's find floors even a none cell at the town's class"
+);
+
 // Market-wide %-stock: ten times the cell's chance, remainder on a d100.
 {
   const hi = pctMarketStock(23, () => 0.29); // d100 = 30 ≤ 30 → third unit

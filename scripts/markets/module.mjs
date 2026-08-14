@@ -20,6 +20,7 @@ import { purchase, sell, performPurchase, performSell, performSearchDay, availab
 import { partyOf, partySize } from "./engine/parties.mjs";
 import { openPurchaseDialog, PurchaseDialog } from "./apps/purchase-dialog.mjs";
 import { openSellDialog, SellDialog } from "./apps/sell-dialog.mjs";
+import { placeImportOrder, performImportOrder, processImports, processAllImports, registerImportWatcher } from "./engine/imports.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
@@ -57,6 +58,10 @@ Hooks.once("setup", () => {
     availabilityFor,
     buildCatalog,
     salePlan,
+    placeImportOrder,
+    performImportOrder,
+    processImports,
+    processAllImports,
     abilityRanks,
     partyOf,
     partySize,
@@ -73,6 +78,10 @@ Hooks.once("setup", () => {
 
 Hooks.once("ready", () => {
   if (!assertAcksSystem("item markets expect the ACKS II system.")) return;
+
+  // GM-side due-processing whenever world time moves: import arrivals and
+  // losses reveal on their rolled dates (idempotent per order).
+  registerImportWatcher();
 
   // Book tables are imported per-world, not shipped. Name the missing
   // documents once to the GM. The shared `availability` doc is announced by

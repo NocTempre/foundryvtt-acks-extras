@@ -40,3 +40,13 @@ at its own existence roll.
 when the party's own roll fails — a failed contact roll does not empty the
 town of buyers, so a party may still sell (one unit, within the market
 total). Buying stays gated on the party's own find.
+
+## 2026-08-13 — A venturer widens the party's share, never the market
+
+**Ruled (user, RAW reading):** treating a market as a higher class
+(mercantile network, RR §VIII.6) reads the PARTY's availability cell at the
+effective class, but the cross-party monthly total stays the town's TRUE
+class — a bigger share of the same market, not a bigger market. Where the
+effective class guarantees a find that the true class only chances (the RR
+heavy-warhorse example), the find stands: the market total floors at any
+party's find, even on a true-class none cell.

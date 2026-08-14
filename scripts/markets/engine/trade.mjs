@@ -139,9 +139,11 @@ export function availabilityFor(location, { itemName, costGp, trader = null, dir
   const rows = getTable("availability", "equipmentAvailability").rows ?? [];
   const band = priceBandOf(costGp, rows);
   if (!band) return { status: "untradeable" };
-  const marketClass = trader ? effectiveMarketClass(location, trader) : location.system.marketClass;
+  const trueClass = location.system.marketClass;
+  const marketClass = trader ? effectiveMarketClass(location, trader) : trueClass;
   if (marketClass == null) return { status: "noMarket" };
   const cell = cellFor(band, marketClass);
+  const marketCell = cellFor(band, trueClass ?? marketClass);
   if (cell.kind === "none") return { status: "unavailable", band: band.band };
 
   const monthStart = marketMonthStart();
@@ -161,12 +163,13 @@ export function availabilityFor(location, { itemName, costGp, trader = null, dir
 
   const { remaining, capParty, capMarket } = remainingFor({
     cell,
+    marketCell,
     direction,
     ledgerRow,
     totalsRow,
     doubled: !!partyMonth?.dedicated,
     extraSearchDays: Number(partyMonth?.searchDays ?? 0),
-    exists: !!existRow?.exists,
+    exists: cell.kind === "qty" ? marketCell.kind !== "qty" : !!existRow?.exists,
     pctStock: Number(totalsRow?.pctStock ?? 0),
   });
   return { status: remaining > 0 ? "available" : "exhausted", band: band.band, remaining, capParty, capMarket };
@@ -259,9 +262,14 @@ export async function purchase(location, payload) {
   const rows = getTable("availability", "equipmentAvailability").rows ?? [];
   const band = priceBandOf(costGp, rows);
   if (!band) return err("untradeable");
+  // The party reads its cell at its EFFECTIVE class (mercantile networks);
+  // the market total stays the town's TRUE class — a bigger share, not a
+  // bigger market.
+  const trueClass = location.system.marketClass;
   const marketClass = effectiveMarketClass(location, buyer);
   if (marketClass == null) return err("noMarket");
   const cell = cellFor(band, marketClass);
+  const marketCell = cellFor(band, trueClass ?? marketClass);
   if (cell.kind === "none") return err("unavailable");
 
   const monthStart = marketMonthStart();
@@ -298,8 +306,9 @@ export async function purchase(location, payload) {
     { partyId: party.id, itemKey: key, band: band.band, monthStartTime: monthStart, bought: 0, sold: 0 }
   );
 
-  // %-cells: the party's own find, then the market's tenfold stock — both
-  // rolled once per month and cached so a re-ask can never re-roll.
+  // %-cells: the party's own find (effective class), then the market's
+  // tenfold stock (true class) — both rolled once per month and cached so a
+  // re-ask can never re-roll.
   let existRow = null;
   if (cell.kind === "pct") {
     existRow = ensureRow(
@@ -312,23 +321,24 @@ export async function purchase(location, payload) {
       existRow.exists = roll <= cell.chance;
       existRow.detail = `d100 ${roll} vs ${cell.chance}%`;
     }
-    if (!totalsRow.pctStockRolled) {
-      const roll = await d100();
-      const { stock, detail } = pctMarketStock(cell.chance, () => (roll - 1) / 100);
-      totalsRow.pctStock = stock;
-      totalsRow.pctStockRolled = true;
-      totalsRow.pctStockDetail = detail;
-    }
+  }
+  if (marketCell.kind === "pct" && !totalsRow.pctStockRolled) {
+    const roll = await d100();
+    const { stock, detail } = pctMarketStock(marketCell.chance, () => (roll - 1) / 100);
+    totalsRow.pctStock = stock;
+    totalsRow.pctStockRolled = true;
+    totalsRow.pctStockDetail = detail;
   }
 
   const room = remainingFor({
     cell,
+    marketCell,
     direction: "bought",
     ledgerRow,
     totalsRow,
     doubled: !!partyMonth.dedicated,
     extraSearchDays: Number(partyMonth.searchDays ?? 0),
-    exists: !!existRow?.exists,
+    exists: cell.kind === "qty" ? marketCell.kind !== "qty" : !!existRow?.exists,
     pctStock: Number(totalsRow.pctStock ?? 0),
   });
   if (qty > room.remaining) {
@@ -354,43 +364,7 @@ export async function purchase(location, payload) {
   const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.trade.buyReason`, { qty, name: itemData.name }));
   if (!paid) return err("insufficientGold");
 
-  // Delivery. Stackables merge; unit items above one unit arrive as one
-  // bundle document pointing at the source (core explodes it on drop when
-  // the owner distributes).
-  if (itemData.type === ITEM_TYPE.item) {
-    const carried = buyer.items.find((i) => i.type === ITEM_TYPE.item && itemKeyOf(i.name) === key);
-    if (carried) {
-      await carried.update({ "system.quantity.value": Number(carried.system.quantity?.value ?? 0) + qty });
-    } else {
-      const data = foundry.utils.deepClone(itemData);
-      foundry.utils.setProperty(data, "system.quantity.value", qty);
-      await buyer.createEmbeddedDocuments("Item", [data]);
-    }
-  } else if (qty === 1) {
-    await buyer.createEmbeddedDocuments("Item", [itemData]);
-  } else {
-    await buyer.createEmbeddedDocuments("Item", [
-      {
-        name: game.i18n.format(`${LANG}.trade.bundleName`, { name: itemData.name, qty }),
-        type: ITEM_TYPE.bundle,
-        img: itemData.img,
-        system: {
-          description: game.i18n.format(`${LANG}.trade.bundleDescription`, { qty, name: itemData.name, location: location.name }),
-          itemList: [
-            {
-              id: itemData._id ?? foundry.utils.randomID(),
-              uuid: entry.uuid,
-              quantity: qty,
-              name: itemData.name,
-              img: itemData.img,
-              type: itemData.type,
-              inCompendium: entry.inCompendium,
-            },
-          ],
-        },
-      },
-    ]);
-  }
+  await deliverGoods(buyer, { entry, qty, locationName: location.name });
 
   ledgerRow.bought += qty;
   totalsRow.bought += qty;
@@ -420,6 +394,53 @@ export async function purchase(location, payload) {
 
   Hooks.callAll(HOOKS.PURCHASED, { location, buyer, itemName: itemData.name, qty, totalGp });
   return { ok: true, qty, unitGp: toGp(priced.unitCp), totalGp };
+}
+
+/**
+ * Hand purchased goods to their buyer. Stackables merge into the buyer's
+ * existing stack; a multi-unit purchase of unit items (thirty swords)
+ * arrives as ONE bundle document pointing at the source — core explodes it
+ * on drop when the owner distributes.
+ */
+export async function deliverGoods(buyer, { entry, qty, locationName = "" }) {
+  const itemData = entry.data;
+  const key = itemKeyOf(itemData.name);
+  if (itemData.type === ITEM_TYPE.item) {
+    const carried = buyer.items.find((i) => i.type === ITEM_TYPE.item && itemKeyOf(i.name) === key);
+    if (carried) {
+      await carried.update({ "system.quantity.value": Number(carried.system.quantity?.value ?? 0) + qty });
+    } else {
+      const data = foundry.utils.deepClone(itemData);
+      foundry.utils.setProperty(data, "system.quantity.value", qty);
+      await buyer.createEmbeddedDocuments("Item", [data]);
+    }
+    return;
+  }
+  if (qty === 1) {
+    await buyer.createEmbeddedDocuments("Item", [itemData]);
+    return;
+  }
+  await buyer.createEmbeddedDocuments("Item", [
+    {
+      name: game.i18n.format(`${LANG}.trade.bundleName`, { name: itemData.name, qty }),
+      type: ITEM_TYPE.bundle,
+      img: itemData.img,
+      system: {
+        description: game.i18n.format(`${LANG}.trade.bundleDescription`, { qty, name: itemData.name, location: locationName }),
+        itemList: [
+          {
+            id: itemData._id ?? foundry.utils.randomID(),
+            uuid: entry.uuid,
+            quantity: qty,
+            name: itemData.name,
+            img: itemData.img,
+            type: itemData.type,
+            inCompendium: entry.inCompendium,
+          },
+        ],
+      },
+    },
+  ]);
 }
 
 /** The markets flag bag on an item ({magic, apparentValueGp, identified…}). */
@@ -519,9 +540,11 @@ export async function sell(location, payload) {
   const rows = bandRowsFor(plan.magic);
   const band = priceBandOf(plan.bandValueGp, rows);
   if (!band) return err("untradeable");
+  const trueClass = location.system.marketClass;
   const marketClass = effectiveMarketClass(location, seller);
   if (marketClass == null) return err("noMarket");
   const cell = cellFor(band, marketClass);
+  const marketCell = cellFor(band, trueClass ?? marketClass);
   if (cell.kind === "none") return err("unavailable");
 
   const monthStart = marketMonthStart();
@@ -560,23 +583,24 @@ export async function sell(location, payload) {
       existRow.exists = roll <= cell.chance;
       existRow.detail = `d100 ${roll} vs ${cell.chance}%`;
     }
-    if (!totalsRow.pctStockRolled) {
-      const roll = await d100();
-      const { stock, detail } = pctMarketStock(cell.chance, () => (roll - 1) / 100);
-      totalsRow.pctStock = stock;
-      totalsRow.pctStockRolled = true;
-      totalsRow.pctStockDetail = detail;
-    }
+  }
+  if (marketCell.kind === "pct" && !totalsRow.pctStockRolled) {
+    const roll = await d100();
+    const { stock, detail } = pctMarketStock(marketCell.chance, () => (roll - 1) / 100);
+    totalsRow.pctStock = stock;
+    totalsRow.pctStockRolled = true;
+    totalsRow.pctStockDetail = detail;
   }
 
   const room = remainingFor({
     cell,
+    marketCell,
     direction: "sold",
     ledgerRow,
     totalsRow,
     doubled: !!partyMonth.dedicated,
     extraSearchDays: Number(partyMonth.searchDays ?? 0),
-    exists: !!existRow?.exists,
+    exists: cell.kind === "qty" ? marketCell.kind !== "qty" : !!existRow?.exists,
     pctStock: Number(totalsRow.pctStock ?? 0),
   });
   if (qty > room.remaining) {
@@ -624,9 +648,10 @@ export async function sell(location, payload) {
 }
 
 /**
- * Spend one further dedicated day searching the market (setting-gated house
- * extension recorded in DECISIONS): raises this party's per-item cap by one
- * base increment and grants a fresh existence roll on %-cells.
+ * Spend one further dedicated day searching the market (RR §VIII.6:
+ * soliciting is a dedicated activity repeatable each day, setting-gated
+ * here): raises this party's per-item cap by one base increment and takes a
+ * fresh look for scarce goods.
  */
 export async function spendSearchDay(location, { actorUuid, requestUserId = null }) {
   if (!getSetting("marketsExtendedSearch")) return err("searchDisabled");

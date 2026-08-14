@@ -56,6 +56,36 @@
   <p class="hint">{{localize "ACKS-MARKETS.trade.emptyCatalog"}}</p>
   {{/if}}
 
+  {{#if importRows.length}}
+  <h3><i class="fas fa-truck"></i> {{localize "ACKS-MARKETS.imports.header"}}
+    {{#if canProcess}}
+    <button type="button" class="acks-location-btn" data-action="processImports">
+      <i class="fas fa-rotate"></i> {{localize "ACKS-MARKETS.imports.processNow"}}
+    </button>
+    {{/if}}
+  </h3>
+  <table class="candidates-table acks-extras-markets-table">
+    <thead>
+      <tr>
+        <th>{{localize "ACKS-MARKETS.trade.item"}}</th>
+        <th>{{localize "ACKS-MARKETS.purchase.qty"}}</th>
+        <th>{{localize "ACKS-MARKETS.imports.hub"}}</th>
+        <th>{{localize "ACKS-MARKETS.imports.eta"}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each importRows}}
+      <tr>
+        <td>{{itemName}}</td>
+        <td>{{qty}}</td>
+        <td>{{hubLabel}}</td>
+        <td>{{localize "ACKS-MARKETS.imports.etaDays" days=etaDays}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{/if}}
+
   {{#if sellRows.length}}
   <h3><i class="fas fa-hand-holding-dollar"></i> {{localize "ACKS-MARKETS.sale.header"}}{{#if tradeActor}} — {{tradeActor.name}}{{/if}}</h3>
   <table class="candidates-table acks-extras-markets-table">

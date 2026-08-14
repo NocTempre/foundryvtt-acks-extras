@@ -53,8 +53,9 @@ export function cellFor(bandRow, marketClass) {
 /**
  * A party's monthly cap for one distinct item on a quantity cell.
  * RAW: 12+ adventurers devoting a dedicated activity to shopping purchase
- * twice as much. House extension (setting-gated, DECISIONS): each extended
- * dedicated search day adds one further increment of the base value.
+ * twice as much (RR §IV.3); further dedicated days of soliciting expand the
+ * daily supply a trader can reach (RR §VIII.6), applied here as one base
+ * increment per extended search day (setting-gated).
  */
 export function partyCap(cell, { doubled = false, extraSearchDays = 0 } = {}) {
   if (cell.kind !== "qty") return cell.kind === "pct" ? 1 : 0;
@@ -69,7 +70,10 @@ export function partyCap(cell, { doubled = false, extraSearchDays = 0 } = {}) {
  */
 export function marketCap(cell, { pctStock = 0, exists = false } = {}) {
   if (cell.kind === "qty") return cell.n * MARKET_CAP_MULTIPLIER;
-  return cell.kind === "pct" ? Math.max(pctStock, exists ? 1 : 0) : 0;
+  if (cell.kind === "pct") return Math.max(pctStock, exists ? 1 : 0);
+  // A party's find stands even where the town's own class stocks none (a
+  // venturer's network reaches past the local stalls).
+  return exists ? 1 : 0;
 }
 
 /**
@@ -93,30 +97,35 @@ export function pctMarketStock(chance, rand = Math.random) {
  * Remaining units a party may trade for one distinct item this month, in
  * one direction, clamped by the cross-party market total.
  *
+ * A venturer treating the market as a higher class dips into a GREATER SHARE
+ * of the same market: their party cell reads at the effective class, but the
+ * market total stays the town's true class (`marketCell`).
+ *
  * @param {object} o
- * @param {{kind:string}} o.cell - parsed availability cell
+ * @param {{kind:string}} o.cell - parsed cell at the party's EFFECTIVE class
+ * @param {{kind:string}} [o.marketCell] - parsed cell at the town's TRUE class
  * @param {"bought"|"sold"} o.direction - ledger counter to charge
  * @param {object|null} o.ledgerRow - this party's month row (bought/sold)
  * @param {object|null} o.totalsRow - the market's month row (bought/sold)
  * @param {boolean} [o.doubled] - party claimed the 12+ dedicated-shopping day
  * @param {number} o.extraSearchDays - party's extended-search days this month
  * @param {boolean} o.exists - %-cells: whether the cached roll found the unit
- * @param {number} [o.pctStock] - %-cells: the market's rolled monthly stock
+ * @param {number} [o.pctStock] - the market's rolled monthly stock (true-class %-cells)
  * @returns {{remaining:number, capParty:number, capMarket:number}}
  */
-export function remainingFor({ cell, direction, ledgerRow, totalsRow, doubled = false, extraSearchDays = 0, exists = false, pctStock = 0 }) {
+export function remainingFor({ cell, marketCell = null, direction, ledgerRow, totalsRow, doubled = false, extraSearchDays = 0, exists = false, pctStock = 0 }) {
+  const mCell = marketCell ?? cell;
   const used = Number(ledgerRow?.[direction] ?? 0);
   const usedMarket = Number(totalsRow?.[direction] ?? 0);
+  const capMarket = marketCap(mCell, { pctStock, exists });
   if (cell.kind === "pct") {
     // Buying needs the party's own find; selling only needs the town to
     // have capacity — a failed contact roll does not empty the market of
     // buyers, so the location's rolled stock carries a sale through.
-    const capM = marketCap(cell, { pctStock, exists });
-    const cap = direction === "sold" ? (exists || pctStock > 0 ? 1 : 0) : exists ? 1 : 0;
-    return { remaining: Math.max(0, Math.min(cap - used, capM - usedMarket)), capParty: cap, capMarket: capM };
+    const cap = direction === "sold" ? (exists || capMarket > 0 ? 1 : 0) : exists ? 1 : 0;
+    return { remaining: Math.max(0, Math.min(cap - used, capMarket - usedMarket)), capParty: cap, capMarket };
   }
   const capParty = partyCap(cell, { doubled, extraSearchDays });
-  const capMarket = marketCap(cell);
   return {
     remaining: Math.max(0, Math.min(capParty - used, capMarket - usedMarket)),
     capParty,
