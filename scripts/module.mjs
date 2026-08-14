@@ -35,3 +35,4 @@ import "./henchmen/module.mjs";
 import "./location/module.mjs";
 import "./markets/module.mjs";
 import "./monsters/module.mjs";
+import "./vehicles/module.mjs";

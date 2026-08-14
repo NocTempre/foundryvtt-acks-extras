@@ -61,6 +61,11 @@
         "htmlFields": [
           "notes"
         ]
+      },
+      "vehicle": {
+        "htmlFields": [
+          "description"
+        ]
       }
     },
     "RegionBehavior": {

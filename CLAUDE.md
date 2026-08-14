@@ -9,7 +9,7 @@ build/release plumbing, and its `docs/DECISIONS.md` before a structural change
 ## Layout
 
 - `scripts/` — ESM runtime, entry `scripts/module.mjs`; `templates/` — .hbs;
-  `styles/`; `lang/en.json` — flat i18n keys under root(s) `ACKS-CLASSES, ACKS-LIB, ACKS-ABILITIES, ACKS-EQUIPMENT, ACKS-FORMATION, ACKS-HENCHMEN, ACKS-INFLUENCE, ACKS-LOCATION, ACKS-MONSTERS, ACKS-MARKETS`
+  `styles/`; `lang/en.json` — flat i18n keys under root(s) `ACKS-CLASSES, ACKS-LIB, ACKS-ABILITIES, ACKS-EQUIPMENT, ACKS-FORMATION, ACKS-HENCHMEN, ACKS-INFLUENCE, ACKS-LOCATION, ACKS-MONSTERS, ACKS-MARKETS, ACKS-VEHICLES`
 - `packs/` — compiled LevelDB compendia. **Build output: gitignored, rebuilt
   by CI, shipped in module.zip.** Never committed, never hand-managed; there
   is no pack churn to discard. Foundry cannot read `packs/_source` at runtime,
@@ -140,7 +140,7 @@ pass exactly the same gates.
 - Declare a pack in `module.json` only once it has content.
 - Namespacing (validate-enforced): globals/custom hooks/HB helpers start with
   the camelCased module id; top-level pack `_id`s start with the
-  `flags["acks-extras"].idPrefix` key; lang keys under root(s) `ACKS-CLASSES, ACKS-LIB, ACKS-ABILITIES, ACKS-EQUIPMENT, ACKS-FORMATION, ACKS-HENCHMEN, ACKS-INFLUENCE, ACKS-LOCATION, ACKS-MONSTERS, ACKS-MARKETS`;
+  `flags["acks-extras"].idPrefix` key; lang keys under root(s) `ACKS-CLASSES, ACKS-LIB, ACKS-ABILITIES, ACKS-EQUIPMENT, ACKS-FORMATION, ACKS-HENCHMEN, ACKS-INFLUENCE, ACKS-LOCATION, ACKS-MONSTERS, ACKS-MARKETS, ACKS-VEHICLES`;
   CSS classes with `acks-extras-`.
 - Design doctrine: **reuse → extend → enhance → invent** — reuse core system
   documents; extend only via `flags["acks-extras"]`; enhance with alternate
