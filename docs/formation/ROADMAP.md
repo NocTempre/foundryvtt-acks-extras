@@ -38,30 +38,29 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 
 ---
 
-## 2. The mapping system (revisited)
+## 2. The mapping system — Phases 1 and 2 SHIPPED; the remainder
 
-[FOG.md](FOG.md) remains the architecture; v0.4.0 made it *simpler*: the module is now **v14-only** (no dual-path fog code needed) and Map items get a natural home — the party actor / member inventories are already tradeable.
+[FOG.md](FOG.md) remains the architecture, and most of it is built: map
+sessions force `fog.mode = SHARED` while a formation maps (the scene's own
+mode is preserved in a flag and restored when mapping stops), "New map"
+archives the union into a Map item held by the mapper and restarts from
+black, the union re-archives on each dungeon-turn tick and at session end,
+the fog-reload socket tells clients to re-pull after GM-side surgery,
+anchoring composites a held Map item into every user's FogExploration
+(sceneId-guarded), and "Save my current fog as a Map item" gives the GM the
+sellable-map author. Mapping pauses — session intact — while there is no
+working mapper, no unshielded lit light (setting-gated), a hurried pace, or
+an active combat.
 
-**Phase 1 — map sessions (core loop).**
-- Force `fog.mode = SHARED` while a formation maps on a scene (today we restore "whatever the scene had"); all members contribute to and see one union.
-- "**New map**" button in the formation window: archive the current union into a Map item (base64 bitmap in item flags, held by the mapper), reset the scene's FogExploration documents, start from black. This is the fell-through-a-hole scenario.
-- Archive the union into the active Map item on each dungeon-turn tick (cheap: reuse the pixel extraction core already does) and at session end (mapper lost / formation leaves scene / disband).
-- New module socket to tell clients "reload fog" after GM-side document surgery.
-- Development notes: a PIXI compositing helper (~50 lines, mirrors core's `#compositeTextures`), scene-dimension metadata stored in the Map item to detect misalignment, and the primary-GM-only discipline the module already uses everywhere.
-
-**Phase 2 — anchoring & trade.**
-- "**Anchor**" on a held Map item: composite its bitmap into every user's FogExploration and reload — the old area lights up, merged with live exploration. "Unanchor" removes the scene's fog docs and re-anchors the remaining set (cheapest correct implementation: rebuild from live session + anchored items).
-- Loot/buy/sell needs zero new code (items). Guard: anchoring requires the item's `sceneId` to match.
-- GM-judged by design; an *auto-suggest* ("the party stands in territory 'Map of Level 2' depicts — anchor?") uses `FogManager#isPointExplored`-style pixel testing against the item bitmap.
-
-**Phase 3 — authoring & polish.**
-- "Save my current fog as a Map item" (GM) for sellable maps; bake-Regions-to-bitmap for partially revealed merchant maps.
-- Mapping-proficiency hooks (📖 above): unproficient mappers could produce items flagged "unreliable" for GM-narrated distortions.
-- Optional custom `_unionizeSharedExploration` override so anchored items survive core fog resets.
-
-**Interaction with existing features to watch:** the mapper-gating (fog DISABLED without a mapper) becomes "session paused" in Phase 1 — recording stops but the Map item keeps its archive; losing the mapper permanently (death + looted map) is exactly the item walking away. Combat deploys don't touch fog (member tokens see normally during a fight; their vision contributes to the session — acceptable and arguably correct).
-
----
+Still unbuilt, in likely order:
+- **Auto-suggest anchoring** — pixel-test the party's position against a held
+  Map item's bitmap and offer the anchor (GM-judged stays the rule).
+- **Bake-Regions-to-bitmap** for partially revealed merchant maps.
+- **Mapping-proficiency distortions** — unproficient mappers producing items
+  flagged unreliable (blocked on the RR p. 114 rules text, like the audit
+  row above).
+- **Optional `_unionizeSharedExploration` override** so anchored items
+  survive core fog resets.
 
 ## 3. Other parked ideas (from DESIGN.md), re-prioritized
 
