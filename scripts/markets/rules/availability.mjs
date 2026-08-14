@@ -115,8 +115,11 @@ export function remainingFor({ cell, direction, ledgerRow, totalsRow, extraSearc
   const used = Number(ledgerRow?.[direction] ?? 0);
   const usedMarket = Number(totalsRow?.[direction] ?? 0);
   if (cell.kind === "pct") {
-    const cap = exists ? 1 : 0;
+    // Buying needs the party's own find; selling only needs the town to
+    // have capacity — a failed contact roll does not empty the market of
+    // buyers, so the location's rolled stock carries a sale through.
     const capM = marketCap(cell, { pctStock, exists });
+    const cap = direction === "sold" ? (exists || pctStock > 0 ? 1 : 0) : exists ? 1 : 0;
     return { remaining: Math.max(0, Math.min(cap - used, capM - usedMarket)), capParty: cap, capMarket: capM };
   }
   const capParty = partyCap(cell, { doubled: !!ledgerRow?.doubled, extraSearchDays });

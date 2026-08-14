@@ -35,3 +35,8 @@ A party's own successful existence roll floors the result at one — the
 market never contradicts what a party already found, so a 5% success
 stands even if the 50% market roll fails. Each party's access stays capped
 at its own existence roll.
+
+**Addendum (user):** the location's rolled capacity binds the SELL side even
+when the party's own roll fails — a failed contact roll does not empty the
+town of buyers, so a party may still sell (one unit, within the market
+total). Buying stays gated on the party's own find.

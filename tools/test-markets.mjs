@@ -90,6 +90,22 @@ assert.strictEqual(
   "the party's one percent unit cannot be bought twice even with market stock left"
 );
 
+assert.strictEqual(
+  remainingFor({ cell: { kind: "pct", chance: 10 }, direction: "sold", ledgerRow: null, totalsRow: null, exists: false, pctStock: 2 }).remaining,
+  1,
+  "a failed contact roll still sells into the location's rolled capacity"
+);
+assert.strictEqual(
+  remainingFor({ cell: { kind: "pct", chance: 10 }, direction: "sold", ledgerRow: null, totalsRow: { sold: 2 }, exists: false, pctStock: 2 }).remaining,
+  0,
+  "the location's sale capacity exhausts across parties"
+);
+assert.strictEqual(
+  remainingFor({ cell: { kind: "pct", chance: 10 }, direction: "sold", ledgerRow: null, totalsRow: null, exists: false, pctStock: 0 }).remaining,
+  0,
+  "no capacity and no find sells nothing"
+);
+
 // Market-wide %-stock: ten times the cell's chance, remainder on a d100.
 {
   const hi = pctMarketStock(23, () => 0.29); // d100 = 30 ≤ 30 → third unit
