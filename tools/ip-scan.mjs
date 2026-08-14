@@ -45,13 +45,17 @@ const DATA_GLOBS = [/packs[/\\]_source[/\\].*\.json$/u, /^cookbook[/\\].*\.json$
  * private sibling module keeps ~1,400 words of another publisher's rules in
  * scripts/rules-data.mjs. Scanned as raw text for the same two signals.
  *
- * scripts/ ONLY, deliberately. tools/ is tracked but never ships, and its one
- * real content surface (pack-data.mjs) is already covered through the
- * packs/_source it generates — while scanning tools/ would make this file
- * match its own ATTRIBUTION literal and fail every run. vendor/ is excluded
- * for the opposite reason: third-party bundles carry their own licence
- * headers, and a gate that flags those on every run is a gate people mute. */
-const CODE_GLOBS = [/^scripts[/\\].*\.mjs$/u];
+ * scripts/ AND tools/ — tools/ never ships, but it is tracked and public, and
+ * generated packs/_source only covers pack-data's OUTPUT: a block of book
+ * prose in a tools comment reaches GitHub without ever reaching a pack. Only
+ * this file itself is excluded (it must name the ATTRIBUTION signal to scan
+ * for it). vendor/ is excluded for the opposite reason: third-party bundles
+ * carry their own licence headers, and a gate that flags those on every run
+ * is a gate people mute. docs/ (also tracked and public) stays out because it
+ * is legitimate prose — the PROSE_CHARS signal would fire on every guide; its
+ * IP bar is the human one TOOLCHAIN §4b sets for guides. */
+const CODE_GLOBS = [/^scripts[/\\].*\.mjs$/u, /^tools[/\\].*\.mjs$/u];
+const CODE_SELF_EXCLUDE = /^tools[/\\]ip-scan\.mjs$/u;
 /* Quoted and templated literals, so a long one can be measured without parsing. */
 const STRING_LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/gu;
 /* A string leaf this long in a data file is a paragraph, not a label. */
@@ -110,7 +114,7 @@ function inspect(abs, relPath) {
     errors.push(`${relPath} — extraction-pipeline state must never ship or be committed`);
     return;
   }
-  if (CODE_GLOBS.some((re) => re.test(relPath))) {
+  if (CODE_GLOBS.some((re) => re.test(relPath)) && !CODE_SELF_EXCLUDE.test(relPath)) {
     if (!fs.existsSync(abs)) return; // tracked but deleted in the work tree
     scanSource(fs.readFileSync(abs, "utf8"), relPath);
     return;
