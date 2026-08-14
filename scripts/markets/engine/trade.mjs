@@ -599,7 +599,15 @@ export async function sell(location, payload) {
   const totalGp = toGp(plan.unitCp * qty);
   await adapter.grantGold(seller, totalGp);
 
-  // The sold goods leave play.
+  // Sold mundane goods leave play. A MAGIC item is the exception: it is a
+  // unique physical thing, so it passes into the market's own holdings —
+  // embedded on the location actor, markets flag intact — where it remains a
+  // real object a party could buy back or steal.
+  if (plan.magic) {
+    const kept = item.toObject();
+    delete kept._id;
+    await location.createEmbeddedDocuments("Item", [kept]);
+  }
   if (stackable && carried > qty) {
     await item.update({ "system.quantity.value": carried - qty });
   } else {

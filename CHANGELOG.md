@@ -11,7 +11,8 @@ Trade tab every market location carries.
   the settlement's class (scarce goods as percent chances, the party's own
   roll first and the town's tenfold stock never contradicting a find).
   Purchases stack (quantity merge, or one bundle for thirty swords); sales
-  price by condition-reduced value and leave play. Demand modifiers,
+  price by condition-reduced value and leave play — except magic items,
+  which pass into the market's own holdings as real objects. Demand modifiers,
   Bargaining with opposed rolls, extended search days, the twelve-adventurer
   dedicated shopping day, and masterwork gear behind a Judge-set contact.
 - **Merchant imports, directed searches, and commissions** — source goods

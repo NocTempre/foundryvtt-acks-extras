@@ -42,6 +42,9 @@ the next refresh.
 | Market purchases | The purchase dialog: buyer, quantity, hub sourcing with its 2d6 risk, and the merchant's Bargaining profile | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-purchase-dialog.png) |
 | Magic-item market | The magic panel on an item's Construction tab: kind, rarity, apparent value, identification | [guide](guides/markets.md#magic-items) | [v3.10.0](releases/v3.10.0/markets-magic-item.png) |
 | Mercantile ventures | The ventures block: in-market status with impact, and the dedicated-day actions | [guide](guides/markets.md#mercantile-ventures) | [v3.10.0](releases/v3.10.0/markets-ventures.png) |
+| Commissions | The commission dialog: buyer, quantity, and who builds it at the imported construction rates | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-commission.png) |
+| Market entry | Entering a market with cargo: the toll and impact gate | [guide](guides/markets.md#mercantile-ventures) | [v3.10.0](releases/v3.10.0/markets-venture-entry.png) |
+| Market parties | The per-party roster behind availability | [guide](guides/markets.md) | [v3.10.0](releases/v3.10.0/markets-parties.png) |
 | Storage reach | A mapped place you are not standing at, beside ones you can reach | [guide](guides/location.md) | [v3.4.0](releases/v3.4.0/location-storage-reach.png) |
 | Read aloud | A named power posted to chat for the table to read | [guide](guides/monsters.md#what-opens-first) | [v3.3.0](releases/v3.3.0/monster-card-chat.png) |
 | Monsters | The extended stat block's defenses: the silver flaw beside Mundane and Extraordinary | [guide](guides/monsters.md) | [v3.3.0](releases/v3.3.0/monster-sheet.png) |
