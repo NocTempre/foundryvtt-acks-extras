@@ -347,3 +347,16 @@ system's copy.
 **Not ruled: whether an unowned house pile should exist.** A GM-stocked hoard
 that no character owns yet is a real gap, not a misunderstanding — the workaround
 (a placeholder actor) is what the model currently offers. Left open.
+
+## 2026-08-13 — The market subtree gains a `goods` fragment owned by markets
+
+**Ruled:** the item-market state (`system.market.goods`) lives inside the
+location's market subtree, composed into `marketSchema()` from
+`scripts/markets/data/goods-schema.mjs`. The split mirrors the recruitment
+precedent: location owns the schema file and this one composition line;
+markets owns the fragment's semantics and every writer. Rejected: a
+`flags["acks-extras"]` store on the location (typed validation, `clean()`
+defaults and the migrate seam would be lost, and market state would split
+across two stores that can disagree — the failure mode the market-subtree
+unification retired); a second nullable subtree beside `market` (every ACKS
+market trades goods — presence of `system.market` is the only gate).

@@ -11,7 +11,8 @@
  *      cannot represent because Foundry has no actor-inside-an-actor.
  *   3. **A stack count** — eight identical warehouse bays are one actor until
  *      one of them becomes interesting (acks-lib place-logic.mjs, `planSplit`).
- *   4. **A market**, optionally — the henchmen recruitment domain.
+ *   4. **A market**, optionally — the henchmen recruitment domain and the
+ *      markets feature's goods trade.
  *
  * THE MARKET IS A NULLABLE SUBTREE. `system.market` is `null` on a cave, a
  * wagon and a chest — not an object of empty arrays, genuinely absent — because
@@ -37,6 +38,7 @@ import { acksCompatStubs } from "../../lib/actor-compat.mjs";
 // (this file and henchman-record.mjs each had a verbatim copy). `fields` is
 // still needed locally for the non-leaf types (SchemaField, ArrayField, HTMLField).
 import { num, str, int } from "../../lib/fields.mjs";
+import { goodsSchema } from "../../markets/data/goods-schema.mjs";
 import { migrateLocationSource } from "./location-migrate.mjs";
 
 const fields = foundry.data.fields;
@@ -202,7 +204,9 @@ function occupantField() {
 }
 
 /**
- * The MARKET subtree: everything the henchmen recruitment domain owns.
+ * The MARKET subtree: the henchmen recruitment domain's fields, plus the
+ * markets feature's `goods` fragment (authored in
+ * scripts/markets/data/goods-schema.mjs; every writer lives there).
  *
  * Gathered under one nullable field so a place without a market carries none of
  * it — which is what makes "markets are not the default" true of the DATA and
@@ -343,6 +347,11 @@ function marketSchema() {
       paidByUuid: str(),
     })
     ),
+    // The ITEM-MARKET subtree — authored by the markets feature (its writers
+    // live there); composed here exactly as the recruitment fields above are.
+    // Non-nullable: every market trades goods, `system.market`'s presence is
+    // the only gate, and clean() fills it on locations saved before it existed.
+    goods: goodsSchema(),
   };
 }
 
