@@ -55,6 +55,7 @@ the next refresh.
 | Vehicles: the team | An ox and two mules pulling as two heavy horses, with one animal unhitched | [guide](guides/vehicles.md) | [v4.2.0](releases/v4.2.0/vehicles-team.png) |
 | The door | Two spikes in, the throw broken into its parts, and what an axe would cost | [guide](guides/formation.md) | [v4.2.0](releases/v4.2.0/formation-door.png) |
 | Vehicles: the ground | A wagon on a forest road, and what the terrain and the driver each did to its pace | [guide](guides/vehicles.md) | [v4.3.0](releases/v4.3.0/vehicles-terrain.png) |
+| Vehicles: passengers | Two riders aboard, the day's march in miles and hexes, and the boarding macros | [guide](guides/vehicles.md) | [v4.4.0](releases/v4.4.0/vehicles-passengers.png) |
 | Storage reach | A mapped place you are not standing at, beside ones you can reach | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-storage-reach.png) |
 | Read aloud | A named power posted to chat for the table to read | [guide](guides/monsters.md#what-opens-first) | [v3.3.0](releases/v3.3.0/monster-card-chat.png) |
 | Monsters | The extended stat block's defenses: the silver flaw beside Mundane and Extraordinary | [guide](guides/monsters.md) | [v4.0.0](releases/v4.0.0/monster-defences.png) |

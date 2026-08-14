@@ -1,5 +1,48 @@
 # Changelog
 
+## 4.4.0
+
+One relationship for everyone being carried, and an honest answer about what
+they weigh.
+
+### Fixed
+- **A harness no longer lightens your horse.** What a mount or wagon bears was
+  reading the rider's ENCUMBRANCE, which this module deliberately bends: an
+  adventurer's harness ignores a stone of gear, a mounted shield rides
+  lighter, a bowquiver counts as two items, a thrown weapon stops weighing on
+  the hand that threw it. Every one of those describes how well a load is
+  carried, not how much of it exists — so none of them may reach the animal.
+  A carrier now bears the rider's body plus what their kit actually masses.
+
+### Added
+- **One relationship, four hats.** A rider on a horse, a passenger in a wagon,
+  an ox in the traces and a rower at the bench are the same binding in
+  different roles, and they are now modelled once: a flag on the carried actor
+  naming its carrier. One writer per fact, so nobody can be aboard two things
+  and a deleted wagon leaves no phantom roster. Each role states whether its
+  weight counts against the hold (a passenger yes, a draft animal and a crew
+  member no, per the book) and whether the carrier's speed replaces its own.
+- **Board for best pace** loads everyone the vehicle would carry faster than
+  their own legs — slowest first, since that is the member holding the party
+  back — stopping when the hold is full, and never boarding someone who walks
+  faster than the wagon rolls.
+- **Re-board as before** puts everyone back exactly where the last change
+  found them, so unloading at a ford and reloading on the far bank is two
+  clicks rather than twelve.
+- A named passenger is charged what they actually cost — body plus kit — with
+  the book's fifty-stone berth as a floor, since a passenger takes a
+  passenger's room whether or not they weigh it.
+- **Expedition speed, by its proper name.** ACKS measures movement at four
+  scales — combat and running in feet per round, exploration in feet per turn,
+  and **expedition in miles per day** — and quoting one where another is meant
+  is how a party ends up marching sixty miles down a corridor. All four are
+  now named vocabulary, with the printed Expedition Speed table reproduced
+  exactly (all twelve rows, in miles per day, hexes per day and miles per
+  hour). A vehicle shows its day's march beside its pace per turn, and the
+  day's pace can be a **forced march** (twelve hours for +50%) or an hour at a
+  time as an ancillary activity (half speed). A forced march is not faster per
+  hour — it is longer, and the miles-per-hour figure says so.
+
 ## 4.3.0
 
 The ground a vehicle is on, and the two proficiencies that answer to it.

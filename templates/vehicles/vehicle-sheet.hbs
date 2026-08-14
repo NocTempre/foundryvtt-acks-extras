@@ -46,9 +46,27 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label>{{localize "ACKS-VEHICLES.speed.pace"}}</label>
+        <div class="form-fields">
+          <select name="pace">
+            {{#each paces}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </div>
+      </div>
+
+      {{! Exploration pace, and the day's march it makes. Two scales, named,
+          because quoting one where the other is meant is how a party ends up
+          marching sixty miles down a corridor. }}
       <p class="acks-extras-vehicle-landspeed">
         <strong>{{speed.feetPerTurn}}'</strong> {{localize "ACKS-VEHICLES.speed.perTurn"}}
       </p>
+      {{#if expedition}}
+      <table class="acks-extras-vehicle-speeds">
+        <tr><th>{{localize "ACKS-LIB.scale.milesPerDay"}}</th><td>{{expedition.milesPerDay}}</td>
+            <th>{{localize "ACKS-VEHICLES.speed.hexesPerDay"}}</th><td>{{expedition.hexesPerDay}}</td></tr>
+      </table>
+      {{/if}}
       {{#if blockedByGround}}
         <p class="notification warning">{{localize "ACKS-VEHICLES.terrain.needsRoad"}}</p>
       {{/if}}
@@ -83,7 +101,7 @@
     {{#if riders.length}}
       <ol class="acks-extras-vehicle-riders">
         {{#each riders}}
-          <li><span>{{name}}</span>
+          <li><span>{{name}}</span> <span class="acks-extras-vehicle-pull">{{stone}} st</span>
             {{#if @root.editable}}<a data-action="disembark" data-uuid="{{uuid}}"
               data-tooltip="{{localize 'ACKS-VEHICLES.cargo.disembark'}}"><i class="fa-solid fa-person-walking-arrow-right"></i></a>{{/if}}
           </li>
@@ -91,6 +109,16 @@
       </ol>
     {{/if}}
     <p class="hint">{{localize "ACKS-VEHICLES.cargo.boardHint"}}</p>
+    {{#if isLand}}{{#if editable}}
+    <div class="acks-extras-vehicle-boarding">
+      <button type="button" data-action="boardBest" data-tooltip="{{localize 'ACKS-VEHICLES.board.maxSpeedHint'}}">
+        <i class="fa-solid fa-users-line"></i> {{localize "ACKS-VEHICLES.board.maxSpeed"}}
+      </button>
+      <button type="button" data-action="reboard" data-tooltip="{{localize 'ACKS-VEHICLES.board.reboardHint'}}">
+        <i class="fa-solid fa-rotate-left"></i> {{localize "ACKS-VEHICLES.board.reboard"}}
+      </button>
+    </div>
+    {{/if}}{{/if}}
 
     <div class="form-group">
       <label>{{localize "ACKS-VEHICLES.cargo.passengers"}}</label>

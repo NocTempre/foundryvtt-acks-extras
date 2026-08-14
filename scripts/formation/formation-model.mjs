@@ -1,6 +1,7 @@
 /* global game, foundry, ui, Actor, CONST */
-import { vehicleOf } from "../lib/aboard.mjs";
+import { carrierOf, attachmentOf, ATTACH_ROLES } from "../lib/attachment.mjs";
 import { landSpeed } from "../vehicles/vehicle-speed.mjs";
+import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { load6 } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import {
@@ -373,18 +374,22 @@ export function carriedLoad(formation) {
 
 
 /**
- * A vehicle's pace in the same unit the party's other speeds use (feet per
+ * A carrier's pace in the same unit the party's other speeds use (feet per
  * turn), for the ground the formation is travelling.
  *
  * A vessel is not asked: a party at sea moves at the ship's voyage speed,
  * which is a different clock entirely (miles per day, not feet per turn) and
  * belongs to the voyage rules rather than to marching order.
  */
-function vehicleSpeedFor(vehicle, formation) {
-  if (vehicle?.system?.kind !== "land") return null;
-  const aboardStone = load6(vehicle) / STONE;
-  const ground = formation?.ground ?? null;
-  return landSpeed(vehicle.system, aboardStone, ground).feetPerTurn;
+function carrierSpeedFor(carrier, formation) {
+  // A wagon answers from its own load/speed tiers; a horse is just an actor
+  // with a movement rate, so it answers the same way any member would.
+  if (carrier?.type === VEHICLE_TYPE) {
+    if (carrier.system?.kind !== "land") return null;
+    const aboardStone = load6(carrier) / STONE;
+    return landSpeed(carrier.system, aboardStone, formation?.ground ?? null).feetPerTurn;
+  }
+  return explorationSpeedOf(carrier);
 }
 
 /**
@@ -407,12 +412,15 @@ export function partySpeed(formation) {
     const actor = getMemberActor(member);
     if (!actor || isDown(actor)) continue;
     let speed;
-    const vehicle = vehicleOf(actor);
-    if (vehicle) {
+    // Riding in or on ANYTHING — a wagon, a horse — means these legs are not
+    // the ones setting the party's pace.
+    const attachment = attachmentOf(actor);
+    const carrier = ATTACH_ROLES[attachment?.role]?.setsPace ? carrierOf(actor) : null;
+    if (carrier) {
       // The wagon's pace, for the ground the party says it is on. A vehicle
       // that cannot move at all (nothing in harness, or overloaded) makes the
       // party's speed zero, which is exactly what a stuck cart does to a road.
-      speed = vehicleSpeedFor(vehicle, formation);
+      speed = carrierSpeedFor(carrier, formation);
     } else if (load.down.length && member.roles?.includes(ROLES.CARRIER)) {
       const enc = Number(actor.system?.encumbrance?.value ?? 0) + load.sharePerCarrier;
       speed = encToExplorationSpeed(enc, actor.system?.scores?.str?.mod ?? 0);

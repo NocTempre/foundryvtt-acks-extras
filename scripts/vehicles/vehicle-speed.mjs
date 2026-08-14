@@ -248,10 +248,12 @@ export function canEnter(vehicle, terrain, { road = false } = {}) {
  * rides as 50 stone — and the same rate runs the other way, so a vessel may
  * carry 50 stone more for each crew member it does without.
  */
-export function cargoRemaining(vehicle, loadStone = 0) {
+export function cargoRemaining(vehicle, loadStone = 0, namedStone = 0) {
   const cap = Number(vehicle?.cargo?.capacityStone) || 0;
   const per = Number(vehicle?.cargo?.passengerStone) || 50;
-  const riders = (Number(vehicle?.cargo?.passengers) || 0) * per;
+  // Unnamed passengers cost the book's flat berth; named ones cost what they
+  // actually cost, which the caller has already weighed.
+  const riders = (Number(vehicle?.cargo?.passengers) || 0) * per + Math.max(0, Number(namedStone) || 0);
   return { capacity: cap, used: loadStone + riders, free: cap - loadStone - riders, passengerStone: riders };
 }
 

@@ -25,6 +25,7 @@
  *     be equipped / what does it weigh", which the system spells out per type
  */
 import { acksExtras } from "../namespace.mjs";
+import * as movementScales from "./movement-scales.mjs";
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { isPrimaryGM } from "./util.mjs";
 import * as vocab from "./vocab.mjs";
@@ -208,7 +209,11 @@ const localImpl = Object.freeze({
 // core does not define stays local.
 function resolveApi() {
   const fromCore = globalThis.game?.acks?.lib;
-  return fromCore ? Object.freeze({ ...localImpl, ...fromCore }) : localImpl;
+  // The movement scales are this module's own vocabulary, not something core
+  // can supply, so they ride on every resolution rather than being merged in
+  // at one call site the init hook would then overwrite.
+  const withScales = (api) => Object.freeze({ ...api, movementScales });
+  return fromCore ? withScales({ ...localImpl, ...fromCore }) : withScales(localImpl);
 }
 
 acksExtras.lib = resolveApi();

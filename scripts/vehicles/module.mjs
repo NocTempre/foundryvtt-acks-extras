@@ -12,6 +12,7 @@ import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData from "./vehicle-data.mjs";
 import { registerVehicleSheet } from "./vehicle-sheet.mjs";
 import * as speed from "./vehicle-speed.mjs";
+import * as boarding from "./boarding.mjs";
 import { acksExtras } from "../namespace.mjs";
 
 Hooks.once("init", () => {
@@ -25,4 +26,4 @@ Hooks.once("init", () => {
  * caravan, or a battle module asking how far a wagon train gets in a day, wants
  * `landSpeed`/`seaSpeeds` rather than its own reading of the tables.
  */
-acksExtras.vehicles = { VEHICLE_TYPE, ...speed };
+acksExtras.vehicles = { VEHICLE_TYPE, ...speed, ...boarding };

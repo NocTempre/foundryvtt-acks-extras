@@ -38,15 +38,23 @@ import { riderOf } from "./mount.mjs";
 /** RR ch. 6 §Mounts prices the rider's own body at 15 stone. */
 export const RIDER_BODY6 = 15 * STONE;
 
-const isActor = (doc) => doc?.documentName === "Actor";
-const isItem = (doc) => doc?.documentName === "Item";
-
-const monsterLoadSpec = (actor) => actor?.flags?.[MODULE_ID]?.extras?.load ?? null;
-
-/** A monster's own carried weight: items plus coin (core computes neither for
- * monsters, so both are summed here with core's semantics — clothing weighs
- * nothing carried). Spoils are the monster's own harvestable parts, not cargo. */
-function monsterCarried6(actor) {
+/**
+ * What an actor's kit actually WEIGHS, as opposed to how burdened they feel.
+ *
+ * `system.encumbrance` is a movement figure, and this family bends it on
+ * purpose: an adventurer's harness ignores a stone of gear, a mounted shield
+ * rides lighter, a bowquiver counts as two items instead of its parts, a
+ * thrown weapon stops weighing on the hand that threw it. Every one of those
+ * is a statement about how well the load is CARRIED, not about how much mass
+ * exists — so none of them may reach a mount or a wagon. A harness does not
+ * make a horse's burden lighter; it makes the walking easier.
+ *
+ * Hence this: the same sum core makes over the actor's own items, without the
+ * encumbrance overlay. Clothing still weighs nothing, which is core's own
+ * semantics for worn clothes rather than an overlay of ours.
+ */
+export function borneWeight6(actor) {
+  if (!isActor(actor)) return 0;
   let sum = 0;
   for (const item of actor.items ?? []) {
     if (item.getFlag?.(MODULE_ID, "spoil")) continue;
@@ -56,6 +64,27 @@ function monsterCarried6(actor) {
   if (Number.isFinite(money?.stone)) sum += money.stone * STONE;
   return sum;
 }
+
+/**
+ * What this actor costs the thing carrying them: their body plus their kit,
+ * unmitigated. A character's body is the book's 15 stone; a creature with a
+ * stated body weight uses its own.
+ */
+export function borneBy6(actor) {
+  const body = Number(actor?.flags?.[MODULE_ID]?.extras?.bodyStone);
+  const body6 = Number.isFinite(body) ? body * STONE : RIDER_BODY6;
+  return body6 + borneWeight6(actor);
+}
+
+const isActor = (doc) => doc?.documentName === "Actor";
+const isItem = (doc) => doc?.documentName === "Item";
+
+const monsterLoadSpec = (actor) => actor?.flags?.[MODULE_ID]?.extras?.load ?? null;
+
+/** A monster's own carried weight: items plus coin (core computes neither for
+ * monsters, so both are summed here with core's semantics — clothing weighs
+ * nothing carried). Spoils are the monster's own harvestable parts, not cargo. */
+const monsterCarried6 = (actor) => borneWeight6(actor);
 
 /**
  * What the document can hold, in sixths of a stone; null when unstated.
@@ -92,8 +121,11 @@ export function load6(doc) {
     return Number.isFinite(v) ? v * STONE : 0;
   }
   let sum = monsterCarried6(doc);
+  // A rider costs their body plus what they are actually carrying. Reading
+  // their ENCUMBRANCE here would hand the mount every trick that makes the
+  // rider's own walking easier, and a harness does not lighten a horse.
   const rider = riderOf(doc);
-  if (rider) sum += RIDER_BODY6 + load6(rider);
+  if (rider) sum += borneBy6(rider);
   return sum;
 }
 

@@ -14,8 +14,12 @@ import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS } from "./vehicle-data.mjs";
 import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN, draftPull } from "./vehicle-speed.mjs";
 import { load6 } from "../lib/capacity.mjs";
-import { passengersOf, passengerStone, board, disembark } from "../lib/aboard.mjs";
+import { attachedTo, attach, detach } from "../lib/attachment.mjs";
+import { borneBy6 } from "../lib/capacity.mjs";
+import { boardForBestPace, reboardLast } from "./boarding.mjs";
+import { explorationSpeedOf } from "../formation/formation-model.mjs";
 import { STONE } from "../lib/item-model.mjs";
+import { expeditionFrom, TRAVEL_PACE } from "../lib/movement-scales.mjs";
 
 const LANG_PREFIX = "ACKS-VEHICLES";
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -35,6 +39,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       removeAnimal: VehicleSheet.#removeAnimal,
       togglePulling: VehicleSheet.#togglePulling,
       disembark: VehicleSheet.#disembark,
+      boardBest: VehicleSheet.#boardBest,
+      reboard: VehicleSheet.#reboard,
     },
     dragDrop: [{ dropSelector: ".acks-extras-vehicle-team" }, { dropSelector: ".acks-extras-vehicle-hold" }],
   };
@@ -49,6 +55,9 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
   /** The ground the cart is on — likewise a view choice, not a property of it. */
   #ground = { terrain: "grassland", road: false, raining: false, pavedRoad: false };
 
+  /** How the day is being spent: dedicated travel, a forced march, or an hour here and there. */
+  #pace = "dedicated";
+
   async _prepareContext() {
     const sys = this.actor.system;
     const isSea = sys.kind === "sea";
@@ -59,11 +68,18 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     const aboardStone = aboard6 / STONE;
     // Everyone aboard rides as fifty stone, named or not, and both are charged
     // against the hold together.
-    const riders = passengersOf(this.actor);
-    const hold = cargoRemaining(
-      { ...sys, cargo: { ...sys.cargo, passengers: (Number(sys.cargo?.passengers) || 0) + riders.length } },
-      aboardStone,
-    );
+    // A named passenger costs their body PLUS what they are carrying — never
+    // their encumbrance, which this family bends with harnesses and quivers to
+    // describe how well a load is carried rather than how much of it there is.
+    // The book's fifty-stone berth is a floor: a passenger takes a passenger's
+    // room whether or not they weigh it.
+    const berth = Number(sys.cargo?.passengerStone) || 50;
+    const riders = attachedTo(this.actor, "passenger").map((r) => ({
+      uuid: r.uuid, name: r.name,
+      stone: Math.max(berth, round2(borneBy6(r) / STONE)),
+    }));
+    const namedStone = riders.reduce((sum, r) => sum + r.stone, 0);
+    const hold = cargoRemaining(sys, aboardStone, namedStone);
 
     const speed = isSea ? seaSpeeds(sys, { wind: this.#wind }) : landSpeed(sys, aboardStone, this.#ground);
     const reasons = (speed.reasons ?? []).map((r) => ({
@@ -97,6 +113,14 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       })),
       wind: this.#wind,
       ground: this.#ground,
+      // A wagon's day, in the scale a journey is actually planned in. The
+      // terrain multiplier is already inside feetPerTurn, so it is not applied
+      // a second time here.
+      expedition: isSea ? null : expeditionFrom(speed.feetPerTurn, { pace: this.#pace }),
+      pace: this.#pace,
+      paces: Object.entries(TRAVEL_PACE).map(([value, p]) => ({
+        value, label: game.i18n.localize(p.label), selected: value === this.#pace,
+      })),
       terrains: Object.entries(TERRAIN).map(([value, t]) => ({
         value, label: game.i18n.localize(t.label), selected: value === this.#ground.terrain,
         needsRoad: !!t.wheelsNeedRoad,
@@ -114,7 +138,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
         pull: DRAFT_EQUIVALENTS[a.kind] ?? 0,
       })),
       pull: draftPull(sys),
-      riders: riders.map((r) => ({ uuid: r.uuid, name: r.name })),
+      riders,
       // A team that cannot pull what the vehicle was built for is worth
       // flagging even before a load makes it matter.
       underTeamed: !isSea && sys.team?.required > 0 && draftPull(sys) < sys.team.required,
@@ -148,6 +172,10 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       return this.render();
     }
     // The ground is a view choice too: where the cart is TODAY, not what it is.
+    if (el?.name === "pace") {
+      this.#pace = el.value;
+      return this.render();
+    }
     if (el?.name?.startsWith("ground.")) {
       const key = el.name.slice("ground.".length);
       this.#ground = { ...this.#ground, [key]: el.type === "checkbox" ? el.checked : el.value };
@@ -169,7 +197,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     // A drop on the HOLD is a passenger boarding; a drop on the team is an
     // animal being hitched. Same event, two meanings, told apart by target.
     if (event.target?.closest?.(".acks-extras-vehicle-hold")) {
-      await board(doc, this.actor);
+      await attach(doc, this.actor, "passenger");
       return this.render();
     }
     const animals = [...(this.actor.system.team?.animals ?? [])];
@@ -211,7 +239,28 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
 
   static async #disembark(_e, target) {
     const doc = await fromUuid(target.dataset.uuid).catch(() => null);
-    if (doc) await disembark(doc);
+    if (doc) await detach(doc);
+    this.render();
+  }
+
+  /**
+   * Load the party for the best pace. The candidates are the members of any
+   * formation this vehicle's passengers already belong to, falling back to
+   * every player character — a Judge with no formation set up still gets the
+   * one-click load.
+   */
+  static async #boardBest() {
+    const api = game.modules.get(MODULE_ID)?.api?.formation;
+    const raw = api?.getFormations?.() ?? [];
+    const forms = Array.isArray(raw) ? raw : Object.values(raw ?? {});
+    const members = forms.flatMap((f) => (f.members ?? []).map((m) => game.actors.get(m.actorId)).filter(Boolean));
+    const candidates = members.length ? members : game.actors.filter((a) => a.type === "character" && a.hasPlayerOwner);
+    await boardForBestPace(this.actor, candidates, { ground: this.#ground, speedOf: explorationSpeedOf });
+    this.render();
+  }
+
+  static async #reboard() {
+    await reboardLast(this.actor);
     this.render();
   }
 
