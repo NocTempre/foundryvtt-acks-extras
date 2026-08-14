@@ -1,7 +1,7 @@
 {
   "id": "acks-extras",
-  "title": "ACKS II — Extras",
-  "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations, henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block — over shared primitives and one rules-table registry.",
+  "title": "ACKS II \u2014 Extras",
+  "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations, henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block \u2014 over shared primitives and one rules-table registry.",
   "version": "4.0.0",
   "socket": true,
   "compatibility": {
@@ -116,17 +116,6 @@
       }
     },
     {
-      "name": "equipment-actors",
-      "label": "ACKS Equipment Sample Characters",
-      "path": "packs/equipment-actors",
-      "type": "Actor",
-      "system": "acks",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
       "name": "macros",
       "label": "ACKS Extras Macros",
       "path": "packs/macros",
@@ -142,38 +131,6 @@
       "path": "packs/proficiencies-powers",
       "type": "Item",
       "system": "acks",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "bestiary",
-      "label": "ACKS Full Monsters (Example)",
-      "path": "packs/bestiary",
-      "type": "Actor",
-      "system": "acks",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "spoils",
-      "label": "ACKS Monster Spoils (Example)",
-      "path": "packs/spoils",
-      "type": "Item",
-      "system": "acks",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "treasure",
-      "label": "ACKS Monster Treasure (Example)",
-      "path": "packs/treasure",
-      "type": "RollTable",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"

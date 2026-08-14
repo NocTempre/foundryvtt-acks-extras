@@ -35,6 +35,7 @@ import * as itemModel from "./item-model.mjs";
 import * as mount from "./mount.mjs";
 import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
+import { installPackDedupe, supersededPackIds, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
@@ -124,6 +125,8 @@ const localImpl = Object.freeze({
    * exchange terms by place, the HOUSE_OWNER sentinel and creditCoin.
    */
   money: { ...moneyLogic, ...money },
+  /** Which system packs this world has replaced by importing (pack-dedupe.mjs). */
+  packs: { supersededPackIds, SETTING_HIDE_SUPERSEDED },
   /**
    * What a creature perceives (senses.mjs): canSeeInDark for the movement
    * rules, senseProfile for the Foundry sight a token should carry.
@@ -312,6 +315,10 @@ Hooks.once("init", () => {
   // FALLBACK, not a rule: returning them keeps a GM tidying the actor directory
   // from wiping the party's belongings, but a campaign where a sacked city
   // really does take your warehouse with it sets "lose".
+  // Fold away the system compendiums this world has genuinely replaced by
+  // importing. Coverage-gated and display-only — see pack-dedupe.mjs.
+  installPackDedupe();
+
   game.settings.register(MODULE_ID, DELETE_POLICY_SETTING, {
     name: `${LANG_PREFIX}.settings.storageDeletePolicy.name`,
     hint: `${LANG_PREFIX}.settings.storageDeletePolicy.hint`,
