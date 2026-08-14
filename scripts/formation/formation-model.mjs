@@ -809,6 +809,28 @@ export async function removeBlank(formation, index) {
  * missing or corrupt value degrades to single file; the number a Judge TYPES is
  * validated where it is typed, so a bad entry is refused rather than rounded.
  */
+/**
+ * The marching order as a companion module consumes it — one row per REAL
+ * member, in file order, with the rank/file cell computed from the current
+ * frontage and the member's roles named. No token snapshots ride along: this
+ * is the delve record (who stands where, who carries the pole, who scouts),
+ * not a deployment payload. Published on `api.formation.marchingOrder` as part
+ * of the versioned contract a trap module keys on.
+ */
+export function marchingOrder(formation) {
+  const frontage = getFrontage(formation);
+  return realMembers(formation).map((member, index) => {
+    const actor = getMemberActor(member);
+    return {
+      actorId: member.actorId,
+      name: actor?.name ?? null,
+      roles: [...(member.roles ?? [])],
+      rank: Math.floor(index / frontage),
+      file: index % frontage,
+    };
+  });
+}
+
 export function getFrontage(formation) {
   const stored = Math.floor(Number(formation?.frontage));
   return Number.isFinite(stored) && stored >= 1 ? stored : 1;

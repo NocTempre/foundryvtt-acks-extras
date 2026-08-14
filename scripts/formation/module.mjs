@@ -7,6 +7,7 @@ import {
   DEFAULT_ENCOUNTER_TARGET,
   FLAG_FORMATION_ID,
   MODULE_ID,
+  ROLES,
 } from "./constants.mjs";
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
 import { SETTING_ABILITY_OVERRIDES, initLadders } from "./ability-bridge.mjs";
@@ -24,6 +25,7 @@ import {
   heldLightCount,
   lightsForBearer,
   getPartyToken,
+  marchingOrder,
   patchFormation,
   pruneFormations,
   removeMembers,
@@ -195,6 +197,16 @@ Hooks.once("init", () => {
 
   /* --- Public API (used by macros and companion modules, e.g. traps) --- */
   const api = {
+    /**
+     * THE CONTRACT a companion module keys on (the trap module's half lives in
+     * its own repo). Frozen at 1: `marchingOrder(formation)` rows
+     * ({actorId, name, roles, rank, file}), `ROLES`, `getFormations()`,
+     * `rollPartyCheck(formation, key)` and `PARTY_CHECKS`. Additions bump this;
+     * removals or shape changes are a major of this module.
+     */
+    apiVersion: 1,
+    ROLES,
+    marchingOrder,
     open: openPartySheet,
     PartySheet,
     advanceTurns,
