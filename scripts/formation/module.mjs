@@ -39,6 +39,8 @@ import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import { installDoorControl, openDoorApp } from "./door-app.mjs";
 import * as doors from "./doors.mjs";
+import * as obstacles from "./obstacles.mjs";
+import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { syncEnvironments } from "./scene-sync.mjs";
@@ -217,6 +219,12 @@ Hooks.once("init", () => {
      */
     apiVersion: 2,
     doors: { ...doors, openDoorApp },
+    // The Spelunking table and the wrong-floor encounter adjustment, published
+    // for the same reason as doors: a companion module asking what a sheer
+    // face costs, or how a level-3 table lands on level 5, should read the
+    // rule from here rather than re-derive it.
+    obstacles,
+    encounterScaling,
     ROLES,
     marchingOrder,
     open: openPartySheet,

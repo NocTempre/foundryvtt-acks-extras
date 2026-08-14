@@ -28,6 +28,9 @@ export class EncounterZoneBehavior extends foundry.data.regionBehaviors.RegionBe
       tableUuid: new fields.DocumentUUIDField({ type: "RollTable" }),
       encounterEvery: new fields.NumberField({ required: true, initial: 0, min: 0, max: 24, integer: true }),
       encounterTarget: new fields.NumberField({ required: true, initial: 0, min: 0, max: 6, integer: true }),
+      // Which floor this is. Compared against the drawn table's own monster
+      // level to bend the encounter (JJ ch. 2); 0 means "do not scale".
+      dungeonLevel: new fields.NumberField({ required: true, initial: 0, min: 0, max: 20, integer: true }),
     };
   }
 }

@@ -1,5 +1,6 @@
 /* global game, foundry, ui, ChatMessage, Roll, fromUuid, Hooks */
 import { announceChange, makeLoc, gmIds } from "../lib/util.mjs";
+import { announceShift, tableLevel } from "./encounter-scaling.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
@@ -214,6 +215,13 @@ export async function encounterCheck(formation, { manual = false, params = null 
     if (table) {
       // v14: messageMode string key ("gm" = visible to GMs only)
       await table.draw({ messageMode: "gm" });
+      // A monster met on the wrong floor comes in different numbers and in a
+      // different mood. Only when BOTH levels are known — the zone's and the
+      // table's — so nothing is scaled by a number nobody set.
+      await announceShift(table, {
+        dungeonLevel: zone?.dungeonLevel ?? 0,
+        monsterLevel: tableLevel(table),
+      });
     }
   }
   return encounter;

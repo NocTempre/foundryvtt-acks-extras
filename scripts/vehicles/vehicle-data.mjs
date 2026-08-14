@@ -21,6 +21,7 @@
  * them. A blank vehicle is a valid homebrew starting point.
  */
 import { num, str, int, bool, html, choice } from "../lib/fields.mjs";
+import { acksCompatStubs } from "../lib/actor-compat.mjs";
 
 /**
  * What kind of thing this is. The distinction is not decoration: a cart is
@@ -102,6 +103,13 @@ export default class VehicleData extends foundry.abstract.TypeDataModel {
       });
 
     return {
+      // The acks system's prepareDerivedData runs for EVERY actor type and
+      // touches isNew / thac0 / initiative / movement / saves unguarded, so a
+      // sub-type without them logs a failed-data-preparation error on every
+      // update. The family keeps ONE definition of that set in lib; the values
+      // are meaningless for a wagon.
+      ...acksCompatStubs(),
+
       _schemaVersion: int(0, { min: 0 }),
 
       kind: choice(VEHICLE_KINDS, { initial: "land" }),
