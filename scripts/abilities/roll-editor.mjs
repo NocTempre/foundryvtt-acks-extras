@@ -296,5 +296,34 @@ function rollOne(event, target) {
   rollAbility(this.item, target.dataset.rollKey);
 }
 
+/**
+ * Move a throw one place through the printed order.
+ *
+ * ORDER IS THE ARRAY, so a move is a splice — but `keyOf` falls back to
+ * `roll<index>` for a throw that never got an explicit key, and other records
+ * point AT those keys (an effect names the throw it belongs to; the sheet
+ * remembers the last one rolled). Moving would silently re-point them. So the
+ * pass stamps every unkeyed throw with the key it has RIGHT NOW before
+ * anything moves: after that the key is a name, not a position, and reordering
+ * cannot rename anything.
+ */
+async function moveRoll(item, rollKey, delta) {
+  const rolls = readRolls(item);
+  const index = rolls.findIndex((r, i) => keyOf(r, i) === rollKey);
+  const to = index + delta;
+  if (index < 0 || to < 0 || to >= rolls.length) return;
+  for (let i = 0; i < rolls.length; i++) if (!rolls[i].key) rolls[i].key = keyOf(rolls[i], i);
+  const [moved] = rolls.splice(index, 1);
+  rolls.splice(to, 0, moved);
+  await writeRolls(item, rolls);
+}
+
+const moveRollUp = function (event, target) {
+  return moveRoll(this.item, target.dataset.rollKey, -1);
+};
+const moveRollDown = function (event, target) {
+  return moveRoll(this.item, target.dataset.rollKey, 1);
+};
+
 /** The Rolls tab's actions, mixed into the ability sheet. */
-export const ROLL_ACTIONS = { rollOne, addRoll, editRoll, deleteRoll };
+export const ROLL_ACTIONS = { rollOne, addRoll, editRoll, deleteRoll, moveRollUp, moveRollDown };

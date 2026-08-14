@@ -18,7 +18,7 @@ import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATE
 import { isSilvered, canBeSilvered, setSilvered, dealsExtraordinaryDamage } from "./silver.mjs";
 import { maneuverMods, MANEUVERS } from "./overlays/maneuvers.mjs";
 import * as named from "./overlays/named.mjs";
-import { consumeForAttack, recoverThrown, isThrownAway, consumeItem } from "./ammo.mjs";
+import { consumeForAttack, recoverThrown, isThrownAway, consumeItem, nockAmmo } from "./ammo.mjs";
 import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised } from "./actions.mjs";
 import { cycleStrap, strapOf, canStrap } from "./overlays/shield-variants.mjs";
 import { helmetType, isEnclosingHelm, enclosingHelmActive, HELM_MODIFIERS } from "./overlays/enclosing-helm.mjs";
@@ -200,6 +200,9 @@ export function buildApi() {
     recoverThrown,
     isThrownAway,
     consumeItem, // shared decrement primitive (acks-formation burns torches/oil through this)
+    // "The silver ones, now": declare which ammunition stack the next shot
+    // comes from, ahead of the plain-first default. Exclusive per actor.
+    nockAmmo,
     // Sheet actions (also usable from macros): ready a torch from a stack, roll
     // an unarmed strike, draw/sheathe a weapon, apply masterwork, sling a shield.
     prepareTorch,

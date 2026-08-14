@@ -65,17 +65,6 @@ parked here.
 
 ---
 
-## Equipment
-
-**Declaring which ammunition stack to fire.** Plain rounds are spent before
-silver, which protects a precious stack but gives an archer no way to say "the
-silver ones, now". `system.equipped` cannot carry the answer — an ammunition
-stack is an `item`, and only `weapon` and `armor` have that field — so this wants
-either a flag of its own with a control beside the stack, or a prompt when the
-actor holds more than one matching stack.
-
----
-
 ## Influence
 
 An **opposed mode** — two actors rolling against each other rather than one actor

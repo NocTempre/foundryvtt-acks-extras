@@ -95,6 +95,12 @@ export const ITEM_FLAGS = Object.freeze({
   HELMET: "helmet", // "light" | "heavy"
   MATERIAL: "material", // primary material, for the item-loss materials table
   SILVERED: "silvered", // RR ch.4 Silver quality: true = plated (price layer), false = explicitly not
+  // The archer's declaration: fire THIS stack next, ahead of the plain-first
+  // rule. Its own flag because `system.equipped` cannot carry it — an
+  // ammunition stack is an `item`, and only weapon/armor have that field.
+  // Cleared when the stack runs out, so a spent declaration cannot silently
+  // govern the next quiver.
+  NOCKED: "nocked",
   LOSS_CATEGORY: "lossCategory", // explicit position in the item-loss order
   LAYER: "layer", // clothing: "over" | "under" (armour)
   // {capacity: <stone>, locked, opened, concealed, fragile, lockMod} — marks an

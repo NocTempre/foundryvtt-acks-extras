@@ -25,6 +25,16 @@
               <span class="acks-abilities-roll-value">{{this.display}}</span>
             </button>
             {{#if @root.editable}}
+              {{!-- The printed order is the stored order: these move a throw
+                    through it. Ends are omitted rather than disabled. --}}
+              {{#unless @first}}
+              <a class="acks-abilities-mini" data-action="moveRollUp" data-roll-key="{{this.key}}"
+                 data-tooltip="{{localize 'ACKS-ABILITIES.roll.moveUp'}}"><i class="fa-solid fa-arrow-up"></i></a>
+              {{/unless}}
+              {{#unless @last}}
+              <a class="acks-abilities-mini" data-action="moveRollDown" data-roll-key="{{this.key}}"
+                 data-tooltip="{{localize 'ACKS-ABILITIES.roll.moveDown'}}"><i class="fa-solid fa-arrow-down"></i></a>
+              {{/unless}}
               <a class="acks-abilities-mini" data-action="editRoll" data-roll-key="{{this.key}}"
                  data-tooltip="{{localize 'ACKS-ABILITIES.roll.edit'}}"><i class="fa-solid fa-pen-to-square"></i></a>
               <a class="acks-abilities-mini" data-action="deleteRoll" data-roll-key="{{this.key}}"

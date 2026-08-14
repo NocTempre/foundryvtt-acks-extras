@@ -60,6 +60,11 @@ export async function consumeItem(item, n = 1) {
   if (!item) return 0;
   const left = Math.max(0, roundsOf(item) - n);
   await setRounds(item, left);
+  // A declaration dies with the stack it named: an empty quiver must not keep
+  // governing which of the REMAINING stacks the next shot comes from.
+  if (left <= 0 && item.getFlag?.(MODULE_ID, ITEM_FLAGS.NOCKED)) {
+    await item.unsetFlag(MODULE_ID, ITEM_FLAGS.NOCKED);
+  }
   return left;
 }
 
@@ -146,13 +151,35 @@ export async function consumeForAttack(actor, item, profile, options = {}) {
  * it is what is left — which is also the moment the archer most wants to be
  * told, hence its own message.
  *
+ * The archer overrides that with a DECLARATION — "the silver ones, now" — held
+ * on the stack's own `nocked` flag, which outranks the plain-first default for
+ * as long as the stack lasts.
+ *
  * Never gate this on `system.equipped`: an ammunition stack is an `item`, and
  * only `weapon` and `armor` carry that field — the test would read undefined
- * forever and the rule would be dead. Declaring which stack to fire is unbuilt
- * (see ROADMAP); until it is, keeping the precious stack out of reach is the
- * archer's own business.
+ * forever and the rule would be dead. That is why the declaration is a flag.
  */
 function pickAmmo(actor, pattern) {
   const stacks = actor.items.filter((i) => pattern.test(i.name) && roundsOf(i) > 0);
-  return stacks.find((i) => !isSilvered(i)) ?? stacks[0] ?? null;
+  const declared = stacks.find((i) => i.getFlag(MODULE_ID, ITEM_FLAGS.NOCKED));
+  return declared ?? stacks.find((i) => !isSilvered(i)) ?? stacks[0] ?? null;
+}
+
+/**
+ * Declare which stack to fire next. Exclusive per matching kind — nocking one
+ * quiver un-nocks the others, because "fire these" is a single answer.
+ */
+export async function nockAmmo(actor, item) {
+  if (!actor || !item) return false;
+  const updates = actor.items
+    .filter((i) => i.getFlag(MODULE_ID, ITEM_FLAGS.NOCKED) && i.id !== item.id)
+    .map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.-=${ITEM_FLAGS.NOCKED}`]: null }));
+  const on = !item.getFlag(MODULE_ID, ITEM_FLAGS.NOCKED);
+  updates.push(
+    on
+      ? { _id: item.id, [`flags.${MODULE_ID}.${ITEM_FLAGS.NOCKED}`]: true }
+      : { _id: item.id, [`flags.${MODULE_ID}.-=${ITEM_FLAGS.NOCKED}`]: null },
+  );
+  await actor.updateEmbeddedDocuments("Item", updates);
+  return on;
 }

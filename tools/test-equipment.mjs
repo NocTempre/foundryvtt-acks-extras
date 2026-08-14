@@ -1346,7 +1346,7 @@ check("resolveFocusPick maps bows and crossbows together", resolveFocusPick("Bow
 
 SETTINGS_STATE.ammoTracking = true;
 globalThis.ui = globalThis.ui ?? { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
-const { consumeForAttack, launcherAmmoPattern, roundsOf, isThrownAway, recoverThrown, consumeItem } =
+const { consumeForAttack, launcherAmmoPattern, roundsOf, isThrownAway, recoverThrown, consumeItem, nockAmmo } =
   await import(new URL("ammo.mjs", S));
 
 // A launcher's ammo type is resolved from category/name.
@@ -1377,6 +1377,44 @@ const archer = withItems([ammoBow, ammoQuiver, ammoBolts]);
 await consumeForAttack(archer, ammoBow, classifyWeapon(ammoBow), { type: "missile" });
 check("firing a ammoBow spends one arrow", ammoQuiver._sys.quantity.value === 19);
 check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.value === 20);
+
+// --- Declaring which stack to fire (the `nocked` flag over plain-first) ---
+{
+  const plain = trackItem("Quiver, 20 Arrows", { id: "plain", quantity: { value: 20 }, equipped: false });
+  const silver = trackItem("Quiver, 20 Arrows (Silver)", { id: "silver", quantity: { value: 20 }, equipped: false, flags: { silvered: true } });
+  const bow = trackItem("Long Bow", { missile: true, melee: false });
+  const arch = withItems([bow, plain, silver]);
+  arch.updateEmbeddedDocuments = async (_t, updates) => {
+    for (const u of updates) {
+      const item = arch.items.get(u._id);
+      for (const [path, value] of Object.entries(u)) {
+        if (path === "_id") continue;
+        const key = path.split(".").pop();
+        if (key.startsWith("-=")) delete item._flags[key.slice(2)];
+        else item._flags[key] = value;
+      }
+    }
+  };
+  await consumeForAttack(arch, bow, classifyWeapon(bow), { type: "missile" });
+  check("plain arrows spend first by default", plain._sys.quantity.value === 19 && silver._sys.quantity.value === 20);
+
+  const on = await nockAmmo(arch, silver);
+  check("nocking a stack reports it on", on === true && silver._flags.nocked === true);
+  await consumeForAttack(arch, bow, classifyWeapon(bow), { type: "missile" });
+  check("a declared stack fires ahead of plain", silver._sys.quantity.value === 19 && plain._sys.quantity.value === 19);
+
+  await nockAmmo(arch, plain);
+  check("declaring another stack un-declares the first", plain._flags.nocked === true && silver._flags.nocked === undefined);
+
+  const off = await nockAmmo(arch, plain);
+  check("nocking the declared stack again clears it", off === false && plain._flags.nocked === undefined);
+
+  // A declaration dies with its stack.
+  await nockAmmo(arch, silver);
+  silver._sys.quantity = { value: 1 };
+  await consumeItem(silver, 1);
+  check("an emptied stack drops its declaration", silver._flags.nocked === undefined);
+}
 
 // A melee attack consumes nothing.
 await consumeForAttack(archer, ammoBow, classifyWeapon(ammoBow), { type: "melee" });

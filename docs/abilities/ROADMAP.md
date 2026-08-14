@@ -18,9 +18,3 @@ table) rather than an attack progression — the registry publishes them
 the attack table today. The internal table stays regardless — a throw whose
 ladder is its own is the common case, and a shared table is an alternative
 source for the same target, not a replacement for typing one.
-
-## Reordering throws
-
-Throws present in the order they were added. An ability whose book prints them
-in another order has to be retyped to match. Ordering is not stored, so this is
-a field before it is a control.
