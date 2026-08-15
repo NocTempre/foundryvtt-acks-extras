@@ -1,5 +1,52 @@
 # Changelog
 
+## 4.8.0
+
+The column points where the party is going, a marching order can be saved and
+put back, and a chasm is measured rather than rolled against.
+
+### Added
+- **The column trails the party.** Deployed members were laid out rightward and
+  downward whatever direction the party faced, so a company marching west
+  trailed its line east. The block now files along the party token's own
+  heading. **A party whose token has never turned now trails north instead of
+  south** — Foundry's zero rotation is southward, and marching north reproduces
+  the old arrangement exactly.
+- **Saved marching orders, and a form-up button.** Keep an arrangement and put
+  it back: who stands where, which roles they hold, and the frontage. A member
+  who has since left is dropped and the line closes up; a newcomer keeps their
+  place at the back; a role whose gear is gone is refused exactly as the roster
+  refuses it, and each is counted and reported. Form-up gathers anyone standing
+  on the map back inside the party token, refuses during combat, and costs no
+  dungeon turns.
+- **Jumping.** Its own derivation, not a seventh row of the climbing table: a
+  gap is a distance against a width, not a throw, so `canClear` answers with the
+  range and how many faces of the die clear it. Standing and running leaps,
+  encumbrance, creature scaling, and what a failed landing costs.
+- **A throw can name a published ladder.** A progression target could only ever
+  read the attack rows, so "as a thief's Climb Walls at half his level" had to
+  be retyped as rungs on every ability wanting it. Naming a table reads that
+  ladder instead — by the last rung the level has reached, which is what keeps a
+  character from losing at 5 the rung they climbed at 4.
+- **A vehicle shows the buckets it actually has** — a wagon is in-harness,
+  driver, passengers and cargo; a vessel is crew, passengers and cargo with no
+  draft team offered. The complement is labelled by what it MEANS, since the
+  books use one column for a driver, a chariot's crew and a howdah's passengers,
+  and the buckets sharing a pool are marked.
+
+### Fixed
+- **Jumping shipped printed tables and no longer does.** The attribute-modifier
+  bands and Acrobatics' own numbers were baked into the module; the modifier now
+  comes from the character sheet, which the system already computes, and the cap
+  and save bonus arrive with the imported proficiency. That refactor exposed a
+  trap worth knowing: `Number(null)` is `0`, not `NaN`, so a defaulted option
+  read as "supplied zero" — it was capping uncapped scores at zero and zeroing
+  every modifier.
+- **Eight test suites reproduced book values as assertions** and are no longer
+  distributed. They still run on a machine that owns the books; a fresh checkout
+  runs the thirteen suites that assert only what this module's own code does,
+  and says how many it skipped.
+
 ## 4.7.0
 
 Deep water, a way back to the generator, and every element on every sheet
