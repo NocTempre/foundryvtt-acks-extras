@@ -250,8 +250,14 @@ export async function applyClass(
             .join(", ")}</p>`
         : ""
     }${awardsBlock}`;
+    // This body is the longest in the subsystem — a change row per field, the
+    // level-by-level hit dice, the owed abilities and a picker per open choice
+    // — so it carries the module's scroll contract (`acks-extras-scroll`,
+    // styles/lib.css). Without it core's `.window-content { overflow: hidden }`
+    // cuts the content off at the window edge, taking the Yes button with it.
     const ok = await foundry.applications.api.DialogV2.confirm({
-      window: { title: game.i18n.localize(`${LANG_PREFIX}.apply.title`) },
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: game.i18n.localize(`${LANG_PREFIX}.apply.title`), resizable: true },
       content,
       modal: true,
       // The yes button submits, so its callback is where the pickers can still

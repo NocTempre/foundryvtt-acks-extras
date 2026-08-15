@@ -34,7 +34,7 @@ async function pickLanguage() {
     .join("");
   const form = await foundry.applications.api.DialogV2.prompt({
     window: { title: game.i18n.localize("ACKS-ABILITIES.languages.pickTitle") },
-    classes: ["acks-ui", "acks-extras"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     content: `${options ? `<div class="form-group"><label>${game.i18n.localize("ACKS-ABILITIES.languages.known")}</label>
         <select name="uuid"><option value="">—</option>${options}</select></div>` : ""}
       <div class="form-group"><label>${game.i18n.localize("ACKS-ABILITIES.languages.orType")}</label>

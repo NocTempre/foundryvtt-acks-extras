@@ -93,8 +93,14 @@ export async function openLevelUp(actor) {
     ${fixedList ? `<p><strong>${game.i18n.localize(`${LANG_PREFIX}.levelup.granted`)}:</strong></p><ul>${fixedList}</ul>` : ""}
     ${choiceBlocks}`;
 
+  // The wizard's body is a list — one line per fixed award, one picker per
+  // choice — so it grows with the class it is climbing. `acks-extras-scroll`
+  // is the module's scroll contract (styles/lib.css): without it core's
+  // `.window-content { overflow: hidden }` amputates the content past the
+  // window, footer buttons first, and the wizard cannot be answered at all.
   const picked = await foundry.applications.api.DialogV2.prompt({
-    window: { title: game.i18n.localize(`${LANG_PREFIX}.levelup.title`) },
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+    window: { title: game.i18n.localize(`${LANG_PREFIX}.levelup.title`), resizable: true },
     content,
     ok: {
       label: game.i18n.localize(`${LANG_PREFIX}.levelup.apply`),

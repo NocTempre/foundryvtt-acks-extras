@@ -45,7 +45,7 @@ export async function dealExperience(formation) {
 
   const total = await foundry.applications.api.DialogV2.prompt({
     window: { title: game.i18n.localize(`${LANG_PREFIX}.title`), icon: "fa-solid fa-star" },
-    classes: ["acks-ui", "acks-extras"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     position: { width: 460 },
     content,
     ok: { label: game.i18n.localize(`${LANG_PREFIX}.deal`), callback: (_e, b) => Number(b.form.elements.total.value) || 0 },

@@ -53,6 +53,7 @@ export async function openClassPicker(actor) {
       <input type="number" name="level" value="${level}" min="1" step="1" />
     </div>`;
   const picked = await foundry.applications.api.DialogV2.prompt({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.format(`${LANG_PREFIX}.pick.title`, { name: actor.name }) },
     content,
     render: (_event, dialog) => {

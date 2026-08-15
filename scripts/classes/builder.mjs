@@ -155,8 +155,12 @@ export async function applyBuilder(classItem) {
     ui.notifications.warn(game.i18n.localize(`${LANG_PREFIX}.builder.nothingDerived`));
     return false;
   }
+  // The plan lists every field the derive will write and every issue the
+  // tables could not answer, so it is as long as the class is complicated —
+  // the module's scroll contract keeps its confirm button reachable.
   const ok = await foundry.applications.api.DialogV2.confirm({
-    window: { title: game.i18n.localize(`${LANG_PREFIX}.builder.confirmTitle`) },
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+    window: { title: game.i18n.localize(`${LANG_PREFIX}.builder.confirmTitle`), resizable: true },
     content,
     modal: true,
   });
