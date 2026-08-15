@@ -39,6 +39,8 @@ All paths are under `scripts/formation/` unless noted.
 | `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID + cadence overrides) and point-in-region lookup for the party token (core `testPoint` when available, manual shape math as a headless fallback). |
 | `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag) and party-token light emission mirroring lit sources. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
 | `deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
+| `marching-templates.mjs` | Saved marching orders (world setting `acks-extras.marchingTemplates`): capturing an arrangement, reconciling it against the party as it now stands, and forming up. |
+| `obstacles.mjs`, `swimming.mjs`, `jumping.mjs` | The chapter 6 obstacle derivations, published on `api.formation`. Deep water and chasms sit *beside* the Spelunking table rather than in it; each file's header says what it does not share with the others. |
 | `announce.mjs` | One formation chat card (public, or whispered to the GMs). |
 | `../lib/sockets.mjs` | Module-wide socketlib transport: one registration, one channel, a handler registry that throws on a duplicate name, and a pre-ready queue so handlers can register at import time. Not formation-owned. |
 | `module.mjs` | Settings, hooks, scene-control button, `/formation` chat command, feature API. |

@@ -51,6 +51,7 @@ import * as xpShares from "./xp-shares.mjs";
 import * as doors from "./doors.mjs";
 import * as obstacles from "./obstacles.mjs";
 import * as swimming from "./swimming.mjs";
+import * as jumping from "./jumping.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
@@ -262,6 +263,10 @@ Hooks.once("init", () => {
     // encumbrance, it is thrown every round rather than per hundred feet, and
     // failing it starts a drowning rather than costing progress.
     swimming,
+    // Nor is a chasm: clearing one is not a throw at all but a DISTANCE the
+    // jumper has against a gap the dungeon has, with a saving throw owed only
+    // for a precarious landing.
+    jumping,
     encounterScaling,
     // Dividing adventure XP: full shares, henchman halves, and the mercenaries
     // and wagons that take none.

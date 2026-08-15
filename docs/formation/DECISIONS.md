@@ -273,3 +273,73 @@ concept is cheaper than telling two apart forever.
 the party gathered mid-fight must end the combat first — the same refusal
 `toggleDetachMember` already makes, and for the same reason: recalling a fighter
 would take them out of the initiative they are in.
+
+---
+
+### 2026-08-15 — Jumping is a distance, not a throw, so it is not an obstacle
+
+Checked against the wiki snapshot (ch. 6, *Jumping and Leaping*) before deciding
+where it belonged. Every row of `OBSTACLES` carries an Adventuring target, a
+per-100' cadence, a failure cost, a botch row and a vulnerable-in-combat flag.
+Jumping has none of the five. Crossing a chasm is not rolled for at all: the
+jumper has a distance (DEX + 1d6, less a foot per stone, halved without a 20'
+run-up), the gap has a width, and if the number reaches, an ordinary jump onto
+solid ground is simply made.
+
+Adding it to the table would have meant six null columns and a primary output —
+a distance rather than a target number — that no other row produces. So it is
+its own derivation beside `swimming.mjs`, on that file's precedent.
+
+Rejected: rolling the 1d6 and reporting one distance. The die is inside the
+distance, so a single roll answers "could he have made it" for one attempt and
+tells a Judge nothing about whether to allow the attempt. `canClear` reports the
+range and how many of the six faces clear the gap, which is the question actually
+being asked at the table.
+
+Rejected: prompting for a saving throw on every jump. RAW the landing save is
+owed only for a precarious destination or a jump made charging into melee, and
+asking for one otherwise would invent a check the rules do not have.
+
+**What it cost.** Two readings had to be fixed where the text is silent, and
+both are marked in the code. The printed 1' minimum attaches to the leap's base
+formula, so encumbrance can take a character below it — but the result is
+clamped at zero, because a negative maximum jump is arithmetic left over rather
+than a measurement. And the creature multiplier (running speed / 120) is applied
+last, after encumbrance and the standing-jump halving; the book's only worked
+example, the medium horse, carries nothing and so does not disambiguate the
+order. That example is pinned in `tools/test-jumping.mjs`.
+
+---
+
+### 2026-08-15 — Jumping holds no printed value that already has an owner
+
+Amends the entry above, which shipped with two tables it had no business
+holding: the attribute bonus bands (including the jumping rule's own extension
+to 19–24) and the Acrobatics numbers (a cap of 24, +2 on the landing save).
+
+Both are book content, and both already have an owner. The attribute modifier is
+the SYSTEM's — every sheet carries it as `system.scores.dex.mod` — so
+`dexModifier` reads it and a caller holding a seat's imported extended rows
+passes what they say. What Acrobatics is worth is the PROFICIENCY's, arriving
+with the character's own imported ability, so `effectiveDex` takes a `dexCap`
+and `landingSave` takes a `saveBonus`. `NO_ACROBATICS` is what an unimported
+proficiency contributes: nothing, rather than a guess.
+
+This is the same ruling the thief skill ladders got when they left
+`constants.mjs` for the GM's own book. Jumping knows the SHAPE of the rules —
+that a proficiency raises the score, that a cap exists, that the landing is a
+Paralysis save — because that shape is the jumping rule itself. It does not know
+the numbers.
+
+**What it cost.** A world whose Acrobatics was never imported now applies no cap
+and no save bonus, so an acrobat's score can exceed what the book allows. That is
+the right failure: a ceiling invented here would be a printed number with no book
+behind it, and it would silently shorten every acrobat's jump in worlds that
+never asked for it.
+
+One bug fell out of the change and is worth naming, because the shape recurs
+across this repo's option bags: `Number(null)` is **zero, not NaN**, so a plain
+`Number.isFinite` test reads every absent option as a supplied zero — capping an
+uncapped score at 0 and answering every modifier with 0. `given()` distinguishes
+"not supplied" from "supplied as zero"; both are meaningful here and they are
+not the same.
