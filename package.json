@@ -11,7 +11,7 @@
     "build:packs": "node tools/build-packs.mjs",
     "validate": "node tools/validate.mjs",
     "prepare": "git config core.hooksPath .githooks",
-    "test": "node tools/test-lib.mjs && node tools/test-equipment.mjs && node tools/test-formation-flows.mjs && node tools/test-formation-heading.mjs && node tools/test-marching-templates.mjs && node tools/test-influence.mjs && node tools/test-classes.mjs && node tools/test-ladders.mjs && node tools/test-henchmen.mjs && node tools/test-markets.mjs && node tools/test-capacity.mjs && node tools/test-money.mjs && node tools/test-languages.mjs && node tools/test-doors.mjs && node tools/test-vehicles.mjs && node tools/test-vessels.mjs && node tools/test-encounter-scaling.mjs && node tools/test-obstacles.mjs && node tools/test-swimming.mjs && node tools/test-jumping.mjs && node tools/test-movement-scales.mjs && node tools/test-xp-shares.mjs",
+    "test": "node tools/run-tests.mjs",
     "find:dead-config": "node tools/find-dead-config.mjs"
   },
   "devDependencies": {

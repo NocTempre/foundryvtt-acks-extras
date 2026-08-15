@@ -26,3 +26,7 @@ docs/ACKS-Reactions-Reference.md
 # Book rule tables. Nothing loads these any more and no repo tracks them; the
 # ban lives in tools/ip-scan.mjs too. Committed armor, not a local exclude.
 ruledata/
+
+# Rules tests reproduce printed tables to check a derivation against the
+# book, so they stay on the machine that owns the books.
+tools/rules-tests/
