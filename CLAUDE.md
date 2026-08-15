@@ -26,9 +26,23 @@ build/release plumbing, and its `docs/DECISIONS.md` before a structural change
   (one dir per pre-merge feature module; single-feature repos have exactly one)
   — **LOCAL-ONLY, never committed or shipped** (licensed book text; purged
   from repo history 2026-07-16). Cite it instead of re-deriving rules.
-- **No `ruledata/`.** No value read off a page ships in any repo — `ip-scan.mjs`
-  hard-FAILS on a tracked `ruledata/` directory. Book content reaches a world
-  through `acks-importer`, materialized from the GM's own books.
+- **No `ruledata/`, and no rules WORDS in shipped text.** The line is **math vs
+  words**. A number the code computes with — a modifier, a band, a rate, a
+  formula — may live in the function that performs the rule. The book's
+  *sentences* may not: any user-visible string that states, explains or
+  paraphrases a rule is the book's expression, and any page citation is a
+  pointer into it. So a hint says what the FIELD does ("In feet."), never what
+  the rule says ("A pit deals 1d6 per 10 feet fallen"). Citations belong in code
+  comments and `docs/` — attribution, not reproduction — and never in `lang/`,
+  a template, or a pack source.
+  A **table of options a reader picks from** (tiers, variants, qualities) is
+  content whatever it is made of, and is registered from the importer rather
+  than shipped: `lib/tables.mjs` has said "no book values, no fallback samples"
+  since the extraction program, and a frozen table in a `config.mjs` is that
+  rule broken in a place the gate was not looking.
+  `ip-scan.mjs` hard-FAILS on a tracked `ruledata/` directory and on a page
+  citation in shipped text. Book content reaches a world through
+  `acks-importer`, materialized from the GM's own books.
 - `docs/` — not shipped; see Documentation below.
 
 ## Commands
