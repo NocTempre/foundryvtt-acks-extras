@@ -159,6 +159,45 @@ off the *top* and *left* edges. Origin and cells are computed against one headin
 read, passed down from the caller — re-reading it per cell would let a token that
 turned mid-deploy place a body outside the room the clamp had made for it.
 
+## Saved marching orders
+
+`marching-templates.mjs` remembers an arrangement — who stands where, what each
+of them is doing, and the frontage — under a name, in the world setting
+`acks-extras.marchingTemplates`. It records the SHAPE and nothing else: no token
+snapshots, no hit points, no lights, no clock, so restoring one can lose an
+arrangement and never a character.
+
+The word *template* already means the Monster Manual's stat-by-rank pages in
+this family (`lib/template-logic.mjs`), so this surface says **marching order**
+throughout.
+
+`reconcile` is pure and returns new member records rather than editing the ones
+it was given, because the party an order is applied to is never quite the party
+it was saved from:
+
+- a saved cell naming someone no longer in the party is **dropped and the line
+  closes up**, counted in `missing` so the absence is reported rather than
+  implied;
+- a member the order never knew about is **appended** with their current roles —
+  an arrangement is not a roster, and may not discharge the henchman hired since;
+- a role whose gear the character no longer holds is **refused**, on the same
+  rule `toggleRole` applies, and counted in `skipped`.
+
+Blank cells come from the saved order alone: the arrangement owns the shape.
+
+**Forming up** (`formUp`) applies the order and gathers anyone standing on the
+map back inside the party token. It is refused during a combat on the same
+ground `toggleDetachMember` is — the fight owns who is on the field — and it
+re-anchors `clock.lastPosition` *before* the party token moves to the reform
+point, or the jump would read as the party having walked there and spend dungeon
+turns nobody took. Role changes are announced one at a time exactly as
+`toggleRole` announces them, since a role can fill hands and acks-equipment
+recomputes a loadout off that hook.
+
+The party sheet saves and loads orders; the party token's HUD carries a **form
+up** button, which appears only once at least one order is saved and skips the
+picker when there is only one to pick.
+
 ## Detaching a member
 
 A formation travels as one token. Two things take a member out of it, and both

@@ -1236,8 +1236,32 @@
       "carrierLine": "{name}: {base}→{eff} st (cap {cap}) — {speed}'/turn.",
       "carrierOver": "{name}: {base}→{eff} st EXCEEDS capacity {cap} — CANNOT MOVE."
     },
+    "marching": {
+      "save": "Save order",
+      "saveHint": "Remember this marching order — who stands where, what each of them is doing, and how many march abreast — under a name you can put the party back into later.",
+      "load": "Saved marching orders",
+      "loadHint": "Put the party back into a saved marching order, or delete one you no longer use.",
+      "nameLabel": "Name this marching order",
+      "nameHint": "Saving under a name already in use replaces it.",
+      "pick": "Marching order",
+      "pickHint": "Forming up gathers anyone standing on the map back inside the party token. Members the order does not name keep their place at the back; roles whose gear a character no longer holds are left off.",
+      "formUp": "Form up",
+      "delete": "Delete",
+      "option": "{name} — {count} named, {frontage} abreast",
+      "none": "No marching orders saved yet — arrange the party, then use Save order.",
+      "notInCombat": "The party cannot form up during a combat: the fight decides who is on the field. End the combat first.",
+      "saved": "Saved the marching order {name}.",
+      "replaced": "Replaced the saved marching order {name}.",
+      "deleted": "Deleted the marching order {name}.",
+      "restored": "{count} back in place.",
+      "recalled": "{count} gathered back into the party token.",
+      "appended": "{count} not named by the order kept their place at the back.",
+      "absent": "{count} named by the order are no longer in the party; the line closed up.",
+      "noGear": "Roles not restored for want of the gear they need: {names}."
+    },
     "hud": {
-      "addToParty": "Add to party (adds all controlled tokens; creates a formation if the scene has none)"
+      "addToParty": "Add to party (adds all controlled tokens; creates a formation if the scene has none)",
+      "formUp": "Form up (put the party back into a saved marching order)"
     },
     "warn": {
       "noFormationYet": "No formation exists yet — right-click a token and use \"Add to party\", or create a Party Formation actor.",

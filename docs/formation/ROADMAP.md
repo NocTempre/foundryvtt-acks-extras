@@ -77,7 +77,13 @@ Still unbuilt, in likely order:
    behaviour change (a party whose token has never turned now trails its column
    north instead of south). All four cardinals are pinned by
    `tools/test-formation-heading.mjs`.
-6. Formation templates (save/load marching orders); token HUD "form up" button.
+6. ~~Formation templates (save/load marching orders); token HUD "form up"
+   button~~ — SHIPPED as **saved marching orders** (`marching-templates.mjs`,
+   world setting `marchingTemplates`), the word *template* being already spoken
+   for by the Monster Manual generator. Save/load live on the party sheet's
+   march controls; the party token's HUD forms the party up, gathering anyone on
+   the map back inside the token. See [MODEL.md](MODEL.md) for how a saved order
+   reconciles against a party that has changed since.
 7. Wilderness/expedition mode — PARTLY UNBLOCKED. The wilderness chapter is now in hand: 4.4.0 added the movement-scale vocabulary (`lib/movement-scales.mjs`, published on `api.lib`) with the Expedition Speed table reproduced to all twelve rows, travel pace (dedicated / forced march ×3/2 / ancillary half), and terrain and road multipliers on `vehicles/vehicle-speed.mjs`. What remains is the MODE: a formation that knows which hex it is in, what ground it is crossing, and a day-scale clock beside the turn-scale one. The formation record has no `ground` field yet, so a party's vehicle currently travels at its printed pace rather than a terrain-adjusted one.
 8. Spell "per level" duration parsing (quick win, batch with the next release).
 9. Week-ration uses counter (quick win).

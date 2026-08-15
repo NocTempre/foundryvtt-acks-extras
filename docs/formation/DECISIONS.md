@@ -239,3 +239,37 @@ offsets exactly, which `tools/test-formation-heading.mjs` pins.
 Diagonal rotations snap to the nearest cardinal. The grid has four directions to
 lay a rank against, and a half-square diagonal block would need the offsets to
 stop being whole numbers to buy nothing.
+
+---
+
+### 2026-08-15 — A saved marching order restores an arrangement, not a roster
+
+Saved orders record order, roles and frontage and nothing else. Rejected:
+capturing member records wholesale (token snapshots, lights, the clock). That
+would make "load the standing order" a way to resurrect a dead man's hit points
+from a week-old save, and the failure would be silent.
+
+Three reconciliation rulings, all forced by the fact that the party an order is
+applied to is never the party it was saved from:
+
+- **A named member who has left is dropped and the line closes up**, rather than
+  leaving a blank in their square. Preserving the geometry was the alternative
+  and it is defensible — the fighter really was front-left — but it marches the
+  party with phantom gaps nobody asked for and which the Judge then has to clear
+  by hand. The count is reported instead, so the absence is stated rather than
+  implied.
+- **A member the order never knew about is appended, keeping their current
+  roles.** An arrangement that silently discharged the henchman hired since it
+  was saved would be a roster edit disguised as a layout.
+- **A role is refused when its gear is gone**, on `toggleRole`'s own rule.
+  Restoring a mapper who has lost their quill would write a state the feature's
+  own rules call impossible, and it would be written by a path that never asked.
+
+Named **marching order**, not template: `lib/template-logic.mjs` already owns
+"template" for the Monster Manual's stat-by-rank pages, and one vocabulary per
+concept is cheaper than telling two apart forever.
+
+**What it cost.** Forming up is refused during a combat, so a Judge who wants
+the party gathered mid-fight must end the combat first — the same refusal
+`toggleDetachMember` already makes, and for the same reason: recalling a fighter
+would take them out of the initiative they are in.

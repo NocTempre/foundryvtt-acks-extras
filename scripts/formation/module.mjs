@@ -17,6 +17,7 @@ import {
   addMember,
   createFormation,
   dissolveFormation,
+  formationForToken,
   getFormation,
   getFormationForActor,
   getFormations,
@@ -33,6 +34,13 @@ import {
   updateFormation,
 } from "./formation-model.mjs";
 import { findDeployedMember, leashBreach, reanchorDetached } from "./deployment.mjs";
+import {
+  SETTING_TEMPLATES,
+  describeResult,
+  formUp,
+  listTemplates,
+  pickMarchingOrder,
+} from "./marching-templates.mjs";
 import { anchorMap, archiveSession, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
 import { registerFuzzyRulers } from "./measure-fuzz.mjs";
 import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
@@ -77,6 +85,16 @@ Hooks.once("init", () => {
   installCoreXpSuppression();
   /* --- Settings --- */
   game.settings.register(MODULE_ID, SETTING_FORMATIONS, {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: {},
+  });
+
+  // Saved marching orders. World-scoped and keyed by id, like the formations
+  // themselves: an arrangement is worth reusing across parties, not owned by
+  // the one it was captured from.
+  game.settings.register(MODULE_ID, SETTING_TEMPLATES, {
     scope: "world",
     config: false,
     type: Object,
@@ -522,22 +540,59 @@ async function addTokensToParty(seedToken) {
   game.actors.get(formation.actorId)?.sheet?.render(true);
 }
 
+/**
+ * Put the party back into a saved marching order from the party token itself.
+ *
+ * The picker only appears when there is a choice to make: one saved order is
+ * applied outright, because a dialog whose every run has one answer is a click
+ * spent on nothing.
+ */
+async function formUpFromHud(tokenDoc) {
+  // By the token's own flag first, then by whose party actor this is. Never by
+  // `getFormationForActor`: that searches MEMBERS, and a party actor is not a
+  // member of its own formation, so it would answer null every time.
+  const formation =
+    formationForToken(tokenDoc) ??
+    Object.values(getFormations()).find((f) => f.actorId === tokenDoc.actor.id) ??
+    null;
+  if (!formation) return;
+  const saved = listTemplates();
+  if (!saved.length) return;
+  const template = saved.length === 1 ? saved[0] : (await pickMarchingOrder())?.template;
+  if (!template) return;
+  const result = await formUp(formation, template);
+  if (result) ui.notifications.info(describeResult(result));
+  game.actors.get(formation.actorId)?.sheet?.render(false);
+}
+
+/**
+ * One HUD button per token kind: an ordinary token joins the party, and the
+ * party token forms it back up.
+ */
 Hooks.on("renderTokenHUD", (hud, html) => {
   if (!game.user.isGM) return;
   const tokenDoc = hud.object?.document;
-  if (!tokenDoc?.actor || tokenDoc.actor.type === PARTY_TYPE) return;
-  if (tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return;
-
+  if (!tokenDoc?.actor) return;
   const root = html instanceof HTMLElement ? html : html?.[0];
   if (!root || root.querySelector(".acks-formation-hud")) return;
+
+  const isParty = tokenDoc.actor.type === PARTY_TYPE;
+  // A saved order is what the button restores, so with none saved there is
+  // nothing to offer and the button stays off the HUD entirely.
+  if (isParty && !listTemplates().length) return;
+  if (!isParty && tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return;
+
   const button = document.createElement("button");
   button.type = "button";
   button.className = "control-icon acks-formation-hud";
-  button.dataset.tooltip = game.i18n.localize("ACKS-FORMATION.hud.addToParty");
-  button.innerHTML = '<i class="fa-solid fa-people-group"></i>';
+  button.dataset.tooltip = game.i18n.localize(
+    isParty ? "ACKS-FORMATION.hud.formUp" : "ACKS-FORMATION.hud.addToParty",
+  );
+  button.innerHTML = `<i class="fa-solid ${isParty ? "fa-people-line" : "fa-people-group"}"></i>`;
   button.addEventListener("click", (event) => {
     event.preventDefault();
-    addTokensToParty(tokenDoc).catch((err) => console.error(`${MODULE_ID} | add to party failed`, err));
+    const run = isParty ? formUpFromHud(tokenDoc) : addTokensToParty(tokenDoc);
+    run.catch((err) => console.error(`${MODULE_ID} | ${isParty ? "form up" : "add to party"} failed`, err));
   });
   (root.querySelector(".col.right") ?? root).appendChild(button);
 });

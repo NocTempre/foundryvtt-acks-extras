@@ -24,6 +24,14 @@ import {
   saveFogAsMapItem,
   startMapSession,
 } from "./map-items.mjs";
+import {
+  deleteTemplate,
+  describeResult,
+  formUp,
+  pickMarchingOrder,
+  promptForOrderName,
+  saveTemplate,
+} from "./marching-templates.mjs";
 import { rollPartyCheck } from "./party-rolls.mjs";
 import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
@@ -270,6 +278,37 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     await autoArrange(formation);
+    this.render();
+  },
+
+  /** Remember the current arrangement under a name the Judge gives it. */
+  async saveMarchingOrder() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const name = await promptForOrderName(formation);
+    if (!name) return;
+    const saved = await saveTemplate(formation, name);
+    if (!saved) return;
+    ui.notifications.info(
+      loc(saved.replaced ? "marching.replaced" : "marching.saved", { name: saved.template.name }),
+    );
+    this.render();
+  },
+
+  /** Put the party back into a saved arrangement, or forget one. */
+  async loadMarchingOrder() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const picked = await pickMarchingOrder();
+    if (!picked) return;
+    if (picked.action === "delete") {
+      await deleteTemplate(picked.template.id);
+      ui.notifications.info(loc("marching.deleted", { name: picked.template.name }));
+      this.render();
+      return;
+    }
+    const result = await formUp(formation, picked.template);
+    if (result) ui.notifications.info(describeResult(result));
     this.render();
   },
 
