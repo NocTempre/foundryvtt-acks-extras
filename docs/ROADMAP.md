@@ -8,6 +8,32 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
 
 ---
 
+## Vehicles
+
+SHIPPED 4.2.0–4.4.0 as the `acks-extras.vehicle` sub-type — namespaced so core
+[#154](https://github.com/AutarchLLC/foundryvtt-acks-core/issues/154) (still
+open, untouched since 2026-04) can ship a bare `vehicle` without a name fight;
+if it does, this becomes a migration.
+
+Built: cargo weighed by the capacity primitive, crew complements with
+proportional understrength slowdown, draft teams with the book's substitutions,
+wind and hunger and stowed-mast multipliers, terrain and road multipliers with
+Driving and Seafaring, passengers bound through `lib/attachment.mjs`, and the
+boarding macros.
+
+Not built:
+- **War machines** — the third vehicle category the books name (ballistae and
+  catapults ride ON vessels as cargo with their own stone cost, and siege
+  engines are a chapter of their own). Nothing models a mounted weapon.
+- **Vessel damage and sinking** — SHP is stored and shown; the 1d10 rounds to
+  sink, the fractional damage rules by attacker size, and repair at sea are
+  not automated.
+- **Nautical hazards and navigation** — shoals, getting lost, the Navigation
+  throw and its Pathfinding/Seafaring bonuses.
+- **A vessel's own voyage clock** — sea travel is measured in miles per day
+  over a 12-hour day, which is a different clock from the party's turn scale
+  and has no surface.
+
 ## Magic
 
 The largest unbuilt area, and the reason two primitives already exist unused.
