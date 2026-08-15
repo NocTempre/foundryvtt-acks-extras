@@ -518,3 +518,22 @@
   flex: 0 0 auto;
   width: 2rem;
 }
+
+/* A row's note is a glyph carrying its text in a tooltip, so it must look
+   askable rather than decorative. */
+.acks-extras-row-note {
+  cursor: help;
+  opacity: 0.75;
+}
+
+.acks-location-storage-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+/* How many rows the manager has selected — a figure, so tabular. */
+.acks-location-manager-count {
+  font-variant-numeric: tabular-nums;
+}

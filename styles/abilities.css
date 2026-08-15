@@ -300,3 +300,46 @@
   font-size: var(--acks-fs-label);
   font-family: var(--acks-font-ui);
 }
+
+.acks-abilities-rolls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* A notice carries its explanation in a tooltip, so it must look askable. */
+.acks-abilities-notice {
+  cursor: help;
+}
+
+.acks-abilities-languages {
+  min-inline-size: 0;
+}
+
+.acks-abilities-language-list {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.acks-abilities-language {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.05rem 0.4rem;
+  border: var(--acks-border-soft);
+  font-size: var(--acks-fs-label);
+}
+
+/* An empty slot is a shape waiting to be filled, not a language. */
+.acks-abilities-language.is-empty {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.acks-abilities-active-effects {
+  min-inline-size: 0;
+}

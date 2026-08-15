@@ -21,6 +21,7 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 import { grantAbility, grantAdventuring } from "./grants.mjs";
+import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -407,6 +408,14 @@ export async function applyChargen(
   for (const ref of awardPicks ?? []) {
     await grantAbility(actor, ref, startingGrants);
   }
+  // Tongues are owed at 1st level like everything else here, and a generated
+  // character was getting none: the granting rides `applyClass`'s grantAwards
+  // flag, which only the paths that SET a level pass — and chargen sets its own
+  // 1st level. Granted here rather than by passing that flag, because the flag
+  // means "hand over the whole award ladder up to this level", which is not
+  // what a 1st-level build is asking for. Runs after the template so the
+  // Intellect the slots are counted from is the one the character ended with.
+  await grantLanguages(actor, cls, startingGrants);
   report.granted.push(...startingGrants.filter((g) => !g.missing).map((g) => g.name));
   report.unresolved.push(...startingGrants.filter((g) => g.missing).map((g) => g.name));
   await ChatMessage.create({

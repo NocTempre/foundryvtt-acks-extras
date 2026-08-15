@@ -144,7 +144,10 @@ export async function clearSlot(item, index) {
  *
  * @param {Actor} actor
  * @param {Item} classItem
- * @param {string[]} [log] grant lines the caller is collecting for its receipt
+ * @param {Array<{ref: string|null, name: string}>} [log] the receipt its caller
+ *   is collecting. Entries are the SAME shape `grantAbility` pushes — both
+ *   callers read `.name` off every line and print it, so a bare string arrives
+ *   as "undefined" in the chat a player reads.
  */
 export async function grantLanguages(actor, classItem, log = []) {
   const { raceForClass } = await import("./builder.mjs");
@@ -164,7 +167,10 @@ export async function grantLanguages(actor, classItem, log = []) {
     if (!existing) {
       creates.push(data);
       const n = data.flags[MODULE_ID][SLOT_FLAG].capacity;
-      log.push(source === "granted" ? `${data.name} (${grant.granted.join(", ")})` : `${data.name} ×${n}`);
+      log.push({
+        ref: null,
+        name: source === "granted" ? `${data.name} (${grant.granted.join(", ")})` : `${data.name} ×${n}`,
+      });
       continue;
     }
     const now = slotsOf(existing);
@@ -177,7 +183,7 @@ export async function grantLanguages(actor, classItem, log = []) {
     const capacity = Math.max(wanted.capacity, kept.length);
     if (capacity !== now.capacity || kept.length !== now.entries.length) {
       await existing.setFlag(MODULE_ID, SLOT_FLAG, { ...now, capacity, entries: kept, source });
-      log.push(`${existing.name} → ${kept.length}/${capacity}`);
+      log.push({ ref: null, name: `${existing.name} → ${kept.length}/${capacity}` });
     }
   }
   if (creates.length) await actor.createEmbeddedDocuments("Item", creates);

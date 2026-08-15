@@ -339,6 +339,12 @@ console.log(
 );
 if (failed) process.exit(1);
 
+/* A class a template writes but no stylesheet claims, and a token a rule reads
+ * but nobody publishes, are both silent: the element renders undressed and the
+ * declaration is dropped without complaint. Checked here so neither can
+ * accumulate again. */
+execFileSync(process.execPath, [path.join(HERE, "audit-styles.mjs")], { stdio: "inherit" });
+
 /* The flow suite runs last: it is the slowest, and a guard failure above makes
  * its result uninteresting anyway. */
 execFileSync(process.execPath, [path.join(HERE, "test-formation-flows.mjs")], { stdio: "inherit" });

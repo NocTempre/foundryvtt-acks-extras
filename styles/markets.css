@@ -42,3 +42,34 @@
 .acks-extras-markets-receipt {
   line-height: 1.5;
 }
+
+.acks-extras-markets-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.acks-extras-markets-ventures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Orders waiting on the next tick, newest last so the list reads in the order
+   the Judge queued them. */
+.acks-extras-markets-queue {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+}
+
+.acks-extras-markets-queue > li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.1rem 0;
+}
+
+.acks-extras-markets-queue > li:nth-child(odd) {
+  background: var(--acks-tint);
+}

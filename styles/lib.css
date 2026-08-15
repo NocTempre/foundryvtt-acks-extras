@@ -474,3 +474,64 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   min-width: 0;
   width: 100%;
 }
+
+/* --- group sheet: the parts the stack is made of --- */
+
+.acks-lib-group-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.acks-lib-group-stack,
+.acks-lib-group-unit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+
+/* The invitation to drop, dashed like every other drop target in the family. */
+.acks-lib-group-dropzone {
+  border: var(--acks-rule-hair) dashed var(--acks-rule-color-soft);
+  padding: 0.3rem 0.5rem;
+  text-align: center;
+}
+
+.acks-lib-group-biography {
+  margin-top: 0.4rem;
+}
+
+/* --- template sheet --- */
+
+.acks-lib-template-base {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.acks-lib-template-axes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* The axis a generated creature is pinned to, beside the box that says the
+   axis may take more than one value. */
+.acks-lib-template-pin {
+  flex: 1;
+  min-width: 0;
+}
+
+.acks-lib-template-multi {
+  margin-right: 0.25rem;
+}
+
+.acks-lib-template-menu-note {
+  margin: 0.3rem 0 0;
+}
+
+.acks-lib-template-edit-toggle {
+  width: 100%;
+}

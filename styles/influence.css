@@ -473,3 +473,20 @@
 .acks-influence-mode-result.secret {
   border-style: dashed;
 }
+
+/* The result card: who, then what came of it. */
+.acks-influence-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.acks-influence-parties-line {
+  margin: 0.1rem 0;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-influence-card-content {
+  margin-top: 0.3rem;
+}

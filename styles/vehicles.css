@@ -40,3 +40,100 @@
 .acks-extras-vehicle-hull .notification.error {
   font-weight: bold;
 }
+
+/* The sheet is one column of fieldsets; the design layer dresses the boxes. */
+.acks-extras-vehicle-sheet > fieldset {
+  margin-bottom: 0.6rem;
+}
+
+.acks-extras-vehicle-speed,
+.acks-extras-vehicle-team {
+  min-inline-size: 0; /* a fieldset will not shrink below its content otherwise */
+}
+
+.acks-extras-vehicle-landspeed {
+  margin: 0.4rem 0 0.1rem;
+}
+
+/* Why the speed is what it is: one line per factor, marked rather than bulleted
+   so a list of three reads as a stack of reasons and not as prose. */
+.acks-extras-vehicle-reasons {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-vehicle-reasons > li::before {
+  content: "◆";
+  color: var(--acks-spot);
+  margin-right: 0.35rem;
+}
+
+/* The hold, as a bar. Same shape as the hull bar above, because they answer
+   the same question — how much is left — and should read the same way. */
+.acks-extras-vehicle-bar {
+  position: relative;
+  height: 0.6rem;
+  border: var(--acks-border-ink);
+  background: var(--acks-field);
+  overflow: hidden;
+}
+
+.acks-extras-vehicle-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--acks-burgundy);
+}
+
+/* Who and what is aboard: name on the left, what it costs or contributes hard
+   right, so a column of figures lines up and can be read down. */
+.acks-extras-vehicle-riders,
+.acks-extras-vehicle-animals {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+}
+
+.acks-extras-vehicle-riders > li,
+.acks-extras-vehicle-animals > li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.1rem 0;
+}
+
+.acks-extras-vehicle-riders > li:nth-child(odd),
+.acks-extras-vehicle-animals > li:nth-child(odd) {
+  background: var(--acks-tint);
+}
+
+.acks-extras-vehicle-animal-name {
+  flex: 1;
+}
+
+/* A figure, not a label: tabular so digits align between rows. */
+.acks-extras-vehicle-pull {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-vehicle-crew,
+.acks-extras-vehicle-tiers {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.acks-extras-vehicle-crew th,
+.acks-extras-vehicle-tiers th {
+  text-align: left;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-vehicle-boarding {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}

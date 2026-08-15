@@ -396,3 +396,61 @@
 .acks-extras-classes-statgen .acks-extras-classes-chargen .hint {
   flex: 0 0 100%;
 }
+
+/* The constructor's own frame. Panes are shown by `hidden`, not by a class, so
+   a hidden pane needs no rule — but the visible one must lay itself out. */
+.acks-extras-classes-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.acks-extras-classes-tabpane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* A row of checkboxes reads as a row, not as a stack of one-word paragraphs. */
+.acks-extras-classes-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.8rem;
+  align-items: center;
+}
+
+/* What the builder cannot reconcile. Marked in the danger ink, because these
+   are the lines that say the build does not add up. */
+.acks-extras-classes-issues {
+  list-style: none;
+  margin: 0.2rem 0;
+  padding: 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-classes-issues > li::before {
+  content: "!";
+  font-weight: bold;
+  margin-right: 0.4rem;
+}
+
+/* One letter — the a/b of a fighting value — so the field is one letter wide. */
+.acks-extras-classes-subinput {
+  width: 2.5rem;
+  text-align: center;
+}
+
+.acks-extras-classes-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.acks-extras-classes-template-edit,
+.acks-extras-classes-tradition-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
