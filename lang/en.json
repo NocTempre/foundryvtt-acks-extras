@@ -3106,5 +3106,15 @@
   "ACKS-FORMATION.app.leaveBehind": "Leave behind",
   "ACKS-FORMATION.app.goBackFor": "Go back for them",
   "ACKS-FORMATION.app.casualtyHint": "Down. The party cannot move until someone carries them or they are left behind.",
-  "ACKS-FORMATION.app.leftBehindHint": "Left where they fell. They still take their share of the experience."
+  "ACKS-FORMATION.app.leftBehindHint": "Left where they fell. They still take their share of the experience.",
+  "ACKS-VEHICLES.voyage.legend": "Voyage",
+  "ACKS-VEHICLES.voyage.milesPerDay": "miles in a {hours}-hour day",
+  "ACKS-VEHICLES.voyage.perHour": "miles per hour",
+  "ACKS-VEHICLES.voyage.dayHint": "A vessel is worked twelve hours a day; a marching party walks eight. Compare the two by the hour, never by the day.",
+  "ACKS-VEHICLES.damage.sinking": "HOLED THROUGH — she cannot move under her own power, and goes down in {formula} rounds.",
+  "ACKS-VEHICLES.damage.governs.hull": "Damage governs: she makes {factor} speed. Her hull is at {hull}; her crew would allow {crew}.",
+  "ACKS-VEHICLES.damage.governs.crew": "Casualties govern: she makes {factor} speed. Her crew is at {crew}; her hull would allow {hull}.",
+  "ACKS-VEHICLES.damage.repair": "{repairable} point(s) can be put back at sea and {dockOnly} need a dock — {crew} hands per point per turn, {hands} aboard.",
+  "ACKS-VEHICLES.damage.repairTurns": "That is {turns} turn(s), during which they do nothing else.",
+  "ACKS-VEHICLES.damage.repairNoHands": "Too few hands aboard to make even one gang."
 }

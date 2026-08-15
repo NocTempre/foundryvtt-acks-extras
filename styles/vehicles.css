@@ -1,0 +1,42 @@
+/* Vehicles.
+   Scope every selector under this module's own class; the design layer and the
+   sheet theme dress the rest. Tokens are read bare — a literal fallback would
+   mask a missing token rather than reveal it. */
+
+.acks-extras-vehicle-speeds {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.acks-extras-vehicle-voyage {
+  margin: 0.4rem 0 0.1rem;
+}
+
+/* A hull reads as a bar first and a number second: "how much is left" is the
+   question in a fight, and two integers make the reader do the division. */
+.acks-extras-vehicle-hull {
+  margin-top: 0.5rem;
+}
+
+.acks-extras-vehicle-hull-bar {
+  position: relative;
+  height: 0.6rem;
+  border: var(--acks-border-ink);
+  background: var(--acks-field);
+  overflow: hidden;
+}
+
+.acks-extras-vehicle-hull-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--acks-burgundy);
+}
+
+.acks-extras-vehicle-hull-figure {
+  font-size: var(--acks-fs-label);
+}
+
+/* A sinking vessel is the one state that must not read as ordinary prose. */
+.acks-extras-vehicle-hull .notification.error {
+  font-weight: bold;
+}

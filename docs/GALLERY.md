@@ -53,6 +53,7 @@ the next refresh.
 | Class languages | What a class speaks and how many more it may choose, beside its award ladder | [guide](guides/classes.md) | [v4.1.0](releases/v4.1.0/classes-languages-editor.png) |
 | Judge's notes | A place's private record, beside the shared one and readable only by the Judge | [guide](guides/location.md) | [v4.1.0](releases/v4.1.0/location-judge-notes.png) |
 | Vehicles: a vessel | A half-manned galley, its real speeds, and what reduced them | [guide](guides/vehicles.md) | [v4.2.0](releases/v4.2.0/vehicles-galley.png) |
+| Vehicles: damage at sea | A holed longship: her hull, her twelve-hour day beside its hour, which of casualties and damage governs her speed, and what a repair would cost | [guide](guides/vehicles.md) | [v4.6.0](releases/v4.6.0/vehicles.png) |
 | Vehicles: the team | An ox and two mules pulling as two heavy horses, with one animal unhitched | [guide](guides/vehicles.md) | [v4.2.0](releases/v4.2.0/vehicles-team.png) |
 | The door | Two spikes in, the throw broken into its parts, and what an axe would cost | [guide](guides/formation.md) | [v4.2.0](releases/v4.2.0/formation-door.png) |
 | Vehicles: the ground | A wagon on a forest road, and what the terrain and the driver each did to its pace | [guide](guides/vehicles.md) | [v4.3.0](releases/v4.3.0/vehicles-terrain.png) |

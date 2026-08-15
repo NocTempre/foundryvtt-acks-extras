@@ -78,6 +78,7 @@ export default defineConfig({
             { label: "Proficiencies & class powers", slug: "guides/abilities" },
             { label: "Equipment & fighting styles", slug: "guides/equipment" },
             { label: "Exploration formations", slug: "guides/formation" },
+            { label: "Vehicles, wagons & vessels", slug: "guides/vehicles" },
             { label: "Henchmen & hirelings", slug: "guides/henchmen" },
             { label: "Influence & reactions", slug: "guides/influence" },
             { label: "Places & storage", slug: "guides/location" },

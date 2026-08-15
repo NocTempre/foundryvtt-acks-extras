@@ -13,6 +13,8 @@ import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS } from "./vehicle-data.mjs";
 import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN, draftPull } from "./vehicle-speed.mjs";
+import { isSinking, speedFactor, repairPlan, SINK_FORMULA, CREW_PER_POINT } from "./vessel-damage.mjs";
+import { voyageDay } from "./voyage.mjs";
 import { load6 } from "../lib/capacity.mjs";
 import { attachedTo, attach, detach } from "../lib/attachment.mjs";
 import { borneBy6 } from "../lib/capacity.mjs";
@@ -117,6 +119,10 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       // terrain multiplier is already inside feetPerTurn, so it is not applied
       // a second time here.
       expedition: isSea ? null : expeditionFrom(speed.feetPerTurn, { pace: this.#pace }),
+      // A vessel's day is TWELVE hours where the wagon above counts eight, so
+      // the two are never shown as the same kind of number.
+      voyage: isSea ? voyageDay(sys, { wind: this.#wind, underSail: true }) : null,
+      hull: isSea ? hullState(sys) : null,
       pace: this.#pace,
       paces: Object.entries(TRAVEL_PACE).map(([value, p]) => ({
         value, label: game.i18n.localize(p.label), selected: value === this.#pace,
@@ -300,6 +306,46 @@ function fractionLabel(f) {
 }
 
 const round2 = (n) => Math.round(n * 100) / 100;
+
+/**
+ * A hull, said plainly: how much of her is left, what her damage is costing
+ * her, and — the part a Judge needs at exactly one moment — that she is going
+ * down, and roughly how long the people aboard have.
+ *
+ * The repair line is stated for the crew she actually has, because "five hands
+ * per point per turn" is arithmetic nobody should be doing mid-battle, and
+ * because only half of what she took at sea can be put back before a dock.
+ */
+function hullState(sys) {
+  const value = Number(sys?.shp?.value) || 0;
+  const max = Number(sys?.shp?.max) || 0;
+  if (max <= 0) return null;
+  const { factor, worst, crew, hull } = speedFactor(sys);
+  const aboard = (sys?.crew?.roles ?? []).reduce((sum, r) => sum + (Number(r.aboard) || 0), 0);
+  const plan = repairPlan(max - value, aboard, { atSea: true });
+  return {
+    value,
+    max,
+    pct: Math.max(0, Math.min(100, Math.round((value / max) * 100))),
+    sinking: isSinking(sys),
+    sinkFormula: SINK_FORMULA,
+    factor,
+    factorLabel: fractionLabel(factor),
+    // Naming which of the two governs stops a Judge patching the hull to fix a
+    // speed the missing rowers were costing all along. The KEY is resolved
+    // here rather than assembled in the template, which has no concat helper.
+    worst,
+    governsKey: `${LANG_PREFIX}.damage.governs.${worst}`,
+    crewFactorLabel: fractionLabel(crew),
+    hullFactorLabel: fractionLabel(hull),
+    damage: max - value,
+    repairable: plan.repairable,
+    dockOnly: plan.dockOnly,
+    repairTurns: Number.isFinite(plan.turns) ? plan.turns : null,
+    crewPerPoint: CREW_PER_POINT,
+    handsAboard: aboard,
+  };
+}
 
 /** This feature owns the sub-type's sheet; registered once, unconditionally. */
 export function registerVehicleSheet() {

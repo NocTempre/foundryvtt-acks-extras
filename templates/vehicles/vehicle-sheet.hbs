@@ -29,6 +29,51 @@
       {{#unless speed.canTack}}
         <p class="hint">{{localize "ACKS-VEHICLES.speed.noTack"}}</p>
       {{/unless}}
+
+      {{! A ship's day is twelve hours where a marching column's is eight, so
+          the hour is printed beside it — the only figure the two share. }}
+      {{#if voyage}}
+        <p class="acks-extras-vehicle-voyage">
+          {{localize "ACKS-VEHICLES.voyage.legend"}}:
+          <strong>{{voyage.milesPerDay}}</strong>
+          {{localize "ACKS-VEHICLES.voyage.milesPerDay" hours=voyage.hours}}
+          — {{voyage.milesPerHour}} {{localize "ACKS-VEHICLES.voyage.perHour"}}
+        </p>
+        <p class="hint">{{localize "ACKS-VEHICLES.voyage.dayHint"}}</p>
+      {{/if}}
+
+      {{#if hull}}
+        <div class="acks-extras-vehicle-hull">
+          <div class="acks-extras-vehicle-hull-bar" role="img"
+               aria-label="{{hull.value}}/{{hull.max}}">
+            <span style="width:{{hull.pct}}%"></span>
+          </div>
+          <span class="acks-extras-vehicle-hull-figure">{{hull.value}}/{{hull.max}}</span>
+
+          {{#if hull.sinking}}
+            <p class="notification error">
+              {{localize "ACKS-VEHICLES.damage.sinking" formula=hull.sinkFormula}}
+            </p>
+          {{else if hull.damage}}
+            {{! Which of the two governs, so nobody patches a hull to fix a
+                speed the missing rowers were costing all along. }}
+            <p class="hint">
+              {{localize hull.governsKey factor=hull.factorLabel
+                         crew=hull.crewFactorLabel hull=hull.hullFactorLabel}}
+            </p>
+            <p class="hint">
+              {{localize "ACKS-VEHICLES.damage.repair"
+                         repairable=hull.repairable dockOnly=hull.dockOnly
+                         crew=hull.crewPerPoint hands=hull.handsAboard}}
+              {{#if hull.repairTurns}}
+                {{localize "ACKS-VEHICLES.damage.repairTurns" turns=hull.repairTurns}}
+              {{else}}
+                {{localize "ACKS-VEHICLES.damage.repairNoHands"}}
+              {{/if}}
+            </p>
+          {{/if}}
+        </div>
+      {{/if}}
     {{else}}
       {{! Where it is today. A view choice, not a property of the wagon. }}
       <div class="form-group">

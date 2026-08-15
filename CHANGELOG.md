@@ -1,5 +1,67 @@
 # Changelog
 
+## 4.6.0
+
+The sea half of the vehicle rules, and two owner rulings that had been open
+long enough to cost something.
+
+### Added
+- **A hull is not a big creature.** Most attacks cannot hurt a vessel at all —
+  a man-sized or large creature swinging at a warship does nothing, which is
+  what stops a boarding party emptying a ship like a sack of hit points. Light
+  and medium ballistae reach a tenth of the way; huge creatures, heavy
+  ballistae and the lighter catapults a third; siege artillery and the truly
+  enormous the whole of it. A spell does a tenth to timber, multiplied by its
+  own footprint.
+- **Damage slows her, and says so.** A battered ship is a slow ship, in
+  proportion to the hull she has lost — and casualties slow her too, but the
+  two are **not cumulative**: whichever is worse governs, alone. The sheet
+  names which one is in force, so nobody patches a hull to fix a speed the
+  missing rowers were costing all along. At nothing left she cannot move under
+  her own power and goes down in 1d10 rounds.
+- **Repair, priced in hands and turns.** Five of the crew, one turn, one point,
+  doing nothing else while they do it — and only half of what she took at sea
+  can be put back before she reaches a dock. The sheet does that arithmetic for
+  the hands actually aboard rather than leaving it to a Judge mid-battle.
+- **A vessel keeps her own clock.** A voyage speed is miles over a TWELVE-hour
+  day, because crewing is unstrenuous, where a marching party's is eight — so
+  reading one against the other understates a ship by half. Both are now stated
+  per hour, which is the only figure they share. Under sail in open water with
+  a navigator and a full crew she may work around the clock: twice the distance
+  in a day, at exactly the same speed.
+- **Getting lost, and getting holed.** The Navigation throw each day and each
+  night — a river is nearly unmissable, the open sea is not — with Pathfinding
+  or Navigation aboard worth +4 and both together worth +8. Separately, the
+  captain's Seafaring throw on entering water that holds a hazard, where
+  slowing down helps twice: it makes the throw easier and halves the damage if
+  she strikes anyway. Kelp holds her, rock and reef hole her, a shoal grounds
+  her until the tide or until the crew throws enough cargo over the side.
+- **Buckets, derived per vehicle rather than assumed.** What a vehicle has room
+  for, and which of those buckets are the same room twice: a land vehicle pools
+  passengers with cargo at its own printed rate, a vessel berths them apart and
+  trades crew for hold at fifty stone a hand. The rate is the vehicle's own,
+  because the books print it per vehicle and it is not linear — a small
+  palanquin's first berth is fifteen stone and its second seventeen and a half,
+  and the second passenger costs speed as well as room. What "crew" MEANS is
+  per vehicle too: the books use one column for the driver, for a chariot's
+  driver and warriors, and for a howdah's passengers.
+
+### Fixed
+- **A generated character rolls for their own hit points.** The Scores
+  Generator never threw the die at all, so every generated character kept
+  whatever the bare actor was made with — the same number every time, whatever
+  their class or Constitution.
+- **The formation is the party; core's is deprecated.** Storage reach asked
+  both the marching order and the party actor and took either, which unioned
+  two rosters: a character left in a stale party actor kept reaching a company
+  they had stopped marching with. The marching order now answers alone where it
+  answers at all, and the party actor is a fallback for a character no
+  formation claims.
+- **Every ACKS field is dressed the same.** A window carrying neither the
+  system's `acks` class nor the design layer's opt-in on its fields was dressed
+  by nobody, so most of this module's sheets rendered raw Foundry chrome inside
+  an ACKS frame.
+
 ## 4.5.0
 
 The party divides its own experience, and decides what to do about the people
