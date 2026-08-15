@@ -237,7 +237,12 @@ export function lockAfterFailure(lock, actorId, level) {
 export function pitDamageFormula(depthFeet, spiked = false) {
   const dice = Math.floor(Number(depthFeet) / 10);
   if (!Number.isFinite(dice) || dice < 1) return null;
-  return spiked ? `${dice}d6 + 1d4 * 1d6` : `${dice}d6`;
+  // `(1d4)d6`, not `1d4 * 1d6`: the book impales the victim on 1d4 spikes
+  // dealing 1d6 EACH, which is that many separate dice. Multiplying one d6
+  // instead has a different spread — flatter, and four times as swingy at the
+  // top. Foundry's parser resolves the nested count first, so this is exactly
+  // the rule and not an approximation of it.
+  return spiked ? `${dice}d6 + (1d4)d6` : `${dice}d6`;
 }
 
 /**

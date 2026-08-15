@@ -32,6 +32,8 @@ the next refresh.
 | Formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v4.0.0](releases/v4.0.0/formation-party-sheet.png) |
 | Deploy heading | A two-file block deployed on the canvas, trailing away behind the party token's facing | [guide](guides/formation.md) | [v4.8.0](releases/v4.8.0/formation-deploy-heading.png) |
 | Marching orders, saved | The party sheet's march controls: frontage, the order, and the save that a form-up restores | [guide](guides/formation.md) | [v4.8.0](releases/v4.8.0/formation-marching-orders.png) |
+| Trap, as a document | A trap item: its level and trigger band, how it resolves, and a pit's depth deriving its own damage | [guide](guides/formation.md#traps) | [v4.9.0](releases/v4.9.0/formation-trap-item.png) |
+| Trap, sprung | The whispered card: who walked in, who sprang it on the secret 1d6, who was caught, and what it dealt | [guide](guides/formation.md#traps) | [v4.9.0](releases/v4.9.0/formation-trap-card.png) |
 | Dealing experience | The division shown before it is given: full shares, a henchman at half, and who takes nothing, with the reason | [guide](guides/formation.md) | [v4.5.0](releases/v4.5.0/formation-xp.png) |
 | Groups | A retinue kept as one document rather than a dozen | [guide](guides/formation.md) | [v3.0.0](releases/v3.0.0/group-sheet.png) |
 | Templates | The generator that stats a creature when you need one | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/template-sheet.png) |
@@ -40,6 +42,8 @@ the next refresh.
 | Abilities | An ability item's sheet, with its rolls and mechanics | [guide](guides/abilities.md) | [v3.0.0](releases/v3.0.0/ability-sheet.png) |
 | Monster card | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/monster-card.png) |
 | Colour scheme | The per-player setting that holds the ACKS look steady | [guide](guides/appearance.md#pick-a-colour-scheme) | [v3.3.0](releases/v3.3.0/settings-colour-scheme.png) |
+| Masterwork tier | A shipped sample's Construction tab naming the tier it is, with the net effect against its base price | [guide](guides/equipment.md) | [v4.9.0](releases/v4.9.0/equipment-masterwork-tier.png) |
+| Compendium folder | Every ACKS pack — the modules' and the system's — gathered under one folder instead of loose at the root | [guide](guides/appearance.md) | [v4.9.0](releases/v4.9.0/lib-compendium-folder.png) |
 | Storage | Moving goods in and out of a place that holds them, and giving a character a vault | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-storage-manager.png) |
 | Storage messages | What a refused stow tells you, in words rather than an identifier | [guide](guides/location.md) | [v3.3.0](releases/v3.3.0/storage-message.png) |
 | Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-trade-tab.png) |

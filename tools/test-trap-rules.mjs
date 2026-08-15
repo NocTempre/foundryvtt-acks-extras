@@ -222,7 +222,10 @@ test("a pit deals a die per ten feet fallen", () => {
 });
 
 test("spikes at the bottom are 1d4 of them at 1d6 each", () => {
-  assert.equal(pitDamageFormula(20, true), "2d6 + 1d4 * 1d6");
+  // The nested count is the rule: 1d4 spikes, a d6 apiece. `1d4 * 1d6` would
+  // roll ONE d6 and scale it, which is a different distribution wearing the
+  // same numbers.
+  assert.equal(pitDamageFormula(20, true), "2d6 + (1d4)d6");
 });
 
 test("a trap that is not a pit has no pit damage at all", () => {
