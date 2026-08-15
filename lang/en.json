@@ -3116,5 +3116,10 @@
   "ACKS-VEHICLES.damage.governs.crew": "Casualties govern: she makes {factor} speed. Her crew is at {crew}; her hull would allow {hull}.",
   "ACKS-VEHICLES.damage.repair": "{repairable} point(s) can be put back at sea and {dockOnly} need a dock — {crew} hands per point per turn, {hands} aboard.",
   "ACKS-VEHICLES.damage.repairTurns": "That is {turns} turn(s), during which they do nothing else.",
-  "ACKS-VEHICLES.damage.repairNoHands": "Too few hands aboard to make even one gang."
+  "ACKS-VEHICLES.damage.repairNoHands": "Too few hands aboard to make even one gang.",
+  "ACKS-FORMATION.swimming.water.calm": "Calm water",
+  "ACKS-FORMATION.swimming.water.cold": "Cold water",
+  "ACKS-FORMATION.swimming.water.rough": "Rough or fast water",
+  "ACKS-FORMATION.swimming.encumbrance": "What they are carrying",
+  "ACKS-FORMATION.swimming.proficient": "Swimming proficiency"
 }

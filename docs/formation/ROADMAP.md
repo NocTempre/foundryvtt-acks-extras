@@ -28,7 +28,7 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 | Wandering monsters: throw, distance, minute (§10) | ✅ | Zone-keyed cadence/targets/tables; private table draws. |
 | Wandering monsters: number ±50% per level step, reaction modifier by level difference (§10) | ✅ (4.2.0) | The Encounter Zone carries a **dungeon level**, a table carries its **monster level** in a flag, and the draw is post-processed: number appearing ×1.5 per step deeper (×0.5 per step shallower, rounding up) and an equal, opposite reaction modifier, rolled and whispered. Nothing scales unless BOTH levels are set. |
 | Surprise & encounter procedure (§10.4–5) | 📖🔧 | Surprise mechanics and the reaction procedure live in the encounter chapter (RR p. 84 / p. 266 noise interaction) — not in the three PDFs. Supply those pages and this becomes automatable (party surprise roll vs monster, light-source penalties). |
-| Spelunking, squeezing, swimming, jumping (§11–12) | ✅ (4.2.0) | Obstacle helper over the Spelunking table: six obstacle kinds, each with its own permission (Adventuring 8+ or a real climbing proficiency), failure cost (a round, or a fall), botch row and vulnerability. Members who may NOT attempt are reported before anyone rolls. A fixed rope or supervising mountaineer turns a sheer face into an easy climb. One throw per 100'. Published on `api.formation.obstacles`. Swimming and jumping remain unmodelled. |
+| Spelunking, squeezing, swimming, jumping (§11–12) | ✅ (4.2.0) | Obstacle helper over the Spelunking table: six obstacle kinds, each with its own permission (Adventuring 8+ or a real climbing proficiency), failure cost (a round, or a fall), botch row and vulnerability. Members who may NOT attempt are reported before anyone rolls. A fixed rope or supervising mountaineer turns a sheer face into an easy climb. One throw per 100'. Published on `api.formation.obstacles`. Swimming is now its own derivation (`swimming.mjs`, published on `api.formation.swimming`) because it shares nothing with the table: its target is the swimmer's own encumbrance, it is thrown every round rather than per hundred feet, and failure is a drowning with its own sink rate, breath clock and rescue weight. It has no surface yet. Jumping remains unmodelled. |
 | Thief skills table (§13) | 🟡 | Captured in RULES.md; used implicitly once searching/trap automation reads real actor skill targets instead. |
 | Rations & daily upkeep (§14.8) | ✅ (v0.5.0) | Week rations now consume as 7 tracked uses before the item decrements. Day boundary remains delve-relative. |
 | Spell duration parsing | ✅ (v0.5.0) | "N turns" and "N turns per (caster) level" both parse, per-level multiplied by the caster's sheet level. |
@@ -68,9 +68,14 @@ Still unbuilt, in likely order:
 2. ~~Encounter scaling & reactions~~ — SHIPPED 4.2.0.
 3. ~~Obstacle helper~~ — SHIPPED 4.2.0 (climb and traverse; swimming and jumping still unmodelled).
 4. ~~Door helper~~ — SHIPPED 4.2.0, with spiking.
-5. Deploy members in marching-order file behind the party heading (deploy
-   currently rings them). Now one change, not two: the combat deploy and the
-   detach share `deployment.mjs`.
+5. **Deploy needs a HEADING, not a file.** The "deploy currently rings them"
+   note was stale: `formationOffset` already lays the block out in marching
+   order by frontage (`dx = index % frontage`), so a frontage of one is a
+   single file. What is missing is which way it points — the block always
+   extends right and down, so a party marching west trails its column east.
+   The party token already carries a `rotation`; snapping that to a cardinal
+   and rotating the offsets is the whole change, plus `blockOrigin`'s clamp,
+   which assumes span is horizontal and depth vertical and would swap with it.
 6. Formation templates (save/load marching orders); token HUD "form up" button.
 7. Wilderness/expedition mode — PARTLY UNBLOCKED. The wilderness chapter is now in hand: 4.4.0 added the movement-scale vocabulary (`lib/movement-scales.mjs`, published on `api.lib`) with the Expedition Speed table reproduced to all twelve rows, travel pace (dedicated / forced march ×3/2 / ancillary half), and terrain and road multipliers on `vehicles/vehicle-speed.mjs`. What remains is the MODE: a formation that knows which hex it is in, what ground it is crossing, and a day-scale clock beside the turn-scale one. The formation record has no `ground` field yet, so a party's vehicle currently travels at its printed pace rather than a terrain-adjusted one.
 8. Spell "per level" duration parsing (quick win, batch with the next release).

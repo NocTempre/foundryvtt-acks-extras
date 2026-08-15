@@ -42,6 +42,7 @@ import { installCoreXpSuppression } from "./xp-app.mjs";
 import * as xpShares from "./xp-shares.mjs";
 import * as doors from "./doors.mjs";
 import * as obstacles from "./obstacles.mjs";
+import * as swimming from "./swimming.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
@@ -239,6 +240,10 @@ Hooks.once("init", () => {
     // face costs, or how a level-3 table lands on level 5, should read the
     // rule from here rather than re-derive it.
     obstacles,
+    // Deep water is NOT one of the obstacles: its target is the swimmer's own
+    // encumbrance, it is thrown every round rather than per hundred feet, and
+    // failing it starts a drowning rather than costing progress.
+    swimming,
     encounterScaling,
     // Dividing adventure XP: full shares, henchman halves, and the mercenaries
     // and wagons that take none.
