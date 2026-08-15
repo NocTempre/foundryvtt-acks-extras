@@ -102,6 +102,11 @@ can always type one by hand.
 says "Swords" ticks *Swords & Daggers*, rather than leaving the words sitting in
 free text where nothing matches them.
 
+**The name follows the pick.** Choosing a selection renames the ability to
+carry it — *Weapon Focus* becomes *Weapon Focus (Swords & Daggers)* — so you
+never type the parenthesis yourself. Changing the pick rewrites the suffix
+instead of adding a second one, and clearing every box takes it off again.
+
 Fighting styles list the five the combat rules resolve. A sixth that the rules
 cannot place would be a choice that grants nothing, so it is not offered.
 

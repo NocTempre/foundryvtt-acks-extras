@@ -1468,6 +1468,30 @@ t("a pick the shortlist does not name stays free text", () => {
   assert.equal(vocab.matchSelectionKey(craft, "a"), null);
 });
 
+t("the (spec) suffix is derived from the pick, and replaced rather than stacked", () => {
+  const styles = vocab.SELECTION_VOCAB_BY_ABILITY.fightingstylespecialization;
+  // A template's own phrasing arrives written the way the shortlist names it.
+  assert.equal(
+    vocab.nameWithSelections("Fighting Style Specialization", ["weapon & shield"], styles),
+    "Fighting Style Specialization (Weapon & Shield)",
+  );
+  // Re-picking replaces the suffix; it never grows a second parenthesis.
+  assert.equal(
+    vocab.nameWithSelections("Fighting Style Specialization (Weapon & Shield)", ["missile"], styles),
+    "Fighting Style Specialization (Missile)",
+  );
+  // Clearing every pick takes the suffix off again.
+  assert.equal(
+    vocab.nameWithSelections("Fighting Style Specialization (Missile)", [], styles),
+    "Fighting Style Specialization",
+  );
+  // A pick the shortlist does not name is written as it was typed.
+  assert.equal(
+    vocab.nameWithSelections("Art/Craft", ["Woodcarving"], vocab.SELECTION_VOCAB_BY_ABILITY.artcraft),
+    "Art/Craft (Woodcarving)",
+  );
+});
+
 t("abilitySlug reads the cookbook id, else the name without its pick suffix", () => {
   assert.equal(vocab.abilitySlug(abilityWith("def.prof.weaponFocus")), "weaponfocus");
   assert.equal(vocab.abilitySlug({ name: "Weapon Focus (Swords)" }), "weaponfocus");

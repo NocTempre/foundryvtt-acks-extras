@@ -38,6 +38,13 @@ Labor and Performance carry `open: true`; anything outside the list goes in the
 free-text line, which is also what a cleared selection falls back to, so free
 entry is always available.
 
+**The "(spec)" suffix is derived, not typed.** The name is a display of the
+pick, so choosing one writes it and clearing them takes it off; an existing
+suffix is replaced rather than appended to, or re-picking stacks a second
+parenthesis onto the first. Labels rather than keys, because a name is read.
+Only abilities that HAVE a vocabulary are renamed — one with no picks to offer
+keeps whatever name it was given.
+
 **Matching is what makes a template import cleanly.** A cell's parenthesized
 selection is written verbatim, so the shortlist recognises the phrasings the
 books and templates actually use (`weapon & shield`, `2-handed weapon`, `Two

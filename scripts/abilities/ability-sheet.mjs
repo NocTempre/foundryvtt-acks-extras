@@ -10,7 +10,7 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { definitionId } from "../lib/capabilities.mjs";
-import AbilityExtras from "./ability-extras.mjs";
+import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
 import { keyOf, rollsOf, targetOf, scalesFor } from "./ability-rolls.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
 import { LANGUAGE_ACTIONS, slotsOf, onDropLanguage } from "./language-slots.mjs";
@@ -280,7 +280,10 @@ export function createAbilitySheet(Base) {
       // pick is matched loosely (case/punctuation folded), so imported free text
       // like "Swords" ticks the Swords & Daggers box instead of sitting in the
       // fallback and never matching anything.
-      const picks = (extras.selections ?? []).map((s) => String(s).trim()).filter(Boolean);
+      // Read through selectionsOf, never off `extras.selections` directly: it
+      // also absorbs the legacy "(X)" name suffix, which is how a pick granted
+      // by a template before the selection was stored still ticks its box.
+      const picks = selectionsOf(this.item);
       const vocab = V.selectionVocabFor?.(this.item, extras.category) ?? null;
       const matched = new Set();
       context.selectionOptions = vocab
@@ -480,6 +483,18 @@ export function createAbilitySheet(Base) {
         const merged = foundry.utils.mergeObject(stored, raw, { inplace: false, overwrite: true, insertKeys: true });
         // selections is authoritative from the form (an emptied list must stick).
         if (Array.isArray(raw.selections)) merged.selections = raw.selections;
+        // The "(spec)" suffix is DERIVED from the picks, never typed: choosing a
+        // selection renames the ability, and clearing the picks takes the suffix
+        // off again. Only when this ability HAS a vocabulary — an ability with
+        // no picks to offer keeps whatever name it was given.
+        if (Array.isArray(merged.selections)) {
+          const V = globalThis.acksExtras?.lib?.vocab;
+          const vocab = V?.selectionVocabFor?.(this.item, merged.category);
+          if (vocab && V?.nameWithSelections) {
+            const named = V.nameWithSelections(submitData.name ?? this.item.name, merged.selections, vocab);
+            if (named) submitData.name = named;
+          }
+        }
         try {
           foundry.utils.setProperty(submitData, path, AbilityExtras.normalize(merged));
         } catch (err) {

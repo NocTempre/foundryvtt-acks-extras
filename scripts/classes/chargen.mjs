@@ -21,7 +21,7 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 import { grantAbility, grantAdventuring } from "./grants.mjs";
-import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -244,7 +244,20 @@ async function grantRanked(actor, entry, report) {
   }
   const data = source.toObject();
   delete data._id;
-  if (entry.selection) data.name = `${data.name} (${entry.selection})`;
+  if (entry.selection) {
+    // A template's pick is DATA, not just a label. The name suffix is the
+    // family's display convention and stays, but the selection is also written
+    // where every consumer reads it — the sheet's boxes and the equipment
+    // bridge both read `extras.selections`, and a pick recorded only in the
+    // name is one each of them has to parse back out of it.
+    const flags = data.flags ?? {};
+    const mine = flags[MODULE_ID] ?? {};
+    data.flags = { ...flags, [MODULE_ID]: { ...mine, extras: { ...(mine.extras ?? {}), selections: [entry.selection] } } };
+    // The suffix is derived from the pick, so a template's own phrasing
+    // ("weapon & shield") arrives written the way the shortlist names it.
+    const vocab = selectionVocabFor(source, mine.extras?.category);
+    data.name = vocab ? nameWithSelections(data.name, [entry.selection], vocab) : `${data.name} (${entry.selection})`;
+  }
   const copies = Array.from({ length: Math.max(1, entry.rank || 1) }, () => foundry.utils.deepClone(data));
   await actor.createEmbeddedDocuments("Item", copies);
   report.granted.push(copies.length > 1 ? `${data.name} ×${copies.length}` : data.name);

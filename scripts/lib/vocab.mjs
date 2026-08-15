@@ -372,6 +372,29 @@ export function matchSelectionKey(vocab, pick) {
   return null;
 }
 
+/** How one pick is written for a reader: its vocabulary label, else itself. */
+export function selectionLabel(vocab, pick) {
+  const key = matchSelectionKey(vocab, pick);
+  return key ? vocab[key].label : String(pick ?? "").trim();
+}
+
+/**
+ * An ability's name carrying its own picks — "Weapon Focus (Swords & Daggers)".
+ *
+ * The "(X)" suffix is the family's display convention for a specialization, and
+ * it is DERIVED: a pick is chosen once, and the name follows it. Any existing
+ * suffix is replaced rather than appended to, so re-picking cannot stack a
+ * second parenthesis onto the first, and a name with no picks left loses it.
+ *
+ * Labels rather than keys, because this is the text a reader sees — a pick the
+ * shortlist does not name is written as it was typed.
+ */
+export function nameWithSelections(baseName, picks, vocab) {
+  const base = String(baseName ?? "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+  const labels = (picks ?? []).map((p) => selectionLabel(vocab, p)).filter(Boolean);
+  return labels.length ? `${base} (${labels.join(", ")})` : base;
+}
+
 /** Domains a `proficiencyGrant` effect covers (RR Combat: Combat Proficiencies). */
 export const PROFICIENCY_DOMAINS = {
   weapon: { label: "Weapon" },
