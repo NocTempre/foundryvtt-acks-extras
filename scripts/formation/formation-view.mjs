@@ -1,4 +1,5 @@
 /* global game, canvas, fromUuidSync */
+import { isCasualty, isDead } from "./formation-model.mjs";
 import {
   LIGHT_SOURCES,
   REST_INTERVAL,
@@ -87,6 +88,14 @@ export function buildFormationView(formation) {
       // Players steer their own characters: reorder + roles on owned members.
       owned,
       canControl: game.user.isGM || owned,
+      // A casualty's row says so, and offers the only two things that clear it.
+      casualty: isCasualty(actor, member),
+      // Leaving in place is offered to a casualty (who otherwise stops the
+      // column) and to anyone already out on the map — the camp, the parked
+      // wagons, the packs dropped before a fight.
+      canLeave: isCasualty(actor, member) || isMemberDeployed(member) || !!member.left,
+      dead: isDead(actor, member),
+      left: !!member.left,
       name: actor?.name ?? game.i18n.localize("ACKS-FORMATION.app.missingActor"),
       img: actor?.img ?? "icons/svg/mystery-man.svg",
       speed: memberSpeed,

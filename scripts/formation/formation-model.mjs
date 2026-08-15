@@ -326,6 +326,52 @@ export function isDown(actor) {
   return typeof hp === "number" && hp <= 0;
 }
 
+/**
+ * Dead, as opposed to merely down — and the difference decides two things that
+ * pull opposite ways.
+ *
+ * A DEAD member stays on the roster because the experience rule counts "all
+ * party members who returned to civilization, ALIVE OR DEAD" (RR ch. 6), and a
+ * body left in the dungeon does not stop being owed its share. But a corpse
+ * does not walk, and it does not stop the living from walking either: the
+ * party may carry it out or leave it, and neither choice changes their pace.
+ *
+ * An INCAPACITATED member is the opposite case. They are alive, they cannot
+ * walk, and abandoning them is a decision the party has to actually make — so
+ * an uncarried casualty stops the column rather than being silently stepped
+ * over.
+ *
+ * Read from the `dead` status the system marks, or from the member record when
+ * a Judge has said so directly.
+ */
+export function isDead(actor, member = null) {
+  if (member?.dead) return true;
+  return !!actor?.statuses?.has?.("dead");
+}
+
+/**
+ * Someone who can be a casualty at all.
+ *
+ * A wagon sits at zero hit points its whole life and is not wounded; nor is a
+ * mule, a summoned thing, or anything else that rides along without being a
+ * person. Only people can be incapacitated, and only people stop a column by
+ * being left where they fell.
+ */
+export const isPerson = (actor) => actor?.type === "character" || actor?.type === "monster";
+
+/** Down, alive, and not going anywhere on their own. */
+export const isIncapacitated = (actor, member = null) =>
+  isPerson(actor) && isDown(actor) && !isDead(actor, member);
+
+/**
+ * Dead or unconscious: either way these legs are worth nothing, and the party
+ * must carry them or leave them before it can move at all. The distinction
+ * between the two states matters elsewhere — to medicine, and to what a Judge
+ * tells the players — but not to arithmetic about walking.
+ */
+export const isCasualty = (actor, member = null) =>
+  isPerson(actor) && (isDown(actor) || isDead(actor, member));
+
 /** Exploration speed for an encumbrance total (RR speed tiers). */
 function encToExplorationSpeed(enc, strMod = 0) {
   if (enc <= 5) return 120;
@@ -342,7 +388,9 @@ function encToExplorationSpeed(enc, strMod = 0) {
  */
 export function carriedLoad(formation) {
   const members = realMembers(formation).map((m) => ({ member: m, actor: getMemberActor(m) }));
-  const down = members.filter((e) => isDown(e.actor));
+  // Casualties the party is actually hauling out. One it has left behind is
+  // lying where it fell and weighs on nobody.
+  const down = members.filter((e) => isCasualty(e.actor, e.member) && !e.member?.left);
   const carriers = members.filter((e) => !isDown(e.actor) && e.member.roles?.includes(ROLES.CARRIER));
   const totalStone = down.reduce(
     (sum, e) => sum + BODY_STONE + Number(e.actor?.system?.encumbrance?.value ?? 0) / 2,
@@ -410,7 +458,22 @@ export function partySpeed(formation) {
   const speeds = [];
   for (const member of realMembers(formation)) {
     const actor = getMemberActor(member);
-    if (!actor || isDown(actor)) continue;
+    if (!actor) continue;
+
+    // A casualty — dead or unconscious, it makes no difference to their legs —
+    // moves at nothing. The party moves at its slowest member, so one of them
+    // lying in the corridor stops the column, and that is the whole point: the
+    // party has to DECIDE.
+    //
+    // Two decisions clear it. Carry them, which costs the Carriers speed under
+    // the weight; or LEAVE them, which lets the column move on. A member left
+    // behind is skipped here but stays on the roster — they are still owed
+    // their share of the experience, whether they walked out or not.
+    if (isCasualty(actor, member)) {
+      if (member.left) continue;
+      if (load.carriers.length) continue; // somebody has them up
+      return 0;
+    }
     let speed;
     // Riding in or on ANYTHING — a wagon, a horse — means these legs are not
     // the ones setting the party's pace.

@@ -1269,10 +1269,32 @@ t("leashBreach: a scout may range one round ahead, and no further", () => {
 t("leashBreach: nothing to enforce is never a refusal", () => {
   const token = { parent: scene100 };
   const actor = { system: { movementacks: { combat: 40 } } };
-  // No anchor (not detached), and an actor with no readable speed: both must
-  // let the move through rather than invent a limit.
+  // No anchor (not detached), and an actor whose sheet states no speed at all:
+  // both must let the move through rather than invent a limit. An UNSTATED
+  // speed is a gap in the data, not a claim of immobility.
   assert.equal(leashBreach({}, token, { x: 9999, y: 0 }, actor), null);
   assert.equal(leashBreach({ detach: { anchor: { x: 0, y: 0 } } }, token, { x: 9999, y: 0 }, {}), null);
+});
+
+t("leashBreach: left in place has no leash, but immobile has no licence", () => {
+  const token = { parent: scene100 };
+  const anchored = { detach: { anchor: { x: 0, y: 0 } } };
+  const stuck = { system: { movementacks: { combat: 0, exploration: 0 } } };
+
+  // A member LEFT IN PLACE — a body on the floor, a camp, the parked wagons —
+  // is tethered to nothing, and the party may walk clean away.
+  assert.equal(leashBreach({ ...anchored, left: true }, token, { x: 99999, y: 0 }, stuck), null);
+  assert.equal(leashBreach({ ...anchored, left: true }, token, { x: 99999, y: 0 },
+    { system: { movementacks: { combat: 40 } } }), null, "and it outranks any speed they do have");
+
+  // But a member who merely CANNOT move does not thereby move freely: that is
+  // the cheese — forcing a speed to zero to slip the tether.
+  const frozen = leashBreach(anchored, token, { x: 900, y: 0 }, stuck);
+  assert.ok(frozen, "a stated zero speed refuses the move");
+  assert.equal(frozen.allowance, 0);
+  assert.equal(frozen.immobile, true);
+  // Standing still is always allowed, even at zero.
+  assert.equal(leashBreach(anchored, token, { x: 0, y: 0 }, stuck), null);
 });
 
 /* ---------------------------------------------------------------- */

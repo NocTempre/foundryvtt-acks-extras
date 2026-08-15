@@ -1,4 +1,5 @@
 /* global game, foundry, ui, fromUuidSync */
+import { dealExperience } from "./xp-app.mjs";
 import {
   addBlank,
   addMember,
@@ -26,7 +27,7 @@ import {
 import { rollPartyCheck } from "./party-rolls.mjs";
 import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
-import { toggleDetachMember } from "./deployment.mjs";
+import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
 import {
@@ -95,6 +96,59 @@ async function adjustTrackedSpell(app, target, delta) {
 }
 
 export const SHARED_ACTIONS = {
+  /**
+   * Divide an adventure's experience among the formation. Lives here rather
+   * than on core's party overview because the formation is this module's
+   * roster of record — and because core's own division counts only
+   * `character` actors at a flat share, which loses the henchman half and
+   * hands nothing to the Judge to check before it lands.
+   */
+  async dealXp() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await dealExperience(formation);
+    this.render?.();
+  },
+
+  /**
+   * Leave a casualty where they fell, or go back for them. A member left
+   * behind sets no pace and weighs on no Carrier, but stays on the roster and
+   * keeps their share of the experience — the party owes them that whether or
+   * not it brought the body out.
+   */
+  async toggleLeftBehind(event, target) {
+    const formation = gmFormation(this);
+    const actorId = target.closest("[data-actor-id]")?.dataset.actorId;
+    if (!formation || !actorId) return;
+    const member = formation.members.find((m) => m.actorId === actorId);
+    if (!member) return;
+    const leaving = !member.left;
+    member.left = leaving;
+    await updateFormation(formation);
+
+    // Leaving someone means leaving them SOMEWHERE. Their token drops onto the
+    // scene where the party stood, so the map shows the body and the party can
+    // find its way back; going back for them recalls it into the party token.
+    // They stay on the roster throughout — a member left behind is still owed
+    // their share of the experience.
+    //
+    // Deployed WITHOUT the detached flag on purpose: that flag arms the
+    // movement leash that keeps a scouting detachment near the party, and a
+    // body on the floor is not going to follow anybody. The party walks away,
+    // which is the entire point of leaving them.
+    //
+    // A combat has its own reasons for who is on the map, so this never
+    // touches the canvas mid-fight — the roster still records the decision.
+    if (!formation.combat?.active) {
+      if (leaving && !isMemberDeployed(member)) {
+        await deployMembers(formation, { members: [member] });
+      } else if (!leaving && isMemberDeployed(member)) {
+        await recallMembers(formation, { members: [member] });
+      }
+    }
+    this.render?.();
+  },
+
   async openSheet(event, target) {
     const actor = game.actors.get(target.closest("[data-actor-id]")?.dataset.actorId);
     actor?.sheet?.render(true);

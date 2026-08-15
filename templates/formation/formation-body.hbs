@@ -47,6 +47,11 @@
 
     {{#if isGM}}
     <div class="buttons">
+      {{#if canControl}}
+      <button type="button" data-action="dealXp" data-tooltip="{{localize 'ACKS-FORMATION.xp.hint'}}">
+        <i class="fa-solid fa-star"></i> {{localize "ACKS-FORMATION.xp.deal"}}
+      </button>
+      {{/if}}
       <button type="button" data-action="advanceTurn" data-tooltip="{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}">
         <i class="fa-solid fa-hourglass-half"></i> {{localize "ACKS-FORMATION.app.advanceTurn"}}
       </button>
@@ -199,7 +204,16 @@
         {{/if}}
       </li>
       {{else}}
-      <li data-actor-id="{{this.actorId}}" data-cell-index="{{this.cellIndex}}" class="member {{#if this.slowest}}slowest{{/if}}">
+      <li data-actor-id="{{this.actorId}}" data-cell-index="{{this.cellIndex}}" class="member {{#if this.slowest}}slowest{{/if}}{{#if this.casualty}} casualty{{/if}}{{#if this.left}} left-behind{{/if}}">
+        {{#if this.canLeave}}
+        <span class="acks-extras-formation-casualty"
+              data-tooltip="{{#if this.left}}{{localize 'ACKS-FORMATION.app.leftBehindHint'}}{{else}}{{localize 'ACKS-FORMATION.app.casualtyHint'}}{{/if}}">
+          <i class="fa-solid {{#if this.dead}}fa-skull{{else}}fa-heart-crack{{/if}}"></i>
+          {{#if this.canControl}}
+          <a data-action="toggleLeftBehind">{{#if this.left}}{{localize "ACKS-FORMATION.app.goBackFor"}}{{else}}{{localize "ACKS-FORMATION.app.leaveBehind"}}{{/if}}</a>
+          {{/if}}
+        </span>
+        {{/if}}
         <span class="rank">{{this.index}}</span>
         <img src="{{this.img}}" data-action="openSheet" alt="{{this.name}}" />
         <div class="info">

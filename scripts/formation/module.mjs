@@ -38,6 +38,8 @@ import { registerFuzzyRulers } from "./measure-fuzz.mjs";
 import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import { installDoorControl, openDoorApp } from "./door-app.mjs";
+import { installCoreXpSuppression } from "./xp-app.mjs";
+import * as xpShares from "./xp-shares.mjs";
 import * as doors from "./doors.mjs";
 import * as obstacles from "./obstacles.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
@@ -56,9 +58,22 @@ function openPartySheet() {
 
 
 Hooks.once("init", () => {
+  game.settings.register(MODULE_ID, "ownXpDealing", {
+    name: "ACKS-FORMATION.xp.settingName",
+    hint: "ACKS-FORMATION.xp.settingHint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   // The Walls layer gets a door tool: a door IS a wall, so that is where a
   // Judge already is when a stuck one stops the party.
   installDoorControl();
+  // Core's party overview deals XP by its own reckoning; with this module's
+  // formation as the roster of record the two would disagree, so core's
+  // button is hidden rather than left to argue. Off restores core untouched.
+  installCoreXpSuppression();
   /* --- Settings --- */
   game.settings.register(MODULE_ID, SETTING_FORMATIONS, {
     scope: "world",
@@ -225,6 +240,9 @@ Hooks.once("init", () => {
     // rule from here rather than re-derive it.
     obstacles,
     encounterScaling,
+    // Dividing adventure XP: full shares, henchman halves, and the mercenaries
+    // and wagons that take none.
+    xp: xpShares,
     ROLES,
     marchingOrder,
     open: openPartySheet,

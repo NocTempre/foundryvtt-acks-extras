@@ -132,7 +132,11 @@ export async function deployMembers(formation, { members = formation.members, de
     if (!wanted.has(member)) continue;
     if (isMemberDeployed(member)) continue; // already out
     const actor = getMemberActor(member);
-    if (isDown(actor)) continue; // the down are carried, not deployed
+    // A casualty is normally carried rather than deployed — but one the party
+    // has LEFT is exactly a body that belongs on the map, lying where it fell.
+    // Marking someone left is the one thing that puts a down member's token on
+    // the canvas.
+    if (isDown(actor) && !member.left) continue;
     if (isStackMember(member)) {
       // Held out of the individuals' batch: the group model does its own batched
       // creation, once per stack, after theirs.
@@ -350,6 +354,15 @@ export function oneRoundFeet(actor) {
   return Number.isFinite(exploration) && exploration > 0 ? exploration / 3 : 0;
 }
 
+/**
+ * Does this sheet state a speed at all? A stated zero is immobility; nothing
+ * stated is a gap in the data, and the two must not be read alike.
+ */
+function statesASpeed(actor) {
+  const m = actor?.system?.movementacks;
+  return Number.isFinite(Number(m?.combat)) || Number.isFinite(Number(m?.exploration));
+}
+
 /** Distance in scene units between two token positions. */
 function feetBetween(scene, a, b) {
   return (Math.hypot(b.x - a.x, b.y - a.y) / scene.grid.size) * scene.grid.distance;
@@ -362,7 +375,12 @@ function feetBetween(scene, a, b) {
  * predicate over geometry and one speed — no world state, so the offline tests
  * exercise the real arithmetic instead of a copy of it.
  *
- * @param {object} member the formation member record (carries `detach.anchor`)
+ * A member LEFT IN PLACE has no leash; one that simply cannot move has no
+ * licence to move. Those are different answers to a zero speed, and conflating
+ * them is what let an immobilised token wander.
+ *
+ * @param {object} member the formation member record (carries `detach.anchor`
+ *   and `left`)
  * @param {TokenDocument} tokenDoc the token being moved (for its scene grid)
  * @param {{x: number, y: number}} target where it is being moved to
  * @param {Actor} actor the member's actor, for its per-round speed
@@ -374,8 +392,29 @@ export function leashBreach(member, tokenDoc, target, actor) {
   const anchor = member?.detach?.anchor;
   const scene = tokenDoc?.parent;
   if (!anchor || !scene) return null;
+
+  // LEFT IN PLACE: no leash at all. This one flag covers everything the party
+  // deliberately stops bringing along — a casualty on the floor, a standing
+  // camp, the wagons parked at the treeline, the packs dropped before a fight.
+  // None of them are following anybody, so tethering them to the party's
+  // position is meaningless, and the party walking away is the entire point.
+  if (member.left) return null;
+
   const allowance = oneRoundFeet(actor);
-  if (allowance <= 0) return null;
+  // Immobile and NOT left in place is a contradiction the leash must not
+  // reward: something that cannot move must not thereby become able to move
+  // anywhere. Treating a zero allowance as "no limit" is exactly the wrong way
+  // round, and is how a member forced to 0 would slip the tether entirely.
+  //
+  // But a speed that is ABSENT is not a speed of zero — it is a sheet that
+  // never said. An unstated speed invents no limit, exactly as before; only a
+  // stated zero freezes.
+  if (allowance <= 0) {
+    if (!statesASpeed(actor)) return null;
+    const distance = feetBetween(scene, anchor, target);
+    return distance > 0 ? { distance, allowance: 0, immobile: true } : null;
+  }
+
   const distance = feetBetween(scene, anchor, target);
   return distance > allowance ? { distance, allowance } : null;
 }
