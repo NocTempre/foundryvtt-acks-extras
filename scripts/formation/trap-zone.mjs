@@ -49,6 +49,15 @@ const loc = makeLoc(LANG_PREFIX);
 
 export const TRAP_ZONE_TYPE = `${MODULE_ID}.trapZone`;
 
+/**
+ * Update option marking a token write as the trap's own halt.
+ *
+ * The movement hook must ignore it. A halt is not the party walking, so it
+ * costs no dungeon turns and — the reason this exists at all — must not start
+ * a second trap check while the first is still resolving.
+ */
+export const HALT_OPTION = `${MODULE_ID}.trapHalt`;
+
 /* -------------------------------------------- */
 /*  The zone, as data                           */
 /* -------------------------------------------- */
@@ -167,11 +176,15 @@ export async function livePlacement(formation, { from = null, to = null } = {}) 
     const half = { x: (token.width * gs) / 2, y: (token.height * gs) / 2 };
     const path = [from, to].map((p) => ({ x: p.x + half.x, y: p.y + half.y }));
     const crossed = trapWallsCrossed(token.parent, path[0], path[1]).find((h) => h.trap.state === STATES.armed);
-    if (crossed) return { placement: wallPlacement(crossed.wall), haltAt: crossed.at };
+    // `approach` is where the party came from, in the same centre coordinates —
+    // it is what lets the halt pull up on the NEAR side of the line.
+    if (crossed) return { placement: wallPlacement(crossed.wall), haltAt: crossed.at, approach: path[0] };
   }
   const zone = findTrapZone(formation);
-  if (zone && zone.behavior.system.state === STATES.armed) return { placement: zonePlacement(zone), haltAt: null };
-  return { placement: null, haltAt: null };
+  if (zone && zone.behavior.system.state === STATES.armed) {
+    return { placement: zonePlacement(zone), haltAt: null, approach: null };
+  }
+  return { placement: null, haltAt: null, approach: null };
 }
 
 /* -------------------------------------------- */
@@ -256,7 +269,7 @@ async function searchAhead(order, { crude = false } = {}) {
  * @returns {Promise<{outcome: string, victims?: object[]}|null>}
  */
 export async function runTrapCheck(formation, { from = null, to = null } = {}) {
-  const { placement, haltAt } = await livePlacement(formation, { from, to });
+  const { placement, haltAt, approach } = await livePlacement(formation, { from, to });
   if (!placement) return null;
   const trap = await trapFor(placement);
   if (!trap) return null;
@@ -275,7 +288,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   rolls.push(...search.rolls);
   if (search.found) {
     await placement.write({ state: STATES.found });
-    await haltParty(formation, haltAt);
+    await haltParty(formation, haltAt, approach);
     await whisper(
       renderRollCard({
         title: loc("foundTitle"),
@@ -332,7 +345,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   }
 
   const caught = victimsOf(probes, sprungAt, { scope: cfg.scope, radiusFeet: cfg.radiusFeet });
-  await haltParty(formation, haltAt);
+  await haltParty(formation, haltAt, approach);
   return fireTrap(formation, placement, trap, caught, {
     preface: [
       ...(search.rows.length ? [{ title: loc("searchSection"), rows: search.rows }] : []),
@@ -354,17 +367,40 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
  * A region has no crossing point and needs no halt: the party is standing in
  * the thing already.
  */
-async function haltParty(formation, haltAt) {
+/** How far short of the line the party pulls up, in pixels. */
+const HALT_CLEARANCE = 4;
+
+async function haltParty(formation, haltAt, from = null) {
   if (!haltAt) return;
   const token = getPartyToken(formation);
   if (!token) return;
   const gs = token.parent.grid.size;
+
+  // Stop just SHORT of the line, on the near side. Halting exactly on it looks
+  // like the party is standing in the tripwire, and leaves them somewhere every
+  // subsequent step departs from — which is a trap sprung again on the way out.
+  let { x, y } = haltAt;
+  if (from) {
+    const dx = haltAt.x - from.x;
+    const dy = haltAt.y - from.y;
+    const len = Math.hypot(dx, dy);
+    if (len > HALT_CLEARANCE) {
+      x -= (dx / len) * HALT_CLEARANCE;
+      y -= (dy / len) * HALT_CLEARANCE;
+    }
+  }
+  haltAt = { x, y };
   // The crossing is where the token's CENTRE met the line; back the top-left
   // corner out of it, and pull up just short so the party stops ON the near
   // side rather than straddling it.
+  //
+  // `HALT_OPTION` marks this write as the trap's OWN. Without it the update
+  // re-enters the movement hook, which starts a second trap check against a
+  // trap this one has not finished spending yet — the party takes the damage
+  // twice, gets two cards, and pays dungeon turns for a step it did not walk.
   await token.update(
     { x: Math.round(haltAt.x - (token.width * gs) / 2), y: Math.round(haltAt.y - (token.height * gs) / 2) },
-    { animate: false },
+    { animate: false, [HALT_OPTION]: true },
   );
   formation.clock.lastPosition = { x: token.x, y: token.y };
   await updateFormation(formation);

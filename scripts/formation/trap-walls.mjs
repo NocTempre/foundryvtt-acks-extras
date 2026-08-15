@@ -1,4 +1,4 @@
-/* global game, canvas, ui, fromUuid, Hooks */
+/* global game, canvas, ui, fromUuid, Hooks, CONST */
 import { MODULE_ID, TRAP_ITEM_TYPE } from "./constants.mjs";
 import { STATES } from "./trap-rules.mjs";
 
@@ -39,6 +39,8 @@ export function wallTrap(wall) {
     trapUuid: f.trapUuid ?? "",
     state: Object.values(STATES).includes(f.state) ? f.state : STATES.armed,
     repeatLock: f.repeatLock ?? {},
+    // The restrictions laying the trap suppressed, to be put back when it goes.
+    restore: f.restore ?? null,
   };
 }
 
@@ -50,9 +52,52 @@ export async function setWallTrap(wall, patch) {
   return wall.setFlag(MODULE_ID, TRAP_FLAG, { ...(wallTrap(wall) ?? {}), ...patch });
 }
 
-/** Take the trap layer off a wall, leaving the wall itself untouched. */
+/**
+ * Take the trap layer off a wall, putting back whatever the trap suppressed.
+ *
+ * A trap line the Judge drew is a wall that was opened up to lay the trap on
+ * (below); removing the trap has to close it again, or the corridor keeps a
+ * silent hole where a trap used to be.
+ */
 export async function clearWallTrap(wall) {
+  const restore = wallTrap(wall)?.restore;
+  if (restore) await wall.update(restore);
   return wall.unsetFlag(MODULE_ID, TRAP_FLAG);
+}
+
+/**
+ * Open a wall up so the trap on it obstructs nothing.
+ *
+ * A tripwire is not a barrier. The Judge draws a wall segment because that is
+ * the only way to say "across here", and the trap tool then has to undo the
+ * one thing a wall does — otherwise laying a trap across a corridor walls the
+ * corridor off, and the party cannot reach the trap to spring it.
+ *
+ * **A door is left exactly as it is.** The book's most famous trap is a needle
+ * in a door handle, and a trapped door has to go on being a door: it still
+ * blocks, still opens, still takes a bash. The trap rides along.
+ *
+ * What was suppressed is recorded so `clearWallTrap` can put it back — a wall
+ * quietly stripped of its restrictions and never restored is a hole nobody
+ * knows they made.
+ */
+function openingPatch(wall) {
+  if (Number(wall.door) > 0) return null; // a door keeps every restriction
+  const none = CONST.WALL_SENSE_TYPES.NONE;
+  const patch = {};
+  const restore = {};
+  for (const [key, value] of Object.entries({
+    move: CONST.WALL_MOVEMENT_TYPES.NONE,
+    sight: none,
+    sound: none,
+    light: none,
+  })) {
+    if (wall[key] !== value) {
+      patch[key] = value;
+      restore[key] = wall[key];
+    }
+  }
+  return Object.keys(patch).length ? { patch, restore } : null;
 }
 
 /* -------------------------------------------- */
@@ -92,7 +137,14 @@ export async function layTrapOnSelection({ trapUuid = "" } = {}) {
       else skipped++;
       continue;
     }
-    await setWallTrap(wall, { trapUuid, state: STATES.armed, repeatLock: {} });
+    const opening = openingPatch(wall);
+    if (opening) await wall.update(opening.patch);
+    await setWallTrap(wall, {
+      trapUuid,
+      state: STATES.armed,
+      repeatLock: {},
+      restore: opening?.restore ?? null,
+    });
     added++;
   }
   ui.notifications?.info(game.i18n.format("ACKS-FORMATION.traps.laid", { added, skipped }));
@@ -231,7 +283,10 @@ export function segmentCrossing(from, to, seg) {
   if (!denom) return null; // parallel, including both degenerate
   const t = ((x1 - from.x) * sy - (y1 - from.y) * sx) / denom;
   const u = ((x1 - from.x) * ry - (y1 - from.y) * rx) / denom;
-  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  // `t > 0`, not `t >= 0`: a party STARTING on the line has not crossed it by
+  // stepping away. Without this, a party halted at a trap springs it again on
+  // its next move, in either direction, forever.
+  if (t <= 0 || t > 1 || u < 0 || u > 1) return null;
   return { x: from.x + t * rx, y: from.y + t * ry, t };
 }
 
@@ -298,12 +353,17 @@ export function wallNear(scene, x, y, reach) {
  */
 export async function assignTrapToWall(wall, trap) {
   const existing = wallTrap(wall);
+  // A wall that is only now becoming a trap is opened up, exactly as the tool
+  // opens it; one that already carried a trap keeps whatever it kept.
+  const opening = existing ? null : openingPatch(wall);
+  if (opening) await wall.update(opening.patch);
   await setWallTrap(wall, {
     trapUuid: trap.uuid,
     // Re-arm only when this wall was not already a trap: reassigning the trap
     // on a spent one is the Judge correcting the definition, not resetting it.
     state: existing?.state ?? STATES.armed,
     repeatLock: existing?.repeatLock ?? {},
+    restore: existing?.restore ?? opening?.restore ?? null,
   });
   ui.notifications?.info(game.i18n.format("ACKS-FORMATION.traps.assigned", { trap: trap.name }));
 }

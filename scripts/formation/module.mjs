@@ -13,9 +13,33 @@ import {
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
 import { SETTING_ABILITY_OVERRIDES, initLadders } from "./ability-bridge.mjs";
 import { registerEncounterZone } from "./encounter-zone.mjs";
-import { registerTrapZone, runTrapCheck } from "./trap-zone.mjs";
-import { installTrapControls, installTrapDrop } from "./trap-walls.mjs";
-import { installTrapMarkers } from "./trap-markers.mjs";
+import {
+  HALT_OPTION,
+  TRAP_ZONE_TYPE,
+  attemptDisarm,
+  attemptRearm,
+  findTrapZone,
+  livePlacement,
+  registerTrapZone,
+  resetTrap,
+  runTrapCheck,
+  trapFor,
+  wallPlacement,
+  zonePlacement,
+} from "./trap-zone.mjs";
+import {
+  assignTrapToWall,
+  clearWallTrap,
+  installTrapControls,
+  installTrapDrop,
+  layTrapOnSelection,
+  regionFromSelection,
+  setWallTrap,
+  trapWallsCrossed,
+  wallTrap,
+} from "./trap-walls.mjs";
+import { installTrapMarkers, refreshTrapMarkers } from "./trap-markers.mjs";
+import * as trapRules from "./trap-rules.mjs";
 import TrapData from "./data/trap-data.mjs";
 import TrapSheet from "./trap-sheet.mjs";
 import {
@@ -279,8 +303,38 @@ Hooks.once("init", () => {
      * `openDoorApp(wall)`. A trap module wanting to spike a door shut, or to
      * ask what forcing one would take, calls these rather than re-deriving the
      * modifiers.
+     *
+     * 3 adds `traps` — the §7 rule and the placements it runs on. The pure half
+     * (`probeSequence`, `victimsOf`, `disarmPlan`, `firingPlan`, the botch
+     * bands, the repeat lock) computes without dice or documents; the rest
+     * (`runTrapCheck`, `attemptDisarm`, `attemptRearm`, `layTrapOnSelection`,
+     * `regionFromSelection`) is the live surface a macro drives. Published for
+     * the same reason doors are: the alternative is a second derivation of the
+     * same rule somewhere else.
      */
-    apiVersion: 2,
+    apiVersion: 3,
+    traps: {
+      ...trapRules,
+      runTrapCheck,
+      attemptDisarm,
+      attemptRearm,
+      resetTrap,
+      findTrapZone,
+      zonePlacement,
+      wallPlacement,
+      livePlacement,
+      trapFor,
+      layTrapOnSelection,
+      regionFromSelection,
+      assignTrapToWall,
+      wallTrap,
+      setWallTrap,
+      clearWallTrap,
+      trapWallsCrossed,
+      refreshTrapMarkers,
+      TRAP_ITEM_TYPE,
+      TRAP_ZONE_TYPE,
+    },
     doors: { ...doors, openDoorApp },
     // The Spelunking table and the wrong-floor encounter adjustment, published
     // for the same reason as doors: a companion module asking what a sheer
@@ -407,6 +461,10 @@ Hooks.on("deleteActor", (actor) => {
 
 Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   if (!("x" in changes) && !("y" in changes)) return;
+  // A trap halting the party moves its token. That is not the party walking:
+  // it costs no turns, and re-entering the trap check here would resolve the
+  // same trap a second time before the first pass has spent it.
+  if (options?.[HALT_OPTION]) return;
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId) return;
   // Only the active GM client runs the automation, regardless of who moved the token.

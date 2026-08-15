@@ -316,6 +316,20 @@ test("a path running alongside a line never crosses it", () => {
   assert.equal(segmentCrossing({ x: 0, y: 10 }, { x: 100, y: 10 }, [0, 0, 100, 0]), null);
 });
 
+test("a party standing ON the line has not crossed it by stepping away", () => {
+  // The halt leaves the party at the trap. Counting the departure as a crossing
+  // springs the trap again on the way out, in either direction, forever.
+  assert.equal(segmentCrossing({ x: 50, y: 0 }, { x: 50, y: -100 }, [0, 0, 100, 0]), null);
+  assert.equal(segmentCrossing({ x: 50, y: 0 }, { x: 50, y: 100 }, [0, 0, 100, 0]), null);
+});
+
+test("arriving exactly on the line still counts as crossing it", () => {
+  // Walking INTO the tripwire and stopping dead on it is a crossing; only
+  // starting there is not.
+  const at = segmentCrossing({ x: 50, y: -50 }, { x: 50, y: 0 }, [0, 0, 100, 0]);
+  assert.equal(at.t, 1);
+});
+
 test("a path missing the line's extent does not cross it", () => {
   // Passes through y=0, but beyond the far end of the segment.
   assert.equal(segmentCrossing({ x: 300, y: -50 }, { x: 300, y: 50 }, [0, 0, 100, 0]), null);
