@@ -16,14 +16,6 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   types beyond arcane/divine (ceremonial, gnostic, alchemy, eldritch,
   fairie — each its own `magicTypes` row from its book), and the boosted
   Arcane + Elf/Zaharan 5–8 rows.
-- ~~**Racial power name resolution**~~ — SHIPPED (importer 2.8.0). A rung's
-  powers no longer resolve by exact printed name alone: a name the world does
-  not hold goes through the importer's `powerSource` register, which records
-  what a spread PRINTS beside the definition it means. That closes "Hardy" →
-  `def.power.hardyPeople` and both Tongues → `def.power.giftOfTongues`, which
-  is the name of no definition at all. A name several definitions answer to
-  (nine classes print their own "Renown") still resolves to nothing rather
-  than to a guess, and stays in the rung's note.
 - **Builder fidelity still open** — trade-off ELECTIONS are recorded as
   prose in `builder.notes` (the Ready-for-Play paragraphs name them; the
   Judge ticks the boxes by hand); custom-power EFFECTS (a chosen power
@@ -33,22 +25,12 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
 - **Sheet editors for casting and templates** — both are stored and preserved
   now; the constructor tabs that edit them arrive with the phases that
   consume them.
-- ~~**Roll-editor progression picker**~~ — BUILT. The editor offers
-  `progression` among its target kinds and pickers for both halves: the four
-  chassis plus every class document the world holds, and the fraction of level
-  to read them at. A throw is named ("as a fighter of half his level") instead
-  of retyped as rungs.
 - **The instance layer, fully** — a skinned item records which generic it is
   an example of (`flags.skin.base/baseName/descriptor`), and the importer now
   splits counted containers and known-equipment pairs; still unbuilt: the
   embellishment parsed apart from the base ("iron-shod", the spells a
   spellbook carries as linked spell items) and a sheet surface that shows
   "instance of <base>".
-- ~~**Prose editors**~~ — BUILT. Description and code-of-behavior are
-  `<prose-mirror>` on both the class and race sheets, enriched for display and
-  editing in place; no textarea survives in any template. The one prose field
-  still typed as a single line is `builder.notes`, which holds the
-  Ready-for-Play trade-off paragraph — see the fidelity item above.
 - **Reaching chargen again after the first write** — the Scores Generator is
   offered only while the system considers a character new (`system.isNew`,
   which core clears on the first update touching scores), so a character built

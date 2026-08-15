@@ -119,6 +119,22 @@ and scoped to `.acks-ui`, so palette mode leaves core's width alone. Note the
 class is `actor-v2` — the system's v2 actor sheet does not also carry a bare
 `.actor`, so a selector written that way is inert.
 
+**An open editor is a mode, not a column.** `styles/lib.css` keys on core's own
+`prose-mirror[open]`, so any container holding an open rich-text editor spans
+its whole row and the toolbar wraps instead of clipping. ProseMirror's menubar
+wants roughly 870px; inside a multi-column layout it loses every control to
+overflow, and the fix belongs to the family's windows rather than to whichever
+card hit it first.
+
+**The theme dresses fields at (0,4,2), and reaches only `.acks` windows.**
+`body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"])`
+sets colour, background and border. A component rule that colours an input
+while leading with its own class tops out at (0,4,1) and loses — silently, and
+only for the properties the theme also sets, so the rest of the rule lands and
+the loss reads as "that rule does nothing". A component that must win restates
+itself under `body.acks-lib-sheet-theme`. `select` is not claimed by that rule
+and never competes with it.
+
 **Tokens are published once.** Light at `:root`, dark at a single override block.
 Nothing else declares a palette value — a second publisher at higher specificity
 out-scopes the dark block, which is how a component ends up rendering four ways.

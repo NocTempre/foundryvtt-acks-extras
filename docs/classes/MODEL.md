@@ -110,6 +110,14 @@ builder spends the bound race's ladder; a simple-mode imported class may
 bind one so its racial identity lives on the race document rather than
 being restated per class.
 
+A rung stores each power as a REF, and the sheet resolves it to a name for
+display — so a rung may point at a definition the world has not imported yet
+and light up when it arrives. Refs written by import come from acks-importer,
+which resolves the name a race spread PRINTS ("Hardy") to the definition it
+means (`def.power.hardyPeople`); a name it cannot place unambiguously stays
+in the rung's note instead. Whatever a name means is that module's business,
+recorded in its own DECISIONS.
+
 ## The registry
 
 [scripts/classes/registry.mjs](../../scripts/classes/registry.mjs) publishes
