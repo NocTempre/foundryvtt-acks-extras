@@ -343,3 +343,100 @@ across this repo's option bags: `Number(null)` is **zero, not NaN**, so a plain
 uncapped score at 0 and answering every modifier with 0. `given()` distinguishes
 "not supplied" from "supplied as zero"; both are meaningful here and they are
 not the same.
+
+### 2026-08-15 — The marching-order API is guarded at the boundary, not renamed
+
+The 4.8.0 release session reached this API from macros and got it wrong four
+times: `saveTemplate`'s arguments reversed, an id handed to `applyTemplate`
+where it wanted the order object, and its persistence assumed to be a dry run.
+Every one of those looked like a module bug from the outside and none of them
+was. An API misused four times by someone who had just written it is not a
+documentation problem.
+
+**Ruled:** the boundary guards itself. The applying calls take an order or its
+id interchangeably, because both are things a caller legitimately holds and
+converting between them was pure ceremony. A reversed pair is detected on the
+SECOND argument looking like a formation — one rule that catches
+`saveTemplate(name, formation)` and `applyTemplate(order, formation)` alike —
+and says so in those words. Everything that writes says it writes, in its own
+docstring, next to the signature the caller is reading.
+
+**Rejected: the options bag.** `{formation, template}` would have made every
+mistake impossible instead of merely loud, but it breaks every macro written
+against 4.8.0 to fix a problem that only the module's own author has hit. A
+fix-driven release is the wrong place to spend a world's macros.
+
+**Rejected for now: the rename.** The deeper cause is the word. This file's own
+header already concedes that *template* belongs to the Monster Manual generator
+and says the feature is called a marching order — but the exported symbols were
+never moved, and `applyTemplate` is ALSO a chargen export
+(`scripts/classes/chargen.mjs`) taking `(actor, classItem, template)`. Two
+same-named exports with different signatures in one module family is most of
+why the second misuse happened at all. `saveMarchingOrder` / `applyMarchingOrder`
+is the real repair, and it is a deprecation cycle, not a guard: it belongs to a
+release that is allowed to move names, not to one whose bump was earned by a
+trap behaviour. Left open on the roadmap rather than half-done here.
+
+**What it cost.** The guards throw where the old code silently half-worked, so a
+macro that was quietly saving empty orders now fails loudly on the next run.
+That is the intent — but it is a behaviour change for anyone whose broken macro
+had gone unnoticed, which is exactly the population that cannot know to look.
+
+### 2026-08-15 — A trap is a document; the region and the wall only place it
+
+Trap Zones needed somewhere to keep what a trap IS. The obvious place was the
+region behavior, and that was wrong twice over: the Judge's book prints eleven
+worked traps at six levels each, and those numbers are book content with an
+owner — they reach a world through `acks-importer`, from the GM's own copy,
+exactly as the thief ladders and the Spelunking table do. A behavior schema is
+not something an importer can materialize into, and a trap typed into a region
+cannot be used in a second corridor without being typed again.
+
+**Ruled:** a trap is an Item sub-type (`acks-extras.trap`) carrying the
+definition, and a placement — a region behavior or a wall's trap layer — carries
+a reference to one plus the state of that particular burial. The definition is
+shared; being armed, spotted or spent belongs to the place, not to the idea of a
+scything blade. Hand creation is a first-class path and not a fallback: nothing
+requires the importer to have run.
+
+**What the module knows and does not.** It knows the SHAPE of §7 — that a trap
+resolves as a saving throw, an attack throw or damage with no throw; that a
+crude one is +4 to find and remove, attacks at -2 and is saved against at +2;
+that a pit deals a die per ten feet and its spikes 1d4 at 1d6 each; that the
+trigger is 1d6 and the band is adjustable. It holds none of the eleven traps,
+none of their damage by level, and no fighter attack progression — `attackThrow`
+stores the number the Judge read in their own book rather than deriving it from
+a level. Same ruling the ladders got.
+
+**A RAW correction this turned up.** The row this closes called for "Trapfinding
+/ Trapbreaking throws". Trapfinding is not a throw: it is a proficiency worth +2
+on Searching *and* Trapbreaking (RR p. 121), and `party-rolls.mjs` already
+applied it. The finding throw is the hasty Search the party already had. Nothing
+new was needed on the finding side at all — only wiring it in ahead of the
+trigger, which is the order the sequence of play gives (§9.3: searchers first,
+then the pole, then the party).
+
+**What it cost.** A world upgrading gains an Item sub-type, which Foundry will
+not create until the world is relaunched after the manifest changes. A Judge who
+adds the module mid-session and immediately tries to make a trap gets a failure
+that looks like a bug and is not.
+
+### 2026-08-15 — A trap wall blocks nothing and stops the party anyway
+
+A trap laid along a wall could have been made a barrier — set the wall's
+movement restriction and let core stop the token. Rejected: a tripwire is not a
+wall, and a party that has already dealt with the trap would still be walking
+into an invisible obstruction. Worse, it would change what the wall does for
+every other purpose, and the most useful place to put a trap is a door that has
+to go on working as a door.
+
+**Ruled:** the trap layer restricts nothing — movement, sight and sound pass as
+before — and the halt is applied on DETECTION instead. The crossing point is
+computed from the party's path, and the party is placed there when the trap
+springs or is spotted. That also fixes the thing a barrier could never do:
+without it, the party is told about a tripwire three squares after stepping over
+it, because the movement hook fires on arrival.
+
+**A consequence worth naming:** a trap wall is invisible to the party in every
+sense, so the Judge needs to see it. The markers follow the secret door — the
+player's client draws nothing at all, and the Judge's shows the state.

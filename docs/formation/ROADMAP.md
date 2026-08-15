@@ -22,7 +22,7 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 | Searching & listening throws (§5) | ✅ (v0.5.0) | Party-roll buttons (Listen / Hasty Search / Methodical Search / Bash Door) roll every member using **their sheet's numbers** — a matching ability item's rollTarget (thief skills) first, else the sheet's Adventuring target — GM-whispered as one card. RAW enforced: hasty search skill-only, methodical +4 for skill users and auto-consumes 1 turn, listening once per turn while moving, bashing ±4×STR. |
 | Earshot / noise (§5) | 📖 tables captured; automation impractical (Judge adjudication). |
 | Doors: bash/pick/batter procedures (§6) | ✅ (4.2.0) | Door helper on the Walls layer: the bash throw shown BEFORE it is rolled and broken into its parts (±4/STR, +4 for a pair on the stronger adjustment, +2 crowbar, ±8 per size step), an unwinnable throw named as such, batter-down turns by construction, and SPIKES as real state — one round each, four maximum, -4 to force per spike after the first, torn out when the door is forced. Published on `api.formation.doors`. |
-| Traps: trigger 1d6, pole probing, disarm throws (§7) | 🔧 | The biggest unautomated delve rule, and now this feature's own work (§3.1). Trap Regions reusing the Encounter Zone pattern — a "Trap Zone" behavior watching party movement, rolling the secret 1d6 (1–2 triggers), crediting the Pole role (5' ahead) and the Scout's auto-hasty-search, and selecting victims by marching order. The natural next region behavior after zones. |
+| Traps: trigger 1d6, pole probing, disarm throws (§7) | ✅ (4.9.0) | The whole of §7. A trap is an Item; a Trap Zone region or a wall's trap layer places one. Searchers throw first (§9.3), then the pole 5' ahead of its bearer, then the party on the secret 1d6 — victims by marching order, or by area. Hasty/Methodical Trapbreaking with their botch bands, disarm-or-discharge, re-arming, and the repeat lock. The printed traps arrive through `acks-importer`, which has no recipe yet. |
 | Rest & winded (§8) | ✅ | Includes Endurance exemption and combat rounds counting. |
 | Sequence of play (§9) | ✅/🟡 | Steps 1, 5 automated; steps 2–4 (stationary actions, traps, deliberate encounters) are GM-driven with helpers. |
 | Wandering monsters: throw, distance, minute (§10) | ✅ | Zone-keyed cadence/targets/tables; private table draws. |
@@ -64,7 +64,28 @@ Still unbuilt, in likely order:
 
 ## 3. Other parked ideas (from DESIGN.md), re-prioritized
 
-1. **Trap Zones — traps come home to this feature** (owner ruling 2026-08-14, superseding the separate-module design). A Trap Zone region behavior beside the Encounter Zone, reading the formation directly rather than through the published contract: the secret 1d6 (1–2 triggers), the Pole role probing 5' ahead, the Scout's automatic hasty search, victim selection by marching order, and the Trapfinding / Trapbreaking throws. The pieces it needs already exist here — `rollPartyCheck` and `PARTY_CHECKS` for the throws, `marchingOrder()` for who walks into it, and the door helper's parts-shown-before-the-roll shape for how a throw should read. `api.formation` (apiVersion 2) stays published regardless: it is a compatibility surface now, not scaffolding for this.
+1. ~~**Trap Zones — traps come home to this feature**~~ — SHIPPED 4.9.0, as the
+   whole of §7. A trap is an Item sub-type (`acks-extras.trap`) holding the
+   definition; a **Trap Zone** region behavior or a **trap layer on a wall**
+   places one. The sequence is the sequence of play's: searchers throw first,
+   then the 10' pole probing 5' ahead of its bearer, then the party rank by
+   rank on the secret 1d6 — victims by marching order, or by area for the traps
+   that take everything within reach. Hasty and Methodical Trapbreaking with
+   their botch bands, the disarm-or-discharge choice, re-arming, and the
+   "cannot repeat until higher level" lock. Crude traps and the adjustable
+   trigger band are in; the eleven printed traps are NOT, and arrive through
+   `acks-importer`. See [DECISIONS.md](DECISIONS.md).
+
+   Two corrections to what this row used to say. **Trapfinding is not a throw**
+   — it is +2 on Searching and Trapbreaking (RR p. 121), which `party-rolls.mjs`
+   already applied; the finding throw is the hasty Search the party already had.
+   And the pieces named here were right but incomplete: the resolution ORDER
+   comes from §9.3, not from §7, and the area-effect traps come from the Judge's
+   book chapter 8, not from the delve chapter at all.
+
+   Still open on this row: **the importer half.** `acks-importer` has no trap
+   recipe yet, so a Judge fills traps in by hand until it lands. That is the
+   paired work, and it is a separate release in a separate repo.
 2. ~~Encounter scaling & reactions~~ — SHIPPED 4.2.0.
 3. ~~Obstacle helper~~ — SHIPPED 4.2.0 (climb and traverse); swimming 4.7.0 and
    jumping 4.8.0, each as its own derivation. What all three still lack is a
@@ -88,13 +109,14 @@ Still unbuilt, in likely order:
    march controls; the party token's HUD forms the party up, gathering anyone on
    the map back inside the token. See [MODEL.md](MODEL.md) for how a saved order
    reconciles against a party that has changed since.
-   **Open on this row: the API's grip.** The 4.8.0 release session misused it
-   from outside four separate times — `saveTemplate`'s arguments reversed, an id
-   passed where `applyTemplate` wants the template object, and its persistence
-   assumed pure — each reading as a module bug that wasn't. The guide now states
-   the signatures plainly; a second look at the shapes themselves (an options
-   bag, or accepting id-or-object) is worth a small pass before anything else
-   builds on them.
+   ~~**Open on this row: the API's grip.**~~ CLOSED 4.9.0. The applying calls
+   take an order or its id interchangeably, a reversed argument pair is refused
+   by name, and every call states whether it writes. What stays open is the
+   NAME: `applyTemplate` is also a chargen export with a different signature
+   (`scripts/classes/chargen.mjs`), and this file's own header already concedes
+   that *template* belongs to the Monster Manual generator. Renaming these to
+   `…MarchingOrder` is the real fix and was deliberately not bundled into a
+   fix-driven release — see [DECISIONS.md](DECISIONS.md).
 7. Wilderness/expedition mode — PARTLY UNBLOCKED. The wilderness chapter is now in hand: 4.4.0 added the movement-scale vocabulary (`lib/movement-scales.mjs`, published on `api.lib`) with the Expedition Speed table reproduced to all twelve rows, travel pace (dedicated / forced march ×3/2 / ancillary half), and terrain and road multipliers on `vehicles/vehicle-speed.mjs`. What remains is the MODE: a formation that knows which hex it is in, what ground it is crossing, and a day-scale clock beside the turn-scale one. The formation record has no `ground` field yet, so a party's vehicle currently travels at its printed pace rather than a terrain-adjusted one.
 8. Spell "per level" duration parsing (quick win, batch with the next release).
 9. Week-ration uses counter (quick win).

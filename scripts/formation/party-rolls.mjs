@@ -111,6 +111,39 @@ export const PARTY_CHECKS = Object.freeze({
     strTimes4: true, // ±4 per point of STR modifier (RR p. 266)
     note: "ACKS-FORMATION.rolls.bashNote",
   },
+  /*
+   * The two Trapbreaking columns. Both are `solo`: disarming is one character
+   * lying in the dirt with a set of picks, never the whole party rolling at
+   * once, so they are configuration for `resolveCheck` and for the skill audit
+   * rather than buttons on the party sheet. `trap-zone.mjs` drives them.
+   */
+  trapbreakHasty: {
+    flagKey: "trapbreak",
+    capability: "kw:trapbreaking",
+    solo: true,
+    consumesRound: true, // 1 round
+    label: "ACKS-FORMATION.rolls.trapbreakHasty",
+    hint: "ACKS-FORMATION.rolls.trapbreakHastyHint",
+    icon: "fa-screwdriver-wrench",
+    advKey: null, // "Using Adventuring: not permitted"
+    pattern: /trap\s*break|trapbreaking|remove\s*traps?|disarm\s*traps?/i,
+    trapfinding: true, // RR p. 121: Trapfinding is +2 on Trapbreaking as well
+    note: "ACKS-FORMATION.rolls.trapbreakHastyNote",
+  },
+  trapbreakMethodical: {
+    flagKey: "trapbreak",
+    capability: "kw:trapbreaking",
+    solo: true,
+    label: "ACKS-FORMATION.rolls.trapbreakMethodical",
+    hint: "ACKS-FORMATION.rolls.trapbreakMethodicalHint",
+    icon: "fa-screwdriver-wrench",
+    advKey: "trapbreaking", // a non-thief may try methodically (18+ on the sheet)
+    pattern: /trap\s*break|trapbreaking|remove\s*traps?|disarm\s*traps?/i,
+    skillBonus: 4, // Trapbreaking used methodically: +4
+    trapfinding: true,
+    note: "ACKS-FORMATION.rolls.trapbreakMethodicalNote",
+    consumesTurn: true,
+  },
   tracking: {
     flagKey: "track",
     capability: "kw:tracking",
@@ -300,6 +333,9 @@ export function resolveCheck(actor, cfg) {
 export async function rollPartyCheck(formation, checkKey) {
   const cfg = PARTY_CHECKS[checkKey];
   if (!cfg) return 0;
+  // A solo check belongs to one character. Rolling it for the whole party is
+  // never what was meant, so it is refused here rather than at each caller.
+  if (cfg.solo) return 0;
 
   if (cfg.blockedWhenHurried && isHurried(formation)) {
     ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.rolls.noHastyHurried"));

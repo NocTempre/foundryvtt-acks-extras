@@ -1,0 +1,141 @@
+<section class="standard-form acks-extras-trap-body">
+
+  <fieldset>
+    <legend>{{localize 'ACKS-FORMATION.traps.legendWhat'}}</legend>
+
+    <div class="form-group">
+      <label for="trap-level">{{localize 'ACKS-FORMATION.traps.field.level'}}</label>
+      <input type="number" id="trap-level" name="system.level" value="{{system.level}}"
+             data-dtype="Number" min="1" max="6" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.level'}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="trap-trigger">{{localize 'ACKS-FORMATION.traps.field.trigger'}}</label>
+      <input type="text" id="trap-trigger" name="system.trigger" value="{{system.trigger}}"
+             data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.trigger'}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="trap-trigger-on">{{localize 'ACKS-FORMATION.traps.field.triggerOn'}}</label>
+      <input type="number" id="trap-trigger-on" name="system.triggerOn" value="{{system.triggerOn}}"
+             data-dtype="Number" min="0" max="6" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.triggerOn'}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="trap-crude">{{localize 'ACKS-FORMATION.traps.field.crude'}}</label>
+      <input type="checkbox" id="trap-crude" name="system.crude" {{checked system.crude}}
+             data-dtype="Boolean" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.crude'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-FORMATION.traps.legendResolve'}}</legend>
+
+    <div class="form-group">
+      <label for="trap-resolution">{{localize 'ACKS-FORMATION.traps.field.resolution'}}</label>
+      <select id="trap-resolution" name="system.resolution" data-dtype="String"
+              {{#unless editable}}disabled{{/unless}}>
+        {{selectOptions resolutionChoices valueAttr="value" labelAttr="label" selected=system.resolution}}
+      </select>
+    </div>
+
+    {{#if isSave}}
+      <div class="form-group">
+        <label for="trap-save">{{localize 'ACKS-FORMATION.traps.field.saveKey'}}</label>
+        <select id="trap-save" name="system.saveKey" data-dtype="String"
+                {{#unless editable}}disabled{{/unless}}>
+          {{selectOptions saveChoices valueAttr="value" labelAttr="label" selected=system.saveKey}}
+        </select>
+      </div>
+    {{/if}}
+
+    {{#if isAttack}}
+      <div class="form-group">
+        <label for="trap-attack">{{localize 'ACKS-FORMATION.traps.field.attackThrow'}}</label>
+        <input type="number" id="trap-attack" name="system.attackThrow" value="{{system.attackThrow}}"
+               data-dtype="Number" min="0" max="30" {{#unless editable}}disabled{{/unless}}/>
+        <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.attackThrow'}}</p>
+      </div>
+    {{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-FORMATION.traps.legendEffect'}}</legend>
+
+    <div class="form-group">
+      <label for="trap-damage">{{localize 'ACKS-FORMATION.traps.field.damageFormula'}}</label>
+      <input type="text" id="trap-damage" name="system.damageFormula" value="{{system.damageFormula}}"
+             data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.damageFormula'}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="trap-pit">{{localize 'ACKS-FORMATION.traps.field.pitDepthFeet'}}</label>
+      <input type="number" id="trap-pit" name="system.pitDepthFeet" value="{{system.pitDepthFeet}}"
+             data-dtype="Number" min="0" max="500" step="10" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.pitDepthFeet'}}</p>
+    </div>
+
+    {{#if system.pitDepthFeet}}
+      <div class="form-group">
+        <label for="trap-spiked">{{localize 'ACKS-FORMATION.traps.field.spiked'}}</label>
+        <input type="checkbox" id="trap-spiked" name="system.spiked" {{checked system.spiked}}
+               data-dtype="Boolean" {{#unless editable}}disabled{{/unless}}/>
+        <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.spiked'}}</p>
+      </div>
+    {{/if}}
+
+    {{#if derivedDamage}}
+      <p class="hint acks-extras-trap-derived">
+        {{localize 'ACKS-FORMATION.traps.derivedDamage' formula=derivedDamage}}
+      </p>
+    {{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-FORMATION.traps.legendWho'}}</legend>
+
+    <div class="form-group">
+      <label for="trap-scope">{{localize 'ACKS-FORMATION.traps.field.scope'}}</label>
+      <select id="trap-scope" name="system.scope" data-dtype="String"
+              {{#unless editable}}disabled{{/unless}}>
+        {{selectOptions scopeChoices valueAttr="value" labelAttr="label" selected=system.scope}}
+      </select>
+    </div>
+
+    {{#if isArea}}
+      <div class="form-group">
+        <label for="trap-radius">{{localize 'ACKS-FORMATION.traps.field.radiusFeet'}}</label>
+        <input type="number" id="trap-radius" name="system.radiusFeet" value="{{system.radiusFeet}}"
+               data-dtype="Number" min="0" max="200" step="5" {{#unless editable}}disabled{{/unless}}/>
+        <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.radiusFeet'}}</p>
+      </div>
+    {{/if}}
+
+    <div class="form-group">
+      <label for="trap-rider">{{localize 'ACKS-FORMATION.traps.field.rider'}}</label>
+      <input type="text" id="trap-rider" name="system.rider" value="{{system.rider}}"
+             data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.rider'}}</p>
+    </div>
+  </fieldset>
+
+  <div class="form-group stacked">
+    <label>{{localize 'ACKS-FORMATION.traps.field.description'}}</label>
+    {{!-- The sheet's ONLY render of system.description: a second control of the
+          same name in one form is last-write-wins, and a prose-mirror has no
+          `disabled`, so read-only falls through to the enriched render. --}}
+    {{#if editable}}
+    <prose-mirror class="acks-extras-trap-description content-sized" name="system.description"
+                  value="{{system.description}}" toggled data-document-uuid="{{item.uuid}}"
+                  style="--min-height: 4rem;">{{{descriptionHTML}}}</prose-mirror>
+    {{else}}
+    <div class="acks-extras-trap-description">{{{descriptionHTML}}}</div>
+    {{/if}}
+  </div>
+
+</section>

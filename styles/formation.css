@@ -938,3 +938,48 @@
   color: var(--acks-danger-ink);
   cursor: pointer;
 }
+
+/* --- Trap item sheet ------------------------------------------------- */
+
+/* Same type root as the other item sheets: the em hierarchy below rides
+   --acks-fs-base rather than the browser's default. */
+.acks-extras-trap-sheet .acks-extras-trap-body {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-trap-sheet .form-group.stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* What a pit's depth is worth, shown beside the field that sets it so the
+   Judge does not have to do the arithmetic to check their own entry. */
+.acks-extras-trap-derived {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+
+/* Draws the field boundary the replaced textarea got from the browser: a bare
+   prose-mirror (and the read-only render standing in for it) is otherwise an
+   unbounded blank area. Boxed in INK, not the spot colour — a field you write
+   in belongs to the sheet register, not the page rule. */
+.acks-extras-trap-sheet .acks-extras-trap-description {
+  padding: 0.25rem;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
+}
+
+/* The trap row appended to core's wall configuration sheet. Bordered in ink so
+   the drop target reads as a field you can put something into, rather than as
+   a sentence sitting under the form. */
+.acks-extras-trap-drop .acks-extras-trap-drop-target {
+  display: block;
+  width: 100%;
+  padding: 0.25rem 0.4rem;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
+  color: var(--acks-ink-soft);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+}

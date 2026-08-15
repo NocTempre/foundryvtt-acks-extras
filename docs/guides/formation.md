@@ -50,14 +50,106 @@ abreast — and nothing else, so restoring one can lose an arrangement but never
 a character. Someone saved but gone is dropped and the line closes up; someone
 new keeps the back rank.
 
-For macros, the same calls the sheet uses (all of them **write to the world
-setting** — none is a dry run):
+### Calling it from a macro
 
-- `saveTemplate(formation, name)` — formation first, then the name.
-- `applyTemplate(formation, template)` — takes the template **object** (from
-  `getTemplate(id)` or `listTemplates()`), not an id, and rewrites the
-  formation's marching order.
-- `formUp(formation, template)` — apply, then gather the deployed back in.
+The same calls the sheet uses. **The formation always comes first**, and none
+of these is a dry run:
+
+- `saveTemplate(formation, name)` — stores the current arrangement. Writes the
+  world setting.
+- `applyTemplate(formation, order)` — rewrites the formation's marching order.
+  `order` is either a saved order (from `getTemplate(id)` or `listTemplates()`)
+  or its **id**; both work.
+- `formUp(formation, order)` — apply, then gather the deployed back in. Writes
+  the formation and moves tokens.
+- `deleteTemplate(order)` — forgets one, by order or by id.
+
+To ask what an order *would* do without doing it, call `reconcile(members,
+cells)` — it is the only call here that computes without writing.
+
+Getting an argument wrong throws immediately and says what it wanted, rather
+than half-working: reversing the pair reports *"arguments are reversed — the
+formation comes first"*, and handing an applying call something that is
+neither an order nor an id names what arrived instead.
+
+Note that `applyTemplate` here is the **formation** one. `acks-extras`
+publishes a second, unrelated `applyTemplate(actor, classItem, template, …)` on
+the classes api for character generation; they share a name and share nothing
+else.
+
+## Traps
+
+### Making one
+
+A trap is an **item**. Make one on the Items tab (type *Trap*) and fill in what
+it is: its level, what springs it, whether it is crudely built, how it resolves
+— a saving throw, an attack throw, damage with no throw at all, or nothing the
+module rolls — what it deals, and whether it takes only whoever set it off or
+everything within reach.
+
+Two fields are worth a word. **Springs on 1d6 of** is the secret trigger throw,
+2 by default (so 1–2); widen it for a trap that is easy to set off and narrow it
+for a hard one. **Attack throw** is the number your own book gives for a fighter
+of the trap's level — the module ships no fighter progression, so you supply the
+answer rather than the level.
+
+For a pit, leave the damage blank and set the depth: 1d6 per 10 feet is filled
+in for you, and ticking *Spiked* adds the 1d4 spikes at 1d6 each.
+
+### Putting one in the dungeon
+
+Two ways, on the **Walls** layer:
+
+- **Lay a trap along the selected walls** puts a trap layer on whatever you have
+  selected — an ordinary wall becomes a tripwire, and a door becomes a trapped
+  door. The wall keeps doing its own job: a trap blocks nothing.
+- **Enclose the selected walls as a trap area** takes a closed loop of walls and
+  builds the region they contain — for a pit, a collapsing ceiling, anything
+  the party stands *in* rather than crosses.
+
+Then **drag a Trap item onto it**: onto the wall on the map, onto the trap row
+on a wall's configuration sheet, or onto the Trap field of a region's Trap Zone
+behavior. Dragging onto an untrapped wall lays the layer and assigns the trap in
+one go.
+
+You see a marker on each trap showing its state — armed, spotted, disarmed,
+spent. **Players see nothing at all**, the same way they see nothing of a secret
+door until it is found.
+
+### What happens when the party walks in
+
+All of it is whispered to you, including the times nothing happened.
+
+Anyone who can search throws first, and a thief at the front who makes it spots
+the trap before anyone touches it. Then the 10' pole probes a square ahead of
+its bearer, then the party itself, rank by rank, each on its own secret 1d6. The
+first throw that comes up inside the trigger band springs it, and the party
+stops there rather than walking on.
+
+At combat speed there is no pole and no searching — the party is moving too
+fast for either, exactly as the book says.
+
+Damage is **rolled and reported, not applied**. Halve it for a made save, set it
+aside for a rider, or apply it as it stands: the card gives you the number and
+the sheets stay yours.
+
+### Getting past one
+
+A character with thieves' tools can work on a trap the party is standing at:
+
+- **Hastily** — one round, and the Trapbreaking skill only. An unmodified 1–3
+  sets it off. Fail and that character cannot try this trap again until they
+  gain a level.
+- **Methodically** — one full turn. A skilled thief gets +4; a non-thief may try
+  through Adventuring. Only an unmodified 1 sets it off, and a plain failure can
+  be tried again.
+
+Beat it and you choose: **disarm** it, which leaves it re-armable, or
+**discharge** it deliberately, which spends it. A disarmed trap can be re-armed
+later on a Trapbreaking throw.
+
+A crude trap is +4 to find and to remove, attacks at -2, and is saved against
+at +2.
 
 ## The clock
 

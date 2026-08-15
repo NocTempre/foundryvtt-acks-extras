@@ -92,6 +92,8 @@ async function executeRequest(formation, user, type, payload) {
       // Same closed-set rule as lightType: the key names both a localization
       // entry and a roll route, so unknown keys stop here.
       if (!(payload.key in PARTY_CHECKS)) return;
+      // A solo check is not a party roll and has no party-roll route to take.
+      if (PARTY_CHECKS[payload.key].solo) return;
       const label = game.i18n.localize(`ACKS-FORMATION.rolls.${payload.key}`);
       await announceDeclaration(formation, user, loc("request.check", { check: label }));
       await rollPartyCheck(formation, payload.key);

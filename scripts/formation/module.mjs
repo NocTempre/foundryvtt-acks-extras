@@ -8,10 +8,16 @@ import {
   FLAG_FORMATION_ID,
   MODULE_ID,
   ROLES,
+  TRAP_ITEM_TYPE,
 } from "./constants.mjs";
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
 import { SETTING_ABILITY_OVERRIDES, initLadders } from "./ability-bridge.mjs";
 import { registerEncounterZone } from "./encounter-zone.mjs";
+import { registerTrapZone, runTrapCheck } from "./trap-zone.mjs";
+import { installTrapControls, installTrapDrop } from "./trap-walls.mjs";
+import { installTrapMarkers } from "./trap-markers.mjs";
+import TrapData from "./data/trap-data.mjs";
+import TrapSheet from "./trap-sheet.mjs";
 import {
   SETTING_FORMATIONS,
   addMember,
@@ -80,6 +86,9 @@ Hooks.once("init", () => {
   // The Walls layer gets a door tool: a door IS a wall, so that is where a
   // Judge already is when a stuck one stops the party.
   installDoorControl();
+  installTrapControls();
+  installTrapDrop();
+  installTrapMarkers();
   // Core's party overview deals XP by its own reckoning; with this module's
   // formation as the roster of record the two would disagree, so core's
   // button is hidden rather than left to argue. Off restores core untouched.
@@ -225,6 +234,25 @@ Hooks.once("init", () => {
 
   /* --- Encounter Zone region behavior --- */
   registerEncounterZone();
+
+  /* --- Trap Zone region behavior, trap Item sub-type + sheet --- */
+  // Wrapped whole: everything below this point in `init` — the party actor,
+  // its sheet, the public api — is dead if anything here throws, and traps are
+  // the newest and least load-bearing thing in the hook. Never let them take
+  // the feature down with them.
+  try {
+    registerTrapZone();
+    CONFIG.Item ??= {};
+    CONFIG.Item.dataModels ??= {};
+    CONFIG.Item.dataModels[TRAP_ITEM_TYPE] = TrapData;
+    foundry.documents.collections.Items.registerSheet(MODULE_ID, TrapSheet, {
+      types: [TRAP_ITEM_TYPE],
+      makeDefault: true,
+      label: "ACKS-FORMATION.traps.sheet",
+    });
+  } catch (err) {
+    console.error(`${MODULE_ID} | trap registration failed`, err);
+  }
 
   /* --- Party-roll flag editor on ability item sheets --- */
   registerSkillFlagEditor();
@@ -385,7 +413,20 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   if (!isPrimaryGM()) return;
   // The party caught up: every scout ahead of it may range a fresh round.
   reanchorDetached(formationId).catch((err) => console.error(`${MODULE_ID} | re-anchor failed`, err));
-  onPartyTokenMoved(tokenDoc, formationId).catch((err) => console.error(`${MODULE_ID} | movement processing failed`, err));
+
+  // Where the party came FROM, read before the clock consumes it: a trap wall
+  // is met by CROSSING it, so the check needs the path and not just the
+  // destination. `onPartyTokenMoved` overwrites `clock.lastPosition`.
+  const before = getFormation(formationId)?.clock?.lastPosition;
+  const from = before ? { x: before.x, y: before.y } : null;
+
+  onPartyTokenMoved(tokenDoc, formationId)
+    .then(() => {
+      const formation = getFormation(formationId);
+      if (!formation) return null;
+      return runTrapCheck(formation, { from, to: { x: tokenDoc.x, y: tokenDoc.y } });
+    })
+    .catch((err) => console.error(`${MODULE_ID} | movement processing failed`, err));
 });
 
 /*

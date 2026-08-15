@@ -36,7 +36,13 @@ All paths are under `scripts/formation/` unless noted.
 | `formation-model.mjs` | Formation records: storage (world setting `acks-extras.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `formation-view.mjs`, `formation-actions.mjs` | The formation window (GM controls, player read-only) and its action handlers. |
-| `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID + cadence overrides) and point-in-region lookup for the party token (core `testPoint` when available, manual shape math as a headless fallback). |
+| `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, and `findZone(formation, type)` testing the party token's CENTRE. |
+| `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID + cadence overrides). |
+| `trap-rules.mjs` | Traps as arithmetic, Foundry-free: probe order, who is caught, the disarm plan, botch bands, the repeat lock, pit damage. |
+| `trap-zone.mjs` | `acks-extras.trapZone` RegionBehavior subtype, the placement abstraction over regions and walls, the crossing sequence, firing, and the Trapbreaking throws. |
+| `trap-walls.mjs` | The trap layer on a wall, the Walls-layer tools, chaining selected walls into a region outline, path-crossing geometry, and drag-to-assign. |
+| `trap-markers.mjs` | GM-only canvas markers showing each trap's state. Players' clients draw nothing. |
+| `data/trap-data.mjs`, `trap-sheet.mjs` | The `acks-extras.trap` Item subtype holding a trap's definition, and its sheet. |
 | `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag) and party-token light emission mirroring lit sources. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
 | `deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
 | `marching-templates.mjs` | Saved marching orders (world setting `acks-extras.marchingTemplates`): capturing an arrangement, reconciling it against the party as it now stands, and forming up. |
@@ -199,6 +205,48 @@ recomputes a loadout off that hook.
 The party sheet saves and loads orders; the party token's HUD carries a **form
 up** button, which appears only once at least one order is saved and skips the
 picker when there is only one to pick.
+
+## Traps
+
+A trap is **a document, a placement, and a sequence**, and the three are
+deliberately separate.
+
+The **document** is an `acks-extras.trap` Item: level, what springs it, how it
+resolves, what it deals, who it catches. It is shared — one scything blade, laid
+in four corridors — and it is what `acks-importer` will materialize the Judge's
+own book into. Nothing here holds a printed trap.
+
+The **placement** is either a `acks-extras.trapZone` region behavior or a trap
+layer flagged onto a wall. Both carry only a reference to a trap and the state
+of that burial (`armed` → `found` / `disarmed` / `discharged`) plus the record of
+who has already failed a hasty attempt on it, and at what level. `trap-zone.mjs`
+reaches both through one `Placement` shape, so the rules are written once.
+
+A trap wall **restricts nothing**. The party walks through it as though it were
+not there; what stops them is detection, applied by moving the party token back
+to the crossing point. That is also what makes a trap layer safe to put on a
+door, which is where the book's most famous trap lives.
+
+The **sequence** is the sequence of play's, not §7's own order:
+
+1. **Searchers throw first.** A thief at exploration speed automatically hasty-
+   searches within 5' — the front rank, plus a pole-bearer one rank back whose
+   pole reaches the same ground. Success spots the trap and stops there.
+2. **The pole probes**, one rank ahead of its bearer, with its own secret 1d6.
+3. **The party walks in**, rank by rank, each with its own secret 1d6.
+
+The first throw inside the trigger band ends the sequence. At combat speed the
+party loses both the pole and the hasty search, which is exactly what RR p. 263
+says it loses. A pole-sprung trap catches nobody within its own square — that is
+the point of the pole — but an area effect still reaches back for the bearer.
+
+Everything is whispered to the Judge, including a trap the party crossed
+untouched: knowing the corridor was clear is how a Judge tracks a trap that is
+still armed, and saying it aloud would give away that there was anything there.
+
+Damage is **reported, not applied**, for the same reason the party's saves are:
+half on a made save, none if a rider says so, and a Judge who wanted the pit to
+be a bruise this once.
 
 ## Detaching a member
 

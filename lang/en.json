@@ -9,12 +9,14 @@
       "acks-extras.vehicle": "Vehicle"
     },
     "RegionBehavior": {
-      "acks-extras.encounterZone": "ACKS Encounter Zone"
+      "acks-extras.encounterZone": "ACKS Encounter Zone",
+      "acks-extras.trapZone": "Trap Zone"
     },
     "Item": {
       "acks-extras.attitude": "Attitude",
       "acks-extras.class": "Class",
-      "acks-extras.race": "Race"
+      "acks-extras.race": "Race",
+      "acks-extras.trap": "Trap"
     }
   },
   "ACKS-CLASSES.sheet.sheetName": "ACKS Class Constructor",
@@ -1131,7 +1133,13 @@
       "noHastyHurried": "The party is hurrying at combat speed — hasty searching is not possible (RR p. 263). Slow to a careful pace first.",
       "partMethodical": "methodical",
       "partAlertness": "Alertness",
-      "partTrapfinding": "Trapfinding"
+      "partTrapfinding": "Trapfinding",
+      "trapbreakHasty": "Hasty Trapbreaking",
+      "trapbreakHastyHint": "One round. Skill only — Adventuring is not permitted, and a failure cannot be repeated until higher level.",
+      "trapbreakHastyNote": "One round. An unmodified 1–3 sets the trap off.",
+      "trapbreakMethodical": "Methodical Trapbreaking",
+      "trapbreakMethodicalHint": "One full turn. +4 for a skilled thief; a non-thief may try through Adventuring. A failure may be tried again.",
+      "trapbreakMethodicalNote": "One turn. An unmodified 1 sets the trap off."
     },
     "request": {
       "section": "Declare Actions",
@@ -1385,6 +1393,158 @@
         "capability": "Matched by capability — survives renaming.",
         "binding": "Bound explicitly on the item's Skill tab.",
         "name": "Matched by NAME only — this breaks if the item is renamed, and is the likeliest false positive. Bind it on the item's Skill tab to make it durable."
+      }
+    },
+    "TRAP_ZONE": {
+      "FIELDS": {
+        "trapUuid": {
+          "label": "Trap",
+          "hint": "The trap this region holds. Drag a Trap item here or paste its UUID. A region naming no trap resolves nothing."
+        },
+        "state": {
+          "label": "State",
+          "hint": "Armed until the party finds it. Found, disarmed and discharged traps are left alone when the party walks through."
+        },
+        "repeatLock": {
+          "label": "Failed hasty attempts",
+          "hint": "Who has already failed a hasty Trapbreaking attempt here, and at what level. Cleared by re-arming."
+        }
+      }
+    },
+    "traps": {
+      "title": "Trap",
+      "sheet": "ACKS Trap",
+      "toolLine": "Lay a trap along the selected walls",
+      "toolRegion": "Enclose the selected walls as a trap area",
+      "selectWalls": "Select the walls to lay a trap along first.",
+      "selectLoop": "Select the walls enclosing the area — at least three.",
+      "notClosed": "Those walls do not close a shape. Join their ends and try again.",
+      "laid": "Trap laid on {added} wall(s). {skipped} already carried one.",
+      "regionName": "Trap",
+      "behaviorName": "Trap Zone",
+      "regionMade": "Trap area created from the selected walls.",
+      "searchSection": "Searching ahead",
+      "probeSection": "Walking into it",
+      "victimSection": "Caught",
+      "spotted": "Spots it",
+      "sawNothing": "Sees nothing",
+      "sprung": "Springs it",
+      "passed": "Passes",
+      "poleOf": "{name}'s pole",
+      "rankDetail": "Rank {rank}",
+      "partCrude": "crude",
+      "foundTitle": "The trap is spotted",
+      "foundNote": "Found before anyone touched it. Describe the trigger and let them change what they were doing.",
+      "crossedTitle": "The trap is not sprung",
+      "crossedNote": "The party crossed it and nothing happened. It is still armed.",
+      "hurriedNote": "At combat speed: no pole, and no hasty searching.",
+      "firedTitle": "{trap} goes off (level {level})",
+      "sprungNote": "{name} set it off.",
+      "sprungByPole": "The pole took it, a square ahead of the party.",
+      "caughtNobody": "It fired into empty corridor and caught nobody.",
+      "saved": "Saves",
+      "failedSave": "Fails",
+      "saveDetail": "{save} save",
+      "saveDetailCrude": "{save} save, +{bonus} (crude)",
+      "hit": "Hit",
+      "missed": "Misses",
+      "attackDetail": "Attack throw {throw}+ against AC {ac}",
+      "attackDetailCrude": "Attack throw {throw}+ against AC {ac}, at -2 (crude)",
+      "noThrow": "No throw — it simply happens",
+      "judgeAdjudicates": "The Judge adjudicates this one",
+      "damageTo": "Damage to {name}",
+      "damageOutcome": "Rolled",
+      "damageIsReported": "Damage is reported, not applied — halve it for a made save, or set it aside, as the trap says.",
+      "disarmHastyTitle": "Hasty Trapbreaking",
+      "disarmMethodicalTitle": "Methodical Trapbreaking",
+      "mayTryAgain": "A methodical attempt may be made again after a failure.",
+      "noSecondHastyTry": "A failed hasty attempt cannot be repeated until higher level.",
+      "chooseTitle": "Disarm it, or set it off?",
+      "chooseHint": "{name} has the trap beaten. It can be disarmed — and re-armed later — or discharged deliberately and spent.",
+      "chooseDisarm": "Disarm it",
+      "chooseDischarge": "Discharge it",
+      "rearmTitle": "Re-arming the trap",
+      "rearmed": "Re-armed",
+      "rearmFailed": "Not re-armed",
+      "disarm": {
+        "disarmed": "{name} disarms it. It can be re-armed.",
+        "discharged": "{name} sets it off deliberately, into nothing. It is spent.",
+        "botched": "{name} sets it off — badly, and while standing over it.",
+        "failed": "{name} cannot beat it."
+      },
+      "disarmOutcome": {
+        "disarmed": "Disarmed",
+        "discharged": "Discharged",
+        "botched": "Botched",
+        "failed": "Failed"
+      },
+      "refuse": {
+        "noZone": "The party is not standing at a trap.",
+        "noTrap": "That trap has no Trap item assigned to it.",
+        "alreadyDischarged": "That trap has already gone off.",
+        "alreadyDisarmed": "That trap is already disarmed.",
+        "noTools": "{name} has no thieves' tools.",
+        "cannotTry": "{name} has no way to work on a trap.",
+        "hastyNeedsSkill": "{name} cannot work hastily — that is the Trapbreaking skill only.",
+        "alreadyFailedHasty": "{name} has already failed hastily here, and cannot try again until higher level.",
+        "notDisarmed": "Only a disarmed trap can be re-armed.",
+        "rearmNeedsSkill": "{name} needs the Trapbreaking skill to re-arm a trap."
+      },
+      "legendWhat": "The trap",
+      "legendResolve": "How it resolves",
+      "legendEffect": "What it does",
+      "legendWho": "Who it catches",
+      "noSave": "No save",
+      "derivedDamage": "Falling into it deals {formula}.",
+      "resolution": {
+        "save": "A saving throw",
+        "attack": "An attack throw",
+        "automatic": "Damage, with no throw",
+        "none": "Nothing rolled — the Judge narrates it"
+      },
+      "scope": {
+        "triggerer": "Whoever set it off",
+        "area": "Everything within reach"
+      },
+      "field": {
+        "level": "Trap level",
+        "trigger": "Trigger",
+        "triggerOn": "Springs on 1d6 of",
+        "crude": "Crudely built",
+        "resolution": "Resolves as",
+        "saveKey": "Saving throw",
+        "attackThrow": "Attack throw",
+        "damageFormula": "Damage",
+        "pitDepthFeet": "Pit depth (feet)",
+        "spiked": "Spiked",
+        "scope": "Catches",
+        "radiusFeet": "Reach (feet)",
+        "rider": "And also",
+        "description": "Description"
+      },
+      "hint": {
+        "level": "1st to 6th, roughly as dangerous as a divine spell of that level.",
+        "trigger": "How it is set off, in your own words: a tripwire, a pressure plate, a rune.",
+        "triggerOn": "1d6 at or under this springs it. 2 is the book's default; widen it for a trap that is easy to set off, narrow it for a hard one.",
+        "crude": "Crudely built: +4 to find and to remove, attacks at -2, and its victims save at +2.",
+        "attackThrow": "The attack throw for a fighter of this trap's level, from your own book — rolled against the victim's AC.",
+        "damageFormula": "What it deals, as dice. Leave blank for a pit and the depth below will supply it.",
+        "pitDepthFeet": "A pit deals 1d6 per 10 feet fallen.",
+        "spiked": "Spikes at the bottom impale for 1d4 spikes at 1d6 each.",
+        "radiusFeet": "How far it reaches from where it went off. In a column, every 5 feet is one rank.",
+        "rider": "Prone, restrained, stuck, burning, a Mortal Wounds roll — printed on the card for you to apply."
+      },
+      "assigned": "{trap} assigned to that wall.",
+      "dropNoWall": "Drop a trap onto a wall to assign it — there is no wall there.",
+      "wallTrapLabel": "ACKS trap",
+      "wallTrapNone": "None. Drag a Trap item here.",
+      "wallTrapSet": "Trapped — {state}.",
+      "wallTrapHint": "Drag a Trap item onto this row to lay it on this wall. A trap blocks nothing on its own; it stops the party when it is found or springs.",
+      "state": {
+        "armed": "armed",
+        "found": "spotted",
+        "disarmed": "disarmed",
+        "discharged": "spent"
       }
     }
   },

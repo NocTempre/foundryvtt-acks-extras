@@ -1,5 +1,93 @@
 # Changelog
 
+## 4.9.0
+
+A trap can be buried where the party will walk, and every ACKS compendium files
+under one folder.
+
+### Fixed
+- **A masterwork sample says which tier it is.** The two shipped masterwork
+  items carried a copy of the table row instead of the tier key, so the sheet's
+  masterwork select read "None" on the very items that exist to demonstrate a
+  tier. They now name their tier and carry the pristine baseline that has to
+  come with it — without it, clearing masterwork would have left the +1 and the
+  higher price behind.
+- **A compendium no longer strands itself at the sidebar root.** Every ACKS pack
+  pointed at a folder that no longer existed, and Foundry only files a pack whose
+  config does not already name one — so a stale id left by a deleted folder
+  defeated every folder declaration silently, the system's own five included.
+  A reference that still resolves is a Judge's own arrangement and is left alone.
+- **A marching-order call that is wrong is refused, by name.** Reversing
+  `saveTemplate`'s arguments used to save an order with no cells in it, named
+  after whatever the formation stringified to, and hand an id to
+  `applyTemplate` and it quietly rearranged nothing. Both now stop and say what
+  they wanted — *"arguments are reversed — the formation comes first"* — and the
+  applying calls take a saved order **or its id** interchangeably, so the
+  commonest mistake is no longer a mistake. Every call that writes says so
+  beside its signature; `reconcile` remains the one that only computes. No
+  correct call changes. A macro that was silently saving empty orders will now
+  fail loudly, which is the point.
+
+### Added
+- **Every ACKS compendium sits in one "ACKS II" folder.** The two modules'
+  six packs and the system's own thirteen gathered together instead of scattered
+  down the sidebar root. Both manifests name the same folder, which is how
+  Foundry merges them into one rather than one per module; the system's packs
+  are filed the same way its own initializer would.
+- **Traps.** The whole of the delve chapter's trap rule, and the largest one
+  that was still resolved by hand. A trap is an **item** — its level, what
+  springs it, whether it is crudely built, how it resolves and what it deals —
+  so one trap can be laid in four corridors and edited once.
+- **Two ways to bury one**, both on the Walls layer: lay a trap along selected
+  walls, or enclose a closed loop of walls as a trap area. A trap on a wall
+  **blocks nothing** — the wall keeps doing its own job, which is what lets a
+  door be trapped and still be a door — and the party is stopped at the crossing
+  when the trap is found or springs, rather than three squares later. Drag a
+  Trap item onto a wall, onto a wall's sheet, or onto a region's Trap field to
+  assign it.
+- **The party meets a trap in the order the sequence of play gives.** Anyone
+  searching throws first, and a thief who makes it spots the trap before anyone
+  touches it; then the 10' pole, one square ahead of its bearer; then the party
+  rank by rank, each on its own secret 1d6. The first throw inside the trigger
+  band springs it. A pole-sprung trap catches nobody in its own square, though
+  an area effect still reaches back for the bearer. At combat speed there is no
+  pole and no searching.
+- **Hasty and Methodical Trapbreaking**, with the parts of the throw shown
+  before it is rolled. Hasty is skill-only, costs a round, goes off on an
+  unmodified 1–3, and cannot be retried until the character gains a level — the
+  module remembers who failed and at what level. Methodical costs a turn, adds
+  +4 for a skilled thief, lets a non-thief try through Adventuring, goes off
+  only on a 1, and may be tried again. Beat it and the thief chooses: disarm it,
+  and it can be re-armed later, or discharge it deliberately and spend it.
+- **You see your traps; the players see nothing.** A marker on each trap shows
+  whether it is armed, spotted, disarmed or spent, drawn only on a Judge's
+  client — the same bargain a secret door makes.
+- **Damage is reported, not applied.** The card carries the number and the
+  sheets stay yours, so a made save can be halved and a rider can be set aside.
+
+### Changed
+- **Hiding superseded compendiums is now on by default.** A feature whose whole
+  purpose is to remove duplicate rows did nothing unless a GM went looking for
+  the setting. It is safe on because it is coverage-gated: a world that has
+  imported nothing hides nothing.
+- **The Languages compendium folds away once your own book supplies them**, and
+  Treasure no longer does. All 58 languages come back from the reader's own
+  book and neither side carries an effect, so nothing is lost by hiding the row;
+  Treasure was only ever gated on "five imported roll tables of any kind", which
+  says nothing about treasure and hid a pack nothing replaced.
+- **Trapfinding is a bonus, not a throw.** It was listed as a throw of its own
+  and is not: it is +2 on Searching *and* Trapbreaking, which the party rolls
+  already applied. The finding throw is the hasty Search the party always had.
+- The point-in-region geometry the Encounter Zone used is now shared with the
+  Trap Zone rather than copied. No behaviour changes.
+
+### Not yet
+- The Judge's book prints eleven worked traps at six levels each. **None of them
+  ships here** — they are book content, and they will arrive through
+  `acks-importer` from your own copy, the way the thief ladders do. Until that
+  recipe lands, traps are made by hand, which is a first-class path and not a
+  workaround.
+
 ## 4.8.0
 
 The column points where the party is going, a marching order can be saved and

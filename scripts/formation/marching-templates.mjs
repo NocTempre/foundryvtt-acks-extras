@@ -21,6 +21,19 @@ import { announceChange } from "../lib/util.mjs";
  * party a saved order is applied to is never the party it was saved from —
  * people die, get hired, and drop the quill they were mapping with — and that
  * mismatch is exactly the part worth testing offline.
+ *
+ * **Which calls write** is the distinction an outside caller has to hold, and
+ * the file states it because assuming otherwise reads as a module bug.
+ * `captureOrder` and `reconcile` are pure — they compute and return, and
+ * `reconcile` is the one to ask what an order *would* do. Everything that
+ * stores or applies one persists immediately: `saveTemplate` and
+ * `deleteTemplate` rewrite the world setting, `applyTemplate` and `formUp`
+ * rewrite the formation. Neither of the last two is a dry run.
+ *
+ * The applying calls take the saved order OBJECT or its id interchangeably, and
+ * the storing call refuses a reversed argument pair by name rather than saving
+ * an empty order under a stringified formation. Both guards exist because this
+ * API is reached from macros, where a wrong shape has no type to catch it.
  */
 
 /** World-setting key holding every saved marching order, keyed by id. */
@@ -124,6 +137,71 @@ export function reconcile(members, cells, { roleAllowed = () => true } = {}) {
 }
 
 /* -------------------------------------------- */
+/*  Argument shapes                             */
+/* -------------------------------------------- */
+
+/**
+ * What the caller actually passed, named closely enough to spot the mistake
+ * from the message alone — "a formation" where an order belongs is the whole
+ * diagnosis, and `[object Object]` is none of it.
+ */
+function describeArg(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "an array";
+  if (typeof value !== "object") return `a ${typeof value}`;
+  if (Array.isArray(value.members)) return "a formation";
+  return "an object carrying no `cells`";
+}
+
+/**
+ * The saved order an applying call was handed: the order OBJECT, or its id.
+ *
+ * Both are accepted because both are things a caller legitimately holds —
+ * `getTemplate` and `listTemplates` hand back objects, while a macro that
+ * stashed an id has nothing to convert with. An id that names nothing throws
+ * rather than resolving to null, so a stale id reports itself instead of
+ * arriving deeper in as a missing-order no-op.
+ *
+ * @param {object|string} order the saved order, or its id
+ * @param {string} caller the exported function's name, for the error text
+ * @returns {object} the saved order
+ * @throws {Error} when the id names nothing, or the argument is neither shape
+ */
+function resolveOrder(order, caller) {
+  if (typeof order === "string") {
+    const found = getTemplate(order);
+    if (found) return found;
+    throw new Error(`${MODULE_ID} | ${caller}: no saved marching order has id "${order}"`);
+  }
+  if (order && Array.isArray(order.cells)) return order;
+  throw new Error(
+    `${MODULE_ID} | ${caller}: wanted a saved marching order (from getTemplate/listTemplates) ` +
+      `or its id, got ${describeArg(order)}`,
+  );
+}
+
+/**
+ * Guard the `(formation, …)` argument order on the calls that store one.
+ *
+ * Reversing the pair is otherwise SILENT: `captureOrder` reads `members` off a
+ * string as undefined and stores an order with no cells, named after whatever
+ * the formation stringifies to. The reversed case is detected and said out
+ * loud, because "the arguments are the wrong way round" is the only sentence
+ * the caller needs.
+ */
+function assertFormation(formation, caller, second) {
+  if (Array.isArray(formation?.members)) return;
+  // Keyed on the SECOND argument looking like a formation rather than on the
+  // first looking like a name: that catches `saveTemplate(name, formation)` and
+  // `applyTemplate(order, formation)` with one rule, and the diagnosis is the
+  // same sentence either way.
+  if (Array.isArray(second?.members)) {
+    throw new Error(`${MODULE_ID} | ${caller}: arguments are reversed — the formation comes first`);
+  }
+  throw new Error(`${MODULE_ID} | ${caller}: wanted a formation as the first argument, got ${describeArg(formation)}`);
+}
+
+/* -------------------------------------------- */
 /*  Storage                                     */
 /* -------------------------------------------- */
 
@@ -149,10 +227,13 @@ export function getTemplate(id) {
  * "Standard order" means to replace it, and a settings blob quietly filling
  * with same-named copies is how the picker becomes useless.
  *
+ * WRITES the world setting. `formation` first, `name` second.
+ *
  * @returns {Promise<{template: object, replaced: boolean}|null>} null when the
  *   name was blank.
  */
 export async function saveTemplate(formation, name) {
+  assertFormation(formation, "saveTemplate", name);
   const label = String(name ?? "").trim();
   if (!label) return null;
   const all = foundry.utils.deepClone(readTemplates());
@@ -167,10 +248,15 @@ export async function saveTemplate(formation, name) {
   return { template, replaced: !!existing };
 }
 
-/** Forget a saved order. */
-export async function deleteTemplate(id) {
+/**
+ * Forget a saved order, by id or by the order itself. WRITES the world setting.
+ *
+ * @returns {Promise<boolean>} false when no saved order had that id
+ */
+export async function deleteTemplate(order) {
+  const id = typeof order === "string" ? order : order?.id;
   const all = foundry.utils.deepClone(readTemplates());
-  if (!(id in all)) return false;
+  if (!id || !(id in all)) return false;
   delete all[id];
   await game.settings.set(MODULE_ID, SETTING_TEMPLATES, all);
   return true;
@@ -193,16 +279,22 @@ function roleIsAvailable(actorId, role) {
  * a loadout off that hook. Restoring four members' roles in one write and
  * telling nobody would leave every one of those loadouts stale.
  *
+ * WRITES the formation — not a dry run. Ask `reconcile` what an order would do.
+ *
+ * @param {object} formation the formation to rearrange
+ * @param {object|string} template the saved order, or its id
  * @returns {Promise<object>} the `reconcile` report
  */
 export async function applyTemplate(formation, template) {
+  assertFormation(formation, "applyTemplate", template);
+  const order = resolveOrder(template, "applyTemplate");
   const before = new Map(
     formation.members.filter((m) => m?.actorId).map((m) => [m.actorId, new Set(m.roles ?? [])]),
   );
-  const result = reconcile(formation.members, template?.cells ?? [], { roleAllowed: roleIsAvailable });
+  const result = reconcile(formation.members, order.cells ?? [], { roleAllowed: roleIsAvailable });
 
   formation.members = result.members;
-  const frontage = Math.floor(Number(template?.frontage));
+  const frontage = Math.floor(Number(order.frontage));
   if (Number.isFinite(frontage) && frontage >= 1) formation.frontage = frontage;
   await updateFormation(formation);
 
@@ -234,11 +326,21 @@ export async function applyTemplate(formation, template) {
  * reform point, or the jump would read as the party having walked there and
  * spend dungeon turns nobody took.
  *
+ * WRITES the formation and moves tokens. Not a dry run.
+ *
+ * A nullish `formation` or `template` is a DECLINED request, not a misuse — the
+ * HUD path passes the result of a picker the Judge may have dismissed — so it
+ * returns null where a wrong-shaped argument throws.
+ *
+ * @param {object} formation the formation to form up
+ * @param {object|string} template the saved order, or its id
  * @returns {Promise<object|null>} the report, plus how many were gathered in;
  *   null when the request was declined.
  */
 export async function formUp(formation, template) {
   if (!formation || !template) return null;
+  assertFormation(formation, "formUp", template);
+  template = resolveOrder(template, "formUp");
   if (formation.combat?.active) {
     ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.marching.notInCombat"));
     return null;

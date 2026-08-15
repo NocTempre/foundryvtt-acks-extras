@@ -3,7 +3,13 @@
  * changed since back into it. Pure functions; no Foundry, no world.
  */
 import assert from "node:assert/strict";
-import { captureOrder, reconcile } from "../scripts/formation/marching-templates.mjs";
+import {
+  applyTemplate,
+  captureOrder,
+  formUp,
+  reconcile,
+  saveTemplate,
+} from "../scripts/formation/marching-templates.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -165,4 +171,78 @@ test("a round trip through capture and reconcile is the identity", () => {
   );
 });
 
-console.log(`test-marching-templates: OK (${passed} checks — capture, order, roles, gaps, newcomers, round trip)`);
+/* -------------------------------------------- */
+/*  The grip: misuse from outside                */
+/* -------------------------------------------- */
+
+// Each of these was a real mistake made from a macro against 4.8.0, and each
+// one read as a module bug. They are asserted at the exported calls rather than
+// at the private guards, because the message a caller sees is the fix.
+
+const aFormation = () => ({ name: "The party", frontage: 2, members: [member("a", ["scout"])] });
+const anOrder = () => ({ id: "abc", name: "Standard", frontage: 2, cells: [{ actorId: "a", roles: [] }] });
+
+/**
+ * The rejection an exported call makes before it reaches Foundry, or null if it
+ * made none. These calls are `async`, so a guard's throw arrives as a rejected
+ * promise — awaiting it is what makes the refusal observable at all.
+ */
+const refusal = async (fn) => {
+  try {
+    await fn();
+  } catch (err) {
+    return err.message;
+  }
+  return null;
+};
+
+const atest = async (name, fn) => {
+  try {
+    await fn();
+    passed++;
+  } catch (err) {
+    console.error(`FAIL ${name}`);
+    throw err;
+  }
+};
+
+await atest("saveTemplate called (name, formation) says the arguments are reversed", async () => {
+  const message = await refusal(() => saveTemplate("Standard order", aFormation()));
+  assert.match(message, /arguments are reversed/);
+  assert.match(message, /saveTemplate/);
+});
+
+await atest("applyTemplate called (order, formation) says the arguments are reversed", async () => {
+  // The same rule catches this one: what makes it detectable is the SECOND
+  // argument being a formation, not the first being a string.
+  const message = await refusal(() => applyTemplate(anOrder(), aFormation()));
+  assert.match(message, /arguments are reversed/);
+});
+
+await atest("a formation passed where an order belongs is named as a formation", async () => {
+  const message = await refusal(() => applyTemplate(aFormation(), aFormation()));
+  assert.match(message, /got a formation/);
+});
+
+await atest("an order argument that is neither an order nor an id says what it wanted", async () => {
+  const message = await refusal(() => applyTemplate(aFormation(), 42));
+  assert.match(message, /getTemplate\/listTemplates/);
+  assert.match(message, /got a number/);
+});
+
+await atest("saveTemplate given no formation at all names the first argument", async () => {
+  const message = await refusal(() => saveTemplate(null, "Standard order"));
+  assert.match(message, /wanted a formation as the first argument/);
+  assert.match(message, /got null/);
+});
+
+await atest("formUp treats a dismissed picker as declined, not as misuse", async () => {
+  // The HUD path hands formUp whatever the picker returned, which is undefined
+  // when the Judge closed it. That is a decision, not a bad argument.
+  assert.equal(await refusal(() => formUp(aFormation(), undefined)), null);
+  assert.equal(await refusal(() => formUp(null, anOrder())), null);
+});
+
+console.log(
+  `test-marching-templates: OK (${passed} checks — capture, order, roles, gaps, newcomers, round trip, argument grip)`,
+);

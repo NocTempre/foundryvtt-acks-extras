@@ -127,6 +127,20 @@ globalThis.foundry = {
           return this;
         }
       },
+      // The trap item's sheet is reached through formation/module.mjs, and a
+      // sheet class whose base is undefined throws at IMPORT time — before any
+      // test runs — so the base has to exist even though nothing renders one.
+      ItemSheetV2: class {
+        constructor(options = {}) {
+          this.options = options;
+        }
+        get item() {
+          return this.options.document ?? null;
+        }
+        render() {
+          return this;
+        }
+      },
     },
     apps: {
       DocumentSheetConfig: { registerSheet() {} },
@@ -141,9 +155,14 @@ globalThis.foundry = {
     },
     instances: new Map(),
   },
+  documents: { collections: { Items: { registerSheet() {} } } },
 };
 
-globalThis.CONFIG = { Actor: { dataModels: {} }, RegionBehavior: { dataModels: {}, typeIcons: {} } };
+globalThis.CONFIG = {
+  Actor: { dataModels: {} },
+  Item: { dataModels: {} },
+  RegionBehavior: { dataModels: {}, typeIcons: {} },
+};
 globalThis.CONST = {
   DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, OWNER: 3 },
   TOKEN_DISPLAY_MODES: { HOVER: 1 },

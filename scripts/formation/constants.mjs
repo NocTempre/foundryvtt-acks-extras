@@ -105,6 +105,16 @@ export { LIGHT_SOURCES, lightGear } from "../lib/light.mjs";
 export const POLE_ITEM_PATTERN = /\bpole\b|polearm|spear|pike|halberd|glaive|lance/i;
 
 /**
+ * The trap Item sub-type (declared in module.json `documentTypes.Item`).
+ *
+ * Named here rather than beside its data model because the trap CODE that is
+ * Foundry-free — the wall geometry, the rules, the offline tests — needs to
+ * recognise the type, and `data/trap-data.mjs` cannot be imported without
+ * Foundry: its class extends a Foundry base at load time.
+ */
+export const TRAP_ITEM_TYPE = `${MODULE_ID}.trap`;
+
+/**
  * The implement each role needs before a character can take it up, in the shape
  * `grantGear` reads — so ONE list both refuses the role to a character without
  * the gear and, for a Judge who overrides, supplies what was missing.

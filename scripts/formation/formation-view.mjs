@@ -157,12 +157,16 @@ export function buildFormationView(formation) {
     }),
   }));
 
-  view.checks = Object.entries(PARTY_CHECKS).map(([key, cfg]) => ({
-    key,
-    label: game.i18n.localize(cfg.label),
-    hint: game.i18n.localize(cfg.hint),
-    icon: cfg.icon,
-  }));
+  // `solo` checks are one character's action, not the party's — a Trapbreaking
+  // button that made everyone roll would be six wrong answers and one right.
+  view.checks = Object.entries(PARTY_CHECKS)
+    .filter(([, cfg]) => !cfg.solo)
+    .map(([key, cfg]) => ({
+      key,
+      label: game.i18n.localize(cfg.label),
+      hint: game.i18n.localize(cfg.hint),
+      icon: cfg.icon,
+    }));
 
   Object.assign(view, buildMapsView(formation));
 
