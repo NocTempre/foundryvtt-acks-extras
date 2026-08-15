@@ -690,3 +690,27 @@
   color: var(--acks-spot);
   font-weight: 600;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Field dressing, at a weight that actually lands                    */
+/* ------------------------------------------------------------------ */
+
+/* The sheet theme dresses every field on an ACKS window at (0,4,2):
+
+     body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"])
+
+   Every card rule above that leads with `.acks-lib-follower-card` and tops out
+   around (0,2,1), so its `background` and `border` lose to the theme —
+   silently, and only for the properties the theme also sets, which is why the
+   loss reads as "that rule does nothing" rather than as a conflict. The card's
+   own radius survives, the colours do not, and the field ends up wearing the
+   sheet's dress inside a card that expects its own.
+
+   Restated here under the theme's own root, which outweighs it, so the card
+   keeps its field colours wherever the theme is active. Same values as above —
+   this changes which rule WINS, not what the card looks like when it does. */
+body.acks-lib-sheet-theme .acks-lib-follower-card :is(.fc-field, .fc-box, .fc-ability, .fc-adv-row, .fc-attack-editor) :is(input, span, .fc-ability-value) {
+  background: var(--acks-field);
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
+}

@@ -1,6 +1,6 @@
 # acks-lib — not built
 
-## An open editor takes the full width, everywhere
+## ~~An open editor takes the full width, everywhere~~ — SHIPPED
 
 The follower card now does this: while its notes `<prose-mirror>` is open, the
 right-hand stack spans the card's whole grid instead of sitting in a ~177px
@@ -11,12 +11,11 @@ It should be a property of the family's UI rather than of one card. Every place
 this module opens a rich-text editor inside a multi-column layout has the same
 arithmetic against it, and the same fix — editing is a mode, not a column.
 
-What that needs: an agreed signal (core marks the element `[open]` and
-`.active`), one rule that owns the behaviour for every acks surface, and an
-audit of the sheets that embed an editor in a narrow column — the group and
-template sheets first.
+DONE: `styles/lib.css` now owns it for every acks surface, keyed on core's own
+`prose-mirror[open]`, so a container holding an open editor spans its whole row
+and the toolbar wraps rather than clipping.
 
-## Audit the rest of the card against the sheet theme's field rule
+## ~~Audit the rest of the card against the sheet theme's field rule~~ — SWEPT
 
 The override highlight is fixed, but the fault it exposed is general. The sheet
 theme dresses every field on an ACKS window at (0,4,2):
@@ -29,8 +28,14 @@ also sets, so the rest of the rule lands and the loss reads as "that rule does
 nothing" rather than as a conflict. `background` and `border` are set there too
 and are equally reachable.
 
-Worth a sweep of every input-colouring rule in this module, and of the group and
-template sheets, which sit under the same theme.
+SWEPT: every input-colouring rule across `styles/` was measured against the
+theme's (0,4,2). The follower card's field rules were the real losers and are
+restated under `body.acks-lib-sheet-theme`, which outweighs it. The remaining
+low-specificity hits colour `select`, which the theme's input rule does not
+claim, so they were never in the fight.
+
+Still open: the group and template sheets have not been read against this rule
+— they sit under the same theme and may hold the same fault.
 
 ## Night Vision reaches through walls
 

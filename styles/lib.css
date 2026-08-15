@@ -441,3 +441,36 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   color: inherit;
   opacity: 0.8;
 }
+
+/* ------------------------------------------------------------------ */
+/*  An open editor takes the width it needs, on every acks surface     */
+/* ------------------------------------------------------------------ */
+
+/* ProseMirror's toolbar wants roughly 870px of controls. Any editor embedded
+   in a narrow column of a multi-column layout therefore clips every control
+   out of existence and looks like an editor with no buttons — which is what
+   the follower card's notes panel did at ~177px.
+
+   Editing is a MODE, not a column. While an editor is open its own grid or
+   flex cell spans the full row, and falls back the moment it closes. Stated
+   once here for every acks window rather than per surface, because the
+   arithmetic is the same everywhere and only the class names differ.
+
+   The menu still wraps rather than trusting the window to be wide enough: a
+   narrow window must cost rows of toolbar, never the toolbar. */
+.acks-extras :is([class*="-body"], .form-group):has(> * prose-mirror[open]),
+.acks-extras :is([class*="-body"], .form-group):has(> prose-mirror[open]) {
+  grid-column: 1 / -1;
+}
+
+.acks-extras prose-mirror[open] :is(menu, .editor-menu, .ProseMirror-menubar) {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+/* An editor has no intrinsic width — left alone inside a flex or grid cell it
+   collapses to its content and the toolbar overhangs it. */
+.acks-extras prose-mirror[open] {
+  min-width: 0;
+  width: 100%;
+}
