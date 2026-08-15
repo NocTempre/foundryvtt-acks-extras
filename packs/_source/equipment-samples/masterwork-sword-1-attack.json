@@ -12,7 +12,7 @@
     "bonus": 1,
     "melee": true,
     "missile": false,
-    "description": "<p>A masterwork sword: +1 to attack throws (+80gp over the base 10gp). It does not let you hit monsters only harmed by magic.</p><p><em>Revised Rulebook p. 159. Masterwork and magic bonuses do not stack — enchanting a weapon makes it masterwork automatically.</em></p>"
+    "description": "<p>A masterwork sword: +1 to attack throws (+80gp over the base 10gp). It does not let you hit monsters only harmed by magic.</p><p><em>Masterwork and magic bonuses do not stack — enchanting a weapon makes it masterwork automatically.</em></p>"
   },
   "effects": [],
   "flags": {

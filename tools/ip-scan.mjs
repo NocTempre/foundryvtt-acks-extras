@@ -40,7 +40,29 @@ const FORBIDDEN_PATHS = [/(^|[/\\])_proposals([/\\]|$)/u, /(^|[/\\])_manifest([/
 /* Publisher attribution has no business inside machine data — in a pack source
  * or cookbook it means text was copied in wholesale rather than authored. */
 const ATTRIBUTION = /all rights reserved|adventurer conqueror king|autarch/iu;
+/*
+ * A PAGE CITATION in shipped text. A book sigil (or its printed name) followed
+ * by a page or chapter reference is the fingerprint of transcribed rules: the
+ * only reason to cite a page in a string a player reads is that the sentence
+ * around it came off that page.
+ *
+ * This is the mechanical half of the math-vs-words rule (template
+ * DECISIONS.md, 2026-08-15). Numbers may ship in the code that computes with
+ * them; the book's sentences may not, and a citation is a pointer into them.
+ * It earns its place the same way `ruledata/` did: acks-extras shipped
+ * masterwork and silver hints citing RR p. 159 and RR ch. 4, and a pack
+ * description citing the Revised Rulebook by name, through every release from
+ * v1.x to v4.9.0. All were far under PROSE_CHARS and carried no attribution
+ * string, so nothing here could see them.
+ *
+ * Deliberately NOT applied to source comments or docs/: a comment citing a page
+ * is attribution, and the family's comment doctrine asks for it. What is banned
+ * is a citation in something a player or Judge READS — lang, templates, packs.
+ */
+const CITATION = /\b(?:RR|JJ|MM|BTA|AX\s?\d|revised rulebook|judges?'? journal|monstrous manual)\b[\s,.]*(?:pp?\.|ch(?:apter|\.)|page)\s*\d/iu;
 const DATA_GLOBS = [/packs[/\\]_source[/\\].*\.json$/u, /^cookbook[/\\].*\.json$/u, /^register[/\\].*\.json$/u, /^lang[/\\].*\.json$/u];
+/* Handlebars is shipped text too, and is not JSON-walkable. */
+const TEMPLATE_GLOBS = [/^templates[/\\].*\.hbs$/u];
 /* Source is not JSON-walkable, but book text hides in it just as well: a
  * private sibling module keeps ~1,400 words of another publisher's rules in
  * scripts/rules-data.mjs. Scanned as raw text for the same two signals.
@@ -61,7 +83,9 @@ const STRING_LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*
 /* A string leaf this long in a data file is a paragraph, not a label. */
 const PROSE_CHARS = 1500;
 /* ...unless it is source code. Macro bodies are authored JS and legitimately
- * long; letting them warn every run is how a gate gets tuned out. */
+ * long; letting them warn every run is how a gate gets tuned out. They are
+ * exempt from CITATION for the same reason source comments are: a macro that
+ * cites a page in a `//` line is attributing, not reproducing. */
 const CODE_KEYS = new Set(["command"]);
 
 const SKIP_DIRS = new Set(["node_modules", ".git", ".github", "dist"]);
@@ -119,6 +143,17 @@ function inspect(abs, relPath) {
     scanSource(fs.readFileSync(abs, "utf8"), relPath);
     return;
   }
+  if (TEMPLATE_GLOBS.some((re) => re.test(relPath))) {
+    if (!fs.existsSync(abs)) return;
+    // Handlebars comments are code comments and never render; a citation there
+    // is attribution, exactly like a `//` line. Only what a reader can SEE is
+    // held to the no-citation rule.
+    const text = fs.readFileSync(abs, "utf8").replace(/\{\{!--[\s\S]*?--\}\}|\{\{![\s\S]*?\}\}/g, "");
+    if (CITATION.test(text)) {
+      errors.push(`${relPath} — page citation in a shipped template; cite in a comment or docs/, never in what a reader sees`);
+    }
+    return;
+  }
   if (!DATA_GLOBS.some((re) => re.test(relPath))) return;
   if (!fs.existsSync(abs)) return; // tracked but deleted in the work tree
 
@@ -146,6 +181,11 @@ function scanStrings(node, relPath, keyPath = "") {
   if (typeof node === "string") {
     if (ATTRIBUTION.test(node)) {
       errors.push(`${relPath}: ${keyPath || "(root)"} contains publisher attribution — copied book text, not authored data`);
+    } else if (CITATION.test(node) && !CODE_KEYS.has(keyPath)) {
+      errors.push(
+        `${relPath}: ${keyPath || "(root)"} cites a page — say what the FIELD does, not what the rule says; ` +
+          `the book's words reach a world through acks-importer`,
+      );
     } else if (node.length > PROSE_CHARS && !CODE_KEYS.has(keyPath)) {
       warnings.push(`${relPath}: ${keyPath || "(root)"} is ${node.length} chars — verify this is authored, not transcribed`);
     }

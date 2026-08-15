@@ -197,7 +197,7 @@ const render = (st) => \`<div style="display:grid;gap:.75rem;align-content:start
   <fieldset><legend>Fighting styles (weapon style proficiencies)</legend>
     <p class="notes">How the character is trained to hold weapons — the book calls these <em>fighting styles</em>;
       character sheets and class tables often call the same thing <em>weapon style proficiencies</em>.
-      Single-weapon and missile styles are always trained (RR p. 106) and are not listed.</p>
+      Single-weapon and missile styles are always trained and are not listed.</p>
     \${STYLES.map(([k, l]) => box("style", k, l, on(st.styles, k))).join("")}
   </fieldset>
   <fieldset><legend>Weapon proficiency</legend>
@@ -566,7 +566,7 @@ function trainingDoc(t, i) {
     system: {
       proficiencytype: "class", favorite: false, pattern: "white", requirements: "",
       roll: "", rollType: "above", rollTarget: 0, blindroll: false,
-      description: `<p>${t.d}</p><p><em>Class training chunk — Judges Journal pp. 290–291. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>`,
+      description: `<p>${t.d}</p><p><em>Class training chunk. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>`,
       save: "", _schemaVersion: 3,
     },
     effects: hasMarkers ? [effectDoc(id, effId, t.n, t.m)] : [],
@@ -610,7 +610,7 @@ const SAMPLE_ITEMS = [
     name: "Masterwork Sword (+1 attack)",
     type: "weapon",
     img: "icons/weapons/swords/sword-guard-steel-green.webp",
-    system: { cost: 90, weight6: 1, damage: "1d6", bonus: 1, melee: true, missile: false, description: "<p>A masterwork sword: +1 to attack throws (+80gp over the base 10gp). It does not let you hit monsters only harmed by magic.</p><p><em>Revised Rulebook p. 159. Masterwork and magic bonuses do not stack — enchanting a weapon makes it masterwork automatically.</em></p>" },
+    system: { cost: 90, weight6: 1, damage: "1d6", bonus: 1, melee: true, missile: false, description: "<p>A masterwork sword: +1 to attack throws (+80gp over the base 10gp). It does not let you hit monsters only harmed by magic.</p><p><em>Masterwork and magic bonuses do not stack — enchanting a weapon makes it masterwork automatically.</em></p>" },
     // The masterwork flag names a config.MASTERWORK TIER KEY — that is what the
     // sheet's select and every layer reader look for. The `pristine` baseline
     // ships with it because the system fields above already REFLECT the tier:
@@ -622,7 +622,7 @@ const SAMPLE_ITEMS = [
     name: "Masterwork Plate Armour (+1 AC)",
     type: "armor",
     img: "icons/equipment/chest/breastplate-layered-steel.webp",
-    system: { cost: 710, weight6: 36, aac: { value: 7 }, type: "heavy", description: "<p>Masterwork plate: AC 7 at the normal 6 stone weight (+650gp over the base 60gp).</p><p><em>Revised Rulebook p. 159. The cheaper +80gp masterwork instead sheds one stone of weight at normal AC.</em></p>" },
+    system: { cost: 710, weight6: 36, aac: { value: 7 }, type: "heavy", description: "<p>Masterwork plate: AC 7 at the normal 6 stone weight (+650gp over the base 60gp).</p><p><em>The cheaper +80gp masterwork instead sheds one stone of weight at normal AC.</em></p>" },
     flags: { masterwork: { tier: "armorAC" }, pristine: { bonus: 0, damage: "", ac: 6, weight6: 36, cost: 60 } },
   },
   {

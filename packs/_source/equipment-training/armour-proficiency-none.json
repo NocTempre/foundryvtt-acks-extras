@@ -13,7 +13,7 @@
     "rollType": "above",
     "rollTarget": 0,
     "blindroll": false,
-    "description": "<p>No armour proficiency. Such a class also cannot select the Weapon &amp; Shield fighting style.</p><p><em>Class training chunk — Judges Journal pp. 290–291. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>",
+    "description": "<p>No armour proficiency. Such a class also cannot select the Weapon &amp; Shield fighting style.</p><p><em>Class training chunk. Grant the chunks the character's class actually bought with its Fighting Value.</em></p>",
     "save": "",
     "_schemaVersion": 3
   },

@@ -122,7 +122,7 @@
   "ACKS-CLASSES.pick.showAll": "Show all classes",
   "ACKS-CLASSES.sheet.core": "Offered by default in the pickers",
   "ACKS-CLASSES.sheet.sortOrder": "Book order",
-  "ACKS-CLASSES.sheet.sortOrderHint": "Where this class sits when classes are listed as the books print them — the book's rank times a thousand plus the printed page (RR p. 26 is 1026, BTA p. 61 is 2061). Leave it at 0 and it is worked out from the citation.",
+  "ACKS-CLASSES.sheet.sortOrderHint": "Where this class sits when classes are listed as the books print them — the book's rank times a thousand, plus the page it starts on. Leave it at 0 and it is worked out from the class's own citation.",
   "ACKS-CLASSES.casting.pipTip": "Click to spend, click a spent slot to refund",
   "ACKS-CLASSES.casting.restTip": "Rest: refresh every tradition's slots",
   "ACKS-CLASSES.casting.spendTip": "Spend a point",
@@ -171,7 +171,7 @@
   "ACKS-CLASSES.chargen.templateItems": "Starting equipment: {parts}",
   "ACKS-CLASSES.chargen.templateSpells": "Spellbook: {parts}",
   "ACKS-CLASSES.chargen.manual": "Build without a package",
-  "ACKS-CLASSES.chargen.manualHint": "Take no starting template: no equipment and no spellbook, every proficiency chosen from the class and general lists rather than printed, and 3d6×10 gold to outfit the character with (JJ Ch. 16).",
+  "ACKS-CLASSES.chargen.manualHint": "Take no starting template: no equipment and no spellbook, every proficiency chosen from the class and general lists rather than printed, and 3d6×10 gold to outfit the character with.",
   "ACKS-CLASSES.chargen.manualRule": "No package: choose the proficiencies below, roll 3d6×10 for gold, and buy the equipment.",
   "ACKS-CLASSES.chargen.manualPackage": "no package",
   "ACKS-CLASSES.chargen.templateCoin": "Starting coin: {parts}",
@@ -624,7 +624,7 @@
       },
       "proficiencyEnforcement": {
         "name": "Proficiency penalties",
-        "hint": "Whether weapon, armour, and fighting-style proficiency PENALTIES are enforced (Non-Proficient Use, RR p. 106). Positive facts from ACKS Abilities characters — Weapon Finesse, a Specialization's style, Martial/Armour Training picks, Weapon Focus — always apply through the bridge regardless of this setting. Always enforce treats this module's flags as authoritative: configure each character with its ACKS Class Training items (a fighting style plus weapon/armour lists) and the gate is correct. Automatic instead keeps penalties off while ACKS Abilities is active, for worlds where characters rely on it for their base proficiency lists (which its model cannot yet express, so absence of a fact must not read as untrained).",
+        "hint": "Whether weapon, armour, and fighting-style proficiency PENALTIES are enforced (Non-Proficient Use). Positive facts from ACKS Abilities characters — Weapon Finesse, a Specialization's style, Martial/Armour Training picks, Weapon Focus — always apply through the bridge regardless of this setting. Always enforce treats this module's flags as authoritative: configure each character with its ACKS Class Training items (a fighting style plus weapon/armour lists) and the gate is correct. Automatic instead keeps penalties off while ACKS Abilities is active, for worlds where characters rely on it for their base proficiency lists (which its model cannot yet express, so absence of a fact must not read as untrained).",
         "auto": "Automatic — penalties off while ACKS Abilities is active; bridged bonuses still apply",
         "on": "Always enforce — this module's flags are authoritative (default; configure characters via the ACKS Class Training compendium)",
         "off": "Never enforce (equip limits, styles, and bridged bonuses still apply)"
@@ -639,35 +639,35 @@
       },
       "overlayShieldVariants": {
         "name": "Overlay: shield variants (JJ)",
-        "hint": "Buckler, auxiliary, crescent, heater, kite, and phalanx shields with strap positions and vulnerable rules. Judges Journal pp. 407–408."
+        "hint": "Buckler, auxiliary, crescent, heater, kite, and phalanx shields with strap positions and vulnerable rules."
       },
       "overlayManeuvers": {
         "name": "Overlay: combat maneuvers",
-        "hint": "Special-maneuver helpers (disarm, knock down, wrestle, sunder, etc.) aware of Combat Trickery and weapon qualities. Revised Rulebook pp. 305–306."
+        "hint": "Special-maneuver helpers (disarm, knock down, wrestle, sunder, etc.) aware of Combat Trickery and weapon qualities."
       },
       "overlayItemLoss": {
         "name": "Overlay: item loss from damage (JJ)",
-        "hint": "Destroy carried equipment on heavy area damage. Judges Journal p. 398."
+        "hint": "Destroy carried equipment on heavy area damage."
       },
       "overlayMounted": {
         "name": "Overlay: mounted saves",
-        "hint": "Paralysis saves to stay mounted without a military saddle / Mounted Combat or Riding. Revised Rulebook p. 308."
+        "hint": "Paralysis saves to stay mounted without a military saddle / Mounted Combat or Riding."
       },
       "overlayNamed": {
         "name": "Overlay: named magic items (JJ)",
-        "hint": "Named arms and armour that unlock bonuses by level. Judges Journal p. 399."
+        "hint": "Named arms and armour that unlock bonuses by level."
       },
       "overlayScavenged": {
         "name": "Overlay: scavenged equipment (RR)",
-        "hint": "Condition tables for salvaged gear. Revised Rulebook p. 160."
+        "hint": "Condition tables for salvaged gear."
       },
       "overlayBeastman": {
         "name": "Overlay: beastman gear (MM)",
-        "hint": "Barbed armour, blasting-fire bombs, dread banners, and other beastman equipment. Monstrous Manual pp. 55–57."
+        "hint": "Barbed armour, blasting-fire bombs, dread banners, and other beastman equipment."
       },
       "overlayEnclosingHelm": {
         "name": "Overlay: enclosing helmet",
-        "hint": "Heavy helmets impose −1 to surprise rolls and −4 to Listening but grant +2 on Mortal Wounds. Revised Rulebook p. 128."
+        "hint": "Heavy helmets impose −1 to surprise rolls and −4 to Listening but grant +2 on Mortal Wounds."
       },
       "ammoTracking": {
         "name": "Track ammunition & thrown weapons",
@@ -678,7 +678,7 @@
       "handOverflow": "Not enough hands ({handsUsed}/{budget}); free up: {items}.",
       "handOverflowHeld": "Not enough hands ({handsUsed}/{budget}, {held}); free up: {items}.",
       "multipleArmor": "Only one suit of armour may be worn at a time ({items}).",
-      "tooManyShields": "A combatant benefits from only ONE shield at a time (RR p. 141); a strapped spare protects situationally but grants no ordinary AC ({items}).",
+      "tooManyShields": "A combatant benefits from only ONE shield at a time; a strapped spare protects situationally but grants no ordinary AC ({items}).",
       "shieldNoStyle": "This character lacks the Weapon & Shield fighting style, so the shield grants no Armor Class benefit ({items}).",
       "weaponNotProficient": "{items}: weapon unusable by this character's class.",
       "armorNotProficient": "{items} is heavier than this character's armour proficiency (max: {max}).",
@@ -724,7 +724,7 @@
       "encumbrance": "Total encumbrance:",
       "carried": "Carried loose",
       "annotate": "Annotate carrying gear",
-      "annotateHint": "Stamp RAW capacities onto backpacks, sacks, saddlebags, quivers, and the adventurer's harness already on this character (Revised Rulebook pp. 142–145).",
+      "annotateHint": "Stamp RAW capacities onto backpacks, sacks, saddlebags, quivers, and the adventurer's harness already on this character.",
       "annotated": "Annotated {n} carrying device(s).",
       "noneYet": "No containers on this character yet. Use “Annotate carrying gear” to flag packs and sacks this character already carries, or the box control beside an item to make anything a container.",
       "emptyHint": "empty — drag gear here to stow it",
@@ -783,7 +783,7 @@
     },
     "action": {
       "unarmed": "Unarmed Strike",
-      "unarmedHint": "Make an unarmed strike (1d3 nonlethal — RR p. 299).",
+      "unarmedHint": "Make an unarmed strike (1d3 nonlethal).",
       "draw": "Draw (equip)",
       "sheathe": "Sheathe (unequip)",
       "wear": "Wear it — {slot}",
@@ -792,15 +792,15 @@
       "readyHint": "Ready a torch — pull one from the stack as a 1d4 light-weapon you can wield, light, or throw.",
       "noStock": "No {item} left in the stack to ready.",
       "scavenge": "Scavenged",
-      "scavengeHint": "Scavenged equipment (RR p. 159–160) — roll a condition onto this item and apply its mechanical effects.",
+      "scavengeHint": "Scavenged equipment — roll a condition onto this item and apply its mechanical effects.",
       "scavengeTitle": "Scavenged condition — {name}",
-      "scavengePrompt": "Roll a random condition (RR p. 160) and stamp it onto this item's own fields (damage / attack / AC / weight). It can be cleared back to pristine at any time.",
+      "scavengePrompt": "Roll a random condition and stamp it onto this item's own fields (damage / attack / AC / weight). It can be cleared back to pristine at any time.",
       "scavengeRoll": "Roll condition",
       "scavengeReroll": "Re-roll (from pristine)",
       "scavengeClear": "Clear (restore pristine)"
     },
     "masterwork": {
-      "control": "Masterwork (RR p. 159)",
+      "control": "Masterwork",
       "title": "Masterwork — {name}",
       "prompt": "Apply a masterwork quality. It is written onto the item's own fields (to-hit, damage, AC, or weight) and can be cleared back to None at any time.",
       "none": "None (standard)",
@@ -817,7 +817,7 @@
       "front": "Front"
     },
     "variant": {
-      "cycle": "Shield variant (JJ pp. 407–408) — click to choose buckler, kite, phalanx, and so on.",
+      "cycle": "Shield variant — click to choose buckler, kite, phalanx, and so on.",
       "title": "Shield variant — {name}",
       "prompt": "Choose which shield this is. Its AC benefit, encumbrance, and carry options follow from the variant."
     },
@@ -828,15 +828,15 @@
       "pristine": "Pristine",
       "material": "Material",
       "materialAuto": "Auto ({guess})",
-      "materialNote": "Destroyed by: {types} (item loss, JJ p. 398). No standing modifier.",
-      "materialNoneNote": "No damage type destroys this material (item loss, JJ p. 398).",
-      "masterworkReachNote": "Masterwork buys numbers, not reach: this still cannot harm a monster that shrugs off mundane weapons unless its material can (RR p. 159).",
+      "materialNote": "Destroyed by: {types} (item loss). No standing modifier.",
+      "materialNoneNote": "No damage type destroys this material (item loss).",
+      "masterworkReachNote": "Masterwork buys numbers, not reach: this still cannot harm a monster that shrugs off mundane weapons unless its material can.",
       "silver": "Silver",
       "silverAuto": "Auto ({guess})",
       "silverYes": "Silvered",
       "silverNo": "Not silvered",
-      "silverNote": "Counts as extraordinary damage against a monster whose defence has the silver flaw, and against the spells that turn aside mundane damage (RR ch. 4). No standing modifier.",
-      "silverNoneNote": "An ordinary blade. Silvering costs 10× the weapon's listed price and changes nothing else about it (RR ch. 4).",
+      "silverNote": "Counts as extraordinary damage against a monster whose defence has the silver flaw, and against the spells that turn aside mundane damage. No standing modifier.",
+      "silverNoneNote": "An ordinary blade. Silvering multiplies the weapon's listed price and changes nothing else about it.",
       "variant": "Shield variant",
       "helm": "Helmet",
       "spellbook": "Spell book",
@@ -860,10 +860,10 @@
       "light": "Light",
       "heavy": "Heavy (enclosing)",
       "cycle": "Helmet type — click to make it a heavy (enclosing) helm.",
-      "heavyHint": "Enclosing helm (RR p. 140): −1 surprise, −4 Listening; +2 Mortal Wounds applies when the item is named with \"heavy\" and \"helmet\" (core). Click to make it light."
+      "heavyHint": "Enclosing helm: −1 surprise, −4 Listening; +2 Mortal Wounds applies when the item is named with \"heavy\" and \"helmet\" (core). Click to make it light."
     },
     "spellbook": {
-      "manageHint": "Edit the spells recorded in this book. Value = 20gp + 1,000gp × each spell's level (RR p. 390).",
+      "manageHint": "Edit the spells recorded in this book. Value = 20gp + 1,000gp × each spell's level.",
       "title": "Spell book — {name}",
       "prompt": "One spell per line, level as a trailing number: “Fireball, 3”. Each spell fills one page per level; 100 pages total.",
       "save": "Save spells",
@@ -910,7 +910,7 @@
       "save": "Save",
       "make": "Make named",
       "unmake": "Un-name (restore base)",
-      "gmHint": "Ladder categories: hit, damage, ac, encumbrance, power (JJ p. 399). The Judge sets the order.",
+      "gmHint": "Ladder categories: hit, damage, ac, encumbrance, power. The Judge sets the order.",
       "trackLabel": "“{given}” — {n}/{max} unlocked",
       "rungUnset": "unlock order not set",
       "sealed": "still sealed",
@@ -934,7 +934,7 @@
   "ACKS-EQUIPMENT.container.unmake": "Stop treating this as a container",
   "ACKS-EQUIPMENT.container.annotateAll": "Annotate carrying gear from the RAW capacity table",
   "ACKS-EQUIPMENT.container.lockedHint": "Locked. You cannot see what is inside.",
-  "ACKS-EQUIPMENT.lock.gloved": "You cannot pick a lock wearing gloves (RR p. 145).",
+  "ACKS-EQUIPMENT.lock.gloved": "You cannot pick a lock wearing gloves.",
   "ACKS-EQUIPMENT.lock.noPickProficiency": "{name} has no lockpicking proficiency.",
   "ACKS-EQUIPMENT.lock.noBashProficiency": "{name} has no dungeon bashing proficiency.",
   "ACKS-EQUIPMENT.lock.picked": "The lock on {name} opens.",
@@ -993,10 +993,10 @@
       "shieldedBadge": "closed",
       "shieldHint": "Close/open the lantern shutter: sheds no light while closed but keeps burning oil (RR equipment). Mapping needs an open light.",
       "frontage": "Frontage",
-      "frontageHint": "How many march abreast (RR p. 264: single file in corridors 5' or narrower, two columns at 6'+). Any width the scene can hold. Groups the list into ranks and shapes combat deployment; the party token itself stays 1×1.",
+      "frontageHint": "How many march abreast. Any width the scene can hold. Groups the list into ranks and shapes combat deployment; the party token itself stays 1×1.",
       "stackHint": "Stands for several bodies. Open its sheet to record casualties — they come off in one stroke, not one at a time.",
       "autoArrange": "Auto-arrange",
-      "autoArrangeHint": "Build an I-formation per RR p. 264: a FULL front line (scouts and best-armored melee, spears next) and a FULL back line (Rear Guard, then missile users) are staffed first; non-combatants, the mapper, and spellcasters hold the middle ranks, centered with blank slots. Tweak afterwards with the arrows.",
+      "autoArrangeHint": "Staff a full front line (scouts and the best-armoured melee, spears next) and a full back line (Rear Guard, then missile users) first; non-combatants, the mapper and spellcasters hold the middle ranks, centred with blank slots. Tweak afterwards with the arrows.",
       "emptyMembers": "Drag actors or tokens into this sheet, or right-click a token on the canvas and use its \"Add to party\" HUD button.",
       "emptyState": "No formation yet — right-click a token and use \"Add to party\", or create a Party Formation actor.",
       "missingActor": "(missing actor)",
@@ -1054,7 +1054,7 @@
       "leashed": "{name} has gone as far ahead as they can — the party must catch up first.",
       "orphanParty": "This party actor is not linked to any formation.",
       "hurriedBadge": "per turn — hurrying at combat pace",
-      "paceHint": "Pace (RR p. 263): careful exploration (default — quiet, can map, probe with poles, and hastily search) or hurried at combat speed (about 3× the ground per turn, much more noise, and no mapping, poles, or hasty searching).",
+      "paceHint": "Pace: careful exploration (default — quiet, can map, probe with poles, and hastily search) or hurried at combat speed (about 3× the ground per turn, much more noise, and no mapping, poles, or hasty searching).",
       "roundShort": "round",
       "advanceRound": "Round",
       "advanceRoundHint": "Mark off one bookkeeping round (1 minute; 10 per turn) — hasty actions like listening, hasty searching, bashing a door, or lighting a torch",
@@ -1113,10 +1113,10 @@
       "failure": "Failure",
       "listen": "Listen",
       "listenHint": "1 round (marked off). Every member rolls Listening with their own sheet target. RAW: only the closest member's result applies; once per turn while moving.",
-      "listenNote": "Only the member closest to the sound may apply their result (RR p. 265). Once per turn while the party is moving.",
-      "alreadyListened": "The party already listened this turn while moving — once per turn (10 minutes); it takes time to settle into quiet (RR p. 265). A stationary party may keep listening.",
+      "listenNote": "Only the member closest to the sound may apply their result. Once per turn while the party is moving.",
+      "alreadyListened": "The party already listened this turn while moving — once per turn (10 minutes); it takes time to settle into quiet. A stationary party may keep listening.",
       "searchHasty": "Hasty Search",
-      "searchHastyHint": "1 round (marked off). Only members with a Searching skill may hastily search — Adventuring is not permitted (RR p. 265).",
+      "searchHastyHint": "1 round (marked off). Only members with a Searching skill may hastily search — Adventuring is not permitted.",
       "searchHastyNote": "1 round, 5' reach (10' with pole). A failed hasty search cannot be repeated until the searcher gains a level.",
       "searchMethodical": "Methodical Search",
       "searchMethodicalHint": "Takes 1 full turn (advanced automatically). Skill users roll at +4; anyone else uses their Adventuring target (18+).",
@@ -1130,7 +1130,7 @@
       "tracking": "Track",
       "trackingHint": "Takes 1 turn (advanced automatically). Only members with the Tracking proficiency roll (base 11+, adjusted by the Judge for numbers, ground, weather, and light).",
       "trackingNote": "1 turn (10 minutes, marked off automatically). On a failure the area cannot be searched for tracks again for one hour. Judge modifiers: +2/+4/+6/+8 by group size, +4 soft ground, -8 rocky, -1 per 12h of weather, -4 per hour of rain/snow, -4 dim light.",
-      "noHastyHurried": "The party is hurrying at combat speed — hasty searching is not possible (RR p. 263). Slow to a careful pace first.",
+      "noHastyHurried": "The party is hurrying at combat speed — hasty searching is not possible. Slow to a careful pace first.",
       "partMethodical": "methodical",
       "partAlertness": "Alertness",
       "partTrapfinding": "Trapfinding",
@@ -1180,7 +1180,7 @@
     },
     "winded": {
       "effectName": "Winded",
-      "effectDescription": "Cannot charge or run until resting for 1 turn (10 minutes). ACKS II RR p. 271."
+      "effectDescription": "Cannot charge or run until resting for 1 turn (10 minutes). ACKS II."
     },
     "chat": {
       "turnAdvanced": "{n} dungeon turn(s) pass",
@@ -1219,10 +1219,10 @@
       "combatFallen": "Down and gathered up with the party: {names}. Assign Carriers to bring them along, or leave them behind where they fell — they keep their share of the experience either way.",
       "combatNoCombatants": "No deployable members (all non-combatants or without tokens) — party token left in the tracker.",
       "bigMove": "That drag consumed {turns} turns. If that was repositioning rather than exploration, use the undo-turn button or pause tracking.",
-      "hurriedStatus": "Hurrying at combat speed: much more noise (earshot as walking/talking or worse), no mapping, no 10' poles, no hasty searching (RR p. 263)",
+      "hurriedStatus": "Hurrying at combat speed: much more noise (earshot as walking/talking or worse), no mapping, no 10' poles, no hasty searching",
       "encounterNowTitle": "The rolled encounter occurs NOW",
       "encounterNow": "The wandering monsters arrive at minute {minute} of the turn — interrupt the party's movement here and run the encounter.",
-      "signature": "Party signature: {light}, {noise} — applies to surprise and earshot (RR pp. 265–266)",
+      "signature": "Party signature: {light}, {noise} — applies to surprise and earshot",
       "sigLit": "light visible",
       "sigDark": "no visible light",
       "sigLoud": "hurried and loud",
@@ -1232,7 +1232,7 @@
       "inCombat": "Members are deployed for combat — the party reforms automatically when the combat ends.",
       "noMapper": "No mapper assigned — without a map the party risks getting lost (assign the Mapper role).",
       "mapperNoLight": "The mapper has no lit light source — mapping requires bright light.",
-      "mapperNoProficiency": "The mapper lacks the Mapping proficiency — the Judge gives only vague measurements and the mapper cannot passively notice map errors (RR p. 264).",
+      "mapperNoProficiency": "The mapper lacks the Mapping proficiency — the Judge gives only vague measurements and the mapper cannot passively notice map errors.",
       "noLight": "No lit light source — the party cannot see (unless members have shadowy senses or lightless vision).",
       "winded": "Winded: the party cannot charge or run until it rests for 1 turn.",
       "restDue": "5 turns without rest — the party must rest 1 turn now or become winded.",
@@ -1343,7 +1343,7 @@
       },
       "signalAffectsEncounters": {
         "name": "Light & noise modify encounter throws (optional)",
-        "hint": "NOT in the reference extracts (light/noise affect surprise and earshot per RR pp. 265-266; the encounter-rate rule, if any, is in the encounter chapter). When enabled: hurried parties +1 on the 1d6 throw, dark and careful parties -1. Off = RAW-as-extracted."
+        "hint": "An optional house rule, not something the module found in the rules it was given. When enabled: hurried parties +1 on the 1d6 throw, dark and careful parties -1. Off leaves the throw alone."
       }
     },
     "audit": {
@@ -1523,14 +1523,14 @@
         "description": "Description"
       },
       "hint": {
-        "level": "1st to 6th, roughly as dangerous as a divine spell of that level.",
+        "level": "1st to 6th. Printed on the card when it goes off.",
         "trigger": "How it is set off, in your own words: a tripwire, a pressure plate, a rune.",
-        "triggerOn": "1d6 at or under this springs it. 2 is the book's default; widen it for a trap that is easy to set off, narrow it for a hard one.",
-        "crude": "Crudely built: +4 to find and to remove, attacks at -2, and its victims save at +2.",
-        "attackThrow": "The attack throw for a fighter of this trap's level, from your own book — rolled against the victim's AC.",
-        "damageFormula": "What it deals, as dice. Leave blank for a pit and the depth below will supply it.",
-        "pitDepthFeet": "In feet. A pit deals 1d6 per 10 feet fallen.",
-        "spiked": "Spikes at the bottom impale for 1d4 spikes at 1d6 each.",
+        "triggerOn": "The secret die springs the trap at or under this. Raise it for a trap that is easy to set off, lower it for a hard one; 0 never springs.",
+        "crude": "Crudely built: easier to find and to remove, and feebler when it fires.",
+        "attackThrow": "From your own book, for a fighter of this trap's level. Rolled against the victim's AC.",
+        "damageFormula": "What it deals, as dice. Leave blank for a pit and the depth below supplies it.",
+        "pitDepthFeet": "In feet. The fall's own damage is derived from it.",
+        "spiked": "Spikes at the bottom add their own damage to the fall.",
         "radiusFeet": "How far it reaches from where it went off. In a column, every 5 feet is one rank.",
         "rider": "Prone, restrained, stuck, burning, a Mortal Wounds roll — printed on the card for you to apply."
       },
@@ -2258,7 +2258,7 @@
   "ACKS-INFLUENCE.note.hatredDwarfGoblin": "MM: dwarves revile goblins — dwarven sentries automatically have Hostile reactions to any goblins encountered (Judge's call whether it applies here).",
   "ACKS-INFLUENCE.note.hatredGnomeKobold": "MM: gnomes hold a fierce hatred for kobolds (Judge's call whether an automatic Hostile reaction applies here).",
   "ACKS-INFLUENCE.settings.btaCaste.name": "By This Axe: dwarven caste reaction modifiers",
-  "ACKS-INFLUENCE.settings.btaCaste.hint": "Enable the optional BTA p.56 rule — caste-based reaction modifiers between dwarves (Highborn, Oathsworn/Craftborn/Workborn, Houseless). When off, the compendium caste effects stop contributing to rolls.",
+  "ACKS-INFLUENCE.settings.btaCaste.hint": "Enable the optional caste rule — caste-based reaction modifiers between dwarves (Highborn, Oathsworn/Craftborn/Workborn, Houseless). When off, the compendium caste effects stop contributing to rolls.",
   "ACKS-INFLUENCE.settings.raceRelations.name": "Campaign race relations (JSON)",
   "ACKS-INFLUENCE.settings.raceRelations.hint": "Directional reaction modifiers between races, e.g. [{\"from\":\"dwarf\",\"to\":\"elf\",\"value\":-1,\"label\":\"Grudge of the Vaults\"}]. `from` is the influencer's race/category, `to` the target's; rows need not be symmetric. Applies to reactions, hiring, and loyalty (like Inhumanity). Modules can add rows via api.registerRaceRelations().",
   "ACKS-INFLUENCE.mod.charisma": "CHA modifier",
@@ -2649,7 +2649,7 @@
       "inventory": "Gear the monster carries: generic items, armor, and clothing. Mark an item as a Spoil (in its ACKS Monster section) to move it to the Spoils tab.",
       "spoils": "Harvestable parts (weight in 1/6-stone, gp cost, component & research-effect flags). Use the + to add a pre-flagged spoil.",
       "effectKeywords": "comma-separated, e.g. enchantment, all death effects",
-      "silverFlaw": "The common flaw (RR ch. 6): this monster treats silver weapons as magic for purposes of this defence, so silver deals extraordinary damage against it.",
+      "silverFlaw": "The common flaw: this monster treats silver weapons as magic for purposes of this defence, so silver deals extraordinary damage against it.",
       "spellcasting": "e.g. casts as Mage 6",
       "spellItems": "Add the actual spells as spell items; toggle the Spells tab via Actor Tweaks (system.spells.enabled).",
       "lifespan": "Age thresholds in years: Baby / Juvenile / Adolescent / Adult / Middle-Aged / Old / Ancient / Maximum. Leave blank for a dash (ageless / indefinite).",
@@ -2908,7 +2908,7 @@
   "ACKS-MARKETS.identify.method.arcaneDabbling": "Arcane Dabbling (trigger it)",
   "ACKS-MARKETS.identify.method.magicalEngineering": "Magical Engineering (one turn)",
   "ACKS-MARKETS.identify.method.loremastery": "Loremastery (one turn)",
-  "ACKS-MARKETS.identify.method.magicResearch": "Magic research (RR p.388)",
+  "ACKS-MARKETS.identify.method.magicResearch": "Magic research",
   "ACKS-MARKETS.identify.error.noMethod": "Pick a method.",
   "ACKS-MARKETS.identify.error.notApplicable": "That method does not apply to this item.",
   "ACKS-MARKETS.identify.error.notQualified": "That identifier lacks the ability this method needs.",
