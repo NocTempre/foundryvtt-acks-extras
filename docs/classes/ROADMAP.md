@@ -50,9 +50,11 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   refuses when the sheet is not empty. Reported from the field 2026-08-14.
 - **Where a general proficiency may be picked from** — `choosableGenerals()`
   reads `game.items` alone, so the picker offers only proficiencies already
-  materialized into the world; the 177 general proficiencies shipped in
-  compendia (core's `acks-proficiencies`, this module's `proficiencies-powers`)
-  are invisible until something imports them. That is consistent with the
+  materialized into the world; the proficiencies shipped in compendia (core's
+  `acks-proficiencies`, this module's `proficiencies-powers`) are invisible
+  until something imports them. Note that core's pack cannot be used to tell
+  general from class — every document in it carries the schema's `initial:
+  "general"`, so the column asserts nothing. That is consistent with the
   family's model — the importer materializes book content, and a ref is a
   cookbook id — but nothing states it where a user meets it, and `coinSource()`
   in chargen.mjs already searches compendia, so the codebase is not of one mind.

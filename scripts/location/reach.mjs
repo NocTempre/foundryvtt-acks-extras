@@ -21,12 +21,15 @@
  * anywhere, so ownership answers, and a place pinned to the character's own
  * sheet answers too.
  *
- * A COMPANION reaches what their fellows reach. Two notions of "party" are
- * live in this world and both count, deliberately: a formation's marching
- * order (this repo's own) and Foundry's party actor (core's, from v13). They
- * are not unified here — that is the owner's call and a later job — so this
- * asks both and takes either. The `group` actor is NOT one of them: it is a
- * troop stack, not a company of player characters.
+ * A COMPANION reaches what their fellows reach, and the FORMATION says who
+ * those are. Foundry's party actor is deprecated in this family: where a
+ * formation holds this character, it is the whole answer and the party actor
+ * is not consulted, so one roster cannot quietly widen another's reach. The
+ * party actor still answers for a character no formation holds, which is what
+ * a world that has not built its formations yet needs.
+ *
+ * The `acks-extras.group` actor is neither of them: it is a troop stack, not a
+ * company of player characters.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { sceneOfLocation } from "./scene-link.mjs";
@@ -57,33 +60,41 @@ function standsOn(scene, actor) {
 }
 
 /**
- * Everyone this character travels with, by actor id — from a formation's
- * marching order and from Foundry's own party actors alike.
+ * Everyone this character travels with, by actor id.
  *
- * Both are asked because both exist in worlds using this family, and neither
- * is authoritative over the other yet. Either answering yes is enough.
+ * The marching order answers first and, when it answers at all, alone: a
+ * character in a formation travels with that formation and with nobody else.
+ * Falling through to the party actor as well would union two rosters, so a
+ * character left in a stale party actor would keep reaching a company they
+ * are no longer marching with.
  */
 export function companionIds(actor) {
   const out = new Set();
   if (!actor?.id) return out;
 
+  let inFormation = false;
   try {
     for (const formation of Object.values(getFormations() ?? {})) {
       const members = formation?.members ?? [];
       if (!members.some((m) => m?.actorId === actor.id)) continue;
+      inFormation = true;
       for (const m of members) if (m?.actorId) out.add(m.actorId);
     }
   } catch {
-    /* no formations readable — the party actors below still answer */
+    /* no formations readable — the party actor below still answers */
   }
 
   // Foundry's party actor (v13+): a `group` actor listing its members. Read
   // defensively, because the shape is core's and this module does not own it.
-  for (const candidate of game.actors ?? []) {
-    if (candidate.type !== "group") continue;
-    const ids = Object.keys(candidate.system?.members ?? {});
-    if (!ids.includes(actor.id)) continue;
-    for (const id of ids) out.add(id);
+  // Consulted ONLY for a character no formation claims — a world mid-migration,
+  // or one that never built a formation at all.
+  if (!inFormation) {
+    for (const candidate of game.actors ?? []) {
+      if (candidate.type !== "group") continue;
+      const ids = Object.keys(candidate.system?.members ?? {});
+      if (!ids.includes(actor.id)) continue;
+      for (const id of ids) out.add(id);
+    }
   }
 
   out.delete(actor.id);
