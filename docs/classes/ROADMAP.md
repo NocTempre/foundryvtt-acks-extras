@@ -40,3 +40,21 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   marching order and Foundry's party actor, and takes either
   ([location/DECISIONS.md](../location/DECISIONS.md)). Which one is
   authoritative is the owner's call and not yet made.
+- **A template when the picker binds a 1st-level class** — chargen offers the
+  class's templates; the sheet picker never does, so a character bound at 1st
+  from the sheet gets the class's numbers and awards but no starting package.
+  The surface is small; the ruling is not. `applyChargen` WIPES the actor's
+  items, because generating a character replaces the last run of the page. A
+  character bound from the sheet may already own gear, so offering a template
+  there has to say first whether it replaces what they hold, merges into it, or
+  refuses when the sheet is not empty. Reported from the field 2026-08-14.
+- **Where a general proficiency may be picked from** — `choosableGenerals()`
+  reads `game.items` alone, so the picker offers only proficiencies already
+  materialized into the world; the 177 general proficiencies shipped in
+  compendia (core's `acks-proficiencies`, this module's `proficiencies-powers`)
+  are invisible until something imports them. That is consistent with the
+  family's model — the importer materializes book content, and a ref is a
+  cookbook id — but nothing states it where a user meets it, and `coinSource()`
+  in chargen.mjs already searches compendia, so the codebase is not of one mind.
+  Deciding it means saying whether picking from a compendium materializes the
+  item.

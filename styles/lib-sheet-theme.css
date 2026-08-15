@@ -195,25 +195,31 @@ body.acks-lib-sheet-theme .sheet.acks.item-v2 .window-content {
    square corners, which is what --acks-radius is zero for.
 
    WHAT THIS REACHES IS NARROWER THAN "every ACKS field", and the boundary is
-   deliberate. The rule needs `.acks` on an application root AND a
-   `.window-content` between it and the field, so it dresses the system's own
-   sheets and the handful of module applications that name `acks` in their
-   `classes` — nothing else. A module window that does not name `acks`, a
-   DialogV2, a chat card, and a card another module embeds in an application of
-   its own are all outside it, by construction: this file themes the SYSTEM's
-   windows, and reaching further would restyle surfaces the system never drew.
+   deliberate. The rule needs an ACKS application root AND a `.window-content`
+   between it and the field, so it dresses the system's own sheets and this
+   family's own windows — nothing else. A DialogV2, a chat card, and a card
+   another module embeds in an application of its own are all outside it by
+   construction.
 
-   Off those surfaces the field dressing belongs to whoever draws them —
-   vendor/acks-design's `.acks-ui` layer for a module window, the follower
-   card's own rules for the card. Do not widen this selector to cover a field
-   that arrived undressed; give that surface its owner instead. A rule elsewhere
-   that repeats these four declarations is doing exactly that and is not
-   redundant — check which hosts it serves before deleting it.
+   BOTH roots are named because a field is otherwise dressed by NOBODY. `.acks`
+   is the system's own class, carried by core's sheets and by the few module
+   windows that name it; `.acks-ui` is on every window this family draws. The
+   design layer dresses fields opt-in, through `.acks-input` on the element
+   itself, and this module's templates write plain `<input>` — so a window
+   carrying neither `acks` nor `.acks-input` rendered raw Foundry chrome inside
+   an ACKS frame. Naming `.acks-ui` here is what makes an ACKS field look the
+   same on every ACKS window; the alternative is `.acks-input` on some hundreds
+   of elements, where one omission is invisible until someone opens that sheet.
 
-   The weight is (0,4,2), which is more than a module rule leading with its own
-   class can reach. A module rule that must win here needs a fifth class-level
-   component and says so where it is written. */
-body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]) {
+   A field that must stay UNDRESSED (drawn over artwork, or inside a tight
+   spinner row) says so below, with the same `!important` the system's own
+   exceptions use.
+
+   The weight is (0,4,2) — `:is()` takes its most specific argument, and both
+   are classes, so widening the root did not move it. A module rule that must
+   win here still needs a fifth class-level component and says so where it is
+   written. */
+body.acks-lib-sheet-theme :is(.acks, .acks-ui) .window-content input:not([type="checkbox"]) {
   background: var(--acks-field);
   border: var(--acks-border-ink);
   border-radius: var(--acks-radius);
@@ -223,8 +229,8 @@ body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]) {
 /* Hover and focus are drawn in the INK role, not the surface role: a
    surface-dark burgundy here is what audited at 1.46:1 against a dark ground.
    --acks-spot lifts to rose there. */
-body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]):hover:not(:disabled),
-body.acks-lib-sheet-theme .acks .window-content input:not([type="checkbox"]):focus:not(:disabled) {
+body.acks-lib-sheet-theme :is(.acks, .acks-ui) .window-content input:not([type="checkbox"]):hover:not(:disabled),
+body.acks-lib-sheet-theme :is(.acks, .acks-ui) .window-content input:not([type="checkbox"]):focus:not(:disabled) {
   box-shadow: 0 0 3px var(--acks-focus-color);
   border-color: var(--acks-focus-color);
 }
