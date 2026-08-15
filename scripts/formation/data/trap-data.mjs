@@ -1,6 +1,6 @@
 /* global foundry */
 import { SAVE_KEYS } from "../constants.mjs";
-import { RESOLUTIONS, SCOPES, TRIGGER_DEFAULT, TRIGGER_DIE } from "../trap-rules.mjs";
+import { ON_SUCCESS, RESOLUTIONS, SCOPES, TRIGGER_DEFAULT, TRIGGER_DIE } from "../trap-rules.mjs";
 
 /**
  * Data model for the `acks-extras.trap` Item subtype — one trap, as the Judge's
@@ -58,6 +58,18 @@ export default class TrapData extends foundry.abstract.TypeDataModel {
         required: true,
         initial: RESOLUTIONS.automatic,
         choices: Object.values(RESOLUTIONS),
+      }),
+      /**
+       * What beating the save is worth. The book's traps disagree — a ceiling
+       * collapse halves, a deadfall is dodged outright, a portcullis grants a
+       * choice of side and no mitigation at all — so it is a field, not an
+       * assumption. Ignored by a trap that makes an attack throw: a bolt that
+       * missed deals nothing whatever this says.
+       */
+      onSuccess: new fields.StringField({
+        required: true,
+        initial: ON_SUCCESS.half,
+        choices: Object.values(ON_SUCCESS),
       }),
       /** Which save it allows. `breath` is the Blast save in the released system. */
       saveKey: new fields.StringField({ required: false, blank: true, initial: "", choices: ["", ...SAVE_KEYS] }),

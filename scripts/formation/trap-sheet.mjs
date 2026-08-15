@@ -1,6 +1,6 @@
 /* global foundry, game */
 import { MODULE_ID, SAVE_KEYS } from "./constants.mjs";
-import { RESOLUTIONS, SCOPES, pitDamageFormula } from "./trap-rules.mjs";
+import { ON_SUCCESS, RESOLUTIONS, SCOPES, pitDamageFormula } from "./trap-rules.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -54,6 +54,7 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       label: label(`resolution.${value}`),
     }));
     context.scopeChoices = Object.values(SCOPES).map((value) => ({ value, label: label(`scope.${value}`) }));
+    context.onSuccessChoices = Object.values(ON_SUCCESS).map((value) => ({ value, label: label(`onSuccess.${value}`) }));
     context.saveChoices = [
       { value: "", label: label("noSave") },
       ...SAVE_KEYS.map((value) => ({ value, label: game.i18n.localize(`ACKS.saves.${value}.long`) })),

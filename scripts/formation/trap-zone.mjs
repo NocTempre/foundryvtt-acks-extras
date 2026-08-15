@@ -12,6 +12,7 @@ import {
   RESOLUTIONS,
   STATES,
   TRIGGER_DIE,
+  damageTaken,
   disarmPlan,
   firingPlan,
   isBotch,
@@ -431,6 +432,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
     pitDepthFeet: cfg.pitDepthFeet,
     spiked: cfg.spiked,
     crude: cfg.crude,
+    onSuccess: cfg.onSuccess,
   });
 
   const rows = [];
@@ -438,6 +440,11 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
     const actor = game.actors.get(victim.actorId);
     if (!actor) continue;
     const name = actor.name;
+    // Did this victim beat the trap's throw? `null` when it offered none, in
+    // which case the damage lands whole. The damage line below is computed from
+    // this rather than printed beside it — a bolt that missed deals nothing,
+    // and a made save is worth whatever the trap says it is worth.
+    let beat = null;
 
     if (plan.resolution === RESOLUTIONS.save && plan.saveKey) {
       const target = Number(actor.system?.saves?.[plan.saveKey]?.value);
@@ -445,6 +452,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
       const roll = await new Roll(formula).evaluate();
       rolls.push(roll);
       const made = Number.isFinite(target) && roll.total >= target;
+      beat = made;
       rows.push({
         name,
         total: roll.total,
@@ -464,6 +472,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
       const roll = await new Roll(plan.attackModifier ? `1d20 + ${plan.attackModifier}` : "1d20").evaluate();
       rolls.push(roll);
       const hit = roll.total >= needed;
+      beat = !hit; // beating an attack throw means it MISSED you
       rows.push({
         name,
         total: roll.total,
@@ -478,16 +487,19 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
       rows.push({ name, total: "—", outcome: loc("noThrow"), emphasis: "failure" });
     }
 
-    if (plan.formula) {
+    if (plan.formula && plan.resolution !== RESOLUTIONS.none) {
       const dmg = await new Roll(plan.formula).evaluate();
       rolls.push(dmg);
+      const { taken, mitigated } = damageTaken(dmg.total, beat, plan.onSuccess);
+      // A trap that dealt nothing to this victim says so, rather than printing
+      // a damage line they are meant to know not to apply.
       rows.push({
         name: loc("damageTo", { name }),
-        total: dmg.total,
-        detail: plan.formula,
+        total: taken,
+        detail: mitigated || taken !== dmg.total ? loc("damageMitigated", { rolled: dmg.total, formula: plan.formula }) : plan.formula,
         tooltip: plan.formula,
-        outcome: loc("damageOutcome"),
-        emphasis: "failure",
+        outcome: loc(taken ? "damageOutcome" : "damageNone"),
+        emphasis: taken ? "failure" : "success",
       });
     }
   }

@@ -129,9 +129,11 @@ stops there rather than walking on.
 At combat speed there is no pole and no searching — the party is moving too
 fast for either, exactly as the book says.
 
-Damage is **rolled and reported, not applied**. Halve it for a made save, set it
-aside for a rider, or apply it as it stands: the card gives you the number and
-the sheets stay yours.
+Damage is **rolled and reported, not applied** — the card gives you the number
+and the sheets stay yours. The number is already worked out against the throw:
+a missed attack deals nothing, and a made save takes off whatever that trap says
+it takes off (half, all of it, or nothing at all if the save only buys you a
+choice about where you land).
 
 ### Getting past one
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.9.2
+
+### Fixed
+- **A trap that missed you no longer reports damage.** The damage line was
+  printed beside the throw rather than worked out from it, so a trap whose
+  attack missed still showed a number, and a victim who made their save got the
+  same number as one who failed. The card now carries what the victim actually
+  took.
+- **What a made save is worth is now the trap's own business.** A new field says
+  whether beating the throw halves the damage, avoids it entirely, or buys only
+  the rider — the book's traps disagree, and assuming one of them was wrong for
+  the other two.
+- **The man on the left stops springing every trap.** Everyone in a rank throws
+  separately, which is right, but they were always thrown for in file order and
+  the sequence stops at the throw that springs the trap — so whoever stood
+  leftmost took every pit in the dungeon. A rank is now shuffled; ranks are
+  still met front to back.
+
 ## 4.9.1
 
 ### Fixed

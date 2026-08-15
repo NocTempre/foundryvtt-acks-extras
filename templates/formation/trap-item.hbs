@@ -51,6 +51,14 @@
           {{selectOptions saveChoices valueAttr="value" labelAttr="label" selected=system.saveKey}}
         </select>
       </div>
+      <div class="form-group">
+        <label for="trap-onsuccess">{{localize 'ACKS-FORMATION.traps.field.onSuccess'}}</label>
+        <select id="trap-onsuccess" name="system.onSuccess" data-dtype="String"
+                {{#unless editable}}disabled{{/unless}}>
+          {{selectOptions onSuccessChoices valueAttr="value" labelAttr="label" selected=system.onSuccess}}
+        </select>
+        <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.onSuccess'}}</p>
+      </div>
     {{/if}}
 
     {{#if isAttack}}

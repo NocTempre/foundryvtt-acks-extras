@@ -43,6 +43,42 @@ export const RESOLUTIONS = Object.freeze({
 /** Who a trap catches: only whoever set it off, or everything within a radius. */
 export const SCOPES = Object.freeze({ triggerer: "triggerer", area: "area" });
 
+/**
+ * What beating the trap's throw is worth to the victim.
+ *
+ * The book's traps do not agree on this and the difference is the whole
+ * outcome: a ceiling collapse halves on a made save, a deadfall is dodged
+ * outright, one fire trap deals a smaller die instead, and a portcullis grants
+ * a choice of which side you land on rather than any mitigation at all. A model
+ * with no field for it can only report the throw and the damage side by side
+ * and leave the reader to guess whether one affected the other.
+ */
+export const ON_SUCCESS = Object.freeze({
+  /** Half damage, rounded down. The commonest. */
+  half: "half",
+  /** Nothing at all — dodged, avoided, missed. */
+  none: "none",
+  /** The throw changes nothing about the damage; the rider is the point. */
+  full: "full",
+});
+
+/**
+ * What a victim actually takes, given the throw and what success is worth.
+ *
+ * @param {number} rolled the damage the trap rolled
+ * @param {boolean|null} beat did the victim beat the throw? null when the trap
+ *   allows no throw at all, in which case the damage lands whole.
+ * @param {string} onSuccess one of `ON_SUCCESS`
+ * @returns {{taken: number, mitigated: boolean}}
+ */
+export function damageTaken(rolled, beat, onSuccess = ON_SUCCESS.half) {
+  const full = Math.max(0, Math.floor(Number(rolled) || 0));
+  if (beat !== true) return { taken: full, mitigated: false };
+  if (onSuccess === ON_SUCCESS.none) return { taken: 0, mitigated: true };
+  if (onSuccess === ON_SUCCESS.full) return { taken: full, mitigated: false };
+  return { taken: Math.floor(full / 2), mitigated: true };
+}
+
 /** Whether a trap is still waiting, already spotted, or dealt with. */
 export const STATES = Object.freeze({
   armed: "armed",
@@ -83,14 +119,24 @@ export const BOTCH_BANDS = Object.freeze({ hasty: 3, methodical: 1 });
  * buys is untrodden ground ahead of the column, not precedence over a man
  * standing in the square already.
  *
+ * **Within a rank the order is shuffled.** Men marching abreast step onto the
+ * same ground at the same moment, and each still throws separately — that much
+ * is the book's ("you might secretly roll many times"). What is not the book's
+ * is deciding that the leftmost of them always goes first: the sequence ends at
+ * the throw that springs the trap, so a fixed file order makes whoever stands
+ * in file 0 spring every trap in the dungeon. The shuffle is per rank, so ranks
+ * still meet the trap front to back.
+ *
  * @param {object[]} order rows from `marchingOrder()`
  * @param {object} [opts]
  * @param {boolean} [opts.pole] may poles probe at all? False at combat speed,
  *   which loses the 10' pole along with mapping and the hasty search.
+ * @param {() => number} [opts.random] the source of the shuffle, injected so
+ *   the sequence can be pinned in a test without pinning the bias back in.
  * @returns {Array<{kind: "body"|"pole", actorId: string, name: string|null,
  *   rank: number, file: number, reach: number}>}
  */
-export function probeSequence(order, { pole = true } = {}) {
+export function probeSequence(order, { pole = true, random = Math.random } = {}) {
   const probes = [];
   for (const row of order ?? []) {
     const base = { actorId: row.actorId, name: row.name ?? null, rank: row.rank, file: row.file };
@@ -99,8 +145,32 @@ export function probeSequence(order, { pole = true } = {}) {
       probes.push({ ...base, kind: "pole", reach: row.rank - 1 });
     }
   }
-  const kindRank = (p) => (p.kind === "pole" ? 1 : 0);
-  return probes.sort((a, b) => a.reach - b.reach || a.file - b.file || kindRank(a) - kindRank(b));
+
+  // Group by the square each probe reaches, shuffle inside the group, then lay
+  // the groups out front to back. A body still precedes a pole waved into the
+  // same square — someone standing there got there first — so the shuffle runs
+  // within a kind, not across the two.
+  const groups = new Map();
+  for (const probe of probes) {
+    const key = `${probe.reach}:${probe.kind}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(probe);
+  }
+  for (const group of groups.values()) {
+    for (let i = group.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [group[i], group[j]] = [group[j], group[i]];
+    }
+  }
+
+  const kindRank = (kind) => (kind === "pole" ? 1 : 0);
+  return [...groups.entries()]
+    .sort(([a], [b]) => {
+      const [ar, ak] = a.split(":");
+      const [br, bk] = b.split(":");
+      return Number(ar) - Number(br) || kindRank(ak) - kindRank(bk);
+    })
+    .flatMap(([, group]) => group);
 }
 
 /**
@@ -269,6 +339,7 @@ export function firingPlan({
   pitDepthFeet = 0,
   spiked = false,
   crude = false,
+  onSuccess = ON_SUCCESS.half,
 } = {}) {
   const typed = String(damageFormula ?? "").trim();
   return {
@@ -277,6 +348,10 @@ export function firingPlan({
     saveBonus: crude ? CRUDE.save : 0,
     attackThrow: resolution === RESOLUTIONS.attack ? (Number(attackThrow) || 0) : null,
     attackModifier: crude ? CRUDE.attack : 0,
+    // What beating the throw is worth. An ATTACK that misses is always nothing
+    // — a bolt that did not hit deals no damage, whatever the trap says about
+    // saves — so the field only governs the save case.
+    onSuccess: resolution === RESOLUTIONS.attack ? ON_SUCCESS.none : onSuccess,
     // A typed formula is the Judge's own trap and wins; the pit derivation is
     // the fallback for the one trap whose damage the rule itself states.
     formula: typed || pitDamageFormula(pitDepthFeet, spiked),

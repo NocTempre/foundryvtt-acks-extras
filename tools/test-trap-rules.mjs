@@ -5,8 +5,10 @@
 import assert from "node:assert/strict";
 import {
   CRUDE,
+  ON_SUCCESS,
   RESOLUTIONS,
   SCOPES,
+  damageTaken,
   disarmPlan,
   firingPlan,
   isBotch,
@@ -76,9 +78,32 @@ test("at combat speed there is no pole to probe with", () => {
   assert.deepEqual(labels(probes), ["bearer@0"]);
 });
 
-test("men standing abreast meet it in file order", () => {
-  const probes = probeSequence([row("right", 0, 1), row("left", 0, 0)]);
-  assert.deepEqual(labels(probes), ["left@0", "right@0"]);
+test("men standing abreast are met in a shuffled order, not always leftmost first", () => {
+  // Per-adventurer throws are the book's; deciding that file 0 always throws
+  // FIRST is not, and since the sequence ends at the throw that springs the
+  // trap it would make one man spring every trap in the dungeon.
+  const abreast = [row("left", 0, 0), row("middle", 0, 1), row("right", 0, 2)];
+  const seen = new Set();
+  for (let i = 0; i < 200; i++) seen.add(probeSequence(abreast).map((p) => p.actorId).join(","));
+  assert.ok(seen.size > 1, "the rank always came out in the same order");
+  // Everyone still throws exactly once, however it is shuffled.
+  for (const order of seen) assert.equal(order.split(",").length, 3);
+});
+
+test("the shuffle stays inside a rank — ranks are still met front to back", () => {
+  const two = [row("front", 0, 0), row("frontB", 0, 1), row("back", 1, 0), row("backB", 1, 1)];
+  for (let i = 0; i < 50; i++) {
+    const ranks = probeSequence(two).map((p) => p.rank);
+    assert.deepEqual(ranks, [0, 0, 1, 1]);
+  }
+});
+
+test("the shuffle can be pinned, so a test never has to re-fix the bias", () => {
+  const abreast = [row("a", 0, 0), row("b", 0, 1), row("c", 0, 2)];
+  const fixed = () => 0; // always pick index 0 in the Fisher-Yates swap
+  const once = probeSequence(abreast, { random: fixed }).map((p) => p.actorId);
+  const twice = probeSequence(abreast, { random: fixed }).map((p) => p.actorId);
+  assert.deepEqual(once, twice);
 });
 
 /* -------------------------------------------- */
@@ -371,6 +396,40 @@ test("the crossing carries how far along the move it happened", () => {
   const near = segmentCrossing({ x: 0, y: 0 }, { x: 0, y: 100 }, [-10, 25, 10, 25]);
   const far = segmentCrossing({ x: 0, y: 0 }, { x: 0, y: 100 }, [-10, 75, 10, 75]);
   assert.ok(near.t < far.t);
+});
+
+/* -------------------------------------------- */
+/*  What the throw was worth                    */
+/* -------------------------------------------- */
+
+test("a trap that offered no throw at all deals its damage whole", () => {
+  assert.deepEqual(damageTaken(9, null), { taken: 9, mitigated: false });
+});
+
+test("failing the save takes all of it", () => {
+  assert.deepEqual(damageTaken(9, false, ON_SUCCESS.half), { taken: 9, mitigated: false });
+});
+
+test("making the save halves it, rounding down", () => {
+  assert.deepEqual(damageTaken(9, true, ON_SUCCESS.half), { taken: 4, mitigated: true });
+});
+
+test("a trap you can dodge outright deals nothing when dodged", () => {
+  assert.deepEqual(damageTaken(9, true, ON_SUCCESS.none), { taken: 0, mitigated: true });
+});
+
+test("a trap whose save buys only a rider still deals full damage", () => {
+  // The portcullis: making the save chooses which side you land on, and the
+  // damage is unaffected. Reporting it as mitigated would be a lie.
+  assert.deepEqual(damageTaken(9, true, ON_SUCCESS.full), { taken: 9, mitigated: false });
+});
+
+test("an attack that missed deals nothing, whatever the trap says about saves", () => {
+  // `firingPlan` forces onSuccess to `none` for an attack trap, because a bolt
+  // that did not hit cannot deal half.
+  const plan = firingPlan({ resolution: RESOLUTIONS.attack, attackThrow: 10, onSuccess: ON_SUCCESS.half });
+  assert.equal(plan.onSuccess, ON_SUCCESS.none);
+  assert.deepEqual(damageTaken(7, true, plan.onSuccess), { taken: 0, mitigated: true });
 });
 
 /* -------------------------------------------- */

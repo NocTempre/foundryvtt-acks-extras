@@ -244,9 +244,16 @@ Everything is whispered to the Judge, including a trap the party crossed
 untouched: knowing the corridor was clear is how a Judge tracks a trap that is
 still armed, and saying it aloud would give away that there was anything there.
 
-Damage is **reported, not applied**, for the same reason the party's saves are:
-half on a made save, none if a rider says so, and a Judge who wanted the pit to
-be a bruise this once.
+Damage is **computed against the throw and then reported, not applied**. What a
+made save is worth is a field on the trap, because the book's traps disagree: a
+collapsing ceiling halves, a deadfall is dodged outright, a portcullis grants a
+choice of side and no mitigation at all. An attack that missed deals nothing
+regardless. The card carries the number the victim actually took — reporting a
+damage line beside a missed attack, which 4.9.0 and 4.9.1 did, is worse than
+saying nothing.
+
+Applying it is still the Judge's, on the precedent the door helper set: a botched
+bash returns its point of damage and leaves the writing to a human.
 
 ## Detaching a member
 

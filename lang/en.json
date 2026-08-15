@@ -1520,7 +1520,8 @@
         "scope": "Catches",
         "radiusFeet": "Reach (feet)",
         "rider": "And also",
-        "description": "Description"
+        "description": "Description",
+        "onSuccess": "Beating the save is worth"
       },
       "hint": {
         "level": "1st to 6th. Printed on the card when it goes off.",
@@ -1532,7 +1533,8 @@
         "pitDepthFeet": "In feet. The fall's own damage is derived from it.",
         "spiked": "Spikes at the bottom add their own damage to the fall.",
         "radiusFeet": "How far it reaches from where it went off. In a column, every 5 feet is one rank.",
-        "rider": "Prone, restrained, stuck, burning, a Mortal Wounds roll — printed on the card for you to apply."
+        "rider": "Prone, restrained, stuck, burning, a Mortal Wounds roll — printed on the card for you to apply.",
+        "onSuccess": "What a victim who makes the throw actually avoids."
       },
       "assigned": "{trap} assigned to that wall.",
       "dropNoWall": "Drop a trap onto a wall to assign it — there is no wall there.",
@@ -1547,7 +1549,14 @@
         "discharged": "spent"
       },
       "drew": "Drew a trap line. Drag its ends into place.",
-      "regionReused": "That outline already had a trap area; reused it. Lifted the trap off {lifted} wall(s)."
+      "regionReused": "That outline already had a trap area; reused it. Lifted the trap off {lifted} wall(s).",
+      "onSuccess": {
+        "half": "Half the damage",
+        "none": "All of it — avoided",
+        "full": "Nothing; the rider is the point"
+      },
+      "damageNone": "None taken",
+      "damageMitigated": "{formula} rolled {rolled}"
     }
   },
   "ACKS-HENCHMEN.sheet.location": "Location / Recruitment Market",
