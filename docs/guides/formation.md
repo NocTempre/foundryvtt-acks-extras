@@ -23,6 +23,42 @@ When a formation takes the field, member tokens are stashed and one party token
 stands in their place. Disbanding restores every stashed token to where it came
 from.
 
+## Deploying, and which way the column points
+
+A combat deploy lays the marching order out as a block: files abreast, ranks
+behind, **facing the way the party token faces**. The heading is the token's
+own rotation snapped to a cardinal — core rotates the token every time it is
+dragged or walked, so the party token is already a record of which way the
+party last marched, and turning it by hand (Shift+scroll with it selected)
+turns the whole deploy.
+
+An unrotated token faces **south**, so a party whose token has never turned
+deploys its column trailing away to the **north**. (Before v4.8.0 the column
+always trailed south of the token regardless of facing — if your table had
+gotten used to that, turn the party token to face north and the old layout is
+back.)
+
+## Saved marching orders
+
+The party sheet's march controls **save** the current arrangement under a name
+and **load** one back; the party token's HUD carries a **form up** button that
+applies a saved order and gathers everyone on the map back inside the token.
+With one order saved the button applies it outright; with several it asks.
+
+A saved order records the shape — who stands where, their roles, how many march
+abreast — and nothing else, so restoring one can lose an arrangement but never
+a character. Someone saved but gone is dropped and the line closes up; someone
+new keeps the back rank.
+
+For macros, the same calls the sheet uses (all of them **write to the world
+setting** — none is a dry run):
+
+- `saveTemplate(formation, name)` — formation first, then the name.
+- `applyTemplate(formation, template)` — takes the template **object** (from
+  `getTemplate(id)` or `listTemplates()`), not an id, and rewrites the
+  formation's marching order.
+- `formUp(formation, template)` — apply, then gather the deployed back in.
+
 ## The clock
 
 Moving the party token advances the exploration clock in turns. Torches burn

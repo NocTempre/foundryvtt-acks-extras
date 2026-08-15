@@ -30,6 +30,8 @@ the next refresh.
 | Henchmen | An employer's roster tab: who is hired, on what terms | [guide](guides/henchmen.md) | [v3.0.0](releases/v3.0.0/henchmen-roster.png) |
 | Equipment | A silvered weapon's Construction tab: the Silver control and what the plating buys | [guide](guides/equipment.md#silvered-weapons) | [v3.3.0](releases/v3.3.0/equipment-item-sheet.png) |
 | Formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v4.0.0](releases/v4.0.0/formation-party-sheet.png) |
+| Deploy heading | A two-file block deployed on the canvas, trailing away behind the party token's facing | [guide](guides/formation.md) | [v4.8.0](releases/v4.8.0/formation-deploy-heading.png) |
+| Marching orders, saved | The party sheet's march controls: frontage, the order, and the save that a form-up restores | [guide](guides/formation.md) | [v4.8.0](releases/v4.8.0/formation-marching-orders.png) |
 | Dealing experience | The division shown before it is given: full shares, a henchman at half, and who takes nothing, with the reason | [guide](guides/formation.md) | [v4.5.0](releases/v4.5.0/formation-xp.png) |
 | Groups | A retinue kept as one document rather than a dozen | [guide](guides/formation.md) | [v3.0.0](releases/v3.0.0/group-sheet.png) |
 | Templates | The generator that stats a creature when you need one | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/template-sheet.png) |
@@ -59,6 +61,7 @@ the next refresh.
 | The door | Two spikes in, the throw broken into its parts, and what an axe would cost | [guide](guides/formation.md) | [v4.2.0](releases/v4.2.0/formation-door.png) |
 | Vehicles: the ground | A wagon on a forest road, and what the terrain and the driver each did to its pace | [guide](guides/vehicles.md) | [v4.3.0](releases/v4.3.0/vehicles-terrain.png) |
 | Vehicles: passengers | Two riders aboard, the day's march in miles and hexes, and the boarding macros | [guide](guides/vehicles.md) | [v4.4.0](releases/v4.4.0/vehicles-passengers.png) |
+| Vehicles: cargo buckets | A vehicle's sheet showing the load buckets it actually has, each with its fill | [guide](guides/vehicles.md) | [v4.8.0](releases/v4.8.0/vehicles-buckets.png) |
 | Storage reach | A mapped place you are not standing at, beside ones you can reach | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-storage-reach.png) |
 | Read aloud | A named power posted to chat for the table to read | [guide](guides/monsters.md#what-opens-first) | [v3.3.0](releases/v3.3.0/monster-card-chat.png) |
 | Monsters | The extended stat block's defenses: the silver flaw beside Mundane and Extraordinary | [guide](guides/monsters.md) | [v4.0.0](releases/v4.0.0/monster-defences.png) |
@@ -66,6 +69,7 @@ the next refresh.
 | Sheet light controls | A lit lantern's row: douse and shutter where the item sits | [guide](guides/equipment.md#lighting-a-lamp-from-your-own-sheet) | [v3.3.0](releases/v3.3.0/equipment-light-controls.png) |
 | Vision & light | A token under its own lantern's glow on a dark canvas | [guide](guides/formation.md#seeing-in-the-dark) | [v3.3.0](releases/v3.3.0/token-vision.png) |
 | Ability throws | A progression throw whose source is picked from every class the world holds | [guide](guides/abilities.md#typing-in-a-throw) | [v3.3.0](releases/v3.3.0/ability-roll-editor.png) |
+| Ladder picker | A progression throw naming a ladder the class publishes, beside the attack-throw default | [guide](guides/abilities.md#typing-in-a-throw) | [v4.8.0](releases/v4.8.0/abilities-ladder-picker.png) |
 | Rolling a proficiency | Every throw an ability offers, each rolling its own | [guide](guides/abilities.md) | [v3.4.0](releases/v3.4.0/abilities-throws.png) |
 | Wear slots | Where a piece of gear is worn, what it holds, and what reaching in costs | [guide](guides/equipment.md#where-gear-is-worn) | [v3.3.0](releases/v3.3.0/equipment-slot-picker.png) |
 | Party warnings | The exploration warnings, including a fallen member the party must carry or leave before it can move | [guide](guides/formation.md) | [v4.5.0](releases/v4.5.0/formation-casualties.png) |

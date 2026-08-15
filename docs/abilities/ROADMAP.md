@@ -12,12 +12,12 @@ class document's attack bands, `resolveLevelValue` completes lib's resolver
 through them, and the roll editor's picker names the four chassis or any
 class the world holds instead of retyping rungs.
 
-What remains is naming a published LADDER (a thief-skill column, a house
-table) rather than an attack progression — the registry publishes them
-(`acks.class.<key>`), but the `progression` target's vocabulary only reaches
-the attack table today. The internal table stays regardless — a throw whose
-ladder is its own is the common case, and a shared table is an alternative
-source for the same target, not a replacement for typing one.
+**Shipped 4.8.0:** a `progression` target can now name a published LADDER (a
+thief-skill column, a house table) as well — the roll editor offers the
+ladders the named class publishes, blank keeping the attack bands. The
+internal table stays regardless — a throw whose ladder is its own is the
+common case, and a shared table is an alternative source for the same target,
+not a replacement for typing one. Nothing on this row remains open.
 - **An unresolved pick still says nothing** — the sheet now offers only picks
   the mechanics resolve, so the common way to acquire a dead selection is gone.
   Free text stays free, though, and `abilities-bridge.mjs` still skips a pick
