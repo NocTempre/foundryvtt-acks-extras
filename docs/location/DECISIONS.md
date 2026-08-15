@@ -25,11 +25,21 @@ map. Ruled (user), and the rule has two halves because places do:
   answers, as does a place pinned to the character's own sheet, and a personal
   vault is always its owner's wherever they stand.
 
-**Companions count, from two sources, deliberately unreconciled.** The user
-named the formation module's party; Foundry's own party actor (v13+) exists
-too and they are not unified. Both are asked and either answering yes is
-enough, pending a later unification that is the owner's to make. The `group`
-actor is NOT one of them — it is a troop stack, not a company of characters.
+**~~Companions count, from two sources, deliberately unreconciled.~~**
+SUPERSEDED 2026-08-15 by the ruling below. The user named the formation
+module's party; Foundry's own party actor (v13+) existed too and they were not
+unified, so both were asked and either answering yes was enough.
+
+**The formation is the party; core's is deprecated (2026-08-15).** Asking both
+and taking either meant a character left in a stale party actor kept reaching a
+company they were no longer marching with — two rosters unioned, neither able
+to revoke the other. The marching order now answers first and, when it answers
+at all, alone. The party actor is consulted only for a character no formation
+claims, which is what a world mid-migration or one that never built a formation
+needs; it is a fallback, not a peer. This is the same deprecation the XP
+dealing already applies from the other side, where core's Deal XP button is
+hidden while the formation owns the division. The `acks-extras.group` actor is
+neither of them — it is a troop stack, not a company of characters.
 
 **Retrieval is not gated at all.** A player who cannot reach their own
 belongings is a worse failure than one who withdraws from a distance. Where the

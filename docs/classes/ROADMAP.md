@@ -36,10 +36,12 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   which core clears on the first update touching scores), so a character built
   by hand cannot be sent back through it. What is missing is a way to reopen
   the page deliberately; the surface itself is complete.
-- **Unifying the two notions of party** — storage reach asks both a formation's
-  marching order and Foundry's party actor, and takes either
-  ([location/DECISIONS.md](../location/DECISIONS.md)). Which one is
-  authoritative is the owner's call and not yet made.
+- **Retiring the party actor properly** — the authority question is RULED: the
+  formation is the party and core's is deprecated
+  ([location/DECISIONS.md](../location/DECISIONS.md)). Storage reach and XP
+  dealing both honour it. What is left is the migration a deprecation earns —
+  offering to build a formation from an existing party actor, so a world does
+  not have to retype its roster to stop being a fallback case.
 - **A template when the picker binds a 1st-level class** — chargen offers the
   class's templates; the sheet picker never does, so a character bound at 1st
   from the sheet gets the class's numbers and awards but no starting package.
