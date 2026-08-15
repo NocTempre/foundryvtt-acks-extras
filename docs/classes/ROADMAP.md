@@ -31,11 +31,6 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   embellishment parsed apart from the base ("iron-shod", the spells a
   spellbook carries as linked spell items) and a sheet surface that shows
   "instance of <base>".
-- **Reaching chargen again after the first write** — the Scores Generator is
-  offered only while the system considers a character new (`system.isNew`,
-  which core clears on the first update touching scores), so a character built
-  by hand cannot be sent back through it. What is missing is a way to reopen
-  the page deliberately; the surface itself is complete.
 - **Retiring the party actor properly** — the authority question is RULED: the
   formation is the party and core's is deprecated
   ([location/DECISIONS.md](../location/DECISIONS.md)). Storage reach and XP

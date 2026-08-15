@@ -454,3 +454,13 @@
   gap: 0.3rem;
   margin-top: 0.3rem;
 }
+
+/* Sending a character back through the generator replaces what they own, so
+   the control sits last in the header row and is drawn in the warning ink —
+   the same weight the diff table gives a hand edit it is about to overwrite. */
+.acks-extras-classes-reopen {
+  flex: 0;
+  margin-left: 0.25rem;
+  cursor: pointer;
+  color: var(--acks-warning-ink);
+}

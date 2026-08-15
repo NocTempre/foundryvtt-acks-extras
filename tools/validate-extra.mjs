@@ -345,6 +345,11 @@ if (failed) process.exit(1);
  * accumulate again. */
 execFileSync(process.execPath, [path.join(HERE, "audit-styles.mjs")], { stdio: "inherit" });
 
+/* A named import that does not exist is module-breaking and offline-invisible:
+ * the browser refuses the module at load and every later hook is dead, while
+ * validate reads files and the test suite imports only the pure modules. */
+execFileSync(process.execPath, [path.join(HERE, "audit-imports.mjs")], { stdio: "inherit" });
+
 /* The flow suite runs last: it is the slowest, and a guard failure above makes
  * its result uninteresting anyway. */
 execFileSync(process.execPath, [path.join(HERE, "test-formation-flows.mjs")], { stdio: "inherit" });

@@ -26,6 +26,7 @@ import { applyClass, classUpdateData, normalizeHd } from "./apply.mjs";
 import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
+import { reopenChargen, registerReopenChargen } from "./reopen-chargen.mjs";
 import {
   applyChargen,
   applyTemplate,
@@ -104,6 +105,9 @@ Hooks.once("init", () => {
      * hold them.
      */
     languages,
+    // Sending a character back through the Scores Generator: the page works,
+    // but the system clears the flag that offers it on the first score edit.
+    reopenChargen,
     CLASS_TYPE,
     RACE_TYPE,
     BUILDER_DOC_ID,
@@ -152,6 +156,7 @@ Hooks.once("init", () => {
 registerAssignUi();
 casting.registerCastingUi();
 registerLevelUp();
+registerReopenChargen();
 registerChargen();
 registerChargenPage();
 registerSheetTabs();
