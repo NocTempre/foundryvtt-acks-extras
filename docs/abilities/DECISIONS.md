@@ -7,6 +7,38 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### An open family's entries are registered; a closed one's are code (2026-08-14)
+
+**Asked.** Are the selection vocabularies registered by import rather than hard
+coded — "matters most for setting proper names like languages"?
+
+They were hard-coded with no registration path, while every other table-shaped
+thing in the family reaches a world through the layered ruledata registry
+(`lib/tables.mjs`). Selection vocabulary was the one that could not be added to.
+
+**Ruled: the two halves are different and stay different.** A CLOSED family —
+the six Weapon Focus groups, the five fighting styles, the eight Combat Trickery
+manoeuvres, the four elements — names MECHANISMS this module resolves, and stays
+in code. Widening one is not a missing feature: a sixth fighting style would be
+a box that lights nothing, which the entry below already decided. Registration
+is refused for these rather than half-obeyed.
+
+An OPEN family — Art/Craft, Profession, Labor, Performance — is proper names out
+of somebody's campaign. The printed handful were always examples, and this repo
+ships no value read off a page, so a world adds its own through
+`acks.selectionVocab`: one table per ability slug, `{key: {label, aliases}}`, at
+whatever priority the layer deserves. Registered entries merge over the printed
+ones. Nothing is required, and an unregistered world behaves exactly as before —
+which is why this is deliberately NOT declared through `expectTables`, where a
+missing optional layer would read as a broken import.
+
+**Languages prompted the question and are the one thing this does not serve.** A
+tongue is a document in a slot carrier ([classes](../classes/MODEL.md)), not a
+string ticked off a list — setting-defined content a world names, holds and
+fills. Nothing about languages moves into this vocabulary.
+
+---
+
 ### A selection is chosen from a shortlist, and still typed when it is not on it (2026-08-14)
 
 **Reported.** Weapon Focus, fighting styles, weapon and armour proficiencies

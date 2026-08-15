@@ -15,6 +15,10 @@
  * effect models both build from.
  */
 
+// The ruledata registry is a pure module too, so importing it here keeps this
+// file Node-importable by the offline tooling that depends on that.
+import { getDoc, hasDoc } from "./tables.mjs";
+
 /** `{ key: { label, … } }` → `{ key: label }` for DataModel `choices`. */
 export const choicesOf = (enumObj) =>
   Object.fromEntries(Object.entries(enumObj).map(([k, v]) => [k, v?.label ?? k]));
@@ -338,12 +342,48 @@ export const SELECTION_VOCAB_BY_ABILITY = {
 /** Is this vocabulary a shortlist rather than a closed set? */
 export const isOpenVocab = (vocab) => vocab?.open === true;
 
-/** The pick vocabulary for one ability: its own first, else its category's. */
+/**
+ * Where a world's OWN entries for the open families arrive.
+ *
+ * The tables above are code because they are MECHANISMS the module resolves —
+ * six weapon groups, five fighting styles, eight manoeuvres. The open families
+ * are not: an Art, a Craft, a Profession, a Labor or a Performance is a proper
+ * name from somebody's campaign, and this repo ships no value read off a page.
+ * So the printed handful stay as examples and a world adds the rest, through
+ * the same layered ruledata registry every other imported table uses — one
+ * table per ability slug, each `{key: {label, aliases}}`:
+ *
+ *   registerTable({ id: "acks.selectionVocab", tables: {
+ *     profession: { vintner: { label: "Vintner" } },
+ *   }}, { priority: PRIORITY.WORLD });
+ *
+ * Nothing is REQUIRED: an unregistered world behaves exactly as before, which
+ * is why this is not declared through `expectTables`.
+ */
+export const SELECTION_VOCAB_DOC = "acks.selectionVocab";
+
+/** A world's registered entries for one open family, or null. */
+function registeredVocab(slug) {
+  if (!slug || !hasDoc(SELECTION_VOCAB_DOC)) return null;
+  const entries = getDoc(SELECTION_VOCAB_DOC).tables?.[slug];
+  return entries && typeof entries === "object" ? entries : null;
+}
+
+/**
+ * The pick vocabulary for one ability: its own first, else its category's.
+ *
+ * A CLOSED family is returned as it stands. Widening one is not an oversight —
+ * a fighting style the loadout rules cannot resolve would be a box that lights
+ * no mechanic, so the registry is offered only to the families the books
+ * themselves leave open.
+ */
 export function selectionVocabFor(item, category) {
-  const own = SELECTION_VOCAB_BY_ABILITY[abilitySlug(item)];
+  const slug = abilitySlug(item);
+  const own = SELECTION_VOCAB_BY_ABILITY[slug];
   if (own) {
     const { open, ...options } = own;
-    return options;
+    if (!open) return options;
+    return { ...options, ...(registeredVocab(slug) ?? {}) };
   }
   return SELECTION_VOCAB[category] ?? null;
 }

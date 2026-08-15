@@ -55,6 +55,10 @@ const CLASSBOX = "acks-extras-classes-chargen";
 const TPLBOX = "acks-extras-classes-tplbox";
 const PICKS = "acks-extras-classes-picks";
 
+/** The module's scroll contract (styles/lib.css) — what keeps a window's own
+ *  content reachable once it is taller than the screen. */
+const SCROLL_CLASS = "acks-extras-scroll";
+
 /** Where the Judge unlock is remembered, on the Judge's own user document. */
 const JUDGE_FLAG = "chargenJudgeUnlock";
 
@@ -709,6 +713,18 @@ export function registerChargenPage() {
       // as tall as the build it is showing, and the handle is there for anyone
       // who wants it otherwise.
       if (options.position) options.position.width = Math.max(Number(options.position.width) || 0, 1100);
+      // …but `auto` only sizes to content while the content FITS. Past the
+      // screen the window stops growing and core's
+      // `.application .window-content { overflow: hidden }` amputates the rest,
+      // and the third column — which carries the Intellect bonus picks, the
+      // last thing on the page — is what falls off. Measured on the live page:
+      // the generator's window-content computes `overflow-y: hidden` and does
+      // not scroll. `acks-extras-scroll` is the module's own contract for
+      // exactly this (styles/lib.css) and is what the module's dialogs use, so
+      // the page borrows it rather than growing a second answer.
+      if (Array.isArray(app.options.classes) && !app.options.classes.includes(SCROLL_CLASS)) {
+        app.options.classes.push(SCROLL_CLASS);
+      }
     } catch (err) {
       console.warn(`${MODULE_ID} | could not make the Scores Generator resizable`, err);
     }

@@ -97,6 +97,23 @@ so a craft your Judge approved goes in the free-text line under the boxes. That
 line is also where a selection goes when you clear the boxes entirely, so you
 can always type one by hand.
 
+**A campaign can give those open families its own boxes.** If your world keeps
+naming the same professions, a Judge registers them once and they appear as
+ticks beside the printed ones, for everybody:
+
+```js
+acksExtras.lib.tables.registerTable(
+  { id: "acks.selectionVocab", tables: { profession: { vintner: { label: "Vintner" } } } },
+  { priority: 20 },
+);
+```
+
+The closed families — Weapon Focus, Martial Training, fighting styles, Combat
+Trickery, Elementalism — take no additions, because each entry drives a rule the
+module resolves and a sixth fighting style would be a box that changes nothing.
+Languages are not on this list either: they are documents you fill slots with,
+not words you tick.
+
 **Imported characters keep their picks.** A template that says
 "Fighting Style Spec. (weapon & shield)" ticks *Weapon & Shield*, and one that
 says "Swords" ticks *Swords & Daggers*, rather than leaving the words sitting in

@@ -1432,6 +1432,36 @@ t("an ability's own vocabulary wins over its category's", () => {
   assert.ok(trickery.disarm && !trickery.swordsdaggers);
 });
 
+t("a world's own entries widen an OPEN family and never a closed one", () => {
+  T.registerTable(
+    {
+      id: vocab.SELECTION_VOCAB_DOC,
+      tables: {
+        profession: { vintner: { label: "Vintner" } },
+        // A closed family is offered the same registration and must ignore it:
+        // a sixth fighting style would light no mechanic.
+        fightingstylespecialization: { pikeandshot: { label: "Pike & Shot" } },
+      },
+    },
+    { priority: T.PRIORITY.WORLD },
+  );
+  try {
+    const prof = vocab.selectionVocabFor(abilityWith("def.prof.profession"), "proficiency");
+    assert.ok(prof.vintner, "the world's own profession is offered");
+    assert.ok(prof.merchant, "and the printed examples still are");
+
+    const styles = vocab.selectionVocabFor(abilityWith("def.prof.fightingStyleSpecialization"), "proficiency");
+    assert.equal(styles.pikeandshot, undefined, "a closed family stays closed");
+    assert.equal(Object.keys(styles).length, 5);
+  } finally {
+    T.unregisterTable(vocab.SELECTION_VOCAB_DOC, { priority: T.PRIORITY.WORLD });
+  }
+  // With nothing registered the open family is exactly the printed handful.
+  const bare = vocab.selectionVocabFor(abilityWith("def.prof.profession"), "proficiency");
+  assert.equal(bare.vintner, undefined);
+  assert.ok(bare.merchant);
+});
+
 t("an ability with no vocabulary of its own falls back to its category's", () => {
   const byCategory = vocab.selectionVocabFor(abilityWith("def.prof.somethingElse"), "fightingStyle");
   assert.deepEqual(Object.keys(byCategory), Object.keys(vocab.SELECTION_VOCAB.fightingStyle));
