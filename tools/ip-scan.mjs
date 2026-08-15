@@ -60,6 +60,19 @@ const ATTRIBUTION = /all rights reserved|adventurer conqueror king|autarch/iu;
  * is a citation in something a player or Judge READS — lang, templates, packs.
  */
 const CITATION = /\b(?:RR|JJ|MM|BTA|AX\s?\d|revised rulebook|judges?'? journal|monstrous manual)\b[\s,.]*(?:pp?\.|ch(?:apter|\.)|page)\s*\d/iu;
+/*
+ * ...unless the string is NOTHING BUT a citation. A value of "BTA p.62" is a
+ * LOCATOR — it says where to look in the reader's own copy and reproduces
+ * nothing, which is precisely what an extraction cookbook is for; acks-importer
+ * carries ~1,250 of them in `cite` fields and every one is doing its job. What
+ * the rule is actually after is a citation with PROSE attached, because there
+ * the citation is a pointer to the sentence that came off that page.
+ *
+ * Keyed on the shape of the value rather than on a list of blessed field names:
+ * a locator is a locator wherever it is stored, and a paragraph is not one
+ * however the key is spelled.
+ */
+const LOCATOR_ONLY = new RegExp(String.raw`^[\s(\[]*(?:see\s+)?(?:RR|JJ|MM|BTA|AX\s?\d|revised rulebook|judges?'? journal|monstrous manual)\b[\s,.]*(?:pp?\.|ch(?:apter|\.)|page)?\s*[\d–—\-,\s]*[)\]]*[.;]?\s*$`, "iu");
 const DATA_GLOBS = [/packs[/\\]_source[/\\].*\.json$/u, /^cookbook[/\\].*\.json$/u, /^register[/\\].*\.json$/u, /^lang[/\\].*\.json$/u];
 /* Handlebars is shipped text too, and is not JSON-walkable. */
 const TEMPLATE_GLOBS = [/^templates[/\\].*\.hbs$/u];
@@ -181,7 +194,7 @@ function scanStrings(node, relPath, keyPath = "") {
   if (typeof node === "string") {
     if (ATTRIBUTION.test(node)) {
       errors.push(`${relPath}: ${keyPath || "(root)"} contains publisher attribution — copied book text, not authored data`);
-    } else if (CITATION.test(node) && !CODE_KEYS.has(keyPath)) {
+    } else if (CITATION.test(node) && !LOCATOR_ONLY.test(node) && !CODE_KEYS.has(keyPath)) {
       errors.push(
         `${relPath}: ${keyPath || "(root)"} cites a page — say what the FIELD does, not what the rule says; ` +
           `the book's words reach a world through acks-importer`,
