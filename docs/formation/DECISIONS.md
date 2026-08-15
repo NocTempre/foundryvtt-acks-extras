@@ -440,3 +440,38 @@ it, because the movement hook fires on arrival.
 **A consequence worth naming:** a trap wall is invisible to the party in every
 sense, so the Judge needs to see it. The markers follow the secret door — the
 player's client draws nothing at all, and the Judge's shows the state.
+
+### 2026-08-15 — A trap reports its damage; the Judge writes it
+
+Once the firing model learned what beating the throw was worth, the reason for
+not applying damage had to be re-examined: the module now knows exactly what
+each victim took, so "we cannot tell" had stopped being true. It was never the
+real reason anyway — the honest one was that `firingPlan` had no field for the
+success effect, which is now fixed.
+
+**Ruled: still reported, not applied.** Two reasons, and the second is the one
+that decides it.
+
+The precedent. Nothing in this family writes damage to a sheet. `bashDoor`
+returns `damage: 1` on a botch and leaves the point to a human; the party's
+saves and the obstacle helper's falls do the same. A card that sometimes writes
+hit points and sometimes does not is worse than one that never does, because a
+Judge then has to remember which surfaces are which before deciding whether to
+undo anything.
+
+**The riders.** A trap's damage is frequently not the whole of what it does —
+knocked prone, restrained and hoisted, stuck in a portcullis, burning, or a roll
+on a Mortal Wounds table. Those are prose the module deliberately does not
+model, and it prints them for the Judge. Applying the number while leaving the
+rider unapplied produces a half-resolved trap that LOOKS finished: the hit
+points moved, so the eye reads it as handled, and the condition the trap was
+really about is the part that gets forgotten. Reporting both together keeps one
+reader responsible for the whole outcome.
+
+**What it costs.** Every trap that goes off is a small piece of manual work, and
+in a corridor full of them that adds up. The alternative was worse in a way that
+is hard to notice, which is the kind of worse this family avoids.
+
+**Rejected: applying damage and printing the rider as a reminder.** That is the
+half-resolved state above with a note attached, and a note beside a completed
+action is read as flavour.
