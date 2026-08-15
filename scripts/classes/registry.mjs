@@ -13,7 +13,7 @@
  * Reads are pure lookups over what was published; a world with no class
  * documents publishes nothing and every resolver degrades to null.
  */
-import { registerTable, unregisterTable, PRIORITY, bracketRow } from "../lib/tables.mjs";
+import { registerTable, unregisterTable, PRIORITY, bracketRow, getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
 import { resolveLevelValue as libResolveLevelValue, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
 import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, MODULE_ID } from "./constants.mjs";
 
@@ -213,13 +213,64 @@ export function progressionThrow(as, atLevel = "full", level = 1, round = "up") 
 }
 
 /**
+ * The value a named LADDER gives at a level — "as a thief's Climb Walls at
+ * half his level", where the table wanted is not the attack bands.
+ *
+ * A ladder is a list of rungs (`atLevel`, `value`), so the answer is the
+ * LAST rung the level has reached rather than a bracket: a table stating 1, 4
+ * and 7 gives the level-6 answer at rung 4. Reading it any other way makes a
+ * character lose the rung they climbed at 4 the moment they hit 5.
+ *
+ * @param {string} as    a class key
+ * @param {string} table the ladder's key, as the class document names it
+ * @returns {number|null} null when the class, or that ladder, is unpublished
+ */
+export function ladderValue(as, table, atLevel = "full", level = 1, round = "up") {
+  const key = String(as ?? "").toLowerCase();
+  const docId = key ? `${CLASS_DOC_PREFIX}${key}` : null;
+  // getDoc THROWS on an id nobody registered, so a class with no published
+  // tables must be caught here rather than at roll time.
+  const doc = docId && hasTableDoc(docId) ? getTableDoc(docId) : null;
+  const rungs = doc?.tables?.[`ladder.${table}`];
+  if (!Array.isArray(rungs) || !rungs.length) return null;
+  const factor = PROGRESSION_LEVELS[atLevel]?.factor ?? 1;
+  const raw = Math.max(1, level) * factor;
+  const eff = Math.max(1, round === "down" ? Math.floor(raw) : Math.ceil(raw));
+  let best = null;
+  for (const rung of rungs) {
+    const at = Number(rung?.atLevel);
+    if (!Number.isFinite(at) || at > eff) continue;
+    if (best === null || at >= Number(best.atLevel)) best = rung;
+  }
+  const value = Number(best?.value);
+  return Number.isFinite(value) ? value : null;
+}
+
+/** Every ladder key a class document publishes, for a picker to offer. */
+export function laddersOf(classKey) {
+  const key = String(classKey ?? "").toLowerCase();
+  const docId = key ? `${CLASS_DOC_PREFIX}${key}` : null;
+  // getDoc THROWS on an id nobody registered, so a class with no published
+  // tables must be caught here rather than at roll time.
+  const doc = docId && hasTableDoc(docId) ? getTableDoc(docId) : null;
+  return Object.keys(doc?.tables ?? {})
+    .filter((t) => t.startsWith("ladder."))
+    .map((t) => t.slice("ladder.".length));
+}
+
+/**
  * lib `resolveLevelValue`, completed: the `progression` kind (which lib
- * returns null for, by design) resolves through the published chassis tables.
+ * returns null for, by design) resolves through the published tables.
+ *
+ * A progression target that NAMES a table reads that ladder; one that names
+ * none reads the attack bands, which is what the kind meant before ladders
+ * were reachable and what every throw already stored keeps meaning.
  */
 export function resolveLevelValue(lv, level = 1, scales = {}) {
   const resolved = libResolveLevelValue(lv, level, scales);
   if (resolved != null) return resolved;
   if (lv && typeof lv === "object" && (lv.kind === "progression" || (!lv.kind && lv.as))) {
+    if (lv.table) return ladderValue(lv.as, lv.table, lv.atLevel || "full", level, lv.round || "up");
     return progressionThrow(lv.as, lv.atLevel || "full", level, lv.round || "up");
   }
   return resolved;

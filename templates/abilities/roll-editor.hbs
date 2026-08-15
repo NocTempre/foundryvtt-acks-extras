@@ -114,6 +114,19 @@
       </div>
       <p class="hint">{{localize "ACKS-ABILITIES.roll.field.asHint"}}</p>
     </div>
+    {{! Only offered when the named class actually publishes a ladder; blank
+        keeps the attack bands, which is what a progression has always meant. }}
+    {{#if choices.table}}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.table"}}</label>
+      <div class="form-fields">
+        <select name="target.table">
+          {{selectOptions choices.table selected=roll.target.table blank=(localize "ACKS-ABILITIES.roll.field.tableAttack")}}
+        </select>
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.tableHint"}}</p>
+    </div>
+    {{/if}}
     {{/if}}
 
     {{#if isLadder}}

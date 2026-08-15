@@ -22,7 +22,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { blankRoll, keyOf, readRolls, rollAbility, rollsOf, targetOf, writeRolls, scalesFor } from "./ability-rolls.mjs";
 import { choicesOf, ROLL_TYPES, VALUE_KINDS, VALUE_ROUNDING, VALUE_SCALES, PROGRESSION_CLASSES, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
-import { classItems } from "../classes/registry.mjs";
+import { classItems, laddersOf } from "../classes/registry.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -145,6 +145,19 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
         ),
       },
       atLevel: choicesOf(PROGRESSION_LEVELS),
+      // The ladders the NAMED class publishes, so a throw can borrow a thief's
+      // Climb Walls rather than only a chassis attack row. Blank means the
+      // attack bands, which is what a progression meant before ladders were
+      // reachable and what every throw already stored keeps meaning.
+      table: Object.fromEntries(
+        (() => {
+          try {
+            return laddersOf(roll.target?.as).map((k) => [k, k]);
+          } catch {
+            return [];
+          }
+        })(),
+      ),
     };
     context.preview = this.#preview(context.roll);
     return context;

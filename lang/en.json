@@ -3125,5 +3125,8 @@
   "ACKS-CLASSES.reopen.title": "Roll this character again?",
   "ACKS-CLASSES.reopen.tooltip": "Offer the Scores Generator again — this replaces what they own",
   "ACKS-CLASSES.reopen.confirm": "Offer the Scores Generator for <strong>{name}</strong> again? Generating a character replaces the last run of the page, so their {items} item(s) will be replaced by whatever the new build grants. Their scores stay as they are until the page is run.",
-  "ACKS-CLASSES.reopen.done": "{name} may be generated again — the Scores Generator is on their sheet."
+  "ACKS-CLASSES.reopen.done": "{name} may be generated again — the Scores Generator is on their sheet.",
+  "ACKS-ABILITIES.roll.field.table": "Which table",
+  "ACKS-ABILITIES.roll.field.tableAttack": "Attack throws",
+  "ACKS-ABILITIES.roll.field.tableHint": "A class may publish ladders of its own — a thief’s Climb Walls, a house table. Naming one reads that ladder at the level chosen above; leaving it blank reads the attack throws."
 }
