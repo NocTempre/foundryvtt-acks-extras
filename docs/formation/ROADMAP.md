@@ -68,14 +68,15 @@ Still unbuilt, in likely order:
 2. ~~Encounter scaling & reactions~~ — SHIPPED 4.2.0.
 3. ~~Obstacle helper~~ — SHIPPED 4.2.0 (climb and traverse; swimming and jumping still unmodelled).
 4. ~~Door helper~~ — SHIPPED 4.2.0, with spiking.
-5. **Deploy needs a HEADING, not a file.** The "deploy currently rings them"
-   note was stale: `formationOffset` already lays the block out in marching
-   order by frontage (`dx = index % frontage`), so a frontage of one is a
-   single file. What is missing is which way it points — the block always
-   extends right and down, so a party marching west trails its column east.
-   The party token already carries a `rotation`; snapping that to a cardinal
-   and rotating the offsets is the whole change, plus `blockOrigin`'s clamp,
-   which assumes span is horizontal and depth vertical and would swap with it.
+5. ~~Deploy needs a HEADING, not a file~~ — SHIPPED. `formationOffset` lays file
+   along the heading's `right` and rank against its `forward`, and `blockOrigin`
+   clamps over the block's real reach in each direction instead of assuming span
+   is horizontal and depth vertical. The heading is the party token's `rotation`
+   snapped to a cardinal, with nothing stored — see
+   [DECISIONS.md](DECISIONS.md) for why south is the default, which is the one
+   behaviour change (a party whose token has never turned now trails its column
+   north instead of south). All four cardinals are pinned by
+   `tools/test-formation-heading.mjs`.
 6. Formation templates (save/load marching orders); token HUD "form up" button.
 7. Wilderness/expedition mode — PARTLY UNBLOCKED. The wilderness chapter is now in hand: 4.4.0 added the movement-scale vocabulary (`lib/movement-scales.mjs`, published on `api.lib`) with the Expedition Speed table reproduced to all twelve rows, travel pace (dedicated / forced march ×3/2 / ancillary half), and terrain and road multipliers on `vehicles/vehicle-speed.mjs`. What remains is the MODE: a formation that knows which hex it is in, what ground it is crossing, and a day-scale clock beside the turn-scale one. The formation record has no `ground` field yet, so a party's vehicle currently travels at its printed pace rather than a terrain-adjusted one.
 8. Spell "per level" duration parsing (quick win, batch with the next release).

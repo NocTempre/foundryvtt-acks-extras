@@ -763,7 +763,10 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
 
   const partyToken = getPartyToken(formation);
   const anchor = partyToken ? { x: partyToken.x, y: partyToken.y } : null;
-  const origin = anchor && grid ? blockOrigin(formation, scene, anchor) : null;
+  // Read once and passed down: the origin is clamped for a heading, so a cell
+  // laid out against a different one would fall outside the room made for it.
+  const heading = snapHeading(partyToken?.rotation);
+  const origin = anchor && grid ? blockOrigin(formation, scene, anchor, { heading }) : null;
   const nextFree = anchor && !grid ? freeCellPlacer(scene, anchor) : null;
 
   const toCreate = stashed.map((member) => {
@@ -771,7 +774,7 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
     delete data._id;
     if (anchor) {
       const { x, y } = grid
-        ? cellPosition(formation, scene, origin, formation.members.indexOf(member))
+        ? cellPosition(formation, scene, origin, formation.members.indexOf(member), heading)
         : nextFree();
       data.x = x;
       data.y = y;
@@ -946,10 +949,98 @@ export function partyDepth(formation, count = formationBodies(formation)) {
   return Math.max(1, Math.ceil(Math.max(count, 1) / getFrontage(formation)));
 }
 
-/** Grid offset (in grid units) of the index-th BODY in formation shape. */
-export function formationOffset(formation, index) {
+/* -------------------------------------------- */
+/*  Heading                                     */
+/* -------------------------------------------- */
+
+/**
+ * The four cardinals a marching block can point down, as unit vectors in scene
+ * space — where **y grows downward**, so south is `+y`.
+ *
+ * `forward` is the way the party is walking and `right` is the party's own right
+ * hand. Files spread along `right` and ranks stack up BEHIND the front one
+ * (against `forward`), so this pair is the whole of the rotation: no angles, no
+ * trigonometry, and every offset stays an exact whole number of squares.
+ */
+export const HEADINGS = Object.freeze({
+  south: Object.freeze({ forward: { x: 0, y: 1 }, right: { x: -1, y: 0 } }),
+  west: Object.freeze({ forward: { x: -1, y: 0 }, right: { x: 0, y: -1 } }),
+  north: Object.freeze({ forward: { x: 0, y: -1 }, right: { x: 1, y: 0 } }),
+  east: Object.freeze({ forward: { x: 1, y: 0 }, right: { x: 0, y: 1 } }),
+});
+
+/**
+ * The cardinals in the order Foundry's rotation degrees run through them, so a
+ * quarter turn is one step along this list.
+ */
+export const HEADING_QUADRANTS = Object.freeze(["south", "west", "north", "east"]);
+
+/**
+ * Where a formation marches when nothing has said otherwise.
+ *
+ * South, because that is what an unrotated token already means: a formation
+ * whose token is not on a scene at all and one whose token has never turned
+ * must lay out the same way, and Foundry's own zero is the only value both of
+ * them can agree on.
+ */
+export const DEFAULT_HEADING = "south";
+
+/**
+ * A token rotation snapped to the cardinal it lies nearest.
+ *
+ * Foundry measures `TokenDocument#rotation` in degrees with **zero facing
+ * south**, running through west at 90 — and core writes that field itself every
+ * time a token is dragged or walked (the `tokenAutoRotate` setting, on by
+ * default), so the party token is already a record of which way the party last
+ * marched. Nothing here needs storing.
+ *
+ * A rotation that is not a number is not a facing of zero — it is a token that
+ * never answered, and it takes the default rather than pointing south by
+ * accident.
+ */
+export function snapHeading(rotation) {
+  const degrees = Number(rotation);
+  if (!Number.isFinite(degrees)) return DEFAULT_HEADING;
+  const quadrant = ((Math.round(degrees / 90) % 4) + 4) % 4;
+  return HEADING_QUADRANTS[quadrant];
+}
+
+/** Which way this formation is marching: its party token's facing, snapped. */
+export function formationHeading(formation) {
+  return snapHeading(getPartyToken(formation)?.rotation);
+}
+
+/** The heading's unit vectors, falling back rather than throwing on a bad key. */
+function headingVectors(heading) {
+  return HEADINGS[heading] ?? HEADINGS[DEFAULT_HEADING];
+}
+
+/**
+ * Folds a negative zero back to zero.
+ *
+ * Multiplying an offset of nothing by a negative axis produces `-0`, which is
+ * arithmetically the same square and compares as a different one. Adding zero is
+ * the only correction that leaves every other value — NaN included — alone.
+ */
+const unsigned = (n) => n + 0;
+
+/**
+ * Grid offset (in grid units) of the index-th BODY in formation shape.
+ *
+ * The rank/file pair is the same at every heading — the marching order does not
+ * change because the party turned a corner — and only the two axes it is laid
+ * against rotate. Ranks are subtracted rather than added because rank 1 walks
+ * BEHIND rank 0, which is backwards along the way the party faces.
+ */
+export function formationOffset(formation, index, heading = formationHeading(formation)) {
   const frontage = getFrontage(formation);
-  return { dx: index % frontage, dy: Math.floor(index / frontage) };
+  const file = index % frontage;
+  const rank = Math.floor(index / frontage);
+  const { forward, right } = headingVectors(heading);
+  return {
+    dx: unsigned(file * right.x - rank * forward.x),
+    dy: unsigned(file * right.y - rank * forward.y),
+  };
 }
 
 /**
@@ -1016,12 +1107,22 @@ export function clampToScene(scene, x, y) {
  *
  * The block is shifted, never squashed: pinning each token to the edge instead
  * would pile every rear rank onto the last row. A block deeper or wider than the
- * scene itself starts at the top-left corner and the per-cell clamp takes over.
+ * scene itself starts hard against the edge it overruns and the per-cell clamp
+ * takes over.
+ *
+ * Span is NOT horizontal and depth is NOT vertical — that only holds while the
+ * party marches north or south, and the two exchange axes the moment it turns
+ * east or west. So the clamp is written over the block's real reach in each
+ * direction, which the heading's own vectors give: the front rank cell may now
+ * need room to its left and above it, not only to its right and below.
  *
  * @param {{x: number, y: number}} anchor where the block would start unclamped
  *   (the party token)
+ * @param {object} [opts]
+ * @param {number} [opts.count] bodies to fit, when it is not the whole formation
+ * @param {string} [opts.heading] a key of HEADINGS
  */
-export function blockOrigin(formation, scene, anchor, { count } = {}) {
+export function blockOrigin(formation, scene, anchor, { count, heading = formationHeading(formation) } = {}) {
   const gs = scene?.grid?.size ?? 0;
   const bounds = sceneBounds(scene);
   if (!bounds || !gs) return { x: anchor.x, y: anchor.y };
@@ -1029,24 +1130,37 @@ export function blockOrigin(formation, scene, anchor, { count } = {}) {
   // The block is as wide as the bodies actually FILL, not as wide as the frontage
   // allows: a five-strong party ordered twelve abreast is five squares wide, and
   // reserving twelve would shove it away from where the party stands.
-  const span = (Math.min(getFrontage(formation), Math.max(bodies, 1)) - 1) * gs;
-  const depth = (partyDepth(formation, bodies) - 1) * gs;
+  const span = Math.min(getFrontage(formation), Math.max(bodies, 1)) - 1;
+  const depth = partyDepth(formation, bodies) - 1;
+  const { forward, right } = headingVectors(heading);
+
+  // How far the block reaches either side of the anchor along one axis, in grid
+  // units. The two terms are the file spread and the rank stack; because the
+  // cardinals are axis-aligned, exactly one of them is non-zero per axis, so
+  // this bounding box is exact rather than conservative.
+  const reach = (axis) => {
+    const files = span * right[axis];
+    const ranks = -depth * forward[axis];
+    return { min: Math.min(0, files, ranks), max: Math.max(0, files, ranks) };
+  };
+  const x = reach("x");
+  const y = reach("y");
   return {
-    x: Math.max(bounds.minX, Math.min(anchor.x, bounds.maxX - span)),
-    y: Math.max(bounds.minY, Math.min(anchor.y, bounds.maxY - depth)),
+    x: Math.max(bounds.minX - x.min * gs, Math.min(anchor.x, bounds.maxX - x.max * gs)),
+    y: Math.max(bounds.minY - y.min * gs, Math.min(anchor.y, bounds.maxY - y.max * gs)),
   };
 }
 
 /** Scene position of one marching-order cell, measured from a block origin. For
  *  a stack this is where its FIRST body stands — see `cellPositions`. */
-export function cellPosition(formation, scene, origin, cell) {
-  return bodyPosition(formation, scene, origin, cellBodyIndex(formation, cell));
+export function cellPosition(formation, scene, origin, cell, heading) {
+  return bodyPosition(formation, scene, origin, cellBodyIndex(formation, cell), heading);
 }
 
 /** Scene position of the index-th body of the block. */
-export function bodyPosition(formation, scene, origin, body) {
+export function bodyPosition(formation, scene, origin, body, heading = formationHeading(formation)) {
   const gs = scene?.grid?.size ?? 0;
-  const { dx, dy } = formationOffset(formation, body);
+  const { dx, dy } = formationOffset(formation, body, heading);
   return clampToScene(scene, origin.x + dx * gs, origin.y + dy * gs);
 }
 
@@ -1061,10 +1175,10 @@ export function bodyPosition(formation, scene, origin, body) {
  *
  * @returns {{x: number, y: number}[]} one position per body of the cell
  */
-export function cellPositions(formation, scene, origin, cell) {
+export function cellPositions(formation, scene, origin, cell, heading) {
   const first = cellBodyIndex(formation, cell);
   const bodies = cellBodies(formation?.members?.[cell]);
-  return Array.from({ length: bodies }, (_, i) => bodyPosition(formation, scene, origin, first + i));
+  return Array.from({ length: bodies }, (_, i) => bodyPosition(formation, scene, origin, first + i, heading));
 }
 
 /**

@@ -134,6 +134,31 @@ hands the party sheet has filled — lights borne plus role kits — and taking 
 setting down a role fires `acksExtras.roleChanged` so the loadout recomputes,
 exactly as `acksExtras.lightChanged` does for a struck light.
 
+## Which way the block points
+
+A deploy lays the marching order out as a block: files spread across the line of
+march at the current `frontage`, ranks stack up behind the front one. Which way
+that block *faces* is the party token's own `rotation`, snapped to the nearest
+cardinal (`snapHeading` / `formationHeading` in `formation-model.mjs`). Nothing
+stores a heading — Foundry writes `rotation` itself whenever a token is dragged
+or walked (core's `tokenAutoRotate`, on by default), so the party token is
+already a record of which way the party last marched, and turning it by hand is
+how a Judge aims the block.
+
+`HEADINGS` carries each cardinal as a `forward`/`right` pair of unit vectors in
+scene space (y grows downward, so south is `+y`). `formationOffset` lays file
+along `right` and rank against `forward`, which keeps every offset an exact whole
+number of squares — no angles, no rounding. Foundry's rotation is zero at
+**south** and runs through west at 90.
+
+`blockOrigin` fits the whole block onto the scene before anyone is placed, and
+does it over the block's real reach in each direction rather than assuming span
+is horizontal and depth vertical: those two exchange axes the moment the party
+turns east or west, and a block that reaches up and to the left has to be held
+off the *top* and *left* edges. Origin and cells are computed against one heading
+read, passed down from the caller — re-reading it per cell would let a token that
+turned mid-deploy place a body outside the room the clamp had made for it.
+
 ## Detaching a member
 
 A formation travels as one token. Two things take a member out of it, and both

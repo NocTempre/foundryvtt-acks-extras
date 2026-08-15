@@ -4,6 +4,7 @@ import {
   blockOrigin,
   cellPosition,
   cellPositions,
+  formationHeading,
   getMemberActor,
   getPartyToken,
   isDown,
@@ -107,6 +108,10 @@ export async function deployedTokens(member, scene) {
  * Those bodies belong to the group actor, not to the cell, so the cell records
  * only THAT it is out and `groups.recall` is what gathers them back.
  *
+ * The block points the way the party token faces, so the column trails behind
+ * the party rather than always to the south-east, and the scout stays at the end
+ * that is walking into the dark.
+ *
  * The block is fitted to the scene before anyone is placed: a wide frontage or a
  * deep column is SHIFTED onto the map, never allowed to march its rear ranks off
  * the edge, and never squashed flat against it.
@@ -122,7 +127,11 @@ export async function deployMembers(formation, { members = formation.members, de
   const scene = partyToken?.parent;
   if (!scene) return [];
   const wanted = new Set(members.filter(Boolean));
-  const origin = blockOrigin(formation, scene, { x: partyToken.x, y: partyToken.y });
+  // Read once and passed to every placement below: the origin is clamped for a
+  // heading, so a cell laid out against a different one (the token having turned
+  // mid-deploy) would fall outside the room the clamp made for it.
+  const heading = formationHeading(formation);
+  const origin = blockOrigin(formation, scene, { x: partyToken.x, y: partyToken.y }, { heading });
 
   const toCreate = [];
   const stacked = [];
@@ -147,7 +156,7 @@ export async function deployMembers(formation, { members = formation.members, de
     if (!data && actor) data = (await actor.getTokenDocument()).toObject();
     if (!data) continue;
     delete data._id;
-    const { x, y } = cellPosition(formation, scene, origin, cell);
+    const { x, y } = cellPosition(formation, scene, origin, cell, heading);
     data.x = x;
     data.y = y;
     data.hidden = false;
@@ -175,7 +184,7 @@ export async function deployMembers(formation, { members = formation.members, de
 
   const groups = stacked.length ? await groupOps() : null;
   for (const { member, actor, cell } of stacked) {
-    const spots = cellPositions(formation, scene, origin, cell);
+    const spots = cellPositions(formation, scene, origin, cell, heading);
     const before = created.length;
     let body = 0;
     for (const stack of actor.system.stacks ?? []) {

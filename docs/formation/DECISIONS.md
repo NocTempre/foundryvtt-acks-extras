@@ -211,3 +211,31 @@ acks-module-template and never hand-edited here** — so the fix is recorded in
 scan were genuine non-problems and should stay excluded: prefix roots Foundry
 expands itself (`LOCALIZATION_PREFIXES` on the encounter-zone data model, the
 henchmen location sheet's `labelPrefix`).
+
+---
+
+### 2026-08-15 — A marching block's heading is the token's rotation, and south is zero
+
+`formationOffset` laid every block out to the right and down, so the column
+trailed south-east whichever way the party was walking. The fix rotates the
+offsets, and the heading comes from the party token's `rotation` rather than a
+new field on the formation record: core writes that field itself on every drag
+and keyboard step (`tokenAutoRotate`, default on), so it already answers the
+question, and a stored copy would immediately disagree with it.
+
+Rejected: storing a `heading` on the formation and offering a compass control.
+It buys a party that faces one way while its token faces another, and a second
+thing to keep in sync for no rule that asks for one.
+
+**What it cost.** Foundry's rotation is zero at *south*, so the default heading
+is south — not the north the old right-and-down layout implicitly assumed. A
+party whose token has never been turned now deploys its column upward rather
+than downward. Taking north as the default instead was rejected: it would mean a
+token reading `rotation: 0` and a formation with no token on a scene at all
+disagreeing about where the block goes, and zero is the only value both can be
+read from. Marching north is otherwise unchanged — it reproduces the historic
+offsets exactly, which `tools/test-formation-heading.mjs` pins.
+
+Diagonal rotations snap to the nearest cardinal. The grid has four directions to
+lay a rank against, and a half-square diagonal block would need the offsets to
+stop being whole numbers to buy nothing.
