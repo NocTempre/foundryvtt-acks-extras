@@ -187,40 +187,51 @@ export function chainWalls(walls, tolerance = 8) {
   if (!segments.length) return { points: [], closed: false };
 
   const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
-  const used = new Array(segments.length).fill(false);
 
-  used[0] = true;
-  const ring = [segments[0][0], segments[0][1]];
-
-  // Grow from the tail until nothing else connects. One pass per segment is
-  // enough: each iteration consumes one, or there is nothing left to consume.
-  for (let guard = 0; guard < segments.length; guard++) {
-    const tail = ring[ring.length - 1];
-    let advanced = false;
-    for (let i = 0; i < segments.length; i++) {
-      if (used[i]) continue;
-      const [a, b] = segments[i];
-      if (near(tail, a)) {
-        ring.push(b);
+  /** Grow a ring from one starting segment, consuming whatever connects. */
+  const ringFrom = (start) => {
+    const used = new Array(segments.length).fill(false);
+    used[start] = true;
+    const ring = [segments[start][0], segments[start][1]];
+    for (let guard = 0; guard < segments.length; guard++) {
+      const tail = ring[ring.length - 1];
+      let advanced = false;
+      for (let i = 0; i < segments.length; i++) {
+        if (used[i]) continue;
+        const [a, b] = segments[i];
+        if (near(tail, a)) {
+          ring.push(b);
+        } else if (near(tail, b)) {
+          ring.push(a);
+        } else continue;
         used[i] = true;
         advanced = true;
         break;
       }
-      if (near(tail, b)) {
-        ring.push(a);
-        used[i] = true;
-        advanced = true;
-        break;
-      }
+      if (!advanced) break;
     }
-    if (!advanced) break;
+    return ring;
+  };
+
+  // Try every segment as the start and keep the BIGGEST closed ring found.
+  //
+  // A Judge's selection is rarely exactly the loop: the trap tool leaves the
+  // wall it drew selected, so reaching straight for "enclose these" hands this
+  // four walls of a room plus one stray tripwire. Starting only from the first
+  // segment lets that one leftover decide the answer is "not a shape", which is
+  // true of the whole set and useless as a response.
+  let best = null;
+  for (let start = 0; start < segments.length; start++) {
+    const ring = ringFrom(start);
+    if (ring.length > 3 && near(ring[0], ring[ring.length - 1]) && (!best || ring.length > best.length)) {
+      best = ring;
+    }
   }
 
-  const closed = ring.length > 3 && near(ring[0], ring[ring.length - 1]);
   // A closed ring repeats its first point at the end; a Region polygon does
   // not want the duplicate.
-  const pts = closed ? ring.slice(0, -1) : ring;
-  return { points: pts.flatMap((p) => [p.x, p.y]), closed };
+  if (best) return { points: best.slice(0, -1).flatMap((p) => [p.x, p.y]), closed: true };
+  return { points: ringFrom(0).flatMap((p) => [p.x, p.y]), closed: false };
 }
 
 /**

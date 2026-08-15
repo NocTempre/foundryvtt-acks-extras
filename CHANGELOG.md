@@ -3,6 +3,21 @@
 ## 4.9.1
 
 ### Fixed
+- **Trapping a wall no longer changes the wall.** Laying a trap used to strip a
+  wall's movement, sight, sound and light so a tripwire would not seal the
+  corridor it sat in — which also meant trapping a secret door quietly stopped
+  it being secret. A trap is a layer now and nothing else: whatever the wall did
+  before, it still does.
+- **The trap tool draws its own tripwire.** With nothing selected it creates a
+  one-square wall that blocks nothing, left selected so you can drag its ends
+  into place. That is the corridor case the old behaviour was trying to solve.
+- **Enclosing the same outline twice reuses the area instead of stacking a
+  second one**, and moving a trap into an area now lifts it off the walls that
+  drew the outline. Two overlapping trap areas each rolled their own secret
+  throw, so the party met one trap twice for walking in once.
+- **Trap markers no longer hide behind each other.** Two traps sharing a point —
+  a trapped door beside core's own door control, or two segments drawn over one
+  another — now lay out in a row, centred on the spot.
 - **Hint text says what the field does, not what the book says.** Roughly eighty
   shipped strings and compendium descriptions quoted or pointed at page numbers
   — settings hints, item descriptions, the trap sheet added last week. They now

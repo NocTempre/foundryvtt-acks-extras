@@ -306,6 +306,33 @@ test("an open run of walls is reported open, not quietly closed", () => {
   assert.equal(closed, false);
 });
 
+test("a stray wall in the selection does not defeat the loop it is beside", () => {
+  // The trap tool leaves the wall it drew selected, so reaching straight for
+  // "enclose these" hands this the room plus one leftover tripwire. Answering
+  // "not a shape" is true of the whole set and useless.
+  const { points, closed } = chainWalls([
+    wall(500, 500, 600, 500), // the stray, connected to nothing
+    wall(0, 0, 100, 0),
+    wall(100, 0, 100, 100),
+    wall(100, 100, 0, 100),
+    wall(0, 100, 0, 0),
+  ]);
+  assert.equal(closed, true);
+  assert.deepEqual(points, [0, 0, 100, 0, 100, 100, 0, 100]);
+});
+
+test("with two closed loops selected, the bigger one wins", () => {
+  const { points, closed } = chainWalls([
+    // a triangle
+    wall(0, 0, 50, 0), wall(50, 0, 25, 40), wall(25, 40, 0, 0),
+    // and a square, which has more corners
+    wall(200, 200, 400, 200), wall(400, 200, 400, 400),
+    wall(400, 400, 200, 400), wall(200, 400, 200, 200),
+  ]);
+  assert.equal(closed, true);
+  assert.equal(points.length, 8);
+});
+
 test("a path that crosses a line reports where it crossed", () => {
   const at = segmentCrossing({ x: 50, y: -50 }, { x: 50, y: 50 }, [0, 0, 100, 0]);
   assert.equal(at.x, 50);
