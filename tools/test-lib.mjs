@@ -1419,4 +1419,58 @@ t("slot capacity: a third ring overfills, and two do not", () => {
   assert.equal(slotOverfilled(clothes, "worn"), false);
 });
 
+/* ------------------- selection vocabularies ------------------- */
+
+const abilityWith = (defId, name = "X") => ({ name, flags: { "acks-importer": { cookbook: { id: defId } } } });
+
+t("an ability's own vocabulary wins over its category's", () => {
+  // Weapon Focus and Combat Trickery are both category `proficiency`, so a
+  // category-keyed vocabulary alone cannot tell them apart.
+  const focus = vocab.selectionVocabFor(abilityWith("def.prof.weaponFocus"), "proficiency");
+  const trickery = vocab.selectionVocabFor(abilityWith("def.prof.combatTrickery"), "proficiency");
+  assert.ok(focus.swordsdaggers && !focus.disarm);
+  assert.ok(trickery.disarm && !trickery.swordsdaggers);
+});
+
+t("an ability with no vocabulary of its own falls back to its category's", () => {
+  const byCategory = vocab.selectionVocabFor(abilityWith("def.prof.somethingElse"), "fightingStyle");
+  assert.deepEqual(Object.keys(byCategory), Object.keys(vocab.SELECTION_VOCAB.fightingStyle));
+  assert.equal(vocab.selectionVocabFor(abilityWith("def.prof.somethingElse"), "proficiency"), null);
+});
+
+t("a template's own phrasing lands on the pick the mechanics read", () => {
+  // The importer writes a template cell's parenthesized selection verbatim
+  // ("Fighting Style Spec. (weapon & shield)"), so the shortlist has to
+  // recognise it rather than leave it in free text where nothing matches it.
+  const styles = vocab.SELECTION_VOCAB_BY_ABILITY.fightingstylespecialization;
+  assert.equal(vocab.matchSelectionKey(styles, "weapon & shield"), "weaponshield");
+  assert.equal(vocab.matchSelectionKey(styles, "2-handed weapon"), "twohanded");
+  assert.equal(vocab.matchSelectionKey(styles, "Two Weapon"), "dual");
+  assert.equal(vocab.matchSelectionKey(styles, "Missile Weapon"), "missile");
+  const focus = vocab.SELECTION_VOCAB_BY_ABILITY.weaponfocus;
+  assert.equal(vocab.matchSelectionKey(focus, "Swords"), "swordsdaggers");
+});
+
+t("a pick naming one entry outright is never claimed by another's substring", () => {
+  const martial = vocab.SELECTION_VOCAB_BY_ABILITY.martialtraining;
+  // "crossbow" contains "bow"; the exact pass has to run over the WHOLE
+  // vocabulary before any loose match, or order decides the answer.
+  assert.equal(vocab.matchSelectionKey(martial, "crossbow"), "crossbow");
+  assert.equal(vocab.matchSelectionKey(martial, "bow"), "bow");
+});
+
+t("a pick the shortlist does not name stays free text", () => {
+  // Open families are shortlists: a craft nobody printed is still a valid pick,
+  // and a cleared selection must always be typeable by hand.
+  const craft = vocab.SELECTION_VOCAB_BY_ABILITY.artcraft;
+  assert.equal(vocab.matchSelectionKey(craft, "Woodcarving"), null);
+  assert.equal(vocab.matchSelectionKey(craft, ""), null);
+  assert.equal(vocab.matchSelectionKey(craft, "a"), null);
+});
+
+t("abilitySlug reads the cookbook id, else the name without its pick suffix", () => {
+  assert.equal(vocab.abilitySlug(abilityWith("def.prof.weaponFocus")), "weaponfocus");
+  assert.equal(vocab.abilitySlug({ name: "Weapon Focus (Swords)" }), "weaponfocus");
+});
+
 console.log(`\n${n} tests passed (including the location migration)`);

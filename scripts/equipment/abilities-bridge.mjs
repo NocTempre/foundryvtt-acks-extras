@@ -28,23 +28,14 @@
  * its contribution.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
-import { slug, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { slug, abilitySlug, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
-const DEFINITION_SCOPE = "acks-importer"; // the importer owns its provenance flags; they persist even when it is uninstalled
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
-/** Definition slug of an imported ability ("def.prof.weaponFinesse" → "weaponfinesse"). */
-function defSlug(item) {
-  const id = item.flags?.[DEFINITION_SCOPE]?.cookbook?.id;
-  if (typeof id !== "string" || !id) return null;
-  const tail = id.split(".").pop();
-  return slug(tail);
-}
-
-/** Item name with any trailing "(X)" pick suffix removed, normalized. */
-function baseNameSlug(item) {
-  return slug(String(item.name ?? "").replace(/\([^)]*\)\s*$/, ""));
-}
+// The definition slug an ability is known by is acks-lib's `abilitySlug` — one
+// identity, so the vocabulary a sheet offers and the picks resolved here are
+// keyed alike. It reads the importer's cookbook id where there is one and falls
+// back to the item's own name with any trailing "(X)" pick suffix removed.
 
 /** The picks, via the abilities API when live, else its documented flag shape. */
 function picksOf(item) {
@@ -317,19 +308,19 @@ export function bridgeContributions(actor) {
     // lets a class power grant a proficiency's rule without being listed here.
     const claimed = addTypedEffects(actor, item, { addNum, addStr, booleans: out.booleans });
 
-    // Named abilitySlug, not slug: the vocab.mjs slug() import must stay
+    // Named abilityKey, not slug: the vocab.mjs slug() import must stay
     // reachable inside this block (the combattrickery case normalizes picks
     // through it).
-    const abilitySlug = defSlug(item) ?? baseNameSlug(item);
-    if (!abilitySlug) continue;
+    const abilityKey = abilitySlug(item);
+    if (!abilityKey) continue;
 
-    const presence = PRESENCE_DOMAINS[abilitySlug];
+    const presence = PRESENCE_DOMAINS[abilityKey];
     if (presence && !claimed.has(presence)) out.booleans.add(presence);
 
-    const numeric = NUMERIC_DOMAINS[abilitySlug];
+    const numeric = NUMERIC_DOMAINS[abilityKey];
     if (numeric && !claimed.has(numeric.domain)) addNum(numeric.domain, item.name, numeric.value);
 
-    switch (abilitySlug) {
+    switch (abilityKey) {
       case "fightingstylespecialization": {
         // The pick is the style: specialization implies training in it, and
         // spec carries the free draw/sheathe/ready swap.

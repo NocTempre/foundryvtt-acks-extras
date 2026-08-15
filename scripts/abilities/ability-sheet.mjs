@@ -281,15 +281,11 @@ export function createAbilitySheet(Base) {
       // like "Swords" ticks the Swords & Daggers box instead of sitting in the
       // fallback and never matching anything.
       const picks = (extras.selections ?? []).map((s) => String(s).trim()).filter(Boolean);
-      const vocab = (V.SELECTION_VOCAB ?? {})[extras.category] ?? null;
-      const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
+      const vocab = V.selectionVocabFor?.(this.item, extras.category) ?? null;
       const matched = new Set();
       context.selectionOptions = vocab
         ? Object.entries(vocab).map(([key, def]) => {
-            const hit = picks.find((p) => {
-              const f = fold(p);
-              return f === key || f.startsWith(key) || key.startsWith(f) || fold(def.label).includes(f);
-            });
+            const hit = picks.find((p) => V.matchSelectionKey?.(vocab, p) === key);
             if (hit) matched.add(hit);
             return { key, label: def.label, checked: !!hit };
           })

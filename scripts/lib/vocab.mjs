@@ -233,6 +233,145 @@ export const SELECTION_VOCAB = {
   },
 };
 
+/**
+ * The definition slug an ability is known by — the importer's cookbook id where
+ * it has one ("def.prof.weaponFocus" → "weaponfocus"), else its own name with
+ * any trailing "(X)" pick suffix removed. ONE identity, so the vocabulary a
+ * sheet offers and the picks the equipment bridge resolves are keyed alike.
+ */
+export const abilitySlug = (item) => {
+  const id = item?.flags?.["acks-importer"]?.cookbook?.id;
+  if (typeof id === "string" && id) return slug(id.split(".").pop());
+  return slug(String(item?.name ?? "").replace(/\([^)]*\)\s*$/, ""));
+};
+
+/**
+ * The canonical picks for abilities whose selection is per-ABILITY rather than
+ * per-category — Weapon Focus's group, Combat Trickery's manoeuvre, Art/Craft's
+ * discipline. `SELECTION_VOCAB` below cannot express these: it is keyed by
+ * category, and all of them share the one `proficiency` category.
+ *
+ * `open` marks a family the books leave open-ended (a Judge may approve a craft
+ * nobody printed). An open vocabulary is a SHORTLIST, not a closed set — the
+ * sheet's free-text line takes anything outside it either way, so a selection
+ * cleared back to nothing can always be typed by hand.
+ *
+ * `aliases` carry the phrasings a template or an import actually writes, so a
+ * cell reading "Fighting Style Spec. (weapon & shield)" ticks the box the
+ * mechanics read rather than landing in free text where nothing matches it.
+ *
+ * Fighting styles list the five the mechanics understand (`equipment/config.mjs`
+ * STYLE) and no more: an unresolvable style is silently worth nothing, so
+ * offering one would be offering a pick that does nothing.
+ */
+export const SELECTION_VOCAB_BY_ABILITY = {
+  // RR p. 121 — the six Weapon Focus groups.
+  weaponfocus: {
+    axes: { label: "Axes" },
+    macesflailshammers: { label: "Maces, Flails & Hammers", aliases: ["maces", "flails", "hammers"] },
+    swordsdaggers: { label: "Swords & Daggers", aliases: ["swords", "daggers"] },
+    bowscrossbows: { label: "Bows & Crossbows", aliases: ["bows", "crossbows"] },
+    slingsthrown: { label: "Slings & Thrown", aliases: ["slings", "thrown"] },
+    spearspolearms: { label: "Spears & Polearms", aliases: ["spears", "polearms"] },
+  },
+  // JJ p. 290 — Martial Training names a weapon category.
+  martialtraining: {
+    axe: { label: "Axes" },
+    sworddagger: { label: "Swords & Daggers", aliases: ["swords", "daggers"] },
+    flailhammermace: { label: "Flails, Hammers & Maces", aliases: ["flails", "hammers", "maces"] },
+    spearpolearm: { label: "Spears & Polearms", aliases: ["spears", "polearms"] },
+    bow: { label: "Bows" },
+    crossbow: { label: "Crossbows" },
+    other: { label: "Other (slings, staffs, nets, whips)", aliases: ["slings", "staffs", "nets", "whips"] },
+  },
+  // RR p. 108 / JJ p. 291 — the five styles the loadout rules resolve.
+  fightingstylespecialization: {
+    single: { label: "Single Weapon", aliases: ["single weapon", "one weapon"] },
+    dual: { label: "Dual Weapon", aliases: ["two weapon", "two weapons", "dual wielding", "twoweapon"] },
+    twohanded: { label: "Two-Handed Weapon", aliases: ["2-handed weapon", "two handed", "2 handed"] },
+    weaponshield: { label: "Weapon & Shield", aliases: ["weapon+shield", "weapon and shield", "shield"] },
+    missile: { label: "Missile", aliases: ["missile weapon", "ranged", "bow"] },
+  },
+  // RR Combat — the manoeuvres Combat Trickery selects among.
+  combattrickery: {
+    clamber: { label: "Clamber" },
+    disarm: { label: "Disarm" },
+    forceback: { label: "Force Back", aliases: ["force back"] },
+    incapacitate: { label: "Incapacitate" },
+    knockdown: { label: "Knock Down", aliases: ["knock down"] },
+    overrun: { label: "Overrun" },
+    sunder: { label: "Sunder" },
+    wrestle: { label: "Wrestle" },
+  },
+  elementalism: {
+    air: { label: "Air" },
+    earth: { label: "Earth" },
+    fire: { label: "Fire" },
+    water: { label: "Water" },
+  },
+  // Open families: the printed entries are examples, not a closed list.
+  artcraft: {
+    open: true,
+    bowyer: { label: "Bowyer" },
+    gemsmith: { label: "Gemsmith" },
+    smithing: { label: "Smithing" },
+  },
+  profession: {
+    open: true,
+    judge: { label: "Judge" },
+    merchant: { label: "Merchant" },
+    moneylender: { label: "Moneylender" },
+    scribe: { label: "Scribe" },
+  },
+  labor: {
+    open: true,
+    bricklaying: { label: "Bricklaying" },
+    farming: { label: "Farming" },
+    mining: { label: "Mining" },
+  },
+  performance: {
+    open: true,
+    musicalinstrument: { label: "Musical Instrument", aliases: ["musical instrument", "instrument"] },
+  },
+};
+
+/** Is this vocabulary a shortlist rather than a closed set? */
+export const isOpenVocab = (vocab) => vocab?.open === true;
+
+/** The pick vocabulary for one ability: its own first, else its category's. */
+export function selectionVocabFor(item, category) {
+  const own = SELECTION_VOCAB_BY_ABILITY[abilitySlug(item)];
+  if (own) {
+    const { open, ...options } = own;
+    return options;
+  }
+  return SELECTION_VOCAB[category] ?? null;
+}
+
+/**
+ * Which vocabulary entry a stored pick means, or null when it names something
+ * the shortlist does not.
+ *
+ * Exact key and alias matches are tried across the whole vocabulary before any
+ * loose match, so a pick that names one entry outright is never claimed by
+ * another's substring. Loose matching needs four characters: below that
+ * "a" would tick Axes and every one-letter typo would land somewhere.
+ */
+export function matchSelectionKey(vocab, pick) {
+  const f = slug(pick);
+  if (!f || !vocab) return null;
+  const entries = Object.entries(vocab).filter(([k]) => k !== "open");
+  for (const [key, def] of entries) {
+    if (f === key || (def.aliases ?? []).some((a) => slug(a) === f)) return key;
+  }
+  for (const [key, def] of entries) {
+    const label = slug(def.label);
+    if (f === label) return key;
+    if (f.length >= 4 && (label.includes(f) || key.includes(f) || f.includes(key))) return key;
+  }
+  return null;
+}
+
 /** Domains a `proficiencyGrant` effect covers (RR Combat: Combat Proficiencies). */
 export const PROFICIENCY_DOMAINS = {
   weapon: { label: "Weapon" },

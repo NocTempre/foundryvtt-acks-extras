@@ -84,9 +84,26 @@ against.
 
 ## Selections
 
-Ticking a selection box is guaranteed to light the matching proficiency pill —
-the keys are the same ones the profile strips match on. A pick outside the
-shortlist is still valid; it goes in the free-text field instead of a box.
+Some proficiencies are not finished until you say WHICH: Weapon Focus names a
+weapon group, Fighting Style Specialization a style, Combat Trickery a
+manoeuvre, Art/Craft a discipline. Those abilities show a box per printed
+choice, and ticking one is guaranteed to light the matching proficiency pill —
+the keys are the same ones the profile strips match on, so a pick you tick is a
+pick the rules actually read.
+
+**A pick outside the list is still valid.** Art/Craft, Profession, Labor and
+Performance are open — the boxes are the entries the books name, not a limit —
+so a craft your Judge approved goes in the free-text line under the boxes. That
+line is also where a selection goes when you clear the boxes entirely, so you
+can always type one by hand.
+
+**Imported characters keep their picks.** A template that says
+"Fighting Style Spec. (weapon & shield)" ticks *Weapon & Shield*, and one that
+says "Swords" ticks *Swords & Daggers*, rather than leaving the words sitting in
+free text where nothing matches them.
+
+Fighting styles list the five the combat rules resolve. A sixth that the rules
+cannot place would be a choice that grants nothing, so it is not offered.
 
 ## Common problems
 

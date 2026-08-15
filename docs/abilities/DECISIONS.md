@@ -7,6 +7,46 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A selection is chosen from a shortlist, and still typed when it is not on it (2026-08-14)
+
+**Reported.** Weapon Focus, fighting styles, weapon and armour proficiencies
+"are neither selectable with enums nor import cleanly on templates".
+
+**Ruled.** `selections` stays free text in the model — the reason has not
+changed: the meaningful token set is per-ability and lives in the book, so the
+schema cannot enumerate it, and a Judge may approve a craft nobody printed. What
+was wrong was the SHEET, which offered boxes only for the three class-build
+categories in `SELECTION_VOCAB`. That table is keyed by CATEGORY, and every
+ability the report named shares the one `proficiency` category, so a
+category-keyed vocabulary could not tell Weapon Focus from Combat Trickery no
+matter what was added to it.
+
+`SELECTION_VOCAB_BY_ABILITY` is keyed by the ability instead, and the sheet asks
+it first and the category second. Nine families are enumerated; the storage
+shape, the flag and every consumer are untouched.
+
+**Fighting styles list the five the mechanics resolve, and no more.** Core's
+pack also ships "Fighting Style: Pole Weapon", and `resolveStylePick` returns
+null for it — the caller then skips the pick silently, so offering it would
+have been offering a choice that grants nothing and says nothing. Verified in
+the other direction too: every key in every enumerated family round-trips
+through the equipment bridge's resolvers to itself, so ticking a box lights the
+mechanic rather than merely recording a word.
+
+**An open family is a shortlist, not a closed set.** Art/Craft, Profession,
+Labor and Performance carry `open: true`; anything outside the list goes in the
+free-text line, which is also what a cleared selection falls back to, so free
+entry is always available.
+
+**Matching is what makes a template import cleanly.** A cell's parenthesized
+selection is written verbatim, so the shortlist recognises the phrasings the
+books and templates actually use (`weapon & shield`, `2-handed weapon`, `Two
+Weapon`, `Swords`) through per-entry aliases; the first save then normalizes the
+pick to the canonical key. Exact and alias matches are tried across the whole
+vocabulary before any loose match — otherwise "crossbow" is claimed by "bow",
+which order alone decided — and loose matching needs four characters, or a
+one-letter typo lands on a real pick.
+
 ### A modifier must name what it modifies, and may name the throw (2026-08-06)
 
 `targetOf` resolved a throw's own ladder and nothing else, so every modifier the

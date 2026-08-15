@@ -18,19 +18,16 @@ table) rather than an attack progression — the registry publishes them
 the attack table today. The internal table stays regardless — a throw whose
 ladder is its own is the common case, and a shared table is an alternative
 source for the same target, not a replacement for typing one.
-- **Choosing a selection instead of typing one** — `selections` is free
-  vocabulary by design (the token set is per-ability and lives in the book, so
-  the schema cannot enumerate it), but the four abilities users meet most do
-  have closed vocabularies in this repo already: fighting styles and Weapon
-  Focus groups in `equipment/config.mjs` (`STYLE`, `WEAPON_FOCUS_GROUPS`,
-  `WEAPON_CATEGORY`). Those could be offered as a select on the character's
-  copy while the stored value stays a string, so nothing downstream changes.
-  Reported from the field 2026-08-14 as "not selectable with enums".
-- **An unresolved pick says nothing** — `abilities-bridge.mjs` resolves a
-  Fighting Style Specialization pick through `resolveStylePick`, which knows
-  five styles and returns null for anything else; the caller skips it. So a
-  specialization whose selection the vocabulary does not recognise grants no
-  bonus and reports no reason — the failure is invisible at every layer. The
-  file is deliberately Foundry-free and logs nothing, so surfacing it means
-  carrying unresolved picks out in the collector's return for a consumer to
-  show, rather than warning from inside.
+- **An unresolved pick still says nothing** — the sheet now offers only picks
+  the mechanics resolve, so the common way to acquire a dead selection is gone.
+  Free text stays free, though, and `abilities-bridge.mjs` still skips a pick
+  `resolveStylePick` cannot place without reporting it. That file is
+  deliberately Foundry-free and logs nothing, so surfacing it means carrying
+  unresolved picks out in the collector's return for a consumer to show, rather
+  than warning from inside.
+- **Vocabularies for the open families** — Art/Craft, Profession, Labor and
+  Performance offer the entries core's pack happens to name, which are examples
+  rather than the book's full lists; Knowledge and the language families have no
+  shortlist at all and fall through to free text. Filling them means reading the
+  lists off the page, which is importer work on the `kind.proficiency` register
+  rather than a table hand-typed here.
