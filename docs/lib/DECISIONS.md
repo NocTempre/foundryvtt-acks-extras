@@ -918,14 +918,42 @@ folding the row away. Its probe counts languages specifically, via a new
 `idPrefix` on the spec, because a floor of "40 abilities" would fire in a world
 that imported a hundred proficiencies and no book at all.
 
-**Ruled: the other seven stay as they are, and their shortfalls are recorded
-rather than fixed here.** Each still has documents the import does not produce
-— 43 named equipment entries, twelve thief-skill powers, and a monster leg that
-has never been measured — and each is now a named gap in acks-importer's
-ROADMAP. Tightening the remaining floors into real coverage tests is a change
-to what existing worlds see in their sidebar and wants its own decision, not a
-side effect of an audit.
+**Ruled: `acks-treasure` is NOT superseded and leaves the map.** Its probe was
+"five imported roll tables of any kind", which is not a statement about
+treasure at all, and nothing in the register replaces the treasure tables.
 
-**What it cost.** A GM who imported gear but not clothing still loses the
-clothing row today. That is the pre-existing behaviour, now documented and
-measured instead of assumed correct.
+**Ruled: the remaining seven keep their floors, and their shortfalls are
+recorded rather than fixed here.** Each still has documents the import does not
+produce — 43 named equipment entries, twelve thief-skill powers, and a monster
+leg that has never been measured — and each is now a named gap in
+acks-importer's ROADMAP. Tightening those floors into real coverage tests
+changes which rows an existing world loses and wants its own decision; the
+`idPrefix` mechanism languages uses is there when it is taken. The cost is
+visible in the live check: forty imported abilities of ANY kind satisfy the
+`acks-proficiencies`, `acks-class-abilities` and `acks-monster-abilities`
+floors at once, while the languages probe correctly ignores them.
+
+**Ruled: the hide defaults ON.** It was off, so the feature did nothing in
+every world that never found the setting. Defaulting on is safe *because* it is
+coverage-gated — a world that has imported nothing has replaced nothing, and
+sees no change at all (verified: an empty world hides zero rows with the
+setting on).
+
+### The same day — one folder for the family's compendiums
+
+The modules' own packs are placed by `packFolders` in their manifests, both
+declaring the name **ACKS II**, which is how Foundry merges them: its
+initializer matches a folder by hierarchy name across packages, so six packs
+from two modules land in one folder rather than one folder each.
+
+The SYSTEM's thirteen packs cannot be placed that way — a manifest folder only
+accepts packs belonging to the package that declares it — so `organizeFamilyPacks`
+writes the same assignment Foundry's own initializer writes, at ready, GM-only.
+
+**Ruled: repair a dangling folder reference, never overrule a real one.** A
+pack whose `core.compendiumConfiguration` entry names a folder that no longer
+exists is stranded at the sidebar root permanently, because the initializer
+only assigns a folder to a pack whose config does not already name one. That is
+why the system's own five declared folders had never appeared in the test
+world: every pack still pointed at folders deleted long ago. A reference that
+resolves is a Judge's own arrangement and is left alone.

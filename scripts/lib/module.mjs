@@ -36,7 +36,7 @@ import * as itemModel from "./item-model.mjs";
 import * as mount from "./mount.mjs";
 import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
-import { installPackDedupe, supersededPackIds, refreshPackDedupe, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
+import { installPackDedupe, supersededPackIds, refreshPackDedupe, organizeFamilyPacks, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
@@ -127,7 +127,7 @@ const localImpl = Object.freeze({
    */
   money: { ...moneyLogic, ...money },
   /** Which system packs this world has replaced by importing (pack-dedupe.mjs). */
-  packs: { supersededPackIds, refreshPackDedupe, SETTING_HIDE_SUPERSEDED },
+  packs: { supersededPackIds, refreshPackDedupe, organizeFamilyPacks, SETTING_HIDE_SUPERSEDED },
   /**
    * What a creature perceives (senses.mjs): canSeeInDark for the movement
    * rules, senseProfile for the Foundry sight a token should carry.
