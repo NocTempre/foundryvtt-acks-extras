@@ -91,7 +91,7 @@ export const ITEM_FLAGS = Object.freeze({
   THROWN_STATE: "thrownAway", // runtime STATE: this weapon has been thrown and awaits recovery (weight removed)
   SHIELD_VARIANT: "shieldVariant", // JJ overlay: buckler|auxiliary|crescent|heater|kite|phalanx
   STRAP: "strap", // JJ overlay: "hand" | "back" | "front"
-  MASTERWORK: "masterwork", // {toHit,toDamage,acWeight,ac}
+  MASTERWORK: "masterwork", // {tier} — a config.MASTERWORK key, never the row it names
   HELMET: "helmet", // "light" | "heavy"
   MATERIAL: "material", // primary material, for the item-loss materials table
   SILVERED: "silvered", // RR ch.4 Silver quality: true = plated (price layer), false = explicitly not

@@ -68,6 +68,7 @@ const { getLoadout, VIOLATION } = await import(new URL("loadout.mjs", S));
 const { buildLoadoutChanges } = await import(new URL("effects.mjs", S));
 const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
 const { buildProficiencies, buildSamples, buildMacros } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
+const { MASTERWORK } = await import(new URL("config.mjs", S));
 const { computeAttackMods } = await import(new URL("roll-wrap.mjs", S));
 const { readiedWeaponData, prepareTorch, unarmedStrikeData, masterworkTiersFor, addToDamage, setMasterwork, scavengeItem, clearScavenged, rollScavengedD20s, setShieldVariant } = await import(new URL("actions.mjs", S));
 const { cycleStrap, strapOf } = await import(new URL("overlays/shield-variants.mjs", S));
@@ -347,6 +348,33 @@ const samples = buildSamples();
 check("samples build (6 shield variants + masterwork + named)", samples.length === 9);
 check("every shield variant is a shield armour item with a variant flag", samples.filter((d) => d.flags["acks-extras"].shieldVariant).every((d) => d.type === "armor" && d.system.type === "shield" && d.system.aac.value === 1));
 check("sample ids 16-char + _key matches", samples.every((d) => ID.test(d._id) && d._key === `!items!${d._id}`));
+
+// A shipped masterwork sample has to speak the shape the RUNTIME reads — a
+// TIER KEY, not a copy of the row that key names — and has to carry the
+// pristine baseline, because its system fields already reflect the tier: with
+// no snapshot, recomputeItemFields reads the finished item as the mundane one
+// and clearing masterwork leaves the bonus behind. Both samples shipped the
+// row shape and no baseline, so the sheet's select read "None" on gear whose
+// whole point is to demonstrate the tier.
+const mwSamples = samples.filter((d) => d.flags["acks-extras"].masterwork);
+check("masterwork samples ship a real tier key", mwSamples.length === 2 && mwSamples.every((d) => {
+  const tier = d.flags["acks-extras"].masterwork.tier;
+  return typeof tier === "string" && Object.hasOwn(MASTERWORK, tier);
+}));
+check("masterwork samples ship the pristine baseline their fields imply", mwSamples.every((d) => {
+  const { tier } = d.flags["acks-extras"].masterwork;
+  const base = d.flags["acks-extras"].pristine;
+  const row = MASTERWORK[tier];
+  if (!base || !row) return false;
+  const shippedAc = d.system.aac?.value ?? 0;
+  const shippedBonus = d.system.bonus ?? 0;
+  return (
+    base.bonus + (row.toHit ?? 0) === shippedBonus &&
+    base.ac + (row.ac ?? 0) === shippedAc &&
+    base.weight6 - (row.weightMinusStone ?? 0) * 6 === d.system.weight6 &&
+    base.cost + (row.cost ?? 0) === d.system.cost
+  );
+}));
 
 // The sample-character pack retired in 4.1 (acks-importer builds real parties
 // from the GM's books); the embedded-key invariants it guarded are exercised by

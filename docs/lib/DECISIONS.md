@@ -894,3 +894,38 @@ default on).
 **Rejected:** burn-on-spend as any payment's default; per-location re-rating
 baked into stacks (splits every merge path); silently overcharging when no
 changer can split a coin.
+
+---
+
+### 2026-08-15 — a hidden pack must be one the import really replaces
+
+`hideSupersededPacks` folds a system compendium out of the sidebar once the
+world holds imported documents "covering" it. Every probe was a TYPE-WIDE
+FLOOR — twenty imported items of type `item`, ten monsters — which is not a
+coverage test: the same twenty adventuring-gear items satisfy the floor for
+`acks-clothing` and `acks-adventuring-equipment` alike, and the module's own
+docstring already forbade exactly that ("where a system pack is NOT
+superseded, that is an importer gap, not a reason to hide it").
+
+So the packs were measured instead of assumed. Everything the cookbook can
+materialize was imported against the seat's six books — 1,307 documents — and
+each pack compared document by document.
+
+**Ruled: `acks-languages` is superseded and is now hidden.** All 58 languages
+come back from the reader's own book (acks-importer 2.9.x reads the Appendix A
+taxonomy), and neither side carries an Active Effect, so nothing is lost by
+folding the row away. Its probe counts languages specifically, via a new
+`idPrefix` on the spec, because a floor of "40 abilities" would fire in a world
+that imported a hundred proficiencies and no book at all.
+
+**Ruled: the other seven stay as they are, and their shortfalls are recorded
+rather than fixed here.** Each still has documents the import does not produce
+— 43 named equipment entries, twelve thief-skill powers, and a monster leg that
+has never been measured — and each is now a named gap in acks-importer's
+ROADMAP. Tightening the remaining floors into real coverage tests is a change
+to what existing worlds see in their sidebar and wants its own decision, not a
+side effect of an audit.
+
+**What it cost.** A GM who imported gear but not clothing still loses the
+clothing row today. That is the pre-existing behaviour, now documented and
+measured instead of assumed correct.

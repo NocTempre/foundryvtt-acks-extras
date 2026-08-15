@@ -394,3 +394,33 @@ which is why the report read as "only the button works".
 
 **Ruled: wire them all.** The target is "the ordinary inventory", which is every
 one of those lists, not whichever one core happened to print first.
+
+---
+
+**2026-08-15 — a shipped layered item carries its own pristine baseline.**
+
+The two masterwork samples shipped `flags.acks-extras.masterwork` as a COPY OF
+THE TABLE ROW — `{toHit: 1}`, `{ac: 1}` — while every reader wants the TIER KEY
+(`masterworkTierOf` reads `.tier`, `setMasterwork` writes `{tier}`). So the
+sheet's masterwork select read "None" on the two items whose entire purpose is
+to demonstrate a tier, and `ITEM_FLAGS.MASTERWORK`'s own comment documented the
+wrong shape.
+
+**Ruled: the flag names a tier, never the row the tier names.** The row lives
+once, in `config.MASTERWORK`; a second copy on the item is a value that can
+disagree with it.
+
+**Ruled: a sample whose fields already REFLECT a layer ships the `pristine`
+snapshot too.** `recomputeItemFields` treats an item with no snapshot as
+pristine, so a finished masterwork sword flagged with its tier and nothing else
+would be read as a mundane sword that happens to have +1 — and clearing
+masterwork would restore it to +1 and 90gp. The baseline is what makes the
+layer removable, which is the whole point of the pristine model
+(`properties.mjs`). This is the same discipline the named-item sample already
+followed with its `base` object.
+
+**What it cost.** Nothing shipped could read these two items correctly, and no
+check noticed: the runtime tests exercise `setMasterwork` on items they build
+themselves, so they never touched the shipped data. `test-equipment.mjs` now
+asserts the samples' flag against `config.MASTERWORK` — that the tier is a real
+key, and that baseline plus row reproduces every shipped field.

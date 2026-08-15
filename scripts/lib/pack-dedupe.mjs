@@ -34,6 +34,16 @@ const isImported = (doc) =>
  * Each probe counts imported world documents; `min` is a floor low enough that
  * a partial import still counts (a GM who imported one book has replaced the
  * pack for their purposes) but high enough that a stray item does not.
+ *
+ * A FLOOR IS NOT A COVERAGE PROOF, and only `acks-languages` currently has
+ * one: a 2026-08-15 audit imported everything the cookbook can materialize and
+ * compared it against each pack document by document, and languages was the
+ * single pack that came back complete — all 58, with neither side carrying an
+ * Active Effect. Every other entry here is replaced only in the sense that its
+ * subject matter is imported; each still has named documents the import does
+ * not produce, recorded as gaps in acks-importer's ROADMAP. `idPrefix` exists
+ * so a probe can count the pack's OWN content rather than a type-wide floor,
+ * which is what a coverage proof needs.
  */
 const SUPERSEDED = Object.freeze({
   "acks.acks-all-equipment": { probe: "item", types: ["weapon", "armor"], min: 20 },
@@ -44,18 +54,30 @@ const SUPERSEDED = Object.freeze({
   "acks.acks-monster-abilities": { probe: "item", types: ["ability"], min: 20 },
   "acks.acks-monsters": { probe: "actor", types: ["monster"], min: 10 },
   "acks.acks-treasure": { probe: "table", min: 5 },
+  // The taxonomy is READ from the seat's own book (acks-importer 2.9.x), so the
+  // probe counts the languages themselves rather than abilities at large — a
+  // world with 100 imported proficiencies and no book has replaced nothing.
+  "acks.acks-languages": { probe: "item", types: ["ability"], idPrefix: "def.language.", min: 40 },
 });
+
+/** The cookbook id an import stamped on a document, or "". */
+const cookbookIdOf = (doc) =>
+  String(doc?.flags?.[IMPORTER_ID]?.cookbook?.id ?? doc?.flags?.[MODULE_ID]?.extras?.cookbookId ?? "");
+
+/** Does this document count towards `spec` — right type, and right content? */
+const counts = (doc, spec) =>
+  spec.types.includes(doc.type) && isImported(doc) && (!spec.idPrefix || cookbookIdOf(doc).startsWith(spec.idPrefix));
 
 /** How many imported documents of a kind the world holds. */
 function importedCount(spec) {
   if (spec.probe === "actor") {
-    return game.actors.filter((a) => spec.types.includes(a.type) && isImported(a)).length;
+    return game.actors.filter((a) => counts(a, spec)).length;
   }
   if (spec.probe === "table") {
     return game.tables.filter((t) => isImported(t)).length;
   }
   let n = 0;
-  for (const item of game.items) if (spec.types.includes(item.type) && isImported(item)) n++;
+  for (const item of game.items) if (counts(item, spec)) n++;
   // Items imported onto actors count too: a world that imported equipment
   // straight onto its party has replaced the shop list just the same.
   for (const actor of game.actors) {

@@ -19,7 +19,14 @@
     "acks-extras": {
       "example": true,
       "masterwork": {
-        "ac": 1
+        "tier": "armorAC"
+      },
+      "pristine": {
+        "bonus": 0,
+        "damage": "",
+        "ac": 6,
+        "weight6": 36,
+        "cost": 60
       }
     }
   },
