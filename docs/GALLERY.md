@@ -19,6 +19,7 @@ the next refresh.
 | Chargen, no package | The Judges Journal's template-less build: proficiencies chosen, gold rolled, no equipment | [guide](guides/classes.md) | [v3.6.0](releases/v3.6.0/classes-chargen-manual.png) |
 | Class book order | The constructor's Book order field, and what a class derives when it says nothing | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-constructor-order.png) |
 | Level up | The wizard: the HP reroll it will apply, the powers granted, the picks offered | [guide](guides/classes.md) | [v3.0.0](releases/v3.0.0/classes-levelup.png) |
+| Back to the generator | The control beside the class picker that offers the Scores Generator again, for a character the system stopped considering new | [guide](guides/classes.md) | [v4.7.0](releases/v4.7.0/classes-reopen.png) |
 | Casting strip | Slot pips, a points pool with its −/+ pair, the gnostic capacity rung, the rest control | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-casting-strip.png) |
 | Sheet filing | The ability list's filter bar: fighting, thief skills, general, powers | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-category-tabs.png) |
 | Item instances | A skinned item's badge naming its base, the embellishment set apart | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-skin-badge.png) |

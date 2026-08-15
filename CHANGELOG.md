@@ -1,5 +1,46 @@
 # Changelog
 
+## 4.7.0
+
+Deep water, a way back to the generator, and every element on every sheet
+finally dressed by something.
+
+### Added
+- **Deep water is its own rule.** Swimming looked like a seventh row of the
+  climbing table and shares nothing with it: the target is what the swimmer is
+  CARRYING, so a naked man crosses freely and a mailed one is attempting an 8+
+  he has no business attempting; it is thrown every round rather than once per
+  hundred feet; and failing it does not cost progress, it starts a drowning —
+  no actions, no further throws, sinking ten feet a round for every stone,
+  with breath measured in Constitution and a rescuer lifting the whole body
+  plus half its baggage. Cold and rough water make it worse for everyone,
+  including the swimmer carrying nothing.
+- **A character can be sent back through the Scores Generator.** The system
+  offers it only while it considers a character new, and clears that on the
+  first update touching scores — so a character built by hand could never be
+  sent back, and the page had no way in. There is now a control beside the
+  class picker, behind a confirmation that names how many items generating
+  again would replace.
+
+### Fixed
+- **Fifty-four elements were dressed by nothing.** Across all eight features,
+  templates wrote `acks-*` classes that no stylesheet mentioned — the element
+  inherited whatever it happened to inherit and the layout its author had in
+  mind never existed. Nothing errors when that happens, which is why it built
+  up. One of them was a wrong name rather than a missing rule: a button asked
+  for an emphasis variant the design layer does not publish, and got none.
+- **A door's throw, a group's stack, a rung ladder and a market queue** all had
+  their structure written and never styled; they lay out now as they read.
+
+### Toolchain
+- Two silences are now gate failures. `audit-styles` fails on a class with no
+  rule and on a rule reading a token nobody declares — the second caught an
+  invented `--acks-row-alt` in this very release, which CSS would have dropped
+  without a word. `audit-imports` resolves every named import against what the
+  target module actually exports: a wrong name there is module-breaking and
+  offline-invisible, and one shipped that way during this release before live
+  testing found it.
+
 ## 4.6.0
 
 The sea half of the vehicle rules, and two owner rulings that had been open
