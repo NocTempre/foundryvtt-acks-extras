@@ -23,14 +23,31 @@ in code. Widening one is not a missing feature: a sixth fighting style would be
 a box that lights nothing, which the entry below already decided. Registration
 is refused for these rather than half-obeyed.
 
-An OPEN family — Art/Craft, Profession, Labor, Performance — is proper names out
-of somebody's campaign. The printed handful were always examples, and this repo
-ships no value read off a page, so a world adds its own through
-`acks.selectionVocab`: one table per ability slug, `{key: {label, aliases}}`, at
-whatever priority the layer deserves. Registered entries merge over the printed
-ones. Nothing is required, and an unregistered world behaves exactly as before —
-which is why this is deliberately NOT declared through `expectTables`, where a
-missing optional layer would read as a broken import.
+An OPEN family — Art/Craft, Profession, Labor, Performance — is a list of proper
+names out of a book. It ships **EMPTY**: `{open: true}` and nothing else. A world
+fills it through `acks.selectionVocab`, one table per ability slug,
+`{key: {label, aliases}}`, at whatever priority the layer deserves; until
+something registers, the free-text line is the whole surface, which is what it
+was always for. Nothing is required, which is why this is deliberately NOT
+declared through `expectTables`, where a missing optional layer would read as a
+broken import.
+
+**Corrected within the day, and the correction is the point.** The first version
+of this entry KEPT the eleven printed entries — Bowyer, Gemsmith, Smithing,
+Judge, Merchant, Moneylender, Scribe, Bricklaying, Farming, Mining, Musical
+Instrument — and called them "examples a world adds to". That is shipping a value
+read off a page with a softer word in front of it. **A shortlist is not a smaller
+kind of quotation**, and a registration path bolted on top of shipped content
+protects nothing: the damage is done the moment the name is written into the
+repo. The entries are gone. Read-and-register is the whole mechanism, not an
+addition to it, and reading them out of the GM's own book is acks-importer's
+work.
+
+The KEYS of the closed families stay, and are not the same thing: `weaponshield`
+is an identifier the loadout rules branch on, and the module cannot resolve a
+style it has no name for. Their LABELS are a separate open question —
+`"Weapon & Shield"` is display text, and whether that too should arrive by
+import is recorded in [ROADMAP.md](ROADMAP.md) rather than settled here.
 
 **Languages prompted the question and are the one thing this does not serve.** A
 tongue is a document in a slot carrier ([classes](../classes/MODEL.md)), not a

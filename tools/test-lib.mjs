@@ -1432,34 +1432,44 @@ t("an ability's own vocabulary wins over its category's", () => {
   assert.ok(trickery.disarm && !trickery.swordsdaggers);
 });
 
-t("a world's own entries widen an OPEN family and never a closed one", () => {
+t("an OPEN family ships EMPTY — its entries are read and registered, never coded", () => {
+  // The rule this pins: a shortlist of crafts or professions is a list out of a
+  // book. Shipping "a few examples" is shipping a value read off a page, so the
+  // only thing in the repo is the fact that the family is open.
+  for (const slug of ["artcraft", "profession", "labor", "performance"]) {
+    const family = vocab.SELECTION_VOCAB_BY_ABILITY[slug];
+    assert.equal(vocab.isOpenVocab(family), true, `${slug} is open`);
+    assert.deepEqual(Object.keys(family), ["open"], `${slug} carries no entry of its own`);
+  }
+  const bare = vocab.selectionVocabFor(abilityWith("def.prof.profession"), "proficiency");
+  assert.deepEqual(bare, {}, "and offers nothing until a world fills it");
+});
+
+t("a world's registered entries fill an OPEN family and never a closed one", () => {
   T.registerTable(
     {
       id: vocab.SELECTION_VOCAB_DOC,
+      // Deliberately invented keys: a test fixture is a repo file too.
       tables: {
-        profession: { vintner: { label: "Vintner" } },
+        profession: { myKey: { label: "My Trade" } },
         // A closed family is offered the same registration and must ignore it:
         // a sixth fighting style would light no mechanic.
-        fightingstylespecialization: { pikeandshot: { label: "Pike & Shot" } },
+        fightingstylespecialization: { myStyle: { label: "My Style" } },
       },
     },
     { priority: T.PRIORITY.WORLD },
   );
   try {
     const prof = vocab.selectionVocabFor(abilityWith("def.prof.profession"), "proficiency");
-    assert.ok(prof.vintner, "the world's own profession is offered");
-    assert.ok(prof.merchant, "and the printed examples still are");
+    assert.deepEqual(Object.keys(prof), ["myKey"], "the world's entry is the whole list");
 
     const styles = vocab.selectionVocabFor(abilityWith("def.prof.fightingStyleSpecialization"), "proficiency");
-    assert.equal(styles.pikeandshot, undefined, "a closed family stays closed");
+    assert.equal(styles.myStyle, undefined, "a closed family stays closed");
     assert.equal(Object.keys(styles).length, 5);
   } finally {
     T.unregisterTable(vocab.SELECTION_VOCAB_DOC, { priority: T.PRIORITY.WORLD });
   }
-  // With nothing registered the open family is exactly the printed handful.
-  const bare = vocab.selectionVocabFor(abilityWith("def.prof.profession"), "proficiency");
-  assert.equal(bare.vintner, undefined);
-  assert.ok(bare.merchant);
+  assert.deepEqual(vocab.selectionVocabFor(abilityWith("def.prof.profession"), "proficiency"), {});
 });
 
 t("an ability with no vocabulary of its own falls back to its category's", () => {

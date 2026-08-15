@@ -31,3 +31,16 @@ source for the same target, not a replacement for typing one.
   shortlist at all and fall through to free text. Filling them means reading the
   lists off the page, which is importer work on the `kind.proficiency` register
   rather than a table hand-typed here.
+
+  **Updated 2026-08-14:** those four now ship EMPTY — the "examples" were a value
+  read off a page and are gone ([DECISIONS.md](DECISIONS.md)). The seam they fill
+  through exists (`acks.selectionVocab`); the producer that reads them from the
+  GM's book is the remaining work, and until it lands free text is the surface.
+- **The closed families' LABELS are still repo text.** Their keys are identifiers
+  the loadout and combat rules branch on and must exist in code, but
+  `"Weapon & Shield"` and `"Knock Down"` are display strings taken from the page.
+  They are a far smaller surface than a list of professions and they name
+  mechanisms rather than setting content, which is why they were left standing;
+  whether the label too should arrive by import, leaving code holding only the
+  key, is not decided. Deciding it means agreeing where a rules term stops being
+  a rules term and starts being quoted text.

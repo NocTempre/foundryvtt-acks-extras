@@ -313,30 +313,21 @@ export const SELECTION_VOCAB_BY_ABILITY = {
     fire: { label: "Fire" },
     water: { label: "Water" },
   },
-  // Open families: the printed entries are examples, not a closed list.
-  artcraft: {
-    open: true,
-    bowyer: { label: "Bowyer" },
-    gemsmith: { label: "Gemsmith" },
-    smithing: { label: "Smithing" },
-  },
-  profession: {
-    open: true,
-    judge: { label: "Judge" },
-    merchant: { label: "Merchant" },
-    moneylender: { label: "Moneylender" },
-    scribe: { label: "Scribe" },
-  },
-  labor: {
-    open: true,
-    bricklaying: { label: "Bricklaying" },
-    farming: { label: "Farming" },
-    mining: { label: "Mining" },
-  },
-  performance: {
-    open: true,
-    musicalinstrument: { label: "Musical Instrument", aliases: ["musical instrument", "instrument"] },
-  },
+  // OPEN FAMILIES SHIP NO ENTRIES. What an Art, a Craft, a Profession, a Labor
+  // or a Performance can be is a LIST OUT OF A BOOK — arbitrary, long, and
+  // somebody else's text. Writing even a handful here as "examples" is shipping
+  // a value read off a page, which no repo in this family does; a shortlist is
+  // not a smaller kind of quotation. They arrive by registration, read from the
+  // GM's own book by acks-importer (`SELECTION_VOCAB_DOC` below), and until
+  // something registers them the free-text line is the whole surface — which
+  // is exactly what it was there for.
+  //
+  // The KEYS above are not content: they name which ability is being edited,
+  // and the code resolves them. The entries under a key are.
+  artcraft: { open: true },
+  profession: { open: true },
+  labor: { open: true },
+  performance: { open: true },
 };
 
 /** Is this vocabulary a shortlist rather than a closed set? */
@@ -345,16 +336,16 @@ export const isOpenVocab = (vocab) => vocab?.open === true;
 /**
  * Where a world's OWN entries for the open families arrive.
  *
- * The tables above are code because they are MECHANISMS the module resolves —
- * six weapon groups, five fighting styles, eight manoeuvres. The open families
- * are not: an Art, a Craft, a Profession, a Labor or a Performance is a proper
- * name from somebody's campaign, and this repo ships no value read off a page.
- * So the printed handful stay as examples and a world adds the rest, through
- * the same layered ruledata registry every other imported table uses — one
- * table per ability slug, each `{key: {label, aliases}}`:
+ * The closed tables above are code because their KEYS are MECHANISMS the module
+ * resolves — a fighting style the loadout rules read, a manoeuvre the combat
+ * rules run. The open families have no such excuse: an Art, a Craft, a
+ * Profession, a Labor or a Performance is a list of proper names out of a book,
+ * and this repo ships no value read off a page. So they ship EMPTY and a world
+ * fills them, through the same layered ruledata registry every other imported
+ * table uses — one table per ability slug, each `{key: {label, aliases}}`:
  *
  *   registerTable({ id: "acks.selectionVocab", tables: {
- *     profession: { vintner: { label: "Vintner" } },
+ *     profession: { myKey: { label: "…as the book prints it" } },
  *   }}, { priority: PRIORITY.WORLD });
  *
  * Nothing is REQUIRED: an unregistered world behaves exactly as before, which

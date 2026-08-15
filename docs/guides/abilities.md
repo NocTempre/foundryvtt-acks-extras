@@ -91,19 +91,19 @@ choice, and ticking one is guaranteed to light the matching proficiency pill —
 the keys are the same ones the profile strips match on, so a pick you tick is a
 pick the rules actually read.
 
-**A pick outside the list is still valid.** Art/Craft, Profession, Labor and
-Performance are open — the boxes are the entries the books name, not a limit —
-so a craft your Judge approved goes in the free-text line under the boxes. That
-line is also where a selection goes when you clear the boxes entirely, so you
-can always type one by hand.
+**The open families start with no boxes at all.** Art/Craft, Profession, Labor
+and Performance offer nothing out of the tin, because what a craft or a
+profession can be is a list out of your book and this module ships none of it.
+Type the pick into the free-text line under the boxes — that line is also where
+a selection goes when you clear the boxes entirely, so it is always available.
 
-**A campaign can give those open families its own boxes.** If your world keeps
-naming the same professions, a Judge registers them once and they appear as
-ticks beside the printed ones, for everybody:
+**Give them boxes by importing or registering them.** Once the entries have been
+read out of your own book they appear as ticks for everybody at your table. A
+Judge can also register them by hand:
 
 ```js
 acksExtras.lib.tables.registerTable(
-  { id: "acks.selectionVocab", tables: { profession: { vintner: { label: "Vintner" } } } },
+  { id: "acks.selectionVocab", tables: { profession: { myKey: { label: "…as your book prints it" } } } },
   { priority: 20 },
 );
 ```
