@@ -130,6 +130,28 @@
     {{/if}}
   </fieldset>
 
+  {{! What this vehicle has room for. Which buckets exist is a property of the
+      vehicle, not of vehicles — a wagon is pulled and driven, a ship is
+      crewed — and whether passengers draw on the hold varies with it too. }}
+  {{#if buckets.length}}
+  <fieldset class="acks-extras-vehicle-buckets">
+    <legend>{{localize "ACKS-VEHICLES.bucket.legend"}}</legend>
+    <ul class="acks-extras-vehicle-bucket-list">
+      {{#each buckets}}
+        <li class="acks-extras-vehicle-bucket{{#if pooled}} is-pooled{{/if}}">
+          <span class="acks-extras-vehicle-bucket-label">{{label}}</span>
+          <span class="acks-extras-vehicle-bucket-count">
+            {{#if (eq counts "stone")}}{{stone}} {{localize "ACKS-VEHICLES.cargo.stone"}}
+            {{else if (eq counts "animals")}}{{members.length}}
+            {{else}}{{members.length}}{{#if unnamed}} + {{unnamed}}{{/if}}{{/if}}
+          </span>
+        </li>
+      {{/each}}
+    </ul>
+    <p class="hint">{{poolLabel}}</p>
+  </fieldset>
+  {{/if}}
+
   {{! The hold. }}
   <fieldset>
     <legend>{{localize "ACKS-VEHICLES.cargo.legend"}}</legend>

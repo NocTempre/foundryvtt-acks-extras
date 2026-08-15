@@ -15,6 +15,7 @@ import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS } from "./vehicle-data.mj
 import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN, draftPull } from "./vehicle-speed.mjs";
 import { isSinking, speedFactor, repairPlan, SINK_FORMULA, CREW_PER_POINT } from "./vessel-damage.mjs";
 import { voyageDay } from "./voyage.mjs";
+import { fillBuckets, complementMeans, crewCargoTrade } from "./berths.mjs";
 import { load6 } from "../lib/capacity.mjs";
 import { attachedTo, attach, detach } from "../lib/attachment.mjs";
 import { borneBy6 } from "../lib/capacity.mjs";
@@ -83,6 +84,19 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     const namedStone = riders.reduce((sum, r) => sum + r.stone, 0);
     const hold = cargoRemaining(sys, aboardStone, namedStone);
 
+    // What this vehicle has ROOM for, bucket by bucket. Derived rather than
+    // assumed per family: which buckets exist, what the complement means, and
+    // whether passengers draw on the hold are all properties of the vehicle.
+    const occupants = ["passenger", "crew", "draft"].flatMap((role) =>
+      attachedTo(this.actor, role).map((o) => ({
+        uuid: o.uuid,
+        name: o.name,
+        role,
+        stone: role === "passenger" ? Math.max(berth, round2(borneBy6(o) / STONE)) : round2(borneBy6(o) / STONE),
+      })),
+    );
+    const filled = fillBuckets(sys, occupants, aboardStone);
+
     const speed = isSea ? seaSpeeds(sys, { wind: this.#wind }) : landSpeed(sys, aboardStone, this.#ground);
     const reasons = (speed.reasons ?? []).map((r) => ({
       label: game.i18n.localize(`${LANG_PREFIX}.reason.${r.key}`),
@@ -123,6 +137,17 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       // the two are never shown as the same kind of number.
       voyage: isSea ? voyageDay(sys, { wind: this.#wind, underSail: true }) : null,
       hull: isSea ? hullState(sys) : null,
+      // Which buckets this vehicle has, what each holds, and — the part that
+      // is per-vehicle rather than per-family — whether passengers and cargo
+      // are the same room. Labels come from what the complement MEANS, since
+      // the books use one column for a driver, a chariot crew and a howdah.
+      buckets: filled.buckets.map((b) => ({
+        ...b,
+        label: game.i18n.localize(`${LANG_PREFIX}.bucket.${b.key === "driver" || b.key === "crew" ? complementMeans(sys) : b.key}`),
+      })),
+      pools: filled.pools,
+      poolLabel: game.i18n.localize(`${LANG_PREFIX}.bucket.${filled.pools ? "pooled" : "berthed"}`),
+      berthTrade: isSea ? crewCargoTrade(sys, 0) : null,
       pace: this.#pace,
       paces: Object.entries(TRAVEL_PACE).map(([value, p]) => ({
         value, label: game.i18n.localize(p.label), selected: value === this.#pace,

@@ -3128,5 +3128,14 @@
   "ACKS-CLASSES.reopen.done": "{name} may be generated again — the Scores Generator is on their sheet.",
   "ACKS-ABILITIES.roll.field.table": "Which table",
   "ACKS-ABILITIES.roll.field.tableAttack": "Attack throws",
-  "ACKS-ABILITIES.roll.field.tableHint": "A class may publish ladders of its own — a thief’s Climb Walls, a house table. Naming one reads that ladder at the level chosen above; leaving it blank reads the attack throws."
+  "ACKS-ABILITIES.roll.field.tableHint": "A class may publish ladders of its own — a thief’s Climb Walls, a house table. Naming one reads that ladder at the level chosen above; leaving it blank reads the attack throws.",
+  "ACKS-VEHICLES.bucket.legend": "Aboard",
+  "ACKS-VEHICLES.bucket.draft": "In harness",
+  "ACKS-VEHICLES.bucket.driver": "Driver",
+  "ACKS-VEHICLES.bucket.warriors": "Driver and warriors",
+  "ACKS-VEHICLES.bucket.crew": "Crew",
+  "ACKS-VEHICLES.bucket.passengers": "Passengers",
+  "ACKS-VEHICLES.bucket.cargo": "Cargo",
+  "ACKS-VEHICLES.bucket.pooled": "Passengers and cargo come out of one pool on this vehicle — a bed, not cabins — at the rate its own berth figure sets.",
+  "ACKS-VEHICLES.bucket.berthed": "Passengers are berthed apart from the hold. Her crew is not cargo either, but the two trade at fifty stone a hand."
 }

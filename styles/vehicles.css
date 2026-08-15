@@ -137,3 +137,41 @@
   gap: 0.3rem;
   margin-top: 0.4rem;
 }
+
+/* What is aboard, bucket by bucket. A pooled bucket is marked, because which
+   of them share the hold is the fact a Judge gets wrong when a wagon quietly
+   carries a free platoon. */
+.acks-extras-vehicle-buckets {
+  min-inline-size: 0;
+}
+
+.acks-extras-vehicle-bucket-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+}
+
+.acks-extras-vehicle-bucket {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border: var(--acks-border-soft);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-vehicle-bucket.is-pooled {
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-vehicle-bucket-label {
+  opacity: 0.8;
+}
+
+.acks-extras-vehicle-bucket-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: bold;
+}
