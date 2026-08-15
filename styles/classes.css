@@ -94,8 +94,16 @@
 .acks-extras-classes-rung input[type="number"] {
   width: 3rem;
 }
+/* A rung's power is stored as a ref — `def.power.sensitivityToRockAndStone` —
+   and the name renders beside it, so the field only has to be wide enough to
+   tell one ref from another at a glance. It grows while focused, because
+   reading or correcting a ref means seeing all of it, and a permanently wide
+   field would push a rung's chips onto a line each. */
 .acks-extras-classes-rung input[type="text"] {
-  width: 3.5rem;
+  width: 8rem;
+}
+.acks-extras-classes-rung input[type="text"]:focus {
+  width: 20rem;
 }
 
 .acks-extras-classes-refname {

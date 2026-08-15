@@ -34,8 +34,26 @@ restated under `body.acks-lib-sheet-theme`, which outweighs it. The remaining
 low-specificity hits colour `select`, which the theme's input rule does not
 claim, so they were never in the fight.
 
-Still open: the group and template sheets have not been read against this rule
-— they sit under the same theme and may hold the same fault.
+The group and template sheets are CLEAN, and structurally so rather than by
+luck: the theme's field rule needs `.acks` on the application, and those two
+carry `acks-ui acks-extras` only, so it never reaches their fields. `lib.css`
+also declares no `input` rule at all — its one field-adjacent selector,
+`.acks-lib-template-sheet .axis-row select`, sets `flex` and picks a element
+the theme's `input` rule cannot match. **A surface is exposed to this rule
+exactly when it carries `acks`**, which is the cheap test for the next audit.
+
+## Who carries `acks`, and whether that is deliberate
+
+Five surfaces do — the two item sheets (abilities, equipment), the roll editor,
+the door app and the follower card — against roughly forty that carry
+`acks-ui acks-extras` alone. So the sheet theme dresses core's windows and
+those five; everywhere else the fields take Foundry's default chrome inside an
+ACKS-dressed frame.
+
+Whether that split is intended has never been ruled. It is not a defect to fix
+blind: adding `acks` to a window opts it into every core `.acks` rule at once,
+not just the field dressing, so the answer needs a live read of what each
+surface would inherit.
 
 ## Night Vision reaches through walls
 

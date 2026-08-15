@@ -1,5 +1,49 @@
 # Changelog
 
+## 4.5.0
+
+The party divides its own experience, and decides what to do about the people
+who cannot walk out.
+
+### Added
+- **Deal experience from the formation window.** The division follows the
+  book: everyone who returned takes a share *alive or dead*, henchmen take
+  half — or whatever their own terms say, if the hiring negotiation moved it —
+  and hired mercenaries and specialists take none at all, being paid in coin.
+  Animals, wagons and summoned things are not party members and are listed as
+  excluded with the reason, so a Judge dividing four thousand experience can
+  see why the mule was left out. The whole division is shown as you type the
+  total, before a point is given. The system's own button is hidden while this
+  is on, and a setting puts it back untouched.
+- **Leave the fallen, and still owe them their share.** Dead or unconscious
+  drops that member's own speed to zero, which stops the column — until the
+  party either carries them or leaves them behind. Leaving drops their token on
+  the map where they fell and keeps them on the roster, so they still divide
+  the treasure they died for.
+- **Left in place means no tether.** A member left behind is no longer held to
+  the marching order's leash, which makes the same gesture work for a camp, a
+  parked wagon, or the packs everyone drops before a fight.
+
+### Fixed
+- **A tethered member frozen in place could roam anywhere.** A zero allowance
+  was read as "no limit", so anything immobilised was exempt from the leash it
+  most needed. A stated zero now refuses the move; a sheet that states no speed
+  at all still has no limit invented for it.
+- **A share is a percentage, not a fraction.** A full share is stored as 100,
+  which mixed with a henchman's 0.5 put a henchman standing beside two players
+  on about a two-hundredth of the loot instead of a fifth.
+- **A wagon is not a casualty.** Vehicles sit at zero hit points their whole
+  lives, so every cart in a formation read as a body on the ground and froze
+  the party where it stood.
+- **An open editor takes the full width, on every sheet.** A rich-text field
+  opened inside a narrow column had its toolbar clipped away; that is now a
+  property of the family's windows rather than of the one card that hit it
+  first. The follower card's own field colours are restated so the sheet theme
+  no longer quietly overrides them.
+- **A power's ref is readable on a race rung.** The field was three and a half
+  characters wide, which showed `def.pov` of `def.power.hardyPeople`. It is
+  wide enough to tell two refs apart now, and grows while focused.
+
 ## 4.4.0
 
 One relationship for everyone being carried, and an honest answer about what

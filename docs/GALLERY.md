@@ -12,7 +12,7 @@ the next refresh.
 |---|---|---|---|
 | Class constructor | The Casting editor: traditions, slot grid, pool schedule, caster-level ladder | [guide](guides/classes.md) | [v3.3.0](releases/v3.3.0/classes-constructor.png) |
 | Class builder (advanced mode) | The Builder tab on an imported Ready-for-Play example: build values, the accounting line, and Derive | [guide](guides/classes.md) | [v3.8.0](releases/v3.8.0/classes-builder.png) |
-| Race documents | The racial value ladder — rung XP costs, granted powers, attribute floors, always-on traits | [guide](guides/classes.md) | [v3.8.0](releases/v3.8.0/classes-race.png) |
+| Race documents | The racial value ladder — rung XP costs, attribute floors, and every granted power resolved to the definition its rung names | [guide](guides/classes.md) | [v4.5.0](releases/v4.5.0/classes.png) |
 | Character generation | Three columns: the attribute rule and the scores, the class above the template die, what is left to choose | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen.png) |
 | Chargen, built | A character rolled under the printed rule, its package listed before it is taken | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen-built.png) |
 | Chargen, Judge override | Every class and template offered, the rolled fields freed, add-rather-than-replace | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen-judge.png) |
@@ -29,6 +29,7 @@ the next refresh.
 | Henchmen | An employer's roster tab: who is hired, on what terms | [guide](guides/henchmen.md) | [v3.0.0](releases/v3.0.0/henchmen-roster.png) |
 | Equipment | A silvered weapon's Construction tab: the Silver control and what the plating buys | [guide](guides/equipment.md#silvered-weapons) | [v3.3.0](releases/v3.3.0/equipment-item-sheet.png) |
 | Formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v4.0.0](releases/v4.0.0/formation-party-sheet.png) |
+| Dealing experience | The division shown before it is given: full shares, a henchman at half, and who takes nothing, with the reason | [guide](guides/formation.md) | [v4.5.0](releases/v4.5.0/formation-xp.png) |
 | Groups | A retinue kept as one document rather than a dozen | [guide](guides/formation.md) | [v3.0.0](releases/v3.0.0/group-sheet.png) |
 | Templates | The generator that stats a creature when you need one | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/template-sheet.png) |
 | Influence | A social roll with its modifier stack itemized — here with a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v4.0.0](releases/v4.0.0/influence-bribe.png) |
@@ -65,7 +66,7 @@ the next refresh.
 | Ability throws | A progression throw whose source is picked from every class the world holds | [guide](guides/abilities.md#typing-in-a-throw) | [v3.3.0](releases/v3.3.0/ability-roll-editor.png) |
 | Rolling a proficiency | Every throw an ability offers, each rolling its own | [guide](guides/abilities.md) | [v3.4.0](releases/v3.4.0/abilities-throws.png) |
 | Wear slots | Where a piece of gear is worn, what it holds, and what reaching in costs | [guide](guides/equipment.md#where-gear-is-worn) | [v3.3.0](releases/v3.3.0/equipment-slot-picker.png) |
-| Party warnings | The exploration warnings reading as a warning does, on either seat and either look | [guide](guides/formation.md) | [v3.7.0](releases/v3.7.0/formation-warnings.png) |
+| Party warnings | The exploration warnings, including a fallen member the party must carry or leave before it can move | [guide](guides/formation.md) | [v4.5.0](releases/v4.5.0/formation-casualties.png) |
 | Proficiency throw card | A throw posted on the system's own card: banner, portrait, condition, verdict | [guide](guides/abilities.md#what-a-throw-looks-like-in-chat) | [v3.7.0](releases/v3.7.0/abilities-throw-card.png) |
 | Armour at a glance | AC and armour type beside the prose that describes it, with no Rolls tab to hunt through | [guide](guides/equipment.md#what-is-on-which-tab-of-an-item) | [v3.7.0](releases/v3.7.0/equipment-armour-sidebar.png) |
 | Migrating token vision | The world-wide sweep, and the question it asks before touching a hand-edited token | [guide](guides/formation.md#bringing-old-scenes-up-to-date) | [v3.7.0](releases/v3.7.0/lib-migrate-vision.png) |
