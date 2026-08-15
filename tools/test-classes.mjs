@@ -25,6 +25,8 @@ import {
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
 import { awardsThrough } from "../scripts/classes/grants.mjs";
+import { rebuildHitPoints } from "../scripts/classes/hitpoints.mjs";
+import { readFileSync } from "node:fs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -493,6 +495,63 @@ test("a copy this module granted is recognised by its stamp, not by its own uuid
   // has to answer — empty here, so the award stands.
   const bare = { uuid: "Actor.a1.Item.copy9", flags: {} };
   assert.equal(awardsThrough({ items: [bare] }, cls, 1).fixed.length, 1);
+});
+
+/* --------------------- first-level hit points --------------------- */
+
+// hitpoints.mjs reads no Foundry global but `Roll`, so the shipped path runs
+// offline against a scripted die.
+const scriptDie = (faces) => {
+  let next = 0;
+  return class {
+    constructor(formula) {
+      this.formula = formula;
+    }
+    async evaluate() {
+      const count = parseInt(/^(\d+)d/.exec(this.formula)?.[1] ?? "1", 10);
+      const rolled = Array.from({ length: count }, () => faces[next++ % faces.length]);
+      this.dice = [{ results: rolled.map((result) => ({ result, active: true })) }];
+      this.total = rolled.reduce((sum, face) => sum + face, 0);
+      return this;
+    }
+  };
+};
+
+const atLevelOne = async (conMod, faces) => {
+  globalThis.Roll = scriptDie(faces);
+  const cls = { system: { maximumLevel: 14, hitDie: "1d8", levelRow: (n) => (n === 1 ? { hd: "1d8" } : null) } };
+  return (await rebuildHitPoints({ system: { scores: { con: { mod: conMod } } } }, cls, 1)).max;
+};
+
+const atest = async (name, fn) => {
+  try {
+    await fn();
+    passed++;
+  } catch (err) {
+    console.error(`FAIL ${name}`);
+    throw err;
+  }
+};
+
+await atest("first level applies Constitution to the die it rolls", async () => {
+  assert.equal(await atLevelOne(2, [1]), 3);
+  assert.equal(await atLevelOne(2, [8]), 10);
+});
+
+await atest("a Constitution penalty cannot take the first die below one", async () => {
+  assert.equal(await atLevelOne(-3, [1]), 1);
+  assert.equal(await atLevelOne(-3, [2]), 1);
+  assert.equal(await atLevelOne(-3, [8]), 5);
+});
+
+await atest("chargen asks for the rebuild, so a generated character's hit points are rolled", () => {
+  // `rebuildVitals` defaults to false, so a chargen call that omits it rolls no
+  // hit dice at all and the character keeps whatever the bare actor was made
+  // with — no die, no Constitution and no per-die floor.
+  const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
+  const call = /applyClass\(actor, cls, \{([^}]*)\}\)/.exec(src);
+  assert.ok(call, "applyChargen still calls applyClass");
+  assert.match(call[1], /rebuildVitals:\s*true/);
 });
 
 console.log(`test-classes: ${passed} assertion groups passed.`);

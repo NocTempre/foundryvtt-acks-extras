@@ -3,6 +3,29 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-14 — Chargen rolls the hit die it was assumed to have already rolled
+
+The Scores Generator produced characters whose hit points were never rolled at
+all. `applyChargen` called `applyClass` without `rebuildVitals`, which defaults
+to false, so no die was thrown, Constitution was never applied and the per-die
+floor never ran. A generated character kept whatever the bare actor was created
+with — the same number every time, whatever their class die or Constitution.
+
+The 2026-08-06 entry below is **superseded in its chargen half**. It recorded
+that "chargen builds its own 1st level … rebuilding underneath either would
+discard a roll the player watched". That holds for the level-up wizard, which
+does roll its own die. It was never true of chargen, which rolls none: the
+page's `roll` is the 3d6 that picks a template, not a hit die. The protection
+was written for a roll that did not exist, and cost every generated character
+their hit points.
+
+Chargen now asks for the same rebuild the picker does. At first level that is
+one roll of the class's own die with Constitution applied per die and its floor
+of one; experience is left alone, because the level has not moved.
+
+Not migrated, per the standing rule — a character already generated is repaired
+by generating again, or by applying their class from the picker.
+
 ## 2026-08-14 — A level set is a level owed: applying a class grants its ladder
 
 Binding a class granted **no abilities at all**. `applyClass` wrote the printed
