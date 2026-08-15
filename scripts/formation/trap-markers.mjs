@@ -1,8 +1,7 @@
 /* global game, canvas, Hooks, PIXI */
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, TRAP_ZONE_TYPE } from "./constants.mjs";
 import { STATES } from "./trap-rules.mjs";
 import { wallTrap } from "./trap-walls.mjs";
-import { TRAP_ZONE_TYPE } from "./trap-zone.mjs";
 
 /**
  * What a Judge can see of a trap, and a player cannot.
@@ -71,19 +70,50 @@ export function refreshTrapMarkers() {
   // The whole feature, gated once: a player's client draws nothing.
   if (!game.user.isGM) return;
 
+  const marks = [];
   for (const wall of canvas.scene?.walls ?? []) {
     const trap = wallTrap(wall);
     if (!trap) continue;
     const [x1, y1, x2, y2] = wall.c;
-    drawMark(container, (x1 + x2) / 2, (y1 + y2) / 2, trap.state);
+    marks.push({ x: (x1 + x2) / 2, y: (y1 + y2) / 2, state: trap.state });
   }
-
   for (const region of canvas.scene?.regions ?? []) {
     const behavior = region.behaviors.find((b) => b.type === TRAP_ZONE_TYPE && !b.disabled);
     if (!behavior) continue;
     const at = regionCentre(region);
-    if (at) drawMark(container, at.x, at.y, behavior.system.state);
+    if (at) marks.push({ x: at.x, y: at.y, state: behavior.system.state });
   }
+
+  for (const { x, y, state } of spread(marks)) drawMark(container, x, y, state);
+}
+
+/**
+ * Nudge markers that land on the same spot into a row.
+ *
+ * A trap on a door already shares its midpoint with core's own door control,
+ * and two traps can share a midpoint with each other — a wall trapped along a
+ * region's edge, or two segments drawn over one another. Stacked glyphs read as
+ * one, so the Judge sees a single trap where there are two and cannot tell
+ * which state belongs to which.
+ *
+ * Laid out left to right around the shared point, so the row stays centred on
+ * the thing it marks rather than drifting off it.
+ */
+export function spread(marks, gap = 18) {
+  const buckets = new Map();
+  for (const mark of marks) {
+    // Quantised to the gap so "near enough to overlap" groups, not just exact
+    // ties — two wall midpoints a pixel apart still collide visually.
+    const key = `${Math.round(mark.x / gap)}:${Math.round(mark.y / gap)}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(mark);
+  }
+  const out = [];
+  for (const group of buckets.values()) {
+    const offset = ((group.length - 1) * gap) / 2;
+    group.forEach((mark, i) => out.push({ ...mark, x: mark.x - offset + i * gap }));
+  }
+  return out;
 }
 
 /**

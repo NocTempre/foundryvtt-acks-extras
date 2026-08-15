@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.9.1
+
+### Fixed
+- **Hint text says what the field does, not what the book says.** Roughly eighty
+  shipped strings and compendium descriptions quoted or pointed at page numbers
+  — settings hints, item descriptions, the trap sheet added last week. They now
+  describe the control in front of you. Every number stays exactly where it was:
+  the rules the module performs are unchanged, and nothing rolls differently.
+  Where a hint got shorter, the explanation it used to carry will come back from
+  your own books through `acks-importer` rather than from this module.
+
 ## 4.9.0
 
 A trap can be buried where the party will walk, and every ACKS compendium files

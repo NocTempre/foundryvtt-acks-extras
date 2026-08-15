@@ -1,5 +1,5 @@
 /* global game, foundry, fromUuid, CONFIG, ChatMessage, Roll, ui */
-import { MODULE_ID, ROLES, TRAP_ITEM_TYPE } from "./constants.mjs";
+import { MODULE_ID, ROLES, TRAP_ITEM_TYPE, TRAP_ZONE_TYPE } from "./constants.mjs";
 import { getPartyToken, isDown, isHurried, marchingOrder, updateFormation } from "./formation-model.mjs";
 import { setWallTrap, trapWallsCrossed, wallTrap } from "./trap-walls.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
@@ -47,7 +47,8 @@ import {
 const LANG_PREFIX = "ACKS-FORMATION.traps";
 const loc = makeLoc(LANG_PREFIX);
 
-export const TRAP_ZONE_TYPE = `${MODULE_ID}.trapZone`;
+// The sub-type id lives in constants.mjs so Foundry-free code can name it.
+export { TRAP_ZONE_TYPE };
 
 /**
  * Update option marking a token write as the trap's own halt.

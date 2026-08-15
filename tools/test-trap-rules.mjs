@@ -18,6 +18,7 @@ import {
   victimsOf,
 } from "../scripts/formation/trap-rules.mjs";
 import { chainWalls, segmentCrossing } from "../scripts/formation/trap-walls.mjs";
+import { spread as spreadMarks } from "../scripts/formation/trap-markers.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -345,6 +346,47 @@ test("the crossing carries how far along the move it happened", () => {
   assert.ok(near.t < far.t);
 });
 
+/* -------------------------------------------- */
+/*  Markers do not stack                        */
+/* -------------------------------------------- */
+
+test("two traps on the same spot are laid out in a row, centred on it", () => {
+  // A trapped door shares its midpoint with core's own door control, and two
+  // segments can share one outright. Stacked glyphs read as a single trap.
+  const out = spreadMarks([
+    { x: 100, y: 100, state: "armed" },
+    { x: 100, y: 100, state: "disarmed" },
+  ]);
+  assert.equal(out.length, 2);
+  assert.notEqual(out[0].x, out[1].x);
+  // Still centred on the thing being marked.
+  assert.equal((out[0].x + out[1].x) / 2, 100);
+  assert.deepEqual(out.map((m) => m.y), [100, 100]);
+});
+
+test("a lone marker is not nudged off its own spot", () => {
+  const [only] = spreadMarks([{ x: 250, y: 75, state: "armed" }]);
+  assert.deepEqual([only.x, only.y], [250, 75]);
+});
+
+test("traps far apart are left where they are", () => {
+  const out = spreadMarks([
+    { x: 0, y: 0, state: "armed" },
+    { x: 500, y: 500, state: "armed" },
+  ]);
+  assert.deepEqual(out.map((m) => [m.x, m.y]), [[0, 0], [500, 500]]);
+});
+
+test("near-misses group too, because they still overlap on screen", () => {
+  // Two wall midpoints a pixel apart collide visually; exact-tie grouping
+  // would leave them stacked.
+  const out = spreadMarks([
+    { x: 100, y: 100, state: "armed" },
+    { x: 101, y: 100, state: "armed" },
+  ]);
+  assert.notEqual(out[0].x, out[1].x);
+});
+
 console.log(
-  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings)`,
+  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread)`,
 );

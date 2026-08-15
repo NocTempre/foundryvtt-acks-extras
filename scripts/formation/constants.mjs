@@ -114,6 +114,9 @@ export const POLE_ITEM_PATTERN = /\bpole\b|polearm|spear|pike|halberd|glaive|lan
  */
 export const TRAP_ITEM_TYPE = `${MODULE_ID}.trap`;
 
+/** The Trap Zone RegionBehavior sub-type. Named here for the same reason. */
+export const TRAP_ZONE_TYPE = `${MODULE_ID}.trapZone`;
+
 /**
  * The implement each role needs before a character can take it up, in the shape
  * `grantGear` reads — so ONE list both refuses the role to a character without
