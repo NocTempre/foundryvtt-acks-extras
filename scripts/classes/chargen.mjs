@@ -362,7 +362,12 @@ export async function applyChargen(
     if (ids.length) await actor.deleteEmbeddedDocuments("Item", ids);
   }
 
-  await applyClass(actor, cls, { level: 1, confirm: false });
+  // Chargen rolls no hit dice of its own, so the 1st-level total is built here:
+  // one roll of the class's own die with Constitution applied per die and its
+  // floor of one (hitpoints.mjs). Without it a generated character keeps
+  // whatever hit points the bare actor was created with — no die, no floor and
+  // no Constitution.
+  await applyClass(actor, cls, { level: 1, confirm: false, rebuildVitals: true });
 
   // No template is a build made the Judges Journal's way (JJ Ch. 16,
   // Generating Characters without Templates): no package, so no equipment and

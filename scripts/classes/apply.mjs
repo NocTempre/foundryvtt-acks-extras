@@ -130,10 +130,10 @@ export async function applyClass(
 
   // Setting a level by hand leaves hit points and experience describing the
   // character you no longer have — a 4th-level thief keeping 1st-level hit
-  // points and an experience total three bands away. Only the PICKER asks for
-  // this: chargen builds its own 1st level and the level-up wizard has already
-  // rolled the one die it means to add, so neither wants the whole total
-  // rebuilt underneath it.
+  // points and an experience total three bands away. The PICKER and CHARGEN
+  // both ask for this — neither rolls hit dice of its own. The level-up wizard
+  // never does: it has already rolled the one die it means to add, and a
+  // rebuild underneath it would discard the roll the player watched.
   let hpSteps = null;
   if (rebuildVitals) {
     const previousLevel = Math.max(1, Number(actor.system?.details?.level) || 1);
