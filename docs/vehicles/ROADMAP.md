@@ -3,10 +3,9 @@
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
-- **The bucket sheet** — `berths.mjs` derives the buckets, what each holds and
-  which share a pool, and it is tested and published; the SHEET still renders
-  the older cargo/crew/team sections rather than the derived buckets. What is
-  left is the rendering, plus a control for the vessel crew↔cargo trade.
+- **The vessel crew-to-cargo trade has no control** — `crewCargoTrade` is
+  derived and published, so a Judge can ask what leaving four hands ashore
+  would buy her, but nothing on the sheet offers the swap or applies it.
 - **War machines** — a ballista or catapult rides on a vessel as cargo with its
   own stone cost, and the damage share table already knows what each class of
   engine does to a hull. What is missing is the engine as a THING: an item that
