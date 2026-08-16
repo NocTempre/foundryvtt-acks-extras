@@ -269,6 +269,20 @@ body.acks-lib-sheet-theme .acks.sheet.actor.character .encumbrance .encumbrance-
   background: rgb(from var(--acks-burgundy) r g b / 0.75);
 }
 
+/* --- Movement speeds: the one narrow-input family core sized too tight. ---
+   Core's shared .form-group-h__narrow-input is a fixed 2rem, sized around the
+   two-digit saves/throws it shares the sheet with. The six movement fields
+   are not two digits — Charge/Run reads in the hundreds and Climb/Stealth
+   carry a decimal (133.3) — so the same width silently clips the tail of the
+   value instead of showing it, and dragging the window bigger does not help
+   because nothing in the column claims the extra space. Scoped by field name
+   rather than by class, since the class is shared with fields that fit fine
+   at core's width and stay there. */
+body.acks-lib-sheet-theme .sheet.acks.actor-v2 [name^="system.movementacks."] {
+  width: 3.5rem;
+  min-width: 3.5rem;
+}
+
 body.acks-lib-sheet-theme .sheet.acks.actor-v2 .encumbrance-fill {
   background-color: rgb(from var(--acks-burgundy) r g b / 0.8);
 }
