@@ -1576,6 +1576,7 @@
         "rearmNeedsSkill": "{name} needs the Trapbreaking skill to re-arm a trap."
       },
       "legendWhat": "The trap",
+      "legendLevel": "This level",
       "legendResolve": "How it resolves",
       "legendEffect": "What it does",
       "legendWho": "Who it catches",
@@ -1593,6 +1594,7 @@
       },
       "field": {
         "level": "Trap level",
+        "tierText": "What the book says at this level",
         "trigger": "Trigger",
         "triggerOn": "Springs on",
         "crude": "Crudely built",
@@ -1609,7 +1611,7 @@
         "onSuccess": "Beating the save is worth"
       },
       "hint": {
-        "level": "1st to 6th. Printed on the card when it goes off.",
+        "level": "1st to 6th. Chooses which row is edited below and which one fires when the trap goes off.",
         "trigger": "How it is set off, in your own words: a tripwire, a pressure plate, a rune.",
         "triggerOn": "The secret die springs the trap at or under this. Raise it for a trap that is easy to set off, lower it for a hard one; 0 never springs.",
         "crude": "Crudely built: easier to find and to remove, and feebler when it fires.",
@@ -1619,7 +1621,9 @@
         "spiked": "Spikes at the bottom add their own damage to the fall.",
         "radiusFeet": "How far it reaches from where it went off. In a column, every 5 feet is one rank.",
         "rider": "Prone, restrained, stuck, burning, a Mortal Wounds roll — printed on the card for you to apply.",
-        "onSuccess": "What a victim who makes the throw actually avoids."
+        "onSuccess": "What a victim who makes the throw actually avoids.",
+        "levelStrip": "Filled levels are marked. A trap imported from the book states all six; one you wrote states the ones you filled in.",
+        "tierText": "The printed sentence for this level, kept whole. The fields below hold whatever could be read out of it."
       },
       "assigned": "{trap} assigned to that wall.",
       "dropNoWall": "Drop a trap onto a wall to assign it — there is no wall there.",

@@ -346,7 +346,8 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
     return { outcome: "crossed" };
   }
 
-  const caught = victimsOf(probes, sprungAt, { scope: cfg.scope, radiusFeet: cfg.radiusFeet });
+  // Scope is the trap's; how far it reaches is the level's.
+  const caught = victimsOf(probes, sprungAt, { scope: cfg.scope, radiusFeet: cfg.tier.radiusFeet });
   await haltParty(formation, haltAt, approach);
   return fireTrap(formation, placement, trap, caught, {
     preface: [
@@ -424,15 +425,18 @@ async function haltParty(formation, haltAt, from = null) {
  */
 async function fireTrap(formation, placement, trap, caught, { preface = [], rolls = [], sprungBy = null } = {}) {
   const cfg = trap.system;
+  // What the trap does comes from the row its level selects; how it was BUILT
+  // (crudely or well) is the same at every level and stays on the trap.
+  const tier = cfg.tier;
   const plan = firingPlan({
-    resolution: cfg.resolution,
-    saveKey: cfg.saveKey,
-    attackThrow: cfg.attackThrow,
-    damageFormula: cfg.damageFormula,
-    pitDepthFeet: cfg.pitDepthFeet,
-    spiked: cfg.spiked,
+    resolution: tier.resolution,
+    saveKey: tier.saveKey,
+    attackThrow: tier.attackThrow,
+    damageFormula: tier.damageFormula,
+    pitDepthFeet: tier.pitDepthFeet,
+    spiked: tier.spiked,
     crude: cfg.crude,
-    onSuccess: cfg.onSuccess,
+    onSuccess: tier.onSuccess,
   });
 
   const rows = [];
@@ -509,7 +513,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
   const notes = [loc("sprungNote", { name: sprungBy?.name ?? "" })];
   if (sprungBy?.kind === "pole") notes.push(loc("sprungByPole"));
   if (!caught.length) notes.push(loc("caughtNobody"));
-  if (cfg.rider) notes.push(cfg.rider);
+  if (tier.rider) notes.push(tier.rider);
 
   await whisper(
     renderRollCard({

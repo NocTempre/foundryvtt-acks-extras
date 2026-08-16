@@ -953,6 +953,41 @@
   align-items: stretch;
 }
 
+/* The six levels a trap is printed at, as a row of numerals: which one is on
+   screen, and which of the others have anything in them. Small and quiet — it
+   is an index, not a control, and clicking is done in the level field above. */
+.acks-extras-trap-strip {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras-trap-strip li {
+  flex: 0 0 auto;
+  min-width: 1.6em;
+  padding: 0.05em 0.3em;
+  border: var(--acks-border-ink);
+  border-radius: 2px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* A level nobody has stated anything for reads as absent rather than as zero —
+   an imported trap fills all six, so a gap is information. */
+.acks-extras-trap-strip li.is-blank {
+  color: var(--acks-ink-soft);
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.acks-extras-trap-strip li.is-current {
+  font-weight: 700;
+  border-color: var(--acks-spot);
+  box-shadow: inset 0 0 0 1px var(--acks-spot);
+}
+
 /* What a pit's depth is worth, shown beside the field that sets it so the
    Judge does not have to do the arithmetic to check their own entry. */
 .acks-extras-trap-derived {

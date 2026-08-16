@@ -4,13 +4,6 @@
     <legend>{{localize 'ACKS-FORMATION.traps.legendWhat'}}</legend>
 
     <div class="form-group">
-      <label for="trap-level">{{localize 'ACKS-FORMATION.traps.field.level'}}</label>
-      <input type="number" id="trap-level" name="system.level" value="{{system.level}}"
-             data-dtype="Number" min="1" max="6" {{#unless editable}}disabled{{/unless}}/>
-      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.level'}}</p>
-    </div>
-
-    <div class="form-group">
       <label for="trap-trigger">{{localize 'ACKS-FORMATION.traps.field.trigger'}}</label>
       <input type="text" id="trap-trigger" name="system.trigger" value="{{system.trigger}}"
              data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
@@ -33,29 +26,58 @@
   </fieldset>
 
   <fieldset>
+    <legend>{{localize 'ACKS-FORMATION.traps.legendLevel'}}</legend>
+
+    <div class="form-group">
+      <label for="trap-level">{{localize 'ACKS-FORMATION.traps.field.level'}}</label>
+      <input type="number" id="trap-level" name="system.level" value="{{system.level}}"
+             data-dtype="Number" min="1" max="6" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.level'}}</p>
+    </div>
+
+    {{!-- Which levels this trap actually states something for. An imported trap
+          fills all six; a hand-made one usually fills the one being played. --}}
+    <ol class="acks-extras-trap-strip">
+      {{#each levelStrip}}
+        <li class="{{#if current}}is-current{{/if}} {{#if stated}}is-stated{{else}}is-blank{{/if}}">{{level}}</li>
+      {{/each}}
+    </ol>
+    <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.levelStrip'}}</p>
+
+    {{!-- The book's own sentence for this level, kept whole beside the typed
+          fields the import could read out of it. --}}
+    <div class="form-group stacked">
+      <label for="trap-tier-text">{{localize 'ACKS-FORMATION.traps.field.tierText'}}</label>
+      <textarea id="trap-tier-text" name="{{tierPath}}.text" rows="2"
+                {{#unless editable}}disabled{{/unless}}>{{tier.text}}</textarea>
+      <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.tierText'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
     <legend>{{localize 'ACKS-FORMATION.traps.legendResolve'}}</legend>
 
     <div class="form-group">
       <label for="trap-resolution">{{localize 'ACKS-FORMATION.traps.field.resolution'}}</label>
-      <select id="trap-resolution" name="system.resolution" data-dtype="String"
+      <select id="trap-resolution" name="{{tierPath}}.resolution" data-dtype="String"
               {{#unless editable}}disabled{{/unless}}>
-        {{selectOptions resolutionChoices valueAttr="value" labelAttr="label" selected=system.resolution}}
+        {{selectOptions resolutionChoices valueAttr="value" labelAttr="label" selected=tier.resolution}}
       </select>
     </div>
 
     {{#if isSave}}
       <div class="form-group">
         <label for="trap-save">{{localize 'ACKS-FORMATION.traps.field.saveKey'}}</label>
-        <select id="trap-save" name="system.saveKey" data-dtype="String"
+        <select id="trap-save" name="{{tierPath}}.saveKey" data-dtype="String"
                 {{#unless editable}}disabled{{/unless}}>
-          {{selectOptions saveChoices valueAttr="value" labelAttr="label" selected=system.saveKey}}
+          {{selectOptions saveChoices valueAttr="value" labelAttr="label" selected=tier.saveKey}}
         </select>
       </div>
       <div class="form-group">
         <label for="trap-onsuccess">{{localize 'ACKS-FORMATION.traps.field.onSuccess'}}</label>
-        <select id="trap-onsuccess" name="system.onSuccess" data-dtype="String"
+        <select id="trap-onsuccess" name="{{tierPath}}.onSuccess" data-dtype="String"
                 {{#unless editable}}disabled{{/unless}}>
-          {{selectOptions onSuccessChoices valueAttr="value" labelAttr="label" selected=system.onSuccess}}
+          {{selectOptions onSuccessChoices valueAttr="value" labelAttr="label" selected=tier.onSuccess}}
         </select>
         <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.onSuccess'}}</p>
       </div>
@@ -64,7 +86,7 @@
     {{#if isAttack}}
       <div class="form-group">
         <label for="trap-attack">{{localize 'ACKS-FORMATION.traps.field.attackThrow'}}</label>
-        <input type="number" id="trap-attack" name="system.attackThrow" value="{{system.attackThrow}}"
+        <input type="number" id="trap-attack" name="{{tierPath}}.attackThrow" value="{{tier.attackThrow}}"
                data-dtype="Number" min="0" max="30" {{#unless editable}}disabled{{/unless}}/>
         <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.attackThrow'}}</p>
       </div>
@@ -76,22 +98,22 @@
 
     <div class="form-group">
       <label for="trap-damage">{{localize 'ACKS-FORMATION.traps.field.damageFormula'}}</label>
-      <input type="text" id="trap-damage" name="system.damageFormula" value="{{system.damageFormula}}"
+      <input type="text" id="trap-damage" name="{{tierPath}}.damageFormula" value="{{tier.damageFormula}}"
              data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
       <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.damageFormula'}}</p>
     </div>
 
     <div class="form-group">
       <label for="trap-pit">{{localize 'ACKS-FORMATION.traps.field.pitDepthFeet'}}</label>
-      <input type="number" id="trap-pit" name="system.pitDepthFeet" value="{{system.pitDepthFeet}}"
+      <input type="number" id="trap-pit" name="{{tierPath}}.pitDepthFeet" value="{{tier.pitDepthFeet}}"
              data-dtype="Number" min="0" max="500" step="10" {{#unless editable}}disabled{{/unless}}/>
       <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.pitDepthFeet'}}</p>
     </div>
 
-    {{#if system.pitDepthFeet}}
+    {{#if tier.pitDepthFeet}}
       <div class="form-group">
         <label for="trap-spiked">{{localize 'ACKS-FORMATION.traps.field.spiked'}}</label>
-        <input type="checkbox" id="trap-spiked" name="system.spiked" {{checked system.spiked}}
+        <input type="checkbox" id="trap-spiked" name="{{tierPath}}.spiked" {{checked tier.spiked}}
                data-dtype="Boolean" {{#unless editable}}disabled{{/unless}}/>
         <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.spiked'}}</p>
       </div>
@@ -118,7 +140,7 @@
     {{#if isArea}}
       <div class="form-group">
         <label for="trap-radius">{{localize 'ACKS-FORMATION.traps.field.radiusFeet'}}</label>
-        <input type="number" id="trap-radius" name="system.radiusFeet" value="{{system.radiusFeet}}"
+        <input type="number" id="trap-radius" name="{{tierPath}}.radiusFeet" value="{{tier.radiusFeet}}"
                data-dtype="Number" min="0" max="200" step="5" {{#unless editable}}disabled{{/unless}}/>
         <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.radiusFeet'}}</p>
       </div>
@@ -126,7 +148,7 @@
 
     <div class="form-group">
       <label for="trap-rider">{{localize 'ACKS-FORMATION.traps.field.rider'}}</label>
-      <input type="text" id="trap-rider" name="system.rider" value="{{system.rider}}"
+      <input type="text" id="trap-rider" name="{{tierPath}}.rider" value="{{tier.rider}}"
              data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
       <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.rider'}}</p>
     </div>

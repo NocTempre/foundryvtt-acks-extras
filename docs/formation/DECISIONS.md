@@ -475,3 +475,40 @@ is hard to notice, which is the kind of worse this family avoids.
 **Rejected: applying damage and printing the rider as a reminder.** That is the
 half-resolved state above with a note attached, and a note beside a completed
 action is read as flavour.
+
+---
+
+### 2026-08-16 — A trap is one document at six levels, not six documents
+
+**Problem.** `TrapData` described a trap at ONE level: a single `level` beside a
+single `damageFormula`, `saveKey`, `attackThrow`. The Judge's book prints each
+of its thirteen traps at all six, so a Judge who used a scything blade at 1st
+level and wanted it at 4th kept two documents of the same trap, in step by hand.
+It also left the importer with no shape to materialize into — thirteen documents
+or seventy-eight, and nothing in the model said which.
+
+**Ruled: one document, six rows.** A scything blade is one trap. What changes
+with its level is what it *does*, not what it *is* — the trigger, the build and
+the name are identical at 1st and 6th — so the per-level fields moved onto a
+`levels` array and `level` stopped being a fact about the trap and became the
+row in force. `tier` reads it, never an index, so a short or hand-built array
+answers with a whole row instead of throwing halfway through resolving a trap
+that has already gone off.
+
+**What stayed on the trap.** `trigger` and `triggerOn`, `crude` (it describes
+the BUILD, not the level), `scope`, and the description. `radiusFeet` went to the
+row, because the books do vary it — the same trap prints a 30' path at one level
+and 45' at another.
+
+**Rejected: seventy-eight documents**, one per trap per level. It is the same
+content filed so that thirteen edits become seventy-eight, and it makes "the
+scything blade" un-nameable — a Judge would pick from a list of six near-identical
+entries every time they placed one.
+
+**Cost: the sheet shows one level at a time.** Six full forms stacked would bury
+the four fields that describe the trap itself, so the level selector chooses
+which row is edited AND which one fires. Those are the same question — the Judge
+is looking at the trap as it stands in this dungeon — but it does mean a level's
+values are only visible when selected. A strip of the six numerals marks which
+rows have anything in them, so an imported trap does not read as empty when the
+row on screen is one the book left blank.

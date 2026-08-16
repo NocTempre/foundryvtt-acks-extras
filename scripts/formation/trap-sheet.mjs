@@ -1,6 +1,6 @@
 /* global foundry, game */
 import { MODULE_ID, SAVE_KEYS } from "./constants.mjs";
-import { ON_SUCCESS, RESOLUTIONS, SCOPES, pitDamageFormula } from "./trap-rules.mjs";
+import { ON_SUCCESS, RESOLUTIONS, SCOPES, TRAP_LEVELS, emptyTier, pitDamageFormula } from "./trap-rules.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -17,6 +17,14 @@ const { ItemSheetV2 } = foundry.applications.sheets;
  * chosen — a save key on a trap that makes an attack throw is a number with
  * nowhere to go, and showing it invites someone to fill it in and expect it to
  * do something.
+ *
+ * **One level is on screen at a time.** A trap holds six rows, and six of these
+ * forms stacked would bury the four fields that describe the trap itself. The
+ * level selector chooses which row is being edited AND which one a sprung trap
+ * fires, because those are the same question: the Judge is looking at the trap
+ * as it stands in this dungeon. A strip above the row says which levels have
+ * anything in them, so an imported trap does not look empty when the level on
+ * screen happens to be one the book left blank.
  */
 export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
@@ -60,15 +68,64 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       ...SAVE_KEYS.map((value) => ({ value, label: game.i18n.localize(`ACKS.saves.${value}.long`) })),
     ];
 
-    context.isSave = system.resolution === RESOLUTIONS.save;
-    context.isAttack = system.resolution === RESOLUTIONS.attack;
+    // The row on screen, and the path its inputs submit under. Assembled here
+    // because the template has no concat helper — the same reason the vehicle
+    // sheet resolves its keys in context.
+    const tier = system.tier;
+    context.tier = tier;
+    context.tierPath = `system.levels.${Math.max(0, (system.level ?? 1) - 1)}`;
+
+    // Which levels say anything. `stated` is what separates a level the book
+    // prints from one nobody has filled in, and it is asked of the row rather
+    // than of the array's length: an imported trap carries six rows whatever
+    // the book had to say about each.
+    context.levelStrip = Array.from({ length: TRAP_LEVELS }, (_, i) => {
+      const row = system.levels?.[i];
+      return {
+        level: i + 1,
+        current: i === (system.level ?? 1) - 1,
+        stated:
+          !!row &&
+          (!!String(row.text ?? "").trim() ||
+            !!String(row.damageFormula ?? "").trim() ||
+            !!row.attackThrow ||
+            !!row.pitDepthFeet),
+      };
+    });
+
+    context.isSave = tier.resolution === RESOLUTIONS.save;
+    context.isAttack = tier.resolution === RESOLUTIONS.attack;
     context.isArea = system.scope === SCOPES.area;
     // Shown so the Judge can see what a depth is worth without doing the
     // arithmetic, and so a typed formula visibly overriding it is not a
     // surprise. Suppressed when a typed formula has already won.
-    context.derivedDamage = String(system.damageFormula ?? "").trim()
+    context.derivedDamage = String(tier.damageFormula ?? "").trim()
       ? null
-      : pitDamageFormula(system.pitDepthFeet, system.spiked);
+      : pitDamageFormula(tier.pitDepthFeet, tier.spiked);
     return context;
+  }
+
+  /**
+   * @override — rebuild `levels` before the model cleans the submit.
+   *
+   * Only the row on screen has inputs, and they submit as dotted index paths
+   * (`system.levels.2.damageFormula`) which arrive here as a numeric-keyed
+   * OBJECT. Written straight through, the ArrayField rebuilds itself from that
+   * partial and the five levels the form never rendered are LOST — the same
+   * failure the vehicle sheet's crew roster hit. Merging over the stored rows
+   * is what keeps editing 4th level from emptying the other five.
+   */
+  _prepareSubmitData(event, form, formData, updateData) {
+    const data = super._prepareSubmitData(event, form, formData, updateData);
+    const submitted = data.system?.levels;
+    if (submitted && !Array.isArray(submitted)) {
+      const stored = this.item.system.levels ?? [];
+      data.system.levels = Array.from({ length: TRAP_LEVELS }, (_, i) => ({
+        ...emptyTier(),
+        ...(stored[i] ?? {}),
+        ...(submitted[i] ?? {}),
+      }));
+    }
+    return data;
   }
 }

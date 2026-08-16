@@ -62,6 +62,30 @@ export const ON_SUCCESS = Object.freeze({
   full: "full",
 });
 
+/** 1st through 6th: the levels the books print every trap at. */
+export const TRAP_LEVELS = 6;
+
+/**
+ * One level of a trap with nothing said about it yet.
+ *
+ * Rows are allowed to be empty — a Judge inventing a trap for one level owes
+ * nothing for the other five — so the shape has to exist independently of any
+ * row being filled. Lives here rather than on the data model because the sheet
+ * and the offline tests both need it without Foundry.
+ */
+export const emptyTier = () => ({
+  text: "",
+  resolution: RESOLUTIONS.automatic,
+  onSuccess: ON_SUCCESS.half,
+  saveKey: "",
+  attackThrow: 0,
+  damageFormula: "",
+  pitDepthFeet: 0,
+  spiked: false,
+  radiusFeet: 0,
+  rider: "",
+});
+
 /**
  * What a victim actually takes, given the throw and what success is worth.
  *

@@ -211,10 +211,14 @@ picker when there is only one to pick.
 A trap is **a document, a placement, and a sequence**, and the three are
 deliberately separate.
 
-The **document** is an `acks-extras.trap` Item: level, what springs it, how it
-resolves, what it deals, who it catches. It is shared — one scything blade, laid
-in four corridors — and it is what `acks-importer` will materialize the Judge's
-own book into. Nothing here holds a printed trap.
+The **document** is an `acks-extras.trap` Item: what springs it, how it is built,
+who it catches, and — as six rows on `levels` — how it resolves and what it deals
+at each of the six levels the books print it at. `level` is not a fact about the
+trap but the row in force, and `tier` is how everything reads it; a scything
+blade is one trap whether it is laid at 1st or 4th. It is shared — one blade, laid
+in four corridors — and `acks-importer` materializes the Judge's own book into
+it, one document per printed trap with all six rows filled. Nothing here holds a
+printed trap.
 
 The **placement** is either a `acks-extras.trapZone` region behavior or a trap
 layer flagged onto a wall. Both carry only a reference to a trap and the state
