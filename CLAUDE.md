@@ -26,23 +26,34 @@ build/release plumbing, and its `docs/DECISIONS.md` before a structural change
   (one dir per pre-merge feature module; single-feature repos have exactly one)
   — **LOCAL-ONLY, never committed or shipped** (licensed book text; purged
   from repo history 2026-07-16). Cite it instead of re-deriving rules.
-- **No `ruledata/`, and no rules WORDS in shipped text.** The line is **math vs
-  words**. A number the code computes with — a modifier, a band, a rate, a
-  formula — may live in the function that performs the rule. The book's
-  *sentences* may not: any user-visible string that states, explains or
-  paraphrases a rule is the book's expression, and any page citation is a
-  pointer into it. So a hint says what the FIELD does ("In feet."), never what
-  the rule says ("A pit deals 1d6 per 10 feet fallen"). Citations belong in code
-  comments and `docs/` — attribution, not reproduction — and never in `lang/`,
-  a template, or a pack source.
-  A **table of options a reader picks from** (tiers, variants, qualities) is
-  content whatever it is made of, and is registered from the importer rather
-  than shipped: `lib/tables.mjs` has said "no book values, no fallback samples"
-  since the extraction program, and a frozen table in a `config.mjs` is that
-  rule broken in a place the gate was not looking.
+- **No `ruledata/`, no rules WORDS, and no page VALUES.** The line is
+  **structure vs content**, and it is finer than it looks:
+  - **The procedure ships.** Which modifiers exist, when each applies, how they
+    combine, what a failure costs, what order things resolve in. That a crowbar
+    helps force a door and that its help is additive is the rule being
+    performed, and it belongs in the function performing it.
+  - **The values do not.** A modifier's size, a botch band's edge, a rate, a
+    price, a ladder rung — every number read off a page is content, however
+    small and however alone. They arrive through `acks-importer` from the GM's
+    own copy and are **passed in**. `formation/jumping.mjs` is the pattern:
+    it knows a proficiency raises the score and that the landing is a Paralysis
+    save, and it takes `dexCap` and `saveBonus` as arguments because what
+    Acrobatics is *worth* is printed, not structural.
+  - **A table of options a reader picks from** — tiers, variants, qualities —
+    is content whatever it is made of, and is registered rather than shipped.
+    `lib/tables.mjs` has said "no book values, no fallback samples" since the
+    extraction program; a frozen table in a `config.mjs` is that rule broken
+    somewhere the gate was not looking.
+  - **The book's sentences never ship.** A user-visible string that states,
+    explains or paraphrases a rule is its expression, and a page citation is a
+    pointer into it. A hint says what the FIELD does ("In feet."), never what
+    the rule says ("A pit deals 1d6 per 10 feet fallen"). Citations belong in
+    code comments and `docs/` — attribution, not reproduction — and never in
+    `lang/`, a template, or a pack source.
+
   `ip-scan.mjs` hard-FAILS on a tracked `ruledata/` directory and on a page
-  citation in shipped text. Book content reaches a world through
-  `acks-importer`, materialized from the GM's own books.
+  citation in shipped text; the value rule still needs a reviewer. Book content
+  reaches a world through `acks-importer`, materialized from the GM's own books.
 - `docs/` — not shipped; see Documentation below.
 
 ## Commands
@@ -54,6 +65,16 @@ build/release plumbing, and its `docs/DECISIONS.md` before a structural change
   dirs are ignored, so there is nothing to review or discard.
 - Foundry dev install (junction, not copy):
   `New-Item -ItemType Junction -Path "$env:LOCALAPPDATA\FoundryVTT\Data\modules\acks-extras" -Target "C:\Proj\foundryvtt-acks-extras"`
+- **Never put a Windows path inside a Bash heredoc.** Even a quoted `<<'PY'`
+  loses a backslash level before the interpreter sees it: `C:\Proj\acks-rules`
+  arrives as `C:\Projacks-rules` with a BEL where `\a` was, and
+  `...\Application\msedge.exe` arrives with its separators gone. Nothing errors
+  — the file is written and looks right in most viewers, the command runs
+  against a path that does not exist, and a control character can ride into a
+  doc and propagate through `sync-toolchain`. Write files with the Write/Edit
+  tools and pass paths as arguments or env vars. If a heredoc script truly must
+  contain one, build it from `chr(92)`.
+
 ## Live testing
 
 `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` defines this machine's local Foundry
