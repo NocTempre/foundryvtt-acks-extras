@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.11.6
+
+The money in a vault nobody can open comes back.
+
+### Added
+- **Recover Coin from Unloadable Locations (GM).** A safehouse or vault built
+  by one of the pre-merge modules is an actor of a sub-type that no longer
+  exists, so the world refuses to open it — and the coin inside it is embedded
+  in a document nobody can reach. The new macro reads it out anyway, lists what
+  each location holds and what it comes to in gold, and mints it onto an actor
+  you pick. It changes nothing else: the locations stay exactly as they are,
+  and the cleaner is still what removes them afterwards. Run it once — pressing
+  it twice mints the coin twice.
+
+### Fixed
+- **Clean Up After the Merge finds the encounter zones too.** It swept actors
+  and items, but a region behaviour hangs off a region inside a scene and is in
+  no world collection, so an encounter zone drawn by the old formation module
+  survived the clean-up and went on failing on every load.
+
 ## 4.11.5
 
 A wagon carries things.

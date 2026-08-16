@@ -47,6 +47,24 @@ for (const [name, coll] of [["Actor", game.actors], ["Item", game.items]]) {
   }
 }
 
+// A behaviour hangs off a Region inside a Scene, so it is in no world
+// collection and the sweep above cannot see it. It breaks the load exactly
+// the same way, and one of the old modules put an encounter zone on every
+// region a Judge drew.
+for (const scene of game.scenes) {
+  for (const region of (scene.regions ?? [])) {
+    const behaviors = region.behaviors;
+    for (const id of (behaviors?.invalidDocumentIds ?? new Set())) {
+      let src = null;
+      try { src = behaviors.getInvalid(id, { strict: false })?.toObject?.() ?? null; } catch (e) { /* unreadable */ }
+      const type = src?.type ?? "(unknown)";
+      if (OLD_TYPE.test(type)) {
+        plan.invalid.push({ doc: "RegionBehavior", id, name: src?.name ?? "(unnamed)", type, parent: region.uuid });
+      }
+    }
+  }
+}
+
 /* --- flag scopes, AE change keys, sheet pointers ------------------------- */
 const scan = (doc, label) => {
   const scopes = OLD.filter((s) => doc.flags?.[s] !== undefined);
@@ -99,6 +117,16 @@ if (!go) return;
 let done = 0;
 // invalid documents first: they are the ones breaking world load
 for (const r of plan.invalid) {
+  if (r.doc === "RegionBehavior") {
+    // Deleted through the region that holds it: an embedded document has no
+    // collection of its own to be reached by id.
+    const region = await fromUuid(r.parent).catch(() => null);
+    if (region) {
+      try { await region.deleteEmbeddedDocuments("RegionBehavior", [r.id]); done++; }
+      catch (e) { console.error("acks-extras | could not delete RegionBehavior " + r.id, e); }
+    }
+    continue;
+  }
   const coll = r.doc === "Actor" ? game.actors : game.items;
   try { await coll.getInvalid(r.id, { strict: false }).delete(); done++; }
   catch (e) { console.error("acks-extras | could not delete " + r.doc + " " + r.id, e); }
@@ -133,9 +161,106 @@ ui.notifications.info("Cleaned up " + done + " leftover(s). Reload the world (F5
 console.log("acks-extras | cleanup plan", plan);
 `;
 
+/**
+ * The coin rescue, which must run BEFORE the cleaner.
+ *
+ * A safehouse built by the old location module is an Actor of a sub-type that
+ * no longer exists, so Foundry will not instantiate it — and everything stored
+ * inside it, the strongbox included, is embedded in a document nobody can
+ * open. The cleaner's answer is to delete it, which is right for a dead flag
+ * scope and wrong for a party's money.
+ *
+ * The raw source survives whatever the schema thinks, so the coin can be read
+ * straight out of it and re-minted somewhere a Judge can reach. Nothing is
+ * deleted here: this hands the money back, and the cleaner is still what
+ * removes the husk afterwards.
+ */
+const RESCUE = String.raw`
+// ACKS II — recover coin stranded in pre-merge locations.
+if (!game.user.isGM) { ui.notifications.warn("GM only."); return; }
+
+const OLD_TYPE = /^acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters|content)\./;
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+// Every unloadable document the old modules left, with its raw contents.
+const found = [];
+for (const [label, coll] of [["Actor", game.actors], ["Item", game.items]]) {
+  for (const id of (coll.invalidDocumentIds ?? new Set())) {
+    let src = null;
+    try { src = coll.getInvalid(id, { strict: false })?.toObject?.() ?? null; } catch (e) { /* unreadable */ }
+    if (!src || !OLD_TYPE.test(src.type ?? "")) continue;
+    const items = Array.isArray(src.items) ? src.items : [];
+    const coin = items.filter((i) => i.type === "money");
+    // A coin's worth is its copper value times every one of it held, banked
+    // or in hand — both are the location's, and only one of them is visible.
+    const cp = coin.reduce((s, i) => s + num(i.system?.coppervalue) * (num(i.system?.quantity) + num(i.system?.quantitybank)), 0);
+    if (coin.length || items.length) {
+      found.push({ label, id, name: src.name ?? "(unnamed)", type: src.type, coin, cp, others: items.length - coin.length });
+    }
+  }
+}
+
+const withCoin = found.filter((f) => f.coin.length);
+if (!withCoin.length) {
+  ui.notifications.info(found.length
+    ? "Found " + found.length + " unloadable document(s) from the old modules, but no coin in them."
+    : "No stranded documents from the old modules in this world.");
+  return;
+}
+
+const totalGp = withCoin.reduce((s, f) => s + f.cp, 0) / 100;
+const dests = game.actors.filter((a) => a.isOwner).sort((a, b) => a.name.localeCompare(b.name));
+if (!dests.length) { ui.notifications.error("No actor available to receive the coin."); return; }
+
+const rows = withCoin.map((f) =>
+  "<li><b>" + f.name + "</b> <code>" + f.type + "</code> — " +
+  f.coin.map((c) => (num(c.system?.quantity) + num(c.system?.quantitybank)) + " × " + c.name).join(", ") +
+  " <em>(" + (f.cp / 100) + " gp)</em>" +
+  (f.others ? " <span class='notes'>+ " + f.others + " other item(s), not touched</span>" : "") + "</li>").join("");
+
+const options = dests.map((a) => "<option value='" + a.id + "'>" + a.name + "</option>").join("");
+const go = await foundry.applications.api.DialogV2.prompt({
+  window: { title: "ACKS II — Recover Stranded Coin" },
+  classes: ["acks-extras", "acks-extras-scroll"],
+  content:
+    "<p>Found <strong>" + (totalGp) + " gp</strong> in " + withCoin.length + " location(s) this world can no longer open.</p><ul>" + rows + "</ul>" +
+    "<p>Coin is <strong>copied</strong> to the actor you choose. The locations are left exactly as they are — run <em>Clean Up After the Merge</em> afterwards to remove them.</p>" +
+    "<p class='notification warning'>Run this once: pressing it twice mints the coin twice.</p>" +
+    "<div class='form-group'><label>Give it to</label><div class='form-fields'><select name='dest'>" + options + "</select></div></div>",
+  ok: { label: "Recover the coin", callback: (ev, btn) => btn.form.elements.dest.value },
+  rejectClose: false,
+});
+if (!go) return;
+
+const dest = game.actors.get(go);
+if (!dest) { ui.notifications.error("That actor is gone."); return; }
+// Minted fresh rather than moved: the source cannot be updated, so a transfer
+// would have no side to take the coin FROM.
+const payload = withCoin.flatMap((f) => f.coin.map((c) => {
+  const o = foundry.utils.deepClone(c);
+  delete o._id;
+  return o;
+}));
+await dest.createEmbeddedDocuments("Item", payload);
+ui.notifications.info("Recovered " + totalGp + " gp into " + dest.name + ".");
+console.log("acks-extras | coin recovery", { totalGp, withCoin });
+`;
+
 export function buildMacros() {
   const id = did("macro:cleanup-after-merge");
+  const rescueId = did("macro:recover-stranded-coin");
   return [
+    {
+      _id: rescueId,
+      _key: `!macros!${rescueId}`,
+      name: "Recover Coin from Unloadable Locations (GM)",
+      type: "script",
+      scope: "global",
+      img: "icons/commodities/currency/coins-assorted-mix-copper-silver-gold.webp",
+      command: RESCUE.trim(),
+      ownership: { default: 0 },
+      _stats: STATS,
+    },
     {
       _id: id,
       _key: `!macros!${id}`,
