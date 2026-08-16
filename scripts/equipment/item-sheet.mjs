@@ -23,6 +23,8 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { buildConstructionPanel } from "./sheet.mjs";
+import { applyVariation, isVariationItem } from "./variation-items.mjs";
+import { containedIn } from "../lib/item-model.mjs";
 import { disguiseItem, revealItem } from "./actions.mjs";
 import { isDisguised } from "./actions.mjs";
 import {
@@ -177,6 +179,39 @@ export function createEquipmentItemSheet(Base) {
       // The markets feature's magic-item panel (flags it owns; one mount
       // line here — the goods-schema precedent).
       pane.appendChild(buildMagicPanel(this.item));
+      this.#wireVariationDrop(pane);
+    }
+
+    /**
+     * Dropping a variation on this item applies it.
+     *
+     * The whole Construction pane is the target, not a strip inside it: the
+     * gesture is "this belongs to that item", and asking a Judge to aim at a
+     * particular rectangle is a rule the drop does not need. A drop of anything
+     * that is not a variation falls through untouched, so the sheet's other
+     * drop behaviour is unchanged.
+     */
+    #wireVariationDrop(pane) {
+      pane.dataset.dropTarget = "variation";
+      new foundry.applications.ux.DragDrop.implementation({
+        dropSelector: '[data-drop-target="variation"]',
+        callbacks: {
+          dragover: (ev) => ev.currentTarget.classList.add("drop-hover"),
+          dragleave: (ev) => ev.currentTarget.classList.remove("drop-hover"),
+          drop: async (ev) => {
+            ev.currentTarget.classList.remove("drop-hover");
+            const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(ev);
+            if (data?.type !== "Item" || !data.uuid) return;
+            const source = await fromUuid(data.uuid);
+            if (!isVariationItem(source)) return;
+            // A variation already applied to something else MOVES; one from a
+            // compendium or the sidebar is copied, so the published description
+            // stays where it was.
+            await applyVariation(this.item, source, { move: !!containedIn(source) });
+            this.render();
+          },
+        },
+      }).bind(pane);
     }
 
     /** The Spells tab: the book's recorded formulae, edited in place. */

@@ -339,10 +339,36 @@ export function containedIn(item) {
   return item?.getFlag?.(MODULE_ID, "containedIn") ?? item?.flags?.[MODULE_ID]?.containedIn ?? null;
 }
 
-/** Items stored directly inside a container. */
-export function contentsOf(actor, containerId) {
-  return actor?.items?.filter((i) => containedIn(i) === containerId) ?? [];
+/**
+ * The collection an item's contents would live in.
+ *
+ * Containment points at a SIBLING by id, so what counts as a sibling depends on
+ * where the container is: an actor's own items for carried gear, the world's
+ * Items directory for a loose one. A compendium item has neither — its pack is
+ * not loaded — so it holds nothing until it is imported, which is the honest
+ * answer rather than an empty list pretending to be complete.
+ */
+export function siblingsOf(item) {
+  if (item?.parent?.items) return item.parent.items;
+  if (item?.pack) return null;
+  return globalThis.game?.items ?? null;
 }
+
+/**
+ * Items stored directly inside a container.
+ *
+ * Takes the container's OWNER — an actor, or any collection of items — because
+ * a container need not be carried by anyone. Passing the container item itself
+ * asks `siblingsOf` where to look, which is what callers holding only the
+ * container should do.
+ */
+export function contentsOf(owner, containerId) {
+  const items = owner?.items ?? (typeof owner?.filter === "function" ? owner : null);
+  return items?.filter((i) => containedIn(i) === containerId) ?? [];
+}
+
+/** Everything contained in this item, wherever the item happens to live. */
+export const contentsIn = (item) => (item?.id ? contentsOf(siblingsOf(item), item.id) : []);
 
 /** A thing gear can go inside: declared capacity, or the legacy container
  * record (which may state no capacity and still contain). */

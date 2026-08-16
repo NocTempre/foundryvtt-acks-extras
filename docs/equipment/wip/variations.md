@@ -1,7 +1,11 @@
 # Variations — an inventory of the ways an item differs from its plain self
 
-**Status: design, nothing built.** Second draft: the first one misread the code
-it proposed to replace, and the owner's requirements have sharpened since.
+**Status: built, awaiting its content.** The model, the documents and the
+containment are in `acks-extras`; what remains is the importer half and the
+migration that retires the three legacy flags. How it behaves now is
+[../MODEL.md](../MODEL.md); why it is shaped this way is
+[../DECISIONS.md](../DECISIONS.md). What is left is the Sequencing section
+below.
 
 ## What is actually there now
 
@@ -270,25 +274,30 @@ Per the template's 2026-08-15 lesson, the receiving end ships before the sending
 end is retired:
 
 1. **This design**, agreed.
-2. **`acks-extras` builds it** — DONE in 4.10.0, model only: the entry list, slot conflicts, hidden/apparent
-   resolution, and the inventory API — with `layerDeltas` generalised over the
-   entries. The three legacy flags keep working, still reading the shipped
-   tables, so nothing regresses.
-   **No interface shipped with it, deliberately.** A first attempt put the
-   inventory on the Construction tab beside the masterwork and silver dropdowns
-   it is meant to replace, which showed masterwork twice — two answers to one
-   question, not a transition. The fix considered was to PROJECT the legacy
-   flags into the list as synthetic rows so there was one surface; the owner
-   rejected that as a UI mask, and rightly: it would have made the sheet look
-   like an inventory while the storage was still three separate flags, and the
-   picker would still have had nothing real in it. **The interface waits until
-   there is something behind it.**
+2. **`acks-extras` builds it** — DONE. 4.10.0 shipped the model as a flag list
+   with no interface; the owner then ruled that a variation should be a
+   DOCUMENT applied by the container relation, and that supersedes the flag list
+   whole (see DECISIONS, 2026-08-15).
 
-3. **`acks-importer` releases** variation definitions and the register that holds
-   them, plus loot-table and template support for granting them. Released, in a
-   tag. **This is the next piece of work, and it is what unblocks the UI.**
-4. **`acks-extras` migrates** the legacy flags onto entries and deletes
-   `MASTERWORK`, `SILVER` and `SHIELD_VARIANTS`. Carries a data migration.
+   4.10.0's missing interface was deliberate and the reason still stands as a
+   rule: a first attempt put the inventory on the Construction tab beside the
+   masterwork and silver dropdowns it is meant to replace, which showed
+   masterwork twice — two answers to one question, not a transition. The fix
+   considered was to PROJECT the legacy flags into the list as synthetic rows;
+   the owner rejected that as a UI mask, and rightly. What ships now is not that
+   list: it is the documents actually applied, offering no choices of its own,
+   and a family a legacy flag already holds refuses the variation by name so the
+   two can never both count.
+
+3. **`acks-importer` publishes** a variations COMPENDIUM — one document per
+   published variation, materialized from the reader's own book — plus the
+   `baseTypeFields` table, plus loot-table and template support for granting
+   them. **This is the next piece of work.** Until it lands a Judge makes
+   variations by hand on the Items tab, which is a first-class path rather than
+   a stopgap: the trap sub-type works the same way.
+4. **`acks-extras` migrates** the legacy flags onto documents and deletes
+   `MASTERWORK`, `SILVER` and `SHIELD_VARIANTS`. Carries a data migration, and
+   removes the legacy-family refusal that stands in for it now.
 
 Steps 2 and 4 are separate releases deliberately.
 

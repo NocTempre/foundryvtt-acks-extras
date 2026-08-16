@@ -1,4 +1,4 @@
-/* global Hooks, game, ui, foundry */
+/* global Hooks, game, ui, foundry, CONFIG */
 /**
  * ACKS II — Equipment & Fighting Styles: bootstrap.
  *
@@ -9,9 +9,10 @@
  */
 import { isPrimaryGM } from "../lib/util.mjs";
 import { assertAcksSystem } from "../namespace.mjs";
-import { MODULE_ID, SETTINGS, LOADOUT_EFFECT_FLAG } from "./constants.mjs";
+import { MODULE_ID, SETTINGS, LOADOUT_EFFECT_FLAG, VARIATION_ITEM_TYPE } from "./constants.mjs";
 import { registerSettings } from "./settings.mjs";
 import { buildApi } from "./api.mjs";
+import VariationData from "./data/variation-data.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
@@ -24,6 +25,17 @@ import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 Hooks.once("init", () => {
   registerSettings();
   buildApi();
+
+  // The variation Item sub-type. Wrapped because a throw in `init` leaves the
+  // rest of the hook dead, and everything above this line has to survive a
+  // sub-type registration failing.
+  try {
+    CONFIG.Item ??= {};
+    CONFIG.Item.dataModels ??= {};
+    CONFIG.Item.dataModels[VARIATION_ITEM_TYPE] = VariationData;
+  } catch (err) {
+    console.error(`${MODULE_ID} | variation item sub-type failed to register`, err);
+  }
 
   try {
     foundry.applications.handlebars.loadTemplates([`modules/${MODULE_ID}/templates/equipment/loadout-summary.hbs`]);

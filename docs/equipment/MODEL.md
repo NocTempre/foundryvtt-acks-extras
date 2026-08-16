@@ -251,18 +251,34 @@ name using the same clothing patterns and gear profiles the rest of the feature
 reads. The declared flag always wins. The guess retires once the migration has
 run and the importer sets base types on what it materialises.
 
-**How one item DIFFERS** is a list: `flags["acks-extras"].variations`, holding
-`{id, key, hidden, read, data}` entries. It behaves like an inventory — add,
-remove, update — with one verb set for every kind of difference.
+**How one item DIFFERS** is its CONTENTS. A variation is an
+`acks-extras.variation` Item flagged `containedIn` at the item it changes —
+the same relation gear in a backpack uses — so it is applied by dragging it on,
+listed under what it changed, and removed by taking it off. One verb set covers
+every kind of difference (`variation-items.mjs`).
+
+Each variation document carries both halves at once: what masterwork MEANS
+(`deltas`, `cost`, `appliesTo`, `supersedes`) and what is true of THIS one
+(`hidden`, `read`, `data`). `entryOf` and `definitionFrom` split them for the
+pure rules in `variations.mjs`. Applying COPIES the source, so re-importing the
+register cannot revalue a blade a Judge already priced.
+
+Containment resolves against whatever collection the item is in — an actor's
+items when it is carried, the world's when it is loose (`siblingsOf`). A
+compendium item holds nothing, because its pack is not loaded and an empty list
+would be a guess rather than an answer.
 
 - **Conflict is derived from the key's namespace.** Two entries clash when their
   keys share a prefix, so an item has one masterwork tier and one shield form,
   while a scavenged masterwork silvered buckler is four families and legal.
   Nothing is authored, so nothing can be authored wrong. A printed cross-family
   rule is a definition's `supersedes` and is enforced in both directions.
-- **Definitions are imported**, never shipped: `variation-defs.mjs` reads them
-  from acks-lib's ruledata registry. A world that has imported nothing offers no
-  variations, and the sheet says so.
+- **Definitions are imported**, never shipped. They arrive as a compendium of
+  variation documents from `acks-importer`; what a base TYPE records arrives
+  separately as field specs in acks-lib's ruledata registry
+  (`variation-defs.mjs`). A world that has imported nothing has no variations to
+  drag, and a Judge can still make one by hand on the Items tab — the same
+  first-class path a trap has.
 - **`hidden` and `read` are different questions.** Hidden is whether they know
   it is there; read is whether they know what it means. An inscription in a
   language nobody present has is visible and unread — not hidden.
@@ -272,10 +288,11 @@ remove, update — with one verb set for every kind of difference.
 - **Conditional value is gathered, never applied.** Who the buyer is and what a
   crest is worth to them are facts the world holds; the module offers the claim.
 
-`layerDeltas` sums variation entries alongside the three legacy flags into one
-delta set, sharing the cost order documented above — which is what will stop a
-masterwork flag and a masterwork entry double-counting when the migration moves
-one onto the other.
+`layerDeltas` sums applied variations alongside the three legacy flags into one
+delta set, sharing the cost order documented above. Until those flags retire, a
+flag OWNS its family: applying a `masterwork.*` variation to an item whose
+masterwork flag is set is refused by name, because the two would otherwise both
+count.
 
 **Field specs** (`lib/field-spec.mjs`) are how both a base type's metadata and a
 variation's own storage get rendered without being shipped: a definition

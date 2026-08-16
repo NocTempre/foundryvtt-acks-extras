@@ -24,8 +24,8 @@
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { sumDeltas, variationsOf } from "./variations.mjs";
-import { definitionOf } from "./variation-defs.mjs";
+import { sumDeltas, entryOf, definitionFrom } from "./variations.mjs";
+import { variationItemsOf } from "./variation-items.mjs";
 
 /** The flag holding the item's unmodified field values. */
 export const PRISTINE = "pristine";
@@ -116,13 +116,15 @@ export function layerDeltas(
   }
 
   // The open-ended half. The three legacy flags above are closed and shipped;
-  // a variation ENTRY names an imported definition, so a new kind of difference
-  // needs no change here. They share one delta set and one cost order, which is
-  // what keeps a masterwork flag and a masterwork entry from double-counting
-  // the day the migration moves one onto the other.
-  const entries = variationsOf(item);
-  if (entries.length) {
-    const v = sumDeltas(entries, definitionOf, { item });
+  // a variation is a DOCUMENT applied to this one and carries its own numbers,
+  // so a new kind of difference needs no change here. Both halves share one
+  // delta set and one cost order, which is what keeps a masterwork flag and a
+  // masterwork variation from double-counting the day the migration moves one
+  // onto the other.
+  const applied = variationItemsOf(item);
+  if (applied.length) {
+    const byKey = new Map(applied.map((v) => [v.system?.key, definitionFrom(v)]));
+    const v = sumDeltas(applied.map(entryOf), (key) => byKey.get(key) ?? null, { item });
     d.bonus += v.bonus;
     d.damage += v.damage;
     d.ac += v.ac;
@@ -148,7 +150,7 @@ export async function recomputeItemFields(item, overrides = {}) {
   const scavenged = "scavenged" in overrides ? overrides.scavenged : scavengedOf(item);
   const silvered = "silvered" in overrides ? overrides.silvered : silveredFlagOf(item) === true;
   const anyLayer =
-    !!(masterwork && masterwork !== "none") || !!scavenged || silvered || variationsOf(item).length > 0;
+    !!(masterwork && masterwork !== "none") || !!scavenged || silvered || variationItemsOf(item).length > 0;
 
   const stored = item.getFlag?.(MODULE_ID, PRISTINE) ?? null;
   // With no snapshot yet, the item as it stands IS pristine — capture it before

@@ -16,7 +16,8 @@
       "acks-extras.attitude": "Attitude",
       "acks-extras.class": "Class",
       "acks-extras.race": "Race",
-      "acks-extras.trap": "Trap"
+      "acks-extras.trap": "Trap",
+      "acks-extras.variation": "Variation"
     }
   },
   "ACKS-CLASSES.sheet.sheetName": "ACKS Class Constructor",
@@ -120,6 +121,18 @@
   "ACKS-CLASSES.pick.stub": "empty",
   "ACKS-CLASSES.pick.tooltip": "Pick a class document and apply its tables",
   "ACKS-CLASSES.pick.showAll": "Show all classes",
+  "ACKS-CLASSES.pick.rung.heldGroup": "Already on the sheet",
+  "ACKS-CLASSES.pick.rung.openGroup": "Not yet taken",
+  "ACKS-CLASSES.pick.rung.answered": "— already covered, stop asking —",
+  "ACKS-CLASSES.pick.rung.later": "— leave open, ask again next time —",
+  "ACKS-CLASSES.pick.rung.none": "— nothing to choose from —",
+  "ACKS-CLASSES.assign.noPackage": "— no starting package —",
+  "ACKS-CLASSES.assign.packageHint": "A starting package is optional here. Leave it off for a character who already has their gear.",
+  "ACKS-CLASSES.assign.packageAdds": "This package is ADDED to what the character already holds — nothing they own is removed or replaced.",
+  "ACKS-CLASSES.assign.levelHint": "The level this character holds. Saves, attack throw, hit points and experience are all set to match it.",
+  "ACKS-CLASSES.assign.ladder": "Choices this level owes",
+  "ACKS-CLASSES.assign.ladderNone": "This level leaves nothing further to choose.",
+  "ACKS-CLASSES.assign.done": "{name} is now a level {level} {class}.",
   "ACKS-CLASSES.sheet.core": "Offered by default in the pickers",
   "ACKS-CLASSES.sheet.sortOrder": "Book order",
   "ACKS-CLASSES.sheet.sortOrderHint": "Where this class sits when classes are listed as the books print them — the book's rank times a thousand, plus the page it starts on. Leave it at 0 and it is worked out from the class's own citation.",
@@ -935,23 +948,23 @@
     },
     "variations": {
       "baseType": "This item is",
-      "add": "Add a variation",
-      "addPrompt": "Choose one…",
       "remove": "Remove",
       "removeHint": "Take this variation off. The item's numbers go back to what they were without it.",
       "reveal": "Reveal",
       "revealHint": "Show this to the players. This is what identifying an item is.",
       "conceal": "Conceal",
       "concealHint": "Hide this from the players. They see the item without it, priced without it.",
-      "noneImported": "No variations have been imported yet. Connect your books and import to fill this list.",
       "badBaseType": "An item of this kind cannot be {type}.",
       "refuse": {
-        "unknownVariation": "That variation is not one this world has imported.",
+        "unknownVariation": "That is not a variation.",
         "wrongBaseType": "{key} does not go on an item of this kind.",
         "familyClash": "This already has {key}, and an item has only one of those.",
         "supersedes": "This would supersede {key}, which it already has.",
-        "superseded": "{key} already supersedes that."
-      }
+        "superseded": "{key} already supersedes that.",
+        "selfContained": "A variation cannot be applied to itself.",
+        "legacyClash": "This item already records {key} in its own field above. Clear that first."
+      },
+      "applied": "Applied variations"
     }
   },
   "ACKS-EQUIPMENT.container.expand": "Show contents",

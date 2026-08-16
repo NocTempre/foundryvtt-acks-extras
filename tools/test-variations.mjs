@@ -14,18 +14,18 @@ import {
 import {
   addRefusal,
   conditionalClaims,
+  definitionFrom,
+  entryOf,
   familyOf,
   isLegible,
   sumDeltas,
   totalPrice,
   values,
   visibleVariations,
-  withVariation,
-  withVariationPatched,
-  withoutVariation,
 } from "../scripts/equipment/variations.mjs";
 import { FIELD_KIND, blankData, coerceData, coerceField, usableSpecs } from "../scripts/lib/field-spec.mjs";
 import { inferBaseType } from "../scripts/equipment/base-type-infer.mjs";
+import { contentsOf, siblingsOf } from "../scripts/lib/item-model.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -158,10 +158,10 @@ test("two variants of the same thing clash, and the clash is named", () => {
 
 test("a scavenged masterwork silvered buckler is entirely legal", () => {
   // Four families, four entries, no refusal at any step — the case the owner named.
-  let entries = [];
+  const entries = [];
   for (const key of ["masterwork.weaponToHit", "condition.dented", "material.silver", "form.buckler"]) {
     assert.equal(addRefusal(entries, DEFS[key], { define }), null, `${key} was refused`);
-    entries = withVariation(entries, { id: key, key });
+    entries.push(entry(key));
   }
   assert.equal(entries.length, 4);
 });
@@ -189,16 +189,57 @@ test("nothing else is refused — no invented interaction matrix", () => {
 });
 
 /* -------------------------------------------- */
-/*  The list behaves like an inventory          */
+/*  A variation DOCUMENT reads as entry + definition */
 /* -------------------------------------------- */
 
-test("entries are added, patched and removed by identity", () => {
-  let entries = withVariation([], { id: "e1", key: "condition.dented" });
-  entries = withVariation(entries, { id: "e2", key: "material.silver" });
-  entries = withVariationPatched(entries, "e2", { hidden: true });
-  assert.equal(entries.find((e) => e.id === "e2").hidden, true);
-  entries = withoutVariation(entries, "e1");
-  assert.deepEqual(entries.map((e) => e.id), ["e2"]);
+/** The shape a `acks-extras.variation` Item presents, without Foundry. */
+const doc = (id, system) => ({ id, type: "acks-extras.variation", system });
+
+test("a document splits into what it is and what is true of this one", () => {
+  const v = doc("v1", {
+    key: "masterwork.weaponToHit",
+    appliesTo: ["weapon"],
+    supersedes: [],
+    deltas: { bonus: 1, damage: 0, ac: 0, weight6: 0 },
+    cost: { baseMul: 1, add: 80, mul: 1 },
+    hidden: true,
+    read: false,
+    data: { maker: "Thane" },
+  });
+  assert.deepEqual(entryOf(v), {
+    id: "v1",
+    key: "masterwork.weaponToHit",
+    data: { maker: "Thane" },
+    hidden: true,
+    read: false,
+  });
+  const def = definitionFrom(v);
+  assert.equal(def.key, "masterwork.weaponToHit");
+  assert.deepEqual(def.appliesTo, ["weapon"]);
+  assert.equal(def.cost.add, 80);
+});
+
+test("a document with no key is not a definition at all", () => {
+  assert.equal(definitionFrom(doc("v2", { key: "" })), null);
+  assert.equal(definitionFrom(undefined), null);
+});
+
+test("the rules read documents exactly as they read entries", () => {
+  const applied = [
+    doc("a", { key: "masterwork.weaponToHit", deltas: { bonus: 1 }, cost: { baseMul: 1, add: 80, mul: 1 } }),
+    doc("b", { key: "material.silver", deltas: {}, cost: { baseMul: 10, add: 0, mul: 1 } }),
+  ];
+  const byKey = new Map(applied.map((v) => [v.system.key, definitionFrom(v)]));
+  const d = sumDeltas(applied.map(entryOf), (k) => byKey.get(k) ?? null);
+  assert.equal(d.bonus, 1);
+  assert.equal(totalPrice(10, d), 180); // (10 x 10) + 80
+
+  // And a second masterwork is refused against what the documents already say.
+  const refusal = addRefusal(applied.map(entryOf), definitionFrom(doc("c", { key: "masterwork.both" })), {
+    define: (k) => byKey.get(k) ?? null,
+  });
+  assert.equal(refusal.reason, "familyClash");
+  assert.equal(refusal.key, "masterwork.weaponToHit");
 });
 
 /* -------------------------------------------- */
@@ -338,6 +379,55 @@ test("a blank payload is every field at its declared initial", () => {
   assert.deepEqual(blankData(specs), { carat: 1, flawless: false });
 });
 
+/* -------------------------------------------- */
+/*  Containment: a variation lives inside an item */
+/* -------------------------------------------- */
+
+/**
+ * A collection with the two reads `siblingsOf` promises — `filter` and `get`.
+ * A plain array has one and not the other, and the containment layer uses both.
+ */
+const collection = (items) => {
+  const arr = [...items];
+  arr.get = (id) => arr.find((i) => i.id === id) ?? null;
+  return arr;
+};
+
+/** A base item and its applied variations, in one world collection. */
+function world(base, ...variations) {
+  const all = collection([base, ...variations]);
+  for (const it of all) it.parent = null;
+  return all;
+}
+
+const varDoc = (id, key, extra = {}) => ({
+  id,
+  type: "acks-extras.variation",
+  name: key,
+  system: { key, appliesTo: [], supersedes: [], deltas: {}, cost: {}, ...extra },
+  flags: { "acks-extras": { containedIn: extra.on ?? null } },
+  getFlag: (_ns, k) => (k === "containedIn" ? extra.on ?? null : undefined),
+});
+
+test("contents resolve against the collection the item is actually in", () => {
+  const sword = { id: "s1", type: "weapon", system: {}, flags: {}, getFlag: () => undefined };
+  const mw = varDoc("v1", "masterwork.weaponToHit", { on: "s1" });
+  const loose = varDoc("v2", "material.silver");
+  const all = world(sword, mw, loose);
+  assert.deepEqual(contentsOf(all, "s1").map((i) => i.id), ["v1"]);
+  assert.deepEqual(contentsOf(all, "nope").map((i) => i.id), []);
+});
+
+test("a compendium item holds nothing rather than reporting an empty world", () => {
+  // Its pack is not loaded, so "no contents" would be a guess. Say so instead.
+  assert.equal(siblingsOf({ id: "x", pack: "acks-extras.variations" }), null);
+});
+
+test("an actor's own items are the siblings when it carries the item", () => {
+  const items = collection([]);
+  assert.equal(siblingsOf({ id: "x", parent: { items } }), items);
+});
+
 console.log(
-  `test-variations: OK (${passed} checks — base types, inference fallback, families, printed supersession, inventory, cost order, true vs apparent, legibility, field specs)`,
+  `test-variations: OK (${passed} checks — base types, inference fallback, families, printed supersession, documents, containment, cost order, true vs apparent, legibility, field specs)`,
 );

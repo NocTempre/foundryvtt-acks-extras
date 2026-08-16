@@ -12,6 +12,13 @@ export const MODULE_ID = "acks-extras";
 export const EFFECT_PREFIX = `flags.${MODULE_ID}.`;
 
 /**
+ * The Item sub-type one variation is: masterwork, silvered, a crest, a name.
+ * Applied to a base item by the same `containedIn` relation gear uses to sit in
+ * a backpack — see `variation-items.mjs`.
+ */
+export const VARIATION_ITEM_TYPE = `${MODULE_ID}.variation`;
+
+/**
  * Effect domains — the `<domain>` in `flags.acks-extras.<domain>` change keys.
  * Numeric domains sum; string/CSV domains collect; boolean-ish domains test
  * presence. See docs/MODEL.md for the full contract.

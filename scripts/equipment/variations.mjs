@@ -1,15 +1,18 @@
 /**
  * VARIATIONS — an inventory of the ways one item differs from its plain self.
  *
- * An item is a pristine base (`properties.mjs`) plus a LIST of variation
- * entries. Not one slot per kind: masterwork, a dent, silver plating, a crest
- * and a name can all be true of the same blade at once, and the list is added
- * to and removed from the way an item's contents are.
+ * An item is a pristine base (`properties.mjs`) plus the variations applied to
+ * it. Not one slot per kind: masterwork, a dent, silver plating, a crest and a
+ * name can all be true of the same blade at once, and they are added and
+ * removed the way its contents are — because they ARE its contents. Each is an
+ * `acks-extras.variation` Item flagged `containedIn` at the base
+ * (`variation-items.mjs`).
  *
- * An entry is a reference and nothing more — `{id, key, hidden, read, data}`.
- * What a key MEANS is a definition, imported from the GM's own book and never
- * shipped. This file is Foundry-free: it takes entries and definitions as
- * plain objects and answers questions about them.
+ * This file is Foundry-free. It answers questions about ENTRIES — plain
+ * `{id, key, hidden, read, data}` objects — and DEFINITIONS, which say what a
+ * key means. `entryOf` and `definitionFrom` read both out of a variation
+ * document, so the rules are stated once and a test can exercise them without
+ * a document at all.
  *
  * Three rules carry most of the design:
  *
@@ -27,9 +30,6 @@
  *    still hits as a magic sword. Deltas always apply in full; hiding decides
  *    what the apparent name, image and price are computed from.
  */
-
-/** Where the entries live on an item. */
-export const VARIATIONS_FLAG = "variations";
 
 /** How a variation is described. Kind is prose about it, never the conflict rule. */
 export const VARIATION_KIND = Object.freeze({
@@ -51,11 +51,45 @@ export const VARIATION_KIND = Object.freeze({
  */
 export const familyOf = (key) => String(key ?? "").split(".")[0];
 
-/** The entries an item carries, always an array. */
-export const variationsOf = (item) => {
-  const list = item?.flags?.["acks-extras"]?.[VARIATIONS_FLAG];
-  return Array.isArray(list) ? list : [];
-};
+/* -------------------------------------------- */
+/*  Reading a variation document                */
+/* -------------------------------------------- */
+
+/**
+ * The ENTRY a variation document is: which variation, and what is true of this
+ * one. Its `id` is the document's, so removing by identity removes the right
+ * copy when a blade carries two of the same family in different states.
+ */
+export const entryOf = (variation) => ({
+  id: variation?.id ?? null,
+  key: variation?.system?.key ?? "",
+  data: variation?.system?.data ?? {},
+  hidden: !!variation?.system?.hidden,
+  read: variation?.system?.read !== false,
+});
+
+/**
+ * The DEFINITION a variation document carries: what this variation means.
+ *
+ * Definition and instance travel in one document on purpose — the copy applied
+ * to a sword holds its own numbers, so re-importing the register cannot revalue
+ * a blade a Judge already priced, and an item exported to a world that imported
+ * nothing still reads correctly.
+ */
+export function definitionFrom(variation) {
+  const s = variation?.system;
+  if (!s?.key) return null;
+  return {
+    key: s.key,
+    kind: s.kind || undefined,
+    appliesTo: s.appliesTo ?? [],
+    supersedes: s.supersedes ?? [],
+    deltas: s.deltas ?? null,
+    cost: s.cost ?? null,
+    language: s.language || undefined,
+    value: s.conditional?.length ? { conditional: s.conditional } : undefined,
+  };
+}
 
 /* -------------------------------------------- */
 /*  Adding and removing                         */
@@ -110,23 +144,6 @@ function matches(pattern, key) {
   if (p.endsWith(".*")) return familyOf(key) === p.slice(0, -2);
   return p === key;
 }
-
-/**
- * The list with one entry added. Pure — returns a NEW list.
- *
- * `id` is supplied rather than generated so this stays Foundry-free and a test
- * can pin it; the Foundry side passes `foundry.utils.randomID()`.
- */
-export function withVariation(entries, { id, key, data = {}, hidden = false, read = true }) {
-  return [...(entries ?? []), { id, key, data, hidden, read }];
-}
-
-/** The list with one entry removed, by identity. */
-export const withoutVariation = (entries, id) => (entries ?? []).filter((e) => e.id !== id);
-
-/** The list with one entry patched, by identity. */
-export const withVariationPatched = (entries, id, patch) =>
-  (entries ?? []).map((e) => (e.id === id ? { ...e, ...patch } : e));
 
 /* -------------------------------------------- */
 /*  What they add up to                         */

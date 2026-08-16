@@ -28,6 +28,7 @@ import {
   setGearSlots, setGearAccess, setGearCapacity, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
 } from "./actions.mjs";
 import { masterworkTierOf, scavengedOf, layerSummary, silveredFlagOf } from "./properties.mjs";
+import { concealVariation, removeVariation, revealVariation, variationItemsOf } from "./variation-items.mjs";
 import { canBeSilvered, isSilvered, setSilvered } from "./silver.mjs";
 import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
 import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf } from "../lib/item-model.mjs";
@@ -936,6 +937,31 @@ export function buildConstructionPanel(item) {
       gearOf(item).access || SLOT_AUTO,
       (v) => setGearAccess(item, v),
     ));
+  }
+
+  // APPLIED VARIATIONS — the documents currently on this item. It offers no
+  // choices of its own: a variation arrives by being dragged on, so this is a
+  // list of what is there, not a second way to set what the controls above
+  // already set. When nothing is applied it renders nothing at all.
+  const applied = variationItemsOf(item);
+  if (applied.length) {
+    section.append(el("h4", "acks-equipment-props__head", game.i18n.localize("ACKS-EQUIPMENT.variations.applied")));
+    const list = el("ul", "acks-equipment-variations");
+    for (const v of applied) {
+      const li = el("li", `acks-equipment-variations__row${v.system?.hidden ? " is-hidden" : ""}`);
+      li.append(el("span", "acks-equipment-variations__name", v.name));
+      if (v.system?.key) li.append(el("code", "acks-equipment-variations__key", v.system.key));
+      if (game.user?.isGM) {
+        li.append(button(
+          game.i18n.localize(v.system?.hidden ? "ACKS-EQUIPMENT.variations.reveal" : "ACKS-EQUIPMENT.variations.conceal"),
+          "ACKS-EQUIPMENT.variations.concealHint",
+          () => (v.system?.hidden ? revealVariation(v) : concealVariation(v)),
+        ));
+      }
+      li.append(button("×", "ACKS-EQUIPMENT.variations.removeHint", () => removeVariation(v), "is-remove"));
+      list.append(li);
+    }
+    section.append(list);
   }
   return section;
 }

@@ -7,6 +7,52 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A variation is a document, and applying it is putting it inside (2026-08-15)
+
+> "the variation items that apply onto base items reusing inventory container
+> logic" — owner
+
+**Ruled:** a variation is an `acks-extras.variation` Item, applied by the
+`containedIn` relation `containers.mjs` already uses for gear in a backpack.
+The gesture, the listing, the removal and the nesting guard all come from a
+relation that was already carrying weight; nothing new had to be invented for a
+second kind of "inside".
+
+**Superseding 4.10.0's flag list.** That release stored variations as
+`{id, key, hidden, read, data}` objects in a flag, with their meanings looked up
+in the ruledata register. It shipped as groundwork with no interface, and is
+replaced whole rather than migrated: there was no way to create an entry except
+through the API, and an entry is only a key — the definition it needed lived in
+a register that no world had filled. Converting one would have produced an empty
+document, which is worse than the honest absence.
+
+**What the document changed about the model.** Definition and instance now live
+in one object. A variation applied to a sword carries its own numbers, so
+re-importing the register cannot revalue a blade a Judge already priced, and an
+item exported to a world that imported nothing still reads correctly. `entryOf`
+and `definitionFrom` split the two halves back out, so `variations.mjs` stays
+Foundry-free and its rules are tested without a document.
+
+**Rejected: `storeIn`.** The obvious reuse is the wrong one. That verb is about
+cargo — it checks capacity, refuses through a shut lock, and unequips what it
+stows. A variation goes on a sword the sword is wielding, weighs nothing, and is
+refused for reasons of its own. It shares the flag and nothing else, and the
+schema carries no `cost`/`weight6` so encumbrance never sees it and a Judge
+cannot put one in a sack by mistake.
+
+**Cost, stated plainly.** Containment resolves against a sibling collection, so
+a compendium item holds nothing — importing one item does not bring its
+variations. `siblingsOf` returns null there rather than an empty list, because
+"none" and "cannot say" are different answers.
+
+**The legacy flags own their families until the importer replaces them.**
+`layerDeltas` sums both halves, so a masterwork flag and a masterwork variation
+on one item would count masterwork twice. Applying into a family a flag already
+holds is refused by name. This is a bridge with a stated end: it comes out when
+`acks-importer` publishes masterwork, silver and the shield forms as documents.
+
+---
+
 ### The equipment root: gear is a special class of item, and shares its root (2026-07-24)
 
 > "Equipment is just a special class of item; they should share a root." — owner

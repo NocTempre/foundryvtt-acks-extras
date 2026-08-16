@@ -90,6 +90,11 @@
         "htmlFields": [
           "description"
         ]
+      },
+      "variation": {
+        "htmlFields": [
+          "description"
+        ]
       }
     }
   },

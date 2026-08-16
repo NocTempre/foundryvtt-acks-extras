@@ -457,3 +457,57 @@
 .acks-equipment-unarmed__label {
   font-style: italic;
 }
+
+/* Applied variations — the documents currently on this item. A contents list,
+   set like one: the row reports what is there and carries only the two verbs
+   that act on it, so it never reads as a second place to choose from. */
+.acks-equipment-props__head {
+  margin: 0.6rem 0 0.2rem;
+  font-size: var(--acks-fs-label);
+  font-weight: bold;
+}
+
+.acks-equipment-variations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-equipment-variations__row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0;
+}
+
+.acks-equipment-variations__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Concealed is a fact about who may see it, not a disabled control — dimmed
+   rather than greyed, so the GM can still read and act on the row. */
+.acks-equipment-variations__row.is-hidden .acks-equipment-variations__name {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.acks-equipment-variations__key {
+  flex: 0 0 auto;
+  font-size: var(--acks-fs-label);
+  opacity: 0.7;
+}
+
+.acks-equipment-variations__row .acks-equipment-props__btn {
+  flex: 0 0 auto;
+  padding: 0 0.4rem;
+}
+
+/* The whole Construction pane takes the drop, so the cue is on the pane. */
+.acks-equipment-tab-construction.drop-hover {
+  outline: 2px dashed var(--acks-spot);
+  outline-offset: -3px;
+}
