@@ -14,6 +14,13 @@ same constructor.
 *The constructor's Casting editor: traditions, slot grid, pool schedule and
 caster-level ladder.*
 
+The same constructor records what a class speaks and how many more tongues it
+may choose.
+
+![](../releases/v4.1.0/classes-languages-editor.png)
+
+*What a class speaks and how many more it may choose, beside its award ladder.*
+
 ## On the character sheet
 
 Three small controls appear beside the class field:
@@ -33,6 +40,10 @@ Three small controls appear beside the class field:
   Applying the same class at the same level again is how a character who was
   bound before this existed collects what they were always owed: the fields
   will show nothing to change, and the abilities will still be listed.
+
+  ![](../releases/v3.0.0/classes-apply-diff.png)
+
+  *Every change old → new before it lands, with hand edits flagged.*
 - **Dice** (level 1 characters) — roll a starting template: 3d6, then choose
   the rolled template or any lower band. Applying grants the proficiencies
   (ranks and selections included), the equipment — each piece named as
@@ -43,6 +54,11 @@ Three small controls appear beside the class field:
   9th, minimum one over the old maximum — an additive house rule is a world
   setting), the new level's powers granted, class/general proficiency picks
   offered, slots bumped.
+
+  ![](../releases/v3.0.0/classes-levelup.png)
+
+  *The level-up wizard: the HP reroll it will apply, the powers granted, the
+  picks offered.*
 
 ![](../releases/v3.5.0/classes-chargen.png)
 
@@ -72,6 +88,11 @@ character generation — is remembered, so re-applying a class does not walk a
 Casters get a per-tradition slot strip under the class field — click a pip to
 spend, click a spent pip to refund, the bed icon to rest. The Nobiran's
 arcane and divine pools sit side by side.
+
+![](../releases/v3.3.0/classes-casting-strip.png)
+
+*Slot pips, a points pool with its −/+ pair, the gnostic capacity rung, and the
+rest control.*
 
 ## Advanced mode — the class builder
 
@@ -109,10 +130,10 @@ each rung's XP cost and granted powers, the race's attribute floors, how it
 stacks with a magic category, and its post-8th XP increases. Simple-mode
 classes may bind one too.
 
-![](../releases/v3.8.0/classes-race.png)
+![](../releases/v4.5.0/classes.png)
 
-*A race document's value ladder — rung XP costs, granted powers, attribute
-floors and always-on traits.*
+*A race document's value ladder — rung XP costs, attribute floors, and every
+granted power resolved to the definition its rung names.*
 
 ## Keeping documents current
 

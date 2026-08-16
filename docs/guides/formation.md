@@ -3,12 +3,11 @@
 A **formation** is the party as one thing: a marching order, one token on the
 map, one exploration clock, and party-wide checks that resolve every member.
 
-![](../releases/v1.3.0/formation-judge-override.png)
+![](../releases/v4.0.0/formation-party-sheet.png)
 
-*The party sheet: exploration clock, party saves and rolls, and the marching
-order with its roles — Bess scouting, Quill on the map. Tam's lantern is in the
-Light Sources panel with 24 turns left; the Judge handed it over and the lamp,
-its oil and a free hand came with it.*
+*The party sheet: the exploration clock with its carry-over, the party's saves
+and rolls, the warnings it is under, the marching order with its role chips, and
+the light sources burning down.*
 
 ## Build one
 
@@ -32,6 +31,11 @@ dragged or walked, so the party token is already a record of which way the
 party last marched, and turning it by hand (Shift+scroll with it selected)
 turns the whole deploy.
 
+![](../releases/v4.8.0/formation-deploy-heading.png)
+
+*A two-file block deployed on the canvas, trailing away behind the party token's
+facing.*
+
 An unrotated token faces **south**, so a party whose token has never turned
 deploys its column trailing away to the **north**. (Before v4.8.0 the column
 always trailed south of the token regardless of facing — if your table had
@@ -44,6 +48,11 @@ The party sheet's march controls **save** the current arrangement under a name
 and **load** one back; the party token's HUD carries a **form up** button that
 applies a saved order and gathers everyone on the map back inside the token.
 With one order saved the button applies it outright; with several it asks.
+
+![](../releases/v4.8.0/formation-marching-orders.png)
+
+*The party sheet's march controls: frontage, the order, and the save that a
+form-up restores.*
 
 A saved order records the shape — who stands where, their roles, how many march
 abreast — and nothing else, so restoring one can lose an arrangement but never
@@ -96,6 +105,11 @@ answer rather than the level.
 For a pit, leave the damage blank and set the depth: 1d6 per 10 feet is filled
 in for you, and ticking *Spiked* adds the 1d4 spikes at 1d6 each.
 
+![](../releases/v4.9.0/formation-trap-item.png)
+
+*A trap item: its level and trigger band, how it resolves, and a pit's depth
+deriving its own damage.*
+
 ### Putting one in the dungeon
 
 Two ways, on the **Walls** layer:
@@ -135,6 +149,11 @@ a missed attack deals nothing, and a made save takes off whatever that trap says
 it takes off (half, all of it, or nothing at all if the save only buys you a
 choice about where you land).
 
+![](../releases/v4.9.0/formation-trap-card.png)
+
+*The whispered card: who walked in, who sprang it on the secret 1d6, who was
+caught, and what it dealt.*
+
 ### Getting past one
 
 A character with thieves' tools can work on a trap the party is standing at:
@@ -153,10 +172,50 @@ later on a Trapbreaking throw.
 A crude trap is +4 to find and to remove, attacks at -2, and is saved against
 at +2.
 
+## Doors
+
+A door on the map opens its own window: what it is built of, how many spikes are
+in it, and the three things a party does to one that will not open.
+
+![](../releases/v4.2.0/formation-door.png)
+
+*Two spikes hammered in, the heave broken into its parts — Strength +12 against
+spikes −4, needing 10+ — and what battering it down with an axe would cost in
+turns.*
+
+- **Spikes** go in one per round, four to a door, and every spike after the
+  first makes forcing it harder. Pulling one back out is its own control.
+- **Bash it open** is the throw, itemized before you take it: who is heaving,
+  whether a second pair of shoulders is on it, a crowbar, how far from man-sized
+  the heaver is, and the Judge's own modifier. The number it needs is shown, and
+  so is every part of what you have.
+- **Batter it down** is the slow certainty instead — the window says how many
+  turns an axe wants, and you spend them.
+
+## Dealing out experience
+
+**Deal XP** divides an adventure's total between the party and shows the
+division before it is given.
+
+![](../releases/v4.5.0/formation-xp.png)
+
+*Full shares to the player characters, a henchman at half, and the two taking
+nothing named with the reason.*
+
+Everyone's share is listed with what they will gain, and anyone taking nothing
+is listed too, with why — a mercenary is paid in wages rather than experience, a
+pack mule is not a party member. A fallen member still takes their share. Only
+**Deal XP** writes anything.
+
 ## The clock
 
 Moving the party token advances the exploration clock in turns. Torches burn
 down, spell durations tick, and the rest cycle tracks when the party is due one.
+
+![](../releases/v4.5.0/formation-casualties.png)
+
+*The exploration warnings, including a fallen member the party must carry or
+leave before it can move.*
 
 Light is real: a lit torch occupies a hand, lights the party token, and goes out
 when it burns through.
@@ -180,18 +239,17 @@ drawn. Set the role down and the hands come back.
 
 ## Seeing in the dark
 
-![](../releases/v1.1.0/token-vision.png)
-
-*Nobody typed these numbers. A Cave Lurker's stat block records lightless vision
-to 90', so its token gets 90' of monochromatic sight — and Foundry derives the
-Darkvision and Light Perception detection modes from it.*
-
 Every token's vision now comes from its own sheet, whether or not it is in a
 party. Ordinary eyes see **only what a light source reveals** — walk a torchless
 character into a black corridor and they see nothing, which is the rule. A
 character with **lightless vision** (or infravision) sees its recorded range,
 and a thief's **shadowy senses** reach 30'; both see as dim light — colourless,
 no reading, no fine detail.
+
+![](../releases/v3.3.0/token-vision.png)
+
+*A token under its own lantern's glow, and nothing beyond it. Nobody typed these
+radii — they come off the lamp and the character's own senses.*
 
 **Night vision** works differently from either, because it is not sight without
 light — it is sight that makes more of the light there is. It brightens dim light
@@ -249,6 +307,11 @@ and it drops that protection so they follow their sheets again; those edits are
 not recoverable afterwards, so the default is to leave them be. Run it after
 switching the setting on, or after an update that changes how a sense is read.
 
+![](../releases/v3.7.0/lib-migrate-vision.png)
+
+*The world-wide sweep, and the question it asks before touching a hand-edited
+token.*
+
 ## Sending a scout ahead
 
 The party travels as one token, but any member can **detach** — the arrow button
@@ -277,6 +340,9 @@ each name and anyone who could not attempt it named at the foot.
 
 ![](../releases/v3.7.0/formation-party-roll-card.png)
 
+*A check every member made, on one card: total, target, verdict, and the
+modifier stack behind each one.*
+
 Party **saving throws** post the same card, and so does the Surprise Matrix
 (below) — one shape for every roll the whole party makes at once.
 
@@ -299,6 +365,9 @@ chat message per combatant: monsters in one table, adventurers in the other,
 each row naming the creature, its total and whether it was surprised.
 
 ![](../releases/v3.7.0/lib-surprise-card.png)
+
+*The whole encounter on one card: monsters and adventurers, each row naming the
+creature, its total and the verdict.*
 
 Hover a total to see the dice and every modifier behind it. The rolls are the
 system's own and are not changed by this — same numbers, same threshold, same

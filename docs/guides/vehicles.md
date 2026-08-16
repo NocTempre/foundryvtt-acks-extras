@@ -3,8 +3,6 @@
 Carts, wagons, chariots, palanquins, galleys and ships are actors, like
 characters. Make one from the Actors tab: **Create Actor → Vehicle**.
 
-Screenshots for each section are indexed in [GALLERY.md](../GALLERY.md).
-
 ## Setting one up
 
 A vehicle holds what its book prints and derives everything else. Fill in the
@@ -16,6 +14,10 @@ from what you actually put aboard.
 Pick **Land** or **Sea** first. It decides which sections you get: a wagon is
 pulled and driven, a ship is crewed, and offering either the other's controls
 would teach you the wrong model.
+
+![](../releases/v4.2.0/vehicles-galley.png)
+
+*A half-manned galley, its real speeds, and what reduced them.*
 
 ## Loading it
 
@@ -29,10 +31,24 @@ of the **team**. That choice matters:
   a bed, not cabins. On a **vessel** they are separate: she can be full of
   people and still have a hold to fill.
 
+![](../releases/v4.2.0/vehicles-team.png)
+
+*An ox and two mules pulling as two heavy horses, with one animal unhitched.*
+
+![](../releases/v4.4.0/vehicles-passengers.png)
+
+*Two riders aboard, the day's march in miles and hexes, and the boarding
+macros.*
+
 **Board for best pace** loads everyone the vehicle would carry faster than their
 own legs, slowest first, and stops when the hold is full. **Re-board as before**
 puts everyone back where the last change found them, which is what you want at a
 ford.
+
+![](../releases/v4.8.0/vehicles-buckets.png)
+
+*A vehicle shows only the load buckets it actually has, each with its fill — a
+cart has no cabins to draw.*
 
 ## Making it move
 
@@ -40,6 +56,11 @@ The sheet always shows the speed the vehicle *actually* makes, with a list of
 what reduced it — short crew, a heavy load, a hungry crew, a stowed mast, the
 wind, the ground. Change the **wind** or the **terrain** selector to see the
 answer change; those are your view of the moment, not properties of the vehicle.
+
+![](../releases/v4.3.0/vehicles-terrain.png)
+
+*A wagon on a forest road, and what the terrain and the driver each did to its
+pace.*
 
 A wagon on ground that wheels cannot enter without a road is **stopped**, not
 slow, and says so.
@@ -69,6 +90,11 @@ hull to fix a speed the missing rowers were costing.
 
 At nothing left she cannot move under her own power and goes down in 1d10
 rounds.
+
+![](../releases/v4.6.0/vehicles.png)
+
+*A holed longship: her hull, her twelve-hour day beside its hour, which of
+casualties and damage governs her speed, and what a repair would cost.*
 
 **Repairs** are hand work: five of the crew, one turn, one point, doing nothing
 else meanwhile. Only **half** of what she took at sea can be put back before she

@@ -57,6 +57,10 @@ hundreds of them, and creating hundreds of actors would be unusable.
 hireling with its loyalty and morale standing, the wage ledger, and the event
 history each score is computed from.
 
+![](../releases/v3.0.0/henchmen-roster.png)
+
+*An employer's roster tab: who is hired, on what terms.*
+
 The Judge adds permanents (a rescue, a betrayal), and can mark an entry
 **Compensated** — it stays on record but stops scoring.
 

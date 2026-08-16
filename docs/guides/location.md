@@ -4,9 +4,9 @@ A **place** is anything that holds things: a duchy, a town, an inn, its cellar,
 and the chest in the cellar. They nest, they hold goods and living things, and
 some of them have a recruitment market. One actor type covers all of it.
 
-![](../releases/v1.0.0/location-sheet.png)
+![](../releases/v4.0.0/location-sheet.png)
 
-*Goods kept at The Rusty Anchor, grouped by whose they are.*
+*A place that holds goods, and who is recorded there.*
 
 ## Make a place
 
@@ -22,6 +22,14 @@ whole of the minimum: identity, and what it sits inside.
 - **Roster** — the living things kept here: a garrison, a stabled horse, a
   captive. These are references to real actors, so a deleted actor leaves a
   struck-through row rather than vanishing.
+
+A place also keeps a private record beside its shared one, which only the Judge
+can read.
+
+![](../releases/v4.1.0/location-judge-notes.png)
+
+*A place's private record, beside the shared one and readable only by the
+Judge.*
 
 If the place is a map you already have, link it: **Scene config → Location**, or
 right-click the scene in the sidebar. The link is never made automatically —
@@ -42,6 +50,20 @@ Goods are grouped by **whose they are**, because a warehouse holding three
 characters' gear is three inventories in one actor, not a shared pile. Each
 character sees a **Retrieve** button on their own rows; the GM sees it on all of
 them.
+
+![](../releases/v4.0.0/location-storage-manager.png)
+
+*Moving goods in and out of a place that holds them, and giving a character a
+vault.*
+
+One of those piles is **the house** — what the place itself owns rather than
+what somebody left there. The Judge can lock a row so it cannot be taken, and a
+spoil that has not been valued yet sits there awaiting its throw.
+
+![](../releases/v4.0.0/location-house-pile.png)
+
+*A location's own coin and stock: the Judge's locks, and a spoil awaiting its
+throw.*
 
 Stored goods are real items on the location actor, so an item that has left a
 character genuinely stops weighing on them. Stowing is a **move, not a copy**:

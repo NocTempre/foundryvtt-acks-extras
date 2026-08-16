@@ -4,7 +4,10 @@ Buy and sell equipment at any settlement with a market, at ACKS II
 availability and prices — with merchant imports, commissions, directed
 searches, the magic-item market, and mercantile ventures.
 
-> Screenshots land here with the next release.
+![](../releases/v4.0.0/markets-trade-tab.png)
+
+*The Trade tab: the catalog with live monthly availability at the settlement's
+class, demand chips, search day and masterwork contact.*
 
 ## Setup
 
@@ -17,6 +20,10 @@ searches, the magic-item market, and mercantile ventures.
 3. Optional: **Configure parties** (module settings) if more than one group
    trades separately; otherwise the whole table is one party.
 
+![](../releases/v4.0.0/markets-parties.png)
+
+*The per-party roster behind availability.*
+
 ## Buying and selling
 
 The Trade tab lists every priced item known to the world and its
@@ -28,6 +35,11 @@ shopping day that doubles the month's purchases. Purchases stack: countable
 gear merges, and thirty swords arrive as one bundle you can drag out to
 distribute. Sell offers your own priced goods at their condition-reduced
 value; sold goods leave play.
+
+![](../releases/v4.0.0/markets-purchase-dialog.png)
+
+*The purchase dialog: buyer, quantity, hub sourcing with its 2d6 risk, and the
+merchant's Bargaining profile.*
 
 A **search day** (button on the toolbar) spends another dedicated day
 looking: your party's caps rise by one base increment and scarce goods get
@@ -43,13 +55,35 @@ If the market cannot supply an item:
 - **Commission it** (hammer on the row): a craftsman builds it at their
   construction rate; wages paid up front, delivery on completion.
 
+![](../releases/v4.0.0/markets-commission.png)
+
+*The commission dialog: buyer, quantity, and who builds it at the imported
+construction rates.*
+
 Masterwork gear appears only where the Judge toggles the **masterwork
 contact** on (Trade tab, GM button).
+
+## Changing coin
+
+**Change coin** turns one denomination into another at face value: pick the
+stack, say how many, and pick what you want them as.
+
+![](../releases/v4.0.0/markets-exchange.png)
+
+*The market changer: denominations at face value.*
+
+It is a market's service rather than a party's, so it is refused where no market
+stands.
 
 ## Magic items
 
 The equipment sheet's Construction tab carries the magic panel: the GM
 marks an item magical with its kind, rarity, apparent value, and base cost.
+![](../releases/v4.0.0/markets-magic-item.png)
+
+*The magic panel on an item's Construction tab: kind, rarity, apparent value,
+identification.*
+
 Unidentified items trade at apparent value. Identification runs the JJ
 ladder — trial by use, sipping, a day's training, Alchemy, Arcane Dabbling,
 Magical Engineering, Loremastery, magic research — through any qualified
@@ -57,6 +91,11 @@ character or henchman; failures wait for a level. Fully identified items
 sell at base cost (double for their maker) and buy at 225%.
 
 ## Mercantile ventures
+
+![](../releases/v4.0.0/markets-ventures.png)
+
+*The ventures block: in-market status with impact, and the dedicated-day
+actions.*
 
 Ventures run on dedicated days that resolve as game time passes:
 

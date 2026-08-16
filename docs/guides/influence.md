@@ -4,9 +4,10 @@ A social roll with its whole modifier stack visible before you commit to it —
 who is rolling, against whom, in what tone, and exactly what is adding to the
 number.
 
-![](../releases/v1.0.0/influence-dialog.png)
+![](../releases/v4.0.0/influence-bribe.png)
 
-*A social roll with every modifier itemized before you commit.*
+*A social roll with its modifier stack itemized — here with a bribe armed, which
+only moves gold the payer actually has.*
 
 ## Make a roll
 

@@ -10,18 +10,18 @@ A monster opens on its **card** — the half-page you fight from. Attacks and
 their damage, the creature's powers, and its spells by level, in a window a
 little over half the height of the full block.
 
-![](../releases/v2.2.0/monster-card.png)
+![](../releases/v3.0.0/monster-card.png)
 
-*What a monster opens on.*
+*What a monster opens on: attacks, powers and spells on one page.*
 
 A power or spell whose entry carries prose has a **speech bubble** beside it.
 Click it and the whole entry goes to chat, so the table reads "Terrifying
 Visage" instead of waiting for someone to find the book. Rolling is separate and
 still sits on its own d20, and a power with no prose gets no button.
 
-![](../releases/v2.2.0/monster-card-chat.png)
+![](../releases/v3.3.0/monster-card-chat.png)
 
-*What the table sees.*
+*A named power posted to chat for the table to read.*
 
 Everything else is one click away on **Expand** in the window header. If you
 would rather land on the full block, set it once under **Sheet Configuration**
@@ -30,9 +30,10 @@ on any monster — that choice is yours and this module will not move it again.
 
 ## The sheet
 
-![](../releases/v2.2.0/monster-sheet.png)
+![](../releases/v4.0.0/monster-defences.png)
 
-*The extended stat block, one click behind the card.*
+*The extended stat block's Defenses tab, one click behind the card: the silver
+flaw beside Mundane and Extraordinary.*
 
 **Expand** from the card, or open an **animal** actor, and this is the sheet you
 get. An animal's combat block uses the monster's own field paths, and the
@@ -63,11 +64,23 @@ non-character actors, so the module wires the retainer fields directly.
 Animals are typed here too, which is what lets the group and mount features tell
 an animal from a person.
 
+What a beast can carry, and who is riding it, sit on the extended block with the
+rest of its body.
+
+![](../releases/v4.0.0/monster-load-rider.png)
+
+*The capacity primitive on the sheet: carried weight, MM loads, and the rider
+named.*
+
 ## Groups of monsters
 
 A monster's **number appearing** sizes a group: the group feature reads it into a
 dice formula, but nothing auto-rolls it — the Judge decides when a group is
 sized. A source with no ecology data returns nothing, and you type the size.
+
+![](../releases/v3.0.0/group-sheet.png)
+
+*A retinue kept as one document rather than a dozen.*
 
 ## Common problems
 

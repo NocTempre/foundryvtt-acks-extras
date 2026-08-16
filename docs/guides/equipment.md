@@ -4,9 +4,11 @@ The character sheet's inventory grows containers, wear locations and hand
 accounting. Core's own rows are moved into place rather than rebuilt, so every
 control you already knew keeps working.
 
-![](../releases/v1.0.0/equipment-inventory.png)
+![](../releases/v3.3.0/equipment-light-controls.png)
 
-*A character inventory with containers and wear buckets.*
+*The inventory: what is worn and wielded, what is stowed, hands read 1/2 because
+the lit lamp is holding one of them — and the lantern's own light controls on
+the row where the gear already is.*
 
 ## Wear and hands
 
@@ -33,11 +35,6 @@ The difference is what happens next. A party's lights belong to the marching
 order, which burns them down as the dungeon turns pass and warns you when one is
 about to go out. A light struck alone has no dungeon turn to burn against, so it
 stays lit until you put it out.
-
-![](../releases/v1.3.0/equipment-light-controls.png)
-
-*Tam's lantern, with its light controls on the row. Hands read 1/2 — the lit
-lamp is holding one of them.*
 
 Players use these on their own characters: the click is declared to the Judge's
 client, which checks the character is yours and carries it out, and the table
@@ -73,6 +70,10 @@ it fills this in for everything a character (or the whole world) owns:
 | a slot | this is where it sits, whatever it is called |
 | *Carried — worn nowhere* | it is not worn at all — and this **overrides the name**, so a "Great Helm" you have ruled to be a trophy stays a trophy |
 
+![](../releases/v3.3.0/equipment-slot-picker.png)
+
+*Where a piece of gear is worn, what it holds, and what reaching into it costs.*
+
 A slot's only rule is that you cannot wear two of the same thing, so a wrong
 guess costs nothing but that. Rings are the exception the Treasure Tome spells
 out: you benefit from **two**, and a third stops all of them working.
@@ -91,6 +92,11 @@ happens.
 | *Silvered* | plate this weapon now: 10× the listed price |
 | *Not silvered* | it is not silver whatever it is called |
 
+![](../releases/v3.3.0/equipment-item-sheet.png)
+
+*A silvered weapon's Construction tab: the Silver control, and what the plating
+buys.*
+
 What silver buys is not a bonus — it is what the blade **counts as**. A monster
 whose defence has the silver flaw treats it as magic, and the spells that turn
 aside mundane damage do not turn it aside. Mark the flaw on the monster's
@@ -100,6 +106,15 @@ aside mundane damage do not turn it aside. Mark the flaw on the monster's
 Masterwork is a separate thing and does not help here: it buys +1 to hit or
 damage, never the ability to harm something that shrugs off ordinary weapons.
 The sheet says so under the tier picker.
+
+![](../releases/v4.9.0/equipment-masterwork-tier.png)
+
+*A shipped sample's Construction tab naming the tier it is, with the net effect
+against its base price.*
+
+![](../releases/v3.3.0/equipment-silver-ammo.png)
+
+*Plain and silver stacks side by side; the silver one declared for firing.*
 
 **Silver arrows are never spent by accident.** With both plain and silver
 ammunition in your pack, shots come out of the plain stack until it is empty, and
@@ -206,6 +221,13 @@ while wielding, not on the wielder's absolute level), masterwork and scavenged
 condition, enclosing helms, JJ shield variants and combat maneuvers. Each is a
 separate setting.
 
+An item made from another wears a badge naming what it was made from, so an
+embellished blade is never mistaken for the plain one it copies.
+
+![](../releases/v3.3.0/classes-skin-badge.png)
+
+*A skinned item's badge naming its base, with the embellishment set apart.*
+
 ## What is on which tab of an item
 
 An item sheet opens on **Description**, with core's own stats column beside the
@@ -214,6 +236,11 @@ quantity. **Construction** holds what the thing *is*: masterwork, condition,
 material, shield variant, helmet. Identity — a named item's tracker, and the
 Judge's apparent-identity mask — rides the header rather than a tab, because an
 item wears its identity everywhere.
+
+![](../releases/v3.7.0/equipment-armour-sidebar.png)
+
+*AC and armour type beside the prose that describes it, with no Rolls tab to
+hunt through.*
 
 **Rolls appears on weapons only**, and holds core's throw fields: damage, attack
 bonus, melee or missile, range and save. Nothing else in the inventory throws
