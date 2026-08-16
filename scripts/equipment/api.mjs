@@ -19,6 +19,10 @@ import { isSilvered, canBeSilvered, setSilvered, dealsExtraordinaryDamage } from
 import { maneuverMods, MANEUVERS } from "./overlays/maneuvers.mjs";
 import * as named from "./overlays/named.mjs";
 import { consumeForAttack, recoverThrown, isThrownAway, consumeItem, nockAmmo } from "./ammo.mjs";
+import * as variationRules from "./variations.mjs";
+import * as variationActions from "./variation-actions.mjs";
+import { BASE_TYPE, baseTypesFor } from "./base-types.mjs";
+import { baseTypeFields, dataFields, definitionOf, definitionsFor, hasDefinitions } from "./variation-defs.mjs";
 import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised } from "./actions.mjs";
 import { cycleStrap, strapOf, canStrap } from "./overlays/shield-variants.mjs";
 import { helmetType, isEnclosingHelm, enclosingHelmActive, HELM_MODIFIERS } from "./overlays/enclosing-helm.mjs";
@@ -211,6 +215,20 @@ export function buildApi() {
     drawItem,
     sheatheItem,
     setMasterwork,
+    // VARIATIONS — the open-ended half of "how does this one differ". The
+    // legacy setters above stay while worlds still carry the three flags they
+    // write; a variation needs no setter of its own, which is the point.
+    variations: {
+      ...variationRules,
+      ...variationActions,
+      BASE_TYPE,
+      baseTypesFor,
+      definitionOf,
+      definitionsFor,
+      hasDefinitions,
+      baseTypeFields,
+      dataFields,
+    },
     masterworkTiersFor,
     scavengeItem,
     clearScavenged,

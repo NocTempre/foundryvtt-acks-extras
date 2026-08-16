@@ -187,3 +187,51 @@ loadout summary shows what is occupying what.
 
 **A torch is an item, not a weapon.** Correct: a torch is carried as a stack and
 becomes a 1d4 weapon only when one is readied for use.
+
+## What an item is, and how this one differs
+
+### This item is…
+
+The Construction tab now asks what the item **is** — a weapon, armour, a shield,
+clothing, gear, food, a gem, a coin, a trade good. It offers only what that item
+could sensibly be, because the system reads real numbers off some of those and
+a gem cannot quietly become a suit of plate.
+
+You do not have to answer. Anything you leave alone is worked out from its name
+the way it always was, so nothing you already own changes. Answering just stops
+the guessing.
+
+### Variations
+
+Below that is a list of the ways **this particular one** differs from a plain
+example of its kind: masterwork, a notch from hard use, silver plating, a crest,
+a name. Add them from the picker, take them off with **Remove**.
+
+An item can carry any combination that is not two versions of the same thing.
+One masterwork tier, one condition, one shield shape — but a scavenged
+masterwork silvered buckler is four different things and perfectly ordinary to
+own. If something is refused, it says which of the existing ones objected.
+
+### Concealing one
+
+**Conceal** hides a variation from the players. They see the item without it and
+priced without it, while it goes on working exactly as before — a disguised
+magic sword still swings like a magic one. **Reveal** puts it back, and that is
+all identifying an item is.
+
+A concealed row is shown dimmed and italic on your own sheet, so you can see at
+a glance what the table is not being shown.
+
+### Where they come from
+
+Variations are **not shipped with the module**. They come from your own books
+through `acks-importer`, which does not build them yet — until it does, the list
+says so rather than showing you an empty picker. The masterwork, silver and
+shield-variant controls above are the old way of doing this; they still work and
+are untouched, and they will be folded into the list once the importer can
+supply it.
+
+While both exist, they can look like they disagree: a sword carrying a masterwork
+*variation* still reads "Masterwork: None" in the old dropdown, because that
+dropdown is asking about the old setting. The **Net effect** line counts both and
+is right either way.

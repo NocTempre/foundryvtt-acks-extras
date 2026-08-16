@@ -1,5 +1,41 @@
 # Changelog
 
+## 4.10.0
+
+An item can say what it is, and carry a list of the ways this one differs.
+
+### Added
+- **Items declare what they ARE.** A new field on the Construction tab names the
+  base type — weapon, armour, shield, clothing, gear, food, gem, coin, trade
+  good — and it offers only what that item could sensibly be. Until now the
+  answer was guessed from the item's NAME: sixteen patterns deciding whether
+  something was a garment, a table of container names deciding whether it held
+  anything. **Nothing changes for items you already have**: the guess still runs
+  for anything undeclared, and declaring simply stops it guessing.
+- **Variations: a list of the ways one item differs from its plain self.** Add
+  them, conceal them, take them off, in one place and with one set of controls
+  however different they are from each other. An item may carry any combination
+  that is not two versions of the same thing, so a scavenged masterwork silvered
+  buckler is an ordinary thing to own.
+- **Concealed variations, and what an item appears to be worth.** Conceal one
+  and the players see the item without it — described without it and priced
+  without it — while it goes on working in full. Revealing it is what
+  identifying an item is. This is the groundwork for magic items that arrive
+  unidentified.
+
+### Not yet
+- **No variations ship with the module**, and none is invented: they come from
+  your own books through `acks-importer`, which does not build them yet. Until
+  it does the list says so plainly rather than showing you an empty picker. The
+  masterwork, silver and shield-variant controls you already use are untouched
+  and keep working.
+- **The old controls and the new list sit side by side for now, and can disagree
+  on their face.** A sword carrying a masterwork VARIATION still shows
+  "Masterwork: None" in the old dropdown, because that dropdown reads the old
+  flag and the variation is not one. Both feed the same calculation, so the Net
+  effect line is right either way — but the two will not be reconciled until
+  the migration moves the old flags onto the list.
+
 ## 4.9.2
 
 ### Fixed

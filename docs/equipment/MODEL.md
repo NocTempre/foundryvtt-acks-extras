@@ -235,3 +235,49 @@ in-memory `slots` object and issues a single `setFlag`, because that flag write
 fires `updateActor`, which the doll answers with a re-render, which calls the
 reconciler back. One write per item made opening a doll a write→render→reconcile
 storm; one write per pass settles in a single no-op follow-up.
+
+## Base types and variations
+
+**What an item IS** is a flag, not a document type: `flags["acks-extras"].baseType`
+naming one of weapon, armour, shield, clothing, gear, food, gem, coin or trade
+good. It REFINES the document type rather than replacing it — core's `actor.mjs`
+derives AC, initiative and encumbrance straight from `item.type`, so plate stays
+an `armor` document and a gem is an ordinary `item`. `BASE_TYPE_DOCUMENTS` says
+which flag may sit on which document, and a base type its document cannot carry
+is refused whether it was declared or guessed.
+
+For items that predate the flag, `base-type-infer.mjs` still guesses from the
+name using the same clothing patterns and gear profiles the rest of the feature
+reads. The declared flag always wins. The guess retires once the migration has
+run and the importer sets base types on what it materialises.
+
+**How one item DIFFERS** is a list: `flags["acks-extras"].variations`, holding
+`{id, key, hidden, read, data}` entries. It behaves like an inventory — add,
+remove, update — with one verb set for every kind of difference.
+
+- **Conflict is derived from the key's namespace.** Two entries clash when their
+  keys share a prefix, so an item has one masterwork tier and one shield form,
+  while a scavenged masterwork silvered buckler is four families and legal.
+  Nothing is authored, so nothing can be authored wrong. A printed cross-family
+  rule is a definition's `supersedes` and is enforced in both directions.
+- **Definitions are imported**, never shipped: `variation-defs.mjs` reads them
+  from acks-lib's ruledata registry. A world that has imported nothing offers no
+  variations, and the sheet says so.
+- **`hidden` and `read` are different questions.** Hidden is whether they know
+  it is there; read is whether they know what it means. An inscription in a
+  language nobody present has is visible and unread — not hidden.
+- **Hidden governs presentation, never mechanics.** Deltas count every entry, so
+  a disguised magic sword still hits as one. True and apparent value come from
+  one resolution over two subsets, so the price is never stored twice.
+- **Conditional value is gathered, never applied.** Who the buyer is and what a
+  crest is worth to them are facts the world holds; the module offers the claim.
+
+`layerDeltas` sums variation entries alongside the three legacy flags into one
+delta set, sharing the cost order documented above — which is what will stop a
+masterwork flag and a masterwork entry double-counting when the migration moves
+one onto the other.
+
+**Field specs** (`lib/field-spec.mjs`) are how both a base type's metadata and a
+variation's own storage get rendered without being shipped: a definition
+declares its fields as data and one renderer builds the form. A spec naming a
+kind this version cannot render is reported by name rather than dropped.
