@@ -49,6 +49,26 @@ Three small controls appear beside the class field:
 *Rolling a starting template: the attribute rule and the scores, the class
 above the template die, and what is left to choose.*
 
+The graduation cap opens the same three-column page for a character who is
+already played: the level being set and the ladder picks that come with it, the
+class and its optional starting package, and each choice that level owes.
+
+![Class picker](../releases/v4.11.0/classes-picker.png)
+
+*Binding a class to a played character. The starting package is opt-in and
+defaults to none — it is ADDED to what the character already holds rather than
+replacing it, because binding a class to someone who has been adventuring is the
+opposite act to generating them.*
+
+**A proficiency you already have is an answer.** Each choice lists what the
+character already holds first, and picking it closes the choice and grants
+nothing — you no longer have to take something unwanted and delete it
+afterwards. Beside the options sit *already covered*, for the proficiency the
+choice never listed, and *leave open*, the one answer that closes nothing and
+asks again next time. A choice answered anywhere — here, at level-up, or during
+character generation — is remembered, so re-applying a class does not walk a
+5th-level character through every decision they have ever made.
+
 Casters get a per-tradition slot strip under the class field — click a pip to
 spend, click a spent pip to refund, the bed icon to rest. The Nobiran's
 arcane and divine pools sit side by side.

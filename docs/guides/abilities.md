@@ -4,9 +4,9 @@ The system's own `ability` item, given a real model: several throws instead of
 one, targets that scale with level or rank, and selections that light up the
 matching proficiency pills.
 
-![](../releases/v1.0.0/ability-sheet.png)
+![](../releases/v3.0.0/ability-sheet.png)
 
-*An ability item with its rolls and mechanics tabs.*
+*An ability item's sheet, with its rolls and mechanics.*
 
 ## The sheet
 
@@ -18,6 +18,13 @@ Open any **ability** item. Beyond core's fields:
 - **Rolls** — every throw the ability makes.
 - **Selections** — the picks a proficiency of this category can take.
 
+On the character sheet the ability list files itself, so a long proficiency list
+is not one scroll.
+
+![](../releases/v3.3.0/classes-category-tabs.png)
+
+*The ability list's filter bar: fighting, thief skills, general, powers.*
+
 ## Multiple rolls
 
 Core stores **one** roll per ability, so every route into a roll — the sheet's
@@ -27,6 +34,10 @@ The same ability rolled differently depending on where you clicked.
 
 This module owns the ability roll path and routes all of them to the same place.
 Add as many throws as the ability has; they all work from everywhere.
+
+![](../releases/v3.4.0/abilities-throws.png)
+
+*Every throw an ability offers, each rolling its own.*
 
 ## Typing in a throw
 
@@ -41,10 +52,11 @@ The window that opens holds everything about that one throw — what it is calle
 what it rolls, whether the result must reach the target or stay under it, and
 when it applies. Changes save as you make them; there is no Save button.
 
-![](../releases/v1.3.0/ability-roll-editor.png)
+![](../releases/v3.3.0/ability-roll-editor.png)
 
-*Animal Husbandry's diagnosis throw as the book prints it: read at rank, and a
-level table of three steps — 11+ at one rank, 7+ at two, 3+ at three.*
+*One throw's window: what it is called, what it rolls, whether the result must
+reach the target, and what it is read against — with the line at the foot
+working the answer out for the character holding it.*
 
 **Read At** is the thing to get right. Most throws are read against class level;
 the proficiencies the books rate by how many times they were taken — Animal
@@ -68,6 +80,11 @@ change negative. *Progression* is for a throw the book rates off another class's
 table — the table itself is not carried yet, so the sheet shows the progression
 instead of a number.
 
+![](../releases/v4.8.0/abilities-ladder-picker.png)
+
+*A progression throw naming a ladder the class publishes, beside the
+attack-throw default.*
+
 **An ability with no roll shows itself instead of rolling.** Core intends this,
 but tests a field that defaults to `"1d20"` and is therefore never empty — so a
 proficiency that makes no throw used to post a d20 against a target of 0.
@@ -82,6 +99,10 @@ can see what the roll assumed. A throw on a shared compendium item says so
 instead of scoring itself, because there is no character to read its ladder
 against.
 
+![](../releases/v3.7.0/abilities-throw-card.png)
+
+*A throw posted on the system's own card: banner, portrait, condition, verdict.*
+
 ## Selections
 
 Some proficiencies are not finished until you say WHICH: Weapon Focus names a
@@ -90,6 +111,11 @@ manoeuvre, Art/Craft a discipline. Those abilities show a box per printed
 choice, and ticking one is guaranteed to light the matching proficiency pill —
 the keys are the same ones the profile strips match on, so a pick you tick is a
 pick the rules actually read.
+
+![](../releases/v3.9.0/combat-trickery.png)
+
+*A proficiency's Mechanics tab: classification, the selections a grant reads,
+and its Active Effects.*
 
 **The open families start with no boxes at all.** Art/Craft, Profession, Labor
 and Performance offer nothing out of the tin, because what a craft or a
@@ -113,6 +139,11 @@ Trickery, Elementalism — take no additions, because each entry drives a rule t
 module resolves and a sixth fighting style would be a box that changes nothing.
 Languages are not on this list either: they are documents you fill slots with,
 not words you tick.
+
+![](../releases/v4.10.1/abilities-language-slots.png)
+
+*The open slots a character still has, and the tongue one of them bought — a
+real language document on the character.*
 
 **Imported characters keep their picks.** A template that says
 "Fighting Style Spec. (weapon & shield)" ticks *Weapon & Shield*, and one that

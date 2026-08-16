@@ -8,9 +8,13 @@ If that is not what you want, **ACKS look → System style** turns all of it off
 Start there; the rest of this page describes the settings that shape the book
 look, and they only apply while you are using it.
 
-![](../releases/v2.0.0/character-sheet-dark.png)
+![](../releases/v4.0.0/character-sheet-dark.png)
 
-*The system's own character sheet on a dark seat, wearing the ACKS frame.*
+*The system's own character sheet on a dark seat, in the ACKS palette.*
+
+![](../releases/v4.0.0/character-sheet.png)
+
+*The same sheet on a light seat: ruled page, boxed write-in fields.*
 
 ## Turn the ACKS look off
 
@@ -47,6 +51,10 @@ player; it changes nothing for anyone else at the table.
 | **Follow Foundry** (default) | Matches whatever colour scheme the rest of your client uses |
 | **Always light** | Parchment, whatever Foundry is set to |
 | **Always dark** | Tooled leather, whatever Foundry is set to |
+
+![](../releases/v3.3.0/settings-colour-scheme.png)
+
+*The per-player setting that holds the ACKS look steady.*
 
 Follow Foundry genuinely follows. Foundry lets you theme application windows
 separately from the rest of the interface (**Configure Settings → Core → Colour
@@ -90,6 +98,19 @@ seat it could put ACKS panels on a page drawn for a light one. **ACKS look →
 System style** is the opt-out done properly — everything stands down together, so
 there is no half-dressed state to land in, and nothing is left picking its
 colours from a different scheme than the window around it.
+
+## Where the ACKS compendia live
+
+The **Compendium Packs** sidebar gathers every ACKS pack under one folder —
+this module's, the other modules in the family, and the system's own — instead
+of leaving them loose at the root among everything else installed.
+
+![](../releases/v4.9.0/lib-compendium-folder.png)
+
+*Every ACKS pack under one folder, rather than loose at the root.*
+
+The folder is matched by name, so every ACKS module declaring it lands in the
+same one rather than each making its own.
 
 ## Colour is never the only signal
 

@@ -154,6 +154,51 @@ is required.
 Configure a character with its Class Training items and the gate is correct. The
 `proficiencyEnforcement` setting has `auto` and `off` if you would rather not.
 
+## Variations
+
+A **variation** is one way an item differs from its plain self: masterwork, a
+silvering, a notch taken out of the edge, a stranger's crest, a name. Each is a
+document, and you put it on an item the way you put a rope in a backpack — drag
+it onto the item, and it is listed on the item's **Construction** tab under
+*Applied variations* until you take it off.
+
+![Applied variations](../releases/v4.11.0/equipment-variations.png)
+
+Several can be true of one blade at once. Two of the same kind cannot: try to
+add a second masterwork and the refusal names the one already there. Each time
+anything changes, the item's attack bonus, damage, AC, weight and price are
+recomputed from its plain self, so what you see is always the sum of what is on
+it now — take everything off and the item is exactly what it was.
+
+**Conceal** hides a variation from the players. They see the item without it and
+priced without it, while everything it does still applies: a disguised magic
+sword hits as a magic sword. Revealing one is what identifying an item *is* —
+there is no separate step. **Legible** is the other question: an inscription in
+a tongue nobody present reads is seen and not understood.
+
+### Writing your own
+
+You do not need to have imported anything. Make a **Variation** item on the
+Items tab and fill it in: what it is, what it changes, what it costs, and who
+may know about it.
+
+![A variation itself](../releases/v4.11.0/equipment-variation-sheet.png)
+
+The **key** is the one field worth care. It is namespaced — `masterwork.weaponToHit`,
+`material.silver` — and everything before the first dot is the group. An item
+carries one variation from each group, so the group is what decides which of
+your variations exclude each other. Everything after the dot is yours to name.
+
+The three cost fields are applied in the order the rules use them: the item's
+listed price is scaled, the flat surcharge is added, then the whole is scaled.
+
+> **The old fields still work.** Masterwork, Silver and the shield variant are
+> still their own controls further up the same tab, with their own numbers.
+> Whichever of the two you use owns that kind of difference — put a masterwork
+> variation on an item whose Masterwork field is set and it is refused by name,
+> so the same change can never be counted twice. Those fields retire once the
+> importer can publish them as variations from your own books.
+
 ## Named items and overlays
 
 Optional overlays add: named-item rung tracking (advancing on levels gained

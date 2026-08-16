@@ -1,5 +1,61 @@
 # Changelog
 
+## 4.11.0
+
+An item's differences are documents you drag onto it, and a class stops hiding
+the answer you already have.
+
+### Added
+- **A variation is a document, and applying it is putting it inside the item.**
+  Masterwork, silver plating, a notch, a stranger's crest, a name — each is an
+  `acks-extras.variation` Item, and it goes onto a sword the way a rope goes
+  into a backpack: drag it on, and it is listed under what it changed until you
+  take it off. Several can be true of one blade at once, and two of the same
+  kind cannot: the refusal names the one already there. The item's attack bonus,
+  damage, AC, weight and price recompute from its plain self every time, so the
+  numbers are always the sum of what is on it now.
+- **A variation has its own sheet**, so a Judge with no imported book writes
+  one: what it is, what it changes, what it costs, and who may know about it.
+  Nothing about variations waits on an import.
+- **Hidden and legible are separate questions.** A concealed variation still
+  does everything it does — a disguised magic sword hits as a magic sword — but
+  the players see the item without it and priced without it. An inscription in
+  a tongue nobody present reads is visible and not understood, which is a
+  different state again.
+- **The Judge can be asked for a proficiency the character already has.**
+  Applying a class offered, for each choice, only proficiencies the character
+  did NOT hold, so a rung whose real answer was "I have that" had no truthful
+  answer and the way through it was to pick something unwanted and delete it
+  afterwards. A held option is now shown and grouped first; choosing it closes
+  the choice and grants nothing. Beside the options sit "already covered", for
+  the proficiency the rung never listed, and "leave open", the one answer that
+  closes nothing.
+- **A starting package can be chosen when a class is bound from the picker** —
+  the gap a character bound from their own sheet fell into. Opt-in, defaults to
+  none, and it is added to what the character already holds rather than
+  replacing it.
+
+### Changed
+- **The class picker is the Scores Generator's own layout.** The column for
+  attribute dice gives way to the level being set and the ladder picks that come
+  with it, then the class and its starting package, then the opening choices —
+  so one question is worded one way wherever it is asked.
+- **A choice answered anywhere is remembered.** The level-up wizard and
+  character generation now record an answered rung the way the picker does, so a
+  character levelled to 5th no longer meets every choice they ever made a second
+  time when their class is re-applied.
+
+### Removed
+- 4.10.0's variation entry list, replaced whole by the documents above. It
+  shipped as groundwork with no interface and no way to create an entry except
+  through the API, and an entry was only a key — the definition it needed lived
+  in a register no world had filled. Converting one would have produced an empty
+  document, so nothing is converted. **Not yet:** the masterwork, silver and
+  shield-variant fields on the Construction tab still work as they did, and
+  still hold their own numbers. Until the importer can publish those as
+  documents, whichever of the two you use owns that kind of difference — the
+  other is refused by name so the same change can never count twice.
+
 ## 4.10.4
 
 ### Added
