@@ -20,18 +20,6 @@
  * its own, this file should be deleted in favour of contributing to it.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
-import { baseTypesFor } from "./base-types.mjs";
-import { addRefusal } from "./variations.mjs";
-import { definitionOf, definitionsFor, hasDefinitions, labelOf, noDefinitionsNotice } from "./variation-defs.mjs";
-import {
-  addVariation,
-  concealVariation,
-  itemBaseType,
-  listVariations,
-  removeVariation,
-  revealVariation,
-  setBaseType,
-} from "./variation-actions.mjs";
 import { WEAR_ICONS, SHIELD_VARIANTS } from "./config.mjs";
 import { getLoadout, cycleGrip, heldHandsClause } from "./loadout.mjs";
 import {
@@ -949,66 +937,6 @@ export function buildConstructionPanel(item) {
       (v) => setGearAccess(item, v),
     ));
   }
-  /* ---------------- BASE TYPE + VARIATIONS ---------------- */
-  //
-  // What the item IS, and the list of ways this one differs. The base type
-  // picker offers only what the DOCUMENT can carry — core reads AC off armour
-  // documents, so a gem may not claim to be one — and the variations below are
-  // an inventory: rows that are added to and taken off, one verb set whatever
-  // kind of difference they are.
-  const declaredType = itemBaseType(item);
-  const typeOptions = baseTypesFor(item.type);
-  if (typeOptions.length > 1) {
-    row("ACKS-EQUIPMENT.variations.baseType", select(
-      typeOptions.map((t) => ({ value: t, label: game.i18n.localize(`ACKS-EQUIPMENT.baseType.${t}`) })),
-      declaredType,
-      (v) => setBaseType(item, v),
-    ));
-  }
-
-  const entries = listVariations(item);
-  const available = definitionsFor(declaredType).filter(
-    (def) => !addRefusal(entries, def, { baseType: declaredType, define: definitionOf }),
-  );
-
-  if (!hasDefinitions()) {
-    // Nothing imported. Saying so is the honest answer — an empty picker reads
-    // as "this item can have no variations", which is a different claim.
-    const note = el("p", "acks-equipment-props__note", noDefinitionsNotice());
-    section.append(note);
-  } else if (available.length) {
-    const picker = select(
-      [{ value: "", label: game.i18n.localize("ACKS-EQUIPMENT.variations.addPrompt") },
-        ...available.map((d) => ({ value: d.key, label: labelOf(d.key) }))],
-      "",
-      (v) => v && addVariation(item, v),
-    );
-    row("ACKS-EQUIPMENT.variations.add", picker);
-  }
-
-  for (const entry of entries) {
-    const line = el("div", "acks-equipment-props__row acks-equipment-variation");
-    const label = el("label", "acks-equipment-props__label", labelOf(entry.key));
-    if (entry.hidden) label.classList.add("is-hidden-variation");
-    line.append(label);
-
-    const controls = el("div", "acks-equipment-variation__controls");
-    // Hiding is what an unidentified item IS, so the control is a plain toggle
-    // rather than a separate identification flow.
-    controls.append(button(
-      game.i18n.localize(entry.hidden ? "ACKS-EQUIPMENT.variations.reveal" : "ACKS-EQUIPMENT.variations.conceal"),
-      entry.hidden ? "ACKS-EQUIPMENT.variations.revealHint" : "ACKS-EQUIPMENT.variations.concealHint",
-      () => (entry.hidden ? revealVariation(item, entry.id) : concealVariation(item, entry.id)),
-    ));
-    controls.append(button(
-      game.i18n.localize("ACKS-EQUIPMENT.variations.remove"),
-      "ACKS-EQUIPMENT.variations.removeHint",
-      () => removeVariation(item, entry.id),
-    ));
-    line.append(controls);
-    section.append(line);
-  }
-
   return section;
 }
 

@@ -2,39 +2,27 @@
 
 ## 4.10.0
 
-An item can say what it is, and carry a list of the ways this one differs.
+Groundwork. Nothing on a sheet changes.
 
 ### Added
-- **Items declare what they ARE.** A new field on the Construction tab names the
-  base type — weapon, armour, shield, clothing, gear, food, gem, coin, trade
-  good — and it offers only what that item could sensibly be. Until now the
-  answer was guessed from the item's NAME: sixteen patterns deciding whether
-  something was a garment, a table of container names deciding whether it held
-  anything. **Nothing changes for items you already have**: the guess still runs
-  for anything undeclared, and declaring simply stops it guessing.
-- **Variations: a list of the ways one item differs from its plain self.** Add
-  them, conceal them, take them off, in one place and with one set of controls
-  however different they are from each other. An item may carry any combination
-  that is not two versions of the same thing, so a scavenged masterwork silvered
-  buckler is an ordinary thing to own.
-- **Concealed variations, and what an item appears to be worth.** Conceal one
-  and the players see the item without it — described without it and priced
-  without it — while it goes on working in full. Revealing it is what
-  identifying an item is. This is the groundwork for magic items that arrive
-  unidentified.
+- **Items can record what they ARE** — weapon, armour, shield, clothing, gear,
+  food, gem, coin, trade good — instead of it being guessed from their name.
+  Nothing is guessed differently yet: anything undeclared is still worked out
+  the way it always was, and there is no control to declare one with. This is
+  the vocabulary the rest of it needs.
+- **A model for the ways one item differs from a plain example of its kind**,
+  published on the equipment api: an ordered list an item carries, definitions
+  imported from your own books, and one resolution that answers both what the
+  item IS worth and what it APPEARS to be worth. Concealing a variation hides
+  it from the players and from the apparent price while it goes on working.
+- **The old masterwork, silver and condition controls are untouched** and feed
+  the same calculation, so nothing you own changes in any way.
 
 ### Not yet
-- **No variations ship with the module**, and none is invented: they come from
-  your own books through `acks-importer`, which does not build them yet. Until
-  it does the list says so plainly rather than showing you an empty picker. The
-  masterwork, silver and shield-variant controls you already use are untouched
-  and keep working.
-- **The old controls and the new list sit side by side for now, and can disagree
-  on their face.** A sword carrying a masterwork VARIATION still shows
-  "Masterwork: None" in the old dropdown, because that dropdown reads the old
-  flag and the variation is not one. Both feed the same calculation, so the Net
-  effect line is right either way — but the two will not be reconciled until
-  the migration moves the old flags onto the list.
+- **There is no interface for any of this, on purpose.** The definitions come
+  from `acks-importer`, which does not build them yet, so a list on the sheet
+  today would be a picker with nothing in it dressed up as a feature. The
+  interface ships when there is something behind it.
 
 ## 4.9.2
 

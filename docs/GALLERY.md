@@ -42,7 +42,6 @@ the next refresh.
 | Abilities | An ability item's sheet, with its rolls and mechanics | [guide](guides/abilities.md) | [v3.0.0](releases/v3.0.0/ability-sheet.png) |
 | Monster card | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/monster-card.png) |
 | Colour scheme | The per-player setting that holds the ACKS look steady | [guide](guides/appearance.md#pick-a-colour-scheme) | [v3.3.0](releases/v3.3.0/settings-colour-scheme.png) |
-| Item variations | The Construction tab: what the item IS, and the list of ways this one differs — with a concealed one shown dimmed and offering Reveal | [guide](guides/equipment.md) | [v4.10.0](releases/v4.10.0/equipment-variations.png) |
 | Masterwork tier | A shipped sample's Construction tab naming the tier it is, with the net effect against its base price | [guide](guides/equipment.md) | [v4.9.0](releases/v4.9.0/equipment-masterwork-tier.png) |
 | Compendium folder | Every ACKS pack — the modules' and the system's — gathered under one folder instead of loose at the root | [guide](guides/appearance.md) | [v4.9.0](releases/v4.9.0/lib-compendium-folder.png) |
 | Storage | Moving goods in and out of a place that holds them, and giving a character a vault | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-storage-manager.png) |

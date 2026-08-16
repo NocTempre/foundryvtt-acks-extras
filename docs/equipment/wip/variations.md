@@ -270,13 +270,23 @@ Per the template's 2026-08-15 lesson, the receiving end ships before the sending
 end is retired:
 
 1. **This design**, agreed.
-2. **`acks-extras` builds it**: the entry list, slot conflicts, hidden/apparent
+2. **`acks-extras` builds it** — DONE in 4.10.0, model only: the entry list, slot conflicts, hidden/apparent
    resolution, and the inventory API — with `layerDeltas` generalised over the
    entries. The three legacy flags keep working, still reading the shipped
    tables, so nothing regresses.
+   **No interface shipped with it, deliberately.** A first attempt put the
+   inventory on the Construction tab beside the masterwork and silver dropdowns
+   it is meant to replace, which showed masterwork twice — two answers to one
+   question, not a transition. The fix considered was to PROJECT the legacy
+   flags into the list as synthetic rows so there was one surface; the owner
+   rejected that as a UI mask, and rightly: it would have made the sheet look
+   like an inventory while the storage was still three separate flags, and the
+   picker would still have had nothing real in it. **The interface waits until
+   there is something behind it.**
+
 3. **`acks-importer` releases** variation definitions and the register that holds
    them, plus loot-table and template support for granting them. Released, in a
-   tag.
+   tag. **This is the next piece of work, and it is what unblocks the UI.**
 4. **`acks-extras` migrates** the legacy flags onto entries and deletes
    `MASTERWORK`, `SILVER` and `SHIELD_VARIANTS`. Carries a data migration.
 
