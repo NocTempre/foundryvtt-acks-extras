@@ -192,6 +192,64 @@ the players see a plain sword, and identifying it is un-hiding the entry rather
 than a separate mechanism. That is the same switch the magical variations will
 use, which is the point of having only one.
 
+### Appearance is not decoration
+
+The first draft filed cosmetic and aesthetic differences as the kind that
+*stacks freely and does nothing*. That is wrong twice over: a crest, an
+inscription or an embossing in a worked material changes **what the thing is
+worth**, and changes **what it is worth to whom**. Appearance is where a lot of
+a treasure's value actually lives, and it needs the same depth the mechanical
+kinds get.
+
+An appearance entry carries three separable things.
+
+**1. What it is made of, and how it is worked.** Silver embossing, gilding, gem
+inlay, fine engraving. This is worth what the materials and the labour are worth
+to anybody, so it is unconditional and goes through the `cost` slots already
+defined. Nothing new.
+
+**2. What it says or shows** — a crest, an inscription, a maker's mark. This is
+INFORMATION, and information can be present without being understood. An
+inscription in Zaharan is plainly an inscription to anyone who looks; what it
+SAYS needs the language, and reading needs literacy. `classes/languages.mjs`
+already models both (`LITERACY`, the slot system), so the entry names a language
+and the reader either has it or does not.
+
+That is a second axis, distinct from `hidden`, and both are needed:
+
+| | exists? | understood? |
+|---|---|---|
+| a concealed maker's mark under the grip | `hidden` | — |
+| an inscription in a script nobody present reads | visible | not read |
+| the same inscription, read by a Zaharan speaker | visible | read |
+
+`hidden` answers "do they know it is there"; `read` answers "do they know what
+it means". Conflating them would make an unreadable inscription invisible, which
+loses the whole texture of finding a sword covered in writing you cannot place.
+
+**3. Conditional value.** The crest of a house is worth a premium **to that
+house**, nothing to a stranger, and is evidence in the wrong hands. This does
+not fit `cost`, which is unconditional by construction, and it cannot be
+evaluated by the module: who the buyer is, what they owe, and whether carrying
+this into that city is a mistake are all facts the world holds and the schema
+does not.
+
+So a conditional claim is **surfaced, never silently applied**:
+
+```
+value.conditional: [ { audience, mul | add, note } ]
+```
+
+At a sale the market shows the Judge the claims that might bear on this buyer
+and lets them apply one. The module knows a claim EXISTS and what it would be
+worth; it does not decide that this merchant is a Ruinguard. That is the same
+line the trap riders are on — the module states the consequence and a human
+decides it has happened.
+
+**This is what makes provenance work at all.** A plain sword and the same sword
+bearing a dead lord's crest are the same weapon and not the same object, and
+until appearance carried value there was nowhere to put the difference.
+
 ### Who grants them
 
 - **The importer builds the register** of published variations from the GM's own
@@ -227,6 +285,13 @@ Steps 2 and 4 are separate releases deliberately.
 - **Scavenged labels are persisted into item flags** (a pre-merge decision), so
   migrating that kind means rewriting stored text or carrying two spellings.
 - **Gem quality** comes from a different chapter than the equipment qualities
-  and may want its own `appliesTo` vocabulary rather than an item type.
+  and may want its own `appliesTo` vocabulary rather than an item type. It is
+  also the second candidate for a `tab`, and it interacts with appearance: a cut
+  and set stone is quality *and* workmanship.
+- **What an `audience` is.** A conditional claim needs to name who it applies to
+  — a house, a culture, a faith, a city. The world may have no structured
+  vocabulary for any of those, in which case it is a Judge-read string and the
+  market only ever offers, never matches. Worth deciding before the market side
+  is built, not after.
 - **Whether an entry's `data` is free-form** or schema'd per definition. A gem's
   carat and a named weapon's name are both instance data with nothing in common.
