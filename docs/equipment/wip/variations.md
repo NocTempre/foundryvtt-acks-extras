@@ -79,7 +79,8 @@ variation is therefore allowed to contribute in one of two ways:
 ```
 key            "masterwork.weaponToHit"
 kind           quality | material | form | named | cosmetic | magical
-appliesTo      item types / tags this may go on
+appliesTo      BASE TYPES this may go on (base-types.md) — gem quality is for
+               gems, masterwork for weapons and armour
 deltas         { bonus, damage, ac, weight6 }   flat, when it is a constant
 cost           { baseMul, add, mul }   the three ordered slots above
 tab            this variation carries storage worth a tab of its own
@@ -131,6 +132,9 @@ this and the `slot` field the earlier draft invented: nobody authors it
 speculatively, and when it is set there is a sentence behind it.
 
 Where the extract is silent, the default holds and a Judge may combine freely.
+**No interaction matrix is to be enumerated** beyond what a page rules on — a
+Judge who wants a poisoned gem should not be arguing with a table somebody
+invented.
 
 ### Hidden variations, and apparent value
 
@@ -282,12 +286,18 @@ Steps 2 and 4 are separate releases deliberately.
 
 - ~~Named arms are a progression, not a delta.~~ **RESOLVED** — see below. They
   stay in the model, carrying their own storage.
-- **Scavenged labels are persisted into item flags** (a pre-merge decision), so
-  migrating that kind means rewriting stored text or carrying two spellings.
-- **Gem quality** comes from a different chapter than the equipment qualities
-  and may want its own `appliesTo` vocabulary rather than an item type. It is
-  also the second candidate for a `tab`, and it interacts with appearance: a cut
-  and set stone is quality *and* workmanship.
+- ~~Scavenged labels are persisted into item flags, so migrating means rewriting
+  stored text or carrying two spellings.~~ **SETTLED** — everything migrates and
+  the import cookbooks are rewritten as necessary. There is no two-spellings
+  compromise; the cookbooks are ours, and rewriting them is work rather than
+  risk.
+- ~~Gem quality may want its own `appliesTo` vocabulary rather than an item
+  type.~~ **SETTLED** — it applies to gems and nowhere else, and the vocabulary
+  it names is the BASE TYPE ([base-types.md](base-types.md)), which exists for
+  exactly this. Gems can still be magical: base type says what a thing is,
+  variations say how this one differs, and the two are orthogonal. Gem quality
+  remains the second `tab` candidate, and a cut and set stone is quality *and*
+  workmanship.
 - **What an `audience` is.** A conditional claim needs to name who it applies to
   — a house, a culture, a faith, a city. The world may have no structured
   vocabulary for any of those, in which case it is a Judge-read string and the
