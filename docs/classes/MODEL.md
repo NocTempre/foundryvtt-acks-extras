@@ -142,19 +142,62 @@ skipped, never zeroed.
 **A set level grants what it owes.** `{grantAwards: true}` — passed by the
 picker and by a dropped class, the two paths that SET a level — also hands over
 every award at or below it: Adventuring, each fixed award, and one pick per
-choice award, offered in the same confirm dialog and granted after the level
-lands. [grants.mjs](../../scripts/classes/grants.mjs) owns the granting for all
-three consumers (`awardsThrough` reads the ladder, `grantAbility` writes one
-item, deduped by ref) — chargen builds its own 1st level and the level-up
-wizard has already granted the rung it climbed, so neither passes the flag and
-neither has the whole ladder handed over underneath it. A confirm dialog opens
-for owed abilities even when no printed number changes, which is how a
-character bound before this existed collects what they were owed.
+choice award, granted after the level lands.
+[grants.mjs](../../scripts/classes/grants.mjs) owns the granting for all three
+consumers (`awardsThrough` reads the ladder for a level, `awardsAt` reads the
+single rung a level-up climbs, `grantAbility` writes one item, deduped by ref)
+— chargen builds its own 1st level and the level-up wizard has already granted
+the rung it climbed, so neither passes the flag and neither has the whole
+ladder handed over underneath it.
 
-The picker ([scripts/classes/assign.mjs](../../scripts/classes/assign.mjs))
-is injected beside the system's free-text class input on character sheets and
-binds the actor to a class document (`flags["acks-extras"].classes` +
-`details.class` for system compat).
+**Answers travel by key, not by position.** `applyClass` takes `{answers}` —
+award key → the ref chosen for it — so a surface that asked the questions
+itself hands them over instead of having them asked again in a confirm dialog;
+and `{answered}` for keys a caller closed without this call granting anything.
+Every rung a surface closes is recorded at
+`flags["acks-extras"].classes.awardsTaken`, by the level-up wizard and by
+chargen as well as by the picker. That record is the whole reason a character
+who levelled to 5th is not asked every choice they ever made a second time the
+moment their class is re-applied.
+
+## Asking a rung
+
+[picks.mjs](../../scripts/classes/picks.mjs) is the single owner of the
+question every surface asks: of the abilities this rung offers, which does the
+character take? An option the character already holds is **shown and
+selectable**, grouped above the rest — picking it closes the rung and grants
+nothing, because `grantAbility` declines to double what `ownsRef` recognises.
+Beside the options sit two answers no ref can express: *already covered*
+(`ANSWERED` — the rung is satisfied by something it never listed, so stop
+asking) and *leave open* (the empty answer, the only one that closes nothing).
+`grantsFrom` and `closesRung` are the two halves that used to be conflated:
+what a rung grants and what closes it are different questions.
+
+[panels.mjs](../../scripts/classes/panels.mjs) owns the boxes themselves — the
+class box, the package box and the picks box — so the picker and the Scores
+Generator render the same markup from the same code.
+
+## The picker
+
+The control beside the system's free-text class input, and the sheet's drop
+target for a dragged class document, both live in
+[assign.mjs](../../scripts/classes/assign.mjs); both open
+[assign-app.mjs](../../scripts/classes/assign-app.mjs), which binds the actor
+to a class document (`flags["acks-extras"].classes` + `details.class` for
+system compat).
+
+It is the Scores Generator's own layout with the column it has no use for
+replaced: the attribute dice give way to the level being SET and the ladder
+picks that come with it, then the class and its starting package, then the
+opening choices and the Intellect bonus picks. Every question is asked in that
+one window and handed to `applyClass` as `{answers}`, so nothing is asked
+twice.
+
+**The picker never wipes.** A starting package is offered here — the gap a
+character bound from their sheet used to fall into — but it is opt-in,
+defaults to none, and is applied through `applyTemplate`, the merging half of
+chargen. `applyChargen`'s wipe belongs to generating a character, which is the
+opposite act.
 
 ## Level-up
 
@@ -163,9 +206,9 @@ cross the class document's next-level threshold and notifies — never applies.
 The wizard rolls HP per the world setting (RAW default: reroll the full Hit
 Dice, Constitution per die and never on the printed flat bonus past 9th,
 minimum one over the old maximum), lists the new level's fixed awards, opens
-a picker per choice award (its ChoiceSpec resolved against the class
-inventory or the world's general list), then grants the abilities (deduped
-by cookbook ref), writes HP, applies the class row for the new level, and
+a rung control per choice award ([picks.mjs](../../scripts/classes/picks.mjs)),
+then grants the abilities (deduped by cookbook ref), writes HP, applies the
+class row for the new level **carrying the keys of the rungs it closed**, and
 posts a chat summary.
 
 ## Chargen
@@ -303,6 +346,15 @@ the world's document, description and art included. A class's
 may be either. Only when nothing answers is a bare language minted.
 `ensureLanguage` is idempotent by name: re-applying a class hands back what is
 already there.
+
+**A proficiency or power buys slots too.** `languagesFromAbilities` counts
+them: the Language proficiency grants `LANGUAGES_PER_GRANT` (3) and is
+repeatable, and rank needs no special case because rank IS the count of
+same-named items, so summing per item multiplies. Matched by the cookbook id
+an import derives, never by name, with `flags["acks-extras"].languageGrant`
+as the open door for a hand-made or third-party power. Never gated on the
+Intellect bonus — the book offers the proficiency to a low-Intellect
+character so they can read what they already speak.
 
 **One carrier ability holds the OPEN slots**, because "may still choose two
 more" is a thing the system cannot say. Its flag is
