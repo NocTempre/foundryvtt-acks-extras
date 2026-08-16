@@ -13,6 +13,7 @@
  * shape.
  */
 import * as languages from "./languages.mjs";
+import { installLanguageMigration } from "./language-migration.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, CLASS_TYPE, RACE_TYPE, FLAG_CLASSES, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import ClassData, { AWARD_KINDS } from "./class-data.mjs";
@@ -161,3 +162,4 @@ registerChargen();
 registerChargenPage();
 registerSheetTabs();
 registry.registerRegistryHooks();
+installLanguageMigration();

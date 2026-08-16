@@ -1,5 +1,48 @@
 # Changelog
 
+## 4.10.1
+
+Languages are documents now, and Polyglot can see them.
+
+### Fixed
+- **A language your character speaks is a real language item.** The system has
+  its own `language` type — it gives languages their own section on the
+  character sheet, and the Polyglot support the system ships reads that type
+  and nothing else. This module was recording tongues as names inside a hidden
+  field on an ability, so a character who spoke six languages appeared to speak
+  none: not on the sheet's Languages list, and not to Polyglot. What a class,
+  a race or a player's own pick hands over is now a document, where everything
+  already looks for it.
+- **A named language finds the one you already have.** Granting "Common" looks
+  for it on the character, then among the world's languages, then in the
+  system's own compendium, and only builds a new one when nothing answers — so
+  you end up holding the world's language, with its description and art,
+  instead of a bare namesake of it.
+- **Your existing characters convert themselves.** On first load every tongue
+  recorded the old way becomes a language item on the character that spoke it,
+  and languages imported as abilities become languages. Nothing is removed
+  until its replacement exists.
+- **Open slots still work the way they did.** The "Languages (open)" ability
+  keeps counting what Intellect and your class or race still owe you; picking
+  or dropping one now hands the character the document. Delete a language off
+  the sheet and its slot is free again.
+- **Polyglot is told about the languages you imported from your own books.**
+  The system's support reads only its own compendium, so a tongue out of your
+  Revised Rulebook was known but missing from the chat selector.
+- **The Languages compendium hides on the right test again.** The check that
+  folds it away counted abilities; it counts languages.
+- **A henchman's carried weight shows to everyone who can see the card.** The
+  system computes encumbrance only for an owner or the GM, and the Follower
+  Card read that figure straight — so a fellow player, or a hireling whose
+  ownership never reached them, saw 0/0 with nothing to say it was stale rather
+  than true. It now falls back to the owner-independent weight sum already used
+  for mounts and monsters. What an owner or GM sees is unchanged.
+- **A movement speed shows all of its digits.** The six movement fields share
+  a narrow input width the system sized around two-digit saves, so Charge and
+  Run in the hundreds — and the tenth on Climb and Stealth — had their tails
+  clipped, with no amount of resizing bringing them back. Those six fields get
+  the room their numbers need; every other narrow field is untouched.
+
 ## 4.10.0
 
 Groundwork. Nothing on a sheet changes.

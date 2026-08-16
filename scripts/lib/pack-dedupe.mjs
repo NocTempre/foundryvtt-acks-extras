@@ -57,7 +57,9 @@ const SUPERSEDED = Object.freeze({
   // The taxonomy is READ from the seat's own book (acks-importer 2.9.x), so the
   // probe counts the languages themselves rather than abilities at large — a
   // world with 100 imported proficiencies and no book has replaced nothing.
-  "acks.acks-languages": { probe: "item", types: ["ability"], idPrefix: "def.language.", min: 40 },
+  // It counts the SYSTEM's `language` type: an import that lands anything else
+  // has not replaced this pack, whatever it named the documents.
+  "acks.acks-languages": { probe: "item", types: ["language"], idPrefix: "def.language.", min: 40 },
 });
 
 /** The cookbook id an import stamped on a document, or "". */

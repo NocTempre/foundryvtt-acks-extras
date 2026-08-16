@@ -14,6 +14,7 @@ import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
 import { keyOf, rollsOf, targetOf, scalesFor } from "./ability-rolls.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
 import { LANGUAGE_ACTIONS, slotsOf, onDropLanguage } from "./language-slots.mjs";
+import { filledLanguages } from "../classes/languages.mjs";
 
 const T = `modules/${MODULE_ID}/templates/abilities`;
 
@@ -419,14 +420,24 @@ export function createAbilitySheet(Base) {
       if (partId === "mechanics") {
         context.tab = context.tabs[partId];
         context.coreEffectsPartial = CORE_EFFECTS_PARTIAL;
-        // A language carrier shows its slots here. `empty` is a list rather
-        // than a count so the template can render one placeholder per free
-        // slot without arithmetic in Handlebars.
+        // A language carrier shows its slots here. The filled ones are read
+        // back as DOCUMENTS, so a language deleted off the character sheet is
+        // simply gone from the list and its slot is free again. `empty` is a
+        // list rather than a count so the template can render one placeholder
+        // per free slot without arithmetic in Handlebars.
         const slots = slotsOf(this.item);
-        context.languageSlots = slots
-          ? { ...slots, free: Math.max(0, slots.capacity - slots.entries.length),
-              empty: Array.from({ length: Math.max(0, slots.capacity - slots.entries.length) }, (_, i) => i) }
-          : null;
+        if (slots) {
+          const filled = filledLanguages(this.item);
+          const free = Math.max(0, slots.capacity - filled.length);
+          context.languageSlots = {
+            capacity: slots.capacity,
+            entries: filled.map((i) => ({ name: i.name, uuid: i.uuid })),
+            free,
+            empty: Array.from({ length: free }, (_, i) => i),
+          };
+        } else {
+          context.languageSlots = null;
+        }
         // Reuse the system's own preparation — the Active Effects list is its
         // data, rendered through its partial, just on a different tab.
         if (typeof this._prepareEffectsContext === "function") {

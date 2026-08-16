@@ -957,3 +957,32 @@ only assigns a folder to a pack whose config does not already name one. That is
 why the system's own five declared folders had never appeared in the test
 world: every pack still pointed at folders deleted long ago. A reference that
 resolves is a Judge's own arrangement and is left alone.
+
+### The same day — telling Polyglot what the world imported
+
+The system registers its own Polyglot provider and it is a good one: it answers
+what a character speaks by reading the actor's `language` items, which is
+exactly what the family writes once languages are documents
+([classes](../classes/DECISIONS.md)). So the half that matters needed no code
+here at all.
+
+**Ruled: feed the system's provider, never replace it.** Polyglot's
+`defaultProvider()` prefers a `system.*` registration over a `module.*` one, so
+a provider registered from this module would sit unused until a GM found the
+setting and chose it — a working integration that is off by default is worse
+than none, because it looks installed.
+
+**Ruled: add the world's languages to the list, and only add.** The system's
+provider builds its language list from its own compendium and nothing else, so
+a tongue read out of a Judge's own book was spoken by the character and still
+absent from the chat selector — known, but unusable. `publishWorldLanguages`
+appends the world's `language` documents to the list the provider already
+built, keeping any font and rng the GM chose, and leaves an entry the provider
+already has exactly as it is. Withdrawing one is deliberately not done:
+removing a language from a live provider strips it from every message already
+written in it, so a deleted language leaves the selector at the next reload.
+
+**Cost:** the bridge reaches into another module's live object rather than
+going through an API, because Polyglot exposes no "add a language" call. It is
+guarded on the provider existing and is inert in a world without Polyglot —
+the hook it listens on simply never fires.

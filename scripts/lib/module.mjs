@@ -37,6 +37,7 @@ import * as mount from "./mount.mjs";
 import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
 import { installPackDedupe, supersededPackIds, refreshPackDedupe, organizeFamilyPacks, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
+import { installPolyglotBridge, publishWorldLanguages } from "./polyglot.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
@@ -128,6 +129,13 @@ const localImpl = Object.freeze({
   money: { ...moneyLogic, ...money },
   /** Which system packs this world has replaced by importing (pack-dedupe.mjs). */
   packs: { supersededPackIds, refreshPackDedupe, organizeFamilyPacks, SETTING_HIDE_SUPERSEDED },
+  /**
+   * Handing Polyglot the world's own imported languages (polyglot.mjs). The
+   * system's provider already answers what a character speaks; exposed so a
+   * world that imports through its own automation can refresh the selector
+   * without waiting for a reload.
+   */
+  polyglot: { publishWorldLanguages },
   /**
    * What a creature perceives (senses.mjs): canSeeInDark for the movement
    * rules, senseProfile for the Foundry sight a token should carry.
@@ -323,6 +331,11 @@ Hooks.once("init", () => {
   // Fold away the system compendiums this world has genuinely replaced by
   // importing. Coverage-gated and display-only — see pack-dedupe.mjs.
   installPackDedupe();
+
+  // Polyglot reads what a character speaks off the system's own language items
+  // and needs nothing from us; this only tells it about the tongues a world
+  // imported from its own books (polyglot.mjs).
+  installPolyglotBridge();
 
   game.settings.register(MODULE_ID, DELETE_POLICY_SETTING, {
     name: `${LANG_PREFIX}.settings.storageDeletePolicy.name`,

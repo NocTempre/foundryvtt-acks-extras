@@ -26,7 +26,13 @@ function categorize(item, racialRefs) {
   const id = item.flags?.["acks-importer"]?.cookbook?.id ?? "";
   // A language is declared, never inferred from its name: "Goblin" is a
   // language and a monster and a class restriction, and only the record knows.
-  if (item.flags?.[MODULE_ID]?.extras?.category === "language" || id.startsWith("def.language.")) return "language";
+  if (
+    item.type === "language" ||
+    item.flags?.[MODULE_ID]?.extras?.category === "language" ||
+    id.startsWith("def.language.")
+  ) {
+    return "language";
+  }
   if (item.flags?.[MODULE_ID]?.training) return "fighting";
   if (id && racialRefs.has(id)) return "racial";
   if (id.startsWith("def.skill.")) return "thief";

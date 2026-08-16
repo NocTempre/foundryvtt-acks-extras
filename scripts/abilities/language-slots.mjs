@@ -1,31 +1,24 @@
 /* global game, foundry, ui */
 /**
- * The carrier surface: filling an ability's language slots by hand.
+ * The carrier surface: spending an ability's open language slots by hand.
  *
  * The slot MODEL lives in classes/languages.mjs (it is a class-grant concept);
  * this is only the sheet's half — the picker, the drop, and the clear. Kept
  * beside the sheet that owns them so the model stays free of UI.
+ *
+ * A pick does not record a name here: it asks the model for the language
+ * DOCUMENT on the actor, which is what the system's own sheet section and the
+ * Polyglot provider both read.
  */
-import { MODULE_ID } from "./constants.mjs";
-import { slotsOf, fillSlot, clearSlot, freeSlots } from "../classes/languages.mjs";
+import { slotsOf, fillSlot, clearSlot, freeSlots, worldLanguages, LANGUAGE_TYPE } from "../classes/languages.mjs";
 
 export { slotsOf };
 
-/** Every language ability the world can offer — the pick list. */
-function worldLanguages() {
-  const seen = new Map();
-  for (const item of game.items ?? []) {
-    if (item.type !== "ability") continue;
-    if (item.flags?.[MODULE_ID]?.extras?.category !== "language") continue;
-    if (!seen.has(item.name.toLowerCase())) seen.set(item.name.toLowerCase(), item);
-  }
-  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
-}
-
 /**
- * Pick a tongue for the next free slot. Offers the world's language abilities
- * when it has any, and always allows a typed name: the setting decides which
- * languages exist, and a world that has imported none must still be playable.
+ * Pick a tongue for the next free slot. Offers the world's languages when it
+ * has any, and always allows a typed name: the setting decides which languages
+ * exist, and a world that has imported none must still be playable — the model
+ * finds or builds the document either way.
  */
 async function pickLanguage() {
   if (!freeSlots(this.item)) return;
@@ -47,29 +40,32 @@ async function pickLanguage() {
     },
   }).catch(() => null);
   if (!form) return;
-  const doc = form.uuid ? await fromUuid(form.uuid).catch(() => null) : null;
-  const name = doc?.name || form.typed;
-  if (!name) return;
-  const r = await fillSlot(this.item, { name, uuid: form.uuid });
+  if (!form.uuid && !form.typed) return;
+  const r = await fillSlot(this.item, { name: form.typed, uuid: form.uuid });
   if (!r.ok) ui.notifications?.warn(game.i18n.localize(`ACKS-ABILITIES.languages.refuse.${r.reason}`));
   this.render();
 }
 
-/** Empty one slot. */
+/** Empty one slot, and with it the language it bought. */
 async function clearLanguage(_event, target) {
   await clearSlot(this.item, Number(target.dataset.index));
   this.render();
 }
 
 /**
- * A language ability dropped on the carrier fills a slot. The drop does not
- * MOVE the document — a language is a thing many characters know, so the
- * carrier records it by name and uuid rather than consuming the item.
+ * A language dropped on the carrier spends a slot. The drop does not MOVE the
+ * document — a language is a thing many characters know, so the world's copy
+ * stays where it is and the character gets their own.
  */
 export async function onDropLanguage(item) {
-  if (item?.type !== "ability") return false;
-  if (item.flags?.[MODULE_ID]?.extras?.category !== "language") {
-    ui.notifications?.warn(game.i18n.localize("ACKS-ABILITIES.languages.refuse.notALanguage"));
+  if (item?.type !== LANGUAGE_TYPE) {
+    // An ability is the mistake worth naming: languages used to BE abilities,
+    // so a world's older copy still looks droppable. Anything else declines
+    // quietly and goes to the sheet's normal drop handling.
+    if (item?.type === "ability") {
+      ui.notifications?.warn(game.i18n.localize("ACKS-ABILITIES.languages.refuse.notALanguage"));
+      return true;
+    }
     return false;
   }
   const r = await fillSlot(this.item, { name: item.name, uuid: item.uuid });

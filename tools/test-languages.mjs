@@ -3,7 +3,7 @@
  * carriers' document writes are live-gate territory.
  */
 import assert from "node:assert/strict";
-import { languageGrant, LITERACY } from "../scripts/classes/languages.mjs";
+import { languageGrant, LITERACY, slotsOf, freeSlots, filledLanguages } from "../scripts/classes/languages.mjs";
 
 /* --- the plain human: what the class prints, and Intellect on top -------- */
 let g = languageGrant({ intMod: 0, classLanguages: { granted: ["Common", "Krysean"], count: 0 } });
@@ -38,4 +38,31 @@ assert.equal(g.literacy, LITERACY.ILLITERATE, "an Intellect penalty is illiterat
 assert.equal(g.openSlots, 0, "and buys nothing");
 assert.deepEqual(g.granted, ["Common"], "but still speaks what it was given");
 
-console.log("test-languages: OK (grants, stacking, dedupe, allowances, literacy)");
+/* --- the carrier counts DOCUMENTS, so a deleted language frees its slot ---
+ * The slot record remembers ids; the actor's items are the truth. Both are
+ * plain objects here — the model reads a carrier through the same two
+ * accessors whether it came from Foundry or not.                            */
+const carrier = (capacity, filled) => ({
+  flags: { "acks-extras": { languageSlots: { capacity, filled, source: "open" } } },
+  parent: { items: new Map([["a", { id: "a", type: "language", name: "Common" }]]) },
+});
+
+let c = carrier(3, ["a"]);
+assert.equal(slotsOf(c).capacity, 3);
+assert.deepEqual(filledLanguages(c).map((i) => i.name), ["Common"]);
+assert.equal(freeSlots(c), 2, "one spent of three");
+
+// The id of a language the player deleted off the sheet. Nothing reconciles
+// it — it is simply not there, and the slot it bought is free again.
+c = carrier(3, ["a", "gone"]);
+assert.deepEqual(filledLanguages(c).map((i) => i.id), ["a"], "a dead id is not a language");
+assert.equal(freeSlots(c), 2, "and its slot comes back");
+
+// A carrier can be over-full when Intellect falls; it never reports negative
+// room, and the grant path never shrinks capacity below what was spent.
+c = carrier(1, ["a", "gone"]);
+assert.equal(freeSlots(c), 0);
+
+assert.equal(slotsOf({ flags: {} }), null, "an ability with no slot flag is not a carrier");
+
+console.log("test-languages: OK (grants, stacking, dedupe, allowances, literacy, slot liveness)");

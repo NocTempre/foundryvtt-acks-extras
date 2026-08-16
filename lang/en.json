@@ -3110,6 +3110,7 @@
   "ACKS-ABILITIES.languages.refuse.duplicate": "This character already speaks that.",
   "ACKS-ABILITIES.languages.refuse.unnamed": "A language needs a name.",
   "ACKS-ABILITIES.languages.refuse.notACarrier": "This ability holds no language slots.",
+  "ACKS-ABILITIES.languages.refuse.noActor": "Open this on a character to fill its slots.",
   "ACKS-ABILITIES.languages.refuse.notALanguage": "Only a language ability goes in a language slot.",
   "ACKS-FORMATION.doors.title": "The Door",
   "ACKS-FORMATION.doors.tool": "ACKS door actions",

@@ -282,6 +282,47 @@ objects, so writing an empty object resets nothing). It is the only surface
 that can show two traditions at once. The system's own `spells.1..6.max`
 grid stays the single-tradition compatibility surface applyClass writes.
 
+## Languages
+
+[scripts/classes/languages.mjs](../../scripts/classes/languages.mjs). RR §I.10:
+a class and a race each print tongues a character simply knows, and the two
+ADD; each may also allow free picks; an Intellect bonus buys that many more,
+which may be left OPEN and filled during play; an Intellect penalty costs
+literacy, never tongues.
+
+**A known tongue is a `language` document on the actor** — the system's own item
+type. That is what its Languages sheet section lists and the only thing the
+Polyglot provider the system registers will look at. `languageGrant` is the
+pure counter (testable without a world); `grantLanguages` writes the result.
+
+**A named language is found before it is built.** `resolveLanguage` tries a ref
+(`uuid:…` or an importer cookbook id), then the world's languages by name, then
+the system's `acks.acks-languages` compendium — so a character ends up holding
+the world's document, description and art included. A class's
+`languages.granted` is a ref list whose sheet field is free text, so an entry
+may be either. Only when nothing answers is a bare language minted.
+`ensureLanguage` is idempotent by name: re-applying a class hands back what is
+already there.
+
+**One carrier ability holds the OPEN slots**, because "may still choose two
+more" is a thing the system cannot say. Its flag is
+`flags["acks-extras"].languageSlots = {capacity, filled, source}`, where
+`filled` is the ids of the languages chosen against it. `filledLanguages` reads
+those back as documents and drops any that no longer exist, so deleting a
+language off the sheet frees its slot with nothing to reconcile; `freeSlots` is
+`capacity` minus that live count. Capacity never shrinks below what has been
+spent. The picker and drop live in
+[abilities/language-slots.mjs](../../scripts/abilities/language-slots.mjs);
+clearing a slot deletes the document the slot bought.
+
+[language-migration.mjs](../../scripts/classes/language-migration.mjs) converts
+worlds written the old way at `ready` — GM-only, idempotent, and creating every
+replacement before removing what it replaced.
+
+Which languages exist is never shipped: they arrive through acks-importer from
+the GM's own books, or a Judge writes their own. Telling Polyglot about those
+imported ones is [lib/polyglot.mjs](../../scripts/lib/polyglot.mjs).
+
 ## Sheet category tabs
 
 [scripts/classes/sheet-tabs.mjs](../../scripts/classes/sheet-tabs.mjs)

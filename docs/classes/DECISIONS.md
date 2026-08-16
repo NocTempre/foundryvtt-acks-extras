@@ -3,6 +3,58 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-15 — a language is the system's document, not our private string
+
+The system owns a `language` item type and has since before this module: it
+declares the type, gives it an icon and a details template, files it in its own
+section of the character sheet, and reads it in the Polyglot provider it
+registers at startup, whose `getUserLanguages` scans an actor for
+`type === "language"` and looks at nothing else.
+
+This module recorded a known tongue as a `{name, uuid}` pair inside a
+`languageSlots` flag on an ability. Not a document of the wrong type — **not a
+document at all**, so a character who spoke six languages was invisible to the
+sheet section and to Polyglot alike. The abilities DECISIONS entry of 2026-08-14
+already described a tongue as "a document in a slot carrier"; the intent was
+right and the implementation never matched it, which is why this is a defect
+and not a design change.
+
+**Ruled: the document is the truth, and the carrier keeps only what the system
+cannot say.** Granted tongues are `language` items on the actor. The open-slot
+carrier survives because "may still choose two more" has no representation in
+the system and the rules require it — an Intellect bonus may be left open and
+filled during play. It records `capacity` and the ids of the languages chosen
+against it; `entries` is gone.
+
+**Ruled: the carrier reads its slots back through the documents.** A recorded
+id whose item no longer exists is simply absent, so deleting a language off the
+sheet frees its slot with nothing to reconcile. The alternative — mirroring
+names into the flag and keeping both in step — is two sources of truth for one
+fact, and the drift is one-directional and silent.
+
+**Ruled: find before minting.** A granted name is looked for on the actor, then
+among the world's languages, then in the system's compendium, and only built
+when nothing answers. A class's `languages.granted` is a ref list whose sheet
+field is free text, so an entry may be a name or a ref; both resolve. Before
+this, a class naming a language the world already held gave the character a
+bare namesake of it.
+
+**Ruled: capacity never shrinks below what was spent.** A character whose
+Intellect fell does not un-learn a language they chose while it was high.
+
+**Rejected: registering our own Polyglot provider.** Polyglot's
+`defaultProvider()` prefers a `system.*` registration over a `module.*` one, so
+ours would sit unused until a GM found the setting and picked it. Feeding the
+system's provider is both the working answer and the one reuse-before-invent
+asks for. The one thing left to add is the world's imported languages, which
+the system's provider cannot know about — it builds its list from its own
+compendium ([lib](../lib/DECISIONS.md) owns that bridge).
+
+**Cost:** a world's existing carriers and imported language abilities must
+convert, which `language-migration.mjs` does at `ready`, GM-only and
+idempotent. The "Tongues" carrier is retired outright — everything it held is a
+document now — so the v4.1.0 gallery shot of it no longer describes the sheet.
+
 ## 2026-08-14 — Chargen rolls the hit die it was assumed to have already rolled
 
 The Scores Generator produced characters whose hit points were never rolled at
