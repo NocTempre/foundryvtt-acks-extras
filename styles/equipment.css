@@ -457,3 +457,30 @@
 .acks-equipment-unarmed__label {
   font-style: italic;
 }
+
+/* --- Variations on the Construction panel ---------------------------- */
+
+/* One row per variation: what it is on the left, what can be done to it on
+   the right. Reads as a list you add to and take from, which is the point of
+   the shape. */
+.acks-equipment-variation__controls {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+/* A concealed variation is real and applies in full — it is only the players
+   who cannot see it. Dimmed and italic so a Judge can tell at a glance which
+   rows the table is not being shown, without it reading as disabled. */
+.acks-equipment-props__label.is-hidden-variation {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+
+/* Said when nothing has been imported. Not an error — a world with no books
+   connected legitimately has no variations to offer. */
+.acks-equipment-props__note {
+  margin: 0.4rem 0 0;
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
+}

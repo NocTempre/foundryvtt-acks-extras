@@ -921,6 +921,37 @@
       "rename": "Re-name",
       "renameHint": "Give it a name…",
       "renamed": "The item is now called “{item}” — one of its powers stirs."
+    },
+    "baseType": {
+      "weapon": "Weapon",
+      "armour": "Armour",
+      "shield": "Shield",
+      "clothing": "Clothing",
+      "gear": "Gear",
+      "food": "Food",
+      "gem": "Gem",
+      "coin": "Coin",
+      "tradeGood": "Trade good"
+    },
+    "variations": {
+      "baseType": "This item is",
+      "add": "Add a variation",
+      "addPrompt": "Choose one…",
+      "remove": "Remove",
+      "removeHint": "Take this variation off. The item's numbers go back to what they were without it.",
+      "reveal": "Reveal",
+      "revealHint": "Show this to the players. This is what identifying an item is.",
+      "conceal": "Conceal",
+      "concealHint": "Hide this from the players. They see the item without it, priced without it.",
+      "noneImported": "No variations have been imported yet. Connect your books and import to fill this list.",
+      "badBaseType": "An item of this kind cannot be {type}.",
+      "refuse": {
+        "unknownVariation": "That variation is not one this world has imported.",
+        "wrongBaseType": "{key} does not go on an item of this kind.",
+        "familyClash": "This already has {key}, and an item has only one of those.",
+        "supersedes": "This would supersede {key}, which it already has.",
+        "superseded": "{key} already supersedes that."
+      }
     }
   },
   "ACKS-EQUIPMENT.container.expand": "Show contents",
