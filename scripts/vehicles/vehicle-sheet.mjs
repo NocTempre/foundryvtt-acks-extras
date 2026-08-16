@@ -165,8 +165,10 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       tiers: (sys.speeds?.tiers ?? []).map((t, index) => ({ ...t, index })),
       animals: (sys.team?.animals ?? []).map((a, index) => ({
         ...a, index,
+        count: Math.max(1, Number(a.count) || 1),
         kindLabel: game.i18n.localize(`${LANG_PREFIX}.draft.${a.kind}`),
-        pull: DRAFT_EQUIVALENTS[a.kind] ?? 0,
+        // What the ROW pulls, which is the whole stack it stands for.
+        pull: (DRAFT_EQUIVALENTS[a.kind] ?? 0) * Math.max(1, Number(a.count) || 1),
       })),
       pull: draftPull(sys),
       riders,
@@ -191,7 +193,10 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
    */
   _prepareSubmitData(event, form, formData, updateData) {
     const data = super._prepareSubmitData(event, form, formData, updateData);
-    if (data.system) data.system = VehicleData.normalize(data.system);
+    // Over what the vehicle already holds: these rows carry fields no input
+    // names (an animal's uuid and name), and rebuilding them from the form
+    // alone drops every one of them.
+    if (data.system) data.system = VehicleData.mergeSubmit(this.actor.system, data.system);
     return data;
   }
 
@@ -236,7 +241,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.alreadyInHarness`, { name: doc.name }));
       return;
     }
-    animals.push({ uuid: doc.uuid, name: doc.name, kind: guessDraftKind(doc), pulling: true });
+    animals.push({ uuid: doc.uuid, name: doc.name, kind: guessDraftKind(doc), count: 1, pulling: true });
     await this.actor.update({ "system.team.animals": animals });
   }
 

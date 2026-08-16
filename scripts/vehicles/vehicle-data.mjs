@@ -97,6 +97,13 @@ export default class VehicleData extends foundry.abstract.TypeDataModel {
         uuid: str(),
         name: str(),
         kind: choice(DRAFT_EQUIVALENTS, { initial: "heavyHorse" }),
+        // How many animals this row IS. A four-horse wagon is a team of four
+        // identical horses, and making a Judge create four actors to say so —
+        // and unharness them one at a time — is bookkeeping the printed table
+        // does not ask for. A row dragged from a specific animal keeps its
+        // uuid and stands for one; a row typed by hand stands for as many as
+        // it says.
+        count: int(1, { min: 1 }),
         // A lame or dead animal stays on the roster and stops pulling — the
         // Judge should not have to delete a horse to record that it fell.
         pulling: bool(true),
@@ -198,11 +205,42 @@ export default class VehicleData extends foundry.abstract.TypeDataModel {
     return data;
   }
 
+  /**
+   * The submitted rows laid OVER the stored ones.
+   *
+   * Rebuilding an array row from the form alone keeps only what the form has
+   * an input for, and these rows carry more than they show: an animal's uuid
+   * and name are set when it is dragged into the harness and are never typed,
+   * so a row rebuilt from its two inputs comes back nameless and bound to
+   * nothing. Every field the form does not name is taken from what the row
+   * already held.
+   *
+   * Never fold this back into `normalize`: normalize turns a shape into
+   * another shape and knows nothing about the document, while this needs what
+   * is stored — and a merge that silently had no stored side would restore
+   * the same loss.
+   */
+  static mergeSubmit(stored, submitted) {
+    const data = VehicleData.normalize(submitted);
+    for (const path of VehicleData.ARRAY_PATHS) {
+      const rows = foundry.utils.getProperty(data, path);
+      if (!Array.isArray(rows)) continue;
+      const was = foundry.utils.getProperty(stored ?? {}, path) ?? [];
+      foundry.utils.setProperty(
+        data,
+        path,
+        rows.map((row, i) => ({ ...foundry.utils.deepClone(was[i] ?? {}), ...row })),
+      );
+    }
+    return data;
+  }
+
   /** Heavy-horse equivalents actually in harness and able to pull. */
   get draftPull() {
+    // Each row stands for `count` animals of its kind.
     return (this.team?.animals ?? [])
       .filter((a) => a.pulling)
-      .reduce((sum, a) => sum + (DRAFT_EQUIVALENTS[a.kind] ?? 0), 0);
+      .reduce((sum, a) => sum + (DRAFT_EQUIVALENTS[a.kind] ?? 0) * Math.max(1, Number(a.count) || 1), 0);
   }
 
   /** Is this vessel or cart able to move at all under its own arrangements? */

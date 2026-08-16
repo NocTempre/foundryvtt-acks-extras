@@ -112,6 +112,14 @@
   flex: 1;
 }
 
+/* How many animals the row is. Narrow: a team is counted in single digits. */
+.acks-extras-vehicle-animal-count {
+  width: 3.5em;
+  flex: 0 0 auto;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 /* A figure, not a label: tabular so digits align between rows. */
 .acks-extras-vehicle-pull {
   margin-left: auto;

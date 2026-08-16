@@ -3265,6 +3265,7 @@
   "ACKS-VEHICLES.crew.hint": "Missing hands slow the vessel in proportion. Marines fight but do not row — leave 'drives it' unticked for them.",
   "ACKS-VEHICLES.team.legend": "In harness",
   "ACKS-VEHICLES.team.under": "Fewer animals than this vehicle was built for.",
+  "ACKS-VEHICLES.team.count": "How many animals this row is",
   "ACKS-VEHICLES.team.dropHint": "Drag an animal here to hitch it. One ox, two mules or two medium horses pull as one heavy horse.",
   "ACKS-VEHICLES.team.togglePulling": "Pulling / not pulling",
   "ACKS-VEHICLES.tiers.legend": "Load and speed",

@@ -226,6 +226,9 @@
     <ol class="acks-extras-vehicle-animals">
       {{#each animals}}
         <li class="{{#unless pulling}}is-idle{{/unless}}">
+          <input class="acks-extras-vehicle-animal-count" type="number" min="1" step="1"
+                 name="system.team.animals.{{index}}.count" value="{{count}}"
+                 data-tooltip="{{localize 'ACKS-VEHICLES.team.count'}}">
           <span class="acks-extras-vehicle-animal-name">{{name}}</span>
           <select name="system.team.animals.{{index}}.kind">
             {{#each @root.draftKinds}}<option value="{{value}}" {{#if (eq value ../kind)}}selected{{/if}}>{{label}}</option>{{/each}}

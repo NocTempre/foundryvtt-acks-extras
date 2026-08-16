@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.11.4
+
+A team is counted, and editing one no longer forgets the animals in it.
+
+### Fixed
+- **Changing anything about a harnessed animal no longer erases which animal
+  it is.** The team rows carry a name and a link to the animal's own sheet,
+  and neither has a box on the sheet — so picking a different kind for one
+  rebuilt the row from the two boxes that do, and the horse came back nameless
+  and linked to nothing. Rows now keep everything the sheet does not show. The
+  same applies to a vessel's crew roles and its speed table.
+
+### Added
+- **A team row says how many animals it is.** A four-horse wagon was four rows
+  to create and four to unharness; it is now one row with a count, and the pull
+  it contributes counts the whole stack. Rows made before this are one animal,
+  which is what they already were.
+
 ## 4.11.3
 
 A class trained with hammers can use one.

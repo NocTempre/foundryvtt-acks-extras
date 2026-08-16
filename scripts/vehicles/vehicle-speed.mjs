@@ -227,9 +227,11 @@ export function landSpeed(vehicle, loadStone = 0, ground = null) {
 /** Heavy-horse equivalents in harness, from plain data (no document needed). */
 export function draftPull(vehicle, equivalents = null) {
   const table = equivalents ?? { heavyHorse: 1, ox: 1, mediumHorse: 0.5, mule: 0.5, donkey: 0.5 };
+  // A row stands for `count` animals of its kind — see the model. An older
+  // row carries no count and is one animal, which is what it always was.
   return (vehicle?.team?.animals ?? [])
     .filter((a) => a.pulling !== false)
-    .reduce((sum, a) => sum + (table[a.kind] ?? 0), 0);
+    .reduce((sum, a) => sum + (table[a.kind] ?? 0) * Math.max(1, Number(a.count) || 1), 0);
 }
 
 /**
