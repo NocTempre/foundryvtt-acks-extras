@@ -23,6 +23,7 @@ import { toNum as num } from "./util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { monsterHd } from "./actor-read.mjs";
 import { isEquippable, isEquipped } from "./item-model.mjs";
+import { borneWeight6 } from "./capacity.mjs";
 import { attackOptionsFor, damageTypeLabel, DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 import { profileStrips, isProfileAbility, sizePips } from "./proficiency-strip.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
@@ -295,16 +296,20 @@ export async function followerCardContext(actor, { editable = false, interactive
   }
 
   // Encumbrance — only for a model that tracks a carrying limit. The 1/6-stone
-  // figures themselves are derived (core computes them for owners only), so the
-  // row is gated on the DECLARED limit and shows zeroes where the derived pass
-  // did not run, never a row for a body that carries no load at all.
-  //
-  // Its override is CARD-ONLY by construction: the carried figure is summed from
-  // the items on the body, so there is no base field to bake it into. Commit
-  // therefore leaves it standing, exactly as it leaves an unarmed attack's edit
-  // standing — Reset is how it goes away.
+  // CARRIED figure is derived (core computes `value6` for an owner/GM viewer
+  // only — `computeEncumbrance` gates on `isOwner || game.user.isGM` — so a
+  // Judge's own card is exact but a fellow player's read-only view of it, or a
+  // hireling whose ownership never propagated, would otherwise see an
+  // uncomputed zero with no sign it is stale). Fall back to the lib's own
+  // item-weight sum, which mirrors core's rule without needing the gated pass.
+  // `max` reads the DECLARED (persisted) limit rather than the ephemeral
+  // `max6`, since only the schema field survives for a viewer core never
+  // derived for.
   ctx.enc = actorProvides(actor, "encumbrance.max")
-    ? { value: stones(sys.encumbrance?.value6), max: stones(sys.encumbrance?.max6) }
+    ? {
+        value: stones(Number.isFinite(sys.encumbrance?.value6) ? sys.encumbrance.value6 : borneWeight6(actor)),
+        max: stones(num(sys.encumbrance?.max, 20) * 6),
+      }
     : null;
   if (ctx.enc && overrides.enc != null) {
     ctx.enc.value = num(overrides.enc);
