@@ -3,6 +3,74 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-15 — a rung the character already answered is answerable
+
+Reported from the field: applying a class to a played character offered, for
+each choice award, only proficiencies they did **not** already have. The rung
+had no truthful answer, so the way through it was to pick something unwanted
+and delete it from the sheet afterwards.
+
+The filter was deliberate and it was wrong. It read "do not offer what would
+grant nothing" — but a rung's answer and a rung's grant are two different
+things, and only the grant was ever in question. `grantAbility` has always
+declined to double what `ownsRef` recognises, so an owned option was already
+safe to offer; removing it protected nothing and cost the player the only
+honest answer they had.
+
+**Ruled:** an option the character holds is shown, marked and grouped first,
+and selecting it closes the rung without granting. Beside the options sit
+*already covered* — for the proficiency that came from somewhere this rung
+never listed — and *leave open*, which is the one answer that closes nothing.
+`picks.mjs` owns all of it, and `grantsFrom` / `closesRung` keep the two
+questions apart in code as well as in the UI.
+
+**Rejected:** a blanket "already assigned" checkbox for the whole apply. It
+answers every rung at once with no record of which proficiency answered which,
+so the next apply has nothing to reason from — and a character who genuinely
+owed one of five picks would silently lose it.
+
+**Cost:** a rung can now be closed by a claim rather than by a grant, so
+`awardsTaken` records an assertion the module cannot verify. That is the right
+trade — the alternative was a fictitious item on the sheet — but a Judge who
+wants the rung asked again has to clear the flag, and nothing in the UI does
+that yet ([ROADMAP.md](ROADMAP.md)).
+
+## 2026-08-15 — three pickers were one question
+
+The same field report named the cause: the class picker, the level-up wizard
+and the Scores Generator each built their own `<select>` for a choice award.
+Three copies drifted, exactly as three copies do — only one considered what the
+character owned (by deleting those options, above), only one offered starting
+packages, only one counted the Intellect bonus. A player met a different, worse
+version of the same question depending on which door they came through.
+
+**Ruled:** one control (`picks.mjs`), one set of boxes (`panels.mjs`), and the
+picker rebuilt as the Scores Generator's own layout with the attribute column
+replaced by the level being set and the ladder picks that come with it
+(`assign-app.mjs`). `optionsForChoice` has exactly one caller now, and a test
+fails if a fourth surface grows its own.
+
+**Also ruled — the question the 2026-08-14 deferral left open.** A starting
+package is now offered when the picker binds a class, which was deferred
+because `applyChargen` WIPES the actor's items and a character bound from
+their sheet may already own gear. Replace / merge / refuse is settled as
+**merge, opt-in, never wipe**: the package defaults to none, and when one is
+chosen it goes through `applyTemplate` — chargen's merging half — and the
+panel says in as many words that it adds. Generating a character replaces the
+last run of the page because that is what generating means; binding a class to
+a played character is the opposite act and must not borrow its destructiveness.
+
+**Cost:** `applyTemplate` grants a printed rank as N copies by design, so a
+package added to a character who already holds its proficiencies doubles them.
+That is why the package is opt-in and says so rather than being applied by
+default. Deduping it would break the rank-N convention the family relies on
+elsewhere, so it was not done here.
+
+**Rejected:** re-opening the real Scores Generator for an existing character.
+The system offers that page only while `system.isNew`, and the module's own way
+back to it (`reopen-chargen.mjs`) is destructive by design and confirmed as
+such. Binding a class must not require making a played character new again.
+
 ## 2026-08-15 — a language is the system's document, not our private string
 
 The system owns a `language` item type and has since before this module: it

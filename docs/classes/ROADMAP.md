@@ -37,14 +37,19 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   dealing both honour it. What is left is the migration a deprecation earns —
   offering to build a formation from an existing party actor, so a world does
   not have to retype its roster to stop being a fallback case.
-- **A template when the picker binds a 1st-level class** — chargen offers the
-  class's templates; the sheet picker never does, so a character bound at 1st
-  from the sheet gets the class's numbers and awards but no starting package.
-  The surface is small; the ruling is not. `applyChargen` WIPES the actor's
-  items, because generating a character replaces the last run of the page. A
-  character bound from the sheet may already own gear, so offering a template
-  there has to say first whether it replaces what they hold, merges into it, or
-  refuses when the sheet is not empty. Reported from the field 2026-08-14.
+- **Re-opening a rung that was closed by a claim** — "already covered" closes a
+  choice award without granting anything, which is an assertion the module
+  cannot verify ([DECISIONS.md](DECISIONS.md), 2026-08-15). A Judge who wants
+  the question asked again has to clear `flags["acks-extras"].classes
+  .awardsTaken` by hand; nothing in the UI lists the rungs a character has
+  closed or takes one back.
+- **A package that knows what the character already carries** — the picker
+  offers a starting template and merges it, but `applyTemplate` grants a
+  printed rank as N copies by design, so adding one to a character who already
+  holds its proficiencies doubles them. The package is opt-in and says it adds,
+  which makes the consequence visible rather than absent. Reconciling the two —
+  a merge that recognises what is already there without breaking the rank-N
+  convention — is unbuilt.
 - **Where a general proficiency may be picked from** — `choosableGenerals()`
   reads `game.items` alone, so the picker offers only proficiencies already
   materialized into the world; the proficiencies shipped in compendia (core's

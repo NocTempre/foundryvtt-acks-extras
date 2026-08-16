@@ -17,15 +17,8 @@ import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
 import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
 import { grantLanguages } from "./languages.mjs";
-import {
-  adventuringDoc,
-  awardsThrough,
-  grantAbility,
-  grantAdventuring,
-  optionsForChoice,
-  ownsRef,
-  refOf,
-} from "./grants.mjs";
+import { adventuringDoc, awardsThrough, grantAbility, grantAdventuring, ownsRef, refOf } from "./grants.mjs";
+import { closesRung, grantableRefs, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 
 export { normalizeHd };
 
@@ -113,12 +106,29 @@ const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
  * level-up wizard has already granted the rung it just earned, so neither
  * wants the whole ladder handed over underneath it.
  *
+ * `{answered}` records rungs a CALLER has already asked — the level-up wizard
+ * and chargen both answer rungs of their own, and a rung answered anywhere is
+ * a rung this dialog must not ask again. Without it a character levelled to 5th
+ * met every pick from 1st to 5th a second time the moment their class was
+ * re-applied.
+ *
+ * `{answers}` carries rung answers a caller has ALREADY collected, keyed by
+ * award key — how a surface that asked the questions itself (the class picker,
+ * assign-app.mjs) hands them over instead of having them asked a second time in
+ * a confirm dialog. Answers gathered by this function's own dialog merge into
+ * the same map, so there is one path from an answer to what it grants.
+ *
+ * @param {object} [options]
+ * @param {string[]} [options.answered] award keys (`grants.awardKey`) the
+ *   caller has already put to the player and does not want asked again
+ * @param {Record<string, string>} [options.answers] award key → the ref chosen
+ *   for it, or `picks.ANSWERED` for a rung the character already satisfies
  * @returns {Promise<{applied: boolean, update?: object, missing?: string[], grants?: object[]}>}
  */
 export async function applyClass(
   actor,
   classItem,
-  { level, confirm = true, rebuildVitals = false, grantAwards = false } = {},
+  { level, confirm = true, rebuildVitals = false, grantAwards = false, answered = [], answers = {} } = {},
 ) {
   if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { applied: false };
   if (classItem.system.isStub) {
@@ -185,8 +195,9 @@ export async function applyClass(
   const owedAdventuring = !!adventuring && !ownsRef(actor, refOf(adventuring));
   const awardCount = owed.fixed.length + owed.choices.length + (owedAdventuring ? 1 : 0);
 
-  /** Refs chosen in the dialog for this level's open choice awards. */
-  let picks = [];
+  /** Every rung answer this call knows about, keyed by award key: what a caller
+   *  brought with it, plus whatever the dialog below collects. */
+  const given = { ...answers };
 
   // A level whose numbers already agree can still owe abilities — re-applying
   // the same class at the same level is exactly how a character bound before
@@ -211,18 +222,19 @@ export async function applyClass(
       ...(owedAdventuring ? [adventuring.name] : []),
       ...owed.fixed.map((a) => findByRef(a.ref)?.name ?? a.name ?? a.ref),
     ];
+    // Every option this rung lists, the held ones marked rather than dropped —
+    // a character bound at a level they have already played to answers most of
+    // these rungs with a proficiency they are already carrying, and a list that
+    // hides those leaves the rung answerable only by a pick to delete later.
     const choiceBlocks = owed.choices
-      .map((a, index) => {
-        const options = optionsForChoice(a.choice, classItem).filter((o) => !ownsRef(actor, o.ref));
-        const label = a.choice.label || game.i18n.localize(`${LANG_PREFIX}.apply.pick`);
-        const opts = options
-          .map((o) => `<option value="${foundry.utils.escapeHTML(o.ref)}">${foundry.utils.escapeHTML(o.name)}</option>`)
-          .join("");
-        return `<div class="form-group"><label>${foundry.utils.escapeHTML(label)} <span class="acks-extras-classes-refname">(${game.i18n.format(
-          `${LANG_PREFIX}.apply.atLevel`,
-          { level: a.atLevel ?? 1 },
-        )})</span></label><select name="award-${index}">${opts}</select></div>`;
-      })
+      .map((a, index) =>
+        rungSelectHtml({
+          name: `award-${index}`,
+          label: rungLabel(a),
+          atLevel: a.atLevel ?? 1,
+          options: rungOptions(a.choice, classItem, actor),
+        }),
+      )
       .join("");
     const awardsBlock = awardCount
       ? `<p><strong>${game.i18n.localize(`${LANG_PREFIX}.apply.awards`)}</strong></p>${
@@ -266,20 +278,30 @@ export async function applyClass(
       yes: {
         // One entry per offered rung, EMPTY included — the position is what
         // says which rung an answer belongs to.
-        callback: (_event, button) =>
-          owed.choices.map((_, index) => button.form?.elements?.[`award-${index}`]?.value ?? ""),
+        callback: (_event, button) => readRungs(button.form, "award-", owed.choices.length),
       },
     });
     if (!ok) return { applied: false };
-    // Kept aligned with `owed.choices` so a rung that was answered can be
-    // remembered as answered; the duplicates are collapsed only at the grant.
-    picks = Array.isArray(ok) ? ok : [];
+    // The callback returns one entry per offered rung, in order, so position is
+    // what says which rung an answer belongs to — resolved to its key here and
+    // never carried as a position again.
+    const picks = Array.isArray(ok) ? ok : [];
+    owed.choices.forEach((choice, index) => {
+      if (picks[index] !== undefined) given[choice.key] = picks[index];
+    });
   }
 
   // A choice rung that was answered is remembered as answered, so re-applying
   // — the way a character collects what they were owed — adds what is missing
-  // rather than asking every question a second time.
-  const answered = owed.choices.filter((_, index) => picks[index]).map((c) => c.key);
+  // rather than asking every question a second time. "Already on the sheet"
+  // closes a rung exactly as a pick does: the question has been answered, and
+  // what closes it is not the same as what grants from it.
+  const closed = [
+    ...Object.entries(given)
+      .filter(([, answer]) => closesRung(answer))
+      .map(([key]) => key),
+    ...answered,
+  ];
   const applied = {};
   for (const [path, value] of Object.entries(update)) applied[path] = value;
   await actor.update({
@@ -289,7 +311,7 @@ export async function applyClass(
       key: classItem.system.key || classItem.name.toLowerCase(),
       appliedLevel: clamped,
       applied,
-      ...(grantAwards ? { awardsTaken: [...new Set([...takenAlready, ...answered])] } : {}),
+      ...(closed.length || grantAwards ? { awardsTaken: [...new Set([...takenAlready, ...closed])] } : {}),
     },
   });
   if (missing.length) {
@@ -303,7 +325,10 @@ export async function applyClass(
   if (grantAwards) {
     await grantAdventuring(actor, grants);
     for (const a of owed.fixed) await grantAbility(actor, a.ref, grants);
-    for (const ref of new Set(picks.filter(Boolean))) await grantAbility(actor, ref, grants);
+    // "Already on the sheet" closes its rung without materializing anything,
+    // and a ref the character already holds materializes nothing either —
+    // `grantAbility` declines it — so a rung answered truthfully costs no item.
+    for (const ref of grantableRefs(Object.values(given))) await grantAbility(actor, ref, grants);
     // Tongues ride the same path: the class's list and the bound race's ADD,
     // Intellect buys the open slots, and re-applying refreshes the carriers
     // rather than making a second pair (a character whose Intellect rose owes

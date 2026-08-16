@@ -24,7 +24,8 @@ import {
   valueRow,
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
-import { awardsThrough } from "../scripts/classes/grants.mjs";
+import { awardsAt, awardsThrough } from "../scripts/classes/grants.mjs";
+import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
 import { rebuildHitPoints } from "../scripts/classes/hitpoints.mjs";
 import { readFileSync } from "node:fs";
 
@@ -552,6 +553,83 @@ await atest("chargen asks for the rebuild, so a generated character's hit points
   const call = /applyClass\(actor, cls, \{([^}]*)\}\)/.exec(src);
   assert.ok(call, "applyChargen still calls applyClass");
   assert.match(call[1], /rebuildVitals:\s*true/);
+});
+
+/* ------------------ answering a rung of the ladder ------------------ */
+
+await atest("a level-up climbs exactly one rung, keyed as the picker remembers it", () => {
+  // The wizard used to index its own filtered slice, which produced keys the
+  // picker's `awardsThrough` had never heard of — so nothing the wizard asked
+  // was ever recognised as answered.
+  const at5 = awardsAt({ items: [] }, LADDERED, 5);
+  assert.equal(at5.choices.length, 1);
+  assert.equal(at5.fixed.length, 0);
+  const through5 = awardsThrough({ items: [] }, LADDERED, 5);
+  const matching = through5.choices.find((c) => c.atLevel === 5);
+  assert.equal(at5.choices[0].key, matching.key, "the two surfaces key the same rung alike");
+  // And with that key recorded, the picker does not ask it again.
+  assert.ok(!awardsThrough({ items: [] }, LADDERED, 5, [at5.choices[0].key]).choices.some((c) => c.atLevel === 5));
+});
+
+await atest("a rung answered anywhere closes it; only a ref grants from it", () => {
+  // "Already on the sheet" is an ANSWER — it closes the question — but it is
+  // not a pick, so nothing materializes. Conflating the two is what forced a
+  // player to choose a proficiency they did not want and delete it afterwards.
+  assert.equal(closesRung(ANSWERED), true);
+  assert.equal(grantsFrom(ANSWERED), false);
+  assert.equal(closesRung("def.prof.berserkergang"), true);
+  assert.equal(grantsFrom("def.prof.berserkergang"), true);
+  // A rung left open is the one answer that closes nothing.
+  assert.equal(closesRung(""), false);
+  assert.equal(grantsFrom(""), false);
+  assert.deepEqual(grantableRefs(["def.prof.a", ANSWERED, "", "def.prof.a", "def.prof.b"]), [
+    "def.prof.a",
+    "def.prof.b",
+  ]);
+});
+
+await atest("an option the character already holds is offered, never removed", () => {
+  // The reported defect: the picker filtered owned options OUT, so a character
+  // who had already taken their 1st-level proficiency could not say so — the
+  // rung offered only things they did not want. Held options are MARKED now,
+  // and `grantAbility` is what declines to double them.
+  const src = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
+  assert.ok(
+    !/filter\(\(o\) => !ownsRef\(/.test(src),
+    "apply.mjs must not filter owned options out of a rung's list",
+  );
+  const picks = readFileSync(new URL("../scripts/classes/picks.mjs", import.meta.url), "utf8");
+  assert.match(picks, /owned:\s*!!actor && ownsRef\(actor, o\.ref\)/, "picks.mjs marks them instead");
+});
+
+await atest("every surface asks a rung through the one control", () => {
+  // Three copies of this question is three places to answer it differently,
+  // which is exactly how only one of them came to consider what the character
+  // already owned. `optionsForChoice` has one caller now, and it is picks.mjs.
+  const callers = ["apply.mjs", "levelup.mjs", "stat-page.mjs", "assign-app.mjs"].filter((f) =>
+    /optionsForChoice/.test(readFileSync(new URL(`../scripts/classes/${f}`, import.meta.url), "utf8")),
+  );
+  assert.deepEqual(callers, [], "no surface may build a rung's options for itself");
+  for (const file of ["apply.mjs", "levelup.mjs", "stat-page.mjs", "assign-app.mjs"]) {
+    const src = readFileSync(new URL(`../scripts/classes/${file}`, import.meta.url), "utf8");
+    assert.match(src, /from "\.\/picks\.mjs"/, `${file} asks through picks.mjs`);
+  }
+});
+
+await atest("the level-up wizard records the rung it closed", () => {
+  // Without this a character levelled to 5th met every pick from 1st to 5th
+  // again the moment their class was re-applied — the reported symptom.
+  const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
+  assert.match(src, /answered:\s*choices\s*\n?\s*\.filter/s, "the wizard hands its answered keys to applyClass");
+});
+
+await atest("the class picker never wipes what a character already owns", () => {
+  // Generating a character REPLACES the last run of the page; binding a class
+  // to a played character is the opposite act. The picker therefore uses the
+  // merging half of chargen and never `applyChargen`, whose default is a wipe.
+  const src = readFileSync(new URL("../scripts/classes/assign-app.mjs", import.meta.url), "utf8");
+  assert.ok(!/applyChargen/.test(src), "assign-app must not route through the wiping path");
+  assert.match(src, /applyTemplate\(/, "it applies a package by merging it");
 });
 
 console.log(`test-classes: ${passed} assertion groups passed.`);

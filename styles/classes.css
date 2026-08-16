@@ -464,3 +464,44 @@
   cursor: pointer;
   color: var(--acks-warning-ink);
 }
+
+/* The class picker, laid out as the Scores Generator is (scripts/classes/
+   assign-app.mjs): the level being set and the picks it owes, the class and its
+   package, then what is left to choose. Three equal columns rather than the
+   generator's 1.8/1/1 — no column here carries six attribute rows, so none of
+   them needs the extra share. */
+.acks-extras-classes-assigncols {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--acks-sp-3);
+}
+.acks-extras-classes-assigncols > .acks-extras-classes-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* The picker's own boxes carry the same classes the generator's do, so they
+   inherit its select and hint rules. What they do NOT inherit is the top margin
+   that separates an injected box from core's markup above it — here they are
+   the whole column. */
+.acks-extras-classes-assign .acks-extras-classes-chargen,
+.acks-extras-classes-assign .acks-extras-classes-picks {
+  margin-top: 0;
+}
+
+/* A rung whose held options are grouped above the rest. The group heading is
+   the browser's own optgroup label, which takes the control's font but not its
+   ink — said softly, so the options under it stay the thing being read. */
+.acks-extras-classes-assign optgroup,
+.acks-extras-classes-statgen optgroup {
+  font-family: var(--acks-font-ui);
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+
+/* Same contract as every other window this module opens: the content scrolls
+   rather than being amputated by core's `overflow: hidden`. */
+.acks-extras-classes-assign > .window-content {
+  overflow: auto;
+  min-height: 0;
+}

@@ -96,6 +96,8 @@ Hooks.once("init", () => {
     .loadTemplates([
       `modules/${MODULE_ID}/templates/classes/class-sheet.hbs`,
       `modules/${MODULE_ID}/templates/classes/race-sheet.hbs`,
+      `modules/${MODULE_ID}/templates/classes/assign.hbs`,
+      `modules/${MODULE_ID}/templates/classes/assign-footer.hbs`,
     ])
     .catch((err) => console.warn(`${MODULE_ID} | template preload skipped`, err));
 

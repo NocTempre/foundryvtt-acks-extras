@@ -17,7 +17,8 @@ import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 import { normalizeHd, parseHd, rollHitDice } from "./hitpoints.mjs";
-import { grantAbility, optionsForChoice } from "./grants.mjs";
+import { awardsAt, grantAbility } from "./grants.mjs";
+import { closesRung, grantableRefs, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 export const HP_MODE_SETTING = "levelUpHpMode";
@@ -68,18 +69,18 @@ export async function openLevelUp(actor) {
     newMax = oldMax + 1;
   }
 
-  const awards = (sys.awards ?? []).filter((a) => a.atLevel === next);
-  const fixed = awards.filter((a) => a.kind === "fixed" && a.ref);
-  const choices = awards.filter((a) => a.kind === "choice");
+  // The rung this level climbs, carrying the keys the picker remembers rungs
+  // by — so a question answered here is one the picker does not ask again.
+  const takenAlready = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.awardsTaken ?? [];
+  const { fixed, choices } = awardsAt(actor, classItem, next, takenAlready);
   const choiceBlocks = choices
-    .map((a, index) => {
-      const options = optionsForChoice(a.choice, classItem);
-      const label = a.choice.label || game.i18n.localize(`${LANG_PREFIX}.levelup.pick`);
-      const opts = options
-        .map((o) => `<option value="${foundry.utils.escapeHTML(o.ref)}">${foundry.utils.escapeHTML(o.name)}</option>`)
-        .join("");
-      return `<div class="form-group"><label>${foundry.utils.escapeHTML(label)}</label><select name="choice-${index}">${opts}</select></div>`;
-    })
+    .map((a, index) =>
+      rungSelectHtml({
+        name: `choice-${index}`,
+        label: rungLabel(a, "levelup.pick"),
+        options: rungOptions(a.choice, classItem, actor),
+      }),
+    )
     .join("");
   const fixedList = fixed
     .map((a) => `<li>${foundry.utils.escapeHTML(findByRef(a.ref)?.name ?? a.name ?? a.ref)}</li>`)
@@ -103,9 +104,10 @@ export async function openLevelUp(actor) {
     window: { title: game.i18n.localize(`${LANG_PREFIX}.levelup.title`), resizable: true },
     content,
     ok: {
+      // Position-preserving, empties included — the position is what says which
+      // rung an answer belongs to, and a rung left open has to keep its place.
       label: game.i18n.localize(`${LANG_PREFIX}.levelup.apply`),
-      callback: (_event, button) =>
-        choices.map((_, index) => button.form.elements[`choice-${index}`]?.value).filter(Boolean),
+      callback: (_event, button) => readRungs(button.form, "choice-", choices.length),
     },
     rejectClose: false,
   });
@@ -113,11 +115,18 @@ export async function openLevelUp(actor) {
 
   const grants = [];
   for (const a of fixed) await grantAbility(actor, a.ref, grants);
-  for (const ref of picked) await grantAbility(actor, ref, grants);
+  for (const ref of grantableRefs(picked)) await grantAbility(actor, ref, grants);
 
   const oldValue = Number(actor.system?.hp?.value) || 0;
   await actor.update({ "system.hp.max": newMax, "system.hp.value": oldValue + Math.max(0, newMax - oldMax) });
-  await applyClass(actor, classItem, { level: next, confirm: false });
+  // The rungs this wizard closed are recorded with the level it wrote, so the
+  // picker — which asks for the WHOLE ladder up to a level — does not put every
+  // question a played character has already answered to them a second time.
+  await applyClass(actor, classItem, {
+    level: next,
+    confirm: false,
+    answered: choices.filter((_, index) => closesRung(picked[index])).map((c) => c.key),
+  });
 
   const grantNames = grants.map((g) => (g.missing ? `${g.name} (?)` : g.name));
   await ChatMessage.create({

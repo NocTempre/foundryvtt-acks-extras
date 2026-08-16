@@ -20,7 +20,7 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
-import { grantAbility, grantAdventuring } from "./grants.mjs";
+import { awardKey, grantAbility, grantAdventuring } from "./grants.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
 
@@ -381,7 +381,16 @@ export async function applyChargen(
   // floor of one (hitpoints.mjs). Without it a generated character keeps
   // whatever hit points the bare actor was created with — no die, no floor and
   // no Constitution.
-  await applyClass(actor, cls, { level: 1, confirm: false, rebuildVitals: true });
+  // Every 1st-level choice rung leaves this page closed: either the package
+  // answered it (its printed proficiencies ARE the character's starting ones)
+  // or the player answered it in the picks column. Recording that is what stops
+  // the class picker — which asks for the whole ladder up to a level — from
+  // putting a generated character's opening choices to them a second time.
+  const answered = (cls.system.awards ?? [])
+    .map((award, index) => ({ award, key: awardKey(award, index) }))
+    .filter(({ award }) => (award.atLevel ?? 1) === 1 && award.kind === "choice")
+    .map(({ key }) => key);
+  await applyClass(actor, cls, { level: 1, confirm: false, rebuildVitals: true, answered });
 
   // No template is a build made the Judges Journal's way (JJ Ch. 16,
   // Generating Characters without Templates): no package, so no equipment and

@@ -38,9 +38,11 @@
  * assumption that nothing is competing.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { classItems, byBookOrder, findByRef } from "./registry.mjs";
-import { legalTemplates, netBonusPicks, templateShortfall, applyChargen, templateItemName, coinLine } from "./chargen.mjs";
-import { optionsForChoice, choosableGenerals } from "./grants.mjs";
+import { classItems, byBookOrder } from "./registry.mjs";
+import { legalTemplates, netBonusPicks, templateShortfall, applyChargen } from "./chargen.mjs";
+import { choosableGenerals, refOf } from "./grants.mjs";
+import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
+import { rungLabel, rungOptions } from "./picks.mjs";
 
 const PAGE_CLASS = "acks-extras-classes-statgen";
 const COLUMN = "acks-extras-classes-col";
@@ -150,21 +152,6 @@ export function unmetRequirements(classItem, scores) {
  * lists, and stays on offer.
  */
 const answeredByTemplate = (award) => ["classInventory", "generalList"].includes(award?.choice?.from);
-
-/** What a template's ability entry is called on the page. */
-const grantLabel = (a) =>
-  `${a.name || findByRef(a.ref)?.name || a.ref}${a.selection ? ` (${a.selection})` : ""}${a.rank > 1 ? ` ×${a.rank}` : ""}`;
-
-/** What a template's equipment entry is called on the page — the same name the
- *  grant will give it, so the list and the sheet agree. */
-const itemLabel = (i) => `${templateItemName(i) || findByRef(i.ref)?.name || i.ref}${i.qty > 1 ? ` ×${i.qty}` : ""}`;
-
-/** What a template's spellbook entry is called on the page. */
-const spellLabel = (s) => s.name || s.uuid || "";
-
-/** One "this package brings …" line, or nothing when the list is empty. */
-const brings = (key, list, label) =>
-  list?.length ? `<p class="hint">${esc(loc(key, { parts: list.map(label).join(", ") }))}</p>` : "";
 
 /* -------------------------------------------- */
 /*  The generation rule                          */
@@ -307,12 +294,18 @@ function refresh(root, state) {
 
   /* --- column two: the class, then the die read against it --- */
 
+  // The class and template boxes are the same two the class picker shows
+  // (panels.mjs) — this page adds the Judge's own row above them, which is the
+  // one thing a picker has no use for.
   put(
     root,
     CLASSBOX,
     state,
-    `${
-      isGM
+    classPanelHtml({
+      offered,
+      selectedUuid: state.classUuid,
+      unmet,
+      controls: isGM
         ? `<div class="form-group">
              <label class="checkbox" data-tooltip="${esc(loc("chargen.judgeUnlockHint"))}"><input type="checkbox" name="acks-judge"${
                state.judge ? " checked" : ""
@@ -328,59 +321,21 @@ function refresh(root, state) {
                  : ""
              }
            </div>`
-        : ""
-    }
-    <div class="form-group">
-      <label>${esc(loc("pick.class"))}</label>
-      <div class="form-fields">
-        <select name="acks-class">${offered
-          .map((c) => `<option value="${esc(c.uuid)}"${c.uuid === state.classUuid ? " selected" : ""}>${esc(c.name)}</option>`)
-          .join("")}</select>
-      </div>
-      ${unmet.length ? `<p class="hint">${esc(loc("apply.unmet", { parts: unmet.map((r) => `${r.attr.toUpperCase()} ${r.min}`).join(", ")}))}</p>` : ""}
-      ${!offered.length ? `<p class="hint">${esc(loc("chargen.noneQualify"))}</p>` : ""}
-    </div>`,
+        : "",
+    }),
   );
 
   put(
     root,
     TPLBOX,
     state,
-    `<div class="form-group">
-      <label>${esc(loc("chargen.template"))}</label>
-      <div class="form-fields">
-        <select name="acks-template"${legal.length ? "" : " disabled"}>${legal
-          .map(
-            (t) =>
-              `<option value="${t.rollMin}"${t.rollMin === state.templateMin ? " selected" : ""}>${esc(
-                t.name + (t.annotation ? ` (${t.annotation})` : ""),
-              )} [${t.rollMin}–${t.rollMax}]</option>`,
-          )
-          .join("")}</select>
-      </div>
-      <p class="hint">${esc(manual ? loc("chargen.manualRule") : rolled == null ? loc("chargen.rollFirst") : loc("chargen.rule"))}</p>
-      ${
-        // What the package actually hands over, said before it is applied
-        // rather than only in the chat card afterwards. The proficiencies ARE
-        // the character's starting ones, which is why no pick is offered for
-        // them; the equipment and the spellbook are what they walk in with.
-        brings("chargen.templateGrants", template?.abilities, grantLabel)
-      }
-      ${brings("chargen.templateItems", template?.items, itemLabel)}
-      ${brings("chargen.templateSpells", template?.spells, spellLabel)}
-      ${
-        template && coinLine(template)
-          ? `<p class="hint">${esc(loc("chargen.templateCoin", { parts: coinLine(template) }))}</p>`
-          : ""
-      }
-      ${
-        // A template that prints more than this character may hold says so
-        // BEFORE it is applied, not only in the chat card afterwards.
-        short.profs
-          ? `<p class="hint">${esc(loc("chargen.assumesInt", { profs: short.profs, spells: short.spells }))}</p>`
-          : ""
-      }
-    </div>`,
+    templatePanelHtml({
+      legal,
+      selectedMin: state.templateMin,
+      template,
+      ruleHint: manual ? loc("chargen.manualRule") : rolled == null ? loc("chargen.rollFirst") : loc("chargen.rule"),
+      shortfall: short,
+    }),
   );
 
   /* --- column three: what is left to choose --- */
@@ -389,30 +344,33 @@ function refresh(root, state) {
   const asked = template ? awards.filter((a) => !answeredByTemplate(a)) : awards;
   const generalOptions = choosableGenerals()
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((i) => {
-      const ref = i.flags?.["acks-importer"]?.cookbook?.id ?? `uuid:${i.uuid}`;
-      return `<option value="${esc(ref)}">${esc(i.name)}</option>`;
-    })
-    .join("");
+    .map((i) => ({ ref: refOf(i), name: i.name }));
 
-  const pickRows = `${asked
-    .map((a, i) => {
-      const options = optionsForChoice(a.choice, cls)
-        .map((o) => `<option value="${esc(o.ref)}"${state.awardPicks[i] === o.ref ? " selected" : ""}>${esc(o.name)}</option>`)
-        .join("");
-      const label = a.choice.label || loc("levelup.pick");
-      return `<div class="form-group"><label>${esc(label)}</label><div class="form-fields"><select name="acks-award-${i}">${options}</select></div></div>`;
-    })
-    .join("")}${Array.from({ length: picks }, (_, i) => {
-    const chosen = state.bonusPicks[i] ?? "";
-    const options = generalOptions.replace(`value="${esc(chosen)}"`, `value="${esc(chosen)}" selected`);
-    return `<div class="form-group"><label>${esc(loc("chargen.bonusPick", { n: i + 1 }))}</label><div class="form-fields"><select name="acks-bonus-${i}">${options}</select></div></div>`;
-  }).join("")}`;
-
-  // The printed encumbrance parenthetical belongs with what the character is
-  // carrying, which is the column that totals them up.
-  const enc = template?.enc ? `<p class="hint">${esc(loc("chargen.templateEnc", { enc: template.enc }))}</p>` : "";
-  put(root, PICKS, state, (pickRows || `<p class="hint">${esc(loc("chargen.nothingToPick"))}</p>`) + enc);
+  // A character being generated owns nothing yet, so no rung here is offered
+  // the "already on the sheet" answer — there is no sheet to have it on. The
+  // picker binding a played character passes true (assign-app.mjs).
+  put(
+    root,
+    PICKS,
+    state,
+    picksPanelHtml({
+      rungs: asked.map((a, i) => ({
+        name: `acks-award-${i}`,
+        label: rungLabel(a, "levelup.pick"),
+        options: rungOptions(a.choice, cls),
+        selected: state.awardPicks[i] ?? "",
+      })),
+      bonus: Array.from({ length: picks }, (_, i) => ({
+        name: `acks-bonus-${i}`,
+        label: loc("chargen.bonusPick", { n: i + 1 }),
+        options: generalOptions,
+        selected: state.bonusPicks[i] ?? "",
+      })),
+      // The printed encumbrance parenthetical belongs with what the character
+      // is carrying, which is the column that totals them up.
+      trailer: template?.enc ? `<p class="hint">${esc(loc("chargen.templateEnc", { enc: template.enc }))}</p>` : "",
+    }),
+  );
 
   // The template names the coin its character starts with, so the page's gold
   // row shows what the chosen package pays instead of a figure rolled beside

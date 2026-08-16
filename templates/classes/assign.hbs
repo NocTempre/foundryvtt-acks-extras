@@ -1,0 +1,23 @@
+{{!-- The class picker, laid out as the Scores Generator is: what the level does
+      to the character's numbers, the class and the package it is read against,
+      and what all of that leaves to choose. The three columns are built as
+      markup by panels.mjs, which is the same code the generator's own boxes are
+      built from — so a question asked here is worded as it is asked there.
+
+      One root element: ApplicationV2 refuses to render a part that has two. --}}
+<div class="acks-extras-classes-assigncols">
+
+  <section class="standard-form panel acks-extras-classes-col">
+    {{{levelColumn}}}
+  </section>
+
+  <section class="standard-form panel acks-extras-classes-col">
+    <div class="acks-extras-classes-chargen">{{{classColumn}}}</div>
+    <div class="acks-extras-classes-tplbox">{{{templateColumn}}}</div>
+  </section>
+
+  <section class="standard-form panel acks-extras-classes-col acks-extras-classes-picks">
+    {{{picksColumn}}}
+  </section>
+
+</div>

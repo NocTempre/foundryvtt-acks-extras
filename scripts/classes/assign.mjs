@@ -1,7 +1,9 @@
-/* global game, foundry, ui, Hooks, Actor, fromUuid, fromUuidSync */
+/* global game, foundry, Hooks, Actor, fromUuidSync */
 /**
- * Binding a character to a class document from the sheet: a picker control
- * injected beside the system's free-text class input.
+ * Reaching the class picker from a character sheet: a control injected beside
+ * the system's free-text class input, and a drop target for a class document
+ * dragged onto the sheet. The picker itself is a window of its own
+ * (assign-app.mjs); this file is only the two ways in.
  *
  * Injection rides `renderApplicationV2` (the base class is always in the
  * render chain, whatever the concrete sheet is called) and is idempotent —
@@ -9,78 +11,10 @@
  * inheritance level is harmless.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { classItems, classForActor, byBookOrder } from "./registry.mjs";
-import { applyClass } from "./apply.mjs";
+import { openClassPicker, openClassPickerFor } from "./assign-app.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
-/** The pickers OFFER core classes (plus whatever the actor is already bound
- *  to); everything else waits behind the show-all toggle. Listed as the books
- *  print them, which is the order a reader looks a class up in. */
-export function offeredClasses(actor, showAll = false) {
-  const bound = classForActor(actor);
-  return classItems()
-    .filter((i) => showAll || i.system.core || i.uuid === bound?.uuid)
-    .sort(byBookOrder);
-}
-
-/** Open the class picker for one character and apply the chosen class. */
-export async function openClassPicker(actor) {
-  if (!classItems().length) {
-    ui.notifications?.info(game.i18n.localize(`${LANG_PREFIX}.pick.empty`));
-    return;
-  }
-  const bound = classForActor(actor);
-  const level = Math.max(1, Number(actor.system?.details?.level) || 1);
-  const optionsHtml = (showAll) =>
-    offeredClasses(actor, showAll)
-      .map(
-        (i) =>
-          `<option value="${i.uuid}"${bound?.uuid === i.uuid ? " selected" : ""}>${foundry.utils.escapeHTML(i.name)}${
-            i.system.isStub ? ` (${game.i18n.localize(`${LANG_PREFIX}.pick.stub`)})` : ""
-          }</option>`,
-      )
-      .join("");
-  const content = `
-    <div class="form-group">
-      <label>${game.i18n.localize(`${LANG_PREFIX}.pick.class`)}</label>
-      <select name="uuid">${optionsHtml(false)}</select>
-    </div>
-    <div class="form-group">
-      <label class="checkbox"><input type="checkbox" name="showAll" /> ${game.i18n.localize(`${LANG_PREFIX}.pick.showAll`)}</label>
-    </div>
-    <div class="form-group">
-      <label>${game.i18n.localize(`${LANG_PREFIX}.pick.level`)}</label>
-      <input type="number" name="level" value="${level}" min="1" step="1" />
-    </div>`;
-  const picked = await foundry.applications.api.DialogV2.prompt({
-    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-    window: { title: game.i18n.format(`${LANG_PREFIX}.pick.title`, { name: actor.name }) },
-    content,
-    render: (_event, dialog) => {
-      const form = dialog.element.querySelector("form") ?? dialog.element;
-      const toggle = form.querySelector('input[name="showAll"]');
-      const select = form.querySelector('select[name="uuid"]');
-      toggle?.addEventListener("change", () => {
-        select.innerHTML = optionsHtml(toggle.checked);
-      });
-    },
-    ok: {
-      label: game.i18n.localize(`${LANG_PREFIX}.pick.apply`),
-      callback: (_event, button) => {
-        const form = button.form;
-        return { uuid: form.elements.uuid?.value, level: Number(form.elements.level?.value) || level };
-      },
-    },
-    rejectClose: false,
-  });
-  if (!picked?.uuid) return;
-  const item = await fromUuid(picked.uuid);
-  if (!item) return;
-  // Chosen by hand, so hit points, experience and the abilities the level owes
-  // are all brought into line — the picker is where a character's level is SET
-  // rather than earned, and a level sets everything it implies.
-  await applyClass(actor, item, { level: picked.level, rebuildVitals: true, grantAwards: true });
-}
+export { offeredClasses, openClassPicker } from "./assign-app.mjs";
 
 /** Our marker on a character sheet, so this module's rules have something of
  *  its own to hang off a surface whose classes belong to the system. */
@@ -93,9 +27,9 @@ function onRenderCharacterSheet(app, element) {
   if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character || !doc.isOwner) return;
   root.classList.add(SHEET_CLASS);
 
-  // A class document DRAGGED onto the sheet binds it (with the usual apply
-  // confirm) instead of embedding as an owned item. Capture phase, so the
-  // core sheet's own drop handler never sees the class item.
+  // A class document DRAGGED onto the sheet opens the picker on it instead of
+  // embedding as an owned item. Capture phase, so the core sheet's own drop
+  // handler never sees the class item.
   if (!root.dataset.acksClassesDrop) {
     root.dataset.acksClassesDrop = "1";
     root.addEventListener(
@@ -112,11 +46,10 @@ function onRenderCharacterSheet(app, element) {
         if (dropped?.type !== `${MODULE_ID}.class`) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        applyClass(doc, dropped, {
-          level: Math.max(1, Number(doc.system?.details?.level) || 1),
-          rebuildVitals: true,
-          grantAwards: true,
-        });
+        // The same window the picker opens, on the class that was dropped —
+        // a drop is a choice of class, not a choice to skip every question
+        // binding one asks.
+        openClassPickerFor(doc, dropped);
       },
       { capture: true },
     );

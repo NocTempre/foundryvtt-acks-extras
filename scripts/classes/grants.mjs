@@ -113,6 +113,31 @@ export function optionsForChoice(choice, classItem) {
  */
 export const awardKey = (award, index) => `${index}:${award.atLevel ?? 1}`;
 
+/** Every rung of the ladder, each carrying the key it is remembered by. The key
+ *  is positional, so it is taken from the FULL list — a caller that filters to
+ *  one level must filter these rather than index its own slice. */
+const keyedAwards = (classItem) =>
+  (classItem.system.awards ?? []).map((award, index) => ({ award, key: awardKey(award, index) }));
+
+/**
+ * Split a set of rungs into what would actually land.
+ *
+ * A fixed award whose ability the character already carries is dropped, and a
+ * choice rung already answered (`seen`) is not asked twice — so re-applying a
+ * class, which is how a character collects what they were owed, adds what is
+ * missing instead of handing out a second set.
+ */
+function splitOwed(actor, rungs, seen) {
+  const fixed = rungs
+    .filter(({ award }) => award.kind === "fixed" && award.ref)
+    .filter(({ award }) => !ownsRef(actor, award.ref))
+    .map(({ award }) => award);
+  const choices = rungs
+    .filter(({ award, key }) => award.kind === "choice" && award.choice && !seen.has(key))
+    .map(({ award, key }) => ({ ...award, key }));
+  return { fixed, choices };
+}
+
 /**
  * The awards a character is owed for holding `level` in this class: every rung
  * of the ladder AT OR BELOW it, not merely the one just reached.
@@ -121,23 +146,24 @@ export const awardKey = (award, index) => `${index}:${award.atLevel ?? 1}`;
  * time. Setting a level asks for all of them, which is the same reading of the
  * ladder the printed spread has — a 5th-level fighter has taken every award
  * the table prints through 5th, whatever order they arrived in.
- *
- * A fixed award whose ability the character already carries is dropped, and a
- * choice rung already answered (`taken`) is not asked twice — so re-applying a
- * class, which is how a character collects what they were owed, adds what is
- * missing instead of handing out a second set.
  */
 export function awardsThrough(actor, classItem, level, taken = []) {
-  const seen = new Set(taken);
-  const owed = (classItem.system.awards ?? [])
-    .map((award, index) => ({ award, key: awardKey(award, index) }))
-    .filter(({ award }) => (award.atLevel ?? 1) <= level);
-  const fixed = owed
-    .filter(({ award }) => award.kind === "fixed" && award.ref)
-    .filter(({ award }) => !ownsRef(actor, award.ref))
-    .map(({ award }) => award);
-  const choices = owed
-    .filter(({ award, key }) => award.kind === "choice" && award.choice && !seen.has(key))
-    .map(({ award, key }) => ({ ...award, key }));
-  return { fixed, choices };
+  return splitOwed(
+    actor,
+    keyedAwards(classItem).filter(({ award }) => (award.atLevel ?? 1) <= level),
+    new Set(taken),
+  );
+}
+
+/**
+ * The awards owed for REACHING exactly this level — the one rung a level-up
+ * climbs, carrying the same keys `awardsThrough` remembers rungs by, so a
+ * question answered in the wizard is a question the picker does not ask again.
+ */
+export function awardsAt(actor, classItem, level, taken = []) {
+  return splitOwed(
+    actor,
+    keyedAwards(classItem).filter(({ award }) => (award.atLevel ?? 1) === level),
+    new Set(taken),
+  );
 }
