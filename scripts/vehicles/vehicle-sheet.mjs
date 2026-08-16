@@ -21,7 +21,7 @@ import { attachedTo, attach, detach } from "../lib/attachment.mjs";
 import { borneBy6 } from "../lib/capacity.mjs";
 import { boardForBestPace, reboardLast } from "./boarding.mjs";
 import { explorationSpeedOf } from "../formation/formation-model.mjs";
-import { STONE } from "../lib/item-model.mjs";
+import { STONE, encumbering6 } from "../lib/item-model.mjs";
 import { expeditionFrom, TRAVEL_PACE } from "../lib/movement-scales.mjs";
 
 const LANG_PREFIX = "ACKS-VEHICLES";
@@ -44,8 +44,15 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       disembark: VehicleSheet.#disembark,
       boardBest: VehicleSheet.#boardBest,
       reboard: VehicleSheet.#reboard,
+      openCargo: VehicleSheet.#openCargo,
+      unloadCargo: VehicleSheet.#unloadCargo,
     },
-    dragDrop: [{ dropSelector: ".acks-extras-vehicle-team" }, { dropSelector: ".acks-extras-vehicle-hold" }],
+    dragDrop: [
+      { dropSelector: ".acks-extras-vehicle-team" },
+      { dropSelector: ".acks-extras-vehicle-hold" },
+      // Freight can be dropped on the sheet at large, not only on the bar.
+      { dragSelector: ".acks-extras-vehicle-cargo [data-item-id]", dropSelector: ".acks-extras-vehicle-cargo" },
+    ],
   };
 
   static PARTS = {
@@ -172,6 +179,19 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       })),
       pull: draftPull(sys),
       riders,
+      // What is actually in the hold. A vehicle is an Actor, so its freight is
+      // its own items and their weight already reaches the hold figure above
+      // through the same sum every carrier uses — this only shows the reader
+      // what that figure is made of, and lets them change it.
+      cargo: this.actor.items.map((it) => ({
+        id: it.id,
+        name: it.name,
+        img: it.img,
+        qty: Number(it.system?.quantity?.value ?? 1) || 1,
+        stone: round2(encumbering6(it) / STONE),
+        // Only a stackable item offers a count; a sword does not.
+        stacks: it.system?.quantity !== undefined,
+      })),
       // A team that cannot pull what the vehicle was built for is worth
       // flagging even before a load makes it matter.
       underTeamed: !isSea && sys.team?.required > 0 && draftPull(sys) < sys.team.required,
@@ -196,13 +216,30 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     // Over what the vehicle already holds: these rows carry fields no input
     // names (an animal's uuid and name), and rebuilding them from the form
     // alone drops every one of them.
-    if (data.system) data.system = VehicleData.mergeSubmit(this.actor.system, data.system);
+    // `toObject()`, not the model: cloning a live DataModel's array rows does
+    // not yield their plain fields. The form's own input names come with it —
+    // by now the submission has been cleaned against the schema, so a field
+    // with no input is already sitting at its default and cannot be told from
+    // one the reader emptied on purpose.
+    if (data.system) {
+      const named = new Set([...(form?.elements ?? [])].map((el) => el.name).filter(Boolean));
+      data.system = VehicleData.mergeSubmit(this.actor.system.toObject(), data.system, named);
+    }
     return data;
   }
 
   /** The wind selector re-renders without touching the document. */
   async _onChangeForm(config, event) {
     const el = event.target;
+    // How many of a piece of freight there are. The input carries no `name`,
+    // so it never enters the submit path at all: an embedded item's count is
+    // not part of the vehicle's own data, and routing it through the form
+    // would mean writing it into the actor's system object on its way past.
+    if (el?.dataset?.cargoQty !== undefined) {
+      const item = this.actor.items.get(el.dataset.itemId);
+      if (item) await item.update({ "system.quantity.value": Math.max(0, Number(el.value) || 0) });
+      return this.render();
+    }
     if (el?.name === "wind") {
       this.#wind = el.value;
       return this.render();
@@ -227,6 +264,18 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
    */
   async _onDrop(event) {
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    // Freight. An item dropped anywhere on the sheet is being loaded — there
+    // is nowhere else on a wagon for it to go, so this does not ask which
+    // target it landed on the way an actor drop has to.
+    if (data?.type === "Item") {
+      const item = await fromUuid(data.uuid);
+      if (!item) return;
+      // Its own actor keeps it if it came off one: freight is moved, not
+      // copied, or loading a cart silently doubles the party's supplies.
+      const created = await this.actor.createEmbeddedDocuments("Item", [item.toObject()]);
+      if (created.length && item.parent instanceof Actor && item.parent !== this.actor) await item.delete();
+      return this.render();
+    }
     if (data?.type !== "Actor") return super._onDrop?.(event);
     const doc = await fromUuid(data.uuid);
     if (!doc) return;
@@ -243,6 +292,19 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     }
     animals.push({ uuid: doc.uuid, name: doc.name, kind: guessDraftKind(doc), count: 1, pulling: true });
     await this.actor.update({ "system.team.animals": animals });
+  }
+
+  /** Open a piece of freight's own sheet. */
+  static async #openCargo(_e, target) {
+    this.actor.items.get(target.dataset.itemId)?.sheet?.render(true);
+  }
+
+  /** Take it off the wagon. It is deleted, not dropped on the road. */
+  static async #unloadCargo(_e, target) {
+    const item = this.actor.items.get(target.dataset.itemId);
+    if (!item) return;
+    await item.delete();
+    this.render();
   }
 
   static async #addRole() {

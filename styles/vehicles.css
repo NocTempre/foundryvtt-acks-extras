@@ -112,6 +112,42 @@
   flex: 1;
 }
 
+/* The freight in the hold: one row per item, its weight aligned on the right
+   with every other figure on the sheet. */
+.acks-extras-vehicle-cargo {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+}
+
+.acks-extras-vehicle-cargo > li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.25rem;
+}
+
+.acks-extras-vehicle-cargo > li:nth-child(odd) {
+  background: var(--acks-tint);
+}
+
+.acks-extras-vehicle-cargo img {
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.acks-extras-vehicle-cargo-name {
+  flex: 1;
+  cursor: pointer;
+}
+
+.acks-extras-vehicle-cargo-qty {
+  width: 3.5em;
+  flex: 0 0 auto;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 /* How many animals the row is. Narrow: a team is counted in single digits. */
 .acks-extras-vehicle-animal-count {
   width: 3.5em;

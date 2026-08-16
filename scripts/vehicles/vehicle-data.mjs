@@ -215,12 +215,20 @@ export default class VehicleData extends foundry.abstract.TypeDataModel {
    * nothing. Every field the form does not name is taken from what the row
    * already held.
    *
+   * `named` is the set of input names the form actually carries, and it is
+   * what makes this work at all. By the time a submission arrives it has been
+   * cleaned against the schema, so every field the form omitted is ALREADY
+   * present at its default — an empty name, an empty uuid — and is
+   * indistinguishable from a field deliberately cleared. Overlaying the
+   * submitted row wholesale therefore restores nothing. Only the fields the
+   * form has an input for are taken; the rest stand as the row had them.
+   *
    * Never fold this back into `normalize`: normalize turns a shape into
    * another shape and knows nothing about the document, while this needs what
    * is stored — and a merge that silently had no stored side would restore
    * the same loss.
    */
-  static mergeSubmit(stored, submitted) {
+  static mergeSubmit(stored, submitted, named = null) {
     const data = VehicleData.normalize(submitted);
     for (const path of VehicleData.ARRAY_PATHS) {
       const rows = foundry.utils.getProperty(data, path);
@@ -229,7 +237,14 @@ export default class VehicleData extends foundry.abstract.TypeDataModel {
       foundry.utils.setProperty(
         data,
         path,
-        rows.map((row, i) => ({ ...foundry.utils.deepClone(was[i] ?? {}), ...row })),
+        rows.map((row, i) => {
+          const base = foundry.utils.deepClone(was[i] ?? {});
+          if (!named) return { ...base, ...row };
+          for (const field of Object.keys(row)) {
+            if (named.has(`system.${path}.${i}.${field}`)) base[field] = row[field];
+          }
+          return base;
+        }),
       );
     }
     return data;

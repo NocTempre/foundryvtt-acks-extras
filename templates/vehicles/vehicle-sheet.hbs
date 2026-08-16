@@ -175,6 +175,27 @@
         {{/each}}
       </ol>
     {{/if}}
+    {{! The freight itself. Its weight is already in the bar above. }}
+    <ol class="acks-extras-vehicle-cargo" data-accept-drop>
+      {{#each cargo}}
+        <li data-item-id="{{id}}">
+          <img src="{{img}}" alt="" width="24" height="24">
+          <a class="acks-extras-vehicle-cargo-name" data-action="openCargo" data-item-id="{{id}}">{{name}}</a>
+          {{#if stacks}}
+            <input class="acks-extras-vehicle-cargo-qty" type="number" min="0" step="1"
+                   data-cargo-qty data-item-id="{{id}}" value="{{qty}}"
+                   data-tooltip="{{localize 'ACKS-VEHICLES.cargo.qty'}}"
+                   {{#unless @root.editable}}disabled{{/unless}}>
+          {{/if}}
+          <span class="acks-extras-vehicle-pull">{{stone}} st</span>
+          {{#if @root.editable}}
+            <a data-action="unloadCargo" data-item-id="{{id}}"
+               data-tooltip="{{localize 'ACKS-VEHICLES.cargo.unload'}}"><i class="fa-solid fa-trash"></i></a>
+          {{/if}}
+        </li>
+      {{/each}}
+    </ol>
+    <p class="hint">{{localize "ACKS-VEHICLES.cargo.freightHint"}}</p>
     <p class="hint">{{localize "ACKS-VEHICLES.cargo.boardHint"}}</p>
     {{#if isLand}}{{#if editable}}
     <div class="acks-extras-vehicle-boarding">

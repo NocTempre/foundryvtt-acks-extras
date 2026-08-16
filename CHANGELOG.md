@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.11.5
+
+A wagon carries things.
+
+### Added
+- **The hold lists what is in it.** Drag an item onto a vehicle to load it, and
+  it appears in the hold with its weight and, where it stacks, a count you can
+  change. Its weight was always counted against the hold — that is what the bar
+  has been measuring — but there was no way to see what made up the figure, add
+  to it, or take anything out. Loading moves the item off whoever was carrying
+  it rather than copying it, so a cart cannot double the party's supplies.
+
+### Fixed
+- **Editing a harnessed animal no longer forgets which animal it is.** The
+  first attempt at this in 4.11.4 did not work: by the time a submission
+  reaches the sheet it has already been filled out against the schema, so a
+  name that was never on screen arrives blank and is indistinguishable from
+  one deliberately cleared. Only the fields the sheet actually shows are now
+  taken from it. This also keeps a crew role's identity when its numbers
+  change.
+
 ## 4.11.4
 
 A team is counted, and editing one no longer forgets the animals in it.
