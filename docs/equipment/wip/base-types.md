@@ -121,13 +121,39 @@ labels that are currently PERSISTED into item flags, which
 [variations.md](variations.md) had listed as a reason to hesitate. It is not
 one. The cookbooks are ours; rewriting them is work, not risk.
 
+## Settled (owner, 2026-08-15)
+
+- **One sheet, swapping sections.** A single item sheet renders the fieldset for
+  whatever `baseType` is set. One registration, no new document types, and an
+  item that changes base type simply shows different fields.
+- **The category KEYS ship; the fields and values import.** `"gem"` as a
+  vocabulary key is how the code names a concept. What a gem RECORDS, and every
+  printed number in it, arrives from the GM's own book. Same line the doctrine
+  draws everywhere else.
+- **Base types and variations ship TOGETHER**, in one release, so `appliesTo`
+  never has to be keyed on document types and then re-keyed.
+- **One flag.** `baseType` alone; what a category records is its metadata, not a
+  second axis. A sub-category can be added when a second consumer wants one.
+
+## What is being retired, and it is inference
+
+The thing base types replace is not a set of bespoke documents so much as
+**guessing from names**:
+
+| Now | Becomes |
+|---|---|
+| `CLOTHING_SLOT_PATTERNS` — sixteen regexes deciding whether a name is a garment and where it is worn | `baseType: "clothing"` with a declared slot |
+| `GEAR_PROFILES` — keyed by normalised item name, carrying capacity/slots/access | `baseType: "gear"` with declared capacity, slots and access |
+| `WEAPON_ALIASES` / `WEAPONS` — name matching onto a weapon table | `baseType: "weapon"` with a declared category |
+
+**Inference stays as the FALLBACK for unflagged items**, and the flag wins when
+set. Removing it in the release that introduces the flag would strip every
+existing world's clothing of its slots, which is the retire-before-replace trap
+the template's own lesson names. Inference retires when the migration has run
+and the importer sets base types on what it materialises.
+
 ## Open
 
-- **Whether base type is one flag or two.** "Armour" and "clothing" are both
-  worn; "gem" and "coin" are both valuables. A category and a sub-category may
-  be wanted, or may be one flag too many before there is a second consumer.
-- **Which existing bespoke items are the ones to retire**, and in what order.
-  Needs an inventory of what is currently a document that should be a property.
-- **Whether the per-type sheet is one sheet that swaps sections**, or a
-  registered sheet per base type. One sheet is far less registration and keeps
-  the "it is still an `item`" story clean; several give each category room.
+- **Which bespoke items to retire, and in what order** — the inference tables
+  above are the bulk of it, but an inventory of documents-that-should-be-
+  properties is still owed.
