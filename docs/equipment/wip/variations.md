@@ -1,115 +1,202 @@
-# Variations — one shape for every way an item differs from its plain self
+# Variations — an inventory of the ways an item differs from its plain self
 
-**Status: design, nothing built.** Written before the code because the same
-model has been implemented four times already, differently each time, and a
-fifth one-off would have been cheaper to write and worse to own.
+**Status: design, nothing built.** Second draft: the first one misread the code
+it proposed to replace, and the owner's requirements have sharpened since.
 
-## What is wrong now
+## What is actually there now
 
-An item can differ from the plain printed thing in at least six ways, and this
-module models each with its own flag, its own table, its own resolver:
+`properties.mjs` is closer to the target than the first draft of this document
+claimed. It already holds **one** `pristine` snapshot and **recomputes** every
+field from it:
 
-| Difference | Flag | Where its options live |
+```
+pristine → + masterwork → + scavenged → + silver → written to the item
+```
+
+`layerDeltas` already combines three layers into one delta set
+(`bonus`, `damage`, `ac`, `weight6`) and — the part worth preserving carefully —
+already resolves **cost in three ordered slots**, for stated reasons:
+
+| Slot | Applied | Why the order |
 |---|---|---|
-| Masterwork tier | `masterwork` | `config.MASTERWORK`, frozen, shipped |
-| Silver | `silver` | `config.SILVER`, frozen, shipped |
-| Shield variant | `shieldVariant` | `config.SHIELD_VARIANTS`, frozen, shipped |
-| Scavenged condition | `scavenged` | imported ruledata (`equipment` doc) |
-| Named arms | `named` | overlay |
-| Disguise | `disguised` | overlay |
+| `costBaseMul` | first, to the item's own listed price | silver is ten times *the weapon's* price |
+| `costAdd` | then | masterwork is a flat surcharge, so silver must not multiply it |
+| `costMul` | last, to the whole | a scavenged item is worth a fraction of whatever it would otherwise fetch |
 
-Three of those tables are book content sitting in a `config.mjs`, which is the
-IP ruling above. But the deeper cost is that they do not compose: an item cannot
-be a *silvered masterwork buckler* without three flag readers agreeing on the
-order they apply in, and nothing makes them agree. `recomputeItemFields` already
-has to hold a `pristine` baseline precisely because layered changes are not
-modelled as layers.
+So layering, a single baseline, and a considered cost order are **solved**. A
+scavenged masterwork blade already works today.
+
+## What is missing
+
+1. **The layer list is closed.** `layerDeltas` takes masterwork, scavenged and
+   silvered as named parameters. Shield variants, gem quality, named arms,
+   cosmetic differences and (unbuilt) magic each mean editing that function and
+   every caller.
+2. **The definitions are shipped**, in `config.MASTERWORK` / `SILVER` /
+   `SHIELD_VARIANTS`. Under the 2026-08-15 IP doctrine those are page values and
+   belong in the register, imported.
+3. **There is no conflict model.** Nothing stops an item holding two masterwork
+   tiers at once, and nothing expresses the one printed cross-family rule
+   (magic supersedes masterwork).
+4. **Disguise is a whole-item field swap.** `disguiseItem` overwrites name, img,
+   cost, damage and AC, storing `{true, apparent}`. It cannot express "hide the
+   magical part and show the rest", which is what it is now needed for.
+5. **Nothing else can grant a variation.** A loot table or a class template can
+   only name a pre-combined item.
 
 ## The shape
 
-An item is a **pristine base** plus an ordered list of **variations**. That is
-the whole model.
+An item is a **pristine base** plus an **inventory of variations**. Not one slot
+per kind — a list, with an item's variations added and removed the way its
+contents are.
 
 ```
-flags["acks-extras"].pristine   → the item as printed, captured once
-flags["acks-extras"].variations → [{ kind, key }, …]
+flags["acks-extras"].pristine     the item as printed (exists today)
+flags["acks-extras"].variations   [ { id, key, hidden?, data? }, … ]
 ```
 
-A variation TAG on the item is two strings and nothing else. What a tag *means*
-is a **definition**, and definitions live in the register, imported from the
-GM's own book — never shipped. This is the same bargain the thief ladders made:
-the module knows the shape of a variation, not any particular one.
+An entry is a reference and nothing more. What a key *means* is a **definition**
+in the register, imported from the GM's own book — never shipped.
 
 ```
-kind    what sort of difference this is      quality | material | form | apparent
-key     which one of that kind               weaponToHit | silver | buckler | …
+key         "masterwork.weaponToHit"      what this is
+id          a random id                    so an entry can be removed by identity
+hidden      GM-only (below)
+data        per-instance detail a definition asks for (a gem's carat, a name)
 ```
 
-### The four kinds, and why the split is there
+### A definition
 
-- **quality** — better or worse workmanship of the same object. Masterwork,
-  scavenged condition. Changes numbers, never identity.
-- **material** — what it is made of. Silver. Changes what the object *counts
-  as* against immunities, and may change numbers as a side effect.
-- **form** — a named sub-shape of the base object, with its own handling.
-  Shield variants. Changes how it is used, not how well.
-- **apparent** — the object is not what it appears. Disguise, and aesthetic
-  variation generally. **Disguise is apparent value**: it changes name, image
-  and worth *as presented*, and nothing about what the thing does.
+```
+key            "masterwork.weaponToHit"
+kind           quality | material | form | named | cosmetic | magical
+appliesTo      item types / tags this may go on
+deltas         { bonus, damage, ac, weight6 }
+cost           { baseMul, add, mul }   the three ordered slots above
+label, hint    the words — imported, never shipped
+```
 
-`apparent` is the kind that pays for the model. Every other system here answers
-"what does this item do"; `apparent` answers "what does this item look like it
-is", and keeping the two in one list means a disguised silvered masterwork
-dagger is expressible without a fourth flag and a fifth resolver.
+### Conflicts are not a published property
 
-### Resolution
+**Any combination of variations is legal except two variants of the same
+thing.** Nothing in the books declares that one variation excludes another; the
+only exclusivity that exists is that an item has one masterwork tier, one
+scavenged condition, one shield form — a single value for a single field.
 
-`pristine` + variations applied in `kind` order (quality → material → form →
-apparent) = the item's current fields. Order is fixed and declared rather than
-emergent, because "masterwork then silvered" and "silvered then masterwork"
-price differently and only one of them is right.
+So the family is **derived from the key**, which is already namespaced, and
+there is nothing for the importer to author and nothing for a Judge to get
+wrong:
 
-Every variation is removable: drop the tag, recompute from `pristine`. That is
-already the promise `recomputeItemFields` makes and the reason the baseline
-exists — this just makes it true for more than one layer at a time.
+> two entries conflict when their keys share a prefix — the part before the
+> first dot.
 
-## What this unlocks beyond tidiness
+`masterwork.weaponToHit` and `masterwork.armorAC` conflict; `masterwork.*` and
+`condition.dented` and `material.silver` and `form.buckler` do not. A
+**scavenged masterwork silvered buckler** is four entries in four families and
+entirely legal, which is the case the owner named.
 
-**Class starting-equipment templates.** A template currently has to name a
-distinct item for every variant it wants to grant, which is why the sample pack
-carries a "Masterwork Sword (+1 attack)" as its own document. With variations a
-template grants `sword` + `quality:weaponToHit` and the item is built, so the
-list stops being a catalogue of pre-combined objects.
+An earlier draft gave definitions an authored `slot` field for this. That was a
+mechanism for a problem that does not exist: it would have to be filled in on
+every imported definition, correctly, forever, to reproduce exactly what the key
+prefix already says. Kind is *description* only, and is deliberately not the
+exclusivity rule — keying on it would forbid the scavenged masterwork blade.
 
-**The importer stops materializing combinations.** It imports the base items and
-the variation definitions, and the combinations are made at use time.
+**RAW wins over this, as always.** The prefix rule is a default standing in for
+a book that mostly does not speak on the subject — not a claim about what the
+rules permit. Where a page DOES state an interaction, the page is right and the
+default yields:
 
-## Sequencing — this is the part that bites
+- The masterwork entry already carries one such statement: *magic and masterwork
+  bonuses do not stack, because enchanting a weapon makes it masterwork
+  automatically.* That is a cross-family rule between `magical.*` and
+  `masterwork.*`, printed, and it has to be expressible before magic is built.
+- Silver is stated NOT to interact: apart from gaining the Silver feature, the
+  weapon's characteristics do not change. So `material.silver` composing freely
+  with everything is RAW, not merely the default.
+
+So definitions need room for a printed interaction — an `excludes` or
+`supersedes` naming other keys, imported with the definition like everything
+else. It stays EMPTY unless a page fills it, which is the difference between
+this and the `slot` field the earlier draft invented: nobody authors it
+speculatively, and when it is set there is a sentence behind it.
+
+Where the extract is silent, the default holds and a Judge may combine freely.
+
+### Hidden variations, and apparent value
+
+**Disguise is not a kind — it is a per-entry `hidden` flag**, and it is what
+makes an item lie about itself.
+
+- **True value** resolves every entry.
+- **Apparent value** resolves only the entries that are not hidden.
+- A player's client is served the apparent one; a Judge sees both, and which
+  entries are doing the hiding.
+
+That covers the two jobs at once: hiding an (unbuilt) **magical** variation so an
+unidentified sword reads as a plain one, and hiding the **worth** that variation
+carries, because the price falls out of the same resolution rather than being
+stored separately.
+
+**Hidden governs presentation, not mechanics.** A disguised magic sword still
+hits as a magic sword — not knowing what you carry has never stopped it working.
+So `deltas` always apply in full; `hidden` decides only what the name, image and
+price are computed from, and who sees which answer.
+
+This supersedes `disguiseItem`'s stored `{true, apparent}` payload, which has to
+guess which fields a disguise touched in order to undo it. Nothing needs undoing
+when the truth was never overwritten.
+
+### Like an inventory
+
+The affordances are an inventory's, and that is the point of the shape:
+
+```
+listVariations(item)                  what it has
+addVariation(item, key, {data, hidden})   refused on a family clash, by name
+removeVariation(item, entryId)        by identity, so duplicates are removable
+```
+
+Add, remove, list, see it as rows on the sheet. No `setMasterwork`,
+`setShieldVariant`, `clearScavenged` — one verb set for every kind of
+difference, and a new kind needs no new API.
+
+### Who grants them
+
+- **The importer builds the register** of published variations from the GM's own
+  books, and is the only source of definitions.
+- **Loot tables and templates carry variations by default** — an entry names an
+  item *and* the variations it comes with, so a table can roll a masterwork
+  blade without a pre-combined document existing for it. This is what makes
+  class starting-equipment lists stop being catalogues of pre-combined objects,
+  and it is why the sample pack ships a distinct "Masterwork Sword" item today.
+
+## Sequencing
 
 Per the template's 2026-08-15 lesson, the receiving end ships before the sending
-end is retired. So:
+end is retired:
 
-1. **This design.** Agreed before code.
-2. **`acks-extras` builds the model**: `pristine` + `variations`, the resolver,
-   and register reads for definitions. The existing flags keep working,
-   unchanged, reading the existing config tables.
-3. **`acks-importer` releases recipes** for quality, material and form
-   definitions, against this shape. Released, in a tag — not merely written.
-4. **`acks-extras` migrates** the four legacy flags onto variation tags and
-   deletes `MASTERWORK`, `SILVER` and `SHIELD_VARIANTS` from `config.mjs`.
-   Carries a data migration, so it is a minor at least.
+1. **This design**, agreed.
+2. **`acks-extras` builds it**: the entry list, slot conflicts, hidden/apparent
+   resolution, and the inventory API — with `layerDeltas` generalised over the
+   entries. The three legacy flags keep working, still reading the shipped
+   tables, so nothing regresses.
+3. **`acks-importer` releases** variation definitions and the register that holds
+   them, plus loot-table and template support for granting them. Released, in a
+   tag.
+4. **`acks-extras` migrates** the legacy flags onto entries and deletes
+   `MASTERWORK`, `SILVER` and `SHIELD_VARIANTS`. Carries a data migration.
 
-Steps 2 and 4 are separate releases on purpose. Doing them as one is how a
-world upgrades into an empty masterwork dropdown.
+Steps 2 and 4 are separate releases deliberately.
 
 ## Open
 
-- **Where scavenged sits.** It is already imported and already a `quality`, but
-  its labels are PERSISTED into item flags (a pre-merge decision). Migrating it
-  means rewriting those, or accepting two spellings of the same idea.
-- **Whether `named` is a variation or something else.** A named weapon gains
-  bonuses *by level*, which is a progression, not a fixed delta. It may belong
-  outside this model entirely.
-- **Cost composition.** Masterwork adds a flat gp; silver multiplies. The order
-  rule above makes that deterministic, but the model has to say whether a kind
-  contributes an addend or a factor, and the definitions have to carry which.
+- **Named arms are a progression, not a delta.** A named weapon gains bonuses by
+  LEVEL, so its entry would have to resolve against the wielder rather than the
+  item. Either `deltas` gain a level-scaled form, or named sits outside this
+  model. Unresolved.
+- **Scavenged labels are persisted into item flags** (a pre-merge decision), so
+  migrating that kind means rewriting stored text or carrying two spellings.
+- **Gem quality** comes from a different chapter than the equipment qualities
+  and may want its own `appliesTo` vocabulary rather than an item type.
+- **Whether an entry's `data` is free-form** or schema'd per definition. A gem's
+  carat and a named weapon's name are both instance data with nothing in common.
