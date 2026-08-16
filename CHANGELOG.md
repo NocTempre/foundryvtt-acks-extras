@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.11.3
+
+A class trained with hammers can use one.
+
+### Fixed
+- **A hammer named the way a class names it is recognised.** Class training
+  lists the weapon without its prefix, and the weapon grouping it belongs to is
+  written the same way, so a character trained in hammers was read as
+  non-proficient with the only hammer there is.
+
 ## 4.11.2
 
 Editing one level of a trap leaves the other five alone.
