@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.10.4
+
+### Added
+- **A proficiency or power that grants languages now buys the slots.** The
+  Language proficiency grants three tongues and is explicitly repeatable, so
+  taking it twice buys six; the Judge's Journal custom power that does the
+  same grants its three. They are never gated on Intellect — the book offers
+  the proficiency to a low-Intellect character precisely so they can become
+  literate in what they already speak. Any ability you mark yourself with a
+  `languageGrant` flag grants that many, so a homebrew power joins in without
+  waiting on this module.
 ## 4.10.3
 
 ### Fixed

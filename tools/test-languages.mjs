@@ -3,7 +3,7 @@
  * carriers' document writes are live-gate territory.
  */
 import assert from "node:assert/strict";
-import { languageGrant, LITERACY, slotsOf, freeSlots, filledLanguages, wordPrefixMatch } from "../scripts/classes/languages.mjs";
+import { languageGrant, LITERACY, slotsOf, freeSlots, filledLanguages, wordPrefixMatch, languagesFromAbilities } from "../scripts/classes/languages.mjs";
 
 /* --- the plain human: what the class prints, and Intellect on top -------- */
 let g = languageGrant({ intMod: 0, classLanguages: { granted: ["Common", "Krysean"], count: 0 } });
@@ -65,6 +65,38 @@ assert.equal(freeSlots(c), 0);
 
 assert.equal(slotsOf({ flags: {} }), null, "an ability with no slot flag is not a carrier");
 
+/* --- a proficiency or power buys tongues too ----------------------------
+ * The Language proficiency is repeatable and each taking is another three;
+ * rank IS the count of same-named items, so two items is six. It is never
+ * gated on Intellect — the book offers it to a low-Intellect character as the
+ * route to literacy in what they already speak.                            */
+const withItems = (...items) => ({ items });
+const prof = (n = 1) =>
+  Array.from({ length: n }, () => ({ flags: { "acks-importer": { cookbook: { id: "def.prof.language" } } } }));
+
+assert.equal(languagesFromAbilities(withItems(...prof(1))), 3, "one rank buys three");
+assert.equal(languagesFromAbilities(withItems(...prof(2))), 6, "two takings buy six");
+assert.equal(
+  languagesFromAbilities(withItems({ flags: { "acks-importer": { cookbook: { id: "def.power.bonusLanguages" } } } })),
+  3,
+  "the custom power grants the same three, case-blind on the id",
+);
+assert.equal(
+  languagesFromAbilities(withItems({ flags: { "acks-extras": { languageGrant: 2 } } })),
+  2,
+  "a Judge's own marked ability grants what it says",
+);
+assert.equal(languagesFromAbilities(withItems({ flags: {} }, { name: "Riding" })), 0);
+assert.equal(languagesFromAbilities(null), 0);
+
+g = languageGrant({ intMod: -1, classLanguages: { granted: ["Common"] }, fromAbilities: 3 });
+assert.equal(g.openSlots, 3, "a penalty does not cancel what a proficiency bought");
+assert.equal(g.fromAbilities, 3);
+assert.equal(g.literacy, LITERACY.ILLITERATE);
+
+g = languageGrant({ intMod: 2, classLanguages: { count: 1 }, raceLanguages: { count: 2 }, fromAbilities: 3 });
+assert.equal(g.openSlots, 8, "class + race + Intellect + abilities all add");
+
 /* --- a short grant adopts the one long name it word-prefixes -------------
  * The book grants "Common" in one chapter and prints "Common Auran" in the
  * taxonomy; a unique word-boundary prefix is that tongue. Anything ambiguous
@@ -83,4 +115,4 @@ assert.equal(
   "pick maps the winner",
 );
 
-console.log("test-languages: OK (grants, stacking, dedupe, allowances, literacy, slot liveness, prefix adoption)");
+console.log("test-languages: OK (grants, stacking, dedupe, allowances, literacy, slot liveness, ability grants, prefix adoption)");

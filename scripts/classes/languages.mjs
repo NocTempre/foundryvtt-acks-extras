@@ -74,18 +74,66 @@ export const LITERACY = Object.freeze({
 });
 
 /**
+ * How many tongues one ability buys. The Language proficiency is explicitly
+ * repeatable — each taking is another three — and the Judge's Journal custom
+ * power that does the same thing grants the same three, so one number serves
+ * both. Rank needs no special case: rank IS the count of same-named items, so
+ * summing per item already multiplies.
+ */
+export const LANGUAGES_PER_GRANT = 3;
+
+/**
+ * The abilities that buy tongues, by the id an import derives for them. Ids
+ * rather than names: a name is the book's word for it, and these are derived
+ * in the reader's own world from the reader's own book.
+ *
+ * `flags["acks-extras"].languageGrant` is the open door beside them — any
+ * ability a Judge marks with a number grants that many, which is how a
+ * hand-made or third-party power joins in without being named here.
+ */
+const GRANTING_IDS = new Set(["def.prof.language", "def.power.bonuslanguages"]);
+
+/**
+ * How many extra tongues this actor's abilities buy, over class, race and
+ * Intellect.
+ *
+ * @param {Actor} actor
+ * @returns {number}
+ */
+export function languagesFromAbilities(actor) {
+  let n = 0;
+  for (const item of actor?.items ?? []) {
+    const declared = Number(item.flags?.[MODULE_ID]?.languageGrant);
+    if (declared > 0) {
+      n += declared;
+      continue;
+    }
+    const id = String(item.flags?.["acks-importer"]?.cookbook?.id ?? "").toLowerCase();
+    if (GRANTING_IDS.has(id)) n += LANGUAGES_PER_GRANT;
+  }
+  return n;
+}
+
+/**
  * How many tongues a character is owed and from where, given the documents
- * that grant them. Pure counting — the caller supplies the class and race
- * data, so this is testable without a world.
+ * that grant them. Pure counting — the caller supplies the class, race and
+ * ability figures, so this is testable without a world.
  *
  * @param {object} opts
  * @param {number} opts.intMod           the character's Intellect modifier
  * @param {object} [opts.classLanguages] `{granted: string[], count: number}`
  * @param {object} [opts.raceLanguages]  same shape, from the race document
+ * @param {number} [opts.fromAbilities]  slots bought by proficiencies/powers
  * @returns {{granted: string[], openSlots: number, fromInt: number,
- *            fromClass: number, fromRace: number, literacy: string}}
+ *            fromClass: number, fromRace: number, fromAbilities: number,
+ *            literacy: string}}
  */
-export function languageGrant({ intMod = 0, classLanguages = null, raceLanguages = null } = {}) {
+export function languageGrant({
+  intMod = 0,
+  classLanguages = null,
+  raceLanguages = null,
+  fromAbilities = 0,
+} = {}) {
   const named = [...(classLanguages?.granted ?? []), ...(raceLanguages?.granted ?? [])]
     .map((n) => String(n).trim())
     .filter(Boolean);
@@ -96,12 +144,17 @@ export function languageGrant({ intMod = 0, classLanguages = null, raceLanguages
   const fromRace = Number(raceLanguages?.count) || 0;
   // Only a BONUS buys languages. A penalty costs literacy, not tongues.
   const fromInt = Math.max(0, Number(intMod) || 0);
+  // A proficiency buys tongues regardless of Intellect — the book says so
+  // explicitly, offering it to a low-Intellect character as the way to become
+  // literate in what they already speak — so this is never gated on the bonus.
+  const fromAbility = Math.max(0, Number(fromAbilities) || 0);
   return {
     granted,
     fromClass,
     fromRace,
     fromInt,
-    openSlots: fromClass + fromRace + fromInt,
+    fromAbilities: fromAbility,
+    openSlots: fromClass + fromRace + fromInt + fromAbility,
     literacy: (Number(intMod) || 0) < 0 ? LITERACY.ILLITERATE : LITERACY.LITERATE,
   };
 }
@@ -335,6 +388,7 @@ export async function grantLanguages(actor, classItem, log = []) {
     intMod: abilityMod(actor, "int"),
     classLanguages: classItem?.system?.languages ?? null,
     raceLanguages: race?.system?.languages ?? null,
+    fromAbilities: languagesFromAbilities(actor),
   });
 
   // What the class and race simply KNOW becomes documents, because that is
