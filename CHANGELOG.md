@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.11.1
+
+A trap knows what it does at every level it is printed at.
+
+### Changed
+- **A trap is one document at six levels.** The books print each trap at all
+  six, and a trap document described exactly one — so a scything blade used at
+  1st and wanted at 4th was two documents, kept in step by hand. Each trap now
+  carries a row per level, and the level you set on it chooses which row fires
+  and which one you are editing. Everything that does not change with the level
+  — what springs it, how crudely it was built, whether it catches one man or a
+  radius — stays where it was.
+- **Each level keeps the book's own sentence for it.** Beside the typed damage
+  and save sits the printed text for that level, so there is always something to
+  check the numbers against.
+- **The sheet shows one level at a time**, with a strip of the six numerals
+  marking which of them have anything filled in. A trap imported from your book
+  states all six; one you wrote states the ones you filled.
+
 ## 4.11.0
 
 An item's differences are documents you drag onto it, and a class stops hiding
