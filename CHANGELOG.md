@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.10.3
+
+### Fixed
+- **A granted "Common" finds the language your book actually names.** The
+  books grant a tongue by its short name where the taxonomy prints it in full,
+  so a class granting "Common" was minting a second, bare language beside the
+  "Common Auran" already in your world. A granted name that is a word-prefix
+  of exactly one language adopts that language; anything ambiguous still
+  creates what was printed, because guessing between two is how a character
+  ends up speaking the wrong one.
+
 ## 4.10.2
 
 ### Fixed

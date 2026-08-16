@@ -147,14 +147,49 @@ export async function resolveLanguage(entry) {
   }
 
   const key = raw.toLowerCase();
-  const local = (game.items ?? []).find((i) => i.type === LANGUAGE_TYPE && i.name.toLowerCase() === key);
+  const worldLangs = (game.items ?? []).filter((i) => i.type === LANGUAGE_TYPE);
+  const local =
+    worldLangs.find((i) => i.name.toLowerCase() === key) ??
+    wordPrefixMatch(
+      raw,
+      worldLangs.map((i) => i.name),
+      (name) => worldLangs.find((i) => i.name === name),
+    );
   if (local) return local;
 
   const pack = game.packs?.get(SYSTEM_PACK);
   if (!pack) return null;
   const index = await pack.getIndex().catch(() => null);
-  const hit = index?.find((e) => e.name?.toLowerCase() === key);
+  const names = (index ?? []).map((e) => e.name).filter(Boolean);
+  const hit =
+    index?.find((e) => e.name?.toLowerCase() === key) ??
+    wordPrefixMatch(raw, names, (name) => index.find((e) => e.name === name));
   return hit ? await pack.getDocument(hit._id).catch(() => null) : null;
+}
+
+/**
+ * The one candidate the granted name is a word-prefix of, or null.
+ *
+ * The book calls its own tongues by more than one length: the chargen chapter
+ * and the class spreads grant "Common", and the taxonomy the same world
+ * imported prints it in full. A grant that matches exactly one candidate at a
+ * word boundary is that tongue and adopts it; anything ambiguous — zero or
+ * two-plus candidates — returns null and lets the caller mint what was
+ * actually printed, because guessing between two languages is how a character
+ * ends up speaking the wrong one.
+ *
+ * @param {string} name       the granted name
+ * @param {string[]} names    candidate names
+ * @param {(name: string) => any} [pick] maps the winning name to a result
+ */
+export function wordPrefixMatch(name, names, pick = (n) => n) {
+  const key = String(name ?? "").toLowerCase();
+  if (!key) return null;
+  const hits = (names ?? []).filter((n) => {
+    const cand = String(n ?? "").toLowerCase();
+    return cand.startsWith(key) && (cand.length === key.length || cand[key.length] === " ");
+  });
+  return hits.length === 1 ? pick(hits[0]) : null;
 }
 
 /** The name a granted entry should end up displaying. */

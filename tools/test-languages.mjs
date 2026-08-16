@@ -3,7 +3,7 @@
  * carriers' document writes are live-gate territory.
  */
 import assert from "node:assert/strict";
-import { languageGrant, LITERACY, slotsOf, freeSlots, filledLanguages } from "../scripts/classes/languages.mjs";
+import { languageGrant, LITERACY, slotsOf, freeSlots, filledLanguages, wordPrefixMatch } from "../scripts/classes/languages.mjs";
 
 /* --- the plain human: what the class prints, and Intellect on top -------- */
 let g = languageGrant({ intMod: 0, classLanguages: { granted: ["Common", "Krysean"], count: 0 } });
@@ -65,4 +65,22 @@ assert.equal(freeSlots(c), 0);
 
 assert.equal(slotsOf({ flags: {} }), null, "an ability with no slot flag is not a carrier");
 
-console.log("test-languages: OK (grants, stacking, dedupe, allowances, literacy, slot liveness)");
+/* --- a short grant adopts the one long name it word-prefixes -------------
+ * The book grants "Common" in one chapter and prints "Common Auran" in the
+ * taxonomy; a unique word-boundary prefix is that tongue. Anything ambiguous
+ * or boundary-breaking refuses, and the caller mints what was printed.      */
+const CANON = ["Common Auran", "Old Zaharan", "Dwarven", "Kemeshi"];
+assert.equal(wordPrefixMatch("Common", CANON), "Common Auran", "unique word-prefix adopts");
+assert.equal(wordPrefixMatch("common", CANON), "Common Auran", "case-blind");
+assert.equal(wordPrefixMatch("Kemeshi", CANON), "Kemeshi", "an exact name is its own prefix");
+assert.equal(wordPrefixMatch("Dwarvish", CANON), null, "a different word is not a prefix");
+assert.equal(wordPrefixMatch("Dwar", CANON), null, "a mid-word prefix does not adopt");
+assert.equal(wordPrefixMatch("Old", ["Old Zaharan", "Old Kem"]), null, "two candidates is ambiguous — refuse");
+assert.equal(wordPrefixMatch("", CANON), null);
+assert.equal(
+  wordPrefixMatch("Common", CANON, (n) => ({ name: n })).name,
+  "Common Auran",
+  "pick maps the winner",
+);
+
+console.log("test-languages: OK (grants, stacking, dedupe, allowances, literacy, slot liveness, prefix adoption)");
