@@ -122,6 +122,11 @@ export const WEAPON_ALIASES = Object.freeze({
   battleax: "battleaxe",
   greatax: "greataxe",
   handax: "handaxe",
+  // A class's printed weapon list names the hammer without its prefix, and
+  // the narrow category it belongs to is written "flails, hammers, and maces"
+  // — so a grant read off a class spread says "hammer" and would otherwise
+  // match nothing at all.
+  hammer: "warhammer",
   twohandsword: "twohandedsword",
   greatsword: "twohandedsword",
   bastardsword: "sword",
