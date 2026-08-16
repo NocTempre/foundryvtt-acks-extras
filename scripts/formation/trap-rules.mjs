@@ -73,6 +73,33 @@ export const TRAP_LEVELS = 6;
  * row being filled. Lives here rather than on the data model because the sheet
  * and the offline tests both need it without Foundry.
  */
+/**
+ * The six rows a trap should hold after a sheet submit that rendered ONE of
+ * them.
+ *
+ * Foundry expands the form's dotted index paths into an array built only from
+ * the paths the form named: every row below the edited index arrives as an
+ * empty default and every row above it is simply absent. Writing that through
+ * replaces the whole trap with its one edited level. So the answer is rebuilt
+ * from what is STORED, and exactly one index is taken from the submit.
+ *
+ * Lives here, Foundry-free, so the rule is unit-tested rather than only
+ * reachable by opening a sheet.
+ *
+ * @param {object[]} stored the document's current rows
+ * @param {object[]|object} submitted what the form produced
+ * @param {number} level 1-based level the form was showing
+ */
+export function mergeTierSubmit(stored = [], submitted = [], level = 1) {
+  const index = Math.min(Math.max(Number(level) || 1, 1), TRAP_LEVELS) - 1;
+  const edited = submitted?.[index] ?? submitted?.[String(index)] ?? {};
+  return Array.from({ length: TRAP_LEVELS }, (_, i) => ({
+    ...emptyTier(),
+    ...(stored?.[i] ?? {}),
+    ...(i === index ? edited : {}),
+  }));
+}
+
 export const emptyTier = () => ({
   text: "",
   resolution: RESOLUTIONS.automatic,

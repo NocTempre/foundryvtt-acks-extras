@@ -1,6 +1,6 @@
 /* global foundry, game */
 import { MODULE_ID, SAVE_KEYS } from "./constants.mjs";
-import { ON_SUCCESS, RESOLUTIONS, SCOPES, TRAP_LEVELS, emptyTier, pitDamageFormula } from "./trap-rules.mjs";
+import { ON_SUCCESS, RESOLUTIONS, SCOPES, TRAP_LEVELS, mergeTierSubmit, pitDamageFormula } from "./trap-rules.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -106,25 +106,27 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /**
-   * @override — rebuild `levels` before the model cleans the submit.
+   * @override — rebuild `levels` from what is STORED before the model cleans
+   * the submit, overlaying only the row that was on screen.
    *
-   * Only the row on screen has inputs, and they submit as dotted index paths
-   * (`system.levels.2.damageFormula`) which arrive here as a numeric-keyed
-   * OBJECT. Written straight through, the ArrayField rebuilds itself from that
-   * partial and the five levels the form never rendered are LOST — the same
-   * failure the vehicle sheet's crew roster hit. Merging over the stored rows
-   * is what keeps editing 4th level from emptying the other five.
+   * The form renders one tier, whose inputs are dotted index paths
+   * (`system.levels.3.damageFormula`). Those arrive here already expanded into
+   * an ARRAY — but one built solely from the paths the form named, so every
+   * row below the edited index is an empty default and every row above it is
+   * simply absent. Written through, that is the whole trap replaced by its
+   * fourth level: five levels of imported book content gone on a keystroke,
+   * with nothing on screen to suggest it happened.
+   *
+   * So the array is rebuilt from the document and exactly ONE index is taken
+   * from the submit. Testing whether the submitted value is an array is what
+   * this used to do and is not a guard at all — it always is one.
    */
   _prepareSubmitData(event, form, formData, updateData) {
     const data = super._prepareSubmitData(event, form, formData, updateData);
     const submitted = data.system?.levels;
-    if (submitted && !Array.isArray(submitted)) {
-      const stored = this.item.system.levels ?? [];
-      data.system.levels = Array.from({ length: TRAP_LEVELS }, (_, i) => ({
-        ...emptyTier(),
-        ...(stored[i] ?? {}),
-        ...(submitted[i] ?? {}),
-      }));
+    if (submitted) {
+      const level = data.system.level ?? this.item.system.level;
+      data.system.levels = mergeTierSubmit(this.item.system.levels, submitted, level);
     }
     return data;
   }

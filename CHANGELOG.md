@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.11.2
+
+Editing one level of a trap leaves the other five alone.
+
+### Fixed
+- **A trap keeps all six of its levels when you edit one.** Setting a trap to
+  its 4th level and changing anything on it — the damage, the save, the text —
+  replaced the whole trap with that one level: the rows above it vanished and
+  the rows below it were emptied. The sheet shows one level at a time, and only
+  that level was being written back. It now rebuilds from what the trap already
+  holds and changes only the row you were looking at.
+
+  A trap imported from your book can be imported again to restore it. A trap
+  you typed by hand cannot: whatever the other five levels held is gone, and
+  this release cannot bring it back.
+
 ## 4.11.1
 
 A trap knows what it does at every level it is printed at.

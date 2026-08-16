@@ -18,6 +18,9 @@ import {
   repeatLocked,
   triggerFires,
   victimsOf,
+  TRAP_LEVELS,
+  emptyTier,
+  mergeTierSubmit,
 } from "../scripts/formation/trap-rules.mjs";
 import { chainWalls, segmentCrossing } from "../scripts/formation/trap-walls.mjs";
 import { spread as spreadMarks } from "../scripts/formation/trap-markers.mjs";
@@ -473,6 +476,67 @@ test("near-misses group too, because they still overlap on screen", () => {
   assert.notEqual(out[0].x, out[1].x);
 });
 
+/* -------------------------------------------------------------- */
+/*  One level edited must not replace the other five                */
+/* -------------------------------------------------------------- */
+
+/** Six rows as an imported trap holds them. */
+const sixRows = () =>
+  Array.from({ length: TRAP_LEVELS }, (_, i) => ({ ...emptyTier(), text: `level ${i + 1}`, damageFormula: `${i + 1}d6` }));
+
+/**
+ * What Foundry hands the sheet back when the form rendered only row `i`: an
+ * ARRAY, empty defaults below the edited row and nothing at all above it.
+ *
+ * The edited row carries the text too, because the form renders that field —
+ * this is the shape that used to overwrite the whole trap.
+ */
+const submitFor = (i, edit) => {
+  const out = [];
+  for (let n = 0; n < i; n++) out.push(emptyTier());
+  out.push({ ...emptyTier(), text: `level ${i + 1}`, ...edit });
+  return out;
+};
+
+test("editing the fourth level leaves the other five standing", () => {
+  const merged = mergeTierSubmit(sixRows(), submitFor(3, { damageFormula: "9d9" }), 4);
+  assert.equal(merged.length, TRAP_LEVELS);
+  assert.equal(merged[3].damageFormula, "9d9");
+  assert.deepEqual(
+    merged.map((r) => r.damageFormula),
+    ["1d6", "2d6", "3d6", "9d9", "5d6", "6d6"],
+  );
+});
+
+test("the rows the form never showed keep their text", () => {
+  const merged = mergeTierSubmit(sixRows(), submitFor(3, { damageFormula: "9d9" }), 4);
+  assert.deepEqual(merged.map((r) => r.text), ["level 1", "level 2", "level 3", "level 4", "level 5", "level 6"]);
+});
+
+test("editing the first level does not truncate the array", () => {
+  const merged = mergeTierSubmit(sixRows(), submitFor(0, { damageFormula: "1d1" }), 1);
+  assert.equal(merged.length, TRAP_LEVELS);
+  assert.equal(merged[5].damageFormula, "6d6");
+});
+
+test("a submit shaped as a numeric-keyed object is read the same way", () => {
+  const merged = mergeTierSubmit(sixRows(), { 2: { damageFormula: "8d8" } }, 3);
+  assert.equal(merged[2].damageFormula, "8d8");
+  assert.equal(merged[4].damageFormula, "5d6");
+});
+
+test("a level outside 1-6 is clamped rather than writing off the end", () => {
+  assert.equal(mergeTierSubmit(sixRows(), submitFor(0, { damageFormula: "x" }), 99).length, TRAP_LEVELS);
+  assert.equal(mergeTierSubmit(sixRows(), submitFor(0, { damageFormula: "x" }), 0).length, TRAP_LEVELS);
+});
+
+test("a trap with no stored rows still comes back with six", () => {
+  const merged = mergeTierSubmit(undefined, submitFor(1, { damageFormula: "2d2" }), 2);
+  assert.equal(merged.length, TRAP_LEVELS);
+  assert.equal(merged[1].damageFormula, "2d2");
+  assert.equal(merged[0].damageFormula, "");
+});
+
 console.log(
-  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread)`,
+  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread, tier submit merge)`,
 );
