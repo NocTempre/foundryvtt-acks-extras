@@ -13,6 +13,7 @@ import { MODULE_ID, SETTINGS, LOADOUT_EFFECT_FLAG, VARIATION_ITEM_TYPE } from ".
 import { registerSettings } from "./settings.mjs";
 import { buildApi } from "./api.mjs";
 import VariationData from "./data/variation-data.mjs";
+import { registerVariationSheet } from "./variation-sheet.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
@@ -33,6 +34,11 @@ Hooks.once("init", () => {
     CONFIG.Item ??= {};
     CONFIG.Item.dataModels ??= {};
     CONFIG.Item.dataModels[VARIATION_ITEM_TYPE] = VariationData;
+    // Its own sheet is not decoration. The system renders an item's details
+    // from a partial named after the document type, so a sub-type with no
+    // sheet cannot be opened at all — the fallback hunts for
+    // `details-acks-extras.variation.hbs` and the application fails to render.
+    registerVariationSheet(VARIATION_ITEM_TYPE);
   } catch (err) {
     console.error(`${MODULE_ID} | variation item sub-type failed to register`, err);
   }

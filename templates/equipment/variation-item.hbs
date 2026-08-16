@@ -1,0 +1,128 @@
+<section class="standard-form acks-extras-variation-body">
+
+  <fieldset>
+    <legend>{{localize 'ACKS-EQUIPMENT.variations.legendWhat'}}</legend>
+
+    <div class="form-group">
+      <label for="variation-key">{{localize 'ACKS-EQUIPMENT.variations.field.key'}}</label>
+      <input type="text" id="variation-key" name="system.key" value="{{system.key}}"
+             data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-EQUIPMENT.variations.hint.key'}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-kind">{{localize 'ACKS-EQUIPMENT.variations.field.kind'}}</label>
+      <select id="variation-kind" name="system.kind" {{#unless editable}}disabled{{/unless}}>
+        {{#each kindChoices}}
+          <option value="{{this.value}}" {{#if (eq this.value ../system.kind)}}selected{{/if}}>{{this.label}}</option>
+        {{/each}}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-applies">{{localize 'ACKS-EQUIPMENT.variations.field.appliesTo'}}</label>
+      <input type="text" id="variation-applies" name="system.appliesTo" value="{{appliesToText}}"
+             data-dtype="String" placeholder="{{baseTypeHint}}" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-EQUIPMENT.variations.hint.appliesTo'}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-supersedes">{{localize 'ACKS-EQUIPMENT.variations.field.supersedes'}}</label>
+      <input type="text" id="variation-supersedes" name="system.supersedes" value="{{supersedesText}}"
+             data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-EQUIPMENT.variations.hint.supersedes'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-EQUIPMENT.variations.legendChanges'}}</legend>
+
+    <div class="form-group">
+      <label for="variation-bonus">{{localize 'ACKS-EQUIPMENT.variations.field.bonus'}}</label>
+      <input type="number" id="variation-bonus" name="system.deltas.bonus" value="{{system.deltas.bonus}}"
+             data-dtype="Number" {{#unless editable}}disabled{{/unless}}/>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-damage">{{localize 'ACKS-EQUIPMENT.variations.field.damage'}}</label>
+      <input type="number" id="variation-damage" name="system.deltas.damage" value="{{system.deltas.damage}}"
+             data-dtype="Number" {{#unless editable}}disabled{{/unless}}/>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-ac">{{localize 'ACKS-EQUIPMENT.variations.field.ac'}}</label>
+      <input type="number" id="variation-ac" name="system.deltas.ac" value="{{system.deltas.ac}}"
+             data-dtype="Number" {{#unless editable}}disabled{{/unless}}/>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-weight">{{localize 'ACKS-EQUIPMENT.variations.field.weight6'}}</label>
+      <input type="number" id="variation-weight" name="system.deltas.weight6" value="{{system.deltas.weight6}}"
+             data-dtype="Number" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-EQUIPMENT.variations.hint.weight6'}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-EQUIPMENT.variations.legendCost'}}</legend>
+    <p class="hint">{{localize 'ACKS-EQUIPMENT.variations.hint.costOrder'}}</p>
+
+    <div class="form-group">
+      <label for="variation-cost-basemul">{{localize 'ACKS-EQUIPMENT.variations.field.costBaseMul'}}</label>
+      <input type="number" id="variation-cost-basemul" name="system.cost.baseMul" value="{{system.cost.baseMul}}"
+             data-dtype="Number" step="0.01" {{#unless editable}}disabled{{/unless}}/>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-cost-add">{{localize 'ACKS-EQUIPMENT.variations.field.costAdd'}}</label>
+      <input type="number" id="variation-cost-add" name="system.cost.add" value="{{system.cost.add}}"
+             data-dtype="Number" step="0.01" {{#unless editable}}disabled{{/unless}}/>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-cost-mul">{{localize 'ACKS-EQUIPMENT.variations.field.costMul'}}</label>
+      <input type="number" id="variation-cost-mul" name="system.cost.mul" value="{{system.cost.mul}}"
+             data-dtype="Number" step="0.01" {{#unless editable}}disabled{{/unless}}/>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize 'ACKS-EQUIPMENT.variations.legendKnown'}}</legend>
+
+    <div class="form-group">
+      <label for="variation-hidden">{{localize 'ACKS-EQUIPMENT.variations.field.hidden'}}</label>
+      <input type="checkbox" id="variation-hidden" name="system.hidden" {{checked system.hidden}}
+             {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-EQUIPMENT.variations.hint.hidden'}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-read">{{localize 'ACKS-EQUIPMENT.variations.field.read'}}</label>
+      <input type="checkbox" id="variation-read" name="system.read" {{checked system.read}}
+             {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-EQUIPMENT.variations.hint.read'}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="variation-language">{{localize 'ACKS-EQUIPMENT.variations.field.language'}}</label>
+      <input type="text" id="variation-language" name="system.language" value="{{system.language}}"
+             data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
+      <p class="hint">{{localize 'ACKS-EQUIPMENT.variations.hint.language'}}</p>
+    </div>
+  </fieldset>
+
+  <div class="form-group stacked">
+    <label>{{localize 'ACKS-EQUIPMENT.variations.legendDescription'}}</label>
+    {{!-- The sheet's ONLY render of system.description: a second control of the
+          same name in one form is last-write-wins, and a prose-mirror has no
+          `disabled`, so read-only falls through to the enriched render. --}}
+    {{#if editable}}
+    <prose-mirror class="acks-extras-variation-description content-sized" name="system.description"
+                  value="{{system.description}}" toggled data-document-uuid="{{item.uuid}}"
+                  style="--min-height: 4rem;">{{{descriptionHTML}}}</prose-mirror>
+    {{else}}
+    <div class="acks-extras-variation-description">{{{descriptionHTML}}}</div>
+    {{/if}}
+  </div>
+
+</section>

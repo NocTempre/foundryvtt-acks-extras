@@ -964,7 +964,48 @@
         "selfContained": "A variation cannot be applied to itself.",
         "legacyClash": "This item already records {key} in its own field above. Clear that first."
       },
-      "applied": "Applied variations"
+      "applied": "Applied variations",
+      "sheet": "Variation",
+      "kindUnset": "— unset —",
+      "kind": {
+        "quality": "Quality",
+        "material": "Material",
+        "form": "Form",
+        "named": "Named",
+        "appearance": "Appearance",
+        "magical": "Magical"
+      },
+      "legendWhat": "What it is",
+      "legendChanges": "What it changes",
+      "legendCost": "What it costs",
+      "legendKnown": "Who may know",
+      "legendDescription": "Description",
+      "field": {
+        "key": "Key",
+        "kind": "Kind",
+        "appliesTo": "Applies to",
+        "supersedes": "Supersedes",
+        "bonus": "Attack bonus",
+        "damage": "Damage",
+        "ac": "AC",
+        "weight6": "Weight (sixths of a stone)",
+        "costBaseMul": "Scales the listed price",
+        "costAdd": "Flat surcharge",
+        "costMul": "Scales the whole",
+        "hidden": "Hidden",
+        "read": "Legible",
+        "language": "Written in"
+      },
+      "hint": {
+        "key": "Namespaced, like masterwork.weaponToHit. Everything before the first dot is the group: an item carries one variation from each group.",
+        "appliesTo": "Base types, comma separated. Leave blank for anything.",
+        "supersedes": "Keys this replaces, comma separated. A trailing .* matches a whole group. Leave blank unless a page says otherwise.",
+        "weight6": "Six to the stone. Negative makes the item lighter.",
+        "costOrder": "Applied in this order: the listed price is scaled, the surcharge is added, then the whole is scaled.",
+        "hidden": "The players see the item without this, and priced without it. What it does still applies.",
+        "read": "Off means it can be seen but not understood.",
+        "language": "The tongue it is written in, if reading it needs one."
+      }
     }
   },
   "ACKS-EQUIPMENT.container.expand": "Show contents",

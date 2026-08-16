@@ -511,3 +511,21 @@
   outline: 2px dashed var(--acks-spot);
   outline-offset: -3px;
 }
+
+/* The variation item's own sheet — the hand-editing half of the document. Same
+   treatment as the trap sheet, which is the other sub-type a Judge fills in. */
+.acks-extras-variation-sheet .acks-extras-variation-body {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-variation-sheet .form-group.stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.acks-extras-variation-sheet .acks-extras-variation-description {
+  padding: 0.25rem;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
+}
