@@ -24,6 +24,8 @@
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { sumDeltas, variationsOf } from "./variations.mjs";
+import { definitionOf } from "./variation-defs.mjs";
 
 /** The flag holding the item's unmodified field values. */
 export const PRISTINE = "pristine";
@@ -112,6 +114,23 @@ export function layerDeltas(
     d.weight6 += (scavenged.encumbrance ?? 0) * 6;
     if (Number.isFinite(scavenged.valueMultiplier)) d.costMul *= scavenged.valueMultiplier;
   }
+
+  // The open-ended half. The three legacy flags above are closed and shipped;
+  // a variation ENTRY names an imported definition, so a new kind of difference
+  // needs no change here. They share one delta set and one cost order, which is
+  // what keeps a masterwork flag and a masterwork entry from double-counting
+  // the day the migration moves one onto the other.
+  const entries = variationsOf(item);
+  if (entries.length) {
+    const v = sumDeltas(entries, definitionOf, { item });
+    d.bonus += v.bonus;
+    d.damage += v.damage;
+    d.ac += v.ac;
+    d.weight6 += v.weight6;
+    d.costAdd += v.costAdd;
+    d.costMul *= v.costMul;
+    d.costBaseMul *= v.costBaseMul;
+  }
   return d;
 }
 
@@ -128,7 +147,8 @@ export async function recomputeItemFields(item, overrides = {}) {
   const masterwork = "masterwork" in overrides ? overrides.masterwork : masterworkTierOf(item);
   const scavenged = "scavenged" in overrides ? overrides.scavenged : scavengedOf(item);
   const silvered = "silvered" in overrides ? overrides.silvered : silveredFlagOf(item) === true;
-  const anyLayer = !!(masterwork && masterwork !== "none") || !!scavenged || silvered;
+  const anyLayer =
+    !!(masterwork && masterwork !== "none") || !!scavenged || silvered || variationsOf(item).length > 0;
 
   const stored = item.getFlag?.(MODULE_ID, PRISTINE) ?? null;
   // With no snapshot yet, the item as it stands IS pristine — capture it before

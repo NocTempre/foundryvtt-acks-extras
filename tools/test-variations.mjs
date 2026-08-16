@@ -25,6 +25,7 @@ import {
   withoutVariation,
 } from "../scripts/equipment/variations.mjs";
 import { FIELD_KIND, blankData, coerceData, coerceField, usableSpecs } from "../scripts/lib/field-spec.mjs";
+import { inferBaseType } from "../scripts/equipment/base-type-infer.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -97,6 +98,34 @@ test("every base type has a document it is allowed on", () => {
 test("gear is the floor: anything physical may be gear", () => {
   assert.equal(documentBaseType("item"), BASE_TYPE.gear);
   for (const d of ["item", "weapon", "armor"]) assert.equal(baseTypeAllowed(BASE_TYPE.gear, d), true);
+});
+
+/* -------------------------------------------- */
+/*  The legacy guess, still standing in         */
+/* -------------------------------------------- */
+
+const named = (name, type, system = {}) => inferBaseType({ name, type, system });
+
+test("the name guess reads the same tables the rest of the feature reads", () => {
+  assert.equal(named("Backpack", "item"), BASE_TYPE.gear);
+  assert.equal(named("Cloak", "item"), BASE_TYPE.clothing);
+  assert.equal(named("Sword", "weapon"), BASE_TYPE.weapon);
+});
+
+test("a shield is told from a suit by core's own field, not by its name", () => {
+  assert.equal(named("Shield", "armor", { type: "shield" }), BASE_TYPE.shield);
+  assert.equal(named("Plate", "armor", { type: "heavy" }), BASE_TYPE.armour);
+});
+
+test("cloth sold by weight is goods, not a garment", () => {
+  // The clothing table's first row exists to say exactly this.
+  assert.equal(named("Linen (10 lb)", "item"), null);
+});
+
+test("a name nothing recognises guesses nothing, which is a real answer", () => {
+  // The caller falls back to what the document is, and for gear that is right.
+  assert.equal(named("Curious Rock", "item"), null);
+  assert.equal(baseTypeOf({ type: "item", name: "Curious Rock", flags: {} }, { infer: inferBaseType }), BASE_TYPE.gear);
 });
 
 /* -------------------------------------------- */
