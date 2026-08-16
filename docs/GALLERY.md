@@ -56,7 +56,7 @@ the next refresh.
 | The house pile | A location's own coin and stock: the Judge's locks, a spoil awaiting its throw | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-house-pile.png) |
 | Change coin | The market changer: denominations at face value, refused where no market stands | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-exchange.png) |
 | Monster load & rider | The capacity primitive on the sheet: carried weight, MM loads, and the rider named | [guide](guides/monsters.md) | [v4.0.0](releases/v4.0.0/monster-load-rider.png) |
-| Languages | The slots a character carries: what they speak, what is still open, and where a language drops in | [guide](guides/classes.md) | [v4.1.0](releases/v4.1.0/abilities-language-slots.png) |
+| Languages | The open slots a character still has, and the tongue one of them bought — a real language document on the character | [guide](guides/classes.md) | [v4.10.1](releases/v4.10.1/abilities-language-slots.png) |
 | Class languages | What a class speaks and how many more it may choose, beside its award ladder | [guide](guides/classes.md) | [v4.1.0](releases/v4.1.0/classes-languages-editor.png) |
 | Judge's notes | A place's private record, beside the shared one and readable only by the Judge | [guide](guides/location.md) | [v4.1.0](releases/v4.1.0/location-judge-notes.png) |
 | Vehicles: a vessel | A half-manned galley, its real speeds, and what reduced them | [guide](guides/vehicles.md) | [v4.2.0](releases/v4.2.0/vehicles-galley.png) |

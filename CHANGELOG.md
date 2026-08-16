@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.10.2
+
+### Fixed
+- **The language box says what it now takes.** Its hint still invited you to
+  drag a language *ability* onto it — the shape 4.10.1 replaced — and dropping
+  one is refused. The hint asks for a language, and the refusal explains that
+  an ability dropped there is an older copy from before the change.
+
 ## 4.10.1
 
 Languages are documents now, and Polyglot can see them.
