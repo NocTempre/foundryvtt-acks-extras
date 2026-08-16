@@ -33,6 +33,7 @@ const COMMITTED = [
   "test-formation-heading.mjs",
   "test-marching-templates.mjs",
   "test-trap-rules.mjs",
+  "test-variations.mjs",
   "test-influence.mjs",
   "test-classes.mjs",
   "test-henchmen.mjs",
