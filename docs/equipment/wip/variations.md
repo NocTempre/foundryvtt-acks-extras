@@ -62,8 +62,17 @@ in the register, imported from the GM's own book — never shipped.
 key         "masterwork.weaponToHit"      what this is
 id          a random id                    so an entry can be removed by identity
 hidden      GM-only (below)
-data        per-instance detail a definition asks for (a gem's carat, a name)
+data        this entry's OWN storage — see below; a gem's carat, a named
+            weapon's whole stat block
 ```
+
+**`data` is not a scrap field.** For most variations it is empty and the
+definition's `deltas` say everything. For the rich ones it carries the entire
+stat storage, and the entry becomes the document of record for that thing. A
+variation is therefore allowed to contribute in one of two ways:
+
+- **flat deltas**, from the definition — masterwork, a dent, silver;
+- **computed from its own `data`**, when the contribution is not a constant.
 
 ### A definition
 
@@ -71,8 +80,9 @@ data        per-instance detail a definition asks for (a gem's carat, a name)
 key            "masterwork.weaponToHit"
 kind           quality | material | form | named | cosmetic | magical
 appliesTo      item types / tags this may go on
-deltas         { bonus, damage, ac, weight6 }
+deltas         { bonus, damage, ac, weight6 }   flat, when it is a constant
 cost           { baseMul, add, mul }   the three ordered slots above
+tab            this variation carries storage worth a tab of its own
 label, hint    the words — imported, never shipped
 ```
 
@@ -160,6 +170,28 @@ Add, remove, list, see it as rows on the sheet. No `setMasterwork`,
 `setShieldVariant`, `clearScavenged` — one verb set for every kind of
 difference, and a new kind needs no new API.
 
+### A variation that carries its own stats
+
+Named arms were the case that looked like it would not fit: a named weapon gains
+its bonuses **by the wielder's level**, so there is no constant for `deltas` to
+hold. The answer is that the entry holds the whole thing.
+
+A named-arms entry's `data` is the full stat storage — the ladder, what unlocks
+at each rung, the name itself — and its contribution is computed from that
+against the wielder, not looked up as a delta. The entry is where the named
+weapon's stats LIVE; the definition only says what a named weapon is.
+
+Its definition sets **`tab`**, and the item sheet grows a tab for viewing it.
+That is the general rule and not a special case: any variation whose storage is
+worth inspecting asks for a tab, and a gem's quality detail may well be the
+second one. Everything else stays a row in the list.
+
+**The tab obeys `hidden` like everything else.** A named weapon whose legend the
+party has not uncovered is a hidden entry: the Judge sees the tab and the stats,
+the players see a plain sword, and identifying it is un-hiding the entry rather
+than a separate mechanism. That is the same switch the magical variations will
+use, which is the point of having only one.
+
 ### Who grants them
 
 - **The importer builds the register** of published variations from the GM's own
@@ -190,10 +222,8 @@ Steps 2 and 4 are separate releases deliberately.
 
 ## Open
 
-- **Named arms are a progression, not a delta.** A named weapon gains bonuses by
-  LEVEL, so its entry would have to resolve against the wielder rather than the
-  item. Either `deltas` gain a level-scaled form, or named sits outside this
-  model. Unresolved.
+- ~~Named arms are a progression, not a delta.~~ **RESOLVED** — see below. They
+  stay in the model, carrying their own storage.
 - **Scavenged labels are persisted into item flags** (a pre-merge decision), so
   migrating that kind means rewriting stored text or carrying two spellings.
 - **Gem quality** comes from a different chapter than the equipment qualities
