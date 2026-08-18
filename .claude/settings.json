@@ -43,6 +43,12 @@
             "if": "Bash(git *)",
             "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/single-branch-guard.mjs\" pretool",
             "statusMessage": "Checking branch convention"
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/no-windows-path-heredoc.mjs\"",
+            "statusMessage": "Checking heredoc for Windows paths"
           }
         ]
       }

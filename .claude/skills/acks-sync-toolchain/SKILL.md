@@ -1,6 +1,8 @@
 ---
 name: acks-sync-toolchain
 description: Propagate canonical toolchain files from acks-module-template into the acks-* module repos and verify each. Use after editing the template, or to audit repos for drift.
+model: sonnet
+effort: medium
 ---
 
 The template repo `C:\Proj\acks-module-template` is the single source of truth

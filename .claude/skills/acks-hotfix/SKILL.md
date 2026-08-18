@@ -37,13 +37,13 @@ ship without the live gate.
 | Repo | What it is |
 | --- | --- |
 | `foundryvtt-acks-core` | The ACKS II system (AutarchLLC fork). **Read-only reference — a module task never edits it.** |
-| `foundryvtt-acks-extras` | The merged rules-automation module (`acks-extras`). Subsystems under `scripts/`: `lib abilities equipment formation henchmen influence location monsters`. |
+| `foundryvtt-acks-extras` | The merged rules-automation module (`acks-extras`). Subsystems under `scripts/`: `lib abilities classes equipment formation henchmen influence location markets monsters vehicles`. |
 | `foundryvtt-acks-importer` | `acks-importer` — book connection and content/table extraction. `requires acks-extras`; extras never names it. |
-| `acks-domains` | Domain management, downtime, hijinks, syndicates, mercantile. |
-| `acks-divine-conduit` | The Divine Conduit class (Effort, Divine Siphon). |
-| `acks-module-template` | Toolchain source of truth; the skills live here. |
-| `acks-rules` | LOCAL-ONLY rules extracts + `TEST_ENVIRONMENT.md`. Never committed, never shipped. |
-| `acks-reference` | LOCAL-ONLY reference library (book scans/extracts). |
+| `acks-module-template` | Toolchain source of truth; skills, rules and hooks are canonical here. |
+| `acks-rules` | LOCAL-ONLY rules extracts + `TEST_ENVIRONMENT.md` + the intake ledger and hygiene audit. Never committed, never shipped. |
+| `acks-reference` | LOCAL-ONLY reference library (book scans/extracts, `WIKI-SNAPSHOT`). |
+| `acks-domains` | **Not part of this project.** A symptom routed here is `routed-elsewhere`, not a family fix. |
+| `acks-divine-conduit` | Isolated one-off; untouched by family tooling. Fix only on explicit request. |
 | `acksii-compendia` | Third-party stopgap compendia — not ours; a symptom here is not our bug. |
 | `acks-git-backups` | Pre-purge bundles. Not a live repo. |
 
@@ -51,43 +51,21 @@ The template's `docs/TOOLCHAIN.md` §0 carries this same table as canon; it is
 repeated here so orientation costs one read, not two. If the two ever disagree,
 TOOLCHAIN is right and this table is the stale one.
 
-### Looking a rule up — cheapest source first
+### Looking a rule up
 
-The moment a bullet turns on "what does the book actually say", the order is
-fixed. Do not open a 98 MB PDF to answer a question grep can answer.
-
-1. **`C:\Proj\acks-reference\WIKI-SNAPSHOT\`** — the fan wiki captured whole,
-   `<book>/html/<slug>.html` raw beside `<book>/md/<slug>.md` extracted. It
-   covers **all three core books**: `rules/` = **RR** (16 sections), `judges/`
-   = **JJ** (24), `monsters/` = **MM** (297). The markdown is greppable and
-   **preserves the structure PDF text extraction destroys** — table cells, row
-   boundaries and paragraph breaks survive instead of collapsing into run-ons.
-   That is what makes it a **validation oracle**: you can check the *shape* of
-   a grid — column count, row boundaries, which cell holds which value —
-   against something the PDF layer cannot tell you. It was validated against
-   this family's own extractions before being trusted (thief-skill grid, 112
-   of 112 cells; 60 compiled class grid ops, 0 disagreements).
-2. **`C:\Proj\acks-rules\<feature>\RULES.md`** and the owning module's
-   `docs/<feature>/MODEL.md` / `DECISIONS.md` — rulings this family already
-   made. A "maybe intentional" bullet is usually answered here, not in a book.
-3. **`C:\Proj\acks-reference\ACKSII\*.pdf`** — **only** where 1 and 2 both have
-   a gap, or when explicitly asked to double-check the printed page.
-
-The snapshot is a derived fan compendium, so on a genuine conflict **the
-printed page wins**. It is LOCAL-ONLY on the same footing as `acks-rules`:
-never into a repo, a commit message or a changelog. Cite book/chapter/section,
-never a snapshot path. When diffing extraction against the importer, compare
-`cookbook/*.json` (compiled ops), **not** `register/rr/*.json`, whose declared
-column headers drift from what the compiler actually emits.
+The moment a bullet turns on "what does the book actually say", follow
+`.claude/rules/rules-lookup.md` — wiki snapshot first (it is a validation
+oracle for table shape), then the local extracts and `DECISIONS.md`, a PDF
+only for a gap. Cite book/chapter/section, never a snapshot path.
 
 ### Routing a symptom
 
 | The report mentions | Repo |
 | --- | --- |
 | Linking/connecting books, importing content or tables, page-reference extraction, the launch "Getting Started" dialog | `acks-importer` |
-| Proficiencies, class powers, weapons/armor/encumbrance, formations and marching order, henchmen/hirelings/morale, reactions and influence, locations/storage/markets, monster stat blocks, party & group actors | `acks-extras` |
-| Domains, downtime, hijinks, syndicates | `acks-domains` |
-| Divine Conduit class mechanics | `acks-divine-conduit` |
+| Proficiencies, classes and class powers, weapons/armor/encumbrance, formations and marching order, henchmen/hirelings/morale, reactions and influence, locations/storage/markets, monster stat blocks, vehicles, party & group actors | `acks-extras` |
+| Domains, downtime, hijinks, syndicates | out of scope (`acks-domains` is not part of this project) — record `routed-elsewhere` |
+| Divine Conduit class mechanics | `acks-divine-conduit` — isolated one-off; only on explicit request |
 | Base sheets, rolls or combat with our modules **disabled** | `acks-core` — reproduce with modules off before blaming it |
 
 **One report routinely spans two repos.** Say so to the user early: it means two
@@ -219,12 +197,9 @@ Reflexes that are wrong here (full statements in the module's `CLAUDE.md`):
   template. Fix the template and run `acks-sync-toolchain`; never hand-edit.
 - One owner per wrapped core method. Overrides of core logic default to the
   shared `lib` subsystem, not to a feature.
-- `npm run validate` and `npm test` run against **mocked** Foundry globals. Green
-  offline proves nothing about Foundry's behaviour — every module-breaking bug in
-  this family passed a green offline suite. The live gate is not optional.
-- **Shut the running world down before `npm run build:packs`** — it holds LevelDB
-  locks and the build fails on the LOG files. Order: shut down → build → launch →
-  test.
+- Green offline proves nothing — `validate`/`npm test` run against mocked
+  globals, and the live gate is not optional. Procedure and the
+  world-shutdown-before-build rule: `.claude/rules/live-testing.md`.
 
 ## 6. Ship it
 

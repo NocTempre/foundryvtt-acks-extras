@@ -1,6 +1,8 @@
 ---
 name: acks-release
 description: Cut a major, minor or hotfix release of an ACKS module repo (version bump, live gate, release snapshots, tag, CI watch, manifest verification). Use when the user asks to release/publish/tag an acks-* module, or names a release kind such as "major release".
+model: sonnet
+effort: high
 ---
 
 Release procedure for any NocTempre `acks-*` module (canonical definition:
@@ -24,14 +26,10 @@ gate.
 
 **A release states rules too** — step 2's changelog entries and step 5's
 capture captions both assert what the book says. Verify before asserting, in
-`acks-hotfix` §1's order: grep `C:\Proj\acks-reference\WIKI-SNAPSHOT\` first
-(`rules/` = RR, `judges/` = JJ, `monsters/` = MM — greppable markdown that
-preserves the table cells, row boundaries and paragraph breaks PDF extraction
-destroys, which is what makes it a **validation oracle** rather than just a
-faster read), then `C:\Proj\acks-rules\` and the feature's `DECISIONS.md`, and
-open a PDF only for a gap or an explicit double-check. Cite
-book/chapter/section; the snapshot is LOCAL-ONLY and its paths never appear in
-a changelog, a commit message or a tag.
+`.claude/rules/rules-lookup.md`'s order (snapshot → local extracts and
+`DECISIONS.md` → PDF last). Cite book/chapter/section; the snapshot is
+LOCAL-ONLY and its paths never appear in a changelog, a commit message or a
+tag.
 
 The CI procedure itself lives in acks-module-template's
 `release-module.yml` (reusable workflow) — module `release.yml` files are thin
@@ -60,22 +58,13 @@ the full pipeline (build + validate, no publish) is available anytime:
    (pack `_stats` stamps are fixed, so a diff means content really changed).
 4. `npm run validate` and, if a `test` script exists, `npm test`. Both must
    pass — fix, don't skip.
-5. **Live-verify on the local test server (TOOLCHAIN §4a). This is a GO-LIVE
-   GATE**, not an optional extra — offline checks run against mocked globals
-   and have shipped dead modules green. Skip only when
-   `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` is absent (no test server on this
-   machine), and say so in the report.
-   - **Build the test artifacts the check needs, then delete them.** Missing
-     data is test data you make, not a limitation you report.
-   - **Never mutate the world's pre-existing documents and roll back.** A
-     rollback is a second write that can silently fail, cannot restore what
-     you did not snapshot, and strands the world if the test throws. Create
-     disposable actors/items/users instead — deletion is total and needs no
-     trust.
-   - The world has a seat at every permission level: verify player-facing
-     behaviour by **joining as that player**, not by rendering a template
-     with `isGM: false`. The template branch and the API under it fail
-     independently.
+5. **Live-verify on the local test server. This is a GO-LIVE GATE**, not an
+   optional extra — offline checks run against mocked globals and have
+   shipped dead modules green. The canonical procedure (environment, the
+   create-and-destroy fixture discipline, real player seats, pre-upgrade
+   shapes, what to report) is `.claude/rules/live-testing.md` — follow it.
+   Skip only when `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` is absent (no
+   test server on this machine), and say so in the report.
 5a. **Capture the release snapshots the kind calls for (TOOLCHAIN §4b) — in
    this same live session, before you shut the world down.** A shot staged
    later proves nothing about the release. Skip only for a hotfix with no

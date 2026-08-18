@@ -1,6 +1,8 @@
 ---
 name: acks-new-module
 description: Scaffold a new ACKS II Foundry module repo from acks-module-template. Use when the user wants to start a new acks-* module.
+model: sonnet
+effort: medium
 ---
 
 Scaffold a new module in the NocTempre ACKS family. The canonical toolchain and
@@ -19,15 +21,8 @@ before deviating from anything).
    rules extract at `C:\Proj\acks-rules\<id>\RULES.md` (**LOCAL-ONLY, never
    in the repo** — licensed book text; cite book/chapter/section) and the
    in-repo `docs/MODEL.md` with the reuse → extend → enhance → invent
-   breakdown.
-   Source the extract from `C:\Proj\acks-reference\WIKI-SNAPSHOT\` before any
-   PDF — it covers all three core books (`rules/` = **RR**, `judges/` = **JJ**,
-   `monsters/` = **MM**) as greppable markdown that keeps the table cells, row
-   boundaries and paragraph breaks PDF extraction collapses into run-ons, which
-   is what lets it **validate** a table's shape rather than merely read faster.
-   Open `acks-reference\ACKSII\*.pdf` only where the snapshot has a gap or the
-   printed page needs a double-check; on a genuine conflict the printed page
-   wins. The snapshot is LOCAL-ONLY on the same footing as `acks-rules`.
+   breakdown. Source the extract in `.claude/rules/rules-lookup.md`'s order —
+   wiki snapshot before any PDF; on a genuine conflict the printed page wins.
 5. Publishing is a separate, user-confirmed step — ask before running
    `gh repo create NocTempre/<id> --public --source . --push`.
 6. Foundry dev install (junction, not copy):

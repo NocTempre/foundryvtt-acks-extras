@@ -82,14 +82,10 @@ deferral the user never saw is a decision you made for them.
 
 **A minor states rules — in a changelog entry's bold opening sentence, and in
 any migration heuristic that decides what old data meant.** Verify each one
-before writing it, in `acks-hotfix` §1's order: grep
-`C:\Proj\acks-reference\WIKI-SNAPSHOT\` first (`rules/` = RR, `judges/` = JJ,
-`monsters/` = MM — greppable markdown that keeps the table cells, row
-boundaries and paragraph breaks PDF extraction collapses into run-ons, which
-is what lets it serve as a **validation oracle** for a grid's shape), then the
-local extract and `DECISIONS.md`, and only then a PDF. Cite
-book/chapter/section, never a snapshot path — the snapshot is LOCAL-ONLY and
-never reaches a changelog.
+before writing it, in `.claude/rules/rules-lookup.md`'s order (snapshot →
+local extracts and `DECISIONS.md` → PDF last). Cite book/chapter/section,
+never a snapshot path — the snapshot is LOCAL-ONLY and never reaches a
+changelog.
 
 ## 3. Each tripwire brings its own obligation
 

@@ -110,12 +110,10 @@ Mechanics are `acks-hotfix` §1–§3, used as written: the two orientation read
 table, the report-kind split, and the parallel Workflow fan-out with one
 investigator per symptom plus the cross-check. Nothing there is repeated here.
 
-The rules-lookup order matters most in this skill, because a **false report**
-and a **docs gap** both turn on what the book says: grep
-`acks-reference\WIKI-SNAPSHOT\` first — `rules/` = RR, `judges/` = JJ,
-`monsters/` = MM, greppable markdown that keeps the table structure PDF
-extraction destroys — then the local extract and `DECISIONS.md`, and open a
-PDF only for a gap or an explicit double-check.
+The rules-lookup order (`.claude/rules/rules-lookup.md`) matters most in this
+skill, because a **false report** and a **docs gap** both turn on what the
+book says: snapshot first, then the local extracts and `DECISIONS.md`, a PDF
+only for a gap or an explicit double-check.
 
 **When to fan out** is decided by what survives §3, not by the batch's size
 on arrival. Only rows that are unclaimed, non-duplicate, and carry *your*

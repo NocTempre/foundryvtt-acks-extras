@@ -1,15 +1,8 @@
 # Documentation
 
-Four kinds of document, each answering a different question. Nothing is stated in
-two places: a fact lives at the deepest level where it is entirely true, and
-rises only when a second sibling needs it.
-
-| Kind | Answers | Where |
-|---|---|---|
-| **MODEL.md** | How does it work now? | `docs/<feature>/` |
-| **DECISIONS.md** | Why is it this way? What was rejected? | `docs/<feature>/`, `docs/` |
-| **ROADMAP.md** | What is not built yet? | `docs/<feature>/`, `docs/` |
-| **guides/** | How do I use it? | `docs/guides/` |
+The document kinds, the dedup law, the `wip/` lifecycle and the
+comment/docstring rules are the synced `.claude/rules/docs-doctrine.md` —
+this file only indexes what this repo has.
 
 - [DECISIONS.md](DECISIONS.md) — repo-level: the merge, namespacing, flag scope.
 - [ROADMAP.md](ROADMAP.md) — repo-level: magic, the domain-module family.
@@ -17,20 +10,10 @@ rises only when a second sibling needs it.
   screenshot came from.
 - [guides/](guides/) — user-facing how-to, one per feature area.
 
-Per-feature: `abilities`, `equipment`, `formation`, `henchmen`, `influence`,
-`lib`, `location`, `monsters`. The `lib` feature additionally splits by topic
-(API, GROUPS, PLACES, FOLLOWER-CARD) because it is the shared surface every other
-feature reads.
-
-## `wip/`
-
-`docs/<feature>/wip/` holds **in-flight working artifacts** — audits, plans and
-proposals produced while working something out. They are not permanent
-documents: when the work lands, their substance moves into MODEL / DECISIONS /
-ROADMAP and the artifact is deleted.
-
-Nothing permanent is ever named AUDIT, PLAN or PROPOSAL. That naming is how the
-tree drifted before.
+Per-feature: `abilities`, `classes`, `equipment`, `formation`, `henchmen`,
+`influence`, `lib`, `location`, `markets`, `monsters`, `vehicles`. The `lib`
+feature additionally splits by topic (API, GROUPS, PLACES, FOLLOWER-CARD)
+because it is the shared surface every other feature reads.
 
 ## `site/`
 
