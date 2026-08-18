@@ -1,7 +1,7 @@
 {
   "name": "acks-extras",
   "version": "0.1.0",
-  "description": "Dev tooling for the ACKS II â€” Extras Foundry module. Not loaded by Foundry at runtime.",
+  "description": "Dev tooling for the ACKS II — Extras Foundry module. Not loaded by Foundry at runtime.",
   "private": true,
   "type": "module",
   "engines": {
