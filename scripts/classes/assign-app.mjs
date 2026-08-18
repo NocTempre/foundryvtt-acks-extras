@@ -32,12 +32,12 @@ import { awardsThrough, choosableGenerals, grantAbility, refOf } from "./grants.
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
 import { grantableRefs, rungLabel, rungOptions } from "./picks.mjs";
 import { unmetRequirements } from "./stat-page.mjs";
+import { makeLoc } from "../lib/util.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
 const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
-const loc = (key, data) =>
-  data ? game.i18n.format(`${LANG_PREFIX}.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.${key}`);
+const loc = makeLoc(LANG_PREFIX);
 
 /** The pickers OFFER core classes (plus whatever the actor is already bound
  *  to); everything else waits behind the show-all toggle. Listed as the books

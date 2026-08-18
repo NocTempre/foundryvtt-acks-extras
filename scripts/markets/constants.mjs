@@ -2,7 +2,8 @@
  * Shared constants for the markets feature. Pure module — importable from
  * Node tooling and tests.
  */
-export const MODULE_ID = "acks-extras";
+import { MODULE_ID } from "../lib/constants.mjs";
+export { MODULE_ID };
 
 /** i18n root for this feature's keys in lang/en.json. */
 export const LANG = "ACKS-MARKETS";

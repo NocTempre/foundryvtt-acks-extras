@@ -5,7 +5,7 @@
  * pairs with) can be imported by the Node build tooling as well as at runtime.
  */
 
-export const MODULE_ID = "acks-extras";
+export { MODULE_ID } from "../lib/constants.mjs";
 
 /** The core ACKS actor type this module enhances (we do NOT invent a new one). */
 export const MONSTER_TYPE = "monster";

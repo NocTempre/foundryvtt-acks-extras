@@ -1,4 +1,5 @@
-export const MODULE_ID = "acks-extras";
+import { MODULE_ID } from "../lib/constants.mjs";
+export { MODULE_ID };
 export const LANG_PREFIX = "ACKS-LOCATION";
 
 /** The location actor sub-type this feature adds to the system. */

@@ -136,3 +136,9 @@ Still unbuilt, in likely order:
 7. Wilderness/expedition mode — PARTLY UNBLOCKED. The wilderness chapter is now in hand: 4.4.0 added the movement-scale vocabulary (`lib/movement-scales.mjs`, published on `api.lib`) with the Expedition Speed table reproduced to all twelve rows, travel pace (dedicated / forced march ×3/2 / ancillary half), and terrain and road multipliers on `vehicles/vehicle-speed.mjs`. What remains is the MODE: a formation that knows which hex it is in, what ground it is crossing, and a day-scale clock beside the turn-scale one. The formation record has no `ground` field yet, so a party's vehicle currently travels at its printed pace rather than a terrain-adjusted one.
 8. Spell "per level" duration parsing (quick win, batch with the next release).
 9. Week-ration uses counter (quick win).
+10. **`levelFactor` stays a free float** in this feature's own skill-audit
+    override (`skill-audit.mjs`, `party-rolls.mjs` — 0.25–2, unlabeled), unlike
+    `lib/vocab.mjs`'s named `PROGRESSION_LEVELS` (full/half/third/quarter) that
+    abilities and classes already read. Adopting the enum here was the smaller
+    half of the original abilities-integration audit's Phase 4 sketch and was
+    never split out as its own change.

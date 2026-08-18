@@ -7,7 +7,7 @@
  * into weekly arrival tranches. There is no per-candidate reroll surface.
  * Attributes (3d6 ×6) are rolled once, at HIRE time, and recorded.
  */
-import { getTable, optTable } from "./tables.mjs";
+import { bracketRow, getTable, optTable } from "./tables.mjs";
 
 /**
  * Fallback class roll from the core-six class percentages (people doc) when
@@ -19,7 +19,7 @@ import { getTable, optTable } from "./tables.mjs";
 async function rollCoreClass(rollDice, level = 1) {
   const pct = optTable("people", "classPercentages");
   if (!pct?.rows?.length) return { classKey: "fighter", bucket: "fighter", rolls: [0, 0] };
-  const row = pct.rows.find((r) => level >= r.minLevel && level <= r.maxLevel) ?? pct.rows[0];
+  const row = bracketRow(pct.rows, level, "minLevel", "maxLevel") ?? pct.rows[0];
   const entries = Object.entries(row.weights);
   const total = entries.reduce((s, [, w]) => s + w, 0);
   const roll = await rollDice(`1d${total}`);
@@ -51,8 +51,8 @@ export async function rollClassFromDistribution(rollDice, variant = "default", l
   const buckets = variants[variant]?.buckets ?? distribution.buckets;
   const bucketRoll = await rollDice("1d100");
   const rowRoll = await rollDice("1d100");
-  const bucket = buckets.find((b) => bucketRoll >= b.min && bucketRoll <= b.max) ?? buckets[buckets.length - 1];
-  const row = bucket.rows.find((r) => rowRoll >= r.min && rowRoll <= r.max);
+  const bucket = bracketRow(buckets, bucketRoll) ?? buckets[buckets.length - 1];
+  const row = bracketRow(bucket.rows, rowRoll);
   return { classKey: row?.class ?? "special", bucket: bucket.id, rolls: [bucketRoll, rowRoll] };
 }
 
@@ -81,7 +81,7 @@ export async function rollTrajectoryFromDistribution(rollDice, variant = "defaul
   }
   const bucket = buckets.find((b) => b.id === bucketId) ?? buckets[0];
   const rowRoll = await rollDice("1d100");
-  const row = bucket.rows.find((r) => rowRoll >= r.min && rowRoll <= r.max);
+  const row = bracketRow(bucket.rows, rowRoll);
   return { classKey: row?.class ?? "special", bucket: bucket.id, rolls: [bucketRoll, rowRoll] };
 }
 
@@ -97,9 +97,7 @@ export async function rollRandomLevel(rollDice, marketClass) {
   const penalty = marketClass === 6 ? (table.classVIPenalty ?? imported ?? 0) : 0;
   const die = await rollDice("1d20");
   const total = die + penalty;
-  const row =
-    table.rows.find((r) => (r.min === undefined || total >= r.min) && (r.max === undefined || total <= r.max)) ??
-    table.rows[0];
+  const row = bracketRow(table.rows, total) ?? table.rows[0];
   return { level: row.level, die, penalty };
 }
 

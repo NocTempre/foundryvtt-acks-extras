@@ -3,7 +3,8 @@
  * actor flag that binds a character to a class document, and the ruledata
  * document ids the registry publishes are each named once, here.
  */
-export const MODULE_ID = "acks-extras";
+import { MODULE_ID } from "../lib/constants.mjs";
+export { MODULE_ID };
 export const LANG_PREFIX = "ACKS-CLASSES";
 
 /** The class Item sub-type (declared in module.json `documentTypes.Item`). */

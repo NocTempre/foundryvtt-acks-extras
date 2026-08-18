@@ -31,6 +31,16 @@ citation in shipped text; **the value rule still needs a reviewer** — no gate
 can tell a structural constant from a printed one. Book content reaches a
 world through `acks-importer`, materialized from the GM's own books.
 
+The real gate fires **pre-commit** (`ip-quarantine.mjs`, armed by the
+`prepare` script on every clone): a flagged staged file is unstaged and
+appended to `.git/info/exclude`, so the commit proceeds without it and the
+file cannot be re-staged by accident. Distinguish the two failure classes:
+**a leak** (bulk book extracts, rules words, page values in anything tracked)
+never ships and is purged from history if it landed; **app-licensed in-app
+content** (what the importer materializes into a world from the GM's own
+books) is legitimate and is not a leak when it appears in a screenshot or a
+world backup.
+
 This doctrine is deliberately stricter than the licence requires — the margin
 is the point. The ruling and its history live in
 `acks-module-template/docs/DECISIONS.md`.

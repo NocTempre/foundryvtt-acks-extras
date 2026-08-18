@@ -83,10 +83,20 @@ for (const f of [
 /* -------------------------------------------------------------------------- */
 const LITERAL_OK = new Set(['"acks-extras"', '"acks-importer"', '"core"']);
 /* Identifier scopes are resolved to their declaration and checked by VALUE, so
- * a constant renamed or repointed cannot slip past a name allowlist. */
+ * a constant renamed or repointed cannot slip past a name allowlist. Feature
+ * constants re-export MODULE_ID from lib (one statement of the literal —
+ * section below), so resolution follows one hop of
+ * `export/import { X } from "…/lib/constants.mjs"` into the lib declaration. */
+const LIB_CONSTANTS = fs.readFileSync(path.join(ROOT, "scripts", "lib", "constants.mjs"), "utf8");
 const scopeValue = (text, ident) => {
   const m = new RegExp(`(?:const|let|var)\\s+${ident}\\s*=\\s*"([^"]+)"`).exec(text);
-  return m ? `"${m[1]}"` : null;
+  if (m) return `"${m[1]}"`;
+  const hop = new RegExp(`(?:export|import)\\s*\\{[^}]*\\b${ident}\\b[^}]*\\}\\s*from\\s*"[^"]*lib/constants\\.mjs"`).exec(text);
+  if (hop) {
+    const lib = new RegExp(`(?:const|let|var)\\s+${ident}\\s*=\\s*"([^"]+)"`).exec(LIB_CONSTANTS);
+    return lib ? `"${lib[1]}"` : null;
+  }
+  return null;
 };
 for (const f of walk(path.join(ROOT, "scripts"))) {
   if (!f.endsWith(".mjs")) continue;
@@ -101,7 +111,6 @@ for (const f of walk(path.join(ROOT, "scripts"))) {
     if (scope.startsWith("_")) continue; // a mock's parameter, not a real scope
     const resolved = scopeValue(text, scope) ?? scopeValue(constants, scope);
     if (resolved && LITERAL_OK.has(resolved)) continue;
-    if (scope === "MODULE_ID" && /MODULE_ID\s*=\s*"acks-extras"/.test(constants)) continue;
     fail(`${rel(f)}: flag call scope ${scope}${resolved ? ` (= ${resolved})` : ""} is not this module or "core"`);
   }
 }
@@ -358,6 +367,57 @@ for (const f of walk(path.join(ROOT, "scripts"))) {
       if (type && !moduleJson.documentTypes?.[docClass]?.[type]) {
         fail(`lang key TYPES.${docClass}.${key} names a sub-type module.json does not declare`);
       }
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The lib index is complete in both directions. scripts/lib/README.md is the  */
+/* discovery surface agents check before writing a helper; a lib file missing  */
+/* from it is invisible (and gets reimplemented), and a row naming a deleted   */
+/* file sends readers to nothing. Both directions fail.                        */
+/* -------------------------------------------------------------------------- */
+{
+  const libDir = path.join(ROOT, "scripts", "lib");
+  const readmePath = path.join(libDir, "README.md");
+  if (!fs.existsSync(readmePath)) {
+    fail("scripts/lib/README.md is missing — the lib index is load-bearing");
+  } else {
+    const readme = fs.readFileSync(readmePath, "utf8");
+    const rowPaths = new Set([...readme.matchAll(/`((?:apps|data|patches)\/[\w-]+\.mjs|[\w-]+\.mjs)`/gu)].map((m) => m[1]));
+    const libFiles = walk(libDir)
+      .filter((f) => f.endsWith(".mjs"))
+      .map((f) => path.relative(libDir, f).split(path.sep).join("/"));
+    for (const f of libFiles) {
+      if (!rowPaths.has(f)) fail(`scripts/lib/${f} has no row in scripts/lib/README.md — index it or it will be reimplemented`);
+    }
+    for (const p of rowPaths) {
+      if (!libFiles.includes(p)) fail(`scripts/lib/README.md names ${p}, which does not exist`);
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* One statement of the module id. lib/constants.mjs owns the MODULE_ID       */
+/* literal; a feature re-declaring it is the seed of the ×11 duplication this  */
+/* rule buried. Sub-type strings ("acks-extras.animal") and flag scopes are    */
+/* data, not declarations, and pass. Local makeLoc/GM-detection rebuilds are   */
+/* warned (promote to fail once the cleanup sweep lands).                      */
+/* -------------------------------------------------------------------------- */
+{
+  const warn = (msg) => console.warn(`WARN validate-extra: ${msg}`);
+  for (const f of walk(path.join(ROOT, "scripts"))) {
+    if (!f.endsWith(".mjs")) continue;
+    const r = rel(f);
+    const text = fs.readFileSync(f, "utf8");
+    if (r !== "scripts/lib/constants.mjs" && /(?:const|let|var)\s+MODULE_ID\s*=\s*["']/u.test(text)) {
+      fail(`${r} declares a MODULE_ID literal — import it from scripts/lib/constants.mjs`);
+    }
+    if (r !== "scripts/lib/util.mjs" && /(?:const|let)\s+loc\s*=\s*\([^)]*\)\s*=>[^\n]*game\.i18n/u.test(text)) {
+      warn(`${r} hand-rolls a localizer — lib/util.mjs makeLoc exists`);
+    }
+    if (!r.startsWith("scripts/lib/") && /game\.users\.activeGM/u.test(text)) {
+      warn(`${r} inlines GM detection — lib/util.mjs isPrimaryGM / gmIds exist`);
     }
   }
 }

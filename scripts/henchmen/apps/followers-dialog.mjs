@@ -11,7 +11,7 @@
  * (scripts/facts.mjs): structures-module API → flag → inventory marker item
  * ("Stronghold: Castle", cost = value) → GM confirm.
  */
-import { getTable, hasDoc } from "../rules/tables.mjs";
+import { bracketRow, getTable, hasDoc } from "../rules/tables.mjs";
 import { getStronghold } from "../facts.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { gmIds } from "../acks-adapter.mjs";
@@ -28,7 +28,7 @@ async function rollTroopType(tableId) {
   const rows = tables[tableId];
   if (!rows) return null;
   const die = await roll("1d100");
-  const row = rows.find((r) => die >= r.min && die <= r.max);
+  const row = bracketRow(rows, die);
   return { die, type: row?.type ?? "?" };
 }
 
@@ -104,7 +104,7 @@ export async function openFollowersDialog(actor) {
       for (let i = 0; i < count; i++) {
         if (grant.levelDie) {
           const die = await roll(companionLevels.formula);
-          const lr = companionLevels.rows.find((r) => die >= r.min && die <= r.max);
+          const lr = bracketRow(companionLevels.rows, die);
           levels.push(lr?.level ?? 1);
         } else {
           levels.push(grant.level ?? 1);

@@ -39,7 +39,11 @@ batch — an issue in the queue may be the same defect and should close with it.
   take. Source label is `gh:extras#12` / `gh:importer#3`. An issue filed
   through the site's bug form arrives pre-structured (versions, steps,
   expected, console output) — read the whole body, reporters put the real bug
-  in whichever box they liked. **The repo an issue was filed against is a
+  in whichever box they liked. Two machine-filed labels are also intake:
+  **`nightly-failure`** (the deterministic nightly run — see
+  `.claude/rules/delegation.md`; one open issue per repo, close it when
+  green) and **`local-triage`** (local-model verdicts; treat as unverified
+  leads, never as diagnoses). **The repo an issue was filed against is a
   guess, not a routing.** Reporters file where the site's chooser sent them;
   route by symptom (`acks-hotfix` §1) and record your routing in `repo`,
   which may disagree with the issue's home. The fix lands where the routing

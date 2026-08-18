@@ -9,6 +9,19 @@ invent**.
   another, and effect conventions under `flags["acks-extras"]` —
   `reaction` / `loyalty` / `morale` change keys plus their
   `situational` / `tone` / `label` metadata.
+
+The `attitude` Item lives on the **influencer**, one per target: `targetUuid`
+/ `targetName` / `targetImg`, the 0–4 reaction ladder, per-tone
+(`diplomacy`/`intimidation`/`seduction`) attempt counters so a resumed
+conversation picks up at the right attempt level, and notes. It is
+auto-created the first time an influence roll resolves against a target and
+updated thereafter, across every resolution path (visible target, hidden
+target relayed through the GM, GM-as-influencer). The sheet's Notes tab
+injects a row per attitude record — click to open, drag to transfer to
+another actor, delete (owner-only) — and every change fires
+`acksExtras.influenceAttitudeChanged`. henchmen's **slander** is the same
+edge shape aimed at a location instead of a character; the two share
+conventions but no store — see henchmen's DECISIONS for why.
 - **Enhance**: the Influence application — one dialog that resolves a social
   roll with its whole modifier stack itemized and every situational modifier
   offered as a toggle.

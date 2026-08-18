@@ -137,11 +137,22 @@ walk(path.join(ROOT, "templates"), (full) => {
   }
 });
 
-/* 3. JSON validity. */
+/* 3. JSON validity — plus the two silent manifest corruptions (TOOLCHAIN
+ * §10n): a UTF-8 BOM (PowerShell's `utf8` writes one; CI's JSON gate rejects
+ * it while a BOM-tolerant local parse would not), and the cp1252→UTF-8
+ * double-encoding signature (bytes c3 a2 e2 82 ac — valid UTF-8, valid JSON,
+ * garbled to every reader; only a byte check catches it). */
 const readJson = (file) => JSON.parse(fs.readFileSync(path.join(ROOT, file), "utf8"));
 let module_ = null;
 for (const file of ["module.json", "package.json"]) {
   try {
+    const bytes = fs.readFileSync(path.join(ROOT, file));
+    if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+      fail(file, "starts with a UTF-8 BOM — write JSON via the Edit tool or node, never PowerShell redirection");
+    }
+    if (bytes.includes(Buffer.from([0xc3, 0xa2, 0xe2, 0x82, 0xac]))) {
+      fail(file, "carries the cp1252 double-encoding signature (c3 a2 e2 82 ac) — an em dash became â€”; rewrite from a clean source");
+    }
     const parsed = readJson(file);
     if (file === "module.json") module_ = parsed;
   } catch (err) {
@@ -151,7 +162,17 @@ for (const file of ["module.json", "package.json"]) {
 walk(path.join(ROOT, "lang"), (full) => {
   if (!full.endsWith(".json")) return;
   try {
-    JSON.parse(fs.readFileSync(full, "utf8"));
+    const lang = JSON.parse(fs.readFileSync(full, "utf8"));
+    /* Foundry expands the flat file with expandObject: a key that is BOTH a
+     * leaf and a prefix of other keys either silently eats every child (branch
+     * first) or throws and drops the module's WHOLE translation file (leaf
+     * first). Suffix the label instead (`nounLabel`, `methods.<key>`). */
+    const keys = Object.keys(lang).filter((k) => typeof lang[k] === "string");
+    const keySet = new Set(Object.keys(lang));
+    for (const k of keys) {
+      const clash = [...keySet].find((other) => other !== k && other.startsWith(`${k}.`));
+      if (clash) fail(rel(full), `key "${k}" is both a value and a prefix of "${clash}" — expandObject collision kills the translation file`);
+    }
   } catch (err) {
     fail(rel(full), err.message);
   }

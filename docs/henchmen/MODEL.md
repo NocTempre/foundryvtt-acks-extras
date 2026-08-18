@@ -38,6 +38,19 @@ One actor per settlement (see `scripts/data/location-data.mjs`):
 attach their own data to the same location actor under their own flag
 namespace (`actor.flags["<their-module>"]`) — this schema stays minimal.
 
+**Slander** is a structured **subject**, not a single-scope flag:
+`{scope: "all"|"party"|"character", uuid}` held once per entry on the
+location, so a party-scoped slur and a character-scoped slur against one of
+its members are two distinct entries rather than one double-tallying the
+other. `slanderCountFor({employerUuid, characterUuid})` matches each entry
+against at most one branch (`scope==="all"`, or `uuid` equal to the
+employer/party, or equal to the character) and sums in a single pass.
+Refuse-and-slander (`recruit-dialog.mjs`) writes `{scope:"party", uuid:
+employer.uuid}`; the location sheet's ledger adds and edits arbitrary rows,
+default `{scope:"all"}`. The read side — "where am I slandered" — is
+`acksHenchmen.slanderedAt({employerUuid, characterUuid})`, a scan over
+location actors, not a second store.
+
 ## 3. `HenchmanRecord` (hireling flag)
 
 Serialized DataModel at `actor.flags["acks-extras"].record`

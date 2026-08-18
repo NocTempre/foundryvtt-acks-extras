@@ -1,6 +1,6 @@
 /**
- * Layered rules-table registry (FAMILY.md §3a, pulled forward by the table
- * extraction program — see acks-module-template docs/CONTENT-EXTRACTION.md).
+ * Layered rules-table registry (see docs/lib/API.md; adopted by the table
+ * extraction program — ruling in acks-module-template docs/DECISIONS.md).
  * Pure module: no Foundry imports; Node tooling and tests import it directly.
  *
  * Documents are plain JSON objects carrying `id` (the henchmen ruledata

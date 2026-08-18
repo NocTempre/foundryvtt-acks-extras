@@ -18,10 +18,10 @@ import { LANG_PREFIX } from "./constants.mjs";
 import { coinLine, templateItemName } from "./chargen.mjs";
 import { findByRef } from "./registry.mjs";
 import { rungSelectHtml } from "./picks.mjs";
+import { makeLoc } from "../lib/util.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
-const loc = (key, data) =>
-  data ? game.i18n.format(`${LANG_PREFIX}.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.${key}`);
+const loc = makeLoc(LANG_PREFIX);
 
 /** What a template's ability entry is called on the page. */
 export const grantLabel = (a) =>

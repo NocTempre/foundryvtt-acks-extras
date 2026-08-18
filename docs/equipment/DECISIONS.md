@@ -470,3 +470,37 @@ check noticed: the runtime tests exercise `setMasterwork` on items they build
 themselves, so they never touched the shipped data. `test-equipment.mjs` now
 asserts the samples' flag against `config.MASTERWORK` — that the tier is a real
 key, and that baseline plus row reproduces every shipped field.
+
+---
+
+### Base type is a flag on the item, and it refines the document type rather than replacing it (2026-08-15)
+
+**Ruled (owner):** what an item IS — armour, clothing, gear, food, gem, coin,
+trade good — is `flags["acks-extras"].baseType`, never a bespoke Item
+sub-type and never a unique item per category. Core's `actor.mjs` derives AC,
+initiative and encumbrance straight from `item.type`, so the document type
+stays whatever makes core behave correctly (plate stays `armor`, a gem stays
+an ordinary `item`) and the flag carries the category on top.
+
+**Rejected: a bespoke sub-type per category.** Multiplies `documentTypes`,
+needs a world relaunch per addition, and every "is this ordinary goods" query
+in core stops seeing the new type.
+
+**Rejected: a unique Item per case**, the route already taken in places — a
+category becomes a document instead of a property, and a second one means
+copying the first rather than choosing a type.
+
+**The category KEYS ship; the fields and every printed value import.** `"gem"`
+as a vocabulary key names a concept; what a gem records, and every number in
+it, arrives from the GM's own book through the field-spec register — the same
+line `lib/tables.mjs` already draws.
+
+**No interaction matrix beyond what a page states**, the same restraint the
+variation conflict model uses: `appliesTo` gates the obvious, and a Judge
+combining anything else is not arguing with a table nobody printed.
+
+**Inference is the fallback, not the retirement.** `base-type-infer.mjs`
+still guesses from the name for items that predate the flag; the declared flag
+always wins, and the guess retires once the importer sets base types on what
+it materialises — retiring it sooner would strip an unflagged world's
+clothing of its slots.

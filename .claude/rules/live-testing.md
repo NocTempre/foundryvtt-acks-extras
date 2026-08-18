@@ -77,6 +77,28 @@ rather than inventing one.
    and why — a gap you could have closed by creating fixtures is not a gap;
    close it. Say what you created and confirm you removed it.
 
+## Driving techniques (scripted checks)
+
+- **Probe a dialog's computation without rendering it**: construct the app
+  and `await app._prepareContext({})` in page context — it returns exactly
+  what the template would render, reachable where private fields and
+  screenshots are not (a backgrounded browser pane cannot composite frames).
+  Still finish with one real UI interaction; the context object does not
+  prove the form handler and the roll path agree with it.
+- **Pass `{animate: false}` to token updates you read back.**
+  `tokenDoc.update({rotation: 180})` animates, and an immediate read returns
+  a mid-tween angle — only scripted sequences ever hit this, and it presents
+  as a heading/position bug in the feature under test.
+- **Exercise the DELETE path, not only repeat-use.** A cache keyed by
+  identity needs an invalidation story for deletion; the family shipped a
+  claim-cache that answered for deleted documents because the live check only
+  repeated the import. Delete the artifact and run the path again.
+- **The live gate only counts if the REAL trigger fires.** Browser-lifecycle
+  behaviour needs real `File`/OPFS handles (not `fetch()`-built stand-ins),
+  a real `location.reload()` (not automation navigation), and a foreground
+  timed wait with the measured elapsed seconds logged — a synthetic trigger
+  proves the handler, not the lifecycle.
+
 ## Sub-types need a world relaunch
 
 `module.json` `documentTypes` is read by the SERVER at world launch, not on
@@ -92,4 +114,9 @@ all** — there is never a malformed population to migrate from that path.
 
 Parallel sessions share this working tree, this test world, and these
 settings. Expect another session's fixtures and failures in the world log;
-filter what you act on to your own files and your own artifacts.
+filter what you act on to your own files and your own artifacts. Two rules
+that exist because they were broken: **never modify an in-force canonical doc
+outside an explicitly authorized phase** (a proposal doc opens with a
+NOT-IN-EFFECT banner until adopted), and **shared ledgers are re-read
+immediately before every write, with rows matched by title, never by id** —
+ids are the thing two sessions mint in collision.

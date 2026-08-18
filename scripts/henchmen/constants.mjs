@@ -1,7 +1,8 @@
 /**
  * Shared constants. Pure module — importable from Node tooling and tests.
  */
-export const MODULE_ID = "acks-extras";
+import { MODULE_ID } from "../lib/constants.mjs";
+export { MODULE_ID };
 
 /** Actor sub-type id for settlements/markets (namespaced by Foundry). */
 export const LOCATION_TYPE = `${MODULE_ID}.location`;

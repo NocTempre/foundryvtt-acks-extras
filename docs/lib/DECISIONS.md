@@ -986,3 +986,24 @@ written in it, so a deleted language leaves the selector at the next reload.
 going through an API, because Polyglot exposes no "add a language" call. It is
 guarded on the provider existing and is inert in a world without Polyglot —
 the hook it listens on simply never fires.
+
+## 2026-08-18 — One owner for the attack roll, and one seam for future modifiers
+
+Recorded from the 2026-07-31 ruling (memory archive). lib owns
+`AcksActor#rollAttack` (`patches/attack-roll.mjs`, libWrapper OVERRIDE when
+present; pure math in `attack-logic.mjs`; world setting `attackRollPatch`
+default on). The model: **throw = moving target** (class/level), **bonuses =
+labeled roll terms**; hit ⇔ `die + Σterms ≥ throw + targetAC`; outcomes are
+bit-identical to core's folded resolution (14,400-case parity sweep in the
+test suite, `legacyCoreResolves` as oracle). The chat card renders core's own
+`roll-attack.hbs` so damage-apply listeners are untouched.
+
+**Every future combat modifier goes through the `acksLibPreAttackRoll(actor,
+ctx)` hook** — ctx carries mutable `terms` (stable keys:
+ability/adjustment/weapon/situational), a movable `throwTarget`, and
+`targetAc`. REJECTED: additional wraps of `rollAttack` anywhere (equipment's
+existing WRAPPER composes on top unchanged), and folding target moves into
+bonus terms — a target adjustment that arrives as a bonus delta hides the
+rolled value the remodel exists to expose. Known intentional leftover: core's
+attributes-tab Melee/Ranged display omits bba (core is read-only); the
+Follower Card shows the honest split.

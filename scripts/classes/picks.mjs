@@ -19,6 +19,7 @@
  */
 import { LANG_PREFIX } from "./constants.mjs";
 import { optionsForChoice, ownsRef } from "./grants.mjs";
+import { makeLoc } from "../lib/util.mjs";
 
 /**
  * The answer meaning "this rung is already satisfied by what the character
@@ -39,8 +40,7 @@ export const closesRung = (answer) => !!answer;
 export const grantableRefs = (answers) => [...new Set((answers ?? []).filter(grantsFrom))];
 
 const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
-const loc = (key, data) =>
-  data ? game.i18n.format(`${LANG_PREFIX}.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.${key}`);
+const loc = makeLoc(LANG_PREFIX);
 
 /**
  * Every option a rung offers, with the ones the character already holds MARKED

@@ -287,6 +287,8 @@ would be a guess rather than an answer.
   one resolution over two subsets, so the price is never stored twice.
 - **Conditional value is gathered, never applied.** Who the buyer is and what a
   crest is worth to them are facts the world holds; the module offers the claim.
+  `audience` is a Judge-read string, not a structured vocabulary — a market
+  surface offers the claim and never matches it automatically.
 
 `layerDeltas` sums applied variations alongside the three legacy flags into one
 delta set, sharing the cost order documented above. Until those flags retire, a

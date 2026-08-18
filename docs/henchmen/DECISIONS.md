@@ -2,7 +2,7 @@
 
 Why this feature is shaped the way it is: what was ruled, what was rejected, and
 what it cost. How it behaves *now* is [MODEL.md](MODEL.md); unbuilt work is
-[ROADMAP.md](../ROADMAP.md).
+[ROADMAP.md](ROADMAP.md).
 
 Entries are dated and append-only. A superseded entry stays, marked.
 
@@ -194,3 +194,25 @@ report a genuinely missing rarity import. Counting `Object.keys(doc.tables)` doe
 not fix it either: `RARITY_AUTOMATION` ships one table, so the count is always
 ≥ 1. Closing it needs an intersection against `expectedTables()`, which makes a
 warning appear where none did before — a minor, not a patch.
+
+---
+
+### Attitude and slander match conventions, and share no primitive (2026-07-22)
+
+Two social edges — influence's **attitude** (character → character) and this
+feature's **slander** (party or character → location) — are the same shape, a
+directional edge keyed by a soft uuid, and are built to matching conventions
+on purpose: soft references that degrade to a stored display name rather than
+throwing on a deleted endpoint; held on whichever side owns the governing
+query (the influencer for attitude, since it is one person's stance; the town
+for slander, since RR 162's penalty is the town's); survive endpoint deletion
+as tombstones; and each exposes a visible ledger, open/transfer/delete, and a
+namespaced change hook (`acksExtras.influenceAttitudeChanged`,
+`HOOKS.SLANDER_CHANGED`).
+
+**Rejected: a shared cross-feature relationship registry.** The two edges
+differ enough in what they key on and who reads them that a shared primitive
+would have bought conformity at the cost of an abstraction neither store
+actually needs — each feature keeps its own store, and only the shape agrees.
+A graph/map VIEW over both is a different question; see
+[ROADMAP.md](ROADMAP.md).

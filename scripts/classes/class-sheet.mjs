@@ -13,7 +13,7 @@
  * form): every field of every tab stays in the DOM, so submitOnChange always
  * carries the whole system object and array round-trips stay whole-document.
  */
-import { LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import { AWARD_KINDS } from "./class-data.mjs";
 import ClassData from "./class-data.mjs";
 import { findByRef } from "./registry.mjs";
@@ -24,7 +24,6 @@ import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
-const MODULE_ID = "acks-extras";
 const TABS = ["overview", "builder", "progression", "awards", "casting", "templates", "inventory"];
 
 /** Options list from a vocab enum, with the current value marked selected. */

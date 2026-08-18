@@ -110,6 +110,13 @@ Deltas from the original plan, both deliberate: the BTA caste effects ship gated
 by the `enableBtaCaste` world setting (default on), and the relations row renders
 as its own "Racial relations" group rather than folded into "Both".
 
+**Out of scope, deliberately.** No automation of caste *clan* identity —
+own-clan bonuses stay situational checkboxes, because the data model carries
+no clan field. No forced auto-Hostile result for the MM's hard-hatred pairs
+(dwarf↔goblin sentries, gnome↔kobold) — the roller adds a RAW note to the
+chat card and leaves the call to the table, per the no-inventions policy.
+Slavery, liberation and troop-scale racial availability stay with henchmen.
+
 ---
 
 ### Modifiers are offered, never asserted (founding)
@@ -151,3 +158,57 @@ The roller resolves ONE actor's social roll. An effect aimed at an opponent or a
 ally is not a modifier on that roll, and storing it as one is exactly the
 inversion the subject field exists to prevent. It is carried through rather than
 discarded so an opposed mode can use it — see [../ROADMAP.md](../ROADMAP.md).
+
+---
+
+### The example proficiency compendium is retired as superseded, not as an IP leak (2026-07-19)
+
+The 23 hand-built items in `packs/proficiencies` (Diplomacy, Intimidation,
+Beast Friendship, the Inhumanity tiers, the BTA caste items, and the rest) are
+unshipped: removed from the manifest, the repo, and the release artifact.
+
+**Why removal, and why now.** Not because the content was unsafe — ACKS II
+proficiency and class-power text used in-app is covered by the ACKS II App
+License and was vetted as legitimate. It goes because the module is handing
+this job to acks-lib + acks-abilities + acks-importer, and a module should not
+keep shipping a placeholder compendium that its own successor exists to
+replace — it invites a GM to install duplicate copies of abilities the
+importer will bring in properly. Reference copies are kept at
+`acks-rules/acks-influence/compendium-reference/` because the effect
+*structures* remain the specification the importer's authored specs should
+reproduce, kept out of the repo so no second copy drifts from what the
+importer eventually produces.
+
+**Rejected: framing it as IP remediation.** An earlier pass read this as a
+leak and flagged `tools/ip-scan.mjs` for missing it under its prose-length
+threshold. Wrong premise: app-licensed mechanical text belongs in packs, and
+tightening the scanner to fire on ordinary item descriptions would raise false
+positives on permitted content for no real gain.
+
+**Git history purge is a hygiene pass, deferred until the replacement is
+fully in place** — not urgent containment, and no reason to retract the
+published `v0.9.1` asset in the meantime.
+
+Functionally this was a real gap for a while: dropping the compendium with
+nothing reading the abilities model yet would have blinded the roller to
+every effect-granted modifier. That gap closed once influence grew a reader
+for `flags["acks-extras"].extras.effects` (imported abilities now drive the
+roller, unaudited entries badged and never pre-ticked); what remains is not
+architecture but the importer's own audit sign-off burn-down, tracked in that
+repo.
+
+### Three morale subsystems, never conflated (2026-08-18, recorded from the 2026-07-19 correction)
+
+ACKS has three morale subsystems that look alike and are not: **Monster
+Morale** (RR 307-308, encounter scale — this feature's `morale` mode), **Unit
+Morale** (RR 468, mass combat — formation's domain), and **Domain Morale**
+(JJ, campaign — out of scope). **The RR 436 morale modifier (commander's CHA
++ Command + prowess) applies to the Unit table ONLY** — RR 436 says so
+explicitly, and adds that it does not affect Unit Loyalty either. Adding it
+to an RR 307 roll inflates every encounter morale check; this was mis-built
+once before the extract corrected it. Monster Morale mechanics to hold:
+2d6 + morale rating (−6…+4), bands 2−/3−5/6−8/9−11/12+, the seven suggested
+modifiers come in **ladders, not sums**, no natural-2/12 clamp is stated
+(unlike Hireling Loyalty, RR 166), and PCs never roll it — they choose.
+Hireling Obedience (RR 167) is a fourth, separate morale-based roll.
+Full text: LOCAL-ONLY extract `acks-rules/acks-influence/` §8.

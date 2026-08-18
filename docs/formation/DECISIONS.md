@@ -512,3 +512,12 @@ is looking at the trap as it stands in this dungeon — but it does mean a level
 values are only visible when selected. A strip of the six numerals marks which
 rows have anything in them, so an imported trap does not read as empty when the
 row on screen is one the book left blank.
+
+## 2026-08-18 — Unit Morale is RR 468, and the commander modifier belongs only to it
+
+The morale table this feature would own at mass-combat scale is Unit Morale
+(RR 468 — Rout/Flee/Waver/Stand Firm/Rally), and the RR 436 commander
+modifier applies to that table alone. The three-subsystem split and the
+conflation trap are ruled once in `docs/influence/DECISIONS.md` ("Three
+morale subsystems, never conflated"); mass-combat resolution itself is out of
+scope entirely (root `docs/DECISIONS.md`, Battles VTT ruling).

@@ -50,8 +50,10 @@ acksExtras.lib = {
 }
 ```
 
-`scripts/lib/module.mjs` is the authoritative list; the trailing group above is
-elided. Every path is under `scripts/lib/`.
+The elided trailing group and the full file-by-file surface are indexed in
+**`scripts/lib/README.md`** (validate-enforced: a lib file and its row cannot
+disagree) — check there first. `scripts/lib/module.mjs` builds the exposed
+object. Every path is under `scripts/lib/`.
 
 ## `tables` — layered rules-table registry (Foundry-free)
 

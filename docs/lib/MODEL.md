@@ -202,10 +202,10 @@ scout. They live here rather than in a feature because more than one asks.
 
 | File | Owns |
 |---|---|
-| `scripts/senses.mjs` | Reading ACKS senses off the sheet, and what each grants. |
-| `scripts/perception.mjs` | What those senses ARE to Foundry: vision modes, detection modes, and the two status effects the rules need. |
-| `scripts/light.mjs` | The RR light table, and which record holds a given actor's lights. |
-| `scripts/token-sync.mjs` | The guarded writes that put any of it on a token. |
+| `scripts/lib/senses.mjs` | Reading ACKS senses off the sheet, and what each grants. |
+| `scripts/lib/perception.mjs` | What those senses ARE to Foundry: vision modes, detection modes, and the two status effects the rules need. |
+| `scripts/lib/light.mjs` | The RR light table, and which record holds a given actor's lights. |
+| `scripts/lib/token-sync.mjs` | The guarded writes that put any of it on a token. |
 
 **Sense resolution** runs in one precedence order, so the movement rules and the
 canvas can never disagree: the Full Monster Sheet stat block
@@ -248,7 +248,7 @@ Every other row above is a property of the sheet. Night Vision is not: MM §5
 gives it as *moonlight → daylight; indoors 2× light range; not total dark*, so
 its reach is a multiplier on a light somebody else lit and somebody else carries.
 
-`brightestLightReaching` (`scripts/light.mjs`) answers what that light is — the
+`brightestLightReaching` (`scripts/lib/light.mjs`) answers what that light is — the
 largest bright radius, among the scene's ambient lights and every light-emitting
 token, whose source actually covers the creature's square. `senseProfile` takes
 it as `litBy` and doubles it. Nothing else reads it, and the pass only computes

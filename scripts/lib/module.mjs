@@ -207,7 +207,7 @@ const localImpl = Object.freeze({
   damageType,
 });
 
-// Core-deferral shim (FAMILY.md §3d): if/when a surface is upstreamed into the
+// Core-deferral shim (ruling: acks-module-template docs/DECISIONS.md): if/when a surface is upstreamed into the
 // system, `game.acks.lib` provides it and consumers transparently defer. At
 // module-evaluation time `game` is undefined, so this resolves to localImpl.
 //

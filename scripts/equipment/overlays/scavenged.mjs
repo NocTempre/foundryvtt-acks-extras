@@ -17,6 +17,7 @@
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS } from "../constants.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
+import { bracketRow } from "../../lib/tables.mjs";
 
 /** d20 → condition. `reroll` means roll twice more and apply both (19-20). */
 export const SCAVENGED_TABLES = Object.freeze({
@@ -134,9 +135,7 @@ export function importedRow(tableKey, roll) {
   const table = importedTable(tableKey);
   if (!table) return null;
   const rows = Object.values(table);
-  const reg = globalThis.acksExtras?.lib?.tables;
-  const hit = reg?.bracketRow?.(rows, roll) ?? rows.find((r) => roll >= Number(r.min) && roll <= Number(r.max));
-  return hit ?? null;
+  return bracketRow(rows, roll) ?? null;
 }
 
 /** Accumulate imported rows into one condition, mirroring `accumulate`. */

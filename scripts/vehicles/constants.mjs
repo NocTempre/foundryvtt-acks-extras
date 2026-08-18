@@ -5,12 +5,8 @@
  * has an open request for vehicle sheets, and a bare `vehicle` would collide
  * with whatever it ships. This one can coexist with core's and migrate later.
  */
-/**
- * Declared literally, as every feature in this family declares it: a re-export
- * cannot be followed by the namespacing check that proves each flag write
- * lands in this module's own scope.
- */
-export const MODULE_ID = "acks-extras";
+import { MODULE_ID } from "../lib/constants.mjs";
+export { MODULE_ID };
 
 /** The Actor sub-type this feature registers. */
 export const VEHICLE_TYPE = `${MODULE_ID}.vehicle`;

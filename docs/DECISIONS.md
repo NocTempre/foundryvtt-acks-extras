@@ -358,3 +358,22 @@ prose pack name to a declared one, and this is the residue.
 It would have prevented the orphans, but guide order is the README's feature
 order and alphabetical scrambles it — the guard buys the same safety and keeps
 the order hand-held.
+
+## 15. Domains at War: Battles is out of scope — interop, not resolution
+
+Standing decision (owner, 2026-07-24; recorded here 2026-08-18). No `acks-*`
+module implements Domains at War: Battles rules. Autarch has a dedicated
+Battles VTT under development (the owner holds beta access); battles resolve
+there, and this family's job at that boundary is an **import/export loop** —
+army/unit rosters out of Foundry, battle results back in. This closes off the
+D@W Battles conversion, the original book, AXIOMS 4 *Pitching Battle!*, the
+Aide-de-Camp play aids, and Air Combat's unit-scale layer.
+
+Still in scope, because they are not battle resolution: **battle ratings as a
+monster/unit datum** (stored on the ecology tab; the corrected BR formula
+stays relevant for display and derivation), **Skirmish scale** (a tier below
+platoon battles, meant for the table — confirm with the owner before
+building), and **roster modelling** (the stackable group actor is the natural
+export source). REJECTED: building battle resolution in Foundry — it would
+compete with a patron benefit, cost a large build, and fork from whatever
+data model the official tool settles on.

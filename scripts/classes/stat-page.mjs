@@ -43,6 +43,7 @@ import { legalTemplates, netBonusPicks, templateShortfall, applyChargen } from "
 import { choosableGenerals, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
 import { rungLabel, rungOptions } from "./picks.mjs";
+import { makeLoc } from "../lib/util.mjs";
 
 const PAGE_CLASS = "acks-extras-classes-statgen";
 const COLUMN = "acks-extras-classes-col";
@@ -91,7 +92,7 @@ export const METHODS = {
 };
 
 const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
-const loc = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.${key}`));
+const loc = makeLoc(LANG_PREFIX);
 
 /* -------------------------------------------- */
 /*  Reading the page                             */

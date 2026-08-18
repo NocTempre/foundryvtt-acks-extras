@@ -20,6 +20,8 @@
  * nothing and gets a rules-legal random creature.
  */
 
+import { bracketRow } from "./tables.mjs";
+
 /** Mulberry32 — a tiny seedable PRNG so tests are deterministic. */
 export function seededRng(seed) {
   let a = seed >>> 0;
@@ -184,14 +186,13 @@ export function rollMenu(menu, budget, rng = Math.random) {
   if (!rows.length || !(budget > 0)) return { picks, rolls };
   const costOf = (r) => (r.cost == null || r.cost === 0 ? 1 : r.cost);
   let spent = 0;
-  const faces = facesOf(menu.die);
   const banded = menu.die && rows.some((r) => r.min != null || r.max != null);
   for (let attempts = 0; attempts < 60 && spent < budget; attempts++) {
     let row = null;
     if (banded) {
       const v = rollDie(menu.die, rng);
       rolls.push(v);
-      row = rows.find((r) => v >= (r.min ?? 1) && v <= (r.max ?? faces ?? Infinity)) ?? null;
+      row = bracketRow(rows, v) ?? null;
     } else {
       const unpicked = rows.filter((r) => !chosen.includes(r));
       if (!unpicked.length) break;

@@ -8,6 +8,23 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
 
 ---
 
+## Standing cleanup passes (from the 2026-08-02 merge cleanup, still owed)
+
+- **CSS token / dark-mode restyle.** 7 of 10 stylesheets ignore the
+  `--acks-*` tokens, so most UI ignores dark mode and the fontScale setting.
+  The natural next UI project.
+- **Stale flag-scope docstrings.** ~40 comment sites across abilities,
+  equipment, henchmen, influence, lib and formation still name pre-merge flag
+  scopes (`flags["acks-abilities"]…`) the code no longer uses. Verified stale
+  against `getFlag(MODULE_ID, …)`; validate-extra skips comments by design,
+  so this is a deliberate scoped pass, not a gate.
+- **Pre-merge hook names.** lib's `acksLibMounted` / `acksLibStorage*` /
+  `GROUP_HOOKS` keep their old names pending a check for external consumers
+  (acks-domains/structures may listen). Rename or ratify — do not "fix"
+  without that check.
+
+---
+
 ## Vehicles
 
 SHIPPED 4.2.0–4.4.0 as the `acks-extras.vehicle` sub-type — namespaced so core

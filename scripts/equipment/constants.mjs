@@ -6,7 +6,8 @@
  * as hardcoded name lists. The effect collector in effects.mjs reads them.
  */
 
-export const MODULE_ID = "acks-extras";
+import { MODULE_ID } from "../lib/constants.mjs";
+export { MODULE_ID };
 
 /** Active Effect change-key prefix for this module's data-driven modifiers. */
 export const EFFECT_PREFIX = `flags.${MODULE_ID}.`;

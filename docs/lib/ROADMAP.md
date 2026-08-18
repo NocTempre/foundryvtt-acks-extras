@@ -1,5 +1,36 @@
 # acks-lib — not built
 
+## Behavioral dedups awaiting a hygiene sweep
+
+The mechanical collapses (MODULE_ID ×11, inline `bracketRow`, hand-rolled
+`makeLoc`) are done and validate-enforced. What remains changes behavior or
+needs design, so it ships through a dedicated `/acks-hygiene-sweep` with live
+verification, not as drive-by edits:
+
+- **A lib dialog helper.** Raw `DialogV2` in ~25 files and 14 separate
+  `openXDialog` functions; the loudest missing primitive. Needs a design pass
+  over the confirm/prompt/form shapes actually in use (and DialogV2's
+  attribute-stripping hazard baked in once).
+- **Coin math onto `lib/money.mjs`.** henchmen's `acks-adapter`
+  `getGold`/`spendGold`/`grantGold` keep a parallel legacy-sink path; four
+  independent copper-total reductions exist. Only two files import
+  `lib/money.mjs` today.
+- **`classLevel`/`abilityMod` bypasses.** ~25 inline reads with drifting
+  fallbacks (`?? 0` vs `?? 1` vs `Math.max(1, …)`) — each replacement must
+  decide which fallback was load-bearing.
+- **GM detection.** `firstActiveGm` exists twice (sockets.mjs and henchmen's
+  adapter, byte-identical) plus ~11 inline `activeGM` checks; validate warns
+  on new ones.
+- **`collectEffectModifiers` merge.** equipment and henchmen export same-named
+  same-shape collectors over `lib/effect-scan.mjs`; the divergence is
+  documented as deliberate in effect-scan's header — merging needs that
+  ruling revisited, not silently overridden.
+- **Chat cards onto `roll-card.mjs`.** Direct `ChatMessage.create` in 32
+  files; henchmen has a parallel card layer.
+- **Settings registration convention.** Three competing styles (dedicated
+  settings.mjs / feature module.mjs / arbitrary file); pick one, document it,
+  move the strays.
+
 ## Who carries `acks`, and whether that is deliberate
 
 Five surfaces do — the two item sheets (abilities, equipment), the roll editor,

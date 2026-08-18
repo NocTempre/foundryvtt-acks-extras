@@ -12,8 +12,9 @@
 import { MODULE_ID, LANG, ITEM_FLAG } from "../constants.mjs";
 import { RARITIES, MAGIC_KINDS, ID_STATES } from "../config.mjs";
 import { availableMethods, identifyAttempt, candidateIdentifiers } from "../engine/identify.mjs";
+import { makeLoc } from "../../lib/util.mjs";
 
-const loc = (k) => game.i18n.localize(`${LANG}.${k}`);
+const loc = makeLoc(LANG);
 
 function el(tag, className, text) {
   const node = document.createElement(tag);

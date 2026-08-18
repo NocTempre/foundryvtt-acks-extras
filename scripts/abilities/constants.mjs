@@ -1,4 +1,4 @@
-export const MODULE_ID = "acks-extras";
+export { MODULE_ID } from "../lib/constants.mjs";
 export const LANG_PREFIX = "ACKS-ABILITIES";
 
 /** The core `ability` item type this feature extends (proficiencies/powers/skills). */
