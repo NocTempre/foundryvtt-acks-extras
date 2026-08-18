@@ -1,0 +1,567 @@
+{
+ "_comment": "Cluster -> file map for /acks-hygiene-sweep. SINGLE SOURCE OF TRUTH: plan-sweep.mjs reads this to pick clusters for a delta run, and passes the selected entries to sweep.workflow.mjs as args.clusters (workflow scripts cannot read the filesystem). Every source file in both repos belongs to exactly one cluster — add a cluster or extend a file list when a repo grows a new directory, or plan-sweep.mjs --check will report the file as unowned.",
+ "repos": {
+  "foundryvtt-acks-extras": "C:/Proj/foundryvtt-acks-extras",
+  "foundryvtt-acks-importer": "C:/Proj/foundryvtt-acks-importer"
+ },
+ "clusters": [
+  {
+   "id": "E1",
+   "repo": "foundryvtt-acks-extras",
+   "label": "lib core + core patches",
+   "files": [
+    "scripts/module.mjs",
+    "scripts/namespace.mjs",
+    "scripts/lib/constants.mjs",
+    "scripts/lib/util.mjs",
+    "scripts/lib/vocab.mjs",
+    "scripts/lib/fields.mjs",
+    "scripts/lib/choice-spec.mjs",
+    "scripts/lib/capabilities.mjs",
+    "scripts/lib/effect-scan.mjs",
+    "scripts/lib/damage-type.mjs",
+    "scripts/lib/proficiency-strip.mjs",
+    "scripts/lib/template-logic.mjs",
+    "scripts/lib/token-sync.mjs",
+    "scripts/lib/world-time.mjs",
+    "scripts/lib/item-model.mjs",
+    "scripts/lib/actor-compat.mjs",
+    "scripts/lib/actor-read.mjs",
+    "scripts/lib/services.mjs",
+    "scripts/lib/tables.mjs",
+    "scripts/lib/ruledata.mjs",
+    "scripts/lib/sockets.mjs",
+    "scripts/lib/module.mjs",
+    "scripts/lib/patches/attack-roll.mjs",
+    "scripts/lib/patches/attack-display.mjs",
+    "scripts/lib/patches/goods-drag.mjs",
+    "scripts/lib/attack-logic.mjs",
+    "scripts/lib/patches/surprise-card.mjs",
+    "scripts/lib/roll-card.mjs"
+   ]
+  },
+  {
+   "id": "E2",
+   "repo": "foundryvtt-acks-extras",
+   "label": "lib actor sub-types + primitives",
+   "files": [
+    "scripts/lib/group.mjs",
+    "scripts/lib/group-logic.mjs",
+    "scripts/lib/data/group-data.mjs",
+    "scripts/lib/data/animal-data.mjs",
+    "scripts/lib/data/template-data.mjs",
+    "scripts/lib/data/gear-extras.mjs",
+    "scripts/lib/apps/group-sheet.mjs",
+    "scripts/lib/apps/template-sheet.mjs",
+    "scripts/lib/apps/follower-card-sheet.mjs",
+    "scripts/lib/follower-card.mjs",
+    "scripts/lib/storage.mjs",
+    "scripts/lib/storage-logic.mjs",
+    "scripts/lib/place.mjs",
+    "scripts/lib/place-logic.mjs",
+    "scripts/lib/mount.mjs",
+    "scripts/lib/light.mjs",
+    "scripts/lib/senses.mjs",
+    "scripts/lib/perception.mjs"
+   ]
+  },
+  {
+   "id": "E3",
+   "repo": "foundryvtt-acks-extras",
+   "label": "abilities subsystem",
+   "files": [
+    "scripts/abilities/constants.mjs",
+    "scripts/abilities/ability-sheet.mjs",
+    "scripts/abilities/roll-editor.mjs",
+    "scripts/abilities/ability-extras.mjs",
+    "scripts/abilities/roll-wrap.mjs",
+    "scripts/abilities/sheet-rolls.mjs",
+    "scripts/abilities/module.mjs",
+    "scripts/abilities/ability-rolls.mjs"
+   ]
+  },
+  {
+   "id": "E4",
+   "repo": "foundryvtt-acks-extras",
+   "label": "classes subsystem",
+   "files": [
+    "scripts/classes/constants.mjs",
+    "scripts/classes/registry.mjs",
+    "scripts/classes/casting.mjs",
+    "scripts/classes/sheet-tabs.mjs",
+    "scripts/classes/class-sheet.mjs",
+    "scripts/classes/apply.mjs",
+    "scripts/classes/assign.mjs",
+    "scripts/classes/levelup.mjs",
+    "scripts/classes/hitpoints.mjs",
+    "scripts/classes/class-data.mjs",
+    "scripts/classes/chargen.mjs",
+    "scripts/classes/module.mjs",
+    "scripts/classes/stat-page.mjs",
+    "scripts/classes/builder.mjs",
+    "scripts/classes/race-data.mjs",
+    "scripts/classes/race-sheet.mjs",
+    "scripts/classes/builder-logic.mjs"
+   ]
+  },
+  {
+   "id": "E5",
+   "repo": "foundryvtt-acks-extras",
+   "label": "equipment core",
+   "files": [
+    "scripts/equipment/spellbook.mjs",
+    "scripts/equipment/settings.mjs",
+    "scripts/equipment/effects.mjs",
+    "scripts/equipment/uninstall.mjs",
+    "scripts/equipment/wear.mjs",
+    "scripts/equipment/enforce.mjs",
+    "scripts/equipment/abilities-bridge.mjs",
+    "scripts/equipment/proficiency.mjs",
+    "scripts/equipment/locks.mjs",
+    "scripts/equipment/containers.mjs",
+    "scripts/equipment/module.mjs",
+    "scripts/equipment/loadout.mjs",
+    "scripts/equipment/grant.mjs",
+    "scripts/equipment/roll-wrap.mjs",
+    "scripts/equipment/actions.mjs",
+    "scripts/equipment/item-sheet.mjs",
+    "scripts/equipment/constants.mjs",
+    "scripts/equipment/config.mjs"
+   ]
+  },
+  {
+   "id": "E6",
+   "repo": "foundryvtt-acks-extras",
+   "label": "equipment overlays + market",
+   "files": [
+    "scripts/equipment/overlays/maneuvers.mjs",
+    "scripts/equipment/overlays/named.mjs",
+    "scripts/equipment/overlays/scavenged.mjs",
+    "scripts/equipment/overlays/shield-variants.mjs",
+    "scripts/equipment/overlays/enclosing-helm.mjs",
+    "scripts/equipment/overlays/item-loss.mjs",
+    "scripts/equipment/profiles.mjs",
+    "scripts/equipment/properties.mjs",
+    "scripts/equipment/silver.mjs",
+    "scripts/equipment/sheet.mjs",
+    "scripts/equipment/api.mjs",
+    "scripts/equipment/ammo.mjs"
+   ]
+  },
+  {
+   "id": "E7",
+   "repo": "foundryvtt-acks-extras",
+   "label": "formation engine",
+   "files": [
+    "scripts/formation/measure-fuzz.mjs",
+    "scripts/formation/encounter-zone.mjs",
+    "scripts/formation/monster-traits.mjs",
+    "scripts/formation/judge-override.mjs",
+    "scripts/formation/combat-bridge.mjs",
+    "scripts/formation/deployment.mjs",
+    "scripts/formation/formation-model.mjs",
+    "scripts/formation/scene-sync.mjs",
+    "scripts/formation/turn-engine.mjs",
+    "scripts/formation/formation-actions.mjs",
+    "scripts/formation/constants.mjs"
+   ]
+  },
+  {
+   "id": "E8",
+   "repo": "foundryvtt-acks-extras",
+   "label": "formation UI",
+   "files": [
+    "scripts/formation/party-rolls.mjs",
+    "scripts/formation/ability-bridge.mjs",
+    "scripts/formation/announce.mjs",
+    "scripts/formation/map-items.mjs",
+    "scripts/formation/player-requests.mjs",
+    "scripts/formation/formation-view.mjs",
+    "scripts/formation/module.mjs",
+    "scripts/formation/party-actor.mjs",
+    "scripts/formation/skill-audit.mjs"
+   ]
+  },
+  {
+   "id": "E9",
+   "repo": "foundryvtt-acks-extras",
+   "label": "henchmen engine + rules",
+   "files": [
+    "scripts/henchmen/engine/slavery-market.mjs",
+    "scripts/henchmen/engine/recruitment.mjs",
+    "scripts/henchmen/engine/hire.mjs",
+    "scripts/henchmen/engine/monster.mjs",
+    "scripts/henchmen/engine/hire-group.mjs",
+    "scripts/henchmen/engine/events.mjs",
+    "scripts/henchmen/data/throws-data.mjs",
+    "scripts/henchmen/data/henchman-record.mjs",
+    "scripts/henchmen/rules/dice.mjs",
+    "scripts/henchmen/rules/candidates.mjs",
+    "scripts/henchmen/rules/wages.mjs",
+    "scripts/henchmen/rules/loyalty.mjs",
+    "scripts/henchmen/rules/availability.mjs",
+    "scripts/henchmen/rules/identity.mjs",
+    "scripts/henchmen/rules/slavery.mjs",
+    "scripts/henchmen/rules/tables.mjs",
+    "scripts/henchmen/acks-adapter.mjs",
+    "scripts/henchmen/time.mjs",
+    "scripts/henchmen/constants.mjs",
+    "scripts/henchmen/config.mjs"
+   ]
+  },
+  {
+   "id": "E10",
+   "repo": "foundryvtt-acks-extras",
+   "label": "henchmen UI + integrations",
+   "files": [
+    "scripts/henchmen/chat/cards.mjs",
+    "scripts/henchmen/repair.mjs",
+    "scripts/henchmen/effects.mjs",
+    "scripts/henchmen/integrations/influence.mjs",
+    "scripts/henchmen/facts.mjs",
+    "scripts/henchmen/settings.mjs",
+    "scripts/henchmen/module.mjs",
+    "scripts/henchmen/apps/followers-dialog.mjs",
+    "scripts/henchmen/apps/hire-group-dialog.mjs",
+    "scripts/henchmen/apps/hirelings-grid.mjs",
+    "scripts/henchmen/apps/posting-dialog.mjs",
+    "scripts/henchmen/apps/recruit-dialog.mjs",
+    "scripts/henchmen/apps/roster-app.mjs",
+    "scripts/henchmen/apps/throw-dialog.mjs",
+    "scripts/henchmen/apps/unit-morale-dialog.mjs"
+   ]
+  },
+  {
+   "id": "E11",
+   "repo": "foundryvtt-acks-extras",
+   "label": "influence subsystem",
+   "files": [
+    "scripts/influence/attitude-data.mjs",
+    "scripts/influence/constants.mjs",
+    "scripts/influence/racial.mjs",
+    "scripts/influence/module.mjs",
+    "scripts/influence/ability-effects.mjs",
+    "scripts/influence/actor-data.mjs",
+    "scripts/influence/attitude-sheet.mjs",
+    "scripts/influence/influence-app.mjs"
+   ]
+  },
+  {
+   "id": "E12",
+   "repo": "foundryvtt-acks-extras",
+   "label": "location subsystem",
+   "files": [
+    "scripts/location/table-docs.mjs",
+    "scripts/location/constants.mjs",
+    "scripts/location/data/location-migrate.mjs",
+    "scripts/location/table-store.mjs",
+    "scripts/location/data/location-data.mjs",
+    "scripts/location/apps/location-sheet.mjs",
+    "scripts/location/apps/stash-dialog.mjs",
+    "scripts/location/ruledata-browser.mjs",
+    "scripts/location/vault-sweep.mjs",
+    "scripts/location/apps/storage-manager.mjs",
+    "scripts/location/scene-link.mjs",
+    "scripts/location/reach.mjs",
+    "scripts/location/apps/storage-tab.mjs",
+    "scripts/location/module.mjs"
+   ]
+  },
+  {
+   "id": "E13",
+   "repo": "foundryvtt-acks-extras",
+   "label": "monsters subsystem",
+   "files": [
+    "scripts/monsters/config.mjs",
+    "scripts/monsters/constants.mjs",
+    "scripts/monsters/item-annotations.mjs",
+    "scripts/monsters/monster-actions.mjs",
+    "scripts/monsters/monster-sheet.mjs",
+    "scripts/monsters/module.mjs",
+    "scripts/monsters/monster-extras.mjs"
+   ]
+  },
+  {
+   "id": "E14",
+   "repo": "foundryvtt-acks-extras",
+   "label": "dev tools / build / validate / tests",
+   "files": [
+    "tools/ip-scan.mjs",
+    "tools/ip-quarantine.mjs",
+    "tools/build-packs.mjs",
+    "tools/pack-data.mjs",
+    "tools/pack-data/lib.mjs",
+    "tools/pack-data/abilities.mjs",
+    "tools/pack-data/monsters.mjs",
+    "tools/pack-data/system-icons.mjs",
+    "tools/pack-data/location.mjs",
+    "tools/pack-data/bestiary-data.mjs",
+    "tools/pack-data/formation.mjs",
+    "tools/pack-data/influence.mjs",
+    "tools/pack-data/cleanup.mjs",
+    "tools/pack-data/equipment.mjs",
+    "tools/pack-data/henchmen.mjs",
+    "tools/find-dead-config.mjs",
+    "tools/validate-extra.mjs",
+    "tools/validate.mjs",
+    "tools/test-lib.mjs",
+    "tools/test-influence.mjs",
+    "tools/test-formation-flows.mjs",
+    "tools/test-equipment.mjs",
+    "tools/test-classes.mjs",
+    "tools/test-henchmen.mjs"
+   ],
+   "toolingCluster": true
+  },
+  {
+   "id": "E15",
+   "repo": "foundryvtt-acks-extras",
+   "label": "templates group A (abilities/classes/equipment/lib/influence/formation)",
+   "files": [
+    "templates/abilities/roll-editor.hbs",
+    "templates/abilities/tab-rolls.hbs",
+    "templates/abilities/details-ability.hbs",
+    "templates/abilities/tab-mechanics.hbs",
+    "templates/classes/class-sheet.hbs",
+    "templates/equipment/item-rolls.hbs",
+    "templates/equipment/item-construction.hbs",
+    "templates/equipment/item-spells.hbs",
+    "templates/equipment/loadout-summary.hbs",
+    "templates/lib/template-sheet.hbs",
+    "templates/lib/group-sheet.hbs",
+    "templates/lib/follower-card.hbs",
+    "templates/influence/influence-result.hbs",
+    "templates/influence/mode-result.hbs",
+    "templates/influence/influence.hbs",
+    "templates/influence/attitude-item.hbs",
+    "templates/formation/skill-audit.hbs",
+    "templates/formation/formation-body.hbs",
+    "templates/classes/race-sheet.hbs"
+   ],
+   "surface": "templates"
+  },
+  {
+   "id": "E16",
+   "repo": "foundryvtt-acks-extras",
+   "label": "templates group B (henchmen/location/monsters)",
+   "files": [
+    "templates/henchmen/chat/event-card.hbs",
+    "templates/henchmen/chat/reveal-card.hbs",
+    "templates/henchmen/chat/throw-card.hbs",
+    "templates/henchmen/roster-app.hbs",
+    "templates/henchmen/throw-dialog.hbs",
+    "templates/henchmen/posting-dialog.hbs",
+    "templates/location/ruledata-browser.hbs",
+    "templates/location/location-sheet.hbs",
+    "templates/location/storage-manager.hbs",
+    "templates/location/storage-tab.hbs",
+    "templates/monsters/tab-ecology.hbs",
+    "templates/monsters/tab-attacks.hbs",
+    "templates/monsters/tab-classification.hbs",
+    "templates/monsters/tab-henchman.hbs",
+    "templates/monsters/tab-inventory.hbs",
+    "templates/monsters/tab-description.hbs",
+    "templates/monsters/tab-abilities.hbs",
+    "templates/monsters/tab-spoils.hbs",
+    "templates/monsters/tab-defenses.hbs"
+   ],
+   "surface": "templates"
+  },
+  {
+   "id": "E17",
+   "repo": "foundryvtt-acks-extras",
+   "label": "CSS token source + shared consumers",
+   "files": [
+    "vendor/acks-design/tokens.css",
+    "vendor/acks-design/base.css",
+    "vendor/acks-design/controls.css",
+    "vendor/acks-design/textures.css",
+    "vendor/acks-design/callouts.css",
+    "vendor/acks-design/ornaments.css",
+    "vendor/acks-design/tables.css",
+    "vendor/acks-design/foundry.css",
+    "vendor/acks-design/acks-design.css",
+    "vendor/acks-design/fonts/fonts.css",
+    "styles/lib.css",
+    "styles/lib-sheet-theme.css",
+    "styles/lib-follower-card.css"
+   ],
+   "surface": "styles"
+  },
+  {
+   "id": "E18",
+   "repo": "foundryvtt-acks-extras",
+   "label": "CSS feature stylesheets",
+   "files": [
+    "styles/abilities.css",
+    "styles/classes.css",
+    "styles/equipment.css",
+    "styles/formation.css",
+    "styles/henchmen.css",
+    "styles/influence.css",
+    "styles/location.css",
+    "styles/monsters.css"
+   ],
+   "surface": "styles"
+  },
+  {
+   "id": "I1",
+   "repo": "foundryvtt-acks-importer",
+   "label": "cookbook.mjs part 1 of 2",
+   "partial": {
+    "file": "scripts/cookbook.mjs",
+    "startLine": 1,
+    "endLine": 2600,
+    "totalLines": 4932
+   }
+  },
+  {
+   "id": "I2",
+   "repo": "foundryvtt-acks-importer",
+   "label": "cookbook.mjs part 2 of 2",
+   "partial": {
+    "file": "scripts/cookbook.mjs",
+    "startLine": 2450,
+    "endLine": 4932,
+    "totalLines": 4932
+   }
+  },
+  {
+   "id": "I3",
+   "repo": "foundryvtt-acks-importer",
+   "label": "executor + extract engine",
+   "files": [
+    "scripts/executor.mjs",
+    "scripts/extract.mjs"
+   ]
+  },
+  {
+   "id": "I4",
+   "repo": "foundryvtt-acks-importer",
+   "label": "table extraction + table recipes",
+   "files": [
+    "scripts/table-extract.mjs",
+    "scripts/table-recipes.mjs"
+   ]
+  },
+  {
+   "id": "I5",
+   "repo": "foundryvtt-acks-importer",
+   "label": "category extractors + monster stat mapping",
+   "files": [
+    "scripts/weapon-tables.mjs",
+    "scripts/armor-tables.mjs",
+    "scripts/gear-prices.mjs",
+    "scripts/stats.mjs",
+    "scripts/stats-map.mjs"
+   ]
+  },
+  {
+   "id": "I6",
+   "repo": "foundryvtt-acks-importer",
+   "label": "entry point + support scripts + stylesheet",
+   "files": [
+    "scripts/module.mjs",
+    "scripts/books.mjs",
+    "scripts/recipes.mjs",
+    "scripts/poc.mjs",
+    "scripts/getting-started.mjs",
+    "scripts/progress.mjs",
+    "scripts/constants.mjs",
+    "scripts/tables-binding.mjs",
+    "styles/module.css",
+    "scripts/book-match.mjs",
+    "scripts/builder-binding.mjs"
+   ]
+  },
+  {
+   "id": "I7",
+   "repo": "foundryvtt-acks-importer",
+   "label": "compile-cookbook.mjs part 1 of 2",
+   "partial": {
+    "file": "tools/compile-cookbook.mjs",
+    "startLine": 1,
+    "endLine": 1900,
+    "totalLines": 3537
+   },
+   "toolingCluster": true
+  },
+  {
+   "id": "I8",
+   "repo": "foundryvtt-acks-importer",
+   "label": "compile-cookbook.mjs part 2 of 2",
+   "partial": {
+    "file": "tools/compile-cookbook.mjs",
+    "startLine": 1700,
+    "endLine": 3537,
+    "totalLines": 3537
+   },
+   "toolingCluster": true
+  },
+  {
+   "id": "I9",
+   "repo": "foundryvtt-acks-importer",
+   "label": "validate/lint/build/pack tooling",
+   "files": [
+    "tools/validate.mjs",
+    "tools/validate-extra.mjs",
+    "tools/lint-register.mjs",
+    "tools/build-packs.mjs",
+    "tools/pack-data.mjs"
+   ],
+   "toolingCluster": true
+  },
+  {
+   "id": "I10",
+   "repo": "foundryvtt-acks-importer",
+   "label": "acceptance-gate tooling",
+   "files": [
+    "tools/verify-cookbook.mjs",
+    "tools/verify-against-compendium.mjs",
+    "tools/check-cookbook-drift.mjs"
+   ],
+   "toolingCluster": true
+  },
+  {
+   "id": "I11",
+   "repo": "foundryvtt-acks-importer",
+   "label": "authoring/fleet pipeline lifecycle tools",
+   "files": [
+    "tools/harvest-page.mjs",
+    "tools/harvest-index.mjs",
+    "tools/harvest-conversions.mjs",
+    "tools/merge-recipes.mjs",
+    "tools/promote-candidates.mjs",
+    "tools/seed-entries.mjs",
+    "tools/build-chefdb.mjs",
+    "tools/ledger-init.mjs"
+   ],
+   "toolingCluster": true
+  },
+  {
+   "id": "I12",
+   "repo": "foundryvtt-acks-importer",
+   "label": "small dev utilities + tests",
+   "files": [
+    "tools/ip-scan.mjs",
+    "tools/ip-quarantine.mjs",
+    "tools/audit-dump.mjs",
+    "tools/dump-entry.mjs",
+    "tools/propose-icons.mjs",
+    "tools/reference-lib.mjs",
+    "tools/dev-extract-check.mjs",
+    "tools/find-anchor.mjs",
+    "tools/probe-table.mjs",
+    "tools/test-weapon-tables.mjs",
+    "tools/test-armor-tables.mjs",
+    "tools/test-gear-prices.mjs",
+    "tools/test-executor.mjs",
+    "tools/test-equipment-binding.mjs",
+    "tools/test-book-match.mjs",
+    "tools/test-class-builder-tables.mjs",
+    "tools/test-starting-equipment.mjs"
+   ],
+   "toolingCluster": true
+  }
+ ]
+}

@@ -1,0 +1,131 @@
+{
+  "_comment": "The hygiene checklist, and the lenses that select subsets of it. SINGLE SOURCE OF TRUTH: plan-sweep.mjs resolves a --lens against this and passes the selected groups to sweep.workflow.mjs in args (workflow scripts cannot read the filesystem), which builds its prompt text, its schema enum and its coverage table from what it receives. write-report.mjs uses the checked-category list to decide which stale rows it is entitled to mark Resolved. Add a category to a group here and every consumer picks it up.",
+  "_permanence": "The taxonomy is never pruned because current code happens to be clean — a pitfall that is fine today is the one that gets missed when it appears later. A zero-hit category is reported as 'confirmed clean', which is a result. A category a lens did not run is reported as 'not checked', which is NOT the same claim.",
+  "groups": [
+    {
+      "group": "Correctness & robustness",
+      "slug": "correctness",
+      "items": [
+        ["missing-type-guard", "a value used before any typeof/instanceof/shape check its use requires"],
+        ["missing-null-guard", "unguarded destructuring or property access; missing ?. / ?? where the value can be null or undefined"],
+        ["missing-default", "an optional param/config field with no default. Family bug class §10b: `now - (anchor ?? 0)` bills from time zero — an absent anchor means \"never enrolled\", not \"since the epoch\", and must be adopted explicitly"],
+        ["silent-failure", "empty catch, swallowed rejection, ignored failed return value, or an error logged while the flow proceeds as if it succeeded. Core itself has NO empty catches — that is the baseline to hold"],
+        ["dead-code", "unreachable branch, permanently-false flag, or an exported symbol with zero consumers"]
+      ]
+    },
+    {
+      "group": "Typing & data shape",
+      "slug": "typing",
+      "items": [
+        ["magic-string-typing", "comparing .type/.subtype/kind against string literals where a frozen enum exists or should. Core defines ITEM_TYPE in constants.mjs and then ignores it in 44 places — do not inherit that habit"],
+        ["hardcoded-cardinality", "a fixed-arity structure or hardcoded count where the domain is open-ended: a tuple/positional array where a named object or a derived list belongs, a literal count of something countable (number of classes, saves, tabs, attributes) instead of deriving it from the collection, a fixed-length destructure that silently drops later elements, or parallel arrays kept in sync by index instead of one array of objects"],
+        ["missing-type-annotation", "an exported function crossing a module boundary with no JSDoc @param/@returns where the shape is not obvious from the name (destructured option bags, non-obvious return shapes)"],
+        ["rules-vocabulary-gap", "the code's enum/string set for a rules-defined domain drifts from canonical ACKS II terminology: missing values, wrong count, renamed term. Name the specific terms and cite chapter/section"]
+      ]
+    },
+    {
+      "group": "Foundry platform conventions",
+      "slug": "foundry",
+      "items": [
+        ["appv2-v14-compat", "ANY legacy Application V1 pattern (extends Application/FormApplication/V1 ActorSheet/ItemSheet, activateListeners, getData as a sheet method, html.find/$(html) jQuery in AppV2 code, new Dialog/Dialog.confirm/Dialog.prompt instead of DialogV2, bare mergeObject/duplicate/renderTemplate instead of the foundry.*-namespaced forms, a bare Actors/Items global instead of foundry.documents.collections.* for sheet registration). All deprecated-but-working until v16, so severity is \"modernize\", not \"broken\". ALSO: a dynamic base-class resolution (the `return class X extends Base` factory pattern, Base from CONFIG.Item.sheetClasses[...]) that could resolve wrong and fail silently rather than loudly"],
+        ["settings-scope", "game.settings.register scope misuse: shared game state registered scope:\"client\" (each seat silently gets its own answer to a question the world must agree on) or a personal display preference registered scope:\"world\" (one seat's choice overwrites everyone's, and only a GM can change it)"],
+        ["async-sync-hook", "an async callback (or one returning a Promise) on a boolean-returning hook — preCreate*/preUpdate*/preDelete*. Foundry does not await hook callbacks, so `return false` from an async handler blocks NOTHING and the operation proceeds"],
+        ["flag-semantics", "setFlag deep-MERGES rather than replaces, so writing a smaller object does not remove absent subkeys — deletion needs `-=key` or unsetFlag. Also: a flag key containing a dot gets expanded into nested structure; getFlag throws when the owning module is inactive; mutating a document/flag object in place without update()/setFlag never persists and looks correct until reload"],
+        ["data-prep-side-effect", "a document write (update/setFlag/create) or an await inside prepareData/prepareBaseData/prepareDerivedData — risks an infinite prepare→update→prepare loop"],
+        ["hook-arg-mutation", "reassigning a hook callback parameter instead of mutating the object it points at — the caller keeps the original and the change is silently lost"],
+        ["render-granularity", "a full this.render() after a single-field or single-row change where AppV2 partial rendering — this.render({parts:[...]}) — is what the framework provides; also manual dragstart/dragover/drop listener wiring instead of the DragDrop helper configured via DEFAULT_OPTIONS.dragDrop"],
+        ["library-reinvention", "reimplementing what a declared library already provides: a raw prototype monkey-patch or hand-rolled reentrancy guard instead of libWrapper.register(), a private socket channel bypassing the declared socketlib transport, hand-rolled deep-clone/deep-merge/debounce/throttle/random-id instead of foundry.utils.*, or hand-rolled keydown/localStorage handling instead of the Keybindings/Settings APIs"],
+        ["manifest-hygiene", "module.json problems: a declared path that does not exist or differs in case from the file on disk (runtime lookups are case-sensitive even where the OS is not), a relationships entry missing its reason, or a dependency relied on transitively — Foundry does not resolve a dependency-of-a-dependency, so every link needs its own entry"],
+        ["cross-package-coupling", "a relative ESM import reaching across a package boundary into another module's or the system's internals, instead of consuming a published api surface (game.modules.get(id).api) — the importing package silently breaks when the other reorganizes its files"]
+      ]
+    },
+    {
+      "group": "Registration & structure",
+      "slug": "structure",
+      "items": [
+        ["duplicate-registration", "the same thing registered twice: two Hooks.once/on for one purpose, two libWrapper registrations against one target, a duplicate settings.register key, a duplicate globalThis exposure. Also a hook registered per-render or in a constructor with no matching Hooks.off, which accumulates a listener on every open"],
+        ["missing-registration-gate", "raw push/set into a shared registry or collection at multiple call sites with no single function gating the insertion — no dedupe, no collision check, no in-flight claim"],
+        ["pointless-wrapper", "a function whose whole body forwards to exactly one other function, adding no validation, transformation, or behavior"],
+        ["duplicate-function", "near-identical logic copy-pasted across files or subsystems instead of shared through lib/"],
+        ["inheritance-over-composition", "a class hierarchy stretched to share unrelated behavior, or a deep chain where the family doctrine (enhance via wrapper/mixin; subclass only where it genuinely is-a) fits better"],
+        ["naming-inconsistency", "inconsistent casing or naming for structurally similar constructs, within a file or across the subsystem"]
+      ]
+    },
+    {
+      "group": "Text, style & docs",
+      "slug": "presentation",
+      "items": [
+        ["hardcoded-ui-text", "user-facing display text as a literal string instead of game.i18n.localize/format against a lang key — template markup, dialog titles/content/button labels, ui.notifications.*, chat card text, sheet labels. validate.mjs only checks that REFERENCED keys exist; it cannot see text that was never made a key"],
+        ["theme-inconsistency", "CSS that renders correctly in one seat theme and wrong in the other: a hardcoded color/font value instead of var(--acks-*), a literal fallback `var(--acks-x, #hex)` (which MASKS a missing token — this shipped as a real bug), SURFACE vs INK confusion (background takes --acks-burgundy; color/border take --acks-spot; they diverge on dark seats), a raw px font-size instead of the --acks-fs-* ladder, or a derived token declared only in :root and not re-declared verbatim inside the dark block (a token containing var() freezes its substitution at <html>, and Foundry puts .theme-dark on <body>)"],
+        ["css-cascade-layer", "specificity fighting that v13+ cascade layers made unnecessary: !important or escalating selector weight to beat core/system styles, when manifest-declared CSS already lands in the `modules` layer above both. Also CSS loaded outside the manifest styles array, which lands unlayered and silently outranks everything"],
+        ["stray-comment", "TODO/FIXME/HACK/XXX in source (an explicit repo ban, not a style preference), or a comment carrying rationale, history, dates, or attribution that belongs in DECISIONS.md"],
+        ["missing-docstring", "an exported function, class, or non-obvious constant with no docstring. In a single-class file the file header IS the class docstring — do not expect both"],
+        ["stale-comment", "a comment or doc claim the current code contradicts — a described-as-pending migration that already ran, a referenced file that does not exist, a resolved problem still described as open"],
+        ["stale-reference", "code or comments naming a pre-merge module (acks-lib, acks-monsters, acks-content, acks-abilities, acks-equipment, acks-formation, acks-henchmen, acks-influence, acks-location) as if it were still a separately installable module. All were merged into acks-extras on 2026-08-01; a guard like \"if acks-monsters is installed\" is dead, not defensive"]
+      ]
+    },
+    {
+      "group": "Project doctrine",
+      "slug": "doctrine",
+      "items": [
+        ["core-flaw-inherited", "this code repeats a flaw pattern confirmed to exist in foundryvtt-acks-core (see CORE FLAW CONTEXT). Core is read-only reference — the finding is about the copy here, never about core"],
+        ["ip-leakage", "runtime code or shipped data embedding extended descriptive prose or a complete arranged stat block, rather than the extraction instructions the family's doctrine requires. Individual enum/category names and chapter pointers are FINE and not findings. Also counts: a gap in ip-scan.mjs/lint-register.mjs coverage that would let a real leak through"],
+        ["convention-gap", "a finding about the DOCTRINE, not the code, in either of two senses — (a) SILENCE: TOOLCHAIN.md/DECISIONS.md has no rule about a flaw class this sweep keeps hitting; (b) WRONG DIRECTIVE: a documented convention actively prescribes something that runs against best practice. Label which. Use sparingly and only for patterns, not single instances"],
+        ["other", "a clear best-practice failure that fits nothing above"]
+      ]
+    }
+  ],
+  "_lensNote": "A lens is a named subset. `groups` pulls in whole groups by slug; `categories` adds individual ones. `surfaces` optionally narrows which clusters run — omit it and every selected cluster runs, which is the safe default. Narrowing is always logged, never silent.",
+  "lenses": {
+    "all": {
+      "description": "every category (default)",
+      "groups": ["correctness", "typing", "foundry", "structure", "presentation", "doctrine"]
+    },
+    "ip": {
+      "description": "licensed-content safety and rules-terminology fidelity",
+      "categories": ["ip-leakage", "rules-vocabulary-gap"]
+    },
+    "foundry": {
+      "description": "Foundry platform conventions: AppV2/v14, settings scope, hooks, flags, library reuse, manifest",
+      "groups": ["foundry"]
+    },
+    "documentation": {
+      "description": "comments, docstrings, type annotations, and stale/leftover text",
+      "categories": ["stray-comment", "missing-docstring", "stale-comment", "stale-reference", "missing-type-annotation"]
+    },
+    "i18n": {
+      "description": "display text that bypasses the lang file",
+      "categories": ["hardcoded-ui-text"]
+    },
+    "theming": {
+      "description": "light/dark seat correctness and cascade-layer hygiene",
+      "categories": ["theme-inconsistency", "css-cascade-layer", "naming-inconsistency"],
+      "surfaces": ["styles", "templates"]
+    },
+    "correctness": {
+      "description": "guards, defaults, silent failures, dead code",
+      "groups": ["correctness"]
+    },
+    "typing": {
+      "description": "enums vs magic strings, fixed arity, annotations, rules vocabulary",
+      "groups": ["typing"]
+    },
+    "structure": {
+      "description": "duplicate registrations, gates, wrappers, duplication, inheritance, naming",
+      "groups": ["structure"]
+    },
+    "doctrine": {
+      "description": "family-convention conformance, inherited core flaws, IP posture",
+      "groups": ["doctrine"]
+    },
+    "release": {
+      "description": "pre-release gate: everything that can produce a Critical or High finding",
+      "groups": ["correctness", "foundry", "structure"],
+      "categories": ["magic-string-typing", "hardcoded-cardinality", "rules-vocabulary-gap", "ip-leakage", "core-flaw-inherited"]
+    },
+    "quick": {
+      "description": "cheap high-signal pass for a routine check-in",
+      "categories": ["silent-failure", "missing-null-guard", "duplicate-registration", "stray-comment", "hardcoded-ui-text", "async-sync-hook", "flag-semantics"]
+    }
+  }
+}
