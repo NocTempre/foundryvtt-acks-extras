@@ -11,8 +11,21 @@ it; a pointer is not duplication.
 
 - `docs/<feature>/MODEL.md` — how it works now. Present tense.
 - `docs/<feature>/DECISIONS.md` — dated: what was ruled, what was rejected,
-  what it cost. Append-only; a superseded entry stays, marked.
+  what it cost. Append-only; a superseded entry stays, marked. **Superseding
+  an entry less than 7 days old requires the new entry to name the new
+  evidence** — what was learned that the original ruling did not know.
+  Reversals stay possible; silent ones do not: a decision flipped twice in a
+  week with no stated cause is the signature of deciding by mood.
 - `docs/<feature>/ROADMAP.md` — what is not built.
+- `docs/<feature>/TESTING.md` — the surface's live-test recipe: **fixtures to
+  create → steps to walk → the observable that proves each → teardown.** It
+  records the non-obvious drive mechanics live testing discovers (how a thing
+  is actually created, which API finds it, what a real user gesture looks
+  like scripted), so the next session walks in minutes what the last one
+  learned in hours. Written during the build, before the surface's first
+  release — `tools/release-preflight.mjs` requires it for every changed
+  surface at the next tag. A repo with a flat `scripts/` keeps one
+  `docs/TESTING.md`.
 - `docs/guides/<feature>.md` — user-facing how-to, where release screenshots
   land. `docs/GALLERY.md` indexes them.
 - `docs/<feature>/wip/` — in-flight audits/plans/proposals only. When the

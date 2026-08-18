@@ -52,7 +52,12 @@ the full pipeline (build + validate, no publish) is available anytime:
    A gate that genuinely cannot run locally is what step 7a is for; 7a
    firing on anything runnable here means this step was skipped.
 2. Bump `version` in `module.json` (plain semver X.Y.Z). Update `CHANGELOG.md`
-   if the repo has one.
+   if the repo has one. **Then run `node tools/release-preflight.mjs` — a red
+   result stops the release.** It reads the bumped version, refuses a tag
+   that already exists (never retag; bump a new patch instead), and lists the
+   `docs/<feature>/TESTING.md` recipes for every surface changed since the
+   last tag — step 5 walks exactly those recipes, and a changed surface with
+   no recipe means writing the recipe IS part of this release.
 3. `npm run build:packs`. Compiled packs are gitignored build output — commit
    `packs/_source` if it changed; there is no timestamp churn to discard
    (pack `_stats` stamps are fixed, so a diff means content really changed).
@@ -137,3 +142,10 @@ the full pipeline (build + validate, no publish) is available anytime:
 
 Never force-push tags over a published release; cut a new patch version
 instead.
+
+**After the release: the soak rules (TOOLCHAIN §4).** A minor or major soaks
+24 hours before any further release from that repo, except a hotfix for
+something the release broke. A **second hotfix on the same surface within 24
+hours stops the line**: the third change to that surface ships only after its
+full `docs/<feature>/TESTING.md` recipe has been walked live — hotfix chains
+are the signature of a surface being debugged in production.

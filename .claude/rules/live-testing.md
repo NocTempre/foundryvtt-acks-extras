@@ -77,6 +77,17 @@ rather than inventing one.
    and why — a gap you could have closed by creating fixtures is not a gap;
    close it. Say what you created and confirm you removed it.
 
+## Sub-types need a world relaunch
+
+`module.json` `documentTypes` is read by the SERVER at world launch, not on
+F5. After adding a sub-type, a browser reload picks up the JS (data model
+registers, sheet works) while `Actor.create`/`Item.create` with the new type
+**silently returns falsy** — "not a valid type" on the console, nothing
+persisted. Check `game.documentTypes.<Doc>.includes(type)` to tell the two
+states apart; fix by shutting down and relaunching the world. The silent
+falsy return also means a wrong-type create path produces **no documents at
+all** — there is never a malformed population to migrate from that path.
+
 ## Concurrency
 
 Parallel sessions share this working tree, this test world, and these

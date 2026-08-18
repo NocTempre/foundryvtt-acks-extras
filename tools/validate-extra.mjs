@@ -332,6 +332,36 @@ for (const f of walk(path.join(ROOT, "scripts"))) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Sub-type declarations are complete. Every documentTypes entry needs a       */
+/* TYPES.<Doc>.<id>.<type> lang key (missing one shows the raw key in the      */
+/* sheet title bar), and every TYPES key needs a documentTypes entry (an       */
+/* orphan key means a sub-type was removed or renamed without its label).      */
+/* The runtime half — a new sub-type fails create until the world relaunches — */
+/* is live-only; see .claude/rules/live-testing.md.                            */
+/* -------------------------------------------------------------------------- */
+{
+  const stripBom = (t) => t.replace(/^﻿/u, "");
+  const moduleJson = JSON.parse(stripBom(fs.readFileSync(path.join(ROOT, "module.json"), "utf8")));
+  const lang = JSON.parse(stripBom(fs.readFileSync(path.join(ROOT, "lang", "en.json"), "utf8")));
+  const id = moduleJson.id;
+  for (const [docClass, types] of Object.entries(moduleJson.documentTypes ?? {})) {
+    for (const type of Object.keys(types)) {
+      if (!lang.TYPES?.[docClass]?.[`${id}.${type}`]) {
+        fail(`documentTypes ${docClass}.${type} has no lang key TYPES.${docClass}.${id}.${type} — the sheet title shows the raw key`);
+      }
+    }
+  }
+  for (const [docClass, labels] of Object.entries(lang.TYPES ?? {})) {
+    for (const key of Object.keys(labels)) {
+      const type = key.startsWith(`${id}.`) ? key.slice(id.length + 1) : null;
+      if (type && !moduleJson.documentTypes?.[docClass]?.[type]) {
+        fail(`lang key TYPES.${docClass}.${key} names a sub-type module.json does not declare`);
+      }
+    }
+  }
+}
+
 console.log(
   failed
     ? "validate-extra: merge guards FAILED"
