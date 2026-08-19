@@ -16,13 +16,19 @@ import { registerEncounterZone } from "./encounter-zone.mjs";
 import {
   HALT_OPTION,
   TRAP_ZONE_TYPE,
+  allPlacements,
   attemptDisarm,
   attemptRearm,
   findTrapZone,
+  knownPlacementsNear,
   livePlacement,
+  markTrapFound,
+  placementNearByUuid,
+  placementsNear,
   registerTrapZone,
   resetTrap,
   runTrapCheck,
+  sweepForTraps,
   trapFor,
   wallPlacement,
   zonePlacement,
@@ -41,6 +47,7 @@ import {
   wallTrap,
 } from "./trap-walls.mjs";
 import { installTrapMarkers, refreshTrapMarkers } from "./trap-markers.mjs";
+import { openTrapbreakApp } from "./trapbreak-app.mjs";
 import * as trapRules from "./trap-rules.mjs";
 import TrapData from "./data/trap-data.mjs";
 import TrapSheet from "./trap-sheet.mjs";
@@ -318,13 +325,20 @@ Hooks.once("init", () => {
     traps: {
       ...trapRules,
       runTrapCheck,
+      sweepForTraps,
       attemptDisarm,
       attemptRearm,
       resetTrap,
+      markTrapFound,
+      openTrapbreakApp,
       findTrapZone,
       zonePlacement,
       wallPlacement,
       livePlacement,
+      allPlacements,
+      placementsNear,
+      knownPlacementsNear,
+      placementNearByUuid,
       trapFor,
       layTrapOnSelection,
       drawTrapWall,

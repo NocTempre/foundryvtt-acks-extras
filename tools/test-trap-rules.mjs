@@ -19,10 +19,14 @@ import {
   triggerFires,
   victimsOf,
   TRAP_LEVELS,
+  POLE_REACH_FEET,
+  SEARCH_REACH_FEET,
+  TRAPBREAK_REACH_FEET,
   emptyTier,
   mergeTierSubmit,
 } from "../scripts/formation/trap-rules.mjs";
-import { chainWalls, segmentCrossing } from "../scripts/formation/trap-walls.mjs";
+import { chainWalls, pointSegmentDistance, segmentCrossing, segmentDistance } from "../scripts/formation/trap-walls.mjs";
+import { regionEdges, regionOutlines } from "../scripts/formation/zones.mjs";
 import { spread as spreadMarks } from "../scripts/formation/trap-markers.mjs";
 
 let passed = 0;
@@ -537,6 +541,57 @@ test("a trap with no stored rows still comes back with six", () => {
   assert.equal(merged[0].damageFormula, "");
 });
 
+/* -------------------------------------------- */
+/*  Reaching a trap                             */
+/* -------------------------------------------- */
+
+test("the automatic search reaches a square, and two with a pole", () => {
+  // RAW: "within 5' of a hidden feature (within 10' if equipped with a pole)".
+  assert.equal(SEARCH_REACH_FEET, 5);
+  assert.equal(POLE_REACH_FEET, 10);
+  // And a thief kneels at the trap they are working on.
+  assert.equal(TRAPBREAK_REACH_FEET, 5);
+});
+
+test("a point measures to a segment's nearer END, not to its infinite line", () => {
+  const seg = [0, 0, 100, 0];
+  assert.equal(pointSegmentDistance(50, 30, seg), 30); // beside it
+  assert.equal(pointSegmentDistance(-40, 0, seg), 40); // off past one end
+  assert.equal(pointSegmentDistance(140, 0, seg), 40); // and the other
+});
+
+test("crossing segments are no distance apart", () => {
+  assert.equal(segmentDistance([50, -50, 50, 50], [0, 0, 100, 0]), 0);
+});
+
+test("a walked path measures to a trap it passed but never reached", () => {
+  // The party walks along y=0; a tripwire sits one square north of the line and
+  // is never crossed. The automatic search is owed against it all the same, so
+  // the distance must be the perpendicular one — not the gap to where the party
+  // happened to stop.
+  const path = [0, 0, 500, 0];
+  const tripwire = [200, -100, 300, -100];
+  assert.equal(segmentDistance(path, tripwire), 100);
+});
+
+test("a region's outline survives as edges the sweep can measure to", () => {
+  const square = { shapes: [{ type: "polygon", hole: false, points: [0, 0, 100, 0, 100, 100, 0, 100] }] };
+  assert.deepEqual(regionOutlines(square), [[0, 0, 100, 0, 100, 100, 0, 100]]);
+  // Four points close into four edges, last back to first.
+  assert.equal(regionEdges(square).length, 4);
+  assert.deepEqual(regionEdges(square).at(-1), [0, 100, 0, 0]);
+});
+
+test("a rectangle region becomes its four corners; a hole contributes none", () => {
+  const region = {
+    shapes: [
+      { type: "rectangle", x: 10, y: 20, width: 40, height: 30 },
+      { type: "polygon", hole: true, points: [15, 25, 20, 25, 20, 30] },
+    ],
+  };
+  assert.deepEqual(regionOutlines(region), [[10, 20, 50, 20, 50, 50, 10, 50]]);
+});
+
 console.log(
-  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread, tier submit merge)`,
+  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread, tier submit merge, reaches, path distance, region outlines)`,
 );

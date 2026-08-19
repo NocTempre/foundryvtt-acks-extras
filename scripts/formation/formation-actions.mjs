@@ -38,6 +38,7 @@ import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
+import { openTrapbreakApp } from "./trapbreak-app.mjs";
 import {
   addLight,
   addSpell,
@@ -595,6 +596,18 @@ export const SHARED_ACTIONS = {
   async playerCheck(event, target) {
     const id = this.formation?.id;
     if (id) await requestPartyAction(id, "check", { key: target.dataset.check });
+  },
+
+  /**
+   * Trapbreaking: pick the character, the trap, and the column of the table.
+   *
+   * The same action for a Judge and for a player — the dialog itself decides
+   * whose characters it offers, which traps it is allowed to list, and whether
+   * the throw is rolled here or declared to the Judge's client.
+   */
+  async openTrapbreak() {
+    const id = this.formation?.id;
+    if (id) openTrapbreakApp(id);
   },
 };
 

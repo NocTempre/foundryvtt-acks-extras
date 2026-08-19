@@ -1247,7 +1247,9 @@
       "unshield": "opens the shutter on {bearer}'s lantern.",
       "douse": "douses {bearer}'s light.",
       "relight": "relights {bearer}'s light.",
-      "anchor": "consults the map “{map}”."
+      "anchor": "consults the map “{map}”.",
+      "trapbreak": "{name} works on the trap.",
+      "trapRearm": "{name} sets the trap going again."
     },
     "role": {
       "mapper": "Mapper",
@@ -1573,7 +1575,8 @@
         "hastyNeedsSkill": "{name} cannot work hastily — that is the Trapbreaking skill only.",
         "alreadyFailedHasty": "{name} has already failed hastily here, and cannot try again until higher level.",
         "notDisarmed": "Only a disarmed trap can be re-armed.",
-        "rearmNeedsSkill": "{name} needs the Trapbreaking skill to re-arm a trap."
+        "rearmNeedsSkill": "{name} needs the Trapbreaking skill to re-arm a trap.",
+        "notFound": "Nobody has found that trap yet."
       },
       "legendWhat": "The trap",
       "legendLevel": "This level",
@@ -1645,7 +1648,30 @@
         "full": "Nothing; the rider is the point"
       },
       "damageNone": "None taken",
-      "damageMitigated": "{formula} rolled {rolled}"
+      "damageMitigated": "{formula} rolled {rolled}",
+      "sweepTitle": "Something is spotted",
+      "sweepNote": "{count} hidden trap(s) noticed in passing, off the line of march. The party has not walked into anything.",
+      "breakTitle": "Trapbreaking",
+      "breakHint": "Work on a trap the party has found — choose who, which one, and how.",
+      "breakWho": "Who is working on it",
+      "breakActor": "Character",
+      "breakNoActor": "No character here is yours to act with.",
+      "breakWhich": "Which trap",
+      "breakNothing": "No trap the party has found is within reach. Search, or move up to one.",
+      "breakUnfound": "not found",
+      "breakMarkFound": "Mark spotted",
+      "breakReset": "Rebuild it",
+      "breakJudgeHint": "Judge only. Marking spotted is for a discovery made some other way than a throw; rebuilding makes it a fresh secret again.",
+      "breakHow": "How",
+      "breakMode": "Column",
+      "breakModeHint": "Hastily takes a round and is the skill only, and a failure cannot be repeated until higher level. Methodically takes a turn, adds four for a skilled thief, opens the throw to Adventuring, and may be tried again.",
+      "breakNeeds": "Needs",
+      "breakNoThrow": "This character has no way to work on a trap.",
+      "breakAttempt": "Work on it",
+      "breakRearm": "Re-arm it",
+      "targetWall": "A trap on a line",
+      "targetZone": "A trap area",
+      "resetDone": "The trap is rebuilt. Nobody knows it is there."
     }
   },
   "ACKS-HENCHMEN.sheet.location": "Location / Recruitment Market",

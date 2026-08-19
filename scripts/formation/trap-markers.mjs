@@ -4,21 +4,31 @@ import { STATES } from "./trap-rules.mjs";
 import { wallTrap } from "./trap-walls.mjs";
 
 /**
- * What a Judge can see of a trap, and a player cannot.
+ * What a Judge can see of a trap, and what the party has earned the right to.
  *
  * Modelled on the secret door, which is the closest thing the system already
- * has: a player is shown nothing at all — no icon, no wall, no hint that the
- * square is different — while a Judge sees a marker, and that marker goes on to
- * say which STATE the thing is in once it matters. A secret door that has been
- * found shows whether it is open or shut; a trap shows whether it is armed,
- * spotted, disarmed or spent.
+ * has, and it has two stages. **Hidden:** while a trap is armed and unfound a
+ * player is shown nothing at all — no icon, no wall, no hint that the square is
+ * different — and only the Judge sees a marker. **Known:** once the party has
+ * found the thing, sprung it, or disarmed it, the marker is theirs too, and it
+ * says which state it is in — armed, spotted, disarmed, spent — the same way a
+ * discovered secret door goes on to show whether it is open or shut.
+ *
+ * The stage is `known`, not the state. A trap the thief disarmed and re-armed
+ * reads `armed` again and is still perfectly well known; a trap the Judge reset
+ * reads `armed` and is a fresh secret. Reading the stage off the state would
+ * make the party forget a trap by re-arming it.
+ *
+ * A player's marker is the thing the Trapbreaking dialog points at, which is
+ * why the two stages exist at all: a target you cannot see is a target you
+ * cannot choose.
  *
  * Drawn into the controls layer rather than onto the walls: a trap wall is
  * non-blocking and often lies on top of an ordinary wall or a door, so the
  * marker has to be visible when the Walls layer is not the active one.
  *
- * Markers are GM-only at the point of DRAWING, not by being hidden after the
- * fact. Nothing about a trap reaches a player's client through this file.
+ * The gate is at the point of DRAWING, not a hide applied after the fact.
+ * Nothing about an unfound trap reaches a player's client through this file.
  */
 
 /** The glyph and colour each state is drawn in. */
@@ -67,19 +77,22 @@ export function refreshTrapMarkers() {
   if (!canvas?.ready) return;
   const container = markerLayer();
   container.removeChildren().forEach((child) => child.destroy());
-  // The whole feature, gated once: a player's client draws nothing.
-  if (!game.user.isGM) return;
+  // The gate, applied once: a Judge sees every trap, everyone else sees only
+  // the ones the party has found.
+  const gm = game.user.isGM;
 
   const marks = [];
   for (const wall of canvas.scene?.walls ?? []) {
     const trap = wallTrap(wall);
     if (!trap) continue;
+    if (!gm && !trap.known) continue;
     const [x1, y1, x2, y2] = wall.c;
     marks.push({ x: (x1 + x2) / 2, y: (y1 + y2) / 2, state: trap.state });
   }
   for (const region of canvas.scene?.regions ?? []) {
     const behavior = region.behaviors.find((b) => b.type === TRAP_ZONE_TYPE && !b.disabled);
     if (!behavior) continue;
+    if (!gm && !behavior.system.known) continue;
     const at = regionCentre(region);
     if (at) marks.push({ x: at.x, y: at.y, state: behavior.system.state });
   }

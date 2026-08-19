@@ -21,6 +21,29 @@ import { ROLES } from "./constants.mjs";
 /** A rank of the marching order is one 5' square of corridor. */
 export const FEET_PER_RANK = 5;
 
+/**
+ * How far the automatic hasty search reaches — one square, or two with a pole.
+ *
+ * A thief moving at exploration speed throws against any hidden feature he
+ * passes within reach of, whether or not the party was walking into it. That is
+ * why these are reaches and not "the trap in the way": the sweep is what finds
+ * the pit beside the corridor, and the corridor is what the party is looking at.
+ *
+ * Expressed as squares rather than as printed distances because that is what
+ * they are: the same square a rank occupies, and the pole's extra one.
+ */
+export const SEARCH_REACH_FEET = FEET_PER_RANK;
+export const POLE_REACH_FEET = FEET_PER_RANK * 2;
+
+/**
+ * How far a character can reach the trap they are working on.
+ *
+ * The combat action list gives Hastily Trapbreak as "within 5' of the
+ * combatant", and nothing about the methodical column says otherwise — a thief
+ * disabling a trap is kneeling at it.
+ */
+export const TRAPBREAK_REACH_FEET = FEET_PER_RANK;
+
 /** The trigger die. 1–`triggerOn` springs it; the Judge may widen or narrow. */
 export const TRIGGER_DIE = 6;
 export const TRIGGER_DEFAULT = 2;

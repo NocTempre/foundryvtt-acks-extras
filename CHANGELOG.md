@@ -1,5 +1,49 @@
 # Changelog
 
+## 4.12.0
+
+Traps stop announcing themselves, and the thief chooses which one to kneel at.
+
+### Added
+- **The party searches for traps on its own, and silently.** A thief moving at
+  exploration speed now throws against every hidden trap the party passes
+  within 5' of — 10' with a pole — and not only the one it was walking into.
+  The throw is made against the ground the party actually walked, so a pit
+  beside the corridor gets its chance; it is whispered to the Judge only when
+  something is spotted, and nothing at all is posted when the throw fails. Each
+  character gets one attempt per trap per level, which is the price the book
+  puts on a hasty search.
+- **A Trapbreaking dialog, with a target picker.** Choose who is working on the
+  trap, WHICH trap, and whether they go at it hastily or methodically, and see
+  the throw before spending the round or the turn. It lists only traps within
+  5' that the party has found — a party halted in a corridor can be standing at
+  more than one, and offering an unfound trap would give it away. Players open
+  it from the party sheet whenever one of their characters could make the throw
+  at all, including a non-thief going at it methodically; the Judge's client
+  rolls it, as with every other player declaration. A Judge additionally sees
+  the traps in reach the party has not found, with a control to mark one
+  spotted for a discovery made some other way.
+- **Traps have a hidden stage and a known one.** A player is shown nothing at
+  all while a trap is armed and unfound. Once the party finds it, springs it or
+  disarms it, the marker is theirs too — which is also what gives the
+  Trapbreaking dialog something to point at.
+
+### Fixed
+- **The trap tool no longer leaves a wall-drawing tool armed.** Pressing "lay a
+  trap" while the wall tool was selected drew the non-blocking tripwire, told
+  you to drag its ends into place, and then made that drag draw a brand-new
+  fully blocking wall across the corridor. The tool now hands back the select
+  tool, so the drag moves the tripwire instead of walling the party in.
+- **One press of a trap tool does one thing.** Foundry calls both handlers on a
+  toolbar button, so every press ran twice — the line tool laid two tripwires
+  on top of each other, and the door helper opened two dialogs.
+- **A trap area is a Judge's secret again.** Trap Zone regions are created
+  GM-visible: players are given the Regions control, and Foundry's default
+  draws a region for anyone who opens that layer.
+- **A trap nobody has found cannot be disarmed.** Working on one used to be
+  allowed, which both departs from the book — you find a trap, then you disable
+  it — and told the party a trap was there.
+
 ## 4.11.6
 
 The money in a vault nobody can open comes back.

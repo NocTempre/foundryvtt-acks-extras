@@ -1,0 +1,113 @@
+<section class="acks-extras-trapbreak">
+
+  <fieldset>
+    <legend>{{localize "ACKS-FORMATION.traps.breakWho"}}</legend>
+
+    {{#if hasActor}}
+      <div class="form-group">
+        <label>{{localize "ACKS-FORMATION.traps.breakActor"}}</label>
+        <div class="form-fields">
+          <select name="actorId">
+            {{#each actors}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+          </select>
+        </div>
+      </div>
+    {{else}}
+      <p class="hint">{{localize "ACKS-FORMATION.traps.breakNoActor"}}</p>
+    {{/if}}
+  </fieldset>
+
+  {{! The target is picked, never inferred: a party halted in a corridor can be
+      standing at more than one trap. Only what the party has FOUND is listed —
+      offering an unfound one would announce it. }}
+  <fieldset>
+    <legend>{{localize "ACKS-FORMATION.traps.breakWhich"}}</legend>
+
+    {{#if targets.length}}
+      <div class="acks-extras-trapbreak-targets">
+        {{#each targets}}
+          <label class="acks-extras-trapbreak-target{{#unless known}} is-unfound{{/unless}}">
+            <input type="radio" name="targetUuid" value="{{uuid}}" {{#if selected}}checked{{/if}}>
+            <span class="label">{{label}}</span>
+            <span class="state">{{state}}</span>
+            <span class="range">{{feet}} ft</span>
+            {{#unless known}}<span class="unfound">{{localize "ACKS-FORMATION.traps.breakUnfound"}}</span>{{/unless}}
+          </label>
+        {{/each}}
+      </div>
+    {{else}}
+      <p class="hint">{{localize "ACKS-FORMATION.traps.breakNothing"}}</p>
+    {{/if}}
+
+    {{#if isGM}}
+      {{#if chosen}}
+      <div class="acks-extras-trapbreak-judge">
+        {{#unless chosen.known}}
+          <button type="button" data-action="markFound">
+            <i class="fa-solid fa-eye"></i> {{localize "ACKS-FORMATION.traps.breakMarkFound"}}
+          </button>
+        {{/unless}}
+        <button type="button" data-action="resetTrap">
+          <i class="fa-solid fa-rotate-left"></i> {{localize "ACKS-FORMATION.traps.breakReset"}}
+        </button>
+      </div>
+      <p class="hint">{{localize "ACKS-FORMATION.traps.breakJudgeHint"}}</p>
+      {{/if}}
+    {{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-FORMATION.traps.breakHow"}}</legend>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-FORMATION.traps.breakMode"}}</label>
+      <div class="form-fields">
+        <select name="mode">
+          <option value="methodical" {{#unless hasty}}selected{{/unless}}>{{localize "ACKS-FORMATION.rolls.trapbreakMethodical"}}</option>
+          <option value="hasty" {{#if hasty}}selected{{/if}}>{{localize "ACKS-FORMATION.rolls.trapbreakHasty"}}</option>
+        </select>
+      </div>
+      <p class="hint">{{localize "ACKS-FORMATION.traps.breakModeHint"}}</p>
+    </div>
+
+    {{#if isGM}}
+    <div class="form-group">
+      <label>{{localize "ACKS-FORMATION.doors.judgeMod"}}</label>
+      <div class="form-fields"><input type="number" name="extra" step="1" value="{{extra}}"></div>
+    </div>
+    {{/if}}
+
+    <div class="acks-extras-trapbreak-throw">
+      {{#if check}}
+        <p class="needs">{{localize "ACKS-FORMATION.traps.breakNeeds"}} <strong>{{needs}}+</strong></p>
+        <p class="hint">{{check.source}}</p>
+        {{#if parts.length}}
+          <ul class="acks-extras-trapbreak-parts">
+            {{#each parts}}<li>{{label}} <span>{{sign}}{{value}}</span></li>{{/each}}
+          </ul>
+        {{/if}}
+        {{#if extra}}<p class="hint">{{localize "ACKS-FORMATION.doors.judgeMod"}} {{extraSign}}{{extra}}</p>{{/if}}
+      {{else}}
+        <p class="hint">{{localize "ACKS-FORMATION.traps.breakNoThrow"}}</p>
+      {{/if}}
+    </div>
+
+    {{#if refusal}}<p class="acks-extras-trapbreak-refusal"><i class="fa-solid fa-ban"></i> {{refusal}}</p>{{/if}}
+
+    <div class="acks-extras-trapbreak-buttons">
+      <button type="button" data-action="attempt" {{#unless canAttempt}}disabled{{/unless}}>
+        <i class="fa-solid fa-screwdriver-wrench"></i> {{localize "ACKS-FORMATION.traps.breakAttempt"}}
+      </button>
+      {{#if chosen.disarmed}}
+        <button type="button" data-action="rearm">
+          <i class="fa-solid fa-lock"></i> {{localize "ACKS-FORMATION.traps.breakRearm"}}
+        </button>
+      {{/if}}
+    </div>
+
+    <p class="hint">
+      {{#if repeatable}}{{localize "ACKS-FORMATION.traps.mayTryAgain"}}{{else}}{{localize "ACKS-FORMATION.traps.noSecondHastyTry"}}{{/if}}
+    </p>
+  </fieldset>
+
+</section>

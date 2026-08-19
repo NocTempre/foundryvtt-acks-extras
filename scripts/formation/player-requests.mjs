@@ -6,6 +6,7 @@ import { anchorMap } from "./map-items.mjs";
 import { toggleDetachMember } from "./deployment.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
+import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
 import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./turn-engine.mjs";
 
 /**
@@ -22,7 +23,9 @@ import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./t
  *   (detach);
  * - douse/relight or shutter a light their character carries (lightToggle /
  *   lightShield);
- * - consult — anchor — a map their character holds (anchorMap).
+ * - consult — anchor — a map their character holds (anchorMap);
+ * - work on a trap the party has found, or re-arm one they disarmed
+ *   (trapbreak / trapRearm).
  *
  * Ownership is validated HERE, on the executing GM client, against the passed
  * user id — never trusted from the requesting client. Every executed request
@@ -174,6 +177,25 @@ async function executeRequest(formation, user, type, payload) {
         await announceDeclaration(formation, user, loc(light.lit ? "request.douse" : "request.relight", { bearer }));
         await toggleLight(formation, payload.lightId);
       }
+      break;
+    }
+
+    /* --- Trapbreaking: one character, one found trap, one column --- */
+    case "trapbreak":
+    case "trapRearm": {
+      if (!userOwnsMember(formation, user, payload.actorId)) return;
+      const actor = game.actors.get(payload.actorId);
+      if (!actor) return;
+      // The Judge's own modifier is the JUDGE's: a declaring client may name
+      // the character, the trap and the column, and nothing else about the
+      // throw. `attemptDisarm` re-reads the trap and refuses it here if the
+      // party is not standing at it, so a stale or crafted uuid finds nothing.
+      const mode = payload.mode === "hasty" ? "hasty" : "methodical";
+      await announceDeclaration(formation, user, loc(type === "trapRearm" ? "request.trapRearm" : "request.trapbreak", {
+        name: foundry.utils.escapeHTML(actor.name),
+      }));
+      if (type === "trapRearm") await attemptRearm(formation, actor, { targetUuid: payload.targetUuid });
+      else await attemptDisarm(formation, actor, { mode, targetUuid: payload.targetUuid });
       break;
     }
 

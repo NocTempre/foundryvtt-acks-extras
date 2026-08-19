@@ -939,6 +939,83 @@
   cursor: pointer;
 }
 
+/* --- the Trapbreaking dialog ----------------------------------------- */
+
+.acks-extras-trapbreak {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* The target list is a stack of radio rows rather than a <select>: which trap
+   is being worked on carries a state and a range, and a one-line option cannot
+   show either. */
+.acks-extras-trapbreak-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.acks-extras-trapbreak-target {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.3rem;
+  font-size: var(--acks-fs-label);
+  cursor: pointer;
+}
+
+.acks-extras-trapbreak-target .state,
+.acks-extras-trapbreak-target .range {
+  color: var(--acks-ink-soft);
+}
+
+/* A row only the Judge ever sees: a trap in reach that the party has not found. */
+.acks-extras-trapbreak-target.is-unfound .label {
+  font-style: italic;
+}
+
+.acks-extras-trapbreak-target .unfound {
+  grid-column: 2 / -1;
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-trapbreak-judge {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.acks-extras-trapbreak-throw .needs {
+  margin: 0.2rem 0;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-trapbreak-parts {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-trapbreak-parts > li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.acks-extras-trapbreak-refusal {
+  margin: 0.3rem 0;
+  color: var(--acks-danger-ink);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-trapbreak-buttons {
+  display: flex;
+  gap: 0.3rem;
+}
+
 /* --- Trap item sheet ------------------------------------------------- */
 
 /* Same type root as the other item sheets: the em hierarchy below rides

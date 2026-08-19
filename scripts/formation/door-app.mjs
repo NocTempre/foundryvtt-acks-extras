@@ -134,8 +134,9 @@ export function installDoorControl() {
       icon: "fa-solid fa-door-closed",
       button: true,
       visible: game.user.isGM,
+      // One handler only: v13+ calls BOTH `onChange` and `onClick` on a
+      // `button: true` tool, so a second dialog opens over the first.
       onChange: () => openDoorApp(),
-      onClick: () => openDoorApp(),
     };
     // v13+ hands these over as an object keyed by name; older builds as an
     // array. Both shapes are still in the wild across the family's worlds.

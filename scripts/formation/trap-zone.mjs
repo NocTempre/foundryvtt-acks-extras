@@ -1,16 +1,20 @@
 /* global game, foundry, fromUuid, CONFIG, ChatMessage, Roll, ui */
 import { MODULE_ID, ROLES, TRAP_ITEM_TYPE, TRAP_ZONE_TYPE } from "./constants.mjs";
 import { getPartyToken, isDown, isHurried, marchingOrder, updateFormation } from "./formation-model.mjs";
-import { setWallTrap, trapWallsCrossed, wallTrap } from "./trap-walls.mjs";
+import { segmentDistance, setWallTrap, trapWallsCrossed, wallTrap } from "./trap-walls.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { gmIds, makeLoc } from "../lib/util.mjs";
-import { findZone } from "./zones.mjs";
+import { findZone, regionEdges } from "./zones.mjs";
 import {
   CRUDE,
+  FEET_PER_RANK,
+  POLE_REACH_FEET,
   RESOLUTIONS,
+  SEARCH_REACH_FEET,
   STATES,
+  TRAPBREAK_REACH_FEET,
   TRIGGER_DIE,
   damageTaken,
   disarmPlan,
@@ -92,6 +96,16 @@ export class TrapZoneBehavior extends foundry.data.regionBehaviors.RegionBehavio
        * that it happened. Cleared by re-arming.
        */
       repeatLock: new fields.ObjectField(),
+      /** The same ledger for the automatic hasty SEARCH, which has its own. */
+      searchLock: new fields.ObjectField(),
+      /**
+       * Has the party learned this trap is here?
+       *
+       * Not derivable from the state. A trap the thief found, disarmed and
+       * re-armed reads `armed` again and is still perfectly well known; a trap
+       * the Judge rebuilt from scratch reads `armed` and is not.
+       */
+      known: new fields.BooleanField({ initial: false }),
     };
   }
 }
@@ -122,9 +136,12 @@ export function findTrapZone(formation) {
  *
  * @typedef {object} Placement
  * @property {"zone"|"wall"} kind
+ * @property {string} uuid the placement document's own uuid — what a UI targets
  * @property {string} trapUuid
  * @property {string} state one of `STATES`
+ * @property {boolean} known has the party found it?
  * @property {Record<string, number>} repeatLock
+ * @property {Record<string, number>} searchLock
  * @property {(patch: object) => Promise<unknown>} write
  */
 
@@ -134,9 +151,13 @@ export function zonePlacement(zone) {
   return {
     kind: "zone",
     doc: zone.behavior,
+    region: zone.region,
+    uuid: zone.behavior.uuid,
     trapUuid: s.trapUuid ?? "",
     state: s.state,
+    known: !!s.known,
     repeatLock: s.repeatLock ?? {},
+    searchLock: s.searchLock ?? {},
     write: (patch) =>
       zone.behavior.update(Object.fromEntries(Object.entries(patch).map(([k, v]) => [`system.${k}`, v]))),
   };
@@ -148,9 +169,12 @@ export function wallPlacement(wall) {
   return {
     kind: "wall",
     doc: wall,
+    uuid: wall.uuid,
     trapUuid: t.trapUuid ?? "",
     state: t.state ?? STATES.armed,
+    known: !!t.known,
     repeatLock: t.repeatLock ?? {},
+    searchLock: t.searchLock ?? {},
     write: (patch) => setWallTrap(wall, patch),
   };
 }
@@ -190,6 +214,128 @@ export async function livePlacement(formation, { from = null, to = null } = {}) 
 }
 
 /* -------------------------------------------- */
+/*  Everything within reach                     */
+/* -------------------------------------------- */
+
+/**
+ * The ground the party covered, in canvas pixels and centre coordinates.
+ *
+ * A standing party is a zero-length segment at its own centre, which every
+ * distance test below handles without a second code path.
+ *
+ * @returns {{seg: number[], gs: number, feetPerPixel: number, halfToken: number}|null}
+ */
+function partyPath(formation, { from = null, to = null } = {}) {
+  const token = getPartyToken(formation);
+  if (!token) return null;
+  const scene = token.parent;
+  const gs = scene.grid.size;
+  const half = { x: (token.width * gs) / 2, y: (token.height * gs) / 2 };
+  const centre = (p) => ({ x: p.x + half.x, y: p.y + half.y });
+  const a = centre(from ?? { x: token.x, y: token.y });
+  const b = centre(to ?? { x: token.x, y: token.y });
+  return {
+    scene,
+    gs,
+    seg: [a.x, a.y, b.x, b.y],
+    // Distances are measured from the token's EDGE, not from the pip at its
+    // centre: a party token is often larger than a square, and measuring from
+    // the middle of a 2×2 marker would put a tripwire it is touching two
+    // squares away.
+    halfToken: Math.max(half.x, half.y),
+    feetPerPixel: (scene.grid.distance || FEET_PER_RANK) / gs,
+  };
+}
+
+/** How far a placement lies from the ground the party covered, in feet. */
+function placementDistanceFeet(placement, path) {
+  if (!path) return Infinity;
+  let px;
+  if (placement.kind === "wall") {
+    px = segmentDistance(path.seg, placement.doc.c);
+  } else {
+    const edges = regionEdges(placement.region);
+    if (!edges.length) return Infinity;
+    px = Math.min(...edges.map((e) => segmentDistance(path.seg, e)));
+    // Inside the outline is zero away from it, and the edge distance alone
+    // would report a party standing in the middle of a pit as far from it.
+    const inside = [
+      { x: path.seg[0], y: path.seg[1] },
+      { x: path.seg[2], y: path.seg[3] },
+    ].some((pt) => edges.length && pointInsideEdges(edges, pt));
+    if (inside) px = 0;
+  }
+  return Math.max(0, px - path.halfToken) * path.feetPerPixel;
+}
+
+/** Even-odd containment against a region's own edge list. */
+function pointInsideEdges(edges, pt) {
+  let inside = false;
+  for (const [x1, y1, x2, y2] of edges) {
+    const hits = y1 > pt.y !== y2 > pt.y && pt.x < ((x2 - x1) * (pt.y - y1)) / (y2 - y1 || 1e-9) + x1;
+    if (hits) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Every trap placed on this scene, as placements — trapped walls and enabled
+ * Trap Zone behaviors alike.
+ *
+ * Read straight off the scene rather than from the canvas, so it answers on a
+ * client whose canvas is not the one the party is standing on.
+ */
+export function allPlacements(scene) {
+  const out = [];
+  for (const wall of scene?.walls ?? []) {
+    if (wallTrap(wall)) out.push(wallPlacement(wall));
+  }
+  for (const region of scene?.regions ?? []) {
+    for (const behavior of region.behaviors) {
+      if (behavior.type === TRAP_ZONE_TYPE && !behavior.disabled) out.push(zonePlacement({ region, behavior }));
+    }
+  }
+  return out;
+}
+
+/**
+ * The traps within `feet` of the party, nearest first, each carrying how far
+ * off it is.
+ *
+ * @param {object} formation
+ * @param {object} [opts]
+ * @param {number} [opts.feet] the reach being measured
+ * @param {object} [opts.from] where the party started this move, if it moved
+ * @param {object} [opts.to] where it ended
+ * @returns {Array<Placement & {distanceFeet: number}>}
+ */
+export function placementsNear(formation, { feet = TRAPBREAK_REACH_FEET, from = null, to = null } = {}) {
+  const path = partyPath(formation, { from, to });
+  if (!path) return [];
+  return allPlacements(path.scene)
+    .map((placement) => ({ ...placement, distanceFeet: placementDistanceFeet(placement, path) }))
+    .filter((p) => p.distanceFeet <= feet)
+    .sort((a, b) => a.distanceFeet - b.distanceFeet);
+}
+
+/**
+ * The traps within reach that the party actually KNOWS about.
+ *
+ * What a Trapbreaking attempt may be pointed at, and the only trap list any
+ * player-facing surface is allowed to show: offering an unfound trap as a
+ * target announces its existence, which is the one thing a hidden feature is
+ * for.
+ */
+export function knownPlacementsNear(formation, feet = TRAPBREAK_REACH_FEET) {
+  return placementsNear(formation, { feet }).filter((p) => p.known);
+}
+
+/** One placement by its document uuid, if it is within reach of the party. */
+export function placementNearByUuid(formation, uuid, feet = TRAPBREAK_REACH_FEET) {
+  return placementsNear(formation, { feet }).find((p) => p.uuid === uuid) ?? null;
+}
+
+/* -------------------------------------------- */
 /*  Cards                                       */
 /* -------------------------------------------- */
 
@@ -220,44 +366,121 @@ async function whisper(html, formation, rolls = []) {
  * without a real Searching skill — hasty searching is skill-only, so that gate
  * already says "thief" without this file having to name a class.
  */
-function autoSearchers(order) {
+export function autoSearchers(order) {
   return (order ?? []).filter((row) => row.rank === 0 || ((row.roles ?? []).includes(ROLES.POLE) && row.rank <= 1));
 }
 
 /**
- * The searching throws, made before anything is stepped on.
+ * How far ahead of the party token this searcher's own reach extends.
  *
- * @returns {Promise<{found: boolean, rows: object[], rolls: Roll[]}>}
+ * The reach belongs to the CHARACTER and the distance is measured from the
+ * party token, so the searcher's own place in the column is subtracted: a
+ * pole-bearer in the second rank probes 10' from himself, which is 5' from the
+ * front of the party.
  */
-async function searchAhead(order, { crude = false } = {}) {
+function searcherReachFeet(row) {
+  const own = (row.roles ?? []).includes(ROLES.POLE) ? POLE_REACH_FEET : SEARCH_REACH_FEET;
+  return own - row.rank * FEET_PER_RANK;
+}
+
+/**
+ * The automatic hasty search, swept over every hidden trap the party came
+ * within reach of — not merely the one it was about to step on.
+ *
+ * This is the book's own automatic search and it is deliberately wider than the
+ * corridor: a thief moving at exploration speed throws against ANY hidden
+ * feature he passes within 5' of, 10' with a pole, and the Judge makes the
+ * throw in secret. So the sweep runs on every party move, silently, and only
+ * says anything when something is spotted.
+ *
+ * **A searcher gets one attempt per trap per level.** The automatic throw is a
+ * hasty search and carries the hasty search's price — a failure is a failure to
+ * hastily search that feature, and it cannot be repeated until the character
+ * has grown. Without the ledger a party could find every trap in the dungeon by
+ * shuffling back and forth over it.
+ *
+ * At combat speed there is no sweep at all: the party has lost its pole and its
+ * hasty searching together.
+ *
+ * @param {object} formation
+ * @param {object} [opts]
+ * @param {object} [opts.from] the move's start, token top-left
+ * @param {object} [opts.to] the move's end
+ * @param {boolean} [opts.hurried] combat speed — no automatic searching
+ * @param {Placement} [opts.include] a placement to sweep whatever the distance
+ *   says: the wall the party CROSSED is met by definition, however far the step
+ *   that crossed it carried them past it.
+ * @returns {Promise<{found: Set<string>, rows: object[], rolls: Roll[]}>}
+ */
+export async function sweepForTraps(formation, { from = null, to = null, hurried = false, include = null } = {}) {
+  const empty = { found: new Set(), rows: [], rolls: [] };
+  if (hurried) return empty;
+
+  const searchers = autoSearchers(marchingOrder(formation)).filter((row) => {
+    const actor = game.actors.get(row.actorId);
+    return actor && !isDown(actor);
+  });
+  if (!searchers.length) return empty;
+
+  const path = partyPath(formation, { from, to });
+  if (!path) return empty;
+
+  const reach = Math.max(...searchers.map(searcherReachFeet));
+  const candidates = allPlacements(path.scene)
+    .map((p) => ({ ...p, distanceFeet: placementDistanceFeet(p, path) }))
+    .filter((p) => p.state === STATES.armed && !p.known && p.distanceFeet <= reach);
+  if (include && include.state === STATES.armed && !include.known && !candidates.some((p) => p.uuid === include.uuid)) {
+    candidates.push({ ...include, distanceFeet: 0 });
+  }
+  if (!candidates.length) return empty;
+
+  const found = new Set();
   const rows = [];
   const rolls = [];
-  let found = false;
 
-  for (const row of autoSearchers(order)) {
-    const actor = game.actors.get(row.actorId);
-    if (!actor || isDown(actor)) continue;
-    const check = resolveCheck(actor, PARTY_CHECKS.searchHasty);
-    if (!check) continue; // no Searching skill: no automatic search to make
+  for (const placement of candidates) {
+    const trap = await trapFor(placement);
+    const crude = !!trap?.system?.crude;
+    let lock = placement.searchLock;
+    let spotted = false;
 
-    const bonus = check.bonus + (crude ? CRUDE.find : 0);
-    const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
-    const roll = await new Roll(formula).evaluate();
-    rolls.push(roll);
-    const success = roll.total >= check.target;
-    if (success) found = true;
+    for (const row of searchers) {
+      if (spotted) break;
+      if (placement.distanceFeet > searcherReachFeet(row)) continue;
+      const actor = game.actors.get(row.actorId);
+      const check = resolveCheck(actor, PARTY_CHECKS.searchHasty);
+      if (!check) continue; // no Searching skill: no automatic search to make
+      const level = Number(actor?.system?.details?.level) || 1;
+      if (repeatLocked(lock, actor.id, level)) continue;
 
-    const breakdown = (check.parts ?? []).map((p) => `+${p.value} ${p.label}`);
-    if (crude) breakdown.push(`+${CRUDE.find} ${loc("partCrude")}`);
-    rows.push({
-      name: actor.name,
-      total: roll.total,
-      target: check.target,
-      detail: breakdown.length ? `${check.source}; ${breakdown.join(", ")}` : check.source,
-      outcome: game.i18n.localize(`${LANG_PREFIX}.${success ? "spotted" : "sawNothing"}`),
-      emphasis: success ? "success" : "failure",
-    });
+      const bonus = check.bonus + (crude ? CRUDE.find : 0);
+      const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
+      const roll = await new Roll(formula).evaluate();
+      rolls.push(roll);
+      const success = roll.total >= check.target;
+      if (success) spotted = true;
+      else lock = lockAfterFailure(lock, actor.id, level);
+
+      const breakdown = (check.parts ?? []).map((p) => `+${p.value} ${p.label}`);
+      if (crude) breakdown.push(`+${CRUDE.find} ${loc("partCrude")}`);
+      rows.push({
+        name: actor.name,
+        total: roll.total,
+        target: check.target,
+        detail: breakdown.length ? `${check.source}; ${breakdown.join(", ")}` : check.source,
+        outcome: game.i18n.localize(`${LANG_PREFIX}.${success ? "spotted" : "sawNothing"}`),
+        emphasis: success ? "success" : "failure",
+      });
+    }
+
+    if (spotted) {
+      found.add(placement.uuid);
+      await placement.write({ state: STATES.found, known: true, searchLock: lock });
+    } else if (lock !== placement.searchLock) {
+      await placement.write({ searchLock: lock });
+    }
   }
+
   return { found, rows, rolls };
 }
 
@@ -272,10 +495,6 @@ async function searchAhead(order, { crude = false } = {}) {
  */
 export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   const { placement, haltAt, approach } = await livePlacement(formation, { from, to });
-  if (!placement) return null;
-  const trap = await trapFor(placement);
-  if (!trap) return null;
-  const cfg = trap.system;
 
   const order = marchingOrder(formation);
   if (!order.length) return null;
@@ -285,11 +504,13 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   const hurried = isHurried(formation);
   const rolls = [];
 
-  /* (a) Anyone searching the ground throws first. */
-  const search = await searchAhead(hurried ? [] : order, { crude: cfg.crude });
+  /* (a) Anyone searching the ground throws first — against every hidden trap
+     they passed within reach of, not only the one in the way. */
+  const search = await sweepForTraps(formation, { from, to, hurried, include: placement });
   rolls.push(...search.rolls);
-  if (search.found) {
-    await placement.write({ state: STATES.found });
+  const crossedFound = !!placement && search.found.has(placement.uuid);
+
+  if (crossedFound) {
     await haltParty(formation, haltAt, approach);
     await whisper(
       renderRollCard({
@@ -303,6 +524,26 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
     );
     return { outcome: "found" };
   }
+
+  // Something OFF the line of march turned up. Reported on its own, because the
+  // party is not standing at it and nothing further resolves.
+  if (search.found.size) {
+    await whisper(
+      renderRollCard({
+        title: loc("sweepTitle"),
+        subtitle: formation.name,
+        note: loc("sweepNote", { count: search.found.size }),
+        sections: [{ rows: search.rows }],
+      }),
+      formation,
+      rolls,
+    );
+  }
+
+  if (!placement) return search.found.size ? { outcome: "found" } : null;
+  const trap = await trapFor(placement);
+  if (!trap) return null;
+  const cfg = trap.system;
 
   /* (b) and (c): the pole, then the party, each with its own secret die. */
   const probes = probeSequence(order, { pole: !hurried });
@@ -508,7 +749,8 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
     }
   }
 
-  await placement.write({ state: STATES.discharged });
+  // Spent, and no longer a secret: it went off in front of everybody.
+  await placement.write({ state: STATES.discharged, known: true });
 
   const notes = [loc("sprungNote", { name: sprungBy?.name ?? "" })];
   if (sprungBy?.kind === "pole") notes.push(loc("sprungByPole"));
@@ -552,6 +794,10 @@ const carriesTools = (actor) =>
  */
 export function disarmRefusal(placement, actor, mode) {
   if (!placement) return "noZone";
+  // A hidden feature nobody has found is not a thing anyone can kneel down and
+  // work on, and offering it as a target would announce it. The Judge who has
+  // narrated a discovery some other way marks it spotted first.
+  if (!placement.known) return "notFound";
   if (!placement.trapUuid) return "noTrap";
   if (placement.state === STATES.discharged) return "alreadyDischarged";
   if (placement.state === STATES.disarmed) return "alreadyDisarmed";
@@ -585,11 +831,14 @@ export function disarmRefusal(placement, actor, mode) {
  * @param {number} [opts.extra] the Judge's own modifier
  * @returns {Promise<{ok: boolean, reason?: string, outcome?: string}>}
  */
-export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0 } = {}) {
-  // The trap being worked on is the one the party is standing at: a region
-  // under the party token, or a trapped wall they have stopped against.
-  const { placement } = await livePlacement(formation);
-  const target = placement ?? nearestTrappedWall(formation);
+export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "" } = {}) {
+  // Which trap is being worked on is ASKED, not guessed. A party halted in a
+  // corridor may be standing at more than one, and the thief who found the
+  // tripwire has no business having their hands moved onto the pressure plate
+  // beside it because that one happened to be nearer.
+  const target = targetUuid
+    ? placementNearByUuid(formation, targetUuid)
+    : (knownPlacementsNear(formation)[0] ?? null);
   if (!target) return { ok: false, reason: "noZone" };
 
   const refusal = disarmRefusal(target, actor, mode);
@@ -622,7 +871,7 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
     // discharged one is spent. Only they can say which they wanted.
     const discharge = await askDischarge(actor);
     outcome = discharge ? STATES.discharged : STATES.disarmed;
-    await target.write({ state: outcome });
+    await target.write({ state: outcome, known: true });
   } else if (botched) {
     outcome = "botched";
   } else {
@@ -701,8 +950,8 @@ async function askDischarge(actor) {
  * Set a disarmed trap going again. Only a DISARMED trap can be re-armed — a
  * discharged one has already fired and there is nothing left to re-arm.
  */
-export async function attemptRearm(formation, actor) {
-  const target = disarmedPlacementAt(formation);
+export async function attemptRearm(formation, actor, { targetUuid = "" } = {}) {
+  const target = disarmedPlacementAt(formation, targetUuid);
   if (!target) return { ok: false, reason: "noZone" };
   if (target.state !== STATES.disarmed) {
     ui.notifications.warn(loc("refuse.notDisarmed"));
@@ -720,7 +969,8 @@ export async function attemptRearm(formation, actor) {
 
   const roll = await new Roll(check.bonus ? `1d20 + ${check.bonus}` : "1d20").evaluate();
   const success = roll.total >= check.target;
-  if (success) await target.write({ state: STATES.armed, repeatLock: {} });
+  // Re-armed by the party's own hand, so they still know exactly where it is.
+  if (success) await target.write({ state: STATES.armed, repeatLock: {}, known: true });
 
   await whisper(
     renderRollCard({
@@ -758,47 +1008,21 @@ export async function attemptRearm(formation, actor) {
  * a rebuilt trap is not the one anybody failed against.
  */
 export async function resetTrap(placement) {
-  return placement.write({ state: STATES.armed, repeatLock: {} });
+  return placement.write({ state: STATES.armed, repeatLock: {}, searchLock: {}, known: false });
 }
 
 /**
- * Every trapped wall within a square of the party token.
- *
- * A thief kneels at the wall they are standing against, so "which trap am I
- * working on" is a question of proximity — and a trap wall, being non-blocking,
- * cannot be found by asking what the party bumped into.
+ * The Judge says the party has found it — a discovery made some other way than
+ * a Searching throw: a warning from a captive, a map, a description read aloud.
+ * The state moves to `found` for the same reason a made throw does.
  */
-function trappedWallsNear(formation, squares = 1) {
-  const token = getPartyToken(formation);
-  if (!token) return [];
-  const gs = token.parent.grid.size;
-  const cx = token.x + (token.width * gs) / 2;
-  const cy = token.y + (token.height * gs) / 2;
-  const reach = gs * squares + (Math.max(token.width, token.height) * gs) / 2;
-
-  const near = [];
-  for (const wall of token.parent.walls) {
-    if (!wallTrap(wall)) continue;
-    const [x1, y1, x2, y2] = wall.c;
-    // Distance from the token's centre to the wall segment.
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const len2 = dx * dx + dy * dy || 1;
-    const t = Math.max(0, Math.min(1, ((cx - x1) * dx + (cy - y1) * dy) / len2));
-    const dist = Math.hypot(cx - (x1 + t * dx), cy - (y1 + t * dy));
-    if (dist <= reach) near.push({ wall, dist });
-  }
-  return near.sort((a, b) => a.dist - b.dist).map((n) => wallPlacement(n.wall));
+export async function markTrapFound(placement) {
+  return placement.write({ state: STATES.found, known: true });
 }
 
-/** The nearest trapped wall the party is standing at, or null. */
-function nearestTrappedWall(formation) {
-  return trappedWallsNear(formation)[0] ?? null;
-}
-
-/** The disarmed trap the party is standing at — a region first, then a wall. */
-function disarmedPlacementAt(formation) {
-  const zone = findTrapZone(formation);
-  if (zone && zone.behavior.system.state === STATES.disarmed) return zonePlacement(zone);
-  return trappedWallsNear(formation).find((p) => p.state === STATES.disarmed) ?? null;
+/** The disarmed trap the party is standing at, nearest first. */
+function disarmedPlacementAt(formation, targetUuid = "") {
+  const known = knownPlacementsNear(formation);
+  if (targetUuid) return known.find((p) => p.uuid === targetUuid) ?? null;
+  return known.find((p) => p.state === STATES.disarmed) ?? null;
 }

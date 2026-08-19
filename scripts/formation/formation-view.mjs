@@ -30,7 +30,7 @@ import {
 import { isMemberDeployed } from "./deployment.mjs";
 import { senseProfile } from "../lib/senses.mjs";
 import { collectMapItems } from "./map-items.mjs";
-import { PARTY_CHECKS } from "./party-rolls.mjs";
+import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
 import { formatTurns, parseSpellTurns } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
@@ -392,6 +392,13 @@ export function buildPlayerPanel(formation) {
       label: game.i18n.localize(cfg.label),
     })),
     playerSpells: [],
+    // Trapbreaking is offered to a seat that could actually make the throw —
+    // by the skill, or by Adventuring, which the book allows methodically. A
+    // button that only ever answers "you have no way to work on a trap" is
+    // worse than no button.
+    canTrapbreak: owned.some(
+      (a) => resolveCheck(a, PARTY_CHECKS.trapbreakHasty) || resolveCheck(a, PARTY_CHECKS.trapbreakMethodical),
+    ),
   };
   for (const actor of owned) {
     const level = actor.system?.details?.level ?? 1;

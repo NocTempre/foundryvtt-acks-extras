@@ -127,18 +127,30 @@ behavior. Dragging onto an untrapped wall lays the layer and assigns the trap in
 one go.
 
 You see a marker on each trap showing its state — armed, spotted, disarmed,
-spent. **Players see nothing at all**, the same way they see nothing of a secret
-door until it is found.
+spent. **Players see nothing at all while a trap is hidden**, the same way they
+see nothing of a secret door until it is found — and once the party HAS found
+it, sprung it or disarmed it, they see its marker too. That is what they point
+at to work on it.
+
+A trap area is drawn for you and never for them, whichever scene layer they
+open.
 
 ### What happens when the party walks in
 
 All of it is whispered to you, including the times nothing happened.
 
-Anyone who can search throws first, and a thief at the front who makes it spots
-the trap before anyone touches it. Then the 10' pole probes a square ahead of
-its bearer, then the party itself, rank by rank, each on its own secret 1d6. The
-first throw that comes up inside the trigger band springs it, and the party
-stops there rather than walking on.
+Anyone who can search throws first — and not only against the trap in the way.
+A thief moving at exploration speed throws against **every** hidden trap the
+party passes within 5' of, 10' with a pole, measured against the ground they
+actually walked rather than where they stopped. You hear about it only when
+something is spotted; the misses are silent, or the log would be unreadable.
+Each character gets one throw per trap per level, which is what a hasty search
+costs them.
+
+A thief at the front who makes it spots the trap before anyone touches it. Then
+the 10' pole probes a square ahead of its bearer, then the party itself, rank by
+rank, each on its own secret 1d6. The first throw that comes up inside the
+trigger band springs it, and the party stops there rather than walking on.
 
 At combat speed there is no pole and no searching — the party is moving too
 fast for either, exactly as the book says.
@@ -155,6 +167,21 @@ choice about where you land).
 caught, and what it dealt.*
 
 ### Getting past one
+
+Press **Trapbreaking** on the party sheet. It asks the three questions the book
+asks — who is working on it, which trap, and by which column of the table — and
+shows you the throw before anyone spends the round or the turn.
+
+![](../releases/v4.12.0/formation-trapbreaking.png)
+
+*The target is picked, never guessed: a party halted in a corridor can be
+standing at more than one trap. The list holds only traps the party has found —
+offering an unfound one would give it away — and you get a control to mark one
+spotted when they found it some other way than a throw.*
+
+Players see the same dialog whenever one of their characters could actually make
+the throw, and their attempt is declared to you the way every other party action
+is.
 
 A character with thieves' tools can work on a trap the party is standing at:
 

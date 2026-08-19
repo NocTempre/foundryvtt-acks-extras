@@ -22,7 +22,7 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 | Searching & listening throws (§5) | ✅ (v0.5.0) | Party-roll buttons (Listen / Hasty Search / Methodical Search / Bash Door) roll every member using **their sheet's numbers** — a matching ability item's rollTarget (thief skills) first, else the sheet's Adventuring target — GM-whispered as one card. RAW enforced: hasty search skill-only, methodical +4 for skill users and auto-consumes 1 turn, listening once per turn while moving, bashing ±4×STR. |
 | Earshot / noise (§5) | 📖 tables captured; automation impractical (Judge adjudication). |
 | Doors: bash/pick/batter procedures (§6) | ✅ (4.2.0) | Door helper on the Walls layer: the bash throw shown BEFORE it is rolled and broken into its parts (±4/STR, +4 for a pair on the stronger adjustment, +2 crowbar, ±8 per size step), an unwinnable throw named as such, batter-down turns by construction, and SPIKES as real state — one round each, four maximum, -4 to force per spike after the first, torn out when the door is forced. Published on `api.formation.doors`. |
-| Traps: trigger 1d6, pole probing, disarm throws (§7) | ✅ (4.9.0) | The whole of §7. A trap is an Item; a Trap Zone region or a wall's trap layer places one. Searchers throw first (§9.3), then the pole 5' ahead of its bearer, then the party on the secret 1d6 — victims by marching order, or by area. Hasty/Methodical Trapbreaking with their botch bands, disarm-or-discharge, re-arming, and the repeat lock. The printed traps arrive through `acks-importer`, which imports their construction cost but not yet their mechanics (scoped in that repo's roadmap, 2026-08-16). |
+| Traps: trigger 1d6, pole probing, disarm throws (§7) | ✅ (4.9.0, extended 4.12.0) | The whole of §7. A trap is an Item; a Trap Zone region or a wall's trap layer places one. Searchers throw first (§9.3), then the pole 5' ahead of its bearer, then the party on the secret 1d6 — victims by marching order, or by area. Hasty/Methodical Trapbreaking with their botch bands, disarm-or-discharge, re-arming, and the repeat lock. The printed traps arrive through `acks-importer`, which imports their construction cost but not yet their mechanics (scoped in that repo's roadmap, 2026-08-16). |
 | Rest & winded (§8) | ✅ | Includes Endurance exemption and combat rounds counting. |
 | Sequence of play (§9) | ✅/🟡 | Steps 1, 5 automated; steps 2–4 (stationary actions, traps, deliberate encounters) are GM-driven with helpers. |
 | Wandering monsters: throw, distance, minute (§10) | ✅ | Zone-keyed cadence/targets/tables; private table draws. |
@@ -102,6 +102,14 @@ Still unbuilt, in likely order:
    (The traps also import today as construction COSTS — thirteen
    `kind.equipment` rows off the RR price list — which is a different thing and
    springs nothing.) Separate release, separate repo.
+
+   Also still open, added 2026-08-18 with the automatic-search sweep and the
+   Trapbreaking dialog: **the disarm-or-discharge choice is asked of the wrong
+   seat.** The book gives it to whoever made the throw; the throw runs on the
+   Judge's client, so a player who declares an attempt has the Judge answer for
+   them. Fixing it properly means a second socket round-trip back to the
+   declaring user, held open while the Judge's client waits — worth doing, not
+   worth papering over.
 2. ~~Encounter scaling & reactions~~ — SHIPPED 4.2.0.
 3. ~~Obstacle helper~~ — SHIPPED 4.2.0 (climb and traverse); swimming 4.7.0 and
    jumping 4.8.0, each as its own derivation. What all three still lack is a

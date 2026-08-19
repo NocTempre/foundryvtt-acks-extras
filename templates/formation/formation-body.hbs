@@ -146,6 +146,11 @@
         <i class="fa-solid {{this.icon}}"></i> {{this.label}}
       </button>
       {{/each}}
+      {{#if canTrapbreak}}
+      <button type="button" data-action="openTrapbreak" data-tooltip="{{localize 'ACKS-FORMATION.traps.breakHint'}}">
+        <i class="fa-solid fa-screwdriver-wrench"></i> {{localize "ACKS-FORMATION.traps.breakTitle"}}
+      </button>
+      {{/if}}
     </div>
     <p class="hint">{{localize "ACKS-FORMATION.request.hint"}}</p>
   </section>
@@ -181,6 +186,9 @@
         </button>
         <button type="button" data-action="addBlank" data-tooltip="{{localize 'ACKS-FORMATION.app.addBlankHint'}}">
           <i class="fa-solid fa-border-none"></i>
+        </button>
+        <button type="button" data-action="openTrapbreak" data-tooltip="{{localize 'ACKS-FORMATION.traps.breakHint'}}">
+          <i class="fa-solid fa-screwdriver-wrench"></i>
         </button>
         <button type="button" data-action="openSkillAudit" data-tooltip="{{localize 'ACKS-FORMATION.audit.openHint'}}">
           <i class="fa-solid fa-list-check"></i>

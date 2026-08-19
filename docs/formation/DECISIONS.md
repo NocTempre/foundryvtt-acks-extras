@@ -8,6 +8,102 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### 2026-08-18 — The trap tool hands back the SELECT tool after it draws
+
+A `button: true` scene-control tool does not change which tool is active, so a
+Judge who has been drawing walls presses the trap button with the wall-drawing
+tool still armed. The tool draws its non-blocking tripwire and tells them to
+"drag its ends into place" — and the drag draws **a new, fully blocking wall**
+over it, which is what "the trap tool drops a solid wall" turns out to mean.
+Reproduced live before the fix: `activate({tool:"wall"})`, press the button, and
+the active tool is still `wall`.
+
+The instruction was true of nothing, so the tool now makes it true. **Rejected:**
+changing the wall's own restrictions when a trap is laid on it — the ruling that
+a trap never alters the wall it rides on is what lets a trap go on a door, and
+the wall the party saw was one the Judge drew themselves.
+
+Also fixed in the same press: v13+ calls **both** `onChange` and `onClick` on a
+button tool, so every press ran twice and the line tool laid two tripwires on
+identical coordinates. One handler per tool now, here and on the door tool.
+
+---
+
+### 2026-08-18 — A trap has a hidden stage, and `known` is what carries it
+
+Markers were gated on `game.user.isGM`, which is a gate on WHO IS LOOKING and
+not on what the party has learned. That is right while a trap is a secret and
+wrong the moment it stops being one: a party that spotted a tripwire, or set it
+off, or disarmed it, can see where it is, and a target they cannot see is a
+target they cannot choose in the Trapbreaking dialog.
+
+So a placement carries `known`, and the marker is drawn for a Judge always and
+for everybody else only when `known`. **`known` is stored, not derived from the
+state** — a trap the party found, disarmed and then re-armed reads `armed` again
+and is still known, while one the Judge rebuilt reads `armed` and is a fresh
+secret. Deriving it would make the party forget a trap by re-arming it.
+
+Trap AREAS are now created `visibility: GAMEMASTER`. Foundry gives players the
+Regions scene control, and the default `LAYER_UNLOCKED` renders a region to
+anyone who opens that layer.
+
+---
+
+### 2026-08-18 — The automatic search sweeps everything in reach, at RAW's reach
+
+The automatic hasty search only ever ran against the trap the party was walking
+into. RAW is wider and narrower at once: **wider**, because a thief moving at
+exploration speed throws against any hidden feature he passes within 5' of (10'
+with a pole), which includes the pit beside the corridor; **narrower**, because
+that is a reach in feet and not "whatever the party can see".
+
+The request that prompted this asked for vision range. RAW is what shipped, and
+the difference is not cosmetic — a lit corridor is 30' of vision, which would
+find six times as much ground per step as the book allows. The reaches are
+expressed as `FEET_PER_RANK` and twice it rather than as printed distances,
+because that is what they are: the square a rank occupies, and the pole's extra
+one.
+
+Two consequences that had to come with it. The sweep measures against the
+SEGMENT the party walked, not its destination — a corridor crossed at speed
+passes within 5' of things it never stops beside. And each searcher gets **one
+throw per trap per level**, on the book's own note that the automatic throw
+counts as a failure to hastily search: without the ledger a party finds every
+trap in the dungeon by walking back and forth over it.
+
+The sweep is **silent**. It whispers only when something is spotted; a failed
+throw against a trap the party never touched posts nothing, which is what makes
+it usable on every step. Failed throws against a trap the party DID walk into
+still appear, in that trap's own card.
+
+---
+
+### 2026-08-18 — Trapbreaking picks its target, and refuses an unfound trap
+
+`attemptDisarm` used to work on whatever was nearest. A party halted in a
+corridor can be standing at more than one trap, and the thief who found the
+tripwire has no business having their hands moved onto the pressure plate beside
+it. The dialog asks.
+
+It also refuses a trap nobody has found (`refuse.notFound`), which the old code
+allowed. Two reasons and the second is the load-bearing one: RAW has adventurers
+find traps by searching or by setting them off, and only then disable them; and a
+target list that offered an unfound trap would ANNOUNCE it, which is the one
+thing a hidden feature exists to prevent. A Judge who narrated a discovery some
+other way marks it spotted from the same dialog.
+
+**Open to players**, on the party sheet, whenever one of their characters could
+make the throw at all — which per RAW includes a non-thief going at it
+methodically through Adventuring, so the button is not gated on the skill. The
+throw itself runs on the Judge's client like every other player declaration.
+
+**Known wrinkle, not yet solved:** the book gives the disarm-or-discharge choice
+to whoever made the throw, and because the throw runs GM-side the dialog asks the
+JUDGE even when a player declared it. Recorded in ROADMAP.md rather than papered
+over with a second socket round-trip.
+
+---
+
 ### Save keys track the RELEASED system, never the dev branch
 
 `breath` is correct for acks 14.0.1: a fresh character's schema is

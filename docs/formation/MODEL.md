@@ -41,7 +41,8 @@ All paths are under `scripts/formation/` unless noted.
 | `trap-rules.mjs` | Traps as arithmetic, Foundry-free: probe order, who is caught, the disarm plan, botch bands, the repeat lock, pit damage. |
 | `trap-zone.mjs` | `acks-extras.trapZone` RegionBehavior subtype, the placement abstraction over regions and walls, the crossing sequence, firing, and the Trapbreaking throws. |
 | `trap-walls.mjs` | The trap layer on a wall, the Walls-layer tools, chaining selected walls into a region outline, path-crossing geometry, and drag-to-assign. |
-| `trap-markers.mjs` | GM-only canvas markers showing each trap's state. Players' clients draw nothing. |
+| `trap-markers.mjs` | Canvas markers showing each trap's state, staged: a Judge sees every trap, a player only what the party has found. |
+| `trapbreak-app.mjs` | The Trapbreaking dialog — who, which trap, which column — open to Judges and to players whose character can make the throw. |
 | `data/trap-data.mjs`, `trap-sheet.mjs` | The `acks-extras.trap` Item subtype holding a trap's definition, and its sheet. |
 | `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag) and party-token light emission mirroring lit sources. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
 | `deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
@@ -221,21 +222,39 @@ it, one document per printed trap with all six rows filled. Nothing here holds a
 printed trap.
 
 The **placement** is either a `acks-extras.trapZone` region behavior or a trap
-layer flagged onto a wall. Both carry only a reference to a trap and the state
-of that burial (`armed` → `found` / `disarmed` / `discharged`) plus the record of
-who has already failed a hasty attempt on it, and at what level. `trap-zone.mjs`
-reaches both through one `Placement` shape, so the rules are written once.
+layer flagged onto a wall. Both carry a reference to a trap, the state of that
+burial (`armed` → `found` / `disarmed` / `discharged`), two per-character ledgers
+— who has spent their hasty Trapbreaking attempt on it and who has spent their
+automatic hasty search, each against the level they spent it at — and `known`.
+`trap-zone.mjs` reaches both through one `Placement` shape, so the rules are
+written once.
+
+`known` is **what the party has learned**, and it is not derivable from the
+state: a trap found, disarmed and then re-armed by the party's own thief reads
+`armed` again and is still perfectly well known, while one the Judge rebuilt
+reads `armed` and is a fresh secret. It is the stage the markers and the
+Trapbreaking target list are gated on — a Judge sees every trap, everyone else
+sees only what the party has found.
 
 A trap wall **restricts nothing**. The party walks through it as though it were
 not there; what stops them is detection, applied by moving the party token back
 to the crossing point. That is also what makes a trap layer safe to put on a
-door, which is where the book's most famous trap lives.
+door, which is where the book's most famous trap lives. A trap AREA is created
+`visibility: GAMEMASTER` for the same reason: players are given the Regions
+control, and Foundry's default renders a region to anyone who opens it.
 
 The **sequence** is the sequence of play's, not §7's own order:
 
-1. **Searchers throw first.** A thief at exploration speed automatically hasty-
-   searches within 5' — the front rank, plus a pole-bearer one rank back whose
-   pole reaches the same ground. Success spots the trap and stops there.
+1. **Searchers throw first**, and not only against the trap in the way. A thief
+   at exploration speed automatically hasty-searches everything he passes within
+   5' of, 10' with a pole — measured against the ground the party WALKED, not
+   where it stopped, so a pit beside the corridor gets its throw. The reach is
+   the character's and the distance is the party token's, so a searcher's own
+   rank is subtracted from it. Each searcher gets ONE throw per trap per level,
+   because the automatic throw is a hasty search and carries the hasty search's
+   price; without that ledger a party finds every trap in the dungeon by
+   shuffling back and forth over it. The sweep is silent — it posts nothing
+   unless something is spotted.
 2. **The pole probes**, one rank ahead of its bearer, with its own secret 1d6.
 3. **The party walks in**, rank by rank, each with its own secret 1d6.
 
@@ -258,6 +277,16 @@ saying nothing.
 
 Applying it is still the Judge's, on the precedent the door helper set: a botched
 bash returns its point of damage and leaves the writing to a human.
+
+**Trapbreaking is a dialog, and its target is chosen.** `trapbreak-app.mjs` asks
+three questions — who is working on it, which trap, and by which column of the
+table — and shows the throw before anyone spends a round or a turn on it. The
+target list holds only traps within 5' that the party has FOUND, because
+offering an unfound one announces it; a Judge additionally sees the unfound ones
+in reach, with a control to mark one spotted for a discovery made some other way
+than a throw. Players open the same dialog from the party sheet whenever one of
+their characters could actually make the throw, and their attempt is declared to
+the Judge's client the way every other player action is.
 
 ## Detaching a member
 

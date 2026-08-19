@@ -21,6 +21,9 @@ import { STATES } from "./trap-rules.mjs";
  * while the trap is armed and unfound; a Judge sees a marker for it, and that
  * marker says which state it is in — armed, found, disarmed, spent — the same
  * way a discovered secret door goes on to show whether it is open or shut.
+ * Once the party has FOUND it the marker is theirs too: `known` is what the
+ * party has learned, and it outlives the state (a trap they found, disarmed
+ * and re-armed themselves is still a trap they know about).
  */
 
 /** Flag holding a wall's trap layer. Absent means "no trap on this wall". */
@@ -39,6 +42,12 @@ export function wallTrap(wall) {
     trapUuid: f.trapUuid ?? "",
     state: Object.values(STATES).includes(f.state) ? f.state : STATES.armed,
     repeatLock: f.repeatLock ?? {},
+    // Who has already spent their one automatic hasty search on this trap, and
+    // at what level. Separate from `repeatLock`, which is Trapbreaking's.
+    searchLock: f.searchLock ?? {},
+    // Has the party learned this trap is here? Never inferred from the state:
+    // a trap the thief disarmed and re-armed is armed again and still known.
+    known: !!f.known,
     // The restrictions laying the trap suppressed, to be put back when it goes.
     restore: f.restore ?? null,
   };
@@ -74,12 +83,12 @@ export async function clearWallTrap(wall) {
  * this module is imported by the offline suite and by the pure wall geometry
  * that the tests exercise without a world.
  */
-const openWall = () => ({
-  move: CONST.WALL_MOVEMENT_TYPES.NONE,
-  sight: CONST.WALL_SENSE_TYPES.NONE,
-  sound: CONST.WALL_SENSE_TYPES.NONE,
-  light: CONST.WALL_SENSE_TYPES.NONE,
-});
+const openWall = () => {
+  // `EDGE_SENSE_TYPES` is v14's name for the same numbers; `WALL_SENSE_TYPES`
+  // still answers behind a deprecation proxy and is the v13 fallback.
+  const none = (CONST.EDGE_SENSE_TYPES ?? CONST.WALL_SENSE_TYPES).NONE;
+  return { move: none, sight: none, sound: none, light: none };
+};
 
 /* -------------------------------------------- */
 /*  Laying one down                             */
@@ -153,6 +162,11 @@ export async function drawTrapWall({ trapUuid = "" } = {}) {
     { c: [x, y, x + gs, y], ...openWall(), flags: { [MODULE_ID]: { [TRAP_FLAG]: { trapUuid, state: STATES.armed, repeatLock: {} } } } },
   ]);
   canvas.walls.get(wall.id)?.control({ releaseOthers: true });
+  // Hand the Judge the SELECT tool, because dragging the new segment's ends
+  // into place is the next thing they do. A wall-DRAWING tool left active
+  // turns that drag into a fresh, fully blocking wall laid over the tripwire —
+  // which reads as the trap tool having dropped a solid wall.
+  ui.controls?.activate?.({ control: "walls", tool: "select" });
   ui.notifications?.info(game.i18n.localize("ACKS-FORMATION.traps.drew"));
   return wall;
 }
@@ -275,6 +289,11 @@ export async function regionFromSelection({ trapUuid = "", name = "" } = {}) {
         {
           name: name || game.i18n.localize("ACKS-FORMATION.traps.regionName"),
           color: "#a3312c",
+          // A trap area is the Judge's, the way a secret door is. The default
+          // (`LAYER_UNLOCKED`) draws it for anyone who opens the Regions
+          // control — which players have — so it is pinned to GAMEMASTER here
+          // rather than left to a default that shows the trap to the table.
+          visibility: CONST.REGION_VISIBILITY.GAMEMASTER,
           shapes: [{ type: "polygon", points, hole: false }],
           behaviors: [
             {
@@ -386,15 +405,42 @@ export async function trapFromDrop(data) {
   return item?.type === TRAP_ITEM_TYPE ? item : null;
 }
 
-/** Perpendicular distance from a point to a wall segment. */
-function distanceToWall(wall, x, y) {
-  const [x1, y1, x2, y2] = wall.c;
+/**
+ * Perpendicular distance from a point to a segment `[x1,y1,x2,y2]`.
+ *
+ * Clamped to the segment's ends, so a point off past one end measures to that
+ * end rather than to the infinite line through it.
+ */
+export function pointSegmentDistance(x, y, seg) {
+  const [x1, y1, x2, y2] = seg;
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len2 = dx * dx + dy * dy || 1;
   const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / len2));
   return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
 }
+
+/**
+ * The shortest distance between two segments.
+ *
+ * The automatic hasty search is measured against the ground the party WALKED,
+ * not against where it stopped: a column crossing a room passes within 5' of a
+ * tripwire it never ends its move beside, and RAW gives it the throw anyway.
+ * Crossing segments are zero apart; otherwise the closest approach is at one of
+ * the four endpoints, which is what the four point tests cover.
+ */
+export function segmentDistance(a, b) {
+  if (segmentCrossing({ x: a[0], y: a[1] }, { x: a[2], y: a[3] }, b)) return 0;
+  return Math.min(
+    pointSegmentDistance(a[0], a[1], b),
+    pointSegmentDistance(a[2], a[3], b),
+    pointSegmentDistance(b[0], b[1], a),
+    pointSegmentDistance(b[2], b[3], a),
+  );
+}
+
+/** Perpendicular distance from a point to a wall segment. */
+const distanceToWall = (wall, x, y) => pointSegmentDistance(x, y, wall.c);
 
 /** The wall nearest a canvas point, within `reach` pixels. */
 export function wallNear(scene, x, y, reach) {
@@ -521,6 +567,9 @@ export function installTrapControls() {
       if (Array.isArray(tools)) tools.push(tool);
       else tools[tool.name] = tool;
     };
+    // ONE handler per tool. A `button: true` tool given both `onChange` and
+    // `onClick` has both of them called for a single press, and the line tool
+    // answers that by drawing two tripwires stacked on the same coordinates.
     add({
       name: "acksTrapLine",
       title: game.i18n.localize("ACKS-FORMATION.traps.toolLine"),
@@ -528,7 +577,6 @@ export function installTrapControls() {
       button: true,
       visible: game.user.isGM,
       onChange: () => layTrapOnSelection(),
-      onClick: () => layTrapOnSelection(),
     });
     add({
       name: "acksTrapRegion",
@@ -537,7 +585,6 @@ export function installTrapControls() {
       button: true,
       visible: game.user.isGM,
       onChange: () => regionFromSelection(),
-      onClick: () => regionFromSelection(),
     });
   });
 }
