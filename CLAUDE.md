@@ -68,7 +68,10 @@ drives the test world), `doc-scribe` (haiku: docs chores).
   The full line — it is finer than it looks — is
   `.claude/rules/ip-doctrine.md`; read it before shipping any constant,
   table, or user-visible rule text.
-- `docs/` — not shipped. Doctrine: `.claude/rules/docs-doctrine.md`.
+- `docs/` — not shipped. Doctrine: `.claude/rules/docs-doctrine.md`. **A
+  repo's `docs/README.md` is its surface map — read it before working an
+  unfamiliar subsystem**; repo-specific toolchains (e.g. the importer's PDF
+  extraction pipeline) are indexed there, not here.
 
 ## Commands
 
