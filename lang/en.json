@@ -2629,7 +2629,33 @@
       "defenses": "Defenses & Magic",
       "ecology": "Ecology",
       "henchman": "Henchman",
-      "description": "Description"
+      "description": "Description",
+      "source": "Source"
+    },
+    "route": {
+      "guide": "Compatibility Guide",
+      "rawDerivation": "Both rulebooks",
+      "transcribed": "As printed",
+      "derivedEndpoint": "Scale endpoints"
+    },
+    "gap": {
+      "needsGuide": "Needs the System Compatibility Guide connected.",
+      "progressionsDisagree": "The two printed armour-class figures disagree, so neither was used.",
+      "noAttackBonus": "Only the to-hit figure was printed, and no rule converts it on its own.",
+      "singleSave": "One saving throw was printed; the other four were not invented.",
+      "noEquivalent": "No ACKS II counterpart for the printed class.",
+      "awardSchedule": "ACKS II awards experience on its own schedule.",
+      "treasureTables": "The two games' treasure letters do not mean the same hoards.",
+      "notAlignment": "Not one of the three ACKS II alignments.",
+      "outOfScale": "Outside the printable morale range, so it was left alone.",
+      "noBounds": "The morale field's own range could not be read.",
+      "unsupportedLineage": "This ruleset is not one the converter reads.",
+      "unreadable": "The printed figure could not be read."
+    },
+    "warn": {
+      "unconverted": "Imported without the System Compatibility Guide — armour class and attack throw are still missing. Connect the guide and convert again.",
+      "mergedBlocks": "Two stat blocks may have been read as one. Check every value against the page.",
+      "suspectLineage": "This block may be from a different game. Check every value against the page."
     },
     "save": {
       "paralysis": "Paralysis",
@@ -2673,7 +2699,13 @@
       "wildernessEnc": "Wilderness Encounter",
       "variants": "Related Stat Lines",
       "retainer": "Retainer / Henchman",
-      "henchmanSummary": "Henchman Summary"
+      "henchmanSummary": "Henchman Summary",
+      "sourceBlock": "As printed",
+      "sourceWarnings": "Check this conversion",
+      "sourceConversions": "What was converted",
+      "sourceGaps": "What was left alone",
+      "sourceUnread": "Not recognised",
+      "sourceNotes": "To do by hand"
     },
     "field": {
       "types": "Type(s)",
@@ -2744,7 +2776,14 @@
       "manager": "Manager",
       "noManager": "None",
       "morale": "Morale",
-      "alignment": "Alignment"
+      "alignment": "Alignment",
+      "sourcePage": "page",
+      "sourceAxis": "Field",
+      "sourcePrinted": "Printed",
+      "sourceRoute": "Rule from",
+      "sourceValue": "ACKS II",
+      "sourceRule": "Cited",
+      "sourceReason": "Why"
     },
     "desc": {
       "appearance": "Appearance",
@@ -2763,7 +2802,9 @@
       "attacks": "No attacks yet — add weapon items.",
       "abilities": "No proficiencies or special abilities yet.",
       "inventory": "No carried inventory yet.",
-      "spoils": "No spoils yet."
+      "spoils": "No spoils yet.",
+      "sourceNoConversions": "Nothing was converted from this block.",
+      "sourceNoGaps": "Every printed field reached an ACKS II field."
     },
     "new": {
       "spoil": "New Spoil"

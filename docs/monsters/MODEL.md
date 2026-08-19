@@ -73,3 +73,15 @@ Read raw: `actor.getFlag("acks-extras", "extras")`.
 All enumerations live in `scripts/config.mjs` (pure data, English labels). See
 `acks-rules/acks-monsters/RULES.md` for the rules behind them. The body-form table carries BME/CCF/
 AC/training/lair metadata for downstream calculators.
+
+## Source tab
+
+A creature converted from another game's book carries the importer's whole
+provenance record, and the sheet grows a **Source** tab to show it: the stat
+block as printed, a row per converted field naming the rule it came from, a row
+per axis the importer refused to fill and why, and anything its grammar did not
+recognise. A hand-built monster has no such flag and no such tab.
+
+The tab reads only — it recomputes nothing. The flag shape is the
+`import-provenance` contract in [../lib/API.md](../lib/API.md); the vocabulary
+that turns its keys into readable labels is `scripts/monsters/source-view.mjs`.

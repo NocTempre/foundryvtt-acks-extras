@@ -15,6 +15,7 @@
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { ACTIONS } from "./monster-actions.mjs";
+import { oseSourceView } from "./source-view.mjs";
 import * as CFG from "./config.mjs";
 import { loadStone, load6, capacityStone, RIDER_BODY6 } from "../lib/capacity.mjs";
 import { riderOf } from "../lib/mount.mjs";
@@ -98,6 +99,7 @@ export function createFullMonsterSheet(Base) {
     ecology: { template: `${T}/tab-ecology.hbs`, scrollable: [""] },
     henchman: { template: `${T}/tab-henchman.hbs`, scrollable: [""] },
     description: { template: `${T}/tab-description.hbs`, scrollable: [""] },
+    source: { template: `${T}/tab-source.hbs`, scrollable: [""] },
   };
 
   // Reuse the system's header/tabs/spells/effects parts; drop its mixed
@@ -118,6 +120,9 @@ export function createFullMonsterSheet(Base) {
   ];
   if (P.spells) tabList.push({ id: "spells", icon: "fa-solid fa-wand-sparkles", label: "ACKS.category.spells" });
   tabList.push({ id: "description", icon: "fa-solid fa-scroll", label: "ACKS-MONSTERS.tab.description" });
+  // Only an imported creature has a source to show; the tab is filtered out
+  // per-actor below, since the static list cannot see which actor it is for.
+  tabList.push({ id: "source", icon: "fa-solid fa-file-import", label: "ACKS-MONSTERS.tab.source" });
   if (P.effects) tabList.push({ id: "effects", icon: "fa-solid fa-sparkles", label: "ACKS.category.effects" });
 
   return class FullMonsterSheet extends Base {
@@ -132,11 +137,34 @@ export function createFullMonsterSheet(Base) {
 
     tabGroups = { primary: "classification" };
 
+    /**
+     * The record an importer leaves on a converted creature, or null. A
+     * hand-built monster has none, and gets no Source tab.
+     */
+    get #oseRecord() {
+      return this.actor.flags?.["acks-importer"]?.ose ?? null;
+    }
+
+    /** The Source tab exists ONLY on a creature some importer converted. */
+    _configureRenderParts(options) {
+      const parts = super._configureRenderParts(options);
+      if (!this.#oseRecord) delete parts.source;
+      return parts;
+    }
+
+    _prepareTabs(group) {
+      const tabs = super._prepareTabs(group);
+      if (group !== "primary") return tabs;
+      if (!this.#oseRecord) delete tabs.source;
+      return tabs;
+    }
+
     /** @override */
     async _prepareContext(options) {
       const context = await super._prepareContext(options);
       const extras = MonsterExtras.fromActor(this.actor);
       context.extras = extras;
+      context.ose = oseSourceView(this.#oseRecord);
       // Enrich the entry-prose fields so text enrichers run in them the way the
       // core sheet already enriches biography — most importantly acks-content's
       // @PdfText tags, which stream book prose per seat. The raw value still

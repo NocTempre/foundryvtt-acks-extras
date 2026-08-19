@@ -103,6 +103,7 @@ Hooks.once("init", () => {
       `${T}/tab-ecology.hbs`,
       `${T}/tab-henchman.hbs`,
       `${T}/tab-description.hbs`,
+      `${T}/tab-source.hbs`,
     ]);
   } catch (err) {
     console.warn(`${MODULE_ID} | template preload skipped`, err);

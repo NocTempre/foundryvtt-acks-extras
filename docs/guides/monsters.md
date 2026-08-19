@@ -82,6 +82,32 @@ sized. A source with no ecology data returns nothing, and you type the size.
 
 *A retinue kept as one document rather than a dozen.*
 
+## Where an imported creature came from
+
+A creature converted from another game's book — an Old-School Essentials
+adventure brought in by acks-importer — carries a **Source** tab that a
+hand-built monster does not.
+
+![The Source tab on an imported creature](../releases/v4.13.0/monster-source-tab.png)
+
+It shows three things side by side:
+
+- **the stat block exactly as printed**, so you can hold it against your own
+  copy of the book;
+- **every field that was converted**, with the rule it was converted by — a
+  published conversion, both rulebooks agreeing, a straight transcription, or a
+  derivation;
+- **every field deliberately left alone**, and why. Experience and treasure type
+  are the common ones: neither game's numbers mean the same thing, so the
+  printed value is kept and shown here rather than written into a field where it
+  would read as an ACKS II value.
+
+Anything the importer's reader did not recognise is listed too, so a clause it
+could not place is visible rather than lost.
+
+The tab is read-only. If a number looks wrong at the table, this is where you
+check it — and then correct the field itself on the tab that owns it.
+
 ## Common problems
 
 **A save throws an error on an old monster.** Pre-migration monsters store saves

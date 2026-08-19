@@ -397,3 +397,75 @@
   gap: var(--acks-sp-2);
   align-items: center;
 }
+
+
+/* Source tab — the audit view of a stat block converted from another game's
+   book. It sits beside the sheet's other tables and has to measure like them,
+   so every colour, rule and step comes from the shared tokens. */
+.acks-extras.monster-v2 .acksm-source-where {
+  color: var(--acks-ink-soft);
+  margin: 0 0 var(--acks-sp-2);
+}
+
+/* The block exactly as printed: monospace and wrapping, because it is evidence
+   to hold against the page rather than prose to reflow. */
+.acks-extras.monster-v2 .acksm-source-raw {
+  font-family: monospace;
+  font-size: var(--acks-fs-fine);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: var(--acks-sp-2);
+  background: var(--acks-tint);
+  border-radius: var(--acks-radius);
+}
+
+.acks-extras.monster-v2 .acksm-source-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--acks-fs-fine);
+}
+.acks-extras.monster-v2 .acksm-source-table th {
+  text-align: left;
+  color: var(--acks-ink-soft);
+  font-variant: small-caps;
+  letter-spacing: var(--acks-tracking-caps);
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  padding: var(--acks-sp-2);
+}
+.acks-extras.monster-v2 .acksm-source-table td {
+  padding: var(--acks-sp-2);
+  border-bottom: var(--acks-rule-hair) dashed var(--acks-rule-color-soft);
+  vertical-align: top;
+}
+
+/* Where a value's authority came from. The guide is the strongest claim and a
+   derivation the weakest, so the routes are ranked rather than merely
+   distinguished. */
+.acks-extras.monster-v2 .acksm-route {
+  white-space: nowrap;
+  font-variant: small-caps;
+  color: var(--acks-ink-soft);
+}
+.acks-extras.monster-v2 .acksm-route-guide {
+  color: var(--acks-ink);
+}
+.acks-extras.monster-v2 .acksm-route-derived-endpoint {
+  font-style: italic;
+}
+
+/* A conversion the Judge must check against the page before trusting it. */
+.acks-extras.monster-v2 .acksm-source-warn {
+  border: var(--acks-rule-hair) solid var(--acks-warning);
+  border-radius: var(--acks-radius);
+  background: var(--acks-warning-tint);
+}
+.acks-extras.monster-v2 .acksm-source-warn legend {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras.monster-v2 .acksm-source-unread {
+  margin: 0;
+  padding-left: var(--acks-sp-4);
+  color: var(--acks-ink-soft);
+}

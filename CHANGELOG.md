@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.13.0
+
+Where a converted creature came from, and what was left alone.
+
+### Added
+- **A Source tab on creatures imported from another game's book.** Import a
+  monster from an Old-School Essentials adventure with acks-importer 2.10.0 and
+  its sheet grows a tab showing the stat block exactly as printed, every field
+  that was converted with the rule behind it, and every field deliberately left
+  alone with the reason. If a number looks wrong at the table, that is where you
+  check it against your own book. Monsters you built yourself are unchanged and
+  show no such tab.
+
+# Changelog
+
 ## 4.12.0
 
 Traps stop announcing themselves, and the thief chooses which one to kneel at.

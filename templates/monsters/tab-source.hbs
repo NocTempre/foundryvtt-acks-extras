@@ -1,0 +1,94 @@
+<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="source">
+  <div class="content flexcol acksm-content">
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.sourceBlock"}}</legend>
+      <p class="acksm-source-where">{{ose.sourceLabel}} — {{localize "ACKS-MONSTERS.field.sourcePage"}} {{ose.page}}</p>
+      <pre class="acksm-source-raw">{{ose.raw}}</pre>
+    </fieldset>
+
+    {{#if ose.warnings.length}}
+    <fieldset class="acksm-source-warn">
+      <legend>{{localize "ACKS-MONSTERS.section.sourceWarnings"}}</legend>
+      <ul>
+        {{#each ose.warnings}}<li>{{localize this}}</li>{{/each}}
+      </ul>
+    </fieldset>
+    {{/if}}
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.sourceConversions"}}</legend>
+      {{#if ose.conversions.length}}
+      <table class="acksm-source-table">
+        <thead>
+          <tr>
+            <th>{{localize "ACKS-MONSTERS.field.sourceAxis"}}</th>
+            <th>{{localize "ACKS-MONSTERS.field.sourcePrinted"}}</th>
+            <th>{{localize "ACKS-MONSTERS.field.sourceRoute"}}</th>
+            <th>{{localize "ACKS-MONSTERS.field.sourceValue"}}</th>
+            <th>{{localize "ACKS-MONSTERS.field.sourceRule"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each ose.conversions}}
+          <tr>
+            <td>{{this.axis}}</td>
+            <td>{{this.printedText}}</td>
+            <td><span class="acksm-route acksm-route-{{this.route}}">{{localize this.routeLabel}}</span></td>
+            <td>{{this.valueText}}</td>
+            <td>{{this.rule}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acksm-empty">{{localize "ACKS-MONSTERS.empty.sourceNoConversions"}}</p>
+      {{/if}}
+    </fieldset>
+
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.sourceGaps"}}</legend>
+      {{#if ose.gaps.length}}
+      <table class="acksm-source-table">
+        <thead>
+          <tr>
+            <th>{{localize "ACKS-MONSTERS.field.sourceAxis"}}</th>
+            <th>{{localize "ACKS-MONSTERS.field.sourcePrinted"}}</th>
+            <th>{{localize "ACKS-MONSTERS.field.sourceReason"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each ose.gaps}}
+          <tr>
+            <td>{{this.axis}}</td>
+            <td>{{this.printedText}}</td>
+            <td>{{localize this.reasonLabel}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acksm-empty">{{localize "ACKS-MONSTERS.empty.sourceNoGaps"}}</p>
+      {{/if}}
+    </fieldset>
+
+    {{#if ose.extra.length}}
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.sourceUnread"}}</legend>
+      <ul class="acksm-source-unread">
+        {{#each ose.extra}}<li>{{this}}</li>{{/each}}
+      </ul>
+    </fieldset>
+    {{/if}}
+
+    {{#if ose.notes.length}}
+    <fieldset>
+      <legend>{{localize "ACKS-MONSTERS.section.sourceNotes"}}</legend>
+      <ul>
+        {{#each ose.notes}}<li>{{this}}</li>{{/each}}
+      </ul>
+    </fieldset>
+    {{/if}}
+
+  </div>
+</section>

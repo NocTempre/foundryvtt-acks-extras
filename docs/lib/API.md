@@ -102,6 +102,46 @@ checks) is entirely the provider's job; consumers call `importDoc` and
 nothing else. No provider registered ⇒ `get("ruledata-import")` is `null`
 and import UIs say "no import target installed".
 
+### Contract `import-provenance` v1
+
+Writer: an importer that converts a creature from another game's book
+(acks-importer's OSE path). Reader: the Full Monster sheet, which grows a
+**Source** tab when the flag is present and shows none when it is not.
+
+A flag rather than a function call, deliberately: the record has to survive on
+the document long after the import session is gone, because that is when a
+conversion actually gets questioned.
+
+Written to `flags["acks-importer"].ose` on the created Actor:
+
+```
+{
+  raw,          // the stat block exactly as extracted, to hold against the page
+  parsed,       // what the writer's grammar read, in the SOURCE game's idiom
+  extra: [],    // clauses the grammar did not recognise - surfaced, never dropped
+  dialect, lineage, sourceId, sourceLabel, page, box,
+  conversions: [{axis, printed, route, value, rule}],  // how each value was reached
+  gaps:        [{axis, printed, reason}],              // and what was left alone
+  constants,    // the printed constants used, or null when none were available
+  unconverted, suspectLineage, mergedBlocks            // booleans the tab warns on
+}
+```
+
+`route` is one of `guide` | `raw-derivation` | `transcribed` |
+`derived-endpoint`, ranked from a printed rule down to a derivation, and
+`rule` cites where it came from. That pairing is what makes the tab an audit
+rather than a display: a reader can see which values rest on a published rule
+and which rest on an inference.
+
+A `gap` is an axis the writer refused to fill. The ACKS field keeps its schema
+default and the printed value is carried here instead, so nothing read is lost
+and nothing is guessed.
+
+Reader-side vocabulary (route and reason labels) lives in
+`scripts/monsters/source-view.mjs`. An unrecognised key falls back to itself
+rather than being hidden — a label this repo has not been taught about is still
+information the Judge should see.
+
 ### Contract `ability-provider` v1
 
 Provider: the content binding (acks-importer). Consumers: anything that
