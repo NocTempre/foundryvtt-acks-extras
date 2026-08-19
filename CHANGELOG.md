@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.13.1
+
+### Fixed
+- **The Source tab names three more reasons a field was left alone.** An armour
+  class stated in words rather than a figure, saving throws quoted as another
+  creature's, and printed letters that make up no complete save row are all
+  reported by the importer as of 2.11.0 — without these the tab showed an
+  internal key where the explanation belongs.
+
 ## 4.13.0
 
 Where a converted creature came from, and what was left alone.
