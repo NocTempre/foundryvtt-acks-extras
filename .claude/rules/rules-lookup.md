@@ -3,6 +3,14 @@
 The moment any task turns on "what does the book actually say", the order is
 fixed. Do not open a 98 MB PDF to answer a question grep can answer.
 
+**The library's full holdings are indexed in `C:\Proj\acks-reference\README.md`
+— read it before concluding a source does not exist.** The order below covers
+the three core books; the library holds more (the **System Compatibility
+Guide** — the canonical source for CONVERSIONS, with a greppable
+`_structured.json` beside it — plus Treasure Tome, By This Axe, AXIOMS, the
+ACKS I line, adventures). A question about converting older-edition or OSR
+material starts at the Compatibility Guide, not at the core books.
+
 1. **`C:\Proj\acks-reference\WIKI-SNAPSHOT\`** — the fan wiki captured whole,
    `<book>/html/<slug>.html` raw beside `<book>/md/<slug>.md` extracted. It
    covers all three core books: `rules/` = **RR** (16 sections), `judges/` =
