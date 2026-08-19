@@ -187,6 +187,31 @@ walk(path.join(ROOT, "ruledata"), (full) => {
   }
 });
 
+/* 3b. Stray C0 control bytes in source. A tool that writes a file through a
+ * shell-quoted string can land a real control character where an escape was
+ * meant: `\b` inside a JS string literal is BACKSPACE, so a word-boundary regex
+ * written that way becomes /…\x08/ and matches nothing, forever. The byte is
+ * invisible in every editor and every diff, the file parses, the suite passes,
+ * and the rule around it is simply dead. Tab, newline and carriage return are
+ * the only control characters source has any business carrying. */
+const CONTROL_OK = new Set([9, 10, 13]);
+for (const dir of ["scripts", "tools", "templates", "styles", "lang"]) {
+  walk(path.join(ROOT, dir), (full) => {
+    if (!/\.(mjs|js|json|hbs|css)$/.test(full)) return;
+    const text = fs.readFileSync(full, "utf8");
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      if ((code >= 32 || CONTROL_OK.has(code)) && code !== 127) continue;
+      const line = text.slice(0, i).split("\n").length;
+      fail(
+        rel(full),
+        `line ${line} carries control byte 0x${code.toString(16).padStart(2, "0")} — an escape such as \\b was written as a literal character; whatever rule contains it is dead`,
+      );
+      return;
+    }
+  });
+}
+
 /* 4. Pack-source document invariants, including embedded documents (items /
  *    effects / results / pages, recursively — items can nest effects).
  *    Foundry's DocumentIdField requires exactly 16 alphanumerics everywhere. */
