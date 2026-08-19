@@ -143,9 +143,6 @@ the full pipeline (build + validate, no publish) is available anytime:
 Never force-push tags over a published release; cut a new patch version
 instead.
 
-**After the release: the soak rules (TOOLCHAIN §4).** A minor or major soaks
-24 hours before any further release from that repo, except a hotfix for
-something the release broke. A **second hotfix on the same surface within 24
-hours stops the line**: the third change to that surface ships only after its
-full `docs/<feature>/TESTING.md` recipe has been walked live — hotfix chains
-are the signature of a surface being debugged in production.
+There is no release-cadence rule: ship whenever the gates pass, as often as
+the work warrants. The quality control is the preflight's recipe walk, not a
+waiting period (TOOLCHAIN §4 "Release discipline").
