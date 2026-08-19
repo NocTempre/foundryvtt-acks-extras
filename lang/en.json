@@ -2650,7 +2650,10 @@
       "outOfScale": "Outside the printable morale range, so it was left alone.",
       "noBounds": "The morale field's own range could not be read.",
       "unsupportedLineage": "This ruleset is not one the converter reads.",
-      "unreadable": "The printed figure could not be read."
+      "unreadable": "The printed figure could not be read.",
+      "incompleteSaveRow": "The printed saving throws make up no complete set, so none were written.",
+      "notANumber": "The armour class is stated in words rather than a figure.",
+      "savesByReference": "The saving throws are stated as another creature’s."
     },
     "warn": {
       "unconverted": "Imported without the System Compatibility Guide — armour class and attack throw are still missing. Connect the guide and convert again.",
