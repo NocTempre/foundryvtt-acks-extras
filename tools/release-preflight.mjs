@@ -11,7 +11,10 @@
  *      and files directly under `scripts/` map to `docs/TESTING.md`. The
  *      release report walks these recipes in the live session; a surface
  *      with no recipe has no defined pass condition, which is how a release
- *      ships hotfix bait.
+ *      ships hotfix bait. Changed means changed in the WORKING TREE relative
+ *      to the last tag — committed or not, tracked or not: a release is
+ *      normally prepared uncommitted, and a gate that reads only commits
+ *      waives itself for exactly the run it exists to check.
  *
  * Exit 0 prints the recipes to walk; exit 1 lists every failure. A repo with
  * no v* tag yet (first release) skips check 2.
@@ -58,10 +61,14 @@ try {
 
 const recipes = new Set();
 if (lastTag) {
-  const changed = git("diff", "--name-only", `${lastTag}..HEAD`).split("\n").filter(Boolean);
+  // Two-argument diff (tag vs working tree), never `tag..HEAD`: HEAD misses
+  // everything staged or unstaged. Untracked files are changes too — a
+  // brand-new feature directory is invisible to diff until it is added.
+  const changed = git("diff", "--name-only", lastTag).split("\n").filter(Boolean);
+  const untracked = git("ls-files", "--others", "--exclude-standard", "--", "scripts").split("\n").filter(Boolean);
   const slugs = new Set();
   let flatChanged = false;
-  for (const file of changed) {
+  for (const file of [...changed, ...untracked]) {
     const m = file.match(/^scripts\/([^/]+)\/(.+)/u);
     if (m) slugs.add(m[1]);
     else if (/^scripts\/[^/]+$/u.test(file)) flatChanged = true;
