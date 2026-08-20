@@ -10,8 +10,9 @@ this file only indexes what this repo has.
   screenshot came from.
 - [guides/](guides/) — user-facing how-to, one per feature area.
 
-Per-feature: `abilities`, `classes`, `equipment`, `formation`, `henchmen`,
-`influence`, `lib`, `location`, `markets`, `monsters`, `vehicles`. The `lib`
+Per-feature: `abilities`, `battlemap`, `classes`, `equipment`, `formation`,
+`henchmen`, `influence`, `lib`, `location`, `markets`, `monsters`, `vehicles`.
+The `lib`
 feature additionally splits by topic (API, GROUPS, PLACES, FOLLOWER-CARD)
 because it is the shared surface every other feature reads.
 

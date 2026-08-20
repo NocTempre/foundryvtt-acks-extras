@@ -3,7 +3,123 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
-## 2026-08-15 — a rung the character already answered is answerable
+## 2026-08-20 — a package resolves through the IMPORTS, and mints what it cannot find
+
+**New evidence** (amending yesterday's entry below, which rejected placeholder
+minting): the first field run produced packages with **no proficiencies at
+all**, nothing openable to edit, and nothing landing on the character. One
+cause under all three symptoms — acks-importer can be configured to import
+into a **compendium pack** rather than the world (`packFor`), and every
+resolver this feature used (`findByRef`, `resolveBase`) reads `game.items`
+alone. In such a world no ability ref and no gear base can resolve, so every
+proficiency stayed as text on the class row and every base item fell through
+to a bare `item`. That is also a second, independent cause of the staff bug
+the whole feature was built for: the short-name defect was real, but a
+compendium-mode world would have produced the same un-wieldable staff with
+the resolver fixed.
+
+**Ruled:** materialization resolves **world first, then the IMPORTS held in a
+pack** — `findSource` (ref via the importer's stamp in the pack index, then
+exact name) and `resolveBaseDoc` (the same fuzzy base match run over the
+index). A pack document is **copied into the world**, never linked: a locked
+compendium document is precisely what a Judge cannot repair, and repairability
+is the entire point. A proficiency the world already defines is still linked,
+not copied — one shared document, no duplicate Adventuring per band.
+
+**Ruled (user): the imports, never the system's shipped compendium.** Only a
+**world-level** Item pack whose index actually carries the importer's stamp is
+a source (`importPacks`) — which is exactly what the importer's compendium
+mode creates. A shipped "Staff" carries the SYSTEM's values, so pulling one
+would put content into a template that the reader's own book never supplied;
+extras already treats imported documents as superseding the shipped packs
+(`hideSupersededPacks`), and this is that same rule at the resolution layer.
+A world with nothing imported therefore mints placeholders — which is the
+honest answer, and tells the Judge what to import.
+
+**Ruled, reversing yesterday:** a proficiency nothing can define yet is
+**minted as a placeholder** — the printed name, an empty system, flagged
+`unresolved` — rather than left on the row. Yesterday's argument (a
+mechanically empty proficiency that looks real is worse than a visible gap)
+was answered by the field: the gap was NOT visible. An entry on the class row
+is invisible on the character, cannot be dragged, retyped, or replaced, and
+silently vanishes from what the template hands over — which is the failure
+this container shape exists to end. A placeholder is a document with a name
+and nothing else; it ships no rules text, so the IP line is untouched.
+
+**Second chances:** `upgradeUnresolved` runs before any row is read — a
+placeholder or bare item that the world can now answer for is REPLACED (not
+retyped: the item's `type` is what must change), every bundle row pointing at
+it repointed, and the old document deleted. An edited placeholder is a
+Judge's work and is skipped and reported.
+
+**Ruled (user): a package never consumes its own contents, and it supersedes
+the row.** Two halves of one shape. The item library is a SOURCE — a template
+naming a sword copies the imported Sword and leaves it in place, and a
+proficiency the world defines is linked, so deleting a package can never
+subtract from what was imported (every deletion is gated on this module's own
+`templatePart` stamp). And where a package exists it is the authority: the
+per-row entry editors that used to be the only implementation are superseded
+by it, hidden on the sheet behind the package block, and what the package
+carries no longer applies from the row.
+
+**Single ownership stands, and is what makes this safe.** Materializing still
+strips from the row exactly what the bundle carries — but the removal is
+per-entry and evidence-based (`stripRepresented`), so anything the package
+could not carry stays printed and keeps applying the old way. The transient
+reversal of that rule during this session was wrong: the fault was never
+single ownership, it was that resolution filled the bundle less completely
+than the printed path did, which is what the rulings above repair.
+`detachTemplatePackages` exists regardless — adding containers must not be a
+one-way door.
+
+**Cost:** a compendium-only definition now exists twice — once in the pack,
+once as the world copy the package links. Accepted: the copy is the
+repairable one, it carries the importer's stamp so `ownsRef` and dedupe still
+recognise it, and a world that later imports the definition properly gets it
+linked by the same stamp.
+
+## 2026-08-19 — a template is a bundle of repairable documents, in a table on the class
+
+Reported from the field: the Wonderworker Messiah's staff arrives as a bare
+`item` and cannot be wielded. Root cause was in `resolveBase` — no exact-match
+branch, so any base whose folded name is under six characters (staff, spear,
+mace, sword, sling…) could NEVER resolve and every skin over one landed as an
+unwieldable `type: "item"`. And even once resolved correctly, there was
+nothing a Judge could repair in one place: template contents were data rows on
+the class, re-skinned per character at grant time, so a mis-typed item had to
+be fixed on every generated character or by re-import.
+
+**Ruled (user):** each template becomes a container of its abilities and items
+— real, independent, GM-repairable world documents — linked from a RollTable
+attached to the class. Realized as core's own `bundle` Item type (reuse over
+invention: core's actor sheet already explodes one on drop; no new sub-type,
+no `documentTypes` change, no world relaunch) holding uuid links; the 3d6
+RollTable is a generated view that nothing reads. Repair the bundle's staff
+once — every future character gets a weapon. Mechanics, ownership and the
+apply path are [MODEL.md](MODEL.md) § Template packages.
+
+**Also ruled:** `resolveBase` gains the exact-fold branch at any length and
+word-boundary containment for 4–5-character names (bare substring stays
+banned — "grimace" must not find Mace); the shortfall positions ("last
+proficiency, second spell") read the bundle's own order; a Judge's money item
+in a bundle IS the coin and overrides the row's `gp`/`sp` — silently ignoring
+a document a Judge deliberately added is the failure this design removes.
+
+**Rejected:** a new `acks-extras.template` Item sub-type (invents what core
+ships, collides with the `acks-extras.template` ACTOR sub-type name, forces a
+world relaunch); a folder per template (no quantity, no order, not droppable,
+not linkable from a table result); the RollTable as band authority (chargen's
+refresh is synchronous, and the at-or-below rule cannot live in a table);
+contents kept on the row AND in the bundle (the exact two-authorities drift
+this exists to end — materialized entries are stripped from the row, and
+`stripRepresented` re-strips after an importer Update rewrites `system`);
+minting placeholder abilities for unresolved names (an empty proficiency that
+looks real is worse than a visible gap).
+
+**Cost:** the class document alone no longer describes a materialized
+template's contents — deleting a bundle loses them (the row then falls back
+to whatever entries never resolved, or nothing). Accepted: the bundle is the
+single owner, and `Build packages` rebuilds from any still-full rows.
 
 Reported from the field: applying a class to a played character offered, for
 each choice award, only proficiencies they did **not** already have. The rung

@@ -1,7 +1,9 @@
 /* global game, ChatMessage, CONST */
 import { MODULE_ID, ROLES } from "./constants.mjs";
 import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
-import { getFormations, getPartyActor, getPartyToken, mapperIsProficient } from "./formation-model.mjs";
+import { faceWidthFeet, formationHeading, getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyDepth } from "./formation-model.mjs";
+import { FEET_PER_RANK } from "./trap-rules.mjs";
+import { tokenSpan } from "../battlemap/footprint.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
 import { emittedLight } from "../lib/light.mjs";
@@ -238,15 +240,26 @@ async function syncDeployedMemberTokens(formation) {
 }
 
 /**
- * The party token stays 1×1: a single collision/vision profile avoids
- * navigation fuss in tight dungeons. Formation shape appears when members
- * deploy (combat) or disband, not on the token itself.
+ * The party token wears the formation's face: as wide across the line of
+ * march as its frontage in feet at this scene's scale, and as deep as its
+ * ranks. Token width/height are axis-aligned and never rotate, so an
+ * east/west heading swaps the two. Generic tokens are sized by
+ * battlemap/token-scale.mjs; the party token is its one exemption and is
+ * sized here only.
  */
-async function syncPartyTokenSize(formation) {
+export async function syncPartyTokenSize(formation) {
   const token = getPartyToken(formation);
   if (!token) return;
-  if (token.width === 1 && token.height === 1) return;
-  await token.update({ width: 1, height: 1 });
+  const distance = token.parent?.grid?.distance;
+  if (!(distance > 0)) return;
+  const across = tokenSpan(faceWidthFeet(formation), distance);
+  const deep = tokenSpan(partyDepth(formation) * FEET_PER_RANK, distance);
+  const heading = formationHeading(formation);
+  const sideways = heading === "east" || heading === "west";
+  const width = sideways ? deep : across;
+  const height = sideways ? across : deep;
+  if (Math.abs(token.width - width) < 1e-6 && Math.abs(token.height - height) < 1e-6) return;
+  await token.update({ width, height });
 }
 
 /**

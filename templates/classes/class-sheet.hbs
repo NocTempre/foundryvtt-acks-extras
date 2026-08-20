@@ -416,9 +416,21 @@
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.templates.list"}}
         <a data-action="rowAdd" data-array="templates"><i class="fa-solid fa-plus"></i></a></legend>
+      {{#if editable}}
+        <div class="acks-extras-classes-row">
+          <button type="button" data-action="templatesBuild">{{localize "ACKS-CLASSES.sheet.templates.package.build"}}</button>
+          <button type="button" data-action="templatesDetach">{{localize "ACKS-CLASSES.sheet.templates.package.detach"}}</button>
+          {{#if templateTable}}
+            <a data-action="templateOpen" data-uuid="{{templateTable.uuid}}"><i class="fa-solid fa-dice"></i> {{templateTable.name}}</a>
+          {{/if}}
+        </div>
+        <p class="hint">{{localize "ACKS-CLASSES.sheet.templates.package.buildHint"}}</p>
+      {{/if}}
+      <input type="hidden" name="system.templateTable" value="{{system.templateTable}}" />
       {{#unless templatesEdit.length}}<p class="hint">{{localize "ACKS-CLASSES.sheet.templates.none"}}</p>{{/unless}}
       {{#each templatesEdit}}
-        <div class="acks-extras-classes-template-edit">
+        <div class="acks-extras-classes-template-edit" data-accept-drop data-template-row="{{index}}">
+          <input type="hidden" name="system.templates.{{index}}.bundle" value="{{bundle}}" />
           <div class="acks-extras-classes-row">
             <input name="system.templates.{{index}}.rollMin" type="number" value="{{rollMin}}" title="{{localize "ACKS-CLASSES.sheet.templates.rollMin"}}" />
             <input name="system.templates.{{index}}.rollMax" type="number" value="{{rollMax}}" title="{{localize "ACKS-CLASSES.sheet.templates.rollMax"}}" />
@@ -429,7 +441,22 @@
             <input name="system.templates.{{index}}.enc" type="text" value="{{enc}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.enc"}}" />
             <a data-action="rowDelete" data-array="templates" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
           </div>
-          <fieldset>
+          {{#if bundle}}
+            <div class="acks-extras-classes-row">
+              <strong>{{localize "ACKS-CLASSES.sheet.templates.package.label"}}</strong>
+              {{#if bundleMissing}}
+                <span class="hint">{{localize "ACKS-CLASSES.sheet.templates.package.missing"}}</span>
+              {{else}}
+                <a data-action="templateOpen" data-uuid="{{bundle}}"><i class="fa-solid fa-box-open"></i> {{bundleName}}</a>
+              {{/if}}
+              <a data-action="templateUnbind" data-index="{{index}}" title="{{localize "ACKS-CLASSES.sheet.templates.package.unbind"}}"><i class="fa-solid fa-link-slash"></i></a>
+            </div>
+            {{#if bundleContents.length}}<p class="hint">{{#each bundleContents}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</p>{{/if}}
+            {{#if leftoverNames}}<p class="hint"><em>{{localize "ACKS-CLASSES.sheet.templates.package.leftovers"}}</em> {{leftoverNames}}</p>{{/if}}
+          {{else}}
+            <p class="hint">{{localize "ACKS-CLASSES.sheet.templates.package.dropHint"}}</p>
+          {{/if}}
+          <fieldset {{#if bundle}}hidden{{/if}}>
             <legend>{{localize "ACKS-CLASSES.sheet.templates.abilities"}}
               <a data-action="rowAdd" data-array="templates.{{index}}.abilities"><i class="fa-solid fa-plus"></i></a></legend>
             {{#each abilities}}
@@ -442,7 +469,7 @@
               </div>
             {{/each}}
           </fieldset>
-          <fieldset>
+          <fieldset {{#if bundle}}hidden{{/if}}>
             <legend>{{localize "ACKS-CLASSES.sheet.templates.items"}}
               <a data-action="rowAdd" data-array="templates.{{index}}.items"><i class="fa-solid fa-plus"></i></a></legend>
             {{#each items}}
@@ -455,7 +482,7 @@
               </div>
             {{/each}}
           </fieldset>
-          <fieldset>
+          <fieldset {{#if bundle}}hidden{{/if}}>
             <legend>{{localize "ACKS-CLASSES.sheet.templates.spells"}}
               <a data-action="rowAdd" data-array="templates.{{index}}.spells"><i class="fa-solid fa-plus"></i></a></legend>
             {{#each spells}}

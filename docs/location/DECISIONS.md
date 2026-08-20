@@ -370,3 +370,126 @@ defaults and the migrate seam would be lost, and market state would split
 across two stores that can disagree — the failure mode the market-subtree
 unification retired); a second nullable subtree beside `market` (every ACKS
 market trades goods — presence of `system.market` is the only gate).
+
+## 2026-08-20 — Materialized tables get names, folders, and a way out
+
+**Ruled:** materialized RollTables are named for readers ("Class Percentages —
+Level 0"), filed under per-doc subfolders of "ACKS Imported Tables", and
+identified by a `tableKey` flag rather than by name; the folder tree and the
+JSON journal carry a `ruledataDocs` flag; and the `ruledata-import` contract
+gains v1.3 (additive) `countMaterializedDocs()` / `removeMaterializedDocs()`
+so the importer's Remove ALL Imports can sweep what materialization created.
+Reported: a sidebar of raw dotted keys in one flat folder, and a cleanup macro
+that missed all of it.
+
+The dotted key stays as machine identity — in the flag and the export
+description — because re-export and drag-drop round-trips must survive a GM
+renaming or refiling a table. A pre-flag world migrates on its next
+materialize: the raw-key NAME is the legacy match, and matching it renames,
+refiles and stamps instead of duplicating. Removal deletes DOCUMENTS only; the
+imported table data in the world store stays registered, so automation keeps
+its values and a re-materialize rebuilds the documents without a re-import.
+Journal PAGES keep raw-key names: they are the JSON audit surface, and the
+page name is what drop-overrides match on.
+
+## 2026-08-20 — Materializing tables batches its writes, and stops saying `text`
+
+**Ruled:** `materializeAll()` collects its writes and issues one call per kind
+— folders, table creates, table updates, page creates, page updates, the stale
+sweep — instead of one call per document; result sets are compared before
+being rebuilt; and `rollTableSpec` emits `description` rather than the
+deprecated `text`.
+
+Measured on 2026-08-20: a six-book world materialized 208 entries (71
+RollTables, 137 journal pages) in 2-3 minutes, and this runs automatically
+after every `importDoc()`. The cost was round trips, not work.
+
+Embedded collections are the one thing that cannot be batched across parents
+(`EmbeddedCollectionField` is `readonly`, so a results array cannot ride a
+document update), so a result set still costs its own delete-and-recreate.
+That is why they are compared first: re-materialize is usually the same
+registry data rendered again.
+
+Document-level updates are compared too, so an unchanged pass writes **nothing
+at all**. The saving is not the round trip — that was already one batched call
+— but `_stats.modifiedTime`: stamping every table on every import shows the
+whole sidebar as just-touched and grows a world backup that holds no new
+information. Only what actually drifted is written, which is also what makes
+"materialize again and see" a safe thing to tell a GM to do.
+
+**Rejected: delete-and-recreate every table**, which would have batched into
+two calls flat. Recreating changes the uuid, and an override's `_meta`
+provenance and any GM's own links point at the old one — adoption by
+`tableKey` is the property the identity flag exists to provide, and throwing
+it away for a faster loop trades a correctness guarantee for a benchmark.
+
+`text` on a TableResult has been a deprecation shim since v13, scheduled for
+removal in v15 (`_addDataFieldShim(data, "text", "description", {until: 15})`)
+— this repo's floor is 14. It was migrating silently on every create; writing
+`description` is the same document without the shim. `parseRollTable` already
+read `description ?? text`, so the drop-override round trip is unaffected.
+
+The write COUNTS are asserted offline in `tools/test-table-docs.mjs` against a
+recording mock, because "how many round trips" is the behaviour that
+regressed and a passing functional test never sees it.
+
+## 2026-08-20 — Stored table text is HTML-normalized, and comparing it raw was wrong
+
+**Found by the live gate for the batching change**, not by the offline suite:
+two occupation tables deleted and recreated their entire result set on every
+materialize pass, forever. Both contain a bare `&` in the book's own wording
+("grain & vegetables", "armor & weapons"). `TableResult.description` is an
+HTML field, a bare `&` is not valid markup, and storage normalizes it to
+`&amp;` — so a comparison against the freshly rendered spec could never match.
+
+**Ruled:** result text is decoded (`plainText`) on both sides of the
+comparison, and on the way back out of `parseRollTable`. Decoding is for
+reading and comparing only; what is stored is unchanged, so no existing world
+is rewritten.
+
+The read-back half was a pre-existing data bug the same root cause exposed: a
+table dropped as an override wrote `grain &amp; vegetables` into the rules
+data itself, where the name-matching in `parseRollTable` and every later
+reader would see the entity rather than the character it stands for.
+
+Two lessons, both about what a check can see. The rebuild was **invisible**:
+the text displayed correctly the whole time, the documents were right, and
+only the number of writes was wrong — which is why the offline suite now
+asserts write COUNTS against a mock that reproduces the normalization, rather
+than only asserting the resulting documents. And a value that survives a
+round trip through storage is not the value that was sent: comparing "what I
+would write" against "what is there" has to account for what storage does to
+it in between.
+
+## 2026-08-20 — Result sets compare as a multiset, because storage reorders them
+
+**Found by the second live gate**, after the entity-decoding fix above had
+landed and three tables still rebuilt themselves on every pass. The decoding
+was correct and insufficient: the remaining cause is that an embedded
+collection does not hand back the array it was given. A rebuilt table reads
+back in some other order, a comparison that read POSITION called that a
+change, rebuilt it, got another order — and never stopped. The live run
+proved it was general rather than particular to those tables, by overriding a
+stable table once and watching it join the churning set permanently.
+
+**Ruled:** `resultsMatch` compares normalized rows as a multiset.
+
+The original positional comparison was justified in the code as the
+conservative reading — treat a reorder as drift, rebuild, never go stale.
+That was wrong twice over. The reorder is manufactured by storage, not by
+anyone editing, so it is not evidence of anything; and position carries no
+meaning to any reader, because a draw resolves by range and
+`RollTableSheet#_sortResults` sorts by range for display. Two orderings of
+the same rows ARE the same table, so the only thing the "conservative"
+reading conserved was an infinite loop.
+
+No repair pass is needed for worlds already holding scrambled tables: the
+multiset comparison simply starts answering true for them.
+
+**The pattern worth keeping** — this is the third finding in a row of the same
+shape. Materialization asks "does what I would write match what is there?",
+and each bug was a way the stored form legitimately differs from the written
+form without differing in MEANING: the deprecated field name, the HTML
+normalization, now the collection order. A comparison against storage is only
+as good as its model of what storage does, and none of these were visible in
+the resulting documents — only in the number of writes.

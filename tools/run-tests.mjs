@@ -28,6 +28,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** Suites that assert only what this repo's own code does. */
 const COMMITTED = [
   "test-lib.mjs",
+  "test-battlemap.mjs",
   "test-equipment.mjs",
   "test-formation-flows.mjs",
   "test-formation-heading.mjs",
@@ -42,6 +43,7 @@ const COMMITTED = [
   "test-money.mjs",
   "test-languages.mjs",
   "test-xp-shares.mjs",
+  "test-table-docs.mjs",
 ];
 
 const RULES_DIR = path.join(HERE, "rules-tests");

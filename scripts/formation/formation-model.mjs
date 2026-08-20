@@ -8,11 +8,13 @@ import {
   BODY_STONE,
   DEFAULT_PARTY_IMAGE,
   FLAG_FORMATION_ID,
+  MARCH_FEET_PER_BODY_DEFAULT,
   MODULE_ID,
   ROLES,
   ROLE_GEAR,
   ROLE_HAND_COST,
   ROLE_LABELS,
+  SETTING_MARCH_FEET,
 } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
@@ -947,6 +949,31 @@ export function getFrontage(formation) {
  *  the ground it actually covers. */
 export function partyDepth(formation, count = formationBodies(formation)) {
   return Math.max(1, Math.ceil(Math.max(count, 1) / getFrontage(formation)));
+}
+
+/**
+ * The frontage actually marched. Today it IS the declared frontage; the
+ * squeeze mechanic (docs/formation/ROADMAP.md) will narrow it in confined
+ * passages. Every face-width consumer reads this, so the squeeze lands by
+ * changing one body.
+ */
+export function effectiveFrontage(formation) {
+  return getFrontage(formation);
+}
+
+/** Feet of frontage one marching body occupies (world setting). */
+function marchFeetPerBody() {
+  try {
+    const v = Number(game.settings.get(MODULE_ID, SETTING_MARCH_FEET));
+    return Number.isFinite(v) && v > 0 ? v : MARCH_FEET_PER_BODY_DEFAULT;
+  } catch {
+    return MARCH_FEET_PER_BODY_DEFAULT;
+  }
+}
+
+/** The formation's face across the line of march, in feet. */
+export function faceWidthFeet(formation) {
+  return effectiveFrontage(formation) * marchFeetPerBody();
 }
 
 /* -------------------------------------------- */

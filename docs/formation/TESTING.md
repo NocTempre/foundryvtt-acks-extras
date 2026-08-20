@@ -80,7 +80,15 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `[data-action="attempt"]` and answer the disarm/discharge dialog.
    *Observable:* the target list holds only traps within 5' with `known: true`;
    the whispered card itemises the throw; the placement takes the chosen state.
-9. Player seat (second browser — the capture driver's, not another pane tab):
+9. Party face width: with a 3-member formation on a 5'-per-square scene, set
+   frontage 3 in the formation view.
+   *Observable:* the party token's width becomes `3 × marchFeetPerBody / 5`
+   squares (1.75 at the default 3'), height one rank (1). Rotate the token to
+   face east (`token.update({rotation: 270, animate: false})`, then re-read):
+   width and height swap. Set frontage 1: the token narrows and deepens to
+   3 ranks. On a scene with `grid.distance` 50, the same token floors at
+   0.25 squares.
+10. Player seat (second browser — the capture driver's, not another pane tab):
    join as a seat owning one member.
    *Observable:* markers are drawn ONLY for `known` placements; the dialog
    offers only that seat's own characters and only found traps; the party

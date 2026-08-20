@@ -1,0 +1,84 @@
+/* ACKS II — Battlemap alignment and token scaling assistant.
+
+   Colours and type sizes come from the design-system tokens
+   (vendor/acks-design/tokens.css), read BARE — module.json loads the token
+   file ahead of this one, so the names are always in scope. No Foundry
+   --color-* variable is read (those are light-theme constants). */
+
+.acks-extras-battlemap .window-content {
+  overflow-y: auto;
+  max-height: 85vh;
+}
+
+.acks-extras-battlemap-body fieldset {
+  margin-bottom: 0.5rem;
+}
+
+.acks-extras-battlemap-modes,
+.acks-extras-battlemap-chips,
+.acks-extras-battlemap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.acks-extras-battlemap-modes button,
+.acks-extras-battlemap-chips button {
+  flex: 0 1 auto;
+  width: auto;
+  padding: 0.15rem 0.55rem;
+  line-height: 1.4;
+}
+
+.acks-extras-battlemap-modes button.active,
+.acks-extras-battlemap-chips button.active {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-battlemap-samples {
+  list-style: none;
+  margin: 0.25rem 0;
+  padding: 0;
+  max-height: 9rem;
+  overflow-y: auto;
+}
+
+.acks-extras-battlemap-samples li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.1rem 0.25rem;
+  border-bottom: var(--acks-border-soft);
+}
+
+.acks-extras-battlemap-samples li button {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 0.4rem;
+  line-height: 1.3;
+}
+
+.acks-extras-battlemap-fit {
+  margin: 0.25rem 0;
+  font-weight: bold;
+}
+
+.acks-extras-battlemap-raw {
+  margin: 0.25rem 0;
+}
+
+.acks-extras-battlemap-warn {
+  margin: 0.25rem 0;
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-battlemap-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}

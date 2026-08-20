@@ -23,7 +23,11 @@
  *   markets    after location — it consumes lib registries, equipment's gear
  *              grant, henchmen's coin adapter/time/market-class rules, and
  *              location's market subtree; nothing consumes it.
- *   monsters   last — leaf, nothing depends on it.
+ *   monsters   near-last — no hooks depend on it, but battlemap reads its pure
+ *              config (SIZES footprints), so it registers first of the two.
+ *   battlemap  after monsters — sizes tokens from monsters' SIZES table and
+ *              formation's flags; both are plain data imports, so only this
+ *              comment depends on the order.
  */
 import "./lib/module.mjs";
 import "./abilities/module.mjs";
@@ -35,4 +39,5 @@ import "./henchmen/module.mjs";
 import "./location/module.mjs";
 import "./markets/module.mjs";
 import "./monsters/module.mjs";
+import "./battlemap/module.mjs";
 import "./vehicles/module.mjs";

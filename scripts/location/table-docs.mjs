@@ -20,7 +20,48 @@ import { MODULE_ID } from "./constants.mjs";
 const FOLDER_NAME = "ACKS Imported Tables";
 const JOURNAL_NAME = "ACKS Ruledata (Imported)";
 
+/** Stamped on every document materialized here (folders, the journal) so the
+ * remove sweep finds them without trusting names. */
+const FLAG_DOCS = "ruledataDocs";
+/** A RollTable's entry key — its identity across renames and refiling. */
+const FLAG_KEY = "tableKey";
+
 const lib = () => globalThis.acksExtras?.lib;
+
+/**
+ * Result text as the reader means it, with HTML entities decoded.
+ *
+ * A result's description is an HTML field: a bare `&` in a book's own wording
+ * ("grain & vegetables", "armor & weapons") is not valid markup and comes back
+ * from storage normalized to `&amp;`. That matters twice — comparing a
+ * freshly rendered spec against the stored form never matched, so those tables
+ * deleted and recreated their whole result set on EVERY materialize pass
+ * (invisibly, since the text still displayed correctly); and a table dropped
+ * back as an override would write the entity into the rules data itself.
+ * Decoding is for reading and comparing only — what is STORED is unchanged.
+ */
+const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", "#39": "'" };
+const plainText = (s) => String(s ?? "").replace(/&(amp|lt|gt|quot|apos|#39);/g, (_, e) => ENTITIES[e]);
+
+/** "classPercentages" → "Class Percentages"; digits keep their place. */
+const humanize = (s) =>
+  String(s)
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[._]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+/**
+ * The reader-facing name for an entry key. The raw dotted key
+ * ("people.classPercentages.level.0") is machine identity and stays in flags
+ * and the export-description; the sidebar shows "Class Percentages — Level 0"
+ * inside a folder named for the doc, because a list of dotted keys in one flat
+ * folder is unreadable at exactly the moment a GM goes looking for a table.
+ */
+export function entryLabel(key) {
+  const [, tableId, ...rest] = String(key).split(".");
+  if (!tableId) return humanize(key);
+  return rest.length ? `${humanize(tableId)} — ${humanize(rest.join(" "))}` : humanize(tableId);
+}
 
 /* ------------------------- entry enumeration ------------------------- */
 
@@ -83,7 +124,7 @@ const OCCUPANT_COLUMNS = ["smallCot", "mediumCot", "mediumTownhouse", "largeTown
 
 function entryOf(docId, tableId, subId) {
   const key = subId ? `${docId}.${tableId}.${subId}` : `${docId}.${tableId}`;
-  return { docId, tableId, subId, key, label: key, rollable: isRollable(docId, tableId, subId) };
+  return { docId, tableId, subId, key, label: entryLabel(key), rollable: isRollable(docId, tableId, subId) };
 }
 
 /** Current EFFECTIVE data for an entry (override layer included). */
@@ -130,7 +171,7 @@ function rollTableSpec(entry, data) {
       formula: "1d100",
       results: rows.map((r) => ({
         range: [r.min ?? 1, r.max ?? r.min ?? 100],
-        text: r.special ? `${r.occupation} — ${r.special}` : r.occupation,
+        description: r.special ? `${r.occupation} — ${r.special}` : r.occupation,
       })),
     };
   }
@@ -138,19 +179,19 @@ function rollTableSpec(entry, data) {
     const names = data?.names ?? [];
     return {
       formula: `1d${Math.max(1, names.length)}`,
-      results: names.map((n, i) => ({ range: [i + 1, i + 1], text: n })),
+      results: names.map((n, i) => ({ range: [i + 1, i + 1], description: n })),
     };
   }
   if (entry.subId && tableId === "classDistribution") {
     if (entry.subId === "buckets") {
       return {
         formula: "1d100",
-        results: (data?.buckets ?? []).map((b) => ({ range: [b.min ?? 1, b.max ?? b.min ?? 100], text: b.id })),
+        results: (data?.buckets ?? []).map((b) => ({ range: [b.min ?? 1, b.max ?? b.min ?? 100], description: b.id })),
       };
     }
     return {
       formula: "1d100",
-      results: (data?.rows ?? []).map((r) => ({ range: [r.min ?? 1, r.max ?? r.min ?? 100], text: r.class })),
+      results: (data?.rows ?? []).map((r) => ({ range: [r.min ?? 1, r.max ?? r.min ?? 100], description: r.class })),
     };
   }
   if (entry.subId && tableId === "occupationTypes") {
@@ -160,7 +201,7 @@ function rollTableSpec(entry, data) {
       const b = r.bands?.[col];
       if (!b || b.min == null) continue;
       const label = r.type.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\b\w/g, (c) => c.toUpperCase());
-      results.push({ range: [b.min, b.max ?? b.min], text: r.special ? `${label} — ${r.special}` : label });
+      results.push({ range: [b.min, b.max ?? b.min], description: r.special ? `${label} — ${r.special}` : label });
     }
     return { formula: "1d100", results: results.sort((a, b) => a.range[0] - b.range[0]) };
   }
@@ -170,7 +211,7 @@ function rollTableSpec(entry, data) {
     const results = [];
     for (const [cls, w] of Object.entries(weights)) {
       if (!(w > 0)) continue;
-      results.push({ range: [at + 1, at + w], text: cls, weight: w });
+      results.push({ range: [at + 1, at + w], description: cls, weight: w });
       at += w;
     }
     return { formula: `1d${Math.max(1, at)}`, results };
@@ -186,7 +227,7 @@ function rollTableSpec(entry, data) {
         const w = typeof data[`${id}Pct`] === "number" ? data[`${id}Pct`] : remainder;
         const range = [at + 1, at + Math.max(1, w)];
         at += Math.max(1, w);
-        return { range, text: data.labels?.[id] ?? id };
+        return { range, description: data.labels?.[id] ?? id };
       }),
     };
   }
@@ -195,7 +236,7 @@ function rollTableSpec(entry, data) {
       formula: "1d20",
       results: (data.rows ?? []).map((r) => ({
         range: [r.min ?? 1, r.max ?? 20],
-        text: `Level ${r.level}`,
+        description: `Level ${r.level}`,
       })),
     };
   }
@@ -205,7 +246,11 @@ function rollTableSpec(entry, data) {
 /** Parse a RollTable back into the entry's ruledata shape. */
 function parseRollTable(entry, table) {
   const results = [...table.results].sort((a, b) => (a.range?.[0] ?? 0) - (b.range?.[0] ?? 0));
-  const textOf = (r) => String(r.description ?? r.text ?? "").trim();
+  // Decoded, because the rules data this rebuilds holds the words themselves:
+  // a table dropped back after editing would otherwise write "grain &amp;
+  // vegetables" into the registry, where every later reader — including the
+  // name-matching below — sees the entity rather than the "&" it stands for.
+  const textOf = (r) => plainText(r.description ?? r.text).trim();
   if (entry.subId && entry.tableId === "occupationSubTables") {
     const rows = results.map((r) => {
       const [min, max] = r.range ?? [1, 100];
@@ -331,43 +376,155 @@ export function parseJsonContent(html) {
 
 /* ------------------------- export ------------------------- */
 
-async function ensureFolder() {
-  return (
-    game.folders.find((f) => f.type === "RollTable" && f.name === FOLDER_NAME) ??
-    (await Folder.create({ name: FOLDER_NAME, type: "RollTable" }))
+/**
+ * The root folder plus one child per ruledata doc ("People", "Rarity", …), so
+ * the sidebar groups tables the way the registry does. Both are flagged; a
+ * root created before the flag existed is adopted by name and stamped.
+ *
+ * Every missing child is created in ONE call: folders must exist before the
+ * tables that name them, so this is the one place the batch pass has to wait,
+ * and waiting once beats waiting per doc.
+ *
+ * @param {string[]} docIds  ruledata doc ids needing a folder
+ * @returns {Promise<Map<string, Folder>>} docId → the folder its tables go in
+ */
+async function ensureFolders(docIds) {
+  const out = new Map();
+  if (!docIds.length) return out;
+  let root =
+    game.folders.find((f) => f.type === "RollTable" && !f.folder && f.getFlag(MODULE_ID, FLAG_DOCS)) ??
+    game.folders.find((f) => f.type === "RollTable" && !f.folder && f.name === FOLDER_NAME);
+  if (!root) root = await Folder.create({ name: FOLDER_NAME, type: "RollTable", flags: { [MODULE_ID]: { [FLAG_DOCS]: true } } });
+  else if (!root.getFlag(MODULE_ID, FLAG_DOCS)) await root.setFlag(MODULE_ID, FLAG_DOCS, true);
+  const children = new Map(
+    game.folders.filter((f) => f.type === "RollTable" && f.folder?.id === root.id).map((f) => [f.name, f]),
   );
+  const missing = [];
+  for (const docId of docIds) {
+    const name = humanize(docId);
+    const child = children.get(name);
+    if (child) out.set(docId, child);
+    else if (!missing.some((m) => m.name === name)) missing.push({ docId, name });
+  }
+  if (missing.length) {
+    const created = await Folder.createDocuments(
+      missing.map(({ name }) => ({
+        name,
+        type: "RollTable",
+        folder: root.id,
+        sorting: "a",
+        flags: { [MODULE_ID]: { [FLAG_DOCS]: true } },
+      })),
+    );
+    created.forEach((folder, i) => out.set(missing[i].docId, folder));
+  }
+  return out;
 }
 
+/** One doc's folder — the single-entry path (the browser's Export button). */
+const ensureFolder = async (docId) => (await ensureFolders([docId])).get(docId);
+
 async function ensureJournal() {
-  return (
-    game.journal.find((j) => j.name === JOURNAL_NAME) ?? (await JournalEntry.create({ name: JOURNAL_NAME }))
-  );
+  let journal = game.journal.find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ?? game.journal.find((j) => j.name === JOURNAL_NAME);
+  if (!journal) journal = await JournalEntry.create({ name: JOURNAL_NAME, flags: { [MODULE_ID]: { [FLAG_DOCS]: true } } });
+  else if (!journal.getFlag(MODULE_ID, FLAG_DOCS)) await journal.setFlag(MODULE_ID, FLAG_DOCS, true);
+  return journal;
 }
+
+/**
+ * The world table that IS this entry, or null.
+ *
+ * Identity is the flagged key; the raw-key NAME is the legacy form, and
+ * matching it is what migrates a pre-flag world (rename + refile + stamp) on
+ * its next materialize instead of duplicating every table.
+ */
+const findTable = (key) =>
+  game.tables.find((t) => t.getFlag(MODULE_ID, FLAG_KEY) === key) ?? game.tables.find((t) => t.name === key) ?? null;
+
+/**
+ * Does this table already hold exactly these results?
+ *
+ * Re-materialize is mostly a no-op — the same registry data rendered again —
+ * and rebuilding a result set costs two embedded round trips that cannot be
+ * batched across tables. Comparing first turns the steady state into zero
+ * writes.
+ *
+ * As a MULTISET, never by position. An embedded collection does not hand back
+ * the array it was given, so a rebuilt table reads back in some other order —
+ * and a positional comparison calls that a change, rebuilds, gets another
+ * order, and never stops. Position also carries no meaning to anyone: a draw
+ * resolves by range, and the table sheet sorts by range for display, so two
+ * orderings of the same rows are the same table.
+ *
+ * Text is compared decoded (see `plainText`) — storage normalizes it, and a
+ * comparison that does not account for that never matches either.
+ */
+function resultsMatch(table, results) {
+  const current = [...table.results];
+  if (current.length !== results.length) return false;
+  const norm = (r) => `${r.range?.[0]}|${r.range?.[1]}|${r.weight ?? 1}|${plainText(r.description)}`;
+  const stored = current.map(norm).sort();
+  const wanted = results.map(norm).sort();
+  return stored.every((row, i) => row === wanted[i]);
+}
+
+/** The creation data for one entry's RollTable. */
+const tableCreateData = (entry, spec, folderId) => ({
+  name: entry.label,
+  folder: folderId,
+  formula: spec.formula,
+  description: game.i18n.format("ACKS-LOCATION.tables.exportedFrom", { key: entry.key }),
+  results: spec.results,
+  flags: { [MODULE_ID]: { [FLAG_KEY]: entry.key } },
+});
+
+/** The document-level update for an entry's existing RollTable (not results). */
+const tableUpdateData = (entry, spec, folderId, id) => ({
+  _id: id,
+  name: entry.label,
+  folder: folderId,
+  formula: spec.formula,
+  [`flags.${MODULE_ID}.${FLAG_KEY}`]: entry.key,
+});
+
+/**
+ * Does the table already say what this entry would write?
+ *
+ * Checked so an unchanged pass writes NOTHING. Issuing the update anyway
+ * would be one batched call either way, but it stamps `_stats.modifiedTime`
+ * on every table on every import — which shows the whole sidebar as
+ * just-touched and dirties a world backup that holds no new information.
+ */
+const tableIsCurrent = (table, entry, spec, folderId) =>
+  table.name === entry.label &&
+  (table.folder?.id ?? null) === folderId &&
+  table.formula === spec.formula &&
+  table.getFlag(MODULE_ID, FLAG_KEY) === entry.key;
 
 /**
  * Materialize an entry as a world document PREFILLED with its current
  * effective data. Re-export updates the same document.
+ *
+ * The single-entry path, for the browser's per-row Export button;
+ * `materializeAll` batches the same decisions rather than calling this in a
+ * loop.
  * @returns {{uuid: string, kind: "rolltable"|"journal"}}
  */
 export async function exportEntry(entry) {
   const data = entryData(entry);
   if (entry.rollable) {
     const spec = rollTableSpec(entry, data);
-    const folder = await ensureFolder();
-    const existing = game.tables.find((t) => t.name === entry.key);
+    const folder = await ensureFolder(entry.docId);
+    const existing = findTable(entry.key);
     if (existing) {
-      await existing.deleteEmbeddedDocuments("TableResult", existing.results.map((r) => r.id));
-      await existing.createEmbeddedDocuments("TableResult", spec.results);
-      await existing.update({ formula: spec.formula });
+      if (!resultsMatch(existing, spec.results)) {
+        await existing.deleteEmbeddedDocuments("TableResult", existing.results.map((r) => r.id));
+        await existing.createEmbeddedDocuments("TableResult", spec.results);
+      }
+      await existing.update(tableUpdateData(entry, spec, folder.id, existing.id));
       return { uuid: existing.uuid, kind: "rolltable" };
     }
-    const table = await RollTable.create({
-      name: entry.key,
-      folder: folder.id,
-      formula: spec.formula,
-      description: game.i18n.format("ACKS-LOCATION.tables.exportedFrom", { key: entry.key }),
-      results: spec.results,
-    });
+    const table = await RollTable.create(tableCreateData(entry, spec, folder.id));
     return { uuid: table.uuid, kind: "rolltable" };
   }
   const journal = await ensureJournal();
@@ -388,58 +545,178 @@ export async function exportEntry(entry) {
 /**
  * Materialize EVERY imported table as a Foundry document (user directive:
  * imported tables are saved as Foundry tables and journals, not just stored
- * in the module). Prefilled exports reuse/update matching existing documents
- * by name; tables that consumers EXPECT (acksLib.tables.expectedTables) but
- * that no import provided get an EMPTY placeholder — first of its kind only
- * — which the GM can fill by hand or replace by drag-drop.
+ * in the module). Prefilled exports reuse/update matching existing documents;
+ * tables that consumers EXPECT (acksLib.tables.expectedTables) but that no
+ * import provided get an EMPTY placeholder — first of its kind only — which
+ * the GM can fill by hand or replace by drag-drop.
+ *
+ * Writes are BATCHED, because this runs automatically after every import: one
+ * document at a time meant a round trip each, and a real six-book world
+ * materializes 208 entries — minutes of them. Each kind of write is collected
+ * and issued once. What cannot be batched across documents is an embedded
+ * collection, so result sets are compared first and rebuilt only where they
+ * actually differ; a re-materialize that changes nothing now writes nothing.
+ *
+ * Ordering is load-bearing: folders exist before the tables that name them,
+ * and the stale-page sweep runs after the page writes have landed, or it
+ * measures the world as it was before this pass.
  * @returns {{exported: number, placeholders: number}}
  */
 export async function materializeAll() {
+  const entries = listEntries();
+  const t = lib()?.tables;
   let exported = 0;
   let placeholders = 0;
-  for (const entry of listEntries()) {
+
+  /* --- RollTables: one folder pass, one create, one update, rebuilds only
+     where the results actually moved. --- */
+  const rollable = entries.filter((e) => e.rollable);
+  const folders = await ensureFolders([...new Set(rollable.map((e) => e.docId))]);
+  const creates = [];
+  const updates = [];
+  const rebuilds = [];
+  for (const entry of rollable) {
     try {
-      await exportEntry(entry);
+      const spec = rollTableSpec(entry, entryData(entry));
+      if (!spec) throw new Error("no rollable spec");
+      const folderId = folders.get(entry.docId)?.id ?? null;
+      const existing = findTable(entry.key);
+      if (existing) {
+        if (!tableIsCurrent(existing, entry, spec, folderId)) updates.push(tableUpdateData(entry, spec, folderId, existing.id));
+        if (!resultsMatch(existing, spec.results)) rebuilds.push({ table: existing, results: spec.results });
+      } else {
+        creates.push(tableCreateData(entry, spec, folderId));
+      }
       exported++;
     } catch (err) {
       console.warn(`${MODULE_ID} | materialize failed for ${entry.key}`, err);
     }
   }
-  const t = lib()?.tables;
-  const entries = listEntries();
+  if (creates.length) await RollTable.createDocuments(creates);
+  if (updates.length) await RollTable.updateDocuments(updates);
+  // Per table, necessarily: embedded documents batch only within one parent.
+  // Read the ids before deleting — `table.results` is live.
+  for (const { table, results } of rebuilds) {
+    try {
+      await table.deleteEmbeddedDocuments("TableResult", [...table.results].map((r) => r.id));
+      await table.createEmbeddedDocuments("TableResult", results);
+    } catch (err) {
+      console.warn(`${MODULE_ID} | rebuilding results for "${table.name}" failed`, err);
+    }
+  }
+
+  /* --- Journal pages: every create in one call, every changed page in
+     another, and only then the stale sweep. --- */
+  const pageEntries = entries.filter((e) => !e.rollable);
   const have = new Set(entries.map((e) => `${e.docId}.${e.tableId}`));
+  const expected = [];
   for (const { docId, tableIds } of t?.expectedTables?.() ?? []) {
     for (const tableId of tableIds) {
       const key = `${docId}.${tableId}`;
-      if (have.has(key)) continue;
-      const journal = await ensureJournal();
-      if (journal.pages.find((p) => p.name === key)) continue; // reuse the existing one
-      await journal.createEmbeddedDocuments("JournalEntryPage", [
-        {
-          name: key,
-          type: "text",
-          text: {
-            content: `<p><em>${game.i18n.localize("ACKS-LOCATION.tables.placeholderHint")}</em></p><pre><code>{}</code></pre>`,
-            format: CONST.JOURNAL_ENTRY_PAGE_FORMATS?.HTML ?? 1,
-          },
-        },
-      ]);
-      placeholders++;
+      if (!have.has(key)) expected.push(key);
     }
   }
-  // Retire stale journal pages: a table that now materializes as
-  // RollTables (its entries all have sub-ids) leaves its old whole-table
-  // JSON page behind — delete pages that match no current entry key and
-  // no expected placeholder.
-  const journal = game.journal.find((j) => j.name === JOURNAL_NAME);
+  // Only CREATE the journal if there is something to put in it — an empty
+  // "ACKS Ruledata (Imported)" is clutter a world with no JSON tables never
+  // asked for. An existing one is still picked up when there is nothing to
+  // write, because its pages have all just become stale and the sweep below
+  // is what retires them.
+  const journal =
+    pageEntries.length || expected.length
+      ? await ensureJournal()
+      : (game.journal.find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ?? game.journal.find((j) => j.name === JOURNAL_NAME) ?? null);
   if (journal) {
-    const valid = new Set(entries.filter((e) => !e.rollable).map((e) => e.key));
-    for (const { docId, tableIds } of t?.expectedTables?.() ?? [])
-      for (const tableId of tableIds) if (!have.has(`${docId}.${tableId}`)) valid.add(`${docId}.${tableId}`);
+    const pageCreates = [];
+    const pageUpdates = [];
+    const queued = new Set();
+    const pageOf = (name) => journal.pages.find((p) => p.name === name);
+    const textPage = (name, content) => ({
+      name,
+      type: "text",
+      text: { content, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS?.HTML ?? 1 },
+    });
+    for (const entry of pageEntries) {
+      try {
+        const content = jsonPageContent(entryData(entry));
+        const page = pageOf(entry.key);
+        // Same content, same page: writing it back would only churn _stats.
+        if (page) {
+          if (page.text?.content !== content) pageUpdates.push({ _id: page.id, "text.content": content });
+        } else if (!queued.has(entry.key)) {
+          pageCreates.push(textPage(entry.key, content));
+          queued.add(entry.key);
+        }
+        exported++;
+      } catch (err) {
+        console.warn(`${MODULE_ID} | materialize failed for ${entry.key}`, err);
+      }
+    }
+    for (const key of expected) {
+      if (pageOf(key) || queued.has(key)) continue; // reuse the existing one
+      pageCreates.push(
+        textPage(key, `<p><em>${game.i18n.localize("ACKS-LOCATION.tables.placeholderHint")}</em></p><pre><code>{}</code></pre>`),
+      );
+      queued.add(key);
+      placeholders++;
+    }
+    if (pageCreates.length) await journal.createEmbeddedDocuments("JournalEntryPage", pageCreates);
+    if (pageUpdates.length) await journal.updateEmbeddedDocuments("JournalEntryPage", pageUpdates);
+
+    // Retire stale journal pages: a table that now materializes as
+    // RollTables (its entries all have sub-ids) leaves its old whole-table
+    // JSON page behind — delete pages that match no current entry key and
+    // no expected placeholder.
+    const valid = new Set([...pageEntries.map((e) => e.key), ...expected]);
     const stale = [...journal.pages].filter((p) => !valid.has(p.name)).map((p) => p.id);
     if (stale.length) await journal.deleteEmbeddedDocuments("JournalEntryPage", stale);
   }
   return { exported, placeholders };
+}
+
+/* ------------------------- removal ------------------------- */
+
+/**
+ * Everything materialization has put in this world: the flagged RollTables,
+ * the folder tree, and the JSON journal. Name fallbacks cover worlds
+ * materialized before the flags existed (raw-key table names, the unflagged
+ * root folder and journal).
+ */
+export function listMaterializedDocs() {
+  const folderIds = new Set(
+    game.folders
+      .filter((f) => f.type === "RollTable" && (f.getFlag(MODULE_ID, FLAG_DOCS) || (!f.folder && f.name === FOLDER_NAME)))
+      .map((f) => f.id),
+  );
+  for (const f of game.folders) {
+    if (f.type === "RollTable" && f.folder && folderIds.has(f.folder.id)) folderIds.add(f.id);
+  }
+  return {
+    tables: game.tables.filter((t) => t.getFlag(MODULE_ID, FLAG_KEY) || (t.folder && folderIds.has(t.folder.id))),
+    folders: game.folders.filter((f) => folderIds.has(f.id)),
+    journal: game.journal.find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ?? game.journal.find((j) => j.name === JOURNAL_NAME) ?? null,
+  };
+}
+
+/** How many documents removeMaterializedDocs would delete. */
+export function countMaterializedDocs() {
+  const { tables, folders, journal } = listMaterializedDocs();
+  return tables.length + folders.length + (journal ? 1 : 0);
+}
+
+/**
+ * Delete every materialized document. DOCUMENTS only: the imported table DATA
+ * in the world store stays registered, so automation keeps its values and the
+ * next materialize rebuilds the documents from them.
+ */
+export async function removeMaterializedDocs() {
+  const { tables, folders, journal } = listMaterializedDocs();
+  const total = tables.length + folders.length + (journal ? 1 : 0);
+  // Tables before folders: a folder deleted first would orphan its contents
+  // to the sidebar root, where the table filter no longer finds them.
+  if (tables.length) await RollTable.deleteDocuments(tables.map((t) => t.id));
+  if (journal) await journal.delete();
+  if (folders.length) await Folder.deleteDocuments(folders.map((f) => f.id));
+  return total;
 }
 
 /* ------------------------- override via drop ------------------------- */

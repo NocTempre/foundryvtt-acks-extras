@@ -1,6 +1,6 @@
 # Gallery
 
-**Ten plates — one per feature guide.** This is the highlight reel, not the
+**Eleven plates — one per feature guide.** This is the highlight reel, not the
 archive: for each feature area, the one shot that best answers "what does this
 module actually do?", and nothing else.
 
@@ -17,6 +17,7 @@ the next refresh.
 
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
+| Battlemaps and token scale | The alignment assistant mid-calibration: samples drawn over a map's grid, the fitted cells locked onto its lines, the scale awaiting confirmation | [guide](guides/battlemap.md) | [v4.14.0](releases/v4.14.0/battlemap.png) |
 | Characters and classes | Rolling a character: the attribute rule and the scores, the class above the template die, and what is left to choose | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen.png) |
 | Proficiencies and powers | A proficiency's Mechanics tab: classification, the selections a grant reads, and its Active Effects | [guide](guides/abilities.md) | [v3.9.0](releases/v3.9.0/combat-trickery.png) |
 | Equipment and containers | The inventory: what is worn and wielded, what is stowed, hands counted, and a lantern's own light controls on its row | [guide](guides/equipment.md) | [v3.3.0](releases/v3.3.0/equipment-light-controls.png) |
@@ -28,9 +29,9 @@ the next refresh.
 | Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-trade-tab.png) |
 | Vehicles | A holed longship: her hull, her twelve-hour day beside its hour, which of casualties and damage governs her speed, and what a repair would cost | [guide](guides/vehicles.md) | [v4.6.0](releases/v4.6.0/vehicles.png) |
 
-There is no plate for [Appearance](guides/appearance.md), the eleventh guide,
-because the ACKS look is in all ten of the above. A plate of its own would show
-what every other plate already shows.
+There is no plate for [Appearance](guides/appearance.md), the twelfth guide,
+because the ACKS look is in all eleven of the above. A plate of its own would
+show what every other plate already shows.
 
 ## Adding to it
 

@@ -58,6 +58,7 @@ All paths are under `scripts/formation/` unless noted.
 - **Marching order** = order of `members[]`. Roles are per-member string arrays.
 - **Member tokens** are stashed as raw `toObject()` snapshots in `members[].tokenData` when the actor joins, and re-created around the party token on removal/disband.
 - The **party token** belongs to a dedicated `monster`-type actor (one per formation) whose `system.movement.base` mirrors the party's exploration speed (min over members' `system.movementacks.exploration`, which the acks system derives from encumbrance). `updateActor`/`create|update|deleteItem` hooks keep it in sync.
+- The **party token's size** is the formation's real shape at the scene's scale: `faceWidthFeet` (frontage × the `marchFeetPerBody` world setting) across the line of march, `partyDepth × 5'` deep, converted through `scene.grid.distance` and quantized to quarter squares (`syncPartyTokenSize` in `scene-sync.mjs`). Token width/height are axis-aligned, so an east/west heading swaps the two; a rotation-watching `updateToken` hook resyncs on every turn. Every face-width consumer reads `effectiveFrontage()`, the seam where the squeeze mechanic (ROADMAP) will narrow a squeezed column. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
 
 ## Movement → turns
 

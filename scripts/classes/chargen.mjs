@@ -12,17 +12,22 @@
  * printed descriptor becomes the item's name over the base item's mechanics
  * — coin as a money item, and the Intellect bonus general picks.
  *
- * Base resolution for a skin: an explicit ref (cookbook id / `name:<Item>` /
- * `uuid:`), else the longest world-item name contained in the descriptor.
- * What resolves to nothing imports as a bare named item — visible, never
- * dropped.
+ * A template bound to a materialized bundle grants the bundle's linked world
+ * documents instead — the repairable layer template-packages.mjs owns, which
+ * also owns base resolution and the skinning payloads for the legacy path.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
-import { awardKey, grantAbility, grantAdventuring } from "./grants.mjs";
+import { awardKey, grantAbility, grantAdventuring, refOf } from "./grants.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
+import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
+
+// The base-resolution and skinning layer lives in template-packages.mjs (the
+// materializer resolves once, at import; this file resolves at grant time only
+// on the legacy row path). Re-exported so consumers keep one import site.
+export { resolveBase, templateItemName };
 
 const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -104,104 +109,6 @@ export async function grantCoin(actor, coin = {}) {
   }
 }
 
-/** Resolve a template item entry to its BASE world item (null = no base). */
-export function resolveBase(entry) {
-  if (entry.ref) {
-    if (entry.ref.startsWith("name:")) {
-      const name = entry.ref.slice(5);
-      return game.items.find((i) => [ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item].includes(i.type) && i.name.toLowerCase() === name.toLowerCase()) ?? null;
-    }
-    const doc = findByRef(entry.ref);
-    if (doc) return doc;
-  }
-  const f = fold(entry.name);
-  let best = null;
-  let bestLen = 0;
-  for (const i of game.items) {
-    if (![ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item].includes(i.type)) continue;
-    const nf = fold(i.name);
-    const nfStripped = fold(i.name.replace(/\([^)]*\)/g, " "));
-    // The paren-stripped name is what an embellished instance contains:
-    // "iron-shod spellbook…" holds "spellbook", never "(blank)".
-    const hit =
-      (nf.length >= 6 && f.includes(nf) && nf.length) ||
-      (nfStripped.length >= 6 && f.includes(nfStripped) && nfStripped.length) ||
-      0;
-    if (hit > bestLen) {
-      best = i;
-      bestLen = hit;
-    }
-  }
-  return best;
-}
-
-/**
- * What one template equipment entry is CALLED.
- *
- * The count lives on the quantity field — "2 flasks of holy water" is two of an
- * item called "Flasks of holy water", never one item with a numeral in its
- * name. The page that lists a package and the grant that materializes it read
- * this one rule, so neither says "3 javelins ×3".
- */
-export function templateItemName(entry) {
-  const printed = (entry.qty > 1 ? String(entry.name ?? "").replace(/^\d+\s+/, "") : String(entry.name ?? "")).replace(
-    /^\w/,
-    (c) => c.toUpperCase(),
-  );
-  return entry.skinName || printed;
-}
-
-/** Build the embedded-item payload for one template item entry (skinned). */
-function skinPayload(entry) {
-  const base = resolveBase(entry);
-  const skinName = templateItemName(entry);
-  if (!base) {
-    return {
-      name: skinName,
-      type: "item",
-      system: { quantity: { value: entry.qty || 1, max: 0 } },
-      flags: { [MODULE_ID]: { skin: { base: null, descriptor: entry.name } } },
-    };
-  }
-  const data = base.toObject();
-  delete data._id;
-  data.name = skinName;
-  foundry.utils.setProperty(data, "system.quantity.value", entry.qty || 1);
-  // The instance layer: which generic this is an embellished example of, and
-  // the embellishment on its own — the descriptor with the base's name (or
-  // its paren-stripped form) excised: "Crudely-crafted shortbow" over Short
-  // Bow leaves "Crudely-crafted".
-  const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
-  let embellishment = "";
-  {
-    const words = String(entry.name).split(/\s+/);
-    const baseFolds = [fold(base.name), fold(base.name.replace(/\([^)]*\)/g, " "))].filter((x) => x.length >= 4);
-    // Drop the shortest run of trailing/leading words whose fold matches the
-    // base; whatever remains is the embellishment.
-    for (let start = 0; start < words.length && !embellishment; start++) {
-      for (let end = words.length; end > start; end--) {
-        const seg = fold(words.slice(start, end).join(""));
-        if (baseFolds.some((b) => seg === b)) {
-          embellishment = [...words.slice(0, start), ...words.slice(end)].join(" ").replace(/^[\s,-]+|[\s,-]+$/g, "");
-          break;
-        }
-      }
-    }
-  }
-  data.flags = {
-    ...(data.flags ?? {}),
-    [MODULE_ID]: {
-      skin: {
-        base: entry.ref || `uuid:${base.uuid}`,
-        baseName: base.name,
-        descriptor: entry.name,
-        ...(embellishment ? { embellishment } : {}),
-      },
-    },
-  };
-  return data;
-}
-
 /** INT-based bonus general picks per the RR sidebar (13–15/16–17/18). */
 export function intBonusPicks(intScore) {
   if (intScore >= 18) return 3;
@@ -265,55 +172,26 @@ async function grantRanked(actor, entry, report) {
 }
 
 /**
- * Apply one template's full bundle to the actor.
- *
- * @param {object} [options]
- * @param {number|null} [options.gold] the coin actually granted; the printed
- *   `gp` when nothing overrides it (the page shows the figure it will write,
- *   and a Judge may set it there)
+ * Grant one template row's printed entries the legacy way: abilities by ref,
+ * equipment as skins resolved at grant time, spells by uuid or world name.
+ * The whole path when no bundle is bound; in bundle mode it carries only the
+ * leftover cells the materializer could not place, so nothing printed is
+ * silently dropped.
  */
-export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null, gold = null } = {}) {
-  const gp = Number(gold ?? template.gp) || 0;
-  const sp = Number(template.sp) || 0;
-  const report = { granted: [], items: [], unresolved: [], gp, sp, dropped: [] };
-  // A template that assumes an Intellect bonus its character does not have
-  // prints more than they may hold. The book names the entries to remove
-  // rather than leaving it to taste — the LAST proficiency and the SECOND
-  // spell — so the drop is positional, taken before anything is granted.
-  const assumed = classItem?.system?.templatesAssumeIntBonus ?? 0;
-  const short = intScore == null ? { profs: 0, spells: 0 } : templateShortfall(intScore, assumed);
-
-  let abilities = [...(template.abilities ?? [])];
-  if (short.profs > 0) {
-    const kept = abilities.slice(0, Math.max(0, abilities.length - short.profs));
-    for (const gone of abilities.slice(kept.length)) report.dropped.push(gone.name || gone.ref);
-    abilities = kept;
-  }
+async function grantRowEntries(actor, { abilities = [], items = [], spells = [] }, report) {
   for (const entry of abilities) {
     if (entry.ref) await grantRanked(actor, entry, report);
     else if (entry.name) report.unresolved.push(entry.name);
   }
-  const payloads = (template.items ?? []).map(skinPayload);
+  const payloads = [];
+  for (const entry of items) payloads.push((await buildGearData(entry)).data);
   if (payloads.length) {
     await actor.createEmbeddedDocuments("Item", payloads);
-    report.items = payloads.map((p) => (p.system?.quantity?.value > 1 ? `${p.name} ×${p.system.quantity.value}` : p.name));
+    report.items.push(...payloads.map((p) => (p.system?.quantity?.value > 1 ? `${p.name} ×${p.system.quantity.value}` : p.name)));
   }
-  // The template names the coin a character starts with, so this is the one
-  // write of it. Core's own gold row adds to a money item the character ALREADY
-  // owns and returns silently when they own none — which is every character
-  // being generated — so there is nothing here to double.
-  await grantCoin(actor, { gp, sp });
   // The spells a spellbook carries land as spell ITEMS — a linked uuid first,
   // else the printed name matched against the world's spells; what no world
   // spell answers to stays visible on the unresolved list.
-  // The bonus spell is the one listed SECOND, so a shortfall removes that
-  // entry rather than the last — the spellbook's first spell is the one every
-  // character of the class begins with.
-  let spells = [...(template.spells ?? [])];
-  if (short.spells > 0 && spells.length > 1) {
-    const removed = spells.splice(1, Math.min(short.spells, spells.length - 1));
-    for (const gone of removed) report.dropped.push(gone.name || gone.uuid);
-  }
   for (const s of spells) {
     const name = s.name ?? "";
     let doc = null;
@@ -333,6 +211,120 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
     } else if (name) {
       report.unresolved.push(name);
     }
+  }
+}
+
+/**
+ * Grant a bundle's resolved rows: each linked document cloned onto the actor
+ * — an ability as rank-N copies stamped `grantedFrom` so a re-apply
+ * recognises them, gear with the row's quantity (stackables on the quantity
+ * field, the rest as copies — the same shape core's own bundle drop makes),
+ * spells as spell items. A money item a Judge placed in the bundle IS the
+ * coin: it lands as printed and the caller skips the row's gp/sp.
+ * @returns {Promise<boolean>} whether money items paid the coin
+ */
+async function grantBundleRows(actor, rows, report) {
+  let paidCoin = false;
+  for (const r of rows) {
+    const data = r.doc.toObject();
+    delete data._id;
+    delete data.folder;
+    delete data.sort;
+    delete data.ownership;
+    const quantity = Math.max(1, r.quantity || 1);
+    if (r.type === ITEM_TYPE.ability) {
+      const mine = data.flags?.[MODULE_ID] ?? {};
+      data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...mine, grantedFrom: mine.grantedFrom ?? refOf(r.doc) } };
+      const copies = Array.from({ length: quantity }, () => foundry.utils.deepClone(data));
+      await actor.createEmbeddedDocuments("Item", copies);
+      report.granted.push(copies.length > 1 ? `${data.name} ×${copies.length}` : data.name);
+    } else if (r.type === ITEM_TYPE.spell) {
+      await actor.createEmbeddedDocuments("Item", [data]);
+      report.granted.push(data.name);
+    } else if (r.type === ITEM_TYPE.money) {
+      data.system = { ...(data.system ?? {}), quantity };
+      await actor.createEmbeddedDocuments("Item", [data]);
+      report.items.push(quantity > 1 ? `${data.name} ×${quantity}` : data.name);
+      paidCoin = true;
+    } else if (r.type === ITEM_TYPE.item) {
+      foundry.utils.setProperty(data, "system.quantity.value", quantity);
+      await actor.createEmbeddedDocuments("Item", [data]);
+      report.items.push(quantity > 1 ? `${data.name} ×${quantity}` : data.name);
+    } else {
+      const copies = Array.from({ length: quantity }, () => foundry.utils.deepClone(data));
+      await actor.createEmbeddedDocuments("Item", copies);
+      report.items.push(copies.length > 1 ? `${data.name} ×${copies.length}` : data.name);
+    }
+  }
+  return paidCoin;
+}
+
+/**
+ * Apply one template's full package to the actor.
+ *
+ * Bundle-first: a row bound to a materialized bundle grants the bundle's
+ * LINKED documents — the repairable ones a Judge may have fixed — with the
+ * Intellect shortfall taken on the bundle's own order (the bonus proficiency
+ * is the ability listed last, the bonus spell the spell listed second). A
+ * linked document that no longer exists is reported, never silently dropped.
+ * No bundle, or one that resolves to nothing, is the legacy row path,
+ * unchanged — an un-upgraded world behaves exactly as it always did.
+ *
+ * @param {object} [options]
+ * @param {number|null} [options.gold] the coin actually granted; the printed
+ *   `gp` when nothing overrides it (the page shows the figure it will write,
+ *   and a Judge may set it there)
+ */
+export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null, gold = null } = {}) {
+  const gp = Number(gold ?? template.gp) || 0;
+  const sp = Number(template.sp) || 0;
+  const report = { granted: [], items: [], unresolved: [], gp, sp, dropped: [] };
+  // A template that assumes an Intellect bonus its character does not have
+  // prints more than they may hold. The book names the entries to remove
+  // rather than leaving it to taste, so the drop is positional, taken before
+  // anything is granted.
+  const assumed = classItem?.system?.templatesAssumeIntBonus ?? 0;
+  const short = intScore == null ? { profs: 0, spells: 0 } : templateShortfall(intScore, assumed);
+
+  const expanded = template?.bundle ? await expandTemplate(template) : { bundle: null, rows: [], missing: [] };
+  if (expanded.bundle && (expanded.rows.length || expanded.missing.length)) {
+    const { kept, dropped } = applyShortfall(expanded.rows, short);
+    report.dropped.push(...dropped);
+    report.unresolved.push(...expanded.missing);
+    const paidCoin = await grantBundleRows(actor, kept, report);
+    // What stayed on the row is what the package could not carry — granted
+    // now if a ref answers, reported otherwise. Disjoint from the bundle by
+    // construction (materializing removes exactly what it bundled), so
+    // nothing is handed over twice. No second shortfall: it was taken above,
+    // on the bundle's own order.
+    await grantRowEntries(actor, template, report);
+    if (paidCoin) {
+      report.gp = 0;
+      report.sp = 0;
+    } else {
+      await grantCoin(actor, { gp, sp });
+    }
+  } else {
+    let abilities = [...(template.abilities ?? [])];
+    if (short.profs > 0) {
+      const kept = abilities.slice(0, Math.max(0, abilities.length - short.profs));
+      for (const gone of abilities.slice(kept.length)) report.dropped.push(gone.name || gone.ref);
+      abilities = kept;
+    }
+    // The bonus spell is the one listed SECOND, so a shortfall removes that
+    // entry rather than the last — the spellbook's first spell is the one
+    // every character of the class begins with.
+    let spells = [...(template.spells ?? [])];
+    if (short.spells > 0 && spells.length > 1) {
+      const removed = spells.splice(1, Math.min(short.spells, spells.length - 1));
+      for (const gone of removed) report.dropped.push(gone.name || gone.uuid);
+    }
+    await grantRowEntries(actor, { abilities, items: template.items ?? [], spells }, report);
+    // The template names the coin a character starts with, so this is the one
+    // write of it. Core's own gold row adds to a money item the character
+    // ALREADY owns and returns silently when they own none — which is every
+    // character being generated — so there is nothing here to double.
+    await grantCoin(actor, { gp, sp });
   }
   for (const ref of generalRefs) await grantRanked(actor, { ref, rank: 1 }, report);
   return report;

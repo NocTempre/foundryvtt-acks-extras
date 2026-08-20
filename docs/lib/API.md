@@ -93,9 +93,21 @@ content import flows (acks-importer). Shape:
 {
   importDoc(doc, {priority = 20, source}) → Promise<void>,  // persist + register
   removeDoc(docId, {priority = 20})       → Promise<void>,  // unpersist + unregister
-  listDocs() → [{id, priority, source}]
+  listDocs() → [{id, priority, source}],
+  // v1.1 (additive): mirror every imported table into world documents
+  materializeDocs() → Promise<{exported, placeholders}>,
+  // v1.2 (additive): re-mirror the persisted store into the registry
+  reload() → {layers, docs},
+  // v1.3 (additive): the materialized world documents, without the data —
+  // count for a remove-all confirm, remove for the sweep itself
+  countMaterializedDocs() → number,
+  removeMaterializedDocs() → Promise<number>
 }
 ```
+
+Consumers hold no version handshake: each addition is feature-detected
+(`svc.countMaterializedDocs?.()`), so an older provider simply contributes
+nothing to the newer flow.
 
 Persistence (world storage, re-registration on world load, GM permission
 checks) is entirely the provider's job; consumers call `importDoc` and

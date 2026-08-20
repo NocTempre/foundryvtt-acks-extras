@@ -49,12 +49,41 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 5. `openRuledataBrowser()`.
    *Observable:* `RuledataBrowser` lists the tables imported from the GM's own
    books — and says so; with nothing imported it is empty rather than showing
-   shipped samples.
-6. Vault sweep: `runVaultSweep()` with the prune setting on and a location
+   shipped samples. Entries carry reader-facing labels ("Class Percentages —
+   Level 0"), not raw dotted keys.
+6. With tables imported, materialize and remove:
+   `acksExtras.lib.services.get("ruledata-import").materializeDocs()`, then
+   `countMaterializedDocs()`, then `removeMaterializedDocs()`. The write COUNTS
+   are gated offline (`node tools/test-table-docs.mjs`); what only a live run
+   proves is that the batched calls reach real documents.
+   *Observable:* the sidebar gains "ACKS Imported Tables" with one subfolder
+   per ruledata doc and readable table names (identity in
+   `flags["acks-extras"].tableKey`); the count matches the tree plus the
+   journal; after removal the tree and journal are gone while the browser
+   still lists every imported table, and a second `materializeDocs()` rebuilds
+   the documents without re-importing.
+   *Also observable, and the point of the batching:* a full materialize on a
+   multi-book world completes in seconds, and an immediate second run reports
+   the same totals while writing nothing at all — no result rows rebuilt and
+   no document touched, so the tables' "last modified" times do not move.
+   Check the rows actually carry their labels: blank entries with correct
+   ranges is what a broken `description` looks like, and a count-based check
+   sails straight past it.
+   *The churn check, which is where three separate bugs have hidden:* compare
+   every rollable table's `TableResult` ids across **three** passes, and make
+   one of those passes follow a real change. Nothing but a genuinely changed
+   table may get new ids, and a table that legitimately rebuilt must be
+   settled again on the pass after. Two known traps, both invisible in the
+   documents themselves: the **ampersand tables**
+   (`people.occupationSubTables.artisan` and `.merchant`, whose entries read
+   "grain & vegetables") — storage normalizes a bare `&` to `&amp;`; and
+   **anything freshly rebuilt** — an embedded collection reads back in its own
+   order, not the one it was written in.
+7. Vault sweep: `runVaultSweep()` with the prune setting on and a location
    holding goods past its window.
    *Observable:* the sweep reports what it would take before taking it, and
    turning the setting off stops it.
-7. "Recover Coin from Unloadable Locations (GM)": build a pre-upgrade shape
+8. "Recover Coin from Unloadable Locations (GM)": build a pre-upgrade shape
    first — recover an old sub-type's location definition from git
    (`git show <tag>:<path>`) and create it as a world document — then run the
    macro.

@@ -24,6 +24,15 @@ export const TURNS_PER_DAY = 144;
 /** All adventurers must rest 1 turn per 5 turns of exploration and combat. */
 export const REST_INTERVAL = 5;
 
+/** World setting: feet of frontage each marching body occupies. */
+export const SETTING_MARCH_FEET = "marchFeetPerBody";
+
+/**
+ * Default for `marchFeetPerBody` — marching files pack tighter than the 5-ft
+ * combat rank. Derivation and reviewer flag: docs/formation/DECISIONS.md.
+ */
+export const MARCH_FEET_PER_BODY_DEFAULT = 3;
+
 /** Default wandering-monster cadence: 1d6 every 2 turns, encounter on 6+. */
 export const DEFAULT_ENCOUNTER_EVERY = 2;
 export const DEFAULT_ENCOUNTER_TARGET = 6;

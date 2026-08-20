@@ -36,9 +36,100 @@ sheet. Both produce the same document and open in the same sheet.
   (`vancian` now; `points`, `ritual`, `ceremonial`, `gnosis` are carried by
   the schema so later content lands without a break), with a printed slot
   grid or a pool schedule and a repertoire kind.
-- **Templates** — the eight printed 3d6 templates, each an inventory bundle
-  of abilities and items (with the printed skin descriptor per item) plus
-  spells, gp and the encumbrance note. Applied by chargen.
+- **Templates** — the eight printed 3d6 templates. Each row holds the band,
+  name, annotation, caste, coin (`gp`/`sp`) and encumbrance note, and either
+  binds a materialized **package** (below) or carries its contents as plain
+  entry arrays — abilities, items (with the printed skin descriptor), spells.
+  Applied by chargen.
+
+## Template packages
+
+[template-packages.mjs](../../scripts/classes/template-packages.mjs) is the
+sole owner of the materialized shape: each template row may bind a core
+`bundle` Item — a container of uuid links to REAL world documents — so a
+Judge repairs one linked item (retype a mis-imported staff to `weapon`, fix
+its damage) and every character generated from that template afterwards gets
+the fix. A generated 3d6 RollTable per class (`system.templateTable`) links
+the bundles as a VIEW; nothing in code reads it, so it cannot become a second
+authority for the bands.
+
+Ownership, one fact each: the class row keeps the printed band/name/coin/enc;
+the bundle's `itemList` owns WHAT the package contains; each linked world
+item owns what one piece of it IS. `materializeTemplates(classItem, {stamp,
+folder, tableFolder})` builds all of it from the class document alone (no
+book needed).
+
+**Resolution reads the world first, then the compendia** — `findSource` (a
+ref via the importer's stamp in the pack index, then exact name) and
+`resolveBaseDoc` (`resolveBase`'s fuzzy match — exact fold at any length,
+word-boundary containment at 4–5 characters, plain containment at 6+ — re-run
+over the index). The importer can be configured to import into a pack, and a
+package that reads only `game.items` materializes empty in such a world. A
+pack document is **copied into the world**, never linked: a locked pack
+document is what a Judge cannot repair.
+
+So: gear becomes an already-skinned copy deduped per class by descriptor,
+else the equipment root's strict name classification, else a bare `item`
+flagged unresolved; a plain proficiency the WORLD defines is linked (one
+shared document), one only a pack defines is copied, one with a printed
+selection becomes a specialized copy stamped `grantedFrom` so `ownsRef` still
+dedupes it, and one nothing defines yet is **minted as a placeholder** — the
+printed name, empty system, flagged unresolved — because a name left on the
+class row is invisible on the character and cannot be repaired. Spells
+resolve the same way. `upgradeUnresolved` runs before any row is read: a
+placeholder the world can now answer for is replaced (the `type` must
+change), every bundle row repointed and the old document deleted, unless it
+was edited — a Judge's repair is skipped and reported; an upgrade to a
+definition the WORLD holds links it rather than copying, the same rule the
+create path follows, and a gap still unfilled is re-reported on every pass
+rather than only the one that minted it. **An unresolved part is never a
+source** (`usableAsSource`), and the document being upgraded excludes itself
+by uuid: a placeholder carries the printed name and nothing
+else, so without that it answers its own name search and closes the gap it
+exists to mark. Gear bases exclude every part this feature minted, so a skin
+never becomes the base of a second skin.
+
+**A package never consumes the imports.** Gear is a COPY skinned from its
+base, a world proficiency is LINKED, and every deletion — `detachTemplate
+Packages`' optional cleanup, a replaced placeholder — is gated on this
+module's own `templatePart` stamp. The imported Sword a template names, and
+the shared Adventuring proficiency it links, carry no such stamp and are
+never touched: the item library is a source, not a package's private
+contents.
+
+**One owner, evidence-based.** `stripRepresented` removes from the row every
+entry the bundle demonstrably carries (by ref, or by name for a name-only
+cell) and nothing else, so the two lists are disjoint and neither the sheet
+nor a grant can double them — while a package that could not carry something
+leaves it printed on the row, still applying the old way. That is what makes
+single ownership safe: a partial package can never silently shorten a
+starting kit. `detachTemplatePackages` clears every link (documents kept
+unless asked) and the class applies its printed entries again.
+Packages the sheet builds land in a `Class Templates / <Class>` world folder
+so every part is findable; the importer passes its own cookbook folder.
+
+Identity lives on the created documents (`flags["acks-extras"].templatePart`),
+never only on the row — an importer Update pass replaces the whole `system`,
+so the row's `bundle` uuid is a cache the materializer re-derives from that
+flag, then re-strips the freshly rewritten arrays (`stripRepresented`).
+Every created document carries an `asImported` snapshot; a pass that would
+replace one compares live against snapshot first and skips-and-reports an
+edited document, so a repair survives re-import. acks-importer calls the
+materializer after class import/update and ships a standalone
+`importTemplatePackages()` macro as the upgrade path for worlds imported
+before packages existed.
+
+`applyTemplate` is bundle-first: a bound bundle grants its LINKED documents
+(then whatever printed entries the row still holds — the disjoint remainder)
+(abilities as rank-N copies, stackables by quantity, spells; a money item a
+Judge placed in the bundle IS the coin and the row's `gp`/`sp` is skipped),
+with the Intellect shortfall taken on the bundle's own order and a missing
+linked document reported, never silently dropped. No bundle — or one that
+resolves to nothing — is the unchanged legacy row path, so an un-upgraded
+world behaves exactly as before. The sheet's Templates tab shows the bound
+package with its contents read-only (Build packages / open / unbind / drop a
+bundle to rebind); core's own actor sheet also explodes a dragged bundle, so
+the packages work even without chargen.
 
 ## Advanced mode — the builder
 

@@ -16,6 +16,7 @@
  */
 import { LANG_PREFIX } from "./constants.mjs";
 import { coinLine, templateItemName } from "./chargen.mjs";
+import { templateContents } from "./template-packages.mjs";
 import { findByRef } from "./registry.mjs";
 import { rungSelectHtml } from "./picks.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -81,6 +82,10 @@ export function classPanelHtml({ offered = [], selectedUuid = "", unmet = [], co
  *   surface binding a character who may already own one
  */
 export function templatePanelHtml({ legal = [], selectedMin = null, template = null, ruleHint = "", shortfall = null, noneLabel = "" }) {
+  // What the package brings is read from its materialized bundle when one is
+  // bound (the repairable contents a grant will actually clone), else from
+  // the row's own arrays — the same order applyTemplate grants in.
+  const contents = template ? templateContents(template) : null;
   const none = noneLabel
     ? `<option value=""${selectedMin == null ? " selected" : ""}>${esc(noneLabel)}</option>`
     : "";
@@ -97,9 +102,9 @@ export function templatePanelHtml({ legal = [], selectedMin = null, template = n
           .join("")}</select>
       </div>
       ${ruleHint ? `<p class="hint">${esc(ruleHint)}</p>` : ""}
-      ${brings("chargen.templateGrants", template?.abilities, grantLabel)}
-      ${brings("chargen.templateItems", template?.items, itemLabel)}
-      ${brings("chargen.templateSpells", template?.spells, spellLabel)}
+      ${brings("chargen.templateGrants", contents?.abilities, grantLabel)}
+      ${brings("chargen.templateItems", contents?.items, itemLabel)}
+      ${brings("chargen.templateSpells", contents?.spells, spellLabel)}
       ${template && coinLine(template) ? `<p class="hint">${esc(loc("chargen.templateCoin", { parts: coinLine(template) }))}</p>` : ""}
       ${
         shortfall?.profs

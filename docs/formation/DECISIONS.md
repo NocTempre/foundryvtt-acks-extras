@@ -617,3 +617,30 @@ modifier applies to that table alone. The three-subsystem split and the
 conflation trap are ruled once in `docs/influence/DECISIONS.md` ("Three
 morale subsystems, never conflated"); mass-combat resolution itself is out of
 scope entirely (root `docs/DECISIONS.md`, Battles VTT ruling).
+
+## 2026-08-19 — The party token wears the formation's face
+
+**Ruled:** `syncPartyTokenSize` sizes the party token to the formation's real
+shape — `faceWidthFeet` across the line of march, ranks × 5' deep, through
+`scene.grid.distance`, axes swapped on an east/west heading. This supersedes
+the code-level "always 1×1" rule (it was a docstring on `scene-sync.mjs`,
+never an entry here). What changed: the battlemap feature makes
+`grid.distance` truthful on calibrated scenes, so the token's width becomes
+information — the party's actual face — instead of navigation fuss. The fuss
+the 1×1 rule guarded against (a wide token wedged in a tight corridor) is now
+the squeeze mechanic's job, ROADMAP §3 until built; until then a Judge who
+wants the old behaviour sets frontage 1 or widens the corridor.
+
+**Ruled:** the per-body march width is a world setting (`marchFeetPerBody`,
+default 3) rather than a constant. Unlike `FEET_PER_RANK` (the combat square
+itself), it is *derived from* RR Ch.6's corridor thresholds — ≤5' single
+file, ≥6' two abreast — and a Judge legitimately varies it (shield wall vs
+loose order). **Reviewer flag (ip-doctrine value rule):** the default is
+page-derived; a human ruled that a Judge-editable parameter whose default
+falls out of two printed thresholds is structure, not content. The hint text
+states only what the field does.
+
+**Rejected:** scaling only on coarse maps (a face is a face at every scale,
+and two behaviours for one token is a support burden), and keeping 1×1 until
+the squeeze ships (the token would lie about the party's reach on every
+wilderness map in the meantime).

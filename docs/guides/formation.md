@@ -42,6 +42,15 @@ always trailed south of the token regardless of facing — if your table had
 gotten used to that, turn the party token to face north and the old layout is
 back.)
 
+The party token itself **wears the formation's face** (since v4.14.0): as wide
+as its frontage in feet — each body's width is the *March width per body*
+world setting — and as deep as its ranks, at whatever scale the scene uses.
+Turn the column and the token's width and depth swap with it.
+
+![](../releases/v4.14.0/formation.png)
+
+*Three abreast on a 5' grid: the party token stands its real width.*
+
 ## Saved marching orders
 
 The party sheet's march controls **save** the current arrangement under a name

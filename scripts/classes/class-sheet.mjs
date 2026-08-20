@@ -1,4 +1,4 @@
-/* global game, foundry, fromUuid */
+/* global game, foundry, fromUuid, fromUuidSync, ui */
 /**
  * The class CONSTRUCTOR sheet — the editable face of `acks-extras.class`.
  *
@@ -18,6 +18,7 @@ import { AWARD_KINDS } from "./class-data.mjs";
 import ClassData from "./class-data.mjs";
 import { findByRef } from "./registry.mjs";
 import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabel } from "./builder.mjs";
+import { materializeTemplates, detachTemplatePackages } from "./template-packages.mjs";
 import { CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
 
@@ -54,6 +55,10 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       rowAdd: ClassSheet.#onRowAdd,
       rowDelete: ClassSheet.#onRowDelete,
       builderDerive: ClassSheet.#onBuilderDerive,
+      templatesBuild: ClassSheet.#onTemplatesBuild,
+      templatesDetach: ClassSheet.#onTemplatesDetach,
+      templateOpen: ClassSheet.#onTemplateOpen,
+      templateUnbind: ClassSheet.#onTemplateUnbind,
     },
   };
 
@@ -222,23 +227,42 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     }));
 
     // --- templates ---
-    context.templatesEdit = (sys.templates ?? []).map((t, index) => ({
-      index,
-      rollMin: t.rollMin,
-      rollMax: t.rollMax,
-      name: t.name,
-      annotation: t.annotation,
-      caste: t.caste,
-      gp: t.gp,
-      enc: t.enc,
-      abilities: (t.abilities ?? []).map((a, ai) => ({
-        index: ai,
-        ...a,
-        refName: a.ref ? (findByRef(a.ref)?.name ?? null) : null,
-      })),
-      items: (t.items ?? []).map((it, ii) => ({ index: ii, ...it })),
-      spells: (t.spells ?? []).map((s, si) => ({ index: si, ...s })),
-    }));
+    context.templatesEdit = (sys.templates ?? []).map((t, index) => {
+      const bundleDoc = t.bundle ? fromUuidSync(t.bundle) : null;
+      const leftovers = [
+        ...(t.abilities ?? []).map((a) => a.name || a.ref),
+        ...(t.items ?? []).map((it) => it.name || it.ref),
+        ...(t.spells ?? []).map((s) => s.name || s.uuid),
+      ].filter(Boolean);
+      return {
+        index,
+        rollMin: t.rollMin,
+        rollMax: t.rollMax,
+        name: t.name,
+        annotation: t.annotation,
+        caste: t.caste,
+        gp: t.gp,
+        enc: t.enc,
+        bundle: t.bundle,
+        bundleName: bundleDoc?.name ?? null,
+        bundleMissing: !!t.bundle && !bundleDoc,
+        bundleContents: (bundleDoc?.system?.itemList ?? []).map((r) =>
+          (r.quantity || 1) > 1 ? `${r.name} ×${r.quantity}` : r.name,
+        ),
+        // The printed entries always stay on the row; when a package is bound
+        // they are the RECORD and the fallback, not what applies.
+        leftoverNames: t.bundle ? leftovers.join(", ") : "",
+        abilities: (t.abilities ?? []).map((a, ai) => ({
+          index: ai,
+          ...a,
+          refName: a.ref ? (findByRef(a.ref)?.name ?? null) : null,
+        })),
+        items: (t.items ?? []).map((it, ii) => ({ index: ii, ...it })),
+        spells: (t.spells ?? []).map((s, si) => ({ index: si, ...s })),
+      };
+    });
+    const tableDoc = sys.templateTable ? fromUuidSync(sys.templateTable) : null;
+    context.templateTable = tableDoc ? { name: tableDoc.name, uuid: tableDoc.uuid } : null;
     return context;
   }
 
@@ -257,6 +281,41 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
   static async #onBuilderDerive() {
     await applyBuilder(this.item);
     this.render();
+  }
+
+  /** Materialize this class's template packages (bundles, contents, table). */
+  static async #onTemplatesBuild() {
+    const report = await materializeTemplates(this.item);
+    ui.notifications?.info(
+      game.i18n.format(`${LANG_PREFIX}.sheet.templates.package.buildDone`, {
+        created: report.created.length,
+        relinked: report.relinked.length,
+        skipped: report.skippedEdited.length,
+      }),
+    );
+    this.render();
+  }
+
+  /** Detach every package: the class applies from its printed entries again. */
+  static async #onTemplatesDetach() {
+    await detachTemplatePackages(this.item);
+    ui.notifications?.info(game.i18n.localize(`${LANG_PREFIX}.sheet.templates.package.detachDone`));
+    this.render();
+  }
+
+  /** Open a linked document (a template's bundle, or the 3d6 table). */
+  static #onTemplateOpen(event, target) {
+    fromUuidSync(target.dataset.uuid ?? "")?.sheet?.render(true);
+  }
+
+  /** Detach a row's bundle — the row's own arrays become the package again. */
+  static async #onTemplateUnbind(event, target) {
+    const index = Number(target.dataset.index);
+    if (!Number.isInteger(index)) return;
+    const templates = foundry.utils.deepClone(this.item.system.toObject().templates ?? []);
+    if (!templates[index]) return;
+    templates[index].bundle = "";
+    await this.item.update({ "system.templates": templates });
   }
 
   /* Row templates a fresh array entry starts from; the schema's own initials
@@ -323,6 +382,17 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (data?.type !== "Item" || !data.uuid) return;
     const dropped = await fromUuid(data.uuid);
+    // A dropped BUNDLE binds as a template row's package.
+    if (dropped?.type === ITEM_TYPE.bundle) {
+      const row = event.target.closest("[data-template-row]");
+      const index = Number(row?.dataset.templateRow);
+      if (!Number.isInteger(index)) return;
+      const templates = foundry.utils.deepClone(this.item.system.toObject().templates ?? []);
+      if (!templates[index]) return;
+      templates[index].bundle = dropped.uuid;
+      await this.item.update({ "system.templates": templates });
+      return;
+    }
     if (dropped?.type !== ITEM_TYPE.ability) return;
     const ref = refOf(dropped);
     const zone = event.target.closest("[data-accept-drop]");

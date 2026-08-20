@@ -53,14 +53,20 @@ export const MONSTER_TYPES = {
   vermin: { label: "Vermin", saveProgression: "F(HD/2)" },
 };
 
-/** Size categories (MM Overview p.11; Creation Mass & Size table p.390). */
+/**
+ * Size categories (MM Overview p.11; Creation Mass & Size table p.390).
+ * `footprint` is the prose `frontage` structured into whole battle-grid squares
+ * ({ w, h } at the 5-ft combat square) for token sizing: sub-square frontages
+ * ("2/3 sq", "1 sq or less") floor to a full 1×1 — a single body never occupies
+ * less than one token square.
+ */
 export const SIZES = {
-  small: { label: "Small", weightMax: 35, acMod: 1, maxHD: 9, frontage: "1 sq or less" },
-  man: { label: "Man-Sized", weightMax: 400, acMod: 0, maxHD: 9, frontage: "2/3 sq" },
-  large: { label: "Large", weightMax: 2000, acMod: -1, maxHD: 13, frontage: "2×1 sq" },
-  huge: { label: "Huge", weightMax: 8000, acMod: -2, maxHD: 17, frontage: "2×2 sq" },
-  gigantic: { label: "Gigantic", weightMax: 32000, acMod: -4, maxHD: 25, frontage: "4×3 sq" },
-  colossal: { label: "Colossal", weightMax: null, acMod: -8, maxHD: 40, frontage: "8×6 sq" },
+  small: { label: "Small", weightMax: 35, acMod: 1, maxHD: 9, frontage: "1 sq or less", footprint: { w: 1, h: 1 } },
+  man: { label: "Man-Sized", weightMax: 400, acMod: 0, maxHD: 9, frontage: "2/3 sq", footprint: { w: 1, h: 1 } },
+  large: { label: "Large", weightMax: 2000, acMod: -1, maxHD: 13, frontage: "2×1 sq", footprint: { w: 2, h: 1 } },
+  huge: { label: "Huge", weightMax: 8000, acMod: -2, maxHD: 17, frontage: "2×2 sq", footprint: { w: 2, h: 2 } },
+  gigantic: { label: "Gigantic", weightMax: 32000, acMod: -4, maxHD: 25, frontage: "4×3 sq", footprint: { w: 4, h: 3 } },
+  colossal: { label: "Colossal", weightMax: null, acMod: -8, maxHD: 40, frontage: "8×6 sq", footprint: { w: 8, h: 6 } },
 };
 
 /** Degree of intelligence (Creation p.396). */

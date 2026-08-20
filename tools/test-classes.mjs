@@ -632,4 +632,180 @@ await atest("the class picker never wipes what a character already owns", () => 
   assert.match(src, /applyTemplate\(/, "it applies a package by merging it");
 });
 
+/* ---------------------- template packages ------------------------- */
+
+const { bestBaseMatch, parseEmbellishment, applyShortfall, templateItemName, buildPlaceholderAbility, stripRepresented, usableAsSource } =
+  await import("../scripts/classes/template-packages.mjs");
+
+test("a short base name resolves by exact match", () => {
+  // "Staff"(5 folded) could never resolve under the old ≥6-substring rule, so
+  // every template staff landed as a bare unwieldable `item` — the reported
+  // bug. Exact folded equality wins at any length.
+  const world = [{ name: "Staff" }, { name: "Quarterstaff" }];
+  assert.equal(bestBaseMatch("staff", world), world[0]);
+});
+
+test("a 4–5 letter base needs a word boundary, never a bare substring", () => {
+  const world = [{ name: "Mace" }];
+  assert.equal(bestBaseMatch("Iron-shod mace", world), world[0]);
+  assert.equal(bestBaseMatch("Grimace mask", world), null);
+});
+
+test("a ≥6 base still resolves by containment, longest match winning", () => {
+  const world = [{ name: "Short Bow" }, { name: "Spellbook (blank)" }];
+  assert.equal(bestBaseMatch("Crudely-crafted shortbow", world), world[0]);
+  // The paren-stripped candidate name is what an embellished instance holds.
+  assert.equal(bestBaseMatch("Iron-shod spellbook with brass clasps", world), world[1]);
+});
+
+test("descriptor within a base descriptor resolves the staff skin", () => {
+  const world = [{ name: "Staff" }];
+  assert.equal(bestBaseMatch("Staff tipped with glass gemstone", world), world[0]);
+});
+
+test("the embellishment is the descriptor minus the base", () => {
+  assert.equal(parseEmbellishment("Crudely-crafted shortbow", "Short Bow"), "Crudely-crafted");
+  assert.equal(parseEmbellishment("Staff tipped with glass gemstone", "Staff"), "tipped with glass gemstone");
+});
+
+test("the Intellect shortfall drops the LAST ability and the SECOND spell", () => {
+  // RR Ch. 2 §II.1 names the entries to remove; on a bundle the positions are
+  // read off the itemList's own order, per type.
+  const rows = [
+    { type: "ability", name: "A" },
+    { type: "ability", name: "B" },
+    { type: "weapon", name: "Sword" },
+    { type: "spell", name: "S1" },
+    { type: "spell", name: "S2" },
+  ];
+  const { kept, dropped } = applyShortfall(rows, { profs: 1, spells: 1 });
+  assert.deepEqual(dropped, ["B", "S2"]);
+  assert.deepEqual(kept.map((r) => r.name), ["A", "Sword", "S1"]);
+  // The first (and only) spell is the one every character begins with — a
+  // single spell is never dropped.
+  const single = applyShortfall([{ type: "spell", name: "Only" }], { profs: 0, spells: 1 });
+  assert.deepEqual(single.dropped, []);
+});
+
+test("a printed count lives on quantity, never in the name", () => {
+  assert.equal(templateItemName({ name: "2 flasks of holy water", qty: 2 }), "Flasks of holy water");
+  assert.equal(templateItemName({ name: "staff", qty: 1 }), "Staff");
+});
+
+test("an unresolvable proficiency is still a document to repair", () => {
+  // The package is a CONTAINER: a proficiency nothing defines yet must be a
+  // real item a Judge can retype or replace, not invisible text on the class
+  // row. It carries the printed name and nothing else — no rules prose.
+  const ph = buildPlaceholderAbility({ name: "Manual of Arms", ref: "def.prof.manualOfArms", rank: 2 });
+  assert.equal(ph.type, "ability");
+  assert.equal(ph.name, "Manual of Arms");
+  assert.deepEqual(ph.system, {});
+  assert.equal(ph.flags["acks-extras"].grantedFrom, "def.prof.manualOfArms");
+});
+
+test("resolution reaches the compendia, not only game.items", () => {
+  // The importer can be configured to import into a PACK. Resolving only
+  // against the world is why a compendium-mode world materialized packages
+  // with no proficiencies at all and every base item unresolved.
+  const src = readFileSync(new URL("../scripts/classes/template-packages.mjs", import.meta.url), "utf8");
+  assert.match(src, /getIndex\(\{ fields: INDEX_FIELDS \}\)/, "pack indexes are read for resolution");
+  assert.match(src, /export async function findSource/, "one resolver: world first, then packs");
+  assert.match(src, /export async function resolveBaseDoc/, "gear bases resolve through the packs too");
+});
+
+test("a row entry the bundle represents is stripped, by ref or by name", () => {
+  // One owner. Without this an importer Update — which rewrites the whole
+  // `system` and restores the printed arrays — would grant the package twice.
+  const bundle = {
+    system: {
+      itemList: [
+        { type: "ability", name: "Adventuring", uuid: "Item.aaa" },
+        { type: "weapon", name: "Staff tipped with glass gemstone", uuid: "Item.bbb" },
+      ],
+    },
+  };
+  const row = {
+    abilities: [{ ref: "", name: "Adventuring" }, { ref: "", name: "Alertness" }],
+    items: [{ name: "staff tipped with glass gemstone", qty: 1 }],
+    spells: [],
+  };
+  assert.equal(stripRepresented(row, bundle), true);
+  assert.deepEqual(row.abilities.map((a) => a.name), ["Alertness"]);
+  assert.deepEqual(row.items, []);
+});
+
+test("stripping is evidence-based: what the bundle lacks stays printed", () => {
+  // The safety property that makes single ownership non-destructive — a
+  // partial package can never silently shorten a starting kit, because only
+  // entries the bundle demonstrably carries are removed.
+  const row = {
+    abilities: [{ ref: "def.prof.alertness", name: "Alertness" }],
+    items: [{ name: "smooth-worn staff", qty: 1 }],
+    spells: [{ name: "Beguile Humanoid" }],
+  };
+  assert.equal(stripRepresented(row, { system: { itemList: [] } }), false);
+  assert.equal(row.abilities.length + row.items.length + row.spells.length, 3);
+});
+
+test("a placeholder can never resolve itself", () => {
+  // Found live: a placeholder is a document carrying the printed NAME and
+  // nothing else, so a search by name matched it, cloned its emptiness as
+  // the "resolution", and cleared the unresolved flag — the Judge's signal
+  // that a real definition is still missing went quiet on the next routine
+  // re-run, with nothing repaired. An unresolved part is never a source.
+  const placeholder = { flags: { "acks-extras": { templatePart: { kind: "ability", unresolved: true } } } };
+  const resolvedCopy = { flags: { "acks-extras": { templatePart: { kind: "ability", unresolved: false } } } };
+  const anImport = { flags: { "acks-importer": { cookbook: { id: "def.prof.alertness" } } } };
+  assert.equal(usableAsSource(placeholder), false);
+  // A part that DID resolve stays usable, so an earlier copy is relinked
+  // rather than doubled on the next pass.
+  assert.equal(usableAsSource(resolvedCopy), true);
+  assert.equal(usableAsSource(anImport), true);
+
+  const src = readFileSync(new URL("../scripts/classes/template-packages.mjs", import.meta.url), "utf8");
+  assert.match(src, /const exclude = \[doc\.uuid\];/, "and the document being upgraded excludes itself by uuid");
+  // A standing gap is reported on EVERY pass, not only the one that minted
+  // the placeholder — a later run that says nothing reads as a clean run.
+  assert.match(src, /report\.unresolved\.push\(doc\.name\);/, "an unfilled gap is re-reported each run");
+  // An upgrade to a world definition LINKS it, matching the create path, so
+  // the world never ends up holding a redundant twin of its own ability.
+  assert.match(src, /replacement\.world && part\.kind === "ability"/, "a world source is linked, not copied");
+  // Gear bases exclude every part this feature minted, so a bare item cannot
+  // exact-match its own descriptor and a skin cannot become a second skin's base.
+  assert.match(src, /GEAR_TYPES\.includes\(i\.type\) && !partOf\(i\)/, "a base is an import, never our own output");
+});
+
+test("a package never consumes the imports it points at", () => {
+  // A template naming a sword must leave the imported Sword alone: the item
+  // library is a SOURCE, not a package's private contents. Every deletion is
+  // therefore gated on this module's own templatePart stamp (its bundles,
+  // skins, copies and placeholders), which a linked import never carries.
+  const src = readFileSync(new URL("../scripts/classes/template-packages.mjs", import.meta.url), "utf8");
+  const deletions = [...src.matchAll(/await (\w+)\.delete\(\)/g)];
+  assert.equal(deletions.length, 3, "three deletion sites: detach's items and tables, and a replaced placeholder");
+  // Detach deletes only what `mine` (partOf → templatePart) admits.
+  assert.match(src, /const mine = \(doc\) => \{\s*const part = partOf\(doc\);/, "detach filters by this module's stamp");
+  assert.match(src, /game\.items\.filter\(mine\)/, "and never by a bare type or name scan");
+  // The replacement path only ever deletes a placeholder it itself minted.
+  assert.match(src, /if \(!part\?\.unresolved\) continue;/, "upgrades touch only unresolved parts");
+  // Gear is SKINNED FROM a base by copying it — the base is read, never moved.
+  assert.match(src, /const data = base\.toObject\(\)/, "a base item is copied, not consumed");
+});
+
+test("a template's package and its leftovers are both applied, once each", () => {
+  const chargen = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
+  const start = chargen.indexOf("if (expanded.bundle");
+  assert.ok(start > 0, "applyTemplate still has a bundle branch");
+  const bundleBranch = chargen.slice(start, start + 1400);
+  assert.match(bundleBranch, /grantBundleRows\(actor, kept, report\)/, "the bundle's own contents");
+  assert.match(bundleBranch, /grantRowEntries\(actor, template, report\)/, "plus what it could not carry");
+});
+
+test("applyTemplate is bundle-first with the row path as fallback", () => {
+  const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
+  assert.match(src, /expandTemplate\(template\)/, "the bundle is expanded before any row entry is read");
+  assert.match(src, /grantRowEntries\(actor, \{ abilities, items: template\.items \?\? \[\], spells \}, report\)/,
+    "the legacy row path survives for un-upgraded worlds");
+});
+
 console.log(`test-classes: ${passed} assertion groups passed.`);

@@ -161,6 +161,12 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         sp: num(),
         enc: str(), // printed encumbrance parenthetical, display only
         alt: str(), // Notes-driven alternates ("without banner", elemental spell swaps)
+        // Uuid of the materialized bundle Item holding this template's
+        // contents as repairable world documents (template-packages.mjs).
+        // A CACHE: identity lives on the bundle's own templatePart flag, and
+        // the materializer re-derives this after an import rewrites `system`.
+        // "" = not materialized; the row's arrays are then the whole package.
+        bundle: str(),
       });
 
     return {
@@ -261,6 +267,10 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       casting: new ArrayField(tradition()),
 
       templates: new ArrayField(template()),
+      /** Uuid of the generated 3d6 RollTable linking the template bundles —
+       *  a VIEW of the bands; nothing reads it, so it cannot drift into a
+       *  second authority. Same cache semantics as a row's `bundle`. */
+      templateTable: str(),
 
       /** The race document this class is an expression of (cookbook id or
        *  uuid:…). Meaningful in BOTH modes: a simple-mode imported class may

@@ -63,3 +63,19 @@ adventurer) against MM p.13's normal/max loads.
 **Rejected:** keeping a monster-local defence shape (two shapes for one
 concept across the family), and a setting-gated migration (the shape itself
 is the gate — a fired migration cannot match again).
+
+## 2026-08-19 — SIZES frontage structured into numeric footprints
+
+**Ruled:** each `SIZES` entry gains `footprint: { w, h }` — the prose
+`frontage` string restructured into whole battle-grid squares — so the
+battlemap feature can size tokens from a monster's size category. The prose
+label stays (it is what the sheet shows); the numbers are its machine shape,
+not a second source. Sub-square frontages floor to 1×1: one body never
+occupies less than a token square.
+
+**Reviewer flag (ip-doctrine value rule):** these numbers restate the
+frontage column of MM Overview p.11 that already ships in this file alongside
+`weightMax` / `acMod` / `maxHD`. No gate distinguishes a structural constant
+from a printed one — a human ruled that restructuring an already-shipped
+column adds no new book content. If that premise is ever revisited, the whole
+SIZES table goes together.

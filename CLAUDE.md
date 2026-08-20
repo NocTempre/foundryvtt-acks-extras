@@ -44,7 +44,7 @@ drives the test world), `doc-scribe` (haiku: docs chores).
 ## Layout
 
 - `scripts/` — ESM runtime, entry `scripts/module.mjs`; `templates/` — .hbs;
-  `styles/`; `lang/en.json` — flat i18n keys under root(s) `ACKS-CLASSES, ACKS-LIB, ACKS-ABILITIES, ACKS-EQUIPMENT, ACKS-FORMATION, ACKS-HENCHMEN, ACKS-INFLUENCE, ACKS-LOCATION, ACKS-MONSTERS, ACKS-MARKETS, ACKS-VEHICLES`
+  `styles/`; `lang/en.json` — flat i18n keys under root(s) `ACKS-CLASSES, ACKS-LIB, ACKS-ABILITIES, ACKS-EQUIPMENT, ACKS-FORMATION, ACKS-HENCHMEN, ACKS-INFLUENCE, ACKS-LOCATION, ACKS-MONSTERS, ACKS-MARKETS, ACKS-BATTLEMAP, ACKS-VEHICLES`
 - `packs/` — compiled LevelDB compendia. **Build output: gitignored, rebuilt
   by CI, shipped in module.zip.** Never committed, never hand-managed.
   Foundry cannot read `packs/_source` at runtime, so the compiled dirs must
@@ -118,7 +118,7 @@ release — cut a new patch.
 - Namespacing (validate-enforced): globals/custom hooks/HB helpers start with
   the camelCased module id; top-level pack `_id`s start with the
   `flags["acks-extras"].idPrefix` key; lang keys under root(s)
-  `ACKS-CLASSES, ACKS-LIB, ACKS-ABILITIES, ACKS-EQUIPMENT, ACKS-FORMATION, ACKS-HENCHMEN, ACKS-INFLUENCE, ACKS-LOCATION, ACKS-MONSTERS, ACKS-MARKETS, ACKS-VEHICLES`; CSS classes with `acks-extras-`.
+  `ACKS-CLASSES, ACKS-LIB, ACKS-ABILITIES, ACKS-EQUIPMENT, ACKS-FORMATION, ACKS-HENCHMEN, ACKS-INFLUENCE, ACKS-LOCATION, ACKS-MONSTERS, ACKS-MARKETS, ACKS-BATTLEMAP, ACKS-VEHICLES`; CSS classes with `acks-extras-`.
 - Design doctrine: **reuse → extend → enhance → invent** — reuse core system
   documents; extend only via `flags["acks-extras"]`; enhance with alternate
   sheets/wrappers; invent nothing the system provides.

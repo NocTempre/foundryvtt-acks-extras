@@ -7,6 +7,7 @@
  * ruling 1): everything in the store arrived via a GM's own-book import.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { countMaterializedDocs as countMaterialized, removeMaterializedDocs as removeMaterialized } from "./table-docs.mjs";
 
 const SETTING = "importedTables";
 
@@ -90,6 +91,20 @@ export const ruledataImport = {
     if (!game.user.isGM) throw new Error(`${MODULE_ID}: GM only`);
     const { materializeAll } = await import("./table-docs.mjs");
     return materializeAll();
+  },
+
+  /** Contract v1.3 (additive): how many world documents materialization has
+   *  created — the figure a remove-all confirm shows before deleting. */
+  countMaterializedDocs() {
+    return countMaterialized();
+  },
+
+  /** Contract v1.3 (additive): delete the materialized documents (tables,
+   *  folders, journal). Documents only — the imported table DATA in the world
+   *  store stays registered, and the next materialize rebuilds them. */
+  async removeMaterializedDocs() {
+    if (!game.user.isGM) throw new Error(`${MODULE_ID}: only a GM may remove rules-table documents`);
+    return removeMaterialized();
   },
 
   async removeDoc(docId, { priority } = {}) {

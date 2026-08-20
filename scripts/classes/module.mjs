@@ -41,6 +41,20 @@ import {
   registerChargen,
 } from "./chargen.mjs";
 import { registerChargenPage, METHODS, METHOD_SETTING } from "./stat-page.mjs";
+import {
+  materializeTemplates,
+  detachTemplatePackages,
+  templateContents,
+  expandTemplate,
+  buildGearData,
+  buildProfData,
+  buildPlaceholderAbility,
+  applyShortfall,
+  bestBaseMatch,
+  findSource,
+  resolveBaseDoc,
+  TEMPLATE_PART,
+} from "./template-packages.mjs";
 import { registerSheetTabs } from "./sheet-tabs.mjs";
 import { savesUpdateData, repairSaveReferences, BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
@@ -142,6 +156,32 @@ Hooks.once("init", () => {
     netBonusPicks,
     templateShortfall,
     resolveBase,
+    /**
+     * Template packages: a class's printed templates materialized as
+     * repairable bundle documents plus the generated 3d6 RollTable.
+     * `materializeTemplates(classItem, {stamp, folder, tableFolder})` is the
+     * seam acks-importer calls after creating or updating a class document.
+     */
+    templates: {
+      materializeTemplates,
+      // The way back: clears every row's package link (and optionally deletes
+      // the documents), so the class applies from its printed entries exactly
+      // as it did before packages existed.
+      detachTemplatePackages,
+      templateContents,
+      expandTemplate,
+      buildGearData,
+      buildProfData,
+      buildPlaceholderAbility,
+      applyShortfall,
+      bestBaseMatch,
+      // Resolution reaches the COMPENDIA as well as the world, because the
+      // importer can be configured to import into a pack — and a locked pack
+      // document is exactly what a Judge cannot repair, so it is copied in.
+      findSource,
+      resolveBaseDoc,
+      TEMPLATE_PART,
+    },
     casting,
     choiceOptions,
     savesUpdateData,

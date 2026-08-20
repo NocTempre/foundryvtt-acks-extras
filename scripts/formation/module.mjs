@@ -6,8 +6,10 @@ import {
   DEFAULT_ENCOUNTER_EVERY,
   DEFAULT_ENCOUNTER_TARGET,
   FLAG_FORMATION_ID,
+  MARCH_FEET_PER_BODY_DEFAULT,
   MODULE_ID,
   ROLES,
+  SETTING_MARCH_FEET,
   TRAP_ITEM_TYPE,
 } from "./constants.mjs";
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
@@ -94,7 +96,7 @@ import * as jumping from "./jumping.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
-import { syncEnvironments } from "./scene-sync.mjs";
+import { syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { addLight, advanceRounds, advanceTurns, onPartyTokenMoved, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
 
 /** Open the formation window. */
@@ -161,6 +163,17 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: false,
+  });
+
+  // Feeds faceWidthFeet(), which sizes the party token to the formation's
+  // real face at the scene's scale.
+  game.settings.register(MODULE_ID, SETTING_MARCH_FEET, {
+    name: "ACKS-FORMATION.settings.marchFeetPerBody.name",
+    hint: "ACKS-FORMATION.settings.marchFeetPerBody.hint",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: MARCH_FEET_PER_BODY_DEFAULT,
   });
 
   game.settings.register(MODULE_ID, "publicTurnCards", {
@@ -476,6 +489,17 @@ Hooks.on("deleteActor", (actor) => {
 /* -------------------------------------------- */
 /*  Party token movement → dungeon turns        */
 /* -------------------------------------------- */
+
+// The party token's size depends on its heading (width and height swap when
+// it turns), and core's tokenAutoRotate writes rotation on every drag — so a
+// turn must resync the size even when the clock has no interest in the move.
+Hooks.on("updateToken", (tokenDoc, changes) => {
+  if (!("rotation" in changes) && !("x" in changes) && !("y" in changes)) return;
+  const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
+  if (!formationId || !isPrimaryGM()) return;
+  const formation = getFormation(formationId);
+  if (formation) syncPartyTokenSize(formation).catch((err) => console.error(`${MODULE_ID} | party size sync failed`, err));
+});
 
 Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   if (!("x" in changes) && !("y" in changes)) return;

@@ -1,5 +1,58 @@
 # Changelog
 
+## 4.14.0
+
+### Added
+- **A map alignment and token scale assistant.** Open it from the token
+  controls (or the scene's configuration): drag boxes over the map's drawn
+  squares, click grid corners, or drag along its printed scale bar, and the
+  assistant best-fits the scene grid to the image — offset, cell size, and
+  what a square is worth, with the derived value shown for you to confirm or
+  round. Stretched scans fit each axis independently; crooked ones report
+  their skew and can be baked into a straightened copy of the image (your
+  original file is never touched). Applying the grid and rescaling tokens are
+  separate buttons: tokens size to their real footprint at the scene's scale —
+  monsters by their size category, everything else man-sized — with a hotbar
+  of footprint chips for the selected tokens and a reset back to defaults. A
+  calibrated scene sizes tokens as they are dropped; the output square is
+  yours to choose, so a wilderness sheet drawn at 100' a box can carry a 5'
+  combat grid.
+- **A class's starting templates become packages you can repair.** Each printed
+  template can be built as a container item holding the actual abilities and
+  gear it hands over, linked from a 3d6 roll table on the class. When an import
+  gets a piece wrong — a Wonderworker Messiah's staff arriving as plain
+  inventory instead of a weapon that can be wielded — open the package, fix that
+  one item, and every character generated from that template afterwards gets the
+  corrected version. Repairs survive re-importing: anything you have edited is
+  left alone and reported rather than rewritten. Packages draw from your
+  imported items without altering them, and **Detach all packages** on the class
+  sheet puts a class back to applying its printed entries exactly as before.
+
+### Changed
+- **The party token wears the formation's face.** Instead of staying pinned to
+  one square, it is now as wide as its marching frontage in feet — each body's
+  width is the new **March width per body** world setting — and as deep as its
+  ranks, at whatever scale the scene uses. Turn the column east and the token
+  turns with it. Set frontage on the party sheet as always.
+
+### Fixed
+- **Imported rules tables land readable, filed, and removable.** Materialized
+  roll tables are named for readers instead of raw dotted keys, filed under
+  per-source subfolders of "ACKS Imported Tables", survive being renamed or
+  refiled by a GM, and the importer's Remove All Imports can now sweep every
+  document materialization created — documents only, so the imported values
+  stay registered and a re-materialize rebuilds them without a re-import.
+- **Starting gear with a short name resolves to the real item again.** A
+  template naming a staff, mace, spear, sword or sling could never match the
+  item it meant — only names of six letters or more were ever considered — so
+  that piece arrived as an un-wieldable plain item however well it was imported.
+  Names now match exactly at any length, with shorter ones matched on word
+  boundaries so a "grimace" is never mistaken for a mace.
+- **Templates find what you imported into a compendium.** Where the importer was
+  pointed at a compendium rather than the world, a template's proficiencies and
+  base items could not be found at all. They are now resolved from your imports
+  either way — and copied into the world, where you can edit them.
+
 ## 4.13.1
 
 ### Fixed

@@ -49,6 +49,20 @@ Three small controls appear beside the class field:
   (ranks and selections included), the equipment — each piece named as
   printed over its base item's mechanics — the coin, and your Intellect
   bonus proficiency picks.
+
+  Each template can be a **package**: a bundle item holding the template's
+  actual abilities and gear as world documents, linked from a 3d6 roll table
+  on the class (the importer builds these; the class sheet's Templates tab
+  has a *Build packages* button for hand-made classes). If the import got a
+  piece wrong — a staff that landed as un-wieldable plain inventory instead
+  of a weapon — open the package, fix that one item, and every character
+  generated from the template afterwards gets the corrected version. Your
+  repairs survive re-imports.
+
+  ![](../releases/v4.14.0/classes.png)
+
+  *A class's Templates tab with its packages built: each band is a bundle of
+  real, repairable documents.*
 - **Rising arrow** (when XP qualifies) — the level-up wizard: HP rerolled per
   RAW (full Hit Dice, Constitution per die, never on the flat bonus past
   9th, minimum one over the old maximum — an additive house rule is a world
