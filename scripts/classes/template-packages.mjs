@@ -62,14 +62,49 @@ function wholeWordIn(candidateName, descriptor) {
 }
 
 /**
+ * Every way an imported item's name can be written.
+ *
+ * The books' own price list writes a name HEAD FIRST with its qualifier after
+ * a comma — "Rations, Iron", "Rope, 50’", "Saddle and tack, Riding" — while a
+ * template's printed descriptor writes the same thing as English: "1 week’s
+ * iron rations". A slash names one row by either word ("Waterskin/Wineskin").
+ * Both are conventions of the catalogue rather than facts about one entry, so
+ * both are read here by rule.
+ *
+ * This is what an already-imported world's REPAIR pass matches against: a
+ * document minted before its base existed carries only the printed descriptor,
+ * so it is re-matched by name alone with no ref to help it.
+ */
+function nameVariants(raw) {
+  const out = [];
+  const add = (t) => {
+    const v = String(t).replace(/\s+/g, " ").trim();
+    if (v && !out.includes(v)) out.push(v);
+  };
+  for (const base of [raw, raw.replace(/\([^)]*\)/g, " ")]) {
+    const segments = String(base).split(",").map((x) => x.trim()).filter(Boolean);
+    for (const form of segments.length > 1 ? [base, [...segments].reverse().join(" ")] : [base]) {
+      let combos = [[]];
+      for (const options of String(form).trim().split(/\s+/).map((w) => w.split("/"))) {
+        combos = combos.flatMap((prefix) => options.map((o) => [...prefix, o]));
+        if (combos.length > 8) break;
+      }
+      for (const c of combos) add(c.join(" "));
+    }
+  }
+  return out;
+}
+
+/**
  * The best base candidate a printed descriptor names, from a candidate list
  * (`{name}` objects). An exact folded match wins at any length; containment
  * requires a folded length of 6, or 4–5 as a whole word of the raw descriptor
  * — never a bare substring, which is how "mace" used to find nothing and
- * "grimace" would find too much. The paren-stripped candidate name is tried
- * too: an embellished instance contains "spellbook", never "(blank)".
+ * "grimace" would find too much. Every variant of the candidate's name is
+ * tried (`nameVariants`), including its paren-stripped form: an embellished
+ * instance contains "spellbook", never "(blank)".
  *
- * ACKS Importer applies the same rule when it resolves a printed descriptor
+ * ACKS Importer applies the same rules when it resolves a printed descriptor
  * against the equipment menu (`parseEquipment` in its `cookbook.mjs`); the two
  * must agree, or a descriptor points at one base and skins itself over another.
  */
@@ -80,7 +115,7 @@ export function bestBaseMatch(name, candidates) {
   let bestScore = 0;
   for (const candidate of candidates) {
     const raw = String(candidate?.name ?? "");
-    for (const variant of [raw, raw.replace(/\([^)]*\)/g, " ")]) {
+    for (const variant of nameVariants(raw)) {
       const nf = fold(variant);
       if (!nf) continue;
       let score = 0;

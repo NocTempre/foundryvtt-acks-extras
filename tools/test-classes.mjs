@@ -663,6 +663,18 @@ test("descriptor within a base descriptor resolves the staff skin", () => {
   assert.equal(bestBaseMatch("Staff tipped with glass gemstone", world), world[0]);
 });
 
+test("the catalogue's head-first naming meets the cell's English", () => {
+  // The price list writes "Rations, Iron" and "Saddle and tack, Riding"; the
+  // template's cell writes "1 week's iron rations". Read only as printed, the
+  // repair pass could never re-match a document minted before its base landed.
+  const world = [{ name: "Rations, Iron" }, { name: "Saddle and tack, Riding" }, { name: "Waterskin/Wineskin" }];
+  assert.equal(bestBaseMatch("1 week’s iron rations", world), world[0]);
+  assert.equal(bestBaseMatch("riding saddle and tack", world), world[1]);
+  // A slash names one row by either word.
+  assert.equal(bestBaseMatch("moldy waterskin", world), world[2]);
+  assert.equal(bestBaseMatch("wineskin", world), world[2]);
+});
+
 test("a plural cell names the singular base", () => {
   // A cell prints what the character carries, not what the catalogue calls it:
   // "torches" and "darts" are the Torch and the Dart the world holds. Read as

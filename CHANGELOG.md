@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.14.2
+
+### Fixed
+- **A base is found by the words the page uses for it.** The books' own price
+  list writes a name head-first with its qualifier after a comma — "Rations,
+  Iron", "Saddle and tack, Riding" — while a template describes the same thing
+  as English, and a slash names one row by either word ("Waterskin/Wineskin").
+  Rebuilding a package reads each piece by its printed description alone, with
+  no import reference to help it, so until now it could not put those two
+  spellings together: rations, rope and waterskins came back as inventory with
+  nothing behind them.
+
 ## 4.14.1
 
 ### Fixed

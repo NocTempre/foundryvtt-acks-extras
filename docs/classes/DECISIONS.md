@@ -28,6 +28,22 @@ strips it, because what the copy IS is already recorded on its own `skin` flag.
 That fixes it at the source; the `findByRef` guard covers the worlds already
 holding mis-stamped copies.
 
+## 2026-08-21 — the catalogue's naming conventions are read here too
+
+**Evidence:** the repair pass (`upgradeUnresolved`) re-matches a bare document
+by its printed DESCRIPTOR alone — no ref survives on it — so it is the one path
+that depends entirely on `bestBaseMatch`. Against a world's imported items it
+could not find "1 week's iron rations", because the price list calls that row
+"Rations, Iron".
+
+**Ruled:** every candidate name is matched in each form its own catalogue
+prints it in — the comma rotated back, slash alternatives expanded
+("Waterskin/Wineskin") — the same rules ACKS Importer applies when it resolves
+a descriptor against the equipment menu, and pinned to it by comment in both
+files. The head of a qualified name is deliberately not a form: "Sandals/Shoes,
+Leather, High" must not answer for a bare "sandals", which is another row's own
+name.
+
 ## 2026-08-21 — a short base name is a whole word, and a plural is part of it
 
 **Evidence:** the same audit. "Torches" (21 documents), "Darts" and "Swords"
