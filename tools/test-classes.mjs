@@ -687,6 +687,12 @@ test("a plural cell names the singular base", () => {
   assert.equal(bestBaseMatch("Swordfish steaks", world), null);
 });
 
+test("templateItemName keeps a bracketed price out of nothing it owns", () => {
+  // The price rides its own field; the NAME is still what the page printed,
+  // brackets and all, because that is what the reader will look for.
+  assert.equal(templateItemName({ name: "silver amulet (50gp value)", qty: 1 }), "Silver amulet (50gp value)");
+});
+
 test("the embellishment is the descriptor minus the base", () => {
   assert.equal(parseEmbellishment("Crudely-crafted shortbow", "Short Bow"), "Crudely-crafted");
   assert.equal(parseEmbellishment("Staff tipped with glass gemstone", "Staff"), "tipped with glass gemstone");

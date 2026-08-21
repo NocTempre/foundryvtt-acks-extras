@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.14.3
+
+### Fixed
+- **A piece of starting gear keeps the price its page printed for it.** The
+  templates name a good deal of gear the shop list has no row for — a
+  bladedancer's head dress, a silver amulet, an ornamental crystal ball — and
+  price it where they name it. That value now arrives on the item, and it wins
+  over a catalogue base's own price where there is one: a staff the page
+  describes as worth 45gp is worth 45gp, not what a plain staff costs. Repairing
+  a package carries the printed price across instead of replacing it with the
+  base's.
+
 ## 4.14.2
 
 ### Fixed

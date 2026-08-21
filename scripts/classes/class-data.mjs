@@ -139,6 +139,12 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         qty: int(1, { min: 1 }),
         skinName: str(), // display name for the skinned copy ("" = use `name`)
         note: str(),
+        // What the page says THIS piece is worth, in gold, where the cell
+        // prices it in brackets ("bladedancer's head dress (20gp value)").
+        // Most of what carries one has no catalogue row at all — the cell
+        // prices it precisely because the shop list does not — so this is the
+        // only value the item will ever have. Zero means the cell said nothing.
+        cost: num({ min: 0 }),
         choice: choiceSpecField(),
       });
 

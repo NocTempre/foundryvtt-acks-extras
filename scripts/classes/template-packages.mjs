@@ -375,6 +375,10 @@ export async function buildGearData(entry, { exclude = [] } = {}) {
     delete data.flags?.["acks-importer"];
     data.name = skinName;
     foundry.utils.setProperty(data, "system.quantity.value", entry.qty || 1);
+    // A PRICE THE PAGE STATES ABOUT THIS PIECE OUTRANKS THE BASE'S. The cell
+    // that says a staff is worth 45gp is describing the gemstone on this one,
+    // not the shop list's plain staff.
+    if (entry.cost > 0) foundry.utils.setProperty(data, "system.cost", entry.cost);
     const embellishment = parseEmbellishment(entry.name, base.name);
     data.flags = {
       ...(data.flags ?? {}),
@@ -392,6 +396,12 @@ export async function buildGearData(entry, { exclude = [] } = {}) {
   }
   const klass = equipmentClass(entry.name) ?? equipmentClass(skinName);
   const skinFlags = { [MODULE_ID]: { skin: { base: null, descriptor: entry.name } } };
+  // WHAT THE PAGE DID SAY, EVEN WHEN NOTHING ANSWERS FOR WHAT IT IS. Most of
+  // the gear that reaches this point is priced in the cell and nowhere else —
+  // a bladedancer's head dress, a silver amulet, a crystal ball — because the
+  // shop list has no row for it. Dropping the one number the page gave would
+  // hand the Judge an item to repair with nothing to repair it from.
+  const priced = entry.cost > 0 ? { cost: entry.cost } : {};
   if (klass) {
     const system =
       klass.type === ITEM_TYPE.weapon
@@ -400,12 +410,18 @@ export async function buildGearData(entry, { exclude = [] } = {}) {
             melee: klass.melee ?? true,
             missile: klass.missile ?? false,
             bonus: 0,
+            ...priced,
           }
-        : { quantity: { value: entry.qty || 1, max: 0 } };
+        : { quantity: { value: entry.qty || 1, max: 0 }, ...priced };
     return { data: { name: skinName, type: klass.type, system, flags: skinFlags }, resolution: "root" };
   }
   return {
-    data: { name: skinName, type: ITEM_TYPE.item, system: { quantity: { value: entry.qty || 1, max: 0 } }, flags: skinFlags },
+    data: {
+      name: skinName,
+      type: ITEM_TYPE.item,
+      system: { quantity: { value: entry.qty || 1, max: 0 }, ...priced },
+      flags: skinFlags,
+    },
     resolution: "bare",
   };
 }
@@ -816,7 +832,15 @@ export async function materializeTemplates(
       let replacement = { doc: null, world: false };
       if (part.kind === "gear") {
         const built = await buildGearData(
-          { name: doc.flags?.[MODULE_ID]?.skin?.descriptor ?? doc.name, skinName: doc.name, qty: 1 },
+          {
+            name: doc.flags?.[MODULE_ID]?.skin?.descriptor ?? doc.name,
+            skinName: doc.name,
+            qty: 1,
+            // The placeholder holds the one number the page gave for it; a
+            // replacement built from a base would otherwise arrive priced as
+            // the shop list's plain version of the thing.
+            cost: doc.system?.cost ?? 0,
+          },
           { exclude },
         );
         if (built.resolution !== "bare") fresh = built.data;

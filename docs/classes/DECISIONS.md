@@ -28,6 +28,20 @@ strips it, because what the copy IS is already recorded on its own `skin` flag.
 That fixes it at the source; the `findByRef` guard covers the worlds already
 holding mis-stamped copies.
 
+## 2026-08-21 — a template item carries the price its page printed for it
+
+**Evidence:** of the printed descriptors that resolve to no catalogue row at
+all — correctly, because the shop list has no entry for them — 18 are PRICED in
+the cell that names them. The gear arrived with that number dropped, so the one
+value the page ever gave the item was gone.
+
+**Ruled:** `templateItem` gains a `cost`, and `buildGearData` writes it to
+`system.cost` on every path — over a base's own price where there is a base,
+because a cell that prices a staff at 45gp is describing the gemstone on that
+one. `upgradeUnresolved` carries it across a repair rather than letting a
+replacement built from a base arrive priced as the plain version. The number
+comes off the reader's page through acks-importer, like every other value.
+
 ## 2026-08-21 — the catalogue's naming conventions are read here too
 
 **Evidence:** the repair pass (`upgradeUnresolved`) re-matches a bare document
