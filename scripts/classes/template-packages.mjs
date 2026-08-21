@@ -25,7 +25,7 @@
  * would replace one compares the live document against it first, and an
  * edited document is skipped and reported, never clobbered.
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
@@ -34,9 +34,10 @@ import { equipmentClass } from "../equipment/profiles.mjs";
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Flag key (under `flags["acks-extras"]`) naming what a document is a part
- *  of: `{classUuid, classKey, kind: "bundle"|"gear"|"table", band?, unresolved?}`. */
-export const TEMPLATE_PART = "templatePart";
+/** Flag key (under `flags["acks-extras"]`) naming what a document is a part of.
+ *  Stated in `constants.mjs`, where every lookup that must tell a class's own
+ *  copy from the definition it copied can reach it without importing this file. */
+export const TEMPLATE_PART = FLAG_TEMPLATE_PART;
 
 const partOf = (doc) => doc?.flags?.[MODULE_ID]?.[TEMPLATE_PART] ?? null;
 
@@ -47,13 +48,30 @@ const loc = (key, data) => game.i18n?.format?.(`${LANG_PREFIX}.${key}`, data) ??
 /* ------------------------------------------------------------------ */
 
 /**
+ * Is the candidate name a whole WORD of the printed descriptor?
+ *
+ * The escape hatch that lets a short base name be found at all. A trailing
+ * plural belongs to the word: a cell printing "torches" or "darts" names the
+ * Torch and the Dart the world holds, and reading them as unknown gear left a
+ * character carrying a bundle of sticks with no damage on it. Seams inside a
+ * multi-word name are `\s*`, because real extraction welds words together.
+ */
+function wholeWordIn(candidateName, descriptor) {
+  const body = String(candidateName).trim().split(/\s+/).map(escapeRe).join("\\s*");
+  return !!body && new RegExp(`(^|[^a-z0-9])${body}(?:e?s)?([^a-z0-9]|$)`, "i").test(descriptor);
+}
+
+/**
  * The best base candidate a printed descriptor names, from a candidate list
  * (`{name}` objects). An exact folded match wins at any length; containment
- * requires a folded length of 6, or 4–5 with a word-boundary hit in the raw
- * descriptor — never a bare substring, which is how "mace" used to find
- * nothing and "grimace" would find too much. The paren-stripped candidate
- * name is tried too: an embellished instance contains "spellbook", never
- * "(blank)".
+ * requires a folded length of 6, or 4–5 as a whole word of the raw descriptor
+ * — never a bare substring, which is how "mace" used to find nothing and
+ * "grimace" would find too much. The paren-stripped candidate name is tried
+ * too: an embellished instance contains "spellbook", never "(blank)".
+ *
+ * ACKS Importer applies the same rule when it resolves a printed descriptor
+ * against the equipment menu (`parseEquipment` in its `cookbook.mjs`); the two
+ * must agree, or a descriptor points at one base and skins itself over another.
  */
 export function bestBaseMatch(name, candidates) {
   const f = fold(name);
@@ -69,9 +87,7 @@ export function bestBaseMatch(name, candidates) {
       if (nf === f) score = nf.length + 1000;
       else if (f.includes(nf)) {
         if (nf.length >= 6) score = nf.length;
-        else if (nf.length >= 4 && new RegExp(`(^|[^a-z0-9])${escapeRe(variant.trim())}([^a-z0-9]|$)`, "i").test(name)) {
-          score = nf.length;
-        }
+        else if (nf.length >= 4 && wholeWordIn(variant, name)) score = nf.length;
       }
       if (score > bestScore) {
         best = candidate;
@@ -316,6 +332,12 @@ export async function buildGearData(entry, { exclude = [] } = {}) {
     delete data.folder;
     delete data.sort;
     delete data.ownership;
+    // A SKIN IS NOT THE IMPORT IT COPIES. `toObject` brings the base's whole
+    // flag set with it, importer stamp included, so an unstripped skin
+    // advertises itself as the definition and answers ref lookups meant for
+    // the base — one template's "aged and dusty staff" standing in for Staff.
+    // What this copy is is recorded on its own `skin` flag below.
+    delete data.flags?.["acks-importer"];
     data.name = skinName;
     foundry.utils.setProperty(data, "system.quantity.value", entry.qty || 1);
     const embellishment = parseEmbellishment(entry.name, base.name);

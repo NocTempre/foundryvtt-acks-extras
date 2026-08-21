@@ -1,5 +1,36 @@
 # Changelog
 
+## 4.14.1
+
+### Fixed
+- **A template's gear is what the page names it, not the first thing that
+  shares a few letters with it.** A starting sword arrived on the character
+  sheet as plain inventory rather than a weapon, and it was not alone: the
+  match that finds a base item behind a printed description could not see a
+  name of four or five letters unless the description ended exactly where the
+  name did. Torches, darts and swords — printed in the plural, as a character
+  carries them — matched nothing at all and came through as trinkets with no
+  damage on them. A short name is now found as a whole word of the
+  description, plural included, while a name buried inside a longer word still
+  matches nothing: a mace is not found in a grimace.
+- **A class's own copy of an item never stands in for the item itself.**
+  A package skins its gear by copying the base document, and the copy came
+  away carrying the base's identity — so a world could hold a dozen documents
+  all claiming to be the Staff, and a lookup for the Staff could answer with
+  one template's "aged and dusty staff". The next template then skinned itself
+  over *that*, and the drift compounded. A skin now keeps only its own record
+  of what it is a skin of, and a lookup for a definition passes over every
+  package part on its way to the real one. Worlds that already hold
+  mis-stamped copies are covered by the second half of that on sight; nothing
+  needs deleting.
+
+Both fixes reach an existing world through **Build packages** on a class's
+Templates tab (or the importer's *Build Class Template Packages* macro), which
+retypes gear that came through as bare inventory and leaves anything you have
+edited alone. A package whose gear was welded together by the older import —
+one item named for two weapons — is not repaired by that pass: detach that
+class's packages, delete the welded documents, and build again.
+
 ## 4.14.0
 
 ### Added

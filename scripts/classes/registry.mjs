@@ -15,7 +15,7 @@
  */
 import { registerTable, unregisterTable, PRIORITY, bracketRow, getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
 import { resolveLevelValue as libResolveLevelValue, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
-import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, MODULE_ID } from "./constants.mjs";
+import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, FLAG_TEMPLATE_PART, MODULE_ID } from "./constants.mjs";
 
 /** Every class Item in the world directory. */
 export function classItems() {
@@ -79,6 +79,17 @@ export function classForActor(actor) {
  * Resolve an ability/equipment ref to a world Item: a cookbook id matches the
  * importer's stamp (`flags["acks-importer"].cookbook.id`), a `uuid:` ref
  * resolves directly. Null when nothing in this world carries the ref.
+ *
+ * A CLASS'S OWN COPY NEVER ANSWERS FOR THE DEFINITION IT COPIED. A template
+ * package skins its gear and specializes its proficiencies by copying, and a
+ * copy carries the original's flags — so a world holds many documents stamped
+ * `def.weapon.staff`, only one of which is the Staff. Answered with the copy,
+ * a lookup for the base returned one template's "aged and dusty staff", and
+ * the next template skinned itself over that. A part is identified by its own
+ * flag, never by name, so a Judge who renames one loses nothing.
+ *
+ * A `uuid:` ref is left alone: it names one document on purpose, and a bundle
+ * row that points at a part is asking for that part.
  */
 export function findByRef(ref) {
   if (!ref) return null;
@@ -86,7 +97,11 @@ export function findByRef(ref) {
     const doc = fromUuidSync(ref.slice(5));
     return doc ?? null;
   }
-  return game.items?.find((i) => i.flags?.["acks-importer"]?.cookbook?.id === ref) ?? null;
+  return (
+    game.items?.find(
+      (i) => i.flags?.["acks-importer"]?.cookbook?.id === ref && !i.flags?.[MODULE_ID]?.[FLAG_TEMPLATE_PART],
+    ) ?? null
+  );
 }
 
 /* ------------------------------------------------------------------ */

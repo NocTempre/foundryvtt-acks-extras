@@ -114,6 +114,43 @@ gear the world does not hold. A disposable character.
 8. Core's own path: drag a bundle from the sidebar onto the character sheet.
    *Observable:* contents arrive via core's bundle-drop.
 
+### Base-vs-descriptor resolution (the whole point of a skin)
+
+Build ONE disposable class whose single row prints the shapes that have gone
+wrong, and assert the TYPE of each resulting document — a mis-typed weapon
+looks fine until someone tries to swing it.
+
+| Printed descriptor | Entry `ref` | Expect |
+|---|---|---|
+| `polished sword` | `def.weapon.sword` | `weapon`, base `Sword` |
+| `Torches` ×6 | `def.equip.torch` | `item` (a carried stack), base `Torch` |
+| `war hammer carved with clan emblem` | `def.weapon.warhammer` | `weapon`, base `Warhammer` — NOT the carpentry `Hammer (small)` |
+| `Feathered darts` ×5 | *(none)* | `weapon`, base `Dart` — resolved by name, plural |
+| `Weighted net` | *(none)* | bare `item`, `unresolved: true`, named in `report.unresolved` |
+
+*Also observable on every one of them:* `flags["acks-importer"]` is absent. A
+skin that keeps the base's importer stamp answers ref lookups meant for the
+base.
+
+9. **The importer half, without a book connected.** `parseEquipment` is
+   exported, so the split can be driven directly:
+   `const m = await import("/modules/acks-importer/scripts/cookbook.mjs")`,
+   then build a menu row `{name, ref, fold, foldStripped}` per imported gear
+   item (`flags["acks-importer"].cookbook.id`, types weapon/armor/item,
+   template parts excluded, sorted by name length descending) and call
+   `m.parseEquipment(cell, menu, {})`.
+   *Observable:* `polished sword and dagger` → TWO items, `def.weapon.sword`
+   and `def.weapon.dagger`; `wool tunic and pants` → ONE
+   (`def.equip.tunicAndPants`); `Torches` → `def.equip.torch`.
+10. **The field-repair path**, which is what an already-broken world runs.
+   Create a bare `item` named for the descriptor, flagged
+   `templatePart.unresolved`, with `asImported` set from its own `toObject()`
+   (name/type/system — otherwise `editedSinceImport` reads it as hand-edited
+   and skips it); point a bundle row at it and delete the document it
+   displaced. Re-run `materializeTemplates`.
+   *Observable:* `report.created` names `<descriptor> (resolved)`, the bundle
+   row now points at a `weapon`, and the bare item is gone.
+
 ## Teardown
 
 Delete the character, the class item and the race item; for template

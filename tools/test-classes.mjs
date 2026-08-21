@@ -663,6 +663,18 @@ test("descriptor within a base descriptor resolves the staff skin", () => {
   assert.equal(bestBaseMatch("Staff tipped with glass gemstone", world), world[0]);
 });
 
+test("a plural cell names the singular base", () => {
+  // A cell prints what the character carries, not what the catalogue calls it:
+  // "torches" and "darts" are the Torch and the Dart the world holds. Read as
+  // unknown gear they arrived as trinkets with no damage on them.
+  const world = [{ name: "Torch" }, { name: "Dart" }, { name: "Sword" }];
+  assert.equal(bestBaseMatch("Torches", world), world[0]);
+  assert.equal(bestBaseMatch("Feathered darts", world), world[1]);
+  assert.equal(bestBaseMatch("Pair of gracefully curved swords", world), world[2]);
+  // The whole-word rule still holds either side of the plural.
+  assert.equal(bestBaseMatch("Swordfish steaks", world), null);
+});
+
 test("the embellishment is the descriptor minus the base", () => {
   assert.equal(parseEmbellishment("Crudely-crafted shortbow", "Short Bow"), "Crudely-crafted");
   assert.equal(parseEmbellishment("Staff tipped with glass gemstone", "Staff"), "tipped with glass gemstone");

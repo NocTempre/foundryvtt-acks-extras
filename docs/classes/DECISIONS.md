@@ -3,6 +3,46 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-21 — a ref answers with the definition, never a class's own copy of it
+
+**New evidence** (a third cause under yesterday's entry below, which found two).
+A field report showed a template's "Polished sword" on a character sheet as a
+plain `item`. The world audit behind it found something the two known causes do
+not explain: **1277 of 1624 materialized gear documents carried the importer's
+own `cookbook.id`**, inherited wholesale by `toObject()` from the base they
+skin. `findByRef` answers with the first document carrying a ref, so a lookup
+for `def.weapon.staff` could return one template's *aged and dusty staff*, and
+the next template would skin itself over that — a cosmetic copy standing in as
+the base item, and the same hazard for every other `findByRef` consumer in this
+subsystem (grants, languages, the class sheet).
+
+**Ruled:** a document carrying `flags["acks-extras"].templatePart` never answers
+a cookbook-id lookup. Identity is the flag, never the name, so a Judge who
+renames a part loses nothing; a `uuid:` ref is left alone, because it names one
+document on purpose and a bundle row pointing at a part is asking for that part.
+The flag key moves to `constants.mjs` (`FLAG_TEMPLATE_PART`) so `registry.mjs`
+can read it without importing `template-packages.mjs` back.
+
+**Ruled:** a skin does not carry the importer's claim at all — `buildGearData`
+strips it, because what the copy IS is already recorded on its own `skin` flag.
+That fixes it at the source; the `findByRef` guard covers the worlds already
+holding mis-stamped copies.
+
+## 2026-08-21 — a short base name is a whole word, and a plural is part of it
+
+**Evidence:** the same audit. "Torches" (21 documents), "Darts" and "Swords"
+resolved to nothing and arrived as trinkets with no damage on them, because
+`bestBaseMatch`'s word-boundary escape for 4–5 letter names required the base to
+end where the descriptor's word ends.
+
+**Ruled:** the word-boundary test accepts a trailing plural (`(?:e?s)?`) — a
+cell prints what the character carries, not what the catalogue calls it. Seams
+inside a multi-word name are `\s*`, never `\s+`: real extraction welds words
+together. ACKS Importer applies the same rule when it resolves a printed
+descriptor against its equipment menu; the two are pinned to each other by
+comment in both files, because a descriptor that resolves to one base there and
+skins itself over another one here is exactly the confusion this fixes.
+
 ## 2026-08-20 — a package resolves through the IMPORTS, and mints what it cannot find
 
 **New evidence** (amending yesterday's entry below, which rejected placeholder
