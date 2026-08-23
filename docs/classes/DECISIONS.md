@@ -3,6 +3,27 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-22 — a class's training is copied to the character, because transfer cannot reach one
+
+**Evidence.** A Mage wearing full plate reported as proficient with it, and no
+character has ever been untrained with a weapon or a fighting style. The class
+document carried the right effect all along — `armourProficiency=unarmored`,
+`weaponProf=club,dagger,dart,staff` — with `transfer: true` on it, which does
+nothing here: a character does not OWN the class document. The class is recorded
+as a name and a ledger flag while the world item stays in the directory, so the
+effect sat where nothing read it, for every class in every world.
+
+**Ruled:** `applyClass` copies the class's effects onto the ACTOR, stamped
+`flags["acks-extras"].fromClass`. Copies, not links — a character's proficiency
+is theirs, and editing a class afterwards must not silently retrain everyone who
+ever took it; re-applying is how a Judge asks for that. The stamp is what a
+re-apply deletes, so applying a second class removes the first one's training
+instead of leaving a character trained by both, and a Judge's own effects are
+never touched.
+
+A class stating no training writes nothing, and the character stays
+unrestricted — which is what an unstated training means.
+
 ## 2026-08-22 — a class's mutually exclusive options are PATHS, and a starting template is one
 
 **Evidence.** The Barbarian's combat training does not exist as a sentence. Its

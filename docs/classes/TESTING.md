@@ -151,6 +151,27 @@ base.
    *Observable:* `report.created` names `<descriptor> (resolved)`, the bundle
    row now points at a `weapon`, and the bare item is gone.
 
+### Combat training reaches the CHARACTER, not just the class
+
+The class document has always carried the training as an ActiveEffect. Asserting
+that the effect exists proves nothing — `transfer: true` cannot fire, because a
+character does not own the class document. Assert on the ACTOR.
+
+1. Apply a class that RESTRICTS. A Mage is the sharp case: `armourProficiency`
+   `unarmored`, `weaponProf` `club,dagger,dart,staff`.
+   *Observable:* `actor.effects` holds exactly ONE effect flagged
+   `flags["acks-extras"].fromClass`; its changes carry the three keys.
+2. Equip Plate Armor on that Mage and read the loadout.
+   *Observable:* `getLoadout(actor).armorProficient === false` and the
+   violations include `armorNotProficient`. A Fighter in the same plate is
+   `true`. If BOTH are true the effect never reached the actor — which is the
+   defect this step exists to catch, and it stood in every version through
+   4.14.4.
+3. Apply a second class over the first, then a third.
+   *Observable:* still exactly one `fromClass` effect — a re-apply replaces
+   rather than stacks, and a change of class removes the previous class's
+   training rather than leaving a character trained by both.
+
 ## Teardown
 
 Delete the character, the class item and the race item; for template

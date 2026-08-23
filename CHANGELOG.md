@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.15.0
+
+### Fixed
+- **A class's combat training reaches the character who took it.** Every class
+  states what it is trained to fight with — which weapons, how heavy an armour,
+  which fighting styles — and that statement has never left the class document.
+  A Mage in full plate reported as proficient with it; no character has ever
+  been untrained with a weapon or a fighting style, whatever their class said.
+  The training now arrives on the character when the class is applied, so a
+  Mage in plate is out of their depth, a Thief is held to leather, and a
+  Fighter is not held to anything. Applying a second class removes the first
+  one's training rather than leaving a character trained by both, and re-
+  applying the same class replaces what it wrote before instead of stacking it.
+  A class that states no training still writes nothing, and that character stays
+  unrestricted.
+  *Characters already made keep whatever they have until their class is applied
+  again — the class picker, the level-up wizard and chargen all do it.*
+
+## 4.14.4
 ## 4.14.4
 
 ### Fixed

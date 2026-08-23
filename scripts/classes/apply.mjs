@@ -125,6 +125,47 @@ const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
  *   for it, or `picks.ANSWERED` for a rung the character already satisfies
  * @returns {Promise<{applied: boolean, update?: object, missing?: string[], grants?: object[]}>}
  */
+/**
+ * Carry the class's COMBAT TRAINING onto the character.
+ *
+ * A class document states what it is trained to fight with as an ActiveEffect
+ * — `weaponProf`, `armourProficiency`, `styleProficient` — and `transfer: true`
+ * on it means nothing here, because a character does not OWN the class
+ * document: the class is recorded as a name and a ledger flag, and the world
+ * item stays in the directory. So the effect sat on a document nothing read,
+ * and every character was unrestricted: a Mage in full plate reported as
+ * proficient with it, and no weapon or fighting style was ever untrained.
+ *
+ * The effect is copied onto the ACTOR, stamped with the class it came from so
+ * a re-apply — or a change of class — removes exactly what a previous apply
+ * put there and nothing a Judge added by hand. Copies rather than links,
+ * because the character's proficiency is theirs: editing the class afterwards
+ * should not silently retrain everyone who ever took it, and re-applying is
+ * how a Judge asks for that.
+ *
+ * Nothing is written for a class stating no training; the character is left
+ * unrestricted, which is what an unstated training means.
+ */
+export async function syncClassTraining(actor, classItem) {
+  if (!actor) return [];
+  const mine = actor.effects.filter((e) => e.getFlag?.(MODULE_ID, "fromClass"));
+  if (mine.length) await actor.deleteEmbeddedDocuments("ActiveEffect", mine.map((e) => e.id));
+  const source = (classItem?.effects ?? []).filter((e) => (e.changes ?? []).length);
+  if (!source.length) return [];
+  const data = source.map((e) => {
+    const raw = e.toObject();
+    delete raw._id;
+    raw.transfer = false;
+    raw.disabled = false;
+    raw.flags = foundry.utils.mergeObject(raw.flags ?? {}, {
+      [MODULE_ID]: { fromClass: classItem.uuid },
+    });
+    return raw;
+  });
+  const made = await actor.createEmbeddedDocuments("ActiveEffect", data);
+  return made ?? [];
+}
+
 export async function applyClass(
   actor,
   classItem,
@@ -314,6 +355,7 @@ export async function applyClass(
       ...(closed.length || grantAwards ? { awardsTaken: [...new Set([...takenAlready, ...closed])] } : {}),
     },
   });
+  await syncClassTraining(actor, classItem);
   if (missing.length) {
     ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.missing`, { parts: missing.join(", ") }));
   }
