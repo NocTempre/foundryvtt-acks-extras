@@ -172,6 +172,28 @@ character does not own the class document. Assert on the ACTOR.
    rather than stacks, and a change of class removes the previous class's
    training rather than leaving a character trained by both.
 
+### Where the difference is VISIBLE (unfinished — read before shooting it)
+
+4.15.1 owed a release snapshot for the training fix and did not get one, because
+nothing found renders the difference on the character sheet. What was
+established, so the next attempt starts here rather than repeating it:
+
+- The violations are real and computed. A Mage in Plate Armor holding a Sword
+  reports `weaponNotProficient`, `armorNotProficient`, `nonProficientUse` — none
+  of which existed before 4.15.1.
+- `proficiencyEnforcement` is `"on"` in the test world, so display is NOT gated
+  behind a setting.
+- The Worn & Wielded panel shows only the STYLE note
+  (`ACKS-EQUIPMENT.wear.untrained`), and only when the active style is untrained.
+  A Mage is trained two-handed, so a Mage with a sword shows nothing there — the
+  panel is the wrong surface for this entry whatever the fixture.
+- The armour and weapon notes are composed for the ATTACK ROLL
+  (`equipment/roll-wrap.mjs`, "armour unusable by class"). That is the surface to
+  shoot.
+- `item.rollWeapon()` exists but posted no message when driven headlessly
+  (`game.messages.size` stayed 0), which is consistent with it opening an attack
+  dialog that nothing submitted. Driving that dialog is the unsolved step.
+
 ## Teardown
 
 Delete the character, the class item and the race item; for template
