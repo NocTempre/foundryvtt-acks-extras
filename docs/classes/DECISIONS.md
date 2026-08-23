@@ -3,6 +3,42 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-22 — a class's mutually exclusive options are PATHS, and a starting template is one
+
+**Evidence.** The Barbarian's combat training does not exist as a sentence. Its
+spread prints a grid — Region | Armor Proficiencies | Weapon Proficiencies, with
+a row per region — so the class has no single answer to "what armour may it
+wear", and the twelve-class training audit could never have fixed it by reading
+prose harder. The Zaharan's dark paths and the dwarven castes have the same
+shape, and the template schema has been half-recording it all along: a row
+carries an `annotation` ("Jutland") and a `caste`, with nothing reading either.
+
+**Ruled (user):** the concept is generalized rather than special-cased. A class
+carries **paths** — named groups of MUTUALLY EXCLUSIVE options — and a group's
+option may differ in anything the class states per option, training first.
+Starting templates become one such group rather than a parallel mechanism.
+
+    system.paths: [{ key: "region", label: "Region", options: [{ key: "jutland", … }] }]
+
+**Ruled (user): the word is "paths", not "variants".** `acks-extras.variation`
+already means an EQUIPMENT difference — a sword's qualities — and the docs
+doctrine allows one feature-slug vocabulary and no synonyms. Two meanings of
+"variant" in one module is the collision that rule exists to prevent, and the
+books' own "dark path" language makes `path` the natural word for the rest.
+
+**Ruled (user): templates join the group BY REFERENCE, and are not moved.** A
+world that upgrades keeps `system.templates[]`, its bundle documents and its 3d6
+RollTable exactly where 4.14.0 put them; the group points at that array rather
+than absorbing it. Nothing is rewritten, so there is nothing for an existing
+world to survive — which is the right trade for a feature four versions old,
+where the alternative is a migration standing between a player and their
+starting kit. Fully folding templates into the group is recorded in ROADMAP as
+the later move, deliberately not taken now.
+
+**Not a chooser of its own.** `lib/choice-spec.mjs` is already the family's one
+"choose N from …" primitive and every pick reduces to it; a path group is that
+shape at class scope, not a second one.
+
 ## 2026-08-21 — a ref answers with the definition, never a class's own copy of it
 
 **New evidence** (a third cause under yesterday's entry below, which found two).

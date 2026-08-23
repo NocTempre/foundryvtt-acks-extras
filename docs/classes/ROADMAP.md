@@ -3,6 +3,26 @@
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
+## Starting templates, folded into the path group rather than pointed at
+
+Templates became one of a class's PATH groups by REFERENCE (2026-08-22,
+DECISIONS): `system.paths` names the group and points at `system.templates[]`,
+which stays exactly where 4.14.0 put it, bundles and RollTable included. That was
+the deliberate choice — a world four versions deep in this data should not have
+to survive a rewrite to gain a selector, and a migration standing between a
+player and their starting kit is the one this family least wants to run.
+
+The cost is two shapes for one idea: every consumer that walks a group has a
+branch for "this group's options live somewhere else", and a template row's
+`annotation` carries a path option's identity in a string field that knows
+nothing about it.
+
+Folding them in properly means moving the eight rows inside the group, and that
+is a real migration — `migrateData` on the class model, a Foundry-free rules
+half under test at both answers, and a live gate against a world rebuilt from
+`git show v4.14.0:` (TOOLCHAIN §4a). Worth doing on its own, announced as its
+own decision, and not as a side effect of whatever comes next.
+
 - **Points/ritual/ceremonial gnosis consumers** — the pool schedules and the
   strip already carry non-vancian kinds, and the gnostic classes bind a
   caster-level ladder; their spend/refresh rules arrive with their books'
