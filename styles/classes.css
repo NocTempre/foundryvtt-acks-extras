@@ -526,10 +526,24 @@
   line-height: 1.5;
 }
 
-/* Says where a group's options come from when they are not stated on the
-   group itself — the one case being the class's own starting templates. */
-.acks-extras-classes-path-source {
-  font-style: italic;
-  opacity: 0.75;
-  white-space: nowrap;
+/* One authored option inside a group: its name and key on one line, the
+   training it grants on the next. */
+.acks-extras-classes-path-option {
+  border-inline-start: 2px solid var(--acks-rule, rgba(255, 255, 255, 0.15));
+  padding-inline-start: 0.5rem;
+  margin-block: 0.35rem;
+}
+
+/* An option's training: three fields of very different appetite. The weapon
+   list is a sentence and gets the room; the armour rung is a short select; the
+   styles are two or three words. Left to a plain flex row the select eats the
+   line and the two lists show four characters each. */
+.acks-extras-classes-path-training {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 0.25rem;
+}
+
+.acks-extras-classes-path-training > * {
+  min-width: 0;
 }

@@ -104,6 +104,16 @@ same gates (build, validate, live-verify, snapshot obligations by kind);
 `gh run watch` (it hangs) — bounded polls only. Never retag a published
 release — cut a new patch.
 
+**A release ships the JUDGE TOOLS for what it adds, unless the user says
+otherwise.** A schema a Judge cannot populate and an importer that never writes
+it is a surface nobody can reach: extras 4.16.0 shipped class `paths` with no
+importer emitting one and a sheet that listed options without being able to add
+one, so every imported class showed "No paths" and the feature existed only for
+the API. Shipping the dependency half first is right (TOOLCHAIN §10e) and is not
+the same as shipping half a feature. **Shoot the release snapshot from something
+a USER can produce, never from an API-built fixture** — a fixture proves the code
+renders and hides exactly this.
+
 ## Conventions
 
 - **Single branch: `main`**; tags `v<semver>` are the only other refs. Never

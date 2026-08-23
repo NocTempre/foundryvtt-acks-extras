@@ -15,6 +15,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 import { pathGroups } from "./paths.mjs";
+import { ARMOR_LADDER, STYLE } from "../equipment/config.mjs";
 import { AWARD_KINDS } from "./class-data.mjs";
 import ClassData from "./class-data.mjs";
 import { findByRef } from "./registry.mjs";
@@ -231,24 +232,40 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     // A `templates` group is shown with the rows it POINTS AT, so the sheet
     // says plainly that the eight starting templates are one of these groups
     // and not a separate mechanism.
-    context.pathsEdit = pathGroups(sys).map((g, index) => ({
-      index,
-      key: g.key,
-      label: g.label,
-      note: g.note,
-      fromTemplates: g.source === "templates",
-      options: g.options.map((o) => ({
-        key: o.key,
-        label: o.label,
-        training: [
-          (o.training?.weapons ?? []).join(", "),
-          o.training?.armour ?? "",
-          (o.training?.styles ?? []).join(", "),
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      })),
-    }));
+    // The RAW rows are what the form edits (indices are the write paths); the
+    // resolved ones are what a `templates` group has instead of options of its
+    // own, and are shown read-only because the rows are edited on their own tab.
+    const resolved = pathGroups(sys);
+    context.armourRungs = ARMOR_LADDER.map((r) => ({ key: r, label: r }));
+    context.styleKeys = Object.values(STYLE).map((k) => ({ key: k, label: k }));
+    context.pathsEdit = (sys.paths ?? []).map((g, index) => {
+      const fromTemplates = g.source === "templates";
+      return {
+        index,
+        key: g.key,
+        label: g.label,
+        note: g.note,
+        source: g.source ?? "",
+        fromTemplates,
+        // A templates group borrows the rows; an authored one owns its options.
+        borrowed: fromTemplates ? (resolved[index]?.options ?? []) : null,
+        options: fromTemplates
+          ? []
+          : (g.options ?? []).map((o, oIndex) => ({
+              oIndex,
+              key: o.key,
+              label: o.label,
+              weapons: (o.training?.weapons ?? []).join(", "),
+              styles: (o.training?.styles ?? []).join(", "),
+              // Precomputed the way every other select on this sheet is, so the
+              // template needs no comparison helper and no `../../` climbing.
+              armourOptions: [{ key: "", label: "—" }, ...ARMOR_LADDER.map((r) => ({ key: r, label: r }))].map((r) => ({
+                ...r,
+                selected: (o.training?.armour ?? "") === r.key,
+              })),
+            })),
+      };
+    });
 
     // --- templates ---
     context.templatesEdit = (sys.templates ?? []).map((t, index) => {
@@ -359,6 +376,8 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       const min = last ? (Number(last.rollMax) || 2) + 1 : 3;
       return { rollMin: min, rollMax: min + 1 };
     },
+    paths: () => ({ key: "", label: "", source: "", options: [] }),
+    "paths.N.options": () => ({ key: "", label: "", training: { weapons: [], armour: "", styles: [] } }),
     "casting.N.slots": () => ({ atLevel: 1 }),
     "casting.N.pool": () => ({ atLevel: 1 }),
     "templates.N.items": () => ({ qty: 1 }),

@@ -425,16 +425,46 @@
                    placeholder="{{localize 'ACKS-CLASSES.sheet.paths.label'}}" />
             <input type="text" name="system.paths.{{index}}.key" value="{{key}}"
                    placeholder="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" />
-            {{#if fromTemplates}}
-              <span class="acks-extras-classes-path-source">{{localize "ACKS-CLASSES.sheet.paths.fromTemplates"}}</span>
-            {{/if}}
+            <select name="system.paths.{{index}}.source">
+              <option value="" {{#unless fromTemplates}}selected{{/unless}}>{{localize "ACKS-CLASSES.sheet.paths.sourceOwn"}}</option>
+              <option value="templates" {{#if fromTemplates}}selected{{/if}}>{{localize "ACKS-CLASSES.sheet.paths.sourceTemplates"}}</option>
+            </select>
             <a data-action="rowDelete" data-array="paths" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
           </div>
-          <ul class="acks-extras-classes-path-options">
+          <input type="text" name="system.paths.{{index}}.note" value="{{note}}"
+                 placeholder="{{localize 'ACKS-CLASSES.sheet.paths.note'}}" />
+
+          {{#if fromTemplates}}
+            <p class="hint">{{localize "ACKS-CLASSES.sheet.paths.fromTemplates"}}</p>
+            <ul class="acks-extras-classes-path-options">
+              {{#each borrowed}}<li>{{label}}</li>{{/each}}
+            </ul>
+          {{else}}
+            <div class="acks-extras-classes-row">
+              <span class="hint">{{localize "ACKS-CLASSES.sheet.paths.options"}}</span>
+              <a data-action="rowAdd" data-array="paths.{{index}}.options"><i class="fa-solid fa-plus"></i></a>
+            </div>
             {{#each options}}
-              <li><strong>{{label}}</strong>{{#if training}} <span class="hint">{{training}}</span>{{/if}}</li>
+              <div class="acks-extras-classes-path-option">
+                <div class="acks-extras-classes-row">
+                  <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.label" value="{{label}}"
+                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.optionLabel'}}" />
+                  <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.key" value="{{key}}"
+                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" />
+                  <a data-action="rowDelete" data-array="paths.{{../index}}.options" data-index="{{oIndex}}"><i class="fa-solid fa-trash"></i></a>
+                </div>
+                <div class="acks-extras-classes-row acks-extras-classes-path-training">
+                  <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.training.weapons" value="{{weapons}}"
+                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.weapons'}}" />
+                  <select name="system.paths.{{../index}}.options.{{oIndex}}.training.armour">
+                    {{#each armourOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+                  </select>
+                  <input type="text" name="system.paths.{{../index}}.options.{{oIndex}}.training.styles" value="{{styles}}"
+                         placeholder="{{localize 'ACKS-CLASSES.sheet.paths.styles'}}" />
+                </div>
+              </div>
             {{/each}}
-          </ul>
+          {{/if}}
         </div>
       {{/each}}
     </fieldset>

@@ -164,7 +164,16 @@ a Zaharan has a dark path; a dwarf has a caste. On the class sheet these are
 **Paths**: named groups, each holding options of which a character takes exactly
 one, and an option can carry its own weapon, armour and fighting-style training.
 
-![A class's Paths tab](../releases/v4.16.0/classes-paths.png)
+![Authoring a path group on a class sheet](../releases/v4.17.0/classes-paths.png)
+
+**Imported classes get theirs automatically.** Every class you import has a
+Starting Template group, and a class whose book prints a variant table — the
+Barbarian's regions — gets that group too, with each region's own weapons,
+armour and fighting styles.
+
+**You can write your own.** On the Paths tab, **+** adds a group; inside it, **+**
+adds an option; each option takes a weapon list, an armour rung and its fighting
+styles. A group can instead be pointed at the class's starting templates.
 
 **Your starting templates are one of these groups.** They are shown in the list
 beside the others, and nothing about them moved — the same rows, the same

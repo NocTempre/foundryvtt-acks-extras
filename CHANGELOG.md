@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.17.0
+
+### Added
+- **You can write a class's paths by hand.** The Paths tab lists a class's
+  groups; now it also builds them. **+** adds a group, **+** inside it adds an
+  option, and each option takes the weapons it grants, the heaviest armour it
+  allows and its fighting styles — or the group can be pointed at the class's
+  starting templates instead. 4.16.0 shipped the paths themselves with no way
+  to author one and no importer writing any, so every class read "No paths";
+  this is the half that makes them reachable.
+
+## 4.16.0
 ## 4.16.0
 
 ### Added
