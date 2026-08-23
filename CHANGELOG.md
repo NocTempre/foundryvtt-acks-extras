@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.15.0
+## 4.15.1
 
 ### Fixed
 - **A class's combat training reaches the character who took it.** Every class
