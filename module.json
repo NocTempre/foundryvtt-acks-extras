@@ -26,6 +26,7 @@
     "styles/battlemap.css",
     "styles/classes.css",
     "styles/equipment.css",
+    "styles/equipment-item-sheet.css",
     "styles/formation.css",
     "styles/henchmen.css",
     "styles/influence.css",

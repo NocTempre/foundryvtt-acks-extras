@@ -1,0 +1,123 @@
+{{!-- Effects: the item's own Active Effects, what the bearer grants it, and
+      for a named item, the name's unlock track. --}}
+<div class="acks-extras-item-sheet__stack">
+  <div class="acks-extras-item-sheet__group">
+    <div class="acks-extras-item-sheet__rule">
+      <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.effects.own'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__rule-note">{{localize 'ACKS-EQUIPMENT.itemSheet.effects.ownNote'}}</span>
+    </div>
+    {{#each effects.own}}
+    <div class="acks-extras-item-sheet__row">
+      <span class="acks-extras-item-sheet__row-text">
+        <span class="acks-extras-item-sheet__row-label">{{label}}</span>
+        <span class="acks-extras-item-sheet__row-line">{{detail}}</span>
+      </span>
+      <span class="acks-tag">{{when}}</span>
+      {{#if @root.editable}}
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="configureEffect" data-effect="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.effects.configure'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="deleteEffect" data-effect="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.effects.delete'}}"><i class="fa-solid fa-trash" inert></i></button>
+      {{/if}}
+    </div>
+    {{else}}
+    <div class="acks-empty acks-extras-item-sheet__empty--tight">
+      <span class="acks-empty-title">{{#if effects.hiddenByIdentification}}{{localize 'ACKS-EQUIPMENT.itemSheet.effects.unidentified'}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.effects.mundane'}}{{/if}}</span>
+      <span class="acks-empty-hint">{{#if effects.hiddenByIdentification}}{{localize 'ACKS-EQUIPMENT.itemSheet.effects.unidentifiedHint'}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.effects.mundaneHint'}}{{/if}}</span>
+    </div>
+    {{/each}}
+    {{#if editable}}
+    <div class="acks-row">
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="addEffect"><i class="fa-solid fa-plus" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.effects.add'}}</button>
+    </div>
+    {{/if}}
+  </div>
+
+  <div class="acks-extras-item-sheet__group">
+    <div class="acks-extras-item-sheet__rule">
+      <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.effects.inherited'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__rule-note">{{localize 'ACKS-EQUIPMENT.itemSheet.effects.inheritedNote'}}</span>
+    </div>
+    {{#each effects.inherited}}
+    <div class="acks-extras-item-sheet__row is-inherited">
+      <span class="acks-extras-item-sheet__row-text">
+        <span class="acks-extras-item-sheet__row-label">{{label}}</span>
+        <span class="acks-extras-item-sheet__row-line">{{detail}}</span>
+      </span>
+      <span class="acks-tag acks-tag--ghost">{{src}}</span>
+    </div>
+    {{else}}
+    <div class="acks-empty acks-extras-item-sheet__empty--tight">
+      <span class="acks-empty-title">{{localize 'ACKS-EQUIPMENT.itemSheet.effects.nothingGranted'}}</span>
+      <span class="acks-empty-hint">{{localize 'ACKS-EQUIPMENT.itemSheet.effects.nothingGrantedHint'}}</span>
+    </div>
+    {{/each}}
+  </div>
+
+  {{#if effects.named}}
+  <div class="acks-extras-item-sheet__group">
+    <div class="acks-extras-item-sheet__rule">
+      <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.named.title'}}</span>
+      <span class="acks-tag acks-tag--ghost">{{localize 'ACKS-EQUIPMENT.itemSheet.tag.named'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__rule-note acks-nums">{{localize 'ACKS-EQUIPMENT.itemSheet.named.unlocked' n=effects.named.unlocked max=effects.named.total}}</span>
+    </div>
+    <div class="acks-extras-item-sheet__row">
+      <span class="acks-extras-item-sheet__row-text">
+        <span class="acks-extras-item-sheet__row-label">{{effects.named.given}}</span>
+        <span class="acks-extras-item-sheet__row-line">{{localize 'ACKS-EQUIPMENT.itemSheet.named.givenLine'}}</span>
+      </span>
+      <span class="acks-extras-item-sheet__pips" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.named.unlocked' n=effects.named.unlocked max=effects.named.total}}">
+        {{#each effects.named.pips}}<span class="acks-extras-item-sheet__pip{{#if lit}} is-lit{{/if}}"></span>{{/each}}
+      </span>
+    </div>
+    {{#if gm}}
+    <div class="acks-extras-item-sheet__row">
+      <span class="acks-extras-item-sheet__row-text">
+        <span class="acks-extras-item-sheet__row-label is-spot">{{#if effects.named.trueName}}{{effects.named.trueName}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.named.noTrueName'}}{{/if}}</span>
+        <span class="acks-extras-item-sheet__row-line">{{localize 'ACKS-EQUIPMENT.itemSheet.named.trueLine'}}</span>
+      </span>
+      <span class="acks-tag acks-tag--solid">{{#if effects.named.revealed}}{{localize 'ACKS-EQUIPMENT.itemSheet.named.revealed'}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.named.unrevealed'}}{{/if}}</span>
+    </div>
+    {{/if}}
+    {{#each effects.named.cats}}
+    <div class="acks-extras-item-sheet__fact">
+      <span class="acks-extras-item-sheet__fact-label">{{label}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__fact-value acks-nums">{{now}}<span class="acks-extras-item-sheet__of">{{localize 'ACKS-EQUIPMENT.itemSheet.of' n=full}}</span></span>
+    </div>
+    {{/each}}
+    {{#unless effects.named.ladderSet}}<span class="acks-extras-item-sheet__note is-warn">{{localize 'ACKS-EQUIPMENT.named.noLadder'}}</span>{{/unless}}
+    {{#if gm}}{{#unless effects.named.automationOn}}<span class="acks-extras-item-sheet__note is-warn">{{localize 'ACKS-EQUIPMENT.named.overlayOff'}}</span>{{/unless}}{{/if}}
+
+    {{#if editable}}
+    {{#unless effects.named.revealed}}
+    <div class="acks-extras-item-sheet__row acks-row--wrap">
+      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="guess" placeholder="{{localize 'ACKS-EQUIPMENT.named.guessHint'}}">
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="guessName" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.named.guessHint'}}">{{localize 'ACKS-EQUIPMENT.named.guess'}}</button>
+    </div>
+    {{/unless}}
+    <div class="acks-extras-item-sheet__row acks-row--wrap">
+      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="rename" value="{{effects.named.given}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.renameHint'}}">
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="renameItem">{{localize 'ACKS-EQUIPMENT.named.rename'}}</button>
+    </div>
+    {{/if}}
+    {{#if gm}}
+    <div class="acks-extras-item-sheet__row acks-row--wrap">
+      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="trueName" value="{{effects.named.trueName}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.trueHint'}}">
+      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="ladder" value="{{effects.named.ladderText}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.ladderHint'}}">
+      <input class="acks-input acks-input--line acks-nums is-xs" type="number" data-field="unlocked" value="{{effects.named.unlockedRaw}}" min="0" step="1" placeholder="{{localize 'ACKS-EQUIPMENT.named.unlockedHint'}}">
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="saveNamed">{{localize 'ACKS-EQUIPMENT.named.save'}}</button>
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="unmakeNamed">{{localize 'ACKS-EQUIPMENT.named.unmake'}}</button>
+    </div>
+    <span class="acks-extras-item-sheet__note">{{localize 'ACKS-EQUIPMENT.named.gmHint'}}</span>
+    {{/if}}
+  </div>
+  {{else if gm}}
+  {{#if effects.namedOffered}}
+  <div class="acks-row">
+    <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="saveNamed" data-tooltip="{{localize 'ACKS-EQUIPMENT.named.badgeNone'}}"><i class="fa-solid fa-signature" inert></i>{{localize 'ACKS-EQUIPMENT.named.make'}}</button>
+  </div>
+  {{/if}}
+  {{/if}}
+</div>

@@ -1,0 +1,1095 @@
+/* ACKS II — the item sheet.
+ *
+ * One window for every piece of gear (scripts/equipment/item-sheet/). Every
+ * colour is an --acks-* token read bare; every face and size comes off the
+ * design-system scale, so a dark seat and the `core` look both follow. The
+ * geometry is the design's: a 620px window, 28px rail cells, 32/34/28px
+ * rails, 118px art — stated once here as custom properties on the root.
+ *
+ * The title band is this module's own part, moved into Foundry's
+ * `.window-header` at render: the header keeps its drag handle and its two
+ * buttons, and its own title/icon nodes are hidden rather than removed.
+ */
+
+.acks-extras-item-sheet {
+  --acks-extras-cell: 28px;
+  --acks-extras-rail-left: 32px;
+  --acks-extras-rail-right: 34px;
+  --acks-extras-rail-editor: 28px;
+  --acks-extras-art: 118px;
+  /* Per-cell fill (the capacity cell writes its own percentage inline) and
+     the aura ring's colour (set by the school class on the art). */
+  --acks-extras-fill: 0%;
+  --acks-extras-aura: var(--acks-ink-soft);
+  /* 620px is the design's width and the resize floor; the window may be
+     dragged wider and the prose column takes the slack. */
+  width: 620px;
+  min-width: 620px;
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+/* --- Window chrome: the band IS the header. ------------------------------ */
+
+.acks-extras-item-sheet.application > .window-header {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  height: auto;
+  min-height: 0;
+  padding: 0 var(--acks-sp-2) 0 0;
+  background: transparent;
+  border-block-end: var(--acks-rule) solid var(--acks-spot);
+  color: var(--acks-ink);
+}
+
+.acks-extras-item-sheet.application > .window-header .window-icon,
+.acks-extras-item-sheet.application > .window-header .window-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.acks-extras-item-sheet.application > .window-header .header-control {
+  flex: none;
+  inline-size: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-item-sheet.application > .window-header .header-control:hover {
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+}
+
+.acks-extras-item-sheet.application .acks-extras-item-sheet__content {
+  padding: 0;
+  overflow: visible;
+}
+
+.acks-extras-item-sheet__scroll {
+  position: relative;
+  /* Auto-height windows cap at the viewport; a hand-resized window hands the
+     scroll region its explicit height through the flex column. */
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 85vh;
+  overflow: auto;
+}
+
+/* A Judge's view of a disguised item: the striped border is the only sign. */
+.acks-extras-item-sheet__scroll.is-striped {
+  border: 6px solid transparent;
+  background: repeating-linear-gradient(45deg, var(--acks-burgundy-deep) 0 7px, var(--acks-burgundy) 7px 14px) border-box;
+}
+
+.acks-extras-item-sheet__scroll.is-striped > * {
+  background: var(--acks-paper);
+}
+
+/* --- Title band ----------------------------------------------------------- */
+
+.acks-extras-item-sheet__band {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-4) var(--acks-sp-4);
+  background: transparent;
+}
+
+.acks-extras-item-sheet__band.is-damaged {
+  background: var(--acks-warning-tint);
+}
+
+.acks-extras-item-sheet__band.is-destroyed {
+  background: var(--acks-danger-tint);
+}
+
+.acks-extras-item-sheet__qty {
+  flex: none;
+  height: 24px;
+  width: auto;
+  min-width: 3.5ch;
+  padding: 0 var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: var(--acks-paper-pure);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  text-align: center;
+}
+
+.acks-extras-item-sheet .acks-extras-item-sheet__name {
+  flex: 1;
+  min-width: 6ch;
+  font-family: var(--acks-font-display);
+  font-weight: var(--acks-weight-bold);
+  font-size: 19px;
+  letter-spacing: 0.03em;
+  padding-block: var(--acks-sp-1);
+  min-height: 0;
+}
+
+.acks-extras-item-sheet__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-2) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: 9px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.acks-extras-item-sheet__chip--link:hover {
+  background: var(--acks-tint-2);
+}
+
+.acks-extras-item-sheet__state {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--acks-sp-1) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid currentColor;
+  font-family: var(--acks-font-display);
+  font-size: 10px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.acks-extras-item-sheet__state.is-damaged {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-item-sheet__state.is-destroyed {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-item-sheet__badge {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-2) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  white-space: nowrap;
+}
+
+.acks-extras-item-sheet__badge-label {
+  font-family: var(--acks-font-display);
+  font-size: 9px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__badge-value {
+  font-family: var(--acks-font-ui);
+  font-size: 12.5px;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-item-sheet .acks-extras-item-sheet__badge-input {
+  width: 5ch;
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: transparent;
+  font-family: var(--acks-font-ui);
+  font-size: 12.5px;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+  text-align: end;
+}
+
+/* --- Art row -------------------------------------------------------------- */
+
+.acks-extras-item-sheet__art-row {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--acks-sp-5);
+}
+
+.acks-extras-item-sheet__rail {
+  display: grid;
+  gap: var(--acks-sp-1);
+  flex: none;
+  align-content: start;
+}
+
+.acks-extras-item-sheet__rail--left {
+  width: var(--acks-extras-rail-left);
+}
+
+.acks-extras-item-sheet__rail--right {
+  width: var(--acks-extras-rail-right);
+  margin-inline-start: 5px;
+}
+
+/* The editor rail stacks four cells and spills into further columns that grow
+   inward — rtl on the grid, ltr restored on the buttons. */
+.acks-extras-item-sheet__rail--editor {
+  grid-template-rows: repeat(4, var(--acks-extras-cell));
+  grid-auto-flow: column;
+  grid-auto-columns: var(--acks-extras-rail-editor);
+  direction: rtl;
+}
+
+.acks-extras-item-sheet__cell {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  height: var(--acks-extras-cell);
+  min-height: 0;
+  width: 100%;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: var(--acks-paper-pure);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-display);
+  line-height: 1;
+  direction: ltr;
+}
+
+.acks-extras-item-sheet__cell--ident {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint-2);
+}
+
+.acks-extras-item-sheet__cell--roll {
+  border-radius: 0;
+}
+
+.acks-extras-item-sheet__cell--pad {
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+  background: transparent;
+  opacity: 0.55;
+}
+
+.acks-extras-item-sheet__cell--state,
+.acks-extras-item-sheet__cell--editor {
+  position: relative;
+  cursor: pointer;
+}
+
+.acks-extras-item-sheet__cell--state {
+  background: linear-gradient(to top, var(--acks-tint-2) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-item-sheet__cell--state:hover:not(:disabled),
+.acks-extras-item-sheet__cell--editor:hover {
+  border-color: var(--acks-spot);
+}
+
+/* A lit cell carries a lozenge in its corner. */
+.acks-extras-item-sheet__cell--state.is-on::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-end: 2px;
+  width: 5px;
+  height: 5px;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+.acks-extras-item-sheet__cell--editor {
+  border-color: var(--acks-spot);
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: 13px;
+}
+
+.acks-extras-item-sheet__cell--editor.is-on {
+  background: var(--acks-tint-2);
+}
+
+.acks-extras-item-sheet__cell-glyph {
+  font-size: 13px;
+  color: inherit;
+}
+
+.acks-extras-item-sheet__cell-svg {
+  width: 13px;
+  height: 13px;
+  border: none;
+  object-fit: contain;
+}
+
+/* Foundry's SVG icons are black; on a dark seat they must read in ink. */
+.acks-extras-item-sheet__cell-svg:is(.theme-dark *, [data-acks-theme="dark"] *) {
+  filter: invert(0.9);
+}
+
+.acks-extras-item-sheet__cell--roll .acks-extras-item-sheet__cell-svg {
+  filter: invert(1);
+}
+
+.acks-extras-item-sheet__cell-fa {
+  font-size: 11px;
+}
+
+.acks-extras-item-sheet__cell-m {
+  font-size: 9.5px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.05em;
+}
+
+.acks-extras-item-sheet__cell-sub {
+  font-family: var(--acks-font-ui);
+  font-size: 9px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__cell--roll .acks-extras-item-sheet__cell-sub {
+  color: var(--acks-on-burgundy-soft);
+}
+
+.acks-extras-item-sheet__art {
+  position: relative;
+  flex: none;
+  width: var(--acks-extras-art);
+  height: var(--acks-extras-art);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-inline-start: none;
+  background: var(--acks-tint);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.acks-extras-item-sheet__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border: none;
+}
+
+.acks-extras-item-sheet__img[data-action] {
+  cursor: pointer;
+}
+
+/* The aura ring: two lines of the school's colour around a paper gap. */
+.acks-extras-item-sheet__art.has-aura {
+  box-shadow:
+    inset 0 0 0 2px var(--acks-extras-aura),
+    inset 0 0 0 4px var(--acks-paper-pure),
+    inset 0 0 0 5px var(--acks-extras-aura);
+}
+
+.acks-extras-item-sheet__art.is-arcane {
+  --acks-extras-aura: var(--acks-spot);
+}
+
+.acks-extras-item-sheet__art.is-divine {
+  --acks-extras-aura: var(--acks-warning-ink);
+}
+
+.acks-extras-item-sheet__art.is-eldritch {
+  --acks-extras-aura: var(--acks-ink);
+}
+
+.acks-extras-item-sheet__aura-label {
+  position: absolute;
+  inset-block-end: 7px;
+  padding: 0 var(--acks-sp-1);
+  background: var(--acks-paper-pure);
+  font-family: var(--acks-font-display);
+  font-size: 9px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--acks-extras-aura);
+}
+
+/* A destroyed item is struck through with a band of ink. */
+.acks-extras-item-sheet__art.is-struck::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, transparent 47.5%, var(--acks-ink) 47.5%, var(--acks-ink) 52.5%, transparent 52.5%);
+  pointer-events: none;
+}
+
+.acks-extras-item-sheet__more {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: grid;
+  place-items: center;
+  height: 18px;
+  min-width: 24px;
+  padding: 0 var(--acks-sp-2);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-block-start: none;
+  border-inline-start: none;
+  background: var(--acks-paper-pure);
+  color: var(--acks-spot);
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.acks-extras-item-sheet__prose {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: var(--acks-sp-4);
+  align-items: stretch;
+  padding-inline-start: 14px;
+}
+
+.acks-extras-item-sheet__prose-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: var(--acks-sp-3);
+  align-content: start;
+}
+
+.acks-extras-item-sheet__description {
+  font-family: var(--acks-font-body);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--acks-ink);
+}
+
+.acks-extras-item-sheet__description > :first-child {
+  margin-block-start: 0;
+}
+
+.acks-extras-item-sheet__description > :last-child {
+  margin-block-end: 0;
+}
+
+.acks-extras-item-sheet__editor {
+  --min-height: 6rem;
+}
+
+.acks-extras-item-sheet__prose .acks-tag {
+  font-size: 10px;
+}
+
+/* --- Simple mode ---------------------------------------------------------- */
+
+.acks-extras-item-sheet__simple-record {
+  padding: 0 var(--acks-sp-5) var(--acks-sp-5);
+}
+
+.acks-extras-item-sheet__simple-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--acks-sp-5) var(--acks-sp-4);
+}
+
+/* --- Tabs and panels ------------------------------------------------------ */
+
+.acks-extras-item-sheet__tabs {
+  flex-wrap: wrap;
+  margin: 0 var(--acks-sp-5);
+}
+
+.acks-extras-item-sheet__tabs .acks-tab {
+  font-size: 10.5px;
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.07em;
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+}
+
+.acks-extras-item-sheet__tabs .acks-tab.active {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-item-sheet__tab-count {
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  font-weight: var(--acks-weight-body);
+  opacity: 0.75;
+  margin-inline-start: var(--acks-sp-2);
+}
+
+.acks-extras-item-sheet__panel {
+  display: none;
+  padding: var(--acks-sp-4) var(--acks-sp-5) var(--acks-sp-5);
+}
+
+.acks-extras-item-sheet__panel.active {
+  display: block;
+}
+
+.acks-extras-item-sheet__stack {
+  display: grid;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-item-sheet__group {
+  display: grid;
+  gap: 0;
+}
+
+.acks-extras-item-sheet__two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--acks-sp-4) 26px;
+  align-items: start;
+}
+
+/* A rule: the group heading, underlined in spot. */
+.acks-extras-item-sheet__rule {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-4);
+  padding-block-end: 3px;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-item-sheet__rule-title {
+  font-family: var(--acks-font-display);
+  font-size: 10px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--acks-spot);
+}
+
+.acks-extras-item-sheet__rule-note {
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__rule .acks-tag {
+  font-size: 9px;
+}
+
+/* A row: label over line, tags, an action — underlined in tint. */
+.acks-extras-item-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding-block: 5px;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-item-sheet__row.is-inherited {
+  opacity: 0.92;
+}
+
+.acks-extras-item-sheet__row-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.acks-extras-item-sheet__row-label {
+  font-family: var(--acks-font-display);
+  font-size: 10.5px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.acks-extras-item-sheet__row-label.is-spot {
+  color: var(--acks-spot);
+}
+
+.acks-extras-item-sheet__row-line {
+  font-family: var(--acks-font-ui);
+  font-size: 11px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__row-name {
+  font-family: var(--acks-font-ui);
+  font-size: 12.5px;
+  color: var(--acks-ink);
+  cursor: pointer;
+}
+
+.acks-extras-item-sheet__row-name:hover {
+  color: var(--acks-spot);
+}
+
+.acks-extras-item-sheet__row-weight {
+  font-family: var(--acks-font-ui);
+  font-size: 12px;
+  min-width: 36px;
+  text-align: end;
+}
+
+.acks-extras-item-sheet__row-mods {
+  flex: none;
+  max-width: 186px;
+  justify-content: flex-end;
+}
+
+.acks-extras-item-sheet__row .acks-tag {
+  font-size: 9.5px;
+}
+
+.acks-extras-item-sheet__grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The pin: a 16px box that holds a lozenge when the roll is on the art. */
+.acks-extras-item-sheet__pin {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: none;
+  cursor: pointer;
+}
+
+.acks-extras-item-sheet__pin.is-on::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+/* Facts: a two-column ledger of label and value. */
+.acks-extras-item-sheet__facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 26px;
+  align-content: start;
+}
+
+.acks-extras-item-sheet__fact {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-4);
+  padding-block: 4px;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-item-sheet__fact.is-final {
+  border-block-end: none;
+}
+
+.acks-extras-item-sheet__fact-label {
+  font-family: var(--acks-font-display);
+  font-size: 9.5px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__fact-label.is-plain {
+  font-family: var(--acks-font-ui);
+  font-size: 12px;
+  font-weight: var(--acks-weight-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.acks-extras-item-sheet__fact-label.is-spot {
+  color: var(--acks-spot);
+}
+
+.acks-extras-item-sheet__fact-value {
+  font-family: var(--acks-font-ui);
+  font-size: 13px;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-item-sheet__of {
+  margin-inline-start: var(--acks-sp-2);
+  font-size: 11px;
+  font-weight: var(--acks-weight-body);
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-item-sheet__note {
+  font-family: var(--acks-font-ui);
+  font-size: 11px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__note.is-warn {
+  color: var(--acks-warning-ink);
+}
+
+/* Fields: a label over a write-on line. */
+.acks-extras-item-sheet__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3) var(--acks-sp-5);
+  padding-block: var(--acks-sp-3);
+}
+
+.acks-extras-item-sheet__field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-item-sheet__field-label {
+  font-family: var(--acks-font-display);
+  font-size: 9.5px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+  white-space: nowrap;
+}
+
+.acks-extras-item-sheet .acks-extras-item-sheet__field .acks-input,
+.acks-extras-item-sheet .acks-input.is-xs {
+  min-height: 0;
+  padding-block: var(--acks-sp-1);
+  font-size: 12.5px;
+}
+
+.acks-extras-item-sheet__field.is-xs .acks-input,
+.acks-extras-item-sheet .acks-input.is-xs {
+  width: 5ch;
+}
+
+.acks-extras-item-sheet__field.is-sm .acks-input {
+  width: 8ch;
+}
+
+.acks-extras-item-sheet__field.is-md .acks-input {
+  width: 14ch;
+}
+
+.acks-extras-item-sheet__field.is-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.acks-extras-item-sheet__field.is-grow .acks-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.acks-extras-item-sheet .acks-check {
+  font-size: 12.5px;
+}
+
+.acks-extras-item-sheet__empty--tight {
+  padding: 14px var(--acks-sp-4);
+}
+
+/* --- Named item pips ------------------------------------------------------ */
+
+.acks-extras-item-sheet__pips {
+  display: flex;
+  gap: 3px;
+}
+
+.acks-extras-item-sheet__pip {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: transparent;
+}
+
+.acks-extras-item-sheet__pip.is-lit {
+  background: var(--acks-spot);
+}
+
+/* --- Chart ---------------------------------------------------------------- */
+
+.acks-extras-item-sheet__chart-frame {
+  position: relative;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  padding: var(--acks-sp-2);
+}
+
+.acks-extras-item-sheet__chart-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  border: none;
+  background: var(--acks-ink);
+}
+
+.acks-extras-item-sheet__chart-caption {
+  position: absolute;
+  inset-block-end: 6px;
+  inset-inline-start: 8px;
+  padding: 0 var(--acks-sp-1);
+  background: var(--acks-paper-pure);
+  font-family: var(--acks-font-display);
+  font-size: 9px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+/* --- Contents ------------------------------------------------------------- */
+
+.acks-extras-item-sheet__capacity {
+  display: grid;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-item-sheet__tile {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  object-fit: cover;
+}
+
+.acks-extras-item-sheet__tile.is-lg {
+  width: 52px;
+  height: 52px;
+}
+
+.acks-extras-item-sheet__drop {
+  padding: var(--acks-sp-5);
+  transition: border-color var(--acks-duration) var(--acks-ease), background-color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-extras-item-sheet__drop.is-over,
+[data-drop].is-over {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+.acks-extras-item-sheet .acks-extras-item-sheet__spells {
+  font-family: var(--acks-font-mono);
+  font-size: 12px;
+}
+
+/* --- Appearance ----------------------------------------------------------- */
+
+.acks-extras-item-sheet__steps {
+  display: flex;
+  padding-block: var(--acks-sp-4);
+}
+
+.acks-extras-item-sheet__step {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: 5px 10px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  margin-inline-start: calc(var(--acks-rule-hair) * -1);
+  background: transparent;
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: 10px;
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.acks-extras-item-sheet__step:first-child {
+  margin-inline-start: 0;
+}
+
+.acks-extras-item-sheet__step > .acks-nums {
+  opacity: 0.7;
+}
+
+.acks-extras-item-sheet__step.is-on::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+.acks-extras-item-sheet__mask {
+  display: grid;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-5);
+}
+
+.acks-extras-item-sheet__mask-desc {
+  font-family: var(--acks-font-body);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__mount:empty {
+  display: none;
+}
+
+/* The markets panel and the construction panel inherit the sheet's own
+   control styling rather than core's form-group look. */
+.acks-extras-item-sheet__mount .form-group,
+.acks-extras-item-sheet__mount .acks-equipment-props__row {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding-block: 4px;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+  margin: 0;
+}
+
+.acks-extras-item-sheet__mount .form-group > label,
+.acks-extras-item-sheet__mount .acks-equipment-props__label {
+  flex: 0 0 40%;
+  font-family: var(--acks-font-display);
+  font-size: 9.5px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__mount h3,
+.acks-extras-item-sheet__mount h4 {
+  font-family: var(--acks-font-display);
+  font-size: 10px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--acks-spot);
+  border: none;
+  margin: var(--acks-sp-4) 0 var(--acks-sp-2);
+}
+
+.acks-extras-item-sheet__mount .acks-equipment-props__note,
+.acks-extras-item-sheet__mount .hint {
+  font-family: var(--acks-font-ui);
+  font-size: 11px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__mount .acks-equipment-props__btn,
+.acks-extras-item-sheet__mount .acks-location-btn {
+  min-height: 22px;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* --- Details -------------------------------------------------------------- */
+
+.acks-extras-item-sheet__segmented {
+  display: flex;
+}
+
+.acks-extras-item-sheet__seg {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  padding: 2px 7px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  margin-inline-start: calc(var(--acks-rule-hair) * -1);
+  background: transparent;
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: 9px;
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.acks-extras-item-sheet__seg:first-child {
+  margin-inline-start: 0;
+}
+
+.acks-extras-item-sheet__seg.is-on::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+.acks-extras-item-sheet__variations {
+  padding-block: var(--acks-sp-3);
+}
+
+.acks-extras-item-sheet__variations .acks-tag {
+  font-size: 10px;
+}
+
+/* Concealed is a fact about who may see it, not a disabled control. */
+.acks-extras-item-sheet__variations .acks-tag.is-hidden {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.acks-extras-item-sheet__tag-x {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin-inline-start: var(--acks-sp-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 9px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.acks-extras-item-sheet__tag-x:hover {
+  opacity: 1;
+}
+
+.acks-extras-item-sheet__accept {
+  display: grid;
+  gap: 5px;
+  padding: var(--acks-sp-4) var(--acks-sp-5);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+  background: var(--acks-tint);
+}
+
+.acks-extras-item-sheet__chip-toggle {
+  cursor: pointer;
+  font-size: 9.5px;
+}
+
+.acks-extras-item-sheet__chip-toggle.acks-tag--ghost {
+  border-color: var(--acks-ink-faint);
+  color: var(--acks-ink-soft);
+}

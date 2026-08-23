@@ -1,0 +1,42 @@
+{{!-- The title band: rendered as a part, then moved into the window header by
+      the sheet so Foundry's drag handle and buttons stay where they are. --}}
+<div class="acks-extras-item-sheet__band{{#if band.condition}} is-{{band.condition}}{{/if}}">
+  {{#if band.qtyShown}}
+  <input class="acks-extras-item-sheet__qty acks-nums" type="number" name="{{qtyPath}}" value="{{band.qty}}" min="0" step="1"
+         data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.quantity'}}" {{disabled (not editable)}}>
+  {{/if}}
+  <input class="acks-input acks-input--line acks-extras-item-sheet__name" type="text" name="{{namePath}}" value="{{band.name}}"
+         {{disabled (not editable)}}>
+  {{#if band.scene}}
+  <button type="button" class="acks-extras-item-sheet__chip acks-extras-item-sheet__chip--link" data-action="openScene"
+          data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.openScene'}}">
+    <i class="fa-solid fa-map-location-dot" inert></i>{{band.scene}}
+  </button>
+  {{/if}}
+  {{#if band.condition}}
+  <span class="acks-extras-item-sheet__state is-{{band.condition}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.conditionHint'}}">
+    {{localize (concat "ACKS-EQUIPMENT.itemSheet.condition." band.condition)}}
+  </span>
+  {{/if}}
+  <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.value.' band.valueReason)}}">
+    <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.value'}}</span>
+    <span class="acks-extras-item-sheet__badge-value acks-nums">
+      {{#if band.valueUnknown}}{{localize 'ACKS-EQUIPMENT.itemSheet.value.unknownLabel'}}{{else}}{{band.value}}{{/if}}
+    </span>
+  </span>
+  <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.weightHint'}}">
+    <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.stone'}}</span>
+    {{#if (and editable snap.hasWeight)}}
+    <input class="acks-extras-item-sheet__badge-input acks-nums" type="number" name="acksWeightStone" value="{{weightStone}}" min="0" step="0.1667"
+           aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.band.weightHint'}}">
+    {{else}}
+    <span class="acks-extras-item-sheet__badge-value acks-nums">{{band.weight}}</span>
+    {{/if}}
+  </span>
+  {{#if band.masked}}
+  <span class="acks-tag acks-tag--solid" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.maskedHint'}}">{{localize 'ACKS-EQUIPMENT.itemSheet.band.masked'}}</span>
+  {{/if}}
+  {{#if previewAsPlayer}}
+  <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="judgeView">{{localize 'ACKS-EQUIPMENT.itemSheet.band.judgeView'}}</button>
+  {{/if}}
+</div>

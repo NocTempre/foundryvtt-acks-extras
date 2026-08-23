@@ -1,0 +1,69 @@
+{{!-- Appearance (Judge only): what the players know, the market identity, and
+      the disguise. --}}
+<div class="acks-extras-item-sheet__stack">
+  <div class="acks-extras-item-sheet__group">
+    <div class="acks-extras-item-sheet__rule">
+      <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.know.title'}}</span>
+      <span class="acks-spacer"></span>
+      <label class="acks-check">
+        <input type="checkbox" data-action="toggleMagic" {{checked appearance.magic}}>
+        <span>{{localize 'ACKS-MARKETS.magic.isMagic'}}</span>
+      </label>
+    </div>
+    {{#if appearance.magic}}
+    <div class="acks-extras-item-sheet__steps">
+      {{#each appearance.steps}}
+      <button type="button" class="acks-extras-item-sheet__step{{#if on}} is-on{{/if}}" data-action="knowStep" data-step="{{n}}" aria-pressed="{{#if on}}true{{else}}false{{/if}}"
+              data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.know.hint.' key)}}">
+        <span class="acks-nums">{{n}}</span>{{localize (concat 'ACKS-MARKETS.magic.states.' key)}}
+      </button>
+      {{/each}}
+    </div>
+    <span class="acks-extras-item-sheet__note">{{localize (concat 'ACKS-EQUIPMENT.itemSheet.know.note.' appearance.know)}}</span>
+    <label class="acks-extras-item-sheet__field is-md">
+      <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.aura.title'}}</span>
+      <select class="acks-input acks-input--line" name="flags.acks-extras.markets.aura">
+        <option value="" {{#if (eq appearance.aura "")}}selected{{/if}}>{{localize 'ACKS-EQUIPMENT.itemSheet.aura.none'}}</option>
+        <option value="arcane" {{#if (eq appearance.aura "arcane")}}selected{{/if}}>{{localize 'ACKS-EQUIPMENT.itemSheet.aura.arcane'}}</option>
+        <option value="divine" {{#if (eq appearance.aura "divine")}}selected{{/if}}>{{localize 'ACKS-EQUIPMENT.itemSheet.aura.divine'}}</option>
+        <option value="eldritch" {{#if (eq appearance.aura "eldritch")}}selected{{/if}}>{{localize 'ACKS-EQUIPMENT.itemSheet.aura.eldritch'}}</option>
+      </select>
+    </label>
+    <div class="acks-extras-item-sheet__mount" data-mount="magic"></div>
+    {{/if}}
+  </div>
+
+  <div class="acks-extras-item-sheet__group">
+    <div class="acks-extras-item-sheet__rule">
+      <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.disguise.title'}}</span>
+      <span class="acks-spacer"></span>
+      <label class="acks-check">
+        <input type="checkbox" data-action="toggleDisguisable" {{checked appearance.disguisable}}>
+        <span>{{localize 'ACKS-EQUIPMENT.itemSheet.options.disguisable'}}</span>
+      </label>
+    </div>
+    {{#if (or appearance.disguisable appearance.disguised)}}
+    <div class="acks-callout acks-callout--gm"><span class="acks-callout-label">{{localize 'ACKS-EQUIPMENT.itemSheet.disguise.judgeOnly'}}</span>{{localize 'ACKS-EQUIPMENT.itemSheet.disguise.explain'}}</div>
+    {{#if appearance.mask}}
+    <div class="acks-frame acks-extras-item-sheet__mask">
+      <div class="acks-row">
+        <img class="acks-extras-item-sheet__tile is-lg" src="{{appearance.mask.img}}" alt="" inert>
+        <div class="acks-extras-item-sheet__grow">
+          <span class="acks-extras-item-sheet__row-label">{{appearance.mask.name}}</span>
+          <div class="acks-extras-item-sheet__mask-desc acks-prose">{{{appearance.mask.description}}}</div>
+        </div>
+      </div>
+      <div class="acks-row">
+        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="previewAsPlayer"><i class="fa-solid fa-eye" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.disguise.preview'}}</button>
+        <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="removeDisguise">{{localize 'ACKS-EQUIPMENT.itemSheet.disguise.remove'}}</button>
+      </div>
+    </div>
+    {{else}}
+    <div class="acks-empty acks-extras-item-sheet__drop" data-drop="disguise">
+      <span class="acks-empty-title">{{localize 'ACKS-EQUIPMENT.itemSheet.disguise.none'}}</span>
+      <span class="acks-empty-hint">{{localize 'ACKS-EQUIPMENT.itemSheet.disguise.noneHint'}}</span>
+    </div>
+    {{/if}}
+    {{/if}}
+  </div>
+</div>

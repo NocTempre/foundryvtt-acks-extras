@@ -1,0 +1,91 @@
+{{!-- The art row: left rail (type, slot, pinned rolls), the art, the right rail
+      (equip, pin, capacity, lock), the description and the editor rail. --}}
+<div class="acks-extras-item-sheet__rail acks-extras-item-sheet__rail--left">
+  <span class="acks-extras-item-sheet__cell acks-extras-item-sheet__cell--ident" data-tooltip="{{rails.type.title}}">
+    {{#if (eq rails.type.icon.kind "dmg")}}
+      <i class="acks-dmg acks-extras-item-sheet__cell-glyph" data-acks-dmg="{{rails.type.icon.value}}" aria-hidden="true"></i>
+    {{else if (eq rails.type.icon.kind "svg")}}
+      <img class="acks-extras-item-sheet__cell-svg" src="{{rails.type.icon.value}}" alt="" inert>
+    {{else}}
+      <i class="{{rails.type.icon.value}} acks-extras-item-sheet__cell-fa" inert></i>
+    {{/if}}
+    <span class="acks-extras-item-sheet__cell-sub">{{rails.type.label}}</span>
+  </span>
+  <span class="acks-extras-item-sheet__cell acks-extras-item-sheet__cell--ident" data-tooltip="{{rails.slot.title}}">
+    <i class="{{rails.slot.icon}} acks-extras-item-sheet__cell-fa" inert></i>
+    <span class="acks-extras-item-sheet__cell-sub">{{rails.slot.label}}</span>
+  </span>
+  {{#each rails.rolls}}
+  <button type="button" class="acks-btn acks-extras-item-sheet__cell acks-extras-item-sheet__cell--roll" data-action="roll" data-roll="{{id}}"
+          data-tooltip="{{title}}" {{disabled (not rollable)}}>
+    {{#if glyph}}<i class="acks-dmg acks-extras-item-sheet__cell-glyph" data-acks-dmg="{{glyph}}" aria-hidden="true"></i>{{else}}<span class="acks-extras-item-sheet__cell-m">{{m}}</span>{{/if}}
+    <span class="acks-extras-item-sheet__cell-sub acks-nums">{{v}}</span>
+  </button>
+  {{/each}}
+  {{#each rails.leftPads}}
+  <span class="acks-extras-item-sheet__cell acks-extras-item-sheet__cell--pad" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.rail.emptyRoll'}}"></span>
+  {{/each}}
+</div>
+
+<div class="acks-extras-item-sheet__art{{#if art.aura}} has-aura is-{{art.aura}}{{/if}}{{#if art.struck}} is-struck{{/if}}">
+  {{#if editable}}
+  <img class="acks-extras-item-sheet__img" src="{{art.img}}" alt="{{band.name}}" data-action="editImage" data-edit="img"
+       data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.rail.changeArt'}}">
+  {{else}}
+  <img class="acks-extras-item-sheet__img" src="{{art.img}}" alt="{{band.name}}">
+  {{/if}}
+  {{#if art.aura}}
+  <span class="acks-extras-item-sheet__aura-label" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.aura.hint'}}">
+    {{localize (concat "ACKS-EQUIPMENT.itemSheet.aura." art.aura)}}
+  </span>
+  {{/if}}
+  {{#if art.more}}
+  <button type="button" class="acks-extras-item-sheet__more acks-nums" data-action="goTab" data-tab="rolls"
+          data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.rail.moreRolls'}}">{{art.more}}</button>
+  {{/if}}
+</div>
+
+{{#unless simple}}
+<div class="acks-extras-item-sheet__rail acks-extras-item-sheet__rail--right">
+  {{#each rails.right}}
+  <button type="button" class="acks-extras-item-sheet__cell acks-extras-item-sheet__cell--state{{#if on}} is-on{{/if}}"
+          data-action="{{#if (eq key "capacity")}}goTab{{else if (eq key "lock")}}goTab{{else}}{{key}}{{/if}}"
+          data-tab="{{#if (eq key "capacity")}}contents{{else if (eq key "lock")}}durability{{/if}}"
+          data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.rail.' title)}}"
+          {{#if pct}}style="--acks-extras-fill: {{pct}}"{{/if}} {{disabled (not ../editable)}}>
+    {{#if icon}}<img class="acks-extras-item-sheet__cell-svg" src="{{icon}}" alt="" inert>{{else}}<span class="acks-extras-item-sheet__cell-m">{{m}}</span>{{/if}}
+    <span class="acks-extras-item-sheet__cell-sub acks-nums">{{v}}</span>
+  </button>
+  {{/each}}
+  {{#each rails.rightPads}}
+  <span class="acks-extras-item-sheet__cell acks-extras-item-sheet__cell--pad" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.rail.emptyState'}}"></span>
+  {{/each}}
+</div>
+{{/unless}}
+
+<div class="acks-extras-item-sheet__prose">
+  <div class="acks-extras-item-sheet__prose-body">
+    {{#if editingDescription}}
+    <prose-mirror class="acks-extras-item-sheet__editor" name="{{descriptionPath}}" value="{{descriptionSource}}" toggled
+                  data-document-uuid="{{item.uuid}}">{{{description}}}</prose-mirror>
+    {{else}}
+    <div class="acks-extras-item-sheet__description acks-prose">{{{description}}}</div>
+    {{/if}}
+    {{#if tags.length}}
+    <div class="acks-tag-group">
+      {{#each tags}}<span class="acks-tag">{{this}}</span>{{/each}}
+    </div>
+    {{/if}}
+  </div>
+  {{#if editable}}
+  <div class="acks-extras-item-sheet__rail acks-extras-item-sheet__rail--editor">
+    {{#each rails.editor}}
+    <button type="button" class="acks-extras-item-sheet__cell acks-extras-item-sheet__cell--editor{{#if on}} is-on{{/if}}" data-action="{{key}}"
+            data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.editor.' key)}}">
+      <i class="{{icon}}" inert></i>
+      <span class="acks-sr-only">{{localize (concat 'ACKS-EQUIPMENT.itemSheet.editor.' key)}}</span>
+    </button>
+    {{/each}}
+  </div>
+  {{/if}}
+</div>

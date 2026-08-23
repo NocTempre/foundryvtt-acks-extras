@@ -320,128 +320,11 @@
   white-space: nowrap;
 }
 
-/* Spell lines are one per row and must align, so the page list is set monospaced
-   rather than in the sheet's proportional UI face. */
-.acks-equipment-props__spells {
-  flex: 1;
-  font-family: var(--acks-font-mono);
-  font-size: var(--acks-fs-label);
-  resize: vertical;
-}
-
 .acks-equipment-props__note {
   flex: 1;
   font-size: var(--acks-fs-label);
   opacity: 0.8;
   font-style: italic;
-}
-
-/* A note that reports something unfinished or concealed — a disguise in force, a
-   named item with no unlock order set. */
-.acks-equipment-props__note--warn {
-  color: var(--acks-warning-ink);
-  opacity: 1;
-}
-
-/* --- Equipment item sheet: tab panes ---------------------------------- */
-
-.acks-equipment-tab-rolls,
-.acks-equipment-tab-construction,
-.acks-equipment-tab-spells {
-  padding: 0.5rem 0.75rem;
-}
-
-/* The moved details field-set was a narrow side column; in its own tab it can
- * breathe a little, but full-width single inputs read badly. */
-.acks-equipment-tab-rolls .field-set--narrow {
-  max-width: 24rem;
-}
-
-.acks-equipment-tab-construction .acks-equipment-props {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
-}
-
-.acks-equipment-tab-spells .acks-equipment-props__spells {
-  width: 100%;
-}
-
-/* --- Header identity bar (named item + apparent identity) -------------- */
-
-.acks-equipment-idbar {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-left: 0.4rem;
-}
-
-.acks-equipment-idbar__badge {
-  font-size: var(--acks-fs-body);
-  opacity: 0.55;
-  cursor: pointer;
-}
-
-/* The overlay this badge opens is in force (the item is named, or disguised).
-   The glyph already says WHICH — fa-signature against fa-mask — so the ink only
-   says "in force". The ON-TOGGLE tier: spot ink, no fill. */
-.acks-equipment-idbar__badge.active {
-  opacity: 1;
-  color: var(--acks-spot);
-}
-
-/* Sits in the window-content COLUMN flex: it must only ever be as tall as its
- * open strip. (A 100% flex-basis here meant 100% of the HEIGHT — an invisible
- * block that swallowed the body and crushed every tab pane to zero.) */
-.acks-equipment-idbar__strips {
-  flex: 0 0 auto;
-}
-
-.acks-equipment-idbar__strip {
-  display: none;
-}
-
-.acks-equipment-idbar__strip.open {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.6rem;
-  border-bottom: var(--acks-border-soft);
-}
-
-.acks-equipment-idbar__label {
-  font-size: var(--acks-fs-label);
-  font-weight: bold;
-  opacity: 0.85;
-}
-
-.acks-equipment-idbar__strip .acks-equipment-props__input {
-  flex: 1 1 6rem;
-}
-
-.acks-equipment-idbar__strip .acks-equipment-props__note {
-  flex: 1 1 100%;
-}
-
-/* The named-item tracker: one rung per point of power, lit when unlocked. */
-.acks-equipment-named-track {
-  display: flex;
-  gap: 0.3rem;
-  align-items: center;
-}
-
-/* Sealed rungs are faint ink, unlocked ones are spot ink. The glyph carries the
-   same fact independently (fa-circle-dot sealed, fa-circle unlocked), so the
-   track still reads where colour does not — which is why the rung does not lean
-   on opacity to dim itself. */
-.acks-equipment-named-track__rung {
-  font-size: var(--acks-fs-label);
-  color: var(--acks-ink-faint);
-}
-
-.acks-equipment-named-track__rung.lit {
-  color: var(--acks-spot);
 }
 
 /* --- Unarmed strike row ----------------------------------------------- */
@@ -504,12 +387,6 @@
 .acks-equipment-variations__row .acks-equipment-props__btn {
   flex: 0 0 auto;
   padding: 0 0.4rem;
-}
-
-/* The whole Construction pane takes the drop, so the cue is on the pane. */
-.acks-equipment-tab-construction.drop-hover {
-  outline: 2px dashed var(--acks-spot);
-  outline-offset: -3px;
 }
 
 /* The variation item's own sheet — the hand-editing half of the document. Same

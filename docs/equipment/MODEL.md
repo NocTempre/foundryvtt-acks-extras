@@ -41,6 +41,14 @@ enums; local-only, never in the repo).
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the 10× price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
 | Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access}` — where this gear MAY sit, where it sits now, and the RAW cost of drawing from it. The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment). |
+| Item flag (container) | `flags.acks-extras.container.{quality,lockMod,keys,accepts,refusal}` | The lock's quality text and pick modifier, the keys that open it (`[{uuid,name}]`), the kinds it will accept (`item-sheet/accept-kinds.mjs`) and the refusal it gives a wrong drop. Beside the `locked/opened/concealed/fragile` fields `containers.mjs` already holds. |
+| Item flag | `flags.acks-extras.pins` | Roll ids the item pins to its art, oldest first, at most two. |
+| Item flag | `flags.acks-extras.valueMode` | `priced` \| `unknown` \| `na` — what the value badge reads (`item-sheet/view-model.mjs` `valueBadge`). |
+| Item flag | `flags.acks-extras.disguisable` | The Appearance tab offers the disguise drop target. The disguise itself stays `flags.acks-extras.disguise`. |
+| Item flag | `flags.acks-extras.destroyed` | The item is wrecked: struck through and tagged, still carried and weighed. |
+| Item flag | `flags.acks-extras.chart` | `{sceneUuid, explored, pct, capturedAt}` — the scene a map item draws and its reduced fog-of-war capture (`item-sheet/chart.mjs`). |
+| Item flag | `flags.acks-extras.splitFrom` | On an item split out of a stack to be worn: the stack's id, so it can be restacked (`item-sheet/stack.mjs`). |
+| Item flag (markets) | `flags.acks-extras.markets.aura` | `arcane` \| `divine` \| `eldritch` — the school a detecting player senses, beside the markets feature's `magic`/`identified`. |
 
 ## 3. Effect contract — `flags.acks-extras.<domain>`
 
@@ -170,6 +178,64 @@ is a synced template file with one `tools/pack-data.mjs` behind it.
 
 Overrides of core logic default to `lib`; this feature patches core directly only
 where the behavior is unique to equipment, and §1 says which and why.
+
+## The item sheet
+
+One sheet for weapon, armor, item and money documents (`scripts/equipment/item-sheet/`),
+registered at `init` as the default for those four types. It is this module's
+own `HandlebarsApplicationMixin(ItemSheetV2)`, not a subclass of the system's
+sheet: nothing in it depends on the shape of core's templates.
+
+**Three layers.** `snapshot.mjs` reads the document into plain data through the
+feature's own accessors (the container record, the named record, the property
+layers, the gear model, the markets flag). `view-model.mjs` makes every
+decision about what to show on that data — tab order, the simple-mode
+collapse, the pin FIFO, the value badge, identification and disguise gating —
+and is pure, so `tools/test-item-sheet.mjs` asserts it offline. `sheet.mjs`
+binds the decisions to Foundry: the form, the actions, the drops, the chrome.
+
+**Tabs exist only when earned**, always in the order Rolls · Chart ·
+Durability · Effects · Contents · Appearance · Details. Rolls, Effects and
+Details are always defined; Chart needs a bound scene, Durability a physical or
+damaged or container item, Contents a declared capacity or a spell book,
+Appearance a Judge and a magical or disguisable item. An item that earns
+nothing beyond the always-on three — coin, gems, a trinket — is **simple**: no
+tab strip, no state rail, and a quiet Details button that unfolds the one
+panel.
+
+**The band is the window header.** The title band renders as its own part and
+`_onRender` moves it into Foundry's `.window-header`, where it keeps the drag
+handle and the close/controls buttons while its inputs stay inside the form.
+A pointer press on any control in the band is stopped before the header's
+drag-start sees it. On re-render the mixin cannot find the moved part inside
+the content and appends a fresh one, so the stale band in the header is
+removed first.
+
+**Sibling changes re-render it.** The sheet shows facts held on other
+documents — what is stored inside it, the variations applied to it, whether
+the bearer holds Lockpicking — and a document sheet re-renders only on its own
+updates. `_onFirstRender` watches the Item/ActiveEffect/Actor hooks for
+documents in the same collection and re-renders, debounced; `_onClose`
+detaches them.
+
+**Rolls are never invented.** `rolls.mjs` gathers a weapon's attack modes
+(core's own pipeline, mode forced), the manoeuvre overlay (an attack with
+`options.maneuver`, which `roll-wrap.mjs` folds into the bonus stack), a spell
+book's formulae (listed, not rollable) and the lock rows (`locks.mjs`). A row
+gets a Roll button only where a real path exists.
+
+**Gating.** A player sees a disguised item as the document is — the disguise
+WRITES the apparent fields — so the sheet adds nothing for them; a Judge sees
+the true name and description from the disguise flag, a Masked chip and a
+striped border. A magical item hides its own effects and shows its apparent
+value until `markets.identified` is `full`; the aura shows from `partial`.
+Grants from the bearer stay visible throughout. The condition tag in the band
+reads off the real condition whatever else is masked.
+
+**What it mounts rather than rebuilds.** The construction controls
+(`sheet.mjs` `buildConstructionPanel`) sit under the Details tab's Construction
+rule; the markets feature's magic panel under Appearance for the Judge and, for
+an owner identifying a magical item, under Details.
 
 ## 2026-07-24 — containers live on the sheet; locks roll the character's own proficiency
 

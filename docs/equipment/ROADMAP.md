@@ -19,3 +19,16 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   and `WEAPON_ALIASES`/`WEAPONS` are the bulk of the name-inference this
   replaces, but which unique-item cases actually retire, and in what order, is
   still unscoped.
+- **The item sheet's mocked groups.** The design's Upkeep, Study, Reading The
+  Chart and Ability Rolls Boosted roll groups, the spell book's legibility
+  rows and the named-item note prose have no data source in this module; the
+  sheet lists only what a feature holds. Each arrives with the model that owns
+  it.
+- **Spell book contents as documents.** A spell book's formulae are a data
+  list (`spellbook.mjs`), so its Contents tab edits text rather than taking
+  spell-page drops. Moving them onto the `containedIn` relation would give the
+  book the same drop zone a chest has.
+- **The item sheet's drop targets, pointer-driven.** Live-verified through the
+  API each target calls; a real drag onto Contents, the disguise panel, the
+  keys row and a Scene onto the band still wants a session with a compositing
+  pane.

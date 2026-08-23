@@ -1,0 +1,25 @@
+{{!-- The core fields that say what the type IS: a weapon's die and throws, an
+      armour's class, a stack's count, a coin's value. Rendered under a rule on
+      Details, or inline when the sheet is in simple mode. --}}
+<div class="acks-extras-item-sheet__rule">
+  <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.record.title'}}</span>
+</div>
+<div class="acks-extras-item-sheet__fields">
+  {{#each record}}
+  <label class="acks-extras-item-sheet__field{{#if width}} is-{{width}}{{/if}}{{#if (eq type "checkbox")}} acks-check{{/if}}">
+    {{#if (eq type "checkbox")}}
+      <input type="checkbox" name="{{name}}" {{checked value}} {{disabled (not ../editable)}}>
+      <span>{{label}}</span>
+    {{else}}
+      <span class="acks-extras-item-sheet__field-label">{{label}}</span>
+      {{#if (eq type "select")}}
+      <select class="acks-input acks-input--line" name="{{name}}" {{disabled (not ../editable)}}>
+        {{#each choices}}<option value="{{value}}" {{#if (eq value ../value)}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+      {{else}}
+      <input class="acks-input acks-input--line acks-nums" type="{{type}}" name="{{name}}" value="{{value}}" {{#if (eq type "number")}}step="any"{{/if}} {{disabled (not ../editable)}}>
+      {{/if}}
+    {{/if}}
+  </label>
+  {{/each}}
+</div>

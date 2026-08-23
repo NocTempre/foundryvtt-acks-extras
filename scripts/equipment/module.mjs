@@ -17,7 +17,7 @@ import { registerVariationSheet } from "./variation-sheet.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
-import { registerEquipmentItemSheet } from "./item-sheet.mjs";
+import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
 import { isWearable } from "../lib/item-model.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -43,8 +43,21 @@ Hooks.once("init", () => {
     console.error(`${MODULE_ID} | variation item sub-type failed to register`, err);
   }
 
+  // The item sheet — this module's own window for weapon / armor / item /
+  // money documents. A standalone ItemSheetV2, so it registers at init like
+  // every other sheet here; the body includes its panels as partials, which
+  // is why they are preloaded by path.
   try {
-    foundry.applications.handlebars.loadTemplates([`modules/${MODULE_ID}/templates/equipment/loadout-summary.hbs`]);
+    registerItemSheet();
+  } catch (err) {
+    console.error(`${MODULE_ID} | item sheet failed to register; core's item sheet stands`, err);
+  }
+
+  try {
+    foundry.applications.handlebars.loadTemplates([
+      `modules/${MODULE_ID}/templates/equipment/loadout-summary.hbs`,
+      ...ITEM_SHEET_TEMPLATES,
+    ]);
   } catch (err) {
     console.warn(`${MODULE_ID} | template preload skipped`, err);
   }
@@ -69,18 +82,6 @@ Hooks.once("ready", async () => {
     registerSheet();
   } catch (err) {
     console.error(`${MODULE_ID} | sheet integration failed`, err);
-  }
-
-  // The equipment ITEM sheet — a subclass of the system's own item sheet (the
-  // acks-abilities precedent) restructuring weapon/armor/item sheets into
-  // Description / Rolls / Construction (/ Spells on a spell book) / Effects,
-  // with the named-item and apparent-identity overlays on the header. At ready,
-  // not init: CONFIG.Item.sheetClasses is empty until the pending registrations
-  // flush, so the base class can only be resolved here.
-  try {
-    registerEquipmentItemSheet();
-  } catch (err) {
-    console.error(`${MODULE_ID} | equipment item sheet failed to register; core's item sheet stands`, err);
   }
 
   // The party sheet fills hands: a held light, and the mapper's quill and

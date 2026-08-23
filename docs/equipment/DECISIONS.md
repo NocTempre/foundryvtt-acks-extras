@@ -534,3 +534,66 @@ still guesses from the name for items that predate the flag; the declared flag
 always wins, and the guess retires once the importer sets base types on what
 it materialises — retiring it sooner would strip an unflagged world's
 clothing of its slots.
+
+---
+
+### One item sheet, this module's own markup (2026-08-23)
+
+**Evidence:** the owner's design handoff (ACKS Item Sheet v3) — one sheet for
+every item type, fixed shape, conditional tabs, the identities and the lock on
+tabs rather than header strips. It supersedes two earlier rulings: the founding
+"identity overlays ride the header, not a tab", and 2026-08-11's "a Rolls tab
+only where core's details field-set is rolls". Both were rulings about how to
+restructure CORE's sheet; this is a different sheet.
+
+**Ruled:** a standalone `HandlebarsApplicationMixin(ItemSheetV2)` with a pure
+view-model (`item-sheet/view-model.mjs`), registered at `init` for weapon /
+armor / item / money. **Rejected: keep subclassing the system's sheet and
+moving its nodes.** That sheet bought the form bindings core wrote, at the
+price of a DOM-injection layer whose every decoration needed an idempotency
+guard and a `stopPropagation`, and whose layout was core's. The design's
+layout is not core's, and a sheet whose whole markup is its own has no nodes
+to relocate and no foreign form to fight.
+
+**Ruled: simple mode keeps a Details affordance.** The design drops the tab
+strip on an item with nothing to roll, no effects, no durability and no
+contents. Taken literally, a coin could never be priced or made a container —
+the only controls that change its shape live on Details. A quiet button
+unfolds that one panel; the default look is the design's.
+
+**Ruled: nothing the prototype mocked is invented.** Its Upkeep, Study,
+Reading The Chart and Ability Rolls Boosted groups, the inscription legibility
+rows and the named-item note prose have no data behind them in this module.
+They are not built from placeholder copy; they arrive when a feature owns
+them (ROADMAP).
+
+**Ruled: the rails draw Foundry's icons.** The prototype's geometric
+dingbats are replaced by the damage-type glyph (the real Acks Symbols font,
+now vendored under the author grant — `vendor/acks-design/glyphs.css`), the
+game-icons SVGs Foundry ships under `icons/svg/`, and Font Awesome; the wear
+slot draws the icon `WEAR_SLOTS` already names. No mark on the sheet is this
+module's own drawing.
+
+**Ruled: a chart is a scene binding plus a fog capture.** Dropping a Scene on
+an item binds it; "Update From Exploration" reduces the viewer's
+`FogExploration` texture to a 320px PNG and counts its painted share. A
+capture, not a live view — a chart shows what was seen when it was drawn.
+
+**Ruled: what a container accepts is a kind vocabulary, not a list of items.**
+Thirteen kinds (`item-sheet/accept-kinds.mjs`) read off document type, base
+type and name; nothing ticked takes anything, and a refusal quotes the
+container's own wording (`flags.acks-extras.container.refusal`). The kinds
+are this module's classification keys, the same standing as base types.
+
+**Ruled: a manoeuvre is an attack with the manoeuvre declared.** Core's
+`targetAttack` forwards only the type, so the sheet calls `rollAttack` per
+target with `options.maneuver`, and `computeAttackMods` folds the penalty into
+the one bonus stack every other modifier uses. No second roll path.
+
+**Cost.** The construction controls and the markets magic panel are still
+DOM built by their owners and mounted into the new sheet; they are styled
+under its rules rather than rewritten, which is the right boundary (markets
+owns its flag) and an uneven seam on the page. Real drag-and-drop could not
+be driven in the headless live session; every drop target was exercised
+through the API it calls (`storeIn`, `disguiseItem`, `bindScene`) and stays
+on the TESTING recipe as a pointer-driven check.

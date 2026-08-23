@@ -1,0 +1,98 @@
+{{!-- Durability: condition, armour class now-of-full, material; and the lock
+      on a container — the only place locks live. --}}
+<div class="acks-extras-item-sheet__stack">
+  <div class="acks-extras-item-sheet__facts">
+    <div class="acks-extras-item-sheet__fact">
+      <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.props.condition'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__fact-value">
+        {{#if durability.destroyed}}{{localize 'ACKS-EQUIPMENT.itemSheet.condition.destroyed'}}
+        {{else if durability.conditionLabel}}{{durability.conditionLabel}}
+        {{else}}{{localize 'ACKS-EQUIPMENT.props.pristine'}}{{/if}}
+      </span>
+    </div>
+    {{#if durability.acLine}}
+    <div class="acks-extras-item-sheet__fact">
+      <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemSheet.field.ac'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__fact-value acks-nums">{{durability.acLine.now}}<span class="acks-extras-item-sheet__of">{{localize 'ACKS-EQUIPMENT.itemSheet.of' n=durability.acLine.full}}</span></span>
+    </div>
+    {{/if}}
+    {{#if durability.uses}}
+    <div class="acks-extras-item-sheet__fact">
+      <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemSheet.condition.uses'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__fact-value acks-nums">{{durability.uses.now}}<span class="acks-extras-item-sheet__of">{{localize 'ACKS-EQUIPMENT.itemSheet.of' n=durability.uses.max}}</span></span>
+    </div>
+    {{/if}}
+    {{#if durability.breaks}}
+    <div class="acks-extras-item-sheet__fact">
+      <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemSheet.condition.breaks'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__fact-value">{{localize 'ACKS-EQUIPMENT.itemSheet.condition.breaksOn1'}}</span>
+    </div>
+    {{/if}}
+  </div>
+
+  <div class="acks-row acks-row--wrap">
+    <span class="acks-extras-item-sheet__fact-label" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.condition.materialHint'}}">{{localize 'ACKS-EQUIPMENT.props.material'}}</span>
+    <span class="acks-tag-group"><span class="acks-tag">{{durability.material}}</span></span>
+    <span class="acks-spacer"></span>
+    {{#if gm}}
+    <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="markDestroyed">
+      <i class="fa-solid {{#if durability.destroyed}}fa-wrench{{else}}fa-heart-crack{{/if}}" inert></i>
+      {{localize (concat 'ACKS-EQUIPMENT.itemSheet.condition.' (ifThen durability.destroyed 'restore' 'markDestroyed'))}}
+    </button>
+    {{/if}}
+  </div>
+  {{#each durability.notes}}<span class="acks-extras-item-sheet__note">{{this}}</span>{{/each}}
+
+  {{#if durability.lock}}
+  <div class="acks-extras-item-sheet__group">
+    <div class="acks-extras-item-sheet__rule">
+      <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.lock.title'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__rule-note">{{#if durability.lock.locked}}{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.group.lockShut'}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.group.lockOpen'}}{{/if}}</span>
+    </div>
+    <div class="acks-extras-item-sheet__row acks-row--wrap">
+      <label class="acks-check">
+        <input type="checkbox" data-action="toggleLock" {{checked durability.lock.lockOn}} {{disabled (not editable)}}>
+        <span>{{localize 'ACKS-EQUIPMENT.itemSheet.lock.locked'}}</span>
+      </label>
+      <label class="acks-extras-item-sheet__field is-md">
+        <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.lock.quality'}}</span>
+        <input class="acks-input acks-input--line" type="text" name="{{containerPath}}.quality" value="{{durability.lock.quality}}" {{disabled (not editable)}}>
+      </label>
+      <label class="acks-extras-item-sheet__field is-xs">
+        <span class="acks-extras-item-sheet__field-label" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.lock.pickHint'}}">{{localize 'ACKS-EQUIPMENT.itemSheet.lock.pick'}}</span>
+        <input class="acks-input acks-input--line acks-nums" type="number" name="{{containerPath}}.lockMod" value="{{durability.lock.lockMod}}" step="1" {{disabled (not editable)}}>
+      </label>
+      <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.lock.fragileHint'}}">
+        <input type="checkbox" name="{{containerPath}}.fragile" {{checked durability.lock.fragile}} {{disabled (not editable)}}>
+        <span>{{localize 'ACKS-EQUIPMENT.itemSheet.lock.fragile'}}</span>
+      </label>
+    </div>
+    <div class="acks-extras-item-sheet__row" data-drop="keys">
+      <span class="acks-extras-item-sheet__row-text">
+        <span class="acks-extras-item-sheet__row-label" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.lock.keysHint'}}">{{localize 'ACKS-EQUIPMENT.itemSheet.lock.keys'}}</span>
+      </span>
+      <span class="acks-tag-group">
+        {{#each durability.lock.keys}}
+        <span class="acks-tag">{{name}}{{#if @root.editable}}<button type="button" class="acks-extras-item-sheet__tag-x" data-action="removeKey" data-uuid="{{uuid}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.lock.removeKey'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}</span>
+        {{else}}
+        <span class="acks-tag acks-tag--ghost">{{localize 'ACKS-EQUIPMENT.itemSheet.lock.noKey'}}</span>
+        {{/each}}
+      </span>
+    </div>
+    <div class="acks-extras-item-sheet__row">
+      <span class="acks-extras-item-sheet__row-text">
+        <span class="acks-extras-item-sheet__row-label">{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.row.bash'}}</span>
+        <span class="acks-extras-item-sheet__row-line">{{#if durability.lock.fragile}}{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.row.bashFragile'}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.row.bashLine'}}{{/if}}</span>
+      </span>
+      <button type="button" class="acks-btn acks-btn--roll acks-btn--sm" data-action="roll" data-roll="lock:bash">
+        <i class="fa-solid fa-hammer" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.lock.bash'}}
+      </button>
+    </div>
+  </div>
+  {{/if}}
+</div>

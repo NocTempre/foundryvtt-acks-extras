@@ -1,0 +1,65 @@
+{{!-- Contents: what is inside a container, and what may be dropped in; a
+      spell book's recorded formulae take the same tab. --}}
+<div class="acks-extras-item-sheet__stack" data-drop="contents">
+  {{#if contents}}
+  <div class="acks-extras-item-sheet__capacity">
+    <div class="acks-row">
+      <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.contents.capacity'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__fact-value acks-nums">{{contents.capLine}} {{localize 'ACKS-EQUIPMENT.itemSheet.contents.stone'}}</span>
+    </div>
+    <div class="acks-bar{{#if contents.over}} acks-bar--danger{{/if}}"><div class="acks-bar-fill" style="--acks-bar-value: {{contents.capPct}}"></div></div>
+  </div>
+  {{#if contents.canSee}}
+  <div class="acks-extras-item-sheet__group">
+    {{#each contents.contents}}
+    <div class="acks-extras-item-sheet__row">
+      <img class="acks-extras-item-sheet__tile" src="{{img}}" alt="" inert>
+      <a class="acks-extras-item-sheet__row-name acks-extras-item-sheet__grow" data-action="openContent" data-item="{{id}}">{{name}}</a>
+      {{#if qty}}<span class="acks-extras-item-sheet__row-line acks-nums">×{{qty}}</span>{{/if}}
+      <span class="acks-extras-item-sheet__row-weight acks-nums">{{wt}}</span>
+      {{#if @root.editable}}
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="takeOut" data-item="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.container.takeOut'}}"><i class="fa-solid fa-arrow-up-from-bracket" inert></i></button>
+      {{/if}}
+    </div>
+    {{/each}}
+  </div>
+  <div class="acks-empty acks-extras-item-sheet__drop">
+    <span class="acks-empty-title">
+      {{#if contents.acceptsAny}}{{localize 'ACKS-EQUIPMENT.itemSheet.contents.dropAny'}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.contents.dropKinds'}}{{/if}}
+    </span>
+    <span class="acks-empty-hint">
+      {{#if worldItem}}{{localize 'ACKS-EQUIPMENT.itemSheet.contents.needsActor'}}
+      {{else if contents.refusal}}{{localize 'ACKS-EQUIPMENT.itemSheet.contents.refusedWith' message=contents.refusal}}
+      {{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.contents.dropHint'}}{{/if}}
+    </span>
+  </div>
+  {{else}}
+  <div class="acks-empty">
+    <span class="acks-empty-title">{{localize 'ACKS-EQUIPMENT.itemSheet.contents.locked'}}</span>
+    <span class="acks-empty-hint">{{localize 'ACKS-EQUIPMENT.container.lockedHint'}}</span>
+  </div>
+  {{/if}}
+  <div class="acks-row acks-row--wrap">
+    <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemSheet.contents.accepts'}}</span>
+    <span class="acks-tag-group">
+      {{#each contents.accepts}}<span class="acks-tag">{{localize (concat 'ACKS-EQUIPMENT.itemSheet.kind.' this)}}</span>{{else}}<span class="acks-tag acks-tag--ghost">{{localize 'ACKS-EQUIPMENT.itemSheet.contents.anything'}}</span>{{/each}}
+    </span>
+    <span class="acks-spacer"></span>
+    {{#if editable}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="goTab" data-tab="details">{{localize 'ACKS-EQUIPMENT.itemSheet.contents.editInDetails'}}</button>{{/if}}
+  </div>
+  {{/if}}
+
+  {{#if spellbook}}
+  <div class="acks-extras-item-sheet__capacity">
+    <div class="acks-row">
+      <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.spellbook.pages'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__fact-value acks-nums">{{spellbook.pagesUsed}}<span class="acks-extras-item-sheet__of">{{localize 'ACKS-EQUIPMENT.itemSheet.of' n=spellbook.pagesCap}}</span></span>
+    </div>
+    <div class="acks-bar{{#if spellbook.over}} acks-bar--danger{{/if}}"><div class="acks-bar-fill" style="--acks-bar-value: {{spellbook.pct}}"></div></div>
+  </div>
+  <p class="acks-extras-item-sheet__note">{{localize 'ACKS-EQUIPMENT.spellbook.prompt'}}</p>
+  <textarea class="acks-input acks-extras-item-sheet__spells" rows="10" data-field="spellbook" {{disabled (not editable)}}>{{spellbookText}}</textarea>
+  {{/if}}
+</div>

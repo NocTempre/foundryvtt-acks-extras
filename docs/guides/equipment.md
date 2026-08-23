@@ -228,23 +228,61 @@ embellished blade is never mistaken for the plain one it copies.
 
 *A skinned item's badge naming its base, with the embellishment set apart.*
 
-## What is on which tab of an item
+## The item sheet
 
-An item sheet opens on **Description**, with core's own stats column beside the
-prose — for armour that is its AC and armour type, for gear its subtype and
-quantity. **Construction** holds what the thing *is*: masterwork, condition,
-material, shield variant, helmet. Identity — a named item's tracker, and the
-Judge's apparent-identity mask — rides the header rather than a tab, because an
-item wears its identity everywhere.
+Every piece of gear — weapon, armour, item, coin — opens in one sheet whose
+shape never changes: a title band, an art row, and a strip of tabs that exist
+only when there is something to put on them.
 
-![](../releases/v3.7.0/equipment-armour-sidebar.png)
+**The title band** is the window's own header: the name, a quantity badge on a
+stack, the value and the weight (in stone — type it in stone, it is stored in
+sixths), a scene chip on a chart, and a Damaged / Destroyed tag when the item
+has taken harm. Damage cannot be disguised, so that tag shows whatever else the
+sheet is hiding.
 
-*AC and armour type beside the prose that describes it, with no Rolls tab to
-hunt through.*
+**The art row.** Left of the art, a rail of small cells: what the item is (a
+weapon shows its damage-type glyph), where it is worn, and up to two **pinned
+rolls** — click a roll's lozenge on the Rolls tab to pin it, and the art carries
+it as a button. Right of the art, the state cells: **EQP** wears or wields it
+(on a stack it splits one out and equips that; click again to restack), **PIN**
+favourites it on the character sheet, **CAP** shows how full a container is,
+**LOCK** appears on a locked one. Beside the description, the editor rail:
+description editor, art, tags and base type, ownership (on a world item), and
+for the Judge the item's source and identification.
 
-**Rolls appears on weapons only**, and holds core's throw fields: damage, attack
-bonus, melee or missile, range and save. Nothing else in the inventory throws
-dice, so nothing else grows the tab.
+**The tabs**, always in this order and only when earned:
+
+- **Rolls** — a weapon's attack modes, the special manoeuvres when that overlay
+  is on, a spell book's recorded formulae, a locked container's Pick / Break
+  rows. Roll buttons appear only where a real throw exists — the lock rows need
+  the character's own Lockpicking or Dungeon Bashing.
+- **Chart** — drop a Scene on any item and it becomes a chart of that scene;
+  *Update From Exploration* captures the explored fog of war and records how
+  much of the scene is charted.
+- **Durability** — condition, armour class now-of-full, material; and on a
+  container, **the lock**: locked, quality, the pick modifier, the keys that
+  open it (drop key items on the row), fragile contents, and the Bash button.
+- **Effects** — the item's own Active Effects (hidden from players until a magic
+  item is identified), what the bearer grants it (class, proficiencies,
+  attributes — read only), and for a named item **The Name**: the pip track,
+  the true name (Judge only), guessing and renaming.
+- **Contents** — a container's load bar, what is inside, and the drop zone that
+  names what it accepts and quotes its refusal. A spell book keeps its page
+  count and formula list here.
+- **Appearance** (Judge only) — whether the item is magical, what the players
+  know (found / aura seen / identified) and its aura school; and the
+  **disguise**: tick *Can be disguised*, drop any item on the panel, and players
+  see that item's name, art, description and price while the real effects keep
+  working. *Preview As Player* shows what they see.
+- **Details** — the price ledger (listed price, plating, masterwork, variations,
+  condition, final) with the value mode (Priced / Unknown / N/A), the applied
+  variations, the feature switches (*Holds other items*, capacity, *Will
+  Accept* kinds and the refusal message), the construction controls, and the
+  core record fields.
+
+An item with nothing to roll, no effects, no durability and no contents — coin,
+gems, a trinket — drops the tabs and the state rail entirely; a quiet **Details**
+button unfolds that one panel when you need it.
 
 ## Common problems
 

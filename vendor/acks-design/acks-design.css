@@ -3,11 +3,13 @@
  *
  * Lifted from the reference folder C:\Proj\acks-design and shipped self-contained
  * so any family module can opt a sheet in by putting `.acks-ui` on its
- * application root — nothing here depends on that folder being present. The
- * non-OFL "Acks Symbols" glyph font (and its glyphs.css / shapes.css, the
- * character-sheet geometry) are intentionally NOT vendored; a location/market
- * sheet needs the type, tables, callouts, controls and Foundry chrome, not the
- * attribute discs or damage symbols.
+ * application root — nothing here depends on that folder being present.
+ * `glyphs.css` binds the "Acks Symbols" damage-type font, which is NOT OFL: it
+ * ships here under Autarch's grant to authorised `acks-*` modules
+ * (fonts/LICENSES.md), and a module outside that grant drops the import and
+ * the .woff2 and uses `.acks-dmg-fallback`. `shapes.css` (the character-sheet
+ * geometry — attribute discs, hexes) is still not vendored; nothing here draws
+ * it.
  *
  * Everything is scoped under `.acks-ui`; the file is INERT until a sheet opts in,
  * so loading it unconditionally from acks-lib does not restyle anything for
@@ -28,6 +30,7 @@
 @import url("./tables.css");
 @import url("./callouts.css");
 @import url("./controls.css");
+@import url("./glyphs.css");
 @import url("./foundry.css");
 
 /* ============================================================================

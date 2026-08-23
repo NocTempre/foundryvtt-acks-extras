@@ -9,6 +9,9 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 export { MODULE_ID };
 
+/** The feature's lang root — every `ACKS-EQUIPMENT.*` key hangs off it. */
+export const LANG = "ACKS-EQUIPMENT";
+
 /** Active Effect change-key prefix for this module's data-driven modifiers. */
 export const EFFECT_PREFIX = `flags.${MODULE_ID}.`;
 

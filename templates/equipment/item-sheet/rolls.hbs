@@ -1,0 +1,41 @@
+{{!-- Rolls: every throw the item can make, grouped; a lozenge pins a row to the art. --}}
+<div class="acks-extras-item-sheet__stack">
+  {{#each rolls.groups}}
+  <div class="acks-extras-item-sheet__group">
+    <div class="acks-extras-item-sheet__rule">
+      <span class="acks-extras-item-sheet__rule-title">{{name}}</span>
+      {{#if src}}<span class="acks-tag acks-tag--ghost">{{src}}</span>{{/if}}
+      <span class="acks-spacer"></span>
+      {{#if note}}<span class="acks-extras-item-sheet__rule-note">{{note}}</span>{{/if}}
+    </div>
+    {{#each rows}}
+    <div class="acks-extras-item-sheet__row">
+      <button type="button" class="acks-extras-item-sheet__pin{{#if pinned}} is-on{{/if}}" data-action="pinRoll" data-roll="{{id}}"
+              data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.rolls.' (ifThen pinned 'unpin' 'pin'))}}" {{disabled (not @root.editable)}}>
+        <span class="acks-sr-only">{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.pin'}}</span>
+      </button>
+      <span class="acks-extras-item-sheet__row-text">
+        <span class="acks-extras-item-sheet__row-label">{{label}}</span>
+        <span class="acks-extras-item-sheet__row-line acks-nums">{{line}}</span>
+      </span>
+      {{#if mods.length}}
+      <span class="acks-tag-group acks-extras-item-sheet__row-mods">
+        {{#each mods}}<span class="acks-tag acks-tag--ghost">{{this}}</span>{{/each}}
+      </span>
+      {{/if}}
+      {{#if rollable}}
+      <button type="button" class="acks-btn acks-btn--roll acks-btn--sm" data-action="roll" data-roll="{{id}}">
+        <i class="fa-solid fa-dice-d20" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.roll'}}
+      </button>
+      {{/if}}
+    </div>
+    {{/each}}
+  </div>
+  {{/each}}
+  {{#if rolls.empty}}
+  <div class="acks-empty">
+    <span class="acks-empty-title">{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.none'}}</span>
+    <span class="acks-empty-hint">{{localize 'ACKS-EQUIPMENT.itemSheet.rolls.noneHint'}}</span>
+  </div>
+  {{/if}}
+</div>

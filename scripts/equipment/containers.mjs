@@ -36,7 +36,9 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // wanted instead (harness heavy-check, shield baseline), which do NOT go
 // through it. `isStowable` is where coin's missing cost/weight6 is reconciled:
 // coin is goods without being physical, so asking `isPhysical` here loses it.
-import { weight6Of, isStowable, isWorn, isClothing, gearOf, capacityOf, holdsGear, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
+import { weight6Of, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
+import { kindsOf, acceptsKinds, cleanAccepts } from "./item-sheet/accept-kinds.mjs";
+import { itemBaseType } from "./variation-items.mjs";
 // Containment READS live in lib now (the capacity primitive needs them);
 // re-exported here so this feature's importers keep one door.
 export { containedIn, contentsOf, contentsWeight6 };
@@ -146,6 +148,37 @@ export async function setConcealed(item, concealed = true) {
   return true;
 }
 
+/**
+ * Merge fields into the container record — the lock's quality, the keys that
+ * open it, the kinds it accepts and the refusal it gives. One writer, so the
+ * record is never replaced wholesale by a caller that knew only its own field.
+ */
+export async function setContainerRecord(item, patch = {}) {
+  await item.setFlag(MODULE_ID, ITEM_FLAGS.CONTAINER, { ...(containerOf(item) ?? {}), ...patch });
+  return true;
+}
+
+/**
+ * Why a container refuses a candidate by KIND, or null when it takes it. The
+ * container's own wording rides the answer so the warning quotes it.
+ * @returns {{reason:"refused", message:string}|null}
+ */
+export function kindRefusal(container, item) {
+  const rec = containerOf(container);
+  const accepts = cleanAccepts(rec?.accepts);
+  if (!accepts.length) return null;
+  const kinds = kindsOf({
+    type: item?.type,
+    name: item?.name,
+    baseType: itemBaseType(item),
+    clothing: isClothing(item),
+    ammo: isAmmoItem(item),
+    chart: !!item?.getFlag?.(MODULE_ID, "chart")?.sceneUuid,
+  });
+  if (acceptsKinds(accepts, kinds)) return null;
+  return { reason: "refused", message: rec?.refusal || "" };
+}
+
 /** Items carried loose — not inside anything (containers themselves included). */
 export function looseItems(actor) {
   return actor.items.filter((i) => isStowable(i) && !containedIn(i));
@@ -186,6 +219,9 @@ export function canStore(actor, item, container) {
   if (isContainer(item) && containerChain(actor, container).some((c) => c.id === item.id)) {
     return { ok: false, reason: "cycle" };
   }
+  // A container that names what it takes refuses the rest with its own words.
+  const refusal = kindRefusal(container, item);
+  if (refusal) return { ok: false, ...refusal };
   return { ok: true };
 }
 
@@ -202,7 +238,13 @@ export function canStore(actor, item, container) {
 export async function storeIn(actor, item, container) {
   const check = canStore(actor, item, container);
   if (!check.ok) {
-    if (check.reason !== "missing") warn(`storeFailed.${check.reason}`, { item: item?.name, container: container?.name });
+    if (check.reason !== "missing") {
+      warn(`storeFailed.${check.reason}`, {
+        item: item?.name,
+        container: container?.name,
+        message: check.message || game.i18n.localize("ACKS-EQUIPMENT.itemSheet.options.refusalDefault"),
+      });
+    }
     return false;
   }
   if (containedIn(item) === container.id) return false; // already there

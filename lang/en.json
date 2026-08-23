@@ -775,7 +775,9 @@
         "notAContainer": "{container} is not a container.",
         "selfContained": "An item cannot be put inside itself.",
         "notStowable": "{item} cannot be stowed in a container.",
-        "cycle": "{container} is already inside {item} — that would nest them in a loop."
+        "cycle": "{container} is already inside {item} — that would nest them in a loop.",
+        "locked": "{container} is locked — open it first.",
+        "refused": "{container} refuses {item}: {message}"
       }
     },
     "notify": {
@@ -913,12 +915,10 @@
       "nameHint": "Apparent name…"
     },
     "tab": {
-      "rolls": "Rolls",
-      "construction": "Construction",
-      "spells": "Spells"
+      "construction": "Construction"
     },
     "sheet": {
-      "label": "ACKS Equipment Item Sheet"
+      "label": "ACKS Item Sheet"
     },
     "named": {
       "badge": "Named item — {n}/{max} powers unlocked. Click to open.",
@@ -1019,6 +1019,346 @@
         "hidden": "The players see the item without this, and priced without it. What it does still applies.",
         "read": "Off means it can be seen but not understood.",
         "language": "The tongue it is written in, if reading it needs one."
+      }
+    },
+    "itemSheet": {
+      "tabsLabel": "Item sheet sections",
+      "of": "of {n}",
+      "tab": {
+        "rolls": "Rolls",
+        "chart": "Chart",
+        "durability": "Durability",
+        "effects": "Effects",
+        "contents": "Contents",
+        "appearance": "Appearance",
+        "details": "Details"
+      },
+      "band": {
+        "quantity": "How many are in the stack.",
+        "value": "Value",
+        "stone": "St",
+        "weightHint": "Weight, in stone.",
+        "openScene": "Open the scene this chart draws.",
+        "conditionHint": "Visible to everyone — damage cannot be disguised.",
+        "masked": "Masked",
+        "maskedHint": "Players see the disguise. You see the true item.",
+        "judgeView": "Judge view"
+      },
+      "condition": {
+        "damaged": "Damaged",
+        "destroyed": "Destroyed",
+        "uses": "Uses",
+        "breaks": "Breaks",
+        "breaksOn1": "On a natural 1",
+        "materialHint": "Decides which damage types can destroy it (item loss).",
+        "markDestroyed": "Mark destroyed",
+        "restore": "Restore",
+        "cannotSneak": "Cannot sneak while worn"
+      },
+      "value": {
+        "value": "Value",
+        "apparent": "Apparent worth — what it passes for until identified.",
+        "maskValue": "The value of the disguise.",
+        "trueValue": "True value — players see the disguise's.",
+        "unknown": "Marked unappraised in Details — nobody has put a price on it.",
+        "na": "Marked not saleable in Details.",
+        "unknownLabel": "Unknown",
+        "mode": {
+          "priced": "Priced",
+          "unknown": "Unknown",
+          "na": "N/A"
+        },
+        "hint": {
+          "priced": "Apparent worth until identified, then the full price.",
+          "unknown": "Nobody has appraised it; the badge reads Unknown.",
+          "na": "Not a saleable item — the badge reads a dash."
+        }
+      },
+      "rail": {
+        "emptyRoll": "Empty roll slot — pin a roll on the Rolls tab.",
+        "emptyState": "Empty state slot.",
+        "changeArt": "Change the item art.",
+        "moreRolls": "More rolls than the art carries — open the Rolls tab.",
+        "equipHint": "Worn or wielded. Click to toggle.",
+        "splitHint": "A stack cannot be equipped — click to split one out and equip it.",
+        "restackHint": "One split from its stack and equipped — click to return it.",
+        "favoriteHint": "Pinned to the character sheet's favourites.",
+        "capacityHint": "How full it is — open Contents.",
+        "lockHint": "Locked — open Durability for the lock."
+      },
+      "aura": {
+        "title": "Aura",
+        "none": "None",
+        "arcane": "Arcane aura",
+        "divine": "Divine aura",
+        "eldritch": "Eldritch aura",
+        "hint": "Detectable before identification — a disguise does not mask it."
+      },
+      "editor": {
+        "editDescription": "Edit the description",
+        "editTags": "Tags and base type",
+        "ownership": "Ownership and visibility",
+        "source": "Compendium source and identification",
+        "changeArt": "Change the art"
+      },
+      "record": {
+        "title": "Record"
+      },
+      "field": {
+        "damage": "Damage",
+        "bonus": "Bonus",
+        "melee": "Melee",
+        "missile": "Missile",
+        "rangeShort": "Short",
+        "rangeMedium": "Medium",
+        "rangeLong": "Long",
+        "save": "Save",
+        "slow": "Slow",
+        "ac": "Armor class",
+        "armorType": "Armor type",
+        "subtype": "Kind",
+        "subtypeItem": "Item",
+        "subtypeClothing": "Clothing",
+        "quantity": "Quantity",
+        "quantityMax": "Max",
+        "copperValue": "Value each, cp",
+        "carried": "Carried",
+        "banked": "Banked"
+      },
+      "rolls": {
+        "pin": "Pin to the art",
+        "unpin": "Unpin from the art",
+        "roll": "Roll",
+        "none": "No Rolls",
+        "noneHint": "Nothing on this item throws dice.",
+        "noRoller": "Nobody to roll: open the item from a character, control a token, or assign your character.",
+        "throw": "throw",
+        "range": "range {range}",
+        "mod": {
+          "nonProficient": "Non-proficient",
+          "noShield": "No shield",
+          "trickery": "Combat Trickery",
+          "gloved": "Gloves block it",
+          "loud": "Loud"
+        },
+        "row": {
+          "melee": "Melee",
+          "twoHanded": "Two-handed",
+          "shoot": "Shoot",
+          "hurled": "Hurled",
+          "pick": "Pick the lock",
+          "pickLine": "Lockpicking throw",
+          "bash": "Break it open",
+          "bashLine": "Dungeonbashing throw · contents spill",
+          "bashFragile": "Dungeonbashing throw · fragile contents break"
+        },
+        "group": {
+          "attackModes": "Attack Modes",
+          "maneuvers": "Special Manoeuvres",
+          "maneuversNote": "Overlay",
+          "spells": "Spells Inscribed · Level {n}",
+          "spellsNote": "{n} recorded",
+          "lock": "The Lock",
+          "lockShut": "Shut",
+          "lockOpen": "Open"
+        },
+        "maneuver": {
+          "save": "{save} save",
+          "noSave": "No save"
+        },
+        "spell": {
+          "level": "Level {n}"
+        },
+        "src": {
+          "contents": "From contents"
+        }
+      },
+      "chart": {
+        "charted": "{pct} charted",
+        "frameHint": "Drawn from the scene's explored fog of war — dark ground is uncharted.",
+        "captureAlt": "The explored ground, as last captured.",
+        "caption": "Fog of war capture",
+        "blank": "Blank",
+        "blankHint": "Nothing captured yet — redraw it from exploration.",
+        "open": "Open Scene",
+        "update": "Update From Exploration",
+        "updateHint": "Redraw the chart from the ground explored so far.",
+        "unbind": "Unbind",
+        "noScene": "The scene this chart drew no longer exists.",
+        "noExploration": "Nothing has been explored on that scene yet.",
+        "updated": "Chart redrawn — {pct}% of the scene charted."
+      },
+      "lock": {
+        "title": "The Lock",
+        "locked": "Locked",
+        "quality": "Quality",
+        "pick": "Pick throw",
+        "pickHint": "A modifier to the Lockpicking throw.",
+        "fragile": "Fragile contents",
+        "fragileHint": "Breaking it open destroys what is inside.",
+        "keys": "Keys That Open It",
+        "keysHint": "Drop a key item here.",
+        "removeKey": "Remove this key",
+        "noKey": "No key bound",
+        "bash": "Bash"
+      },
+      "effects": {
+        "own": "Carried By The Item",
+        "ownNote": "Editable",
+        "configure": "Configure this effect",
+        "delete": "Delete this effect",
+        "add": "Add Effect",
+        "mundane": "Mundane",
+        "mundaneHint": "Add an effect, or drop an enchantment onto this item.",
+        "unidentified": "Unidentified",
+        "unidentifiedHint": "Its effects are hidden until it is identified.",
+        "inherited": "Granted While Equipped",
+        "inheritedNote": "From the bearer · read only",
+        "nothingGranted": "Nothing Granted",
+        "nothingGrantedHint": "The bearer's class, proficiencies and attributes add nothing to this item.",
+        "noChanges": "No changes",
+        "disabled": "Disabled",
+        "whileEquipped": "Equipped",
+        "onItem": "On the item"
+      },
+      "named": {
+        "title": "The Name",
+        "unlocked": "{n} of {max} points unlocked",
+        "givenLine": "The given name · points unlock per level earned wielding it",
+        "noTrueName": "No true name set",
+        "trueLine": "True name, Judge only · spoken aloud it unlocks every point",
+        "revealed": "Revealed",
+        "unrevealed": "Unrevealed",
+        "guessHint": "One guess per level of experience."
+      },
+      "tag": {
+        "named": "Named"
+      },
+      "contents": {
+        "capacity": "Capacity",
+        "stone": "stone",
+        "dropAny": "Drop To Store",
+        "dropKinds": "Drop Accepted Kinds",
+        "dropHint": "Drag items here. Locked containers refuse drops from players.",
+        "refusedWith": "Anything else is refused: “{message}”",
+        "needsActor": "Open this container from a character to store gear in it.",
+        "locked": "Locked",
+        "accepts": "Accepts",
+        "anything": "Anything that fits",
+        "editInDetails": "Edit In Details"
+      },
+      "kind": {
+        "weapons": "Weapons",
+        "armor": "Armor",
+        "clothing": "Clothing",
+        "spellPages": "Spell Pages",
+        "scrolls": "Scrolls",
+        "maps": "Maps",
+        "keys": "Keys",
+        "liquids": "Liquids",
+        "coin": "Coin",
+        "gems": "Gems",
+        "rations": "Rations",
+        "ammunition": "Ammunition",
+        "tools": "Tools"
+      },
+      "spellbook": {
+        "pages": "Pages"
+      },
+      "know": {
+        "title": "What The Players Know",
+        "hint": {
+          "none": "Held and handled; nothing magical is apparent.",
+          "partial": "Its nature is known, not its effect or worth.",
+          "full": "The effect and the worth are known."
+        },
+        "note": {
+          "1": "Players see no aura, no effects and only the apparent value.",
+          "2": "Players see the aura and its school; the effects and the value stay hidden.",
+          "3": "Players see everything the sheet holds."
+        }
+      },
+      "disguise": {
+        "title": "Disguise",
+        "judgeOnly": "Judge only",
+        "explain": "Drop an item here and players see its name, art, description, stats and price in its place — the real effects keep working underneath. The aura is not masked.",
+        "preview": "Preview As Player",
+        "remove": "Remove Disguise",
+        "none": "No Disguise",
+        "noneHint": "Drag an item from a compendium or a sheet onto this panel."
+      },
+      "options": {
+        "title": "Options",
+        "holds": "Holds other items",
+        "holdsHint": "Adds the Contents tab — a chest, a backpack, a quiver, a map case.",
+        "capacity": "Capacity, st",
+        "disguisable": "Can be disguised",
+        "accept": "Will Accept",
+        "acceptHint": "Nothing selected means the container takes anything that fits; a wrong drop is refused with the message below.",
+        "acceptCount": "{n} kinds",
+        "acceptAny": "Unrestricted",
+        "refusal": "Refusal message",
+        "refusalHint": "What the container says to a wrong drop.",
+        "refusalDefault": "It will not fit."
+      },
+      "price": {
+        "title": "Price",
+        "final": "Final price"
+      },
+      "ledger": {
+        "listed": "Listed price",
+        "silver": "Silvered",
+        "condition": "Condition",
+        "set": "Set by hand"
+      },
+      "variations": {
+        "title": "Variations",
+        "add": "Add",
+        "addHint": "Make a variation by hand — published ones are dragged on.",
+        "none": "None applied",
+        "newName": "New variation"
+      },
+      "grant": {
+        "attackMelee": "melee attack throw",
+        "damageMelee": "melee damage",
+        "attackMissile": "missile attack throw",
+        "ac": "armor class",
+        "attackDamage": "attack and damage",
+        "strength": "Strength {n}",
+        "dexterity": "Dexterity {n}",
+        "style": "Fighting style: {style}",
+        "styleTrained": "Trained",
+        "styleUntrained": "Untrained"
+      },
+      "src": {
+        "ability": "Ability",
+        "proficiency": "Proficiency",
+        "attribute": "Attribute",
+        "class": "Class"
+      },
+      "slot": {
+        "wornAt": "Worn at {slot}",
+        "wouldWear": "Would be worn at {slot}",
+        "carried": "Carried"
+      },
+      "type": {
+        "title": "{type} · {base}"
+      },
+      "equip": {
+        "noSlot": "This item declares nowhere to be worn.",
+        "splitDone": "{name} split from the stack and equipped."
+      },
+      "tags": {
+        "title": "Tags",
+        "hint": "One tag per line.",
+        "save": "Save",
+        "baseTypeTitle": "Base type",
+        "baseTypeHint": "What this item is, refining its document type.",
+        "baseTypeNone": "Not declared"
+      },
+      "source": {
+        "from": "From {source}",
+        "none": "Not from a compendium."
       }
     }
   },

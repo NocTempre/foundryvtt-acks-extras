@@ -1,0 +1,205 @@
+/* ============================================================================
+ * GLYPHS — the ACKS II damage-type symbols.
+ *
+ * This binds the REAL `Acks Symbols` font (v001.004), provided by Autarch for
+ * use in authorised ACKS modules. It is NOT open-licence — see
+ * ../../fonts/LICENSES.md before shipping it. Every other font in this system
+ * is OFL; this one is a specific grant.
+ *
+ * The font maps its 13 glyphs to ASCII letters as mnemonics, and the mapping is
+ * CASE-SENSITIVE in three places:
+ *
+ *     a  acid          A  alchemical
+ *     p  piercing      P  poison
+ *     s  slashing      S  sonic
+ *
+ * The other seven (b c e f l n w) accept either case. So lowercasing a damage
+ * key does not fail — it silently renders a DIFFERENT VALID ICON. Poison
+ * becomes piercing; sonic becomes slashing. Never `.toLowerCase()` a damage
+ * type on its way to this component; use the semantic classes or the
+ * `data-acks-dmg` attribute below and let CSS pick the character.
+ *
+ * The glyph is emitted as generated content, never as text. Two reasons: a
+ * screen reader would otherwise announce the letter "p", and copying a stat
+ * block would otherwise yield "1d6 p damage" instead of "1d6 damage".
+ * ========================================================================== */
+
+@font-face {
+  font-family: "Acks Symbols";
+  font-style: normal;
+  font-weight: 400;
+  /* `block`, not `swap`: a fallback face has no glyph here, so swapping would
+   * flash a literal Latin letter where an icon belongs. Better to show nothing
+   * for the brief block period. */
+  font-display: block;
+  src: url("./fonts/ackssymbols-regular.woff2") format("woff2");
+}
+
+/* ---------------------------------------------------------------------------
+ * BASE
+ * Sits on the text baseline at the surrounding size, in the surrounding
+ * colour — the books set these inline between the dice expression and the word
+ * "damage" ("takes 1d6 ⟨icon⟩ damage"), in ink or in the damage red.
+ * ------------------------------------------------------------------------ */
+.acks-dmg {
+  display: inline-block;
+  inline-size: 1em;
+  block-size: 1em;
+  line-height: 1;
+  vertical-align: -0.125em;
+  text-align: center;
+  color: inherit;
+}
+
+.acks-dmg::before {
+  font-family: "Acks Symbols";
+  font-weight: 400;
+  font-style: normal;
+  font-size: 1em;
+  line-height: 1;
+  /* The letters are glyph selectors, not text. Never transform them — a stray
+   * `text-transform` in a parent would change which icon renders. */
+  text-transform: none !important;
+  font-variant: normal;
+  letter-spacing: 0;
+  speak: never;
+}
+
+/* The measured book usage: ink by default, the damage red for emphasis. */
+.acks-dmg--red {
+  color: var(--acks-danger);
+}
+
+.acks-dmg--spot {
+  color: var(--acks-spot);
+}
+
+.acks-dmg--lg {
+  font-size: 1.4em;
+}
+
+.acks-dmg--xl {
+  font-size: 2em;
+}
+
+/* ---------------------------------------------------------------------------
+ * THE 13 DAMAGE TYPES
+ * Physical, elemental, then esoteric — the order they appear by frequency in
+ * the Monstrous Manual. Each is also reachable via `data-acks-dmg="<name>"`,
+ * which is the friendlier form from a Handlebars template:
+ *
+ *   <i class="acks-dmg" data-acks-dmg="{{damageType}}" aria-hidden="true"></i>
+ *   <span class="acks-sr-only">{{damageType}} damage</span>
+ * ------------------------------------------------------------------------ */
+
+/* -- Physical ----------------------------------------------------------- */
+.acks-dmg--piercing::before,      [data-acks-dmg="piercing"]::before      { content: "p"; }
+.acks-dmg--slashing::before,      [data-acks-dmg="slashing"]::before      { content: "s"; }
+.acks-dmg--bludgeoning::before,   [data-acks-dmg="bludgeoning"]::before   { content: "b"; }
+
+/* -- Elemental ---------------------------------------------------------- */
+.acks-dmg--fire::before,          [data-acks-dmg="fire"]::before          { content: "f"; }
+.acks-dmg--cold::before,          [data-acks-dmg="cold"]::before          { content: "c"; }
+.acks-dmg--electricity::before,   [data-acks-dmg="electricity"]::before   { content: "e"; }
+.acks-dmg--acid::before,          [data-acks-dmg="acid"]::before          { content: "a"; }
+
+/* -- Esoteric ----------------------------------------------------------- */
+.acks-dmg--poison::before,        [data-acks-dmg="poison"]::before        { content: "P"; }
+.acks-dmg--sonic::before,         [data-acks-dmg="sonic"]::before         { content: "S"; }
+.acks-dmg--necrotic::before,      [data-acks-dmg="necrotic"]::before      { content: "n"; }
+.acks-dmg--life::before,          [data-acks-dmg="life"]::before          { content: "l"; }
+.acks-dmg--alchemical::before,    [data-acks-dmg="alchemical"]::before    { content: "A"; }
+.acks-dmg--weapon::before,        [data-acks-dmg="weapon"]::before        { content: "w"; }
+
+/* Aliases for the names Foundry systems and older ACKS material tend to use.
+ * Kept explicit rather than fuzzy-matched, because a near-miss here renders the
+ * wrong icon silently. */
+[data-acks-dmg="pierce"]::before      { content: "p"; }
+[data-acks-dmg="slash"]::before       { content: "s"; }
+[data-acks-dmg="blunt"]::before,
+[data-acks-dmg="bludgeon"]::before,
+[data-acks-dmg="crushing"]::before    { content: "b"; }
+[data-acks-dmg="lightning"]::before,
+[data-acks-dmg="electric"]::before    { content: "e"; }
+[data-acks-dmg="ice"]::before,
+[data-acks-dmg="frost"]::before       { content: "c"; }
+[data-acks-dmg="death"]::before       { content: "n"; }
+[data-acks-dmg="divine"]::before,
+[data-acks-dmg="healing"]::before     { content: "l"; }
+[data-acks-dmg="blast"]::before,
+[data-acks-dmg="concussive"]::before  { content: "S"; }
+[data-acks-dmg="magic"]::before,
+[data-acks-dmg="magical"]::before,
+[data-acks-dmg="enchanted"]::before   { content: "w"; }
+
+/* ---------------------------------------------------------------------------
+ * COMPOSITES
+ * ------------------------------------------------------------------------ */
+
+/* An inline damage expression, set the way the books set it. */
+.acks-damage {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28em;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+}
+
+/* A damage type as a tag, for filter rows and item summaries. Inherits
+ * .acks-tag; this only adds the icon spacing. */
+.acks-tag > .acks-dmg {
+  font-size: 1.1em;
+}
+
+/* A legend / key, for a settings panel or a compendium header. */
+.acks-dmg-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--acks-sp-3) var(--acks-sp-5);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-dmg-legend > * {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-dmg-legend .acks-dmg {
+  font-size: 1.3em;
+  color: var(--acks-ink);
+  flex: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * FALLBACK
+ * If the font is absent — a module that chose not to ship it, or a licence
+ * boundary — the icons collapse to nothing rather than to Latin letters. Set
+ * `--acks-dmg-fallback: 1` on an ancestor to show a neutral lozenge instead,
+ * so the inline rhythm of "1d6 ⟨mark⟩ damage" survives.
+ * ------------------------------------------------------------------------ */
+[style*="--acks-dmg-fallback"] .acks-dmg::before,
+.acks-dmg-fallback .acks-dmg::before {
+  font-family: inherit;
+  content: "" !important;
+}
+
+.acks-dmg-fallback .acks-dmg {
+  position: relative;
+}
+
+.acks-dmg-fallback .acks-dmg::after {
+  content: "";
+  position: absolute;
+  inset: 0.24em;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+@media (forced-colors: active) {
+  .acks-dmg {
+    forced-color-adjust: none;
+    color: CanvasText;
+  }
+}

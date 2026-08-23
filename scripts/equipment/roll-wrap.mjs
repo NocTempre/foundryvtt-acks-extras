@@ -38,6 +38,7 @@ import { getLoadout } from "./loadout.mjs";
 import { classifyWeapon } from "./profiles.mjs";
 import { isWeaponProficient } from "./proficiency.mjs";
 import { hasEffectFlag, collectStringFlags } from "./effects.mjs";
+import { maneuverMods, overlayEnabled as maneuverOverlayEnabled } from "./overlays/maneuvers.mjs";
 import { encumbranceDelta6 } from "./containers.mjs";
 import { consumeForAttack } from "./ammo.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -208,6 +209,17 @@ export function computeAttackMods(actor, attData, options = {}) {
       damage = withDelta(base, str);
       const label = sub ? sub.attribute.toUpperCase() : "Strength";
       notes.push(`thrown weapon: ${label} ${str > 0 ? "+" : "−"}${Math.abs(str)} to damage`);
+    }
+  }
+
+  // A special manoeuvre declared with the attack (the item sheet's Rolls tab
+  // passes `options.maneuver`): its attack penalty rides the same delta every
+  // other modifier uses, so the chat card and the pre-roll hook see one stack.
+  if (item && options.maneuver && maneuverOverlayEnabled()) {
+    const man = maneuverMods(actor, profile, options.maneuver);
+    if (man) {
+      bonusDelta += man.attackPenalty;
+      notes.push(...man.notes);
     }
   }
 

@@ -1,0 +1,104 @@
+{{!-- Details: the price ledger, the variations, the feature switches, the
+      construction controls, and the core record fields. --}}
+<div class="acks-extras-item-sheet__stack">
+  <div class="acks-extras-item-sheet__two-col">
+    <div class="acks-extras-item-sheet__group">
+      <div class="acks-extras-item-sheet__rule">
+        <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.price.title'}}</span>
+        <span class="acks-spacer"></span>
+        {{#if editable}}
+        <span class="acks-extras-item-sheet__segmented">
+          {{#each details.valueModes}}
+          <button type="button" class="acks-extras-item-sheet__seg{{#if on}} is-on{{/if}}" data-action="valueMode" data-mode="{{key}}" aria-pressed="{{#if on}}true{{else}}false{{/if}}"
+                  data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.value.hint.' key)}}">{{localize (concat 'ACKS-EQUIPMENT.itemSheet.value.mode.' key)}}</button>
+          {{/each}}
+        </span>
+        {{/if}}
+      </div>
+      {{#each details.price.lines}}
+      <div class="acks-extras-item-sheet__fact">
+        <span class="acks-extras-item-sheet__fact-label is-plain">{{label}}{{#if op}} <span class="acks-nums">{{#if (eq op "mul")}}× {{amount}}{{else if (eq op "add")}}+ {{amount}}{{/if}}</span>{{/if}}</span>
+        <span class="acks-spacer"></span>
+        {{#if (and @root.editable (eq key "listed"))}}
+        <input class="acks-input acks-input--line acks-nums is-xs" type="number" name="acksListedPrice" value="{{amount}}" min="0" step="any" aria-label="{{label}}">
+        {{else}}
+        <span class="acks-extras-item-sheet__fact-value acks-nums">{{runningLabel}}</span>
+        {{/if}}
+      </div>
+      {{/each}}
+      <div class="acks-extras-item-sheet__fact is-final">
+        <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemSheet.price.final'}}</span>
+        <span class="acks-spacer"></span>
+        <span class="acks-extras-item-sheet__fact-value acks-nums">{{details.price.finalLabel}}</span>
+      </div>
+    </div>
+
+    <div class="acks-extras-item-sheet__group">
+      <div class="acks-extras-item-sheet__rule">
+        <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.variations.title'}}</span>
+        <span class="acks-spacer"></span>
+        {{#if editable}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="addVariation" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.variations.addHint'}}"><i class="fa-solid fa-plus" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.variations.add'}}</button>{{/if}}
+      </div>
+      <div class="acks-tag-group acks-extras-item-sheet__variations">
+        {{#each details.variations}}
+        <span class="acks-tag acks-tag--solid{{#if hidden}} is-hidden{{/if}}">
+          {{name}}
+          {{#if @root.gm}}<button type="button" class="acks-extras-item-sheet__tag-x" data-action="toggleVariationHidden" data-variation="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.variations.concealHint'}}"><i class="fa-solid {{#if hidden}}fa-eye-slash{{else}}fa-eye{{/if}}" inert></i></button>{{/if}}
+          {{#if @root.editable}}<button type="button" class="acks-extras-item-sheet__tag-x" data-action="removeVariation" data-variation="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.variations.removeHint'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
+        </span>
+        {{else}}
+        <span class="acks-tag acks-tag--ghost">{{localize 'ACKS-EQUIPMENT.itemSheet.variations.none'}}</span>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+
+  <div class="acks-extras-item-sheet__rule">
+    <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.options.title'}}</span>
+  </div>
+  <div class="acks-row acks-row--wrap">
+    <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.options.holdsHint'}}">
+      <input type="checkbox" data-action="toggleHolds" {{checked details.holds}} {{disabled (not editable)}}>
+      <span>{{localize 'ACKS-EQUIPMENT.itemSheet.options.holds'}}</span>
+    </label>
+    {{#if details.holds}}
+    <label class="acks-extras-item-sheet__field is-xs">
+      <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.options.capacity'}}</span>
+      <input class="acks-input acks-input--line acks-nums" type="number" name="{{capacityPath}}" value="{{details.capacityStone}}" min="0" step="0.5" {{disabled (not editable)}}>
+    </label>
+    {{/if}}
+  </div>
+  {{#if details.holds}}
+  <div class="acks-extras-item-sheet__accept">
+    <div class="acks-row">
+      <span class="acks-extras-item-sheet__fact-label is-spot" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.options.acceptHint'}}">{{localize 'ACKS-EQUIPMENT.itemSheet.options.accept'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__rule-note">{{#if details.accepts.length}}{{localize 'ACKS-EQUIPMENT.itemSheet.options.acceptCount' n=details.accepts.length}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.options.acceptAny'}}{{/if}}</span>
+    </div>
+    <div class="acks-tag-group">
+      {{#each details.acceptChips}}
+      <button type="button" class="acks-tag acks-extras-item-sheet__chip-toggle{{#if on}} acks-tag--solid{{else}} acks-tag--ghost{{/if}}" data-action="toggleAccept" data-kind="{{key}}" aria-pressed="{{#if on}}true{{else}}false{{/if}}" {{disabled (not @root.editable)}}>
+        {{localize (concat 'ACKS-EQUIPMENT.itemSheet.kind.' key)}}
+      </button>
+      {{/each}}
+    </div>
+    <label class="acks-extras-item-sheet__field is-grow">
+      <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.options.refusal'}}</span>
+      <input class="acks-input acks-input--line" type="text" name="{{containerPath}}.refusal" value="{{details.refusal}}" placeholder="{{localize 'ACKS-EQUIPMENT.itemSheet.options.refusalHint'}}" {{disabled (not editable)}}>
+    </label>
+  </div>
+  {{/if}}
+
+  {{#if details.identifyOffered}}
+  <div class="acks-extras-item-sheet__mount" data-mount="magic"></div>
+  {{/if}}
+
+  <div class="acks-extras-item-sheet__rule">
+    <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.tab.construction'}}</span>
+  </div>
+  <div class="acks-extras-item-sheet__mount" data-mount="construction"></div>
+
+  {{#if record}}
+  {{> "modules/acks-extras/templates/equipment/item-sheet/record.hbs"}}
+  {{/if}}
+</div>

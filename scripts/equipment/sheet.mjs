@@ -743,10 +743,10 @@ function regroup(actor, tab) {
 /**
  * Build the CONSTRUCTION panel for an item — what the item IS: masterwork, the
  * scavenged condition, material, a shield's variant, a helmet's weight, plus the
- * net-effect line. Exported for the equipment item sheet, which mounts it on its
- * own Construction tab (item-sheet.mjs). The spell book (a specific item class
- * with its own Spells tab) and the identity overlays (header badges) do NOT live
- * here.
+ * net-effect line. Exported for the item sheet, which mounts it under the
+ * Construction rule of its Details tab (item-sheet/sheet.mjs). The spell book
+ * and the named/disguise identities have their own panels there and do NOT
+ * live here.
  */
 export function buildConstructionPanel(item) {
   const section = el("section", "acks-equipment-props");
@@ -988,7 +988,7 @@ function onRenderCharacterSheet(app, element) {
     injectStrapControls(tab, app.actor); // Sling a shield (overlay-gated)
     // NOTE masterwork, the scavenged condition and a shield's VARIANT describe
     // what the item IS, not how it is being carried — they live on the item
-    // sheet's Construction tab (item-sheet.mjs).
+    // sheet's Details tab (item-sheet/sheet.mjs).
   } catch (err) {
     console.error(`${MODULE_ID} | inventory regrouping failed; core's layout stands`, err);
   }

@@ -1,0 +1,32 @@
+{{!-- Chart: the scene this map draws, and a capture of the explored ground. --}}
+<div class="acks-extras-item-sheet__stack">
+  <div class="acks-extras-item-sheet__rule">
+    <span class="acks-extras-item-sheet__rule-title">{{chart.sceneName}}</span>
+    <span class="acks-spacer"></span>
+    <span class="acks-extras-item-sheet__rule-note acks-nums">{{localize 'ACKS-EQUIPMENT.itemSheet.chart.charted' pct=chart.pctLabel}}</span>
+  </div>
+  <div class="acks-extras-item-sheet__chart-frame" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.chart.frameHint'}}">
+    {{#if chart.explored}}
+    <img class="acks-extras-item-sheet__chart-img" src="{{chart.explored}}" alt="{{localize 'ACKS-EQUIPMENT.itemSheet.chart.captureAlt'}}">
+    {{else}}
+    <div class="acks-empty">
+      <span class="acks-empty-title">{{localize 'ACKS-EQUIPMENT.itemSheet.chart.blank'}}</span>
+      <span class="acks-empty-hint">{{localize 'ACKS-EQUIPMENT.itemSheet.chart.blankHint'}}</span>
+    </div>
+    {{/if}}
+    <span class="acks-extras-item-sheet__chart-caption">{{localize 'ACKS-EQUIPMENT.itemSheet.chart.caption'}}</span>
+  </div>
+  <div class="acks-row acks-row--wrap">
+    <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="openScene" {{disabled chart.sceneMissing}}>
+      <i class="fa-solid fa-map-location-dot" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.chart.open'}}
+    </button>
+    {{#if editable}}
+    <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="updateChart" {{disabled chart.sceneMissing}}
+            data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.chart.updateHint'}}">
+      <i class="fa-solid fa-rotate" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.chart.update'}}
+    </button>
+    <span class="acks-spacer"></span>
+    <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="unbindScene">{{localize 'ACKS-EQUIPMENT.itemSheet.chart.unbind'}}</button>
+    {{/if}}
+  </div>
+</div>

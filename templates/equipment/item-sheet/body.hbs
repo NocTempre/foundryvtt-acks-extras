@@ -1,0 +1,48 @@
+{{!-- Everything below the band: the art row, the tab strip and the panels. --}}
+<div class="acks-extras-item-sheet__scroll{{#if band.striped}} is-striped{{/if}}">
+  <div class="acks-extras-item-sheet__art-row">
+    {{> "modules/acks-extras/templates/equipment/item-sheet/rails.hbs"}}
+  </div>
+
+  {{#if simple}}
+    {{#if record}}
+    <div class="acks-extras-item-sheet__simple-record">
+      {{> "modules/acks-extras/templates/equipment/item-sheet/record.hbs"}}
+    </div>
+    {{/if}}
+    {{#if editable}}
+    <div class="acks-extras-item-sheet__simple-foot">
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="showDetails">
+        <i class="fa-solid {{#if showDetails}}fa-chevron-up{{else}}fa-chevron-down{{/if}}" inert></i>
+        {{localize 'ACKS-EQUIPMENT.itemSheet.tab.details'}}
+      </button>
+    </div>
+    {{/if}}
+    {{#if showDetails}}
+    <section class="acks-extras-item-sheet__panel">
+      {{> "modules/acks-extras/templates/equipment/item-sheet/details.hbs"}}
+    </section>
+    {{/if}}
+  {{else}}
+    <nav class="acks-tabs tabs acks-extras-item-sheet__tabs" data-group="primary" aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.tabsLabel'}}">
+      {{#each tabs}}
+      <button type="button" class="acks-tab{{#if active}} active{{/if}}" data-action="tab" data-group="primary" data-tab="{{key}}"
+              aria-selected="{{#if active}}true{{else}}false{{/if}}">
+        {{localize (concat "ACKS-EQUIPMENT.itemSheet.tab." key)}}{{#if count}}<span class="acks-extras-item-sheet__tab-count acks-nums">{{count}}</span>{{/if}}
+      </button>
+      {{/each}}
+    </nav>
+
+    {{#each tabs}}
+    <section class="tab acks-tab-panel acks-extras-item-sheet__panel{{#if active}} active{{/if}}" data-group="primary" data-tab="{{key}}">
+      {{#if (eq key "rolls")}}{{> "modules/acks-extras/templates/equipment/item-sheet/rolls.hbs" ../this}}{{/if}}
+      {{#if (eq key "chart")}}{{> "modules/acks-extras/templates/equipment/item-sheet/chart.hbs" ../this}}{{/if}}
+      {{#if (eq key "durability")}}{{> "modules/acks-extras/templates/equipment/item-sheet/durability.hbs" ../this}}{{/if}}
+      {{#if (eq key "effects")}}{{> "modules/acks-extras/templates/equipment/item-sheet/effects.hbs" ../this}}{{/if}}
+      {{#if (eq key "contents")}}{{> "modules/acks-extras/templates/equipment/item-sheet/contents.hbs" ../this}}{{/if}}
+      {{#if (eq key "appearance")}}{{> "modules/acks-extras/templates/equipment/item-sheet/appearance.hbs" ../this}}{{/if}}
+      {{#if (eq key "details")}}{{> "modules/acks-extras/templates/equipment/item-sheet/details.hbs" ../this}}{{/if}}
+    </section>
+    {{/each}}
+  {{/if}}
+</div>

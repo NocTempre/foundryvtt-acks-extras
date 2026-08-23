@@ -27,9 +27,9 @@ import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES, ITEM_TYPE } from "./vocab.mjs";
 
 /**
- * Font Awesome 6 FREE icons per damage type (Foundry bundles the free set; the
- * Pro weapon glyphs are not available, and acks-design's own symbol font is
- * deliberately not vendored — it is not OFL).
+ * Font Awesome 6 FREE icons per damage type, for surfaces that render inside
+ * core's own markup (Foundry bundles the free set). An `.acks-ui` surface draws
+ * the real Acks Symbols glyph instead — see `DAMAGE_GLYPHS` below.
  */
 export const DAMAGE_TYPE_ICONS = Object.freeze({
   bludgeoning: "fas fa-hammer",
@@ -49,6 +49,32 @@ export const DAMAGE_TYPE_ICONS = Object.freeze({
 
 /** Neutral icon when the type is genuinely unknown — never a guessed type. */
 export const UNTYPED_ICON = "fas fa-circle-dot";
+
+/**
+ * The vocabulary's damage keys as the design system's glyph font names them
+ * (`vendor/acks-design/glyphs.css`, `data-acks-dmg`). The font's letters are
+ * case-sensitive selectors, so the mapping is explicit — never a lowercased
+ * key passed through, which renders a different valid icon rather than
+ * failing.
+ */
+export const DAMAGE_GLYPHS = Object.freeze({
+  acidic: "acid",
+  arcane: "magic",
+  bludgeoning: "bludgeoning",
+  cold: "cold",
+  electrical: "electricity",
+  fire: "fire",
+  luminous: "life",
+  necrotic: "necrotic",
+  piercing: "piercing",
+  poisonous: "poison",
+  seismic: "sonic",
+  slashing: "slashing",
+  varies: "weapon",
+});
+
+/** The glyph name for an item's damage type, or null when untyped. */
+export const damageGlyphOf = (item) => DAMAGE_GLYPHS[damageTypeOf(item)] ?? null;
 
 /** The equipment feature's API, once it has attached itself. */
 const equipmentApi = () => globalThis.acksExtras?.equipment ?? game.modules?.get(MODULE_ID)?.api?.equipment ?? null;
