@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.16.0
+
+### Added
+- **A class can offer paths, and a starting template is one of them.** Some
+  classes are not one thing: a Barbarian's training depends on their region, a
+  Zaharan has a dark path, a dwarf has a caste. A class sheet now has a **Paths**
+  tab holding those groups — one choice from each — and an option may carry its
+  own weapon, armour and fighting-style training, which is how a class whose
+  training differs per region states it at all. Applying a class asks once per
+  group, with whatever the character already chose pre-selected; choosing again
+  swaps the training rather than adding a second, and a group left unanswered
+  grants nothing rather than picking for you. Taking a template that names a
+  variant answers its group — "Pit Fighter (Jutland)" chooses Jutland — while a
+  template naming none leaves your choice alone.
+  *Your starting templates are one of these groups and nothing about them moved:
+  the same rows, the same package bundles, the same 3d6 table. A world that
+  upgrades has nothing to migrate.*
+
+### Fixed
+- **The class sheet's tabs are words again.** The Paths strings were added in a
+  shape `lang/en.json` does not use for that section, and every other label in
+  the class sheet — Overview, Progression, Awards, Casting, Templates, Inventory
+  — stopped resolving and rendered as raw key names. Caught before release by
+  the release snapshot, which is what a snapshot is for.
+
+## 4.15.1
 ## 4.15.1
 
 ### Fixed

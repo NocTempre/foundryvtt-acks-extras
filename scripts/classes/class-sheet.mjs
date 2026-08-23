@@ -14,6 +14,7 @@
  * carries the whole system object and array round-trips stay whole-document.
  */
 import { MODULE_ID, LANG_PREFIX, CHASSIS_KEYS, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
+import { pathGroups } from "./paths.mjs";
 import { AWARD_KINDS } from "./class-data.mjs";
 import ClassData from "./class-data.mjs";
 import { findByRef } from "./registry.mjs";
@@ -25,7 +26,7 @@ import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
-const TABS = ["overview", "builder", "progression", "awards", "casting", "templates", "inventory"];
+const TABS = ["overview", "builder", "progression", "awards", "casting", "paths", "templates", "inventory"];
 
 /** Options list from a vocab enum, with the current value marked selected. */
 const optionsOf = (enumObj, current, { blankLabel } = {}) => {
@@ -224,6 +225,29 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       repertoireOptions: optionsOf(REPERTOIRE_KINDS, t.repertoire, { blankLabel: "—" }),
       slots: (t.slots ?? []).map((row, rowIndex) => ({ index: rowIndex, ...row })),
       pool: (t.pool ?? []).map((row, rowIndex) => ({ index: rowIndex, ...row })),
+    }));
+
+    // --- paths: the groups of mutually exclusive options this class offers.
+    // A `templates` group is shown with the rows it POINTS AT, so the sheet
+    // says plainly that the eight starting templates are one of these groups
+    // and not a separate mechanism.
+    context.pathsEdit = pathGroups(sys).map((g, index) => ({
+      index,
+      key: g.key,
+      label: g.label,
+      note: g.note,
+      fromTemplates: g.source === "templates",
+      options: g.options.map((o) => ({
+        key: o.key,
+        label: o.label,
+        training: [
+          (o.training?.weapons ?? []).join(", "),
+          o.training?.armour ?? "",
+          (o.training?.styles ?? []).join(", "),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      })),
     }));
 
     // --- templates ---

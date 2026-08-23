@@ -194,6 +194,50 @@ established, so the next attempt starts here rather than repeating it:
   (`game.messages.size` stayed 0), which is consistent with it opening an attack
   dialog that nothing submitted. Driving that dialog is the unsolved step.
 
+## Paths
+
+Fixture: a disposable class with BOTH kinds of group — one authored, whose
+options carry training, and one whose `source` is `"templates"` — plus two
+template rows whose annotations name authored options. It must not be a stub
+(give it a description and a level row) or `applyClass` refuses it and returns
+`{applied: false}`, which reads as the feature failing when it is the fixture.
+
+1. `acksExtras.classes.paths.pathGroups(cls.system)`.
+   *Observable:* both groups; the `templates` one lists the ROWS
+   ("Pit Fighter (Jutland)"), and `cls.system.templates` is unchanged — the
+   group points at the rows rather than absorbing them.
+2. `applyClass(actor, cls, { paths: { region: "ivory" } })`.
+   *Observable:* the ledger flag carries `paths.region`, and the actor holds one
+   `fromClass` effect whose changes are that option's training.
+3. Re-apply choosing the OTHER option.
+   *Observable:* the training SWAPS and the effect count stays 1 — a second
+   choice replaces the first rather than stacking two regions on one character.
+4. On a fresh character, apply the class with NO choice, then apply the template
+   whose annotation names an option.
+   *Observable:* before, no training at all (an unanswered group grants
+   nothing); after, the group is answered and the training follows. Then apply a
+   row printing no annotation: the earlier choice STANDS.
+5. The class sheet's **Paths** tab.
+   *Observable:* one block per group, options listed with their training, and
+   the templates group marked as drawing its options from the rows.
+
+### A lang/en.json hazard this release walked into
+
+Adding the paths strings as a NESTED `"ACKS-CLASSES": { … }` object, in a file
+where that root is written as flat dotted keys, made every
+`ACKS-CLASSES.sheet.tab.*` label stop resolving — the class sheet rendered raw
+key names — while `validate` passed, because every key it was asked about
+existed. Flattening the new keys to match the root's existing shape fixed it.
+
+**The mechanism is NOT established.** `ACKS-EQUIPMENT` and `ACKS-FORMATION` mix
+both shapes today, including a nested `ACKS-EQUIPMENT.container` sitting over a
+flat `ACKS-EQUIPMENT.container.expand`, and those resolve correctly — so the
+obvious "nested shadows flat" rule is not it. A guard written on that theory was
+drafted and REMOVED rather than shipped, because it fired on healthy data. Until
+someone establishes what actually differs, the working rule is: **add keys in
+whatever shape the root already uses**, and check one existing sibling key
+resolves live afterwards.
+
 ## Teardown
 
 Delete the character, the class item and the race item; for template

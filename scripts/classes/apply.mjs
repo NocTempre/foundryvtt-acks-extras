@@ -14,6 +14,7 @@
  */
 import { savesUpdateData } from "../lib/actor-compat.mjs";
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
+import { pathGroups, pathTrainingChanges, unansweredGroups, actorPaths } from "./paths.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
 import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
 import { grantLanguages } from "./languages.mjs";
@@ -146,12 +147,16 @@ const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
  * Nothing is written for a class stating no training; the character is left
  * unrestricted, which is what an unstated training means.
  */
-export async function syncClassTraining(actor, classItem) {
+export async function syncClassTraining(actor, classItem, selections = null) {
   if (!actor) return [];
   const mine = actor.effects.filter((e) => e.getFlag?.(MODULE_ID, "fromClass"));
   if (mine.length) await actor.deleteEmbeddedDocuments("ActiveEffect", mine.map((e) => e.id));
   const source = (classItem?.effects ?? []).filter((e) => (e.changes ?? []).length);
-  if (!source.length) return [];
+  // A class whose training is stated PER PATH (the Barbarian's regions) carries
+  // none of its own, so the chosen option's is the only training there is —
+  // which is why this runs whether or not the class itself states one.
+  const chosen = pathTrainingChanges(classItem?.system, selections ?? actorPaths(actor));
+  if (!source.length && !chosen.length) return [];
   const data = source.map((e) => {
     const raw = e.toObject();
     delete raw._id;
@@ -162,6 +167,16 @@ export async function syncClassTraining(actor, classItem) {
     });
     return raw;
   });
+  if (chosen.length) {
+    data.push({
+      name: game.i18n.format(`${LANG_PREFIX}.paths.trainingEffect`, { class: classItem?.name ?? "" }),
+      img: "icons/svg/upgrade.svg",
+      changes: chosen,
+      transfer: false,
+      disabled: false,
+      flags: { [MODULE_ID]: { fromClass: classItem?.uuid ?? "" } },
+    });
+  }
   const made = await actor.createEmbeddedDocuments("ActiveEffect", data);
   return made ?? [];
 }
@@ -169,7 +184,7 @@ export async function syncClassTraining(actor, classItem) {
 export async function applyClass(
   actor,
   classItem,
-  { level, confirm = true, rebuildVitals = false, grantAwards = false, answered = [], answers = {} } = {},
+  { level, confirm = true, rebuildVitals = false, grantAwards = false, answered = [], answers = {}, paths = null } = {},
 ) {
   if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { applied: false };
   if (classItem.system.isStub) {
@@ -239,6 +254,10 @@ export async function applyClass(
   /** Every rung answer this call knows about, keyed by award key: what a caller
    *  brought with it, plus whatever the dialog below collects. */
   const given = { ...answers };
+  /** Path answers, keyed by group: what the character already chose (a template
+   *  may have set it), overlaid by whatever the dialog collects. A caller may
+   *  pass `paths` to answer without a dialog — chargen does. */
+  const pathPicks = { ...actorPaths(actor), ...(paths ?? {}) };
 
   // A level whose numbers already agree can still owe abilities — re-applying
   // the same class at the same level is exactly how a character bound before
@@ -284,6 +303,29 @@ export async function applyClass(
             : ""
         }${choiceBlocks}`
       : "";
+    // A PATH IS ASKED, NOT ASSUMED. Every group the class states that has no
+    // valid answer yet gets a select; a group the character already answered —
+    // a template set it, or a previous apply did — arrives selected, so
+    // re-applying never silently re-rolls somebody's region.
+    const already = actorPaths(actor);
+    const askGroups = pathGroups(classItem.system).filter((g) => g.options.length);
+    const pathBlocks = askGroups
+      .map(
+        (g, index) =>
+          `<div class="form-group"><label>${foundry.utils.escapeHTML(g.label)}</label>` +
+          `<select name="path-${index}">${g.options
+            .map(
+              (o) =>
+                `<option value="${foundry.utils.escapeHTML(o.key)}"${
+                  String(already[g.key] ?? "") === o.key ? " selected" : ""
+                }>${foundry.utils.escapeHTML(o.label)}</option>`,
+            )
+            .join("")}</select>${g.note ? `<p class="hint">${foundry.utils.escapeHTML(g.note)}</p>` : ""}</div>`,
+      )
+      .join("");
+    const pathsBlock = askGroups.length
+      ? `<p><strong>${game.i18n.localize(`${LANG_PREFIX}.paths.section`)}</strong></p>${pathBlocks}`
+      : "";
     const content = `${unmetNote}<p>${game.i18n.format(`${LANG_PREFIX}.apply.prompt`, {
       actor: actor.name,
       class: classItem.name,
@@ -302,7 +344,7 @@ export async function applyClass(
             .map((s) => `${s.level}: ${s.formula} → ${s.total}`)
             .join(", ")}</p>`
         : ""
-    }${awardsBlock}`;
+    }${pathsBlock}${awardsBlock}`;
     // This body is the longest in the subsystem — a change row per field, the
     // level-by-level hit dice, the owed abilities and a picker per open choice
     // — so it carries the module's scroll contract (`acks-extras-scroll`,
@@ -319,16 +361,24 @@ export async function applyClass(
       yes: {
         // One entry per offered rung, EMPTY included — the position is what
         // says which rung an answer belongs to.
-        callback: (_event, button) => readRungs(button.form, "award-", owed.choices.length),
+        callback: (_event, button) => ({
+          awards: readRungs(button.form, "award-", owed.choices.length),
+          paths: readRungs(button.form, "path-", askGroups.length),
+        }),
       },
     });
     if (!ok) return { applied: false };
     // The callback returns one entry per offered rung, in order, so position is
     // what says which rung an answer belongs to — resolved to its key here and
     // never carried as a position again.
-    const picks = Array.isArray(ok) ? ok : [];
+    const picks = Array.isArray(ok?.awards) ? ok.awards : Array.isArray(ok) ? ok : [];
     owed.choices.forEach((choice, index) => {
       if (picks[index] !== undefined) given[choice.key] = picks[index];
+    });
+    // The path answers ride the same positional contract as the award rungs.
+    (Array.isArray(ok?.paths) ? ok.paths : []).forEach((value, index) => {
+      const g = askGroups[index];
+      if (g && value) pathPicks[g.key] = value;
     });
   }
 
@@ -352,10 +402,11 @@ export async function applyClass(
       key: classItem.system.key || classItem.name.toLowerCase(),
       appliedLevel: clamped,
       applied,
+      ...(Object.keys(pathPicks).length ? { paths: pathPicks } : {}),
       ...(closed.length || grantAwards ? { awardsTaken: [...new Set([...takenAlready, ...closed])] } : {}),
     },
   });
-  await syncClassTraining(actor, classItem);
+  await syncClassTraining(actor, classItem, pathPicks);
   if (missing.length) {
     ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.missing`, { parts: missing.join(", ") }));
   }

@@ -484,3 +484,30 @@ the released schema does not carry — stray dev-schema `saves.blast` data,
 ability items whose `save` names a book key, Active Effect change keys — and
 remaps them, dry-run by default. It is also the future migration seam for the
 system's breath→blast rename.
+
+## Paths — a class's groups of mutually exclusive options
+
+`system.paths` is a list of GROUPS, each holding options of which a character
+takes exactly one: a Barbarian's region, a Zaharan's dark path, a dwarven caste,
+and the eight starting templates. `paths.mjs` resolves them; the resolution is
+pure and takes a class's `system` plus a selection map.
+
+A group's `source` says where its options live. Empty means they are stated on
+the group, in `options`, and an option may carry its own `training` — the same
+three parts a class states, for a class whose training differs per option and
+which therefore states none of its own. `"templates"` means the options ARE the
+class's `system.templates` rows, POINTED AT: the rows, their bundles and the 3d6
+table stay exactly where they were, and a world gained the selector with nothing
+migrated. Folding them in is ROADMAP's.
+
+A character's choices live on the class ledger flag (`paths`, keyed by group).
+`applyClass` asks for any group with options, pre-selecting what the character
+already chose, and writes the chosen options' training as one more actor effect
+stamped `fromClass` — so it is replaced on re-apply and removed with the class,
+exactly like the class's own training. An unanswered group grants nothing:
+choosing for the player would hand them a training nobody selected.
+
+Applying a TEMPLATE answers the group its annotation names, and only if that
+group is unanswered — "Pit Fighter (Jutland)" chooses Jutland, while a row
+printing no variant chooses nothing and a choice already made is never
+overwritten.

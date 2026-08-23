@@ -18,7 +18,8 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
-import { applyClass } from "./apply.mjs";
+import { applyClass, syncClassTraining } from "./apply.mjs";
+import { templateSelection, setActorPath, actorPaths } from "./paths.mjs";
 import { awardKey, grantAbility, grantAdventuring, refOf } from "./grants.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
@@ -278,7 +279,20 @@ async function grantBundleRows(actor, rows, report) {
 export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null, gold = null } = {}) {
   const gp = Number(gold ?? template.gp) || 0;
   const sp = Number(template.sp) || 0;
-  const report = { granted: [], items: [], unresolved: [], gp, sp, dropped: [] };
+  const report = { granted: [], items: [], unresolved: [], gp, sp, dropped: [], path: null };
+  // A TEMPLATE ANSWERS THE GROUP IT NAMES. "Pit Fighter (Jutland)" prints its
+  // variant as an annotation, and that annotation IS an option of whichever
+  // group the class states it under — so taking the template chooses the
+  // region, and the character's training follows without anyone being asked
+  // twice. The group stays a first-class choice for a character built without
+  // a template; this only fills it in when the template says so, and never
+  // overwrites an answer already given.
+  const selection = templateSelection(classItem?.system, template);
+  if (selection && !actorPaths(actor)[selection.group]) {
+    const merged = await setActorPath(actor, selection.group, selection.option);
+    await syncClassTraining(actor, classItem, merged);
+    report.path = selection;
+  }
   // A template that assumes an Intellect bonus its character does not have
   // prints more than they may hold. The book names the entries to remove
   // rather than leaving it to taste, so the drop is positional, taken before

@@ -19,6 +19,7 @@ the next refresh.
 |---|---|---|---|
 | Battlemaps and token scale | The alignment assistant mid-calibration: samples drawn over a map's grid, the fitted cells locked onto its lines, the scale awaiting confirmation | [guide](guides/battlemap.md) | [v4.14.0](releases/v4.14.0/battlemap.png) |
 | Characters and classes | Rolling a character: the attribute rule and the scores, the class above the template die, and what is left to choose | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen.png) |
+| Class paths | A class's groups of mutually exclusive options — a region, a dark path, a caste — with the starting templates shown as one of those groups | [guide](guides/classes.md) | [v4.16.0](releases/v4.16.0/classes-paths.png) |
 | Proficiencies and powers | A proficiency's Mechanics tab: classification, the selections a grant reads, and its Active Effects | [guide](guides/abilities.md) | [v3.9.0](releases/v3.9.0/combat-trickery.png) |
 | Equipment and containers | The inventory: what is worn and wielded, what is stowed, hands counted, and a lantern's own light controls on its row | [guide](guides/equipment.md) | [v3.3.0](releases/v3.3.0/equipment-light-controls.png) |
 | Exploration formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v4.0.0](releases/v4.0.0/formation-party-sheet.png) |

@@ -412,6 +412,34 @@
     </fieldset>
   </section>
 
+  <section class="acks-extras-classes-tabpane" {{#unless show.paths}}hidden{{/unless}}>
+    <fieldset>
+      <legend>{{localize "ACKS-CLASSES.sheet.paths.list"}}
+        <a data-action="rowAdd" data-array="paths"><i class="fa-solid fa-plus"></i></a></legend>
+      <p class="hint">{{localize "ACKS-CLASSES.sheet.paths.hint"}}</p>
+      {{#unless pathsEdit.length}}<p class="hint">{{localize "ACKS-CLASSES.sheet.paths.none"}}</p>{{/unless}}
+      {{#each pathsEdit}}
+        <div class="acks-extras-classes-path-group">
+          <div class="acks-extras-classes-row">
+            <input type="text" name="system.paths.{{index}}.label" value="{{label}}"
+                   placeholder="{{localize 'ACKS-CLASSES.sheet.paths.label'}}" />
+            <input type="text" name="system.paths.{{index}}.key" value="{{key}}"
+                   placeholder="{{localize 'ACKS-CLASSES.sheet.paths.key'}}" />
+            {{#if fromTemplates}}
+              <span class="acks-extras-classes-path-source">{{localize "ACKS-CLASSES.sheet.paths.fromTemplates"}}</span>
+            {{/if}}
+            <a data-action="rowDelete" data-array="paths" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
+          </div>
+          <ul class="acks-extras-classes-path-options">
+            {{#each options}}
+              <li><strong>{{label}}</strong>{{#if training}} <span class="hint">{{training}}</span>{{/if}}</li>
+            {{/each}}
+          </ul>
+        </div>
+      {{/each}}
+    </fieldset>
+  </section>
+
   <section class="acks-extras-classes-tabpane" {{#unless show.templates}}hidden{{/unless}}>
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.sheet.templates.list"}}

@@ -505,3 +505,31 @@
   overflow: auto;
   min-height: 0;
 }
+
+/* Paths — a class's groups of mutually exclusive options. One block per group,
+   its options listed under it, so a `templates` group reads as the same kind of
+   thing as a region or a caste rather than a separate mechanism. */
+.acks-extras-classes-path-group {
+  border: 1px solid var(--acks-rule, rgba(255, 255, 255, 0.15));
+  border-radius: 3px;
+  padding: 0.4rem 0.5rem;
+  margin-block-end: 0.5rem;
+}
+
+.acks-extras-classes-path-options {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding-inline-start: 0.75rem;
+}
+
+.acks-extras-classes-path-options li {
+  line-height: 1.5;
+}
+
+/* Says where a group's options come from when they are not stated on the
+   group itself — the one case being the class's own starting templates. */
+.acks-extras-classes-path-source {
+  font-style: italic;
+  opacity: 0.75;
+  white-space: nowrap;
+}

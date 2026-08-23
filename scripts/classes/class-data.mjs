@@ -148,6 +148,49 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         choice: choiceSpecField(),
       });
 
+    /**
+     * One option inside a path group — a single mutually exclusive choice.
+     *
+     * `training` is what taking this option is trained to fight with, in the
+     * same three parts a class states: the grant tokens, the armour rung, the
+     * fighting styles. A class whose training is per-option (the Barbarian's
+     * regions) states it HERE and leaves the class-wide one empty.
+     */
+    const pathOption = () =>
+      new SchemaField({
+        key: str(), // stable slug ("jutland")
+        label: str(), // as printed
+        note: str(),
+        training: new SchemaField({
+          weapons: refList(), // grant tokens: all | missile:all | melee:<size> | category | weapon
+          armour: str(), // an armour ladder rung
+          styles: refList(),
+        }),
+      });
+
+    /**
+     * A PATH GROUP: one set of mutually exclusive class options.
+     *
+     * A class carries as many as its spread states — a Barbarian's region, a
+     * Zaharan's dark path, a dwarven caste — and starting templates are one
+     * more of them rather than a parallel mechanism (2026-08-22, DECISIONS).
+     *
+     * `source` says where the options live. Empty means they are stated right
+     * here, in `options`. `"templates"` means the group's options ARE this
+     * class's own `templates` rows, POINTED AT rather than copied: a world that
+     * upgrades keeps its rows, its bundles and its 3d6 table exactly where they
+     * were, and nothing had to be migrated to gain a selector. Folding them in
+     * properly is ROADMAP's, deliberately not taken here.
+     */
+    const pathGroup = () =>
+      new SchemaField({
+        key: str(), // "region"
+        label: str(), // "Region"
+        note: str(),
+        source: str(), // "" = options below; "templates" = the class's template rows
+        options: new ArrayField(pathOption()),
+      });
+
     /** One printed starting template (8 per class, 3d6 bands). */
     const template = () =>
       new SchemaField({
@@ -271,6 +314,10 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       awards: new ArrayField(award()),
 
       casting: new ArrayField(tradition()),
+
+      /** Groups of mutually exclusive class options; a starting template is
+       *  one such group, pointed at rather than moved. See `pathGroup`. */
+      paths: new ArrayField(pathGroup()),
 
       templates: new ArrayField(template()),
       /** Uuid of the generated 3d6 RollTable linking the template bundles —

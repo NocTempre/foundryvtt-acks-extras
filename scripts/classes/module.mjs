@@ -23,7 +23,8 @@ import RaceSheet from "./race-sheet.mjs";
 import * as builder from "./builder.mjs";
 import { BUILDER_DOC_ID, derivePlan, xpSchedule } from "./builder-logic.mjs";
 import * as registry from "./registry.mjs";
-import { applyClass, classUpdateData, normalizeHd } from "./apply.mjs";
+import { applyClass, classUpdateData, normalizeHd, syncClassTraining } from "./apply.mjs";
+import { pathGroups, pathOptions, chosenOption, pathTrainingChanges, unansweredGroups, actorPaths, setActorPath, templateSelection } from "./paths.mjs";
 import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
@@ -138,6 +139,20 @@ Hooks.once("init", () => {
     CHOICE_FILTERS,
     registry,
     applyClass,
+    syncClassTraining,
+    /** Paths — a class's groups of mutually exclusive options (DECISIONS
+     *  2026-08-22). `pathGroups(system)` resolves every group with its options,
+     *  a `templates` group included; `setActorPath` records one choice. */
+    paths: {
+      pathGroups,
+      pathOptions,
+      chosenOption,
+      pathTrainingChanges,
+      unansweredGroups,
+      actorPaths,
+      setActorPath,
+      templateSelection,
+    },
     classUpdateData,
     normalizeHd,
     parseHd,

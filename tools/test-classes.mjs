@@ -637,6 +637,83 @@ await atest("the class picker never wipes what a character already owns", () => 
 const { bestBaseMatch, parseEmbellishment, applyShortfall, templateItemName, buildPlaceholderAbility, stripRepresented, usableAsSource } =
   await import("../scripts/classes/template-packages.mjs");
 
+const { pathGroups, pathOptions, chosenOption, pathTrainingChanges, unansweredGroups, templateSelection, templateOptionKey } =
+  await import("../scripts/classes/paths.mjs");
+
+/** A class stating one authored group and one that points at its templates. */
+const pathSystem = () => ({
+  paths: [
+    {
+      key: "region",
+      label: "Region",
+      source: "",
+      options: [
+        { key: "jutland", label: "Jutland", training: { weapons: ["axe"], armour: "medium", styles: ["twohanded"] } },
+        { key: "ivory", label: "Ivory", training: { weapons: ["bola"], armour: "light", styles: ["dual"] } },
+      ],
+    },
+    { key: "template", label: "Starting Template", source: "templates", options: [] },
+  ],
+  templates: [
+    { name: "Pit Fighter", annotation: "Jutland", caste: "" },
+    { name: "Nomad", annotation: "", caste: "" },
+  ],
+});
+
+test("a templates group draws its options from the rows, which are not moved", () => {
+  const sys = pathSystem();
+  const groups = pathGroups(sys);
+  const tpl = groups.find((g) => g.source === "templates");
+  assert.equal(tpl.options.length, 2);
+  assert.equal(tpl.options[0].label, "Pit Fighter (Jutland)");
+  // The rows themselves are untouched — the group points at them.
+  assert.equal(sys.templates.length, 2);
+  assert.equal(sys.templates[0].name, "Pit Fighter");
+});
+
+test("an option is matched by key OR by what the page printed", () => {
+  const sys = pathSystem();
+  assert.equal(chosenOption(sys, "region", "jutland")?.key, "jutland");
+  assert.equal(chosenOption(sys, "region", "Jutland")?.key, "jutland");
+  // An unknown selection chooses NOTHING — silently picking the first would
+  // grant a training nobody selected.
+  assert.equal(chosenOption(sys, "region", "skysostan"), null);
+  assert.equal(chosenOption(sys, "region", ""), null);
+});
+
+test("the chosen option's training becomes effect changes, and only the chosen one", () => {
+  const sys = pathSystem();
+  const changes = pathTrainingChanges(sys, { region: "ivory" });
+  const byKey = Object.fromEntries(changes.map((c) => [c.key.split(".").pop(), c.value]));
+  assert.equal(byKey.weaponProf, "bola");
+  assert.equal(byKey.armourProficiency, "light");
+  assert.equal(byKey.styleProficient, "dual");
+  // Nothing chosen, nothing granted — a class with an unanswered group grants
+  // no training rather than a default one.
+  assert.equal(pathTrainingChanges(sys, {}).length, 0);
+});
+
+test("a group with no answer is reported unanswered; a templates group needs one too", () => {
+  const sys = pathSystem();
+  assert.equal(unansweredGroups(sys, {}).length, 2);
+  assert.equal(unansweredGroups(sys, { region: "jutland" }).length, 1);
+  assert.equal(unansweredGroups(sys, { region: "jutland", template: "jutland" }).length, 0);
+});
+
+test("a template answers the group its annotation names", () => {
+  const sys = pathSystem();
+  assert.deepEqual(templateSelection(sys, sys.templates[0]), { group: "region", option: "jutland" });
+  // A row printing no variant answers nothing rather than guessing.
+  assert.equal(templateSelection(sys, sys.templates[1]), null);
+  assert.equal(templateOptionKey({ name: "Pit Fighter", annotation: "Jutland" }), "jutland");
+});
+
+test("a class stating no paths asks nothing and grants nothing", () => {
+  assert.deepEqual(pathGroups({}), []);
+  assert.deepEqual(pathTrainingChanges({}, { region: "jutland" }), []);
+  assert.deepEqual(unansweredGroups({}, {}), []);
+});
+
 test("a short base name resolves by exact match", () => {
   // "Staff"(5 folded) could never resolve under the old ≥6-substring rule, so
   // every template staff landed as a bare unwieldable `item` — the reported

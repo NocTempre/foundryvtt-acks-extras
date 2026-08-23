@@ -156,3 +156,27 @@ imported class documents from the page (hand edits on them are replaced —
 the confirm says so). `repairSaveReferences` under
 `acksExtras.classes` finds stale save-key references world-wide; dry-run by
 default.
+
+## Paths — when a class offers a choice
+
+Some classes are not one thing. A Barbarian's training depends on their region;
+a Zaharan has a dark path; a dwarf has a caste. On the class sheet these are
+**Paths**: named groups, each holding options of which a character takes exactly
+one, and an option can carry its own weapon, armour and fighting-style training.
+
+![A class's Paths tab](../releases/v4.16.0/classes-paths.png)
+
+**Your starting templates are one of these groups.** They are shown in the list
+beside the others, and nothing about them moved — the same rows, the same
+package bundles, the same 3d6 table you already had.
+
+When you apply a class to a character, you are asked once for each group, with
+whatever the character already chose pre-selected. Choosing a region grants that
+region's training; choosing a different one later swaps it rather than adding a
+second. **A group you leave unanswered grants nothing** — the module will not
+pick a region for you.
+
+Taking a starting template that names a variant answers the group for you:
+"Pit Fighter (Jutland)" chooses Jutland, and the training follows. A template
+that names no variant leaves your choice alone, and so does a second template if
+you have already chosen.
