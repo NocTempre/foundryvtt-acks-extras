@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.14.4
+
+### Fixed
+- **Armour on the character is armour the character is wearing.** A suit could
+  sit under Worn & Wielded while contributing nothing to Armour Class: the panel
+  was reading where a piece of gear sits, which survives being taken off, rather
+  than whether it is on. Unequipping through the system's own control left the
+  two answers disagreeing, and the sheet believed the wrong one. It now asks
+  whether a thing is worn before asking where it goes, so what the panel lists
+  and what your AC counts are the same set of things.
+- **Imported armour and weapons can be worn without being annotated first.**
+  Putting one on quietly did nothing at all — the wear model refused any gear
+  that had not been told which slots it has, and nothing the importer creates
+  has been told yet. A sword or a suit of armour now goes on when you put it on,
+  annotated or not.
+
 ## 4.14.3
 
 ### Fixed

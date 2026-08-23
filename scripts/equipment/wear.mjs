@@ -35,10 +35,17 @@ export function wearLocation(actor, item, loadout = getLoadout(actor)) {
   // slot it would occupy if you put it on.
   if (containedIn(item)) return WEAR.stowed;
 
+  // IS IT ON? BEFORE WHERE IT GOES. A declared slot says where a thing sits
+  // when it is worn; it cannot say that it is. The two stores drift the moment
+  // core's own equip toggle writes `system.equipped = false`, which knows
+  // nothing of this flag and leaves `wornAt` behind — and this bucketed the
+  // armour under BODY on the strength of the stale half while the loadout,
+  // reading `equipped`, gave the character no AC at all. Worn and wielded is
+  // then a list of things doing nothing.
+  if (!isWorn(item)) return WEAR.carried;
+
   const declared = wornSlotOf(item);
   if (declared) return declared;
-
-  if (!isWorn(item)) return WEAR.carried;
 
   if (item.type === ITEM_TYPE.armor) {
     if (isShield(item)) {

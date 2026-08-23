@@ -7,6 +7,36 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### Whether it is on comes before where it goes (2026-08-21)
+
+**Problem.** A character wearing imported plate showed it under Worn & Wielded /
+BODY with an AC of 0. Two stores answer "is this worn" — core's
+`system.equipped` for armour and weapons, and this module's `gear.wornAt` for
+everything core cannot speak for — and `isWorn` exists precisely so no caller
+reads one alone. `wearLocation` read one alone: it returned a declared slot
+before ever asking. Core's own equip toggle writes `equipped = false` and knows
+nothing of the flag, so the moment a Judge unequips through core the two drift,
+and the panel went on calling the armour worn on the strength of the stale half
+while the loadout, which reads `equipped`, gave the character nothing. Worn and
+wielded became a list of things doing nothing.
+
+**Ruled:** the `isWorn` gate runs first, and a declaration only decides WHERE
+something already worn sits. Swept every other reader of `wornSlotOf`/`wornAt`;
+this was the only one bypassing the accessor.
+
+### A declaration bounds where gear goes, not whether it can be put on (2026-08-21)
+
+**Problem.** `setWorn` refused any slot the item did not declare — and every
+IMPORTED armour and weapon arrives declaring nothing, because the annotate pass
+is something a Judge runs and not a precondition. So an imported suit of armour
+could not be worn at all through the wear model: the call returned false and
+wrote nothing, silently.
+
+**Ruled:** the refusal keeps its job — gear that declares nowhere to go cannot
+be put somewhere — and loses the job it should never have had. A core-equippable
+item answers through `equipped`, a boolean with no slot to be wrong about, so an
+undeclared one is simply put on. Undeclared and non-equippable still refuses.
+
 ### A variation is a document, and applying it is putting it inside (2026-08-15)
 
 > "the variation items that apply onto base items reusing inventory container

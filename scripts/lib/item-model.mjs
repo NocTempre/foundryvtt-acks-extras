@@ -284,7 +284,16 @@ export function wornSlotOf(item) {
  */
 export async function setWorn(item, slot = null) {
   if (!item) return false;
-  if (slot !== null && !slotsOf(item).includes(slot)) return false;
+  // A DECLARATION BOUNDS WHERE A THING GOES; IT DOES NOT DECIDE WHETHER IT CAN
+  // BE PUT ON. Gear that declares nowhere to go cannot be put anywhere — that
+  // is the rule this refusal exists for. But armour and weapons answer through
+  // core's own `equipped` boolean, which has no slot to be wrong about, and
+  // every IMPORTED one arrives undeclared (the annotate pass is a thing a Judge
+  // runs, not a precondition). Refusing them meant an imported suit of armour
+  // could not be worn at all: the wear model declined, silently, and the
+  // character stood in the arena in his tunic.
+  if (slot !== null && slotsOf(item).length && !slotsOf(item).includes(slot)) return false;
+  if (slot !== null && !slotsOf(item).length && !isEquippable(item)) return false;
 
   const update = {};
   if (isEquippable(item)) {

@@ -1091,6 +1091,25 @@ check("...and one merely owned is still carried",
 check("the shoulders bucket is now reachable at all",
   wearBuckets(cloaked, cLo).some((b) => b.key === WEAR.shoulders));
 
+// --- the two stores must not drift ------------------------------------------
+//
+// Core's own equip toggle writes `system.equipped` and knows nothing of the
+// slot flag, so an armour unequipped that way keeps a `wornAt` naming where it
+// used to sit. Read declaration-first, that bucketed it under BODY while the
+// loadout — which reads `equipped` — gave the character no AC: worn and
+// wielded became a list of things doing nothing.
+const staleArmor = gear("Arena Armor, Heavy", 24, { type: "armor", id: "aa", equipped: false, wornAt: "body", slots: ["body"] });
+const drifted = withItems([staleArmor]);
+const dfLo = getLoadout(drifted);
+check("a stale slot does not make an unequipped armour worn",
+  wearLocation(drifted, staleArmor, dfLo) === WEAR.carried);
+check("and it reaches no worn bucket", !wearBuckets(drifted, dfLo).some((b) => b.items.some((i) => i.id === "aa")));
+// The declaration still decides WHERE, for anything actually worn.
+const strapped = gear("Shield", 6, { type: "armor", id: "sd2", equipped: true, wornAt: "strapped", slots: ["offHand", "strapped"] });
+const slung = withItems([strapped]);
+check("a worn item still sits where it declares",
+  wearLocation(slung, strapped, getLoadout(slung)) === WEAR.strapped);
+
 // Gloves block lockpicking (RR p. 145) — dead while it asked for an `equipped`
 // field gloves cannot have.
 const { wearingGloves } = await import(new URL("locks.mjs", S));
