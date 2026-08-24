@@ -728,9 +728,18 @@ export async function materializeTemplates(
 ) {
   const report = { created: [], relinked: [], skippedEdited: [], unresolved: [] };
   if (!game.user?.isGM || !classItem?.system?.templates?.length) return report;
-  // World documents only: the registry (and therefore chargen) never reads a
-  // compendium class, and a world bundle linked from a pack row helps nobody.
-  if (classItem.pack) return report;
+  // A class ROW in a compendium is fine; the package it builds is not.
+  //
+  // This used to refuse a pack class outright, on the grounds that the registry
+  // never read one. It does now (`lib/library.mjs` spans the sidebar and
+  // acks-importer's packs), and since acks-importer 3.0.0 every imported class
+  // IS a pack document — so the refusal made template packages a permanent
+  // no-op for exactly the classes that ship with them.
+  //
+  // What stays true is where the PACKAGE lands: bundles, gear and the table are
+  // created in the world, because a package exists to be repaired and a Judge
+  // repairs nothing inside a compendium. `defaultFolder` files them there, and
+  // a caller passing `folder` must pass a world folder for the same reason.
   const classKey = classItem.system.key || fold(classItem.name);
   const identity = { classUuid: classItem.uuid, classKey };
   const isMine = (doc) => {

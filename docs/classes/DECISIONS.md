@@ -3,6 +3,29 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-24 — a class row in a compendium still builds its package
+
+**Ruled: `materializeTemplates` accepts a pack class document.** It used to
+return empty for any class with a `pack`, reasoning that the registry never read
+a compendium class. That reason expired twice over: `lib/library.mjs` (4.19.0)
+made every registry read span the sidebar AND acks-importer's packs, and
+acks-importer 3.0.0 moved every imported class into a pack — so the guard turned
+template packages into a permanent no-op for precisely the classes that ship
+with them. `importTemplatePackages()` reported "0 created" on a world holding 21
+classes with template rows, and said nothing about why.
+
+**What did NOT change is where the package lands.** Bundles, their skinned gear
+and the per-class table are created in the WORLD, because a package exists to be
+repaired and a Judge repairs nothing inside a compendium. `defaultFolder` files
+them under `Class Templates / <Class>`; a caller supplying `folder` must supply
+a world folder, which is the matching fix acks-importer 3.0.0 made on its side —
+it had been passing the id of a folder it created in the pack, so every bundle
+and every piece of gear was created pointing at a folder the sidebar does not
+have.
+
+**Cost:** the class row and its package now live in different places. That is
+what the repairability rule already implied; the guard was hiding it.
+
 ## 2026-08-22 — a class's training is copied to the character, because transfer cannot reach one
 
 **Evidence.** A Mage wearing full plate reported as proficient with it, and no

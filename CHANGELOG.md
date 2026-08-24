@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.19.1
+
+### Fixed
+- **A class held in a compendium can build its starting-template packages
+  again.** The materializer refused any class document that lived in a pack,
+  on the stated grounds that the registry never read one — which stopped being
+  true in 4.19.0, and which acks-importer 3.0.0 turned into a permanent no-op
+  for every imported class, since that is now where they all live. The packages
+  themselves are still created in the sidebar: a package exists to be repaired,
+  and nobody repairs anything inside a compendium.
+
 ## 4.19.0
 
 ### Changed
