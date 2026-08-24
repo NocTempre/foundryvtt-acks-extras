@@ -1063,3 +1063,37 @@ bonus terms — a target adjustment that arrives as a bonus delta hides the
 rolled value the remodel exists to expose. Known intentional leftover: core's
 attributes-tab Melee/Ranged display omits bba (core is read-only); the
 Follower Card shows the honest split.
+
+## 2026-08-24 — Initiative reuses the roll CARD, not an invented grouping
+
+**Ruled:** a round's initiative posts through `renderRollCard` as one card
+(`patches/initiative-card.mjs`, world setting `initiativeCard`, default on),
+and a combat group prints as a single row naming its members. The wrapper is a
+libWrapper WRAPPER around `Combat#rollInitiative`; presentation only.
+
+**Why it is a card and not a grouping.** "Everyone is rolling individually" has
+two possible cures, and only one of them was ours to build: the system already
+rolls once per combat group and already has the control that makes one. What it
+lacks is any way to SEE that — a group's single roll is printed under one
+member's name and the rest say nothing, so a grouped fight and an ungrouped one
+produce indistinguishable logs. The gap was legibility, and inventing a second
+grouping mechanism beside core's would have been inventing what the system
+provides (reuse → extend → enhance → invent).
+
+**REJECTED: auto-grouping a deployed stack.** A stack's bodies are not
+automatically a combat group, and the party bridge still creates one combatant
+per body. Which combatants share a roll is the Judge's explicit choice — the
+maintainer's ruling, this date — because the cases that want it (a stack, a
+summoner and their summons) are the Judge's to declare and the cases that do
+not (a party of adventurers, RAW) outnumber them.
+
+**Cost:** two cards where one hidden combatant is present, and a group with a
+hidden member appears on both — its open members publicly, the hidden one to
+the Judges. One chat message cannot be part public, and widening the card to
+avoid the split would publish what core whispered.
+
+**Note on the namespacing gate:** the group flag is read as
+`combat.flags?.acks?.groups`, deliberately not through the flag accessors, which
+`validate-extra` fails for a foreign scope. The gate is right — a module has no
+business writing the system's namespace — and a plain property read is the
+honest expression of "core owns this, we only look".

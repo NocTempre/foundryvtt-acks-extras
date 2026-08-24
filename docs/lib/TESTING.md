@@ -41,6 +41,27 @@ report the same symptom.
   than clamping to the last row. Every ladder in the family reads through it,
   so assert the null.
 
+### Driving an initiative roll
+
+- **Core's speaker reads `canvas.scene._id`**, so a scene must be VIEWED and the
+  canvas ready or `rollInitiative` throws on null before rolling anything. The
+  canvas never finishes initializing in a backgrounded browser pane — drive this
+  one through the capture driver's browser.
+- **Start the combat first.** Core writes flags to every combatant mid-roll
+  (`processOutNumbering`, `cleanupStatus`) while its own `lock-turns` flag makes
+  `setupTurns()` bail, and on a combat that was never started that update throws
+  inside `foundry.mjs` (`#recordPreviousState`, Object.assign on undefined). It
+  reads as a module bug and is not one.
+- **An aborted roll leaves `lock-turns` set**, and every later combatant write on
+  that combat throws the same way. Clear it and `setupTurns()` before retrying,
+  or the next check fails for the reason the last one did.
+- **Core mutates the group flag object in memory as it rolls** (`initiative` goes
+  from `-1` to the rolled total) and never writes it back. Within one client a
+  second roll therefore finds the group already rolled, prints nothing, and the
+  card correctly does not post — reset the flag between rolls.
+- Form a group the way the tracker does: `combat.manageGroup([tokenDoc, …])`,
+  two tokens minimum, both already combatants.
+
 ## Steps
 
 1. Sub-types: create one actor of each lib type.
@@ -94,7 +115,22 @@ report the same symptom.
     *Observable:* the new actor is in a top-level **Generated** folder in the
     Actors sidebar — never the template's own folder, and never a pack.
 
+12. Initiative card: a scene with six tokens in a started combat — three in one
+    combat group, two in a second (one of them hidden), one ungrouped — then
+    `combat.rollInitiative(everyId)`.
+    *Observable:* ONE public card, each group a single row named `Group 0` /
+    `Group 1` listing its members, the ungrouped combatant its own row, sorted
+    highest first, Name and Total only (no empty Result column); plus a
+    Judges-only card carrying the hidden combatant's row, whispered to the GM
+    seats. Join as **Player** and confirm the public card is visible and the
+    Judges' card is not (`message.visible === false`). Turn `initiativeCard` off
+    and roll again: core's one message per roller is back, unchanged. Rolling a
+    single combatant posts a one-row card. No console errors on any of it.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.
-Confirm `storedItems(location)` is empty before the location goes.
+Confirm `storedItems(location)` is empty before the location goes. The
+initiative step also leaves a combat, a scene with tokens, and the chat messages
+both settings produced — delete all three, and issue the scene delete WITHOUT
+awaiting it (awaiting a viewed scene's deletion hangs the headless driver).

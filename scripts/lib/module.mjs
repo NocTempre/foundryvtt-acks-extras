@@ -65,6 +65,7 @@ import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK } from "./patch
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
+import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -299,6 +300,18 @@ Hooks.once("init", () => {
   game.settings.register(MODULE_ID, SETTING_SURPRISE_CARD, {
     name: `${LANG_PREFIX}.settings.surpriseCard.name`,
     hint: `${LANG_PREFIX}.settings.surpriseCard.hint`,
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  // A round's initiative on one card (patches/initiative-card.mjs). World-scoped
+  // and read per roll for the same reasons as the surprise card above: the order
+  // of battle is a shared reading, and the toggle takes effect on the next roll.
+  game.settings.register(MODULE_ID, SETTING_INITIATIVE_CARD, {
+    name: `${LANG_PREFIX}.settings.initiativeCard.name`,
+    hint: `${LANG_PREFIX}.settings.initiativeCard.hint`,
     scope: "world",
     config: true,
     type: Boolean,
@@ -663,6 +676,10 @@ Hooks.once("ready", () => {
   // reads its own setting per click and defers to core's handler when off, so
   // the toggle needs no reload and nothing is intercepted while it is off.
   installSurpriseCardPatch();
+
+  // The consolidated initiative card, on the same terms: the wrapper reads its
+  // setting per roll and calls core untouched when off.
+  installInitiativeCardPatch();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const defaulted = entries.find((e) => e.default) ?? null;

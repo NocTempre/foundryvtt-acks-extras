@@ -512,3 +512,39 @@ Three details are load-bearing:
 The `surpriseCard` world setting gates it, read per click so it takes effect
 with no reload; off, the wrapper defers to core's handler and nothing is
 intercepted.
+
+## The consolidated initiative card
+
+`scripts/lib/patches/initiative-card.mjs` does for a round's initiative what the
+patch above does for surprise: one card, one row per roll, highest first, in
+place of core's message per combatant.
+
+The roll and the GROUPING are both core's. `AcksCombat#rollInitiative` already
+rolls a single `1d6+bonus` for a combat group and writes that total to every
+member; what it cannot do is show it. The group's one roll is announced under
+whichever member came first in its loop and every other member is silent, so a
+grouped roll and an individual roll are indistinguishable in the log — which is
+what makes a grouped fight read as though everyone rolled separately. The card
+is where the grouping becomes legible: a group is ONE row, labelled as the
+tracker labels it (`[G0]` → Group 0) and listing its members underneath.
+
+Nothing is grouped automatically. Which combatants share a roll stays the
+Judge's explicit choice through core's own tracker control — stacks, a summoner
+with their summons — and this patch only reports what that choice produced.
+
+Three details are load-bearing:
+
+- **The rows are read off the COMBATANTS after core has written them**, not off
+  the captured messages. A member who took the group's number is one core
+  printed nothing about, and reading the messages alone would drop them from the
+  card that exists to show they were there.
+- **The group flag is read as a plain property, never through the flag
+  accessors.** The system owns `flags.acks.groups`; a bare read cannot create,
+  rename or write that namespace, and it is what the namespacing gate
+  (`validate-extra`) is protecting.
+- **Nothing is posted where core posted nothing.** Rolling combatants that
+  already carry their group's number produces no message and no card.
+
+`renderRollCard` prints the Result column only when a row carries an outcome, so
+this card is Name and Total — initiative has no verdict to render. The
+`initiativeCard` world setting gates the patch, read per roll.

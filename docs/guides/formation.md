@@ -416,6 +416,31 @@ message at a time. Nothing hidden means one card; something hidden means two.
 Turn **Surprise results on one card** off to go back to the system's original
 per-combatant messages. It takes effect on the next encounter — no reload.
 
+## Initiative, on one card
+
+Initiative comes back the same way: **one card**, one row per roll, highest
+first, instead of a message per combatant.
+
+A **combat group** is one row. The system already rolls a single die for a group
+you have made with the tracker's people icon and gives that number to everyone
+in it — but it announces the roll under one member's name and says nothing about
+the others, so a grouped fight reads exactly like a fight where everyone rolled
+separately. On the card the group is a single line, labelled the way the tracker
+labels it (`Group 0`) and naming its members underneath.
+
+Which creatures share a roll is still yours to say, and nothing is grouped for
+you: select the tokens — a stack of kobolds, a summoner and everything they
+called up — and press the people icon in the combat tracker. Everyone else rolls
+as themselves and gets their own row.
+
+A **hidden** combatant's number travels on a second card only the Judges can
+see, as it already did. If a hidden creature is inside a group, the group's open
+members stay on the public card and the hidden one appears on the Judges' card
+with the same total.
+
+Turn **Initiative results on one card** off for the system's original messages.
+It takes effect on the next roll — no reload.
+
 ## Skill audit
 
 **Skill Audit** (GM) shows how every party roll resolves for every member: which

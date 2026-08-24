@@ -45,7 +45,9 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
  * @property {string} [detail]     The modifier stack / source, printed small
  *                                 under the name. Escaped here.
  * @property {string} [tooltip]    Hover text for the total (a dice formula).
- * @property {string}  outcome     The verdict, already localized.
+ * @property {string} [outcome]    The verdict, already localized; the Result
+ *                                 column appears only if some row in the
+ *                                 section has one.
  * @property {"success"|"failure"|"neutral"} [emphasis]
  */
 
@@ -53,12 +55,17 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
 function sectionHtml({ title, rows }) {
   if (!rows?.length) return "";
   const showTarget = rows.some((r) => Number.isFinite(Number(r.target)));
+  // Result, like Target, is printed only where there is one: a roll that
+  // carries no verdict — initiative — is a name and a number, and an always-on
+  // column would head a whole table of blanks.
+  const showResult = rows.some((r) => r.outcome);
   let html = title ? `<h4 class="acks-extras-roll-section acks-table-title">${esc(title)}</h4>` : "";
   html += `<table class="acks-table"><thead><tr>`;
   html += `<th>${loc("rollCard.colName")}</th>`;
   html += `<th class="acks-nums">${loc("rollCard.colTotal")}</th>`;
   if (showTarget) html += `<th class="acks-nums">${loc("rollCard.colTarget")}</th>`;
-  html += `<th>${loc("rollCard.colResult")}</th></tr></thead><tbody>`;
+  if (showResult) html += `<th>${loc("rollCard.colResult")}</th>`;
+  html += `</tr></thead><tbody>`;
   for (const row of rows) {
     const tip = row.tooltip ? ` data-tooltip="${esc(row.tooltip)}"` : "";
     html += `<tr class="${EMPHASIS[row.emphasis] ?? ""}">`;
@@ -71,7 +78,9 @@ function sectionHtml({ title, rows }) {
       html += `<td class="acks-nums">${Number.isFinite(t) ? `${esc(t)}+` : ""}</td>`;
     }
     // A success is the one thing read at a glance, so it takes the bold.
-    html += `<td>${row.emphasis === "success" || row.emphasis === "neutral" ? `<strong>${esc(row.outcome)}</strong>` : esc(row.outcome)}</td>`;
+    if (showResult) {
+      html += `<td>${row.emphasis === "success" || row.emphasis === "neutral" ? `<strong>${esc(row.outcome)}</strong>` : esc(row.outcome)}</td>`;
+    }
     html += `</tr>`;
   }
   return `${html}</tbody></table>`;

@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.21.1
+
+### Fixed
+- **A group that shares one initiative roll now reads as one.** The system
+  already rolls a single die for a combat group and hands that number to
+  everyone in it — but it announced the roll under whichever member came first
+  and said nothing about the others, so a grouped fight and a fight where
+  everybody rolled separately produced the same thing in the log: one one-line
+  message per combatant, to be read one at a time to answer who goes first.
+  Initiative now comes back on a single card, one row per roll, highest first,
+  where a combat group is ONE row labelled as the tracker labels it and naming
+  its members underneath. Nothing is grouped for you — which creatures share a
+  roll is still declared with the combat tracker's own people control, so a
+  stack, or a summoner and everything they called up, are grouped when you say
+  so and never behind your back. A hidden combatant's number still travels on a
+  Judges-only card, and a group holding one puts its open members on the public
+  card and the hidden one on the Judges'. The rolls themselves are untouched.
+  Turn **Initiative results on one card** off for the system's original
+  messages.
+
 ## 4.21.0
 
 ### Fixed
