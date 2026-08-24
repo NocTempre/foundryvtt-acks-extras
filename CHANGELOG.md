@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.21.0
+
+### Fixed
+- **Building class template packages is three times faster.** Each template row
+  resolved and then wrote its gear one piece at a time, and a document write
+  costs what the collection already holds rather than what you are adding — so
+  materializing twenty-one classes got slower the longer it ran. A row now
+  resolves everything first and writes once. Rebuilding every class's packages
+  from scratch: 618s before, 184s after, with the same 1,353 documents and 168
+  bundles at the end.
+
 ## 4.20.0
 
 ### Changed

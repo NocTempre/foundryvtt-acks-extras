@@ -726,21 +726,19 @@ export async function materializeTemplates(
    * imported yet" far better than a document with a name and no mechanics,
    * which reads as a real thing and gets dragged onto a character.
    */
-  const gearFor = async (entry) => {
+  const planGear = async (entry) => {
     const nameKey = fold(templateItemName(entry));
     const existing = worldGear().find((g) => fold(g.name) === nameKey);
-    if (existing) return existing;
+    if (existing) return { doc: existing };
     const { data, resolution } = await buildGearData(entry);
     if (resolution === "bare") {
       report.unresolved.push(entry.name);
-      return null;
+      return {};
     }
     foundry.utils.setProperty(data, "system.quantity.value", 1);
     stampPart(data, { ...identity, kind: "gear", unresolved: false }, stamp);
     if (shelf) data.folder = shelf;
-    const doc = await Item.implementation.create(data);
-    if (doc) report.created.push(doc.name);
-    return doc;
+    return { data, nameKey };
   };
 
   /**
@@ -760,7 +758,7 @@ export async function materializeTemplates(
    * A name nothing defines yields NULL. The caller keeps the entry on the row,
    * printed, which is this file's rule for a cell that resolved to nothing.
    */
-  const abilityFor = async (entry) => {
+  const planAbility = async (entry) => {
     const { doc: source } = await findSource({
       ref: entry.ref,
       name: entry.name,
@@ -768,40 +766,76 @@ export async function materializeTemplates(
     });
     if (!source) {
       report.unresolved.push(entry.name || entry.ref);
-      return null;
+      return {};
     }
-    if (!entry.selection) return source;
+    if (!entry.selection) return { doc: source };
     const data = buildProfData(entry, source);
     const nameKey = fold(data.name);
     const existing = worldAbilities().find((a) => fold(a.name) === nameKey);
-    if (existing) return existing;
+    if (existing) return { doc: existing };
     stampPart(data, { ...identity, kind: "ability", unresolved: false }, stamp);
     if (shelf) data.folder = shelf;
-    const doc = await Item.implementation.create(data);
-    if (doc) report.created.push(doc.name);
-    return doc;
+    return { data, nameKey };
   };
 
   /** The world spell for one spellbook entry: linked when the world holds it,
    *  copied when only a compendium does, null when nothing answers. */
-  const spellFor = async (entry) => {
+  const planSpell = async (entry) => {
     if (entry.uuid) {
       const linked = await fromUuid(entry.uuid).catch(() => null);
-      if (linked) return linked;
+      if (linked) return { doc: linked };
     }
     const f = fold(entry.name);
     const loose = f.length >= 6 ? game.items.find((i) => i.type === ITEM_TYPE.spell && fold(i.name).includes(f)) : null;
-    if (loose) return loose;
+    if (loose) return { doc: loose };
     const { doc: source, world } = await findSource({ name: entry.name, types: [ITEM_TYPE.spell] });
-    if (!source) return null;
-    if (world) return source;
+    if (!source) return {};
+    if (world) return { doc: source };
     const existing = game.items.find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === fold(source.name));
-    if (existing) return existing;
+    if (existing) return { doc: existing };
     const data = stampPart(copyOf(source), { ...identity, kind: "spell", unresolved: false }, stamp);
     if (shelf) data.folder = shelf;
-    const doc = await Item.implementation.create(data);
-    if (doc) report.created.push(doc.name);
-    return doc;
+    return { data, nameKey: fold(source.name) };
+  };
+
+  /**
+   * Write one ROW's new documents in a single call, and hand each plan its
+   * document back.
+   *
+   * A create costs a round trip whose price is set by how many documents the
+   * collection already holds, not by the payload — so writing a template's gear
+   * one piece at a time is quadratic in the library being built. Materializing
+   * every class took ten minutes that way; a row is written once instead.
+   *
+   * Plans are deduplicated by name key first: two entries on one row can name
+   * the same thing, and deferring the writes means neither sees the other's
+   * document the way an immediate create would have.
+   */
+  const writeRow = async (plans) => {
+    const pending = [];
+    const byKey = new Map();
+    for (const plan of plans) {
+      if (!plan.data) continue;
+      const seen = plan.nameKey ? byKey.get(plan.nameKey) : null;
+      if (seen) {
+        plan.shareWith = seen;
+        continue;
+      }
+      plan.at = pending.length;
+      pending.push(plan.data);
+      if (plan.nameKey) byKey.set(plan.nameKey, plan);
+    }
+    if (!pending.length) return;
+    const made = await Item.implementation.createDocuments(pending).catch((err) => {
+      console.warn(`${MODULE_ID} | template row: batched create failed, writing singly`, err);
+      return null;
+    });
+    for (const plan of plans) {
+      if (plan.at == null) continue;
+      plan.doc = made ? made[plan.at] : await Item.implementation.create(plan.data).catch(() => null);
+      if (plan.doc) report.created.push(plan.doc.name);
+    }
+    for (const plan of plans) if (plan.shareWith) plan.doc = plan.shareWith.doc;
   };
 
   /**
@@ -923,6 +957,8 @@ export async function materializeTemplates(
 
     const list = [];
     const keptAbilities = [];
+    // Every entry on this row is RESOLVED first and written once at the end.
+    const plans = [];
     for (const entry of row.abilities ?? []) {
       // A rung the cell OFFERS rather than grants is a question for the
       // player, not a document — it stays on the row for chargen to ask.
@@ -930,26 +966,26 @@ export async function materializeTemplates(
         keptAbilities.push(entry);
         continue;
       }
-      const doc = await abilityFor(entry);
-      if (doc) list.push(listRow(doc, Math.max(1, entry.rank || 1)));
-      else keptAbilities.push(entry);
+      plans.push({ ...(await planAbility(entry)), entry, qty: Math.max(1, entry.rank || 1), kept: keptAbilities });
     }
 
     const keptItems = [];
     for (const entry of row.items ?? []) {
-      const doc = await gearFor(entry);
-      if (doc) list.push(listRow(doc, entry.qty || 1));
-      else keptItems.push(entry);
+      plans.push({ ...(await planGear(entry)), entry, qty: entry.qty || 1, kept: keptItems });
     }
 
     const keptSpells = [];
     for (const entry of row.spells ?? []) {
-      const doc = await spellFor(entry);
-      if (doc) list.push(listRow(doc, 1));
-      else {
-        keptSpells.push(entry);
-        if (entry.name) report.unresolved.push(entry.name);
-      }
+      const plan = { ...(await planSpell(entry)), entry, qty: 1, kept: keptSpells };
+      if (!plan.doc && !plan.data && entry.name) report.unresolved.push(entry.name);
+      plans.push(plan);
+    }
+
+    // Resolution is done; now ONE write for the whole row (see writeRow).
+    await writeRow(plans);
+    for (const plan of plans) {
+      if (plan.doc) list.push(listRow(plan.doc, plan.qty));
+      else plan.kept.push(plan.entry);
     }
 
     const bundleName =

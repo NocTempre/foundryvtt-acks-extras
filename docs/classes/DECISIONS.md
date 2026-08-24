@@ -3,6 +3,30 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-24 — a template row resolves everything, then writes once
+
+**Ruled: `materializeTemplates` writes one row per call, not one entry per
+call.** `gearFor`/`abilityFor`/`spellFor` became `planGear`/`planAbility`/
+`planSpell`, which return either a document that already exists or the data to
+create, and `writeRow` writes a row's new documents in a single
+`createDocuments`.
+
+A write costs a round trip whose price is set by how many documents the
+collection ALREADY holds — the collection is re-indexed per call — so writing a
+package a piece at a time is quadratic in the library being built, and visibly
+slowed as the classes went by. Rebuilding every class's packages from scratch
+took 618s; it takes 184s, and ends with the same 1,353 documents and 168
+bundles.
+
+**Deferral is within one ROW, deliberately.** `worldGear()` and
+`worldAbilities()` find parts an earlier row already made, so the buffer must be
+flushed before the next row reads them. Two entries on ONE row naming the same
+thing are deduplicated by name key inside `writeRow`, which is the case an
+immediate create used to handle for free.
+
+**Cost:** a batch that fails takes its row with it, so `writeRow` falls back to
+writing that row singly and says so.
+
 ## 2026-08-24 — a class row in a compendium still builds its package
 
 **Ruled: `materializeTemplates` accepts a pack class document.** It used to
