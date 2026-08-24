@@ -7,6 +7,37 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-08-24 — the name-form rules live in `lib/vocab.mjs`, once.** A book
+  prints one physical thing several ways — "Oil, Military (1 pint)" in the price
+  catalogue, "Military Oil" everywhere else, "Waterskin/Wineskin" as one row
+  naming two things — and each printing feeds a different importer. The rules
+  for reading those forms existed as `nameVariants` inside
+  `classes/template-packages.mjs`, whose own docstring said acks-importer
+  "applies the same rules… the two must agree": an invariant asserted in prose
+  between two copies. They did not agree, and a flask of military oil was two
+  documents in every imported world. `nameVariants` / `nameKeys` are now lib
+  exports and both modules read them. *Rejected: a comma-flip helper in the
+  importer's price code.* It fixes the reported case and leaves the slash and
+  parenthetical forms to be rediscovered separately — the pattern is "the same
+  thing printed differently", not "commas". *Cost:* a dedup rule now depends on
+  lib being present; the importer says so loudly rather than silently minting
+  duplicates when it is not.
+
+- **2026-08-24 — a package links what exists and mints nothing empty.** A
+  template that grants a proficiency used to COPY it whenever the definition
+  lived in a compendium, on the reasoning that a Judge cannot repair a pack
+  document — which stopped being true when the library moved into an unlocked
+  world pack, so every granted ability became a duplicate of one the GM had
+  imported. It now links, wherever the definition lives; only a printed
+  SELECTION ("Weapon Focus (spear)") still becomes its own document, because
+  writing the selection onto the shared one would specialize it for everybody.
+  A name nothing defines yields NULL instead of an empty placeholder: the caller
+  already keeps such an entry on the row, printed, which is this file's rule for
+  a cell that resolved to nothing — and a printed cell says "not imported yet"
+  better than a document with a name and no mechanics, which reads as real and
+  gets dragged onto a character. Measured on a full re-import: 1,353 template
+  parts where the old rules produced 1,960, with zero unresolved placeholders.
+
 - **2026-08-24 — one reader for the imported library, and it is synchronous.**
   acks-importer 3.0.0 writes every import into a world compendium, so every
   `game.items` read here for a class, race, proficiency or language was pointed

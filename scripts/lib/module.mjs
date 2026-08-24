@@ -94,7 +94,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  apiVersion: 13,
+  apiVersion: 14,
   vocab,
   fields,
   /**

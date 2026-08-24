@@ -28,7 +28,7 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
-import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
+import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
 import { libraryItems } from "../lib/library.mjs";
 import { equipmentClass } from "../equipment/profiles.mjs";
 
@@ -60,40 +60,6 @@ const loc = (key, data) => game.i18n?.format?.(`${LANG_PREFIX}.${key}`, data) ??
 function wholeWordIn(candidateName, descriptor) {
   const body = String(candidateName).trim().split(/\s+/).map(escapeRe).join("\\s*");
   return !!body && new RegExp(`(^|[^a-z0-9])${body}(?:e?s)?([^a-z0-9]|$)`, "i").test(descriptor);
-}
-
-/**
- * Every way an imported item's name can be written.
- *
- * The books' own price list writes a name HEAD FIRST with its qualifier after
- * a comma — "Rations, Iron", "Rope, 50’", "Saddle and tack, Riding" — while a
- * template's printed descriptor writes the same thing as English: "1 week’s
- * iron rations". A slash names one row by either word ("Waterskin/Wineskin").
- * Both are conventions of the catalogue rather than facts about one entry, so
- * both are read here by rule.
- *
- * This is what an already-imported world's REPAIR pass matches against: a
- * document minted before its base existed carries only the printed descriptor,
- * so it is re-matched by name alone with no ref to help it.
- */
-function nameVariants(raw) {
-  const out = [];
-  const add = (t) => {
-    const v = String(t).replace(/\s+/g, " ").trim();
-    if (v && !out.includes(v)) out.push(v);
-  };
-  for (const base of [raw, raw.replace(/\([^)]*\)/g, " ")]) {
-    const segments = String(base).split(",").map((x) => x.trim()).filter(Boolean);
-    for (const form of segments.length > 1 ? [base, [...segments].reverse().join(" ")] : [base]) {
-      let combos = [[]];
-      for (const options of String(form).trim().split(/\s+/).map((w) => w.split("/"))) {
-        combos = combos.flatMap((prefix) => options.map((o) => [...prefix, o]));
-        if (combos.length > 8) break;
-      }
-      for (const c of combos) add(c.join(" "));
-    }
-  }
-  return out;
 }
 
 /**
@@ -751,54 +717,68 @@ export async function materializeTemplates(
   const worldAbilities = () => game.items.filter((i) => isMine(i) && partOf(i).kind === "ability");
   const shelf = folder ?? (await defaultFolder(classItem));
 
-  /** The world gear document for one descriptor, created on first need. */
+  /**
+   * The world gear document for one descriptor, created on first need.
+   *
+   * A descriptor nothing can answer for yields NULL rather than an empty item.
+   * The caller keeps such an entry on the row, printed, which is this file's
+   * rule for a cell that resolved to nothing — and a printed cell says "not
+   * imported yet" far better than a document with a name and no mechanics,
+   * which reads as a real thing and gets dragged onto a character.
+   */
   const gearFor = async (entry) => {
     const nameKey = fold(templateItemName(entry));
     const existing = worldGear().find((g) => fold(g.name) === nameKey);
     if (existing) return existing;
     const { data, resolution } = await buildGearData(entry);
+    if (resolution === "bare") {
+      report.unresolved.push(entry.name);
+      return null;
+    }
     foundry.utils.setProperty(data, "system.quantity.value", 1);
-    stampPart(data, { ...identity, kind: "gear", unresolved: resolution === "bare" }, stamp);
+    stampPart(data, { ...identity, kind: "gear", unresolved: false }, stamp);
     if (shelf) data.folder = shelf;
     const doc = await Item.implementation.create(data);
-    if (doc) {
-      report.created.push(doc.name);
-      if (resolution === "bare") report.unresolved.push(entry.name);
-    }
+    if (doc) report.created.push(doc.name);
     return doc;
   };
 
   /**
    * The document one printed proficiency entry becomes.
    *
-   * A plain proficiency the WORLD already defines is LINKED — one shared
-   * document, no duplicate Adventuring per band. Anything else becomes a
-   * world copy so it is repairable: a printed selection (the specialized
-   * copy), a definition that exists only in a COMPENDIUM (a locked pack
-   * document is exactly what a Judge cannot fix), and — flagged `unresolved`
-   * — a name nothing defines yet, minted so the package is complete and the
-   * gap is a document to repair rather than invisible text on the class.
+   * A definition that already exists is LINKED, wherever it lives — one shared
+   * document, no duplicate Adventuring per band and no second copy of an
+   * ability the GM imported. Linking a document held in acks-importer's pack is
+   * the point: those packs are world packs, which are unlocked and editable, so
+   * the copy that used to be made "because a Judge cannot fix a pack document"
+   * bought nothing and cost a duplicate of every granted ability.
+   *
+   * A printed SELECTION still becomes its own copy — "Weapon Focus (spear)" is
+   * a different document from the definition it specializes, and writing the
+   * selection onto the shared one would specialize it for everybody.
+   *
+   * A name nothing defines yields NULL. The caller keeps the entry on the row,
+   * printed, which is this file's rule for a cell that resolved to nothing.
    */
   const abilityFor = async (entry) => {
-    const { doc: source, world } = await findSource({
+    const { doc: source } = await findSource({
       ref: entry.ref,
       name: entry.name,
       types: [ITEM_TYPE.ability],
     });
-    if (source && world && !entry.selection) return source;
-    const data = source
-      ? (entry.selection ? buildProfData(entry, source) : copyOf(source))
-      : buildPlaceholderAbility(entry);
+    if (!source) {
+      report.unresolved.push(entry.name || entry.ref);
+      return null;
+    }
+    if (!entry.selection) return source;
+    const data = buildProfData(entry, source);
     const nameKey = fold(data.name);
     const existing = worldAbilities().find((a) => fold(a.name) === nameKey);
     if (existing) return existing;
-    stampPart(data, { ...identity, kind: "ability", unresolved: !source }, stamp);
+    stampPart(data, { ...identity, kind: "ability", unresolved: false }, stamp);
     if (shelf) data.folder = shelf;
     const doc = await Item.implementation.create(data);
-    if (doc) {
-      report.created.push(doc.name);
-      if (!source) report.unresolved.push(entry.name || entry.ref);
-    }
+    if (doc) report.created.push(doc.name);
     return doc;
   };
 

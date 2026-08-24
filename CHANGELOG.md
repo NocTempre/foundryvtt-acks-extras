@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.20.0
+
+### Changed
+- **A starting template links the ability it grants instead of copying it.** It
+  used to copy whenever the definition lived in a compendium — reasoning that a
+  Judge cannot repair a pack document — which stopped being true once the
+  library moved into an unlocked world pack. Every granted proficiency was a
+  duplicate of one you had already imported. A printed *selection* like "Weapon
+  Focus (spear)" still gets its own document, because writing the selection onto
+  the shared one would specialize it for everybody.
+- **A template no longer ships an empty item for something it cannot find.** A
+  name nothing defines stays printed on the class row, where it reads as "not
+  imported yet" — a document with a name and no mechanics reads as a real thing
+  and gets dragged onto a character. On a full re-import: 1,353 template parts
+  where the old rules made 1,960, and none of them empty.
+- **The rules for reading a printed name live in one place.** A book writes one
+  thing several ways — "Oil, Military (1 pint)" in the price catalogue, "Military
+  Oil" everywhere else, "Waterskin/Wineskin" as one row naming two things — and
+  those rules existed in two copies whose docstring simply asserted they must
+  agree. They did not, so one flask of military oil was two documents in every
+  imported world. `nameVariants` and `nameKeys` are now shared library exports
+  that acks-importer reads too.
+
 ## 4.19.1
 
 ### Fixed

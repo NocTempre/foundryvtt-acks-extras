@@ -13,7 +13,7 @@ sibling modules) — never the import path for this module's own features.
 | File | Owns |
 | --- | --- |
 | `constants.mjs` | `MODULE_ID`, `LANG_PREFIX`, `FLAG_GEAR` — the module's name constants. The ONLY file that states the module-id literal. |
-| `vocab.mjs` | Canonical ACKS enums (damage/movement/vision/senses/natural weapons/alignment) + the `LevelValue` resolver. Foundry-free. |
+| `vocab.mjs` | Canonical ACKS enums (damage/movement/vision/senses/natural weapons/alignment), the `LevelValue` resolver, and the NAME-FORM rules (`nameVariants` / `nameKeys`) that know "Oil, Military (1 pint)" and "Military Oil" are one thing — **acks-importer reads those too; a second copy is how one flask became two documents.** Foundry-free. |
 | `fields.mjs` | DataModel field-builders over vocab. Foundry-only, lazily so Node still evaluates it. |
 | `field-spec.mjs` | Data-described form shapes for fields nobody shipped (importer-supplied metadata). |
 | `choice-spec.mjs` | The family's one "choose N from …" primitive. |

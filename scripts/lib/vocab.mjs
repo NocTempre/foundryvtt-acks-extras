@@ -33,6 +33,52 @@ export const choicesOf = (enumObj) =>
  */
 export const slug = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
+/**
+ * Every way one printed item name can be written — the family's ONE answer.
+ *
+ * A book prints the same physical thing several ways, and each printing feeds a
+ * different importer, so a rule that lives in one of them mints a second
+ * document for a thing that already exists. The conventions are the
+ * catalogue's, not any one entry's:
+ *
+ * - **Head first, qualifier after a comma.** The price list writes "Oil,
+ *   Military"; every other page writes "Military Oil".
+ * - **A parenthetical unit or note.** "Oil, Military (1 pint)" is that flask.
+ * - **A slash offering either word.** "Waterskin/Wineskin" is one row naming
+ *   two things.
+ *
+ * Lives here because at least three callers must agree or they disagree
+ * silently: acks-importer's price-list claim (which of its rows a shelf already
+ * holds) and its `parseEquipment`, and this module's `bestBaseMatch` (which
+ * base a printed descriptor skins). When those disagree a descriptor points at
+ * one base and skins itself over another, or one flask of military oil becomes
+ * two documents.
+ *
+ * Combinations are capped: a name with many slashes would otherwise explode.
+ */
+export function nameVariants(raw) {
+  const out = [];
+  const add = (t) => {
+    const v = String(t).replace(/\s+/g, " ").trim();
+    if (v && !out.includes(v)) out.push(v);
+  };
+  for (const base of [raw, String(raw).replace(/\([^)]*\)/g, " ")]) {
+    const segments = String(base).split(",").map((x) => x.trim()).filter(Boolean);
+    for (const form of segments.length > 1 ? [base, [...segments].reverse().join(" ")] : [base]) {
+      let combos = [[]];
+      for (const options of String(form).trim().split(/\s+/).map((w) => w.split("/"))) {
+        combos = combos.flatMap((prefix) => options.map((o) => [...prefix, o]));
+        if (combos.length > 8) break;
+      }
+      for (const c of combos) add(c.join(" "));
+    }
+  }
+  return out;
+}
+
+/** `nameVariants` as comparable keys: folded, punctuation and spacing gone. */
+export const nameKeys = (raw) => new Set(nameVariants(raw).map(slug).filter(Boolean));
+
 // NOTE deliberately NO normalizeAlignment here. It looked like a fold, but the
 // one module that classifies alignment (acks-influence) keeps its OWN token set
 // (law/chaos/neutral/other, baked into published effect flags) and translates
