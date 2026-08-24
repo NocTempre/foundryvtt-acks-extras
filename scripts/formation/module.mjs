@@ -491,10 +491,12 @@ Hooks.on("deleteActor", (actor) => {
 /* -------------------------------------------- */
 
 // The party token's size depends on its heading (width and height swap when
-// it turns), and core's tokenAutoRotate writes rotation on every drag — so a
-// turn must resync the size even when the clock has no interest in the move.
+// it turns), so a turn must resync the size even when the clock has no
+// interest in the move. Gated on ROTATION alone: size is a function of
+// heading, frontage, ranks and the scene scale, and never of position — a
+// position-triggered resync writes on every step of a drag for no change.
 Hooks.on("updateToken", (tokenDoc, changes) => {
-  if (!("rotation" in changes) && !("x" in changes) && !("y" in changes)) return;
+  if (!("rotation" in changes)) return;
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId || !isPrimaryGM()) return;
   const formation = getFormation(formationId);

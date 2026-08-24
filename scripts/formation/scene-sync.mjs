@@ -259,7 +259,10 @@ export async function syncPartyTokenSize(formation) {
   const width = sideways ? deep : across;
   const height = sideways ? across : deep;
   if (Math.abs(token.width - width) < 1e-6 && Math.abs(token.height - height) < 1e-6) return;
-  await token.update({ width, height });
+  // Never animate a size write. A tweened width/height reads as the token
+  // shrinking and swelling, and during a move it rides on top of the position
+  // animation — the same class of artefact as reading a mid-tween rotation.
+  await token.update({ width, height }, { animate: false });
 }
 
 /**

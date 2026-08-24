@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.18.1
+
+### Fixed
+- **The party token stops shrinking and swelling while it moves.** Since the
+  face-width sizing arrived in 4.14.0, dragging a formation's token made it
+  visibly collapse and stretch again along the way. Two causes: the size was
+  written as an animated change, so every adjustment tweened through the
+  sizes between; and it was recalculated on every step of a move, though a
+  token's face depends only on which way it points, how many march abreast,
+  how deep the ranks are, and the scene's scale — never on where it stands.
+  Size now changes only when the column actually turns, and it changes
+  outright instead of morphing.
+
 ## 4.18.0
 
 ### Added
