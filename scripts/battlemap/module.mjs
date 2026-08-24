@@ -18,13 +18,17 @@ import {
 } from "./token-scale.mjs";
 import { fitGrid, feetPerSquare, roundSuggestions, outputGridSize } from "./calibrate-logic.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
+import { CAPTURE_MODES, session } from "./session.mjs";
 
 const TEMPLATES = [`modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`];
 
 Hooks.once("init", () => {
-  installSceneTool();
+  installSceneControls();
   installSceneConfigRow();
   installTokenAutoScale();
+  // The session owns the samples, so it is what a scene change clears — the
+  // window is only a view and may not even be open.
+  Hooks.on("canvasReady", () => session.onCanvasReady());
 
   foundry.applications.handlebars
     .loadTemplates(TEMPLATES)
@@ -48,27 +52,81 @@ Hooks.once("ready", () => {
   };
 });
 
-/** The Tokens layer gets the assistant's tool — the layer a GM sizing tokens is already on. */
-function installSceneTool() {
+/** Icon per capture mode, in the order `CAPTURE_MODES` lists them. */
+const MODE_ICONS = {
+  square: "fa-solid fa-vector-square",
+  corners: "fa-solid fa-crosshairs",
+  scale: "fa-solid fa-ruler-horizontal",
+  eraser: "fa-solid fa-eraser",
+};
+
+/**
+ * Calibration gets a control group of its own, not a button hidden at the end
+ * of somebody else's.
+ *
+ * Each capture mode IS a scene-control tool — it arms a canvas interaction,
+ * which is the thing a tool models — so Foundry keeps exactly one of them
+ * active for free and the armed mode is visible in the toolbar rather than
+ * buried in a window. The group carries no `layer`: it drives the calibration
+ * overlay, not a placeables layer, and a SceneControl has never required one.
+ *
+ * The window is still where the numbers and the apply actions live, so
+ * activating the group opens it.
+ */
+function installSceneControls() {
   Hooks.on("getSceneControlButtons", (controls) => {
-    const tokens = controls.tokens ?? controls.find?.((c) => c.name === "tokens" || c.name === "token");
-    if (!tokens) return;
-    const tools = tokens.tools;
-    const tool = {
-      name: "acksBattlemap",
-      title: game.i18n.localize(`${LANG_PREFIX}.tool`),
-      icon: "fa-solid fa-ruler-combined",
+    if (!game.user.isGM) return;
+    const tools = {};
+    CAPTURE_MODES.forEach((mode, i) => {
+      tools[mode] = {
+        name: mode,
+        title: game.i18n.localize(`${LANG_PREFIX}.mode.${mode}`),
+        icon: MODE_ICONS[mode],
+        order: i,
+        // A mode tool is the ACTIVE tool while armed, so Foundry's own
+        // one-at-a-time handling is the arming logic; `active` is what it
+        // hands back when the group is re-entered.
+        onChange: (_event, active) => {
+          if (active) session.arm(session.mode === mode ? null : mode);
+          else if (session.mode === mode) session.disarm();
+        },
+      };
+    });
+    tools.wipe = {
+      name: "wipe",
+      title: game.i18n.localize(`${LANG_PREFIX}.samples.wipe`),
+      icon: "fa-solid fa-trash",
+      order: CAPTURE_MODES.length,
       button: true,
-      visible: game.user.isGM,
-      order: Array.isArray(tools) ? tools.length : Object.keys(tools).length,
       // One handler only: v13+ calls BOTH `onChange` and `onClick` on a
-      // `button: true` tool, so a second app would open over the first.
+      // `button: true` tool, so a second press would arrive unasked.
+      onChange: () => session.wipe(),
+    };
+    tools.assistant = {
+      name: "assistant",
+      title: game.i18n.localize(`${LANG_PREFIX}.controls.assistant`),
+      icon: "fa-solid fa-sliders",
+      order: CAPTURE_MODES.length + 1,
+      button: true,
       onChange: () => openAssistant(),
     };
-    // v13+ hands these over as an object keyed by name; older builds as an
-    // array. Both shapes are still in the wild across the family's worlds.
-    if (Array.isArray(tools)) tools.push(tool);
-    else tools[tool.name] = tool;
+
+    controls.acksBattlemap = {
+      name: "acksBattlemap",
+      title: game.i18n.localize(`${LANG_PREFIX}.controls.group`),
+      icon: "fa-solid fa-ruler-combined",
+      order: Object.keys(controls).length,
+      visible: game.user.isGM,
+      // The first mode is armed on entry, so the group is never a set of dead
+      // buttons; leaving it disarms, or the overlay would keep swallowing
+      // pointer events under whatever layer the GM moved to.
+      activeTool: CAPTURE_MODES[0],
+      tools,
+      onChange: (_event, active) => {
+        if (active) openAssistant();
+        else session.disarm();
+      },
+    };
   });
 }
 

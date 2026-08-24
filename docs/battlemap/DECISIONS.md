@@ -83,3 +83,45 @@ dropped, which the first bake run demonstrated by uploading its corrected
 image and then failing to repoint the scene). `scene-image.mjs` owns the
 level-aware read/write; no other battlemap file touches the background
 directly, and the repoint is read back the same way the apply is.
+
+## 2026-08-20 — Calibration gets a control group; the session owns the state
+
+**Ruled (user):** the capture modes belong in the scene controls, as a
+Battlemap group of their own. Each mode arms a canvas interaction, which is
+exactly what a scene-control tool models — so Foundry keeps one active at a
+time for free, and the armed mode is visible in the toolbar instead of buried
+in a window. It also answers the reported symptom, which was that the feature
+was an unlabeled icon at the end of the tokens toolbar and nothing announced
+it existed.
+
+The group carries **no `layer`**. A `SceneControl` has never required one —
+the v14 typedef has no such property, and group activation is DOM plus
+callbacks — so a group driving an overlay rather than a placeables layer is a
+first-class thing, not a workaround. The first mode is armed on entry so the
+group is never a row of dead buttons, and leaving the group disarms, or the
+overlay would go on swallowing pointer events under whatever layer the GM
+moved to.
+
+**Ruled:** the split is modes in the toolbar, numbers and actions in the
+window. The fit residual, the two scale fields, the output square, the apply
+buttons and the token hotbar all want a form; arming a mode does not.
+
+**Ruled:** the session (`session.mjs`) owns samples, mode, toggles and entered
+values — not the window. Two surfaces now read one calibration, and the state
+outliving the window is the better behaviour anyway: closing the panel
+mid-calibration keeps the work, where before it discarded every sample. The
+window subscribes and re-renders; the toolbar mutates the session.
+
+**Rejected — a shipped macro, or a scene context-menu entry.** Both were on
+the table as discoverability fixes and both leave the modes as buttons inside
+a dialog, which is the part that was modelled wrongly. A macro would have
+added a second way to open a window nobody could find a reason to open.
+
+**Rejected — moving the apply actions onto the toolbar too.** A toolbar tool
+is a gesture, not a form; the applies depend on values the GM types and
+confirms, and a button that acts on unseen numbers is how the first build
+reported success over an unchanged scene (2026-08-20, above).
+
+**Cost:** the family's first module-owned scene-control group, so the left bar
+gains an icon for every GM running extras. Accepted as the price of the
+feature being findable at all.

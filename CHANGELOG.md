@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.22.0
+
+Map alignment gets a toolbar of its own.
+
+### Changed
+- **The map tools are their own set of scene controls.** Calibration used to
+  hide behind one unlabelled button at the end of the token toolbar, with the
+  four ways of sampling a map buried as buttons inside its window. There is
+  now a **Battlemap** group in the controls down the side of the canvas —
+  drawing a box, picking corners, measuring the scale bar and erasing are
+  tools in it, like any other tool on the canvas, so the one you have armed is
+  visible where you armed it. Entering the group opens the panel where the
+  numbers and the apply buttons still live; the panel's own mode buttons stay,
+  mirroring the toolbar.
+- **Your samples outlive the panel.** Closing the window used to throw away
+  every box and corner you had drawn. What you sample now belongs to the map,
+  so you can shut the panel, go and look at something, and carry on where you
+  left off.
+
 ## 4.21.1
 
 ### Fixed

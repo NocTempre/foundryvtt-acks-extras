@@ -6,19 +6,24 @@ scale is a printed bar in the margin. The assistant fixes all three from a
 few samples you draw on the canvas, then sizes tokens to what they actually
 are.
 
-Open it from the **token controls** (the combined-ruler icon), or from the
-**Battlemap** row in the scene's configuration. GM only.
+Look for **Battlemap** in the scene controls down the left of the canvas — the
+ruler-and-square icon. Its tools are the four ways of sampling a map, plus a
+wipe and the **Scale & fit panel** where the numbers live. Entering the group
+opens that panel for you; the scene's configuration has a **Battlemap** row as
+a second way in. GM only.
 
-![](../releases/v4.14.0/battlemap.png)
+![](../releases/v4.22.0/battlemap.png)
 
-*The assistant mid-calibration: boxes and corners sampled, the fit locked on,
-the scale waiting to be confirmed.*
+*The Battlemap controls with Draw box armed, and the panel beside them: boxes
+and corners sampled, the fit locked on, the scale waiting to be confirmed.*
 
 ## Teaching it the grid
 
-Arm a capture mode and work on the canvas. Mix and match — more samples make
-a better fit, and the red preview grid snaps onto the map's lines as soon as
-it has enough:
+Pick a tool from the Battlemap controls and work on the canvas — the panel
+mirrors them if you would rather stay in the window. Mix and match: more
+samples make a better fit, and the red preview grid snaps onto the map's lines
+as soon as it has enough. Closing the panel keeps your samples; the tools go
+on working.
 
 - **Draw box** — drag a rectangle over one drawn map square. Do a couple in
   different corners of the map. If you know what a square represents (many

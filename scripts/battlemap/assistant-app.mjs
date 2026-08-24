@@ -7,7 +7,8 @@
  */
 
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { CaptureOverlay, runFit, imageToCanvas } from "./capture.mjs";
+import { imageToCanvas } from "./capture.mjs";
+import { session } from "./session.mjs";
 import { feetPerSquare, roundSuggestions, outputGridSize } from "./calibrate-logic.mjs";
 import { applyGridCalibration, bakeCorrectedBackground } from "./apply.mjs";
 import { rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
@@ -52,54 +53,54 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
 
   static PARTS = { body: { template: `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs` } };
 
-  constructor(options = {}) {
-    super(options);
-    this.samples = { squares: [], corners: [], scale: null };
-    this.overlay = new CaptureOverlay(this);
-    this.captureMode = null;
-    this.independentXY = false;
-    this.allowSkew = false;
-    /** GM-entered values; null means "derive". */
-    this.opts = { mapCellFeet: null, scaleValue: null, confirmFeet: null, outputFeet: null, gridSizePx: null, customFeet: null };
-    this.bakedFit = null;
-    // Samples are scene-bound, but canvasReady also fires on SAME-scene
-    // redraws — repointing the background at a baked image is one — and a
-    // reset there would wipe the fit the bake just retained. Only an actual
-    // scene change clears state.
-    this.#canvasReady = () => {
-      if (canvas?.scene?.id !== this.#sceneId) {
-        this.#sceneId = canvas?.scene?.id ?? null;
-        this.#reset();
-      }
-      this.render();
-    };
+  /**
+   * The window owns nothing. Samples, the armed mode and the fit belong to the
+   * calibration session, because the scene controls arm the modes and closing
+   * this panel must not throw the work away. These read through so the rest of
+   * the view can stay written against `this`.
+   */
+  get samples() {
+    return session.samples;
   }
 
-  #canvasReady;
+  get overlay() {
+    return session.overlay;
+  }
 
-  #sceneId = null;
+  get captureMode() {
+    return session.mode;
+  }
+
+  get opts() {
+    return session.opts;
+  }
+
+  get independentXY() {
+    return session.independentXY;
+  }
+
+  get allowSkew() {
+    return session.allowSkew;
+  }
+
+  get bakedFit() {
+    return session.bakedFit;
+  }
+
+  set bakedFit(fit) {
+    session.bakedFit = fit;
+  }
 
   get fitMode() {
-    return this.allowSkew ? "affine" : this.independentXY ? "rect" : "square";
+    return session.fitMode;
   }
 
-  /** The current fit: live samples win; a fresh bake stands in after a wipe. */
   get fit() {
-    const s = this.samples;
-    if (s.squares.length || s.corners.length) return runFit(s, this.fitMode);
-    return this.bakedFit;
+    return session.fit;
   }
 
-  #reset() {
-    this.samples = { squares: [], corners: [], scale: null };
-    this.bakedFit = null;
-    this.captureMode = null;
-    this.overlay.destroy();
-  }
-
-  onSamplesChanged() {
-    this.render();
-  }
+  /** Unsubscribes this window from the session; set on first render. */
+  #unsubscribe = null;
 
   /* -------------------------------------------- */
   /*  Derivations                                 */
@@ -207,14 +208,19 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
 
   async _onRender(context, options) {
     await super._onRender(context, options);
-    this.#sceneId = canvas?.scene?.id ?? null;
-    if (options.isFirstRender) Hooks.on("canvasReady", this.#canvasReady);
+    // A toolbar press changes the session, not this window, so the window
+    // follows the session rather than the other way round.
+    if (options.isFirstRender) this.#unsubscribe ??= session.subscribe(() => this.render());
   }
 
   _onClose(options) {
     super._onClose(options);
-    Hooks.off("canvasReady", this.#canvasReady);
-    this.#reset();
+    this.#unsubscribe?.();
+    this.#unsubscribe = null;
+    // The samples stay: they belong to the canvas, and the toolbar is still
+    // there to go on sampling with. Only the armed mode goes, so a closed
+    // panel cannot leave the overlay swallowing pointer events.
+    session.disarm();
   }
 
   /* -------------------------------------------- */
@@ -224,38 +230,33 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   static #submit(_event, _form, formData) {
     const d = foundry.utils.expandObject(formData.object);
     const num = (v) => (Number(v) > 0 ? Number(v) : null);
-    this.independentXY = !!d.independentXY;
-    this.allowSkew = !!d.allowSkew;
-    this.opts = {
+    session.independentXY = !!d.independentXY;
+    session.allowSkew = !!d.allowSkew;
+    Object.assign(session.opts, {
       mapCellFeet: num(d.mapCellFeet),
       scaleValue: num(d.scaleValue),
       confirmFeet: num(d.confirmFeet),
       outputFeet: num(d.outputFeet),
       gridSizePx: num(d.gridSizePx),
       customFeet: num(d.customFeet),
-    };
+    });
     this.render();
   }
 
   static #onSetMode(_event, target) {
-    const mode = target.dataset.mode;
-    this.captureMode = this.captureMode === mode ? null : mode;
-    this.overlay.arm(this.captureMode);
-    this.render();
+    // The toolbar is the primary way in; these mirror it so the panel alone
+    // still works, and both routes land on the same session.
+    session.arm(target.dataset.mode);
+    ui.controls?.render();
   }
 
   static #onWipe() {
-    this.samples = { squares: [], corners: [], scale: null };
-    this.bakedFit = null;
-    this.overlay.redraw(null);
-    this.render();
+    session.wipe();
   }
 
   static #onDeleteSample(_event, target) {
     const { kind, index } = target.dataset;
-    if (kind === "scale") this.samples.scale = null;
-    else this.samples[kind]?.splice(Number(index), 1);
-    this.render();
+    session.deleteSample(kind, index);
   }
 
   static #onConfirmChip(_event, target) {
@@ -284,9 +285,11 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     if (!fit?.ok || !fit.u || !canvas?.scene) return;
     const result = await bakeCorrectedBackground(canvas.scene, fit);
     if (!result) return;
-    this.samples = { squares: [], corners: [], scale: null };
-    this.bakedFit = result.fit;
-    this.render();
+    // The samples described the crooked image and mean nothing against the
+    // corrected one; the fit handed back does, and is retained in their place.
+    session.wipe();
+    session.bakedFit = result.fit;
+    session.notify();
   }
 
   static async #onRescaleTokens() {

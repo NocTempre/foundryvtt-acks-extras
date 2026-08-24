@@ -3,8 +3,10 @@
 A GM assistant that fits the scene grid to a battlemap image from samples
 drawn on the canvas, converts the confirmed real-world scale into
 `grid.distance`, and sizes tokens to their footprints. Everything user-facing
-hangs off one AppV2 (`assistant-app.mjs`), opened from a tokens-layer scene
-control or the scene-config row.
+hangs off a **Battlemap scene-control group** — the capture modes are its
+tools — and one AppV2 (`assistant-app.mjs`) carrying the numbers and the apply
+actions, opened by entering the group, by its panel tool, or from the
+scene-config row.
 
 ## Files
 
@@ -15,7 +17,8 @@ control or the scene-config row.
 | `token-scale.mjs` | The ONE writer of width/height for generic tokens: scene-wide rescale, the selection hotbar's stamp/reset, and `preCreateToken` auto-sizing gated on the scene's `autoScale` flag. |
 | `scene-image.mjs` | The one place that knows where a scene's background lives: reads it off the active Level, writes it through that Level's own update. Every background read and write in the feature goes through here. |
 | `capture.mjs` | Canvas overlay: screen-space pointer catcher (core GridConfig's preview pattern), sample glyphs, live fitted-grid preview (GridMesh for square fits, drawn lattice lines otherwise), eraser and undo. |
-| `assistant-app.mjs` | The AppV2: capture modes, fit toggles, scale decisions, the independent apply actions, the token-size hotbar. |
+| `session.mjs` | The calibration session: samples, the armed mode, the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
+| `assistant-app.mjs` | The AppV2, a VIEW over the session: fit panel, scale decisions, the independent apply actions, the token-size hotbar, and mode buttons mirroring the toolbar. |
 | `apply.mjs` | Scene writes: `applyGridCalibration` (one `scene.update`) and `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `module.mjs` | Registrar: scene-control tool, scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
 

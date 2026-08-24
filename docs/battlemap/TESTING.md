@@ -21,6 +21,12 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - The tool is a `button: true` tool on the TOKENS control group — press it
   through the DOM (`document.querySelector('[data-tool="acksBattlemap"]')
   .click()`), which is also the double-fire check: exactly ONE app must open.
+- **A scripted `pointerdown` on the canvas needs a hover-in first.** PIXI's
+  federated event system drops a bare synthetic `pointerdown` unless a
+  `pointerover` + `pointermove` at the same point preceded it — real input
+  always carries that, scripted input does not. Without it the overlay's
+  handler never fires and no sample is captured, which reads exactly like a
+  broken capture layer and is not one.
 - The capture overlay swallows canvas pointer events only while a mode is
   armed; scripted sampling can bypass the pointer path by pushing into
   `app.samples.{squares,corners}` (image px) and calling
