@@ -10,6 +10,7 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { definitionId } from "../lib/capabilities.mjs";
+import { libraryItems } from "../lib/library.mjs";
 import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
 import { keyOf, rollsOf, targetOf, scalesFor } from "./ability-rolls.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
@@ -35,13 +36,15 @@ function refName(ref) {
   // lib owns the provenance-flag read (and the importer's scope name with it);
   // it survives on the item whether or not the importer is active.
   const match = (i) => definitionId(i) === ref;
-  const item = game.items?.find?.(match);
+  // The library — the sidebar plus the importer's own pack — answers almost
+  // every ref; imports live in the pack, so the sidebar alone rendered each
+  // relation as a raw id.
+  const item = libraryItems().find(match);
   if (item) return item.name;
-  // acks-content can import into world compendiums instead of the sidebar, in
-  // which case `game.items` is empty and every relation rendered as a raw id.
-  // Only already-loaded packs are searched — this is a display nicety on a
-  // synchronous render path, so it must not await anything; an unopened pack
-  // still falls back to the id, exactly as before.
+  // Any OTHER Item pack a world happens to hold, for a ref pointing outside
+  // the library. Only already-loaded packs are searched — this is a display
+  // nicety on a synchronous render path, so it must not await anything; an
+  // unopened pack still falls back to the id, exactly as before.
   for (const pack of game.packs ?? []) {
     if (pack.documentName !== "Item") continue;
     const hit = pack.contents?.find?.(match);
@@ -372,7 +375,7 @@ export function createAbilitySheet(Base) {
       // tokens: "kw:sensingevil" is the Sensing Evil capability.
       context.provides = (extras.provides ?? []).map((token) => {
         const slug = String(token).replace(/^kw:/, "");
-        const owner = game.items?.find?.((i) => {
+        const owner = libraryItems().find((i) => {
           const id = definitionId(i);
           return id && !i.getFlag("acks-extras", "extras")?.aliasOf && V.capabilityForId?.(id) === token;
         });

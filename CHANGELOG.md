@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.19.0
+
+### Changed
+- **Everything that asks "what has this world imported?" now looks in the
+  compendium.** acks-importer 3.0.0 writes its library into world packs instead
+  of the sidebar, and every read here was pointed at the sidebar: the class list
+  came up blank, races and languages resolved to nothing, chargen offered no
+  proficiencies, and an ability sheet rendered each of its relations as a raw
+  id. One shared reader (`lib/library.mjs`) answers for the sidebar and the
+  imported packs together, so a Judge's own homebrew class still wins over an
+  imported one of the same name.
+- **A creature generated from a template goes into a "Generated" folder of its
+  own.** It used to be created in the template's folder — which put play
+  material in the middle of the imported reference shelf, and, once templates
+  moved into a compendium, gave the new actor a folder id the sidebar does not
+  have.
+
 ## 4.18.3
 
 ### Fixed

@@ -7,6 +7,31 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-08-24 — one reader for the imported library, and it is synchronous.**
+  acks-importer 3.0.0 writes every import into a world compendium, so every
+  `game.items` read here for a class, race, proficiency or language was pointed
+  at an empty shelf: a blank class list, `findByRef` null for every imported
+  ref, chargen with no proficiencies on offer, and ability relations rendered as
+  raw ids. `lib/library.mjs` answers for the sidebar and the packs together.
+  **Synchronous on purpose** — its callers are sheet getters and
+  `_prepareContext` bodies that cannot await — paid for by warming the packs
+  once at `ready`. *Rejected: making the readers async.* It threads a promise
+  through every sheet that displays an imported name, to buy nothing: the
+  documents were all in memory before, as `game.items`. *Rejected: reading the
+  pack INDEX instead of instantiating.* The index carries name, img and type;
+  the callers need `system`. *Cost:* a first render before the warm settles sees
+  the sidebar alone; `libraryDocs` kicks off the load and the re-render that
+  follows is complete. Registered from the lib module's ready hook rather than
+  at module scope, because the offline suite imports this file's consumers with
+  no Foundry globals and a top-level `Hooks` call is a ReferenceError there.
+
+- **2026-08-24 — a generated creature never lands in its template's folder.**
+  `TemplateSheet` created the actor with `folder: this.actor.folder`, which put
+  play material inside the imported reference shelf — and, once templates moved
+  into a compendium, handed a sidebar actor a folder id that belongs to a pack.
+  It goes to a top-level `Generated` folder, adopted by name if one exists so a
+  Judge who renames or refiles it keeps their arrangement.
+
 - **2026-07-18 — v0.1 scope is effect/ability primitives only.** Created ahead
   of the full family-refactor Phase 1 to unblock the abilities program (see the
   program memory + template REFACTOR_PLAN.md status note). The plumbing/interop

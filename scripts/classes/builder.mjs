@@ -12,10 +12,11 @@ import { getDoc, hasDoc, expectTables } from "../lib/tables.mjs";
 import { BUILDER_DOC_ID, BUILDER_TABLE_IDS, derivePlan } from "./builder-logic.mjs";
 import { classByKey, findByRef, effectiveAttack } from "./registry.mjs";
 import { LANG_PREFIX, RACE_TYPE, CHASSIS_KEYS } from "./constants.mjs";
+import { libraryItems } from "../lib/library.mjs";
 
-/** Every race Item in the world directory. */
+/** Every race Item the library holds — the sidebar's and the imported pack's. */
 export function raceItems() {
-  return game.items?.filter((i) => i.type === RACE_TYPE) ?? [];
+  return libraryItems().filter((i) => i.type === RACE_TYPE);
 }
 
 /** The race Item a class names (by cookbook ref, uuid:…, or key), or null. */

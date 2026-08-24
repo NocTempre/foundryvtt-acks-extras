@@ -1,4 +1,4 @@
-/* global game, foundry, ui, Actor, fromUuid */
+/* global game, foundry, ui, Actor, Folder, fromUuid */
 /**
  * The `acks-lib.template` BUILDER sheet.
  *
@@ -14,7 +14,7 @@
  * provenance rides in `flags["acks-extras"].generated` so a sheet can later say
  * "derived from Dragon (Adult · Wyvern)".
  */
-import { MODULE_ID } from "../constants.mjs";
+import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollMenu } from "../template-logic.mjs";
 import { hitDiceOrLevel } from "../actor-read.mjs";
 
@@ -27,6 +27,27 @@ export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
  * stats as tables (a dragon by age, type and body form). Builds one concrete
  * actor on demand rather than materializing the cross product.
  */
+/**
+ * Where a generated creature goes: a top-level folder of its own, made on
+ * demand, NEVER the template's.
+ *
+ * A generator and the creatures rolled off it are different kinds of document.
+ * Filing the creature beside the template buries play material in the reference
+ * shelf the importer built — and when the template lives in a compendium, the
+ * template's folder id belongs to that pack and would leave the new actor in
+ * the sidebar pointing at a folder the sidebar does not have.
+ *
+ * An existing folder of this name is adopted rather than duplicated, so a Judge
+ * who renames or refiles it keeps their arrangement.
+ */
+async function generatedFolder() {
+  const name = game.i18n?.localize?.(`${LANG_PREFIX}.template.folder`) ?? "Generated";
+  return (
+    game.folders?.find((f) => f.type === "Actor" && f.name === name && !f.folder) ??
+    (await Folder.create({ name, type: "Actor", sorting: "a" }))
+  );
+}
+
 export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-template-sheet"],
@@ -334,7 +355,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
     const created = await Actor.create({
       name: resolved.name || this.actor.name,
       type,
-      folder: this.actor.folder?.id ?? null,
+      folder: (await generatedFolder())?.id ?? null,
       ...(resolved.art ? { img: resolved.art } : {}),
       ...(Object.keys(prototypeToken).length ? { prototypeToken } : {}),
       system,

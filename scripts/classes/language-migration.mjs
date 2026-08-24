@@ -24,6 +24,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { SLOT_FLAG, LANGUAGE_TYPE, ensureLanguage, slotsOf } from "./languages.mjs";
+import { libraryItems } from "../lib/library.mjs";
 
 /** The taxonomy import's id prefix — an ability carrying it is a language. */
 const IMPORTED_PREFIX = "def.language.";
@@ -39,7 +40,7 @@ const cookbookIdOf = (doc) => String(doc?.flags?.["acks-importer"]?.cookbook?.id
  * converts what it finds rather than waiting.
  */
 function staleWorldLanguages() {
-  return (game.items ?? []).filter((i) => i.type === "ability" && cookbookIdOf(i).startsWith(IMPORTED_PREFIX));
+  return libraryItems().filter((i) => i.type === "ability" && cookbookIdOf(i).startsWith(IMPORTED_PREFIX));
 }
 
 /** Retype the world's imported language abilities. */
@@ -48,7 +49,7 @@ async function convertWorldLanguages() {
   if (!stale.length) return 0;
 
   const have = new Set(
-    (game.items ?? []).filter((i) => i.type === LANGUAGE_TYPE).map((i) => cookbookIdOf(i)).filter(Boolean),
+    libraryItems().filter((i) => i.type === LANGUAGE_TYPE).map((i) => cookbookIdOf(i)).filter(Boolean),
   );
   const creates = [];
   const retire = [];

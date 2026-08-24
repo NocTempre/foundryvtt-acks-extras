@@ -29,6 +29,7 @@ import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
+import { libraryItems } from "../lib/library.mjs";
 import { equipmentClass } from "../equipment/profiles.mjs";
 
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -276,10 +277,16 @@ async function findInPacks({ ref = "", name = "", types = [] }) {
 export const usableAsSource = (doc) => !doc?.flags?.[MODULE_ID]?.[TEMPLATE_PART]?.unresolved;
 
 /**
- * The document a template entry names: the world's own first (`world: true`,
- * so a plain proficiency can simply be LINKED), then the imports held in a
- * pack — whose documents are copied into the world by the caller, because a
- * locked pack document is precisely what a Judge cannot repair.
+ * The document a template entry names, and whether it is a WORLD document.
+ *
+ * `world: true` means the caller may simply LINK it — a plain proficiency the
+ * sidebar already holds. A pack document is copied into the world instead,
+ * because a package exists to be repaired and a compendium document is not
+ * where a Judge repairs anything.
+ *
+ * The distinction is read off the document (`doc.pack`), never assumed from
+ * which search found it: the library searches span the sidebar AND the
+ * importer's pack, so a ref can now resolve to either.
  *
  * @param {object} [options]
  * @param {string[]} [options.exclude] uuids that may not answer — the
@@ -289,17 +296,20 @@ export const usableAsSource = (doc) => !doc?.flags?.[MODULE_ID]?.[TEMPLATE_PART]
  */
 export async function findSource({ ref = "", name = "", types = [], exclude = [] } = {}) {
   const allowed = (doc) => doc && usableAsSource(doc) && !exclude.includes(doc.uuid);
+  const found = (doc) => ({ doc, world: !doc.pack });
   if (ref) {
     const byRef = findByRef(ref);
-    if (allowed(byRef)) return { doc: byRef, world: true };
+    if (allowed(byRef)) return found(byRef);
   }
   const wanted = fold(name);
   if (wanted) {
-    const byName = game.items?.find(
+    const byName = libraryItems().find(
       (i) => (!types.length || types.includes(i.type)) && fold(i.name) === wanted && allowed(i),
     );
-    if (byName) return { doc: byName, world: true };
+    if (byName) return found(byName);
   }
+  // The pack INDEX, for a library this session has not instantiated: the
+  // searches above see only loaded documents.
   return { doc: await findInPacks({ ref, name, types }), world: false };
 }
 
@@ -317,12 +327,12 @@ export function resolveBase(entry, { exclude = [] } = {}) {
   if (entry.ref) {
     if (entry.ref.startsWith("name:")) {
       const name = entry.ref.slice(5);
-      return game.items.find((i) => eligible(i) && i.name.toLowerCase() === name.toLowerCase()) ?? null;
+      return libraryItems().find((i) => eligible(i) && i.name.toLowerCase() === name.toLowerCase()) ?? null;
     }
     const doc = findByRef(entry.ref);
     if (doc && usableAsSource(doc) && !exclude.includes(doc.uuid)) return doc;
   }
-  return bestBaseMatch(entry.name, game.items.filter(eligible));
+  return bestBaseMatch(entry.name, libraryItems().filter(eligible));
 }
 
 /**

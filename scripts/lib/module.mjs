@@ -30,6 +30,8 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { isPrimaryGM } from "./util.mjs";
 import * as vocab from "./vocab.mjs";
 import * as fields from "./fields.mjs";
+import * as library from "./library.mjs";
+import { registerLibraryWarm } from "./library.mjs";
 import * as tables from "./tables.mjs";
 import * as services from "./services.mjs";
 import * as itemModel from "./item-model.mjs";
@@ -92,9 +94,17 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  apiVersion: 12,
+  apiVersion: 13,
   vocab,
   fields,
+  /**
+   * The imported library, wherever it lives (library.mjs): `libraryItems` /
+   * `libraryActors` / `libraryDocs(type)` read the sidebar AND acks-importer's
+   * world packs, `whenReady()` awaits the warm. Every "what has this world
+   * imported?" question goes through it — a bare `game.items` finds an empty
+   * shelf, because imports are written to a pack.
+   */
+  library,
   resolveLevelValue,
   tables,
   services,
@@ -617,6 +627,10 @@ function applyFontScale(px) {
  * world failing to load — and the console says which.
  */
 Hooks.once("ready", () => {
+  // Load acks-importer's packs, so the synchronous library reads every sheet
+  // makes are complete from the first render.
+  registerLibraryWarm();
+
   // The body class is a toggle again, owned by `look`: it is the marker that
   // says "ACKS surfaces are themed", and under the `core` look they are not.
   // It stays a class rather than becoming a bare selector because it is also

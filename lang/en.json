@@ -415,6 +415,7 @@
   "ACKS-LIB.template.rollDie": "— Roll {die} —",
   "ACKS-LIB.template.rollUniform": "— Roll —",
   "ACKS-LIB.template.generate": "Generate",
+  "ACKS-LIB.template.folder": "Generated",
   "ACKS-LIB.template.menuNote": "{n} special abilities on the menu; budget from the {axis} choice. Rolled on Generate.",
   "ACKS-LIB.template.stubNote": "This template has no materialized tables yet — import it from a connected book first.",
   "ACKS-LIB.template.warn.stub": "This template is a stub: connect the book and re-import before generating.",

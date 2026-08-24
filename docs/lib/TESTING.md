@@ -81,6 +81,18 @@ report the same symptom.
    *Observable:* `FollowerCardSheet` renders as the compact card, and its
    **Full sheet** control (`data-action="fcOpenFull"`) opens `FullMonsterSheet`
    beside it.
+10. The imported library, in a world that has imported classes with
+    acks-importer 3.0.0 — so the library is in a pack and `game.items` is empty
+    of it.
+    *Observable:* `acksExtras.lib.library.libraryItems().length` exceeds
+    `game.items.size`; the class list on a character's Class tab is populated;
+    an imported ability's sheet shows relation NAMES, not raw `def.*` ids; a
+    language granted by a class resolves to a document. Each of these read
+    `game.items` before and rendered blank.
+11. Template generation destination: open an imported template actor and press
+    Generate.
+    *Observable:* the new actor is in a top-level **Generated** folder in the
+    Actors sidebar — never the template's own folder, and never a pack.
 
 ## Teardown
 

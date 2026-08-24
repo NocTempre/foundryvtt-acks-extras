@@ -61,6 +61,7 @@ sibling modules) — never the import path for this module's own features.
 | `template-logic.mjs` | Generator actors (dragon by age, elemental by tier): choice rolling + patch resolution. Foundry-free. |
 | `follower-card.mjs` | The printed ACKS II Follower Card: one layout, two surfaces. |
 | `roll-card.mjs` | ONE chat card for a roll several people made at once — use this before hand-building a `ChatMessage`. |
+| `library.mjs` | The imported library, wherever it lives: sidebar + acks-importer's world packs. **Every "what has this world imported?" read goes through it** — a bare `game.items` finds an empty shelf. |
 | `pack-dedupe.mjs` | Family compendiums gathered into one folder; coverage-gated hiding of superseded system packs. |
 | `polyglot.mjs` | Publishing world-imported languages to Polyglot's selector (core owns the base integration). |
 

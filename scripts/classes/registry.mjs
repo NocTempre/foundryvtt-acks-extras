@@ -16,10 +16,11 @@
 import { registerTable, unregisterTable, PRIORITY, bracketRow, getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
 import { resolveLevelValue as libResolveLevelValue, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
 import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, FLAG_TEMPLATE_PART, MODULE_ID } from "./constants.mjs";
+import { libraryItems } from "../lib/library.mjs";
 
-/** Every class Item in the world directory. */
+/** Every class Item the library holds — the sidebar's and the imported pack's. */
 export function classItems() {
-  return game.items?.filter((i) => i.type === CLASS_TYPE) ?? [];
+  return libraryItems().filter((i) => i.type === CLASS_TYPE);
 }
 
 /* ------------------------------------------------------------------ */
@@ -98,7 +99,7 @@ export function findByRef(ref) {
     return doc ?? null;
   }
   return (
-    game.items?.find(
+    libraryItems().find(
       (i) => i.flags?.["acks-importer"]?.cookbook?.id === ref && !i.flags?.[MODULE_ID]?.[FLAG_TEMPLATE_PART],
     ) ?? null
   );

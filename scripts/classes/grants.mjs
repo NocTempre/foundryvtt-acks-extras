@@ -14,6 +14,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { libraryItems } from "../lib/library.mjs";
 
 /** The ref a world item is addressed by (the importer's stamp, else uuid). */
 export const refOf = (item) => item.flags?.["acks-importer"]?.cookbook?.id ?? `uuid:${item.uuid}`;
@@ -77,12 +78,12 @@ const isAdventuring = (item) =>
  * so it is never on offer: a pick spent on it buys nothing.
  */
 export const choosableGenerals = () =>
-  (game.items ?? []).filter(
+  libraryItems().filter(
     (i) => i.type === ITEM_TYPE.ability && i.system.proficiencytype === "general" && !isAdventuring(i),
   );
 
-/** The world's Adventuring proficiency document, if it holds one. */
-export const adventuringDoc = () => (game.items ?? []).find((i) => i.type === ITEM_TYPE.ability && isAdventuring(i));
+/** The library's Adventuring proficiency document, if it holds one. */
+export const adventuringDoc = () => libraryItems().find((i) => i.type === ITEM_TYPE.ability && isAdventuring(i));
 
 /** Grant the free-with-every-class Adventuring proficiency, once. */
 export async function grantAdventuring(actor, grants) {

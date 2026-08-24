@@ -22,6 +22,39 @@ only one feature needs stays with that feature.
 when the behavior is unique to that feature's domain, and says so in its own
 MODEL. One owner per wrapped core method.
 
+## The imported library
+
+acks-importer writes what a world imports into WORLD COMPENDIUMS — one pack per
+document type, labelled `ACKS Cookbook — <Type>`. `lib/library.mjs` is the one
+reader for them, and every "what has this world imported?" question in this
+module goes through it. A bare `game.items` finds an empty shelf.
+
+- `libraryItems()` / `libraryActors()` / `libraryDocs(type)` — the sidebar's
+  documents first, then the pack's. The sidebar still counts: a Judge's homebrew
+  class lives there, and so do the class-template packages, which are world
+  documents on purpose so a Judge can repair one.
+- `byCookbookId(type, id)` — the id lookup, skipping template parts. A skinned
+  copy inherits the id of the definition it was made from, so a plain id search
+  finds one class's engraved silver waterskin where the shared Waterskin was
+  meant.
+- `whenReady()` — awaits the warm, for callers that can.
+
+The reads are **synchronous**, because their callers are sheet getters and
+`_prepareContext` bodies. That is paid for by warming the packs once at `ready`
+(`registerLibraryWarm`, called from the lib module's own ready hook):
+`getDocuments()` instantiates them, Foundry keeps the collection current as
+documents are created and deleted, and every read afterwards is a filter over
+memory — the same cost the `game.items` reads had. A pack that is still cold
+(the importer creates its packs on first use, and core emits no hook when a
+compendium is created) starts loading in the background and the read answers
+with what is in hand.
+
+Consumers: the class registry and `findByRef`, the race list, proficiency
+grants, the language resolver and its migration, the ability sheet's relation
+labels, and template-packages' source resolution — where `findSource` reads
+`world` off `doc.pack` rather than assuming it, because a ref now resolves to
+either side and only a world document may be LINKED rather than copied.
+
 ## Theming: one palette, three layers
 
 Every colour any ACKS surface draws comes from an `--acks-*` token. There are no

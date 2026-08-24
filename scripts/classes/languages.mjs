@@ -57,6 +57,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+import { libraryItems } from "../lib/library.mjs";
 
 /** The system's item type for a language. */
 export const LANGUAGE_TYPE = "language";
@@ -163,10 +164,10 @@ export function languageGrant({
 /*  Finding a language before building one                             */
 /* ------------------------------------------------------------------ */
 
-/** Every language document the world holds, newest lookup first by name. */
+/** Every language document the library holds, newest lookup first by name. */
 export function worldLanguages() {
   const seen = new Map();
-  for (const item of game.items ?? []) {
+  for (const item of libraryItems()) {
     if (item.type !== LANGUAGE_TYPE) continue;
     const key = item.name.toLowerCase();
     if (!seen.has(key)) seen.set(key, item);
@@ -195,12 +196,12 @@ export async function resolveLanguage(entry) {
     if (doc) return doc;
   }
   if (raw.includes(".")) {
-    const byId = (game.items ?? []).find((i) => i.flags?.["acks-importer"]?.cookbook?.id === raw);
+    const byId = libraryItems().find((i) => i.flags?.["acks-importer"]?.cookbook?.id === raw);
     if (byId) return byId;
   }
 
   const key = raw.toLowerCase();
-  const worldLangs = (game.items ?? []).filter((i) => i.type === LANGUAGE_TYPE);
+  const worldLangs = libraryItems().filter((i) => i.type === LANGUAGE_TYPE);
   const local =
     worldLangs.find((i) => i.name.toLowerCase() === key) ??
     wordPrefixMatch(
