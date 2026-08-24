@@ -1,5 +1,42 @@
 # Changelog
 
+## 4.18.0
+
+### Added
+- **One item sheet for every piece of gear.** Weapons, armour, gear, containers,
+  charts, spell books, coin and treasure all open in the same window: a title
+  band merged into the window header (name, quantity, value, weight in stone,
+  condition), rails of small cells around the art — the item's kind and worn
+  place, up to two pinned rolls, equip / favourite / capacity / lock — and tabs
+  that exist only when earned: Rolls, Chart, Durability, Effects, Contents,
+  Appearance (Judge only) and Details. An item with nothing to roll, hold or
+  track collapses to band, art and description, with a quiet Details button.
+- **Rolls, gathered.** A weapon's attack modes roll through core's own attack
+  pipeline; the special manoeuvres overlay rolls as an attack with the
+  manoeuvre's penalty in the same modifier stack; a locked container offers
+  Pick and Break through the character's own Lockpicking and Dungeon Bashing;
+  a spell book lists its recorded formulae. A roll's lozenge pins it to the
+  art, two at most, oldest out first.
+- **Containers say what they take.** A container can name the kinds it accepts
+  and the refusal it gives a wrong drop, in its own words; the lock gains a
+  quality, a pick modifier and the keys that open it (drop key items on the
+  row). Stored gear lists on the Contents tab with a capacity bar.
+- **Charts.** Drop a Scene on any item and it becomes a chart of that scene;
+  Update From Exploration captures the explored fog of war and records how
+  much of the scene is charted.
+- **What the players know.** A magical item's own effects and true value stay
+  hidden until it is identified (the markets ladder); its aura and school show
+  from the second step. The Judge's disguise moves to the Appearance tab with
+  a drop target, a player preview, and a striped border on the true view.
+- **Stacks split to equip.** A stack cannot be worn; its equip cell splits one
+  out, wears it, and restacks it on the next click.
+
+### Changed
+- The equipment item sheet no longer restructures the system's own sheet; the
+  Construction controls and the named-item record live on the new sheet's
+  Details and Effects tabs. The Acks Symbols damage-glyph font ships in the
+  vendored design system under Autarch's author grant.
+
 ## 4.17.0
 
 ### Added

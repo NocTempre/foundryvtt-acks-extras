@@ -201,7 +201,6 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       // disguised item, the document's otherwise.
       namePath: model.band.nameMasked ? `flags.${MODULE_ID}.${ITEM_FLAGS.DISGUISE}.true.name` : "name",
       descriptionPath: model.band.nameMasked ? `flags.${MODULE_ID}.${ITEM_FLAGS.DISGUISE}.true.description` : "system.description",
-      qtyPath: item.type === ITEM_TYPE.money ? "system.quantity" : "system.quantity.value",
       weightStone: snap.hasWeight ? Math.round((snap.weight6 / STONE) * 1000) / 1000 : null,
       containerPath: `flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINER}`,
       capacityPath: `flags.${MODULE_ID}.gear.capacity`,
@@ -217,6 +216,18 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
    */
   _processFormData(event, form, formData) {
     const data = super._processFormData(event, form, formData);
+    // The band's quantity badge doubles the Record panel's field on screen, so
+    // it submits under its own name and counts only when it is the control
+    // that fired the change — otherwise the Record field's value (same name
+    // as the document path) is already the submit.
+    if ("acksBandQty" in data) {
+      const qty = Number(data.acksBandQty);
+      delete data.acksBandQty;
+      if (event?.target?.name === "acksBandQty" && Number.isFinite(qty)) {
+        const qtyPath = this.item.type === ITEM_TYPE.money ? "system.quantity" : "system.quantity.value";
+        foundry.utils.setProperty(data, qtyPath, Math.max(0, Math.round(qty)));
+      }
+    }
     if ("acksWeightStone" in data) {
       const st = Number(data.acksWeightStone);
       if (Number.isFinite(st)) foundry.utils.setProperty(data, "system.weight6", Math.max(0, Math.round(st * STONE)));

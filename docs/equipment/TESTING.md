@@ -104,8 +104,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   those, and say the drag itself was not driven.
 - **A scripted `.blur()` does not save ProseMirror.** Call the element's own
   `.save()`; a real click on its save control is the pointer path.
-- **Lock Roll buttons are ABSENT, not disabled,** until the actor carries a
-  Lockpicking / Dungeon Bashing ability item (`canPick`/`canBash`).
+- **A lock row's Roll button is ABSENT from the Rolls tab** until the actor
+  carries a Lockpicking / Dungeon Bashing ability item (`canPick`/`canBash`);
+  the same roll PINNED to the art renders as a disabled cell, since the rail
+  never changes height.
+- **The Appearance tab is bootstrapped from Details → Options**: the Judge's
+  "Magical" and "Can be disguised" switches live there, because the tab they
+  add cannot be the only door to the flags that gate it.
 - **`splitOne` / `restack`** are `item-sheet/stack.mjs`; the split item
   carries `flags.acks-extras.splitFrom`.
 

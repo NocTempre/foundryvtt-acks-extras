@@ -2,7 +2,10 @@
       the sheet so Foundry's drag handle and buttons stay where they are. --}}
 <div class="acks-extras-item-sheet__band{{#if band.condition}} is-{{band.condition}}{{/if}}">
   {{#if band.qtyShown}}
-  <input class="acks-extras-item-sheet__qty acks-nums" type="number" name="{{qtyPath}}" value="{{band.qty}}" min="0" step="1"
+  {{!-- Its own form name: the Record panel binds the document path, and two
+        inputs of one name reach FormDataExtended as an array. The sheet maps
+        this to the quantity path only when THIS control fired the change. --}}
+  <input class="acks-extras-item-sheet__qty acks-nums" type="number" name="acksBandQty" value="{{band.qty}}" min="0" step="1"
          data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.quantity'}}" {{disabled (not editable)}}>
   {{/if}}
   <input class="acks-input acks-input--line acks-extras-item-sheet__name" type="text" name="{{namePath}}" value="{{band.name}}"

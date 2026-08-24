@@ -1299,7 +1299,9 @@
         "acceptAny": "Unrestricted",
         "refusal": "Refusal message",
         "refusalHint": "What the container says to a wrong drop.",
-        "refusalDefault": "It will not fit."
+        "refusalDefault": "It will not fit.",
+        "magicHint": "Judge only — adds the Appearance tab, where identification and the aura live.",
+        "disguisableHint": "Judge only — adds the Appearance tab's disguise drop target."
       },
       "price": {
         "title": "Price",

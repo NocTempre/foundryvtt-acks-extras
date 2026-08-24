@@ -5,7 +5,10 @@
   </div>
 
   {{#if simple}}
-    {{#if record}}
+    {{!-- The unfolded Details panel renders the same record fields; two copies
+          of one input name reach FormDataExtended as an array and fail the
+          field's validation, so the summary stands down while it is open. --}}
+    {{#if (and record (not showDetails))}}
     <div class="acks-extras-item-sheet__simple-record">
       {{> "modules/acks-extras/templates/equipment/item-sheet/record.hbs"}}
     </div>
@@ -19,7 +22,9 @@
     </div>
     {{/if}}
     {{#if showDetails}}
-    <section class="acks-extras-item-sheet__panel">
+    {{!-- `active`: the panel class hides itself until a tab lights it, and
+          simple mode has no tab strip to do the lighting. --}}
+    <section class="acks-extras-item-sheet__panel active">
       {{> "modules/acks-extras/templates/equipment/item-sheet/details.hbs"}}
     </section>
     {{/if}}

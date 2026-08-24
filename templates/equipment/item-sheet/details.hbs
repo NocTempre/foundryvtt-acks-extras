@@ -67,6 +67,16 @@
       <input class="acks-input acks-input--line acks-nums" type="number" name="{{capacityPath}}" value="{{details.capacityStone}}" min="0" step="0.5" {{disabled (not editable)}}>
     </label>
     {{/if}}
+    {{#if gm}}
+    <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.options.magicHint'}}">
+      <input type="checkbox" data-action="toggleMagic" {{checked snap.magic.is}}>
+      <span>{{localize 'ACKS-MARKETS.magic.isMagic'}}</span>
+    </label>
+    <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.options.disguisableHint'}}">
+      <input type="checkbox" data-action="toggleDisguisable" {{checked details.disguisable}}>
+      <span>{{localize 'ACKS-EQUIPMENT.itemSheet.options.disguisable'}}</span>
+    </label>
+    {{/if}}
   </div>
   {{#if details.holds}}
   <div class="acks-extras-item-sheet__accept">

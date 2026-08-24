@@ -234,6 +234,11 @@ Every piece of gear — weapon, armour, item, coin — opens in one sheet whose
 shape never changes: a title band, an art row, and a strip of tabs that exist
 only when there is something to put on them.
 
+![](../releases/v4.18.0/equipment-item-sheet.png)
+
+*A weapon's sheet: the band as the window header, the rails around the art, two
+pinned rolls, and the Rolls tab.*
+
 **The title band** is the window's own header: the name, a quantity badge on a
 stack, the value and the weight (in stone — type it in stone, it is stored in
 sixths), a scene chip on a chart, and a Damaged / Destroyed tag when the item
@@ -266,6 +271,11 @@ for the Judge the item's source and identification.
   item is identified), what the bearer grants it (class, proficiencies,
   attributes — read only), and for a named item **The Name**: the pip track,
   the true name (Judge only), guessing and renaming.
+![](../releases/v4.18.0/equipment-item-sheet-contents.png)
+
+*A backpack's Contents: the capacity bar, the stored gear, and the drop zone
+that names what it accepts.*
+
 - **Contents** — a container's load bar, what is inside, and the drop zone that
   names what it accepts and quotes its refusal. A spell book keeps its page
   count and formula list here.
@@ -283,6 +293,10 @@ for the Judge the item's source and identification.
 An item with nothing to roll, no effects, no durability and no contents — coin,
 gems, a trinket — drops the tabs and the state rail entirely; a quiet **Details**
 button unfolds that one panel when you need it.
+
+![](../releases/v4.18.0/equipment-item-sheet-simple.png)
+
+*Coin in simple mode: band, art, description and the record — nothing else.*
 
 ## Common problems
 
