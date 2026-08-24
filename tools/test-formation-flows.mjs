@@ -1619,6 +1619,37 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
   await drain();
 });
 
+await scenario("overlapping environment sweeps coalesce instead of racing", async () => {
+  // Every write to the formations setting fires an unawaited syncEnvironments,
+  // so a burst — dissolving a party and its members, or a bulk delete — used to
+  // put several sweeps in flight at once, each holding scene documents the
+  // others were invalidating. One sweep runs; requests arriving during it
+  // collapse into a single replay.
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  await drain();
+
+  let sweeps = 0;
+  const realGet = game.settings.get.bind(game.settings);
+  // The first setting a sweep reads, and it reads it exactly once per run.
+  game.settings.get = (ns, key) => {
+    if (ns === MODULE_ID && key === "syncTokenLight") sweeps++;
+    return realGet(ns, key);
+  };
+  try {
+    const requests = Array.from({ length: 5 }, () => sceneSync.syncEnvironments());
+    await Promise.all(requests);
+    console.log(`      [probe] 5 concurrent requests -> ${sweeps} sweep(s)`);
+    assert.ok(sweeps >= 1, "a sweep actually ran");
+    assert.ok(sweeps <= 2, `a burst collapses to the running sweep plus one replay, ran ${sweeps}`);
+  } finally {
+    game.settings.get = realGet;
+  }
+
+  // And a sweep still runs to completion for a caller that awaits it alone.
+  await sceneSync.syncEnvironments();
+  await drain();
+});
+
 if (failures) {
   console.error(`test-flows: ${failures} scenario(s) FAILED`);
   process.exit(1);

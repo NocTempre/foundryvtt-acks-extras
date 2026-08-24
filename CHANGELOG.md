@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.18.2
+
+### Fixed
+- **Clearing out a party no longer fills the console with errors.** Deleting a
+  formation's actor and its members one after another — or several documents
+  at once from the sidebar — raised a run of failures from the housekeeping
+  pass that keeps fog and measurement in step with who is on which map. Two
+  reasons: that pass could be running several times over itself, each copy
+  working from documents the others were deleting, and it kept hold of a scene
+  across the moment it was removed. It now runs once at a time, re-reads what
+  it is about to touch, and treats a document that was deleted out from under
+  it as the ordinary end of that document's housekeeping rather than a fault.
+  A step that genuinely fails still reports as loudly as before.
+
 ## 4.18.1
 
 ### Fixed

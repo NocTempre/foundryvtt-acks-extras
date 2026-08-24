@@ -123,6 +123,16 @@ async function syncMeasureFlag(scene, formationsOnScene) {
   await scene.setFlag(MODULE_ID, MEASURE_FLAG, { mode, factor });
 }
 
+/**
+ * Run a release against a scene only while the world still holds it. The
+ * scene is re-resolved at call time rather than captured, because the caller
+ * awaits between steps.
+ */
+function withLiveScene(sceneId, fn) {
+  const scene = game.scenes.get(sceneId);
+  return scene ? fn(scene) : null;
+}
+
 async function releaseMeasureFlag(scene) {
   if (scene.getFlag(MODULE_ID, MEASURE_FLAG)) await scene.unsetFlag(MODULE_ID, MEASURE_FLAG);
 }
@@ -265,11 +275,40 @@ export async function syncPartyTokenSize(formation) {
   await token.update({ width, height }, { animate: false });
 }
 
+/** The sweep in flight, and whether another was asked for while it ran. */
+let inFlight = null;
+let repeat = false;
+
 /**
  * Reconcile fog and token light everywhere. Cheap when nothing changed (every
  * write is compared first), so it is safe to call after each formation update.
+ *
+ * Sweeps are COALESCED, never concurrent. Every write to the formations
+ * setting fires one of these unawaited, so a burst — dissolving a party and
+ * its members, or a bulk delete in the sidebar — used to put several sweeps
+ * in flight at once, each holding scene references the others were
+ * invalidating. A request arriving mid-sweep is absorbed and replayed once at
+ * the end, so a caller still awaits a sweep that saw its own change.
  */
 export async function syncEnvironments() {
+  if (inFlight) {
+    repeat = true;
+    return inFlight;
+  }
+  inFlight = (async () => {
+    try {
+      do {
+        repeat = false;
+        await runEnvironmentSync();
+      } while (repeat);
+    } finally {
+      inFlight = null;
+    }
+  })();
+  return inFlight;
+}
+
+async function runEnvironmentSync() {
   if (!game.user.isGM) return;
   const formations = Object.values(getFormations());
 
@@ -280,25 +319,36 @@ export async function syncEnvironments() {
    * caller only logs, so the table just sees the map go dark with no error
    * surfaced. A failing step must cost only itself.
    */
-  const step = async (label, fn) => {
+  const step = async (label, fn, survives) => {
     try {
       await fn();
     } catch (err) {
+      // A write that lost a race with a delete is not a fault. The client can
+      // hold a document the server has already dropped — the request is built
+      // against a live document and refused by the time it lands — and what it
+      // was about to reconcile is moot anyway. Asking whether the TARGET is
+      // still here separates that from a real failure exactly, where matching
+      // the error's wording would only approximate it and would eventually
+      // swallow something that mattered.
+      if (survives && !survives()) {
+        console.debug(`${MODULE_ID} | environment sync step "${label}" skipped: its target was deleted mid-sweep`);
+        return;
+      }
       console.error(`${MODULE_ID} | environment sync step "${label}" failed`, err);
     }
   };
 
   if (game.settings.get(MODULE_ID, "syncTokenLight")) {
     for (const formation of formations) {
-      await step("token light", () => syncPartyTokenLight(formation));
+      await step("token light", () => syncPartyTokenLight(formation), () => !!getPartyToken(formation));
     }
   }
 
   for (const formation of formations) {
-    await step("party ownership", () => syncPartyActorOwnership(formation));
-    await step("token size", () => syncPartyTokenSize(formation));
-    await step("party vision", () => syncPartyTokenVision(formation));
-    await step("member tokens", () => syncDeployedMemberTokens(formation));
+    await step("party ownership", () => syncPartyActorOwnership(formation), () => !!getPartyActor(formation));
+    await step("token size", () => syncPartyTokenSize(formation), () => !!getPartyToken(formation));
+    await step("party vision", () => syncPartyTokenVision(formation), () => !!getPartyToken(formation));
+    await step("member tokens", () => syncDeployedMemberTokens(formation), () => !!getPartyActor(formation));
   }
 
   if (!game.settings.get(MODULE_ID, "manageFog")) return;
@@ -309,11 +359,14 @@ export async function syncEnvironments() {
     byScene.get(formation.sceneId).push(formation);
   }
 
+  // Re-resolved per step, not captured: resolving once and holding the
+  // document across BOTH awaits is the same staleness the release loop below
+  // avoids — a scene deleted between the two writes fails the second.
   for (const [sceneId, group] of byScene) {
-    const scene = game.scenes.get(sceneId);
-    if (!scene) continue;
-    await step("scene fog", () => syncSceneFog(scene, group));
-    await step("measurement", () => syncMeasureFlag(scene, group));
+    if (!game.scenes.has(sceneId)) continue;
+    const sceneLives = () => game.scenes.has(sceneId);
+    await step("scene fog", () => withLiveScene(sceneId, (scene) => syncSceneFog(scene, group)), sceneLives);
+    await step("measurement", () => withLiveScene(sceneId, (scene) => syncMeasureFlag(scene, group)), sceneLives);
     // Assigning a Mapper IS "start mapping": open a session automatically.
     if (game.settings.get(MODULE_ID, "manageFog")) {
       for (const formation of group) {
@@ -329,11 +382,17 @@ export async function syncEnvironments() {
   }
 
   // Scenes we managed previously but that no longer host a formation.
-  for (const scene of game.scenes) {
-    if (byScene.has(scene.id)) continue;
-    if (scene.getFlag(MODULE_ID, "fogOriginal") !== undefined) {
-      await step("release fog", () => releaseSceneFog(scene));
+  //
+  // Ids, not held documents. Each release awaits, and a scene deleted while
+  // the sweep is running leaves a reference that still answers `.id` and
+  // still reads its flags — only the WRITE fails, and by then it is a request
+  // already on its way to a server that no longer has the scene.
+  for (const sceneId of [...game.scenes].map((s) => s.id)) {
+    if (byScene.has(sceneId)) continue;
+    const sceneLives = () => game.scenes.has(sceneId);
+    if (game.scenes.get(sceneId)?.getFlag(MODULE_ID, "fogOriginal") !== undefined) {
+      await step("release fog", () => withLiveScene(sceneId, releaseSceneFog), sceneLives);
     }
-    await step("release measurement", () => releaseMeasureFlag(scene));
+    await step("release measurement", () => withLiveScene(sceneId, releaseMeasureFlag), sceneLives);
   }
 }

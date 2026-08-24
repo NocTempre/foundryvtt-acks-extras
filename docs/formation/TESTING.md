@@ -16,6 +16,14 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - **View the scene before touching its walls.** Core's `Wall#_onUpdate`
   reaches for render flags that do not exist off-canvas —
   `await scene.view()` then wait ~4s, or every wall update throws.
+- **Instrument `console.debug` as well as `console.error` when checking the
+  environment sweep.** A sweep step whose target was deleted mid-run reports
+  at DEBUG by design (DECISIONS 2026-08-20); watching only `error` reads that
+  as "nothing happened" and cannot tell it apart from the step never running.
+- **Capture `err.stack`, not `err.message`.** The delete races in this feature
+  surface as a bare `TypeError: Cannot read properties of undefined (reading
+  'id')` whose message names nothing — the stack is what identifies it as
+  Foundry's server-side `Scene.getMany` rather than module code.
 - **Find the formation with `getFormations()`**, not
   `getFormationForActor(party)` — that searches MEMBERS, and a party actor is
   not a member of its own formation.
@@ -88,7 +96,18 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    width and height swap. Set frontage 1: the token narrows and deepens to
    3 ranks. On a scene with `grid.distance` 50, the same token floors at
    0.25 squares.
-10. Player seat (second browser — the capture driver's, not another pane tab):
+10. Environment sweep under a burst delete: build a party actor, 3 members and
+    a scene carrying `fogOriginal` and `measure` (give a member the Mapper role
+    and a lit unshielded torch, then run one sweep so the flags land). Delete
+    party actor → each member → scene, fully awaited and back-to-back. Repeat
+    at least three times — the race does not fire every run.
+    *Observable:* no `environment sync step "…" failed` in the console. Lines
+    reading `skipped: its target was deleted mid-sweep` at DEBUG are the
+    designed outcome, not a failure. Then prove the guard still reports real
+    faults: with the party token and scene both alive, monkey-patch
+    `scene.update` in page context to throw and toggle the Mapper role off —
+    that MUST log as `failed` with a stack, never as skipped.
+11. Player seat (second browser — the capture driver's, not another pane tab):
    join as a seat owning one member.
    *Observable:* markers are drawn ONLY for `known` placements; the dialog
    offers only that seat's own characters and only found traps; the party

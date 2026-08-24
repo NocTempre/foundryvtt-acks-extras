@@ -644,3 +644,40 @@ states only what the field does.
 and two behaviours for one token is a support burden), and keeping 1×1 until
 the squeeze ships (the token would lie about the party's reach on every
 wilderness map in the meantime).
+
+## 2026-08-20 — Environment sweeps coalesce, and a vanished target is not a fault
+
+**Ruled:** `syncEnvironments()` never runs concurrently with itself. Every
+write to the formations setting fires one unawaited (`onFormationsChanged`),
+so a burst — dissolving a party and its members, or a bulk delete in the
+sidebar — put several sweeps in flight at once, each holding documents the
+others were invalidating. A request arriving mid-sweep now sets a repeat flag
+and returns the sweep already running, which replays once at the end; a
+caller still awaits a sweep that saw its own change.
+
+**Ruled:** a sweep re-resolves its scene before every step rather than holding
+one document across the awaits. The cleanup tail was the reported case, but
+the `byScene` loop had the same defect one loop up — it resolved once and
+awaited twice — which is why fixing only the tail moved the error to a
+different step instead of removing it. Re-resolution is the rule for every
+loop here, not a patch on the one that was reported.
+
+**Ruled:** `step()` asks whether a failed step's TARGET still exists. Gone,
+and it is logged at debug as skipped; alive, and it is an error with its
+stack, as before. A write can be built against a document the client still
+holds and refused by a server that has already deleted it — that race cannot
+be closed from the client, and what the write was reconciling is moot anyway.
+This does not weaken the fault-isolation rule above: a step whose target
+survived still shouts.
+
+**Rejected:** matching the error's wording. The client-side variant names the
+collection ("Scene id … does not exist"), but the server-side one is a bare
+`TypeError: Cannot read properties of undefined (reading 'id')` thrown inside
+Foundry's own `Scene.getMany`, and a pattern broad enough to catch that would
+eventually swallow a real defect. Asking about the target is exact where
+reading the message can only approximate.
+
+**Cost:** a deleted document's release is now skipped silently at debug rather
+than reported. That is the intended trade — the alternative was a console full
+of errors for a race that harms nothing — but it means a genuine failure that
+also deletes its own target would go unseen. No such path exists today.
