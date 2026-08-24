@@ -563,11 +563,17 @@ Hooks.on("preUpdateToken", (tokenDoc, changes) => {
 Hooks.on("deleteToken", (tokenDoc) => {
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId || !isPrimaryGM()) return;
-  const formation = getFormation(formationId);
-  if (!formation || formation.tokenId !== tokenDoc.id) return;
-  formation.tokenId = null;
-  formation.sceneId = null;
-  updateFormation(formation).then(() => PartySheet.refreshAll());
+  // A patch, not a read-then-write: this fires from an incoming deletion, so
+  // the record may be dissolved before the write's turn comes, and a token
+  // adopted meanwhile owns the linkage. Both are decided against the ledger as
+  // it is at write time — the guard included.
+  patchFormation(formationId, (record) => {
+    if (record.tokenId !== tokenDoc.id) return false;
+    record.tokenId = null;
+    record.sceneId = null;
+  })
+    .then(() => PartySheet.refreshAll())
+    .catch((err) => console.error(`${MODULE_ID} | unlinking a deleted party token failed`, err));
 });
 
 /* -------------------------------------------- */

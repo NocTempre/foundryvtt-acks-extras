@@ -167,14 +167,40 @@ function enqueueSave(fn) {
   return run;
 }
 
-async function saveFormations(all) {
-  return enqueueSave(() => game.settings.set(MODULE_ID, SETTING_FORMATIONS, all));
+/**
+ * The one way the ledger is written. `mutate` receives the ledger read INSIDE
+ * the lock and returns `false` to write nothing; the lock and the read are a
+ * single act here so no writer can hold a copy from before its turn in the
+ * queue. Every exported writer below goes through this.
+ */
+function commit(mutate) {
+  return enqueueSave(async () => {
+    const all = getFormations();
+    const result = await mutate(all);
+    if (result === false) return false;
+    await game.settings.set(MODULE_ID, SETTING_FORMATIONS, all);
+    return result;
+  });
 }
 
+/**
+ * A whole-record write is an UPDATE: it refuses a record the ledger no longer
+ * holds rather than putting it back. Only `createFormation` inserts, and it
+ * mints the id it inserts under.
+ *
+ * The refusal is the whole point. Callers reach here holding a record they
+ * fetched earlier — a hook, a turn tick, a sheet action — and "it was deleted
+ * while I worked" makes the write moot, not urgent. Writing it anyway is how a
+ * dissolved party came back with `sceneId` and `tokenId` nulled.
+ *
+ * Still writes `formation` WHOLE, so a concurrent change to THAT record is
+ * overwritten; `patchFormation` is what a writer uses to avoid that.
+ */
 export async function updateFormation(formation) {
-  const all = getFormations();
-  all[formation.id] = formation;
-  await saveFormations(all);
+  await commit((all) => {
+    if (!(formation.id in all)) return false;
+    all[formation.id] = formation;
+  });
   return formation;
 }
 
@@ -190,14 +216,19 @@ export async function updateFormation(formation) {
  * environment sync that every settings change triggers.
  */
 export async function patchFormation(id, mutate) {
-  return enqueueSave(async () => {
-    const all = getFormations();
+  let absent = false;
+  let target = null;
+  const applied = await commit(async (all) => {
     const record = all[id];
-    if (!record) return null;
-    if ((await mutate(record)) === false) return record;
-    await game.settings.set(MODULE_ID, SETTING_FORMATIONS, all);
-    return record;
+    if (!record) {
+      absent = true;
+      return false;
+    }
+    target = record;
+    return (await mutate(record)) === false ? false : record;
   });
+  if (absent) return null;
+  return applied === false ? target : applied;
 }
 
 export async function createFormation(name, { actorId = null } = {}) {
@@ -223,14 +254,18 @@ export async function createFormation(name, { actorId = null } = {}) {
       paused: false,
     },
   };
-  await updateFormation(formation);
+  // The only insert in the feature, and it mints the id it inserts under —
+  // which is why `updateFormation` can refuse every record it does not find.
+  await commit((all) => {
+    all[id] = formation;
+  });
   return formation;
 }
 
 export async function deleteFormationRecord(id) {
-  const all = getFormations();
-  delete all[id];
-  await saveFormations(all);
+  await commit((all) => {
+    delete all[id];
+  });
 }
 
 /** Find the formation whose party token matches the given token document. */
@@ -758,7 +793,12 @@ function freeCellPlacer(scene, anchor) {
  * @returns {Promise<number>} how many tokens were created
  */
 async function restoreMemberTokens(formation, members, { grid = false } = {}) {
-  const stashed = members.filter((m) => m?.tokenData);
+  // A stash whose actor is gone cannot be re-created: the system's own
+  // TokenDocument._preCreate reads the token's actor, and a token whose base
+  // actor was deleted resolves it to null. Foundry creates the batch in ONE
+  // call, so a single dead member would abort the creation of every live one
+  // and take their positions down with it.
+  const stashed = members.filter((m) => m?.tokenData && game.actors.get(m.actorId));
   if (!stashed.length) return 0;
   const scene = getPartyScene(formation) ?? game.scenes.viewed;
   if (!scene) return 0;

@@ -107,6 +107,14 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     faults: with the party token and scene both alive, monkey-patch
     `scene.update` in page context to throw and toggle the Mapper role off —
     that MUST log as `failed` with a stack, never as skipped.
+    *Also observe the LEDGER, in the same session:* `getFormations()` holds no
+    record whose `actorId` no longer resolves. Check it before any relaunch —
+    `pruneFormations` sweeps orphans at `ready` on a NEW GM client, so a
+    reconnect hides exactly what this step is looking for. Run the bulk variant
+    too (`Actor.deleteDocuments([party, m1, m2, m3])` in one call, what a
+    sidebar multi-select issues); it is the fastest path and the likeliest to
+    orphan. Repeat at least three times — the window is one settings
+    round-trip, so a single clean run proves nothing.
 11. Player seat (second browser — the capture driver's, not another pane tab):
    join as a seat owning one member.
    *Observable:* markers are drawn ONLY for `known` placements; the dialog

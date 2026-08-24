@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.18.3
+
+### Fixed
+- **A disbanded party stops leaving a ghost of itself behind.** Deleting a
+  formation's actor and its members together — one after another, or several
+  at once from the sidebar — could leave the party's record still sitting in
+  the world, holding people who were no longer anywhere. Nothing showed it
+  until the next time someone connected, and until then those characters could
+  be refused a place in another party on the grounds that they were already in
+  one. A record the world has let go of now stays gone: writing a party back
+  whole is a way to change one that exists, never a way to restore one that
+  does not.
+- **Taking someone out of a party works when one of the others has been
+  deleted.** Their tokens all come back in a single stroke, so one member
+  whose actor was gone stopped the rest from returning — and the removal
+  itself was abandoned partway, leaving the person you were removing still on
+  the roster however many times you asked. Members whose actors still exist
+  are now put back, and the ones that cannot be are passed over quietly.
+- **A party token deleted from the map unlinks the party it belonged to,
+  and nothing else.** Deciding that against the party as it stands, rather
+  than as it stood when the token went, keeps the unlinking from undoing a
+  token placed in the meantime along with the clock, the lights and the roster.
+
 ## 4.18.2
 
 ### Fixed

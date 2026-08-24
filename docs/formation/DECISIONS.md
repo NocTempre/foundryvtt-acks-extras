@@ -681,3 +681,81 @@ reading the message can only approximate.
 than reported. That is the intended trade — the alternative was a console full
 of errors for a race that harms nothing — but it means a genuine failure that
 also deletes its own target would go unseen. No such path exists today.
+
+## 2026-08-20 — The ledger is read inside the lock, never before it
+
+**Ruled:** `updateFormation` and `deleteFormationRecord` re-read the formations
+setting INSIDE `enqueueSave`, as `patchFormation` already did. Reading before
+the queue and writing after it means carrying a copy of every OTHER record as
+it looked before waiting — so a record deleted while the write sat in the
+queue was written back alive. Dissolving a party and its members back-to-back
+left an orphan behind it that way, with dead members still on its roster.
+
+The save chain was never the whole guarantee. It serializes the WRITES; it
+cannot serialize a read that happened before the caller joined the queue. The
+same discipline `.claude/rules/live-testing.md` states for shared ledgers —
+re-read immediately before every write — applies to this module's own writers,
+not only to sessions sharing the test world.
+
+**Scope, stated plainly:** `updateFormation` still writes its record WHOLE, so
+a concurrent change to THAT record is still overwritten. Re-reading fixes the
+damage to everyone else's rows — **not** the orphaned record, which was this
+record's own row being re-inserted after its delete (ruled separately below).
+A background writer that must not lose a concurrent field change still uses
+`patchFormation`, and the note on that function saying so stands.
+
+**Rejected:** routing every writer through `patchFormation`. Its contract is a
+mutate-in-place callback, and the foreground flows that own a whole record
+(create, transfer, disband) would have to be rewritten to express themselves
+as patches for a hazard they do not have — they hold the record because they
+just built it.
+
+## 2026-08-20 — A whole-record write is an update, never an insert
+
+**New evidence**, amending the entry above the same day: re-reading inside the
+lock did not stop the orphan. The live run measured it at 6 of 9 sequential
+delete sequences and 2 of 2 bulk multi-select deletes, and the orphan's shape
+named its author — `sceneId` and `tokenId` both null, roster intact, which is
+written in exactly one place. It was never another row carried stale; it was
+the record's OWN row re-inserted after its delete.
+
+**Ruled:** `updateFormation` refuses a record the ledger no longer holds.
+Every caller but one reaches it holding a record fetched earlier, and "it was
+dissolved while I worked" makes that write moot rather than urgent — the same
+judgement the sweep ruling made for a vanished scene. `createFormation` is the
+only insert and mints the id it inserts under, so it writes directly.
+
+**Ruled:** one private `commit(mutate)` is the only path to the setting, so
+the lock and the read are a single act. The invariant recurred because two of
+three writers omitted it; making it unforgettable is cheaper than writing it
+down a third time.
+
+**Ruled:** the `deleteToken` hook unlinks through `patchFormation`. It fires
+from an incoming deletion, so its guard — is this still the record's token? —
+has to be decided at write time; against a stale copy it would also revert a
+token adopted meanwhile, along with the clock, lights and roster.
+
+**Ruled:** `restoreMemberTokens` restores only members whose actor still
+exists. Foundry creates the batch in one call and the system's own
+`TokenDocument._preCreate` reads the token's actor, so one deleted member
+aborted the restoration of every living one and lost their positions.
+
+**Rejected — a tombstone of recently-deleted ids.** Ids come from `randomID()`
+and are never reused, and the existence check runs in the same lock as the
+delete, so there is no ABA to defend against. It would add an expiry policy
+and a second source of truth about existence for no additional coverage.
+
+**Rejected — reordering `dissolveFormation`, or another try/catch around the
+restore.** The hook fires from an incoming socket message, not from dissolve's
+call stack, so there is no ordering to impose; and the try/catch is already
+there — dissolve deletes the record whether or not restoration threw. Fix the
+input, not the blast radius.
+
+**Rejected — `updateFormation` throwing or warning on a refusal.** Every
+ordinary dissolve would print an error.
+
+**Not fixed, so it is not mistaken for coverage:** two GM clients writing
+concurrently. `commit` is a single-client lock reading that client's settings
+cache, so two Judges on one world remain last-write-wins. Pre-existing and
+unreported; `pruneFormations` remains the backstop for a record orphaned by a
+crash mid-flow.

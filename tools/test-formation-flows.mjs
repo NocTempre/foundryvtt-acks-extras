@@ -1619,6 +1619,72 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
   await drain();
 });
 
+await scenario("a queued write never resurrects a record deleted while it waited", async () => {
+  // Both flows used to read the ledger BEFORE queueing their write, so each
+  // carried a copy of every other row as it looked then. Whichever wrote last
+  // won outright: an update could undo an unrelated delete, and a delete could
+  // undo an unrelated update. Deleting a party and its members back-to-back hit
+  // this and left an orphaned record behind.
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  await drain();
+  const keep = await model.createFormation("Keeper");
+  const doomed = await model.createFormation("Doomed");
+  await drain();
+
+  const edited = { ...model.getFormation(keep.id), frontage: 4 };
+  await Promise.all([model.updateFormation(edited), model.deleteFormationRecord(doomed.id)]);
+  await drain();
+
+  const all = model.getFormations();
+  assert.ok(!all[doomed.id], "the deleted record stays deleted");
+  assert.equal(all[keep.id]?.frontage, 4, "and the edit made alongside it survived");
+
+  // The same collision the other way round: delete first, update second.
+  const second = await model.createFormation("Second");
+  await drain();
+  const edited2 = { ...model.getFormation(keep.id), frontage: 2 };
+  await Promise.all([model.deleteFormationRecord(second.id), model.updateFormation(edited2)]);
+  await drain();
+
+  const after = model.getFormations();
+  assert.ok(!after[second.id], "still deleted when the delete is queued first");
+  assert.equal(after[keep.id]?.frontage, 2, "and the later edit still landed");
+
+  await game.settings.set(MODULE_ID, "formations", {});
+  await drain();
+});
+
+await scenario("a whole-record write never resurrects the record it was holding", async () => {
+  // The orphan: a writer holding a record it fetched earlier — a hook, a turn
+  // tick — finishing after the record was dissolved, and putting it back with
+  // whatever it was carrying. A whole-record write is an UPDATE; only
+  // createFormation inserts.
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  await drain();
+  const doomed = await model.createFormation("Doomed");
+  await drain();
+
+  const held = model.getFormation(doomed.id); // the stale copy a hook would hold
+  held.tokenId = null;
+  held.sceneId = null;
+  await model.deleteFormationRecord(doomed.id);
+  await model.updateFormation(held);
+  await drain();
+
+  assert.ok(!model.getFormations()[doomed.id], "the dissolved record stays dissolved");
+
+  // ...and the refusal must not break the ordinary case.
+  const live = await model.createFormation("Live");
+  await drain();
+  assert.ok(model.getFormations()[live.id], "createFormation still inserts");
+  await model.updateFormation({ ...model.getFormation(live.id), frontage: 3 });
+  await drain();
+  assert.equal(model.getFormations()[live.id]?.frontage, 3, "an update to a live record still lands");
+
+  await game.settings.set(MODULE_ID, "formations", {});
+  await drain();
+});
+
 await scenario("overlapping environment sweeps coalesce instead of racing", async () => {
   // Every write to the formations setting fires an unawaited syncEnvironments,
   // so a burst — dissolving a party and its members, or a bulk delete — used to
