@@ -101,6 +101,16 @@ thing the GM does.
 scan. Take one per render and thread it through `childPlaces`, `placePath` and
 `coinRollupGC` rather than letting each re-scan.
 
+`allPlaces({ pack })` adds the places ONE compendium holds, read from its
+already-loaded index — no fetch on a render path, because the location feature
+puts `system.parentUuid` and the place flag into
+`CONFIG.Actor.compendiumIndexFields` at init. One pack, not all of them: a
+pack's places point at each other (an imported adventure and its rooms are
+written together), so the pack being looked at is the whole world those
+pointers live in. The location sheet passes its own document's `pack`, or —
+for a place dragged out of a library into the world, whose parent pointer
+still names the library's copy — the pack that parent lives in.
+
 Container items are deliberately **not** enumerated world-wide; that would be
 O(actors × items) on every breadcrumb. They are resolved only as the children of
 the place actually being looked at.

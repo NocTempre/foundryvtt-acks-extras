@@ -185,19 +185,78 @@ export function nodeOf(doc) {
 }
 
 /**
- * Every ACTOR-backed place in the world, as nodes.
+ * One place node from a compendium INDEX row.
+ *
+ * An index row is not a document — no `documentName`, no `getFlag` — so the
+ * predicates above cannot read it and it gets its own reduction. Only the two
+ * actor-backed kinds can appear here, and both are recognisable from indexed
+ * fields: our own sub-type by `type`, a foreign provider by the place flag.
+ */
+function packNodeOf(row, uuid) {
+  const flag = row?.flags?.[MODULE_ID]?.[PLACE_KEY];
+  const isOurs = row?.type === LOCATION_TYPE;
+  if (!isOurs && !flag) return null;
+  return {
+    uuid,
+    parentUuid: (isOurs ? row.system?.parentUuid : null) || flag?.parentUuid || null,
+    name: row.name ?? "",
+    img: row.img ?? null,
+    kind: isOurs ? PLACE_KIND.LOCATION : PLACE_KIND.PROVIDER,
+    count: Math.max(1, Math.floor(Number(flag?.count) || 1)),
+  };
+}
+
+/** The pack a compendium uuid names, or null for a world uuid. */
+export function packIdOf(uuid) {
+  if (typeof uuid !== "string" || !uuid.startsWith("Compendium.")) return null;
+  const [, scope, name] = uuid.split(".");
+  return scope && name ? `${scope}.${name}` : null;
+}
+
+/**
+ * The places one compendium holds, read from its loaded index.
+ *
+ * Scoped to a SINGLE pack on purpose. A pack's places point at each other —
+ * an imported adventure and the rooms keyed to it are written together — so
+ * the pack being looked at is the whole world those pointers live in, and
+ * walking every installed pack on every render would buy nothing but cost.
+ *
+ * The index is whatever is already loaded; nothing is fetched on a render
+ * path. `system.parentUuid` is in it because the location feature adds it to
+ * `CONFIG.Actor.compendiumIndexFields` at init.
+ */
+export function packPlaces(packId) {
+  const pack = packId ? game.packs?.get(packId) : null;
+  if (!pack || pack.documentName !== "Actor") return [];
+  const nodes = [];
+  for (const row of pack.index ?? []) {
+    const uuid = pack.getUuid?.(row._id) ?? `Compendium.${pack.collection}.Actor.${row._id}`;
+    const node = packNodeOf(row, uuid);
+    if (node) nodes.push(node);
+  }
+  return nodes;
+}
+
+/**
+ * Every ACTOR-backed place in the world, as nodes — plus, when a pack is
+ * named, the places that pack holds.
  *
  * Container items are excluded on purpose (see the header): they are resolved as
  * the children of the place being viewed, not enumerated globally. That keeps
  * this a single `game.actors` pass, which is what makes it safe to call on every
  * sheet render.
+ *
+ * `pack` is how a place that lives in a compendium sees its own family. Pass
+ * the viewed document's `pack`; a world document passes nothing and this is
+ * the `game.actors` scan it always was.
  */
-export function allPlaces() {
-  return (game.actors?.contents ?? []).filter((a) => isLocation(a) || isProvider(a)).map(nodeOf).filter(Boolean);
+export function allPlaces({ pack = null } = {}) {
+  const world = (game.actors?.contents ?? []).filter((a) => isLocation(a) || isProvider(a)).map(nodeOf).filter(Boolean);
+  return pack ? [...world, ...packPlaces(pack)] : world;
 }
 
 /** uuid → node over every actor-backed place. Share one per render. */
-export const placeIndex = () => indexPlaces(allPlaces());
+export const placeIndex = (opts) => indexPlaces(allPlaces(opts));
 
 /**
  * Resolve a place uuid without awaiting — render paths cannot. Handles the

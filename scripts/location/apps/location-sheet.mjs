@@ -285,10 +285,19 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    * One `allPlaces()` scan is taken here and threaded through every call that
    * needs it — the breadcrumb, the children, and the coin roll-up would
    * otherwise each re-scan `game.actors` on every render.
+   *
+   * A place held in a COMPENDIUM asks its own pack as well. Its family lives
+   * there: an imported adventure and the rooms keyed to it are written into
+   * one pack together, and a scan of `game.actors` alone finds none of them —
+   * which is why an imported adventure read "nothing is kept here yet" over
+   * thirty-two rooms that each named it correctly.
    */
   async #preparePlace(context) {
     const actor = this.actor;
-    const nodes = places.allPlaces();
+    // Its own pack when it lives in one; otherwise the pack its PARENT lives
+    // in, which is the shape a place dragged out of the library into the world
+    // has: the pointer comes with it and still names the library's copy.
+    const nodes = places.allPlaces({ pack: actor.pack ?? places.packIdOf(actor.system.parentUuid) });
     const index = places.indexPlaces(nodes);
 
     // Breadcrumb: root first, this place last. The last entry is dropped —

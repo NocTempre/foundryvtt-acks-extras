@@ -92,8 +92,32 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    Running it twice mints twice, which is the documented behaviour and worth
    confirming rather than discovering.
 
+9. **A place held in a COMPENDIUM.** Import an authored adventure with
+   acks-importer (`acksImporter.oseImportAreas("pc3")` — one adventure plus 32
+   rooms, all into "ACKS Cookbook — Actor"), then open the adventure's sheet.
+   *Observable:* `CONTENTS (32)`, one drillable row per room, and no "Nothing
+   is kept here yet". A room's own sheet breadcrumbs back to the adventure, and
+   clicking a content row opens that room. The pack index must carry the
+   pointer — `[...pack.index].filter(r => r.system?.parentUuid).length` is the
+   room count, and it is 0 if `CONFIG.Actor.compendiumIndexFields` was not
+   extended before the index built, which needs a **world relaunch**, not an
+   F5.
+10. Drag one room out of the library into the world
+   (`game.actors.importFromCompendium(pack, id)`).
+   *Observable:* the world copy still breadcrumbs to the adventure in the
+   library, and the adventure now lists BOTH copies — two documents do name it,
+   and the sheet says so rather than choosing one.
+11. **The roster on a packed place.** Write one occupant row onto a location
+   held in a compendium and re-render.
+   *Observable:* `WHO IS HERE (1)` naming that occupant. The roster is stored
+   on the document rather than scanned for, so this is the check that it never
+   depended on `game.actors` in the first place. Read the context AFTER the
+   update settles: a `_prepareContext` taken in the same breath as the
+   `update()` reports the old roster and reads as a bug in the pane.
+
 ## Teardown
 
-Delete the location and the character. Confirm nothing the storage steps
+Delete every document the compendium steps imported (filter the pack index by
+`flags["acks-importer"].cookbook.book`), and the location and the character. Confirm nothing the storage steps
 created survives — `game.items` holds no fixture goods, and `providers()` no
 longer lists the location.

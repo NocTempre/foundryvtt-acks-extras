@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **A place kept in a compendium shows what is inside it.** An adventure
+  imported into a library listed nothing at all — "Nothing is kept here yet"
+  over thirty-two rooms that each named it as their parent — because the
+  children pass only ever looked through the actors in the world. A location
+  now also reads the compendium it lives in, so an imported dungeon reads as a
+  dungeon in the library, and a room dragged out of one still names the
+  adventure it came from.
+
 ## 4.24.0
 
 What a character is trained to use now reads beside what they carry.

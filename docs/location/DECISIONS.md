@@ -493,3 +493,37 @@ form without differing in MEANING: the deprecated field name, the HTML
 normalization, now the collection order. A comparison against storage is only
 as good as its model of what storage does, and none of these were visible in
 the resulting documents — only in the number of writes.
+
+### A place in a compendium can see its own family (2026-08-25)
+
+**Ruled: `allPlaces()` takes an optional `pack`, and the location sheet passes
+the pack its own document lives in — or, for a place dragged into the world,
+the pack its PARENT lives in.**
+
+The children pass was a single `game.actors` scan, which was true of every
+place there was when it was written. Since acks-importer 3.0.0 every import
+lands in a compendium instead of the sidebar, so an imported adventure and the
+thirty-two rooms keyed to it are all in a pack: every room named its parent
+correctly, `system.parentUuid` was right on all of them, and the adventure's own
+sheet said "Nothing is kept here yet". The structure the importer builds was
+invisible at exactly the moment a Judge would look for it.
+
+**Read from the INDEX, not from documents.** `system.parentUuid` and the place
+flag join `CONFIG.Actor.compendiumIndexFields` at init, so the pack answers from
+memory and a render path never fetches. Index rows are not documents — no
+`documentName`, no `getFlag` — so they get their own reduction (`packNodeOf`)
+rather than being forced through predicates written for documents.
+
+**One pack, not every pack.** A pack's places point at each other because they
+are written together; walking every installed compendium on every sheet render
+would buy nothing and cost the render.
+
+**Not ruled here: what a drag out of the library should do to the pointer.** A
+room dragged into the world keeps `parentUuid` naming the library's adventure,
+so both copies claim that parent and the adventure lists both. That is truthful
+— two documents do name it — and re-pointing a dragged child at a world copy of
+its parent is a decision about import, not about the sheet.
+
+**WHO IS HERE needed nothing.** The roster is a stored list on the location
+itself, not a scan, so it never depended on `game.actors` and reads identically
+from a compendium; verified live with an occupant row on a packed location.

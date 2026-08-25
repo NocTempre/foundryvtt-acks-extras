@@ -85,6 +85,23 @@ Hooks.once("init", () => {
   CONFIG.Actor.dataModels[LOCATION_TYPE] = LocationData;
   registerLocationSheet();
 
+  /*
+   * The parent pointer joins the Actor compendium INDEX, so a place held in a
+   * compendium can be asked what is inside it without loading every document
+   * in the pack.
+   *
+   * This has to happen at init, before any index is built: a pack indexed
+   * without the field answers `undefined` for every row until something calls
+   * `getIndex` again with it. Since acks-importer 3.0.0 every imported place
+   * lands in a compendium, so without this an imported adventure's rooms are
+   * invisible on the adventure's own sheet — the rooms name their parent
+   * correctly and nothing can see that they do.
+   */
+  const indexed = CONFIG.Actor.compendiumIndexFields;
+  for (const field of ["system.parentUuid", `flags.${MODULE_ID}.place`]) {
+    if (!indexed.includes(field)) indexed.push(field);
+  }
+
   game.settings.registerMenu(MODULE_ID, "storageManager", {
     name: `${LANG_PREFIX}.manager.menuName`,
     label: `${LANG_PREFIX}.manager.menuLabel`,
