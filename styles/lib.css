@@ -535,3 +535,11 @@ body .sheet.acks.actor-v2 .encumbrance-label {
 .acks-lib-template-edit-toggle {
   width: 100%;
 }
+
+/* A module-managed effect's delete control, replaced by a lock (managed-effects.mjs).
+   It keeps the row's shape and the control's footprint so the row does not
+   reflow — the only difference is that it does nothing and says why. */
+.acks-lib-effect-locked {
+  cursor: default;
+  opacity: 0.55;
+}

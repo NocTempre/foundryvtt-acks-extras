@@ -111,6 +111,21 @@ report the same symptom.
    a `gold` one gold. The same pill grammar renders on equipment's Inventory
    **Training** row (`.acks-lib-build`) — check both when either changes.
 
+9b. Managed effects (class training + equipment loadout). Build a character,
+   apply a class through `applyClass`, and equip two weapons so a loadout
+   effect with changes actually exists (a lone plain weapon yields none, and
+   no effect is written). Add ONE hand-made effect as the control.
+   *Observable:* on the Effects tab the two managed rows show a lock instead of
+   the trash and keep their toggle and edit controls, while the hand-made row
+   keeps its trash. `effect.delete()` on a managed one is refused and warns
+   naming its owner; the hand-made one deletes, by a real trash click. Emptying
+   (`update({changes: []})`) and disabling both succeed on a managed effect.
+   Re-applying the class replaces the training effect (the authorized path),
+   and `refreshLoadout` collapses duplicate loadout effects to one.
+   **Delete the ACTOR last and confirm it goes** — a per-effect refusal that
+   caught the cascade would make every such character undeletable, and nothing
+   else in this list would show it.
+
 10. The imported library, in a world that has imported classes with
     acks-importer 3.0.0 — so the library is in a pack and `game.items` is empty
     of it.

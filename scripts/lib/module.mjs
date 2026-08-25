@@ -40,6 +40,7 @@ import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
 import { installPackDedupe, supersededPackIds, refreshPackDedupe, organizeFamilyPacks, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
 import { installPolyglotBridge, publishWorldLanguages } from "./polyglot.mjs";
+import { registerManagedEffectGuard, lockManagedEffectRows } from "./managed-effects.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
@@ -263,6 +264,9 @@ Hooks.once("init", () => {
   registerMountCleanup();
   registerStorageCleanup();
   registerGroupCleanup();
+
+  // Refuse hand-deletion of the effects this module maintains (managed-effects.mjs).
+  registerManagedEffectGuard();
 
   // Coin is goods the system forgets to make draggable, so it cannot be dropped
   // into a container or a place at all until the row is bound.
@@ -600,6 +604,24 @@ Hooks.on("renderApplicationV2", (app, element) => {
   const { ui, palette } = dressFor(owned);
   root.classList.toggle("acks-ui", ui);
   root.classList.toggle("acks-palette", palette);
+});
+
+/**
+ * Lock the trash control on module-managed effect rows, wherever core lists
+ * them — an actor's Effects tab and an item's own share one partial, so this
+ * gates on "the sheet's document has effects" rather than on a document type.
+ * The REFUSAL is the preDelete guard in managed-effects.mjs; this is only the
+ * sheet declining to offer a gesture that is refused.
+ */
+Hooks.on("renderApplicationV2", (app, element) => {
+  const root = element instanceof HTMLElement ? element : element?.[0];
+  const doc = app?.document;
+  if (!root?.querySelectorAll || !doc?.effects?.get) return;
+  try {
+    lockManagedEffectRows(doc, root);
+  } catch (err) {
+    console.error(`${MODULE_ID} | locking managed effect rows failed; core's controls stand`, err);
+  }
 });
 
 /**

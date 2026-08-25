@@ -73,3 +73,11 @@ export const REPERTOIRE_KINDS = {
   studious: { label: "Spell Book (Studious)" },
   arcaneInt: { label: "Slots + Intellect Bonus" },
 };
+
+/**
+ * Flag under `flags["acks-extras"]` stamping a combat-training effect with the
+ * class it was copied from. It is both how a re-apply finds exactly what a
+ * previous apply wrote, and the marker that makes the effect module-managed
+ * (lib/managed-effects.mjs) — so it is named once and read from both.
+ */
+export const FLAG_FROM_CLASS = "fromClass";

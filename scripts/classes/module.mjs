@@ -15,7 +15,7 @@
 import * as languages from "./languages.mjs";
 import { installLanguageMigration } from "./language-migration.mjs";
 import { acksExtras } from "../namespace.mjs";
-import { MODULE_ID, LANG_PREFIX, CLASS_TYPE, RACE_TYPE, FLAG_CLASSES, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, CLASS_TYPE, RACE_TYPE, FLAG_CLASSES, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, CASTING_KINDS, REPERTOIRE_KINDS, FLAG_FROM_CLASS } from "./constants.mjs";
 import ClassData, { AWARD_KINDS } from "./class-data.mjs";
 import ClassSheet from "./class-sheet.mjs";
 import RaceData from "./race-data.mjs";
@@ -57,10 +57,14 @@ import {
   TEMPLATE_PART,
 } from "./template-packages.mjs";
 import { registerSheetTabs } from "./sheet-tabs.mjs";
+import { registerManagedEffect } from "../lib/managed-effects.mjs";
 import { savesUpdateData, repairSaveReferences, BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 
 Hooks.once("init", () => {
+  // A class's combat training is machinery, not a note: a hand must not delete it.
+  registerManagedEffect(FLAG_FROM_CLASS, "ACKS-LIB.managedEffect.ownerClass");
+
   CONFIG.Item.dataModels ??= {};
   CONFIG.Item.dataModels[CLASS_TYPE] = ClassData;
   CONFIG.Item.dataModels[RACE_TYPE] = RaceData;

@@ -7,6 +7,27 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-08-25 — the effects the module maintains refuse hand-deletion, and
+  nothing else about them changes.** A character's combat training and its
+  equipment loadout sit in core's ordinary Effects list beside notes a Judge
+  made, with the same trash button; deleting either breaks the character in a
+  way nothing announces, because from Foundry's side a document was deleted
+  exactly as asked. `preDeleteActiveEffect` now refuses a delete of any effect
+  carrying a registered marker, the sheet shows a lock where the trash was, and
+  editing, emptying and disabling are untouched — a Judge who wants a character
+  untrained empties the effect, which is a decision visible afterwards, rather
+  than removing the row and leaving nothing to read. *Rejected: a global unlock
+  the module sets around its own deletes.* The sync path awaits repeatedly and a
+  global would stay open across every one of those awaits; the module authorizes
+  each call instead, by passing `managedDelete()` in the operation options, so
+  the permission travels with the one call that asked for it. *Rejected: hiding
+  the managed effects from the list.* They are the reason a weapon is refused or
+  an AC is what it is, and a character whose modifiers come from somewhere
+  invisible is worse to debug than one who cannot delete a row. **Cost:** each
+  feature must claim its marker at init, so a feature that is off cannot lock a
+  row it no longer maintains — deliberate, and the reason the registry is not a
+  hardcoded list.
+
 - **2026-08-24 — the name-form rules live in `lib/vocab.mjs`, once.** A book
   prints one physical thing several ways — "Oil, Military (1 pint)" in the price
   catalogue, "Military Oil" everywhere else, "Waterskin/Wineskin" as one row

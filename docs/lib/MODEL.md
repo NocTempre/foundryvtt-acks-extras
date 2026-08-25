@@ -453,6 +453,30 @@ The setting is registered here, in `module.mjs`, rather than by either feature.
 Nothing else about time lives here: worldTime is Foundry's, and each feature
 still decides its own step size and what it does when the gate is shut.
 
+## Effects the module maintains
+
+Two effects on a character are machinery rather than notes: the class's combat
+training (`flags.acks-extras.fromClass`, a copy taken when the class was
+applied) and the equipment loadout (`flags.acks-extras.loadout`, derived from
+what is equipped). `managed-effects.mjs` holds a registry of those markers —
+each feature claims its own at init — and three things follow from a marker:
+
+- **Deletion is refused.** `preDeleteActiveEffect` cancels it and says which
+  owner maintains the effect. The module's own deletes pass `managedDelete()`
+  in the operation options and go through; an option travels with the single
+  call that asked for it, where a global unlock would stay open across every
+  `await` in the sync path.
+- **The sheet shows a lock** where core drew the trash, on any sheet listing
+  effects. It is the sheet declining to offer a refused gesture, not the gate.
+- **Everything else is untouched** — editing, clearing the changes, disabling.
+
+Emptying means different things by owner, and neither is hidden: training is a
+copy, so an emptied one stays emptied until the class is applied again; the
+loadout is derived, so an emptied one refills at the next recompute.
+
+Deleting the ACTOR still works — Foundry's cascade does not route through the
+per-effect refusal.
+
 ## The multi-roller chat card
 
 `scripts/lib/roll-card.mjs` is the one renderer for every card where several

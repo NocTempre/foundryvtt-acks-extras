@@ -31,6 +31,7 @@
 import { MODULE_ID, LOADOUT_EFFECT_FLAG, ITEM_FLAGS } from "./constants.mjs";
 import { revealItem } from "./actions.mjs";
 import { recomputeItemFields } from "./properties.mjs";
+import { managedDelete } from "../lib/managed-effects.mjs";
 
 /** All actors the cleanup must visit: world actors + unlinked token actors. */
 function* allActors() {
@@ -81,7 +82,7 @@ export async function stripModuleData({ revertLayers = false } = {}) {
       .filter((e) => e.getFlag?.(MODULE_ID, LOADOUT_EFFECT_FLAG) === true)
       .map((e) => e.id);
     if (loadouts.length) {
-      await actor.deleteEmbeddedDocuments("ActiveEffect", loadouts);
+      await actor.deleteEmbeddedDocuments("ActiveEffect", loadouts, managedDelete());
       counts.effects += loadouts.length;
     }
     await cleanItems(actor, actor.items, counts, { revertLayers });

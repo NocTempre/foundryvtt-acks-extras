@@ -17,6 +17,7 @@ import { shieldACCorrection, specApplies } from "./overlays/shield-variants.mjs"
 import { enclosingHelmActive, HELM_MODIFIERS } from "./overlays/enclosing-helm.mjs";
 import { bridgeContributions } from "./abilities-bridge.mjs";
 import { appliedEffects, makeEffectMeta, activeNumericChanges, csvFlagSet, sumModifiers } from "../lib/effect-scan.mjs";
+import { managedDelete } from "../lib/managed-effects.mjs";
 
 const effectMeta = makeEffectMeta(MODULE_ID);
 
@@ -191,7 +192,7 @@ async function collapseDuplicates(actor) {
   const extra = loadoutEffects(actor).slice(1);
   if (!extra.length) return;
   console.warn(`${MODULE_ID} | ${actor.name} carried ${extra.length + 1} loadout effects; keeping one.`);
-  await actor.deleteEmbeddedDocuments("ActiveEffect", extra.map((e) => e.id));
+  await actor.deleteEmbeddedDocuments("ActiveEffect", extra.map((e) => e.id), managedDelete());
 }
 
 /**
@@ -207,7 +208,7 @@ export async function syncLoadoutEffect(actor, loadout) {
   const existing = findLoadoutEffect(actor);
 
   if (!changes.length) {
-    if (existing) await existing.delete();
+    if (existing) await existing.delete(managedDelete());
     return;
   }
 

@@ -21,10 +21,13 @@ import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs"
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
 import { isWearable } from "../lib/item-model.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs";
 
 
 Hooks.once("init", () => {
   registerSettings();
+  // The loadout effect is machinery, not a note: a hand must not delete it.
+  registerManagedEffect(LOADOUT_EFFECT_FLAG, "ACKS-LIB.managedEffect.ownerLoadout");
   buildApi();
 
   // The variation Item sub-type. Wrapped because a throw in `init` leaves the
@@ -113,7 +116,7 @@ Hooks.once("ready", async () => {
     const strays = actor.effects.filter((e) => e.getFlag?.(MODULE_ID, LOADOUT_EFFECT_FLAG) === true).map((e) => e.id);
     if (strays.length) {
       actor
-        .deleteEmbeddedDocuments("ActiveEffect", strays)
+        .deleteEmbeddedDocuments("ActiveEffect", strays, managedDelete())
         .then(() => console.log(`${MODULE_ID} | removed ${strays.length} stray loadout effect(s) from ${actor.name} (${actor.type}).`))
         .catch((err) => console.warn(`${MODULE_ID} | could not remove stray loadout effects on ${actor.name}`, err));
     }

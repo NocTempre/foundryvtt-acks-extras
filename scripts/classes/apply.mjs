@@ -13,7 +13,8 @@
  * that distinction again.
  */
 import { savesUpdateData } from "../lib/actor-compat.mjs";
-import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES, FLAG_FROM_CLASS } from "./constants.mjs";
+import { managedDelete } from "../lib/managed-effects.mjs";
 import { pathGroups, pathTrainingChanges, unansweredGroups, actorPaths } from "./paths.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
 import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
@@ -149,8 +150,8 @@ const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
  */
 export async function syncClassTraining(actor, classItem, selections = null) {
   if (!actor) return [];
-  const mine = actor.effects.filter((e) => e.getFlag?.(MODULE_ID, "fromClass"));
-  if (mine.length) await actor.deleteEmbeddedDocuments("ActiveEffect", mine.map((e) => e.id));
+  const mine = actor.effects.filter((e) => e.getFlag?.(MODULE_ID, FLAG_FROM_CLASS));
+  if (mine.length) await actor.deleteEmbeddedDocuments("ActiveEffect", mine.map((e) => e.id), managedDelete());
   const source = (classItem?.effects ?? []).filter((e) => (e.changes ?? []).length);
   // A class whose training is stated PER PATH (the Barbarian's regions) carries
   // none of its own, so the chosen option's is the only training there is —
@@ -163,7 +164,7 @@ export async function syncClassTraining(actor, classItem, selections = null) {
     raw.transfer = false;
     raw.disabled = false;
     raw.flags = foundry.utils.mergeObject(raw.flags ?? {}, {
-      [MODULE_ID]: { fromClass: classItem.uuid },
+      [MODULE_ID]: { [FLAG_FROM_CLASS]: classItem.uuid },
     });
     return raw;
   });
@@ -174,7 +175,7 @@ export async function syncClassTraining(actor, classItem, selections = null) {
       changes: chosen,
       transfer: false,
       disabled: false,
-      flags: { [MODULE_ID]: { fromClass: classItem?.uuid ?? "" } },
+      flags: { [MODULE_ID]: { [FLAG_FROM_CLASS]: classItem?.uuid ?? "" } },
     });
   }
   const made = await actor.createEmbeddedDocuments("ActiveEffect", data);
