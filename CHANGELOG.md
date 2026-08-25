@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.26.1
+
+### Fixed
+- **The item sheet had no window behind it on a Foundry-look seat.** With the
+  look set to Foundry's own rather than the book's, opening any weapon, armour,
+  gear or coin — a monster's new attack, say — drew the sheet's contents over a
+  see-through window: whatever sat behind it read straight through the page,
+  and the sheet was near-impossible to use. The item sheet was the one window
+  that named its own paper ground instead of leaving it to the ACKS dress, and
+  the Foundry look works by taking that dress off. It now takes the same ground
+  every other window takes, and the book look is unchanged.
+
 ## 4.26.0
 
 The map alignment panel moves off the map.

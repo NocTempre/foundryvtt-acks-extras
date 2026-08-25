@@ -25,9 +25,13 @@
      dragged wider and the prose column takes the slack. */
   width: 620px;
   min-width: 620px;
-  background: var(--acks-paper);
-  color: var(--acks-ink);
-  border: var(--acks-rule-hair) solid var(--acks-spot);
+  /* GEOMETRY ONLY. Ground, ink and frame belong to the `.acks-ui` dress
+     (vendor/acks-design/foundry.css § 2) — never to this class. The dress
+     out-specifies a bare root class, so a ground named here is inert while the
+     dress is on and destructive once it comes off: the `core` look strips
+     `.acks-ui` from the root and re-points --acks-paper at `transparent`, and
+     a class-pinned paper ground then paints that transparency over Foundry's
+     own — unlayered module CSS, so specificity never enters into it. */
 }
 
 /* --- Window chrome: the band IS the header. ------------------------------ */

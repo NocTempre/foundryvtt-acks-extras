@@ -159,7 +159,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     unlocked 1 → `system.bonus` rises by one; Un-name restores.
 11. Chart: bind the scene → Chart tab and band chip; Update From Exploration
     captures or warns "nothing explored"; Unbind removes the tab.
-12. Dark seat: no near-white ground among the sheet's elements.
+12. Both seats, both looks. Dark seat: no near-white ground among the
+    sheet's elements. `core` look: the window still HAS a ground —
+    `getComputedStyle(app.element).backgroundColor` reads Foundry's own,
+    never `rgba(0, 0, 0, 0)`.
 13. Close the sheet. *Observable:* `Hooks.events.updateItem.length` returns
     to its pre-open count (the sibling watch detached).
 

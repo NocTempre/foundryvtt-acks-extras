@@ -1118,3 +1118,41 @@ avoid the split would publish what core whispered.
 `validate-extra` fails for a foreign scope. The gate is right — a module has no
 business writing the system's namespace — and a plain property read is the
 honest expression of "core owns this, we only look".
+
+## 2026-08-25 — A window never names its own ground; the dress does
+
+**Ruled: a sheet's stylesheet may set geometry on its application root, never
+`background`, `color` or `border`.** Those three belong to the `.acks-ui` dress
+(`vendor/acks-design/foundry.css` § 2), which is the only layer that stands down
+when the `core` look hands the client back to Foundry.
+
+The item sheet had pinned `background: var(--acks-paper)` on
+`.acks-extras-item-sheet` itself. Under `book` the declaration never won —
+`.acks-ui.application` out-specifies a bare root class and names the same value —
+so it read as harmless duplication. Under `core` it was the only rule left
+standing: the look strips `.acks-ui` from the root AND re-points `--acks-paper`
+at `transparent`, so the class-pinned ground painted that transparency, and
+module CSS is unlayered where Foundry's is layered, so it beat the host's own
+window ground whatever the specificity said. The sheet rendered with no ground at
+all — its contents readable only against whatever window sat behind it.
+
+**Why this window and no other.** The adapter's rule — surfaces go transparent
+rather than picking a Foundry background (`foundry.css` § LOOK) — is safe for
+every region INSIDE a window, because a region that paints no ground inherits the
+window's. The window itself is the one surface with nothing behind it, so it is
+the one surface that rule cannot serve, and the dress is what serves it. A sheet
+naming its own ground opts out of the hand-back without saying so. Every root
+class in `styles/` was read for this: it was the only window doing it.
+
+**REJECTED: qualifying the sheet's paint with the dress
+(`.acks-ui.acks-extras-item-sheet`).** It fixes `core` equally well, and it would
+have made the sheet's spot-coloured border finally apply — which is the argument
+against it. That border has never rendered; honouring it now is a design change
+smuggled in as a bugfix. Deleting the three declarations leaves `book`
+byte-identical, which is what a fix for a look nobody was testing has to be.
+
+**Cost: nothing enforces this.** `validate` reads stylesheets for class
+namespacing, not for which properties a root class may set, and the failure is
+invisible in the default seat — the seat a session tests in. The guard is a
+comment at the declaration and an observable in `docs/equipment/TESTING.md`
+step 12; a second window can still acquire the same pin without anything failing.
