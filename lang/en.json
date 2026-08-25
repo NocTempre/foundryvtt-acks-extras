@@ -20,6 +20,10 @@
       "acks-extras.variation": "Variation"
     }
   },
+  "ACKS-CLASSES.modifiers.section": "Class modifiers",
+  "ACKS-CLASSES.modifiers.disabled": "disabled",
+  "ACKS-CLASSES.modifiers.hint": "Click a slot to grant or withdraw it. These are what the CLASS grants — training from a proficiency, an item or a flag is not shown here, and the Inventory tab has the character's effective total.",
+  "ACKS-CLASSES.modifiers.failed": "That change could not be written to the class training effect.",
   "ACKS-CLASSES.sheet.sheetName": "ACKS Class Constructor",
   "ACKS-CLASSES.sheet.name": "Class name",
   "ACKS-CLASSES.sheet.key": "Key",

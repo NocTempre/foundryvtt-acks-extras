@@ -251,6 +251,37 @@ chargen as well as by the picker. That record is the whole reason a character
 who levelled to 5th is not asked every choice they ever made a second time the
 moment their class is re-applied.
 
+## Class modifiers — editing the training
+
+`syncClassTraining` writes the class's combat training onto the character as an
+Active Effect whose changes are three CSV strings (`weaponProf`,
+`armourProficiency`, `styleProficient`). `class-modifiers.mjs` draws that effect
+as a **Class modifiers** section at the top of the Effects tab and removes its
+row from the list below, so there is one control rather than two; `training.mjs`
+reads and rewrites the grants inside it.
+
+The pills are the same slot vocabulary the Inventory strip and the follower card
+use (`SLOT_VOCAB`, exported from `lib/proficiency-strip.mjs`), so the three
+surfaces cannot drift on what a slot is or what order slots come in. Here they
+are buttons:
+
+- **Styles and weapons toggle.** `all` is expanded to the explicit list on the
+  first edit that removes one, and stays explicit afterwards.
+- **Armour is a ladder.** A click sets the ceiling; clicking the current ceiling
+  clears the grant.
+- **Written in canonical spelling** (`twoHanded`, `veryLight`) — the profile
+  compares case-insensitively, but what is stored reads the way the rest of the
+  module spells it.
+
+What the section shows is **this effect's grant**, not the character's effective
+profile: training also arrives from proficiency items, actor flags and the
+abilities bridge, and a pill lit by one of those could not be switched off here.
+The Inventory strip is the effective total; this is the class's contribution to
+it. A character with no training effect has no section.
+
+Applying a class REPLACES the effect wholesale, so a re-apply discards edits
+made here — which is what makes re-applying the way to undo them.
+
 ## Asking a rung
 
 [picks.mjs](../../scripts/classes/picks.mjs) is the single owner of the

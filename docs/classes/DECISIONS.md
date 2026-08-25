@@ -3,6 +3,42 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-25 — the class's training is edited as slots, in a section of its own
+
+**Ruled: the training effect is lifted out of the ordinary effect list and drawn
+as toggleable slots.** It is an Active Effect whose changes are three CSV
+strings, so in core's list it is one row whose only editor is a text field
+holding `dual,twoHanded,weaponShield` — an editor for the storage format rather
+than for the thing. It is now a **Class modifiers** section on the Effects tab,
+drawn as the same slot strip the Inventory tab and the follower card use, with
+each pill a toggle. Same document, no second store. The row is removed from the
+list below it, because two controls for one thing can disagree on screen.
+
+**Ruled: the section shows THIS EFFECT'S grant, not the effective profile.**
+Different questions. A pill lit by a proficiency item or an actor flag would
+refuse to switch off and read as a broken control, so the Inventory strip keeps
+answering "what is this character trained in, however it was granted" and this
+answers "what does the class give".
+
+**Ruled: `all` expands on first edit and never collapses back.** Switching one
+weapon class off cannot be expressed by editing a wildcard, so the grant is
+written out explicitly minus the one dropped. Re-selecting everything leaves the
+explicit list: it means the same thing to the profile, and silently rewriting a
+Judge's list to `all` would discard the distinction the next edit depends on.
+
+**Ruled: armour toggles as a ladder.** Clicking a rung sets the ceiling;
+clicking the current ceiling clears the grant. Trained-in-heavy-but-not-light is
+not a state the profile has.
+
+**Cost:** clearing the armour grant leaves the character on acks-equipment's
+permissive `heavy` fallback rather than restricting them — that module's
+documented behaviour for an unconfigured profile, and the reason the strips draw
+unconfigured as grey rather than as a grant.
+
+*Rejected: leaving the row in the list as well.* The loadout effect does stay
+there, locked ([lib DECISIONS](../lib/DECISIONS.md)), because it is derived from
+what is equipped and has nothing a toggle could hold.
+
 ## 2026-08-24 — a template row resolves everything, then writes once
 
 **Ruled: `materializeTemplates` writes one row per call, not one entry per

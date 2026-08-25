@@ -15,16 +15,17 @@
  */
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "./vocab.mjs";
+import { locOr as loc } from "./util.mjs";
 
 const equipmentApi = () => globalThis.acksExtras?.equipment ?? game.modules?.get("acks-extras")?.api?.equipment ?? null;
 
 /** Fighting styles (JJ p.291), in the order the books present them. */
 const STYLES = [
-  { key: "single", icon: "fas fa-1", label: "ACKS-LIB.style.single", fallback: "Single Weapon" },
-  { key: "dual", icon: "fas fa-2", label: "ACKS-LIB.style.dual", fallback: "Dual Weapon" },
-  { key: "twohanded", icon: "fas fa-hands", label: "ACKS-LIB.style.twoHanded", fallback: "Two-Handed Weapon" },
-  { key: "weaponshield", icon: "fas fa-shield-halved", label: "ACKS-LIB.style.weaponShield", fallback: "Weapon & Shield" },
-  { key: "missile", icon: "fas fa-crosshairs", label: "ACKS-LIB.style.missile", fallback: "Missile" },
+  { key: "single", token: "single", icon: "fas fa-1", label: "ACKS-LIB.style.single", fallback: "Single Weapon" },
+  { key: "dual", token: "dual", icon: "fas fa-2", label: "ACKS-LIB.style.dual", fallback: "Dual Weapon" },
+  { key: "twohanded", token: "twoHanded", icon: "fas fa-hands", label: "ACKS-LIB.style.twoHanded", fallback: "Two-Handed Weapon" },
+  { key: "weaponshield", token: "weaponShield", icon: "fas fa-shield-halved", label: "ACKS-LIB.style.weaponShield", fallback: "Weapon & Shield" },
+  { key: "missile", token: "missile", icon: "fas fa-crosshairs", label: "ACKS-LIB.style.missile", fallback: "Missile" },
 ];
 
 /**
@@ -50,11 +51,11 @@ const WEAPON_CLASSES = [
 
 /** Armour SELECTION ladder (JJ p. 290), lightest first — five rungs, not four. */
 const ARMOUR = [
-  { key: "unarmored", icon: "fas fa-user", label: "ACKS-LIB.armour.unarmored", fallback: "Unarmoured" },
-  { key: "verylight", icon: "fas fa-shirt", label: "ACKS-LIB.armour.veryLight", fallback: "Very Light" },
-  { key: "light", icon: "fas fa-vest", label: "ACKS-LIB.armour.light", fallback: "Light" },
-  { key: "medium", icon: "fas fa-user-shield", label: "ACKS-LIB.armour.medium", fallback: "Medium" },
-  { key: "heavy", icon: "fas fa-shield", label: "ACKS-LIB.armour.heavy", fallback: "Heavy" },
+  { key: "unarmored", token: "unarmored", icon: "fas fa-user", label: "ACKS-LIB.armour.unarmored", fallback: "Unarmoured" },
+  { key: "verylight", token: "veryLight", icon: "fas fa-shirt", label: "ACKS-LIB.armour.veryLight", fallback: "Very Light" },
+  { key: "light", token: "light", icon: "fas fa-vest", label: "ACKS-LIB.armour.light", fallback: "Light" },
+  { key: "medium", token: "medium", icon: "fas fa-user-shield", label: "ACKS-LIB.armour.medium", fallback: "Medium" },
+  { key: "heavy", token: "heavy", icon: "fas fa-shield", label: "ACKS-LIB.armour.heavy", fallback: "Heavy" },
 ];
 
 /**
@@ -96,7 +97,6 @@ function coveredClasses(all, tokens, api) {
   return covered;
 }
 
-const loc = (key, fallback) => (game.i18n?.has?.(key) ? game.i18n.localize(key) : fallback);
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
 
 /**
@@ -417,5 +417,15 @@ export function sizePips(item) {
     pips: Array.from({ length: i + 1 }, (_, n) => n),
   };
 }
+
+/**
+ * The three slot vocabularies, in the order every surface shows them. Exported
+ * because the class-modifiers editor renders the SAME slots as toggles and must
+ * not keep a second copy: `key` is the normalised identity the strips match on,
+ * `token` the canonical spelling a grant is WRITTEN as (the profile compares
+ * case-insensitively; what is stored should still read the way the rest of the
+ * module spells it).
+ */
+export const SLOT_VOCAB = Object.freeze({ styles: STYLES, weapons: WEAPON_CLASSES, armour: ARMOUR });
 
 export { DAMAGE_TYPE_ICONS, UNTYPED_ICON };

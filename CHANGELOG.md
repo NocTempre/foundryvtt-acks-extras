@@ -1,5 +1,38 @@
 # Changelog
 
+## 4.25.0
+
+The machinery stops looking like a note, and the class's training is a row of switches.
+
+### Added
+- **Class modifiers, on the Effects tab.** A class's combat training arrives as
+  an Active Effect whose changes are three comma-separated lists, so the only
+  way to alter what it granted was to open it and edit `dual,twoHanded,
+  weaponShield` in a text box — an editor for the storage format rather than for
+  the thing. It now has a section of its own at the top of the Effects tab,
+  drawn as the same slots the Inventory tab and the follower card show, with
+  every slot a switch: click a fighting style, a weapon class or an armour rung
+  to grant or withdraw it. It is the same effect, so nothing new is stored and
+  the section is gone the moment the effect is. Armour behaves as the ladder it
+  is — a click sets the ceiling, and clicking the ceiling clears it.
+- **What the section shows is what the CLASS gives**, which is deliberately not
+  the same question as the Inventory tab's Training row. Training also arrives
+  from proficiencies, items and flags, and a slot lit by one of those could not
+  honestly be switched off here. The row is the character's total; this is the
+  class's share of it.
+
+### Changed
+- **The effects this module maintains can no longer be deleted by hand.** A
+  character's combat training and its equipment loadout sat in the ordinary
+  effect list beside notes a Judge had made, with the same trash button, and
+  deleting either broke the character silently: training vanished and every
+  weapon read as untrained until the class was applied again, and the loadout's
+  modifiers vanished until some later change happened to rebuild them. They now
+  refuse deletion and show a lock where the trash was. Everything else is
+  unchanged — they can still be edited, emptied and disabled, so a Judge who
+  wants a character untrained empties the training rather than removing the row
+  and leaving nothing behind to read. Deleting the character still works.
+
 ## 4.24.1
 
 ### Fixed

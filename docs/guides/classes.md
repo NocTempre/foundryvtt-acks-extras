@@ -108,6 +108,41 @@ arcane and divine pools sit side by side.
 *Slot pips, a points pool with its −/+ pair, the gnostic capacity rung, and the
 rest control.*
 
+### Class modifiers — what the class trained them in
+
+Applying a class copies its combat training onto the character. That copy lives
+on the **Effects** tab as a **Class modifiers** section: the fighting styles,
+weapon classes and armour rungs the class grants, each one a switch. Click a
+slot to grant it, click a lit one to withdraw it.
+
+![The Class modifiers section on the Effects tab](../releases/v4.25.0/classes-modifiers.png)
+
+*A Fighter with the dual-weapon style and crossbows withdrawn — the two outlined
+slots. The hand-made effect below keeps its own controls.*
+
+Two things are worth knowing about it:
+
+- **It shows what the CLASS grants, not the character's total.** Training also
+  arrives from proficiencies, items and flags, and a slot lit by one of those
+  could not honestly be switched off here. The Inventory tab's Training row is
+  the effective total; this is the class's share of it.
+- **Armour is a ladder.** A click sets the heaviest armour allowed and lights
+  every rung below it; clicking the top rung clears the grant entirely.
+
+Re-applying the class restores its full grant, which is how you undo a set of
+edits. The effect itself cannot be deleted — see below.
+
+### Effects the module maintains
+
+The Class modifiers training and the Equipment Loadout are machinery, not notes:
+deleting either quietly breaks the character, so both refuse deletion and show a
+lock where the trash would be. They can still be edited, emptied and disabled —
+emptying the training is how you leave a character deliberately untrained, and
+it stays that way until the class is applied again. The loadout is rebuilt from
+what is equipped, so emptying that one lasts only until the next change.
+Deleting the character works exactly as before.
+
+
 ## Advanced mode — the class builder
 
 The constructor's **Builder** tab is the Judges Journal's custom-class

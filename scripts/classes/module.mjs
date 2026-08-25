@@ -58,12 +58,15 @@ import {
 } from "./template-packages.mjs";
 import { registerSheetTabs } from "./sheet-tabs.mjs";
 import { registerManagedEffect } from "../lib/managed-effects.mjs";
+import { registerClassModifiers } from "./class-modifiers.mjs";
 import { savesUpdateData, repairSaveReferences, BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { choiceOptions, CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 
 Hooks.once("init", () => {
   // A class's combat training is machinery, not a note: a hand must not delete it.
   registerManagedEffect(FLAG_FROM_CLASS, "ACKS-LIB.managedEffect.ownerClass");
+  // …and show it as toggles of its own, out of the ordinary effect list.
+  registerClassModifiers();
 
   CONFIG.Item.dataModels ??= {};
   CONFIG.Item.dataModels[CLASS_TYPE] = ClassData;

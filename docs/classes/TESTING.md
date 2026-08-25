@@ -245,3 +245,26 @@ packages also the bundles, gear, specialized copies and the RollTable (all
 carry `flags["acks-extras"].templatePart`), and the fixture `Staff` weapon.
 Confirm no `acks-extras.class` or `acks-extras.race` items named for the
 fixture remain and the template folders are empty.
+
+## Class modifiers (the Effects tab section)
+
+1. Apply a class to a character and open the **Effects** tab.
+   *Observable:* a **Class modifiers** section above the effect list, naming the
+   class, with three groups of pills; the training effect's own row is GONE from
+   the list below it (one control, not two). A character with no class applied
+   has no section at all.
+2. Click a style pill, then a weapon pill on a class granting `all`.
+   *Observable:* the style leaves `flags.acks-extras.styleProficient` and the
+   remainder is rewritten in canonical spelling (`twoHanded,weaponShield`); the
+   weapon grant EXPANDS from `all` to the explicit list minus the one clicked.
+3. Click an armour rung below the ceiling, then click the ceiling itself.
+   *Observable:* the first sets `armourProficiency` to that rung; the second
+   removes the change entirely. It is a ladder, never a hole in the middle.
+4. Compare against the Inventory tab's Training row.
+   *Observable:* they legitimately DIFFER — the section shows only what the class
+   grants, the strip the effective profile (single and missile always available,
+   an unset armour grant reading grey rather than as the permissive fallback).
+   This is the design, not a bug; see DECISIONS 2026-08-25.
+5. Disable the effect, then re-apply the class.
+   *Observable:* the head marks it disabled; the re-apply restores the class's
+   full grant over every toggle made — that is how edits here are undone.

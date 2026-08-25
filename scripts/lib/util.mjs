@@ -9,6 +9,15 @@
 /** Prefix-bound i18n formatter: `makeLoc("ACKS-FORMATION")` → `loc(key, data)`. */
 export const makeLoc = (prefix) => (key, data = {}) => game.i18n.format(`${prefix}.${key}`, data);
 
+/**
+ * Localize a FULL key, falling back to a supplied string when the key is not
+ * in the active translation. Distinct from `makeLoc`, which binds a prefix and
+ * formats: this is for vocabularies that ship a readable English fallback
+ * beside each key, so a missing translation degrades to a word rather than to
+ * the key itself on screen.
+ */
+export const locOr = (key, fallback) => (game.i18n?.has?.(key) ? game.i18n.localize(key) : fallback);
+
 /** The value as a number, or `fallback` when it is not finite. */
 export const toNum = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 

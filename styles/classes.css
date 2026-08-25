@@ -547,3 +547,57 @@
 .acks-extras-classes-path-training > * {
   min-width: 0;
 }
+
+/* CLASS MODIFIERS — the training effect as its own Effects-tab section
+   (class-modifiers.mjs). The pills themselves are lib's (.acks-lib-build in
+   lib-follower-card.css); only the frame and the button reset live here, so
+   the toggles cannot drift from the read-only strips they mirror. */
+.acks-extras-classes-modifiers {
+  margin-bottom: 0.5rem;
+}
+
+.acks-extras-classes-modifiers__title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.15rem 0.25rem;
+  border-bottom: var(--acks-border-soft);
+  font-weight: bold;
+}
+
+.acks-extras-classes-modifiers__source {
+  font-weight: normal;
+  opacity: 0.75;
+}
+
+.acks-extras-classes-modifiers__disabled {
+  margin-left: auto;
+  font-weight: normal;
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-classes-modifiers .acks-lib-build {
+  padding: 0.35rem 0.25rem 0.2rem;
+}
+
+/* A toggle pill is a button; strip the UA chrome so it renders as the pill it
+   shares with the read-only strips, and give it the affordance they lack. */
+.acks-extras-classes-modifiers button.fc-pill {
+  font: inherit;
+  cursor: pointer;
+  background: transparent;
+}
+
+.acks-extras-classes-modifiers button.fc-pill:hover:not(:disabled) {
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-classes-modifiers button.fc-pill:disabled {
+  cursor: default;
+}
+
+.acks-extras-classes-modifiers__hint {
+  margin: 0.15rem 0.25rem 0;
+  font-size: var(--acks-fs-fine);
+  opacity: 0.7;
+}
