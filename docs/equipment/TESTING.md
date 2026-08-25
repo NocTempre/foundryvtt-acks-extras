@@ -75,7 +75,16 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    Damage" macro with a token controlled.
    *Observable:* the plan names the stones at risk and which items are
    vulnerable; nothing is deleted until the macro is confirmed.
-8. Every shipped macro compiles.
+8. Training row: open a fresh character's Inventory tab, then grant training
+   the way a class apply does — an Active Effect whose changes set
+   `flags.acks-extras.weaponProf` (CSV), `.armourProficiency` (category) and
+   `.styleProficient` (CSV) — and re-render.
+   *Observable:* `.acks-equipment-training` sits between the encumbrance
+   panel and Worn & Wielded; with no profile every pill is grey (`unset`),
+   after the grant the covered weapon chips, the armour ladder up to the
+   granted rung, and the trained styles light (`on`), and the row appears
+   once however many render hooks fire.
+9. Every shipped macro compiles.
    *Observable:* each `macro.command` parses when compiled as an **async**
    function. Compiling as a plain `Function`, or with Foundry's injected
    parameter names bound, reports syntax errors that belong to the harness.

@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.24.0
+
+What a character is trained to use now reads beside what they carry.
+
+### Added
+- **Training sits on the Inventory tab.** The fighting styles, weapon classes
+  and armour a character is trained in were only ever visible on a follower
+  card, so a player reading their own sheet had to open the class — or take the
+  equipment warnings on faith — to find out why a weapon was refusing them. The
+  same strip now heads the Inventory tab, directly above Worn & Wielded: every
+  slot always shows, a trained one lights up, and a specialized or focused one
+  goes gold. It states nothing new, only what the character already has, so a
+  sheet with no class applied reads grey rather than guessing at proficiency.
+
+### Fixed
+- **Armour training never lit the ladder.** A character whose class trained
+  them in armour still showed the whole armour row greyed out as unknown — on
+  the new Inventory strip and on every follower card that ever showed one. The
+  check asked a set of granted categories for its `length`, which a set does
+  not carry, so the answer was always "nothing was granted". The ladder now
+  lights up to the heaviest armour the character is actually trained in.
+
 ## 4.23.0
 
 A crooked map straightens itself, and a trap answers the mouse.

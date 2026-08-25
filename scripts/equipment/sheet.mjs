@@ -33,6 +33,7 @@ import { canBeSilvered, isSilvered, setSilvered } from "./silver.mjs";
 import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
 import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf } from "../lib/item-model.mjs";
 import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { profileStripElement } from "../lib/proficiency-strip.mjs";
 import { cycleStrap, strapOf, variantOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
 import { overlayEnabled as scavengedOverlayEnabled, tableFor } from "./overlays/scavenged.mjs";
 import { helmetType } from "./overlays/enclosing-helm.mjs";
@@ -966,6 +967,26 @@ export function buildConstructionPanel(item) {
   return section;
 }
 
+/**
+ * TRAINING row — the follower card's build strip (fighting styles, weapon
+ * classes, armour ladder) at the top of the Inventory tab, beside the gear it
+ * governs. The strip is lib's (proficiency-strip.mjs builds it from the same
+ * profile API the card reads); this only frames it as an inventory section.
+ * Renders nothing when the actor has no profile to state.
+ */
+function injectTrainingStrip(actor, tab) {
+  if (tab.querySelector(".acks-equipment-training")) return;
+  const strip = profileStripElement(actor);
+  if (!strip) return;
+  const section = el("section", "acks-equipment-training item-list-section");
+  const head = el("div", "acks-equipment-wear__title");
+  head.append(el("span", "acks-equipment-wear__title-text", game.i18n.localize("ACKS-EQUIPMENT.training.section")));
+  section.append(head, strip);
+  const column = tab.querySelector(".content > .flexcol") ?? tab.querySelector(".content") ?? tab;
+  const anchor = column.querySelector(".encumbrance-panel");
+  column.insertBefore(section, anchor?.nextSibling ?? column.firstChild);
+}
+
 function onRenderCharacterSheet(app, element) {
   try {
     // `renderApplicationV2` offers EVERY ApplicationV2, and plenty of other
@@ -978,6 +999,7 @@ function onRenderCharacterSheet(app, element) {
     // listen on three of them so the system's class name can change freely.
     if (!tab || tab.querySelector(".acks-equipment-wear")) return;
     regroup(app.actor, tab);
+    injectTrainingStrip(app.actor, tab); // After regroup: lands between encumbrance and Worn.
     // These controls attach to gear WHEREVER it renders — a torch stack and a
     // carried weapon stay in core's own lists, not a worn bucket — so each scans
     // the whole tab with its own per-row dedupe.

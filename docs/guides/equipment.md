@@ -169,6 +169,22 @@ is required.
 Configure a character with its Class Training items and the gate is correct. The
 `proficiencyEnforcement` setting has `auto` and `off` if you would rather not.
 
+### What a character is trained in, at a glance
+
+The Inventory tab opens with a **Training** row: the fighting styles, the weapon
+classes and the armour ladder, with every slot always showing. A slot the
+character is trained in lights up, and one they are specialized or focused in
+goes gold. A character with no class applied reads grey throughout — which says
+"nothing configured" rather than "not proficient", and those are different
+answers.
+
+![The Training row on the Inventory tab](../releases/v4.24.0/equipment-training.png)
+
+It states nothing of its own. It reads the training the class put on the
+character, so it is the same answer the enforcement gate above acts on — if a
+weapon is being refused, this row is where you see why. The same strip runs
+across the bottom of a follower card.
+
 ## Variations
 
 A **variation** is one way an item differs from its plain self: masterwork, a

@@ -67,6 +67,15 @@
 
 /* --- Inventory wear buckets -------------------------------------------- */
 
+/* Training row — lib's build strip (.acks-lib-build, lib-follower-card.css)
+   framed as an inventory section above Worn & Wielded. */
+.acks-equipment-training {
+  margin-bottom: 0.5rem;
+}
+.acks-equipment-training .acks-lib-build {
+  padding: 0.25rem;
+}
+
 .acks-equipment-wear {
   margin-bottom: 0.5rem;
 }

@@ -1,4 +1,4 @@
-/* global game */
+/* global game, document */
 /**
  * Compact profile strips: fighting styles, weapon categories, armour.
  *
@@ -323,7 +323,8 @@ export function profileStrips(actor) {
     flagSet("armorMax") ||
     (() => {
       try {
-        return (api?.collectStringFlags?.(actor, api.EFFECT_DOMAINS?.ARMOR_PROF ?? "armorTraining") ?? []).length > 0;
+        // collectStringFlags answers with a Set — measure size, not length.
+        return [...(api?.collectStringFlags?.(actor, api.EFFECT_DOMAINS?.ARMOR_PROF ?? "armorTraining") ?? [])].length > 0;
       } catch {
         return false;
       }
@@ -354,6 +355,49 @@ export function profileStrips(actor) {
   });
 
   return { styles, weapons, armour, any: true };
+}
+
+/**
+ * The strips as a DOM element — the follower card's build row, mountable on any
+ * surface (equipment's inventory Training row). Same pill classes, same state
+ * grammar (lit = trained, gold = specialized/focused, grey = unconfigured), so
+ * the two renderings cannot drift apart in meaning. Returns null when there is
+ * nothing to state, so a caller simply omits the row.
+ */
+export function profileStripElement(actor) {
+  const strips = profileStrips(actor);
+  if (!strips.any) return null;
+  const root = document.createElement("div");
+  root.className = "acks-lib-build";
+  const group = (tipKey, labelKey, pills, chip = false) => {
+    if (!pills.length) return;
+    const g = document.createElement("span");
+    g.className = "fc-build-group";
+    g.dataset.tooltip = game.i18n.localize(tipKey);
+    const label = document.createElement("span");
+    label.className = "fc-build-label";
+    label.textContent = game.i18n.localize(labelKey);
+    g.append(label);
+    for (const p of pills) {
+      const pill = document.createElement("span");
+      pill.className =
+        `fc-pill${chip ? " chip" : ""}` +
+        (p.unset ? " unset" : `${p.on ? " on" : ""}${p.gold ? " gold" : ""}`);
+      pill.dataset.tooltip = p.label;
+      if (chip) pill.textContent = p.chip;
+      else {
+        const icon = document.createElement("i");
+        icon.className = p.icon;
+        pill.append(icon);
+      }
+      g.append(pill);
+    }
+    root.append(g);
+  };
+  group("ACKS-LIB.followerCard.styles", "ACKS-LIB.followerCard.stylesShort", strips.styles);
+  group("ACKS-LIB.followerCard.weaponProf", "ACKS-LIB.followerCard.weaponShort", strips.weapons, true);
+  group("ACKS-LIB.followerCard.armourProf", "ACKS-LIB.followerCard.armourShort", strips.armour);
+  return root;
 }
 
 /** Weapon size as pips (tiny 1 → large 4); 0 when the size is unknown. */

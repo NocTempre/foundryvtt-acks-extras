@@ -539,6 +539,16 @@
 }
 
 /* --- Class-build strips, across the card's bottom ----------------------- */
+/* `.acks-lib-build` is the same strip mounted OUTSIDE the card (built by
+   proficiency-strip.mjs for equipment's inventory Training row), so the pill
+   grammar below is scoped to either root. The card-only `.fc-build` frame —
+   its padding and printed divider — stays the card's own. */
+.acks-lib-build {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
 .acks-lib-follower-card .fc-build {
   display: flex;
   flex-wrap: wrap;
@@ -550,12 +560,12 @@
      divider between card and build data, so it takes the soft rule. */
   border-top: var(--acks-border-soft);
 }
-.acks-lib-follower-card .fc-build-group {
+:is(.acks-lib-follower-card, .acks-lib-build) .fc-build-group {
   display: inline-flex;
   align-items: center;
   gap: 3px;
 }
-.acks-lib-follower-card .fc-build-label {
+:is(.acks-lib-follower-card, .acks-lib-build) .fc-build-label {
   font-family: var(--acks-font-banner);
   font-variant: small-caps;
   letter-spacing: var(--acks-tracking-caps);
@@ -563,7 +573,7 @@
   color: var(--acks-spot);
   margin-right: 1px;
 }
-.acks-lib-follower-card .fc-pill {
+:is(.acks-lib-follower-card, .acks-lib-build) .fc-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -580,17 +590,17 @@
 }
 /* Chips carry two-letter category codes and slot counters — caps-set content,
    so it takes the caps tracking. */
-.acks-lib-follower-card .fc-pill.chip {
+:is(.acks-lib-follower-card, .acks-lib-build) .fc-pill.chip {
   font-weight: 700;
   letter-spacing: var(--acks-tracking-caps);
 }
-.acks-lib-follower-card .fc-pill.on {
+:is(.acks-lib-follower-card, .acks-lib-build) .fc-pill.on {
   color: var(--acks-on-burgundy);
   background: var(--acks-burgundy);
   border-color: var(--acks-burgundy-ink);
 }
 /* Specialization / focus reads gold against the burgundy. */
-.acks-lib-follower-card .fc-pill.gold {
+:is(.acks-lib-follower-card, .acks-lib-build) .fc-pill.gold {
   color: var(--acks-gold-ink);
   background: var(--acks-gold);
   border-color: var(--acks-gold-deep);
@@ -602,7 +612,7 @@
    chip it used to hardcode became the brightest thing on a dark card — the
    loudest element on the sheet standing for "we don't know". The pair is soft
    on purpose and lands at 3.9:1 light / 3.5:1 dark. */
-.acks-lib-follower-card .fc-pill.unset {
+:is(.acks-lib-follower-card, .acks-lib-build) .fc-pill.unset {
   color: var(--acks-ink-faint);
   background: var(--acks-tint-2);
   border-color: var(--acks-rule-color-soft);

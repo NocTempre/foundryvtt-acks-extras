@@ -719,6 +719,9 @@
       "nonProficientUse": "Non-proficient use of weapons or armor ({items}): attacks as a 0th-level fighter (0th-level characters instead take an additional −1), no attribute bonus to attack throws or Armor Class, class powers unusable, and no XP from adventures while so equipped.",
       "thiefSkillGated": "Backstabbing, Hiding, Pickpocketing, and Sneaking are unavailable while wearing {items}."
     },
+    "training": {
+      "section": "Training"
+    },
     "wear": {
       "section": "Worn & Wielded",
       "stowedSection": "Stowed",
