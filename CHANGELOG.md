@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.24.1
 
 ### Fixed
 - **A place kept in a compendium shows what is inside it.** An adventure

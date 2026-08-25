@@ -94,7 +94,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 9. **A place held in a COMPENDIUM.** Import an authored adventure with
    acks-importer (`acksImporter.oseImportAreas("pc3")` — one adventure plus 32
-   rooms, all into "ACKS Cookbook — Actor"), then open the adventure's sheet.
+   rooms). Since acks-importer 4.3.0 these land in the pack for the book's own
+   SERIES — "ACKS Cookbook — Planar Compass — Actor", not the shared
+   "ACKS Cookbook — Actor" — so find the pack by label rather than assuming it.
+   Then open the adventure's sheet.
    *Observable:* `CONTENTS (32)`, one drillable row per room, and no "Nothing
    is kept here yet". A room's own sheet breadcrumbs back to the adventure, and
    clicking a content row opens that room. The pack index must carry the
@@ -114,6 +117,14 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    depended on `game.actors` in the first place. Read the context AFTER the
    update settles: a `_prepareContext` taken in the same breath as the
    `update()` reports the old roster and reads as a bug in the pane.
+
+   **The row needs a resolvable `uuid`.** A roster entry whose `uuid` is `""`
+   is stored on the document exactly as written and then counted by nothing —
+   `headcount` stays 0 and `occupants` is empty, which reads as the pane
+   ignoring the roster. It is the fixture that is wrong, not the pane: point
+   the row at a real document. The element fields are
+   `{uuid, name, img, kind, quantity, ownerUuid, notes, hidden}` and `kind` is
+   one of `actor | group | monster | henchman | place`.
 
 ## Teardown
 
