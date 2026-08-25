@@ -102,6 +102,15 @@ report the same symptom.
    *Observable:* `FollowerCardSheet` renders as the compact card, and its
    **Full sheet** control (`data-action="fcOpenFull"`) opens `FullMonsterSheet`
    beside it.
+   The build strips are **character-only** — `profileStrips` returns nothing
+   for a monster, so a monster card is the wrong fixture for checking pill
+   styling and reads as "the strips are broken". Reach the card for a
+   character directly, since the character's default sheet is the system's:
+   `new CONFIG.Actor.sheetClasses.character["acks-extras.FollowerCardSheet"].cls({document: actor}).render(true)`.
+   *Observable:* 19 pills under `.fc-build`, an `on` pill painted burgundy and
+   a `gold` one gold. The same pill grammar renders on equipment's Inventory
+   **Training** row (`.acks-lib-build`) — check both when either changes.
+
 10. The imported library, in a world that has imported classes with
     acks-importer 3.0.0 — so the library is in a pack and `game.items` is empty
     of it.
