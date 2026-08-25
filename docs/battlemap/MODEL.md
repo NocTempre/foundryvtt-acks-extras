@@ -45,12 +45,22 @@ scene-config row.
   after the write the scene's own `grid.size`/`grid.distance` decide whether
   the GM sees success or an error — a rejected field is dropped by schema
   validation without throwing (DECISIONS).
-- **Skewed or rotated scans cannot be expressed by Scene fields** (the
-  background TextureData has only scaleX/scaleY). The affine fit reports the
-  angles; the optional bake renders the image through the inverse transform
-  into `<name>-aligned.webp` beside the original, points the scene at it, and
-  hands back the corrected image's exact orthogonal fit. The original file is
-  never modified.
+- **A scan that is crooked or out of square cannot be expressed by Scene
+  fields** (the background TextureData has only scaleX/scaleY, and a scene has
+  one grid size). The fit reports the angles and the two cell edges; the
+  optional bake renders the image through the inverse of the fitted basis into
+  `<name>-aligned.webp` beside the original, points the scene at it, and hands
+  back the corrected image's exact SQUARE fit. Skew, rotation and unequal X/Y
+  are corrected together because they are one transform: `A = s·M⁻¹` sends the
+  fitted basis to `(s,0)` and `(0,s)`. `s` is the LARGER edge, so the short
+  axis is stretched rather than the long one squeezed — resampling up discards
+  less. The original file is never modified.
+- **A gridless scene is calibratable and a hex one is not.** No grid at all is
+  the ordinary state of a freshly imported map, so the apply accepts
+  `GRIDLESS` and writes `grid.type: SQUARE` along with the size and shift; the
+  panel says so before the button is pressed. Hex is refused, the solver
+  fitting a rectangular lattice that a hex scene is not. `CALIBRATABLE_GRIDS`
+  is the one list both the apply and the panel read.
 
 ## Token sizing — ownership
 
@@ -74,7 +84,9 @@ flow through the same hook.
 
 ## Grid-type seam
 
-v1 ships the square mode only: `applyGridCalibration` refuses non-square
-grids, and token sizing assumes square cells. The solver itself is
-grid-type-agnostic (the affine lattice fit carries any two basis vectors);
-hex and gridless behaviours are ruled in DECISIONS and staged in ROADMAP.
+Square is the only OUTPUT mode: calibrating produces a square grid, and token
+sizing assumes square cells. A gridless scene is an accepted input and is given
+that square grid; hex is refused. The solver itself is grid-type-agnostic (the
+affine lattice fit carries any two basis vectors), so hex OUTPUT — its own
+scale set, cell-fill arrangement — remains ruled in DECISIONS and staged in
+ROADMAP.

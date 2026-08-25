@@ -8,7 +8,72 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### 2026-08-24 — A trap is a wall PRESET, its marker is its control, and it gets no bucket
+
+Three complaints about the same surface, and one shape answers all of them.
+
+**The button dropped a wall.** The evidence is a field report six days after the
+entry below shipped: pressing the tool still "drops a trap wall on the map".
+That fix was real — the drag no longer lays a solid wall over the tripwire — and
+it left the placement it was defending intact, which is the half the Judge was
+complaining about. With nothing selected the trap tool created a
+tripwire across the middle of the view and told the Judge to drag its ends into
+place — a guess at where the trap goes, and almost never right. The 2026-08-18
+entry below fixed a symptom of this (a wall-drawing tool left armed turned that
+drag into a solid wall) without questioning the placement itself. Foundry's own
+wall types are **presets** over the drawing tool, so a trap line is one too: the
+tool stores the tripwire as `wallPalette` and hands over the wall tool, and the
+Judge drags the line where it belongs. The pip core lights off `createData` says
+it is still armed. Nothing is placed. `drawTrapWall` survives on the api, where a
+macro has no cursor to draw with. **Rejected:** a one-shot `preCreateWall` hook
+stamping the next wall — invisible state, and it forgets after one line, when
+laying a row of tripwires is the actual job.
+
+**Left and right click did nothing.** The marker was decoration —
+`eventMode: "none"` — so the only way to arm, disarm or reveal a trap was the
+api. It now takes core's door gestures, because a trap sits on a wall and the
+door is the gesture already learned there: **left** toggles armed against safe,
+**right** toggles `known`. They are kept independent on purpose — left never
+touches `known` (a re-armed trap is still one the party knows about) and right
+never touches the state (an armed trap the party can see is a combination
+`attemptRearm` has always written). `markTrapFound` stays the other act: the
+party DISCOVERED it, which moves the state as well. Left-clicking a SPENT trap
+routes to `resetTrap` rather than a bare re-arm — re-arming a discharged
+mechanism means rebuilding it, and the throws anybody failed against the old one
+must not carry over.
+
+**Interactivity is gated on the control, and that gate is why the gestures are
+safe.** Markers answer the mouse only for a GM on the Walls or Regions control —
+where every other placeable in Foundry answers only on its own layer. Door
+controls are the exception because players use them mid-play; a trap is a Judge's
+editing surface, and one that answered a click on the Token layer would disarm
+itself under a mis-aimed drag.
+
+**Traps get no scene-control bucket, though they bridge walls and regions.**
+Leaving a placeables layer calls `releaseAll()`, so a Traps control would empty
+the wall selection at the instant it opened — and a selected wall is what both
+trap tools act on. Battlemap took its own group in 4.22.0 and was right to:
+nothing it does reads a selection. **Rejected:** a Traps `InteractionLayer`
+hosting the markers; it would have had to re-implement wall selection to get back
+what opening it destroyed.
+
+**Found while verifying the rebuild gesture:** `resetTrap` never cleared either
+ledger. A flag write is a merge, so `{repeatLock: {}}` merged into the full
+ledger and left every entry standing — a thief who had failed hastily against a
+trap still could not try again after the Judge rebuilt it, and the same held for
+the region behavior's `system.repeatLock`. Both writes now merge in code and
+write a `ForcedReplacement`. The cost: a key no reader knows about is dropped on
+the next write, which is why `wallTrap()` reads the legacy `restore` key rather
+than only tolerating it.
+
+---
+
 ### 2026-08-18 — The trap tool hands back the SELECT tool after it draws
+
+**Superseded in part, 2026-08-24:** the tool no longer draws anything, so there
+is no select-tool handover on that path. The double-fire fix and the rejection
+below both stand, and `drawTrapWall` still hands back the select tool for the
+api's callers.
 
 A `button: true` scene-control tool does not change which tool is active, so a
 Judge who has been drawing walls presses the trap button with the wall-drawing

@@ -245,6 +245,28 @@ door, which is where the book's most famous trap lives. A trap AREA is created
 `visibility: GAMEMASTER` for the same reason: players are given the Regions
 control, and Foundry's default renders a region to anyone who opens it.
 
+Because a flag write is a merge, a trap patch is merged in code and written as a
+`ForcedReplacement`. A merge cannot empty anything, and emptying a ledger —
+`{repeatLock: {}}` — is precisely what rebuilding a trap has to do.
+
+**Laying one is a wall preset, not a placement.** With walls selected the tool
+lays a trap layer on each; with nothing selected it stores the tripwire as the
+data new walls are created with and hands over the drawing tool, so the Judge
+drags the line where it goes. The pip on its button — core's own, lit off
+`createData` — is what says the next wall drawn will be trapped. Both trap tools
+sit on the **Walls** control and traps have no control of their own: leaving a
+placeables layer releases its selection, and a selected wall is what both tools
+act on.
+
+**The marker is also the control.** For a Judge in trap-editing mode — the Walls
+or Regions control — the marker takes core's door gestures: **left** sets the
+mechanism or makes it safe, **right** decides whether the party can see it, and
+hovering names the trap, its state and who is looking at it. A ring round the
+glyph is the Judge's reminder that the party can see that one. Both gestures are
+the Judge's hand moving directly; a throw is Trapbreaking and has its own dialog.
+Everywhere else — every other control, and every non-GM seat — the markers are
+drawn and inert, so nothing answers a mis-aimed token drag.
+
 The **sequence** is the sequence of play's, not §7's own order:
 
 1. **Searchers throw first**, and not only against the trap in the way. A thief

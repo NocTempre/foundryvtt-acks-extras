@@ -30,3 +30,6 @@ ruledata/
 # Rules tests reproduce printed tables to check a derivation against the
 # book, so they stay on the machine that owns the books.
 tools/rules-tests/
+
+# Design-canvas scratch (artboards, exports) — never shipped.
+design/

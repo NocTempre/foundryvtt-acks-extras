@@ -7,28 +7,27 @@
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.noBackground"}}</p>
   {{/if}}
 
+  {{! Sampling lives in the Battlemap scene controls; this panel is the
+      numbers. Only the readout and the per-sample delete are here, because
+      the eraser is spatial and this is precise. }}
   <fieldset>
-    <legend>{{localize "ACKS-BATTLEMAP.capture.title"}}</legend>
-    <div class="acks-extras-battlemap-modes">
-      {{#each modes}}
-        <button type="button" data-action="setMode" data-mode="{{mode}}" class="{{#if active}}active{{/if}}">{{label}}</button>
-      {{/each}}
-      <button type="button" data-action="wipe" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.wipeHint'}}">
-        <i class="fa-solid fa-trash"></i> {{localize "ACKS-BATTLEMAP.samples.wipe"}}
-      </button>
-    </div>
-    <p class="hint">{{localize "ACKS-BATTLEMAP.capture.toolbarHint"}}</p>
+    <legend>{{localize "ACKS-BATTLEMAP.fit.title"}}</legend>
 
-    <div class="form-group">
-      <label>{{localize "ACKS-BATTLEMAP.fields.mapCellFeet"}}</label>
-      <div class="form-fields"><input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="5"></div>
-      <p class="hint">{{localize "ACKS-BATTLEMAP.fields.mapCellFeetHint"}}</p>
+    {{#if fitOk}}
+      <p class="acks-extras-battlemap-fit">{{fitCells}}</p>
+      <p class="acks-extras-battlemap-sub">{{fitQuality}}{{#if fitAffine}} · {{fitAffine.skew}}° skew{{/if}}</p>
+    {{else}}
+      <p class="hint">{{localize "ACKS-BATTLEMAP.fit.none"}}</p>
+    {{/if}}
+
+    <div class="acks-extras-battlemap-row">
+      <label><input type="checkbox" name="independentXY" {{checked independentXY}}> {{localize "ACKS-BATTLEMAP.fit.independentXY"}}</label>
+      <label><input type="checkbox" name="allowSkew" {{checked allowSkew}}> {{localize "ACKS-BATTLEMAP.fit.allowSkew"}}</label>
     </div>
-    <div class="form-group">
-      <label>{{localize "ACKS-BATTLEMAP.fields.scaleValue"}}</label>
-      <div class="form-fields"><input type="number" name="scaleValue" min="0" step="any" value="{{opts.scaleValue}}"></div>
-      <p class="hint">{{localize "ACKS-BATTLEMAP.fields.scaleValueHint"}}</p>
-    </div>
+    {{#if dropBack}}<p class="hint">{{localize "ACKS-BATTLEMAP.fit.dropBack"}}</p>{{/if}}
+    {{#if warnResidual}}
+      <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.highResidual"}}</p>
+    {{/if}}
 
     {{#if sampleRows.length}}
       <ul class="acks-extras-battlemap-samples">
@@ -45,36 +44,21 @@
   </fieldset>
 
   <fieldset>
-    <legend>{{localize "ACKS-BATTLEMAP.fit.title"}}</legend>
-    <div class="form-group">
-      <label>{{localize "ACKS-BATTLEMAP.fit.independentXY"}}</label>
-      <div class="form-fields"><input type="checkbox" name="independentXY" {{checked independentXY}}></div>
-    </div>
-    <div class="form-group">
-      <label>{{localize "ACKS-BATTLEMAP.fit.allowSkew"}}</label>
-      <div class="form-fields"><input type="checkbox" name="allowSkew" {{checked allowSkew}}></div>
-    </div>
-
-    {{#if fitOk}}
-      <p class="acks-extras-battlemap-fit">{{fitCells}} · {{fitQuality}}</p>
-      {{#if fitAffine}}
-        <p class="acks-extras-battlemap-fit">{{localize "ACKS-BATTLEMAP.fit.affine"}}: {{fitAffine.skew}}° / {{fitAffine.rotation}}°</p>
-      {{/if}}
-      {{#if dropBack}}
-        <p class="hint">{{localize "ACKS-BATTLEMAP.fit.dropBack"}}</p>
-      {{/if}}
-      {{#if warnResidual}}
-        <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.highResidual"}}</p>
-      {{/if}}
-    {{else}}
-      <p class="hint">{{localize "ACKS-BATTLEMAP.fit.none"}}</p>
-    {{/if}}
-  </fieldset>
-
-  <fieldset>
     <legend>{{localize "ACKS-BATTLEMAP.scale.title"}}</legend>
+
+    <div class="acks-extras-battlemap-row">
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.fields.mapCellFeet"}}</span>
+        <input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="5">
+      </label>
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.fields.scaleValue"}}</span>
+        <input type="number" name="scaleValue" min="0" step="any" value="{{opts.scaleValue}}">
+      </label>
+    </div>
+
     {{#if barFeet}}
-      <p class="acks-extras-battlemap-raw">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{units}}</p>
+      <p class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{units}}</p>
     {{/if}}
     {{#if suggestions.length}}
       <div class="acks-extras-battlemap-chips">
@@ -83,16 +67,20 @@
         {{/each}}
       </div>
     {{/if}}
-    <div class="form-group">
-      <label>{{localize "ACKS-BATTLEMAP.scale.confirm"}}</label>
-      <div class="form-fields"><input type="number" name="confirmFeet" min="0" step="any" value="{{opts.confirmFeet}}" placeholder="{{mapCellFeet}}"></div>
-      <p class="hint">{{localize "ACKS-BATTLEMAP.scale.confirmHint"}}</p>
-    </div>
 
-    <div class="form-group">
-      <label>{{localize "ACKS-BATTLEMAP.scale.output"}}</label>
-      <div class="form-fields"><input type="number" name="outputFeet" min="0" step="any" value="{{opts.outputFeet}}" placeholder="{{outputFeet}}"></div>
-      <p class="hint">{{localize "ACKS-BATTLEMAP.scale.outputHint"}}</p>
+    <div class="acks-extras-battlemap-row">
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.scale.confirm"}}</span>
+        <input type="number" name="confirmFeet" min="0" step="any" value="{{opts.confirmFeet}}" placeholder="{{mapCellFeet}}">
+      </label>
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.scale.output"}}</span>
+        <input type="number" name="outputFeet" min="0" step="any" value="{{opts.outputFeet}}" placeholder="{{outputFeet}}">
+      </label>
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.scale.gridPx"}}</span>
+        <input type="number" name="gridSizePx" min="0" step="1" value="{{opts.gridSizePx}}" placeholder="{{gridSizePx}}">
+      </label>
     </div>
     <div class="acks-extras-battlemap-chips">
       {{#each outputChips}}
@@ -102,16 +90,13 @@
     {{#if notAligned}}
       <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notAligned"}}</p>
     {{/if}}
-
-    <div class="form-group">
-      <label>{{localize "ACKS-BATTLEMAP.scale.gridPx"}}</label>
-      <div class="form-fields"><input type="number" name="gridSizePx" min="0" step="1" value="{{opts.gridSizePx}}" placeholder="{{gridSizePx}}"></div>
-      <p class="hint">{{localize "ACKS-BATTLEMAP.scale.gridPxHint"}}</p>
-    </div>
   </fieldset>
 
   <fieldset>
     <legend>{{localize "ACKS-BATTLEMAP.apply.title"}}</legend>
+    {{#if willAddGrid}}
+      <p class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.apply.willAddGrid"}}</p>
+    {{/if}}
     <div class="acks-extras-battlemap-actions">
       <button type="button" data-action="applyGrid" {{#unless canApply}}disabled{{/unless}}>
         <i class="fa-solid fa-border-all"></i> {{localize "ACKS-BATTLEMAP.apply.grid"}}
@@ -125,7 +110,6 @@
         </button>
       {{/if}}
     </div>
-    <p class="hint">{{localize "ACKS-BATTLEMAP.apply.hint"}}</p>
   </fieldset>
 
   <fieldset>
@@ -134,20 +118,18 @@
       {{#each hotbar}}
         <button type="button" data-action="sizeChip" data-feet="{{value}}">{{label}}</button>
       {{/each}}
+      <button type="button" data-action="resetFootprints" data-tooltip="{{localize 'ACKS-BATTLEMAP.tokens.reset'}}"><i class="fa-solid fa-rotate-left"></i></button>
     </div>
-    <div class="form-group">
-      <label>{{localize "ACKS-BATTLEMAP.tokens.custom"}}</label>
-      <div class="form-fields">
+    {{! The chips are the common sizes; the field is every other one. Both
+        reach the same handler, so dropping the field would leave
+        `applyCustomSize` live and unreachable. }}
+    <div class="acks-extras-battlemap-row">
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.tokens.custom"}}</span>
         <input type="number" name="customFeet" min="0" step="any" value="{{opts.customFeet}}">
-        <button type="button" data-action="applyCustomSize"><i class="fa-solid fa-check"></i></button>
-      </div>
+      </label>
+      <button type="button" data-action="applyCustomSize"><i class="fa-solid fa-check"></i></button>
     </div>
-    <div class="acks-extras-battlemap-actions">
-      <button type="button" data-action="resetFootprints">
-        <i class="fa-solid fa-rotate-left"></i> {{localize "ACKS-BATTLEMAP.tokens.reset"}}
-      </button>
-    </div>
-    <p class="hint">{{localize "ACKS-BATTLEMAP.tokens.hint"}}</p>
   </fieldset>
 
 </section>

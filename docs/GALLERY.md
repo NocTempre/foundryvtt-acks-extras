@@ -17,7 +17,7 @@ the next refresh.
 
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
-| Battlemaps and token scale | The Battlemap controls mid-calibration: the capture tools armed in their own toolbar, samples drawn over a map's grid, and the fit locked onto its lines | [guide](guides/battlemap.md) | [v4.22.0](releases/v4.22.0/battlemap.png) |
+| Battlemaps and token scale | The alignment panel on a map that is crooked, stretched and has no grid at all: the fit reading 60.0×45.0 px at 2° of skew, and the three things that can be done about it | [guide](guides/battlemap.md) | [v4.23.0](releases/v4.23.0/battlemap.png) |
 | Characters and classes | Rolling a character: the attribute rule and the scores, the class above the template die, and what is left to choose | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen.png) |
 | Class paths | A class's groups of mutually exclusive options — a region, a dark path, a caste — with the starting templates shown as one of those groups | [guide](guides/classes.md) | [v4.17.0](releases/v4.17.0/classes-paths.png) |
 | Proficiencies and powers | A proficiency's Mechanics tab: classification, the selections a grant reads, and its Active Effects | [guide](guides/abilities.md) | [v3.9.0](releases/v3.9.0/combat-trickery.png) |

@@ -87,7 +87,7 @@ function installSceneControls() {
         // one-at-a-time handling is the arming logic; `active` is what it
         // hands back when the group is re-entered.
         onChange: (_event, active) => {
-          if (active) session.arm(session.mode === mode ? null : mode);
+          if (active) session.arm(mode);
           else if (session.mode === mode) session.disarm();
         },
       };

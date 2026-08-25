@@ -6,7 +6,7 @@
  * scene-config row both open it.
  */
 
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, CALIBRATABLE_GRIDS } from "./constants.mjs";
 import { imageToCanvas } from "./capture.mjs";
 import { session } from "./session.mjs";
 import { feetPerSquare, roundSuggestions, outputGridSize } from "./calibrate-logic.mjs";
@@ -149,7 +149,8 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const barFeet = this.scaleBarFeet;
     const rawFeet = barFeet ?? (this.opts.mapCellFeet > 0 ? this.opts.mapCellFeet : null);
     const aligned = fit?.ok ? outputGridSize({ fittedCellPx: 1, mapCellFeet: this.mapCellFeet, outputFeet: this.outputFeet })?.aligned : true;
-    const squareGrid = scene?.grid?.type === globalThis.CONST?.GRID_TYPES?.SQUARE;
+    const squareGrid = CALIBRATABLE_GRIDS.has(scene?.grid?.type);
+    const willAddGrid = scene?.grid?.type === 0;
     const hasBackground = !!backgroundTexture(scene);
     const dropBack = !!(fit?.ok && fit.u && Math.abs(fit.skewDeg) < 0.5 && Math.abs(fit.rotationDeg) < 0.5);
 
@@ -197,8 +198,16 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       gridSizePx: this.gridSizePx,
       notAligned: !aligned,
       canApply: !!fit?.ok && squareGrid && hasBackground,
-      canBake: !!(fit?.ok && fit.u && Math.abs(fit.skewDeg) >= 0.1) || !!(fit?.ok && fit.u && Math.abs(fit.rotationDeg) >= 0.1),
+      // Offered whenever the image is wrong in a way a scene field cannot
+      // express straight: crooked, or cells that are not square.
+      canBake:
+        !!fit?.ok &&
+        hasBackground &&
+        (Math.abs(fit.skewDeg ?? 0) >= 0.1 ||
+          Math.abs(fit.rotationDeg ?? 0) >= 0.1 ||
+          Math.abs(fit.sizeX - fit.sizeY) / Math.max(fit.sizeX, fit.sizeY) >= 0.005),
       warnNotSquare: scene && !squareGrid,
+      willAddGrid,
       warnNoBackground: scene && !hasBackground,
       warnResidual: !!(fit?.ok && fit.confidence === "loose"),
       hotbar: HOTBAR_FEET.map((v) => ({ value: v, label: `${v}'` })),

@@ -51,9 +51,17 @@ class CalibrationSession {
   /*  Capture                                     */
   /* -------------------------------------------- */
 
-  /** Arm a mode, or pass the armed one again to disarm. */
+  /**
+   * Arm a mode. A SETTER, never a toggle: arming is driven from two places at
+   * once — the toolbar re-fires `onChange` for the already-active tool when
+   * the group is re-entered, and the panel's buttons mirror it — and a toggle
+   * turned each of those into a silent disarm. That is what stopped a second
+   * box being drawn: the mode looked armed and was not.
+   *
+   * Pass null to disarm.
+   */
   arm(mode) {
-    this.mode = this.mode === mode ? null : (mode ?? null);
+    this.mode = mode ?? null;
     this.overlay.arm(this.mode);
     this.notify();
     return this.mode;

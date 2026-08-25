@@ -24,3 +24,12 @@ export const FLAG_FOOTPRINT = "footprint";
 
 /** Token flag opting a token out of every automatic resize. */
 export const FLAG_FOOTPRINT_LOCK = "footprintLock";
+
+/**
+ * Grid types the assistant can calibrate: SQUARE (0 is GRIDLESS, 1 is SQUARE
+ * — the numerals rather than `CONST` so the pure modules can import this).
+ * A gridless scene is the ordinary state of a freshly imported map and is
+ * given a square grid by the apply; hex is refused, the solver fitting a
+ * rectangular lattice that a hex scene is not.
+ */
+export const CALIBRATABLE_GRIDS = new Set([0, 1]);

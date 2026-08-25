@@ -1,4 +1,4 @@
-/* global game, canvas, ui, fromUuid, Hooks, CONST */
+/* global game, canvas, ui, foundry, fromUuid, Hooks, CONST */
 import { MODULE_ID, TRAP_ITEM_TYPE } from "./constants.mjs";
 import { STATES } from "./trap-rules.mjs";
 
@@ -56,9 +56,17 @@ export function wallTrap(wall) {
 /** Does this wall carry a trap layer at all? */
 export const isTrapWall = (wall) => !!wallTrap(wall);
 
-/** Write the trap layer, merging over what is there. */
+/**
+ * Write the trap layer, merging the patch over what is there.
+ *
+ * The merge is done HERE and the result written as a forced replacement,
+ * because a flag write is itself a merge and a merge cannot empty anything: a
+ * patch clearing a ledger — `{repeatLock: {}}`, which is exactly what rebuilding
+ * a trap writes — merges into the full ledger and leaves every entry standing.
+ */
 export async function setWallTrap(wall, patch) {
-  return wall.setFlag(MODULE_ID, TRAP_FLAG, { ...(wallTrap(wall) ?? {}), ...patch });
+  const merged = { ...(wallTrap(wall) ?? {}), ...patch };
+  return wall.setFlag(MODULE_ID, TRAP_FLAG, foundry.data.operators.ForcedReplacement.create(merged));
 }
 
 /**
@@ -90,6 +98,22 @@ const openWall = () => {
   return { move: none, sight: none, sound: none, light: none };
 };
 
+/**
+ * The whole shape of a fresh tripwire: a wall that obstructs nothing, carrying
+ * an armed trap layer.
+ *
+ * One function because it is wanted in two places that must not drift — the
+ * wall this module creates itself, and the wall-drawing PRESET the Judge draws
+ * with. A preset that differed from the drawn wall would mean two kinds of
+ * tripwire depending on which route made it.
+ */
+export function trapWallData({ trapUuid = "" } = {}) {
+  return {
+    ...openWall(),
+    flags: { [MODULE_ID]: { [TRAP_FLAG]: { trapUuid, state: STATES.armed, repeatLock: {} } } },
+  };
+}
+
 /* -------------------------------------------- */
 /*  Laying one down                             */
 /* -------------------------------------------- */
@@ -100,20 +124,19 @@ export function controlledWalls() {
 }
 
 /**
- * Add a trap layer to every selected wall — or, with nothing selected, draw a
- * fresh tripwire to hang one on.
+ * Add a trap layer to every selected wall — or, with nothing selected, arm the
+ * wall-drawing tool so the next wall the Judge draws is a tripwire.
  *
  * **An existing wall is never altered.** Not its movement, not its senses, not
  * its door state: the trap is a layer over whatever is already there, so a
  * secret door that gets trapped is still a secret door and still behaves like
  * one. That is the whole reason a trap can go on a door at all.
  *
- * **With nothing selected the tool draws its own wall**, one grid square across
- * the middle of the view, obstructing nothing. That is the tripwire case: the
- * Judge wants to say "across here" in a corridor that has no wall in it, and a
- * wall is the only way to say it. Drawing one that blocks would seal the
- * corridor the trap is meant to sit in. It is left selected so its ends can be
- * dragged into place.
+ * **Nothing selected arms a preset; it does not place anything.** A tool that
+ * drops a wall somewhere the Judge was not pointing is a tool that has guessed,
+ * and the guess — the middle of the view — is almost never where the tripwire
+ * goes. Foundry's own wall types are presets over the drawing tool, so this is
+ * one too: press it, then drag the line where it belongs.
  *
  * A wall that already carries a trap keeps its state — re-running the tool must
  * not re-arm a trap the party already dealt with — though assigning a NEW trap
@@ -121,13 +144,13 @@ export function controlledWalls() {
  *
  * @param {object} [opts]
  * @param {string} [opts.trapUuid] the trap Item to assign at the same time
- * @returns {Promise<{added: number, skipped: number, drew: boolean}>}
+ * @returns {Promise<{added: number, skipped: number, armed: boolean}>}
  */
 export async function layTrapOnSelection({ trapUuid = "" } = {}) {
   const walls = controlledWalls();
   if (!walls.length) {
-    const wall = await drawTrapWall({ trapUuid });
-    return { added: wall ? 1 : 0, skipped: 0, drew: !!wall };
+    await armTrapPreset({ trapUuid });
+    return { added: 0, skipped: 0, armed: true };
   }
   let added = 0;
   let skipped = 0;
@@ -141,14 +164,50 @@ export async function layTrapOnSelection({ trapUuid = "" } = {}) {
     added++;
   }
   ui.notifications?.info(game.i18n.format("ACKS-FORMATION.traps.laid", { added, skipped }));
-  return { added, skipped, drew: false };
+  return { added, skipped, armed: false };
 }
 
 /**
- * Draw a fresh non-blocking wall across the middle of the view and trap it.
+ * Make the tripwire the shape the wall tool draws, and hand the Judge that tool.
  *
- * One grid square wide, horizontal, snapped to the grid — a starting segment
- * the Judge drags into place, not a guess at where the trap goes.
+ * Foundry's wall types — solid, terrain, secret door — are **presets**: pressing
+ * one stores the data new walls are created with and lights a pip on the button,
+ * and the Judge then drags the wall out themselves. A trap line is a wall type
+ * in exactly that sense, so it is one of those presets rather than a button that
+ * places something.
+ *
+ * The preset persists until another is pressed, which is the point: laying a
+ * row of tripwires is one press and several drags. The pip on the button is what
+ * says it is still armed.
+ *
+ * Where no palette answers the drawing tool is still handed over, and the
+ * notification says so rather than claiming an arming that did not happen: an
+ * ordinary wall drawn under a promise of a tripwire is a hole in a corridor the
+ * Judge believes is watched.
+ */
+export async function armTrapPreset({ trapUuid = "" } = {}) {
+  const data = trapWallData({ trapUuid });
+  // Reached through the layer rather than by importing the palette class: the
+  // layer names its own palette, so this follows a rename instead of breaking.
+  const palette = canvas?.walls?.constructor?.paletteClass;
+  const armed = !!palette?.SETTING_KEY;
+  if (armed) {
+    await game.settings.set("core", palette.SETTING_KEY, data);
+    ui.controls?.render?.({ parts: ["tools"] });
+    ui.placeablesPalette?.render?.({ preset: data, preservePlacement: true });
+  }
+  ui.controls?.activate?.({ control: "walls", tool: "wall" });
+  if (armed) ui.notifications?.info(game.i18n.localize("ACKS-FORMATION.traps.presetArmed"));
+  else ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.traps.presetUnavailable"));
+}
+
+/**
+ * Place a fresh non-blocking tripwire across the middle of the view.
+ *
+ * One grid square wide, horizontal, snapped to the grid. **Not what the scene
+ * control does** — a Judge pressing a button gets the drawing preset instead,
+ * because the middle of the view is a guess. This is the api's way to put a
+ * tripwire on a scene from a macro, where there is no cursor to draw with.
  */
 export async function drawTrapWall({ trapUuid = "" } = {}) {
   const scene = canvas?.scene;
@@ -159,7 +218,7 @@ export async function drawTrapWall({ trapUuid = "" } = {}) {
   const y = Math.round((c?.y ?? scene.height / 2) / gs) * gs;
 
   const [wall] = await scene.createEmbeddedDocuments("Wall", [
-    { c: [x, y, x + gs, y], ...openWall(), flags: { [MODULE_ID]: { [TRAP_FLAG]: { trapUuid, state: STATES.armed, repeatLock: {} } } } },
+    { c: [x, y, x + gs, y], ...trapWallData({ trapUuid }) },
   ]);
   canvas.walls.get(wall.id)?.control({ releaseOthers: true });
   // Hand the Judge the SELECT tool, because dragging the new segment's ends
@@ -555,6 +614,16 @@ export function installTrapDrop() {
 /**
  * Two tools on the Walls layer, beside the door helper: lay a trap along the
  * selected walls, or enclose the selected walls as a trap area.
+ *
+ * **The Walls layer is where they live, and traps do not get a layer of their
+ * own** even though they sit on regions as well as walls. Leaving a placeables
+ * layer releases everything selected on it, so a Traps control would empty the
+ * wall selection at the moment it opened — and a selected wall is what both of
+ * these tools act on.
+ *
+ * `createData` makes the line tool a wall PRESET in core's own sense: the pip
+ * on its button lights while new walls are being drawn as tripwires, exactly as
+ * it does for the secret-door preset next to it.
  */
 export function installTrapControls() {
   Hooks.on("getSceneControlButtons", (controls) => {
@@ -570,18 +639,24 @@ export function installTrapControls() {
     // ONE handler per tool. A `button: true` tool given both `onChange` and
     // `onClick` has both of them called for a single press, and the line tool
     // answers that by drawing two tripwires stacked on the same coordinates.
+    //
+    // Ordered past core's own tools so the pair stays together at the end of the
+    // row; an absent `order` sorts as NaN and scatters them.
     add({
       name: "acksTrapLine",
       title: game.i18n.localize("ACKS-FORMATION.traps.toolLine"),
       icon: "fa-solid fa-triangle-exclamation",
+      order: 20,
       button: true,
       visible: game.user.isGM,
+      createData: trapWallData(),
       onChange: () => layTrapOnSelection(),
     });
     add({
       name: "acksTrapRegion",
       title: game.i18n.localize("ACKS-FORMATION.traps.toolRegion"),
       icon: "fa-solid fa-draw-polygon",
+      order: 21,
       button: true,
       visible: game.user.isGM,
       onChange: () => regionFromSelection(),

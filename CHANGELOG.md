@@ -1,5 +1,66 @@
 # Changelog
 
+## 4.23.0
+
+A crooked map straightens itself, and a trap answers the mouse.
+
+### Changed
+- **A map with no grid can be calibrated.** The assistant refused any scene
+  whose grid was not already square — which a freshly imported map never is,
+  because it arrives with no grid at all. Sampling a gridless map now works,
+  and applying gives the scene the square grid it was missing; the panel says
+  so before you press it. Only a hex scene is still refused, because the solver
+  fits a rectangular lattice and a hex map is not one.
+- **Correcting a crooked map now fixes stretched cells too.** Baking a
+  corrected image straightened skew and rotation but kept each axis at its own
+  edge length, so a scan whose cells were taller than they were wide came out
+  straight and still oblong — and the only way to live with it was a scene
+  whose squares were not square. The correction now squares the cells in the
+  image itself. It stretches the short axis to meet the long one rather than
+  squeezing the long one down, because resampling up throws away less. The
+  button is offered whenever the fit is crooked *or* out of square, and your
+  original file is still never touched.
+- **The panel is the numbers, and the toolbar is the sampling.** The mode
+  buttons have left the window — 4.22.0 kept a copy of them there, and two
+  places to arm the same tool is what let one silently disarm the other. What
+  the panel shows first is now the fit itself, with the fields that decide the
+  scale side by side underneath instead of stacked a paragraph apart.
+
+### Added
+- **A trap's marker is now its control.** Left-click sets the trap or makes it
+  safe; right-click decides whether the party can see it, and a ring round the
+  marker means they can; hovering names the trap, its state, and who is looking
+  at it. They are the same two gestures a door takes, because a trap sits on a
+  wall and that is the gesture you already know there. Left-clicking a trap
+  that has already gone off rebuilds it — armed again, a fresh secret, and
+  nobody's failed attempts held against the new mechanism. Neither gesture
+  rolls anything; a character working on a trap is still Trapbreaking.
+  The markers answer the mouse only while you are on the **Walls** or
+  **Regions** controls, so a trap can never be disarmed by a stray click while
+  you are dragging tokens, and never by a player at all.
+
+### Fixed
+- **A trap line is drawn where you want it.** Pressing the trap tool with
+  nothing selected dropped a wall in the middle of your view and asked you to
+  drag its ends into place. It now works like the *Secret Door* button beside
+  it: press it and every wall you draw from then on is a tripwire, with the dot
+  on the button telling you it is still armed. Nothing is placed for you, and
+  laying a row of them is one press and several drags. With walls selected it
+  still traps exactly those.
+- **A second sample could not be drawn.** Re-entering the Battlemap controls,
+  or pressing a mode button, disarmed the tool that was already armed — so the
+  toolbar showed a tool armed, and the map ignored every drag. Arming is now a
+  setting, not a toggle.
+- **Rebuilding a spent trap really does clear the attempts made against it.**
+  It reported the trap rebuilt and a fresh secret, and left every failed
+  Trapbreaking and every spent search exactly where they were, because the
+  write merged into the old record instead of replacing it. A thief who had
+  failed hastily still could not try again against a mechanism that no longer
+  existed. Both the trapped-wall and the trap-area halves are fixed.
+- **The custom token size is back in the panel.** The rework above took its
+  field out while leaving the button behind it working, so the only footprints
+  you could set were the ones on the chip row.
+
 ## 4.22.0
 
 Map alignment gets a toolbar of its own.

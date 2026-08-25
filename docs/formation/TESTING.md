@@ -54,6 +54,26 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - Foundry parses **nested dice counts**: `(1d4)d6` rolls the d4 first, then
   that many d6 — the correct encoding of "1d4 spikes at 1d6 each"
   (`1d4 * 1d6` is a different distribution).
+- **Driving a real canvas gesture: prime the renderer first.** Dispatching
+  `PointerEvent`s at `canvas.app.renderer.events.domElement` drives the genuine
+  PIXI path — hit test, `MouseInteractionManager`, drag workflow — but PIXI reads
+  its hit-test root from `renderer.lastObjectRendered`, and a browser pane that
+  is not compositing never renders one. Call `canvas.app.render()` immediately
+  before each dispatch and the events land; without it every event is silently
+  dropped and the layer looks dead. Convert scene to client coordinates with
+  `canvas.stage.toGlobal(new PIXI.Point(x, y))` plus the element's
+  `getBoundingClientRect()`.
+- **Drag a wall** with `pointerdown` at the start, TWO `pointermove`s (one short
+  to pass the drag threshold, one to the end), then `pointerup` — all with
+  `pointerId: 1, pointerType: "mouse", isPrimary: true`, `buttons: 1` while held
+  and `0` on release. Right-click is the same with `button: 2, buttons: 2`.
+- The pane must be **sized before the world loads**: a hidden or 0x0 pane fails
+  canvas init outright ("Framebuffer width or height is zero") and `canvas.ready`
+  never comes. Resize, then reload.
+- **A player lands on the ACTIVE scene**, which may be another session's leftover.
+  Give your own fixture scene `ownership.default = OBSERVER` and `scene.view()`
+  it from the player seat rather than activating it — the scene is deleted at
+  teardown, so nothing needs restoring.
 
 ## Steps
 
@@ -72,10 +92,31 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    dice); `formation.clock.lastPosition` advanced.
 5. Trap non-fire: move a second time along a path that does not cross it.
    *Observable:* no card; position still advances.
-6. Trap tool, from a wall-drawing tool: `ui.controls.activate({control:"walls",
+6. Trap tool with NOTHING selected: `ui.controls.activate({control:"walls",
    tool:"wall"})`, then press `acksTrapLine`.
-   *Observable:* exactly ONE wall created, all four restrictions 0, and
-   `ui.controls.tool.name === "select"` afterwards.
+   *Observable:* **no wall is created**; `game.settings.get("core","wallPalette")`
+   carries `flags["acks-extras"].trap` with all four restrictions 0;
+   `ui.controls.tool.name === "wall"`; the button's `li .notification-pip` has
+   class `active`. Then drag a wall out (see the drag recipe above): it lands on
+   the dragged coordinates, blocks nothing, and carries an armed trap layer.
+6a. Trap marker gestures, as a GM on the Walls control: hover, left-click,
+   left-click, right-click, right-click the marker at the wall's midpoint.
+   *Observable:* the hover readout names the trap, its state and who can see it;
+   left flips `armed` ⇄ `disarmed` and never touches `known`; right flips `known`
+   and never touches the state; a notification names each. Set the trap
+   `discharged` with both ledgers populated and left-click it: `armed`,
+   `known: false`, and **both ledgers empty** — a merge write leaves them full,
+   which is the bug this asserts against.
+6b. The gate: `ui.controls.activate({control:"tokens"})` and click the same
+   point.
+   *Observable:* the marker is still drawn, `hitTest` at its centre no longer
+   returns a `cursor: "pointer"` target, and nothing about the trap changes.
+   Repeat all of 6a on a trap ZONE from the Regions control — same answers.
+6c. A player seat (join as `Player`, `scene.view()` a scene they observe, open
+   the **Regions** control, which players have).
+   *Observable:* a hidden trap has NO marker at all; a `known` one has a marker
+   whose `eventMode` is `"none"` and whose container's `interactiveChildren` is
+   `false`. A player on a listed control still cannot work a trap.
 7. Automatic search sweep: give a member a `Searching` ability with a low
    `rollTarget`, lay a trap one square OFF the line of march and another four
    squares off, and make an ordinary move past them.

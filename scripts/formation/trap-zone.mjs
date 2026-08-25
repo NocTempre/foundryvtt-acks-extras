@@ -158,8 +158,17 @@ export function zonePlacement(zone) {
     known: !!s.known,
     repeatLock: s.repeatLock ?? {},
     searchLock: s.searchLock ?? {},
+    // Objects go in as forced replacements: an ordinary update merges, so a
+    // patch emptying a ledger leaves every entry in it standing.
     write: (patch) =>
-      zone.behavior.update(Object.fromEntries(Object.entries(patch).map(([k, v]) => [`system.${k}`, v]))),
+      zone.behavior.update(
+        Object.fromEntries(
+          Object.entries(patch).map(([k, v]) => [
+            `system.${k}`,
+            v && typeof v === "object" && !Array.isArray(v) ? foundry.data.operators.ForcedReplacement.create(v) : v,
+          ]),
+        ),
+      ),
   };
 }
 
@@ -1018,6 +1027,38 @@ export async function resetTrap(placement) {
  */
 export async function markTrapFound(placement) {
   return placement.write({ state: STATES.found, known: true });
+}
+
+/**
+ * Set the mechanism, or make it safe — the Judge's hand on the trap itself.
+ *
+ * Armed and not-armed is the only distinction this makes, because it is the
+ * only one the Judge is asserting: an armed trap goes safe, and anything else
+ * goes armed. A SPENT trap is a special case and defers to `resetTrap` —
+ * re-arming a discharged mechanism means rebuilding it, so the throws anybody
+ * failed against the old one do not carry over onto the new one.
+ *
+ * Deliberately does not touch `known`. What the party has learned is not
+ * changed by the Judge's hand on the mechanism, and a trap the party watched
+ * being re-armed is still a trap they know about.
+ */
+export async function toggleArmed(placement) {
+  if (placement.state === STATES.armed) return placement.write({ state: STATES.disarmed });
+  if (placement.state === STATES.discharged) return resetTrap(placement);
+  return placement.write({ state: STATES.armed });
+}
+
+/**
+ * Show the trap to the party, or take it back out of sight.
+ *
+ * Writes `known` and nothing else. `markTrapFound` is the other half of this
+ * pair and is a different act: it says the party DISCOVERED the trap, and moves
+ * the state to `found` accordingly. This one only decides who is looking at the
+ * marker, which is why an armed trap revealed this way stays armed — that
+ * combination is the one a re-armed trap has always had.
+ */
+export async function toggleKnown(placement) {
+  return placement.write({ known: !placement.known });
 }
 
 /** The disarmed trap the party is standing at, nearest first. */

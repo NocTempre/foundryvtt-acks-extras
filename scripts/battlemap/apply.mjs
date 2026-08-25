@@ -10,7 +10,7 @@
  * has no field for (the calibration mark and the autoScale gate).
  */
 
-import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP, CALIBRATABLE_GRIDS } from "./constants.mjs";
 import { solveShift } from "./calibrate-logic.mjs";
 import { backgroundSrc, backgroundTexture, setBackgroundSrc } from "./scene-image.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -31,7 +31,11 @@ const mod = (a, n) => ((a % n) + n) % n;
  * @returns {Promise<boolean>} whether the update was confirmed and written.
  */
 export async function applyGridCalibration(scene, fit, { gridSize, outputFeet, mapCellFeet }) {
-  if (scene.grid.type !== CONST.GRID_TYPES.SQUARE) {
+  // GRIDLESS is the ordinary starting state of a freshly imported map, and
+  // giving it a square grid is the whole point of calibrating — so it is
+  // accepted and switched to SQUARE by the apply. Only a hex grid is refused:
+  // the solver fits a rectangular lattice, which a hex scene is not.
+  if (!CALIBRATABLE_GRIDS.has(scene.grid.type)) {
     ui.notifications.warn(loc("warn.notSquareGrid"));
     return false;
   }
@@ -74,6 +78,7 @@ export async function applyGridCalibration(scene, fit, { gridSize, outputFeet, m
     shiftX,
     shiftY,
     "grid.size": G,
+    "grid.type": CONST.GRID_TYPES.SQUARE,
     "grid.distance": outputFeet,
     [`flags.${MODULE_ID}.${FLAG_BATTLEMAP}`]: { calibrated: true, distance: outputFeet, autoScale: true },
   });
@@ -90,18 +95,23 @@ export async function applyGridCalibration(scene, fit, { gridSize, outputFeet, m
 }
 
 /**
- * Bake a skew/rotation-corrected copy of the scene background: render the
- * image through the inverse of the fitted lattice's shear so the lattice
- * becomes orthogonal, upload it beside the original as `<name>-aligned.webp`,
- * and point the scene at it. The original file is never touched.
+ * Bake a corrected copy of the scene background: render the image through the
+ * inverse of the fitted lattice so its cells come out SQUARE and upright,
+ * upload it beside the original as `<name>-aligned.webp`, and point the scene
+ * at it. The original file is never touched.
+ *
+ * This corrects every way a scan can be wrong at once — skew, rotation and
+ * unequal X/Y — because they are one transform. `A = s·M⁻¹` sends the fitted
+ * basis to `(s,0)` and `(0,s)`, so a stretched map is fixed in the IMAGE
+ * rather than by leaving the scene at an odd width-to-height ratio.
  *
  * @param {Scene} scene
- * @param {object} fit  An affine fit carrying `origin`, `u`, `v`.
+ * @param {object} fit  Any fit; `u`/`v` when affine, else the axis sizes.
  * @returns {Promise<{fit: object, path: string}|null>} the corrected image's
- *   exact orthogonal fit (image px of the NEW file), or null on refusal.
+ *   exact square fit (image px of the NEW file), or null on refusal.
  */
 export async function bakeCorrectedBackground(scene, fit) {
-  if (!fit?.u || !fit?.v) return null;
+  if (!fit?.ok) return null;
   if (!game.user.can("FILES_UPLOAD")) {
     ui.notifications.warn(loc("warn.noUpload"));
     return null;
@@ -113,18 +123,18 @@ export async function bakeCorrectedBackground(scene, fit) {
     return null;
   }
 
-  // A = diag(|u|,|v|) · M⁻¹ maps the skewed lattice onto orthogonal cells of
-  // the same edge lengths; the translation shifts the transformed image's
-  // bounds back to the origin.
-  const { u, v } = fit;
-  const su = Math.hypot(u.x, u.y);
-  const sv = Math.hypot(v.x, v.y);
+  // An orthogonal fit has no basis vectors of its own; its axes ARE the basis.
+  const u = fit.u ?? { x: fit.sizeX, y: 0 };
+  const v = fit.v ?? { x: 0, y: fit.sizeY };
   const det = u.x * v.y - u.y * v.x;
   if (Math.abs(det) < 1e-9) return null;
-  const a = (su * v.y) / det;
-  const c = (-su * v.x) / det;
-  const b = (-sv * u.y) / det;
-  const d = (sv * u.x) / det;
+  // The larger edge is the target, so the correction only ever stretches the
+  // short axis — resampling up loses less than squeezing down.
+  const s = Math.max(Math.hypot(u.x, u.y), Math.hypot(v.x, v.y));
+  const a = (s * v.y) / det;
+  const c = (-s * v.x) / det;
+  const b = (-s * u.y) / det;
+  const d = (s * u.x) / det;
   const xs = [0, tex.width].flatMap((x) => [0, tex.height].map((y) => a * x + c * y));
   const ys = [0, tex.width].flatMap((x) => [0, tex.height].map((y) => b * x + d * y));
   const tx = -Math.min(...xs);
@@ -164,18 +174,19 @@ export async function bakeCorrectedBackground(scene, fit) {
   }
   ui.notifications.info(loc("bake.done", { path: response.path }));
 
-  // The corrected image's lattice is exact by construction: orthogonal
-  // cells (su, sv) with the origin carried through the same transform.
-  const O = fit.origin;
+  // The corrected image's lattice is exact by construction: square cells of
+  // edge `s`, with the origin carried through the same transform. An
+  // orthogonal fit has no `origin`, so its phases stand in for one.
+  const O = fit.origin ?? { x: fit.phaseX, y: fit.phaseY };
   return {
     path: response.path,
     fit: {
       ok: true,
-      mode: "rect",
-      sizeX: su,
-      sizeY: sv,
-      phaseX: mod(a * O.x + c * O.y + tx, su),
-      phaseY: mod(b * O.x + d * O.y + ty, sv),
+      mode: "square",
+      sizeX: s,
+      sizeY: s,
+      phaseX: mod(a * O.x + c * O.y + tx, s),
+      phaseY: mod(b * O.x + d * O.y + ty, s),
       rmsPx: fit.rmsPx,
       rmsPct: fit.rmsPct,
       confidence: fit.confidence,

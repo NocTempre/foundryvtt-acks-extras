@@ -123,9 +123,14 @@ deriving its own damage.*
 
 Two ways, on the **Walls** layer:
 
-- **Lay a trap along the selected walls** puts a trap layer on whatever you have
-  selected — an ordinary wall becomes a tripwire, and a door becomes a trapped
-  door. The wall keeps doing its own job: a trap blocks nothing.
+- **Trap the selected walls** puts a trap layer on whatever you have selected —
+  an ordinary wall becomes a tripwire, and a door becomes a trapped door. The
+  wall keeps doing its own job: a trap blocks nothing.
+- **With nothing selected, the same button arms the pencil instead.** It works
+  like the *Secret Door* button beside it: press it and every wall you draw from
+  then on is a tripwire — a wall that blocks nothing and carries a trap. The dot
+  on the button tells you it is still armed; press any other wall type to stop.
+  Draw as many lines as you like in one go.
 - **Enclose the selected walls as a trap area** takes a closed loop of walls and
   builds the region they contain — for a pit, a collapsing ceiling, anything
   the party stands *in* rather than crosses.
@@ -143,6 +148,32 @@ at to work on it.
 
 A trap area is drawn for you and never for them, whichever scene layer they
 open.
+
+### Working a trap from its marker
+
+While you are on the **Walls** or **Regions** controls, a trap's marker is a
+control, and it takes the same two gestures a door does:
+
+- **Left-click** sets the trap, or makes it safe. An armed trap goes safe; a
+  safe one arms again. A trap that has already gone off is *rebuilt* — armed
+  again and a fresh secret, with nobody's failed attempts held against it.
+- **Right-click** decides whether the party can see it. A ring round the marker
+  means they can. Use it when they learn about a trap some other way — a warning,
+  a map, a captive — or to put one back out of sight.
+- **Hover** it to read which trap it is, what state it is in, and who can see it.
+
+Neither gesture rolls anything: they are you moving the mechanism. A character
+working on a trap is **Trapbreaking**, below.
+
+![](../releases/v4.23.0/formation.png)
+
+*Four traps as the Judge sees them: an armed one still secret (no ring), a
+spotted one and a disarmed one the party knows about (ringed), and a trap area
+whose marker sits at its middle.*
+
+Markers are still drawn on every other layer, but they stop answering the mouse
+there — so a trap can never be disarmed by a stray click while you are dragging
+tokens. Players can never work one from the map at all.
 
 ### What happens when the party walks in
 

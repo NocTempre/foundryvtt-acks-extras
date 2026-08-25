@@ -46,7 +46,42 @@ orthogonal approximation and surfaces the residual skew as a warning.
 (loses fog/vision semantics and every scene-level consumer), and silently
 applying the orthogonal approximation without saying so.
 
+## 2026-08-24 — Gridless is an INPUT, and the correction squares the cells
+
+**Supersedes the gridless half of the 2026-08-19 seam ruling below.** New
+evidence: that ruling treated gridless as a *behaviour mode* to be designed —
+"offers the GM a choice between the square and hex behaviour modes" — and
+refused the type meanwhile. Walking a real import showed the refusal lands on
+the commonest case there is: a scene made from a downloaded map has no grid at
+all, so the assistant declined every map it was built for and told the GM their
+grid was not square when they had no grid. Gridless as an *input* needs no mode
+choice: calibrating IS choosing square. `CALIBRATABLE_GRIDS` holds `{GRIDLESS,
+SQUARE}` and the apply writes `grid.type: SQUARE`. The hex half of that ruling
+is untouched, and a hex OUTPUT mode remains unbuilt.
+
+**The bake corrects out-of-square cells too.** It straightened skew and
+rotation while keeping each axis's own edge length, which left a stretched scan
+straight and still oblong — and a scene has one grid size, so the only way to
+live with that was a grid whose squares were not square. Skew, rotation and
+unequal X/Y are one transform, so they are corrected in one: `A = s·M⁻¹`. `s`
+is the LARGER of the two edges, so the short axis is stretched rather than the
+long one squeezed — resampling up discards less than resampling down.
+**Rejected:** carrying the anisotropy on the scene instead, via the background
+TextureData's `scaleX`/`scaleY`. It cannot work — the grid is isotropic, so a
+scene stretched to make the image's cells square makes the grid's cells oblong.
+
+**Arming a capture mode is a setter, never a toggle.** 4.22.0 gave the modes
+both a toolbar and a mirrored set of panel buttons, and left `arm()` toggling.
+Two drivers of one piece of state, each re-firing `onChange` for the tool
+already active — re-entering the group did it — meant arming silently disarmed:
+the toolbar showed a tool armed and the map ignored every drag, which reads as
+a broken capture layer. `arm(mode)` now sets, `arm(null)` disarms, and the
+panel's duplicate buttons are gone. The toolbar is the sampling; the panel is
+the numbers.
+
 ## 2026-08-19 — The grid-mode seam: hex and gridless are ruled now, built later
+
+**Gridless half superseded 2026-08-24** (see above); the hex ruling stands.
 
 **Ruled:** grid-type-specific behaviour — target scale sets, token sizing,
 cell-fill arrangement — sits behind a mode seam: v1 ships the square mode and
