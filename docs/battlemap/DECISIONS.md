@@ -160,3 +160,51 @@ reported success over an unchanged scene (2026-08-20, above).
 **Cost:** the family's first module-owned scene-control group, so the left bar
 gains an icon for every GM running extras. Accepted as the price of the
 feature being findable at all.
+
+## 2026-08-25 — The panel is a sidebar tab, and the preview mesh is deaf
+
+**Ruled (user, from three mockups):** the calibration panel docks in the
+sidebar rather than floating over the canvas. A window sits on top of the very
+thing being aligned, which is what the field report meant by a clunky UI; a
+sidebar tab never covers the map. `BattlemapAssistant` was REPARENTED onto
+`AbstractSidebarTab` rather than duplicated — same template, same handlers,
+same session — and registers twice at init: the descriptor in `Sidebar.TABS`
+draws the button, the class in `CONFIG.ui` is what `ui[name]` is built from at
+startup. A descriptor without a class is a button over nothing.
+
+The windowed form is NOT a second implementation. Right-clicking a sidebar tab
+calls Foundry's own `renderPopout`, which clones this class into a framed
+application, and the tab's `render` carries the popout with it — so only the
+DOCKED instance subscribes to the session, or every change would render the
+popout twice. `gmOnly` is the descriptor's own field; `activate()` also
+expands a collapsed sidebar, which a bare tab change does not.
+
+**Ruled:** the pinned footer carries the apply. "No obvious way to save the
+scale" was a disabled button at the bottom of a long scroll; an action that is
+the point of a panel does not go hunting for.
+
+**Ruled:** body and footer are TWO declared parts, not one template with two
+roots. A Handlebars part must render exactly one root element — a single part
+holding both threw on every render, and because the ordinary tab-click path
+never calls `render` itself, the failure was SILENT: the tab looked selected
+and the panel area stayed blank. Two parts also give the layout the sibling
+structure it needs; a wrapper element would have satisfied the renderer while
+nesting the footer inside the scrolling body, losing the pin.
+
+**Fixed, and it is the real "cannot draw more than one box":** `previewMesh`
+is added to the overlay AFTER the pointer catcher, so it draws on top of it,
+and it was the only child above the catcher never assigned
+`eventMode = "none"`. It turns visible the instant a fit exists — the instant
+the FIRST sample lands — and from then on swallowed the pointer. First drag
+worked, every later one did not. Three live runs reported this and the first
+two, this session included, wrote it off as a synthetic-input limitation of
+the headless driver; it reproduced identically across three different setups,
+which is not what a harness artifact does. Verified against a prediction
+rather than an absence: three drags now give sample counts 1, 2, 3.
+
+**Rejected:** keeping the window alongside the tab as a separate class. The
+popout is the window, for free, and two view classes over one session is two
+things to keep in step.
+
+**Cost:** the tab occupies a permanent slot in the sidebar bar for every GM
+running extras, where the window appeared only when opened.

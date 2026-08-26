@@ -1,4 +1,4 @@
-/* global game, Hooks, foundry */
+/* global game, Hooks, foundry, CONFIG, document */
 /**
  * acks-battlemap — map alignment and token scaling for the ACKS II module
  * family: a GM assistant that best-fits the scene grid to a battlemap image
@@ -7,7 +7,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP } from "./constants.mjs";
-import { openAssistant } from "./assistant-app.mjs";
+import BattlemapAssistant, { openAssistant, TAB_NAME } from "./assistant-app.mjs";
 import {
   installTokenAutoScale,
   autoScaleEnabled,
@@ -20,9 +20,13 @@ import { fitGrid, feetPerSquare, roundSuggestions, outputGridSize } from "./cali
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { CAPTURE_MODES, session } from "./session.mjs";
 
-const TEMPLATES = [`modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`];
+const TEMPLATES = [
+  `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`,
+  `modules/${MODULE_ID}/templates/battlemap/assistant-foot.hbs`,
+];
 
 Hooks.once("init", () => {
+  installSidebarTab();
   installSceneControls();
   installSceneConfigRow();
   installTokenAutoScale();
@@ -51,6 +55,24 @@ Hooks.once("ready", () => {
     resetSelectedFootprints,
   };
 });
+
+/**
+ * The panel is a sidebar tab, so it never covers the map it is aligning.
+ *
+ * Two registrations, both required and both at init: the descriptor in
+ * `Sidebar.TABS` is what draws the tab button, and the class in `CONFIG.ui` is
+ * what `ui[name]` is built from at startup — the sidebar renders `ui[id]`, so
+ * a descriptor without a class is a button over nothing. `gmOnly` is the
+ * descriptor's own field; there is no need to gate it by hand.
+ */
+function installSidebarTab() {
+  CONFIG.ui[TAB_NAME] = BattlemapAssistant;
+  foundry.applications.sidebar.Sidebar.TABS[TAB_NAME] = {
+    tooltip: `${LANG_PREFIX}.controls.group`,
+    icon: "fa-solid fa-ruler-combined",
+    gmOnly: true,
+  };
+}
 
 /** Icon per capture mode, in the order `CAPTURE_MODES` lists them. */
 const MODE_ICONS = {

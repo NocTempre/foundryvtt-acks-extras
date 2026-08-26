@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.26.0
+
+The map alignment panel moves off the map.
+
+### Changed
+- **Calibration now lives in the sidebar, beside the map instead of on top of
+  it.** The panel that carries the numbers used to be a window, and a window
+  covers the very thing you are trying to line up. It is a **Battlemap** tab in
+  the sidebar now, with the fit — the cell it has measured and how well your
+  samples agree — read at a glance in a card at the top, and **Apply grid**
+  pinned to the bottom where it cannot scroll out of reach. If you preferred
+  the window, right-click the tab and it pops out as one; the two stay in step.
+  Sampling stays where it was, on the Battlemap tools beside the canvas.
+
+### Fixed
+- **You can draw more than one box again.** After the first sample, the red
+  preview grid was drawn over the top of the map and quietly caught the mouse
+  before the map did, so a second box, corner or scale bar never registered —
+  the tools looked armed and did nothing. It lets the mouse through now.
+
 ## 4.25.0
 
 The machinery stops looking like a note, and the class's training is a row of switches.

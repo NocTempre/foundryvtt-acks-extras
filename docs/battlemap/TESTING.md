@@ -27,6 +27,23 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   always carries that, scripted input does not. Without it the overlay's
   handler never fires and no sample is captured, which reads exactly like a
   broken capture layer and is not one.
+- **But do not blame the harness for a SECOND drag that fails.** A first drag
+  landing and later ones not is the signature of something visible sitting
+  over the pointer catcher, and it is a real defect — it was written off as a
+  synthetic-input limit in three separate runs before anyone read the
+  overlay's layering. Any child added above the catcher needs
+  `eventMode = "none"`. Test it against a prediction: three drags must give
+  sample counts 1, 2, 3.
+- **DOM buttons need a full pointer sequence too.** A bare
+  `MouseEvent("click")` does not drive Foundry's handlers for sidebar tabs or
+  scene-control tools — dispatch
+  `pointerdown/mousedown/pointerup/mouseup/click` at the element's real screen
+  coordinates. The popout is `auxclick` with `button: 2`, NOT `contextmenu`:
+  the sidebar binds click and auxclick only.
+- **`Scene.create({background: {src}})` does not take on this build** — the
+  scene is created with a null background. Set it after creation through the
+  feature's own `setBackgroundSrc()` (`scene-image.mjs`), which knows the
+  background lives on a Level.
 - The capture overlay swallows canvas pointer events only while a mode is
   armed; scripted sampling can bypass the pointer path by pushing into
   `app.samples.{squares,corners}` (image px) and calling
@@ -45,9 +62,13 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Steps
 
-1. Open the assistant from the tokens controls.
-   *Observable:* the app renders; the scene-config Basics tab separately shows
-   the "Battlemap" row with the Calibrate button and autoScale checkbox.
+1. Open the panel from the Battlemap sidebar tab.
+   *Observable:* it renders in `#sidebar-content` with `rendered === true` and
+   no "must render a single HTML element" throw; the footer is visible without
+   scrolling while the body scrolls under it; a Player seat sees no tab at all.
+   Right-click the tab (auxclick, button 2) and the same content appears in a
+   window that tracks the docked one. The scene-config Basics tab separately
+   shows the "Battlemap" row with its Calibrate button and autoScale checkbox.
 2. Arm "Draw box", drag two boxes over two different drawn cells; arm "Pick
    corners", click three grid intersections several cells apart.
    *Observable:* red rects and blue numbered dots on the canvas; the fit

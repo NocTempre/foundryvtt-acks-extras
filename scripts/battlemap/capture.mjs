@@ -100,6 +100,12 @@ export class CaptureOverlay {
 
     this.previewMesh = container.addChild(new foundry.canvas.containers.GridMesh().initialize({ color: COLOR_PREVIEW }));
     this.previewMesh.visible = false;
+    // Deaf, like every other child above the catcher. It is added AFTER the
+    // catcher, so it sits on top of it, and it turns visible the moment a fit
+    // exists — which is to say the moment the FIRST sample lands. Left able to
+    // take a hit it swallows the pointer for every drag after that one, and
+    // the symptom is a capture layer that works exactly once.
+    this.previewMesh.eventMode = "none";
     this.previewLines = container.addChild(new PIXI.Graphics());
     this.previewLines.eventMode = "none";
     this.glyphs = container.addChild(new PIXI.Graphics());

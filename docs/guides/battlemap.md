@@ -6,16 +6,23 @@ scale is a printed bar in the margin. The assistant fixes all three from a
 few samples you draw on the canvas, then sizes tokens to what they actually
 are.
 
-Look for **Battlemap** in the scene controls down the left of the canvas — the
-ruler-and-square icon. Its tools are the four ways of sampling a map, plus a
-wipe and the **Scale & fit panel** where the numbers live. Entering the group
-opens that panel for you; the scene's configuration has a **Battlemap** row as
-a second way in. GM only.
+Two places, and they do different jobs. **Battlemap** in the scene controls
+down the left of the canvas — the ruler-and-square icon — holds the four ways
+of sampling a map, plus a wipe. **Battlemap** in the sidebar, on the right, is
+where the numbers and the buttons live: it sits beside the map instead of on
+top of it, and the apply is pinned to the bottom so it is never something to
+scroll for.
 
-![](../releases/v4.22.0/battlemap.png)
+Entering the group brings the panel up for you. If you would rather have it as
+a floating window, right-click the sidebar tab and it pops out — same panel,
+and the two stay in step. The scene's configuration has a **Battlemap** row as
+a third way in. GM only.
 
-*The Battlemap controls with Draw box armed, and the panel beside them: boxes
-and corners sampled, the fit locked on, the scale waiting to be confirmed.*
+![](../releases/v4.26.0/battlemap.png)
+
+*Draw box armed on the left, the fitted grid on the map, and the panel in the
+sidebar: the cell it has measured, how well the samples agree, and the apply
+waiting underneath. The map is never behind it.*
 
 ## Teaching it the grid
 

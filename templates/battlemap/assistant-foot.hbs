@@ -1,0 +1,14 @@
+{{! Its own PART, not a sibling inside the body's: a Handlebars part must
+    render exactly ONE root element, and the pinned footer has to be a
+    sibling of the scrolling body for the flex column to hold it down. }}
+<footer class="acks-extras-battlemap-foot">
+  {{#if willAddGrid}}
+    <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.apply.willAddGrid"}}</div>
+  {{/if}}
+  <button type="button" data-action="applyGrid" class="acks-extras-battlemap-primary" {{#unless canApply}}disabled{{/unless}}>
+    <i class="fa-solid fa-border-all"></i> {{localize "ACKS-BATTLEMAP.apply.grid"}}
+  </button>
+  <button type="button" data-action="rescaleTokens">
+    <i class="fa-solid fa-maximize"></i> {{localize "ACKS-BATTLEMAP.apply.tokens"}}
+  </button>
+</footer>

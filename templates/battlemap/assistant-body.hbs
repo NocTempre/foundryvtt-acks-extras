@@ -7,129 +7,112 @@
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.noBackground"}}</p>
   {{/if}}
 
-  {{! Sampling lives in the Battlemap scene controls; this panel is the
-      numbers. Only the readout and the per-sample delete are here, because
-      the eraser is spatial and this is precise. }}
-  <fieldset>
-    <legend>{{localize "ACKS-BATTLEMAP.fit.title"}}</legend>
-
+  {{! The fit, read at a glance: this is the live feedback while sampling, so
+      it leads. Sampling itself is the Battlemap scene controls' job. }}
+  <div class="acks-extras-battlemap-card">
     {{#if fitOk}}
-      <p class="acks-extras-battlemap-fit">{{fitCells}}</p>
-      <p class="acks-extras-battlemap-sub">{{fitQuality}}{{#if fitAffine}} · {{fitAffine.skew}}° skew{{/if}}</p>
-    {{else}}
-      <p class="hint">{{localize "ACKS-BATTLEMAP.fit.none"}}</p>
-    {{/if}}
-
-    <div class="acks-extras-battlemap-row">
-      <label><input type="checkbox" name="independentXY" {{checked independentXY}}> {{localize "ACKS-BATTLEMAP.fit.independentXY"}}</label>
-      <label><input type="checkbox" name="allowSkew" {{checked allowSkew}}> {{localize "ACKS-BATTLEMAP.fit.allowSkew"}}</label>
-    </div>
-    {{#if dropBack}}<p class="hint">{{localize "ACKS-BATTLEMAP.fit.dropBack"}}</p>{{/if}}
-    {{#if warnResidual}}
-      <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.highResidual"}}</p>
-    {{/if}}
-
-    {{#if sampleRows.length}}
-      <ul class="acks-extras-battlemap-samples">
-        {{#each sampleRows}}
-          <li>
-            <span>{{label}}</span>
-            <button type="button" data-action="deleteSample" data-kind="{{kind}}" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></button>
-          </li>
-        {{/each}}
-      </ul>
-    {{else}}
-      <p class="hint">{{localize "ACKS-BATTLEMAP.samples.empty"}}</p>
-    {{/if}}
-  </fieldset>
-
-  <fieldset>
-    <legend>{{localize "ACKS-BATTLEMAP.scale.title"}}</legend>
-
-    <div class="acks-extras-battlemap-row">
-      <label class="acks-extras-battlemap-field">
-        <span>{{localize "ACKS-BATTLEMAP.fields.mapCellFeet"}}</span>
-        <input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="5">
-      </label>
-      <label class="acks-extras-battlemap-field">
-        <span>{{localize "ACKS-BATTLEMAP.fields.scaleValue"}}</span>
-        <input type="number" name="scaleValue" min="0" step="any" value="{{opts.scaleValue}}">
-      </label>
-    </div>
-
-    {{#if barFeet}}
-      <p class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{units}}</p>
-    {{/if}}
-    {{#if suggestions.length}}
-      <div class="acks-extras-battlemap-chips">
-        {{#each suggestions}}
-          <button type="button" data-action="confirmChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
-        {{/each}}
+      <div class="acks-extras-battlemap-cardhead">
+        <span class="acks-extras-battlemap-cell">{{cellLabel}}</span>
+        <span class="acks-extras-battlemap-unit">{{localize "ACKS-BATTLEMAP.fit.pxCell"}}</span>
       </div>
+      <div class="acks-extras-battlemap-meter">
+        <div class="acks-extras-battlemap-meterbar" style="width: {{residualBar}}%"></div>
+      </div>
+      <div class="acks-extras-battlemap-sub">{{residualPct}}% · {{confidenceLabel}}</div>
+      {{#if sampleSummary}}<div class="acks-extras-battlemap-sub">{{sampleSummary}}</div>{{/if}}
+      {{#if fitAffine}}<div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.affine"}} {{fitAffine.skew}}° / {{fitAffine.rotation}}°</div>{{/if}}
+    {{else}}
+      <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.none"}}</div>
     {{/if}}
+  </div>
 
-    <div class="acks-extras-battlemap-row">
-      <label class="acks-extras-battlemap-field">
-        <span>{{localize "ACKS-BATTLEMAP.scale.confirm"}}</span>
-        <input type="number" name="confirmFeet" min="0" step="any" value="{{opts.confirmFeet}}" placeholder="{{mapCellFeet}}">
-      </label>
-      <label class="acks-extras-battlemap-field">
-        <span>{{localize "ACKS-BATTLEMAP.scale.output"}}</span>
-        <input type="number" name="outputFeet" min="0" step="any" value="{{opts.outputFeet}}" placeholder="{{outputFeet}}">
-      </label>
-      <label class="acks-extras-battlemap-field">
-        <span>{{localize "ACKS-BATTLEMAP.scale.gridPx"}}</span>
-        <input type="number" name="gridSizePx" min="0" step="1" value="{{opts.gridSizePx}}" placeholder="{{gridSizePx}}">
-      </label>
-    </div>
+  {{#if warnResidual}}
+    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.highResidual"}}</p>
+  {{/if}}
+
+  {{#if sampleRows.length}}
+    <ul class="acks-extras-battlemap-samples">
+      {{#each sampleRows}}
+        <li>
+          <span>{{label}}</span>
+          <button type="button" data-action="deleteSample" data-kind="{{kind}}" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
+        </li>
+      {{/each}}
+    </ul>
+  {{/if}}
+
+  <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.scale.title"}}</span></div>
+
+  <div class="acks-extras-battlemap-row">
+    <label class="acks-extras-battlemap-field">
+      <span>{{localize "ACKS-BATTLEMAP.fields.mapCellFeet"}}</span>
+      <input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="{{mapCellFeet}}">
+    </label>
+    <label class="acks-extras-battlemap-field">
+      <span>{{localize "ACKS-BATTLEMAP.scale.output"}}</span>
+      <input type="number" name="outputFeet" min="0" step="any" value="{{opts.outputFeet}}" placeholder="{{outputFeet}}">
+    </label>
+  </div>
+
+  <div class="acks-extras-battlemap-chips">
+    {{#each outputChips}}
+      <button type="button" data-action="outputChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
+    {{/each}}
+  </div>
+
+  {{#if barFeet}}
+    <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{units}}</div>
+  {{/if}}
+  {{#if suggestions.length}}
     <div class="acks-extras-battlemap-chips">
-      {{#each outputChips}}
-        <button type="button" data-action="outputChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
+      {{#each suggestions}}
+        <button type="button" data-action="confirmChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
       {{/each}}
     </div>
-    {{#if notAligned}}
-      <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notAligned"}}</p>
-    {{/if}}
-  </fieldset>
+  {{/if}}
+  {{#if notAligned}}
+    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notAligned"}}</p>
+  {{/if}}
 
-  <fieldset>
-    <legend>{{localize "ACKS-BATTLEMAP.apply.title"}}</legend>
-    {{#if willAddGrid}}
-      <p class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.apply.willAddGrid"}}</p>
-    {{/if}}
-    <div class="acks-extras-battlemap-actions">
-      <button type="button" data-action="applyGrid" {{#unless canApply}}disabled{{/unless}}>
-        <i class="fa-solid fa-border-all"></i> {{localize "ACKS-BATTLEMAP.apply.grid"}}
-      </button>
-      <button type="button" data-action="rescaleTokens">
-        <i class="fa-solid fa-maximize"></i> {{localize "ACKS-BATTLEMAP.apply.tokens"}}
-      </button>
-      {{#if canBake}}
-        <button type="button" data-action="bake">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "ACKS-BATTLEMAP.apply.bake"}}
-        </button>
-      {{/if}}
-    </div>
-  </fieldset>
+  <div class="acks-extras-battlemap-row">
+    <label class="acks-extras-battlemap-field">
+      <span>{{localize "ACKS-BATTLEMAP.fields.scaleValue"}}</span>
+      <input type="number" name="scaleValue" min="0" step="any" value="{{opts.scaleValue}}">
+    </label>
+    <label class="acks-extras-battlemap-field">
+      <span>{{localize "ACKS-BATTLEMAP.scale.gridPx"}}</span>
+      <input type="number" name="gridSizePx" min="0" step="1" value="{{opts.gridSizePx}}" placeholder="{{gridSizePx}}">
+    </label>
+  </div>
 
-  <fieldset>
-    <legend>{{localize "ACKS-BATTLEMAP.tokens.title"}}</legend>
-    <div class="acks-extras-battlemap-chips">
-      {{#each hotbar}}
-        <button type="button" data-action="sizeChip" data-feet="{{value}}">{{label}}</button>
-      {{/each}}
-      <button type="button" data-action="resetFootprints" data-tooltip="{{localize 'ACKS-BATTLEMAP.tokens.reset'}}"><i class="fa-solid fa-rotate-left"></i></button>
+  <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.fit.title"}}</span></div>
+
+  <label class="acks-extras-battlemap-check">
+    <input type="checkbox" name="independentXY" {{checked independentXY}}>
+    <span>{{localize "ACKS-BATTLEMAP.fit.independentXY"}}</span>
+  </label>
+  <label class="acks-extras-battlemap-check">
+    <input type="checkbox" name="allowSkew" {{checked allowSkew}}>
+    <span>{{localize "ACKS-BATTLEMAP.fit.allowSkew"}}</span>
+  </label>
+  {{#if dropBack}}<div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.dropBack"}}</div>{{/if}}
+
+  {{#if canBake}}
+    <div class="acks-extras-battlemap-note">
+      <div>{{localize "ACKS-BATTLEMAP.apply.bakeWhy"}}</div>
+      <button type="button" data-action="bake">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "ACKS-BATTLEMAP.apply.bake"}}
+      </button>
     </div>
-    {{! The chips are the common sizes; the field is every other one. Both
-        reach the same handler, so dropping the field would leave
-        `applyCustomSize` live and unreachable. }}
-    <div class="acks-extras-battlemap-row">
-      <label class="acks-extras-battlemap-field">
-        <span>{{localize "ACKS-BATTLEMAP.tokens.custom"}}</span>
-        <input type="number" name="customFeet" min="0" step="any" value="{{opts.customFeet}}">
-      </label>
-      <button type="button" data-action="applyCustomSize"><i class="fa-solid fa-check"></i></button>
-    </div>
-  </fieldset>
+  {{/if}}
+
+  <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.tokens.title"}}</span></div>
+
+  <div class="acks-extras-battlemap-chips">
+    {{#each hotbar}}
+      <button type="button" data-action="sizeChip" data-feet="{{value}}">{{label}}</button>
+    {{/each}}
+    <button type="button" data-action="resetFootprints" data-tooltip="{{localize 'ACKS-BATTLEMAP.tokens.reset'}}"><i class="fa-solid fa-rotate-left"></i></button>
+  </div>
 
 </section>

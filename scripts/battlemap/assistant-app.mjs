@@ -1,9 +1,13 @@
-﻿/* global game, canvas, ui, foundry, Hooks */
+﻿/* global game, canvas, ui, foundry */
 /**
- * The calibration assistant: arms capture modes on the canvas, shows the live
- * fit, takes the GM's scale decisions, and fires the independent apply
- * actions. One instance per client; the scene-controls tool and the
- * scene-config row both open it.
+ * The calibration panel: the live fit, the GM's scale decisions and the apply
+ * actions. Sampling is the scene controls' job; this is the numbers.
+ *
+ * A SIDEBAR TAB rather than a window, because it is read while the eye is on
+ * the map and a window sits on top of the very thing being aligned. Foundry
+ * gives the windowed form back for free — right-click the tab and
+ * `renderPopout` clones this class into a framed application, which the tab's
+ * own `render` keeps in step.
  */
 
 import { MODULE_ID, LANG_PREFIX, CALIBRATABLE_GRIDS } from "./constants.mjs";
@@ -18,7 +22,11 @@ import { makeLoc } from "../lib/util.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { HandlebarsApplicationMixin } = foundry.applications.api;
+const { AbstractSidebarTab } = foundry.applications.sidebar;
+
+/** The sidebar tab id: the key in `Sidebar.TABS`, `CONFIG.ui` and `ui`. */
+export const TAB_NAME = "acksBattlemap";
 
 /** The size hotbar's chips, in feet: halves and small multiples of the combat square. */
 const HOTBAR_FEET = [FEET_PER_RANK / 2, FEET_PER_RANK, FEET_PER_RANK * 2, FEET_PER_RANK * 3, FEET_PER_RANK * 4, FEET_PER_RANK * 6];
@@ -28,11 +36,16 @@ const OUTPUT_FEET = [FEET_PER_RANK, FEET_PER_RANK * 2, FEET_PER_RANK * 10, FEET_
 
 const GRID_PX_MAX = 300;
 
-export default class BattlemapAssistant extends HandlebarsApplicationMixin(ApplicationV2) {
+/** The residual that fills the card's bar — the top of the "loose" band. */
+const RMS_FULL_BAR = 0.03;
+
+export default class BattlemapAssistant extends HandlebarsApplicationMixin(AbstractSidebarTab) {
+  static tabName = TAB_NAME;
+
   static DEFAULT_OPTIONS = {
-    id: "acks-extras-battlemap",
     classes: ["acks-ui", "acks", "acks2", "acks-extras", "acks-extras-battlemap"],
     tag: "form",
+    // Carried for the popped-out form; a docked tab draws no frame.
     window: { title: `${LANG_PREFIX}.title`, icon: "fa-solid fa-ruler-combined" },
     position: { width: 420 },
     form: { handler: BattlemapAssistant.#submit, submitOnChange: true, closeOnSubmit: false },
@@ -51,7 +64,15 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     },
   };
 
-  static PARTS = { body: { template: `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs` } };
+  /**
+   * Two parts, because a part must render exactly ONE root element and the
+   * pinned footer has to be a SIBLING of the scrolling body — the app element
+   * is the flex column that holds one down while the other scrolls.
+   */
+  static PARTS = {
+    body: { template: `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs` },
+    foot: { template: `modules/${MODULE_ID}/templates/battlemap/assistant-foot.hbs` },
+  };
 
   /**
    * The window owns nothing. Samples, the armed mode and the fit belong to the
@@ -212,24 +233,44 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       warnResidual: !!(fit?.ok && fit.confidence === "loose"),
       hotbar: HOTBAR_FEET.map((v) => ({ value: v, label: `${v}'` })),
       units: scene?.grid?.units || "ft",
+      // The card: the fit read at a glance while the eye is on the map.
+      cellLabel: fit?.ok ? (Math.abs(fit.sizeX - fit.sizeY) < 0.05 ? fit.sizeX.toFixed(1) : `${fit.sizeX.toFixed(1)} × ${fit.sizeY.toFixed(1)}`) : null,
+      residualPct: fit?.ok ? (fit.rmsPct * 100).toFixed(1) : null,
+      // Full bar at the loose threshold, so the eye reads "how close to bad".
+      residualBar: fit?.ok ? Math.min(100, Math.round((fit.rmsPct / RMS_FULL_BAR) * 100)) : 0,
+      confidenceLabel: fit?.ok ? loc(`fit.confidence.${fit.confidence}`) : null,
+      sampleSummary: this.#sampleSummary(),
     };
+  }
+
+  /** "3 boxes · 2 corners · 1 scale bar", omitting what is not there. */
+  #sampleSummary() {
+    const s = this.samples;
+    const parts = [];
+    if (s.squares.length) parts.push(loc("samples.countBoxes", { n: s.squares.length }));
+    if (s.corners.length) parts.push(loc("samples.countCorners", { n: s.corners.length }));
+    if (s.scale) parts.push(loc("samples.countScale"));
+    return parts.join(" · ");
   }
 
   async _onRender(context, options) {
     await super._onRender(context, options);
-    // A toolbar press changes the session, not this window, so the window
-    // follows the session rather than the other way round.
-    if (options.isFirstRender) this.#unsubscribe ??= session.subscribe(() => this.render());
+    // A toolbar press changes the session, not this panel, so the panel
+    // follows the session rather than the other way round. Only the DOCKED
+    // tab subscribes: its own `render` carries the popout with it, so a
+    // second subscription would render that twice per change.
+    if (options.isFirstRender && !this.isPopout) {
+      this.#unsubscribe ??= session.subscribe(() => this.render());
+    }
   }
 
   _onClose(options) {
     super._onClose(options);
     this.#unsubscribe?.();
     this.#unsubscribe = null;
-    // The samples stay: they belong to the canvas, and the toolbar is still
-    // there to go on sampling with. Only the armed mode goes, so a closed
-    // panel cannot leave the overlay swallowing pointer events.
-    session.disarm();
+    // Nothing is disarmed here. A docked tab is never closed, and shutting the
+    // popout is not a statement about the canvas — leaving the Battlemap
+    // control group is what disarms, and it owns that.
   }
 
   /* -------------------------------------------- */
@@ -334,12 +375,14 @@ function cellOnCanvas(fit) {
   return (Math.hypot(px.x - o.x, px.y - o.y) + Math.hypot(py.x - o.x, py.y - o.y)) / 2;
 }
 
-let instance = null;
-
-/** Open (or focus) the single assistant instance. GM only. */
+/**
+ * Bring the panel up. The tab instance belongs to `ui`, built once from
+ * `CONFIG.ui` at startup, so this only has to select it — `activate` also
+ * expands a collapsed sidebar, which a bare `changeTab` would not.
+ */
 export function openAssistant() {
   if (!game.user.isGM) return null;
-  instance ??= new BattlemapAssistant();
-  instance.render(true);
-  return instance;
+  const tab = ui[TAB_NAME] ?? null;
+  tab?.activate();
+  return tab;
 }

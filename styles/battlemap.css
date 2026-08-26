@@ -3,70 +3,155 @@
    Colours and type sizes come from the design-system tokens
    (vendor/acks-design/tokens.css), read BARE — module.json loads the token
    file ahead of this one, so the names are always in scope. No Foundry
-   --color-* variable is read (those are light-theme constants). */
+   --color-* variable is read (those are light-theme constants).
 
-.acks-extras-battlemap .window-content {
-  overflow-y: auto;
-  max-height: 85vh;
-}
-
-.acks-extras-battlemap-body fieldset {
-  margin-bottom: 0.4rem;
-  padding: 0.35rem 0.5rem;
-}
-
-/* The panel is a reference read at a glance while the eye is on the map, so
-   nothing in it is set below the base ramp — the design system's display face
-   is unreadable at hint sizes, which is what made the first build's advice
+   The panel is a SIDEBAR TAB, and the same class pops out into a window, so
+   every rule here has to hold at a docked sidebar width and at the popout's.
+   Nothing is set below the base ramp: the design system's display face is
+   unreadable at hint sizes, which is what made the first build's advice
    illegible rather than merely small. */
+
+/* Body scrolls, footer stays: the apply must not be something to hunt for. */
+.acks-extras-battlemap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.acks-extras-battlemap .acks-extras-battlemap-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
 .acks-extras-battlemap-body,
 .acks-extras-battlemap-body input,
-.acks-extras-battlemap-body button {
+.acks-extras-battlemap-body button,
+.acks-extras-battlemap-foot {
   font-size: var(--acks-fs-base);
 }
 
-.acks-extras-battlemap-body .hint,
+/* The fit, read at a glance while the eye is on the map. */
+.acks-extras-battlemap-card {
+  border: var(--acks-border-soft);
+  background: var(--acks-paper-warm);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.acks-extras-battlemap-cardhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.acks-extras-battlemap-cell {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h2);
+  line-height: 1.1;
+  color: var(--acks-ink);
+}
+
+.acks-extras-battlemap-unit {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+/* Full at the top of the "loose" band, so the bar reads as how close to bad. */
+.acks-extras-battlemap-meter {
+  height: 3px;
+  background: var(--acks-rule-color-soft);
+  margin: 7px 0 5px;
+}
+
+.acks-extras-battlemap-meterbar {
+  height: 3px;
+  background: var(--acks-spot);
+}
+
 .acks-extras-battlemap-sub {
   font-size: var(--acks-fs-base);
-  opacity: 0.85;
-  margin: 0.15rem 0;
+  color: var(--acks-ink-soft);
   line-height: 1.35;
+  margin: 2px 0;
 }
 
-/* Fields sit side by side: three short numbers read as one decision, where
-   three stacked rows with a paragraph each read as three. */
+/* A titled rule instead of a fieldset: same grouping, far less furniture. */
+.acks-extras-battlemap-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 6px;
+}
+
+.acks-extras-battlemap-rule::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--acks-rule-color-soft);
+}
+
+.acks-extras-battlemap-rule > span {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--acks-spot);
+}
+
+/* Fields side by side: two short numbers read as one decision. */
 .acks-extras-battlemap-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 6px;
   align-items: flex-end;
-  margin-bottom: 0.3rem;
+  margin-bottom: 6px;
 }
 
 .acks-extras-battlemap-field {
   display: flex;
   flex-direction: column;
-  flex: 1 1 5rem;
-  gap: 0.1rem;
+  flex: 1 1 6rem;
+  gap: 2px;
+}
+
+.acks-extras-battlemap-field > span {
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
 }
 
 .acks-extras-battlemap-field input {
   width: 100%;
+  border-radius: var(--acks-radius);
 }
 
-.acks-extras-battlemap-chips,
-.acks-extras-battlemap-actions {
+.acks-extras-battlemap-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.acks-extras-battlemap-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-bottom: 0.35rem;
+  gap: 3px;
+  margin-bottom: 6px;
 }
 
 .acks-extras-battlemap-chips button {
   flex: 0 1 auto;
   width: auto;
-  padding: 0.15rem 0.55rem;
+  padding: 2px 9px;
   line-height: 1.4;
+  border-radius: var(--acks-radius);
 }
 
 .acks-extras-battlemap-chips button.active {
@@ -77,9 +162,9 @@
 
 .acks-extras-battlemap-samples {
   list-style: none;
-  margin: 0.25rem 0;
+  margin: 0 0 6px;
   padding: 0;
-  max-height: 9rem;
+  max-height: 8rem;
   overflow-y: auto;
 }
 
@@ -87,28 +172,69 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.1rem 0.25rem;
+  gap: 6px;
+  padding: 1px 2px;
   border-bottom: var(--acks-border-soft);
 }
 
 .acks-extras-battlemap-samples li button {
   flex: 0 0 auto;
   width: auto;
-  padding: 0 0.4rem;
+  padding: 0 5px;
   line-height: 1.3;
+  border-radius: var(--acks-radius);
 }
 
-.acks-extras-battlemap-fit {
-  margin: 0.25rem 0;
-  font-weight: bold;
+/* The correction is stated where its remedy sits, not in a separate row. */
+.acks-extras-battlemap-note {
+  border-left: 3px solid var(--acks-spot);
+  background: var(--acks-paper-warm);
+  padding: 6px 8px;
+  margin: 6px 0;
+}
+
+.acks-extras-battlemap-note button {
+  margin-top: 5px;
+  width: auto;
+  padding: 3px 9px;
+  border-radius: var(--acks-radius);
 }
 
 .acks-extras-battlemap-warn {
-  margin: 0.25rem 0;
+  margin: 4px 0;
   color: var(--acks-danger-ink);
+  line-height: 1.35;
 }
 
+.acks-extras-battlemap-foot {
+  flex: 0 0 auto;
+  border-top: var(--acks-border-soft);
+  background: var(--acks-paper-warm);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.acks-extras-battlemap-foot button {
+  width: 100%;
+  border-radius: var(--acks-radius);
+}
+
+.acks-extras-battlemap-primary {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  border-color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.acks-extras-battlemap-primary:disabled {
+  opacity: 0.5;
+}
+
+/* The scene-config row's inline toggle. */
 .acks-extras-battlemap-auto {
   display: inline-flex;
   align-items: center;
