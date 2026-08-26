@@ -4,10 +4,9 @@ A GM assistant that fits the scene grid to a battlemap image from samples
 drawn on the canvas, converts the confirmed real-world scale into
 `grid.distance`, and sizes tokens to their footprints. Everything user-facing
 hangs off a **Battlemap scene-control group** — the capture modes are its
-tools — and a **Battlemap sidebar tab** (`assistant-app.mjs`) carrying the
-numbers and the apply actions, reached by entering the group, by its panel
-tool, or from the scene-config row. Right-clicking the tab pops the same class
-out into a window.
+tools — and a **Battlemap window** (`assistant-app.mjs`) carrying the numbers
+and the apply actions, opened by entering the group, by its panel tool, or
+from the scene-config row, and dismissed by its own close control.
 
 ## Files
 
@@ -19,7 +18,7 @@ out into a window.
 | `scene-image.mjs` | The one place that knows where a scene's background lives: reads it off the active Level, writes it through that Level's own update. Every background read and write in the feature goes through here. |
 | `capture.mjs` | Canvas overlay: screen-space pointer catcher (core GridConfig's preview pattern), sample glyphs, live fitted-grid preview (GridMesh for square fits, drawn lattice lines otherwise), eraser and undo. |
 | `session.mjs` | The calibration session: samples, the armed mode, the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
-| `assistant-app.mjs` | The sidebar tab, a VIEW over the session: the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. Registered at init in both `Sidebar.TABS` (the button) and `CONFIG.ui` (the instance `ui[name]` is built from); `renderPopout` clones it into a window and the docked tab's render carries that with it, so only the docked one subscribes. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned. |
+| `assistant-app.mjs` | The window, a VIEW over the session: the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
 | `apply.mjs` | Scene writes: `applyGridCalibration` (one `scene.update`) and `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `module.mjs` | Registrar: scene-control tool, scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
 
@@ -43,9 +42,11 @@ out into a window.
   is a tool in the `acksBattlemap` control group; `off` is ordered first and is
   the group's `activeTool`, so opening the toolbar arms nothing. Escape
   disarms, the panel shows an armed banner carrying the same exit, and
-  right-click removes the newest sample. Leaving the group disarms; because
-  disarming selects `off`, core's per-control tool memory brings the GM back
-  to a resting toolbar rather than a re-armed one.
+  right-click removes the newest sample. Leaving the group disarms and does
+  nothing else — the window outlives it, because core drops a layerless group
+  on every canvas redraw and the apply redraws (DECISIONS). Since disarming
+  selects `off`, core's per-control tool memory brings the GM back to a
+  resting toolbar rather than a re-armed one.
 - **Applying writes core fields directly** — `width`, `height`, `shiftX`,
   `shiftY`, `grid.size`, `grid.distance` — in one `scene.update`, plus the
   module's scene flag `battlemap = { calibrated, distance, autoScale }`. The

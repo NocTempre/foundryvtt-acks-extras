@@ -1,4 +1,4 @@
-/* global game, Hooks, foundry, CONFIG, document */
+/* global game, Hooks, foundry, document */
 /**
  * acks-battlemap — map alignment and token scaling for the ACKS II module
  * family: a GM assistant that best-fits the scene grid to a battlemap image
@@ -7,7 +7,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP, CONTROL_GROUP, TOOL_OFF } from "./constants.mjs";
-import BattlemapAssistant, { openAssistant, TAB_NAME } from "./assistant-app.mjs";
+import { openAssistant } from "./assistant-app.mjs";
 import {
   installTokenAutoScale,
   autoScaleEnabled,
@@ -26,7 +26,6 @@ const TEMPLATES = [
 ];
 
 Hooks.once("init", () => {
-  installSidebarTab();
   installSceneControls();
   installSceneConfigRow();
   installTokenAutoScale();
@@ -56,24 +55,6 @@ Hooks.once("ready", () => {
   };
 });
 
-/**
- * The panel is a sidebar tab, so it never covers the map it is aligning.
- *
- * Two registrations, both required and both at init: the descriptor in
- * `Sidebar.TABS` is what draws the tab button, and the class in `CONFIG.ui` is
- * what `ui[name]` is built from at startup — the sidebar renders `ui[id]`, so
- * a descriptor without a class is a button over nothing. `gmOnly` is the
- * descriptor's own field; there is no need to gate it by hand.
- */
-function installSidebarTab() {
-  CONFIG.ui[TAB_NAME] = BattlemapAssistant;
-  foundry.applications.sidebar.Sidebar.TABS[TAB_NAME] = {
-    tooltip: `${LANG_PREFIX}.controls.group`,
-    icon: "fa-solid fa-ruler-combined",
-    gmOnly: true,
-  };
-}
-
 /** Icon per capture mode, in the order `CAPTURE_MODES` lists them. */
 const MODE_ICONS = {
   square: "fa-solid fa-vector-square",
@@ -93,7 +74,11 @@ const MODE_ICONS = {
  * overlay, not a placeables layer, and a SceneControl has never required one.
  *
  * The window is still where the numbers and the apply actions live, so
- * activating the group opens it.
+ * activating the group opens it. Leaving the group disarms and NOTHING else:
+ * core drops a layerless control group on every canvas redraw, and the apply
+ * redraws the canvas — closing the panel here takes it away the instant its
+ * own apply lands, which is when the GM is reading the result. The window is
+ * dismissed by its own close control.
  */
 function installSceneControls() {
   Hooks.on("getSceneControlButtons", (controls) => {

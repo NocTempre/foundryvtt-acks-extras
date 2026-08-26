@@ -1,5 +1,49 @@
 # Battlemap — decisions
 
+## 2026-08-26 — The panel is a window again, dismissed by the toolbar
+
+**Ruled (user):** `BattlemapAssistant` is an `ApplicationV2` window, opened by
+entering the Battlemap control group, by its panel tool, or from the
+scene-config row, and dismissed by its own close control. The sidebar
+registrations are gone.
+
+This supersedes *The panel is a sidebar tab* (2026-08-25). **The new evidence
+is the field screenshot:** the docked tab does not behave as the mockups
+implied. It stands as a permanent panel under whatever directory the sidebar
+is showing, on every scene, for every GM, whether or not a map is being
+aligned — the compendium list above it and the calibration controls below it,
+in one column. The `off` tool shipped the day before (below) disarms the
+canvas but cannot put the panel away, which is what the field report meant by
+the tools not turning off: a surface summoned by a toolbar has to be
+dismissable by that same toolbar, and a docked tab has no such gesture.
+
+The window is the containment. It carries a frame with a close control and can
+be dragged clear of the map, which is all the docking was bought for. Nothing
+of the calibration rides on it: the session owns the samples, the armed mode
+and the entered values, so opening and closing costs nothing (2026-08-25,
+still in force).
+
+**Rejected — closing the window when the control group is left.** It was built
+that way first, for the symmetry of one gesture opening and closing the panel,
+and the live gate killed it: core drops a LAYERLESS control group back to the
+token control on every canvas redraw, and `applyGridCalibration` resizes the
+scene, so the apply redrew the canvas and took the panel away the instant its
+own result landed. A canvas redraw is not a dismissal gesture, and the panel
+is at its most useful just after an apply. Leaving the group still disarms.
+
+One module-level instance, not a fresh app per press: a second press focuses
+the panel the GM has already positioned rather than stacking a duplicate on
+top of it. The session subscription is held only while the window is open,
+because a listener over a closed window re-opens it on the next toolbar press.
+
+**Rejected:** a setting to hide the tab. A toggle in the module settings is
+not a gesture at the point of use, and it leaves a permanent surface as the
+default for everyone who never finds it.
+
+**Cost:** the panel covers part of the canvas until it is dragged aside, which
+is the objection the sidebar answered. It is a drag; the docked tab was not
+optional.
+
 ## 2026-08-26 — The tool group has a resting state, and Escape leaves
 
 **Ruled:** the `acksBattlemap` control group carries an `off` tool, ordered
@@ -211,6 +255,9 @@ gains an icon for every GM running extras. Accepted as the price of the
 feature being findable at all.
 
 ## 2026-08-25 — The panel is a sidebar tab, and the preview mesh is deaf
+
+**SUPERSEDED (2026-08-26, above) as to the sidebar tab.** The preview-mesh fix
+and the two-parts ruling below still stand.
 
 **Ruled (user, from three mockups):** the calibration panel docks in the
 sidebar rather than floating over the canvas. A window sits on top of the very

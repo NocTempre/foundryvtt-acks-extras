@@ -6,25 +6,28 @@ scale is a printed bar in the margin. The assistant fixes all three from a
 few samples you draw on the canvas, then sizes tokens to what they actually
 are.
 
-Two places, and they do different jobs. **Battlemap** in the scene controls
+Two parts, and they do different jobs. **Battlemap** in the scene controls
 down the left of the canvas — the ruler-and-square icon — holds the four ways
-of sampling a map, plus a wipe. **Battlemap** in the sidebar, on the right, is
-where the numbers and the buttons live: it sits beside the map instead of on
-top of it, and the apply is pinned to the bottom so it is never something to
-scroll for.
+of sampling a map, plus a wipe. The panel it opens is where the numbers and
+the buttons live, with the apply pinned to the bottom so it is never something
+to scroll for.
 
-Entering the group brings the panel up for you. If you would rather have it as
-a floating window, right-click the sidebar tab and it pops out — same panel,
-and the two stay in step. The scene's configuration has a **Battlemap** row as
-a third way in. GM only.
+Entering the group brings the panel up for you; the close button on its title
+bar puts it away. Drag it wherever suits the map you are aligning — it opens
+clear of the middle. Nothing is lost by closing it: your samples and the
+numbers you typed belong to the scene, and they are still there when you come
+back. The scene's configuration has a **Battlemap** row as a second way in.
+GM only.
 
-![](../releases/v4.27.0/battlemap.png)
+![](../releases/v4.27.1/battlemap.png)
 
-*Draw box armed on the left, three samples on the map's own squares, and the
-fitted grid locked onto its lines. The panel reads the cell it measured and how
-well the samples agree; underneath, the two scale decisions — what the map's
-square is worth, and what a Foundry square should be — each with its own chips.
-Stop sampling sits at the top, the apply at the bottom.*
+*The panel is a window: it opens over the map, carries its own title bar and
+close button, and moves wherever you put it. Draw box is armed on the left,
+two boxes and three corners are sampled on the map's own squares, and the
+fitted lattice is drawn over the image. The card reads the cell it measured
+and how well the samples agree; underneath, the two scale decisions — what the
+map's square is worth, and what a Foundry square should be — each with its own
+chips. Stop sampling sits at the top, the apply at the bottom.*
 
 ## Teaching it the grid
 
@@ -86,8 +89,10 @@ configuration.
 
 ## The size hotbar
 
-Select tokens and click a chip — 2½', 5', 10' and up, or a custom value — to
-stamp that footprint on them. **Reset selected to default** removes the stamp
+Selecting tokens means the ordinary **Token** controls, so switch back to them
+when you want to — the panel stays open where you left it. Select tokens and
+click a chip — 2½', 5', 10' and up, or a custom value — to stamp that
+footprint on them. **Reset selected to default** removes the stamp
 and re-derives from the creature's size. A stamped footprint sticks to the
 token and survives rescales.
 

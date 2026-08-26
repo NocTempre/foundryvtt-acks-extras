@@ -67,11 +67,18 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   `eventMode = "none"`. Test it against a prediction: three drags must give
   sample counts 1, 2, 3.
 - **DOM buttons need a full pointer sequence too.** A bare
-  `MouseEvent("click")` does not drive Foundry's handlers for sidebar tabs or
-  scene-control tools — dispatch
-  `pointerdown/mousedown/pointerup/mouseup/click` at the element's real screen
-  coordinates. The popout is `auxclick` with `button: 2`, NOT `contextmenu`:
-  the sidebar binds click and auxclick only.
+  `MouseEvent("click")` does not drive Foundry's handlers for scene-control
+  tools — dispatch `pointerdown/mousedown/pointerup/mouseup/click` at the
+  element's real screen coordinates.
+- The panel is the window at `#acks-extras-battlemap`; one instance is reused,
+  so `ui.windows`/`foundry.applications.instances` must never hold two.
+- **The apply raises a `DialogV2.confirm` — a scripted press that never answers
+  it writes nothing**, and the scene reads back unchanged, which looks exactly
+  like a rejected update. Click the dialog element's `button[data-action="yes"]`.
+- **An apply resizes the scene, which redraws the canvas, which drops the
+  Battlemap control group** back to `tokens`/`select` — core does that to any
+  group carrying no layer. Expect `ui.controls.control` to have changed after
+  an apply; the panel is unaffected and stays open.
 - **`Scene.create({background: {src}})` does not take on this build** — the
   scene is created with a null background. Set it after creation through the
   feature's own `setBackgroundSrc()` (`scene-image.mjs`), which knows the
@@ -94,13 +101,19 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Steps
 
-1. Open the panel from the Battlemap sidebar tab.
-   *Observable:* it renders in `#sidebar-content` with `rendered === true` and
-   no "must render a single HTML element" throw; the footer is visible without
-   scrolling while the body scrolls under it; a Player seat sees no tab at all.
-   Right-click the tab (auxclick, button 2) and the same content appears in a
-   window that tracks the docked one. The scene-config Basics tab separately
-   shows the "Battlemap" row with its Calibrate button and autoScale checkbox.
+1. Enter the Battlemap control group.
+   *Observable:* the panel opens as a framed window (`#acks-extras-battlemap`,
+   `rendered === true`) with a title bar and a close control, and NOTHING is
+   added to the sidebar — `#sidebar` shows only core's tabs, on a Player seat
+   as well as the GM's. The footer is visible without scrolling while the body
+   scrolls under it. Press the panel tool a second time: still exactly one
+   window. Leave the group (select any other control): the session's mode goes
+   null and **the window stays open** — core drops a layerless control group
+   back to the token control on every canvas redraw, so closing it there takes
+   the panel away the moment the apply lands. Press the frame's close control:
+   it goes, and re-entering brings it back with the samples intact. The
+   scene-config Basics tab separately shows the "Battlemap" row with its
+   Calibrate button and autoScale checkbox.
 2. Arm "Draw box", drag two boxes over two different drawn cells; arm "Pick
    corners", click three grid intersections several cells apart.
    *Observable:* red rects and blue numbered dots on the canvas; the fit

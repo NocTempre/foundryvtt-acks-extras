@@ -5,17 +5,22 @@
    file ahead of this one, so the names are always in scope. No Foundry
    --color-* variable is read (those are light-theme constants).
 
-   The panel is a SIDEBAR TAB, and the same class pops out into a window, so
-   every rule here has to hold at a docked sidebar width and at the popout's.
-   Nothing is set below the base ramp: the design system's display face is
-   unreadable at hint sizes, which is what made the first build's advice
-   illegible rather than merely small. */
+   The panel is a WINDOW, resizable and narrow, so every rule here has to hold
+   from the opening width down to whatever the GM drags it to. Nothing is set
+   below the base ramp: the design system's display face is unreadable at hint
+   sizes, which is what made the first build's advice illegible rather than
+   merely small. */
 
-/* Body scrolls, footer stays: the apply must not be something to hunt for. */
-.acks-extras-battlemap {
+/* Body scrolls, footer stays: the apply must not be something to hunt for.
+   The frame's content box is the flex column — the parts are its children,
+   and `.application .window-content` is (0,2,0) in core, so the leading module
+   class plus `.application` is what out-specifies it. */
+.acks-extras-battlemap.application .window-content {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
+  padding: 0;
 }
 
 .acks-extras-battlemap .acks-extras-battlemap-body {

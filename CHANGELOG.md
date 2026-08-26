@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.27.1
+
+The map tools come back as a window you can close.
+
+### Fixed
+- **The Battlemap panel is a window again.** It had been docked into the
+  sidebar, where it sat under whatever directory you had open — on every
+  scene, whether or not you were aligning a map, with no way to put it away.
+  The off switch that shipped in 4.27.0 stops the sampling; it was never able
+  to dismiss the panel. Now the panel opens as an ordinary window when you
+  enter the **Battlemap** control group, closes on its own close button, and
+  can be dragged wherever suits the map you are working on. Your samples and
+  the numbers you typed survive a close, as before — they belong to the scene,
+  not to the window.
+
 ## 4.27.0
 
 The map tools get an off switch, and the two scale numbers stop disagreeing.
