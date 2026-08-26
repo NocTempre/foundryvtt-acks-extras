@@ -4,6 +4,7 @@
  * here is read off a page.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { fitGrid, feetPerSquare, roundSuggestions, outputGridSize, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
@@ -208,6 +209,49 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 // Every SIZES entry carries a usable numeric footprint.
 for (const [key, entry] of Object.entries(SIZES)) {
   assert.ok(entry.footprint?.w >= 1 && entry.footprint?.h >= 1, `SIZES.${key} footprint`);
+}
+
+/* -------------------------------------------- */
+/*  Every entered value has exactly one home    */
+/* -------------------------------------------- */
+
+/**
+ * A GM-entered value is entered in a FIELD. Chips are shortcuts that fill one,
+ * never a parallel store — so every `opts` slot must have an input named for
+ * it in the panel.
+ *
+ * Both failures this catches are ones the panel shipped with. A slot with an
+ * input and a second, field-less slot overriding it displays one number and
+ * computes another. A slot with no input at all is state nothing can set and
+ * a handler still reads. The static read is the point: neither is reachable
+ * from the pure solver, and both look fine in a screenshot.
+ */
+{
+  const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+  const optsLiteral = read("../scripts/battlemap/session.mjs").match(/const emptyOpts = \(\) => \(\{([^}]*)\}\)/);
+  assert.ok(optsLiteral, "session.mjs still declares emptyOpts as one literal");
+  const slots = [...optsLiteral[1].matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
+  assert.ok(slots.length >= 4, `expected the opts slots, got ${slots.join(", ")}`);
+
+  const body = read("../templates/battlemap/assistant-body.hbs");
+  const inputs = new Set([...body.matchAll(/name="(\w+)"/g)].map((m) => m[1]));
+  for (const slot of slots) {
+    assert.ok(inputs.has(slot), `opts.${slot} has no input in the panel — nothing can set it`);
+  }
+
+  // And nothing writes a slot that does not exist: a renamed field would
+  // otherwise post into an ignored key and read as "the control does nothing".
+  const app = read("../scripts/battlemap/assistant-app.mjs");
+  const written = [...app.matchAll(/this\.opts\.(\w+)\s*=[^=]/g)].map((m) => m[1]);
+  for (const key of written) {
+    assert.ok(slots.includes(key), `a handler writes opts.${key}, which is not a slot`);
+  }
+
+  // The session's toggles are the only other named inputs the form carries.
+  const toggles = new Set(["independentXY", "allowSkew"]);
+  for (const name of inputs) {
+    assert.ok(slots.includes(name) || toggles.has(name), `the panel posts "${name}", which nothing reads`);
+  }
 }
 
 console.log("test-battlemap: all assertions passed");

@@ -31,8 +31,12 @@ export const TAB_NAME = "acksBattlemap";
 /** The size hotbar's chips, in feet: halves and small multiples of the combat square. */
 const HOTBAR_FEET = [FEET_PER_RANK / 2, FEET_PER_RANK, FEET_PER_RANK * 2, FEET_PER_RANK * 3, FEET_PER_RANK * 4, FEET_PER_RANK * 6];
 
-/** Output-square selector chips, in feet. */
-const OUTPUT_FEET = [FEET_PER_RANK, FEET_PER_RANK * 2, FEET_PER_RANK * 10, FEET_PER_RANK * 20];
+/**
+ * The square-size ladder, in feet, offered as chips under BOTH scale fields:
+ * the same set of values answers "what is the map's square" and "what should
+ * a Foundry square be".
+ */
+const SQUARE_FEET = [FEET_PER_RANK, FEET_PER_RANK * 2, FEET_PER_RANK * 10, FEET_PER_RANK * 20];
 
 const GRID_PX_MAX = 300;
 
@@ -51,9 +55,10 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Abstr
     form: { handler: BattlemapAssistant.#submit, submitOnChange: true, closeOnSubmit: false },
     actions: {
       setMode: BattlemapAssistant.#onSetMode,
+      disarm: BattlemapAssistant.#onDisarm,
       wipe: BattlemapAssistant.#onWipe,
       deleteSample: BattlemapAssistant.#onDeleteSample,
-      confirmChip: BattlemapAssistant.#onConfirmChip,
+      mapChip: BattlemapAssistant.#onMapChip,
       outputChip: BattlemapAssistant.#onOutputChip,
       applyGrid: BattlemapAssistant.#onApplyGrid,
       bake: BattlemapAssistant.#onBake,
@@ -127,12 +132,18 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Abstr
   /*  Derivations                                 */
   /* -------------------------------------------- */
 
-  /** The map's drawn-box value in feet: GM confirmation > scale bar > box field. */
+  /**
+   * What one drawn map square is worth, in feet.
+   *
+   * The field and its chips write ONE slot. Never give this quantity a second
+   * home: a control that displays it and a control that overrides it disagree
+   * the moment either is touched, and the arithmetic silently follows the
+   * hidden one.
+   */
   get mapCellFeet() {
-    if (this.opts.confirmFeet > 0) return this.opts.confirmFeet;
+    if (this.opts.mapCellFeet > 0) return this.opts.mapCellFeet;
     const bar = this.scaleBarFeet;
     if (bar > 0) return bar;
-    if (this.opts.mapCellFeet > 0) return this.opts.mapCellFeet;
     return FEET_PER_RANK;
   }
 
@@ -212,9 +223,10 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Abstr
       dropBack,
       rawFeet: rawFeet ? Number(rawFeet.toFixed(2)) : null,
       barFeet: barFeet ? Number(barFeet.toFixed(2)) : null,
-      suggestions: rawFeet ? roundSuggestions(rawFeet).map((v) => ({ value: v, active: this.mapCellFeet === v })) : [],
+      mapChips: this.#mapChips(rawFeet),
       mapCellFeet: this.mapCellFeet,
-      outputChips: OUTPUT_FEET.map((v) => ({ value: v, active: this.outputFeet === v })),
+      outputChips: SQUARE_FEET.map((v) => ({ value: v, active: this.outputFeet === v })),
+      armedLabel: this.captureMode ? loc(`mode.${this.captureMode}`) : null,
       outputFeet: this.outputFeet,
       gridSizePx: this.gridSizePx,
       notAligned: !aligned,
@@ -241,6 +253,17 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Abstr
       confidenceLabel: fit?.ok ? loc(`fit.confidence.${fit.confidence}`) : null,
       sampleSummary: this.#sampleSummary(),
     };
+  }
+
+  /**
+   * Chips for the map-square field: what a scale bar rounds to when one has
+   * been dragged, and the plain ladder otherwise — the commonest case is a GM
+   * who already knows the map's squares are 10 ft and has no bar to derive
+   * anything from, and an empty chip row taught them nothing.
+   */
+  #mapChips(rawFeet) {
+    const values = rawFeet ? roundSuggestions(rawFeet) : SQUARE_FEET;
+    return values.map((v) => ({ value: v, active: this.mapCellFeet === v }));
   }
 
   /** "3 boxes · 2 corners · 1 scale bar", omitting what is not there. */
@@ -285,7 +308,6 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Abstr
     Object.assign(session.opts, {
       mapCellFeet: num(d.mapCellFeet),
       scaleValue: num(d.scaleValue),
-      confirmFeet: num(d.confirmFeet),
       outputFeet: num(d.outputFeet),
       gridSizePx: num(d.gridSizePx),
       customFeet: num(d.customFeet),
@@ -300,6 +322,11 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Abstr
     ui.controls?.render();
   }
 
+  /** The panel's own way out, for a GM reading numbers rather than the toolbar. */
+  static #onDisarm() {
+    session.requestDisarm();
+  }
+
   static #onWipe() {
     session.wipe();
   }
@@ -309,8 +336,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Abstr
     session.deleteSample(kind, index);
   }
 
-  static #onConfirmChip(_event, target) {
-    this.opts.confirmFeet = Number(target.dataset.value);
+  /** A chip is the field, pressed. It writes the same slot the input does. */
+  static #onMapChip(_event, target) {
+    this.opts.mapCellFeet = Number(target.dataset.value);
     this.render();
   }
 

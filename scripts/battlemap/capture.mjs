@@ -178,11 +178,17 @@ export class CaptureOverlay {
     this.commit();
   }
 
+  /**
+   * Escape means GET OUT, everywhere else in Foundry and here. It disarms
+   * rather than deleting a sample: undoing the last sample is right-click,
+   * and binding the universal escape key to a destructive edit meant the one
+   * key a GM presses to leave the tool ate their work instead.
+   */
   onKeyDown(ev) {
     if (ev.code !== "Escape") return;
     ev.preventDefault();
     ev.stopPropagation();
-    this.removeLast();
+    this.host.requestDisarm();
   }
 
   /* -------------------------------------------- */

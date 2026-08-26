@@ -1,5 +1,54 @@
 # Battlemap — decisions
 
+## 2026-08-26 — The tool group has a resting state, and Escape leaves
+
+**Ruled:** the `acksBattlemap` control group carries an `off` tool, ordered
+first and named as the group's `activeTool`, and Escape disarms. A toolbar
+whose every tool arms a canvas interaction has no way to stop: the only exit
+was to leave the group, and core remembers the last tool per control
+(`SceneControls##tools`), so returning re-armed drawing. Escape previously
+deleted the newest sample, so the one key a GM presses to get out destroyed
+their work instead. Undo stays on right-click, which was already there.
+
+Disarming from a non-toolbar surface goes through `session.requestDisarm()`,
+which selects `off` in the group — but only when that group is already
+current, since passing `control` would drag the GM into it from wherever they
+were. Core's per-control memory then works in our favour: once off, re-entry
+is off.
+
+**Rejected:** a mode tool that toggles itself off on a second press. Arming is
+driven from two surfaces and core re-fires `onChange` for the already-active
+tool when a group is re-entered — that is what made `arm()` a setter rather
+than a toggle (2026-08-25), and a self-toggling tool reintroduces the same
+silent disarm.
+
+**Cost:** the group is one tool wider, and a GM who wants to sample must now
+pick a mode rather than finding one armed.
+
+## 2026-08-26 — One entered value, one slot
+
+**Ruled:** every GM-entered quantity in the panel has exactly one `opts` slot
+and exactly one input named for it; chips are shortcuts that write that slot,
+never a parallel store. `test-battlemap.mjs` enforces it statically — each
+slot must have an input, each handler write must name a slot, and each input
+must be a slot or a session toggle.
+
+The map-square value had two slots: a typed `mapCellFeet` and a chip-written
+`confirmFeet` that silently outranked it. The field displayed one number while
+the arithmetic used another, and which won depended on what had been touched
+last — a field reading 10 under a chip reading 20. `customFeet` was the
+mirror failure: a slot and a registered action with no control anywhere, so
+the token hotbar's custom size could not be reached at all. Both shipped.
+
+**Rejected:** keeping a separate "confirmed" value distinct from the entered
+one. The distinction was real in the design — derive, then confirm — but a
+confirmation that lives in a second slot is indistinguishable from a bug.
+Derivation now seeds nothing: an entered value wins, a scale bar answers when
+nothing is entered.
+
+**Cost:** the scale-bar reading no longer overrides a stale typed value; it is
+shown beside the field and the GM presses a chip to take it.
+
 ## 2026-08-19 — Scene fields are written directly, no flag mirror
 
 **Ruled:** `applyGridCalibration` writes `width`, `height`, `shiftX`,

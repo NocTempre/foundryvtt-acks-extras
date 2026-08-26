@@ -10,9 +10,15 @@
  */
 
 import { CaptureOverlay, runFit } from "./capture.mjs";
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, CONTROL_GROUP, TOOL_OFF } from "./constants.mjs";
 
 const emptySamples = () => ({ squares: [], corners: [], scale: null });
+
+/**
+ * The GM's entered values; null means "derive it". `mapCellFeet` is the only
+ * home of the map-square value — the field and its chips both write here.
+ */
+const emptyOpts = () => ({ mapCellFeet: null, scaleValue: null, outputFeet: null, gridSizePx: null, customFeet: null });
 
 /** Every capture mode, in the order the toolbar offers them. */
 export const CAPTURE_MODES = ["square", "corners", "scale", "eraser"];
@@ -25,8 +31,7 @@ class CalibrationSession {
     this.allowSkew = false;
     /** The fit retained from a bake, standing in until fresh samples arrive. */
     this.bakedFit = null;
-    /** GM-entered values; null means "derive". */
-    this.opts = { mapCellFeet: null, scaleValue: null, confirmFeet: null, outputFeet: null, gridSizePx: null, customFeet: null };
+    this.opts = emptyOpts();
     this.overlay = new CaptureOverlay(this);
     this.sceneId = null;
     this.listeners = new Set();
@@ -74,6 +79,21 @@ class CalibrationSession {
     this.notify();
   }
 
+  /**
+   * Disarm from a surface that is NOT the toolbar — the Escape key, the
+   * panel's stop button. The toolbar has to be told, or it keeps a mode
+   * button lit over a disarmed canvas and core's per-control memory re-arms
+   * that mode the next time the group is entered.
+   *
+   * Only ever selects a tool within our own group: passing `control` would
+   * switch the GM into it from wherever they are.
+   */
+  requestDisarm() {
+    this.disarm();
+    const controls = globalThis.ui?.controls;
+    if (controls?.control?.name === CONTROL_GROUP) controls.activate({ tool: TOOL_OFF });
+  }
+
   /** The overlay's callback after it mutates `samples`. */
   onSamplesChanged() {
     this.notify();
@@ -102,7 +122,7 @@ class CalibrationSession {
     this.samples = emptySamples();
     this.bakedFit = null;
     this.mode = null;
-    this.opts = { mapCellFeet: null, scaleValue: null, confirmFeet: null, outputFeet: null, gridSizePx: null, customFeet: null };
+    this.opts = emptyOpts();
     this.overlay.destroy();
   }
 

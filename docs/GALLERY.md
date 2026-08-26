@@ -17,7 +17,7 @@ the next refresh.
 
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
-| Battlemaps and token scale | Calibration beside the map rather than over it: the sampling tools armed on the left, the fitted grid on the canvas, and the sidebar panel reading the cell it has measured with the apply pinned under it | [guide](guides/battlemap.md) | [v4.26.0](releases/v4.26.0/battlemap.png) |
+| Battlemaps and token scale | Three boxes drawn on a map's own squares, the fitted grid locked onto its lines, and the panel reading the cell it measured — with the two scale decisions stacked under it and the way out of the tool at the top | [guide](guides/battlemap.md) | [v4.27.0](releases/v4.27.0/battlemap.png) |
 | Characters and classes | Rolling a character: the attribute rule and the scores, the class above the template die, and what is left to choose | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen.png) |
 | Class paths | A class's groups of mutually exclusive options — a region, a dark path, a caste — with the starting templates shown as one of those groups | [guide](guides/classes.md) | [v4.17.0](releases/v4.17.0/classes-paths.png) |
 | Proficiencies and powers | A proficiency's Mechanics tab: classification, the selections a grant reads, and its Active Effects | [guide](guides/abilities.md) | [v3.9.0](releases/v3.9.0/combat-trickery.png) |

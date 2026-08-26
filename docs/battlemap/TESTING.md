@@ -18,9 +18,41 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Drive mechanics (non-obvious)
 
-- The tool is a `button: true` tool on the TOKENS control group — press it
-  through the DOM (`document.querySelector('[data-tool="acksBattlemap"]')
-  .click()`), which is also the double-fire check: exactly ONE app must open.
+- Calibration is its own scene-control group, `acksBattlemap`, whose resting
+  tool is `off`. Drive it with `ui.controls.activate({control, tool})`.
+  Entering the group must arm NOTHING: assert `ui.controls.tool.name === "off"`
+  and the session's mode is null. `assistant` is a `button: true` tool — press
+  it through the DOM, which is also the double-fire check: exactly ONE app
+  must open.
+- **A backgrounded pane never renders, and stale transforms fail EVERY hit
+  test.** The pane does not composite, so PIXI's ticker does not run, the
+  overlay's screen-space `updateTransform` never applies, and the catcher is
+  still 16×16 at its build transform. Dispatched pointer events then reach the
+  DOM element and resolve to nothing. Call `canvas.app.render()` immediately
+  before each dispatched pointer step. The control that tells this apart from
+  a real defect is `canvas.stage`: if core's own root receives no hit either,
+  it is the harness; if only the module's catcher misses, it is not.
+- **A CDP key press does not reach the page** — `document.hasFocus()` is false
+  for a pane that cannot be fronted, so the keypress lands nowhere and reads
+  as an ignored binding. Dispatch the keydown on `document`, which is the same
+  listener path the handler registers on.
+- **Another connected seat paints its USER NAME onto the canvas** as a PIXI
+  `Cursor` in `canvas.controls.cursors`, wherever that person's pointer sits —
+  including over the panel. It is not DOM, so no stylesheet reaches it and a
+  §4b identity leak survives every CSS hide (three identical captures before
+  anyone looked at the display list). Set `canvas.controls.cursors.visible =
+  false` before a release shot, and check `game.users.filter(u => u.active)`.
+- **Sample the map's real cells for a release shot, not arbitrary drags.**
+  Read the drawn lattice out of the background image — dark-run centres per
+  axis, median gap — and drag on those boundaries; the plate then reads 0.0%
+  tight instead of advertising the feature with a red "samples disagree"
+  warning.
+- **A document's prepared field can read stale after a scripted update while
+  `_source` is already correct.** `token.width` returning the old value with
+  `token._source.width` holding the new one is the client not having
+  re-initialized, not a rejected write — call `reset()`, re-fetch with
+  `fromUuid`, or read the placeable (`tok.w / grid.size`). Do not diagnose a
+  blocked write from the prepared value alone.
 - **A scripted `pointerdown` on the canvas needs a hover-in first.** PIXI's
   federated event system drops a bare synthetic `pointerdown` unless a
   `pointerover` + `pointermove` at the same point preceded it — real input

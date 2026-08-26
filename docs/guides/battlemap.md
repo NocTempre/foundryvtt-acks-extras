@@ -18,11 +18,13 @@ a floating window, right-click the sidebar tab and it pops out — same panel,
 and the two stay in step. The scene's configuration has a **Battlemap** row as
 a third way in. GM only.
 
-![](../releases/v4.26.0/battlemap.png)
+![](../releases/v4.27.0/battlemap.png)
 
-*Draw box armed on the left, the fitted grid on the map, and the panel in the
-sidebar: the cell it has measured, how well the samples agree, and the apply
-waiting underneath. The map is never behind it.*
+*Draw box armed on the left, three samples on the map's own squares, and the
+fitted grid locked onto its lines. The panel reads the cell it measured and how
+well the samples agree; underneath, the two scale decisions — what the map's
+square is worth, and what a Foundry square should be — each with its own chips.
+Stop sampling sits at the top, the apply at the bottom.*
 
 ## Teaching it the grid
 
@@ -39,8 +41,13 @@ on working.
   are the most informative kind of sample.
 - **Scale bar** — drag end-to-end along the map's printed scale bar, then
   type the distance it represents.
-- **Eraser** — click a sample to remove it. Right-click or Escape removes the
-  newest one; **Wipe** clears everything.
+- **Eraser** — click a sample to remove it. Right-click removes the newest
+  one; **Wipe** clears everything.
+
+**Stopping.** The arrow at the head of the Battlemap tools is *off* — nothing
+is armed until you pick a mode, and picking the arrow again stops. So does
+**Escape**, and so does the **Stop sampling** button that appears in the panel
+whenever a mode is armed. Your samples are kept either way.
 
 The fit panel reports the cell size and how well the samples agree. If the
 map was scanned stretched, tick **Independent X / Y**; if it was scanned

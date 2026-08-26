@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.27.0
+
+The map tools get an off switch, and the two scale numbers stop disagreeing.
+
+### Added
+- **An off switch for the Battlemap tools.** The group now opens on an arrow
+  that arms nothing, and picking that arrow again stops sampling. So does
+  **Escape**, and so does the **Stop sampling** button that appears in the
+  panel whenever a mode is armed — which also tells you at a glance that
+  clicks on the map are being taken as samples. Every tool in the group used
+  to draw on the map, so the only way to stop was to leave the group
+  altogether, and coming back dropped you straight into drawing again.
+- **The custom token size exists now.** The guide had always described a
+  custom value beside the footprint chips, and there was no box to type it
+  into. There is one.
+
+### Fixed
+- **Escape no longer eats a sample.** It used to delete the newest one, so the
+  one key you press to get out of a tool was the key that destroyed your work.
+  Undo stays on right-click, where it already was.
+- **"Map square is" and its chips are one number.** Typing 10 and then
+  pressing the 20 chip left the box reading 10 while everything downstream
+  used 20, and whichever you touched last quietly won. The field and its chips
+  now write the same value, and each row of chips sits under the field it
+  belongs to rather than between the two.
+
 ## 4.26.1
 
 ### Fixed

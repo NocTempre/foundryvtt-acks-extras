@@ -6,7 +6,7 @@
  * sizes tokens to their real footprints.
  */
 import { acksExtras } from "../namespace.mjs";
-import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP, CONTROL_GROUP, TOOL_OFF } from "./constants.mjs";
 import BattlemapAssistant, { openAssistant, TAB_NAME } from "./assistant-app.mjs";
 import {
   installTokenAutoScale,
@@ -99,12 +99,26 @@ function installSceneControls() {
   Hooks.on("getSceneControlButtons", (controls) => {
     if (!game.user.isGM) return;
     const tools = {};
+    // The way out, and the group's resting state. Without a tool that arms
+    // NOTHING, every tool in the group draws on the map and the only exit is
+    // to leave the group entirely — and core remembers the last tool per
+    // control, so coming back re-arms it. This is the tool that remembering
+    // should land on.
+    tools[TOOL_OFF] = {
+      name: TOOL_OFF,
+      title: game.i18n.localize(`${LANG_PREFIX}.mode.off`),
+      icon: "fa-solid fa-arrow-pointer",
+      order: 0,
+      onChange: (_event, active) => {
+        if (active) session.disarm();
+      },
+    };
     CAPTURE_MODES.forEach((mode, i) => {
       tools[mode] = {
         name: mode,
         title: game.i18n.localize(`${LANG_PREFIX}.mode.${mode}`),
         icon: MODE_ICONS[mode],
-        order: i,
+        order: i + 1,
         // A mode tool is the ACTIVE tool while armed, so Foundry's own
         // one-at-a-time handling is the arming logic; `active` is what it
         // hands back when the group is re-entered.
@@ -118,7 +132,7 @@ function installSceneControls() {
       name: "wipe",
       title: game.i18n.localize(`${LANG_PREFIX}.samples.wipe`),
       icon: "fa-solid fa-trash",
-      order: CAPTURE_MODES.length,
+      order: CAPTURE_MODES.length + 1,
       button: true,
       // One handler only: v13+ calls BOTH `onChange` and `onClick` on a
       // `button: true` tool, so a second press would arrive unasked.
@@ -128,21 +142,20 @@ function installSceneControls() {
       name: "assistant",
       title: game.i18n.localize(`${LANG_PREFIX}.controls.assistant`),
       icon: "fa-solid fa-sliders",
-      order: CAPTURE_MODES.length + 1,
+      order: CAPTURE_MODES.length + 2,
       button: true,
       onChange: () => openAssistant(),
     };
 
-    controls.acksBattlemap = {
-      name: "acksBattlemap",
+    controls[CONTROL_GROUP] = {
+      name: CONTROL_GROUP,
       title: game.i18n.localize(`${LANG_PREFIX}.controls.group`),
       icon: "fa-solid fa-ruler-combined",
       order: Object.keys(controls).length,
       visible: game.user.isGM,
-      // The first mode is armed on entry, so the group is never a set of dead
-      // buttons; leaving it disarms, or the overlay would keep swallowing
-      // pointer events under whatever layer the GM moved to.
-      activeTool: CAPTURE_MODES[0],
+      // Entering the group arms NOTHING. Opening a toolbar must not start
+      // drawing on the map, and the panel is readable without a mode armed.
+      activeTool: TOOL_OFF,
       tools,
       onChange: (_event, active) => {
         if (active) openAssistant();

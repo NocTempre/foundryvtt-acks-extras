@@ -29,12 +29,23 @@ out into a window.
   pointer positions through `scene.dimensions` and the background texture's
   size, so a fit survives the scene being rescaled between captures — and an
   apply does not invalidate the samples that produced it.
-- **Two scale decisions, not one.** The captures (a box drag's "map cell = N
-  feet" field, the scale-bar drag's end-to-end value) solve what the *map's*
-  drawn box is worth; the **output square** selector chooses what one *Foundry*
-  square should be, defaulting to 1:1 with the drawn box. A different output
+- **Two scale decisions, not one.** *Map square is* says what the map's drawn
+  box is worth; the **output square** selector says what one *Foundry* square
+  should be, defaulting to 1:1 with the drawn box. A different output
   re-pitches the grid (`G px = fittedCellPx × outputFeet / mapCellFeet`); a
   non-integer ratio draws a "lines will not coincide" warning.
+- **Each of those has one slot and one input**, with its chips banded directly
+  beneath it. A chip writes the same slot the input does, so the displayed
+  number and the number the arithmetic uses cannot diverge. An entered value
+  wins; a dragged scale bar answers only when nothing is entered, and is
+  offered as chips rather than applied over the top (DECISIONS).
+- **Arming is a mode, and the group has a resting state.** Each capture mode
+  is a tool in the `acksBattlemap` control group; `off` is ordered first and is
+  the group's `activeTool`, so opening the toolbar arms nothing. Escape
+  disarms, the panel shows an armed banner carrying the same exit, and
+  right-click removes the newest sample. Leaving the group disarms; because
+  disarming selects `off`, core's per-control tool memory brings the GM back
+  to a resting toolbar rather than a re-armed one.
 - **Applying writes core fields directly** — `width`, `height`, `shiftX`,
   `shiftY`, `grid.size`, `grid.distance` — in one `scene.update`, plus the
   module's scene flag `battlemap = { calibrated, distance, autoScale }`. The

@@ -1,5 +1,14 @@
 <section class="acks-extras-battlemap-body">
 
+  {{! Armed means every click on the map is a sample, so the panel says so and
+      carries the way out. Escape and the toolbar's arrow do the same thing. }}
+  {{#if armedLabel}}
+    <div class="acks-extras-battlemap-armed">
+      <span><i class="fa-solid fa-crosshairs"></i> {{armedLabel}}</span>
+      <button type="button" data-action="disarm">{{localize "ACKS-BATTLEMAP.mode.off"}}</button>
+    </div>
+  {{/if}}
+
   {{#if warnNotSquare}}
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notSquareGrid"}}</p>
   {{/if}}
@@ -43,33 +52,35 @@
 
   <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.scale.title"}}</span></div>
 
-  <div class="acks-extras-battlemap-row">
+  {{! Each field owns the chips directly beneath it. A shared chip row under a
+      two-column pair reads as belonging to whichever field the eye is on. }}
+  <div class="acks-extras-battlemap-scalefield">
     <label class="acks-extras-battlemap-field">
       <span>{{localize "ACKS-BATTLEMAP.fields.mapCellFeet"}}</span>
       <input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="{{mapCellFeet}}">
     </label>
+    <div class="acks-extras-battlemap-chips">
+      {{#each mapChips}}
+        <button type="button" data-action="mapChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
+      {{/each}}
+    </div>
+    {{#if barFeet}}
+      <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{units}}</div>
+    {{/if}}
+  </div>
+
+  <div class="acks-extras-battlemap-scalefield">
     <label class="acks-extras-battlemap-field">
       <span>{{localize "ACKS-BATTLEMAP.scale.output"}}</span>
       <input type="number" name="outputFeet" min="0" step="any" value="{{opts.outputFeet}}" placeholder="{{outputFeet}}">
     </label>
-  </div>
-
-  <div class="acks-extras-battlemap-chips">
-    {{#each outputChips}}
-      <button type="button" data-action="outputChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
-    {{/each}}
-  </div>
-
-  {{#if barFeet}}
-    <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{units}}</div>
-  {{/if}}
-  {{#if suggestions.length}}
     <div class="acks-extras-battlemap-chips">
-      {{#each suggestions}}
-        <button type="button" data-action="confirmChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
+      {{#each outputChips}}
+        <button type="button" data-action="outputChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
       {{/each}}
     </div>
-  {{/if}}
+  </div>
+
   {{#if notAligned}}
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notAligned"}}</p>
   {{/if}}
@@ -113,6 +124,16 @@
       <button type="button" data-action="sizeChip" data-feet="{{value}}">{{label}}</button>
     {{/each}}
     <button type="button" data-action="resetFootprints" data-tooltip="{{localize 'ACKS-BATTLEMAP.tokens.reset'}}"><i class="fa-solid fa-rotate-left"></i></button>
+  </div>
+
+  <div class="acks-extras-battlemap-row">
+    <label class="acks-extras-battlemap-field">
+      <span>{{localize "ACKS-BATTLEMAP.tokens.custom"}}</span>
+      <input type="number" name="customFeet" min="0" step="any" value="{{opts.customFeet}}">
+    </label>
+    <button type="button" data-action="applyCustomSize" {{#unless opts.customFeet}}disabled{{/unless}} data-tooltip="{{localize 'ACKS-BATTLEMAP.tokens.custom'}}">
+      <i class="fa-solid fa-check"></i>
+    </button>
   </div>
 
 </section>

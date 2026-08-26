@@ -132,6 +132,41 @@
   border-radius: var(--acks-radius);
 }
 
+/* One scale decision: its field and the chips that fill it, banded together
+   so a chip cannot read as belonging to the field beside it. */
+.acks-extras-battlemap-scalefield {
+  margin-bottom: 8px;
+}
+
+.acks-extras-battlemap-scalefield .acks-extras-battlemap-chips {
+  margin-bottom: 2px;
+}
+
+/* Armed: every click on the map is a sample, so this is loud and carries the
+   way out. */
+.acks-extras-battlemap-armed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--acks-spot);
+  background: color-mix(in srgb, var(--acks-burgundy) 30%, transparent);
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.acks-extras-battlemap-armed button {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 1px 8px;
+  line-height: 1.4;
+  border-radius: var(--acks-radius);
+}
+
 .acks-extras-battlemap-check {
   display: flex;
   align-items: center;
