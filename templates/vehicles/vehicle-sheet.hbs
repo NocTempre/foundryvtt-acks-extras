@@ -52,7 +52,11 @@
 
           {{#if hull.sinking}}
             <p class="notification error">
-              {{localize "ACKS-VEHICLES.damage.sinking" formula=hull.sinkFormula}}
+              {{#if hull.sinkFormula}}
+                {{localize "ACKS-VEHICLES.damage.sinking" formula=hull.sinkFormula}}
+              {{else}}
+                {{localize "ACKS-VEHICLES.damage.sinkingUnpriced"}}
+              {{/if}}
             </p>
           {{else if hull.damage}}
             {{! Which of the two governs, so nobody patches a hull to fix a
@@ -62,13 +66,17 @@
                          crew=hull.crewFactorLabel hull=hull.hullFactorLabel}}
             </p>
             <p class="hint">
-              {{localize "ACKS-VEHICLES.damage.repair"
-                         repairable=hull.repairable dockOnly=hull.dockOnly
-                         crew=hull.crewPerPoint hands=hull.handsAboard}}
-              {{#if hull.repairTurns}}
-                {{localize "ACKS-VEHICLES.damage.repairTurns" turns=hull.repairTurns}}
+              {{#if hull.repairMissing}}
+                {{localize "ACKS-VEHICLES.damage.repairUnpriced"}}
               {{else}}
-                {{localize "ACKS-VEHICLES.damage.repairNoHands"}}
+                {{localize "ACKS-VEHICLES.damage.repair"
+                           repairable=hull.repairable dockOnly=hull.dockOnly
+                           crew=hull.crewPerPoint hands=hull.handsAboard}}
+                {{#if hull.repairTurns}}
+                  {{localize "ACKS-VEHICLES.damage.repairTurns" turns=hull.repairTurns}}
+                {{else}}
+                  {{localize "ACKS-VEHICLES.damage.repairNoHands"}}
+                {{/if}}
               {{/if}}
             </p>
           {{/if}}

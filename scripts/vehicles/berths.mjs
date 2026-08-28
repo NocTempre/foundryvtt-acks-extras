@@ -34,8 +34,19 @@
  * renders what it is told rather than deciding for itself.
  */
 
-/** The book's berth: what one person costs when nobody has weighed them. */
-export const BERTH_STONE = 50;
+import { readTable, VOYAGES_DOC } from "./vehicle-speed.mjs";
+
+/**
+ * The book's berth: what one unnamed person costs when nobody has weighed
+ * them, and the rate a vessel trades hands for hold at. The figure is
+ * printed and reads from the imported `voyages` document; a vessel's own
+ * typed `passengerStone` (imported with the roster) answers first, so this
+ * is only the general rate behind it. Null until imported.
+ */
+export function berthStone() {
+  const v = Number(readTable(VOYAGES_DOC, "berth")?.stone);
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
 
 /**
  * What the printed Crew column MEANS on this vehicle — the three readings
@@ -112,7 +123,13 @@ export function crewCargoTrade(vehicle, handsLeftAshore = 0) {
   const roles = vehicle?.crew?.roles ?? [];
   const required = roles.reduce((sum, r) => sum + (Number(r.required) || 0), 0);
   const hands = Math.max(0, Math.min(Math.floor(Number(handsLeftAshore) || 0), required));
-  return { hands, stoneGained: hands * BERTH_STONE, berthStone: BERTH_STONE };
+  const rate = berthStone();
+  return {
+    hands,
+    stoneGained: rate != null ? hands * rate : null,
+    berthStone: rate,
+    missing: rate == null,
+  };
 }
 
 /**
@@ -132,7 +149,10 @@ export function fillBuckets(vehicle, occupants = [], cargoStone = 0) {
   const order = bucketsFor(vehicle);
   const pools = poolsPassengersWithCargo(vehicle);
   const capacity = Number(vehicle?.cargo?.capacityStone) || 0;
-  const per = Number(vehicle?.cargo?.passengerStone) || BERTH_STONE;
+  // The vehicle's own typed rate answers first; the imported general berth
+  // stands behind it; with neither, an unnamed passenger costs nothing the
+  // sheet can price (a zero, visibly short of the truth, not a guess).
+  const per = Number(vehicle?.cargo?.passengerStone) || berthStone() || 0;
 
   const byRole = (role) => occupants.filter((o) => o.role === role);
   const stoneOf = (list) => list.reduce((sum, o) => sum + (Number(o.stone) || 0), 0);

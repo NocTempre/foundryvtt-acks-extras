@@ -386,13 +386,14 @@ export function canEnter(vehicle, terrain, { road = false, mud = "none", snow = 
 }
 
 /**
- * Cargo left, in stone, once passengers have taken their share. A passenger
- * rides as 50 stone — and the same rate runs the other way, so a vessel may
- * carry 50 stone more for each crew member it does without.
+ * Cargo left, in stone, once passengers have taken their share. An unnamed
+ * passenger rides at the vessel's own typed rate, else the imported general
+ * berth — and the same rate runs the other way, so a vessel may carry that
+ * much more for each crew member it does without.
  */
 export function cargoRemaining(vehicle, loadStone = 0, namedStone = 0) {
   const cap = Number(vehicle?.cargo?.capacityStone) || 0;
-  const per = Number(vehicle?.cargo?.passengerStone) || 50;
+  const per = Number(vehicle?.cargo?.passengerStone) || Number(readTable(VOYAGES_DOC, "berth")?.stone) || 0;
   // Unnamed passengers cost the book's flat berth; named ones cost what they
   // actually cost, which the caller has already weighed.
   const riders = (Number(vehicle?.cargo?.passengers) || 0) * per + Math.max(0, Number(namedStone) || 0);

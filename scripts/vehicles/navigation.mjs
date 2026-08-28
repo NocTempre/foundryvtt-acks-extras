@@ -6,26 +6,25 @@
  * off the rocks. Conflating them loses the fact that a ship can be perfectly
  * sure where she is and still tear her bottom out on a reef nobody charted.
  *
- * Both are ordinary proficiency throws, so the numbers here are targets and
- * modifiers, never a table of places: which hex holds a hazard is the Judge's
- * map, not this module's business.
+ * STRUCTURE ships here; the printed numbers do not. What ships: which waters
+ * exist, which modifiers exist and when each applies (one navigational art
+ * helps, both together help more; slowing for a hazard helps the throw AND
+ * halves the damage — the rule rewarding caution twice for one decision; a
+ * shallow-draft hull helps over sandbar and shoal), which hazards exist and
+ * each one's SHAPE (kelp holds her, ground strands her, rock simply tears).
+ * Every target, bonus, die and rate reads from the `voyages` registered
+ * document, imported from the reader's own book; absent, a throw carries a
+ * `tablesMissing` part instead of a number, never a guess.
  */
 
-/**
- * How hard it is to stay on course, by water.
- *
- * The spread is the point: a river is nearly unmissable, and the open sea is
- * a throw a crew without a navigator fails half the time.
- */
-export const NAVIGATION_TARGETS = Object.freeze({
-  lakeOrRiver: 4,
-  coast: 7,
-  openSea: 11,
+import { readTable, VOYAGES_DOC } from "./vehicle-speed.mjs";
+
+/** The waters a course can be lost in — the structural key list. */
+export const WATERS = Object.freeze({
+  lakeOrRiver: { label: "ACKS-VEHICLES.water.lakeOrRiver" },
+  coast: { label: "ACKS-VEHICLES.water.coast" },
+  openSea: { label: "ACKS-VEHICLES.water.openSea" },
 });
-
-/** Knowing the way is worth +4; knowing it two ways is worth +8. */
-export const PATHFINDING_BONUS = 4;
-export const BOTH_ARTS_BONUS = 8;
 
 /**
  * The Navigation throw a vessel makes at the start of each day OR NIGHT of
@@ -33,89 +32,127 @@ export const BOTH_ARTS_BONUS = 8;
  * continuation of the first.
  *
  * @param {object} o
- * @param {string} [o.terrain] a key of NAVIGATION_TARGETS
+ * @param {string} [o.terrain] a key of WATERS
  * @param {boolean} [o.pathfinding] someone aboard has the Pathfinding power
  * @param {boolean} [o.navigation] someone aboard has the Navigation proficiency
- * @returns {{target: number, bonus: number, effective: number, parts: object[]}}
+ * @returns {{target, bonus, effective, parts: object[], missing: boolean}}
  */
 export function navigationThrow({ terrain = "openSea", pathfinding = false, navigation = false } = {}) {
-  const target = NAVIGATION_TARGETS[terrain] ?? NAVIGATION_TARGETS.openSea;
+  const nav = readTable(VOYAGES_DOC, "navigation");
+  const water = WATERS[terrain] ? terrain : "openSea";
+  const target = Number(nav?.targets?.[water]);
+  const parts = [];
+  let missing = false;
+  if (Number.isFinite(target)) {
+    parts.push({ key: `terrain.${water}`, value: target });
+  } else {
+    missing = true;
+  }
   // Both arts together are worth more than either alone, and more than the
-  // two of them added — the rule names 8 outright rather than 4+4.
-  const bonus = pathfinding && navigation ? BOTH_ARTS_BONUS : pathfinding || navigation ? PATHFINDING_BONUS : 0;
-  const parts = [{ key: `terrain.${terrain}`, value: target }];
-  if (bonus) parts.push({ key: pathfinding && navigation ? "bothArts" : "oneArt", value: bonus });
-  return { target, bonus, effective: target - bonus, parts };
+  // two of them added — the rule prices the pair outright.
+  const both = pathfinding && navigation;
+  const one = pathfinding || navigation;
+  const bonus = both ? Number(nav?.bothArts) : one ? Number(nav?.oneArt) : 0;
+  const bonusKnown = Number.isFinite(bonus);
+  if (one && bonusKnown && bonus) parts.push({ key: both ? "bothArts" : "oneArt", value: bonus });
+  if (one && !bonusKnown) missing = true;
+  if (missing) parts.push({ key: "tablesMissing", missing: true, note: true });
+  return {
+    target: Number.isFinite(target) ? target : null,
+    bonus: bonusKnown ? bonus : 0,
+    effective: Number.isFinite(target) ? target - (bonusKnown ? bonus : 0) : null,
+    parts,
+    missing,
+  };
 }
 
 /**
  * The captain's Seafaring throw on entering a hex that holds a hazard.
  *
- * Slowing down is the universally available answer — half speed or less is
- * worth +4 here AND halves the damage if she strikes anyway, which is the
- * rule rewarding caution twice for one decision.
+ * Slowing down is the universally available answer — half speed or less
+ * helps the throw AND halves the damage if she strikes anyway.
  *
  * @param {object} o
  * @param {boolean} [o.masterMariner] Seafaring taken three times
  * @param {boolean} [o.halfSpeed] making half her speed or less
  * @param {boolean} [o.shallowDraft] a galley or longship, over sandbar or shoal
- * @returns {{target: number, bonus: number, effective: number, parts: object[]}}
+ * @returns {{target, bonus, effective, parts: object[], missing: boolean}}
  */
 export function hazardThrow({ masterMariner = false, halfSpeed = false, shallowDraft = false } = {}) {
-  const target = masterMariner ? 7 : 11;
-  const parts = [{ key: masterMariner ? "masterMariner" : "captain", value: target }];
+  const table = readTable(VOYAGES_DOC, "hazardThrow");
+  const target = Number(table?.[masterMariner ? "masterMariner" : "captain"]);
+  const parts = [];
+  let missing = !Number.isFinite(target);
+  if (!missing) parts.push({ key: masterMariner ? "masterMariner" : "captain", value: target });
   let bonus = 0;
-  if (halfSpeed) {
-    bonus += 4;
-    parts.push({ key: "halfSpeed", value: 4 });
-  }
-  if (shallowDraft) {
-    bonus += 4;
-    parts.push({ key: "shallowDraft", value: 4 });
-  }
-  return { target, bonus, effective: target - bonus, parts };
+  const add = (on, key) => {
+    if (!on) return;
+    const v = Number(table?.[key]);
+    if (Number.isFinite(v)) {
+      bonus += v;
+      parts.push({ key, value: v });
+    } else {
+      missing = true;
+    }
+  };
+  add(halfSpeed, "halfSpeed");
+  add(shallowDraft, "shallowDraft");
+  if (missing) parts.push({ key: "tablesMissing", missing: true, note: true });
+  return {
+    target: Number.isFinite(target) ? target : null,
+    bonus,
+    effective: Number.isFinite(target) ? target - bonus : null,
+    parts,
+    missing,
+  };
 }
 
 /**
- * What is in the water, and what it does to a hull that finds it.
- *
- * `damage` is rolled and then HALVED if she was making half speed or less —
- * the same caution that helped her avoid it helps her survive it.
+ * What is in the water — the STRUCTURAL half: which hazards exist and each
+ * one's shape. Kelp holds her without harm until she is cut out; rock, reef
+ * or wreck tears and lets her sail on; sandbar or shoal both harms and
+ * strands, and a stranded crew can lighten her or wait for the tide. What
+ * each is WORTH — the dice, the hours, the rates — is `hazardSpec`'s read.
  */
-export const HAZARDS = Object.freeze({
-  kelpForest: {
-    /** No damage; she simply stops until cut free. */
-    damage: null,
-    damageType: null,
-    /** 1d4 hours, plus an hour for every sixty tons of her. */
-    freeFormula: "1d4",
-    hoursPerSixtyTons: 1,
-    immobile: true,
-  },
-  rockReefWreck: {
-    damage: "8d10",
-    damageType: "piercing",
-    immobile: false,
-  },
-  sandbarShoal: {
-    damage: "4d10",
-    damageType: "bludgeoning",
-    immobile: true,
-    /** Aground until the tide lifts her, at the Judge's discretion. */
-    freeFormula: "1d12",
-    /** Or until the crew lightens her: 5% a throw, per 200 stone overboard. */
-    escapePerStone: 0.05 / 200,
-    unloadStonePerTurn: 33,
-  },
+export const HAZARD_KINDS = Object.freeze({
+  kelpForest: { label: "ACKS-VEHICLES.hazard.kelpForest", immobile: true, harmless: true },
+  rockReefWreck: { label: "ACKS-VEHICLES.hazard.rockReefWreck", immobile: false, damageType: "piercing" },
+  sandbarShoal: { label: "ACKS-VEHICLES.hazard.sandbarShoal", immobile: true, damageType: "bludgeoning", lightenable: true },
 });
 
-/** Hours to cut a vessel out of kelp, given her displacement. */
-export const kelpHours = (rolled, tons) => (Number(rolled) || 0) + Math.floor((Number(tons) || 0) / 60);
+/** One hazard's structure merged with its imported figures (null = absent). */
+export function hazardSpec(kind) {
+  const structure = HAZARD_KINDS[kind];
+  if (!structure) return null;
+  const row = readTable(VOYAGES_DOC, "hazards")?.[kind] ?? {};
+  return {
+    kind,
+    ...structure,
+    damage: row.damage ?? null,
+    freeFormula: row.freeFormula ?? null,
+    perTons: row.perTons ?? null,
+    escapePctPerStone: row.escapePctPerStone ?? null,
+    perStone: row.perStone ?? null,
+    unloadStonePerTurn: row.unloadStonePerTurn ?? null,
+    missing: !Object.keys(row).length,
+  };
+}
+
+/** Hours to cut a vessel out of kelp: the rolled hours plus her bulk's own. */
+export function kelpHours(rolled, tons, spec = hazardSpec("kelpForest")) {
+  const per = Number(spec?.perTons);
+  const bulk = Number.isFinite(per) && per > 0 ? Math.floor((Number(tons) || 0) / per) : 0;
+  return (Number(rolled) || 0) + bulk;
+}
 
 /**
- * The chance a grounded vessel floats free after throwing cargo over the side.
- * Cumulative in the stone jettisoned, and capped at certainty.
+ * The chance a grounded vessel floats free after throwing cargo over the
+ * side. Cumulative in the stone jettisoned, and capped at certainty. Null
+ * when the rates are not imported — a chance of nothing is not zero.
  */
-export const lightenChance = (stoneJettisoned) =>
-  Math.min(1, Math.max(0, Number(stoneJettisoned) || 0) * HAZARDS.sandbarShoal.escapePerStone);
-
+export function lightenChance(stoneJettisoned, spec = hazardSpec("sandbarShoal")) {
+  const pct = Number(spec?.escapePctPerStone);
+  const per = Number(spec?.perStone);
+  if (!Number.isFinite(pct) || !Number.isFinite(per) || per <= 0) return null;
+  return Math.min(1, Math.max(0, Number(stoneJettisoned) || 0) * (pct / per));
+}

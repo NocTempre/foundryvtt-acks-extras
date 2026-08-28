@@ -40,6 +40,17 @@ const SAMPLE_VOYAGES = {
       { key: "gale", min: 14, max: null, sail: 0.5, oar: 0.5 },
     ],
     tacking: { multiplier: 0.25 },
+    navigation: { targets: { lakeOrRiver: 3, coast: 6, openSea: 9 }, oneArt: 3, bothArts: 6 },
+    hazardThrow: { captain: 9, masterMariner: 5, halfSpeed: 3, shallowDraft: 2 },
+    hazards: {
+      kelpForest: { freeFormula: "2d4", perTons: 50 },
+      rockReefWreck: { damage: "5d10" },
+      sandbarShoal: { damage: "3d10", freeFormula: "2d12", escapePctPerStone: 0.1, perStone: 100, unloadStonePerTurn: 20 },
+    },
+    damageShares: { lightBallista: 0.2, heavyThird: 0.25, spells: 0.2, aoeDivisor: 20, sinkDice: "2d8" },
+    repair: { crewPerPoint: 4, seaFraction: 0.25 },
+    rounding: { voyageMiles: 5, combatFeet: 20 },
+    berth: { stone: 40 },
   },
 };
 const registerSamples = () => {
@@ -392,3 +403,50 @@ st = stationsFor(
 assert.equal(st[2].filled, 7, "five stacked pilgrims and two unnamed heads are seven passengers");
 
 console.log("test-vehicles: OK (true weights, marines' gear, stacked bodies)");
+
+/* ========================================================================== */
+/*  The sea's own figures read from the registry, and say when they cannot    */
+/* ========================================================================== */
+import {
+  navigationThrow,
+  hazardThrow,
+  hazardSpec,
+  kelpHours,
+  lightenChance,
+} from "../scripts/vehicles/navigation.mjs";
+import { damageToVessel, sinkFormula, repairPlan, roundVoyage } from "../scripts/vehicles/vessel-damage.mjs";
+import { crewCargoTrade, berthStone } from "../scripts/vehicles/berths.mjs";
+
+registerSamples();
+assert.equal(navigationThrow({ terrain: "coast" }).target, 6, "targets come from the registered doc");
+assert.equal(navigationThrow({ terrain: "openSea", pathfinding: true, navigation: true }).effective, 3,
+  "both arts price as the doc's own pair, never one art doubled");
+assert.equal(hazardThrow({ masterMariner: true, halfSpeed: true }).effective, 2);
+assert.equal(hazardSpec("sandbarShoal").damage, "3d10");
+assert.equal(hazardSpec("kelpForest").damage, null, "kelp holds; it does not hole — structure, not a value");
+assert.equal(kelpHours(1, 100), 3, "her bulk adds hours at the imported rate");
+assert.equal(lightenChance(100), 0.1);
+assert.equal(damageToVessel(20, "lightArtillery").dealt, 4);
+assert.equal(damageToVessel(20, "personal").dealt, 0, "nothing at all — the structural zero");
+assert.equal(damageToVessel(20, "siege").dealt, 20, "everything — the structural one");
+assert.equal(sinkFormula(), "2d8");
+assert.equal(repairPlan(16, 8, { atSea: true }).repairable, 4, "the sea fraction is the doc's");
+assert.equal(roundVoyage(13), 15, "rounding grains are the doc's");
+assert.equal(crewCargoTrade({ kind: "sea", crew: { roles: [{ required: 10 }] } }, 2).stoneGained, 80);
+assert.equal(berthStone(), 40);
+
+resetTables();
+assert.equal(navigationThrow({ terrain: "coast" }).target, null, "no doc: no target, and the parts say why");
+assert.ok(navigationThrow({ terrain: "coast" }).parts.some((p) => p.key === "tablesMissing"));
+assert.equal(hazardThrow({}).target, null);
+assert.equal(damageToVessel(20, "lightArtillery").dealt, null, "an unanswerable share is null, never a guess");
+assert.equal(damageToVessel(20, "personal").dealt, 0, "the structural zero needs no import");
+assert.equal(damageToVessel(20, "siege").dealt, 20, "and neither does the structural whole");
+assert.equal(sinkFormula(), null);
+assert.ok(repairPlan(16, 8).missing, "an unpriced repair plan says so");
+assert.equal(roundVoyage(13), 13, "no grain: no rounding, which is only cosmetic");
+assert.equal(lightenChance(100), null, "a chance of nothing is not zero");
+assert.ok(crewCargoTrade({ kind: "sea", crew: { roles: [{ required: 10 }] } }, 2).missing);
+registerSamples();
+
+console.log("test-vehicles: OK (registry navigation, hazards, shares, repair, berth; degradation says why)");

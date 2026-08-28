@@ -182,3 +182,31 @@ default. The field is now a blank-allowed choice of the four readings, and
 the sheet offers it with the effective default named in the blank option, so
 an unlabelled howdah still reads as what it is: wrong loudly, correctable in
 one select.
+
+## 2026-08-28 — The sea's numbers come off the page too (Path B completes)
+
+The vessels feature shipped (4.2.x) before the Path-B ruling, so
+navigation.mjs, vessel-damage.mjs and berths.mjs carried printed values in
+code: navigation targets and art bonuses, the hazard throw and every
+hazard's dice and rates, the hull damage shares with the spell footprint
+divisor, the sinking die, the repair gang and its at-sea fraction, the
+voyage/combat rounding grains, and the 50-stone berth. All of it now reads
+from the imported `voyages` document (eight tables beside the wind and
+tacking rows the travel migration already declared), and each consumer
+degrades by SAYING what it cannot price: a null target with a
+tablesMissing part, a null damage share (an unanswerable is not a zero — a
+ballista must never silently deal nothing OR everything), an unpriced
+repair plan, an unpriced sinking line on the sheet. Two ends of the damage
+scale stay structural on purpose: a man-sized attacker deals NOTHING and
+the biggest things deal EVERYTHING — the zero and the whole are the rule's
+own shape, not figures.
+
+The machine-local rules test now registers the printed document the way an
+import would and asserts through the public surface, so the committed
+suite holds only invented figures. `BERTH_STONE` (an exported printed
+constant) is REMOVED, not aliased — a leak does not get a compatibility
+shim; `berthStone()` reads the registry, a vessel's own typed
+`passengerStone` still answers first, and crewCargoTrade carries `missing`
+when nothing prices the swap. Deferred with eyes open: voyage.mjs's clock
+constants (the twelve-hour sailing day against the eight-hour march) await
+the movement-scales pass that owns that family of figures.

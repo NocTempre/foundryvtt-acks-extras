@@ -32,14 +32,15 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   `def.power.designBuildAndRepairAutomatons`). An automaton that CARRIES — a
   howdah-backed colossus — does so through the same attachment layer as any
   monster; no vehicle work is needed for it.
-- **Import cookbooks for the sea tables** — the Sea Vessels recipe now exists
-  in the importer's working tree (2026-08-28: `register/rr/p318-vessels.json`
-  + the sea binder, all 20 rows executing cell-perfect against the reference
-  PDF and the wiki oracle), so this closes when that repo releases — AFTER
-  extras tags, per TOOLCHAIN §10e — and the import is live-verified in a
-  world. Still genuinely open: the land vehicle table's crew/cargo pairs,
-  which is what would let a palanquin arrive with its non-linear berths
-  already stated.
+- **Import cookbooks for the sea tables** — the Sea Vessels recipe exists in
+  the importer's tree (2026-08-28, all 20 rows cell-perfect), and the
+  `voyages` document's recipes joined it the same day (wind grid, tacking,
+  navigation, hazard throw and effects, damage shares, repair, rounding,
+  berth — dev-executed oracle-exact), so this closes when that repo releases
+  — AFTER extras tags, per TOOLCHAIN §10e — and the import is live-verified
+  in a world. Still genuinely open: the land vehicle table's crew/cargo
+  pairs, which is what would let a palanquin arrive with its non-linear
+  berths already stated.
 
 ## Flight design space (nothing precludes it; nothing implements it)
 

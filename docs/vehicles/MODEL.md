@@ -125,21 +125,28 @@ tacking rate, when there is one to show.
 
 ## The sea
 
+Every printed sea figure reads from the imported `voyages` document — the
+wind rows and tacking rate, the navigation targets and art bonuses, the
+hazard throw and each hazard's dice and rates, the hull damage shares and
+the sinking die, the repair gang and sea fraction, the rounding grains, and
+the general berth. Unimported, each surface says what it cannot price
+instead of guessing.
+
 - **Damage** ([vessel-damage.mjs](../../scripts/vehicles/vessel-damage.mjs)):
   most attacks cannot hurt a hull at all — a man-sized or large creature does
-  NOTHING. Light and medium ballistae deal a tenth; huge creatures, heavy
-  ballistae and light and medium catapults a third; other artillery and
-  gigantic or colossal creatures the full amount; spells a tenth to timber,
-  multiplied by their footprint in 25 sq ft.
-- **Sinking**: at 0 or less she cannot move under her own power and goes down
-  in 1d10 rounds.
+  NOTHING, and the biggest things deal everything; those two ends are the
+  rule's own shape and stay structural. The classes between (light and heavy
+  artillery, spells with their footprint multiplier) are worth what the
+  imported shares say.
+- **Sinking**: at 0 or less she cannot move under her own power and goes
+  down on the imported clock.
 - **Speed loss**: damage costs her speed in proportion to the hull lost, and
-  crew losses cost her in proportion to the hands missing — **not cumulative**.
-  Whichever is worse governs, alone. Voyage speed rounds to the nearest six
-  miles, combat speed to the nearest thirty feet.
-- **Repair**: structural hit points are never healed, only repaired — five
-  hands, one turn, one point, doing nothing else. Only HALF of what she took at
-  sea can be put back before a dock.
+  crew losses cost her in proportion to the hands missing — **not
+  cumulative**. Whichever is worse governs, alone. Voyage and combat speeds
+  round to the imported grains.
+- **Repair**: structural hit points are never healed, only repaired — a
+  gang of hands, one turn, one point, doing nothing else; only an imported
+  fraction of what she took at sea can be put back before a dock.
 - **The clock** ([voyage.mjs](../../scripts/vehicles/voyage.mjs)): a voyage
   speed is miles over TWELVE hours, because crewing is unstrenuous; a party's
   expedition speed is miles over EIGHT. The two are only comparable per hour,
@@ -147,13 +154,16 @@ tacking rate, when there is one to show.
   navigator and a full crew she may work around the clock: twice the distance
   in a day, at the same speed.
 - **Navigation** ([navigation.mjs](../../scripts/vehicles/navigation.mjs)): a
-  throw each day AND each night — lake or river 4+, coast 7+, open sea 11+;
-  +4 for Pathfinding or Navigation aboard, +8 for both. Separately, entering a
-  hex holding a hazard asks the CAPTAIN for Seafaring 11+ (7+ master mariner),
-  +4 at half speed or less, +4 for a galley or longship over sandbar or shoal.
-  Kelp holds her; rock, reef or wreck deals 8d10 piercing; sandbar or shoal
-  4d10 bludgeoning and aground — each halved if she was making half speed,
-  which is the rule rewarding caution twice for one decision.
+  throw each day AND each night, at the imported target for her waters; one
+  navigational art aboard helps, both together help more, priced as the
+  imported pair. Separately, entering a hex holding a hazard asks the
+  CAPTAIN's Seafaring (a master mariner reads the water better), helped by
+  making half speed and by a shallow draft over sandbar or shoal. Kelp holds
+  her without harm until she is cut out; rock, reef or wreck tears and lets
+  her sail on; sandbar or shoal harms and strands, and a stranded crew
+  lightens her at the imported rates or waits for the tide — damage halved
+  if she was making half speed, the rule rewarding caution twice for one
+  decision.
 
 ## Boarding
 

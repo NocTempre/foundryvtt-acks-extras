@@ -110,6 +110,18 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 10. Re-board after a ford (`reboardLast`).
     *Observable:* passengers are restored; the TEAM is untouched — putting an
     arrangement back never unharnesses the horses.
+11. The sea's registry reads (added with the voyages migration). On a
+    disposable VESSEL with `shp.max` set: damage her below zero with NO
+    `voyages` tables registered, open the sheet.
+    *Observable:* the hull block renders the UNPRICED sinking line (no
+    formula, no "null"); part-damage her instead and the repair line reads
+    the unpriced variant. Then register the invented `voyages` doc from
+    `tools/test-vehicles.mjs`'s SAMPLE_VOYAGES and re-render: the sinking
+    line carries the invented die, the repair line the invented gang and
+    fraction. In page context, `navigationThrow`/`hazardThrow` return null
+    targets with a `tablesMissing` part before registration and the
+    invented figures after; `damageToVessel(20, "personal").dealt` is 0
+    either way and `("lightArtillery").dealt` is null before, priced after.
 
 ## Teardown
 

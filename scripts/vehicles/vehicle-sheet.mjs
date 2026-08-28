@@ -13,7 +13,7 @@ import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS, CARRIAGE } from "./vehicle-data.mjs";
 import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN } from "./vehicle-speed.mjs";
-import { isSinking, speedFactor, repairPlan, SINK_FORMULA, CREW_PER_POINT } from "./vessel-damage.mjs";
+import { isSinking, speedFactor, repairPlan, sinkFormula } from "./vessel-damage.mjs";
 import { voyageDay } from "./voyage.mjs";
 import { complementMeans, COMPLEMENT_MEANS } from "./berths.mjs";
 import { load6 } from "../lib/capacity.mjs";
@@ -512,7 +512,7 @@ function hullState(sys) {
     max,
     pct: Math.max(0, Math.min(100, Math.round((value / max) * 100))),
     sinking: isSinking(sys),
-    sinkFormula: SINK_FORMULA,
+    sinkFormula: sinkFormula(),
     factor,
     factorLabel: fractionLabel(factor),
     // Naming which of the two governs stops a Judge patching the hull to fix a
@@ -526,7 +526,8 @@ function hullState(sys) {
     repairable: plan.repairable,
     dockOnly: plan.dockOnly,
     repairTurns: Number.isFinite(plan.turns) ? plan.turns : null,
-    crewPerPoint: CREW_PER_POINT,
+    crewPerPoint: plan.crewPerPoint,
+    repairMissing: !!plan.missing,
     handsAboard: aboard,
   };
 }

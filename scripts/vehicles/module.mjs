@@ -29,7 +29,17 @@ Hooks.once("init", () => {
   // What this feature will READ from the registry, declared so the import UX
   // can name what a world is missing. The values themselves never ship.
   expectTables(TRAVEL_DOC, ["terrainMultipliers", "roads"]);
-  expectTables(VOYAGES_DOC, ["windStrength", "tacking"]);
+  expectTables(VOYAGES_DOC, [
+    "windStrength",
+    "tacking",
+    "navigation",
+    "hazardThrow",
+    "hazards",
+    "damageShares",
+    "repair",
+    "rounding",
+    "berth",
+  ]);
 });
 
 /**
