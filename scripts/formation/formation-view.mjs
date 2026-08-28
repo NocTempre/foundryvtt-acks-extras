@@ -47,6 +47,7 @@ import {
   conditionsOf,
   generatorReady,
 } from "./weather.mjs";
+import { ENCOUNTER_TERRAINS, encounterTerrainFor } from "./encounters.mjs";
 import { expeditionFrom } from "../lib/movement-scales.mjs";
 import { fractionLabel } from "../lib/util.mjs";
 import { collectMapItems } from "./map-items.mjs";
@@ -460,6 +461,18 @@ function buildTravelView(formation, feet) {
     opt(value, game.i18n.localize(`ACKS-FORMATION.travel.territory.${value}`), value === t.territory));
   view.weather = buildWeatherView(t, opt);
   view.wheels = wheelRefusals(formation, t);
+
+  // The encounter sub-table: the ground's own default unless the Judge
+  // overrides — the unset option NAMES the default it stands for.
+  const derived = encounterTerrainFor(t.ground);
+  const derivedLabel = derived ? game.i18n.localize(ENCOUNTER_TERRAINS[derived].label) : null;
+  view.encounterTerrains = [
+    opt("", derivedLabel
+      ? game.i18n.format("ACKS-FORMATION.travel.enc.derivedOption", { terrain: derivedLabel })
+      : game.i18n.localize("ACKS-FORMATION.travel.enc.pickOption"), !t.encounterTerrain),
+    ...Object.entries(ENCOUNTER_TERRAINS).map(([value, cfg]) =>
+      opt(value, game.i18n.localize(cfg.label), value === t.encounterTerrain)),
+  ];
 
   view.dayKinds = Object.entries(DAY_KINDS).map(([value, cfg]) =>
     opt(value, game.i18n.localize(cfg.label), value === t.day.kind));

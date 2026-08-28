@@ -155,10 +155,14 @@ Still unbuilt, in likely order:
    whole `weather` document); still owed are the `voyages` recipes (wind
    strength, tacking — the naval tail) and JJ App R's per-kind road
    refinement that replaces the RR-derived roads table;
-   **encounter cadence throws** hanging off the activity slots'
-   frequency kinds; and **supply consumption** at End Day (member rations at
-   the day boundary, animal feed and water as Normal-Load fractions, crew
-   rations against the hold). Generated weather LANDED 2026-08-28
+   **supply consumption** at End Day (member rations at the day boundary,
+   animal feed and water as Normal-Load fractions, crew rations against the
+   hold). Encounter cadence + the chain LANDED 2026-08-28 (`MODEL.md` §The
+   encounters); of its importer recipes, the core chain tables ride the
+   owed-recipes row and the 17×4 monster sub-tables are a committed BATCH
+   PROGRAM (extras resolves whatever is registered and whispers "draw from
+   your book" for the rest, so batches land without extras changes).
+   Generated weather LANDED 2026-08-28
    (`MODEL.md` §The weather; the `weather` document's importer recipes ride
    the same owed-recipes row as the travel tables above). The scene/hex
    integration LANDED 2026-08-28 exactly as the record

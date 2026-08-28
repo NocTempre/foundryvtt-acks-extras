@@ -16,6 +16,7 @@ import {
 } from "./constants.mjs";
 import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, updateFormation } from "./formation-model.mjs";
 import { onJourneyTokenMoved } from "./travel.mjs";
+import { maybeHexThrow } from "./encounter-card.mjs";
 import { prepareToLight } from "../lib/light.mjs";
 import { equipForLight } from "./judge-override.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -520,8 +521,15 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
   if (!formation) return;
   // A journeying formation's movement is the HEX trace, not dungeon turns:
   // the same seam, handed to the travel engine (which counts hexes on
-  // painted hex scenes and stays silent elsewhere).
-  if (formation.travel?.mode === "journey") return onJourneyTokenMoved(tokenDoc, formationId);
+  // painted hex scenes and stays silent elsewhere). A hex genuinely ENTERED
+  // — counted, not merely named on first arrival — owes its encounter throw.
+  if (formation.travel?.mode === "journey") {
+    const before = formation.travel?.day?.hexesEntered ?? 0;
+    await onJourneyTokenMoved(tokenDoc, formationId);
+    const fresh = getFormation(formationId);
+    if ((fresh?.travel?.day?.hexesEntered ?? 0) > before) await maybeHexThrow(fresh);
+    return;
+  }
   if (formation.clock.paused) return;
   // While members are deployed for combat, camp moves don't consume turns.
   if (formation.combat?.active) return;

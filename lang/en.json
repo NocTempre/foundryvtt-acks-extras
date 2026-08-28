@@ -1853,6 +1853,10 @@
       "travelLogCap": {
         "name": "Travel log length",
         "hint": "How many finished days a formation's travel log keeps. Trimming eats the oldest days; it bounds the record's size, never the journey."
+      },
+      "travelEncounters": {
+        "name": "Journey encounter throws",
+        "hint": "Entering a hex and ending the day roll their owed encounter throws and whisper the chain to the Judge. Off, the panel's Encounter throw button is the only trigger."
       }
     },
     "travel": {
@@ -1987,6 +1991,89 @@
           "needsRoad": "roadless for wheels",
           "mudBound": "mud-bound off pavement",
           "snowbound": "snow-bound"
+        }
+      },
+      "enc": {
+        "title": "Wilderness encounter throw",
+        "speaker": "The Wilds",
+        "throw": "Encounter throw",
+        "throwHint": "Roll the encounter chain for this hex and whisper the Judge the result.",
+        "terrainLabel": "Encounter terrain",
+        "terrainHint": "Which terrain sub-table the chain draws from. Unset follows the ground picker.",
+        "derivedOption": "— {terrain} (from the ground) —",
+        "pickOption": "— pick a terrain —",
+        "importHint": "Import the encounter tables to roll the chain here; until then, throw from your book.",
+        "missingTable": "The {table} table is not imported — draw this step from your book.",
+        "noRow": "No printed row for this terrain — take the distance from the page.",
+        "pickTerrain": "No encounter terrain for this ground — pick one on the panel for the terrain-keyed steps.",
+        "terrainUsed": "Terrain sub-table",
+        "quiet": "The wilds are quiet.",
+        "night": "night",
+        "downgraded": "{kind} stood down — the party is resting or retracing its own route.",
+        "rarityLine": "Rarity",
+        "resolveBook": "Resolve the entry from your book.",
+        "distanceLine": "Encounter distance",
+        "visibleLine": "The party can be seen from up to {feet}' in daylight ({size} heads).",
+        "evasionLine": "Evasion throw {target}+ at {size} heads.",
+        "handoff": "Detection and surprise resolve on the system's Surprise Matrix when combat starts; reactions with the influence tools.",
+        "activity": {
+          "travel": "per hex",
+          "hunt": "hunting",
+          "search": "searching",
+          "rest": "resting"
+        },
+        "column": {
+          "civilizedRoad": "Civilized + road",
+          "civilizedOrBorderlandsRoad": "Civilized, or borderlands + road",
+          "borderlandsOrOutlandsRoad": "Borderlands, or outlands + road",
+          "outlandsOrUnsettledRoad": "Outlands, or unsettled + road",
+          "unsettled": "Unsettled"
+        },
+        "outcome": {
+          "columnShift": "Column shift",
+          "none": "No encounter",
+          "civilized": "Civilized encounter",
+          "monster": "Monster encounter",
+          "dangerousTerrain": "Dangerous terrain",
+          "valuableTerrain": "Valuable terrain",
+          "uniqueTerrain": "Unique terrain"
+        },
+        "rarity": {
+          "common": "Common",
+          "uncommon": "Uncommon",
+          "rare": "Rare",
+          "veryRare": "Very rare"
+        },
+        "mod": {
+          "aerial": "Flyers over open ground",
+          "explorer": "Explorer guiding",
+          "forlornHope": "Forlorn hope",
+          "movement": "Speed"
+        },
+        "terrain": {
+          "barrensRocky": "Barrens (rocky/sandy)",
+          "barrensTundra": "Barrens (tundra)",
+          "desertRocky": "Desert (rocky)",
+          "desertSandy": "Desert (sandy)",
+          "forestDeciduous": "Forest (deciduous)",
+          "forestTaiga": "Forest (taiga)",
+          "grassland": "Grassland (farm/prairie)",
+          "grasslandSavanna": "Grassland (savanna)",
+          "grasslandSteppe": "Grassland (steppe)",
+          "hillsForested": "Hills (forested)",
+          "hillsRocky": "Hills (rocky)",
+          "jungle": "Jungle",
+          "mountainsForested": "Mountains (forested)",
+          "mountainsRocky": "Mountains (rocky)",
+          "mountainsSnowy": "Mountains (snowy)",
+          "mountainsVolcanic": "Mountains (volcanic)",
+          "riverLand": "River",
+          "riverDesertJungle": "River (desert/jungle)",
+          "scrublandSparse": "Scrubland (sparse)",
+          "scrublandDense": "Scrubland (dense)",
+          "swampMarshy": "Swamp (marshy)",
+          "swampScrubby": "Swamp (scrubby)",
+          "swampForested": "Swamp (forested)"
         }
       },
       "dayBoard": "The day",

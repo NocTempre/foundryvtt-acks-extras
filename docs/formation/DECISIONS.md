@@ -906,3 +906,52 @@ vocabulary). Rejected: a second "weather on/off" setting (the `auto` flag
 on the record already gates generation per formation); weather state
 anywhere but the travel subtree (same alternatives, same rejection as
 2026-08-27's travel ruling).
+
+## 2026-08-28 — Encounters: the chain ships, the tables import, surprise stays core's
+
+The wilderness chain extends Path B to a fifth document, `encounters`.
+WHAT SHIPS: the chain's order (territory throw, then the civilized draw or
+the rarity-then-monster draws or a terrain-encounter d12), the
+column-selection mapping (each printed column serves a roaded territory
+and the next-wilder unroaded one; night in settled country shifts right;
+Column Shift walks right and re-rolls, clamped at the wall), the
+resting/known-route stand-down, the terrain-pick vocabulary with its
+structural flags and mappings (`closed` country sheltering evasion from
+flyers, `civilized` column groups, per-pick monster/distance/evasion keys,
+coarse-ground defaults — the wheelsNeedRoad precedent again,
+REVIEWER-FLAGGED like its siblings), the
+distance-vs-visibility detection procedure (own terrain per side, longer
+roll detects, caps hide), the evasion MODIFIER vocabulary, and the
+aftermath shape. WHAT IMPORTS: every d20/d100 band, every creature name,
+every distance die and multiplier, the visibility figures and the
+head-count ladder, every evasion target and modifier size, and the
+terrain-encounter lists.
+
+**Surprise is not re-derived.** Core ships the whole Surprise Matrix — the
+LUT (evade permission included), the rolls, the surprised status — inside
+its combat start, and the lib already patches its PRESENTATION
+(surprise-card). The card therefore hands off: it states the detection
+facts the chain produced and names the system's matrix as where they
+resolve. Duplicating the matrix here would invent what the system
+provides and drift the first time core corrected a cell.
+
+**The terrain picks are a UNION, not one printed list.** The book keys its
+encounter tables at three different grains — eighteen monster sub-tables
+split by weather biome (tundra barrens, three mountain skies, two rivers,
+one swamp), seventeen distance/evasion rows split by cover (three swamps,
+no rivers), eight civilized column groups — so no single printed list can
+key the engine. The pick vocabulary is their union (twenty-three), each
+pick carrying its key into every grain, null where the book prints no row
+(a river's distance and evasion hand back to the Judge). Rejected: keying
+on the monster grain alone (loses the three swamp evasion rows) and on
+the distance grain alone (loses savanna, tundra, the mountain biomes and
+both rivers entirely).
+
+**Two judgments, both ours:** a resting-night frequency counted in nights
+("once per N nights") gates its single throw on a die of N sides rather
+than tracking a nights counter across days — the book itself randomizes
+WHEN within a period an encounter falls, and a counter would be state the
+record does not otherwise need; and the desert-and-jungle river pick maps
+its civilized draws to the savanna/jungle-river column group (one pick
+cannot serve two groups; a desert river's civilized nuance is reachable by
+overriding to a desert pick).

@@ -140,6 +140,9 @@ export function travelOf(formation) {
       ...(t.weather ?? {}),
       footing: { ...freshFooting(), ...(t.weather?.footing ?? {}) },
     },
+    // Validated at USE by the encounter engine's own vocabulary — a plain
+    // passthrough here keeps travel free of an import back into encounters.
+    encounterTerrain: typeof t.encounterTerrain === "string" ? t.encounterTerrain : "",
     hex: { label: "", note: "", i: null, j: null, ...(t.hex ?? {}) },
     day: t.day ?? freshDay(),
     dayCount: Number(t.dayCount) || 0,
@@ -343,6 +346,7 @@ export function applyTravelForm(formationId, tv = {}) {
     if (typeof tv.ground === "string" && tv.ground) next.ground = tv.ground;
     if (ROAD_KINDS.includes(tv.road)) next.road = tv.road;
     if (TERRITORY_KEYS.includes(tv.territory)) next.territory = tv.territory;
+    if (typeof tv.encounterTerrain === "string") next.encounterTerrain = tv.encounterTerrain;
     if (tv.weather) {
       const wv = tv.weather;
       const w = { ...t.weather, auto: !!wv.auto, fronts: !!wv.fronts };

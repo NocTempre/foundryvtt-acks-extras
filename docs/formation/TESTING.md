@@ -254,6 +254,45 @@ tables at all — that is step 1's point.
 Teardown for the weather half: `acksExtras.lib.tables.unregisterTable` (or
 relaunch) removes the invented document; confirm the hint returns.
 
+## The encounters (added with the chain)
+
+Register two invented documents first — copy `tools/test-encounters.mjs`'s
+SAMPLE (the `encounters` doc: invented bands, QQ-prefixed names) and its
+SAMPLE_FREQUENCY (the `travel` doc's cadence cells steps 4–5 read); nothing
+printed enters the world. Fixtures: the journeying party from the weather
+recipe, plus one world actor named to match an invented creature name
+(e.g. "QQ Prowler") so resolution has something to find.
+
+1. With NO encounters document: press **Encounter throw**.
+   *Observable:* one Judge-whispered card saying the encounter tables are
+   not imported — no rolls, no errors.
+2. Register the invented document, pick a territory the sample covers,
+   press **Encounter throw** several times.
+   *Observable:* each card lists every d20 with its column and outcome
+   (Column Shift results show two rolls); a monster outcome adds the
+   rarity roll and the d100 draw; the drawn name matching the fixture
+   actor renders as a document link, an unmatched one as plain text with
+   no link; a draw whose table the sample lacks shows the
+   "draw from your book" line naming the table.
+3. The terrain select: leave it unset over a ground with a default (the
+   unset option NAMES the derived sub-table); override it and throw.
+   *Observable:* the card's "Terrain sub-table" line follows the pick.
+4. Turn ON "Journey encounter throws", enter a hex (button or token move
+   on a painted hex scene), then **End day** with a hunt and a search slot
+   filled.
+   *Observable:* the hex entry posts one card by itself (the FIRST arrival
+   on a painted scene names the hex without throwing); End Day posts one
+   card per hunt/search slot. With the setting OFF, neither trigger posts.
+5. Camp day with the setting on: **End day**.
+   *Observable:* terrain-encounter outcomes on any card stand down ("no
+   encounter" with the stood-down note); resting cells the sample defines
+   post their cards.
+6. Player seat: throws whisper the Judge only — the player's chat shows
+   nothing.
+
+Teardown: unregister the invented document, delete the QQ actor, setting
+back off.
+
 ## Teardown
 
 Delete the scene, the party actor (its formation goes with it), the member

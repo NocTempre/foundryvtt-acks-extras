@@ -103,6 +103,9 @@ import { syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { addLight, advanceRounds, advanceTurns, onPartyTokenMoved, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
 import * as travel from "./travel.mjs";
 import * as weather from "./weather.mjs";
+import * as encounters from "./encounters.mjs";
+import { ENCOUNTERS_DOC, ENCOUNTER_TABLE_IDS } from "./encounters.mjs";
+import { SETTING_TRAVEL_ENCOUNTERS, maybeHexThrow, postEncounterThrow, resolveCreature, rollDayEncounters } from "./encounter-card.mjs";
 import { SETTING_TRAVEL_LOG_CAP } from "./travel.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
@@ -292,6 +295,10 @@ Hooks.once("init", () => {
     "accumulation",
   ]);
 
+  // The encounter chain's: every band, name, distance die, visibility
+  // figure, evasion target and terrain-encounter list.
+  expectTables(ENCOUNTERS_DOC, ENCOUNTER_TABLE_IDS);
+
   // How many finished days a formation's travel log keeps; trimming eats the
   // oldest. It gates the settings blob's growth, not the journey.
   game.settings.register(MODULE_ID, SETTING_TRAVEL_LOG_CAP, {
@@ -301,6 +308,18 @@ Hooks.once("init", () => {
     config: true,
     type: Number,
     default: 120,
+  });
+
+  // Journeys throw their own encounters: entering a hex and ending the day
+  // roll the owed throws and whisper the chain to the Judge. Off, the
+  // panel's own button is the only trigger.
+  game.settings.register(MODULE_ID, SETTING_TRAVEL_ENCOUNTERS, {
+    name: "ACKS-FORMATION.settings.travelEncounters.name",
+    hint: "ACKS-FORMATION.settings.travelEncounters.hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
   });
 
   // GM rulings from the Skill Audit window: which abilities party-roll
@@ -378,10 +397,17 @@ Hooks.once("init", () => {
      * (`generateDay`, `conditionsOf`, `advanceGround`, the band and
      * condition key lists), so a sea or encounter module reads the same sky
      * this panel shows.
+     *
+     * 6 adds `encounters` — the wilderness chain (`runEncounter` and its
+     * steps, the terrain and outcome vocabularies, detection and evasion
+     * derivations) plus the card runners (`postEncounterThrow`,
+     * `resolveCreature`), so a lair or domain module rolls the same chain
+     * the journey does.
      */
-    apiVersion: 5,
+    apiVersion: 6,
     travel,
     weather,
+    encounters: { ...encounters, maybeHexThrow, postEncounterThrow, resolveCreature, rollDayEncounters },
     traps: {
       ...trapRules,
       runTrapCheck,

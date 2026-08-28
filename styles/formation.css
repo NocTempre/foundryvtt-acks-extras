@@ -1205,7 +1205,7 @@
 .acks-extras-formation-travel-weather-chip {
   font-size: var(--acks-fs-label);
   padding: 0.05rem 0.45rem;
-  border: 1px solid var(--acks-border-soft);
+  border: var(--acks-border-soft);
   border-radius: 999px;
   background: var(--acks-tint);
 }
@@ -1216,17 +1216,17 @@
 .acks-extras-formation-travel-weather-chip[data-cond="flurry"],
 .acks-extras-formation-travel-weather-chip[data-cond="snowy"],
 .acks-extras-formation-travel-weather-chip[data-cond="snowbound"] {
-  border-color: color-mix(in srgb, #6aa7d8 55%, var(--acks-border-soft));
+  border-color: color-mix(in srgb, #6aa7d8 55%, var(--acks-rule-color-soft));
 }
 
 .acks-extras-formation-travel-weather-chip[data-cond="sweltering"],
 .acks-extras-formation-travel-weather-chip[data-cond="sunbaked"] {
-  border-color: color-mix(in srgb, #d8926a 55%, var(--acks-border-soft));
+  border-color: color-mix(in srgb, #d8926a 55%, var(--acks-rule-color-soft));
 }
 
 .acks-extras-formation-travel-weather-chip[data-cond="stormy"],
 .acks-extras-formation-travel-weather-chip[data-cond="muddy"] {
-  border-color: color-mix(in srgb, #b08a4f 55%, var(--acks-border-soft));
+  border-color: color-mix(in srgb, #b08a4f 55%, var(--acks-rule-color-soft));
 }
 
 .acks-extras-formation-travel-wheels {
@@ -1273,4 +1273,53 @@
 .acks-extras-formation-travel-logday {
   font-variant-numeric: tabular-nums;
   opacity: 0.85;
+}
+
+/* --- The wilderness encounter card (Judge-whispered chat) --- */
+
+.acks-extras-encounter-card {
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-encounter-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  padding-bottom: 0.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.acks-extras-encounter-card-cadence {
+  margin-left: auto;
+  opacity: 0.75;
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-encounter-card-rolls {
+  margin: 0.15rem 0;
+  padding-left: 1.1rem;
+}
+
+.acks-extras-encounter-card-none {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.acks-extras-encounter-card-creature {
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-encounter-card-book {
+  color: var(--acks-warning-ink);
+  margin: 0.15rem 0;
+}
+
+.acks-extras-encounter-card-mod {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border: var(--acks-border-soft);
+  border-radius: 999px;
+  font-size: var(--acks-fs-fine);
 }

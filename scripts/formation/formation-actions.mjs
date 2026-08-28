@@ -5,6 +5,7 @@ import {
   addMember,
   autoArrange,
   disband,
+  getFormation,
   getFrontage,
   getPartyActor,
   getPartyScene,
@@ -17,6 +18,7 @@ import {
   toggleRole,
   updateFormation,
 } from "./formation-model.mjs";
+import { maybeHexThrow, postEncounterThrow, rollDayEncounters } from "./encounter-card.mjs";
 import {
   anchorMap,
   archiveSession,
@@ -206,6 +208,15 @@ export const SHARED_ACTIONS = {
     if (!formation) return;
     const label = this.element?.querySelector('input[name="travel.hexLabel"]')?.value ?? "";
     await enterHex(formation.id, label);
+    await maybeHexThrow(getFormation(formation.id));
+    this.render();
+  },
+
+  /** The Judge asks the wilderness directly: one encounter throw, one card. */
+  async travelEncounterThrow() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await postEncounterThrow(formation, { activity: "travel" });
     this.render();
   },
 
@@ -217,10 +228,11 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     const r = travelReadout(formation, partySpeed(formation));
-    await endDay(formation.id, {
+    const entry = await endDay(formation.id, {
       miles: r.camp ? 0 : r.milesPerDay,
       hexes: r.camp ? 0 : r.hexesPerDay,
     });
+    if (entry) await rollDayEncounters(getFormation(formation.id), entry);
     this.render();
   },
 

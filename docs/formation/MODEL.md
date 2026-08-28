@@ -405,9 +405,41 @@ wheels stop in snow anywhere and in mud off pavement — and the refusals
 render on the panel for the whole table. The finished day's weather goes
 into its log row, display fields only.
 
-Still ahead of this mode — encounter cadence throws hanging off the
-activity slots, supply consumption at End Day — is [ROADMAP.md](ROADMAP.md)
-item 7.
+## The encounters
+
+The wilderness asks its own questions
+([encounters.mjs](../../scripts/formation/encounters.mjs) the chain,
+[encounter-card.mjs](../../scripts/formation/encounter-card.mjs) the table
+side). One throw runs the whole chain in the rules' order: the territory
+d20 on the column the party's territory, road and the night pick (a Column
+Shift result walks one column right and rolls again), then a civilized
+d100 on the terrain's column group, or a rarity d20 and the
+terrain-and-rarity monster d100, or a terrain-encounter d12 — stood down
+when the party is resting or retracing its own route. Every band, name,
+die and figure reads from the `encounters` registered document through
+the terrain PICKS — a union vocabulary, because the book keys its tables
+at three grains (eighteen biome-split monster sub-tables, seventeen
+cover-split distance/evasion rows, eight civilized column groups); each
+pick maps itself into all three, the travel ground derives a default, a
+panel select overrides it, and a missing table — or a step the book
+prints no row for, like a river's distance — resolves to a "draw from
+your book" line, never a guess. A drawn creature resolves against the
+world's actors and the imported library through the name-form fold, and
+the whole chain lands as ONE Judge-whispered card: every roll shown, the
+encounter distance (each side's own terrain when they differ, the longer
+roll detecting, capped by how far a formation of that many heads can be
+seen), the party's evasion target with the modifier lines that apply, and
+the hand-off — detection and surprise resolve on the SYSTEM's own Surprise
+Matrix at combat start (core owns the matrix, the rolls and the evade
+permission; nothing here re-derives them), and reactions with the
+influence tools. Cadence: the panel's Encounter throw button always; under
+the `travelEncounters` world setting every hex genuinely entered throws as
+it is entered, and End Day rolls the finished day's owed throws from the
+imported frequency table — one per hunt or search hour, the camp's resting
+cells, a night cell counted in nights gated on a die of that many sides.
+
+Still ahead of this mode — supply consumption at End Day — is
+[ROADMAP.md](ROADMAP.md) item 7.
 
 ## Deliberate non-features (v0.1)
 

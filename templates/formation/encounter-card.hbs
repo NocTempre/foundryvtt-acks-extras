@@ -1,0 +1,71 @@
+<div class="acks-extras-encounter-card">
+  <header class="acks-extras-encounter-card-header">
+    <i class="fa-solid fa-signs-post"></i>
+    <strong>{{localize "ACKS-FORMATION.travel.enc.title"}}</strong>
+    <span class="acks-extras-encounter-card-cadence">{{activity}}{{#if night}} · {{localize "ACKS-FORMATION.travel.enc.night"}}{{/if}}</span>
+  </header>
+
+  {{#if missingTerritory}}
+  <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.importHint"}}</p>
+  {{else}}
+  <ol class="acks-extras-encounter-card-rolls">
+    {{#each rolls}}
+    <li>{{column}} — <strong>{{roll}}</strong> → {{outcome}}</li>
+    {{/each}}
+  </ol>
+
+  {{#if downgraded}}
+  <p class="hint">{{localize "ACKS-FORMATION.travel.enc.downgraded" kind=downgraded}}</p>
+  {{/if}}
+
+  {{#if isNone}}
+  <p class="acks-extras-encounter-card-none">{{localize "ACKS-FORMATION.travel.enc.quiet"}}</p>
+  {{else}}
+
+  {{#if noTerrain}}
+  <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.pickTerrain"}}</p>
+  {{else}}
+  <p class="hint">{{localize "ACKS-FORMATION.travel.enc.terrainUsed"}}: {{terrain}}</p>
+  {{/if}}
+
+  {{#if rarity}}
+  <p>{{localize "ACKS-FORMATION.travel.enc.rarityLine"}}: <strong>{{rarity.roll}}</strong> → {{rarity.label}}</p>
+  {{/if}}
+
+  {{#if creature}}
+  <p class="acks-extras-encounter-card-creature">
+    <strong>{{creature.roll}}</strong> →
+    {{#if creature.link}}{{creature.link}}{{else}}<strong>{{creature.name}}</strong>{{/if}}
+  </p>
+  {{/if}}
+
+  {{#if terrainEncounter}}
+  <p class="acks-extras-encounter-card-creature"><strong>{{terrainEncounter.roll}}</strong> → <strong>{{terrainEncounter.name}}</strong>
+    <span class="hint">{{localize "ACKS-FORMATION.travel.enc.resolveBook"}}</span></p>
+  {{/if}}
+
+  {{#each missing}}
+  <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.missingTable" table=this}}</p>
+  {{/each}}
+  {{#if noRow}}
+  <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.noRow"}}</p>
+  {{/if}}
+
+  {{#if distance}}
+  <p>{{localize "ACKS-FORMATION.travel.enc.distanceLine"}}: <strong>{{distance.feet}}'</strong>
+    <span class="hint">({{distance.dice}} × {{distance.mult}})</span></p>
+  {{/if}}
+  {{#if visible}}
+  <p class="hint">{{localize "ACKS-FORMATION.travel.enc.visibleLine" feet=visible size=partySize}}</p>
+  {{/if}}
+
+  {{#if evasion}}
+  <p>{{localize "ACKS-FORMATION.travel.enc.evasionLine" target=evasion size=partySize}}
+    {{#each evasionMods}}<span class="acks-extras-encounter-card-mod">{{label}} {{value}}</span>{{/each}}
+  </p>
+  {{/if}}
+
+  <p class="hint">{{localize "ACKS-FORMATION.travel.enc.handoff"}}</p>
+  {{/if}}
+  {{/if}}
+</div>

@@ -325,6 +325,11 @@
           {{#each travel.territories}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
       </label>
+      <label data-tooltip="{{localize 'ACKS-FORMATION.travel.enc.terrainHint'}}">{{localize "ACKS-FORMATION.travel.enc.terrainLabel"}}
+        <select name="travel.encounterTerrain">
+          {{#each travel.encounterTerrains}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
     </div>
 
     <div class="acks-extras-formation-travel-weather">
@@ -442,6 +447,9 @@
              placeholder="{{localize 'ACKS-FORMATION.travel.hexPlaceholder'}}">
       <button type="button" data-action="travelEnterHex" data-tooltip="{{localize 'ACKS-FORMATION.travel.enterHexHint'}}">
         <i class="fa-solid fa-arrow-right"></i> {{localize "ACKS-FORMATION.travel.enterHex"}}
+      </button>
+      <button type="button" data-action="travelEncounterThrow" data-tooltip="{{localize 'ACKS-FORMATION.travel.enc.throwHint'}}">
+        <i class="fa-solid fa-signs-post"></i> {{localize "ACKS-FORMATION.travel.enc.throw"}}
       </button>
       <span class="hint">{{localize "ACKS-FORMATION.travel.enteredToday" n=travel.hexesEntered}}</span>
       {{/if}}
