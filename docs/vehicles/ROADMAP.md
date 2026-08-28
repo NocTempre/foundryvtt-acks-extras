@@ -3,26 +3,19 @@
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
-- **Unnamed marines carry weightless gear** — the marines rule charges a
-  NON-MOTIVE crew's gear as freight, but only NAMED occupants have
-  inventories to weigh. A typed per-head gear figure on the crew role row
-  (filled from the Judge's own book, the way RR p. 316's worked example
-  prices a contingent) would let an abstract marine complement charge the
-  hold too.
-- **The vessel crew-to-cargo trade has no control** — `crewCargoTrade` is
-  derived and published, so a Judge can ask what leaving four hands ashore
-  would buy her, but nothing on the sheet offers the swap or applies it.
 - **War machines** — a ballista or catapult rides on a vessel as cargo with its
   own stone cost, and the damage share table already knows what each class of
   engine does to a hull. What is missing is the engine as a THING: an item that
   occupies its cargo stone, names its damage class, and needs a crew to lay and
   loose it. Siege engines proper are their own chapter and are not this.
-- **Hazards and navigation have no surface** — the throws and the hazard table
-  are derived and published, but nothing rolls them. They want the shape the
-  door helper has: the throw broken into its parts and shown before it is
-  rolled.
-- **Sinking has no clock** — `isSinking` and the 1d10 are known; nothing counts
-  the rounds down or tells the people aboard.
+- **Voyage-day surfaces** — `voyageDay`/`canSailRoundTheClock` derive but
+  nothing offers the day: a voyage panel (the journey panel's sea mirror)
+  would wire the officer seats' consequences (no navigator, no
+  round-the-clock) to a visible control, roll the daily wind from the
+  imported rows, and log the leg. River current bands and draft gates, and
+  the scurvy/morale calamity prompts, land with it.
+  (The marines' gear rate, the crew-for-cargo trade, the navigation and
+  hazard dialogs and the sinking clock all LANDED 2026-08-28 — MODEL.md.)
 - **Automatons are not vehicles.** BtA ch. 6 is a crafting economy — the
   machinist's design / build / repair project system, with blueprints, a
   proficiency throw sliding 14+ at L1 to 5+ at L10, major/minor ability tiers,

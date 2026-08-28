@@ -107,6 +107,12 @@ export default class VehicleData extends TypeDataModel {
         // Marines do not row. A role that does not drive the vessel is not
         // counted when asking how understrength it is.
         motive: bool(true),
+        // What one UNNAMED hand of a non-motive role carries, in stone —
+        // the marines rule charges their gear as freight, and only a typed
+        // rate lets an abstract complement charge the hold the way named
+        // occupants' real inventories do. Filled from the Judge's own book;
+        // null = unstated, charges nothing.
+        gearStone: new foundry.data.fields.NumberField({ required: false, nullable: true, initial: null, min: 0 }),
       });
 
     /** One animal in the team, bound by uuid so its own sheet stays the truth. */

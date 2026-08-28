@@ -132,6 +132,26 @@ the sinking die, the repair gang and sea fraction, the rounding grains, and
 the general berth. Unimported, each surface says what it cannot price
 instead of guessing.
 
+The sheet's **Seamanship** block ([sea-throws.mjs](../../scripts/vehicles/sea-throws.mjs))
+rolls the day's two questions in the door-helper shape — the throw
+decomposed into its parts and shown before anything is rolled, then one d20
+whispered to the Judge. The navigation dialog prefills the arts from the
+people actually aboard and the hazard dialog prefills the master mariner
+from the best Seafaring at the helm; both stay overridable, because the
+dialog is a helper and the Judge is the authority. A failed hazard throw
+states the hazard's own imported effects on the card. A holed hull offers
+**the sinking clock**: one roll of the imported die onto a flag, a
+round-by-round tick, and the water closing over her at zero.
+
+The hold trades with the crew ON ITS OWN: hands short of the complement
+(named crew standing in for typed hands) leave their berths, and the hold
+grows by the imported berth apiece — no switch to flip, because the room
+physically exists whenever the hands do not; unpriced, the freed hands are
+named and nothing grows. The UNNAMED non-motive complement charges its
+gear too, at each role's typed per-head rate (`gearStone`, filled from the
+Judge's own book), so an abstract contingent of marines is no longer
+weightless freight beside the named ones' weighed inventories.
+
 - **Damage** ([vessel-damage.mjs](../../scripts/vehicles/vessel-damage.mjs)):
   most attacks cannot hurt a hull at all — a man-sized or large creature does
   NOTHING, and the biggest things deal everything; those two ends are the

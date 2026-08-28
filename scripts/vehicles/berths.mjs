@@ -171,10 +171,14 @@ export function fillBuckets(vehicle, occupants = [], cargoStone = 0) {
 
   // The marines rule (RR p. 316): a NON-MOTIVE crew's bodies ride free but
   // their weapons and armour are freight. The occupant rows say whose gear
-  // charges (`cargoGear`), so a homebrew gunner bench behaves like marines.
-  const crewGearStone = occupants
-    .filter((o) => o.cargoGear)
-    .reduce((sum, o) => sum + (Number(o.gearStone) || 0), 0);
+  // charges (`cargoGear`), so a homebrew gunner bench behaves like marines —
+  // and the UNNAMED complement charges too, at each role's typed rate.
+  const namedCrewCount = occupants.filter((o) => o.role === "crew").length;
+  const crewGearStone =
+    occupants.filter((o) => o.cargoGear).reduce((sum, o) => sum + (Number(o.gearStone) || 0), 0) +
+    unnamedCrewGearStone(vehicle);
+
+  const trade = crewTradeCredit(vehicle, namedCrewCount);
 
   const means = complementMeans(vehicle);
   const buckets = order.map((key) => {
@@ -214,12 +218,47 @@ export function fillBuckets(vehicle, occupants = [], cargoStone = 0) {
 
   // Only what the pool actually holds. On a vessel the passengers are berthed
   // and the hold is the hold — but actor-shaped cargo and the marines' gear
-  // are in it either way.
+  // are in it either way, and the empty benches' berths grow it.
+  const effectiveCapacity = capacity + (trade?.stone ?? 0);
   const used = cargoStone + cargoActorStone + crewGearStone + (pools ? passengerStone : 0);
   return {
     buckets,
     pools,
     crewGearStone,
-    pooled: { capacity, used, free: capacity - used, over: used > capacity },
+    trade,
+    pooled: { capacity: effectiveCapacity, used, free: effectiveCapacity - used, over: used > effectiveCapacity },
   };
+}
+
+/**
+ * The unnamed non-motive complement's freight: each role's typed per-head
+ * gear rate times the hands aboard. Named occupants weigh their real gear
+ * instead; this prices only the abstraction.
+ */
+export function unnamedCrewGearStone(vehicle) {
+  return (vehicle?.crew?.roles ?? [])
+    .filter((r) => !r.motive && Number(r.gearStone) > 0)
+    .reduce((sum, r) => sum + Math.max(0, Number(r.aboard) || 0) * Number(r.gearStone), 0);
+}
+
+/**
+ * The crew-for-cargo trade, running on its own: hands short of the
+ * complement leave their berths, and a vessel's hold grows by the imported
+ * berth apiece — no switch to flip, because the room physically exists
+ * whenever the hands do not. Named crew stand in for typed hands and buy
+ * the shortfall back. Null when nothing is short (or not a vessel);
+ * `missing` when hands are short but no berth is imported to price them.
+ */
+export function crewTradeCredit(vehicle, namedCrewCount = 0) {
+  if (vehicle?.kind !== "sea") return null;
+  const shortfall = Math.max(
+    0,
+    (vehicle?.crew?.roles ?? []).reduce(
+      (sum, r) => sum + Math.max(0, (Number(r.required) || 0) - (Number(r.aboard) || 0)),
+      0,
+    ) - Math.max(0, Number(namedCrewCount) || 0),
+  );
+  if (!shortfall) return null;
+  const rate = berthStone();
+  return { hands: shortfall, stone: rate != null ? shortfall * rate : null, missing: rate == null };
 }

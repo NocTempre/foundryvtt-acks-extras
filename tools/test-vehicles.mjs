@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Vehicle speed: the multipliers, the tiers, and the things that stop a
  * vehicle entirely. Pure arithmetic — documents are live-gate territory.
  *
@@ -450,3 +450,31 @@ assert.ok(crewCargoTrade({ kind: "sea", crew: { roles: [{ required: 10 }] } }, 2
 registerSamples();
 
 console.log("test-vehicles: OK (registry navigation, hazards, shares, repair, berth; degradation says why)");
+
+/* --- the trade credit and the unnamed gear, at the invented berth ---------- */
+import { crewTradeCredit, unnamedCrewGearStone } from "../scripts/vehicles/berths.mjs";
+
+registerSamples();
+const shortShip = { kind: "sea", crew: { roles: [
+  { key: "rowers", required: 10, aboard: 6, motive: true },
+  { key: "marines", required: 4, aboard: 4, motive: false, gearStone: 3 },
+] }, cargo: { capacityStone: 100 } };
+let credit = crewTradeCredit(shortShip, 0);
+assert.equal(credit.hands, 4, "hands short of the complement leave their berths");
+assert.equal(credit.stone, 160, "each freed berth is the imported rate");
+assert.equal(crewTradeCredit(shortShip, 4), null, "named crew stand in and buy the shortfall back");
+assert.equal(crewTradeCredit({ kind: "land" }, 0), null, "a wagon cannot trade its horses");
+assert.equal(unnamedCrewGearStone(shortShip), 12, "four marines' typed gear charges the hold");
+const filledShip = fillBuckets(shortShip, [], 0);
+assert.equal(filledShip.pooled.capacity, 260, "the hold grows by the freed berths");
+assert.equal(filledShip.crewGearStone, 12, "and carries the abstract marines' gear");
+assert.equal(filledShip.trade.hands, 4);
+
+resetTables();
+credit = crewTradeCredit(shortShip, 0);
+assert.equal(credit.stone, null, "no berth imported: the freed room is unpriced, never guessed");
+assert.ok(credit.missing);
+assert.equal(fillBuckets(shortShip, [], 0).pooled.capacity, 100, "an unpriced trade grows nothing");
+registerSamples();
+
+console.log("test-vehicles: OK (trade credit, unnamed gear, unpriced degradation)");

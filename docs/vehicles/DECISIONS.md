@@ -210,3 +210,25 @@ shim; `berthStone()` reads the registry, a vessel's own typed
 when nothing prices the swap. Deferred with eyes open: voyage.mjs's clock
 constants (the twelve-hour sailing day against the eight-hour march) await
 the movement-scales pass that owns that family of figures.
+
+## 2026-08-28 — Seamanship surfaces: derived trade, prefilled dialogs, a flag for the clock
+
+Four ROADMAP debts close in one shape. **The crew-for-cargo trade is
+DERIVED, not switched**: hands short of the complement (named crew standing
+in for typed hands) free their berths automatically, because the room
+physically exists whenever the hands do not — a `tradedAshore` field was
+rejected as second state that could disagree with the aboard counts it
+shadows. **The navigation and hazard dialogs prefill from the people
+actually aboard** (the arts from occupants' abilities, the master mariner
+from the best Seafaring at the helm) and stay overridable — the dialog is a
+helper, the Judge is the authority; both whisper one card in the
+door-helper shape, and a failed hazard throw states the hazard's imported
+effects rather than applying them (the Judge applies damage, because the
+target may be a token, a fixture, or nothing yet). **The sinking clock is a
+flag** (`sinking {rounds, rolled}`) ticked by hand from the sheet — combat
+integration can automate the tick later without changing the record. A
+stale flag on a refloated hull is ignored by display (keyed on `isSinking`)
+rather than auto-cleared in render, which would be a write inside a
+prepare. **The unnamed gear rate is per-role typed data** (`gearStone`),
+never a shipped constant — RR p. 316's worked example prices a contingent,
+and that price belongs to the reader's book.

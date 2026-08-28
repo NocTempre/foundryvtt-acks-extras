@@ -122,6 +122,24 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     targets with a `tablesMissing` part before registration and the
     invented figures after; `damageToVessel(20, "personal").dealt` is 0
     either way and `("lightArtillery").dealt` is null before, priced after.
+12. Seamanship (added with the surfaces). On the sea fixture with the
+    invented `voyages` doc registered:
+    - a crew role short of its complement shows the trade line under the
+      hold bar ("N hand(s) short — … free M st") and the hold's capacity
+      grows by M; fill the role (or attach named crew) and the line goes.
+    - type a `gearStone` on a NON-MOTIVE role with hands aboard: the hold's
+      marine-gear share grows by aboard × rate; motive rows offer no input.
+    - **Navigation throw** opens the dialog with the arts prefilled from an
+      aboard actor holding a "Navigation" ability item; rolling whispers
+      ONE Judge card listing each part, the effective target and the d20.
+    - **Hazard throw** with an aboard master mariner (three "Seafaring"
+      items) prefills the helm; force a failure (roll until) and the card
+      states the chosen hazard's invented dice/holding line.
+    - damage her to 0: the hull block offers **Start the clock**; starting
+      posts the rolled rounds and shows the counter; **Round passes** ticks
+      it down and the zero round posts the sinking line. Unregister the doc
+      first instead and the button is absent (no die to roll).
+    - player seat: the whispers reach the Judge only.
 
 ## Teardown
 

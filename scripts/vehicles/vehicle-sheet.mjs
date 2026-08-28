@@ -14,8 +14,9 @@ import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS, CARRIAGE } from "./vehicle-data.mjs";
 import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN } from "./vehicle-speed.mjs";
 import { isSinking, speedFactor, repairPlan, sinkFormula } from "./vessel-damage.mjs";
+import { SINKING_FLAG, openHazardDialog, openNavigationDialog, startSinkingClock, tickSinkingClock } from "./sea-throws.mjs";
 import { voyageDay } from "./voyage.mjs";
-import { complementMeans, COMPLEMENT_MEANS } from "./berths.mjs";
+import { complementMeans, COMPLEMENT_MEANS, crewTradeCredit, unnamedCrewGearStone } from "./berths.mjs";
 import { load6 } from "../lib/capacity.mjs";
 import { attach, detach } from "../lib/attachment.mjs";
 import { occupantsOf, draftPullOf, normalizeTeamRows, derivedSkills } from "./occupants.mjs";
@@ -55,6 +56,10 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       reboard: VehicleSheet.#reboard,
       openCargo: VehicleSheet.#openCargo,
       unloadCargo: VehicleSheet.#unloadCargo,
+      seaNavigation: VehicleSheet.#seaNavigation,
+      seaHazard: VehicleSheet.#seaHazard,
+      sinkStart: VehicleSheet.#sinkStart,
+      sinkTick: VehicleSheet.#sinkTick,
     },
     dragDrop: [
       { dropSelector: ".acks-extras-vehicle-team" },
@@ -95,8 +100,16 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     const namedStone = riders.reduce((sum, r) => sum + r.stone, 0);
     const cargoRiders = occupants.filter((o) => o.role === "cargo");
     const cargoActorStone = cargoRiders.reduce((sum, o) => sum + o.stone, 0);
-    const crewGearStone = occupants.reduce((sum, o) => sum + (o.cargoGear ? o.gearStone : 0), 0);
+    const crewGearStone =
+      occupants.reduce((sum, o) => sum + (o.cargoGear ? o.gearStone : 0), 0) + unnamedCrewGearStone(sys);
     const hold = cargoRemaining(sys, aboardStone + cargoActorStone + crewGearStone, namedStone);
+    // Empty benches grow the hold at the imported berth apiece (the
+    // crew-for-cargo trade, derived — berths.mjs owns the judgment).
+    const trade = crewTradeCredit(sys, occupants.filter((o) => o.role === "crew").length);
+    if (trade?.stone) {
+      hold.capacity += trade.stone;
+      hold.free += trade.stone;
+    }
 
 
     // The team's real pull and the effective crew count the ATTACHMENTS the
@@ -132,9 +145,11 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
         aboardStone: round2(aboardStone),
         free: round2(hold.free),
         over: hold.free < 0,
+        trade,
         // A bar reads faster than two numbers when the answer is "nearly full".
         pct: hold.capacity > 0 ? Math.min(100, Math.round((hold.used / hold.capacity) * 100)) : 0,
       },
+      sinkingClock: this.actor.getFlag(MODULE_ID, SINKING_FLAG) ?? null,
       speed,
       reasons,
       winds: Object.entries(WIND).map(([value, w]) => ({
@@ -422,6 +437,24 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     const item = this.actor.items.get(target.dataset.itemId);
     if (!item) return;
     await item.delete();
+    this.render();
+  }
+
+  static async #seaNavigation() {
+    await openNavigationDialog(this.actor);
+  }
+
+  static async #seaHazard() {
+    await openHazardDialog(this.actor);
+  }
+
+  static async #sinkStart() {
+    await startSinkingClock(this.actor);
+    this.render();
+  }
+
+  static async #sinkTick() {
+    await tickSinkingClock(this.actor);
     this.render();
   }
 

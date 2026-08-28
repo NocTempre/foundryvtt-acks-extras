@@ -58,6 +58,20 @@
                 {{localize "ACKS-VEHICLES.damage.sinkingUnpriced"}}
               {{/if}}
             </p>
+            {{#if editable}}
+            <div class="acks-extras-vehicle-sinkclock">
+              {{#if sinkingClock}}
+                <span class="acks-extras-vehicle-sinkclock-count">{{localize "ACKS-VEHICLES.sea.roundsLeft" rounds=sinkingClock.rounds}}</span>
+                <button type="button" data-action="sinkTick" data-tooltip="{{localize 'ACKS-VEHICLES.sea.tickHint'}}">
+                  <i class="fa-solid fa-hourglass-half"></i> {{localize "ACKS-VEHICLES.sea.tick"}}
+                </button>
+              {{else if hull.sinkFormula}}
+                <button type="button" data-action="sinkStart" data-tooltip="{{localize 'ACKS-VEHICLES.sea.startClockHint'}}">
+                  <i class="fa-solid fa-water"></i> {{localize "ACKS-VEHICLES.sea.startClock"}}
+                </button>
+              {{/if}}
+            </div>
+            {{/if}}
           {{else if hull.damage}}
             {{! Which of the two governs, so nobody patches a hull to fix a
                 speed the missing rowers were costing all along. }}
@@ -181,6 +195,15 @@
       <p>{{hold.aboardStone}} / {{hold.capacity}} {{localize "ACKS-VEHICLES.cargo.stone"}}
          {{#if hold.passengerStone}}<span class="hint">({{hold.passengerStone}} {{localize "ACKS-VEHICLES.cargo.asPassengers"}})</span>{{/if}}
          {{#if hold.marineGear}}<span class="hint">({{hold.marineGear}} {{localize "ACKS-VEHICLES.cargo.marineGear"}})</span>{{/if}}</p>
+      {{#if hold.trade}}
+        <p class="hint acks-extras-vehicle-trade">
+          {{#if hold.trade.missing}}
+            {{localize "ACKS-VEHICLES.cargo.tradeUnpriced" hands=hold.trade.hands}}
+          {{else}}
+            {{localize "ACKS-VEHICLES.cargo.trade" hands=hold.trade.hands stone=hold.trade.stone}}
+          {{/if}}
+        </p>
+      {{/if}}
     </div>
     <div class="form-group">
       <label>{{localize "ACKS-VEHICLES.cargo.capacity"}}</label>
@@ -243,18 +266,33 @@
         stepper writes the same field); this table states the complement. }}
     <table class="acks-extras-vehicle-crew">
       <tr><th>{{localize "ACKS-VEHICLES.crew.role"}}</th>
-          <th>{{localize "ACKS-VEHICLES.crew.required"}}</th><th>{{localize "ACKS-VEHICLES.crew.motive"}}</th><th></th></tr>
+          <th>{{localize "ACKS-VEHICLES.crew.required"}}</th><th>{{localize "ACKS-VEHICLES.crew.motive"}}</th>
+          <th data-tooltip="{{localize 'ACKS-VEHICLES.crew.gearStoneHint'}}">{{localize "ACKS-VEHICLES.crew.gearStone"}}</th><th></th></tr>
       {{#each roles}}
       <tr class="{{#if short}}is-short{{/if}}">
         <td><input type="text" name="system.crew.roles.{{index}}.label" value="{{label}}"></td>
         <td><input type="number" name="system.crew.roles.{{index}}.required" min="0" value="{{required}}"></td>
         <td><input type="checkbox" name="system.crew.roles.{{index}}.motive" {{checked motive}}></td>
+        <td>{{#unless motive}}<input type="number" name="system.crew.roles.{{index}}.gearStone" min="0" step="any" value="{{gearStone}}" placeholder="—">{{/unless}}</td>
         <td>{{#if @root.editable}}<a data-action="removeRole" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>{{/if}}</td>
       </tr>
       {{/each}}
     </table>
     <p class="hint">{{localize "ACKS-VEHICLES.crew.hint"}}</p>
   </fieldset>
+
+  {{! Seamanship: the day's throws, decomposed before they are rolled. }}
+  {{#if editable}}
+  <fieldset class="acks-extras-vehicle-seamanship">
+    <legend>{{localize "ACKS-VEHICLES.sea.legend"}}</legend>
+    <button type="button" data-action="seaNavigation" data-tooltip="{{localize 'ACKS-VEHICLES.sea.navigationHint'}}">
+      <i class="fa-solid fa-compass"></i> {{localize "ACKS-VEHICLES.sea.navigationTitle"}}
+    </button>
+    <button type="button" data-action="seaHazard" data-tooltip="{{localize 'ACKS-VEHICLES.sea.hazardHint'}}">
+      <i class="fa-solid fa-water"></i> {{localize "ACKS-VEHICLES.sea.hazardTitle"}}
+    </button>
+  </fieldset>
+  {{/if}}
   {{/if}}
 
   {{#if isLand}}

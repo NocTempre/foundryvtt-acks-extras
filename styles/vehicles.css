@@ -275,3 +275,69 @@
   font-size: var(--acks-fs-label);
   opacity: 0.8;
 }
+
+/* --- Seamanship: the sea's throws and the sinking clock --- */
+
+.acks-extras-vehicle-seamanship {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.acks-extras-vehicle-seamanship button {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.acks-extras-vehicle-trade {
+  margin: 0.15rem 0 0;
+}
+
+.acks-extras-vehicle-sinkclock {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.acks-extras-vehicle-sinkclock button {
+  width: auto;
+}
+
+.acks-extras-vehicle-sinkclock-count {
+  font-weight: bold;
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-sea-throw-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.acks-extras-sea-throw-card header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  padding-bottom: 0.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.acks-extras-sea-throw-parts {
+  margin: 0.15rem 0;
+  padding-left: 1.1rem;
+}
+
+.acks-extras-sea-throw-result.success {
+  color: var(--acks-success-ink);
+  font-weight: bold;
+}
+
+.acks-extras-sea-throw-result.failure {
+  color: var(--acks-danger-ink);
+  font-weight: bold;
+}
+
+.acks-extras-sea-throw-hazard {
+  margin: 0.15rem 0;
+}

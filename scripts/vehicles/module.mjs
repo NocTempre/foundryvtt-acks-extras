@@ -19,6 +19,7 @@ import * as voyage from "./voyage.mjs";
 import * as berths from "./berths.mjs";
 import * as occupants from "./occupants.mjs";
 import * as stations from "./stations.mjs";
+import * as seaThrows from "./sea-throws.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, VOYAGES_DOC } from "./vehicle-speed.mjs";
@@ -55,8 +56,13 @@ Hooks.once("init", () => {
  */
 // apiVersion 1: the surface stops being an unversioned spread the release the
 // stations land — additive changes bump it, removals are a new major of it.
+// apiVersion 2: the sea's printed values moved to the `voyages` registry
+// (DECISIONS 2026-08-28) — NAVIGATION_TARGETS, HAZARDS, DAMAGE_SHARE,
+// SINK_FORMULA, CREW_PER_POINT and BERTH_STONE are REMOVED, replaced by the
+// registry-reading functions and structural key lists beside them; the
+// seamanship dialogs and the sinking clock join the spread.
 acksExtras.vehicles = {
-  apiVersion: 1,
+  apiVersion: 2,
   VEHICLE_TYPE,
   ...speed,
   ...boarding,
@@ -66,4 +72,5 @@ acksExtras.vehicles = {
   ...berths,
   ...occupants,
   ...stations,
+  ...seaThrows,
 };
