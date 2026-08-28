@@ -32,7 +32,7 @@ sibling modules) — never the import path for this module's own features.
 | `actor-read.mjs` | `abilityMod` / `classLevel` / `monsterHd` / `hitDiceOrLevel` — graceful-degradation reads of the system schema. Never inline these. |
 | `actor-compat.mjs` | `acksCompatStubs()` every actor sub-type must spread, + the one BOOK↔RELEASED saving-throw key mapping. |
 | `item-model.mjs` | The shared item baseline: `isPhysical` / `isEquippable` / `weight6Of` / wear slots. |
-| `capabilities.mjs` | "Does this actor hold an ability that provides X?" — name ∪ `kw:` token matching. |
+| `capabilities.mjs` | "Does this actor hold an ability that provides X?" — name ∪ `kw:` token matching, and `abilityRank` (a proficiency taken thrice is three items). |
 | `effect-scan.mjs` | Active-Effect scanning core: `appliedEffects` / `makeEffectMeta` / `activeNumericChanges` / `csvFlagSet` / `sumModifiers`. |
 | `managed-effects.mjs` | The effects this module maintains and a hand must not delete (class training, equipment loadout): the marker registry, the `preDelete` refusal, and the row lock. |
 | `proficiency-strip.mjs` | Compact profile strips (fighting style, weapon category, armour) from equipment's profile API. |

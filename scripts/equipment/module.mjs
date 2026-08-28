@@ -19,6 +19,7 @@ import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
+import { registerMountedOverlay } from "./overlays/mounted.mjs";
 import { isWearable } from "../lib/item-model.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs";
@@ -29,6 +30,9 @@ Hooks.once("init", () => {
   // The loadout effect is machinery, not a note: a hand must not delete it.
   registerManagedEffect(LOADOUT_EFFECT_FLAG, "ACKS-LIB.managedEffect.ownerLoadout");
   buildApi();
+  // Mounted combat's save prompts hang off the post-attack and pre-update
+  // seams; every handler gates on the overlay's own setting.
+  registerMountedOverlay();
 
   // The variation Item sub-type. Wrapped because a throw in `init` leaves the
   // rest of the hook dead, and everything above this line has to survive a

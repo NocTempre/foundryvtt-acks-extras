@@ -170,3 +170,38 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 Delete the character, its items and the variation item. Confirm no fixture
 items remain in `game.items`.
+
+
+## The mounted overlay (added with its first release)
+
+Fixtures: a disposable character "QA Rider" (no abilities), a second "QA
+Lancer" holding ability items named "Riding" and "Mounted Combat", a
+disposable animal "QA Steed" (give it an Item named "Military Saddle" for
+step 3's second half), and a disposable land vehicle with carriage set to
+each value in turn for step 4. Enable the "Overlay: mounted saves" setting.
+
+1. Mount QA Rider on QA Steed (`acksExtras.lib.mount.mountActor`) and make
+   an attack roll with the rider (any target).
+   *Observable:* a whispered "save to stay mounted" prompt reaches the GM
+   and the rider's owner, naming the attack reason. An attack BY the steed
+   prompts the same rider. Repeat with QA Lancer riding: no prompt — either
+   proficiency waives it.
+2. Damage either half of the pair (lower the steed's hp).
+   *Observable:* with no military saddle, the prompt names the damage
+   reason; with the saddle item on the steed (or the lancer's two
+   proficiencies), silence. The damage prompt is spoken by the PRIMARY GM's
+   client (`game.users.activeGM`) — if your seat is not it, assert
+   `damageSaveDue`'s four cells directly instead of waiting on a whisper.
+3. Toggle the overlay setting off and repeat step 1.
+   *Observable:* silence — every handler gates on the setting live, no
+   reload.
+4. Post the card (`api.equipment.mounted.mountedCombatCard(rider)`).
+   *Observable:* the three mount-state rows, the war-trained line only for a
+   war-trained steed — rename the steed "QA War Steed" at its default
+   training and the line appears; set training explicitly to any non-war
+   kind and it goes even with the name — the save obligations matching the
+   fixtures, and the bonuses hint deferring the numbers to the imported
+   proficiencies.
+
+Teardown: dismount, delete every QA fixture, disable the overlay if the
+world had it off.

@@ -723,6 +723,35 @@
         "hint": "On a missile attack, decrement the matching ammunition (arrows/bolts/stones) or the thrown weapon by one. A single thrown weapon (hand axe, javelin) is marked as thrown — unequipped and weightless until recovered — rather than destroyed. Recovery is manual (Recover Thrown Weapons macro); RAW specifies no automatic recovery. Requires libWrapper."
       }
     },
+    "mounted": {
+      "speaker": "Mounted Combat",
+      "saveTitle": "{rider}: save to stay mounted",
+      "afterAttack": "{rider} attacked from the saddle of {mount} without Riding or Mounted Combat — a Paralysis save is owed to keep the seat.",
+      "afterMountAttack": "{mount} attacked beneath {rider}, who lacks Riding and Mounted Combat — a Paralysis save is owed to keep the seat.",
+      "onDamage": "{rider} or {mount} took damage with no military saddle — a Paralysis save is owed to keep the seat.",
+      "saveHint": "Roll the save from the character's sheet; the Judge applies the outcome.",
+      "cardTitle": "{rider} riding {mount} — who may act",
+      "state": {
+        "header": "The mount…",
+        "moved": "Moved",
+        "stationary": "Stood still",
+        "charged": "Charged"
+      },
+      "economy": {
+        "header": "Then this round…",
+        "oneOf": "ONE of the rider, the passengers, or the mount takes a combat action.",
+        "mountOr": "The mount acts — or the rider and passengers do.",
+        "charge": "The rider or passengers attack on the charge.",
+        "warMountJoins": "The war-trained mount joins the attack."
+      },
+      "saves": {
+        "attackDue": "Without Riding or Mounted Combat: a Paralysis save after every attack by rider or mount.",
+        "attackWaived": "Riding or Mounted Combat holds the seat through attacks.",
+        "damageDue": "No military saddle: a Paralysis save whenever rider or mount takes damage.",
+        "damageWaived": "The saddle (or both proficiencies) holds the seat through wounds."
+      },
+      "bonusesHint": "Mounted Combat's attack bonus and the height-advantage modifier apply as the imported proficiencies state them."
+    },
     "violation": {
       "handOverflow": "Not enough hands ({handsUsed}/{budget}); free up: {items}.",
       "handOverflowHeld": "Not enough hands ({handsUsed}/{budget}, {held}); free up: {items}.",
@@ -3901,6 +3930,11 @@
   "ACKS-VEHICLES.means.label": "Printed crew column",
   "ACKS-VEHICLES.means.hint": "What the book's Crew column names on this vehicle. Blank follows the kind.",
   "ACKS-VEHICLES.means.auto": "(by kind — {effective})",
+  "ACKS-VEHICLES.carriage.label": "How it is carried",
+  "ACKS-VEHICLES.carriage.hint": "What moves it: a team pulling, bearers' hands, or a creature's back. The vehicle-combat card reads this.",
+  "ACKS-VEHICLES.carriage.pulled": "Pulled by a team",
+  "ACKS-VEHICLES.carriage.handCarried": "Hand-carried by bearers",
+  "ACKS-VEHICLES.carriage.backCarried": "Borne on a creature's back",
   "ACKS-VEHICLES.station.legend": "Stations",
   "ACKS-VEHICLES.station.captain": "Captain",
   "ACKS-VEHICLES.station.navigator": "Navigator",
@@ -3970,6 +4004,13 @@
   "ACKS-VEHICLES.reason.terrain.snow": "Snow",
   "ACKS-VEHICLES.reason.road": "Road",
   "ACKS-VEHICLES.reason.tablesMissing": "No travel tables imported — ground and wind count as ×1 until they are",
+  "ACKS-BATTLEMAP.terrain.tool": "Paint terrain",
+  "ACKS-BATTLEMAP.terrain.palette": "Terrain Brush",
+  "ACKS-BATTLEMAP.terrain.erase": "Erase",
+  "ACKS-BATTLEMAP.terrain.eraseHint": "Unpaint the hex under the brush.",
+  "ACKS-BATTLEMAP.terrain.hexOnly": "Terrain painting works on hex-gridded scenes.",
+  "ACKS-BATTLEMAP.terrain.paintHint": "Click or drag on the map to paint hexes. One terrain per hex; painting over replaces.",
+  "ACKS-BATTLEMAP.terrain.disarmedHint": "Pick a brush to arm painting, or use the toolbar's Paint terrain tool.",
   "ACKS-VEHICLES.reason.roadDriver": "Road, driven well",
   "ACKS-VEHICLES.reason.roadWashedOut": "Road washed out — worth nothing in this weather",
   "ACKS-VEHICLES.vessel.driving": "Driver has Driving",

@@ -938,10 +938,10 @@ check("registerSheet() runs without throwing", true);
 
 // Overlay toggles with NO implementation behind them must not appear in the
 // settings UI — a switch that silently does nothing is worse than no switch.
-for (const dead of ["overlayMounted", "overlayBeastman"]) {
+for (const dead of ["overlayBeastman"]) {
   check(`${dead} is not registered (no implementation exists)`, !registered.includes(dead));
 }
-for (const live of ["overlayShieldVariants", "overlayManeuvers", "overlayItemLoss", "overlayNamed", "overlayScavenged", "overlayEnclosingHelm"]) {
+for (const live of ["overlayShieldVariants", "overlayManeuvers", "overlayItemLoss", "overlayNamed", "overlayScavenged", "overlayEnclosingHelm", "overlayMounted"]) {
   check(`${live} is registered and gates real code`, registered.includes(live));
 }
 
@@ -2122,3 +2122,69 @@ check("macros compile as Foundry runs them (async function bodies)", macros.ever
 }));
 
 console.log(`test-logic: all ${pass} checks passed`);
+
+/* ========================================================================== */
+/*  Mounted combat overlay: the pure rules shapes                             */
+/* ========================================================================== */
+import {
+  whoMayAct,
+  vehicleTransportersMayAct,
+  attackSaveDue,
+  damageSaveDue,
+  sizeRankOf,
+  heightAdvantage,
+  looksWarTrained,
+  SIZE_ORDER,
+} from "../scripts/equipment/overlays/mounted.mjs";
+
+/* --- war training: explicit kind wins, the default falls to the name ------ */
+assert.equal(looksWarTrained({ name: "QA War Steed", system: { animal: { training: "untrained" } } }), true,
+  "the schema-initial 'untrained' reads as unstated, so the name decides");
+assert.equal(looksWarTrained({ name: "QA War Steed", system: { animal: { training: "riding" } } }), false,
+  "an explicit non-war kind is authoritative over the name");
+assert.equal(looksWarTrained({ name: "QA Pony", system: { animal: { training: "war" } } }), true,
+  "an explicit war kind needs no name");
+assert.equal(looksWarTrained({ name: "Horse, War", system: {} }), true,
+  "a mount with no training field at all reads its name");
+assert.equal(looksWarTrained({ name: "Dwarf Pony", system: {} }), false,
+  "the name read wants the word, never the substring");
+
+/* --- the action economy, by what the mount did ---------------------------- */
+assert.equal(whoMayAct("moved").kind, "oneOf", "a moved mount: one of the three acts");
+assert.equal(whoMayAct("stationary").kind, "mountOr", "stationary: the mount, or the riders");
+const charge = whoMayAct("charged", { warTrained: false });
+assert.ok(charge.kind === "charge" && charge.rider && charge.passengers && !charge.mount,
+  "on a charge the riders attack; an untrained mount does not");
+assert.ok(whoMayAct("charged", { warTrained: true }).mount, "a war-trained mount joins the charge");
+
+/* --- the vehicle mirror discriminates on HOW it is carried ---------------- */
+assert.equal(vehicleTransportersMayAct({ carriage: "backCarried", charged: false }), true,
+  "a back-carrier fights even without a charge");
+assert.equal(vehicleTransportersMayAct({ carriage: "pulled", charged: false }), false,
+  "a puller does not");
+assert.equal(vehicleTransportersMayAct({ carriage: "pulled", charged: true }), true,
+  "unless the vehicle charged");
+assert.equal(vehicleTransportersMayAct({ carriage: "handCarried", charged: true }), false,
+  "a palanquin's bearers never fight");
+
+/* --- the save triggers ---------------------------------------------------- */
+assert.equal(attackSaveDue({ hasWaiver: false }), true, "no Riding, no Mounted Combat: save after every attack");
+assert.equal(attackSaveDue({ hasWaiver: true }), false, "either proficiency holds the seat");
+assert.equal(damageSaveDue({ militarySaddle: false, hasBothProficiencies: false }), true,
+  "damage without a military saddle owes the save");
+assert.equal(damageSaveDue({ militarySaddle: true, hasBothProficiencies: false }), false,
+  "the saddle waives it");
+assert.equal(damageSaveDue({ militarySaddle: false, hasBothProficiencies: true }), false,
+  "so does holding BOTH proficiencies");
+
+/* --- the size ladder and height advantage --------------------------------- */
+assert.ok(SIZE_ORDER.indexOf("man") < SIZE_ORDER.indexOf("large"), "the ladder rises");
+assert.equal(sizeRankOf("nonsense"), sizeRankOf("man"), "an unstated size is man-sized");
+assert.equal(heightAdvantage({ attackerMountSize: "large", defenderSize: "man" }), true,
+  "a large mount stands over a footman");
+assert.equal(heightAdvantage({ attackerMountSize: "large", defenderSize: "man", defenderMountSize: "huge" }), false,
+  "but not over a rider on something bigger — the TARGET'S mount is what counts");
+assert.equal(heightAdvantage({ attackerMountSize: "large", defenderSize: "man", defenderMountSize: "large" }), false,
+  "equal mounts confer nothing");
+
+console.log("test-equipment: OK (mounted economy, vehicle mirror, save triggers, height)");

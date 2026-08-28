@@ -286,3 +286,39 @@ for (const [key, entry] of Object.entries(SIZES)) {
 }
 
 console.log("test-battlemap: all assertions passed");
+
+/* ========================================================================== */
+/*  Terrain painting: the pure cell bookkeeping                               */
+/* ========================================================================== */
+import {
+  hexKeyOf,
+  hexLabelFromOffset,
+  withHexAdded,
+  withHexRemoved,
+  TERRAIN_COLORS,
+} from "../scripts/battlemap/terrain-paint.mjs";
+import { TERRAIN } from "../scripts/vehicles/vehicle-speed.mjs";
+
+assert.equal(hexKeyOf({ i: 3, j: 7 }), "3:7", "a cell's identity is its offset");
+assert.equal(hexLabelFromOffset({ i: 0, j: 0 }), "A1", "columns letter, rows number, one-based");
+assert.equal(hexLabelFromOffset({ i: 3, j: 2 }), "C4");
+assert.equal(hexLabelFromOffset({ i: 0, j: 25 }), "Z1");
+assert.equal(hexLabelFromOffset({ i: 9, j: 26 }), "AA10", "columns run past Z the way spreadsheets do");
+assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
+
+const shape = (n) => ({ type: "polygon", hole: false, points: [n, n, n + 1, n, n, n + 1] });
+let pair = withHexAdded([], [], "1:1", shape(1));
+assert.ok(pair.changed && pair.hexKeys.length === 1 && pair.shapes.length === 1, "first paint lands");
+pair = withHexAdded(pair.hexKeys, pair.shapes, "1:1", shape(1));
+assert.ok(!pair.changed, "painting the same cell again writes nothing");
+pair = withHexAdded(pair.hexKeys, pair.shapes, "2:2", shape(2));
+assert.equal(pair.hexKeys.length, 2, "cells accumulate");
+pair = withHexRemoved(pair.hexKeys, pair.shapes, "1:1");
+assert.ok(pair.changed && pair.hexKeys.length === 1 && pair.shapes.length === 1, "erase drops the pair together");
+assert.equal(pair.hexKeys[0], "2:2", "and drops the RIGHT pair — keys and shapes stay aligned");
+assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an unpainted cell writes nothing");
+
+assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort(),
+  "every terrain kind has a swatch, and no swatch lacks a terrain");
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage)");

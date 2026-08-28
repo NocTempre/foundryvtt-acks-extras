@@ -168,3 +168,36 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 Delete both scenes, the monster, the character, the party actor (its
 formation goes with it), and the baked `-aligned.webp` file. Confirm the
 scenes directory and `getFormations()` are clean.
+
+
+## Terrain painting (added with the hex journey)
+
+Fixtures: a disposable HEX-gridded scene (any hex type) and a disposable
+square-gridded scene; a disposable party with one member (for the journey
+read).
+
+1. Enter the Battlemap group, arm **Paint terrain**.
+   *Observable:* the palette window opens with one swatch per terrain and
+   the eraser; the toolbar shows the brush armed; calibration modes disarm.
+2. Click and drag across the hex scene with two different brushes.
+   *Observable:* one Region per painted terrain kind appears (name = the
+   terrain's label, its colour the swatch's), `flags.acks-extras.terrain`
+   set and `terrainHexes` holding one `i:j` key per painted cell, aligned
+   with `shapes`; a drag writes each cell once; repainting a cell with the
+   OTHER brush moves it between regions (never two claims).
+3. Erase a painted cell; erase a region's last cell.
+   *Observable:* the key and its shape leave together; the emptied region is
+   deleted.
+4. Click the square-grid scene with the brush armed.
+   *Observable:* the hex-only warning, once per stroke; no region appears.
+5. Journey read: begin a journey on the painted hex scene and move the party
+   token across a painted boundary.
+   *Observable:* `travel.hex` picks up the offset and its letter-number
+   label, `hexesEntered` counts the crossing (arriving in the FIRST hex
+   names it without counting), and the ground picker follows the painted
+   terrain; an unpainted hex leaves the Judge's pick standing. The panel's
+   ×-factor lines follow the painted terrain when travel tables are
+   registered.
+
+Teardown: delete both scenes (their regions go with them) and the party
+fixtures.

@@ -153,6 +153,26 @@ and the shape proposed for a future core `acks.preRollAttack` — plus
 Pack document `_id`s carry the prefix declared in `module.json` at
 `flags.acks-extras.idPrefix` (validator enforces it once declared).
 
+## The mounted overlay
+
+`overlays/mounted.mjs`, gated by `overlayMounted` — the overlay §15's
+research waited on, live now that acks-lib records who rides what. It
+automates the STRUCTURE: **staying-mounted save prompts** (after every
+attack by a mounted rider or a ridden mount, unless the rider holds Riding
+or Mounted Combat — the lib's `POST_ATTACK_HOOK` seam; and whenever either
+half of the pair takes damage without a military saddle among the mount's
+tack, waived only by holding both proficiencies — the pre-update seam, the
+primary GM's client speaking), whispered to the Judge and the rider's
+player, rolled and adjudicated at the table; and the **action-economy card**
+(`api.equipment.mounted.mountedCombatCard`): who may act by what the mount
+did, a war-trained mount joining the charge, and the vehicle mirror for
+transporters keyed on the vehicle's `carriage` (a back-carrier fights, a
+puller only joins a charge, a palanquin's bearers never). The proficiencies'
+printed attack bonuses and the subjacent height-advantage number are NOT
+pushed into the roll: those values arrive with the imported abilities, and
+automating them waits on the abilities→attack effects bridge
+([ROADMAP.md](ROADMAP.md)) — the card states that they apply.
+
 ## 5. Boundaries with sibling features (in force)
 
 - **formation** owns encumbrance→speed, light/ration consumption. This feature

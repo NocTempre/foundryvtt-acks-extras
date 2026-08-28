@@ -34,6 +34,7 @@ import { MODULE_ID } from "../lib/constants.mjs";
 import { patchFormation } from "./formation-model.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
+import { terrainAtPoint, hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
 
 /** World setting: how many day entries a formation's travel log keeps. */
 export const SETTING_TRAVEL_LOG_CAP = "travelLogCap";
@@ -113,7 +114,7 @@ export function travelOf(formation) {
     territory: TERRITORY_KEYS.includes(t.territory) ? t.territory : "borderlands",
     pace: TRAVEL_PACE[t.pace] ? t.pace : "dedicated",
     weather: { raining: false, snowing: false, ...(t.weather ?? {}) },
-    hex: { label: "", note: "", ...(t.hex ?? {}) },
+    hex: { label: "", note: "", i: null, j: null, ...(t.hex ?? {}) },
     day: t.day ?? freshDay(),
     dayCount: Number(t.dayCount) || 0,
     lost: { active: false, sinceDay: null, judgeNote: "", ...(t.lost ?? {}) },
@@ -228,6 +229,51 @@ export function enterHex(formationId, label) {
       hex: { ...t.hex, label: String(label ?? "").trim() },
       day: { ...t.day, hexesEntered: (t.day.hexesEntered ?? 0) + 1 },
     };
+  });
+}
+
+/**
+ * The party token crossed into a hex on a PAINTED map: the offset is the
+ * identity, the label its name, the terrain what the map says. One patch —
+ * the first arrival (no prior offset) NAMES the hex without counting it (you
+ * do not enter the hex you were already standing in), and a repeat of the
+ * same offset writes nothing. A painted terrain overrides the ground picker;
+ * an unpainted hex leaves the Judge's pick standing.
+ */
+export function autoEnterHex(formationId, { label = "", i = null, j = null, ground = null } = {}) {
+  return patchFormation(formationId, (record) => {
+    const t = travelOf(record);
+    const had = t.hex.i != null && t.hex.j != null;
+    if (had && t.hex.i === i && t.hex.j === j) return false;
+    record.travel = {
+      ...t,
+      hex: { ...t.hex, label: String(label ?? "").trim(), i, j },
+      ...(ground ? { ground: String(ground) } : {}),
+      day: had ? { ...t.day, hexesEntered: (t.day.hexesEntered ?? 0) + 1 } : t.day,
+    };
+  });
+}
+
+/**
+ * The journey's movement handler: while a formation journeys on a
+ * hex-gridded scene, its party token's position IS the hex trace. Runs on
+ * the same seam as the dungeon turn engine (which hands journeying
+ * formations here instead of ticking turns); non-hex scenes change nothing —
+ * the manual Next-hex button remains their trace.
+ */
+export async function onJourneyTokenMoved(tokenDoc, formationId) {
+  const scene = tokenDoc?.parent;
+  if (!scene || !isHexScene(scene)) return;
+  const point = tokenDoc.object?.center ?? {
+    x: tokenDoc.x + ((tokenDoc.width ?? 1) * scene.grid.sizeX) / 2,
+    y: tokenDoc.y + ((tokenDoc.height ?? 1) * scene.grid.sizeY) / 2,
+  };
+  const offset = scene.grid.getOffset(point);
+  await autoEnterHex(formationId, {
+    label: hexLabelFromOffset(offset),
+    i: offset.i,
+    j: offset.j,
+    ground: terrainAtPoint(scene, point),
   });
 }
 

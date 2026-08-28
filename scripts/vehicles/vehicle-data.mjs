@@ -51,6 +51,18 @@ export const DRAFT_EQUIVALENTS = Object.freeze({
 /** Terrains a wheeled vehicle enters only where a road runs (RR ch. 4). */
 export const ROAD_ONLY_TERRAIN = Object.freeze(["desert", "mountains", "forest", "swamp"]);
 
+/**
+ * HOW a land vehicle is carried — the discriminator the vehicle-combat rule
+ * turns on (RR ch. 6: a back-carrier may fight where a puller may only join
+ * a charge, and a hand-carrier never fights). Blank reads as pulled, the
+ * common case.
+ */
+export const CARRIAGE = Object.freeze({
+  pulled: { label: "ACKS-VEHICLES.carriage.pulled" },
+  handCarried: { label: "ACKS-VEHICLES.carriage.handCarried" },
+  backCarried: { label: "ACKS-VEHICLES.carriage.backCarried" },
+});
+
 // The base is dereferenced at module scope, so a stand-in takes its place
 // where `foundry` is absent (Node test graphs reach this file through the
 // occupants feeder) — the class itself is only ever instantiated by Foundry.
@@ -126,6 +138,8 @@ export default class VehicleData extends TypeDataModel {
       _schemaVersion: int(0, { min: 0 }),
 
       kind: choice(VEHICLE_KINDS, { initial: "land" }),
+      // How a land vehicle is carried; the vehicle-combat card reads it.
+      carriage: choice(CARRIAGE),
       source: new SchemaField({ book: str(), cite: str(), ref: str() }),
       description: html(),
 

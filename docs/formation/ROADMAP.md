@@ -156,10 +156,12 @@ Still unbuilt, in likely order:
    **encounter cadence throws** hanging off the activity slots'
    frequency kinds; **supply consumption** at End Day (member rations at the
    day boundary, animal feed and water as Normal-Load fractions, crew
-   rations against the hold); **generated weather** replacing the manual
-   flags; and the scene/hex-map integration sketched in the program plan —
-   terrain-keyed regions replacing the manual "Next hex" button without
-   touching the record shape.
+   rations against the hold); and **generated weather** replacing the manual
+   flags. The scene/hex integration LANDED 2026-08-28 exactly as the record
+   shape anticipated: the battlemap feature's terrain painting
+   (`docs/battlemap/MODEL.md` §Terrain painting) names the hex and sets the
+   ground from the party token on painted hex scenes, and the manual
+   Next-hex button remains the trace everywhere else.
 8. Spell "per level" duration parsing (quick win, batch with the next release).
 9. Week-ration uses counter (quick win).
 10. **`levelFactor` stays a free float** in this feature's own skill-audit

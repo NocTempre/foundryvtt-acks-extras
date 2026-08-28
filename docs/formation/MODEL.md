@@ -367,7 +367,12 @@ march consuming all four — and an append-only, capped log of finished days.
 
 The GM window's journey panel edits all of it through one targeted ledger
 patch per form change; players see the derived march, the hex and the log,
-never the pickers and never the LOST state, which is the Judge's alone. The
+never the pickers and never the LOST state, which is the Judge's alone. On a
+hex-gridded scene the party token IS the trace: crossing a hex boundary
+names the hex from its grid offset and, where the battlemap feature's
+terrain painting has claimed the cell, sets the ground too (the same
+token-movement seam that ticks dungeon turns hands journeying formations to
+`onJourneyTokenMoved` instead). The
 readout derives in the rules' order — the party's slowest UNSCALED base,
 times terrain, road and weather (one factor per line), times the day-kind's
 pace — and **End day** writes exactly the figures shown into the log, resets

@@ -19,16 +19,29 @@ import {
 import { fitGrid, feetPerSquare, roundSuggestions, outputGridSize } from "./calibrate-logic.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { CAPTURE_MODES, session } from "./session.mjs";
+import {
+  terrainPaint,
+  openTerrainPalette,
+  terrainAtPoint,
+  terrainRegionsOf,
+  hexLabelFromOffset,
+  paintHexAt,
+  isHexScene,
+  registerTerrainPaintHooks,
+  TERRAIN_COLORS,
+} from "./terrain-paint.mjs";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`,
   `modules/${MODULE_ID}/templates/battlemap/assistant-foot.hbs`,
+  `modules/${MODULE_ID}/templates/battlemap/terrain-palette.hbs`,
 ];
 
 Hooks.once("init", () => {
   installSceneControls();
   installSceneConfigRow();
   installTokenAutoScale();
+  registerTerrainPaintHooks();
   // The session owns the samples, so it is what a scene change clears — the
   // window is only a view and may not even be open.
   Hooks.on("canvasReady", () => session.onCanvasReady());
@@ -52,6 +65,17 @@ Hooks.once("ready", () => {
     rescaleSceneTokens,
     applyFootprintToSelected,
     resetSelectedFootprints,
+    /** Hex terrain painting (terrain-paint.mjs): the map-prep brush and the
+     *  reads the journey hangs off — terrain by hex, labels from offsets. */
+    terrain: {
+      paintHexAt,
+      terrainAtPoint,
+      terrainRegionsOf,
+      hexLabelFromOffset,
+      isHexScene,
+      openTerrainPalette,
+      TERRAIN_COLORS,
+    },
   };
 });
 
@@ -113,11 +137,28 @@ function installSceneControls() {
         },
       };
     });
+    // The terrain brush is a canvas-arming tool like the capture modes, so
+    // Foundry's one-active-tool rule is the exclusivity: arming it disarms
+    // calibration, and vice versa. Hex map prep, GM-only, hex grids only.
+    tools.terrain = {
+      name: "terrain",
+      title: game.i18n.localize(`${LANG_PREFIX}.terrain.tool`),
+      icon: "fa-solid fa-paintbrush",
+      order: CAPTURE_MODES.length + 1,
+      onChange: (_event, active) => {
+        if (active) {
+          terrainPaint.arm(terrainPaint.brush ?? "grassland");
+          openTerrainPalette();
+        } else {
+          terrainPaint.disarm();
+        }
+      },
+    };
     tools.wipe = {
       name: "wipe",
       title: game.i18n.localize(`${LANG_PREFIX}.samples.wipe`),
       icon: "fa-solid fa-trash",
-      order: CAPTURE_MODES.length + 1,
+      order: CAPTURE_MODES.length + 2,
       button: true,
       // One handler only: v13+ calls BOTH `onChange` and `onClick` on a
       // `button: true` tool, so a second press would arrive unasked.
@@ -127,7 +168,7 @@ function installSceneControls() {
       name: "assistant",
       title: game.i18n.localize(`${LANG_PREFIX}.controls.assistant`),
       icon: "fa-solid fa-sliders",
-      order: CAPTURE_MODES.length + 2,
+      order: CAPTURE_MODES.length + 3,
       button: true,
       onChange: () => openAssistant(),
     };

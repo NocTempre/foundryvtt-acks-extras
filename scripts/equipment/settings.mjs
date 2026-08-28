@@ -86,12 +86,16 @@ export function registerSettings() {
   // applied by overlays/enclosing-helm.mjs (the loadout effect + a surfaced note);
   // +2 Mortal Wounds is already core (AcksActor#hasHeavyHelm), name-based.
   overlay(SETTINGS.OVERLAY_ENCLOSING_HELM);
+  // Mounted combat (RR p. 308): the staying-mounted save prompts and the
+  // action-economy card — overlays/mounted.mjs, riding acks-lib's mounted
+  // state (the blocker this key waited on).
+  overlay(SETTINGS.OVERLAY_MOUNTED);
 
-  // NOT REGISTERED — deliberately. OVERLAY_MOUNTED and OVERLAY_BEASTMAN have no
-  // implementation behind them: no code reads these keys. They were showing in
-  // the settings UI as working toggles that silently did nothing. The keys and
-  // their localised strings are kept so wiring them up is a one-line change once
-  // the overlays exist.
+  // NOT REGISTERED — deliberately. OVERLAY_BEASTMAN has no implementation
+  // behind it: no code reads the key. It was showing in the settings UI as a
+  // working toggle that silently did nothing. The key and its localised
+  // strings are kept so wiring it up is a one-line change once the overlay
+  // exists.
   //
   // MOUNTED is no longer BLOCKED — acks-lib records who is riding what, and the
   // one flat mounted rule the module already had authored (a phalanx shield is

@@ -19,6 +19,11 @@ Registration is unconditional at `init`. A sub-type whose model fails to
 register leaves every vehicle in the world unreadable, which is worse than any
 capability check could be guarding against.
 
+A land vehicle also states HOW it is carried (`carriage`: pulled,
+hand-carried, borne on a back — blank reads as pulled), because the
+vehicle-combat rule discriminates on exactly that; the equipment feature's
+mounted overlay reads it for the transporters' action-economy card.
+
 ## Who is aboard
 
 One relationship, five roles, owned by [lib/attachment.mjs](../../scripts/lib/attachment.mjs):

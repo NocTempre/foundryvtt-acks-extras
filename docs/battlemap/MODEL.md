@@ -8,6 +8,26 @@ tools — and a **Battlemap window** (`assistant-app.mjs`) carrying the numbers
 and the apply actions, opened by entering the group, by its panel tool, or
 from the scene-config row, and dismissed by its own close control.
 
+## Terrain painting
+
+The group's **Paint terrain** tool arms a brush over hex-gridded scenes
+(`terrain-paint.mjs`): clicks and drags paint hex cells into scene REGIONS —
+one region per terrain kind per scene, tinted from the fixed palette,
+visible to everyone (a hex map's terrain is the map), flagged
+`terrain: <key>` with the painted cells stored beside the shapes as OFFSET
+KEYS (`terrainHexes`, aligned index-for-index). The keys are what make
+erasing exact and the journey's lookup geometry-free: "what terrain is this
+hex?" is a flag read that answers identically on a client with no canvas.
+One terrain per hex — painting a cell removes it from every other terrain
+region first; the eraser unpaints, and a region whose last cell goes is
+deleted. A small palette window picks the brush; the terrain vocabulary and
+its labels are the vehicles feature's `TERRAIN` (structure — what a terrain
+is WORTH stays in the registered travel tables). Square-grid scenes refuse
+with a warning rather than approximating. The formation's journey reads the
+painted map: the party token's hex names the trace and its painted terrain
+sets the ground (`travel.mjs onJourneyTokenMoved`, via the same
+token-movement seam that ticks dungeon turns when not journeying).
+
 ## Files
 
 | File | Responsibility |

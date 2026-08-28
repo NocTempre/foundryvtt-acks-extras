@@ -9,6 +9,14 @@ import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, HOOKS, EFFECT_DOMAINS, ITEM_FLAGS } from "./constants.mjs";
 import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands, releaseOrder } from "./loadout.mjs";
 import { grantGear, clearHands, findGearSource } from "./grant.mjs";
+import {
+  mountedCombatCard,
+  whoMayAct,
+  vehicleTransportersMayAct,
+  heightAdvantage,
+  riderWaivers,
+  hasMilitarySaddle,
+} from "./overlays/mounted.mjs";
 import { classifyWeapon, handCost, focusGroup, weaponKey, equipmentClass, inferGear, isHelmet, isShield } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { capacityOf } from "../lib/item-model.mjs";
@@ -145,6 +153,16 @@ export async function annotateItem(item) {
 
 export function buildApi() {
   const api = {
+    // Mounted combat (overlays/mounted.mjs): the action-economy card and the
+    // pure rules shapes a companion module reads instead of re-deriving.
+    mounted: {
+      mountedCombatCard,
+      whoMayAct,
+      vehicleTransportersMayAct,
+      heightAdvantage,
+      riderWaivers,
+      hasMilitarySaddle,
+    },
     // Model
     getLoadout,
     handBudget,

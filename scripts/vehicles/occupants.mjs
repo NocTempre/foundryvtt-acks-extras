@@ -21,8 +21,7 @@ import { attachedTo, attachmentOf, attach } from "../lib/attachment.mjs";
 import { borneBy6, borneWeight6 } from "../lib/capacity.mjs";
 import { bodyCount } from "../lib/group-logic.mjs";
 import { STONE } from "../lib/item-model.mjs";
-import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { itemHasCapability } from "../lib/capabilities.mjs";
+import { abilityRank } from "../lib/capabilities.mjs";
 import { DRAFT_EQUIVALENTS } from "./vehicle-data.mjs";
 import { draftPull } from "./vehicle-speed.mjs";
 import { stationKeyOf, OFFICER_STATIONS } from "./stations.mjs";
@@ -114,23 +113,9 @@ function isNonMotiveStation(sys, station) {
 /*  Qualifications                                                      */
 /* -------------------------------------------------------------------- */
 
-/**
- * How many of this actor's ability items answer to `name` — a proficiency
- * taken three times is three items, which is exactly what a rank is. Name and
- * capability token are a UNION, per the capability register's own rule: the
- * register is precise but only as complete as its contents.
- */
-export function abilityRank(actor, name, token = null) {
-  const prefix = String(name).toLowerCase();
-  let rank = 0;
-  for (const item of actor?.items ?? []) {
-    if (item.type !== ITEM_TYPE.ability) continue;
-    const n = (item.name ?? "").trim().toLowerCase();
-    if (n === prefix || n.startsWith(`${prefix} (`) || n.startsWith(`${prefix}:`)) rank++;
-    else if (token && itemHasCapability(item, token)) rank++;
-  }
-  return rank;
-}
+/** Rank counting is the capability module's question now; re-exported so the
+ *  published vehicles surface keeps its shape. */
+export { abilityRank } from "../lib/capabilities.mjs";
 
 /**
  * Whether this actor is qualified for the seat it occupies, or null when the

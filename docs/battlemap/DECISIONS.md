@@ -304,3 +304,31 @@ things to keep in step.
 
 **Cost:** the tab occupies a permanent slot in the sidebar bar for every GM
 running extras, where the window appeared only when opened.
+
+
+## 2026-08-28 — Terrain paints as regions, and the cell key is the identity
+
+**Ruled:** hex terrain is ONE scene region per terrain kind (its shapes the
+painted cells), never a region per hex — a 40-hex forest as forty documents
+is an Actors-tab problem wearing a Regions tab. Beside the shapes the region
+carries the painted OFFSET KEYS (`terrainHexes`, aligned index-for-index
+with `shapes`): erase drops the pair by index, and the journey's
+"what terrain is this hex?" is a flag read — exact, and canvas-free, where a
+point-in-polygon test needs a rendered placeable and floats.
+
+**Ruled: one terrain per hex.** Painting removes the cell from every other
+terrain region first; two regions claiming one cell is a map that answers a
+question two ways.
+
+**Ruled:** regions paint with `visibility: ALWAYS` — a hex map's terrain is
+the map, not a GM overlay. The Judge who wants hidden terrain has the
+region's own visibility control. **Ruled:** hex grids only; a square-grid
+scene refuses with a warning rather than approximating cells the grid does
+not have. The brush is a battlemap-group TOOL, so Foundry's one-active-tool
+rule is the exclusivity with the calibration modes; the palette window only
+picks what the brush lays down.
+
+**Rejected:** a PIXI overlay of our own (a second renderer for something
+regions already draw, tint, and persist); painting roads (linear features do
+not cell-paint; the journey's road picker stays manual until the encounter
+work returns to it).

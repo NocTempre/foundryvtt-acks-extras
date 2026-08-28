@@ -3,6 +3,16 @@
 What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
 [DECISIONS.md](DECISIONS.md).
 
+- **The abilities→attack effects bridge.** The mounted overlay's save
+  prompts and economy card shipped WITHOUT pushing the proficiencies' attack
+  bonuses or the subjacent height-advantage modifier into the roll's term
+  stack, because those numbers arrive with the imported abilities and no
+  machinery yet carries an imported effect into `PRE_ATTACK_HOOK`. Building
+  that bridge (imported modifier effects, condition-gated by machine-readable
+  scopes like "while mounted", contributing labelled terms) upgrades the
+  mounted overlay — `heightAdvantage` is already published and waiting — and
+  every other conditional combat proficiency with it.
+
 - **`acks-importer` publishes the variations compendium.** One document per
   published variation, plus the `baseTypeFields` table, plus loot-table and
   template support for granting variations directly — a table entry names an

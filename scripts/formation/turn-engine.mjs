@@ -15,6 +15,7 @@ import {
   WINDED_EFFECT_NAME,
 } from "./constants.mjs";
 import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, updateFormation } from "./formation-model.mjs";
+import { onJourneyTokenMoved } from "./travel.mjs";
 import { prepareToLight } from "../lib/light.mjs";
 import { equipForLight } from "./judge-override.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -516,7 +517,12 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
  */
 export async function onPartyTokenMoved(tokenDoc, formationId) {
   const formation = getFormation(formationId);
-  if (!formation || formation.clock.paused) return;
+  if (!formation) return;
+  // A journeying formation's movement is the HEX trace, not dungeon turns:
+  // the same seam, handed to the travel engine (which counts hexes on
+  // painted hex scenes and stays silent elsewhere).
+  if (formation.travel?.mode === "journey") return onJourneyTokenMoved(tokenDoc, formationId);
+  if (formation.clock.paused) return;
   // While members are deployed for combat, camp moves don't consume turns.
   if (formation.combat?.active) return;
 

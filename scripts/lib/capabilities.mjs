@@ -83,3 +83,22 @@ export function itemHasCapability(item, token) {
   const ref = abilityRef(item);
   return ref ? satisfies([ref], token) : false;
 }
+
+/**
+ * How many of this actor's ability items answer to `name` — a proficiency
+ * taken three times is three items, which is exactly what a rank is. Name
+ * and capability token are a UNION, per this module's own rule: the register
+ * is precise but only as complete as its contents. Vehicle stations read
+ * Seafaring ranks through this; the mounted overlay reads its waivers.
+ */
+export function abilityRank(actor, name, token = null) {
+  const prefix = String(name).toLowerCase();
+  let rank = 0;
+  for (const item of actor?.items ?? []) {
+    if (item.type !== ITEM_TYPE.ability) continue;
+    const n = (item.name ?? "").trim().toLowerCase();
+    if (n === prefix || n.startsWith(`${prefix} (`) || n.startsWith(`${prefix}:`)) rank++;
+    else if (token && itemHasCapability(item, token)) rank++;
+  }
+  return rank;
+}

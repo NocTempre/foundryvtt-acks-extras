@@ -597,3 +597,31 @@ owns its flag) and an uneven seam on the page. Real drag-and-drop could not
 be driven in the headless live session; every drop target was exercised
 through the API it calls (`storeIn`, `disguiseItem`, `bindScene`) and stays
 on the TESTING recipe as a pointer-driven check.
+
+
+## 2026-08-28 — The mounted overlay ships its structure; the numbers wait
+
+**Ruled:** `overlayMounted` registers at last — §15's blocker ("nothing
+models a mounted state") died when acks-lib's attachment layer shipped — and
+what it automates is the bookkeeping: the two staying-mounted save TRIGGERS
+(post-attack via the lib's new `POST_ATTACK_HOOK`; damage via preUpdateActor,
+where the old hp still exists to compare, spoken by the primary GM's client
+only) as whispered prompts, and the action-economy CARD, including the
+vehicle transporters' mirror keyed on the new `carriage` field. The save is
+prompted, never rolled: which die falls and what a failure costs stay at the
+table.
+
+**Ruled: the proficiencies' printed numbers are not pushed into the roll.**
+Mounted Combat's attack bonus and subjacency's worth are values that arrive
+with the reader's imported abilities; hard-coding them is the value rule
+broken, and reading them needs an abilities→attack effects bridge that does
+not exist yet (ROADMAP). The pure comparators (`heightAdvantage`,
+`whoMayAct`, the save predicates) ship tested and published so the bridge
+lands on a finished surface.
+
+**Also ruled:** `abilityRank` moved from vehicles/occupants into
+`lib/capabilities.mjs` — rank counting is that module's question, the
+mounted waivers and the vehicle stations both ask it, and the vehicles
+surface re-exports it unchanged. The attack ctx gained `targetActor`
+(additive; height advantage compares mounts, and AC alone cannot say what
+the defender rides).

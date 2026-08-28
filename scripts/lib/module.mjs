@@ -63,7 +63,7 @@ import { FollowerCardSheet } from "./apps/follower-card-sheet.mjs";
 import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from "./follower-card.mjs";
 import * as attackLogic from "./attack-logic.mjs";
 import * as damageType from "./damage-type.mjs";
-import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK } from "./patches/attack-roll.mjs";
+import { installAttackRollPatch, wrapRollAttack, PRE_ATTACK_HOOK, POST_ATTACK_HOOK } from "./patches/attack-roll.mjs";
 import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
@@ -216,7 +216,7 @@ const localImpl = Object.freeze({
    * bonuses as an AUDITABLE term stack. `PRE_ATTACK_HOOK` fires with the mutable
    * ctx (terms / throwTarget / targetAc) — the seam for effect replacer/dedup logic.
    */
-  attack: { ...attackLogic, PRE_ATTACK_HOOK },
+  attack: { ...attackLogic, PRE_ATTACK_HOOK, POST_ATTACK_HOOK },
   // Compose a wrapper around the patched rollAttack: libWrapper lets many
   // packages wrap one method but forbids one package registering twice, and
   // every feature here is the same package.

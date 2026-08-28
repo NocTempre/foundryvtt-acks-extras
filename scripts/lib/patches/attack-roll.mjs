@@ -34,6 +34,14 @@ import { MODULE_ID } from "../constants.mjs";
 import { attackTerms, termTotal, resolveAttack } from "../attack-logic.mjs";
 
 export const PRE_ATTACK_HOOK = "acksLibPreAttackRoll";
+
+/**
+ * Fired once the attack has RESOLVED, with `(actor, ctx, res)` — the seam for
+ * consequences that hang off an attack having happened at all (the mounted
+ * overlay's staying-mounted saves are the first). Listeners must not mutate
+ * `res`; the roll is already made and displayed.
+ */
+export const POST_ATTACK_HOOK = "acksLibPostAttackRoll";
 const L = (k, d) => (game.i18n.has(`ACKS-LIB.attack.${k}`) ? game.i18n.localize(`ACKS-LIB.attack.${k}`) : d);
 
 /** Core's rollAttack, captured at install time — the fail-safe fallback. */
@@ -70,6 +78,9 @@ function buildContext(actor, attData, options) {
     throwTarget: Number(sys.thac0?.throw ?? 10),
     targetAc: target ? Number(target.actor?.system?.aac?.value ?? 0) : null,
     targetName: target?.name ?? null,
+    // The defender itself, for listeners that need more than its AC (height
+    // advantage compares mounts). Null when the roll had no target.
+    targetActor: target?.actor ?? null,
     options,
   };
 
@@ -216,6 +227,10 @@ async function acksLibRollAttack(actor, attData, options = {}) {
     targetAc: ctx.targetAc ?? 0,
     exploding,
   });
+  // Consequences of the attack having happened (staying-mounted saves and
+  // their kin). After resolution, before display: listeners read, never move
+  // the result.
+  Hooks.callAll(POST_ATTACK_HOOK, actor, ctx, res);
 
   // The auditable line: target stated as a target, bonuses as roll-adds.
   // The defender's AC earns its place only by changing the number needed. Against

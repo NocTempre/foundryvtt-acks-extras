@@ -11,7 +11,7 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
-import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS } from "./vehicle-data.mjs";
+import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS, CARRIAGE } from "./vehicle-data.mjs";
 import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN } from "./vehicle-speed.mjs";
 import { isSinking, speedFactor, repairPlan, SINK_FORMULA, CREW_PER_POINT } from "./vessel-damage.mjs";
 import { voyageDay } from "./voyage.mjs";
@@ -121,6 +121,10 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       editable: this.isEditable,
       kinds: Object.entries(VEHICLE_KINDS).map(([value, k]) => ({
         value, label: game.i18n.localize(k.label), selected: value === sys.kind,
+      })),
+      // How the vehicle is carried; blank reads as pulled, the common case.
+      carriages: Object.entries(CARRIAGE).map(([value, c]) => ({
+        value, label: game.i18n.localize(c.label), selected: (sys.carriage || "pulled") === value,
       })),
       hold: {
         ...hold,

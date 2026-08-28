@@ -1,0 +1,23 @@
+{{! The brush picker: one swatch per terrain kind, and the eraser. The armed
+    brush is marked; picking arms the paint session if the toolbar has not.
+    ONE root element — an ApplicationV2 template part renders a single node. }}
+<div class="acks-extras-terrain-palette-body">
+  <div class="acks-extras-terrain-swatches">
+    {{#each swatches}}
+    <button type="button" class="acks-extras-terrain-swatch{{#if active}} is-active{{/if}}"
+            data-action="pickBrush" data-brush="{{key}}" data-tooltip="{{label}}">
+      <span class="acks-extras-terrain-chip" style="background:{{color}}"></span>
+      <span class="acks-extras-terrain-name">{{label}}</span>
+    </button>
+    {{/each}}
+    <button type="button" class="acks-extras-terrain-swatch{{#if erasing}} is-active{{/if}}"
+            data-action="pickBrush" data-brush="erase" data-tooltip="{{localize 'ACKS-BATTLEMAP.terrain.eraseHint'}}">
+      <span class="acks-extras-terrain-chip is-eraser"><i class="fa-solid fa-eraser"></i></span>
+      <span class="acks-extras-terrain-name">{{localize "ACKS-BATTLEMAP.terrain.erase"}}</span>
+    </button>
+  </div>
+  {{#unless armed}}
+  <p class="hint">{{localize "ACKS-BATTLEMAP.terrain.disarmedHint"}}</p>
+  {{/unless}}
+  <p class="hint">{{localize "ACKS-BATTLEMAP.terrain.paintHint"}}</p>
+</div>
