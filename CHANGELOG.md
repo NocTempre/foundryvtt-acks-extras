@@ -1,5 +1,34 @@
 # Changelog
 
+## 4.28.0
+
+Your class's damage bonus reaches your damage roll.
+
+### Added
+- **A class's damage bonus is applied to the character.** It had reached the
+  class sheet and stopped there: the column was read, displayed, and never
+  written, so a fighter's bonus never touched a damage roll. Applying a class
+  now writes it to the character's own melee and missile damage modifiers — the
+  fields the system pushes onto a damage roll — so it shows up where you throw
+  the dice. Fighting-style specialization adds to it rather than replacing it.
+- **Where the book qualifies the bonus, so does the character sheet.** A column
+  headed *Melee Damage Bonus* applies to melee and to nothing else. The
+  paladin's is the one in the core rules; it needs ACKS Importer 4.4.0 or later,
+  which is the release that carries the qualification through the import.
+- **Where the book does not qualify it, you are asked.** An unqualified column
+  is not the same as "both": the fighter's is unrestricted, while the
+  barbarian's is unqualified because the player picks melee or missile at 1st
+  level and cannot change it. Nothing in a class document tells those apart, so
+  applying such a class asks once — melee, missile, or both — and remembers the
+  answer on that character for that class. Later applies never ask again.
+  Dismissing the question cancels the apply rather than choosing for you.
+
+### Internal
+- The Battlemap panel registers only the actions it has controls for. `wipe` and
+  `setMode` were handlers no control called — both described buttons that
+  stopped existing when arming and wiping moved to the scene-control toolbar —
+  and `setMode` left a dead context behind it.
+
 ## 4.27.1
 
 The map tools come back as a window you can close.

@@ -3,6 +3,49 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-27 — an unqualified damage bonus is elected by the character, not assumed
+
+**Problem.** A class's damage-bonus column reached the class sheet and stopped
+there: nothing wrote it to the character, so a fighter's bonus never touched a
+damage roll. Writing it needed an answer to a question the document cannot
+answer — WHICH attacks it applies to.
+
+**Ruled: the column's key is the authority, and where the key says nothing the
+character is asked.** A key carrying `melee` or `missile` (the importer now
+guarantees a key carries every qualifier its printed header carries) settles it
+outright. A bare `damageBonus` does not mean "both": the fighter's column is
+unqualified because the bonus is unrestricted, and the barbarian's because the
+player elects melee or missile at 1st level and cannot change it. No field
+separates those two, and inventing one would put a number on half the characters
+in a world that their page never gave them. So it is asked — once — and the
+answer is recorded on the CHARACTER against the class it was made for, because
+one world's barbarians do not all specialize alike.
+
+**Rejected — defaulting an unqualified column to both.** Right for the fighter
+and silently wrong for the barbarian, and silently wrong is the worse half: a
+missile-elected barbarian would carry a melee bonus nobody granted, on a sheet
+that shows the number without showing where it came from.
+
+**Rejected — a row in the confirm dialog.** Chargen, the level-up wizard and the
+picker all pass `confirm: false`, so an election collected there would never be
+asked on any path that matters. It is its own prompt, resolved before the
+confirm dialog is built, and `tools/test-classes.mjs` pins that ordering against
+the source so the two cannot drift back together.
+
+**Dismissing cancels the apply.** The choice is permanent for this character in
+this class; a dismissed prompt that picked one anyway would make a permanent
+decision out of a keystroke meant to back out.
+
+**Cost.** One more prompt the first time a class with an unqualified column is
+applied. It does not repeat — the answer is honoured by every later apply — and
+a class whose column is qualified never asks at all.
+
+**Written through core's own fields.** `system.damage.mod.melee` / `.missile`
+are the only route by which a class bonus reaches a damage roll: core pushes
+them onto the damage parts, and nothing else in the family writes them. The
+loadout effect ADDS to them, so a base written here composes with fighting-style
+specialization instead of overwriting it.
+
 ## 2026-08-25 — the class's training is edited as slots, in a section of its own
 
 **Ruled: the training effect is lifted out of the ordinary effect list and drawn

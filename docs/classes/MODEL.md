@@ -230,6 +230,29 @@ written values are recorded at `flags["acks-extras"].classes.applied` so the
 next apply can make that distinction again. Cells the book leaves blank are
 skipped, never zeroed.
 
+**The damage bonus, and who it applies to.** A class states its damage bonus as
+a progression column, and the column's KEY carries whatever qualification the
+printed header gave it (`meleeDamageBonus`, `missileDamageBonus`, or bare
+`damageBonus`). `damageBonusLadder` reads the key; the value at the character's
+level is the highest rung at or below it, and it is written to core's own
+`system.damage.mod.melee` / `.missile` — the only route by which a class's bonus
+reaches a damage roll, since core pushes those onto the damage parts. The
+loadout effect ADDS to them, so a base written here composes with fighting-style
+specialization rather than fighting it.
+
+**An unqualified column is asked, never assumed.** Unqualified is not a synonym
+for "both": the fighter's column is printed without a qualifier because the
+bonus is unrestricted, the barbarian's because the player elects melee or
+missile at 1st level and cannot change it. No field of a class document
+separates those two, so an unqualified column prompts once and the answer is
+recorded at `flags["acks-extras"].classes.damageBonus` **against the class it
+was made for** — one world's barbarians do not all specialize alike, and a
+re-apply must not re-ask a permanent choice. Dismissing the prompt cancels the
+apply rather than picking for the player. The prompt is its own small dialog
+rather than a row in the confirm dialog, because chargen, the level-up wizard
+and the picker all pass `confirm: false` — an election collected there would
+never be asked at all.
+
 **A set level grants what it owes.** `{grantAwards: true}` — passed by the
 picker and by a dropped class, the two paths that SET a level — also hands over
 every award at or below it: Adventuring, each fixed award, and one pick per

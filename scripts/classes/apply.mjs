@@ -32,13 +32,56 @@ function slotRowAt(tradition, level) {
 }
 
 /**
+ * The class's damage-bonus ladder, and who the bonus applies to.
+ *
+ * A class states its damage bonus as a progression column, and the column's
+ * KEY carries whatever qualification the printed header gave it — the
+ * paladin's is melee only, the fighter's is unqualified. Unqualified is NOT
+ * the same as "both": the barbarian's column is printed unqualified because
+ * the player elects melee or missile at 1st level and cannot change it. No
+ * field of a class document tells those two apart, so an unqualified column
+ * is ASKED rather than assumed — and the answer belongs to the CHARACTER, not
+ * to the class, because one world's barbarians do not all specialize alike.
+ *
+ * @returns {{ladder: object, scope: "melee"|"missile"|null}|null} `scope` is
+ *   null where the column is unqualified and the election is the character's.
+ */
+export function damageBonusLadder(classItem) {
+  const ladder = (classItem?.system?.ladders ?? []).find((l) => /damagebonus$/i.test(String(l.key ?? "")));
+  if (!ladder) return null;
+  const key = String(ladder.key).toLowerCase();
+  return { ladder, scope: key.startsWith("melee") ? "melee" : key.startsWith("missile") ? "missile" : null };
+}
+
+/** A ladder's value at `level`: the highest rung at or below it. */
+function ladderValueAt(ladder, level) {
+  const rungs = (ladder?.values ?? []).filter((r) => Number(r.atLevel) <= level);
+  if (!rungs.length) return null;
+  const rung = rungs.reduce((best, r) => (Number(r.atLevel) > Number(best.atLevel) ? r : best));
+  const value = Number(rung.value);
+  return Number.isFinite(value) ? value : null;
+}
+
+/** The core damage-mod paths a bonus applying to `applies` writes. */
+function damageBonusUpdate(value, applies) {
+  const update = {};
+  if (applies === "melee" || applies === "both") update["system.damage.mod.melee"] = value;
+  if (applies === "missile" || applies === "both") update["system.damage.mod.missile"] = value;
+  return update;
+}
+
+/**
  * The update a class document prescribes for a character at `level`.
  * Pure build, no writes. Paths whose printed cell is absent are skipped —
  * an apply never zeroes a field the book left blank.
  *
+ * @param {object} [options]
+ * @param {"melee"|"missile"|"both"|null} [options.election] the character's
+ *   answer where the damage-bonus column is unqualified. Without one such a
+ *   bonus is left out entirely rather than guessed at — `applyClass` asks.
  * @returns {{update: object, level: number, missing: string[]}}
  */
-export function classUpdateData(actor, classItem, level) {
+export function classUpdateData(actor, classItem, level, { election = null } = {}) {
   const sys = classItem.system;
   const missing = [];
   const clamped = Math.max(1, Math.min(Number(level) || 1, sys.maximumLevel || 14));
@@ -68,6 +111,18 @@ export function classUpdateData(actor, classItem, level) {
   const cleaves = resolveLevelValue(sys.cleaves, clamped);
   if (typeof cleaves === "number") update["system.fight.cleaves"] = Math.max(0, Math.floor(cleaves));
 
+  // The class's damage bonus reaches the damage roll only through core's own
+  // `system.damage.mod` fields — core pushes them onto the damage parts, and
+  // nothing else in the family writes them, so a bonus left here never leaves
+  // the class sheet. The loadout effect ADDS to these, so a base written here
+  // composes with fighting-style specialization instead of fighting it.
+  const dmg = damageBonusLadder(classItem);
+  if (dmg) {
+    const value = ladderValueAt(dmg.ladder, clamped);
+    const applies = dmg.scope ?? election;
+    if (value != null && applies) Object.assign(update, damageBonusUpdate(value, applies));
+  }
+
   // Vancian slot grid. One tradition writes directly; with two (the Nobiran)
   // the arcane one takes the system grid — per-tradition pools are the
   // casting framework's surface, not this grid's.
@@ -94,6 +149,44 @@ export function classUpdateData(actor, classItem, level) {
 
 /** The current actor value at an update path (dot-path read). */
 const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
+
+/** The elections a damage bonus can be narrowed to, in display order. */
+const DAMAGE_BONUS_OPTIONS = ["both", "melee", "missile"];
+
+/**
+ * Ask which attacks this character's class damage bonus applies to.
+ *
+ * Asked only where the printed column is unqualified, and only once — the
+ * answer is recorded on the character and honoured by every later apply. The
+ * dialog is deliberately its own small prompt rather than a row in the confirm
+ * dialog: every caller that matters suppresses that one.
+ *
+ * @returns {Promise<"melee"|"missile"|"both"|null>} null when dismissed.
+ */
+async function askDamageBonusElection(actor, classItem) {
+  const content =
+    `<p>${game.i18n.format(`${LANG_PREFIX}.damageBonus.prompt`, {
+      actor: foundry.utils.escapeHTML(actor.name),
+      class: foundry.utils.escapeHTML(classItem.name),
+    })}</p>` +
+    `<div class="form-group"><label>${game.i18n.localize(`${LANG_PREFIX}.damageBonus.label`)}</label>` +
+    `<select name="applies">${DAMAGE_BONUS_OPTIONS.map(
+      (k) => `<option value="${k}">${game.i18n.localize(`${LANG_PREFIX}.damageBonus.${k}`)}</option>`,
+    ).join("")}</select></div>` +
+    `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.damageBonus.hint`)}</p>`;
+  try {
+    return await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: game.i18n.localize(`${LANG_PREFIX}.damageBonus.title`), resizable: true },
+      content,
+      modal: true,
+      ok: { callback: (_event, button) => button.form.elements.applies.value },
+      rejectClose: true,
+    });
+  } catch {
+    return null; // dismissed
+  }
+}
 
 /**
  * Apply `classItem` to `actor` at `level` (default: the actor's current
@@ -185,7 +278,16 @@ export async function syncClassTraining(actor, classItem, selections = null) {
 export async function applyClass(
   actor,
   classItem,
-  { level, confirm = true, rebuildVitals = false, grantAwards = false, answered = [], answers = {}, paths = null } = {},
+  {
+    level,
+    confirm = true,
+    rebuildVitals = false,
+    grantAwards = false,
+    answered = [],
+    answers = {},
+    paths = null,
+    election: electionAnswer = null,
+  } = {},
 ) {
   if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { applied: false };
   if (classItem.system.isStub) {
@@ -193,7 +295,24 @@ export async function applyClass(
     return { applied: false };
   }
   const targetLevel = level ?? Math.max(1, Number(actor.system?.details?.level) || 1);
-  const { update, level: clamped, missing } = classUpdateData(actor, classItem, targetLevel);
+  // A damage bonus whose column is unqualified is the CHARACTER's election, so
+  // it is asked here rather than in the confirm dialog below: every surface
+  // that applies a class (chargen, the level-up wizard, the picker) suppresses
+  // that dialog, and a question only the unused path asks is a question nobody
+  // is ever asked. The election this character already gave stands — it is
+  // permanent, and re-applying must not silently re-elect it — but only for
+  // the class it was given for, so changing class asks again.
+  const classKey = classItem.system.key || classItem.name.toLowerCase();
+  const dmgLadder = damageBonusLadder(classItem);
+  const remembered = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.damageBonus ?? null;
+  const heldElection = remembered?.class === classKey ? remembered.applies : null;
+  let election = null;
+  if (dmgLadder && !dmgLadder.scope) {
+    election = heldElection ?? electionAnswer ?? (await askDamageBonusElection(actor, classItem));
+    // Cancelling a permanent choice cancels the apply rather than picking one.
+    if (!election) return { applied: false };
+  }
+  const { update, level: clamped, missing } = classUpdateData(actor, classItem, targetLevel, { election });
 
   // Setting a level by hand leaves hit points and experience describing the
   // character you no longer have — a 4th-level thief keeping 1st-level hit
@@ -403,6 +522,9 @@ export async function applyClass(
       key: classItem.system.key || classItem.name.toLowerCase(),
       appliedLevel: clamped,
       applied,
+      // Recorded against the class it was made for: the choice is permanent
+      // for this character in this class, and re-applying must not re-ask it.
+      ...(election ? { damageBonus: { class: classKey, applies: election } } : {}),
       ...(Object.keys(pathPicks).length ? { paths: pathPicks } : {}),
       ...(closed.length || grantAwards ? { awardsTaken: [...new Set([...takenAlready, ...closed])] } : {}),
     },

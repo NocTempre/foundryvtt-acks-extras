@@ -24,6 +24,7 @@ import {
   valueRow,
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
+import { classUpdateData, damageBonusLadder } from "../scripts/classes/apply.mjs";
 import { awardsAt, awardsThrough } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
 import { rebuildHitPoints } from "../scripts/classes/hitpoints.mjs";
@@ -913,6 +914,61 @@ test("applyTemplate is bundle-first with the row path as fallback", () => {
   assert.match(src, /expandTemplate\(template\)/, "the bundle is expanded before any row entry is read");
   assert.match(src, /grantRowEntries\(actor, \{ abilities, items: template\.items \?\? \[\], spells \}, report\)/,
     "the legacy row path survives for un-upgraded worlds");
+});
+
+/* --------------------- class damage bonus --------------------- */
+
+/** A class carrying one damage-bonus ladder; the values are test fixtures. */
+const dmgClass = (key) => ({
+  name: "Fixture",
+  system: {
+    key: "fixture",
+    maximumLevel: 14,
+    ladders: [{ key, values: [{ atLevel: 1, value: 1 }, { atLevel: 3, value: 2 }] }],
+    levelRow: () => null,
+    nextXp: () => null,
+    cleaves: null,
+    casting: [],
+    requirements: [],
+  },
+});
+const dmgMods = (update) => ({ melee: update["system.damage.mod.melee"], missile: update["system.damage.mod.missile"] });
+
+test("a column's key says who the damage bonus applies to", () => {
+  assert.equal(damageBonusLadder(dmgClass("meleeDamageBonus")).scope, "melee");
+  assert.equal(damageBonusLadder(dmgClass("missileDamageBonus")).scope, "missile");
+  // Unqualified is NOT "both": it is the character's election, asked at apply.
+  assert.equal(damageBonusLadder(dmgClass("damageBonus")).scope, null);
+  assert.equal(damageBonusLadder({ system: { ladders: [{ key: "acBonus", values: [] }] } }), null);
+  assert.equal(damageBonusLadder({ system: {} }), null);
+});
+
+test("a qualified damage bonus reaches only the attacks its column names", () => {
+  // The rung at or below the level, not the first rung and not the last.
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("meleeDamageBonus"), 3).update), { melee: 2, missile: undefined });
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("missileDamageBonus"), 2).update), { melee: undefined, missile: 1 });
+});
+
+test("an unqualified damage bonus waits for the election rather than guessing", () => {
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("damageBonus"), 3).update), { melee: undefined, missile: undefined });
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("damageBonus"), 3, { election: "both" }).update), { melee: 2, missile: 2 });
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("damageBonus"), 3, { election: "missile" }).update), { melee: undefined, missile: 2 });
+});
+
+test("a class with no damage bonus writes no damage mod at all", () => {
+  const plain = dmgClass("damageBonus");
+  plain.system.ladders = [];
+  assert.deepEqual(dmgMods(classUpdateData({}, plain, 3, { election: "both" }).update), { melee: undefined, missile: undefined });
+});
+
+test("the election is asked on every path, not only in the confirm dialog", () => {
+  const src = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
+  // chargen, the level-up wizard and the picker all pass confirm:false, so an
+  // election collected inside the confirm dialog would never be asked at all.
+  const ask = src.indexOf("askDamageBonusElection(actor, classItem)");
+  const dialog = src.indexOf("DialogV2.confirm");
+  assert.ok(ask > 0 && ask < dialog, "the election resolves before the confirm dialog is built");
+  assert.match(src, /damageBonus: \{ class: classKey, applies: election \}/, "and is recorded against its class");
 });
 
 console.log(`test-classes: ${passed} assertion groups passed.`);
