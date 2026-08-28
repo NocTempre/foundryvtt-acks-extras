@@ -32,9 +32,10 @@ import { getTable, hasDoc, bracketRow } from "../lib/tables.mjs";
 /** The registered ruledata documents this module's ground and wind read. */
 export const TRAVEL_DOC = "travel";
 export const VOYAGES_DOC = "voyages";
+export const WEATHER_DOC = "weather";
 
 /** A registered table, or null — absent doc and absent table read the same. */
-function readTable(docId, tableId) {
+export function readTable(docId, tableId) {
   try {
     return hasDoc(docId) ? getTable(docId, tableId) : null;
   } catch {
@@ -44,13 +45,14 @@ function readTable(docId, tableId) {
 
 /**
  * Ground: the STRUCTURAL half only — which terrains exist, which of them
- * refuse wheels without a road, and each one's label. What each terrain is
- * WORTH is printed, and arrives through the `travel` registered tables from
- * the reader's own book; absent tables read as ×1 and say so.
+ * refuse wheels without a road, which turn to mud under rain (`mudProne`),
+ * and each one's label. What each terrain is WORTH is printed, and arrives
+ * through the `travel` registered tables from the reader's own book; absent
+ * tables read as ×1 and say so.
  */
 export const TERRAIN = Object.freeze({
-  grassland: { label: "ACKS-VEHICLES.terrain.grassland" },
-  scrubland: { label: "ACKS-VEHICLES.terrain.scrubland" },
+  grassland: { label: "ACKS-VEHICLES.terrain.grassland", mudProne: true },
+  scrubland: { label: "ACKS-VEHICLES.terrain.scrubland", mudProne: true },
   barrens: { label: "ACKS-VEHICLES.terrain.barrens" },
   desert: { label: "ACKS-VEHICLES.terrain.desert", wheelsNeedRoad: true },
   hills: { label: "ACKS-VEHICLES.terrain.hills" },
@@ -77,18 +79,24 @@ export const ROAD_KINDS = Object.freeze(["none", "earth", "gravel", "paved"]);
  *
  * Values come from the `travel` registered tables (`terrainMultipliers`:
  * terrain key → factor; `roads`: road kind → {multiplier, drivingMultiplier,
- * ineffectiveIf[]}). With no tables imported every factor is ×1 and ONE
- * `tablesMissing` part says why the ground is not counting.
+ * ineffectiveIf[]}) and — for the sky — from the `weather` document's
+ * `conditionSpeed` table (condition key → factor, cumulative, per JJ ch. 2).
+ * With no tables imported every factor is ×1 and ONE `tablesMissing` part
+ * says why the ground and the weather are not counting.
  *
  * @param {object} o
  * @param {string} o.terrain a key of TERRAIN
  * @param {string|boolean} o.road a ROAD_KINDS key; `true` (legacy callers)
  *   reads as an earth road
  * @param {boolean} o.driverProficient the reins are held by someone with Driving
- * @param {boolean} o.raining / @param {boolean} o.snowing the conditions a
- *   road row may name as nulling it
+ * @param {boolean} o.raining / @param {boolean} o.snowing the legacy manual
+ *   flags; a road row naming them in `ineffectiveIf` is nulled by them
+ * @param {string[]} [o.conditions] active weather-condition keys (the
+ *   formation's `conditionsOf`); each multiplies by its imported factor, and
+ *   a road row may name any of them in `ineffectiveIf`. A muddy footing is
+ *   lifted by a paved road — the one carve-out the mud rule states.
  */
-export function travelMultiplier({ terrain = "grassland", road = "none", driverProficient = false, raining = false, snowing = false } = {}) {
+export function travelMultiplier({ terrain = "grassland", road = "none", driverProficient = false, raining = false, snowing = false, conditions = null } = {}) {
   const ground = TERRAIN[terrain] ?? TERRAIN.grassland;
   const parts = [];
   let multiplier = 1;
@@ -103,18 +111,47 @@ export function travelMultiplier({ terrain = "grassland", road = "none", driverP
     missing = true;
   }
 
+  // The words a road row's `ineffectiveIf` can match: the legacy manual
+  // flags and every active condition key, one vocabulary.
+  const active = new Set(conditions ?? []);
+  if (raining || active.has("rainy")) active.add("raining");
+  if (snowing || active.has("snowy")) active.add("snowing");
+
   const roadKind = road === true ? "earth" : road;
+  let pavedHolds = false;
   if (roadKind && roadKind !== "none" && ROAD_KINDS.includes(roadKind)) {
     const row = readTable(TRAVEL_DOC, "roads")?.[roadKind];
     if (row) {
       const nulledBy = row.ineffectiveIf ?? [];
-      const washedOut = (raining && nulledBy.includes("raining")) || (snowing && nulledBy.includes("snowing"));
+      const washedOut = nulledBy.some((k) => active.has(k));
+      pavedHolds = roadKind === "paved" && !washedOut;
       const factor = washedOut ? 1 : Number(driverProficient ? (row.drivingMultiplier ?? row.multiplier) : row.multiplier) || 1;
       multiplier *= factor;
       // A washed-out road contributes ×1 but must still SAY so — `note`
       // marks the parts that render despite a silent factor.
       parts.push({ key: washedOut ? "roadWashedOut" : driverProficient ? "roadDriver" : "road", factor, ...(washedOut ? { note: true } : {}) });
     } else {
+      missing = true;
+    }
+  }
+
+  // Each condition is worth what the imported table says, cumulatively.
+  // Mud alone yields to pavement: a paved road that still holds lifts the
+  // muddy factor (and says so), while snow cares for no road.
+  if (active.size) {
+    const factors = readTable(WEATHER_DOC, "conditionSpeed");
+    if (factors) {
+      for (const key of conditions ?? []) {
+        const f = Number(factors[key]);
+        if (!Number.isFinite(f) || f <= 0 || f === 1) continue;
+        if (key === "muddy" && pavedHolds) {
+          parts.push({ key: "mudPaved", factor: 1, note: true });
+          continue;
+        }
+        multiplier *= f;
+        parts.push({ key: `condition.${key}`, factor: f });
+      }
+    } else if ((conditions ?? []).length) {
       missing = true;
     }
   }
@@ -126,17 +163,21 @@ export function travelMultiplier({ terrain = "grassland", road = "none", driverP
 /**
  * Wind: the STRUCTURAL half — which strengths exist, their labels, and the
  * rules keyed to a band's IDENTITY (strong and worse forbid tacking except
- * to a master mariner; a gale may set her adrift). The 2d6 band edges and
+ * to a master mariner; a gale may set her adrift; still air turns drizzle
+ * to mist and rain to fog on land, `stills`; the top two bands impose the
+ * windy and stormy weather CONDITIONS, `condition`). The 2d6 band edges and
  * the sail/oar factors are printed, and read from the `voyages` registered
- * table `windStrength` (rows {key, min, max, sail, oar, nextDay}).
+ * table `windStrength` (rows {key, min, max, sail, oar, nextDay}). Land and
+ * sea share this one ladder — the weather generator writes the same keys
+ * `seaSpeeds` reads.
  */
 export const WIND = Object.freeze({
-  still: { label: "ACKS-VEHICLES.wind.still" },
+  still: { label: "ACKS-VEHICLES.wind.still", stills: true },
   gentle: { label: "ACKS-VEHICLES.wind.gentle" },
   moderate: { label: "ACKS-VEHICLES.wind.moderate" },
   strong: { label: "ACKS-VEHICLES.wind.strong", noTack: true },
-  veryStrong: { label: "ACKS-VEHICLES.wind.veryStrong", noTack: true },
-  gale: { label: "ACKS-VEHICLES.wind.gale", noTack: true, mayDrift: true },
+  veryStrong: { label: "ACKS-VEHICLES.wind.veryStrong", noTack: true, condition: "windy" },
+  gale: { label: "ACKS-VEHICLES.wind.gale", noTack: true, mayDrift: true, condition: "stormy" },
 });
 
 /** The registered wind row for a strength key, or null. */
@@ -323,12 +364,24 @@ export function draftPull(vehicle, equivalents = null) {
 
 /**
  * Whether this vehicle can enter a terrain at all. Wheels need a road through
- * desert, mountains, forest and swamp; a vessel is not asked.
+ * desert, mountains, forest and swamp; snow on the ground stops them
+ * everywhere, and mud stops them off pavement (RR ch. 6). A vessel is not
+ * asked, and neither is a carried vehicle — a palanquin goes where its
+ * bearers walk.
+ *
+ * @param {object} [o]
+ * @param {string|boolean} [o.road] a ROAD_KINDS key; `true` reads as earth
+ * @param {string} [o.mud] the footing's mud state ("none"|"muddy"|"frozen")
+ * @param {boolean} [o.snow] snow lies on the ground
  */
-export function canEnter(vehicle, terrain, { road = false } = {}) {
+export function canEnter(vehicle, terrain, { road = false, mud = "none", snow = false } = {}) {
   if (vehicle?.kind !== "land") return { ok: true };
+  if (vehicle?.carriage && vehicle.carriage !== "pulled") return { ok: true };
+  if (snow) return { ok: false, reason: "snowbound" };
+  const roadKind = road === true ? "earth" : road;
+  if (mud === "muddy" && roadKind !== "paved") return { ok: false, reason: "mudBound" };
   const gated = !!TERRAIN[String(terrain)]?.wheelsNeedRoad;
-  if (gated && !road) return { ok: false, reason: "needsRoad" };
+  if (gated && (!roadKind || roadKind === "none")) return { ok: false, reason: "needsRoad" };
   return { ok: true };
 }
 

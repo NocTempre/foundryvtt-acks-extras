@@ -150,14 +150,18 @@ Still unbuilt, in likely order:
    **Path B's importer half** — the extras side landed the same day (the
    terrain/road/wind values read from the `travel`/`voyages` registered
    tables, ×1 with a stated reason until imported; ruling in
-   `docs/vehicles/DECISIONS.md`), so what is owed now are the acks-importer
-   RECIPES that fill them (RR ch. 6 terrain and navigation tables, JJ App R
-   road types and the terrain master table, encounter frequency);
+   `docs/vehicles/DECISIONS.md`). The land recipes LANDED 2026-08-28
+   (terrain multipliers, roads, getting-lost, encounter frequency, and the
+   whole `weather` document); still owed are the `voyages` recipes (wind
+   strength, tacking — the naval tail) and JJ App R's per-kind road
+   refinement that replaces the RR-derived roads table;
    **encounter cadence throws** hanging off the activity slots'
-   frequency kinds; **supply consumption** at End Day (member rations at the
-   day boundary, animal feed and water as Normal-Load fractions, crew
-   rations against the hold); and **generated weather** replacing the manual
-   flags. The scene/hex integration LANDED 2026-08-28 exactly as the record
+   frequency kinds; and **supply consumption** at End Day (member rations at
+   the day boundary, animal feed and water as Normal-Load fractions, crew
+   rations against the hold). Generated weather LANDED 2026-08-28
+   (`MODEL.md` §The weather; the `weather` document's importer recipes ride
+   the same owed-recipes row as the travel tables above). The scene/hex
+   integration LANDED 2026-08-28 exactly as the record
    shape anticipated: the battlemap feature's terrain painting
    (`docs/battlemap/MODEL.md` §Terrain painting) names the hex and sets the
    ground from the party token on painted hex scenes, and the manual

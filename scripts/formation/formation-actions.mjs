@@ -37,7 +37,7 @@ import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
-import { applyTravelForm, setJourneyMode, enterHex, endDay } from "./travel.mjs";
+import { applyTravelForm, setJourneyMode, enterHex, endDay, rollWeatherNow } from "./travel.mjs";
 import { travelReadout } from "./formation-view.mjs";
 import { partySpeed } from "./formation-model.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -189,6 +189,14 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     await setJourneyMode(formation.id, formation.travel?.mode !== "journey");
+    this.render();
+  },
+
+  /** The Judge rolls the day's sky from the imported tables. */
+  async travelWeatherRoll() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await rollWeatherNow(formation.id);
     this.render();
   },
 

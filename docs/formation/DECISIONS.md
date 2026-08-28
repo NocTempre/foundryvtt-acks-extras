@@ -868,3 +868,41 @@ GM-only state**: the flag and the Judge's note live on the record and render
 only on GM clients — the world-settings blob is technically client-readable,
 which is the standing exposure every GM-ish fact in the formations setting
 already accepts.
+
+## 2026-08-28 — Weather: the sky's structure ships, its numbers do not
+
+The daily generator extends the Path-B ruling to a fourth registered
+document, `weather`. WHAT SHIPS: the three-throw procedure (temperature /
+precipitation / wind at 2d6 each, one climate-and-season modifier apiece,
+the day's temperature roll re-read at night under its own modifier, the
+temperature COLUMN picked by the day modifier's sign), the combination
+rules (freezing turns drizzle→flurry and rain→snow BEFORE still air is
+consulted for mist and fog — the book orders them by listing freezing
+first, so snow is never re-read as fog), the fronts drift (one step toward
+yesterday, natural 2s and 12s standing), the band and condition KEY LISTS,
+the Köppen climate codes (public science, not the book's expression), and
+the footing state machine's transitions. WHAT IMPORTS: every band edge, the
+climate×season modifier grid, every condition's speed factor
+(`conditionSpeed`, cumulative per JJ ch. 2), and every accumulation
+threshold (`accumulation`). The structural booleans that carry printed
+lists (`mudProne` on grassland/scrubland; `freezing` on the two cold bands;
+the rewrite mappings themselves) follow the `wheelsNeedRoad` precedent
+(2026-08-27) — REVIEWER-FLAGGED: a gate cannot tell these from values, so a
+reviewer holds the line.
+
+**Two readings where the book is silent, both ours:** frozen mud THAWS back
+to mud on the first non-freezing day (the book freezes mud and says no
+more; leaving it frozen forever was the alternative and reads worse), and
+snow-melt mud forms on ANY terrain (the melt paragraph says "creating mud
+(as above)" without restating the grassland/scrubland gate; a swamp of
+melt-water muds regardless of what rain would do). A day that CREATES mud
+does not also count as its first drying day.
+
+**The manual raining/snowing checkboxes retired** in favour of the three
+band selects — the band keys are structural, so hand-picking needs no
+import, and the old booleans still read from existing records (travelOf
+keeps them; the rainy/snowy BANDS now feed the same road-washout
+vocabulary). Rejected: a second "weather on/off" setting (the `auto` flag
+on the record already gates generation per formation); weather state
+anywhere but the travel subtree (same alternatives, same rejection as
+2026-08-27's travel ruling).

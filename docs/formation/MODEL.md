@@ -360,7 +360,7 @@ A formation is in one of two MODES. Delve is everything above; **journey**
 pauses movement-driven turn ticking (`clock.paused`) and puts the day on the
 table instead: a `travel` subtree on the record
 ([travel.mjs](../../scripts/formation/travel.mjs)) holding the ground, road
-and territory the party is crossing, the weather flags, the hex it believes
+and territory the party is crossing, the day's weather, the hex it believes
 it is in, the DAY BOARD — one day-kind (dedicated march, forced march, camp)
 plus the four ancillary hour slots the wilderness rules budget, a forced
 march consuming all four — and an append-only, capped log of finished days.
@@ -380,10 +380,34 @@ the board, and advances the world clock a day through `lib/world-time.mjs`'s
 switch. `acksExtras.formation.travel` (apiVersion 4) publishes the mode
 switch, the day board writers, the hex trace and the pure pieces.
 
-Still ahead of this mode — the registered-table migration for the terrain
-and road multipliers, encounter cadence throws hanging off the activity
-slots, supply consumption at End Day, generated weather — is
-[ROADMAP.md](ROADMAP.md) item 7.
+## The weather
+
+The day's sky is part of the travel record
+([weather.mjs](../../scripts/formation/weather.mjs)): a temperature band
+(day and night), a precipitation kind, a wind band — the same six-step wind
+ladder the vessels sail by — and the FOOTING the weather has left on the
+ground (mud that forms, freezes, thaws and dries; snow that lies and melts
+to mud). The panel's three band selects work bare-handed: the band keys are
+structural, so a Judge with nothing imported still declares the sky. With
+the `weather` document imported, **Roll the sky** (and, when armed, every
+End day) generates it instead — three 2d6 throws under the hex's Köppen
+climate and the season, the day's temperature roll re-read at night under
+its own modifier, freezing air turning drizzle to flurries and rain to
+snow, still air turning them to mist and fog, and an optional fronts drift
+sliding each day one step toward yesterday. What the sky is WORTH is
+imported the same way: the thirteen mechanical conditions derive from the
+bands and the footing, each multiplies the march by its `conditionSpeed`
+factor (cumulative, one readout line apiece), a road drowns when its
+imported row names an active condition, pavement alone lifts mud, and the
+footing's thresholds (days to mud, to snow, to dry) are the `accumulation`
+table. Every land vehicle in the train is asked against the footing —
+wheels stop in snow anywhere and in mud off pavement — and the refusals
+render on the panel for the whole table. The finished day's weather goes
+into its log row, display fields only.
+
+Still ahead of this mode — encounter cadence throws hanging off the
+activity slots, supply consumption at End Day — is [ROADMAP.md](ROADMAP.md)
+item 7.
 
 ## Deliberate non-features (v0.1)
 

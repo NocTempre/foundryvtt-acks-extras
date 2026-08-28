@@ -36,7 +36,17 @@ import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { occupantsOf, draftPullOf } from "../vehicles/occupants.mjs";
 import { stationsFor } from "../vehicles/stations.mjs";
 import { travelOf, DAY_KINDS, ANCILLARY_ACTIVITIES, ROAD_KINDS, TERRITORY_KEYS } from "./travel.mjs";
-import { TERRAIN, travelMultiplier } from "../vehicles/vehicle-speed.mjs";
+import { TERRAIN, travelMultiplier, canEnter } from "../vehicles/vehicle-speed.mjs";
+import {
+  CLIMATES,
+  CONDITIONS,
+  PRECIPITATION_KINDS,
+  SEASONS,
+  TEMPERATURE_BANDS,
+  WIND_BANDS,
+  conditionsOf,
+  generatorReady,
+} from "./weather.mjs";
 import { expeditionFrom } from "../lib/movement-scales.mjs";
 import { fractionLabel } from "../lib/util.mjs";
 import { collectMapItems } from "./map-items.mjs";
@@ -416,15 +426,17 @@ function buildTrain(formation, partyPace) {
 export function travelReadout(formation, feet) {
   const t = travelOf(formation);
   const kind = DAY_KINDS[t.day?.kind] ?? DAY_KINDS.march;
-  if (!kind.travels) return { feet, camp: true, milesPerDay: 0, hexesPerDay: 0, parts: [], multiplier: 1 };
+  const conditions = conditionsOf(t.weather);
+  if (!kind.travels) return { feet, camp: true, milesPerDay: 0, hexesPerDay: 0, parts: [], multiplier: 1, conditions };
   const m = travelMultiplier({
     terrain: t.ground,
     road: t.road,
     raining: !!t.weather?.raining,
     snowing: !!t.weather?.snowing,
+    conditions,
   });
   const e = expeditionFrom(feet, { multiplier: m.multiplier, pace: kind.pace ?? "dedicated" });
-  return { feet, camp: false, multiplier: m.multiplier, parts: m.parts, ...e };
+  return { feet, camp: false, multiplier: m.multiplier, parts: m.parts, conditions, ...e };
 }
 
 /**
@@ -446,7 +458,8 @@ function buildTravelView(formation, feet) {
     opt(value, game.i18n.localize(`ACKS-FORMATION.travel.road.${value}`), value === t.road));
   view.territories = TERRITORY_KEYS.map((value) =>
     opt(value, game.i18n.localize(`ACKS-FORMATION.travel.territory.${value}`), value === t.territory));
-  view.weather = { raining: !!t.weather.raining, snowing: !!t.weather.snowing };
+  view.weather = buildWeatherView(t, opt);
+  view.wheels = wheelRefusals(formation, t);
 
   view.dayKinds = Object.entries(DAY_KINDS).map(([value, cfg]) =>
     opt(value, game.i18n.localize(cfg.label), value === t.day.kind));
@@ -477,8 +490,84 @@ function buildTravelView(formation, feet) {
   view.log = t.log.slice(0, 10).map((e) => ({
     ...e,
     kindLabel: game.i18n.localize(DAY_KINDS[e.dayKind]?.label ?? DAY_KINDS.march.label),
+    weatherLine: [e.weather?.temperature, e.weather?.precipitation, e.weather?.wind]
+      .map((k) => TEMPERATURE_BANDS[k] ?? PRECIPITATION_KINDS[k] ?? WIND_BANDS[k])
+      .filter(Boolean)
+      .map((cfg) => game.i18n.localize(cfg.label))
+      .join(" · "),
   }));
   return view;
+}
+
+/**
+ * The weather block's context: the generator's pickers, the three band
+ * selects (band keys are structural, so a Judge with nothing imported still
+ * SETS the sky by hand), the derived condition chips, and the footing.
+ */
+function buildWeatherView(t, opt) {
+  const w = t.weather;
+  const unset = game.i18n.localize("ACKS-FORMATION.travel.weather.unset");
+  const bands = (vocab, current) => [
+    opt("", unset, !current),
+    ...Object.entries(vocab).map(([value, cfg]) => opt(value, game.i18n.localize(cfg.label), value === current)),
+  ];
+  const climateGroups = new Map();
+  for (const [code, cfg] of Object.entries(CLIMATES)) {
+    if (!climateGroups.has(cfg.group)) {
+      climateGroups.set(cfg.group, {
+        label: game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${cfg.group}`),
+        options: [],
+      });
+    }
+    climateGroups.get(cfg.group).options.push(opt(code, `${code} — ${game.i18n.localize(cfg.label)}`, code === w.climate));
+  }
+  return {
+    auto: !!w.auto,
+    fronts: !!w.fronts,
+    climateUnset: !w.climate,
+    climateGroups: [...climateGroups.values()],
+    seasons: SEASONS.map((s) => opt(s, game.i18n.localize(`ACKS-FORMATION.travel.weather.seasons.${s}`), s === w.season)),
+    temperatures: bands(TEMPERATURE_BANDS, w.temperature),
+    precipitations: bands(PRECIPITATION_KINDS, w.precipitation),
+    winds: bands(WIND_BANDS, w.wind),
+    night: w.temperatureNight ? game.i18n.localize(TEMPERATURE_BANDS[w.temperatureNight]?.label ?? "") : "",
+    chips: conditionsOf(w).map((key) => ({ key, label: game.i18n.localize(CONDITIONS[key].label) })),
+    footingMud: ["none", "muddy", "frozen"].map((m) =>
+      opt(m, game.i18n.localize(`ACKS-FORMATION.travel.weather.mud.${m}`), m === w.footing.mud)),
+    footingSnow: !!w.footing.snow,
+    ready: generatorReady(),
+  };
+}
+
+/**
+ * The wagons that cannot roll today: every land vehicle in the party's
+ * train, asked against the ground, the road and the footing. Table
+ * knowledge — a stuck wagon is not a secret.
+ */
+function wheelRefusals(formation, t) {
+  const seen = new Set();
+  const out = [];
+  for (const member of formation.members) {
+    if (member?.blank || !member?.actorId) continue;
+    const actor = getMemberActor(member);
+    if (!actor) continue;
+    for (const carrier of carrierChain(actor)) {
+      if (carrier.type !== VEHICLE_TYPE || seen.has(carrier.uuid)) continue;
+      seen.add(carrier.uuid);
+      const verdict = canEnter(carrier.system, t.ground, {
+        road: t.road,
+        mud: t.weather.footing?.mud ?? "none",
+        snow: !!t.weather.footing?.snow,
+      });
+      if (!verdict.ok) {
+        out.push({
+          name: carrier.name,
+          reason: game.i18n.localize(`ACKS-FORMATION.travel.weather.wheels.${verdict.reason}`),
+        });
+      }
+    }
+  }
+  return out;
 }
 
 /** Context for the GM-only controls (light/spell pickers, tables, maps). */

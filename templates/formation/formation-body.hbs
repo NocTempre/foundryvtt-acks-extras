@@ -325,16 +325,83 @@
           {{#each travel.territories}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
       </label>
-      <label class="checkbox">
-        <input type="checkbox" name="travel.weather.raining" {{checked travel.weather.raining}}>
-        {{localize "ACKS-FORMATION.travel.weatherRaining"}}
-      </label>
-      <label class="checkbox">
-        <input type="checkbox" name="travel.weather.snowing" {{checked travel.weather.snowing}}>
-        {{localize "ACKS-FORMATION.travel.weatherSnowing"}}
-      </label>
     </div>
 
+    <div class="acks-extras-formation-travel-weather">
+      <div class="acks-extras-formation-travel-weather-gen">
+        <label>{{localize "ACKS-FORMATION.travel.weather.climate"}}
+          <select name="travel.weather.climate">
+            <option value="" {{#if travel.weather.climateUnset}}selected{{/if}}>{{localize "ACKS-FORMATION.travel.weather.unset"}}</option>
+            {{#each travel.weather.climateGroups}}
+            <optgroup label="{{label}}">
+              {{#each options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </optgroup>
+            {{/each}}
+          </select>
+        </label>
+        <label>{{localize "ACKS-FORMATION.travel.weather.season"}}
+          <select name="travel.weather.season">
+            {{#each travel.weather.seasons}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label class="checkbox" data-tooltip="{{localize 'ACKS-FORMATION.travel.weather.autoHint'}}">
+          <input type="checkbox" name="travel.weather.auto" {{checked travel.weather.auto}}>
+          {{localize "ACKS-FORMATION.travel.weather.auto"}}
+        </label>
+        <label class="checkbox" data-tooltip="{{localize 'ACKS-FORMATION.travel.weather.frontsHint'}}">
+          <input type="checkbox" name="travel.weather.fronts" {{checked travel.weather.fronts}}>
+          {{localize "ACKS-FORMATION.travel.weather.fronts"}}
+        </label>
+        <button type="button" data-action="travelWeatherRoll" {{#unless travel.weather.ready}}disabled{{/unless}}
+                data-tooltip="{{localize 'ACKS-FORMATION.travel.weather.generateHint'}}">
+          <i class="fa-solid fa-cloud-sun-rain"></i> {{localize "ACKS-FORMATION.travel.weather.generate"}}
+        </button>
+      </div>
+      {{#unless travel.weather.ready}}
+      <p class="hint acks-extras-formation-travel-weather-missing">{{localize "ACKS-FORMATION.travel.weather.missing"}}</p>
+      {{/unless}}
+      <div class="acks-extras-formation-travel-weather-bands">
+        <label>{{localize "ACKS-FORMATION.travel.weather.temperature"}}
+          <select name="travel.weather.temperature">
+            {{#each travel.weather.temperatures}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label>{{localize "ACKS-FORMATION.travel.weather.precipitation"}}
+          <select name="travel.weather.precipitation">
+            {{#each travel.weather.precipitations}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label>{{localize "ACKS-FORMATION.travel.weather.wind"}}
+          <select name="travel.weather.wind">
+            {{#each travel.weather.winds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label>{{localize "ACKS-FORMATION.travel.weather.footingMud"}}
+          <select name="travel.weather.footingMud">
+            {{#each travel.weather.footingMud}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="travel.weather.footingSnow" {{checked travel.weather.footingSnow}}>
+          {{localize "ACKS-FORMATION.travel.weather.footingSnow"}}
+        </label>
+      </div>
+    </div>
+    {{/if}}
+
+    {{#if travel.weather.night}}
+    <p class="acks-extras-formation-travel-weather-night hint">{{localize "ACKS-FORMATION.travel.weather.night"}}: {{travel.weather.night}}</p>
+    {{/if}}
+    {{#if travel.weather.chips.length}}
+    <div class="acks-extras-formation-travel-weather-chips">
+      {{#each travel.weather.chips}}<span class="acks-extras-formation-travel-weather-chip" data-cond="{{key}}">{{label}}</span>{{/each}}
+    </div>
+    {{/if}}
+    {{#each travel.wheels}}
+    <p class="acks-extras-formation-travel-wheels"><i class="fa-solid fa-triangle-exclamation"></i> {{name}} — {{reason}}</p>
+    {{/each}}
+
+    {{#if isGM}}
     <div class="acks-extras-formation-travel-day">
       <label>{{localize "ACKS-FORMATION.travel.dayBoard"}}
         <select name="travel.day.kind">

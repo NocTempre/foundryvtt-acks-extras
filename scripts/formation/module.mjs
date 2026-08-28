@@ -102,9 +102,10 @@ import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { addLight, advanceRounds, advanceTurns, onPartyTokenMoved, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
 import * as travel from "./travel.mjs";
+import * as weather from "./weather.mjs";
 import { SETTING_TRAVEL_LOG_CAP } from "./travel.mjs";
 import { expectTables } from "../lib/tables.mjs";
-import { TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
+import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
 
 /** Open the formation window. */
 function openPartySheet() {
@@ -279,6 +280,17 @@ Hooks.once("init", () => {
   // The journey's registry reads still ahead of it — the getting-lost targets
   // and the encounter frequencies — declared now so the import UX names them.
   expectTables(TRAVEL_DOC, ["gettingLost", "encounterFrequency"]);
+  // The sky's: the daily generator's bands and modifiers, the condition
+  // speed factors, and the footing thresholds.
+  expectTables(WEATHER_DOC, [
+    "climateModifiers",
+    "dailyTemperatureLow",
+    "dailyTemperatureHigh",
+    "dailyPrecipitation",
+    "dailyWind",
+    "conditionSpeed",
+    "accumulation",
+  ]);
 
   // How many finished days a formation's travel log keeps; trimming eats the
   // oldest. It gates the settings blob's growth, not the journey.
@@ -361,9 +373,15 @@ Hooks.once("init", () => {
      * pause), the hex trace, the append-only day log, and the pure pieces
      * (`travelOf`, `freshDay`, `withDayKind`, `composeLogEntry`) a companion
      * module reads instead of re-deriving the day's shape.
+     *
+     * 5 adds `weather` — the daily generator and its vocabularies
+     * (`generateDay`, `conditionsOf`, `advanceGround`, the band and
+     * condition key lists), so a sea or encounter module reads the same sky
+     * this panel shows.
      */
-    apiVersion: 4,
+    apiVersion: 5,
     travel,
+    weather,
     traps: {
       ...trapRules,
       runTrapCheck,

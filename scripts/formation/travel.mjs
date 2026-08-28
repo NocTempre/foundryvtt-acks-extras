@@ -35,6 +35,18 @@ import { patchFormation } from "./formation-model.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { terrainAtPoint, hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
+import {
+  CLIMATES,
+  PRECIPITATION_KINDS,
+  SEASONS,
+  TEMPERATURE_BANDS,
+  WIND_BANDS,
+  advanceGround,
+  conditionsOf,
+  freshFooting,
+  generateDay,
+  terrainMudProne,
+} from "./weather.mjs";
 
 /** World setting: how many day entries a formation's travel log keeps. */
 export const SETTING_TRAVEL_LOG_CAP = "travelLogCap";
@@ -113,7 +125,21 @@ export function travelOf(formation) {
     road: ROAD_KINDS.includes(t.road) ? t.road : "none",
     territory: TERRITORY_KEYS.includes(t.territory) ? t.territory : "borderlands",
     pace: TRAVEL_PACE[t.pace] ? t.pace : "dedicated",
-    weather: { raining: false, snowing: false, ...(t.weather ?? {}) },
+    weather: {
+      raining: false,
+      snowing: false,
+      auto: false,
+      fronts: false,
+      climate: "",
+      season: "spring",
+      temperature: "",
+      temperatureNight: "",
+      precipitation: "",
+      wind: "",
+      rolls: null,
+      ...(t.weather ?? {}),
+      footing: { ...freshFooting(), ...(t.weather?.footing ?? {}) },
+    },
     hex: { label: "", note: "", i: null, j: null, ...(t.hex ?? {}) },
     day: t.day ?? freshDay(),
     dayCount: Number(t.dayCount) || 0,
@@ -139,7 +165,17 @@ export function composeLogEntry(travel, { miles = null, hexes = null, notes = ""
     pace: DAY_KINDS[travel.day?.kind]?.pace ?? null,
     activities: (travel.day?.activities ?? []).filter(Boolean),
     hexesEntered: travel.day?.hexesEntered ?? 0,
-    weather: { ...(travel.weather ?? {}) },
+    // The DISPLAY half of the weather only — the generator's working state
+    // (rolls, run counters) has no business in a season of log rows.
+    weather: {
+      temperature: travel.weather?.temperature ?? "",
+      temperatureNight: travel.weather?.temperatureNight ?? "",
+      precipitation: travel.weather?.precipitation ?? "",
+      wind: travel.weather?.wind ?? "",
+      raining: !!travel.weather?.raining,
+      snowing: !!travel.weather?.snowing,
+      conditions: conditionsOf(travel.weather ?? {}),
+    },
     lost: !!travel.lost?.active,
     miles,
     hexes,
@@ -307,7 +343,22 @@ export function applyTravelForm(formationId, tv = {}) {
     if (typeof tv.ground === "string" && tv.ground) next.ground = tv.ground;
     if (ROAD_KINDS.includes(tv.road)) next.road = tv.road;
     if (TERRITORY_KEYS.includes(tv.territory)) next.territory = tv.territory;
-    if (tv.weather) next.weather = { ...t.weather, raining: !!tv.weather.raining, snowing: !!tv.weather.snowing };
+    if (tv.weather) {
+      const wv = tv.weather;
+      const w = { ...t.weather, auto: !!wv.auto, fronts: !!wv.fronts };
+      const pick = (value, vocab) => (value === "" || vocab[value] ? value : undefined);
+      if (typeof wv.climate === "string" && pick(wv.climate, CLIMATES) !== undefined) w.climate = wv.climate;
+      if (SEASONS.includes(wv.season)) w.season = wv.season;
+      if (typeof wv.temperature === "string" && pick(wv.temperature, TEMPERATURE_BANDS) !== undefined) w.temperature = wv.temperature;
+      if (typeof wv.precipitation === "string" && pick(wv.precipitation, PRECIPITATION_KINDS) !== undefined) w.precipitation = wv.precipitation;
+      if (typeof wv.wind === "string" && pick(wv.wind, WIND_BANDS) !== undefined) w.wind = wv.wind;
+      w.footing = {
+        ...w.footing,
+        ...(["none", "muddy", "frozen"].includes(wv.footingMud) ? { mud: wv.footingMud } : {}),
+        snow: !!wv.footingSnow,
+      };
+      next.weather = w;
+    }
     if (typeof tv.hexLabel === "string") next.hex = { ...t.hex, label: tv.hexLabel.trim() };
     if (typeof tv.lostNote === "string") next.lost = { ...next.lost, judgeNote: tv.lostNote };
     if ("lostActive" in tv) {
@@ -334,10 +385,42 @@ export function applyTravelForm(formationId, tv = {}) {
 }
 
 /**
+ * The Judge rolls the sky on demand — the journey's first morning, or a
+ * result worth re-rolling. An on-demand roll is a fresh sky, never a front:
+ * the drift compares to a prior day, and this roll is REPLACING today.
+ * Refused (no write) when the registry cannot answer; the panel's hint
+ * already names the missing document.
+ */
+export function rollWeatherNow(formationId) {
+  return patchFormation(formationId, (record) => {
+    const t = travelOf(record);
+    const gen = generateDay({ climate: t.weather.climate, season: t.weather.season });
+    if (!gen.ok) return false;
+    record.travel = {
+      ...t,
+      weather: {
+        ...t.weather,
+        temperature: gen.temperature,
+        temperatureNight: gen.temperatureNight,
+        precipitation: gen.precipitation,
+        wind: gen.wind,
+        rolls: gen.rolls,
+      },
+    };
+  });
+}
+
+/**
  * End the day: log it, reset the board, advance the world clock a day (when
  * the module may). The caller supplies the derived figures the panel already
  * shows — miles and hexes made — so the log records what the Judge saw, not
  * a second derivation that could disagree with it.
+ *
+ * The finished day also settles onto the ground and rolls the next one in:
+ * its weather advances the footing counters (mud forms, snow lies, roads
+ * drown), and with the generator on, tomorrow's sky is rolled — under the
+ * fronts drift when asked — before the board resets. A registry that cannot
+ * answer leaves the manual picks standing.
  *
  * @returns the log entry written, or null when the formation is gone
  */
@@ -346,11 +429,36 @@ export async function endDay(formationId, { miles = null, hexes = null, notes = 
   const record = await patchFormation(formationId, (rec) => {
     const t = travelOf(rec);
     entry = composeLogEntry(t, { miles, hexes, notes, worldTime: game.time?.worldTime ?? null });
+    const settled = advanceGround(t.weather.footing, {
+      temperature: t.weather.temperature,
+      precipitation: t.weather.precipitation,
+      mudProne: terrainMudProne(t.ground),
+    });
+    let weather = { ...t.weather, footing: { mud: settled.mud, snow: settled.snow, runs: settled.runs } };
+    if (weather.auto) {
+      const gen = generateDay({
+        climate: weather.climate,
+        season: weather.season,
+        prior: weather.rolls,
+        fronts: weather.fronts,
+      });
+      if (gen.ok) {
+        weather = {
+          ...weather,
+          temperature: gen.temperature,
+          temperatureNight: gen.temperatureNight,
+          precipitation: gen.precipitation,
+          wind: gen.wind,
+          rolls: gen.rolls,
+        };
+      }
+    }
     rec.travel = {
       ...t,
       dayCount: entry.day,
       day: withDayKind(null, t.day?.kind ?? "march"),
       log: pushLog(t.log, entry, logCap()),
+      weather,
     };
   });
   if (!record) return null;

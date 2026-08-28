@@ -105,11 +105,20 @@ passengers "Crew".
 vehicle actually makes: the printed load/speed tiers for land, wind and oar and
 sail for sea, times the crew fraction (the WORST-manned motive role governs — a
 galley with every sailor and half its rowers is a half-speed galley), times the
-crew's condition, less a stowed mast, times terrain and road. What the ground
-and the wind are WORTH comes from the `travel` and `voyages` registered
-tables (declared via `expectTables`, imported from the reader's own book);
-with nothing imported every such factor is ×1 and one `tablesMissing` reason
-line says why the weather and the ground are not counting. Driving and
+crew's condition, less a stowed mast, times terrain, road and sky. What the
+ground, the wind and the weather are WORTH comes from the `travel`, `voyages`
+and `weather` registered tables (declared via `expectTables`, imported from
+the reader's own book); with nothing imported every such factor is ×1 and one
+`tablesMissing` reason line says why the weather and the ground are not
+counting. Active weather conditions (the formation feature derives them —
+`docs/formation/MODEL.md` §The weather) each multiply by their imported
+factor, a road row's `ineffectiveIf` may name any of them (the legacy
+raining/snowing flags feed the same vocabulary), and mud alone yields to
+pavement. `canEnter` asks the footing too: wheels stop in snow anywhere and
+in mud off pavement, and a carried vehicle (`carriage` hand- or back-borne)
+is never asked — it goes where its bearers walk. The wind ladder carries the
+land flags beside the sea ones: still air makes fog of rain, and the top two
+bands impose the windy and stormy conditions. Driving and
 Seafaring are read from the vehicle, and Seafaring taken three times is a
 master mariner, who alone can tack in a strong wind — at the imported
 tacking rate, when there is one to show.

@@ -47,6 +47,7 @@ const COMMITTED = [
   "test-table-docs.mjs",
   "test-vehicles.mjs",
   "test-travel.mjs",
+  "test-weather.mjs",
 ];
 
 const RULES_DIR = path.join(HERE, "rules-tests");

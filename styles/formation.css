@@ -1,4 +1,4 @@
-/* ACKS II — Exploration Formations
+﻿/* ACKS II — Exploration Formations
 
    Every colour and type size here comes from the design-system tokens
    (vendor/acks-design/tokens.css), read BARE. A literal fallback masks a
@@ -1164,6 +1164,8 @@
 .acks-extras-formation-travel-pickers,
 .acks-extras-formation-travel-day,
 .acks-extras-formation-travel-hex,
+.acks-extras-formation-travel-weather-gen,
+.acks-extras-formation-travel-weather-bands,
 .acks-extras-formation-travel-lostrow {
   display: flex;
   flex-wrap: wrap;
@@ -1173,11 +1175,64 @@
 }
 
 .acks-extras-formation-travel-pickers label,
-.acks-extras-formation-travel-day label {
+.acks-extras-formation-travel-day label,
+.acks-extras-formation-travel-weather-gen label,
+.acks-extras-formation-travel-weather-bands label {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
   font-size: var(--acks-fs-label);
+}
+
+.acks-extras-formation-travel-weather {
+  border-top: var(--acks-rule-hair) dashed var(--acks-rule-color-soft);
+  padding-top: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.acks-extras-formation-travel-weather-missing,
+.acks-extras-formation-travel-weather-night {
+  margin: 0.1rem 0;
+}
+
+.acks-extras-formation-travel-weather-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.2rem 0;
+}
+
+.acks-extras-formation-travel-weather-chip {
+  font-size: var(--acks-fs-label);
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--acks-border-soft);
+  border-radius: 999px;
+  background: var(--acks-tint);
+}
+
+/* The sky's chips lean warm or cold by what they say. */
+.acks-extras-formation-travel-weather-chip[data-cond="frigid"],
+.acks-extras-formation-travel-weather-chip[data-cond="cold"],
+.acks-extras-formation-travel-weather-chip[data-cond="flurry"],
+.acks-extras-formation-travel-weather-chip[data-cond="snowy"],
+.acks-extras-formation-travel-weather-chip[data-cond="snowbound"] {
+  border-color: color-mix(in srgb, #6aa7d8 55%, var(--acks-border-soft));
+}
+
+.acks-extras-formation-travel-weather-chip[data-cond="sweltering"],
+.acks-extras-formation-travel-weather-chip[data-cond="sunbaked"] {
+  border-color: color-mix(in srgb, #d8926a 55%, var(--acks-border-soft));
+}
+
+.acks-extras-formation-travel-weather-chip[data-cond="stormy"],
+.acks-extras-formation-travel-weather-chip[data-cond="muddy"] {
+  border-color: color-mix(in srgb, #b08a4f 55%, var(--acks-border-soft));
+}
+
+.acks-extras-formation-travel-wheels {
+  margin: 0.1rem 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-danger);
 }
 
 .acks-extras-formation-travel-readout {

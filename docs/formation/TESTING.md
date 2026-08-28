@@ -213,6 +213,47 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    *Observable:* `clock.paused` false — token movement ticks turns again —
    and re-entering journey mode finds the day board where it stood.
 
+## The weather (added with the generator)
+
+Register an invented `weather` document first
+(`acksExtras.lib.tables.registerTable({id:"weather", tables:{…}}, {priority:
+20})` — copy `tools/test-weather.mjs`'s SAMPLE_WEATHER; its values are
+invented, so nothing printed enters the world). The band selects need no
+tables at all — that is step 1's point.
+
+1. With NO weather tables: pick a temperature/precipitation/wind by hand
+   (e.g. the rainy kind), and an earth road.
+   *Observable:* the "import the weather tables" hint shows, **Roll the
+   sky** is disabled, the condition chips render for the hand-picked bands,
+   and the readout's road line reads washed out — the manual sky reaches
+   the road vocabulary without any import.
+2. Register the invented document, re-render, pick a climate and season,
+   **Roll the sky** several times.
+   *Observable:* the button enables and the hint goes; each roll writes
+   bands consistent with the invented rows; the night temperature line
+   shows; conditions chip and the readout lists each active condition's
+   factor on its own line.
+3. Arm **Roll at day's end** and **Fronts**, then **End day** three times.
+   *Observable:* each morning has a fresh generated sky; each log row
+   carries the FINISHED day's weather (localized band line, no rolls or
+   counters in the row); with fronts on, consecutive days' bands drift
+   rather than jump (probe `travel.weather.rolls` between days).
+4. Force the footing: set precipitation to the rainy kind on a mud-prone
+   ground (grassland) and **End day**; then hand-set snow via the Snow lies
+   toggle.
+   *Observable:* after the rainy day the Mud select reads Muddy and the
+   muddy chip shows; with a land vehicle in the train (harness one from the
+   vehicles recipe) the wheels warning line names it — mud-bound off
+   pavement, then snow-bound with snow on; switching the road to paved
+   clears the MUD refusal (the snow one stays) and the readout shows the
+   pavement holding.
+5. Join as the provisioned Player.
+   *Observable:* chips, night line and wheel warnings render; no selects,
+   no generator row.
+
+Teardown for the weather half: `acksExtras.lib.tables.unregisterTable` (or
+relaunch) removes the invented document; confirm the hint returns.
+
 ## Teardown
 
 Delete the scene, the party actor (its formation goes with it), the member
