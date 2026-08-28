@@ -254,4 +254,35 @@ for (const [key, entry] of Object.entries(SIZES)) {
   }
 }
 
+/* -------------------------------------------- */
+/*  Every registered action has a control        */
+/* -------------------------------------------- */
+
+/**
+ * An `actions` entry and a `data-action` control are two halves of one thing,
+ * and neither half fails loudly on its own. A registered action with no
+ * control is a handler nothing can call — dead weight that reads as a
+ * feature, and it shipped twice: `wipe` and `setMode` survived the move of
+ * arming onto the scene-control toolbar, describing panel buttons that were
+ * no longer there. A control with no action is the opposite and worse: the
+ * button renders, the GM presses it, and nothing happens.
+ */
+{
+  const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+  const app = read("../scripts/battlemap/assistant-app.mjs");
+  const block = app.match(/\n {4}actions: \{\n([\s\S]*?)\n {4}\},/);
+  assert.ok(block, "assistant-app.mjs still declares DEFAULT_OPTIONS.actions as one literal");
+  const registered = [...block[1].matchAll(/^\s*(\w+):/gm)].map((m) => m[1]);
+  assert.ok(registered.length >= 8, `expected the panel's actions, got ${registered.join(", ")}`);
+
+  const markup = ["../templates/battlemap/assistant-body.hbs", "../templates/battlemap/assistant-foot.hbs"].map(read).join("\n");
+  const used = new Set([...markup.matchAll(/data-action="(\w+)"/g)].map((m) => m[1]));
+  for (const action of registered) {
+    assert.ok(used.has(action), `the panel registers the action "${action}", which no control calls`);
+  }
+  for (const action of used) {
+    assert.ok(registered.includes(action), `the panel has a control for "${action}", which is not a registered action`);
+  }
+}
+
 console.log("test-battlemap: all assertions passed");

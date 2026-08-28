@@ -50,9 +50,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     position: { width: 420, height: 720, left: 120, top: 70 },
     form: { handler: BattlemapAssistant.#submit, submitOnChange: true, closeOnSubmit: false },
     actions: {
-      setMode: BattlemapAssistant.#onSetMode,
       disarm: BattlemapAssistant.#onDisarm,
-      wipe: BattlemapAssistant.#onWipe,
       deleteSample: BattlemapAssistant.#onDeleteSample,
       mapChip: BattlemapAssistant.#onMapChip,
       outputChip: BattlemapAssistant.#onOutputChip,
@@ -184,11 +182,6 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
 
     return {
       scene,
-      modes: ["square", "corners", "scale", "eraser"].map((m) => ({
-        mode: m,
-        label: loc(`mode.${m}`),
-        active: this.captureMode === m,
-      })),
       independentXY: this.independentXY,
       allowSkew: this.allowSkew,
       opts: this.opts,
@@ -309,20 +302,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     this.render();
   }
 
-  static #onSetMode(_event, target) {
-    // The toolbar is the primary way in; these mirror it so the panel alone
-    // still works, and both routes land on the same session.
-    session.arm(target.dataset.mode);
-    ui.controls?.render();
-  }
-
   /** The panel's own way out, for a GM reading numbers rather than the toolbar. */
   static #onDisarm() {
     session.requestDisarm();
-  }
-
-  static #onWipe() {
-    session.wipe();
   }
 
   static #onDeleteSample(_event, target) {
