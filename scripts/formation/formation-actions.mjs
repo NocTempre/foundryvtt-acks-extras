@@ -36,6 +36,7 @@ import { rollPartyCheck } from "./party-rolls.mjs";
 import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
+import { dismount } from "../lib/mount.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
 import { openTrapbreakApp } from "./trapbreak-app.mjs";
@@ -161,6 +162,23 @@ export const SHARED_ACTIONS = {
   async openSheet(event, target) {
     const actor = game.actors.get(target.closest("[data-actor-id]")?.dataset.actorId);
     actor?.sheet?.render(true);
+  },
+
+  /** A station chip (mount, train carrier) opens the document it names. */
+  async stationChipOpen(event, target) {
+    fromUuidSync(target.dataset.uuid)?.sheet?.render(true);
+  },
+
+  /**
+   * A member's mount chip dismounts them. GM, or the member's own player —
+   * getting off your horse is not a thing you ask permission for.
+   */
+  async stationChipDetach(event, target) {
+    const rider = game.actors.get(target.closest("[data-actor-id]")?.dataset.actorId);
+    if (!rider) return;
+    if (!game.user.isGM && !rider.isOwner) return;
+    await dismount(rider);
+    this.render?.();
   },
 
   async disband() {

@@ -1095,3 +1095,49 @@
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-body);
 }
+
+/* A member's mount chip: who is on what, read off the roster row. */
+.acks-extras-formation-mount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+  font-size: var(--acks-fs-label);
+}
+
+/* The train: carriers under the members — mounts, wagons, the horse in the
+   traces. One row each; the pace-setter is marked, because the slowest
+   carrier is the number the whole column is living with. */
+.acks-extras-formation-train h3 {
+  margin: 0.4rem 0 0.2rem;
+}
+
+.acks-extras-formation-train-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.25rem;
+}
+
+.acks-extras-formation-train-row:nth-child(odd) {
+  background: var(--acks-tint);
+}
+
+.acks-extras-formation-train-row img {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border: none;
+  flex: 0 0 auto;
+}
+
+.acks-extras-formation-train-row.is-pace-setter .acks-extras-formation-train-name {
+  font-weight: bold;
+}
+
+.acks-extras-formation-train-details {
+  margin-left: auto;
+  font-size: var(--acks-fs-label);
+  opacity: 0.85;
+  text-align: right;
+}

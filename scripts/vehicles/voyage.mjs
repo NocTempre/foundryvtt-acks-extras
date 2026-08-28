@@ -53,11 +53,13 @@ export function canSailRoundTheClock({ underSail = false, openSea = false, navig
  * @param {string} [o.wind] a key of WIND
  * @param {boolean} [o.underSail] sailing rather than rowing
  * @param {boolean} [o.roundTheClock] sailing through the night as well
+ * @param {object[]} [o.roles] the EFFECTIVE crew rows (typed plus named), fed
+ *   to BOTH derivations so the divide-back-out below stays honest
  * @returns {{milesPerDay, milesPerHour, hours, combatFeet, factor, worst, doubled, reasons}}
  */
-export function voyageDay(vehicle, { wind = "moderate", underSail = true, roundTheClock = false } = {}) {
-  const speeds = seaSpeeds(vehicle, { wind });
-  const { factor, worst, crew, hull } = speedFactor(vehicle);
+export function voyageDay(vehicle, { wind = "moderate", underSail = true, roundTheClock = false, roles = null } = {}) {
+  const speeds = seaSpeeds(vehicle, { wind, roles });
+  const { factor, worst, crew, hull } = speedFactor(vehicle, { roles });
 
   // seaSpeeds already applied the CREW shortfall. Re-applying it here would
   // square it, so the hull is divided back out against the crew figure and

@@ -241,6 +241,12 @@
             </button>
             {{/each}}
           </span>
+          {{#if this.mount}}
+          <span class="acks-extras-formation-mount">
+            <i class="fa-solid fa-horse" data-tooltip="{{localize 'ACKS-FORMATION.app.ridingBadge'}}"></i>
+            {{> "modules/acks-extras/templates/lib/station-chip.hbs" this.mount}}
+          </span>
+          {{/if}}
         </div>
         {{#if this.canControl}}
         <div class="member-controls {{#if this.showHoriz}}grid-controls{{/if}}">
@@ -270,6 +276,23 @@
     <p class="hint">{{localize "ACKS-FORMATION.app.emptyMembers"}}</p>
     {{/if}}
   </section>
+
+  {{! The train: every carrier under a member — mounts, wagons, the horse in
+      the traces. Carriers are not members; this is where they show. }}
+  {{#if train.length}}
+  <section class="acks-extras-formation-train">
+    <h3>{{localize "ACKS-FORMATION.app.train"}}</h3>
+    {{#each train}}
+    <div class="acks-extras-formation-train-row{{#if setsPace}} is-pace-setter{{/if}}">
+      <img src="{{img}}" alt="">
+      <a class="acks-extras-formation-train-name" data-action="stationChipOpen" data-uuid="{{uuid}}">{{name}}</a>
+      {{#if setsPace}}<i class="fa-solid fa-gauge-simple-high"
+        data-tooltip="{{localize 'ACKS-FORMATION.app.trainSetsPace'}}"></i>{{/if}}
+      <span class="acks-extras-formation-train-details">{{pace}}{{#if summary}} · {{summary}}{{/if}}</span>
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
 
   <section class="lights">
     <h3>{{localize "ACKS-FORMATION.app.lights"}}</h3>

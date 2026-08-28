@@ -41,8 +41,8 @@ sibling modules) — never the import path for this module's own features.
 
 | File | Owns |
 | --- | --- |
-| `attachment.mjs` | One actor attached to another in a role (rider/passenger/draft/rower) — one model, four hats. |
-| `mount.mjs` | Symmetric rider↔mount binding. |
+| `attachment.mjs` | THE carry model: one actor attached to another in a role (rider/passenger/draft/crew/cargo) with a station and a draft kind — one flag on the carried actor, a forest by construction, `carrierChain`/`rootCarrierOf`, and a cached (never authoritative) reverse index. |
+| `mount.mjs` | Rider-role FACADE over `attachment.mjs` — the mounted-combat vocabulary (`mountOf`/`riderOf`/hooks); legacy symmetric pairs still read, every write converges them. |
 | `capacity.mjs` | How much any document can hold / is holding / is it over — in sixths of a stone. |
 | `movement-scales.mjs` | The four ACKS speeds (combat/running/exploration/expedition) and their book names. |
 | `senses.mjs` | What a creature perceives; `canSeeInDark` + `senseProfile`. |

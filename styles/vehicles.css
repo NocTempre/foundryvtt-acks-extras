@@ -182,40 +182,96 @@
   margin-top: 0.4rem;
 }
 
-/* What is aboard, bucket by bucket. A pooled bucket is marked, because which
-   of them share the hold is the fact a Judge gets wrong when a wagon quietly
-   carries a free platoon. */
-.acks-extras-vehicle-buckets {
-  min-inline-size: 0;
+/* Stations: the seat-by-seat panel. One block per group — a header carrying
+   the filled/required counter, then a wrapping row of chips, empty dashed
+   seats and the unnamed stack. */
+.acks-extras-vehicle-stations {
+  min-inline-size: 0; /* a fieldset will not shrink below its content otherwise */
 }
 
-.acks-extras-vehicle-bucket-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.acks-extras-vehicle-station {
+  margin-bottom: 0.45rem;
+}
+
+.acks-extras-vehicle-station-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.acks-extras-vehicle-station-label {
+  font-weight: bold;
+}
+
+.acks-extras-vehicle-station-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A short motive complement is the number that is slowing the vessel. */
+.acks-extras-vehicle-station.is-short .acks-extras-vehicle-station-count {
+  color: var(--acks-burgundy);
+  font-weight: bold;
+}
+
+.acks-extras-vehicle-station-cells {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem 0.6rem;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
 }
 
-.acks-extras-vehicle-bucket {
+/* An empty seat: a dashed outline the width of a chip, and a drop target. */
+.acks-extras-vehicle-station-empty {
+  min-width: 5.5rem;
+  min-height: 1.9rem;
+  border: 1px dashed var(--acks-ink-soft);
+  opacity: 0.55;
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  padding: 0.05rem 0.4rem;
-  border: var(--acks-border-soft);
+  align-items: center;
+  justify-content: center;
   font-size: var(--acks-fs-label);
 }
 
-.acks-extras-vehicle-bucket.is-pooled {
-  border-color: var(--acks-spot);
+/* The unnamed stack: a typed count with its steppers, standing beside the
+   named chips as one cell. */
+.acks-extras-vehicle-station-unnamed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.35rem;
+  border: var(--acks-border-ink);
 }
 
-.acks-extras-vehicle-bucket-label {
+.acks-extras-vehicle-station-unnamed input {
+  width: 3.2em;
+  text-align: center;
+}
+
+.acks-extras-vehicle-station-note {
+  font-size: var(--acks-fs-label);
+  opacity: 0.85;
+  margin: 0.1rem 0 0;
+}
+
+/* The drop-routing dialog: one radio row per station, its cost beside it. */
+.acks-extras-vehicle-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.acks-extras-vehicle-drop-option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.acks-extras-vehicle-drop-label {
+  flex: 1;
+}
+
+.acks-extras-vehicle-drop-note {
+  font-size: var(--acks-fs-label);
   opacity: 0.8;
-}
-
-.acks-extras-vehicle-bucket-count {
-  font-variant-numeric: tabular-nums;
-  font-weight: bold;
 }

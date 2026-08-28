@@ -19,14 +19,40 @@ would teach you the wrong model.
 
 *A half-manned galley, its real speeds, and what reduced them.*
 
-## Loading it
+## Stations, and loading it
 
-Drag a character, an animal or an item onto the hold. A dropped character is
-asked what they are: a **passenger**, a **crew member**, or (for an animal) part
-of the **team**. That choice matters:
+The **Stations** panel is the vehicle at a glance: one group per seat the
+vehicle actually has — the driver's seat (or the whole printed complement, on
+a chariot or a howdah), each crew role with its `filled / required` counter,
+the captain's and navigator's chairs, the passengers, the team. Named people
+are chips; typed counts are the **unnamed** complement and the two add up.
+Empty seats show as dashed slots you can drop someone straight onto; an empty
+officer's chair says what it is costing her; and a crew member without the
+proficiency their seat wants wears a **½** badge — an unproficient hand
+counts as half a hand, and the group says what it is effectively worth.
 
-- a **passenger** weighs against the hold and travels at the vehicle's pace;
-- **crew** and **draft animals** do not weigh against cargo at all;
+Drag a character, an animal, another vehicle or an item onto the sheet. An
+**actor drop asks what they are** — passenger, a crew station, the team, or
+lashed on as cargo — with the cost of each choice stated before anything is
+written. A drop **on a specific seat** skips the question. An item dropped
+anywhere is loaded as freight; another vehicle can only ride as cargo.
+
+The typed team rows remain for the ABSTRACT complement — "2 heavy horses"
+without minting two actor documents — and real and abstract pull add up.
+
+What each role costs:
+
+- a **named passenger** weighs what they actually weigh — body plus carried
+  gear — and travels at the vehicle's pace. An **unnamed** head costs the
+  vehicle's printed per-head rate, belongings included: that rate is the
+  book's generic traveller, not a floor under a real one;
+- **crew** and **draft animals** do not weigh against cargo at all — except
+  that a non-motive crew's **gear** (marines' arms and armour) is freight,
+  and the hold bar names that share;
+- an actor carried **as cargo** — a canoe on the wagon — costs its full mass;
+- a **stack** (a group actor — a merc platoon, a rower gang) counts every
+  body it stands for: twenty hands at the bench, twenty bodies of weight, its
+  chip marked ×20;
 - on a **land vehicle**, passengers and cargo come out of one pool — a cart has
   a bed, not cabins. On a **vessel** they are separate: she can be full of
   people and still have a hold to fill.

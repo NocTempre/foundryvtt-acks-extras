@@ -131,15 +131,18 @@ export function crewFraction(roles = []) {
  * @param {object} vehicle the vehicle's `system` data
  * @param {object} [o]
  * @param {string} [o.wind] a key of WIND; omitted means moderate (the printed case)
+ * @param {object[]} [o.roles] the EFFECTIVE crew rows (typed hands plus named
+ *   attachments), when the caller can see the attached crew this arithmetic
+ *   cannot; omitted, the typed rows stand
  * @returns {{oarSprint, oarCruise, oarSlow, sail, voyageOar, voyageSail, reasons: object[]}}
  */
-export function seaSpeeds(vehicle, { wind = "moderate" } = {}) {
+export function seaSpeeds(vehicle, { wind = "moderate", roles = null } = {}) {
   // Seafaring taken three times is a master mariner (RR ch. 3), and that is
   // the rank the wind rules care about.
   const masterMariner = (Number(vehicle?.seafaringRank) || 0) >= 3;
   const s = vehicle?.speeds ?? {};
   const w = WIND[wind] ?? WIND.moderate;
-  const crew = crewFraction(vehicle?.crew?.roles ?? []);
+  const crew = crewFraction(roles ?? vehicle?.crew?.roles ?? []);
   const cond = conditionMultiplier(vehicle?.condition);
   const reasons = [];
   if (crew < 1) reasons.push({ key: "shortCrew", factor: crew });
@@ -183,10 +186,15 @@ export function seaSpeeds(vehicle, { wind = "moderate" } = {}) {
  *
  * @param {object} vehicle the vehicle's `system` data
  * @param {number} loadStone what is aboard right now
+ * @param {object} [ground] terrain/road/rain, for `travelMultiplier`
+ * @param {object} [o]
+ * @param {number} [o.pull] the team's real pull, when the caller can see the
+ *   harnessed ATTACHMENTS this arithmetic cannot (occupants.mjs `draftPullOf`);
+ *   omitted, only the abstract team rows count
  * @returns {{feetPerTurn, tier, overloaded, pull, reasons: object[]}}
  */
-export function landSpeed(vehicle, loadStone = 0, ground = null) {
-  const pull = draftPull(vehicle);
+export function landSpeed(vehicle, loadStone = 0, ground = null, { pull: statedPull = null } = {}) {
+  const pull = statedPull ?? draftPull(vehicle);
   const reasons = [];
   // Only the rows this team can actually pull are on the table.
   const usable = (vehicle?.speeds?.tiers ?? [])

@@ -21,12 +21,58 @@ capability check could be guarding against.
 
 ## Who is aboard
 
-One relationship, four roles, owned by [lib/attachment.mjs](../../scripts/lib/attachment.mjs):
-a flag on the CARRIED actor naming its carrier. A rider on a horse, a passenger
-in a wagon, an ox in the traces and a rower at the bench are the same binding.
-Each role states whether its weight counts against the hold (a passenger yes, a
-draft animal and a crew member no, per RR ch. 7) and whether the carrier's speed
-replaces its own.
+One relationship, five roles, owned by [lib/attachment.mjs](../../scripts/lib/attachment.mjs):
+a flag on the CARRIED actor naming its carrier, the STATION it works (a job
+the carrier defines), and — for an animal in harness — the KIND it pulls as.
+A rider on a horse, a passenger in a wagon, an ox in the traces, a rower at
+the bench and a canoe lashed on as cargo are the same binding. Each role
+states whether its weight counts against the hold (a passenger and lashed
+cargo yes, a draft animal and a crew member no, per RR ch. 7) and whether the
+carrier's speed replaces its own. Mounting is the same flag through the
+`lib/mount.mjs` facade, so a mounted rider is aboard in every sense the
+party's pace can ask — and chains resolve to their ROOT, so a rider whose
+horse is harnessed to a wagon moves at the wagon's pace.
+
+[occupants.mjs](../../scripts/vehicles/occupants.mjs) assembles the ONE
+occupant list every consumer reads — the sheet, the buckets, boarding — and
+answers the team's real pull (`draftPullOf`): the abstract team rows ("2
+heavy horses", no documents) plus every attached animal. Rows that still
+carry a uuid from the old drop scheme convert to attachments the next time an
+owner opens the sheet.
+
+## Stations
+
+[stations.mjs](../../scripts/vehicles/stations.mjs) derives the seat-by-seat
+view the sheet renders: which groups exist is a property of the vehicle (a
+wagon is pulled and driven, a vessel is crewed), and every group states what
+it requires, who fills it, and what a shortfall costs. One counting rule
+everywhere: a typed count is the UNNAMED complement — "30 rowers", "2 heavy
+horses", "4 passengers" — and named occupants ADD to it, so the abstract
+statement and the real people coexist. Officer seats (captain, navigator) are
+always offered on a vessel, and an empty one states its rules consequence
+where the emptiness shows. Named crew reach the speed derivations through
+`effectiveCrewRoles` — officers counting as sailors toward the complement,
+per RR ch. 7 — and an unqualified body (no Seafaring at a motive bench, no
+Driving at the reins) wears a half-hand badge, the group stating its
+effective strength. Occupants render as compact CHIPS
+(`templates/lib/station-chip.hbs`, shared with the formation window), never
+as full follower cards: a bench of named rowers must stay one glance.
+
+Weights are TRUE: a specific actor charges its specific mass — body, or
+every body a stack stands for, plus what it actually carries — and the
+vehicle's printed per-head rate prices only the UNNAMED complement. Crew
+bodies never charge the hold; a non-motive role's gear does (the marines
+rule, RR p. 316), and the hold names that share. Stacks (`acks-extras.group`)
+count all their living bodies at every counter, weight, and bench.
+
+Dropping an actor on the sheet ASKS what they are
+([drop-dialog.mjs](../../scripts/vehicles/drop-dialog.mjs)): the options are
+the same derived groups, each with its cost stated before anything is
+written, and a drop on a specific seat skips the question. Qualification is
+read from the seated actor's real abilities; the typed
+`seafaringRank`/`driverProficient` remain the ABSTRACT crew's statement,
+authoritative for the derivations, with what the named crew would justify
+shown beside them with provenance.
 
 ## Buckets, and which of them share a pool
 

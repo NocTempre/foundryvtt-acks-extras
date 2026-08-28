@@ -164,6 +164,24 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    "… works on the trap." publicly and the disarm question opens on the
    JUDGE's client.
 
+## Mounts and the train (added with the stations release)
+
+1. Mount a member on a disposable animal
+   (`acksExtras.lib.mount.mountActor(rider, horse)`), open the party sheet.
+   *Observable:* the member's row grows a riding chip naming the mount; the
+   chip's × dismounts (GM, or the member's own player — verify from the
+   player seat that another player's chip refuses); the **Train** section
+   lists the horse with its pace.
+2. Harness that mount to a disposable vehicle (`attach(horse, vehicle,
+   "draft", …)`).
+   *Observable:* the Train lists the VEHICLE too, with its stations summary
+   (`Team x/y · …`), and the pace-setter mark sits on whichever carrier's
+   pace equals the party's speed; `partySpeed` equals the vehicle's pace
+   (chain root), not the horse's.
+3. Delete the vehicle.
+   *Observable:* the train row vanishes on the next render and the member's
+   pace falls back to the horse (then to their own legs after dismount).
+
 ## Teardown
 
 Delete the scene, the party actor (its formation goes with it), the member

@@ -38,6 +38,19 @@
 export const BERTH_STONE = 50;
 
 /**
+ * What the printed Crew column MEANS on this vehicle — the three readings
+ * ch. 4 gives it, plus a vessel's ordinary crew. Stored on `crew.means`;
+ * blank follows the vehicle's kind (see `complementMeans`). Labels reuse the
+ * bucket keys: the select and the bucket header are naming the same thing.
+ */
+export const COMPLEMENT_MEANS = Object.freeze({
+  driver: { label: "ACKS-VEHICLES.bucket.driver" },
+  warriors: { label: "ACKS-VEHICLES.bucket.warriors" },
+  passengers: { label: "ACKS-VEHICLES.bucket.passengers" },
+  crew: { label: "ACKS-VEHICLES.bucket.crew" },
+});
+
+/**
  * Every bucket a vehicle can have, and what each one holds.
  *
  * `pooled` names the buckets that draw on the cargo hold's stone. `slots`
@@ -131,10 +144,22 @@ export function fillBuckets(vehicle, occupants = [], cargoStone = 0) {
   const unnamed = Math.max(0, Number(vehicle?.cargo?.passengers) || 0);
   const passengerStone = stoneOf(namedPassengers) + unnamed * per;
 
+  // Actor-shaped freight — a canoe on the wagon — is cargo that happens to
+  // have a sheet: full mass, no berth floor, charged wherever cargo is.
+  const cargoActors = byRole("cargo");
+  const cargoActorStone = stoneOf(cargoActors);
+
+  // The marines rule (RR p. 316): a NON-MOTIVE crew's bodies ride free but
+  // their weapons and armour are freight. The occupant rows say whose gear
+  // charges (`cargoGear`), so a homebrew gunner bench behaves like marines.
+  const crewGearStone = occupants
+    .filter((o) => o.cargoGear)
+    .reduce((sum, o) => sum + (Number(o.gearStone) || 0), 0);
+
   const means = complementMeans(vehicle);
   const buckets = order.map((key) => {
     if (key === "cargo") {
-      return { key, counts: "stone", stone: cargoStone, pooled: pools };
+      return { key, counts: "stone", stone: cargoStone + cargoActorStone, members: cargoActors, pooled: pools };
     }
     if (key === "passengers") {
       return {
@@ -168,11 +193,13 @@ export function fillBuckets(vehicle, occupants = [], cargoStone = 0) {
   });
 
   // Only what the pool actually holds. On a vessel the passengers are berthed
-  // and the hold is the hold.
-  const used = pools ? cargoStone + passengerStone : cargoStone;
+  // and the hold is the hold — but actor-shaped cargo and the marines' gear
+  // are in it either way.
+  const used = cargoStone + cargoActorStone + crewGearStone + (pools ? passengerStone : 0);
   return {
     buckets,
     pools,
+    crewGearStone,
     pooled: { capacity, used, free: capacity - used, over: used > capacity },
   };
 }

@@ -22,14 +22,19 @@ import { attach, detach, attachedTo, snapshotArrangement, restoreArrangement } f
 import { borneBy6, load6 } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import { landSpeed, cargoRemaining } from "./vehicle-speed.mjs";
+import { draftPullOf } from "./occupants.mjs";
 
 /** Where the last arrangement is kept, so it can be put back. */
 export const ARRANGEMENT_FLAG = "lastArrangement";
 
-/** What one actor costs a hold: their real mass, floored at the book's berth. */
-export function passengerCost(actor, vehicle) {
-  const berth = Number(vehicle?.system?.cargo?.passengerStone) || 50;
-  return Math.max(berth, borneBy6(actor) / STONE);
+/**
+ * What one actor costs a hold: their TRUE mass — body (or bodies, for a
+ * stack) plus what they carry. The vehicle's printed per-head rate prices
+ * only UNNAMED heads (owner ruling, DECISIONS 2026-08-28); the parameter
+ * stays for API compatibility and is no longer read.
+ */
+export function passengerCost(actor, _vehicle) {
+  return borneBy6(actor) / STONE;
 }
 
 /**
@@ -51,7 +56,8 @@ export async function boardForBestPace(vehicle, candidates = [], { ground = null
   await vehicle.setFlag(MODULE_ID, ARRANGEMENT_FLAG, snapshotArrangement(candidates));
 
   const aboardStone = () => load6(vehicle) / STONE;
-  const paceNow = () => landSpeed(vehicle.system, aboardStone(), ground).feetPerTurn;
+  // The real team, harnessed attachments included, stated to the arithmetic.
+  const paceNow = () => landSpeed(vehicle.system, aboardStone(), ground, { pull: draftPullOf(vehicle) }).feetPerTurn;
 
   // Slowest first: that member is the one holding the party back.
   const walking = candidates
@@ -88,10 +94,12 @@ export async function reboardLast(vehicle) {
     ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.board.nothingToRestore`));
     return { ok: false, reason: "nothing" };
   }
-  // Anyone aboard NOW who was not aboard then gets off, or restoring an empty
-  // arrangement would leave them stranded in the wagon.
+  // Any PASSENGER aboard now who was not aboard then gets off, or restoring an
+  // empty arrangement would leave them stranded in the wagon. Passengers only:
+  // boarding never touched the team or the crew, so putting an arrangement
+  // back must not unharness the horses.
   const remembered = new Set(snapshot.map((r) => r.actor));
-  for (const p of attachedTo(vehicle)) if (!remembered.has(p.uuid)) await detach(p);
+  for (const p of attachedTo(vehicle, "passenger")) if (!remembered.has(p.uuid)) await detach(p);
 
   const n = await restoreArrangement(snapshot);
   ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.board.restored`, { n }));

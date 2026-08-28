@@ -22,6 +22,7 @@
  */
 import { num, str, int, bool, html, choice } from "../lib/fields.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
+import { COMPLEMENT_MEANS } from "./berths.mjs";
 
 /**
  * What kind of thing this is. The distinction is not decoration: a cart is
@@ -50,7 +51,12 @@ export const DRAFT_EQUIVALENTS = Object.freeze({
 /** Terrains a wheeled vehicle enters only where a road runs (RR ch. 4). */
 export const ROAD_ONLY_TERRAIN = Object.freeze(["desert", "mountains", "forest", "swamp"]);
 
-export default class VehicleData extends foundry.abstract.TypeDataModel {
+// The base is dereferenced at module scope, so a stand-in takes its place
+// where `foundry` is absent (Node test graphs reach this file through the
+// occupants feeder) — the class itself is only ever instantiated by Foundry.
+const TypeDataModel = globalThis.foundry?.abstract?.TypeDataModel ?? class {};
+
+export default class VehicleData extends TypeDataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric keys. */
   static ARRAY_PATHS = ["team.animals", "speeds.tiers", "crew.roles"];
 
@@ -139,7 +145,13 @@ export default class VehicleData extends foundry.abstract.TypeDataModel {
       }),
 
       /** Who mans it. Empty on a cart, three rows deep on a galley. */
-      crew: new SchemaField({ roles: new ArrayField(crewRole()) }),
+      crew: new SchemaField({
+        // What the printed Crew column MEANS on this vehicle: the driver, the
+        // driver and warriors (chariots), or the passengers (howdahs). Blank
+        // follows the kind — `complementMeans()` answers for it.
+        means: choice(COMPLEMENT_MEANS),
+        roles: new ArrayField(crewRole()),
+      }),
 
       /** What pulls it. Empty on a vessel. */
       team: new SchemaField({

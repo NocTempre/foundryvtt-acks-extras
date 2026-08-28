@@ -1156,3 +1156,36 @@ namespacing, not for which properties a root class may set, and the failure is
 invisible in the default seat — the seat a session tests in. The guard is a
 comment at the declaration and an observable in `docs/equipment/TESTING.md`
 step 12; a second window can still acquire the same pin without anything failing.
+
+
+- **2026-08-28 — one carry model: attachment absorbs mounting, and the mount
+  API becomes a permanent facade.** Three stores answered "who is on what" —
+  `mount.mjs`'s symmetric rider↔mount pair, `attachment.mjs`'s one-way flag
+  (only ever written for passengers), and vehicles' `team.animals[]` rows — and
+  they disagreed by construction: the draft bucket read attachment roles no
+  writer fed, and a mounted character was invisible to the party's pace. Ruled:
+  the attachment flag on the CARRIED actor is the single truth for every carry
+  — riding, boarding, harnessing, lashed-on cargo (a new `cargo` role) — and
+  grows `station` (the job at the carrier) and `kind` (a draft animal's
+  equivalence class). `mount.mjs` keeps its API and hooks as the
+  mounted-combat vocabulary, reimplemented over the flag; legacy pairs are
+  still read, and every write converges them, so worlds migrate lazily with no
+  sweep.
+
+**One flag per actor makes the attachments a forest by construction.**
+`attach()` therefore refuses a carrier whose own chain contains the actor (the
+old guard was one level deep), and `rootCarrierOf` answers who actually moves:
+a rider whose horse is harnessed to a wagon travels at the wagon's pace, which
+is what `partySpeed` now asks.
+
+**The reverse index is a cache, never truth.** The symmetric pair existed
+because `attachedTo` scanned every actor per read — a real cost once `riderOf`
+sat inside per-actor capacity loops. It is fixed with a lazily rebuilt
+carrier→attached map whose every hit is re-verified against the flag, so a
+stale index degrades to a wasted lookup, never a wrong answer.
+
+**Rejected:** keeping the pair beside the flag (two writers per fact is the
+disagreement this rules out); a persisted roster on the carrier (a deleted
+carrier leaves a roster pointing at ghosts); an eager world migration (the
+read-fallback plus clear-on-write converges without a sweep that could
+half-run).

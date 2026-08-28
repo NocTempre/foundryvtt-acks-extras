@@ -1,6 +1,7 @@
 /* global game, foundry, ui, Actor, CONST */
-import { carrierOf, attachmentOf, ATTACH_ROLES } from "../lib/attachment.mjs";
+import { rootCarrierOf, attachmentOf, ATTACH_ROLES } from "../lib/attachment.mjs";
 import { landSpeed } from "../vehicles/vehicle-speed.mjs";
+import { draftPullOf } from "../vehicles/occupants.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { load6 } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
@@ -466,13 +467,15 @@ export function carriedLoad(formation) {
  * which is a different clock entirely (miles per day, not feet per turn) and
  * belongs to the voyage rules rather than to marching order.
  */
-function carrierSpeedFor(carrier, formation) {
+export function carrierSpeedFor(carrier, formation) {
   // A wagon answers from its own load/speed tiers; a horse is just an actor
   // with a movement rate, so it answers the same way any member would.
   if (carrier?.type === VEHICLE_TYPE) {
     if (carrier.system?.kind !== "land") return null;
     const aboardStone = load6(carrier) / STONE;
-    return landSpeed(carrier.system, aboardStone, formation?.ground ?? null).feetPerTurn;
+    // The real team — harnessed attachments included — is stated to the
+    // arithmetic, which only sees the abstract rows on its own.
+    return landSpeed(carrier.system, aboardStone, formation?.ground ?? null, { pull: draftPullOf(carrier) }).feetPerTurn;
   }
   return explorationSpeedOf(carrier);
 }
@@ -513,9 +516,10 @@ export function partySpeed(formation) {
     }
     let speed;
     // Riding in or on ANYTHING — a wagon, a horse — means these legs are not
-    // the ones setting the party's pace.
+    // the ones setting the party's pace. The ROOT of the chain answers: a
+    // rider whose horse is in a wagon's traces travels at the wagon's pace.
     const attachment = attachmentOf(actor);
-    const carrier = ATTACH_ROLES[attachment?.role]?.setsPace ? carrierOf(actor) : null;
+    const carrier = ATTACH_ROLES[attachment?.role]?.setsPace ? rootCarrierOf(actor) : null;
     if (carrier) {
       // The wagon's pace, for the ground the party says it is on. A vehicle
       // that cannot move at all (nothing in harness, or overloaded) makes the

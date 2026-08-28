@@ -36,6 +36,7 @@ import * as tables from "./tables.mjs";
 import * as services from "./services.mjs";
 import * as itemModel from "./item-model.mjs";
 import * as mount from "./mount.mjs";
+import * as attachment from "./attachment.mjs";
 import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
 import { installPackDedupe, supersededPackIds, refreshPackDedupe, organizeFamilyPacks, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
@@ -96,7 +97,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  apiVersion: 14,
+  apiVersion: 15,
   vocab,
   fields,
   /**
@@ -124,7 +125,16 @@ const localImpl = Object.freeze({
   TemplateData,
   TEMPLATE_TYPE,
   templateLogic,
-  /** Mount binding: mountOf / riderOf / isMounted / mountActor / dismount / unseat. */
+  /**
+   * One actor attached to another in a role (attachment.mjs): the single
+   * carry model — attach / detach / attachedTo / attachmentOf / carrierOf /
+   * carrierChain / rootCarrierOf / ATTACH_ROLES. Mounting, boarding,
+   * harnessing and lashed-on cargo are all this one flag.
+   */
+  attachment,
+  /** Mount binding: mountOf / riderOf / isMounted / mountActor / dismount /
+   *  unseat — the rider-role FACADE over `attachment`, kept for the
+   *  mounted-combat vocabulary. */
   mount,
   /**
    * Capacity over any document (capacity.mjs): capacity6/load6/overCapacity
@@ -262,6 +272,7 @@ Hooks.once("init", () => {
   CONFIG.Actor.dataModels[TEMPLATE_TYPE] = TemplateData;
 
   registerMountCleanup();
+  attachment.registerAttachmentIndex();
   registerStorageCleanup();
   registerGroupCleanup();
 
@@ -278,10 +289,12 @@ Hooks.once("init", () => {
   registerPerceptionModes();
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
-  // acks-henchmen, cross-module) has no fetch miss on first paint.
+  // acks-henchmen, cross-module) has no fetch miss on first paint — and the
+  // station chip, which the vehicle sheet and the formation window both
+  // include as a partial by path.
   foundry.applications.handlebars
-    .loadTemplates([FOLLOWER_CARD_TEMPLATE])
-    .catch((err) => console.warn(`${MODULE_ID} | Follower Card template preload skipped`, err));
+    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`])
+    .catch((err) => console.warn(`${MODULE_ID} | lib template preload skipped`, err));
 
   // The attack-roll core patch (patches/attack-roll.mjs). World-scoped so the
   // whole table rolls one model; requiresReload because the method is patched

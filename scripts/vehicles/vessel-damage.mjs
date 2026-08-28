@@ -76,10 +76,14 @@ export const SINK_FORMULA = "1d10";
  * them would double-count a boarding action that both killed rowers and stove
  * in a strake.
  *
+ * @param {object} [o]
+ * @param {object[]} [o.roles] the EFFECTIVE crew rows (typed hands plus named
+ *   attachments — stations.mjs `effectiveCrewRoles`), when the caller can see
+ *   the attached crew this arithmetic cannot; omitted, the typed rows stand
  * @returns {{factor: number, worst: string, crew: number, hull: number}}
  */
-export function speedFactor(vehicle) {
-  const crew = crewFraction(vehicle?.crew?.roles ?? []);
+export function speedFactor(vehicle, { roles = null } = {}) {
+  const crew = crewFraction(roles ?? vehicle?.crew?.roles ?? []);
   const max = Number(vehicle?.shp?.max) || 0;
   const hull = max > 0 ? Math.max(0, Math.min(1, (Number(vehicle?.shp?.value) || 0) / max)) : 1;
   const factor = Math.min(crew, hull);

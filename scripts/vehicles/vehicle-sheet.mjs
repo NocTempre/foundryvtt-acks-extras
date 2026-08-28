@@ -12,13 +12,16 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS } from "./vehicle-data.mjs";
-import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN, draftPull } from "./vehicle-speed.mjs";
+import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN } from "./vehicle-speed.mjs";
 import { isSinking, speedFactor, repairPlan, SINK_FORMULA, CREW_PER_POINT } from "./vessel-damage.mjs";
 import { voyageDay } from "./voyage.mjs";
-import { fillBuckets, complementMeans, crewCargoTrade } from "./berths.mjs";
+import { complementMeans, COMPLEMENT_MEANS } from "./berths.mjs";
 import { load6 } from "../lib/capacity.mjs";
-import { attachedTo, attach, detach } from "../lib/attachment.mjs";
-import { borneBy6 } from "../lib/capacity.mjs";
+import { attach, detach } from "../lib/attachment.mjs";
+import { occupantsOf, draftPullOf, normalizeTeamRows, derivedSkills } from "./occupants.mjs";
+
+import { stationsFor, effectiveCrewRoles } from "./stations.mjs";
+import { routeActorDrop } from "./drop-dialog.mjs";
 import { boardForBestPace, reboardLast } from "./boarding.mjs";
 import { explorationSpeedOf } from "../formation/formation-model.mjs";
 import { STONE, encumbering6 } from "../lib/item-model.mjs";
@@ -30,7 +33,10 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 
 export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-ui", "acks", "acks2", "acks-extras", "acks-extras-vehicle"],
+    // acks-extras-scroll is the family's whole scroll contract (lib.css):
+    // without it .window-content clips, and everything below the fold is
+    // unreachable rather than merely below it.
+    classes: ["acks-ui", "acks", "acks2", "acks-extras", "acks-extras-scroll", "acks-extras-vehicle"],
     position: { width: 640, height: 720 },
     window: { icon: "fa-solid fa-wagon-covered", resizable: true },
     form: { submitOnChange: true, closeOnSubmit: false },
@@ -42,6 +48,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       removeAnimal: VehicleSheet.#removeAnimal,
       togglePulling: VehicleSheet.#togglePulling,
       disembark: VehicleSheet.#disembark,
+      stationChipOpen: VehicleSheet.#stationChipOpen,
+      stationChipDetach: VehicleSheet.#disembark,
       boardBest: VehicleSheet.#boardBest,
       reboard: VehicleSheet.#reboard,
       openCargo: VehicleSheet.#openCargo,
@@ -76,35 +84,27 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     // sixths of stone, then shown in the stone the book prints.
     const aboard6 = load6(this.actor);
     const aboardStone = aboard6 / STONE;
-    // Everyone aboard rides as fifty stone, named or not, and both are charged
-    // against the hold together.
-    // A named passenger costs their body PLUS what they are carrying — never
-    // their encumbrance, which this family bends with harnesses and quivers to
-    // describe how well a load is carried rather than how much of it there is.
-    // The book's fifty-stone berth is a floor: a passenger takes a passenger's
-    // room whether or not they weigh it.
-    const berth = Number(sys.cargo?.passengerStone) || 50;
-    const riders = attachedTo(this.actor, "passenger").map((r) => ({
-      uuid: r.uuid, name: r.name,
-      stone: Math.max(berth, round2(borneBy6(r) / STONE)),
-    }));
+    // Everyone aboard, assembled ONCE by the occupants feeder. Weights are
+    // TRUE: a specific actor costs its specific mass (a stack, every body it
+    // stands for); the printed per-head rate prices only the UNNAMED. Crew
+    // bodies never charge the hold, but a non-motive crew's gear does (the
+    // marines rule), and actor-shaped cargo costs its full mass.
+    const occupants = occupantsOf(this.actor);
+    const riders = occupants.filter((o) => o.role === "passenger");
     const namedStone = riders.reduce((sum, r) => sum + r.stone, 0);
-    const hold = cargoRemaining(sys, aboardStone, namedStone);
+    const cargoRiders = occupants.filter((o) => o.role === "cargo");
+    const cargoActorStone = cargoRiders.reduce((sum, o) => sum + o.stone, 0);
+    const crewGearStone = occupants.reduce((sum, o) => sum + (o.cargoGear ? o.gearStone : 0), 0);
+    const hold = cargoRemaining(sys, aboardStone + cargoActorStone + crewGearStone, namedStone);
 
-    // What this vehicle has ROOM for, bucket by bucket. Derived rather than
-    // assumed per family: which buckets exist, what the complement means, and
-    // whether passengers draw on the hold are all properties of the vehicle.
-    const occupants = ["passenger", "crew", "draft"].flatMap((role) =>
-      attachedTo(this.actor, role).map((o) => ({
-        uuid: o.uuid,
-        name: o.name,
-        role,
-        stone: role === "passenger" ? Math.max(berth, round2(borneBy6(o) / STONE)) : round2(borneBy6(o) / STONE),
-      })),
-    );
-    const filled = fillBuckets(sys, occupants, aboardStone);
 
-    const speed = isSea ? seaSpeeds(sys, { wind: this.#wind }) : landSpeed(sys, aboardStone, this.#ground);
+    // The team's real pull and the effective crew count the ATTACHMENTS the
+    // pure arithmetic cannot see, so both are STATED to the derivations.
+    const pull = draftPullOf(this.actor);
+    const effRoles = isSea ? effectiveCrewRoles(sys, occupants) : null;
+    const speed = isSea
+      ? seaSpeeds(sys, { wind: this.#wind, roles: effRoles })
+      : landSpeed(sys, aboardStone, this.#ground, { pull });
     const reasons = (speed.reasons ?? []).map((r) => ({
       label: game.i18n.localize(`${LANG_PREFIX}.reason.${r.key}`),
       // A factor reads better as the fraction the book prints than as 0.667.
@@ -123,6 +123,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       })),
       hold: {
         ...hold,
+        marineGear: round2(crewGearStone),
         aboardStone: round2(aboardStone),
         free: round2(hold.free),
         over: hold.free < 0,
@@ -142,19 +143,12 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       expedition: isSea ? null : expeditionFrom(speed.feetPerTurn, { pace: this.#pace }),
       // A vessel's day is TWELVE hours where the wagon above counts eight, so
       // the two are never shown as the same kind of number.
-      voyage: isSea ? voyageDay(sys, { wind: this.#wind, underSail: true }) : null,
-      hull: isSea ? hullState(sys) : null,
-      // Which buckets this vehicle has, what each holds, and — the part that
-      // is per-vehicle rather than per-family — whether passengers and cargo
-      // are the same room. Labels come from what the complement MEANS, since
-      // the books use one column for a driver, a chariot crew and a howdah.
-      buckets: filled.buckets.map((b) => ({
-        ...b,
-        label: game.i18n.localize(`${LANG_PREFIX}.bucket.${b.key === "driver" || b.key === "crew" ? complementMeans(sys) : b.key}`),
-      })),
-      pools: filled.pools,
-      poolLabel: game.i18n.localize(`${LANG_PREFIX}.bucket.${filled.pools ? "pooled" : "berthed"}`),
-      berthTrade: isSea ? crewCargoTrade(sys, 0) : null,
+      voyage: isSea ? voyageDay(sys, { wind: this.#wind, underSail: true, roles: effRoles }) : null,
+      hull: isSea ? hullState(sys, effRoles) : null,
+      // The seats, at a glance: who is in what role, what each group still
+      // wants, and what an empty officer's chair costs her.
+      stations: this.#stationView(stationsFor(sys, occupants, { pull })),
+      skills: this.#skillNotes(),
       pace: this.#pace,
       paces: Object.entries(TRAVEL_PACE).map(([value, p]) => ({
         value, label: game.i18n.localize(p.label), selected: value === this.#pace,
@@ -177,8 +171,15 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
         // What the ROW pulls, which is the whole stack it stands for.
         pull: (DRAFT_EQUIVALENTS[a.kind] ?? 0) * Math.max(1, Number(a.count) || 1),
       })),
-      pull: draftPull(sys),
-      riders,
+      pull,
+      cargoRiders,
+      // What the printed Crew column means here; blank follows the kind.
+      meansOptions: Object.entries(COMPLEMENT_MEANS).map(([value, m]) => ({
+        value, label: game.i18n.localize(m.label), selected: value === sys.crew?.means,
+      })),
+      meansAuto: game.i18n.format(`${LANG_PREFIX}.means.auto`, {
+        effective: game.i18n.localize(`${LANG_PREFIX}.bucket.${complementMeans(sys)}`),
+      }),
       // What is actually in the hold. A vehicle is an Actor, so its freight is
       // its own items and their weight already reaches the hold figure above
       // through the same sum every carrier uses — this only shows the reader
@@ -194,7 +195,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       })),
       // A team that cannot pull what the vehicle was built for is worth
       // flagging even before a load makes it matter.
-      underTeamed: !isSea && sys.team?.required > 0 && draftPull(sys) < sys.team.required,
+      underTeamed: !isSea && sys.team?.required > 0 && pull < sys.team.required,
       draftKinds: Object.keys(DRAFT_EQUIVALENTS).map((k) => ({
         value: k, label: game.i18n.localize(`${LANG_PREFIX}.draft.${k}`),
       })),
@@ -278,20 +279,132 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     }
     if (data?.type !== "Actor") return super._onDrop?.(event);
     const doc = await fromUuid(data.uuid);
-    if (!doc) return;
-    // A drop on the HOLD is a passenger boarding; a drop on the team is an
-    // animal being hitched. Same event, two meanings, told apart by target.
-    if (event.target?.closest?.(".acks-extras-vehicle-hold")) {
-      await attach(doc, this.actor, "passenger");
-      return this.render();
-    }
-    const animals = [...(this.actor.system.team?.animals ?? [])];
-    if (animals.some((a) => a.uuid === doc.uuid)) {
-      ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.alreadyInHarness`, { name: doc.name }));
+    if (!doc || doc.documentName !== "Actor") return;
+    // A drop on a SPECIFIC station is unambiguous and attaches directly; a
+    // drop anywhere else asks. The hold and the team keep their historical
+    // meanings as the dialog's preselection, so the old gesture is one click.
+    const seat = event.target?.closest?.("[data-station]")?.dataset.station ?? null;
+    const preselect =
+      seat ??
+      (event.target?.closest?.(".acks-extras-vehicle-hold")
+        ? "passengers"
+        : event.target?.closest?.(".acks-extras-vehicle-team")
+          ? "team"
+          : null);
+    const pick = await routeActorDrop(this.actor, doc, { preselect, auto: !!seat });
+    if (!pick) return;
+    const res = await attach(doc, this.actor, pick.role, { station: pick.station, kind: pick.kind });
+    if (!res.ok) {
+      const key = res.reason === "circular" ? "team.circular" : "team.cantHitch";
+      ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.${key}`, { name: doc.name }));
       return;
     }
-    animals.push({ uuid: doc.uuid, name: doc.name, kind: guessDraftKind(doc), count: 1, pulling: true });
-    await this.actor.update({ "system.team.animals": animals });
+    this.render();
+  }
+
+  /**
+   * Station groups resolved for the template: labels localized, chips built,
+   * the unnamed stepper named after the field it writes, empty seats counted
+   * out, and the half-hand arithmetic (an unqualified body is half a hand,
+   * RR ch. 7) stated as an effective count.
+   */
+  #stationView(groups) {
+    const editable = this.isEditable;
+    return groups.map((g) => {
+      const named = g.named.map((o) => {
+        const bodies = Math.max(0, o.bodies ?? 1);
+        const base =
+          g.role === "draft"
+            ? game.i18n.localize(`${LANG_PREFIX}.draft.${o.kind}`)
+            : g.role === "passenger" || g.role === "cargo"
+              ? `${o.stone} st`
+              : o.cargoGear && o.gearStone
+                ? `${o.gearStone} st`
+                : null;
+        return {
+          uuid: o.uuid,
+          name: o.name,
+          img: o.img,
+          qual: o.qualified ?? null,
+          // A stack says how many it stands for; the sub-line carries it.
+          sub: [bodies !== 1 ? `×${bodies}` : null, base].filter(Boolean).join(" · ") || null,
+          editable,
+          detachTooltip: game.i18n.localize(
+            g.role === "draft"
+              ? `${LANG_PREFIX}.team.unhitch`
+              : g.role === "crew"
+                ? `${LANG_PREFIX}.station.relieve`
+                : `${LANG_PREFIX}.cargo.disembark`,
+          ),
+        };
+      });
+      // An unqualified BODY is half a hand — a stack of twenty is twenty of them.
+      const half = g.named.reduce((n, o) => n + (o.qualified === false ? Math.max(0, o.bodies ?? 1) : 0), 0);
+      return {
+        key: g.key,
+        label: g.labelText || game.i18n.localize(g.labelKey),
+        role: g.role,
+        dropStation: g.key,
+        short: g.short,
+        count:
+          g.counts === "pull"
+            ? `${g.filled ?? 0}${g.required ? ` / ${g.required}` : ""}`
+            : g.required != null
+              ? `${g.filled} / ${g.required}`
+              : `${g.filled}`,
+        named,
+        unnamed: g.unnamed,
+        stepperName:
+          g.key === "passengers"
+            ? "system.cargo.passengers"
+            : g.index !== undefined
+              ? `system.crew.roles.${g.index}.aboard`
+              : null,
+        unnamedNote:
+          g.key === "team" && g.unnamed ? game.i18n.localize(`${LANG_PREFIX}.station.abstractRows`) : null,
+        empties: Array.from({ length: g.emptySlots ?? 0 }),
+        effectiveNote:
+          half > 0 && g.counts === "people"
+            ? game.i18n.format(`${LANG_PREFIX}.station.effective`, { n: g.filled - half / 2 })
+            : null,
+        consequence: g.consequenceKey ? game.i18n.localize(g.consequenceKey) : null,
+      };
+    });
+  }
+
+  /**
+   * What the NAMED crew supply of the typed skill statements, said beside
+   * those fields with provenance. The typed fields stay authoritative — the
+   * abstract crew is the common case — so this only tells the Judge what the
+   * real people aboard would justify.
+   */
+  #skillNotes() {
+    const d = derivedSkills(this.actor);
+    return {
+      driving: d.driving.has ? game.i18n.format(`${LANG_PREFIX}.station.drivingFrom`, { name: d.driving.from }) : null,
+      seafaring:
+        d.seafaring.rank > 0
+          ? game.i18n.format(`${LANG_PREFIX}.station.seafaringFrom`, { rank: d.seafaring.rank, name: d.seafaring.from })
+          : null,
+      charts: d.charts.has ? game.i18n.format(`${LANG_PREFIX}.station.chartsFrom`, { name: d.charts.from }) : null,
+    };
+  }
+
+  /** Open an occupant's own sheet from its chip. */
+  static async #stationChipOpen(_e, target) {
+    const doc = await fromUuid(target.dataset.uuid).catch(() => null);
+    doc?.sheet?.render(true);
+  }
+
+  /**
+   * @override — convert any team rows still bound to a real actor into draft
+   * attachments. Lazy and idempotent: a vehicle written under the row scheme
+   * converges the first time an owner opens it, and the guard inside returns
+   * before any write when there is nothing to convert.
+   */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    void normalizeTeamRows(this.actor);
   }
 
   /** Open a piece of freight's own sheet. */
@@ -369,20 +482,6 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     animals[i] = { ...animals[i], pulling: !animals[i].pulling };
     await this.actor.update({ "system.team.animals": animals });
   }
-}
-
-/**
- * What sort of draft animal a dropped actor is, read off its name. A guess the
- * Judge can correct in one click — better than defaulting every ox to a heavy
- * horse and quietly overstating the team.
- */
-function guessDraftKind(doc) {
-  const n = (doc?.name ?? "").toLowerCase();
-  if (/\box\b|oxen|bullock/.test(n)) return "ox";
-  if (/mule/.test(n)) return "mule";
-  if (/donkey|ass\b|burro/.test(n)) return "donkey";
-  if (/medium|light|riding/.test(n)) return "mediumHorse";
-  return "heavyHorse";
 }
 
 /**

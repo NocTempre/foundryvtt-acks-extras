@@ -34,6 +34,7 @@ import {
   contentsWeight6,
 } from "./item-model.mjs";
 import { riderOf } from "./mount.mjs";
+import { bodyCount } from "./group-logic.mjs";
 
 /** RR ch. 6 §Mounts prices the rider's own body at 15 stone. */
 export const RIDER_BODY6 = 15 * STONE;
@@ -68,12 +69,14 @@ export function borneWeight6(actor) {
 /**
  * What this actor costs the thing carrying them: their body plus their kit,
  * unmitigated. A character's body is the book's 15 stone; a creature with a
- * stated body weight uses its own.
+ * stated body weight uses its own (`bodyStone`, PER BODY); a stack weighs
+ * every living body it stands for — twenty mercs as one group actor are
+ * twenty bodies and one shared kit, never one.
  */
 export function borneBy6(actor) {
   const body = Number(actor?.flags?.[MODULE_ID]?.extras?.bodyStone);
   const body6 = Number.isFinite(body) ? body * STONE : RIDER_BODY6;
-  return body6 + borneWeight6(actor);
+  return body6 * bodyCount(actor) + borneWeight6(actor);
 }
 
 const isActor = (doc) => doc?.documentName === "Actor";

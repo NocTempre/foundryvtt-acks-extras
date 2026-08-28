@@ -29,6 +29,12 @@ import {
 } from "./formation-model.mjs";
 import { isMemberDeployed } from "./deployment.mjs";
 import { senseProfile } from "../lib/senses.mjs";
+import { mountOf } from "../lib/mount.mjs";
+import { carrierChain } from "../lib/attachment.mjs";
+import { carrierSpeedFor } from "./formation-model.mjs";
+import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
+import { occupantsOf, draftPullOf } from "../vehicles/occupants.mjs";
+import { stationsFor } from "../vehicles/stations.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
 import { formatTurns, parseSpellTurns } from "./turn-engine.mjs";
@@ -127,8 +133,27 @@ export function buildFormationView(formation) {
         hint: game.i18n.localize(ROLE_HINTS[role]),
         active: member.roles?.includes(role) ?? false,
       })),
+      // Riding: the mount as a chip, so who-is-on-what reads off the roster.
+      mount: (() => {
+        const m = mountOf(actor);
+        if (!m) return null;
+        return {
+          uuid: m.uuid,
+          name: m.name,
+          img: m.img,
+          sub: null,
+          qual: null,
+          editable: game.user.isGM || owned,
+          detachTooltip: game.i18n.localize("ACKS-FORMATION.app.dismount"),
+        };
+      })(),
     };
   });
+
+  // The TRAIN: every carrier under a member — mounts, wagons, the horse in a
+  // wagon's traces — each with its pace and, for a vehicle, its stations at a
+  // glance. Carriers are not members; this is where they show anyway.
+  view.train = buildTrain(formation, speed);
 
   view.lights = formation.lights.map((light) => {
     const bearerActor = game.actors.get(light.bearerId);
@@ -333,6 +358,47 @@ function buildWarnings(formation, speed) {
 /* -------------------------------------------- */
 /*  GM controls context                         */
 /* -------------------------------------------- */
+
+/**
+ * Every carrier under a member — the mounts, the wagons, the horse in a
+ * wagon's traces — deduplicated across the roster. Carriers are never
+ * MEMBERS (their legs reach the party's pace through whoever rides them), so
+ * this is the surface where they show: name, pace, and for a vehicle its
+ * stations at a glance, with the carrier actually setting the party's pace
+ * marked.
+ */
+function buildTrain(formation, partyPace) {
+  const seen = new Map();
+  for (const member of formation.members) {
+    if (member?.blank || !member?.actorId) continue;
+    const actor = getMemberActor(member);
+    if (!actor) continue;
+    for (const carrier of carrierChain(actor)) {
+      if (!seen.has(carrier.uuid)) seen.set(carrier.uuid, carrier);
+    }
+  }
+  return [...seen.values()].map((carrier) => {
+    const pace = carrierSpeedFor(carrier, formation);
+    const isVehicle = carrier.type === VEHICLE_TYPE;
+    let summary = null;
+    if (isVehicle) {
+      const groups = stationsFor(carrier.system, occupantsOf(carrier), { pull: draftPullOf(carrier) });
+      summary = groups
+        .filter((g) => g.required != null)
+        .map((g) => `${g.labelText || game.i18n.localize(g.labelKey)} ${g.filled}/${g.required}`)
+        .join(" · ");
+    }
+    return {
+      uuid: carrier.uuid,
+      name: carrier.name,
+      img: carrier.img,
+      isVehicle,
+      pace: typeof pace === "number" ? `${pace}'/${game.i18n.localize("ACKS-FORMATION.app.turn")}` : "—",
+      summary,
+      setsPace: typeof pace === "number" && pace === partyPace && formation.members.length > 0,
+    };
+  });
+}
 
 /** Context for the GM-only controls (light/spell pickers, tables, maps). */
 export function buildGMExtras(formation) {

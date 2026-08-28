@@ -543,3 +543,53 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   cursor: default;
   opacity: 0.55;
 }
+
+/* The station chip (templates/lib/station-chip.hbs): one occupant as a compact
+   cell — portrait, name, sub-line, the half-hand badge. Shared by the vehicle
+   sheet's station groups and the formation window's mount/train chips. */
+.acks-extras-station-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  padding: 0.15rem 0.4rem 0.15rem 0.15rem;
+  border: var(--acks-border-ink);
+  background: var(--acks-field);
+}
+
+.acks-extras-station-chip-img {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border: none;
+  flex: 0 0 auto;
+}
+
+.acks-extras-station-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acks-extras-station-chip-sub {
+  font-size: var(--acks-fs-label);
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+/* Unqualified for the seat: the whole chip dims a little and the half-hand
+   badge says why — the rule is a half-crew count, not a refusal. */
+.acks-extras-station-chip.is-unqualified {
+  opacity: 0.85;
+}
+
+.acks-extras-station-chip-qual {
+  font-weight: bold;
+  color: var(--acks-burgundy);
+  flex: 0 0 auto;
+}
+
+.acks-extras-station-chip-detach {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}

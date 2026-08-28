@@ -219,3 +219,162 @@ assert.equal(seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "moderate" }).ta
   "in a moderate wind everyone tacks normally, so there is no reduced rate to show");
 
 console.log("test-vehicles: OK (terrain, road, Driving, rain, master mariner tacking)");
+
+/* ========================================================================== */
+/*  The unified team: stated pull, filled buckets, the complement's meaning   */
+/* ========================================================================== */
+import { fillBuckets, complementMeans, COMPLEMENT_MEANS } from "../scripts/vehicles/berths.mjs";
+
+/* --- landSpeed takes a STATED pull where the caller can see attachments --- */
+const rowless = {
+  kind: "land",
+  team: { animals: [] },
+  speeds: { tiers: [{ team: 1, maxLoadStone: 80, feetPerTurn: 60 }] },
+  condition: {},
+};
+assert.equal(landSpeed(rowless, 0).feetPerTurn, 0, "no rows, no stated pull: an unhitched wagon");
+assert.equal(landSpeed(rowless, 0, null, { pull: 1 }).feetPerTurn, 60,
+  "a harnessed ATTACHMENT reaches the arithmetic as a stated pull");
+assert.equal(landSpeed(carted, 0, null, { pull: 0 }).feetPerTurn, 0,
+  "a stated pull REPLACES the rows — the caller already summed both halves");
+
+/* --- the draft bucket fills from draft-role occupants --------------------- */
+const packWagon = { kind: "land", cargo: { capacityStone: 100, passengerStone: 50, passengers: 0 }, crew: {}, team: {} };
+const packAboard = [
+  { uuid: "a", name: "Ox", role: "draft", kind: "ox", stone: 0 },
+  { uuid: "b", name: "Merchant", role: "passenger", stone: 50 },
+  { uuid: "c", name: "Canoe", role: "cargo", stone: 12 },
+];
+let packed = fillBuckets(packWagon, packAboard, 10);
+const bucketOf = (key) => packed.buckets.find((b) => b.key === key);
+assert.equal(bucketOf("draft").members.length, 1, "the ox is IN the draft bucket");
+assert.equal(bucketOf("cargo").members.length, 1, "actor-shaped freight shows in the cargo bucket");
+assert.equal(bucketOf("cargo").stone, 22, "10 of freight plus the 12-stone canoe");
+assert.equal(packed.pooled.used, 72, "10 freight + 12 canoe + 50 passenger, one pool on a wagon");
+
+/* --- a vessel berths her passengers but her hold still carries the boat --- */
+const packShip = { kind: "sea", cargo: { capacityStone: 100, passengerStone: 50, passengers: 0 }, crew: { roles: [] } };
+packed = fillBuckets(packShip, packAboard.filter((o) => o.role !== "draft"), 10);
+assert.equal(packed.pooled.used, 22, "berthed passengers do not draw on the hold; lashed cargo does");
+
+/* --- what "crew" means is stated, and blank follows the kind -------------- */
+assert.equal(complementMeans({ kind: "land", crew: {} }), "driver");
+assert.equal(complementMeans({ kind: "sea", crew: {} }), "crew");
+assert.equal(complementMeans({ kind: "land", crew: { means: "passengers" } }), "passengers",
+  "a howdah's complement is its passengers, and now the field exists to say so");
+assert.deepEqual(Object.keys(COMPLEMENT_MEANS), ["driver", "warriors", "passengers", "crew"],
+  "the choices are exactly the readings complementMeans accepts");
+
+console.log("test-vehicles: OK (stated pull, draft and cargo buckets, crew.means)");
+
+/* ========================================================================== */
+/*  Stations: the seat-by-seat view, and the effective crew                    */
+/* ========================================================================== */
+import { stationsFor, stationKeyOf, effectiveCrewRoles, OFFICER_STATIONS } from "../scripts/vehicles/stations.mjs";
+
+/* --- a wagon: team by pull, one driver's seat, passengers ----------------- */
+const wagonSys = {
+  kind: "land",
+  cargo: { passengers: 2, passengerStone: 50 },
+  crew: {},
+  team: { required: 2, animals: [{ kind: "heavyHorse", count: 1, pulling: true }] },
+};
+let st = stationsFor(wagonSys, [{ role: "crew", station: "driver", name: "Carter" }], { pull: 1.5 });
+assert.deepEqual(st.map((g) => g.key), ["team", "complement", "passengers"]);
+assert.equal(st[0].counts, "pull", "the team is counted in pull, not heads");
+assert.equal(st[0].short, true, "1.5 of 2 required is short");
+assert.equal(st[0].unnamed, 1, "one abstract animal");
+assert.equal(st[1].singleton, true, "a wagon's complement is one driver's seat");
+assert.equal(st[1].emptySlots, 0, "and Carter fills it");
+assert.equal(st[2].filled, 2, "two unnamed passengers");
+
+/* --- the howdah rule: the complement is its passengers, not a seat -------- */
+st = stationsFor({ ...wagonSys, crew: { means: "passengers" } }, [], { pull: 2 });
+assert.equal(st[1].labelKey, "ACKS-VEHICLES.bucket.passengers");
+assert.equal(st[1].singleton, false, "no driver's seat on a howdah");
+assert.equal(st[0].short, false, "2 of 2 required is whole");
+
+/* --- a galley: role groups, named + unnamed, officer seats ---------------- */
+const galleySys = {
+  kind: "sea",
+  cargo: { passengers: 0, passengerStone: 50 },
+  crew: {
+    roles: [
+      { key: "sailors", label: "Sailors", required: 3, aboard: 2, motive: true },
+      { key: "rowers", label: "Rowers", required: 4, aboard: 0, motive: true },
+      { key: "marines", label: "Marines", required: 2, aboard: 1, motive: false },
+    ],
+  },
+};
+const crewAboard = [
+  { role: "crew", station: "rowers", name: "Aella" },
+  { role: "crew", station: "captain", name: "Kyra" },
+];
+st = stationsFor(galleySys, crewAboard);
+const g = (key) => st.find((x) => x.key === key);
+assert.equal(g("role:sailors").filled, 2, "typed hands count");
+assert.equal(g("role:sailors").short, true);
+assert.equal(g("role:rowers").filled, 1, "a named rower adds to the typed nought");
+assert.equal(g("role:rowers").emptySlots, 3, "and three seats stand empty");
+assert.equal(g("role:marines").short, false, "marines are not motive — no shortfall flag");
+assert.equal(g("captain").filled, 1, "the captain's seat is taken");
+assert.equal(g("captain").consequenceKey, null);
+assert.ok(g("navigator").consequenceKey, "an empty navigator seat states its consequence");
+assert.deepEqual(OFFICER_STATIONS, ["captain", "navigator"]);
+
+/* --- station keys survive re-labelling, and honesty when nothing is typed - */
+assert.equal(stationKeyOf({ key: "rowers", label: "Oarsmen" }, 0), "rowers");
+assert.equal(stationKeyOf({ key: "", label: "Deck Gunners" }, 1), "deck-gunners");
+assert.equal(stationKeyOf({ key: "", label: "" }, 2), "role-2");
+
+/* --- the effective crew: what the speed derivations should see ------------ */
+let eff = effectiveCrewRoles(galleySys, crewAboard);
+assert.equal(eff[1].aboard, 1, "the named rower is a rower, not decoration");
+assert.equal(eff[0].aboard, 3, "the captain counts as a SAILOR toward the complement");
+assert.equal(eff[2].aboard, 1, "marines unchanged");
+assert.equal(crewFraction(eff), 0.25, "the worst-manned motive role — one rower of four — governs");
+eff = effectiveCrewRoles(galleySys, []);
+assert.deepEqual(eff.map((r) => r.aboard), [2, 0, 1], "no named crew: the typed rows stand as typed");
+
+console.log("test-vehicles: OK (stations, officer seats, effective crew)");
+
+/* ========================================================================== */
+/*  True weights, stacks, and the marines rule                                */
+/* ========================================================================== */
+
+/* --- a named passenger costs their TRUE mass; the rate prices the unnamed - */
+const lightAboard = [{ uuid: "p", name: "Halfling", role: "passenger", stone: 20 }];
+packed = fillBuckets(packWagon, lightAboard, 0);
+assert.equal(packed.pooled.used, 20, "a specific character has a specific weight — no berth floor");
+packed = fillBuckets({ ...packWagon, cargo: { ...packWagon.cargo, passengers: 2 } }, lightAboard, 0);
+assert.equal(packed.pooled.used, 20 + 100, "unnamed heads still cost the printed rate, all-in");
+
+/* --- the marines rule: non-motive crew's GEAR is freight, bodies are not -- */
+const marines = [
+  { uuid: "m", name: "Marine Platoon", role: "crew", station: "marines", bodies: 75, stone: 1200, gearStone: 450, cargoGear: true },
+  { uuid: "s", name: "Aella", role: "crew", station: "sailors", bodies: 1, stone: 65, gearStone: 0, cargoGear: false },
+];
+packed = fillBuckets(galleySys, marines, 100);
+assert.equal(packed.crewGearStone, 450, "75 marines' arms weigh what the book's example weighs");
+assert.equal(packed.pooled.used, 550, "gear charges the hold; the bodies and the sailor never do");
+
+/* --- stacks count every body they stand for ------------------------------ */
+const bench = [{ role: "crew", station: "rowers", name: "Rower Gang", bodies: 3 }];
+st = stationsFor(galleySys, bench);
+assert.equal(g("role:rowers").filled, 3, "a stack of three rowers is three heads on the bench");
+assert.equal(g("role:rowers").emptySlots, 1, "and one seat of four still stands empty");
+eff = effectiveCrewRoles(galleySys, bench);
+assert.equal(eff[1].aboard, 3, "three hands reach the speed math");
+assert.ok(Math.abs(crewFraction(eff) - 2 / 3) < 1e-9,
+  "the worst-manned motive role — two sailors of three — governs");
+eff = effectiveCrewRoles(galleySys, [{ role: "crew", station: "captain", name: "Twins", bodies: 2 }]);
+assert.equal(eff[0].aboard, 4, "a 2-body officer stack counts as two SAILORS toward the complement");
+st = stationsFor(
+  { ...packWagon, crew: {}, cargo: { ...packWagon.cargo, passengers: 2 } },
+  [{ role: "passenger", name: "Pilgrims", bodies: 5, stone: 100 }],
+  { pull: 2 },
+);
+assert.equal(st[2].filled, 7, "five stacked pilgrims and two unnamed heads are seven passengers");
+
+console.log("test-vehicles: OK (true weights, marines' gear, stacked bodies)");
+

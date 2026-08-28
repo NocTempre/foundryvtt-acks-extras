@@ -17,6 +17,8 @@ import * as damage from "./vessel-damage.mjs";
 import * as navigation from "./navigation.mjs";
 import * as voyage from "./voyage.mjs";
 import * as berths from "./berths.mjs";
+import * as occupants from "./occupants.mjs";
+import * as stations from "./stations.mjs";
 import { acksExtras } from "../namespace.mjs";
 
 Hooks.once("init", () => {
@@ -35,4 +37,17 @@ Hooks.once("init", () => {
  * party counts eight, so a caller comparing a ship to a column must go through
  * `compareToMarch` rather than setting the two day-figures side by side.
  */
-acksExtras.vehicles = { VEHICLE_TYPE, ...speed, ...boarding, ...damage, ...navigation, ...voyage, ...berths };
+// apiVersion 1: the surface stops being an unversioned spread the release the
+// stations land — additive changes bump it, removals are a new major of it.
+acksExtras.vehicles = {
+  apiVersion: 1,
+  VEHICLE_TYPE,
+  ...speed,
+  ...boarding,
+  ...damage,
+  ...navigation,
+  ...voyage,
+  ...berths,
+  ...occupants,
+  ...stations,
+};
