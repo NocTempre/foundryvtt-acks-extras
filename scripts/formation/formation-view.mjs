@@ -35,6 +35,10 @@ import { carrierSpeedFor } from "./formation-model.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { occupantsOf, draftPullOf } from "../vehicles/occupants.mjs";
 import { stationsFor } from "../vehicles/stations.mjs";
+import { travelOf, DAY_KINDS, ANCILLARY_ACTIVITIES, ROAD_KINDS, TERRITORY_KEYS } from "./travel.mjs";
+import { TERRAIN, travelMultiplier } from "../vehicles/vehicle-speed.mjs";
+import { expeditionFrom } from "../lib/movement-scales.mjs";
+import { fractionLabel } from "../lib/util.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
 import { formatTurns, parseSpellTurns } from "./turn-engine.mjs";
@@ -154,6 +158,9 @@ export function buildFormationView(formation) {
   // wagon's traces — each with its pace and, for a vehicle, its stations at a
   // glance. Carriers are not members; this is where they show anyway.
   view.train = buildTrain(formation, speed);
+
+  // The JOURNEY: the day board, the ground, the derived day's march, the log.
+  view.travel = buildTravelView(formation, speed);
 
   view.lights = formation.lights.map((light) => {
     const bearerActor = game.actors.get(light.bearerId);
@@ -398,6 +405,80 @@ function buildTrain(formation, partyPace) {
       setsPace: typeof pace === "number" && pace === partyPace && formation.members.length > 0,
     };
   });
+}
+
+/**
+ * The day's march, derived in the rules' order: the party's slowest UNSCALED
+ * base (feet per turn), times the ground, the road and the weather — each
+ * factor its own line, the door-helper idiom — times the day-kind's pace.
+ * A camp day derives nothing on purpose.
+ */
+export function travelReadout(formation, feet) {
+  const t = travelOf(formation);
+  const kind = DAY_KINDS[t.day?.kind] ?? DAY_KINDS.march;
+  if (!kind.travels) return { feet, camp: true, milesPerDay: 0, hexesPerDay: 0, parts: [], multiplier: 1 };
+  const m = travelMultiplier({
+    terrain: t.ground,
+    road: t.road,
+    raining: !!t.weather?.raining,
+    snowing: !!t.weather?.snowing,
+  });
+  const e = expeditionFrom(feet, { multiplier: m.multiplier, pace: kind.pace ?? "dedicated" });
+  return { feet, camp: false, multiplier: m.multiplier, parts: m.parts, ...e };
+}
+
+/**
+ * The travel panel's context. Outside a journey it is only the mode flag the
+ * template needs to offer "Begin journey"; inside one it is the pickers, the
+ * day board, the readout, the hex trace, the GM-only lost state, and the
+ * newest slice of the log.
+ */
+function buildTravelView(formation, feet) {
+  const t = travelOf(formation);
+  const isJourney = t.mode === "journey";
+  const view = { isJourney, dayCount: t.dayCount, hex: t.hex.label, hexesEntered: t.day?.hexesEntered ?? 0 };
+  if (!isJourney) return view;
+
+  const opt = (value, label, selected) => ({ value, label, selected });
+  view.grounds = Object.entries(TERRAIN).map(([value, cfg]) =>
+    opt(value, game.i18n.localize(cfg.label), value === t.ground));
+  view.roads = ROAD_KINDS.map((value) =>
+    opt(value, game.i18n.localize(`ACKS-FORMATION.travel.road.${value}`), value === t.road));
+  view.territories = TERRITORY_KEYS.map((value) =>
+    opt(value, game.i18n.localize(`ACKS-FORMATION.travel.territory.${value}`), value === t.territory));
+  view.weather = { raining: !!t.weather.raining, snowing: !!t.weather.snowing };
+
+  view.dayKinds = Object.entries(DAY_KINDS).map(([value, cfg]) =>
+    opt(value, game.i18n.localize(cfg.label), value === t.day.kind));
+  view.forced = !!DAY_KINDS[t.day.kind]?.consumesAncillary;
+  const activityOptions = Object.entries(ANCILLARY_ACTIVITIES).map(([value, cfg]) => ({
+    value,
+    label: game.i18n.localize(cfg.label),
+  }));
+  view.slots = (t.day.activities ?? []).map((value, index) => ({
+    index,
+    options: activityOptions.map((o) => ({ ...o, selected: o.value === value })),
+    empty: value == null,
+  }));
+
+  const r = travelReadout(formation, feet);
+  view.readout = {
+    ...r,
+    // A ×1 factor says nothing — except the NOTE parts (a washed-out road,
+    // the tablesMissing line), whose whole point is explaining a silence.
+    parts: (r.parts ?? [])
+      .filter((p) => p.factor !== 1 || p.note)
+      .map((p) => ({
+        label: game.i18n.localize(`ACKS-VEHICLES.reason.${p.key}`),
+        factor: p.note && p.factor === 1 ? null : fractionLabel(p.factor),
+      })),
+  };
+  view.lost = { active: !!t.lost.active, judgeNote: t.lost.judgeNote ?? "" };
+  view.log = t.log.slice(0, 10).map((e) => ({
+    ...e,
+    kindLabel: game.i18n.localize(DAY_KINDS[e.dayKind]?.label ?? DAY_KINDS.march.label),
+  }));
+  return view;
 }
 
 /** Context for the GM-only controls (light/spell pickers, tables, maps). */

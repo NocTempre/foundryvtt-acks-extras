@@ -37,6 +37,9 @@ import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
+import { applyTravelForm, setJourneyMode, enterHex, endDay } from "./travel.mjs";
+import { travelReadout } from "./formation-view.mjs";
+import { partySpeed } from "./formation-model.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
 import { openTrapbreakApp } from "./trapbreak-app.mjs";
@@ -179,6 +182,38 @@ export const SHARED_ACTIONS = {
     if (!game.user.isGM && !rider.isOwner) return;
     await dismount(rider);
     this.render?.();
+  },
+
+  /** Begin a journey, or return to the delve. Couples the two clocks. */
+  async travelMode() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await setJourneyMode(formation.id, formation.travel?.mode !== "journey");
+    this.render();
+  },
+
+  /** The party crosses into the next hex; the label input names it. */
+  async travelEnterHex() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const label = this.element?.querySelector('input[name="travel.hexLabel"]')?.value ?? "";
+    await enterHex(formation.id, label);
+    this.render();
+  },
+
+  /**
+   * End the day. The figures logged are the ones the panel was showing —
+   * derived once, here, not re-derived by the engine.
+   */
+  async travelEndDay() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const r = travelReadout(formation, partySpeed(formation));
+    await endDay(formation.id, {
+      miles: r.camp ? 0 : r.milesPerDay,
+      hexes: r.camp ? 0 : r.hexesPerDay,
+    });
+    this.render();
   },
 
   async disband() {
@@ -685,6 +720,13 @@ export async function onChangeForm(event, form, formData) {
     }
   }
   if (changed) await updateFormation(formation);
+  // The travel panel's fields ride the same form and write through their own
+  // TARGETED patch, applied after any whole-record write above so the stale
+  // copy cannot clobber what the patch lays down.
+  if (game.user.isGM && data.travel) {
+    await applyTravelForm(formation.id, data.travel);
+    redraw = true;
+  }
   if (changed || redraw) this.render();
 }
 

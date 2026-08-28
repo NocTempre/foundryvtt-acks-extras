@@ -141,7 +141,25 @@ Still unbuilt, in likely order:
    that *template* belongs to the Monster Manual generator. Renaming these to
    `…MarchingOrder` is the real fix and was deliberately not bundled into a
    fix-driven release — see [DECISIONS.md](DECISIONS.md).
-7. Wilderness/expedition mode — PARTLY UNBLOCKED. The wilderness chapter is now in hand: 4.4.0 added the movement-scale vocabulary (`lib/movement-scales.mjs`, published on `api.lib`) with the Expedition Speed table reproduced to all twelve rows, travel pace (dedicated / forced march ×3/2 / ancillary half), and terrain and road multipliers on `vehicles/vehicle-speed.mjs`. What remains is the MODE: a formation that knows which hex it is in, what ground it is crossing, and a day-scale clock beside the turn-scale one. The formation record has no `ground` field yet, so a party's vehicle currently travels at its printed pace rather than a terrain-adjusted one.
+7. Wilderness/expedition mode — THE MODE NOW EXISTS (2026-08-28): the
+   `travel` subtree on the record, the journey/delve switch coupled to the
+   turn clock, the day board with its ancillary budget, the hex trace, the
+   derived day's march applied once to the slowest unscaled base, the lost
+   state, and the capped day log — `scripts/formation/travel.mjs`, published
+   as `api.formation.travel` (apiVersion 4). What remains on this row:
+   **Path B's importer half** — the extras side landed the same day (the
+   terrain/road/wind values read from the `travel`/`voyages` registered
+   tables, ×1 with a stated reason until imported; ruling in
+   `docs/vehicles/DECISIONS.md`), so what is owed now are the acks-importer
+   RECIPES that fill them (RR ch. 6 terrain and navigation tables, JJ App R
+   road types and the terrain master table, encounter frequency);
+   **encounter cadence throws** hanging off the activity slots'
+   frequency kinds; **supply consumption** at End Day (member rations at the
+   day boundary, animal feed and water as Normal-Load fractions, crew
+   rations against the hold); **generated weather** replacing the manual
+   flags; and the scene/hex-map integration sketched in the program plan —
+   terrain-keyed regions replacing the manual "Next hex" button without
+   touching the record shape.
 8. Spell "per level" duration parsing (quick win, batch with the next release).
 9. Week-ration uses counter (quick win).
 10. **`levelFactor` stays a free float** in this feature's own skill-audit

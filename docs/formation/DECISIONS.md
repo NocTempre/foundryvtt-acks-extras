@@ -824,3 +824,47 @@ concurrently. `commit` is a single-client lock reading that client's settings
 cache, so two Judges on one world remain last-write-wins. Pre-existing and
 unreported; `pruneFormations` remains the backstop for a record orphaned by a
 crash mid-flow.
+
+
+## 2026-08-28 — Travel state lives on the formation record, as a mode
+
+**Ruled:** the overland MODE (`docs/formation/ROADMAP.md` item 7) is a
+`travel` subtree on the formation record, mutated only through the ledger's
+own `commit` lock — the same discipline as the roster, so GM writes and any
+future player relays serialize identically. **Rejected:** scene flags (travel
+is party-scoped and crosses scenes; a wilderness "scene" may not exist at
+all); a second world setting (a parallel store re-invents the lock and the
+socket relay, and can drift from the roster it describes); vehicle-sheet
+state (per-sheet, unshared, and a party is not a vehicle). The subtree is
+additive — `travelOf` answers for a record that never journeyed, no
+migration.
+
+**Ruled: two clocks, one running at a time.** Journey mode sets
+`clock.paused` (the flag the turn engine already honours) so token movement
+stops ticking dungeon turns, and the DAY becomes the unit: one day-kind
+(dedicated march / forced march / camp) plus the four ancillary slots the
+wilderness rules budget. A forced march CONSUMES the budget — every slot
+becomes the road — and stepping back down returns a fresh budget rather than
+resurrecting what the march overwrote. Returning to delve mode un-pauses
+turns and holds the day board where it stood: a dungeon on the route does not
+reset the march.
+
+**Ruled: the party's speeds are compared on a common UNSCALED base.** The
+travel panel applies the day's terrain/road/weather multiplier ONCE, to the
+slowest base, at expedition time — `carrierSpeedFor` deliberately does not
+feed the travel ground into a carrier's feet-per-turn, because scaling only
+the carriers would bias the slowest-member comparison and double-count the
+ground. The multiplier chain renders one factor per line (the door-helper
+idiom), through the rules' own order: terrain, then road, then weather, then
+pace.
+
+**Ruled: the log is append-only, newest-first, capped.** Ending a day writes
+the entry the panel was SHOWING (miles and hexes are passed in, never
+re-derived by the engine, so the record cannot disagree with what the Judge
+saw), then advances the world clock one day through the module's single
+world-time switch. The cap (`travelLogCap`, a world setting) trims the
+OLDEST days; it bounds the settings blob, never the journey. **Lost is
+GM-only state**: the flag and the Judge's note live on the record and render
+only on GM clients — the world-settings blob is technically client-readable,
+which is the standing exposure every GM-ish fact in the formations setting
+already accepts.

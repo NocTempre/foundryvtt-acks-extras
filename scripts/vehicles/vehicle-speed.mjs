@@ -27,74 +27,131 @@
  * Every function here is arithmetic over plain objects: no documents, no dice.
  */
 
+import { getTable, hasDoc, bracketRow } from "../lib/tables.mjs";
+
+/** The registered ruledata documents this module's ground and wind read. */
+export const TRAVEL_DOC = "travel";
+export const VOYAGES_DOC = "voyages";
+
+/** A registered table, or null — absent doc and absent table read the same. */
+function readTable(docId, tableId) {
+  try {
+    return hasDoc(docId) ? getTable(docId, tableId) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Ground, and what it does to a day's travel (RR ch. 6). The road row is the
- * one a proficiency touches: a road is worth half again to anyone, and DOUBLE
- * to a driver with the Driving proficiency.
+ * Ground: the STRUCTURAL half only — which terrains exist, which of them
+ * refuse wheels without a road, and each one's label. What each terrain is
+ * WORTH is printed, and arrives through the `travel` registered tables from
+ * the reader's own book; absent tables read as ×1 and say so.
  */
 export const TERRAIN = Object.freeze({
-  grassland: { label: "ACKS-VEHICLES.terrain.grassland", multiplier: 1 },
-  scrubland: { label: "ACKS-VEHICLES.terrain.scrubland", multiplier: 1 },
-  barrens: { label: "ACKS-VEHICLES.terrain.barrens", multiplier: 2 / 3 },
-  desert: { label: "ACKS-VEHICLES.terrain.desert", multiplier: 2 / 3, wheelsNeedRoad: true },
-  hills: { label: "ACKS-VEHICLES.terrain.hills", multiplier: 2 / 3 },
-  forest: { label: "ACKS-VEHICLES.terrain.forest", multiplier: 2 / 3, wheelsNeedRoad: true },
-  jungle: { label: "ACKS-VEHICLES.terrain.jungle", multiplier: 1 / 2 },
-  mountains: { label: "ACKS-VEHICLES.terrain.mountains", multiplier: 1 / 2, wheelsNeedRoad: true },
-  swamp: { label: "ACKS-VEHICLES.terrain.swamp", multiplier: 1 / 2, wheelsNeedRoad: true },
-  mud: { label: "ACKS-VEHICLES.terrain.mud", multiplier: 1 / 2 },
-  snow: { label: "ACKS-VEHICLES.terrain.snow", multiplier: 1 / 2 },
+  grassland: { label: "ACKS-VEHICLES.terrain.grassland" },
+  scrubland: { label: "ACKS-VEHICLES.terrain.scrubland" },
+  barrens: { label: "ACKS-VEHICLES.terrain.barrens" },
+  desert: { label: "ACKS-VEHICLES.terrain.desert", wheelsNeedRoad: true },
+  hills: { label: "ACKS-VEHICLES.terrain.hills" },
+  forest: { label: "ACKS-VEHICLES.terrain.forest", wheelsNeedRoad: true },
+  jungle: { label: "ACKS-VEHICLES.terrain.jungle" },
+  mountains: { label: "ACKS-VEHICLES.terrain.mountains", wheelsNeedRoad: true },
+  swamp: { label: "ACKS-VEHICLES.terrain.swamp", wheelsNeedRoad: true },
+  mud: { label: "ACKS-VEHICLES.terrain.mud" },
+  snow: { label: "ACKS-VEHICLES.terrain.snow" },
 });
 
-/** A road is worth this much, and this much again to a proficient driver. */
-export const ROAD = Object.freeze({ plain: 3 / 2, driver: 2 });
+/** The roads a party can be following. Their worth lives in the tables. */
+export const ROAD_KINDS = Object.freeze(["none", "earth", "gravel", "paved"]);
 
 /**
  * What the ground does to a vehicle's speed.
  *
- * ORDER MATTERS and the book says so: the road multiplier is applied AFTER the
- * terrain it passes through, so a road through a swamp is ½ × 3⁄2, not the
- * road rate outright — the road makes bad country passable, it does not make
- * it good country.
+ * ORDER MATTERS and the book says so: the road multiplier is applied AFTER
+ * the terrain it passes through — the road makes bad country passable, it
+ * does not make it good country. A road row may name conditions that null it
+ * (`ineffectiveIf`: an earthen road in heavy rain is worth nothing, exactly
+ * when a caravan wishes it were), and a driver with Driving is worth the
+ * row's better rate — on a road, and nowhere else.
  *
- * Rain is the exception that proves the road: an earthen road in heavy rain is
- * worth nothing at all, which is exactly when a caravan wishes it were.
+ * Values come from the `travel` registered tables (`terrainMultipliers`:
+ * terrain key → factor; `roads`: road kind → {multiplier, drivingMultiplier,
+ * ineffectiveIf[]}). With no tables imported every factor is ×1 and ONE
+ * `tablesMissing` part says why the ground is not counting.
  *
  * @param {object} o
- * @param {string} o.terrain          a key of TERRAIN
- * @param {boolean} o.road            travelling on a road or trail
+ * @param {string} o.terrain a key of TERRAIN
+ * @param {string|boolean} o.road a ROAD_KINDS key; `true` (legacy callers)
+ *   reads as an earth road
  * @param {boolean} o.driverProficient the reins are held by someone with Driving
- * @param {boolean} o.raining         heavy rain, which un-metals an earthen road
- * @param {boolean} o.pavedRoad       a paved road keeps its worth in the wet
+ * @param {boolean} o.raining / @param {boolean} o.snowing the conditions a
+ *   road row may name as nulling it
  */
-export function travelMultiplier({ terrain = "grassland", road = false, driverProficient = false, raining = false, pavedRoad = false } = {}) {
+export function travelMultiplier({ terrain = "grassland", road = "none", driverProficient = false, raining = false, snowing = false } = {}) {
   const ground = TERRAIN[terrain] ?? TERRAIN.grassland;
-  const parts = [{ key: `terrain.${terrain}`, factor: ground.multiplier }];
-  let multiplier = ground.multiplier;
+  const parts = [];
+  let multiplier = 1;
+  let missing = false;
 
-  if (road) {
-    const washedOut = raining && !pavedRoad;
-    const roadFactor = washedOut ? 1 : driverProficient ? ROAD.driver : ROAD.plain;
-    multiplier *= roadFactor;
-    parts.push({ key: washedOut ? "roadWashedOut" : driverProficient ? "roadDriver" : "road", factor: roadFactor });
+  const terrains = readTable(TRAVEL_DOC, "terrainMultipliers");
+  const t = Number(terrains?.[terrain]);
+  if (Number.isFinite(t) && t > 0) {
+    multiplier *= t;
+    parts.push({ key: `terrain.${terrain}`, factor: t });
+  } else {
+    missing = true;
   }
-  return { multiplier, parts, ground };
+
+  const roadKind = road === true ? "earth" : road;
+  if (roadKind && roadKind !== "none" && ROAD_KINDS.includes(roadKind)) {
+    const row = readTable(TRAVEL_DOC, "roads")?.[roadKind];
+    if (row) {
+      const nulledBy = row.ineffectiveIf ?? [];
+      const washedOut = (raining && nulledBy.includes("raining")) || (snowing && nulledBy.includes("snowing"));
+      const factor = washedOut ? 1 : Number(driverProficient ? (row.drivingMultiplier ?? row.multiplier) : row.multiplier) || 1;
+      multiplier *= factor;
+      // A washed-out road contributes ×1 but must still SAY so — `note`
+      // marks the parts that render despite a silent factor.
+      parts.push({ key: washedOut ? "roadWashedOut" : driverProficient ? "roadDriver" : "road", factor, ...(washedOut ? { note: true } : {}) });
+    } else {
+      missing = true;
+    }
+  }
+
+  if (missing) parts.push({ key: "tablesMissing", factor: 1, missing: true, note: true });
+  return { multiplier, parts, ground, missing };
 }
 
-/** Wind strengths, their sail and oar multipliers, and the 2d6 bands. */
+/**
+ * Wind: the STRUCTURAL half — which strengths exist, their labels, and the
+ * rules keyed to a band's IDENTITY (strong and worse forbid tacking except
+ * to a master mariner; a gale may set her adrift). The 2d6 band edges and
+ * the sail/oar factors are printed, and read from the `voyages` registered
+ * table `windStrength` (rows {key, min, max, sail, oar, nextDay}).
+ */
 export const WIND = Object.freeze({
-  still: { label: "ACKS-VEHICLES.wind.still", band: [2, 4], sail: 0, oar: 1, nextDay: -2 },
-  gentle: { label: "ACKS-VEHICLES.wind.gentle", band: [5, 6], sail: 1 / 2, oar: 1, nextDay: -1 },
-  moderate: { label: "ACKS-VEHICLES.wind.moderate", band: [7, 9], sail: 1, oar: 1, nextDay: 0 },
-  strong: { label: "ACKS-VEHICLES.wind.strong", band: [10, 11], sail: 3 / 2, oar: 1, nextDay: +1, noTack: true },
-  veryStrong: { label: "ACKS-VEHICLES.wind.veryStrong", band: [12, 13], sail: 2 / 3, oar: 2 / 3, nextDay: +2, noTack: true },
-  gale: { label: "ACKS-VEHICLES.wind.gale", band: [14, 99], sail: 2 / 3, oar: 2 / 3, nextDay: +4, noTack: true, mayDrift: true },
+  still: { label: "ACKS-VEHICLES.wind.still" },
+  gentle: { label: "ACKS-VEHICLES.wind.gentle" },
+  moderate: { label: "ACKS-VEHICLES.wind.moderate" },
+  strong: { label: "ACKS-VEHICLES.wind.strong", noTack: true },
+  veryStrong: { label: "ACKS-VEHICLES.wind.veryStrong", noTack: true },
+  gale: { label: "ACKS-VEHICLES.wind.gale", noTack: true, mayDrift: true },
 });
 
-/** The wind a 2d6 (plus a winter +2) landed on. */
+/** The registered wind row for a strength key, or null. */
+export function windSpec(key) {
+  const rows = readTable(VOYAGES_DOC, "windStrength");
+  if (!Array.isArray(rows)) return null;
+  return rows.find((r) => r?.key === key) ?? null;
+}
+
+/** The wind a 2d6 (plus a winter +2) landed on; moderate when no table is in. */
 export function windFor(roll) {
-  const n = Number(roll) || 0;
-  return Object.entries(WIND).find(([, w]) => n >= w.band[0] && n <= w.band[1])?.[0] ?? "moderate";
+  const rows = readTable(VOYAGES_DOC, "windStrength");
+  if (!Array.isArray(rows)) return "moderate";
+  const row = bracketRow(rows, Number(roll) || 0);
+  return WIND[row?.key] ? row.key : "moderate";
 }
 
 /**
@@ -141,37 +198,52 @@ export function seaSpeeds(vehicle, { wind = "moderate", roles = null } = {}) {
   // the rank the wind rules care about.
   const masterMariner = (Number(vehicle?.seafaringRank) || 0) >= 3;
   const s = vehicle?.speeds ?? {};
-  const w = WIND[wind] ?? WIND.moderate;
+  const key = WIND[wind] ? wind : "moderate";
+  const w = WIND[key];
+  const spec = windSpec(key);
+  // No wind table imported: the wind neither helps nor hinders, and the one
+  // tablesMissing reason says why the weather is not counting.
+  const sailF = Number.isFinite(Number(spec?.sail)) ? Number(spec.sail) : 1;
+  const oarF = Number.isFinite(Number(spec?.oar)) ? Number(spec.oar) : 1;
   const crew = crewFraction(roles ?? vehicle?.crew?.roles ?? []);
   const cond = conditionMultiplier(vehicle?.condition);
   const reasons = [];
   if (crew < 1) reasons.push({ key: "shortCrew", factor: crew });
   if (cond < 1) reasons.push({ key: vehicle?.condition?.starving ? "starving" : "underfed", factor: cond });
-  if (w.sail !== 1) reasons.push({ key: `wind.${wind}`, factor: w.sail, appliesTo: "sail" });
-  if (w.oar !== 1) reasons.push({ key: `wind.${wind}`, factor: w.oar, appliesTo: "oar" });
+  if (!spec) reasons.push({ key: "tablesMissing", factor: 1, missing: true });
+  if (sailF !== 1) reasons.push({ key: `wind.${key}`, factor: sailF, appliesTo: "sail" });
+  if (oarF !== 1) reasons.push({ key: `wind.${key}`, factor: oarF, appliesTo: "oar" });
 
   // A stowed mast leaves the rowers no room: a flat 30' off sprint and cruise
   // rather than a multiplier, so it comes off before anything scales.
   const stow = vehicle?.mastStowed ? 30 : 0;
-  const oar = (base) => Math.max(0, ((Number(base) || 0) - stow)) * crew * cond * w.oar;
-  const plain = (base) => Math.max(0, Number(base) || 0) * crew * cond * w.oar;
+  const oar = (base) => Math.max(0, ((Number(base) || 0) - stow)) * crew * cond * oarF;
+  const plain = (base) => Math.max(0, Number(base) || 0) * crew * cond * oarF;
+
+  // What tacking is worth is printed with the points of sail and read from
+  // the same voyages document; without it a master mariner still MAY tack in
+  // a strong wind (the permission is structural), with no rate to show.
+  const tackFactor = Number(readTable(VOYAGES_DOC, "tacking")?.multiplier);
 
   return {
     oarSprint: round5(oar(s.oarSprint)),
     oarCruise: round5(oar(s.oarCruise)),
     oarSlow: round5(plain(s.oarSlow)),
-    sail: round5((Number(s.sail) || 0) * cond * w.sail),
+    sail: round5((Number(s.sail) || 0) * cond * sailF),
     // Voyage speed under oar takes the crew shortfall the same way; under sail
     // the wind governs and the rowers are irrelevant.
-    voyageOar: round1((Number(s.voyageOar) || 0) * crew * cond * w.oar),
-    voyageSail: round1((Number(s.voyageSail) || 0) * cond * w.sail),
+    voyageOar: round1((Number(s.voyageOar) || 0) * crew * cond * oarF),
+    voyageSail: round1((Number(s.voyageSail) || 0) * cond * sailF),
     reasons,
-    becalmed: w.sail === 0,
-    // Strong and very strong winds forbid tacking to everyone EXCEPT a master
-    // mariner, who manages it at two-ninths speed. That is not a small thing:
-    // it is the difference between beating upwind slowly and not at all.
+    becalmed: !!spec && sailF === 0,
+    // Strong and worse forbid tacking to everyone EXCEPT a master mariner.
+    // That is not a small thing: it is the difference between beating upwind
+    // slowly and not at all.
     canTack: !w.noTack || masterMariner,
-    tackSpeed: w.noTack && masterMariner ? round5((Number(s.sail) || 0) * cond * (2 / 9)) : null,
+    tackSpeed:
+      w.noTack && masterMariner && Number.isFinite(tackFactor)
+        ? round5((Number(s.sail) || 0) * cond * tackFactor)
+        : null,
     masterMariner,
   };
 }
@@ -220,7 +292,14 @@ export function landSpeed(vehicle, loadStone = 0, ground = null, { pull: statedP
   const terrain = ground
     ? travelMultiplier({ ...ground, driverProficient: !!vehicle?.driverProficient })
     : { multiplier: 1, parts: [] };
-  for (const p of terrain.parts) if (p.factor !== 1) reasons.push({ key: p.key, factor: p.factor });
+  // A ×1 factor is silence — except the NOTE parts (a washed-out road, the
+  // tablesMissing line), which exist to say why something is not counting.
+  // A note's ×1 is not a figure worth printing, so its factor goes out null.
+  for (const p of terrain.parts) {
+    if (p.factor !== 1 || p.note) {
+      reasons.push({ key: p.key, factor: p.note && p.factor === 1 ? null : p.factor, ...(p.missing ? { missing: true } : {}) });
+    }
+  }
 
   return {
     feetPerTurn: round5((Number(tier.feetPerTurn) || 0) * cond * terrain.multiplier),

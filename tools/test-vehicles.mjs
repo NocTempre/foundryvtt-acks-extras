@@ -1,24 +1,73 @@
 /**
  * Vehicle speed: the multipliers, the tiers, and the things that stop a
  * vehicle entirely. Pure arithmetic — documents are live-gate territory.
+ *
+ * COMMITTED half: mechanics only, against INVENTED numbers registered as
+ * sample table docs — the printed terrain/road/wind values live in the
+ * reader's book, arrive through the registry, and are asserted only by the
+ * machine-local suite in `tools/rules-tests/` (gitignored, per run-tests'
+ * own header).
  */
 import assert from "node:assert/strict";
 import {
-  WIND, windFor, conditionMultiplier, crewFraction, seaSpeeds, landSpeed,
-  draftPull, canEnter, cargoRemaining,
+  WIND, windFor, windSpec, conditionMultiplier, crewFraction, seaSpeeds, landSpeed,
+  draftPull, canEnter, cargoRemaining, travelMultiplier, TERRAIN, ROAD_KINDS,
+  TRAVEL_DOC, VOYAGES_DOC,
 } from "../scripts/vehicles/vehicle-speed.mjs";
+import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
 
-/* --- wind bands, as the 2d6 table prints them --------------------------- */
+/* --- invented sample tables, registered the way an import would ---------- */
+const SAMPLE_TRAVEL = {
+  id: TRAVEL_DOC,
+  tables: {
+    terrainMultipliers: { grassland: 1, barrens: 0.75, forest: 0.5, swamp: 0.25, hills: 0.5, mud: 0.5, snow: 0.5 },
+    roads: {
+      earth: { multiplier: 2, drivingMultiplier: 3, ineffectiveIf: ["raining"] },
+      gravel: { multiplier: 2, ineffectiveIf: ["snowing"] },
+      paved: { multiplier: 2 },
+    },
+  },
+};
+const SAMPLE_VOYAGES = {
+  id: VOYAGES_DOC,
+  tables: {
+    windStrength: [
+      { key: "still", min: 2, max: 4, sail: 0, oar: 1 },
+      { key: "gentle", min: 5, max: 6, sail: 0.5, oar: 1 },
+      { key: "moderate", min: 7, max: 9, sail: 1, oar: 1 },
+      { key: "strong", min: 10, max: 11, sail: 2, oar: 1 },
+      { key: "veryStrong", min: 12, max: 13, sail: 0.5, oar: 0.5 },
+      { key: "gale", min: 14, max: null, sail: 0.5, oar: 0.5 },
+    ],
+    tacking: { multiplier: 0.25 },
+  },
+};
+const registerSamples = () => {
+  registerTable(SAMPLE_TRAVEL, { priority: PRIORITY.WORLD, source: "test" });
+  registerTable(SAMPLE_VOYAGES, { priority: PRIORITY.WORLD, source: "test" });
+};
+registerSamples();
+
+/* --- wind bands come from the registered rows ---------------------------- */
 assert.equal(windFor(2), "still");
-assert.equal(windFor(4), "still");
-assert.equal(windFor(5), "gentle");
+assert.equal(windFor(6), "gentle");
 assert.equal(windFor(8), "moderate");
-assert.equal(windFor(10), "strong");
+assert.equal(windFor(11), "strong");
 assert.equal(windFor(13), "veryStrong");
-assert.equal(windFor(14), "gale");
-assert.equal(windFor(16), "gale", "winter's +2 can push past the table's last row");
-assert.equal(WIND.still.sail, 0, "no wind, no sailing");
-assert.equal(WIND.still.oar, 1, "but the oars do not care");
+assert.equal(windFor(16), "gale", "an open-ended top row catches the winter +2 pushing past the table");
+assert.equal(windSpec("still").sail, 0, "no wind, no sailing");
+assert.equal(windSpec("still").oar, 1, "but the oars do not care");
+assert.ok(WIND.strong.noTack && WIND.gale.mayDrift, "the band-identity rules are structural and stay in code");
+
+/* --- with NO tables, the wind neither helps nor hinders, and says why ---- */
+resetTables();
+assert.equal(windFor(2), "moderate", "no table: every roll reads as moderate");
+assert.equal(windSpec("gale"), null);
+let bare = seaSpeeds({ kind: "sea", speeds: { sail: 200 }, crew: { roles: [] }, condition: {} }, { wind: "gale" });
+assert.equal(bare.sail, 200, "absent tables scale nothing");
+assert.equal(bare.becalmed, false, "and never fake a calm");
+assert.ok(bare.reasons.some((r) => r.key === "tablesMissing"), "one reason line says why the weather is not counting");
+registerSamples();
 
 /* --- a hungry crew ------------------------------------------------------ */
 assert.equal(conditionMultiplier({}), 1);
@@ -40,46 +89,59 @@ assert.equal(crewFraction(roles(5, 100, 20)), 0.5, "the worst-manned role govern
 assert.equal(crewFraction(roles(10, 200, 0)), 1, "extra hands do not make it faster");
 assert.equal(crewFraction([]), 1, "a vessel that asks for no crew is a rowboat, not a ghost ship");
 
-/* --- a galley under way ------------------------------------------------- */
+/* --- an invented galley under way --------------------------------------- */
 const galley = {
   kind: "sea",
-  speeds: { oarSprint: 330, oarCruise: 270, oarSlow: 150, sail: 240, voyageOar: 54, voyageSail: 96 },
-  crew: { roles: roles(15, 170, 15).map((r, i) => ({ ...r, required: [15, 170, 15][i] })) },
+  speeds: { oarSprint: 300, oarCruise: 240, oarSlow: 120, sail: 200, voyageOar: 40, voyageSail: 80 },
+  crew: { roles: roles(10, 100, 20) },
   condition: {},
 };
 let s = seaSpeeds(galley);
-assert.equal(s.oarSprint, 330, "fully manned, fed, moderate wind: the printed number");
-assert.equal(s.sail, 240);
-assert.equal(s.voyageSail, 96);
+assert.equal(s.oarSprint, 300, "fully manned, fed, moderate wind: the stated number");
+assert.equal(s.sail, 200);
+assert.equal(s.voyageSail, 80);
 
 /* becalmed: the sails are useless, the oars are not */
 s = seaSpeeds(galley, { wind: "still" });
 assert.equal(s.sail, 0);
 assert.equal(s.becalmed, true);
-assert.equal(s.oarSprint, 330, "a dead calm does not slow the rowers");
+assert.equal(s.oarSprint, 300, "a dead calm does not slow the rowers");
 
-/* a strong wind is worth half again under sail */
+/* a favouring wind multiplies sail alone */
 s = seaSpeeds(galley, { wind: "strong" });
-assert.equal(s.sail, 360);
-assert.equal(s.canTack, false, "and it cannot tack");
+assert.equal(s.sail, 400, "200 x the row's sail factor");
+assert.equal(s.canTack, false, "and strong wind forbids tacking");
 
-/* very strong costs the oars too */
+/* a wind that costs the oars costs them too */
 s = seaSpeeds(galley, { wind: "veryStrong" });
-assert.equal(s.oarSprint, 220, "330 x 2/3, to the nearest 5");
+assert.equal(s.oarSprint, 150, "300 x the row's oar factor");
 
 /* half the rowers halves the rowing, and says so */
-const half = { ...galley, crew: { roles: roles(15, 85, 15).map((r, i) => ({ ...r, required: [15, 170, 15][i] })) } };
+const half = { ...galley, crew: { roles: roles(10, 50, 20) } };
 s = seaSpeeds(half);
-assert.equal(s.oarSprint, 165);
-assert.equal(s.voyageOar, 27, "and the voyage speed with it");
+assert.equal(s.oarSprint, 150);
+assert.equal(s.voyageOar, 20, "and the voyage speed with it");
 assert.ok(s.reasons.some((r) => r.key === "shortCrew"), "the sheet can say WHY");
 
-/* a stowed mast comes off before anything scales */
-s = seaSpeeds({ ...galley, mastStowed: true });
-assert.equal(s.oarSprint, 300, "330 less 30 for the stowed mast");
-assert.equal(s.oarSlow, 150, "the slow pace is not affected");
+/* a stowed mast comes off BEFORE anything scales */
+s = seaSpeeds({ ...galley, mastStowed: true }, { wind: "veryStrong" });
+assert.equal(s.oarSprint, 135, "(300 - 30) x 0.5 — the flat loss precedes the factor");
+assert.equal(seaSpeeds({ ...galley, mastStowed: true }).oarSlow, 120, "the slow pace is not affected");
 
-/* --- draft teams: an ox equals a heavy horse, two mules do too ---------- */
+/* --- a master mariner tacks where nobody else can ------------------------ */
+const crewed = { kind: "sea", speeds: { sail: 180 }, crew: { roles: [] }, condition: {} };
+let t = seaSpeeds(crewed, { wind: "strong" });
+assert.equal(t.canTack, false, "a strong wind forbids tacking");
+assert.equal(t.tackSpeed, null);
+t = seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "strong" });
+assert.equal(t.canTack, true, "unless a master mariner has the helm");
+assert.equal(t.tackSpeed, 45, "180 x the registered tacking rate");
+assert.equal(seaSpeeds({ ...crewed, seafaringRank: 2 }, { wind: "strong" }).canTack, false,
+  "two ranks is a captain, not a master mariner");
+assert.equal(seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "moderate" }).tackSpeed, null,
+  "in a moderate wind everyone tacks normally, so there is no reduced rate to show");
+
+/* --- teams pull as their equivalents sum --------------------------------- */
 const team = (...kinds) => ({ team: { animals: kinds.map((kind) => ({ kind, pulling: true })) } });
 assert.equal(draftPull(team("heavyHorse")), 1);
 assert.equal(draftPull(team("ox")), 1, "one ox substitutes for one heavy horse");
@@ -87,138 +149,89 @@ assert.equal(draftPull(team("mule", "mule")), 1, "and two mules do");
 assert.equal(draftPull(team("mediumHorse", "mediumHorse")), 1);
 assert.equal(draftPull(team("heavyHorse", "ox", "mule")), 2.5, "a mixed team simply adds up");
 assert.equal(draftPull({ team: { animals: [{ kind: "heavyHorse", pulling: false }] } }), 0,
-  "a lame horse stays on the roster and stops pulling");
+  "an animal not pulling contributes nothing");
 
-/* --- a cart's speed depends on what is in it ---------------------------- */
-const cart = {
-  kind: "land",
-  ...team("heavyHorse"),
-  speeds: { tiers: [
-    { team: 1, maxLoadStone: 80, feetPerTurn: 60 },
-    { team: 1, maxLoadStone: 120, feetPerTurn: 30 },
-  ] },
-  condition: {},
-};
-assert.equal(landSpeed(cart, 0).feetPerTurn, 60, "empty, it makes 60'");
-assert.equal(landSpeed(cart, 80).feetPerTurn, 60, "80 stone is still the fast row");
-assert.equal(landSpeed(cart, 81).feetPerTurn, 30, "one stone more and the day halves");
-assert.equal(landSpeed(cart, 120).feetPerTurn, 30);
-const over = landSpeed(cart, 121);
-assert.equal(over.feetPerTurn, 0, "past the heaviest row it does not move");
-assert.equal(over.overloaded, true);
-assert.equal(over.reasons[0].over, 1, "and it says by how much");
-assert.ok(landSpeed(cart, 100).reasons.some((r) => r.key === "heavyLoad"), "a slowed cart says why");
-
-/* a bigger team unlocks the rows it can pull */
-const wagon = {
-  kind: "land",
-  ...team("heavyHorse", "heavyHorse"),
-  speeds: { tiers: [
-    { team: 2, maxLoadStone: 160, feetPerTurn: 60 },
-    { team: 2, maxLoadStone: 320, feetPerTurn: 30 },
-    { team: 4, maxLoadStone: 320, feetPerTurn: 60 },
-    { team: 4, maxLoadStone: 640, feetPerTurn: 30 },
-  ] },
-  condition: {},
-};
-assert.equal(landSpeed(wagon, 300).feetPerTurn, 30, "two horses haul 300 stone at half pace");
-const four = { ...wagon, ...team("heavyHorse", "heavyHorse", "heavyHorse", "heavyHorse") };
-assert.equal(landSpeed(four, 300).feetPerTurn, 60, "four horses take the same load at full pace");
-assert.equal(landSpeed({ ...cart, team: { animals: [] } }, 0).reasons[0].key, "noTeam",
-  "nothing in harness, nothing moves");
-
-/* a hungry team slows the cart too */
-assert.equal(landSpeed({ ...cart, condition: { underfed: true } }, 0).feetPerTurn, 30);
-
-/* --- wheels need a road through the hard country ------------------------ */
-assert.equal(canEnter(cart, "grassland").ok, true);
-assert.equal(canEnter(cart, "swamp").ok, false);
-assert.equal(canEnter(cart, "swamp", { road: true }).ok, true, "a road through the swamp will do");
-assert.equal(canEnter(galley, "swamp").ok, true, "a vessel is not asked about roads");
-
-/* --- passengers ride as cargo ------------------------------------------- */
+/* --- passengers ride at the vehicle's own rate --------------------------- */
 const hold = cargoRemaining({ cargo: { capacityStone: 1000, passengerStone: 50, passengers: 4 } }, 500);
-assert.equal(hold.passengerStone, 200, "four passengers ride as 50 stone each");
+assert.equal(hold.passengerStone, 200, "four unnamed heads at the vehicle's stated rate");
 assert.equal(hold.free, 300, "1000 less 500 aboard less 200 of passengers");
 
-console.log("test-vehicles: OK (wind, hunger, manning, galleys, teams, tiers, terrain, passengers)");
+console.log("test-vehicles: OK (wind rows, hunger, manning, invented galley, teams, passengers)");
 
 /* ========================================================================== */
-/*  Ground, and the proficiencies that answer to it (RR ch. 3 + ch. 6)        */
+/*  Ground: order, washouts, the driver — all against the registered rows    */
 /* ========================================================================== */
-import { travelMultiplier, TERRAIN, ROAD } from "../scripts/vehicles/vehicle-speed.mjs";
 
-/* --- the printed terrain multipliers ------------------------------------ */
-assert.equal(TERRAIN.grassland.multiplier, 1);
-assert.equal(TERRAIN.forest.multiplier, 2 / 3);
-assert.equal(TERRAIN.swamp.multiplier, 1 / 2);
-assert.equal(TERRAIN.snow.multiplier, 1 / 2);
+/* --- the road multiplies AFTER the terrain ------------------------------- */
+assert.equal(travelMultiplier({ terrain: "grassland" }).multiplier, 1);
+assert.equal(travelMultiplier({ terrain: "swamp" }).multiplier, 0.25);
+assert.equal(travelMultiplier({ terrain: "swamp", road: "earth" }).multiplier, 0.5,
+  "0.25 x 2 — a road through a swamp is still a swamp");
+assert.equal(travelMultiplier({ terrain: "grassland", road: "earth", driverProficient: true }).multiplier, 3,
+  "Driving is worth the row's better rate");
+assert.equal(travelMultiplier({ terrain: "forest", driverProficient: true }).multiplier, 0.5,
+  "and worth nothing at all off a road");
 
-/* --- a road is worth half again, and DOUBLE to a driver ----------------- */
-assert.equal(ROAD.plain, 3 / 2);
-assert.equal(ROAD.driver, 2);
-assert.equal(travelMultiplier({ terrain: "grassland", road: true }).multiplier, 3 / 2);
-assert.equal(travelMultiplier({ terrain: "grassland", road: true, driverProficient: true }).multiplier, 2,
-  "Driving turns the road bonus from 3/2 into 2");
-
-/* --- Driving buys a better ROAD, not better country --------------------- */
-assert.equal(travelMultiplier({ terrain: "forest", driverProficient: true }).multiplier, 2 / 3,
-  "off a road the proficiency is worth nothing at all");
-
-/* --- the road multiplies AFTER the terrain, as the book says ------------ */
-assert.equal(travelMultiplier({ terrain: "swamp", road: true }).multiplier, 1 / 2 * 3 / 2,
-  "a road through a swamp is still a swamp");
-assert.equal(travelMultiplier({ terrain: "swamp", road: true, driverProficient: true }).multiplier, 1,
-  "a driver on a swamp road makes exactly open-country pace");
-
-/* --- heavy rain un-metals an earthen road ------------------------------- */
-assert.equal(travelMultiplier({ terrain: "grassland", road: true, raining: true }).multiplier, 1,
-  "an earthen road in the rain is worth nothing");
-assert.equal(travelMultiplier({ terrain: "grassland", road: true, raining: true, driverProficient: true }).multiplier, 1,
+/* --- a road row's ineffectiveIf conditions null it ----------------------- */
+const washed = travelMultiplier({ terrain: "grassland", road: "earth", raining: true });
+assert.equal(washed.multiplier, 1, "an earthen road in the rain is worth nothing");
+assert.ok(washed.parts.some((p) => p.key === "roadWashedOut" && p.note),
+  "and the washed-out road still SAYS so — a note part survives the ×1 filter");
+assert.equal(travelMultiplier({ terrain: "grassland", road: "earth", raining: true, driverProficient: true }).multiplier, 1,
   "and no amount of skill re-metals it");
-assert.equal(travelMultiplier({ terrain: "grassland", road: true, raining: true, pavedRoad: true }).multiplier, 3 / 2,
+assert.equal(travelMultiplier({ terrain: "grassland", road: "paved", raining: true }).multiplier, 2,
   "a paved road keeps its worth in the wet");
+assert.equal(travelMultiplier({ terrain: "grassland", road: "gravel", snowing: true }).multiplier, 1,
+  "a row may be nulled by snow instead");
+assert.equal(travelMultiplier({ terrain: "grassland", road: true }).multiplier, 2,
+  "a legacy boolean road reads as an earth road");
 
-/* --- the gating list is the same table, not a second hardcoded one ------ */
-for (const t of ["desert", "mountains", "forest", "swamp"]) {
-  assert.equal(TERRAIN[t].wheelsNeedRoad, true, `${t} needs a road for wheels`);
-  assert.equal(canEnter({ kind: "land" }, t).ok, false);
-  assert.equal(canEnter({ kind: "land" }, t, { road: true }).ok, true);
-}
-for (const t of ["grassland", "hills", "barrens", "scrubland"]) {
-  assert.equal(canEnter({ kind: "land" }, t).ok, true, `${t} is open to a cart`);
-}
+/* --- the parts name what the sheet will say ------------------------------ */
+const namedGround = travelMultiplier({ terrain: "swamp", road: "earth", driverProficient: true });
+assert.ok(namedGround.parts.some((p) => p.key === "terrain.swamp"), "the ground names itself");
+assert.ok(namedGround.parts.some((p) => p.key === "roadDriver"), "and the driver's road");
 
-/* --- the ground reaches landSpeed, and names itself --------------------- */
+/* --- no tables: x1, and ONE line that says why --------------------------- */
+resetTables();
+const dry = travelMultiplier({ terrain: "swamp", road: "earth" });
+assert.equal(dry.multiplier, 1);
+assert.equal(dry.parts.filter((p) => p.key === "tablesMissing").length, 1, "one tablesMissing line, not one per read");
+assert.equal(dry.missing, true);
+registerSamples();
+
+/* --- the gating list is STRUCTURE, not a table --------------------------- */
+for (const key of ["desert", "mountains", "forest", "swamp"]) {
+  assert.equal(TERRAIN[key].wheelsNeedRoad, true, `${key} needs a road for wheels`);
+  assert.equal(canEnter({ kind: "land" }, key).ok, false);
+  assert.equal(canEnter({ kind: "land" }, key, { road: true }).ok, true);
+}
+for (const key of ["grassland", "hills", "barrens", "scrubland"]) {
+  assert.equal(canEnter({ kind: "land" }, key).ok, true, `${key} is open to a cart`);
+}
+assert.deepEqual(ROAD_KINDS, ["none", "earth", "gravel", "paved"]);
+
+/* --- the ground reaches landSpeed, and names itself ---------------------- */
 const carted = {
   kind: "land", driverProficient: true,
   team: { animals: [{ kind: "heavyHorse", pulling: true }] },
   speeds: { tiers: [{ team: 1, maxLoadStone: 80, feetPerTurn: 60 }] },
   condition: {},
 };
-assert.equal(landSpeed(carted, 0).feetPerTurn, 60, "no ground given, the printed speed");
-assert.equal(landSpeed(carted, 0, { terrain: "grassland", road: true }).feetPerTurn, 120,
-  "60 x 1 x 2 for a driver on a good road");
-assert.equal(landSpeed(carted, 0, { terrain: "forest", road: true }).feetPerTurn, 80,
-  "60 x 2/3 x 2 through forest on a road");
-const named = landSpeed(carted, 0, { terrain: "swamp", road: true });
+assert.equal(landSpeed(carted, 0).feetPerTurn, 60, "no ground given, the stated speed");
+assert.equal(landSpeed(carted, 0, { terrain: "grassland", road: "earth" }).feetPerTurn, 180,
+  "60 x 1 x 3 for a driver on the sample road");
+assert.equal(landSpeed(carted, 0, { terrain: "forest", road: "earth" }).feetPerTurn, 90,
+  "60 x 1/2 x 3 through forest on a road");
+const named = landSpeed(carted, 0, { terrain: "swamp", road: "earth" });
 assert.ok(named.reasons.some((r) => r.key === "terrain.swamp"), "the sheet can name the ground");
 assert.ok(named.reasons.some((r) => r.key === "roadDriver"), "and name the driver's road");
+resetTables();
+const dumb = landSpeed(carted, 0, { terrain: "swamp", road: "earth" });
+assert.equal(dumb.feetPerTurn, 60, "no tables: the printed tier stands unscaled");
+assert.ok(dumb.reasons.some((r) => r.key === "tablesMissing"), "and the reason list says why");
+registerSamples();
 
-/* --- a master mariner tacks where nobody else can ----------------------- */
-const crewed = { kind: "sea", speeds: { sail: 180 }, crew: { roles: [] }, condition: {} };
-let t = seaSpeeds(crewed, { wind: "strong" });
-assert.equal(t.canTack, false, "a strong wind forbids tacking");
-assert.equal(t.tackSpeed, null);
-t = seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "strong" });
-assert.equal(t.canTack, true, "unless a master mariner has the helm");
-assert.equal(t.tackSpeed, 40, "180 x 2/9 = 40, the price of beating upwind");
-assert.equal(seaSpeeds({ ...crewed, seafaringRank: 2 }, { wind: "strong" }).canTack, false,
-  "two ranks is a captain, not a master mariner");
-assert.equal(seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "moderate" }).tackSpeed, null,
-  "in a moderate wind everyone tacks normally, so there is no reduced rate to show");
-
-console.log("test-vehicles: OK (terrain, road, Driving, rain, master mariner tacking)");
+console.log("test-vehicles: OK (registry ground, washouts, driver, wheel gates, landSpeed)");
 
 /* ========================================================================== */
 /*  The unified team: stated pull, filled buckets, the complement's meaning   */
@@ -349,14 +362,15 @@ assert.equal(packed.pooled.used, 20, "a specific character has a specific weight
 packed = fillBuckets({ ...packWagon, cargo: { ...packWagon.cargo, passengers: 2 } }, lightAboard, 0);
 assert.equal(packed.pooled.used, 20 + 100, "unnamed heads still cost the printed rate, all-in");
 
-/* --- the marines rule: non-motive crew's GEAR is freight, bodies are not -- */
+/* --- the marines rule: non-motive crew's GEAR is freight, bodies are not.
+   Invented numbers, shaped like the printed worked example. --- */
 const marines = [
-  { uuid: "m", name: "Marine Platoon", role: "crew", station: "marines", bodies: 75, stone: 1200, gearStone: 450, cargoGear: true },
+  { uuid: "m", name: "Marine Platoon", role: "crew", station: "marines", bodies: 40, stone: 640, gearStone: 240, cargoGear: true },
   { uuid: "s", name: "Aella", role: "crew", station: "sailors", bodies: 1, stone: 65, gearStone: 0, cargoGear: false },
 ];
 packed = fillBuckets(galleySys, marines, 100);
-assert.equal(packed.crewGearStone, 450, "75 marines' arms weigh what the book's example weighs");
-assert.equal(packed.pooled.used, 550, "gear charges the hold; the bodies and the sailor never do");
+assert.equal(packed.crewGearStone, 240, "a platoon's arms weigh per body times headcount");
+assert.equal(packed.pooled.used, 340, "gear charges the hold; the bodies and the sailor never do");
 
 /* --- stacks count every body they stand for ------------------------------ */
 const bench = [{ role: "crew", station: "rowers", name: "Rower Gang", bodies: 3 }];
@@ -369,12 +383,12 @@ assert.ok(Math.abs(crewFraction(eff) - 2 / 3) < 1e-9,
   "the worst-manned motive role — two sailors of three — governs");
 eff = effectiveCrewRoles(galleySys, [{ role: "crew", station: "captain", name: "Twins", bodies: 2 }]);
 assert.equal(eff[0].aboard, 4, "a 2-body officer stack counts as two SAILORS toward the complement");
+const rowboat = { role: "passenger", name: "Pilgrims", bodies: 5, stone: 100 };
 st = stationsFor(
   { ...packWagon, crew: {}, cargo: { ...packWagon.cargo, passengers: 2 } },
-  [{ role: "passenger", name: "Pilgrims", bodies: 5, stone: 100 }],
+  [rowboat],
   { pull: 2 },
 );
 assert.equal(st[2].filled, 7, "five stacked pilgrims and two unnamed heads are seven passengers");
 
 console.log("test-vehicles: OK (true weights, marines' gear, stacked bodies)");
-

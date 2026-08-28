@@ -121,6 +121,32 @@ the derived station groups, each stating its cost before anything is written
 already said everything the dialog would ask. Another vehicle offers only
 cargo (lashed on), and the chain guard's refusal is surfaced, not swallowed.
 
+## 2026-08-28 — Path B: the ground and the wind leave the code
+
+The terrain multipliers, the road factors and the wind bands had shipped as
+frozen literals in `vehicle-speed.mjs` since 4.4.0 — printed values a
+reviewer had accepted while they were internal arithmetic. The travel mode
+turns them into USER-FACING PICKERS, which is where the program plan (owner-
+approved 2026-08-27) drew the line: they move behind `lib/tables.mjs`
+registered tables (`travel`: `terrainMultipliers`, `roads`; `voyages`:
+`windStrength`, `tacking`), declared via `expectTables`, fed by acks-importer
+recipes from the reader's own book. Code keeps the STRUCTURE: the terrain
+key list and its wheel gates, the road-kind vocabulary, the wind band
+identities and the rules keyed to identity (no tacking in strong wind except
+a master mariner; a gale may drift her).
+
+**Cost, accepted:** a world with nothing imported computes every ground and
+wind factor as ×1 and says so — one `tablesMissing` reason line on the sheet
+and the journey readout — a visible degradation consistent with the
+"no book values, no fallback samples" ruling. **The tests split with the
+values:** the committed suite pins the mechanics against invented registered
+docs; the printed products — bands, ground arithmetic, the 3-Rower galley
+row — moved to the machine-local `tools/rules-tests/` per run-tests' own
+doctrine, which also retires the standing question of a printed row living
+in a committed fixture. **Still literal, on purpose, until the Phase-7 sea
+sweep:** the crew-condition fractions, the stowed-mast 30', the navigation
+targets — none of them is a picker yet, and each is noted on the ROADMAP.
+
 ## 2026-08-28 — Weights are true; the printed rate prices the unnamed head
 
 Verified against the printed page (RR p. 316, Sea Vessels §Cargo): crew

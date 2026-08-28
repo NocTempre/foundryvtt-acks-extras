@@ -1141,3 +1141,81 @@
   opacity: 0.85;
   text-align: right;
 }
+
+/* The journey panel: the pickers and the day board wrap as control rows; the
+   readout is the line the table actually reads; the log is the trace. */
+.acks-extras-formation-travel h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.2rem;
+}
+
+.acks-extras-formation-travel-daycount {
+  font-size: var(--acks-fs-label);
+  opacity: 0.85;
+}
+
+.acks-extras-formation-travel-mode {
+  margin-left: auto;
+  width: auto;
+}
+
+.acks-extras-formation-travel-pickers,
+.acks-extras-formation-travel-day,
+.acks-extras-formation-travel-hex,
+.acks-extras-formation-travel-lostrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin: 0.2rem 0;
+}
+
+.acks-extras-formation-travel-pickers label,
+.acks-extras-formation-travel-day label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-formation-travel-readout {
+  margin: 0.25rem 0;
+}
+
+.acks-extras-formation-travel-hexlabel {
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-formation-travel-hex input[name="travel.hexLabel"],
+.acks-extras-formation-travel-lostrow input[name="travel.lostNote"] {
+  flex: 0 1 10rem;
+}
+
+/* The Judge's compass: lost is a GM-only fact, marked, never announced. */
+.acks-extras-formation-travel-lost {
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-formation-travel-log {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-formation-travel-log > li {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.1rem 0.25rem;
+}
+
+.acks-extras-formation-travel-log > li:nth-child(odd) {
+  background: var(--acks-tint);
+}
+
+.acks-extras-formation-travel-logday {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}

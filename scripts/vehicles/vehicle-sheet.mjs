@@ -22,6 +22,7 @@ import { occupantsOf, draftPullOf, normalizeTeamRows, derivedSkills } from "./oc
 
 import { stationsFor, effectiveCrewRoles } from "./stations.mjs";
 import { routeActorDrop } from "./drop-dialog.mjs";
+import { fractionLabel } from "../lib/util.mjs";
 import { boardForBestPace, reboardLast } from "./boarding.mjs";
 import { explorationSpeedOf } from "../formation/formation-model.mjs";
 import { STONE, encumbering6 } from "../lib/item-model.mjs";
@@ -482,18 +483,6 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     animals[i] = { ...animals[i], pulling: !animals[i].pulling };
     await this.actor.update({ "system.team.animals": animals });
   }
-}
-
-/**
- * 0.6667 → "2/3", because that is how the book says it. Whole numbers stay
- * whole ("2", not "200%"), so a row of factors reads in one idiom rather than
- * mixing fractions and percentages.
- */
-function fractionLabel(f) {
-  if (Math.abs(f - Math.round(f)) < 0.001) return String(Math.round(f));
-  const known = [[1 / 3, "1/3"], [1 / 2, "1/2"], [2 / 3, "2/3"], [3 / 2, "3/2"], [2 / 9, "2/9"], [1 / 4, "1/4"], [3 / 4, "3/4"]];
-  const hit = known.find(([v]) => Math.abs(v - f) < 0.001);
-  return hit ? hit[1] : `${Math.round(f * 100)}%`;
 }
 
 const round2 = (n) => Math.round(n * 100) / 100;

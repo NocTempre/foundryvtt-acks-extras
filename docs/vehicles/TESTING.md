@@ -74,10 +74,14 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    *Observable:* `cargoRemaining` goes negative-bound / the overload flag
    sets, and `landSpeed` reports `overloaded` rather than silently slowing.
 6. Terrain and pace: pick each terrain and switch between dedicated travel and
-   a forced march.
-   *Observable:* the day's miles change per the movement-scales table, and an
-   impassable terrain refuses through `canEnter` rather than returning a
-   number.
+   a forced march — FIRST with no `travel`/`voyages` tables registered, THEN
+   after registering one (console:
+   `acksExtras.lib.tables.registerTable({id:"travel", tables:{…}}, {priority: 20})`
+   with a couple of invented rows).
+   *Observable:* without tables every ground and wind factor is ×1 and the
+   reasons list carries the one `tablesMissing` line; with them the day's
+   miles scale per the registered rows. An impassable terrain refuses through
+   `canEnter` (structural — no table needed) rather than returning a number.
 7. Sea vehicle: change `system.kind` to `sea`, set a wind, and run a voyage
    day.
    *Observable:* the sea speeds and the wind factor drive the result;

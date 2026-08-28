@@ -101,6 +101,10 @@ import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { addLight, advanceRounds, advanceTurns, onPartyTokenMoved, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
+import * as travel from "./travel.mjs";
+import { SETTING_TRAVEL_LOG_CAP } from "./travel.mjs";
+import { expectTables } from "../lib/tables.mjs";
+import { TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 
 /** Open the formation window. */
 function openPartySheet() {
@@ -272,6 +276,21 @@ Hooks.once("init", () => {
     default: true,
   });
 
+  // The journey's registry reads still ahead of it — the getting-lost targets
+  // and the encounter frequencies — declared now so the import UX names them.
+  expectTables(TRAVEL_DOC, ["gettingLost", "encounterFrequency"]);
+
+  // How many finished days a formation's travel log keeps; trimming eats the
+  // oldest. It gates the settings blob's growth, not the journey.
+  game.settings.register(MODULE_ID, SETTING_TRAVEL_LOG_CAP, {
+    name: "ACKS-FORMATION.settings.travelLogCap.name",
+    hint: "ACKS-FORMATION.settings.travelLogCap.hint",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 120,
+  });
+
   // GM rulings from the Skill Audit window: which abilities party-roll
   // automation may use. Absent key = automatic (see ability-bridge).
   game.settings.register(MODULE_ID, SETTING_ABILITY_OVERRIDES, {
@@ -336,8 +355,15 @@ Hooks.once("init", () => {
      * `regionFromSelection`) is the live surface a macro drives. Published for
      * the same reason doors are: the alternative is a second derivation of the
      * same rule somewhere else.
+     *
+     * 4 adds `travel` — the overland mode: the day board and its ancillary
+     * budget, journey/delve mode switching (coupled to the turn clock's
+     * pause), the hex trace, the append-only day log, and the pure pieces
+     * (`travelOf`, `freshDay`, `withDayKind`, `composeLogEntry`) a companion
+     * module reads instead of re-deriving the day's shape.
      */
-    apiVersion: 3,
+    apiVersion: 4,
+    travel,
     traps: {
       ...trapRules,
       runTrapCheck,

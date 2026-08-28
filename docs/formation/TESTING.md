@@ -182,6 +182,37 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    *Observable:* the train row vanishes on the next render and the member's
    pace falls back to the horse (then to their own legs after dismount).
 
+## The journey (added with the travel mode)
+
+1. On the GM window, **Begin journey**.
+   *Observable:* the panel opens (pickers, day board, readout, hex row);
+   `travel.mode === "journey"` and `clock.paused === true` on the record —
+   moving the party token ticks NO dungeon turns while journeying.
+2. Pick hills + earth road + raining, day kind Forced march. Run it twice:
+   once with NO `travel` tables registered, once after registering invented
+   rows (`acksExtras.lib.tables.registerTable(…, {priority: 20})`).
+   *Observable:* without tables the readout carries the `tablesMissing` line
+   and scales by pace alone; with them it lists each factor on its own line
+   (terrain, then a road worth nothing in the rain) and the miles reflect
+   both the ground and the forced pace; the four ancillary slots read as
+   consumed and refuse edits. Step back to Dedicated march: the slots return
+   EMPTY, not the forced march's overwrite.
+3. Fill two ancillary slots (hunt, search), name a hex, **Next hex** twice.
+   *Observable:* `travel.day.activities` holds the picks; `hexesEntered`
+   reads 2; the hex label shows beside the trace.
+4. **End day** twice.
+   *Observable:* two log rows, newest first, carrying exactly the miles the
+   readout showed (day 2 on top); the day board is fresh each morning; with
+   the world-clock setting on, `game.time.worldTime` advanced 86,400 per
+   day — and with it off, it did not.
+5. Mark **Lost** with a judge note, then join as the provisioned Player.
+   *Observable:* the player sees the readout, the hex label and the log —
+   no pickers, no day board, no lost mark, no note. The GM sees the compass
+   mark on the hex row and in the log rows.
+6. **Return to delve** mid-journey.
+   *Observable:* `clock.paused` false — token movement ticks turns again —
+   and re-entering journey mode finds the day board where it stood.
+
 ## Teardown
 
 Delete the scene, the party actor (its formation goes with it), the member

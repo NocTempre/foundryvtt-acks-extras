@@ -1820,7 +1820,65 @@
       "signalAffectsEncounters": {
         "name": "Light & noise modify encounter throws (optional)",
         "hint": "An optional house rule, not something the module found in the rules it was given. When enabled: hurried parties +1 on the 1d6 throw, dark and careful parties -1. Off leaves the throw alone."
+      },
+      "travelLogCap": {
+        "name": "Travel log length",
+        "hint": "How many finished days a formation's travel log keeps. Trimming eats the oldest days; it bounds the record's size, never the journey."
       }
+    },
+    "travel": {
+      "legend": "Journey",
+      "dayN": "Day {n}",
+      "beginJourney": "Begin journey",
+      "beginJourneyHint": "Switch this formation to the overland day: pauses movement-driven turn tracking and opens the travel panel.",
+      "endJourney": "Return to delve",
+      "endJourneyHint": "Un-pause the dungeon turn clock. The day board holds where it stands.",
+      "ground": "Ground",
+      "roadLabel": "Road",
+      "territoryLabel": "Territory",
+      "road": {
+        "none": "No road",
+        "earth": "Earth road",
+        "gravel": "Gravel road",
+        "paved": "Paved road"
+      },
+      "territory": {
+        "civilized": "Civilized",
+        "borderlands": "Borderlands",
+        "outlands": "Outlands",
+        "unsettled": "Unsettled"
+      },
+      "weatherRaining": "Raining",
+      "weatherSnowing": "Snowing",
+      "dayBoard": "The day",
+      "day": {
+        "march": "Dedicated march",
+        "forced": "Forced march",
+        "camp": "Camp"
+      },
+      "activity": {
+        "travel": "Travel (an hour)",
+        "hunt": "Hunt",
+        "forage": "Forage",
+        "search": "Search",
+        "rest": "Rest",
+        "other": "Other"
+      },
+      "slotHint": "One ancillary hour of the day.",
+      "endDay": "End day",
+      "endDayHint": "Log the day as shown, reset the board, and advance the world clock a day (when the module drives it).",
+      "campDay": "In camp — no travel today.",
+      "milesPerDay": "miles today",
+      "hexesPerDay": "hexes",
+      "milesShort": "mi",
+      "hex": "Hex",
+      "hexPlaceholder": "e.g. K7",
+      "enterHex": "Next hex",
+      "enterHexHint": "The party crosses into the named hex; the day counts it.",
+      "enteredToday": "{n} entered today",
+      "lost": "Lost",
+      "lostHint": "GM only — the party does not know.",
+      "lostNotePlaceholder": "Where they actually are (GM only)"
     },
     "audit": {
       "title": "Skill Audit",
@@ -3911,8 +3969,9 @@
   "ACKS-VEHICLES.reason.terrain.mud": "Mud",
   "ACKS-VEHICLES.reason.terrain.snow": "Snow",
   "ACKS-VEHICLES.reason.road": "Road",
+  "ACKS-VEHICLES.reason.tablesMissing": "No travel tables imported — ground and wind count as ×1 until they are",
   "ACKS-VEHICLES.reason.roadDriver": "Road, driven well",
-  "ACKS-VEHICLES.reason.roadWashedOut": "Road washed out by rain",
+  "ACKS-VEHICLES.reason.roadWashedOut": "Road washed out — worth nothing in this weather",
   "ACKS-VEHICLES.vessel.driving": "Driver has Driving",
   "ACKS-VEHICLES.vessel.drivingHint": "Doubles the road bonus (x2 instead of x3/2). Worth nothing off a road.",
   "ACKS-VEHICLES.vessel.seafaring": "Seafaring ranks aboard",

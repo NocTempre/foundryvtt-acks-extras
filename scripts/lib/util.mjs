@@ -31,6 +31,22 @@ export const isPrimaryGM = () => game.users.activeGM?.isSelf ?? false;
 export const libStorage = () => globalThis.acksExtras.lib.storage;
 
 /**
+ * 0.6667 → "2/3", because that is how the book says it. Whole numbers stay
+ * whole ("2", not "200%"), so a row of factors reads in one idiom rather than
+ * mixing fractions and percentages. The vehicle sheet's speed reasons and the
+ * travel panel's multiplier chain both print through this.
+ */
+export function fractionLabel(f) {
+  if (Math.abs(f - Math.round(f)) < 0.001) return String(Math.round(f));
+  const known = [
+    [1 / 3, "1/3"], [1 / 2, "1/2"], [2 / 3, "2/3"], [3 / 2, "3/2"],
+    [2 / 9, "2/9"], [1 / 4, "1/4"], [3 / 4, "3/4"],
+  ];
+  const hit = known.find(([v]) => Math.abs(v - f) < 0.001);
+  return hit ? hit[1] : `${Math.round(f * 100)}%`;
+}
+
+/**
  * Fire one of the family's own hooks without letting a listener take the caller
  * down with it. Announcing a change is always the LAST thing a mutation does, so
  * a sibling feature throwing in its handler must not undo the write that already

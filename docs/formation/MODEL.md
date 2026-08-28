@@ -354,6 +354,32 @@ scout is also explicitly *not* treated as "already deployed" when the party
 enters combat — they are exactly who walks into one, and the rest of the party
 must still deploy around them.
 
+## The journey
+
+A formation is in one of two MODES. Delve is everything above; **journey**
+pauses movement-driven turn ticking (`clock.paused`) and puts the day on the
+table instead: a `travel` subtree on the record
+([travel.mjs](../../scripts/formation/travel.mjs)) holding the ground, road
+and territory the party is crossing, the weather flags, the hex it believes
+it is in, the DAY BOARD — one day-kind (dedicated march, forced march, camp)
+plus the four ancillary hour slots the wilderness rules budget, a forced
+march consuming all four — and an append-only, capped log of finished days.
+
+The GM window's journey panel edits all of it through one targeted ledger
+patch per form change; players see the derived march, the hex and the log,
+never the pickers and never the LOST state, which is the Judge's alone. The
+readout derives in the rules' order — the party's slowest UNSCALED base,
+times terrain, road and weather (one factor per line), times the day-kind's
+pace — and **End day** writes exactly the figures shown into the log, resets
+the board, and advances the world clock a day through `lib/world-time.mjs`'s
+switch. `acksExtras.formation.travel` (apiVersion 4) publishes the mode
+switch, the day board writers, the hex trace and the pure pieces.
+
+Still ahead of this mode — the registered-table migration for the terrain
+and road multipliers, encounter cadence throws hanging off the activity
+slots, supply consumption at End Day, generated weather — is
+[ROADMAP.md](ROADMAP.md) item 7.
+
 ## Deliberate non-features (v0.1)
 
 - Combat rounds are not auto-counted toward rest (10 rounds = 1 turn); the GM uses the manual Turn button after fights.

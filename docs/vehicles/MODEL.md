@@ -100,9 +100,14 @@ passengers "Crew".
 vehicle actually makes: the printed load/speed tiers for land, wind and oar and
 sail for sea, times the crew fraction (the WORST-manned motive role governs — a
 galley with every sailor and half its rowers is a half-speed galley), times the
-crew's condition, less a stowed mast, times terrain and road. Driving and
-Seafaring are read from the vehicle, and Seafaring taken three times is a master
-mariner, who alone can tack in a strong wind.
+crew's condition, less a stowed mast, times terrain and road. What the ground
+and the wind are WORTH comes from the `travel` and `voyages` registered
+tables (declared via `expectTables`, imported from the reader's own book);
+with nothing imported every such factor is ×1 and one `tablesMissing` reason
+line says why the weather and the ground are not counting. Driving and
+Seafaring are read from the vehicle, and Seafaring taken three times is a
+master mariner, who alone can tack in a strong wind — at the imported
+tacking rate, when there is one to show.
 
 ## The sea
 

@@ -473,8 +473,15 @@ export function carrierSpeedFor(carrier, formation) {
   if (carrier?.type === VEHICLE_TYPE) {
     if (carrier.system?.kind !== "land") return null;
     const aboardStone = load6(carrier) / STONE;
-    // The real team — harnessed attachments included — is stated to the
-    // arithmetic, which only sees the abstract rows on its own.
+    // NO ground here, on purpose: the party's speeds are compared on a common
+    // unscaled base — a walker's exploration speed knows nothing of terrain
+    // either — and the travel panel applies the day's terrain/road/weather
+    // multiplier ONCE to the slowest base at expedition time. Scaling only
+    // the carriers would bias the slowest-member comparison and double-count
+    // the ground. (The legacy `formation.ground` object is still honoured for
+    // any caller that ever wrote one.) The real team — harnessed attachments
+    // included — is stated to the arithmetic, which only sees the abstract
+    // rows on its own.
     return landSpeed(carrier.system, aboardStone, formation?.ground ?? null, { pull: draftPullOf(carrier) }).feetPerTurn;
   }
   return explorationSpeedOf(carrier);

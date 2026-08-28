@@ -20,10 +20,16 @@ import * as berths from "./berths.mjs";
 import * as occupants from "./occupants.mjs";
 import * as stations from "./stations.mjs";
 import { acksExtras } from "../namespace.mjs";
+import { expectTables } from "../lib/tables.mjs";
+import { TRAVEL_DOC, VOYAGES_DOC } from "./vehicle-speed.mjs";
 
 Hooks.once("init", () => {
   CONFIG.Actor.dataModels[VEHICLE_TYPE] = VehicleData;
   registerVehicleSheet();
+  // What this feature will READ from the registry, declared so the import UX
+  // can name what a world is missing. The values themselves never ship.
+  expectTables(TRAVEL_DOC, ["terrainMultipliers", "roads"]);
+  expectTables(VOYAGES_DOC, ["windStrength", "tacking"]);
 });
 
 /**

@@ -294,6 +294,125 @@
   </section>
   {{/if}}
 
+  {{! The journey: pickers, the day board and the readout for the GM; the
+      derived march, the hex trace and the log for everyone at the table. }}
+  {{#if travel.isJourney}}
+  <section class="acks-extras-formation-travel">
+    <h3>{{localize "ACKS-FORMATION.travel.legend"}}
+      <span class="acks-extras-formation-travel-daycount">{{localize "ACKS-FORMATION.travel.dayN" n=travel.dayCount}}</span>
+      {{#if isGM}}
+      <button type="button" class="acks-extras-formation-travel-mode" data-action="travelMode"
+              data-tooltip="{{localize 'ACKS-FORMATION.travel.endJourneyHint'}}">
+        <i class="fa-solid fa-dungeon"></i> {{localize "ACKS-FORMATION.travel.endJourney"}}
+      </button>
+      {{/if}}
+    </h3>
+
+    {{#if isGM}}
+    <div class="acks-extras-formation-travel-pickers">
+      <label>{{localize "ACKS-FORMATION.travel.ground"}}
+        <select name="travel.ground">
+          {{#each travel.grounds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label>{{localize "ACKS-FORMATION.travel.roadLabel"}}
+        <select name="travel.road">
+          {{#each travel.roads}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label>{{localize "ACKS-FORMATION.travel.territoryLabel"}}
+        <select name="travel.territory">
+          {{#each travel.territories}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="travel.weather.raining" {{checked travel.weather.raining}}>
+        {{localize "ACKS-FORMATION.travel.weatherRaining"}}
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="travel.weather.snowing" {{checked travel.weather.snowing}}>
+        {{localize "ACKS-FORMATION.travel.weatherSnowing"}}
+      </label>
+    </div>
+
+    <div class="acks-extras-formation-travel-day">
+      <label>{{localize "ACKS-FORMATION.travel.dayBoard"}}
+        <select name="travel.day.kind">
+          {{#each travel.dayKinds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      {{#each travel.slots}}
+      <select name="travel.day.slot.{{index}}" {{#if @root.travel.forced}}disabled{{/if}}
+              data-tooltip="{{localize 'ACKS-FORMATION.travel.slotHint'}}">
+        <option value="" {{#if empty}}selected{{/if}}>—</option>
+        {{#each options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+      {{/each}}
+      <button type="button" data-action="travelEndDay" data-tooltip="{{localize 'ACKS-FORMATION.travel.endDayHint'}}">
+        <i class="fa-solid fa-moon"></i> {{localize "ACKS-FORMATION.travel.endDay"}}
+      </button>
+    </div>
+    {{/if}}
+
+    <p class="acks-extras-formation-travel-readout">
+      {{#if travel.readout.camp}}
+        {{localize "ACKS-FORMATION.travel.campDay"}}
+      {{else}}
+        <strong>{{travel.readout.milesPerDay}}</strong> {{localize "ACKS-FORMATION.travel.milesPerDay"}}
+        · {{travel.readout.hexesPerDay}} {{localize "ACKS-FORMATION.travel.hexesPerDay"}}
+        <span class="hint">({{travel.readout.feet}}'/{{localize "ACKS-FORMATION.app.turn"}}{{#each travel.readout.parts}} · {{label}}{{#if factor}} ×{{factor}}{{/if}}{{/each}})</span>
+      {{/if}}
+    </p>
+
+    <div class="acks-extras-formation-travel-hex">
+      <span class="acks-extras-formation-travel-hexlabel">{{localize "ACKS-FORMATION.travel.hex"}}:
+        <strong>{{#if travel.hex}}{{travel.hex}}{{else}}—{{/if}}</strong>
+        {{#if isGM}}{{#if travel.lost.active}}<i class="fa-solid fa-compass acks-extras-formation-travel-lost"
+          data-tooltip="{{localize 'ACKS-FORMATION.travel.lostHint'}}"></i>{{/if}}{{/if}}
+      </span>
+      {{#if isGM}}
+      <input type="text" name="travel.hexLabel" value="{{travel.hex}}"
+             placeholder="{{localize 'ACKS-FORMATION.travel.hexPlaceholder'}}">
+      <button type="button" data-action="travelEnterHex" data-tooltip="{{localize 'ACKS-FORMATION.travel.enterHexHint'}}">
+        <i class="fa-solid fa-arrow-right"></i> {{localize "ACKS-FORMATION.travel.enterHex"}}
+      </button>
+      <span class="hint">{{localize "ACKS-FORMATION.travel.enteredToday" n=travel.hexesEntered}}</span>
+      {{/if}}
+    </div>
+
+    {{#if isGM}}
+    <div class="acks-extras-formation-travel-lostrow">
+      <label class="checkbox">
+        <input type="checkbox" name="travel.lostActive" {{checked travel.lost.active}}>
+        {{localize "ACKS-FORMATION.travel.lost"}}
+      </label>
+      <input type="text" name="travel.lostNote" value="{{travel.lost.judgeNote}}"
+             placeholder="{{localize 'ACKS-FORMATION.travel.lostNotePlaceholder'}}">
+    </div>
+    {{/if}}
+
+    {{#if travel.log.length}}
+    <ol class="acks-extras-formation-travel-log">
+      {{#each travel.log}}
+      <li>
+        <span class="acks-extras-formation-travel-logday">{{localize "ACKS-FORMATION.travel.dayN" n=day}}</span>
+        {{#if hex}}<span>{{hex}}</span>{{/if}}
+        <span>{{kindLabel}}</span>
+        {{#if miles}}<span>{{miles}} {{localize "ACKS-FORMATION.travel.milesShort"}}</span>{{/if}}
+        {{#if @root.isGM}}{{#if lost}}<i class="fa-solid fa-compass acks-extras-formation-travel-lost"></i>{{/if}}{{/if}}
+      </li>
+      {{/each}}
+    </ol>
+    {{/if}}
+  </section>
+  {{else if isGM}}
+  <section class="acks-extras-formation-travel">
+    <button type="button" data-action="travelMode" data-tooltip="{{localize 'ACKS-FORMATION.travel.beginJourneyHint'}}">
+      <i class="fa-solid fa-route"></i> {{localize "ACKS-FORMATION.travel.beginJourney"}}
+    </button>
+  </section>
+  {{/if}}
+
   <section class="lights">
     <h3>{{localize "ACKS-FORMATION.app.lights"}}</h3>
     {{#each lights}}
