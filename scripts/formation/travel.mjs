@@ -1,4 +1,4 @@
-/* global game */
+/* global game, Roll */
 /**
  * The overland MODE: a formation that knows what ground it is crossing, how
  * the day is being spent, and where the days went.
@@ -31,10 +31,12 @@
  * committed tests; everything that writes goes through `patchFormation`.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
-import { patchFormation } from "./formation-model.mjs";
+import { patchFormation, getFormation, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
+import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { terrainAtPoint, hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
+import { routesOf, stepBetweenHexes } from "../battlemap/hex-routes.mjs";
 import {
   CLIMATES,
   PRECIPITATION_KINDS,
@@ -85,7 +87,30 @@ export const ANCILLARY_ACTIVITIES = Object.freeze({
 
 /** The road vocabulary is the vehicles feature's; re-exported for callers. */
 export { ROAD_KINDS } from "../vehicles/vehicle-speed.mjs";
-import { ROAD_KINDS } from "../vehicles/vehicle-speed.mjs";
+import { ROAD_KINDS, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
+import { settlementOf, freshSettlement } from "./settlement.mjs";
+import { skyFor, readSkyCache, priorSky } from "./sky.mjs";
+import { runProvisionDay } from "./provision-day.mjs";
+import { postNavigationThrow } from "./navigation-card.mjs";
+import { isMode } from "../lib/movement-modes.mjs";
+import { FLIGHT_LOADS } from "./flight.mjs";
+
+/**
+ * The three things a formation can be doing. `delve` ticks dungeon turns;
+ * `journey` puts the day on the table; `settlement` crosses a city in blocks
+ * and turns. Only `delve` leaves the turn clock running.
+ */
+export const TRAVEL_MODES = Object.freeze(["delve", "journey", "settlement"]);
+
+/**
+ * A route the party is following, which spares it the navigation throw.
+ *
+ * RAW exempts navigable rivers, roads, and "other well-established routes".
+ * Roads are already the road picker's business, so this carries the other two —
+ * and `knownRoute` is deliberately vague because the book is: it is the Judge's
+ * call what counts as well-established.
+ */
+export const FOLLOWING_KINDS = Object.freeze(["none", "river", "knownRoute"]);
 
 /** The wilderness territory classifications (JJ ch. 2) — keys only. */
 export const TERRITORY_KEYS = Object.freeze(["civilized", "borderlands", "outlands", "unsettled"]);
@@ -97,6 +122,8 @@ export function freshDay(kind = "march") {
     kind: spec,
     activities: Array.from({ length: ANCILLARY_SLOTS }, () => null),
     hexesEntered: 0,
+    // Extra distance the day's bends cost over straight crossings, in hexes.
+    winding: 0,
   };
 }
 
@@ -120,9 +147,10 @@ export function withDayKind(day, kind) {
 export function travelOf(formation) {
   const t = formation?.travel ?? {};
   return {
-    mode: t.mode === "journey" ? "journey" : "delve",
+    mode: TRAVEL_MODES.includes(t.mode) ? t.mode : "delve",
     ground: t.ground ?? formation?.ground ?? "grassland",
     road: ROAD_KINDS.includes(t.road) ? t.road : "none",
+    following: FOLLOWING_KINDS.includes(t.following) ? t.following : "none",
     territory: TERRITORY_KEYS.includes(t.territory) ? t.territory : "borderlands",
     pace: TRAVEL_PACE[t.pace] ? t.pace : "dedicated",
     weather: {
@@ -147,6 +175,30 @@ export function travelOf(formation) {
     day: t.day ?? freshDay(),
     dayCount: Number(t.dayCount) || 0,
     lost: { active: false, sinceDay: null, judgeNote: "", ...(t.lost ?? {}) },
+    // HOW the order moves, which decides which factors it meets at all. Named
+    // `movement` rather than `mode`, because `mode` above is already the kind
+    // of adventuring (delve / journey / settlement) and the two are
+    // independent: a party can fly a journey or walk one.
+    movement: {
+      mode: isMode(t.movement?.mode) ? t.movement.mode : "foot",
+      hoursAloft: Math.max(0, Number(t.movement?.hoursAloft) || 0),
+      // How long the travelling day was. Declared, never assumed: how many
+      // hours a day's travel takes is printed, and a flier that spent part of
+      // the day aloft is priced on the SHARE. Left at zero it means the whole
+      // travelling day was spent flying, which is the ordinary case.
+      dayHours: Math.max(0, Number(t.movement?.dayHours) || 0),
+      load: FLIGHT_LOADS[t.movement?.load] ? t.movement.load : "normal",
+    },
+    // How long the order stood in the weather, and whether anything was done
+    // about it. The COUNT is the Judge's — a march is not automatically a day
+    // spent unprotected, and guessing the hours would charge a party for
+    // shelter it actually had.
+    exposure: {
+      hours: Math.max(0, Number(t.exposure?.hours) || 0),
+      atHeatSource: !!t.exposure?.atHeatSource,
+      wet: !!t.exposure?.wet,
+    },
+    settlement: settlementOf(t),
     log: Array.isArray(t.log) ? t.log : [],
   };
 }
@@ -211,10 +263,39 @@ const logCap = () => {
  * where it stood (a dungeon on the route does not reset the march).
  */
 export function setJourneyMode(formationId, journey) {
+  // Historically a boolean; a mode string is now accepted and preferred. The
+  // clock pauses for anything that is not a delve, because both travel modes
+  // put their own scale on the table.
+  const mode = typeof journey === "string"
+    ? (TRAVEL_MODES.includes(journey) ? journey : "delve")
+    : (journey ? "journey" : "delve");
   return patchFormation(formationId, (record) => {
     const t = travelOf(record);
-    record.travel = { ...t, mode: journey ? "journey" : "delve" };
-    record.clock = { ...(record.clock ?? {}), paused: !!journey };
+    record.travel = {
+      ...t,
+      mode,
+      // Entering a settlement starts a fresh board; leaving one keeps it, so
+      // stepping out to the country and back does not forget the route.
+      settlement: mode === "settlement" && t.mode !== "settlement" ? freshSettlement() : t.settlement,
+    };
+    record.clock = { ...(record.clock ?? {}), paused: mode !== "delve" };
+  });
+}
+
+/** The settlement board's own writer: pace, where, route, night. */
+export function patchSettlement(formationId, patch = {}) {
+  return patchFormation(formationId, (record) => {
+    const t = travelOf(record);
+    const next = { ...t.settlement };
+    for (const key of ["pace", "where", "route"]) {
+      if (patch[key] !== undefined) next[key] = String(patch[key]);
+    }
+    if (patch.night !== undefined) next.night = !!patch.night;
+    if (patch.blocks !== undefined) next.blocks = Number(patch.blocks) || 0;
+    if (patch.turns !== undefined) next.turns = Number(patch.turns) || 0;
+    if (patch.lost !== undefined) next.lost = !!patch.lost;
+    if (patch.lastThrow !== undefined) next.lastThrow = patch.lastThrow;
+    record.travel = { ...t, settlement: settlementOf({ settlement: next }) };
   });
 }
 
@@ -279,7 +360,7 @@ export function enterHex(formationId, label) {
  * same offset writes nothing. A painted terrain overrides the ground picker;
  * an unpainted hex leaves the Judge's pick standing.
  */
-export function autoEnterHex(formationId, { label = "", i = null, j = null, ground = null } = {}) {
+export function autoEnterHex(formationId, { label = "", i = null, j = null, ground = null, road = undefined, winding = 1 } = {}) {
   return patchFormation(formationId, (record) => {
     const t = travelOf(record);
     const had = t.hex.i != null && t.hex.j != null;
@@ -288,7 +369,19 @@ export function autoEnterHex(formationId, { label = "", i = null, j = null, grou
       ...t,
       hex: { ...t.hex, label: String(label ?? "").trim(), i, j },
       ...(ground ? { ground: String(ground) } : {}),
-      day: had ? { ...t.day, hexesEntered: (t.day.hexesEntered ?? 0) + 1 } : t.day,
+      // A drawn network OVERRIDES the day's road picker, exactly as painted
+      // terrain overrides the ground picker: the map is the better witness.
+      // `undefined` means no network was drawn, so the picker still stands.
+      ...(road !== undefined ? { road: String(road) } : {}),
+      day: had
+        ? {
+            ...t.day,
+            hexesEntered: (t.day.hexesEntered ?? 0) + 1,
+            // Only the EXCESS is banked: a straight crossing costs nothing
+            // extra, so a road with no bends never shows a tax.
+            winding: (t.day.winding ?? 0) + Math.max(0, (Number(winding) || 1) - 1),
+          }
+        : t.day,
     };
   });
 }
@@ -308,12 +401,129 @@ export async function onJourneyTokenMoved(tokenDoc, formationId) {
     y: tokenDoc.y + ((tokenDoc.height ?? 1) * scene.grid.sizeY) / 2,
   };
   const offset = scene.grid.getOffset(point);
+  // Which road, if any, this STEP followed. Only asked when a network exists:
+  // a scene nobody has drawn routes on leaves the Judge's picker alone rather
+  // than declaring every march off-road.
+  let road;
+  let winding = 1;
+  const prior = travelOf(getFormation(formationId) ?? {}).hex;
+  if (routesOf(scene).length && prior.i != null && prior.j != null) {
+    const step = stepBetweenHexes(scene, { i: prior.i, j: prior.j }, offset);
+    road = step.on ? step.road : "none";
+    if (step.on) winding = step.winding ?? 1;
+  }
   await autoEnterHex(formationId, {
     label: hexLabelFromOffset(offset),
     i: offset.i,
     j: offset.j,
     ground: terrainAtPoint(scene, point),
+    road,
+    winding,
   });
+}
+
+/**
+ * Who in the marching order can find the way.
+ *
+ * Two separate competences: the Navigation proficiency and the Pathfinding
+ * class power. Holding EITHER helps and holding BOTH helps more — that
+ * asymmetry is the rule and lives here. What each is worth is printed, so the
+ * two figures are read from the travel document's `navigationBonus` row and a
+ * world with nothing imported gets no bonus rather than an invented one.
+ */
+export function navigationCompetence(formation) {
+  const members = realMembers(formation);
+  let navigation = false;
+  let pathfinding = false;
+  for (const m of members) {
+    const actor = getMemberActor(m);
+    if (!actor) continue;
+    if (!navigation && (hasCapability(actor, "kw:navigation") || hasAbility(actor, /navigation/i))) navigation = true;
+    if (!pathfinding && (hasCapability(actor, "kw:pathfinding") || hasAbility(actor, /pathfinding/i))) pathfinding = true;
+    if (navigation && pathfinding) break;
+  }
+  const row = readTable(TRAVEL_DOC, "navigationBonus");
+  const one = Number(row?.either);
+  const both = Number(row?.both);
+  let bonus = 0;
+  let unpriced = false;
+  if (navigation && pathfinding) {
+    if (Number.isFinite(both)) bonus = both; else unpriced = true;
+  } else if (navigation || pathfinding) {
+    if (Number.isFinite(one)) bonus = one; else unpriced = true;
+  }
+  return { navigation, pathfinding, bonus, unpriced };
+}
+
+/**
+ * The day's navigation prospect, before any dice.
+ *
+ * `throws` is false on a road or a navigable river — a party following an
+ * established route does not lose its way, which is structural and needs no
+ * table. Otherwise the target is the terrain's, from the imported
+ * `gettingLost` row, and a null target means UNIMPORTED, never "no target".
+ *
+ * This deliberately stops short of the consequence. What a failure DOES to the
+ * party's position is an open ruling (`docs/vehicles/DECISIONS.md`), and this
+ * returns only what can be decided without it.
+ */
+export function landNavigationSpec(formation) {
+  const t = travelOf(formation);
+  if (t.road && t.road !== "none") return { throws: false, reason: "road" };
+  if (t.following && t.following !== "none") return { throws: false, reason: t.following };
+  const targets = readTable(TRAVEL_DOC, "gettingLost");
+  const target = Number(targets?.[t.ground]);
+  const competence = navigationCompetence(formation);
+  if (!Number.isFinite(target)) {
+    return { throws: true, target: null, missing: "gettingLost", terrain: t.ground, competence };
+  }
+  return { throws: true, target, terrain: t.ground, competence };
+}
+
+/**
+ * How many faces a hex has, and therefore how the Judge rolls a stray.
+ *
+ * Structural: a hex has six sides, so a stray is a d6 among them. WHICH face
+ * the party takes is the Judge's to decide from the lie of the land — this is
+ * only the fallback when they would rather it be blind.
+ */
+export const HEX_FACES = 6;
+
+/** A blind stray: a face index, 0-5. The Judge may always choose instead. */
+export async function rollStrayFace() {
+  const roll = await new Roll(`1d${HEX_FACES}`).evaluate();
+  return { face: roll.total - 1, roll };
+}
+
+/**
+ * The day's navigation throw.
+ *
+ * A d20 against the terrain's imported target, plus whatever the marching
+ * order's competence is worth. An unmodified 1 fails whatever the bonus — the
+ * one modifier-proof outcome the rule keeps.
+ *
+ * Returns `{throws: false}` untouched when a road or river carries the party,
+ * and `{missing}` when the target was never imported. It reports; it does not
+ * write. What a failure DOES is the episode's business.
+ */
+export async function rollLandNavigation(formation) {
+  const spec = landNavigationSpec(formation);
+  if (!spec.throws) return { ...spec, rolled: false };
+  if (spec.target == null) return { ...spec, rolled: false };
+  const bonus = spec.competence?.bonus ?? 0;
+  const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${Math.abs(bonus)}` : "1d20";
+  const roll = await new Roll(formula).evaluate();
+  const natural = roll.dice?.[0]?.results?.[0]?.result ?? null;
+  const botched = natural === 1;
+  return {
+    ...spec,
+    rolled: true,
+    roll,
+    natural,
+    total: roll.total,
+    botched,
+    success: !botched && roll.total >= spec.target,
+  };
 }
 
 /** GM-only lost state: players see the intended hex, the Judge the truth. */
@@ -345,8 +555,21 @@ export function applyTravelForm(formationId, tv = {}) {
     const next = { ...t };
     if (typeof tv.ground === "string" && tv.ground) next.ground = tv.ground;
     if (ROAD_KINDS.includes(tv.road)) next.road = tv.road;
+    if (FOLLOWING_KINDS.includes(tv.following)) next.following = tv.following;
     if (TERRITORY_KEYS.includes(tv.territory)) next.territory = tv.territory;
     if (typeof tv.encounterTerrain === "string") next.encounterTerrain = tv.encounterTerrain;
+    // The settlement board rides the same submit as the journey pickers: an
+    // ApplicationV2 action fires on CLICK, so a select bound to one never
+    // reports a change at all.
+    if (tv.settlement) {
+      next.settlement = settlementOf({
+        settlement: {
+          ...t.settlement,
+          ...tv.settlement,
+          night: !!tv.settlement.night,
+        },
+      });
+    }
     if (tv.weather) {
       const wv = tv.weather;
       const w = { ...t.weather, auto: !!wv.auto, fronts: !!wv.fronts };
@@ -362,6 +585,27 @@ export function applyTravelForm(formationId, tv = {}) {
         snow: !!wv.footingSnow,
       };
       next.weather = w;
+    }
+    // How the order moves. Read as a group for the same reason the cold's
+    // inputs are: a picker and two fields submit together.
+    if (tv.movement) {
+      next.movement = {
+        mode: isMode(tv.movement.mode) ? tv.movement.mode : t.movement.mode,
+        hoursAloft: Math.max(0, Number(tv.movement.hoursAloft) || 0),
+        dayHours: Math.max(0, Number(tv.movement.dayHours) || 0),
+        load: FLIGHT_LOADS[tv.movement.load] ? tv.movement.load : "normal",
+      };
+    }
+    // The cold's declared inputs. The checkboxes are absent from the submit
+    // when unticked, so the whole group is read together or not at all —
+    // reading them one at a time would clear the other two on every keystroke
+    // in the hours field.
+    if (tv.exposure) {
+      next.exposure = {
+        hours: Math.min(24, Math.max(0, Math.floor(Number(tv.exposure.hours) || 0))),
+        atHeatSource: !!tv.exposure.atHeatSource,
+        wet: !!tv.exposure.wet,
+      };
     }
     if (typeof tv.hexLabel === "string") next.hex = { ...t.hex, label: tv.hexLabel.trim() };
     if (typeof tv.lostNote === "string") next.lost = { ...next.lost, judgeNote: tv.lostNote };
@@ -395,11 +639,23 @@ export function applyTravelForm(formationId, tv = {}) {
  * Refused (no write) when the registry cannot answer; the panel's hint
  * already names the missing document.
  */
-export function rollWeatherNow(formationId) {
+export async function rollWeatherNow(formationId) {
+  // The sky is shared: two parties in one climate on one day read a single
+  // roll, and re-rolling the same day is a cache hit rather than new weather.
+  const record0 = getFormation(formationId);
+  const t0 = travelOf(record0 ?? {});
+  const params = { day: t0.dayCount, climate: t0.weather.climate, season: t0.weather.season };
+  const cache = readSkyCache();
+  const prior = t0.weather.fronts ? priorSky(cache, params) : null;
+  const { sky: gen } = await skyFor(params, () => generateDay({
+    climate: t0.weather.climate,
+    season: t0.weather.season,
+    prior,
+    fronts: !!t0.weather.fronts,
+  }));
+  if (!gen?.ok) return false;
   return patchFormation(formationId, (record) => {
     const t = travelOf(record);
-    const gen = generateDay({ climate: t.weather.climate, season: t.weather.season });
-    if (!gen.ok) return false;
     record.travel = {
       ...t,
       weather: {
@@ -413,6 +669,7 @@ export function rollWeatherNow(formationId) {
     };
   });
 }
+
 
 /**
  * End the day: log it, reset the board, advance the world clock a day (when
@@ -430,6 +687,42 @@ export function rollWeatherNow(formationId) {
  */
 export async function endDay(formationId, { miles = null, hexes = null, notes = "" } = {}) {
   let entry = null;
+  // Tomorrow's sky is settled BEFORE the patch, because the patch callback is
+  // synchronous and the cache is not. Same key as any other party crossing the
+  // same climate tomorrow, so they wake to one shared morning.
+  const t0 = travelOf(getFormation(formationId) ?? {});
+  let nextSky = null;
+  if (t0.weather.auto) {
+    const params = { day: t0.dayCount + 1, climate: t0.weather.climate, season: t0.weather.season };
+    const cache = readSkyCache();
+    const { sky } = await skyFor(params, () => generateDay({
+      climate: t0.weather.climate,
+      season: t0.weather.season,
+      prior: t0.weather.fronts ? (priorSky(cache, params) ?? t0.weather.rolls) : null,
+      fronts: !!t0.weather.fronts,
+    }));
+    if (sky?.ok) nextSky = sky;
+  }
+  // The day's navigation throw, whispered. Deliberately BEFORE the patch and
+  // deliberately not acted on: RAW hands the stray direction to the Judge, so
+  // the card reports and the Judge begins the episode.
+  if (t0.mode === "journey" && !t0.lost?.active) {
+    try {
+      await postNavigationThrow(getFormation(formationId));
+    } catch (err) {
+      console.error(`${MODULE_ID} | the navigation throw failed; the day still ends`, err);
+    }
+  }
+
+  // Feed the order and walk every ladder one step, BEFORE the patch: reading
+  // packs and writing bodies is async, and the patch callback is not.
+  let provisions = null;
+  try {
+    provisions = await runProvisionDay(getFormation(formationId));
+  } catch (err) {
+    console.error(`${MODULE_ID} | provisioning failed; the day still ends`, err);
+  }
+
   const record = await patchFormation(formationId, (rec) => {
     const t = travelOf(rec);
     entry = composeLogEntry(t, { miles, hexes, notes, worldTime: game.time?.worldTime ?? null });
@@ -440,12 +733,7 @@ export async function endDay(formationId, { miles = null, hexes = null, notes = 
     });
     let weather = { ...t.weather, footing: { mud: settled.mud, snow: settled.snow, runs: settled.runs } };
     if (weather.auto) {
-      const gen = generateDay({
-        climate: weather.climate,
-        season: weather.season,
-        prior: weather.rolls,
-        fronts: weather.fronts,
-      });
+      const gen = nextSky ?? { ok: false };
       if (gen.ok) {
         weather = {
           ...weather,
@@ -467,5 +755,13 @@ export async function endDay(formationId, { miles = null, hexes = null, notes = 
   });
   if (!record) return null;
   if (mayAdvanceWorldTime()) await game.time.advance(DAY_SECONDS);
+  // The finished day carries how it was fed, so the log can say the party ate
+  // short on the fourteenth rather than leaving it to memory.
+  if (entry && provisions) {
+    entry.provisions = {
+      short: provisions.short,
+      suffering: provisions.report.filter((r) => r.worsened).map((r) => r.name),
+    };
+  }
   return entry;
 }

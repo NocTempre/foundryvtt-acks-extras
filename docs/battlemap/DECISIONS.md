@@ -332,3 +332,56 @@ picks what the brush lays down.
 regions already draw, tint, and persist); painting roads (linear features do
 not cell-paint; the journey's road picker stays manual until the encounter
 work returns to it).
+
+## 2026-08-29 — The terrain vocabulary opens to imported keys
+
+`TERRAIN` was a frozen list of eleven keys and the brush rejected everything
+else, so an imported `terrainMultipliers` row for a kind the code did not know
+was unreachable — a Judge with an ash waste had nowhere to put it.
+
+Ruling: the brush's vocabulary is the UNION of the shipped structural keys and
+whatever keys the imported table carries. Adding a terrain becomes adding a
+registry row, which is how everything else in this family extends, and a
+world-priority override subtracts one. Colour, which is not a book value,
+ships as a default map with a per-row override and a derived hue as the
+fallback for an unknown key. A key with no multiplier row still degrades with
+a stated reason rather than quietly multiplying by one.
+
+## 2026-08-29 — Mud and snow leave the brush
+
+Both are rows of the printed terrain table, so they are legitimately terrain
+keys — but they describe what the weather has LEFT on the ground, and the
+footing state machine already derives them each day. Painting them baked a
+transient into permanent geography and left two systems holding an opinion
+about the same hex.
+
+Ruling: they are withheld from the brush and applied at read time from the
+footing alone. They remain valid terrain keys for the multiplier lookup; they
+are simply not paintable.
+
+## 2026-08-29 — A hex has sides, corners and centres, and a road is a declared path
+
+Roads and development are geography and were per-day dropdowns. Promoting them
+to paint layers is the easy half; the ruling is what a road actually IS.
+
+**A hex is not a single cell for this purpose.** It carries addressable
+**sides**, **corners** and a **centre**, and connections are declared between
+them. A hex may hold several connection hubs, connected to each other or not —
+a bridge and a ford in the same hex need not join.
+
+**A road applies only to travel ALONG a declared path.** Entering a hex that
+contains a road earns nothing; following the road through it does. This is
+what makes a road network a thing a party can be ON or OFF, which the
+navigation rule already depends on (a party following a road does not get
+lost).
+
+**A non-straight path carries a route tax.** Following a winding road is
+longer in distance than crossing the hex straight, and that cost is explicit:
+the road is still usually worth it because its multiplier is better, but the
+trade must be visible rather than free. A path also carries its OWN encounter
+profile — a road is not the wilderness beside it.
+
+Cost, stated plainly: this is a real topology, not a flag. It is the largest
+single piece of modelling in the travel program, and it makes the terrain
+brush a route editor as well as a fill tool.
+

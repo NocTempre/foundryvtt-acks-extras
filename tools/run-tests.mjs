@@ -49,6 +49,16 @@ const COMMITTED = [
   "test-travel.mjs",
   "test-weather.mjs",
   "test-encounters.mjs",
+  "test-settlement.mjs",
+  "test-lost.mjs",
+  "test-sky.mjs",
+  "test-flight.mjs",
+  "test-movement-modes.mjs",
+  "test-survival.mjs",
+  "test-provisions.mjs",
+  "test-foraging.mjs",
+  "test-searching.mjs",
+  "test-hex-topology.mjs",
 ];
 
 const RULES_DIR = path.join(HERE, "rules-tests");

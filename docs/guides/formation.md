@@ -95,6 +95,96 @@ publishes a second, unrelated `applyTemplate(actor, classItem, template, …)` o
 the classes api for character generation; they share a name and share nothing
 else.
 
+## Overland travel
+
+The party sheet has a second mode. **Return to delve / Begin a journey** at the
+top of the travel panel switches between the dungeon clock and the overland
+one, and a third button takes the order into a city.
+
+Every number behind this section is printed in your books and arrives through
+**acks-importer**. Until you have imported them the panel still works, and says
+plainly what it cannot price — it never guesses a distance, a target or a toll.
+
+### The day
+
+Set what the order is crossing and how: the **ground**, whether it is on a
+**road**, whether it is **following** a river or a route it already knows, and
+how settled the **territory** is. **Moving by** says how the party gets about —
+on foot, mounted, by vehicle, flying, or by vessel — and that choice decides
+which of everything else it actually meets. A flier ignores roads entirely; a
+vessel ignores the ground.
+
+Below that is the day's sky and the day board: one **kind of day** (a dedicated
+march, a forced march, or a day in camp) and four **ancillary hours** you spend
+on travel, foraging, hunting, searching or rest. A forced march spends them all.
+
+The line under the board is the march itself — miles and hexes for the day,
+with every factor that produced it named. If a factor is missing from that
+list, the mode you picked refused it; a road does nothing for a party in the
+air, and the readout says so rather than quietly including it.
+
+**End day** closes the day: it throws for navigation, feeds the order, walks
+every body's hunger, thirst and exposure one step, and writes the day into the
+log.
+
+### The camp
+
+Beneath the march is what the party is living on: how many days of food and
+water the packs hold across everyone in the order, and who is going short.
+Food and water are **pooled** — one member's rations feed the whole order —
+and dealt by a policy you choose in the module settings: evenly, so everyone
+goes equally short, or by triage, so as many as possible eat properly.
+
+Only the suffering are listed. Someone who is hungry, thirsty, hypothermic or
+losing Constitution appears with what it has cost them; the well-fed do not,
+because a full roster would bury the one who is starving.
+
+**Hours in the weather** is yours to set. A marching day is not automatically a
+day spent unprotected, so the module does not assume one: say how long the
+order actually stood in it, tick **At a fire** if they had one, and tick **Got
+wet** if they did — a soaked body is hypothermic however well dressed. Anyone
+carrying a cloak or furs is sheltered. In mild weather the field is greyed,
+because there is nothing to count.
+
+**Work the country** rolls whatever the day's hours were spent on: foraging for
+food, water and firewood, hunting, or searching. What is found is deposited on
+the people who found it, and every attempt is reported — including the ones
+that turned up nothing.
+
+### Getting lost
+
+A failed navigation throw is whispered to you, not announced. The party walks
+on believing it is somewhere it is not: the map fills in with the ground they
+*think* they crossed, while you alone see where they really are, on a hidden
+marker that moves with them.
+
+When they realise it — because they made a later throw, or because you told
+them — that imagined ground closes back over and the players are told, in as
+many words, that the last few days were not where they thought. They do not
+learn where they actually went. Finding their way back to a known landmark is
+what puts the country they really crossed onto the map, in its right place.
+
+### In the city
+
+**Enter the city** swaps the journey board for a settlement one. Choose a
+**pace**, whether the party is on the **avenues** or in the **alleys**, how
+well it knows **the way**, and whether it is **after dark**.
+
+**Take a turn** covers the party's blocks, tests its way if the pace and the
+route call for it, and gives the street its own chance at them. Being lost in a
+city is a wrong turning the party notices at once — a short detour, not an
+episode. A large party straggles and moves slower; splitting it is the way out,
+at the price of each group answering for its own encounters.
+
+### Flying
+
+Pick **Flying** under *Moving by* and two more fields appear: how many **hours
+aloft**, out of a day of how many, and what the flier is **carrying**. A party
+that spends only part of the day in the air is priced on that share. A flier
+still meets the ground below it and still feels the weather — except the wind,
+which bites a flier by its own rule rather than the one that slows a walker,
+and the readout names which replaced which.
+
 ## Traps
 
 ### Making one

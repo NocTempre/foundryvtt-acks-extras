@@ -23,15 +23,29 @@
  * a square-grid scene refuses with a warning rather than approximating.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { TERRAIN } from "../vehicles/vehicle-speed.mjs";
+import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 
 /** Region flags: the terrain kind, and the painted cells as offset keys. */
 export const TERRAIN_FLAG = "terrain";
 export const HEXES_FLAG = "terrainHexes";
 
 /**
+ * Terrain kinds the brush refuses even though they are valid terrain.
+ *
+ * Mud and snow are rows of the printed terrain table, so they price a march
+ * like any other ground — but they describe what the weather has LEFT, and the
+ * footing state machine already derives them daily. Painting them would bake a
+ * transient into the geography and leave two systems with an opinion about one
+ * hex, so they stay lookup-only.
+ */
+export const UNPAINTABLE = Object.freeze(["mud", "snow"]);
+
+/**
  * The palette — a fixed UI colour per terrain kind. Presentation, not rules:
  * the keys are the structural terrain vocabulary; the colours are ours.
+ *
+ * An imported kind the module has never heard of gets a derived hue instead
+ * (`colorFor`), so the vocabulary can grow without the palette blocking it.
  */
 export const TERRAIN_COLORS = Object.freeze({
   grassland: "#7cb45b",
@@ -46,6 +60,45 @@ export const TERRAIN_COLORS = Object.freeze({
   mud: "#6e5a3e",
   snow: "#dfe8ee",
 });
+
+/**
+ * Every terrain the brush may lay down: the shipped structural keys plus any
+ * key the imported multiplier table carries, minus the ones weather owns.
+ *
+ * This is what lets a Judge with an ash waste paint one — adding a terrain is
+ * adding a registry row, the way everything else in this family extends.
+ */
+export function paintableTerrains() {
+  const shipped = Object.keys(TERRAIN);
+  let imported = [];
+  try {
+    imported = Object.keys(readTable(TRAVEL_DOC, "terrainMultipliers") ?? {});
+  } catch {
+    imported = [];
+  }
+  const all = [...new Set([...shipped, ...imported])];
+  return all.filter((k) => !UNPAINTABLE.includes(k));
+}
+
+/**
+ * A stable colour for any terrain key: the shipped palette first, then a hue
+ * derived from the key itself so an imported kind is at least consistent
+ * between sessions and distinguishable from its neighbours.
+ */
+export function colorFor(key) {
+  if (TERRAIN_COLORS[key]) return TERRAIN_COLORS[key];
+  const name = String(key ?? "");
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360} 38% 42%)`;
+}
+
+/** The label for any terrain key: the shipped one, or the key made readable. */
+export function labelFor(key) {
+  const shipped = TERRAIN[key]?.label;
+  if (shipped) return game.i18n.localize(shipped);
+  return String(key ?? "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+}
 
 /* -------------------------------------------------------------------- */
 /*  Pure cell bookkeeping (committed tests)                             */
@@ -155,7 +208,7 @@ export async function paintHexAt(scene, point, terrainKey) {
     await eraseHexEverywhere(scene, key);
     return true;
   }
-  if (!TERRAIN[terrainKey]) return false;
+  if (!paintableTerrains().includes(terrainKey)) return false;
 
   let region = terrainRegionsOf(scene).find((r) => r.getFlag(MODULE_ID, TERRAIN_FLAG) === terrainKey);
   const already = region && (region.getFlag(MODULE_ID, HEXES_FLAG) ?? []).includes(key);
@@ -166,8 +219,10 @@ export async function paintHexAt(scene, point, terrainKey) {
   if (!region) {
     const [made] = await scene.createEmbeddedDocuments("Region", [
       {
-        name: game.i18n.localize(TERRAIN[terrainKey].label),
-        color: TERRAIN_COLORS[terrainKey],
+        // labelFor/colorFor, never the frozen maps: an imported kind has no
+        // entry in either, and TERRAIN[key].label would throw on it.
+        name: labelFor(terrainKey),
+        color: colorFor(terrainKey),
         visibility: CONST.REGION_VISIBILITY?.ALWAYS ?? 2,
         shapes: [shape],
         flags: { [MODULE_ID]: { [TERRAIN_FLAG]: terrainKey, [HEXES_FLAG]: [key] } },
@@ -314,10 +369,10 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
 
   async _prepareContext() {
     return {
-      swatches: Object.entries(TERRAIN).map(([key, cfg]) => ({
+      swatches: paintableTerrains().map((key) => ({
         key,
-        label: game.i18n.localize(cfg.label),
-        color: TERRAIN_COLORS[key],
+        label: labelFor(key),
+        color: colorFor(key),
         active: terrainPaint.brush === key,
       })),
       erasing: terrainPaint.brush === "erase",

@@ -78,4 +78,43 @@ for (let i = 1; i <= 5; i++) log = pushLog(log, { day: i }, 3);
 assert.equal(log.length, 3, "the cap holds");
 assert.deepEqual(log.map((e) => e.day), [5, 4, 3], "newest first; the oldest days are what trimming eats");
 
-console.log("test-travel: OK (day board, forced budget, defaults, log cap)");
+/* --- the day board has ONE field name -------------------------------------
+   `freshDay` writes `activities`; two readers asked for a `slots` that nothing
+   ever sets. Both answered "no ancillary work chosen" forever, so the camp's
+   forage targets never rendered and the forage run gathered nothing — a whole
+   surface dead, with no error raised anywhere. Pinned at the source: a reader
+   can still mistype the name, but the board can no longer look as though it
+   carries both. */
+const board = freshDay("march");
+assert.ok(Array.isArray(board.activities), "activities is the array of picks");
+assert.equal(board.slots, undefined, "there is nothing named `slots` to read");
+assert.equal(
+  withDayKind(board, "march").slots, undefined,
+  "and a rebuilt board does not grow one either",
+);
+
+/* --- how the order MOVES is its own axis -----------------------------------
+   `travel.mode` is the kind of adventuring (delve / journey / settlement);
+   `travel.movement.mode` is how the party gets about. They are independent —
+   a party can fly a journey or walk one — and the two were nearly given the
+   same field name, which would have made every flight a separate mode of play. */
+const rec = travelOf({ travel: {} });
+assert.equal(rec.mode, "delve", "the adventuring mode defaults to a delve");
+assert.equal(rec.movement.mode, "foot", "and the movement mode to walking");
+assert.equal(rec.movement.hoursAloft, 0);
+assert.equal(rec.movement.dayHours, 0, "an unstated day is not an assumed one");
+assert.equal(rec.movement.load, "normal");
+
+const flier = travelOf({ travel: { mode: "journey", movement: { mode: "flying", hoursAloft: "4", dayHours: "8", load: "heavy" } } });
+assert.equal(flier.mode, "journey", "the two axes do not overwrite each other");
+assert.equal(flier.movement.mode, "flying");
+assert.equal(flier.movement.hoursAloft, 4, "hours arrive from a form as strings");
+assert.equal(flier.movement.dayHours, 8);
+assert.equal(flier.movement.load, "heavy");
+
+const nonsense = travelOf({ travel: { movement: { mode: "swimming", hoursAloft: -3, load: "featherlight" } } });
+assert.equal(nonsense.movement.mode, "foot", "an unknown mode falls back rather than composing nothing");
+assert.equal(nonsense.movement.hoursAloft, 0, "a negative span is no span");
+assert.equal(nonsense.movement.load, "normal", "an unknown load band falls back too");
+
+console.log("test-travel: OK (day board, forced budget, defaults, log cap, one field name, movement axis)");

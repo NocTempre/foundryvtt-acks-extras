@@ -207,7 +207,7 @@ assert.deepEqual(m.parts.filter((p) => p.key.startsWith("condition.")).map((p) =
 
 m = travelMultiplier({ terrain: "grassland", road: "earth", conditions: ["muddy"] });
 assert.equal(m.multiplier, 0.5, "mud halves and the earth road it drowned adds nothing");
-assert.ok(m.parts.some((p) => p.key === "roadWashedOut" && p.note), "the drowned road still says so");
+assert.ok(m.parts.some((p) => p.key === "road.washedOut" && p.note), "the drowned road still says so");
 
 m = travelMultiplier({ terrain: "grassland", road: "paved", conditions: ["muddy"] });
 assert.equal(m.multiplier, 2, "pavement holds: the road counts and the mud does not");
@@ -215,10 +215,10 @@ assert.ok(m.parts.some((p) => p.key === "mudPaved" && p.note), "and the lift is 
 
 m = travelMultiplier({ terrain: "grassland", road: "paved", conditions: ["muddy", "snowbound"] });
 assert.equal(m.multiplier, 0.25, "snow drowns even pavement — no road, no mud lift... but snow still halves");
-assert.ok(m.parts.some((p) => p.key === "roadWashedOut"));
+assert.ok(m.parts.some((p) => p.key === "road.washedOut"));
 
 m = travelMultiplier({ terrain: "grassland", road: "earth", conditions: ["rainy"] });
-assert.ok(m.parts.some((p) => p.key === "roadWashedOut"),
+assert.ok(m.parts.some((p) => p.key === "road.washedOut"),
   "the rainy CONDITION reaches the road's washout vocabulary without the legacy flag");
 
 resetTables();

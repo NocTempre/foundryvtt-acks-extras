@@ -39,6 +39,10 @@ import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
+import { runSettlementTurn } from "./settlement-turn.mjs";
+import { runForageDay } from "./forage-run.mjs";
+import { runSearchHour } from "./search-run.mjs";
+import { askStrayAndBegin, confirmDiscovery, confirmReanchor } from "./lost-dialog.mjs";
 import { applyTravelForm, setJourneyMode, enterHex, endDay, rollWeatherNow } from "./travel.mjs";
 import { travelReadout } from "./formation-view.mjs";
 import { partySpeed } from "./formation-model.mjs";
@@ -190,9 +194,84 @@ export const SHARED_ACTIONS = {
   async travelMode() {
     const formation = gmFormation(this);
     if (!formation) return;
-    await setJourneyMode(formation.id, formation.travel?.mode !== "journey");
+    await setJourneyMode(formation.id, formation.travel?.mode !== "journey" ? "journey" : "delve");
     this.render();
   },
+
+  /**
+   * One city turn: the party walks, may lose its way, and the street gets its
+   * chance. Rolls here rather than in the pure tick, which owns no dice.
+   */
+  async settlementTurn() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await runSettlementTurn(formation);
+    this.render();
+  },
+
+  /**
+   * Work the country: roll whatever hours the day board set aside for it, and
+   * put what is found into the foragers' own packs.
+   */
+  async forageDay() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    // `activities` is the day board's own field name; there is no `slots`.
+    const slots = formation.travel?.day?.activities ?? [];
+    const kinds = slots.includes("forage") ? ["food", "water", "firewood"] : [];
+    const hunting = slots.includes("hunt");
+    if (!kinds.length && !hunting) {
+      ui.notifications?.info(game.i18n.localize("ACKS-FORMATION.forageRun.noHours"));
+      return;
+    }
+    await runForageDay(formation, { kinds, hunting });
+    this.render();
+  },
+
+  /**
+   * Spend an hour looking. `present` comes from the Judge's own map — the
+   * module never invents whether a hex holds anything.
+   */
+  async searchHour(event, target) {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const present = !!this.element?.querySelector?.('[name="camp.present"]')?.checked;
+    await runSearchHour(formation, { present });
+    this.render();
+  },
+
+  /** Open a lost episode: the Judge names the face, or rolls for it. */
+  async lostBegin() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await askStrayAndBegin(formation);
+    this.render();
+  },
+
+  /** They realise they are lost. Gives back nothing else. */
+  async lostDiscover() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await confirmDiscovery(formation);
+    this.render();
+  },
+
+  /** They find the last known landmark, and the true track is credited. */
+  async lostReanchor() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await confirmReanchor(formation);
+    this.render();
+  },
+
+  /** Enter the city, or leave it. The third mode, on the same clock rule. */
+  async settlementMode() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await setJourneyMode(formation.id, formation.travel?.mode !== "settlement" ? "settlement" : "delve");
+    this.render();
+  },
+
 
   /** The Judge rolls the day's sky from the imported tables. */
   async travelWeatherRoll() {

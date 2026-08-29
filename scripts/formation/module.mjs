@@ -86,6 +86,7 @@ import {
   pickMarchingOrder,
 } from "./marching-templates.mjs";
 import { anchorMap, archiveSession, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
+import { registerLostSocket } from "./lost-fog.mjs";
 import { registerFuzzyRulers } from "./measure-fuzz.mjs";
 import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
@@ -103,10 +104,27 @@ import { syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { addLight, advanceRounds, advanceTurns, onPartyTokenMoved, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
 import * as travel from "./travel.mjs";
 import * as weather from "./weather.mjs";
+import * as settlement from "./settlement.mjs";
+import * as lost from "./lost.mjs";
+import * as shadow from "./shadow.mjs";
+import * as lostEpisode from "./lost-episode.mjs";
+import { SETTLEMENT_DOC } from "./settlement.mjs";
 import * as encounters from "./encounters.mjs";
 import { ENCOUNTERS_DOC, ENCOUNTER_TABLE_IDS } from "./encounters.mjs";
 import { SETTING_TRAVEL_ENCOUNTERS, maybeHexThrow, postEncounterThrow, resolveCreature, rollDayEncounters } from "./encounter-card.mjs";
 import { SETTING_TRAVEL_LOG_CAP } from "./travel.mjs";
+import { SETTING_STRAGGLING } from "./settlement.mjs";
+import { SETTING_SKY_CACHE } from "./sky.mjs";
+import * as provisions from "./provisions.mjs";
+import * as foraging from "./foraging.mjs";
+import { FORAGING_DOC } from "./foraging.mjs";
+import * as searching from "./searching.mjs";
+import { SEARCHING_DOC } from "./searching.mjs";
+import { SETTING_SHARE_POLICY, SHARE_POLICIES } from "./provisions.mjs";
+import * as sky from "./sky.mjs";
+import * as flight from "./flight.mjs";
+import { FLIGHT_DOC } from "./flight.mjs";
+import { SURVIVAL_DOC } from "../lib/survival.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
 
@@ -282,7 +300,7 @@ Hooks.once("init", () => {
 
   // The journey's registry reads still ahead of it — the getting-lost targets
   // and the encounter frequencies — declared now so the import UX names them.
-  expectTables(TRAVEL_DOC, ["gettingLost", "encounterFrequency"]);
+  expectTables(TRAVEL_DOC, ["gettingLost", "encounterFrequency", "navigationBonus"]);
   // The sky's: the daily generator's bands and modifiers, the condition
   // speed factors, and the footing thresholds.
   expectTables(WEATHER_DOC, [
@@ -298,6 +316,36 @@ Hooks.once("init", () => {
   // The encounter chain's: every band, name, distance die, visibility
   // figure, evasion target and terrain-encounter list.
   expectTables(ENCOUNTERS_DOC, ENCOUNTER_TABLE_IDS);
+  // City travel: the paces' block rates, the navigation target and its
+  // known-destination modifier, the straggling ladder, and the street's
+  // encounter cadence. Every one of them is printed, so none of them ships.
+  expectTables(SETTLEMENT_DOC, ["paces", "navigation", "straggling", "encounters"]);
+  // Flight: the day-aloft factor, what wind costs a flier, and the load
+  // threshold's own factor. All printed, so none of them ship.
+  expectTables(FLIGHT_DOC, ["aloftFactor", "windFactor", "loadFactors"]);
+  // Hunger and thirst: how long each rung takes to reach, what it drains, how
+  // fast the debt comes back, what the heat adds, and the shortcut a Judge can
+  // provision by. Printed to the last figure, so none ships.
+  expectTables(SURVIVAL_DOC, ["food", "water", "exposure", "heat", "simplified"]);
+  // Living off the country: the forage targets, what Survival is worth, the
+  // party size one throw covers, the hunting target and its territory
+  // modifiers, the dog pack's help and cap, what a success yields, and which
+  // country starves a grazer. Printed to the last figure.
+  expectTables(FORAGING_DOC, [
+    "targets", "forageTerrain", "forageTerritory", "survivalBonus", "partyGroupSize",
+    "huntTarget", "huntTerritory", "dogTarget", "dogHelpPerDog", "dogHelpCap",
+    "yields", "barrenTerrains", "efficientGrazers",
+  ]);
+  // Searching the wild: the ladder of daily distances to targets, what a
+  // quarry on the move or a named one costs, the cadence a throw comes at,
+  // which country closes over a searcher's head, and the survey's own target
+  // and its bonus per search already made. The ladder is printed; that a
+  // faster party finds more is the rule, and lives in the code.
+  expectTables(SEARCHING_DOC, [
+    "targets", "movingQuarry", "specificTarget", "turnsPerThrow",
+    "canopyTerrains", "canopyPenalty", "aerialTurnsPerThrow",
+    "surveyTarget", "surveyPerSearch",
+  ]);
 
   // How many finished days a formation's travel log keeps; trimming eats the
   // oldest. It gates the settings blob's growth, not the journey.
@@ -320,6 +368,41 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: false,
+  });
+
+  // Straggling is marked optional in the book, and ships ON: it is the only
+  // thing that makes party SIZE matter to a city, and a crowd rule nobody
+  // meets is not a rule. Off, a large party moves at its bare pace.
+  // The sky cache: one roll per (day, climate, season), shared by every party
+  // standing in it. World state, bounded, and disposable — losing it costs a
+  // re-roll. Not shown in the settings UI; it is a cache, not a choice.
+  game.settings.register(MODULE_ID, SETTING_SKY_CACHE, {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: {},
+  });
+
+  // Who goes short when the packs cannot feed everyone. Not a rule the book
+  // states — it prices what hunger DOES, never who a captain feeds — so it is
+  // a choice, and the kinder reading is the default.
+  game.settings.register(MODULE_ID, SETTING_SHARE_POLICY, {
+    name: "ACKS-FORMATION.settings.provisionSharing.name",
+    hint: "ACKS-FORMATION.settings.provisionSharing.hint",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: Object.fromEntries(Object.entries(SHARE_POLICIES).map(([k, v]) => [k, v.label])),
+    default: "even",
+  });
+
+  game.settings.register(MODULE_ID, SETTING_STRAGGLING, {
+    name: "ACKS-FORMATION.settings.straggling.name",
+    hint: "ACKS-FORMATION.settings.straggling.hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
   });
 
   // GM rulings from the Skill Audit window: which abilities party-roll
@@ -403,10 +486,28 @@ Hooks.once("init", () => {
      * derivations) plus the card runners (`postEncounterThrow`,
      * `resolveCreature`), so a lair or domain module rolls the same chain
      * the journey does.
+     *
+     * 7 adds `settlement` — city travel: the paces, the street locations, the
+     * route memory, the straggling ladder and the derivations that price them
+     * from the registry.
+     *
+     * 8 adds `lost` (the episode ledger and its four transitions), `shadow`
+     * (the hidden true-position token, and the distance queries between lost
+     * parties that it makes possible) and `lostEpisode` — the one caller that
+     * knows the ORDER the three move in.
      */
-    apiVersion: 6,
+    apiVersion: 8,
     travel,
     weather,
+    settlement,
+    lost,
+    shadow,
+    lostEpisode,
+    sky,
+    flight,
+    provisions,
+    foraging,
+    searching,
     encounters: { ...encounters, maybeHexThrow, postEncounterThrow, resolveCreature, rollDayEncounters },
     traps: {
       ...trapRules,
@@ -518,6 +619,7 @@ Hooks.once("setup", () => {
 Hooks.once("ready", () => {
   assertAcksSystem("exploration speeds cannot be read from actors.");
   registerMapSocket();
+  registerLostSocket();
   registerRequestSocket();
   // Index the skill ladders acks-content imported (item directory or the world
   // compendium it writes to when importToCompendium is on).

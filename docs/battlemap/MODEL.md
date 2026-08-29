@@ -123,3 +123,65 @@ that square grid; hex is refused. The solver itself is grid-type-agnostic (the
 affine lattice fit carries any two basis vectors), so hex OUTPUT — its own
 scale set, cell-fill arrangement — remains ruled in DECISIONS and staged in
 ROADMAP.
+
+## Hex topology
+
+A hex is not a cell. Painting a road as a property of one answers the wrong
+question: a road is not something a hex HAS, it is something a party FOLLOWS,
+and following it means entering by one edge and leaving by another. A hex a
+road merely clips the corner of is not a hex you can drive across.
+
+So a hex carries thirteen addressable nodes — six sides, six corners and a
+middle ([hex-topology.mjs](../../scripts/battlemap/hex-topology.mjs)) — and
+connections are DECLARED between them. Node ids are `i:j:<letter><n>`, sharing
+the terrain layer's own cell key so a node always knows which painted hex it
+belongs to. The middle is written `m`, not `c`: "corner" and "centre" share a
+first letter, and a shared prefix would make a hex's middle and its first
+corner the same node.
+
+A link is undirected, so its ends are stored sorted and identity is a string
+compare. A hex may hold several UNCONNECTED hubs — a bridge over a gorge and a
+ford beneath it are two ways through one cell that do not meet — and `hubs`
+returns them apart, which is what stops a route teleporting between them.
+
+Two facts the travel rules lean on:
+
+- **`onRoad` asks whether this STEP follows a link**, not whether the hex has
+  one. That is what makes "the party is on a road" a fact rather than a guess,
+  and the navigation rule already depends on it.
+- **`routeCost` reports the winding tax separately** from what the road saves
+  in speed. They are different currencies — distance against multiplier — and
+  a readout that netted them would hide exactly the trade the Judge is meant to
+  weigh.
+
+[hex-routes.mjs](../../scripts/battlemap/hex-routes.mjs) is the scene half:
+the link set is a single scene FLAG rather than a document each, because a
+network is read on every step of every march and is only ever consulted whole.
+Terrain earns its regions because terrain is DRAWN; a link is a fact about the
+map, not a shape on it.
+
+`nodeAtPoint` turns a click into a node — the middle wins only near the centre,
+so a click around the rim declares an edge or a corner rather than silently
+anchoring everything to the middle. `facingNodes` finds the two nodes a step
+between neighbours touches, which are two distinct ids at the same physical
+place because each belongs to its own cell. **Adjacency is checked first and
+against the grid's own neighbours**: any two hexes have a midpoint, so nudging
+toward it from far apart yields two perfectly valid nodes and a crossing that
+does not exist.
+
+The **Routes tools** sit in the Battlemap group, one per road kind, so Foundry's
+one-active-tool rule is the kind selection — the same shape the terrain brush
+uses. Click a node to anchor, click another to link; the far end becomes the
+next anchor so a road is drawn in one sweep. The anchor is drawn, because a
+tool that remembered a click without showing it would leave a Judge guessing
+whether their last press registered.
+
+The journey consults it: `onJourneyTokenMoved` asks `stepBetweenHexes` and a
+drawn network **overrides the day's road picker**, exactly as painted terrain
+overrides the ground picker. A scene with no routes leaves the picker alone —
+an undrawn map is one where the question has not been asked, not one where
+every march is off-road.
+
+Not yet built: a path's own encounter profile, and feeding `routeCost`'s
+winding tax into the day's distance.
+

@@ -85,3 +85,20 @@ recognise. A hand-built monster has no such flag and no such tab.
 The tab reads only — it recomputes nothing. The flag shape is the
 `import-provenance` contract in [../lib/API.md](../lib/API.md); the vocabulary
 that turns its keys into readable labels is `scripts/monsters/source-view.mjs`.
+
+## Animal tab
+
+Shown only on an `acks-extras.animal`, whose DEFAULT sheet this is. It carries
+the two facts the mounted and vehicle rules ask of a beast and that no other
+surface renders — `system.animal.training` and `system.animal.mountable` —
+bound by `name` so the sheet's own submission writes them. An import that
+supplied them is marked with the `.acksm-cat-tag` badge.
+
+**Both the part and the nav entry are gated** (`#animalData`, mirroring the
+Source tab): dropping only the nav entry would still render the part, and its
+`system.animal.*` inputs would then submit that path against a plain monster,
+whose schema has no such subtree.
+
+What the beast CARRIES is deliberately absent here — it is edited on
+Classification and drawn on Inventory. The data-side ruling behind that one
+store is `docs/vehicles/DECISIONS.md`.

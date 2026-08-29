@@ -483,9 +483,11 @@ and maximum load live, and where acks-importer writes the loads it reads from
 the creature's own printed description. The animal sub-type's like-named
 `capacity6` / `unencumbered6` fields are LEGACY: no consumer reads them and
 nothing writes them, and filling them would make a mount look provisioned
-while `capacity6()` still answered null. The animal panel READS the live
-store beside the training controls rather than offering a second pair of
-inputs, because two controls for one fact can disagree on screen.
+while `capacity6()` still answered null.
+
+The GM-entry surface for `training` and `mountable` is the Full Monster
+Sheet's **Animal tab** — `docs/monsters/MODEL.md`. It is a monsters surface,
+not a lib one: an animal's default sheet IS that sheet.
 
 Both training and mountability arrive by import. The RR prices animals BY ROLE — a "Heavy War" horse,
 a "Draft" mule, a "Riding" camel — so the qualifier in the name the book
@@ -648,3 +650,78 @@ Three details are load-bearing:
 `renderRollCard` prints the Result column only when a row carries an outcome, so
 this card is Name and Total — initiative has no verdict to render. The
 `initiativeCard` world setting gates the patch, read per roll.
+
+## Movement modes
+
+Three speed derivations grew independently — a march, a voyage, a flight — and
+each grew its own opinion about which factors apply. That is three places to
+change when a factor arrives and three chances to disagree.
+[movement-modes.mjs](../../scripts/lib/movement-modes.mjs) is the middle they
+were missing. It composes; it never prices.
+
+Each mode declares the ORDERED layers it consumes, and the order is the rules'
+own — a road multiplier lands after the terrain it passes through, because a
+road makes bad country passable rather than good. Two shapes fall out, and they
+are the two the family needs:
+
+- **An adjustment.** A vehicle is a march with gates: it meets every factor a
+  walker meets, then refuses some ground outright.
+- **An independent layer.** A vessel meets no land factor at all — no terrain,
+  no road, no footing — so it declares its own layers and the land stack is
+  never consulted.
+
+A flier is neither, which is why this was needed. RR prints the terrain
+multipliers under Flight Speed, so a flier DOES meet the country below it; it
+refuses roads, since there is no road at altitude; and weather applies as it
+does on the ground with wind the stated exception.
+
+That exception is the one subtlety. Superseding is not declared by the mode:
+the part that supersedes names its own victim (`supplants`), because only the
+layer contributing a special case knows which general case it stands in for. A
+flier's wind therefore REPLACES the ground's rather than multiplying with it —
+and if no flight-wind rule was imported, nothing is supplanted and the flier in
+a gale still feels the ground's wind rather than none at all.
+
+Refused parts are dropped LOUDLY, with the reason. Handing a vessel a terrain
+multiplier is a caller bug, and a readout that quietly swallowed it would hide
+the bug behind a plausible number.
+
+## Survival
+
+Hunger and thirst as ladders a day at a time
+([survival.mjs](../../scripts/lib/survival.mjs)). Its own subsystem rather than
+part of travel, because starving reaches well past a march — a besieged
+stronghold starves, and so does a prisoner. Formation AUTOMATES it for a
+marching order; it does not own it.
+
+Two ladders, different shapes because the rules make them different. **Food has
+three rungs and climbs slowly**: short rations bite first as a penalty on every
+throw, going without long enough stops a body healing and forbids a forced
+march, and longer still it costs Constitution to death. **Water has one rung
+and arrives fast** — there is no thirsty-but-fine step.
+
+Two behaviours are worth stating because they are easy to get wrong:
+
+- **A full meal steps a starving body DOWN, not clear.** Rescue is not
+  recovery, and the rule says so. A full day's water, having only one rung to
+  fall from, ends dehydration outright.
+- **The clocks only climb.** Half rations reset the went-without counter, which
+  would otherwise re-derive a lower rung and quietly heal a starving character
+  who ate half a meal.
+
+**The weather is a third pressure, and it is not one shape.** Cold makes a
+CONDITION the body carries — hypothermia, which ticks by the HOUR rather than
+the day, forbids a forced march and natural healing, and ends only at a fire.
+Getting wet skips the clock entirely, however well dressed. Heat makes
+MODIFIERS instead: more water needed per person, a worse drain once it runs
+out, and a saving throw for anyone under heavy armour. Forcing them into a
+matching ladder would misstate both, so they are modelled apart.
+
+The heat's extra thirst is felt where it should be — in the POOL. `dealProvisions`
+takes a per-mouth `need`, so a party crossing a desert finds the same skins
+covering fewer days without anyone drinking faster.
+
+An unimported subsystem starves nobody: with no thresholds the ladders do not
+advance, though the clocks still run, so importing later starts from the truth
+rather than from zero.
+

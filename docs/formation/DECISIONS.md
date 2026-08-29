@@ -955,3 +955,170 @@ record does not otherwise need; and the desert-and-jungle river pick maps
 its civilized draws to the savanna/jungle-river column group (one pick
 cannot serve two groups; a desert river's civilized nuance is reachable by
 overriding to a desert pick).
+
+## 2026-08-29 — Lost: the players hold the reckoning, and strict RAW governs the return
+
+Ruled after the land-travel audit found the navigation throw entirely absent
+(`gettingLost` imported, declared, read by nothing).
+
+**The players' token is what the party BELIEVES.** While lost it stands at the
+hex the party thinks it holds, and the true position is a Judge-only marker.
+The party token never stops being the truth internally, so terrain lookup,
+encounter frequency and the weather's climate keep reading exactly what they
+read today; the deception is a visibility swap plus a second, player-facing
+marker. The alternative — one token, Judge narrates — was rejected because the
+players read their real position off the screen every morning and the rule
+becomes an annotation.
+
+**A successful throw does not restore position.** Strict RAW: it tells the
+party it is lost and lets it resume the heading it meant, from wherever it
+actually stands. It does not reveal where it strayed, and there is no kind
+house-rule setting — the strict reading ships alone until someone asks.
+
+**Fog is faked, then frozen back.** While astray, exploration reveals around
+the BELIEVED position — the players are drawing a wrong map, and that is the
+experience. On the throw that reveals the party is lost, the faked reveal is
+rolled back to the last position known to be true and the party is told, in a
+dialog, that the ground they thought they had mapped is not where they were.
+The Judge sees the true position throughout; the players see the fake, and the
+truth is hidden from them entirely.
+
+The cost is a fog model that can be rolled back, which means the reveal made
+while lost has to be recorded as a distinct, revocable layer rather than
+merged into the scene's exploration.
+
+## 2026-08-29 — Weather is derived from date and climate, not stored on the formation
+
+The audit found weather parked on the formation record and refreshed only when
+a Judge presses End day. Three defects follow: advancing the calendar any other
+way leaves yesterday's sky standing, two parties in the same weather roll
+independently, and there is no per-hex-per-day identity at all.
+
+Ruling: the sky is a FUNCTION of the world date and the current hex's climate,
+cached per `(date, climate)` pair. The book's fast-travel allowance — crossing
+several hexes in a day keeps the roll unless the climate changed — then falls
+out of the cache key rather than needing a rule of its own. The stored value
+becomes a cache, not a record.
+
+## 2026-08-29 — Straggling ships on
+
+RAW marks the straggling rules optional. They are the only thing that makes
+party SIZE matter to city movement, and a crowd rule that defaults off is a
+crowd rule nobody meets. Ships as a setting, default ON.
+
+## 2026-08-29 — Survival is its own subsystem
+
+Starvation, dehydration, and the food and water an animal needs daily are a
+coherent block that reaches well past travel — a besieged stronghold starves
+too. Ruling: survival becomes its own feature, and the formation surface
+AUTOMATES it for a group: tracking per member, and sharing supply across the
+marching order. Formation consumes the subsystem; it does not own it.
+
+## 2026-08-29 — Flight is a third travel model
+
+Ruled worth building, and sized between the land and sea implementations: a
+parallel speed table with its own terrain multipliers, but none of the
+navigation, footing or road machinery that makes land travel large.
+
+## 2026-08-29 — The faked reveal uncovers the GROUND, never the contents
+
+Refines the fog half of the lost ruling above, which said only "faked, then
+frozen back". What the fake may show was the open question.
+
+**It uncovers the base map image, and nothing else.** The players get the
+IMPRESSION of ground they have walked — the art under the fog — because that
+is what makes a wrong map feel like a map. It must reveal no authored content:
+no tokens, no roads or declared paths, no location pins, no notes. Those are
+the actual intelligence, and the party has not been there to gather any of it.
+
+The distinction is what keeps the lie honest. Uncovering terrain art costs the
+Judge nothing; uncovering the road network, or the pin marking a temple, hands
+the players facts about a hex they never entered.
+
+**A revert must read as a revert.** When the party learns it was lost, the
+faked ground closes back over. It is not merged into the exploration record and
+it is not quietly left behind: the map visibly loses it, which is the moment
+the players understand the last few days were not where they thought.
+
+Consequences for anything built later: every content object — pins, paths,
+notes — is filtered by the TRULY explored set, never by whether fog happens to
+be lifted. Fog is a presentation layer here, not the source of truth about what
+the party knows. A feature that reads fog to decide what a player may see will
+leak through the fake, and that is a defect in the feature, not in the fake.
+
+The restore is exact, not reconstructed: each user's fog is snapshotted once at
+the moment the party becomes lost, and that snapshot is written back on
+discovery. Subtracting the faked area from a live bitmap would drift.
+
+## 2026-08-29 — SUPERSEDES the reveal ruling above: observations are remapped, not withheld
+
+The entry above ruled that the faked reveal shows the ground and no content at
+all. **New evidence, same day:** a party that is lost still *travels*. It
+genuinely sees the country it crosses and whatever stands in it — it is wrong
+about WHERE, not about WHAT. Withholding content models a party that walked
+three days with its eyes shut, which is a worse lie than the one the rule
+describes.
+
+And RR ch. 6 supplies the mechanism the earlier ruling lacked. Two throws, two
+different outcomes: the DAILY navigation throw's success means only that the
+party realises it is lost and may resume its intended heading, while a party
+halted after evasion throws at a penalty and, on success, "is aware of its
+location relative to its last known location". Separately, a lost party may
+**search for its last known landmark** with a Wilderness Searching throw, as if
+the landmark were a point of interest — and that search triggers an encounter
+throw of its own.
+
+Ruling, in three states:
+
+- **Astray.** What the party observes at its TRUE hex is drawn at its BELIEVED
+  hex. Terrain, and the things standing in it, are remapped rather than
+  suppressed: the map is wrong, not blank. Nothing about the believed hex's own
+  contents is revealed, because the party is not there.
+- **Discovery** (the daily throw succeeds). The map is known to be wrong and
+  the remapped observations are discarded with the faked ground. Nothing is
+  credited: strict RAW, the party does not learn where it went. The anchor —
+  the last known landmark — is what it still has.
+- **Re-anchor** (the party finds its last known landmark, or the Judge rules it
+  recognises the ground). NOW the true track is committed: every observation is
+  re-keyed from its believed hex to the hex it was really made in, and the real
+  exploration joins the map. This is the "stumble upon it for real" case, and
+  it is the same gesture `map-items.mjs` already calls anchoring.
+
+So an observation is stored as a PAIR — where it was really made, and where the
+party thought it was — and which of the two is used depends entirely on whether
+the party ever re-establishes itself. Retreat without re-anchoring and the
+observations vanish; re-anchor and they land where they truly belong.
+
+Cost: content objects can no longer be filtered by a single explored set. They
+need the pair, and a query that asks "what does this player know is here?"
+must answer through the ledger rather than through fog.
+
+## 2026-08-29 — The true position is a SHADOW TOKEN, not a coordinate
+
+The ledger stored the true position as a hex offset. That is a coordinate, and
+coordinates make every spatial question arithmetic we would have to write:
+how far apart are two lost parties, can one see the other, is either near the
+landmark, does a search find anything.
+
+Foundry already answers all of those about TOKENS, and RR ch. 6 says a lost
+group IS one — a searching group finds it "as if it were a point of interest",
+and the last known landmark is shared by every lost group so they can
+rendezvous. The book models lost parties as objects in space. So do we.
+
+Ruling: while a formation is astray, the module maintains a **shadow token** at
+its true position — hidden, vision-less, flagged to the formation, deleted when
+the episode ends. The players' token stands at the BELIEVED hex and is the one
+they drag. Two consequences:
+
+- **The authoritative position is the shadow when one exists**, and the party
+  token otherwise. Every derivation that asks "where is the party" goes through
+  one accessor, so terrain, encounters and the weather's climate keep reading
+  the truth without knowing an episode is running.
+- **"Do they risk finding each other" becomes a distance measurement** between
+  two shadows, which is a call Foundry already has. With coordinates it would
+  have been triangulation we maintained ourselves, and it would have been wrong
+  the first time two parties were lost at once.
+
+The shadow is disposable by construction: it holds no state the ledger does not
+already own, so deleting it can never lose anything.
+

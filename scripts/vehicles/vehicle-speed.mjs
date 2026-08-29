@@ -129,7 +129,7 @@ export function travelMultiplier({ terrain = "grassland", road = "none", driverP
       multiplier *= factor;
       // A washed-out road contributes ×1 but must still SAY so — `note`
       // marks the parts that render despite a silent factor.
-      parts.push({ key: washedOut ? "roadWashedOut" : driverProficient ? "roadDriver" : "road", factor, ...(washedOut ? { note: true } : {}) });
+      parts.push({ key: washedOut ? "road.washedOut" : driverProficient ? "road.driver" : "road.plain", factor, ...(washedOut ? { note: true } : {}) });
     } else {
       missing = true;
     }

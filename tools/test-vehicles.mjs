@@ -199,7 +199,7 @@ assert.equal(travelMultiplier({ terrain: "forest", driverProficient: true }).mul
 /* --- a road row's ineffectiveIf conditions null it ----------------------- */
 const washed = travelMultiplier({ terrain: "grassland", road: "earth", raining: true });
 assert.equal(washed.multiplier, 1, "an earthen road in the rain is worth nothing");
-assert.ok(washed.parts.some((p) => p.key === "roadWashedOut" && p.note),
+assert.ok(washed.parts.some((p) => p.key === "road.washedOut" && p.note),
   "and the washed-out road still SAYS so — a note part survives the ×1 filter");
 assert.equal(travelMultiplier({ terrain: "grassland", road: "earth", raining: true, driverProficient: true }).multiplier, 1,
   "and no amount of skill re-metals it");
@@ -213,7 +213,7 @@ assert.equal(travelMultiplier({ terrain: "grassland", road: true }).multiplier, 
 /* --- the parts name what the sheet will say ------------------------------ */
 const namedGround = travelMultiplier({ terrain: "swamp", road: "earth", driverProficient: true });
 assert.ok(namedGround.parts.some((p) => p.key === "terrain.swamp"), "the ground names itself");
-assert.ok(namedGround.parts.some((p) => p.key === "roadDriver"), "and the driver's road");
+assert.ok(namedGround.parts.some((p) => p.key === "road.driver"), "and the driver's road");
 
 /* --- no tables: x1, and ONE line that says why --------------------------- */
 resetTables();
@@ -248,7 +248,7 @@ assert.equal(landSpeed(carted, 0, { terrain: "forest", road: "earth" }).feetPerT
   "60 x 1/2 x 3 through forest on a road");
 const named = landSpeed(carted, 0, { terrain: "swamp", road: "earth" });
 assert.ok(named.reasons.some((r) => r.key === "terrain.swamp"), "the sheet can name the ground");
-assert.ok(named.reasons.some((r) => r.key === "roadDriver"), "and name the driver's road");
+assert.ok(named.reasons.some((r) => r.key === "road.driver"), "and name the driver's road");
 resetTables();
 const dumb = landSpeed(carted, 0, { terrain: "swamp", road: "earth" });
 assert.equal(dumb.feetPerTurn, 60, "no tables: the printed tier stands unscaled");

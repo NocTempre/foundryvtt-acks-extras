@@ -1,5 +1,111 @@
 # Changelog
 
+## 5.2.0
+
+Land travel, end to end. A journey now has weather that comes off the calendar,
+ground you can paint and roads you can draw, a party that eats and drinks and
+feels the cold, country that can be foraged and searched, cities that can be
+crossed a turn at a time, and a way of getting properly, secretly lost. Every
+figure behind it — every threshold, target, penalty, yield and rate — arrives
+through acks-importer from your own books; the module ships the procedures and
+nothing printed.
+
+### Added
+- **Getting lost.** A party that fails its navigation throw walks on believing
+  it is somewhere it is not. The table's map fills in as they go — the ground
+  they think they crossed — while the Judge alone sees where they really are,
+  through a hidden marker that moves with them. When they finally realise, that
+  ground closes back over and they are told, in as many words, that the last few
+  days were not where they thought. They do not learn where they went; finding
+  their way back to a known landmark is what puts the country they really
+  crossed onto the map, in its right place.
+- **Following a river keeps you found.** A party tracing a navigable river, or a
+  route it already knows, does not test its way — which the rules have always
+  said and the module could not previously express.
+- **Roads are drawn, and following one means something.** A hex has edges,
+  corners and a centre, and a road is a declared path between them. A road only
+  helps a party actually travelling along it, a winding route costs more distance
+  than a straight one, and the difference is stated rather than hidden inside a
+  multiplier.
+- **The sky is shared.** Weather is settled once per day for the ground you are
+  on, derived from the date and the climate rather than stored on whoever
+  happened to roll it, so two parties in the same country get the same day.
+- **The camp.** The journey board grew a section for what the party is living
+  on: how many days of food and water the packs hold for everyone in the order,
+  who is going hungry, thirsty or cold and what it has cost them, and — for the
+  Judge — what tonight's chosen hours are actually worth. Only the suffering are
+  named; a list of well-fed companions would bury the one who is starving.
+- **The party shares its packs.** Food and water are pooled across the marching
+  order and dealt out by a policy you choose: evenly, so everyone goes equally
+  short, or by triage, so as many as possible eat properly. Both spend the same
+  supply and differ only in who suffers.
+- **Hunger, thirst and the cold.** Going short now tells. A day on reduced
+  rations makes a body hungry; longer without stops it healing or force
+  marching; longer still it starves, and starving costs Constitution every day
+  until it is fed or dies. Thirst arrives faster and charges a rolled toll that
+  sweltering weather doubles. Cold is its own clock: a body left unprotected in
+  frigid or cold weather — or one that simply gets wet — turns hypothermic and
+  loses Constitution by the hour until it reaches a fire. Anyone carrying a
+  cloak or furs is sheltered. The Judge says how long the order stood in it.
+- **Work the country, and eat what you find.** The camp panel rolls the day's
+  foraging, hunting and searching, deposits what is found on the people who
+  found it, and reports each attempt — including the ones that found nothing.
+  Hard country, settled country whose forage is somebody's crop, and the
+  Survival proficiency each move the throw, and each is named separately rather
+  than summed into a target that cannot explain itself. Firewood is counted in
+  stone, not in days of food.
+- **Searching the wild.** An hour spent looking around a hex can turn up a lair,
+  a ruin or another party — harder the faster you are moving, harder again for
+  something particular, and easier from the air over open country. Forest,
+  jungle and swamp close over a searcher's head and take that advantage back.
+  Surveying a hex tells the Judge how much is left to find, and gets easier with
+  every search already made. Looking around also gets you noticed: a search owes
+  its own encounter throw.
+- **Flying expeditions.** A party that can take to the air covers ground
+  differently, and the panel now says how: pick how the order moves, say how
+  much of the day was spent aloft and what the flier is carrying, and the march
+  is composed accordingly. A flier still meets the ground below it, ignores
+  roads entirely, and feels wind by its own rule rather than the one that slows
+  a walker — and the readout says which factor replaced which.
+- **City travel.** A party can cross a settlement the way it crosses a
+  wilderness: a pace, whether it is on the avenues or in the alleys, how well it
+  knows the way, and whether it is dark. Take a turn and the party covers its
+  blocks, tests its way if the pace and the route call for it, and the street
+  gets its own chance at them. Getting lost in a city is a wrong turning the
+  party notices at once, not an episode. A large party straggles, and splitting
+  it is the way out — at the cost of each group answering for its own
+  encounters.
+
+### Changed
+- **An animal's training and mountability moved onto the sheet properly.** They
+  shipped in 5.1.0 as a panel wedged in above the tab strip; they are now an
+  **Animal tab** on the Full Monster Sheet — which, it turns out, is already
+  the sheet an animal opens by default. The controls are ordinary sheet fields
+  now, saved by the sheet itself, and the tab appears only on an animal. What
+  the beast carries is not repeated there: it is set on Classification and drawn
+  on Inventory, where it always was.
+- **Terrain is no longer a closed list.** The brush offers whatever terrain your
+  own books put in the registry, rather than a vocabulary fixed in the module.
+  Mud and snow are not paintable at all — they are ground conditions the weather
+  produces, and painting one would have let a scene disagree with its own sky.
+
+### Fixed
+- **Dehydration and hypothermia cost nothing.** Both charge a rolled toll, and
+  both were being read through a number-only gate — so a dehydrated or
+  hypothermic body took no damage at all while the panel correctly reported the
+  condition. Sweltering weather's doubled thirst toll was likewise computed and
+  discarded.
+- **The day board's ancillary hours were invisible to two readers**, so the
+  camp never showed what tonight's foraging was worth and the forage run
+  gathered nothing at all.
+- **Foraging for water found nothing outside a handful of terrains**, because
+  the book names the same country differently from table to table — "clear"
+  where the movement rules say "grassland". The two vocabularies are now
+  reconciled on import.
+- **An unstated load, price or capacity read as a confident zero** in several
+  places, grounding mounts that had no stated maximum and making unpriced flight
+  free.
+
 ## 5.1.0
 
 Mounts know what they are for, and say so on their own sheet.

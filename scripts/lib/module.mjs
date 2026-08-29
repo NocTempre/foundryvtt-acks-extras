@@ -32,7 +32,6 @@ import * as vocab from "./vocab.mjs";
 import * as fields from "./fields.mjs";
 import * as library from "./library.mjs";
 import { registerLibraryWarm } from "./library.mjs";
-import { registerAnimalPanel } from "./animal-panel.mjs";
 import * as tables from "./tables.mjs";
 import * as services from "./services.mjs";
 import * as itemModel from "./item-model.mjs";
@@ -82,6 +81,8 @@ import {
   syncTokenFromActor,
 } from "./token-sync.mjs";
 import { SETTING_ADVANCE_WORLD_TIME } from "./world-time.mjs";
+import * as movementModes from "./movement-modes.mjs";
+import * as survival from "./survival.mjs";
 
 /** The actor sub-types this library adds to the system. */
 export const ANIMAL_TYPE = `${MODULE_ID}.animal`;
@@ -111,6 +112,14 @@ const localImpl = Object.freeze({
   library,
   resolveLevelValue,
   tables,
+  /**
+   * Which modifiers a thing meets, and in what order. The middle the three
+   * speed derivations were missing: a vehicle adjusts the march, a vessel is
+   * an independent layer, and a flier is neither.
+   */
+  movementModes,
+  /** Hunger and thirst, a day at a time. Formation automates it for a group. */
+  survival,
   services,
   loadRuledata,
   // --- patch layer ---
@@ -683,7 +692,6 @@ Hooks.once("ready", () => {
   // An animal's training, mountability and load live in this library's own
   // subtree, which the system's monster sheet does not render — the panel is
   // the surface a Judge types them on and an import's values show up in.
-  registerAnimalPanel();
 
   // The body class is a toggle again, owned by `look`: it is the marker that
   // says "ACKS surfaces are themed", and under the `core` look they are not.

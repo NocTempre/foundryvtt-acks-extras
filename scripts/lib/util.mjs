@@ -21,6 +21,27 @@ export const locOr = (key, fallback) => (game.i18n?.has?.(key) ? game.i18n.local
 /** The value as a number, or `fallback` when it is not finite. */
 export const toNum = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
+/**
+ * The value as a number, or **null when it was never stated**.
+ *
+ * Use this for anything that may be absent — a registry cell, an optional
+ * field, a caller's `= null` default — and never hand-roll
+ * `Number.isFinite(Number(x))` for the same job. `Number(undefined)` is NaN and
+ * behaves, but **`Number(null)` and `Number("")` are both 0, and 0 is finite**,
+ * so the hand-rolled test reports an unstated value as a confident zero. That
+ * has produced three separate shipped defects: a blank load rendering as "0",
+ * an unpriced flight silently multiplying by zero, and an absent maximum load
+ * grounding every mount.
+ *
+ * Zero and "unstated" are different answers. This is the helper that keeps them
+ * different.
+ */
+export const numOrNull = (v) => {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
 /** Ids of every GM user — whisper/socket-notify targets. */
 export const gmIds = () => game.users.filter((u) => u.isGM).map((u) => u.id);
 

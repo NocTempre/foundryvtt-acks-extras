@@ -18,6 +18,18 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   "FullMonsterSheet"` fails on a correct install. An `acks-extras.animal`
   DOES open `FullMonsterSheet` directly — the two paths differ and both are
   intended.
+- **To test what this sheet does with a plain MONSTER, construct it.** Because
+  of the line above, `monster.sheet` is the card, so a part-filter assertion
+  ("a monster gets no Animal tab") must build the sheet by hand:
+  `new (Object.values(CONFIG.Actor.sheetClasses.monster).map(e => e.cls)
+  .find(c => c.name === "FullMonsterSheet"))({document: monster})`, render it,
+  assert, close it. Reading `monster.sheet` instead silently asserts nothing —
+  the card has no tabs to find.
+- **A change on one control re-renders the sheet and DETACHES the others.**
+  Scripted checks that touch two fields in a row must re-query the second
+  element after the first submit; setting `.checked` on the stale node reports
+  success, dispatches its event into nothing, and reads back as "the write did
+  not land" on a field that works.
 - Both sheets are registered as OVERRIDES over core types through
   `DocumentSheetConfig.registerSheet`, so the sheet class is the thing to
   assert, not the actor type.
@@ -58,6 +70,26 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 8. Bestiary samples: open the shipped sample monsters.
    *Observable:* each loads, its sheet renders, and its extras are populated
    rather than default.
+
+### The Animal tab
+
+Fixture: `Actor.create({name, type: "acks-extras.animal", system: {animal:
+{training: "untrained", mountable: false}}})`, plus a plain `monster` for the
+negative half.
+
+1. Open the animal. The nav shows **Animal** between Classification and
+   Attacks; the section carries `select[name="system.animal.training"]` (six
+   localized options) and `input[name="system.animal.mountable"]`.
+2. Change the select, then RE-QUERY and tick the checkbox (see above). Read
+   back `actor.system.animal` — both writes land through the sheet's own
+   submission, with no handler of ours in the path.
+3. `setFlag("acks-importer", "cookbook", …)` and re-render: the legend gains
+   the `.acksm-cat-tag` badge.
+4. Build `FullMonsterSheet` on the plain monster (see above). It must show
+   neither `[data-tab="animal"]` nor any `[name^="system.animal"]` — the part
+   gate, not just the nav gate.
+5. Scan the section's text for `/ACKS-[A-Z-]+\.[a-zA-Z.]+/` — any match is a
+   missing lang key.
 
 ## Teardown
 

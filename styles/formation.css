@@ -1323,3 +1323,161 @@
   border-radius: 999px;
   font-size: var(--acks-fs-fine);
 }
+
+/* --- The settlement board -------------------------------------------------
+   City travel reuses the journey panel's frame; these are only the pieces the
+   wilderness board has no equivalent for. The straggle mark and the throw line
+   are Judge-side, so both lean on the warning ink rather than the spot. */
+.acks-extras-formation-settlement .acks-extras-formation-travel-pickers {
+  align-items: end;
+}
+
+.acks-extras-formation-settlement-night {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  white-space: nowrap;
+}
+
+.acks-extras-formation-settlement-straggle {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-formation-settlement-nav {
+  margin: var(--acks-sp-2) 0 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+/* --- The navigation card --------------------------------------------------
+   Judge-whispered, so it is quieter than the encounter card: the verdict is
+   the only line meant to be read at a glance. */
+.acks-extras-nav-card {
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-nav-card ul {
+  margin: var(--acks-sp-2) 0;
+  padding-left: var(--acks-sp-6);
+}
+
+.acks-extras-nav-verdict {
+  margin: var(--acks-sp-2) 0 0;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+/* The winding tax rides beside the march but never inside it: the road's cost
+   and its benefit are different currencies and must read as two numbers. */
+.acks-extras-formation-travel-winding {
+  color: var(--acks-warning-ink);
+  font-size: var(--acks-fs-label);
+}
+
+/* --- The camp -------------------------------------------------------------
+   What the party is living on, who is suffering for it, and what tonight's
+   chosen hours are worth. One block, because a Judge weighs the three
+   together and three panels would hide the trade between them. */
+.acks-extras-formation-camp {
+  margin-top: var(--acks-sp-4);
+  padding-top: var(--acks-sp-3);
+  border-top: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-formation-camp-supply {
+  margin: 0 0 var(--acks-sp-2);
+  font-size: var(--acks-fs-label);
+}
+
+/* Running out is the one thing on this panel that must not be skim-read past. */
+.acks-extras-formation-camp-short {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-formation-camp-suffering {
+  margin: 0 0 var(--acks-sp-2);
+  padding-left: var(--acks-sp-6);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-formation-camp-suffering span {
+  margin-left: var(--acks-sp-2);
+}
+
+.acks-extras-formation-camp-throw {
+  margin: 0 0 var(--acks-sp-1);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-formation-settlement-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  margin: var(--acks-sp-2) 0 0;
+  font-size: var(--acks-fs-label);
+}
+
+/* Turned around in a city is known at once, unlike the wilderness — so it
+   reads as a warning the Judge acts on, not a secret they keep. */
+.acks-extras-formation-settlement-astray {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-settlement-card {
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-settlement-card ul {
+  margin: var(--acks-sp-2) 0 0;
+  padding-left: var(--acks-sp-6);
+}
+
+.acks-extras-forage-card {
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-forage-card ul {
+  margin: var(--acks-sp-2) 0 0;
+  padding-left: var(--acks-sp-6);
+}
+
+/* The Judge's own answer to "is anything here", beside the throw it governs. */
+.acks-extras-formation-camp-present {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  margin-right: var(--acks-sp-3);
+}
+
+.acks-extras-search-card {
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-search-card ul {
+  margin: var(--acks-sp-2) 0 0;
+  padding-left: var(--acks-sp-6);
+}
+
+/* --- The lost block -------------------------------------------------------
+   Judge-only, and marked as such by its ink: everything here is knowledge the
+   table is not meant to have. */
+.acks-extras-formation-lost {
+  margin-top: var(--acks-sp-4);
+  padding-top: var(--acks-sp-3);
+  border-top: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-formation-lost-astray {
+  margin: 0 0 var(--acks-sp-2);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-formation-lost-actions {
+  display: flex;
+  gap: var(--acks-sp-2);
+  flex-wrap: wrap;
+}
+

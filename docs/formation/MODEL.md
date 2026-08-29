@@ -380,6 +380,243 @@ the board, and advances the world clock a day through `lib/world-time.mjs`'s
 switch. `acksExtras.formation.travel` (apiVersion 4) publishes the mode
 switch, the day board writers, the hex trace and the pure pieces.
 
+## Searching the wild
+
+One throw, three quarries
+([searching.mjs](../../scripts/formation/searching.mjs)). A party sweeping a
+hex for a lair, a LOST party hunting the last landmark it knew, and a party out
+looking for that lost party all make the same Wilderness Searching throw — the
+second and third are the first with a different quarry, and the book says so
+outright. That is why the landmark search is what ends a lost episode: it feeds
+`reanchorEpisode`.
+
+The rule that surprises people, and the reason the target is not a constant:
+**a party that covers ground finds more.** A faster expedition sweeps a wider
+path, so its target improves as its daily distance rises. The relationship is
+the rule; the ladder of distances is printed and bracketed.
+
+Two things bite. A search costs an hour and buys ONE throw, so a day holds only
+as many searches as the board has spare slots — a forced march has none.
+And **searching draws attention**: every search owes an encounter throw, which
+is what makes a lost party's hunt for its landmark a genuinely dangerous act
+rather than a formality.
+
+**From the air is two corrections, not one**, which is why it is a mode.
+Over open country a flier gets MORE throws in the same time; over forest,
+jungle or swamp it gets the same throws at a worse target, because the canopy
+is in the way. Only one of the two ever applies. Hunting one NAMED place is
+harder again than noticing whatever happens to be there, and the penalties
+compound.
+
+**Splitting the party** buys throws and costs safety in exactly equal
+measure: each sub-party sweeps AND draws its own encounters, with nobody to
+help. Groups near enough to come to each other's aid have not really split, and
+the structure refuses to pretend they have.
+
+**Land Surveying has three outcomes, not two.** A success reveals the true
+count of places worth finding in the hex. An unmodified 1 reveals a FALSE one —
+the surveyor is confidently wrong and the party is handed a number they have no
+reason to doubt, which is the same doctrine as the lost mechanic. Anything else
+reveals nothing at all, which is "not yet enough to go on" rather than failure.
+Only the natural die lies: a heavily penalised miss is silence.
+
+[search-run.mjs](../../scripts/formation/search-run.mjs) is the impure half.
+It makes the party PAY for looking: RAW gives a searching party one
+wandering-monster throw per hour, which is what turns "search until you find
+it" from a free action into a decision. The encounter goes through the
+journey's own chain rather than a second one of ours, so a monster met while
+searching is drawn from exactly the tables a monster met while marching would
+be.
+
+Whether the hex actually holds anything is the JUDGE's own answer, ticked on
+the panel — the module never invents one, because that is the Judge's map. From
+the air over open country the hour buys more than one attempt.
+
+`searchOutcome` keeps a miss and an empty hex apart for the Judge while giving
+the party the same silence for both, because a party that searches barren
+ground all week never learns that it was barren.
+
+## Living off the country
+
+The day board has carried `forage` and `hunt` as pickable slots since the
+journey shipped and nothing ever resolved them.
+[foraging.mjs](../../scripts/formation/foraging.mjs) resolves them, and what it
+produces goes into the same pool the order eats from — which is the only reason
+the slots were ever worth picking.
+
+The three kinds are NOT one shape, and that is why this needs structure rather
+than one function. **Firewood** is per forager and may be tried as often as
+wanted. **Water** is a PARTY throw once a day — one roll for the whole order,
+not one each — and a hex with standing water skips the throw entirely rather
+than easing it; past a group's worth of mouths the order throws again for each
+further group, and a success feeds only that group. **Food** is per forager,
+once a day, against one target wherever you are.
+
+Hunting is its own activity. Game is scarce where people are, so how settled
+the country is moves the target — the SIGN of that is the rule, its size is
+printed. A pack of dogs each throw and each help the others to a cap, which is
+what makes a pack worth keeping and what stops a kennel being an autowin.
+
+Grazing carries three facts: it normally costs an animal its whole day, some
+kinds graze on their spare hours alone and so can still travel, and barren
+country feeds only what already lives there.
+
+## Working the country
+
+[forage-run.mjs](../../scripts/formation/forage-run.mjs) is the impure half of
+foraging: it rolls what the day board set aside and DEPOSITS what is found.
+Water is thrown for the party once; food and firewood are each forager's own
+attempt; hunting is its own throw again. Standing water — a river the party is
+following — is taken freely with no throw at all.
+
+What is found goes into the FORAGER's own pack, flagged, never into a separate
+party store: the pool is already the sum of what the members carry, and a
+second store would be a second answer to the same question.
+
+## The camp panel
+
+One section on the journey board rather than three, because a Judge weighs
+these together: how long the packs last, who is going short, and whether
+tonight's chosen hours are worth spending. Three panels would hide the trade
+between them, and the trade is what the day board exists to make visible.
+
+It shows the supply forecast in days for the whole order, then **only the
+suffering** — a roster of well-fed names is noise that would bury the one
+person who is starving — and, Judge-side, what each picked slot is actually
+worth tonight: the forage targets for food, water and firewood, the hunting
+target moved by territory, and the search target with how many hours the board
+is holding for it. Anything unimported says so rather than showing a number.
+
+## Provisions
+
+The group half of survival: `lib/survival.mjs` knows what going without does to
+one body, and [provisions.mjs](../../scripts/formation/provisions.mjs) knows
+what it does to a party.
+
+The rule the file exists for is that **a party shares.** Rations sit in
+whichever packs happen to hold them, and a marching order does not let one
+character starve beside another's full sack — so supply is pooled across the
+order and dealt out, and only a pool that cannot cover everyone puts anybody
+short. Food and water are dealt independently, because well fed and parched is
+a real day and in a desert it is the usual one.
+
+**One supply reader, `daysCarried`.** It counts items whose NAME says what they
+are and items this module FLAGGED when it put them there, so foraged food and
+hunted game feed the order exactly as rations do. A second reader is a second
+answer to "how much food is there", and the two disagree the moment something
+arrives by a path the other does not know about — which is not hypothetical:
+foraging shipped depositing items the ration pattern did not match, and the
+forecast read zero while the packs were full.
+
+HOW a shortfall is spread is a Judge's call, not the book's — it prices what
+hunger does to a body, never who a captain chooses to feed — so both honest
+policies ship behind a setting. `even` puts the whole order on the same reduced
+ration; `triage` feeds as many as can be fed properly and leaves the rest
+empty. They spend the same supply and differ only in who suffers. The default
+is `even`.
+
+`even` is deliberately coarse: a pool that cannot manage even half a ration
+each feeds nobody rather than pretending a sip is a meal, and does not spend
+itself on the fiction. That coarseness is the ladder's — it knows three levels
+and no more.
+
+## Flight
+
+The expedition above the ground rather than on it
+([flight.mjs](../../scripts/formation/flight.mjs)), deliberately smaller than
+either the march or a voyage: a factor on top of the land derivation, with none
+of the navigation, footing or road machinery, because a flier meets none of it.
+
+A full day aloft collapses to the imported factor; a partial day BLENDS, so the
+grounded hours keep their own speed and only the airborne share is multiplied.
+Wind is the one weather that bites flight specifically. A flying mount is
+priced by a threshold rather than a slope — full to its normal load, slower
+beyond it, and grounded past its maximum, which needs no table to be true.
+
+The ground below still counts — RR prints the terrain multipliers under Flight
+Speed — and which factors a flier meets is the `flying` mode's business
+(`docs/lib/MODEL.md`, Movement modes), not this file's. Flight contributes only
+what flight itself is worth, and marks its wind as superseding the ground's.
+
+## Lost
+
+A lost party is somewhere real and believes it is somewhere else, and the
+feature keeps both. Four files, each ignorant of the others, and one that knows
+the order they move in:
+
+- **[lost.mjs](../../scripts/formation/lost.mjs)** — the ledger. The anchor
+  (the last known landmark), the believed hex, the faked ground, and the
+  OBSERVATIONS: pairs of where a thing was really seen and where the party
+  thinks it saw it. Pure, so the transitions are testable.
+- **[shadow.mjs](../../scripts/formation/shadow.mjs)** — the true position, as
+  a hidden, sightless token flagged to its formation. A token rather than a
+  coordinate because every question worth asking about a lost party is a
+  distance, and `nearbyLost` answers "do two lost parties risk meeting" with
+  the grid's own measurement.
+- **[lost-fog.mjs](../../scripts/formation/lost-fog.mjs)** — the faked reveal
+  and its undoing. Uncovers the GROUND for the players and nothing else; the
+  Judge's own fog is never touched. The snapshot is taken once before the first
+  fake and written back whole, because subtracting from a live bitmap drifts.
+- **[lost-episode.mjs](../../scripts/formation/lost-episode.mjs)** — the only
+  caller that knows the ORDER: snapshot before the first fake, and faked ground
+  closed before anything is credited.
+
+Three endings, and only one of them gives anything back. **Discovery** (the
+daily throw succeeds) tells the party it is lost and nothing more — the faked
+ground closes, the observations go with it, and the shadow stays exactly where
+it is, because the party is still standing there and still does not know where
+that is. **Re-anchor** (it finds its last known landmark) is the only
+transition that credits: the false ground closes first, then every observation
+is re-placed at the hex it was really made in, and the shadow retires. A party
+that simply retreats keeps neither.
+
+**Following spares the throw.** RAW exempts navigable rivers, roads and "other
+well-established routes" from getting lost. Roads are the road picker's
+business; `following` carries the other two, and `knownRoute` is deliberately
+vague because the book is — what counts as well-established is the Judge's
+call. The branch existed before the field did, so the exemption was
+unreachable: a check that reads a value nothing writes is dead code wearing a
+rule's clothes.
+
+The throw itself is `rollLandNavigation` — a d20 against the terrain's imported
+target plus the marching order's competence, with an unmodified 1 failing
+whatever the bonus.
+
+## The city
+
+A third mode beside delve and journey. A settlement is crossed in **blocks and
+turns** — too short for the expedition scale, too long for the dungeon turn —
+and the shape is the journey in miniature
+([settlement.mjs](../../scripts/formation/settlement.mjs)): a **pace** decides
+how far a turn carries you, a **navigation throw** decides whether you arrive
+where you meant to, and **where you are standing** decides how often the street
+answers.
+
+Three structural facts carry it. Only a commuting pace can lose its way — a
+meandering one is already reading the street signs. A route walked before needs
+no throw at all, while a destination reached before by another way is easier
+but not free. And a large party straggles through a crowd in tiers, which bite
+the commuting pace alone. That those tiers EXIST is the rule; where each starts
+and what it costs is printed, so the ladder is registered
+(`settlement` doc: `paces`, `navigation`, `straggling`, `encounters`). Nothing
+here ships a distance: an unimported city reports which table is missing rather
+than moving the party an invented number of blocks.
+
+**A turn is taken, not simulated.** `advanceSettlementTurn` is pure and owns
+no dice; `settlement-turn.mjs` rolls them, writes the board and whispers the
+Judge. Order matters inside the tick: the party MOVES, then the street gets its
+chance — a turn spent walking into an alley is a turn the alley can answer for.
+Being turned around in a city is known **at once**, unlike the wilderness,
+which is why it reads as a warning on the panel rather than a secret.
+
+The tick is what makes the board's `blocks`, `turns`, `lost` and `lastThrow`
+mean anything. Without it they were fields nothing read — the same defect as a
+schema a Judge cannot populate.
+
+The board rides the journey panel's own submit — `travel.settlement.*` field
+names, applied by `applyTravelForm` — because an ApplicationV2 action fires on
+click and a select bound to one never reports a change at all.
+
 ## The weather
 
 The day's sky is part of the travel record
@@ -404,6 +641,23 @@ table. Every land vehicle in the train is asked against the footing —
 wheels stop in snow anywhere and in mud off pavement — and the refusals
 render on the panel for the whole table. The finished day's weather goes
 into its log row, display fields only.
+
+**The sky is cached, not stored.** It keys on `(day, climate, season)`
+([sky.mjs](../../scripts/formation/sky.mjs)), so two parties standing in the
+same weather read one roll, re-rolling a settled day is a cache hit rather than
+new weather, and yesterday stays addressable for the fronts drift. The book's
+fast-travel allowance — several hexes in a day keeps the roll unless the
+climate changed — is the key changing, or not, and needed no rule of its own.
+Both callers settle the sky BEFORE their ledger patch, because a patch callback
+is synchronous and the cache is not.
+
+**The road is drawn, not picked.** On a scene carrying a route network
+(`docs/battlemap/MODEL.md`), each step asks `stepBetweenHexes` and the answer
+overrides the day's road picker the way painted terrain overrides the ground
+picker. The day also banks the BENDS — only the excess over a straight
+crossing, so a road with no bends never shows a tax — and the readout carries
+it beside the march rather than inside it, because the road's cost and its
+benefit are different currencies and must read as two numbers.
 
 ## The encounters
 

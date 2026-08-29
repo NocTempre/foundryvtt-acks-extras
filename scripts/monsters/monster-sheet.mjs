@@ -19,8 +19,13 @@ import { oseSourceView } from "./source-view.mjs";
 import * as CFG from "./config.mjs";
 import { loadStone, load6, capacityStone, RIDER_BODY6 } from "../lib/capacity.mjs";
 import { riderOf } from "../lib/mount.mjs";
+import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
+
+// Spelled here rather than imported from lib's module.mjs, which is a ready-time
+// registrar this sheet must not depend on — the same string, no cycle.
+const ANIMAL_SUBTYPE = `${MODULE_ID}.animal`;
 
 /**
  * Derived monster encumbrance, read through lib's capacity primitive (the
@@ -91,6 +96,7 @@ export function createFullMonsterSheet(Base) {
   const P = Base.PARTS ?? {};
   const OWN = {
     classification: { template: `${T}/tab-classification.hbs`, scrollable: [""] },
+    animal: { template: `${T}/tab-animal.hbs`, scrollable: [""] },
     attacks: { template: `${T}/tab-attacks.hbs`, scrollable: [""] },
     abilities: { template: `${T}/tab-abilities.hbs`, scrollable: [""] },
     inventory: { template: `${T}/tab-inventory.hbs`, scrollable: [""] },
@@ -110,6 +116,7 @@ export function createFullMonsterSheet(Base) {
 
   const tabList = [
     { id: "classification", icon: "fa-solid fa-dragon", label: "ACKS-MONSTERS.tab.classification" },
+    { id: "animal", icon: "fa-solid fa-horse", label: "ACKS-MONSTERS.tab.animal" },
     { id: "attacks", icon: "fa-solid fa-khanda", label: "ACKS-MONSTERS.tab.attacks" },
     { id: "abilities", icon: "fa-solid fa-star", label: "ACKS-MONSTERS.tab.abilities" },
     { id: "inventory", icon: "fa-solid fa-sack", label: "ACKS-MONSTERS.tab.inventory" },
@@ -145,10 +152,21 @@ export function createFullMonsterSheet(Base) {
       return this.actor.flags?.["acks-importer"]?.ose ?? null;
     }
 
+    /**
+     * The `system.animal` subtree, or null on a plain monster. It gates the
+     * Animal tab BOTH ways: dropping only the nav entry would still render the
+     * part, and its `system.animal.*` inputs would submit that path against a
+     * monster that has no such schema.
+     */
+    get #animalData() {
+      return this.actor.type === ANIMAL_SUBTYPE ? (this.actor.system?.animal ?? null) : null;
+    }
+
     /** The Source tab exists ONLY on a creature some importer converted. */
     _configureRenderParts(options) {
       const parts = super._configureRenderParts(options);
       if (!this.#oseRecord) delete parts.source;
+      if (!this.#animalData) delete parts.animal;
       return parts;
     }
 
@@ -156,6 +174,7 @@ export function createFullMonsterSheet(Base) {
       const tabs = super._prepareTabs(group);
       if (group !== "primary") return tabs;
       if (!this.#oseRecord) delete tabs.source;
+      if (!this.#animalData) delete tabs.animal;
       return tabs;
     }
 
@@ -191,6 +210,18 @@ export function createFullMonsterSheet(Base) {
       context.scores = CFG.ABILITY_SCORES;
       context.ages = CFG.AGE_CATEGORIES;
       context.x = `flags.${MODULE_ID}.${FLAG_EXTRAS}`;
+      // The Animal tab. `training` falls back to the schema initial so a blank
+      // string still selects a row; what the beast CARRIES is not repeated here
+      // — it is edited on Classification and drawn on Inventory.
+      const animal = this.#animalData;
+      context.animal = animal
+        ? {
+            training: animal.training || "untrained",
+            mountable: !!animal.mountable,
+            trainingChoices: ANIMAL_TRAINING,
+            imported: !!this.actor.flags?.["acks-importer"]?.cookbook,
+          }
+        : null;
       // Pre-localized save rows for the Classification tab. Resolve each save to
       // whichever key the running system actually uses — the released acks
       // 14.0.1 still uses breath/wand, while newer builds use blast/implements —

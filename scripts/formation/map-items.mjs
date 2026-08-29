@@ -83,12 +83,12 @@ function warpMatrix(warp, width, height) {
 /*  Texture compositing                         */
 /* -------------------------------------------- */
 
-function fogTextureDims() {
+export function fogTextureDims() {
   const cfg = canvas.visibility.textureConfiguration;
   return { width: cfg.width, height: cfg.height };
 }
 
-async function textureFromBase64(b64) {
+export async function textureFromBase64(b64) {
   const baseTexture = new PIXI.BaseTexture(b64, { alphaMode: PIXI.ALPHA_MODES.NPM });
   const texture = new PIXI.Texture(baseTexture);
   if (!baseTexture.valid) await new Promise((resolve) => texture.once("update", resolve));
@@ -100,7 +100,7 @@ async function textureFromBase64(b64) {
  * white-on-black exploration masks) into a render texture; return base64 webp.
  * @param {Array<{texture: PIXI.Texture, transform?: PIXI.Matrix, destroy?: boolean}>} layers
  */
-async function compositeToBase64(layers, { width, height }) {
+export async function compositeToBase64(layers, { width, height }) {
   const rt = PIXI.RenderTexture.create({ width, height });
   const sprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
   try {

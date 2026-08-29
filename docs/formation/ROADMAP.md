@@ -178,3 +178,94 @@ Still unbuilt, in likely order:
     abilities and classes already read. Adopting the enum here was the smaller
     half of the original abilities-integration audit's Phase 4 sketch and was
     never split out as its own change.
+
+## 4. Land travel — RAW coverage checklist (audited 2026-08-29)
+
+A walk through RR §VI.2 *Wilderness Expeditions*, JJ ch. 2's expedition
+sequence, and JJ ch. 2 *Settlement Adventures*, rule by rule. **Built** rules
+are described in `MODEL.md` and are listed here only so the coverage is
+honest; everything else is work.
+
+### Built
+
+Expedition speed and the terrain multiplier; the road rate and its driver's
+rate; mud and snow as footing; the weather bands, conditions and the footing
+state machine; visibility in the wild (`visibilityMax`, `headEquivalents`);
+encounter distance, surprise, evasion and reactions; the encounter cadence by
+territory; the day board and its ancillary slots as a *record*.
+
+### Not built — the wilderness
+
+| Rule | State | Note |
+|---|---|---|
+| ~~**Navigating the Wild**~~ | **BUILT** — the throw is rolled and whispered on End day, reads the imported target, applies the marching order's competence, and is skipped on a road, a river or a known route. |
+| Pathfinding / Navigation bonus | **built** | `navigationCompetence` scans the marching order for either competence; holding both is worth more, and the two figures come from the imported `navigationBonus` row. |
+| ~~Straying direction~~ | **BUILT** — the Judge names the hex face or rolls for it; the grid's own neighbour order IS the face order. |
+| ~~Lost consequence~~ | **BUILT** — the full episode: shadow token, faked reveal, discovery, and re-anchor. UI-complete on the journey panel. |
+| ~~**Searching the Wild**~~ | **BUILT** — the specs (22 checks) and `search-run.mjs`, rolled from the camp panel, paying its encounter throw through the journey's own chain. |
+| Searching for specific points of interest | **built** | A penalty on the same throw. |
+| Aerial reconnaissance | **built** | Two corrections, never both: more throws over open ground, a worse target under canopy. |
+| Land surveying | **built** | Three outcomes: right, confidently wrong on a natural 1, or nothing yet. |
+| Splitting up | **built** | Sub-parties throw and draw encounters separately; mutually supporting groups are not split. |
+| **Flight speed** | **built** | `flight.mjs`: a day aloft, a partial day blended, wind, and the load threshold. Not yet wired into the march readout. |
+| **Starvation** | **built** | The ladder is in `lib/survival.mjs`; nothing ticks it per member yet. |
+| **Dehydration** | **built** | As above. |
+| ~~Hunting and foraging~~ | **BUILT** — the specs (11 checks) and `forage-run.mjs`, which rolls them from the camp panel and deposits into the foragers' packs. Live-verified the pool then sees it. |
+| ~~Survival, simplified~~ | **BUILT** — `simplifiedSupply` recommends what to carry; watered country waives the water entirely. |
+| ~~Animal daily food and water~~ | **BUILT** — `animalNeeds` reads each creature's own figures; unstated is null, never zero. |
+| ~~Temperature effects~~ | **BUILT** — hypothermia as an hourly condition, and the heat as modifiers: more water needed, a worse drain, an armour save. Live-felt in the pool. |
+
+### Not built — the settlement
+
+City travel landed as `settlement.mjs` in this pass: the paces, the street
+locations, the route memory, the straggling ladder and the derivations that
+price them from the registry. What remains:
+
+| Rule | State | Note |
+|---|---|---|
+| ~~Settlement panel~~ | **BUILT** — pickers, the derived rate, the throw prospect, and a Take-a-turn button. |
+| ~~Street encounter throws~~ | **BUILT** — the turn tick fires them on the street's own cadence, whispered. |
+| Settlement encounters table | import only | A d100 table of written encounters, with a modifier after dark. Content — it can only ever arrive through the importer. |
+| Looking for trouble | missing | A declared intent that raises the cadence. |
+| Holing up | **partial** | The location carries its own cadence and the tick spends turns in it without covering ground; advancing whole DAYS while holed up is not built. |
+| Travel by litter or wagon | missing | Privacy, not speed — so it is a flavour flag, not a rate. |
+
+### Cross-cutting defects found in the audit
+
+- **Weather is stored, not derived.** It lives on the formation and refreshes
+  when a Judge presses End day. The book makes it a function of the date and
+  the current hex's climate, so advancing the calendar any other way leaves
+  yesterday's sky standing, and two parties in the same weather roll their
+  own. Deriving from `date × climate` and caching per pair fixes all three and
+  gives the book's fast-travel allowance for free.
+- **Road and development are per-day pickers**, though both are geography and
+  belong on the painted map beside terrain.
+- ~~**The terrain vocabulary is frozen.**~~ **FIXED 2026-08-29** — the brush
+  now paints the union of shipped and imported keys, with a derived hue for a
+  kind the palette has never seen.
+- ~~**`mud` and `snow` are paintable terrain.**~~ **FIXED 2026-08-29** — both
+  are withheld from the brush and derived from the footing alone. They remain
+  valid terrain keys for the multiplier lookup.
+
+## 5. Rulings taken 2026-08-29, and what each unblocks
+
+All ten open questions from the audit are answered
+(`docs/formation/DECISIONS.md`, `docs/battlemap/DECISIONS.md`). Remaining work,
+now unblocked:
+
+| Work | Ruling it waited on |
+|---|---|
+| Following a river or known route | **BUILT** — the RAW exemption, now with a picker; the branch had existed with no field to read |
+| ~~The lost episode~~ | **BUILT** — ledger, shadow token, faked reveal, both endings; live-verified end to end |
+| ~~Hooking the daily throw into End day~~ | **BUILT** — `navigation-card.mjs` whispers the throw on End day. It reports and never steers: RAW hands the stray direction to the Judge |
+| ~~The Wilderness Searching throw for the last known landmark~~ | **BUILT** — it is `searching.mjs`'s `landmark` quarry, and it feeds `reanchorEpisode` |
+| ~~Weather from `date × climate`~~ | **BUILT** — `sky.mjs`, 8 checks; live-verified that two parties share one morning |
+| ~~Hex topology~~ | **BUILT** — the model (14 checks), the scene storage, the Routes tools, and the march consulting it. Live-verified that a crossing is a crossing: the same hex's other neighbours stay off-road |
+| Route tax | **BUILT** — `routeCost` reports it apart from the speed multiplier. A path's own encounter profile is not built |
+| ~~Survival~~ | **BUILT** — the ladders (12 checks), pooling and sharing (11 checks), and `provision-day.mjs` ticking every body on End day. Live-verified that one carrier's rations feed the whole order |
+| ~~Flight as a third travel model~~ | **BUILT** — `flight.mjs`, 11 checks. The blend, the wind cut and the load threshold; whether terrain multiplies a flight is a registered ruling, since the printed table's placement and the fiction disagree |
+
+Done in the same pass: the open terrain vocabulary, mud/snow withheld,
+straggling shipped ON behind a world setting, and `landNavigationSpec` /
+`navigationCompetence` giving `gettingLost` its first reader.
+

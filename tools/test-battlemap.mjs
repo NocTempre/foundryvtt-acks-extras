@@ -296,6 +296,9 @@ import {
   withHexAdded,
   withHexRemoved,
   TERRAIN_COLORS,
+  UNPAINTABLE,
+  paintableTerrains,
+  colorFor,
 } from "../scripts/battlemap/terrain-paint.mjs";
 import { TERRAIN } from "../scripts/vehicles/vehicle-speed.mjs";
 
@@ -321,4 +324,44 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort(),
   "every terrain kind has a swatch, and no swatch lacks a terrain");
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage)");
+/* --- the OPEN terrain vocabulary ------------------------------------------
+   The brush used to reject anything outside a frozen list, so an imported
+   terrain row was unreachable. It now paints the union of shipped and
+   imported keys, minus the two the weather owns. Values below are invented. */
+{
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  unregisterTable("travel");
+
+  const shipped = paintableTerrains();
+  assert.ok(shipped.includes("forest"), "a shipped kind is paintable");
+  for (const key of UNPAINTABLE) {
+    assert.ok(!shipped.includes(key), key + " is weather's, not the brush's");
+    assert.ok(TERRAIN[key], key + " stays a valid terrain for the multiplier lookup");
+  }
+
+  registerTable({
+    id: "travel",
+    source: "invented",
+    tables: { terrainMultipliers: { forest: 0.7, ashWaste: 0.4, saltFlat: 0.9 } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+
+  const opened = paintableTerrains();
+  assert.ok(opened.includes("ashWaste"), "an imported kind becomes paintable");
+  assert.ok(opened.includes("saltFlat"));
+  assert.equal(opened.filter((k) => k === "forest").length, 1, "a kind in both lists appears once");
+  for (const key of UNPAINTABLE) {
+    assert.ok(!opened.includes(key), "importing must not re-admit " + key);
+  }
+
+  // An unknown key still gets a stable, distinguishable colour.
+  assert.equal(colorFor("forest"), TERRAIN_COLORS.forest, "a shipped kind keeps its palette colour");
+  const a = colorFor("ashWaste");
+  assert.ok(/^hsl\(/.test(a), "an imported kind gets a derived hue");
+  assert.equal(a, colorFor("ashWaste"), "and the same hue every time");
+  assert.notEqual(a, colorFor("saltFlat"), "different kinds get different hues");
+
+  unregisterTable("travel");
+  assert.ok(!paintableTerrains().includes("ashWaste"), "dropping the table closes the vocabulary again");
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary)");

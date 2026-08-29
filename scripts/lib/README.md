@@ -42,7 +42,6 @@ sibling modules) — never the import path for this module's own features.
 | File | Owns |
 | --- | --- |
 | `attachment.mjs` | THE carry model: one actor attached to another in a role (rider/passenger/draft/crew/cargo) with a station and a draft kind — one flag on the carried actor, a forest by construction, `carrierChain`/`rootCarrierOf`, and a cached (never authoritative) reverse index. |
-| `animal-panel.mjs` | The animal panel injected into a mount's sheet: what it was trained for, whether it can be ridden, and what it carries — the GM-entry surface for the `system.animal` fields the system's monster sheet does not render. |
 | `mount.mjs` | Rider-role FACADE over `attachment.mjs` — the mounted-combat vocabulary (`mountOf`/`riderOf`/hooks); legacy symmetric pairs still read, every write converges them. |
 | `capacity.mjs` | How much any document can hold / is holding / is it over — in sixths of a stone. |
 | `movement-scales.mjs` | The four ACKS speeds (combat/running/exploration/expedition) and their book names. |
@@ -93,3 +92,5 @@ sibling modules) — never the import path for this module's own features.
 | `patches/goods-drag.mjs` | Core patch: drag sources for the goods rows core leaves un-draggable. |
 | `patches/initiative-card.mjs` | Core patch: a round's initiative gathered onto one chat card, a combat group as one row. |
 | `patches/surprise-card.mjs` | Core patch: the Surprise Matrix's results gathered onto one chat card. |
+| `movement-modes.mjs` | Which modifiers a thing meets, and in what order: a vehicle is a march with gates, a vessel is an independent layer with no ground beneath it, and a flier meets the country below while its wind supersedes the ground's. Composes parts contributed by the derivations; never prices anything itself. |
+| `survival.mjs` | Hunger and thirst as ladders a day at a time: three food rungs and one water rung, what each forbids, and the Constitution they take and owe back. Its own subsystem because starving reaches past a march; formation automates it for a marching order but does not own it. Every duration and rate is imported. |

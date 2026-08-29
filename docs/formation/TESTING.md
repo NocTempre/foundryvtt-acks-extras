@@ -293,6 +293,98 @@ recipe, plus one world actor named to match an invented creature name
 Teardown: unregister the invented document, delete the QQ actor, setting
 back off.
 
+## The camp panel
+
+`buildFormationView(record).travel.camp` over a formation-shaped record of REAL
+actors is the way to check this. **Dropping tokens does not seat members** in a
+scripted run: `addTokensToParty` works from `canvas.tokens.controlled`, so a
+token created by script joins nobody and the panel correctly reports an empty
+order. Build the record instead.
+
+*Observable:* `mouths` counts the order; `forecast.foodDays` is the POOLED
+supply divided by mouths (a week's rations across two is three whole days);
+`suffering` lists only members off the top rung, localized, carrying any
+Constitution lost. The rendered section carries no raw lang keys.
+
+## End day, the whole tick (added with survival and the throw)
+
+End day now does three things, and each can fail independently.
+
+1. Journey a formation on `forest`, road `none`, with invented `gettingLost`
+   and `navigationBonus` rows registered. `endDay(id, {miles, hexes})`.
+   *Observable:* the day count advances, the log grows, AND a
+   `.acks-extras-nav-card` message appears **whispered** — `msg.whisper` is
+   non-empty. Set the road to `paved` and end another day: no card at all,
+   because a party following a road does not get lost.
+2. Seat characters carrying rations and call `runProvisionDay`.
+   *Observable:* the pool is the SUM across the order, so two days of food
+   carried by one character feeds three mouths at half each, and all three
+   actors carry a `flags.acks-extras.survival` with `nourishment: "hungry"` —
+   including the two carrying nothing. That is the sharing rule.
+
+**Two traps this recipe exists for.** A `ChatMessage` created with a numeric
+`type` never appears and never throws — in v12+ `type` is a document SUBTYPE,
+so the old style constant silently fails validation. And `addMember` is not
+published on the API; members are seated by dropping tokens, so a scripted
+check builds a formation-shaped record over real actors instead.
+
+## Lost (added with the episode)
+
+Fixtures: a hex scene with `tokenVision` and `fogExploration` on, and one or
+two disposable party actors.
+
+1. `lostEpisode.beginEpisode(f, {day, anchor, trueOffset})`.
+   *Observable:* `isAstray` is true, a hidden shadow token stands at the true
+   hex, and no player fog exists yet.
+2. `walkAstray(f, {believedOffset, trueOffset})` twice, diverging.
+   *Observable:* the shadow follows the TRUE offsets; the ledger holds two
+   faked hexes and two observation pairs; a player FogExploration document now
+   carries a bitmap — and the Judge's does not.
+3. `discoverEpisode(f)`.
+   *Observable:* the player's fog is gone, `believed` is null, the shadow
+   REMAINS (the party still does not know where it is), and the dialog reaches
+   the players over socketlib without blocking the Judge.
+4. On a second party, `reanchorEpisode(f)` instead.
+   *Observable:* fog is restored and then re-painted at the TRUE hexes,
+   `committed` counts them, and the shadow is cleared.
+
+**A ledger write takes a moment to be readable.** `patchFormation` resolves
+before `getFormations()` reflects it — a scripted check that reads the record
+straight after an await can see the old value while the sheet already renders
+the new one. Settle ~1.5s before asserting on a fresh read. And note that a
+captured `R.x = record.travel.lost` holds a LIVE reference: it serializes at the
+end of the run, so it can disagree with a boolean captured beside it.
+
+**The trap this recipe exists for:** `lostOf` takes the TRAVEL object and reads
+`.lost` from it. Handing it the lost object directly answers a confident "not
+lost", which is what `isAstray` did on its first outing — every offline caller
+happened to wrap correctly, so only the live run caught it.
+
+## The city (added with settlement mode)
+
+Fixture: a disposable `acks-extras.party` Actor (creating it auto-creates the
+formation). Reach it with `getFormationForActor(actor)` — there is no
+`listFormations`.
+
+1. `travel.setJourneyMode(id, "settlement")`.
+   *Observable:* `travel.mode === "settlement"` and `clock.paused === true`;
+   the sheet grows `.acks-extras-formation-settlement` with four controls
+   named `travel.settlement.{pace,where,route,night}`.
+2. Run it once with NO `settlement` document registered.
+   *Observable:* `blocksPerTurn` answers `{blocks: null, missing: "paces"}` and
+   the panel says the rate is not imported — never a distance of zero.
+3. Register invented rows at priority 20 and re-render.
+   *Observable:* the block count appears, and the no-throw line states its
+   REASON (a meandering pace, or a known route) rather than going blank.
+4. Change the pace select and dispatch `change`; read `travel.settlement.pace`
+   back. **This is the check that matters**: the pickers deliberately do NOT
+   use `data-action`, because an ApplicationV2 action fires on click and a
+   select bound to one silently never writes. The first version of this panel
+   shipped that bug and the live check is what caught it.
+5. Leave with `setJourneyMode(id, "delve")`.
+   *Observable:* mode is `delve` and `clock.paused === false` — the delve clock
+   resumes.
+
 ## Teardown
 
 Delete the scene, the party actor (its formation goes with it), the member

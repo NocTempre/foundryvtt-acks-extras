@@ -1857,6 +1857,14 @@
       "travelEncounters": {
         "name": "Journey encounter throws",
         "hint": "Entering a hex and ending the day roll their owed encounter throws and whisper the chain to the Judge. Off, the panel's Encounter throw button is the only trigger."
+      },
+      "straggling": {
+        "name": "Crowded streets slow large parties",
+        "hint": "A large party is slowed while commuting through a settlement, in tiers. The book marks this optional; the thresholds and the reduction come from your imported book."
+      },
+      "provisionSharing": {
+        "name": "How a short day is shared",
+        "hint": "When the packs cannot feed the whole marching order, either everybody takes the same reduced ration, or as many as can be fed properly are and the rest go without. The book prices what going short does to a body, not who a captain chooses to feed."
       }
     },
     "travel": {
@@ -2104,7 +2112,28 @@
       "enteredToday": "{n} entered today",
       "lost": "Lost",
       "lostHint": "GM only — the party does not know.",
-      "lostNotePlaceholder": "Where they actually are (GM only)"
+      "lostNotePlaceholder": "Where they actually are (GM only)",
+      "winding": "{hexes} hex of bends",
+      "windingHint": "Following a winding road is longer than crossing straight. The road is usually still worth it — this is what it costs you in distance, so the trade is visible rather than hidden inside the miles.",
+      "following": {
+        "none": "Trackless country",
+        "river": "A navigable river",
+        "knownRoute": "A well-established route"
+      },
+      "followingLabel": "Following",
+      "followingHint": "A party following a river or a route it knows does not lose its way. Roads are the road picker's business.",
+      "movement": {
+        "label": "Moving by",
+        "hint": "How the order travels. It decides which factors it meets at all — a flier ignores roads, a vessel ignores the ground.",
+        "aloft": "Hours aloft",
+        "aloftHint": "How much of the travelling day was spent in the air.",
+        "day": "Of a day of",
+        "dayHint": "How long the travelling day was, in hours. Leave at zero for a day spent entirely aloft.",
+        "load": "Carrying",
+        "loadHint": "What the flier is carrying, which sets its speed band.",
+        "refused": "{factor} does not apply when {mode}.",
+        "replaced": "{factor} is replaced by the flier's own."
+      }
     },
     "audit": {
       "title": "Skill Audit",
@@ -2356,6 +2385,167 @@
       "targetWall": "A trap on a line",
       "targetZone": "A trap area",
       "resetDone": "The trap is rebuilt. Nobody knows it is there."
+    },
+    "settlement": {
+      "legend": "In the city",
+      "pace": {
+        "commuting": "Commuting",
+        "meandering": "Meandering"
+      },
+      "where": {
+        "avenue": "Avenues",
+        "alley": "Alleys",
+        "holedUp": "Holed up"
+      },
+      "route": {
+        "unknown": "Strangers here",
+        "destination": "Been there, not this way",
+        "route": "Walked this route before"
+      },
+      "night": "After dark",
+      "blocks": "Blocks this turn",
+      "blocksUnpriced": "No block rate imported — the pace has no distance yet.",
+      "straggling": "Crowded: the party is large enough to be slowed",
+      "navUnpriced": "No navigation target imported — the throw cannot be made yet.",
+      "noThrowRoute": "The route is known; no throw is needed.",
+      "noThrowPace": "A meandering pace reads the street signs; no throw is needed.",
+      "cadenceMissing": "No street cadence imported for this spot.",
+      "leave": "Leave the city",
+      "leaveHint": "Return to the delve clock.",
+      "enter": "Enter a city",
+      "enterHint": "Cross a settlement in blocks and turns instead of hexes and days.",
+      "paceLabel": "Pace",
+      "whereLabel": "Streets",
+      "routeLabel": "The way",
+      "navThrow": "Navigation throw {target}+ each turn, modifier {modifier}.",
+      "cadence": "The street answers every {turns} turn(s), on {target}+.",
+      "card": {
+        "title": "A turn in the streets",
+        "speaker": "The city",
+        "moved": "{blocks} block(s) covered, turn {turns}.",
+        "strayed": "Wrong turning — they end up {dice} blocks from where they meant to be.",
+        "strayedUnpriced": "Wrong turning — how far off is not imported yet.",
+        "owed": "The street stirs: {target}+ owed.",
+        "met": "Threw {rolled} against {target}+ — something finds them.",
+        "quiet": "Threw {rolled} against {target}+ — the street lets them pass.",
+        "unpriced": "Not imported: {what}."
+      },
+      "takeTurn": "Take a turn",
+      "takeTurnHint": "Walk one turn: the party covers ground, may lose its way, and the street gets its chance.",
+      "progress": "{blocks} block(s) over {turns} turn(s).",
+      "astray": "Turned around"
+    },
+    "lost": {
+      "discovered": {
+        "title": "You are not where you thought",
+        "body": "Landmarks that should have been here are not, and ones that should not, are. The ground you have been marking down these past days was never yours to map.",
+        "drift": "{days} day(s) astray; {hexes} hex(es) have gone back under the fog.",
+        "hint": "You can set off again in the direction you meant. Where you strayed, you do not know — unless you double back the way you came.",
+        "ok": "We were lost"
+      },
+      "face": "Hex face {n}",
+      "askTitle": "Which way did they wander?",
+      "askBody": "The throw failed and the party does not know it. Choose the face they took — from the landmarks and the lie of the land — or let the dice decide.",
+      "askFace": "They actually went",
+      "askHint": "They will keep believing they went the way they meant to, and the map will fill in accordingly.",
+      "askChoose": "They went this way",
+      "askRoll": "Roll for it",
+      "askCancel": "Not yet",
+      "needHex": "The party has no hex recorded yet, so there is nowhere to stray from.",
+      "noNeighbour": "That hex has no neighbour on this grid.",
+      "note": "Strayed toward face {face}.",
+      "legend": "Lost",
+      "astraySince": "Astray since day {day} — {hexes} hex(es) of map they did not earn.",
+      "begin": "They strayed…",
+      "beginHint": "Open an episode: pick the face they actually took, and the table's map begins filling in the wrong place.",
+      "discover": "They realise",
+      "discoverHint": "A successful throw tells them they are lost. Strict RAW: it does not tell them where they are, and the ground they wrongly mapped closes over.",
+      "reanchor": "They find the landmark",
+      "reanchorHint": "The only ending that gives anything back: the country they really crossed is put onto the map, in its right place."
+    },
+    "flight": {
+      "load": {
+        "normal": "Flying light",
+        "heavy": "Flying heavy",
+        "overloaded": "Too laden to fly"
+      }
+    },
+    "provisions": {
+      "policy": {
+        "even": "Everyone shares the shortfall",
+        "triage": "Feed who can be fed"
+      }
+    },
+    "nav": {
+      "title": "Finding the way",
+      "speaker": "The Judge's compass",
+      "terrain": "Crossing {terrain}.",
+      "one": "Someone in the order knows the country.",
+      "both": "Two ways of knowing the country, and they compound.",
+      "bonusUnpriced": "What that knowledge is worth has not been imported, so it counted for nothing.",
+      "result": "Threw {total} against {target}+.",
+      "botched": "An unmodified 1 — it fails whatever the bonus.",
+      "kept": "They are where they think they are.",
+      "lost": "They have strayed, and do not know it.",
+      "unpriced": "No navigation target imported for this ground.",
+      "cannotTest": "The throw cannot be made until the travel tables are imported.",
+      "judgeChooses": "Choose the face they wandered toward — from the landmarks and the lie of the land, or roll for it — then begin the episode."
+    },
+    "forage": {
+      "firewood": "Firewood",
+      "water": "Water",
+      "food": "Food"
+    },
+    "search": {
+      "poi": "A place worth finding",
+      "landmark": "The last landmark we knew",
+      "lostGroup": "A party gone missing",
+      "onFoot": "On the ground",
+      "aerial": "From the air"
+    },
+    "camp": {
+      "legend": "The camp",
+      "food": "Food",
+      "water": "Water",
+      "days": "days, for {mouths} in the order",
+      "throw": "{target}+ (modifier {modifier})",
+      "searchThrow": "{target}+, {held} hour(s) held for it",
+      "automatic": "Found without a throw here.",
+      "unpriced": "Not imported yet.",
+      "thirsty": "the heat is drinking it faster",
+      "thirstyHint": "Sweltering weather increases what each person needs, so the same skins last fewer days.",
+      "exposureHours": "Hours in the weather",
+      "exposureHoursHint": "How long the order stood unprotected today. Anyone carrying a cloak or furs is sheltered; getting wet is not.",
+      "atHeatSource": "At a fire",
+      "wet": "Got wet",
+      "exposureMild": "This band is mild, or its clock is not imported yet."
+    },
+    "forageRun": {
+      "title": "What the country gave",
+      "speaker": "The day's work",
+      "found": "{kind}: {days} day(s) found, over {throws} attempt(s).",
+      "foundStone": "{kind}: {amount} stone found, over {throws} attempt(s).",
+      "nothing": "{kind}: nothing, over {throws} attempt(s).",
+      "automatic": "{kind}: taken freely here, no throw needed.",
+      "unpriced": "{kind}: not imported yet, so nothing was thrown.",
+      "work": "Work the country",
+      "workHint": "Roll the day's foraging and hunting for the whole order, and put what is found into their packs.",
+      "noHours": "No hours were set aside for foraging or hunting today."
+    },
+    "searchRun": {
+      "title": "An hour of looking",
+      "speaker": "The search",
+      "looking": "Looking for {quarry}: {target}+, modifier {modifier}, {throws} attempt(s) this hour.",
+      "found": "Threw {total} — they find it.",
+      "missed": "Threw {total} — nothing.",
+      "nothingHere": "Threw {total} — good enough, but there is nothing here to find.",
+      "silence": "The party learns nothing, and cannot tell an empty hex from a poor search.",
+      "watched": "The hour owes its encounter throw — looking around gets you noticed.",
+      "unpriced": "Not imported: {what}. Nothing was thrown.",
+      "search": "Search an hour",
+      "searchHint": "Spend one of the day's set-aside hours looking. It owes an encounter throw whatever it finds.",
+      "present": "Something is here to find",
+      "presentHint": "Your map, not the module's: tick this when the hex actually holds a lair, ruin or landmark. Left unticked, a good throw still finds nothing — and the party cannot tell the difference."
     }
   },
   "ACKS-HENCHMEN.sheet.location": "Location / Recruitment Market",
@@ -3314,7 +3504,8 @@
       "ecology": "Ecology",
       "henchman": "Henchman",
       "description": "Description",
-      "source": "Source"
+      "source": "Source",
+      "animal": "Animal"
     },
     "route": {
       "guide": "Compatibility Guide",
@@ -3392,7 +3583,8 @@
       "sourceConversions": "What was converted",
       "sourceGaps": "What was left alone",
       "sourceUnread": "Not recognised",
-      "sourceNotes": "To do by hand"
+      "sourceNotes": "To do by hand",
+      "animalRole": "Role & Training"
     },
     "field": {
       "types": "Type(s)",
@@ -3470,7 +3662,9 @@
       "sourceRoute": "Rule from",
       "sourceValue": "ACKS II",
       "sourceRule": "Cited",
-      "sourceReason": "Why"
+      "sourceReason": "Why",
+      "animalTraining": "Trained for",
+      "animalMountable": "Mountable"
     },
     "desc": {
       "appearance": "Appearance",
@@ -3539,6 +3733,12 @@
       "noManagers": "No character actors exist to serve as a manager.",
       "henchmanSet": "Now serving as a henchman of {name}.",
       "noSave": "This monster has no \"{save}\" saving throw value yet — set one in the field first. (Legacy monsters may use breath/wand instead of blast/implements.)"
+    },
+    "animal": {
+      "mountableLabel": "Can be ridden",
+      "imported": "imported",
+      "roleHint": "Two separate questions: what this animal was schooled for, and whether its kind can carry a rider at all.",
+      "loadHint": "What it carries is set on the Classification tab and drawn on Inventory."
     }
   },
   "ACKS-HENCHMEN.location.tab.contents": "Contents",
@@ -4069,16 +4269,6 @@
   "ACKS-VEHICLES.wind.strong": "Strong",
   "ACKS-VEHICLES.wind.veryStrong": "Very strong",
   "ACKS-VEHICLES.wind.gale": "Gale",
-  "ACKS-LIB.animalPanel.legend": "Animal",
-  "ACKS-LIB.animalPanel.imported": "imported",
-  "ACKS-LIB.animalPanel.training": "Trained for",
-  "ACKS-LIB.animalPanel.trainingHint": "What it was schooled for. A war-trained mount joins its rider's charge.",
-  "ACKS-LIB.animalPanel.mountable": "Can be ridden",
-  "ACKS-LIB.animalPanel.mountableHint": "Whether the species can be ridden at all — a different question from what it was trained for.",
-  "ACKS-LIB.animalPanel.loadReadout": "Carries {normal} st, up to {max} st",
-  "ACKS-LIB.animalPanel.loadUnstated": "Load unstated",
-  "ACKS-LIB.animalPanel.carriesHint": "What it can carry, read from the load fields further down this sheet — the one place a mount's capacity is recorded.",
-  "ACKS-LIB.animalPanel.hint": "Training and mountability are imported from your own book where it says; set them here for an animal you made by hand. Its load is edited below, under Rating & Saves.",
   "ACKS-VEHICLES.team.unpriced": "Not imported: {kinds} — import the travel tables to weigh what they pull.",
   "ACKS-VEHICLES.water.lakeOrRiver": "Lake or river",
   "ACKS-VEHICLES.water.coast": "Coastal waters",
@@ -4249,7 +4439,6 @@
   "ACKS-VEHICLES.reason.terrain.swamp": "Swamp",
   "ACKS-VEHICLES.reason.terrain.mud": "Mud",
   "ACKS-VEHICLES.reason.terrain.snow": "Snow",
-  "ACKS-VEHICLES.reason.road": "Road",
   "ACKS-VEHICLES.reason.tablesMissing": "No travel tables imported — ground and wind count as ×1 until they are",
   "ACKS-BATTLEMAP.terrain.tool": "Paint terrain",
   "ACKS-BATTLEMAP.terrain.palette": "Terrain Brush",
@@ -4258,8 +4447,6 @@
   "ACKS-BATTLEMAP.terrain.hexOnly": "Terrain painting works on hex-gridded scenes.",
   "ACKS-BATTLEMAP.terrain.paintHint": "Click or drag on the map to paint hexes. One terrain per hex; painting over replaces.",
   "ACKS-BATTLEMAP.terrain.disarmedHint": "Pick a brush to arm painting, or use the toolbar's Paint terrain tool.",
-  "ACKS-VEHICLES.reason.roadDriver": "Road, driven well",
-  "ACKS-VEHICLES.reason.roadWashedOut": "Road washed out — worth nothing in this weather",
   "ACKS-VEHICLES.reason.mudPaved": "Mud, but the pavement holds",
   "ACKS-VEHICLES.reason.terrain.lakeOrRiver": "Lake or river",
   "ACKS-VEHICLES.reason.terrain.coast": "Coastal waters",
@@ -4391,5 +4578,32 @@
   "ACKS-VEHICLES.bucket.passengers": "Passengers",
   "ACKS-VEHICLES.bucket.cargo": "Cargo",
   "ACKS-VEHICLES.bucket.pooled": "Passengers and cargo come out of one pool on this vehicle — a bed, not cabins — at the rate its own berth figure sets.",
-  "ACKS-VEHICLES.bucket.berthed": "Passengers are berthed apart from the hold. Her crew is not cargo either, but the two trade at fifty stone a hand."
+  "ACKS-VEHICLES.bucket.berthed": "Passengers are berthed apart from the hold. Her crew is not cargo either, but the two trade at fifty stone a hand.",
+  "ACKS-LIB.movement.mode.foot": "On foot",
+  "ACKS-LIB.movement.mode.mounted": "Mounted",
+  "ACKS-LIB.movement.mode.vehicle": "By vehicle",
+  "ACKS-LIB.movement.mode.flying": "Flying",
+  "ACKS-LIB.movement.mode.vessel": "By vessel",
+  "ACKS-LIB.survival.fed": "Fed",
+  "ACKS-LIB.survival.hungry": "Hungry",
+  "ACKS-LIB.survival.underfed": "Underfed",
+  "ACKS-LIB.survival.starving": "Starving",
+  "ACKS-LIB.survival.watered": "Watered",
+  "ACKS-LIB.survival.dehydrated": "Dehydrated",
+  "ACKS-BATTLEMAP.topology.side": "Edge",
+  "ACKS-BATTLEMAP.topology.corner": "Corner",
+  "ACKS-BATTLEMAP.topology.centre": "Middle",
+  "ACKS-BATTLEMAP.routes.earth": "Earthen road",
+  "ACKS-BATTLEMAP.routes.gravel": "Gravel road",
+  "ACKS-BATTLEMAP.routes.paved": "Paved road",
+  "ACKS-LIB.survival.sheltered": "Sheltered",
+  "ACKS-LIB.survival.hypothermic": "Hypothermic",
+  "ACKS-VEHICLES.reason.aloft.share": "Aloft",
+  "ACKS-VEHICLES.reason.aloft.windy": "Wind aloft",
+  "ACKS-VEHICLES.reason.aloft.heavy": "Heavy for a flier",
+  "ACKS-VEHICLES.reason.aloft.overloaded": "Too heavy to fly",
+  "ACKS-VEHICLES.reason.aloft.unpriced": "Flight speed not imported yet",
+  "ACKS-VEHICLES.reason.road.plain": "Road",
+  "ACKS-VEHICLES.reason.road.driver": "Road, driven well",
+  "ACKS-VEHICLES.reason.road.washedOut": "Road washed out — worth nothing in this weather"
 }

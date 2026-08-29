@@ -234,7 +234,7 @@ never a shipped constant — RR p. 316's worked example prices a contingent,
 and that price belongs to the reader's book.
 
 
-## 2026-08-29 — Draft equivalents import; mounts arrive flagged
+## 2026-08-28 — Draft equivalents import; mounts arrive flagged
 
 An audit of the mount path (prompted by review) found the last printed values
 still shipping in this feature and a data path that was never filled.
@@ -271,7 +271,7 @@ sources, and each yields to stated data. They are the same class of glue as
 structure.
 
 
-## 2026-08-29 — A mount's capacity has one store, and the panel reads it
+## 2026-08-28 — A mount's capacity has one store
 
 Building the animal panel surfaced the real "mounts capacity" defect. The
 `acks-extras.animal` sub-type declares `capacity6` / `unencumbered6`, and
@@ -286,13 +286,14 @@ snapshot and seeing the sheet's own Normal/Max Load fields sitting empty
 below a panel that claimed the beast carried sixty stone.
 
 Ruling: **one live store.** The importer writes
-`flags["acks-extras"].extras.load` in printed stone; the panel READS it and
-offers no second pair of inputs, because two controls for one fact can
-disagree on screen (the same reasoning that removed the class-training effect
+`flags["acks-extras"].extras.load` in printed stone, and no surface offers a
+second pair of inputs, because two controls for one fact can disagree on
+screen (the same reasoning that removed the class-training effect
 row in favour of its pill strip). The sub-type's fields stay in the schema —
 removing them is a migration for no gain — documented as legacy that nothing
 reads or writes.
 
-The panel therefore edits exactly what has no other home: **training** and
-**mountability**. Both are separate questions from each other and from load,
-and none of the three had a surface before this release.
+The surface therefore edits exactly what has no other home: **training** and
+**mountability**. Both are separate questions from each other and from load.
+(Where that surface lives was re-ruled the same day —
+`docs/monsters/DECISIONS.md`.)

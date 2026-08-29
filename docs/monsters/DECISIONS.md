@@ -79,3 +79,28 @@ frontage column of MM Overview p.11 that already ships in this file alongside
 from a printed one — a human ruled that restructuring an already-shipped
 column adds no new book content. If that premise is ever revisited, the whole
 SIZES table goes together.
+
+## 2026-08-28 — The animal's fields are a tab on this sheet, not an injected panel
+
+Superseded the same-day ruling in `docs/vehicles/DECISIONS.md` that shipped
+these fields as a panel prepended into `.window-content` by a render hook.
+**The new evidence is what the first ruling did not check: which sheet an
+animal actually opens.** It assumed a foreign host — the system's monster
+sheet — that had to be decorated from outside. In fact `monsters/module.mjs`
+registers the Full Monster Sheet for the animal sub-type with
+`makeDefault: true`, so an animal's default sheet is OURS, and it already has
+a tab structure, a form submission and a per-actor part filter. Injected DOM
+was solving a problem that did not exist, and it landed the controls in the
+one place a sheet has no room for them: floating above the tab strip, owning
+its own change listener and its own writes.
+
+Ruling: an **Animal tab**, a real `PARTS` entry and `TABS` row next to
+Classification, gated per-actor both ways. The controls bind by `name` and the
+sheet submits them, so the panel's hand-rolled change listener and its
+`actor.update` calls are gone. `scripts/lib/animal-panel.mjs` is deleted and
+its ten `ACKS-LIB.animalPanel.*` keys move under `ACKS-MONSTERS`.
+
+Cost: the fields are now tied to this sheet. A world that switches an animal
+to the system's own monster sheet loses them — accepted, because that is true
+of every other field this sheet adds, and the alternative was decorating a
+sheet we already own from the outside.

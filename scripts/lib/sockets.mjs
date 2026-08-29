@@ -68,8 +68,11 @@ export async function executeAsGM(action, payload) {
 }
 
 // Native-channel fallback listener: only wired when socketlib never came up.
+// A context with neither socketlib NOR a native socket is headless — there is
+// nobody to hear the channel, and throwing here would take the whole ready
+// hook down with it, killing every registration that follows.
 Hooks.once("ready", () => {
-  if (socket) return;
+  if (socket || typeof game.socket?.on !== "function") return;
   game.socket.on(CHANNEL, async ({ action, payload } = {}) => {
     // Only the first active GM executes, so multiple GMs don't double-run.
     if (game.user !== firstActiveGm()) return;

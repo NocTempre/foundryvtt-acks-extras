@@ -1189,3 +1189,72 @@ disagreement this rules out); a persisted roster on the carrier (a deleted
 carrier leaves a roster pointing at ghosts); an eager world migration (the
 read-fallback plus clear-on-write converges without a sweep that could
 half-run).
+
+## 2026-08-29 — Thirst charges a rolled toll; hunger charges a flat one
+
+Starvation and dehydration were being priced through the same number-only
+gate. Starvation's cost is a flat figure per day and read correctly;
+dehydration's is a die, so `numOrNull` answered null and the whole condition
+cost **nothing**. A party could stay dehydrated indefinitely at no charge
+while the ladder reported it correctly — the readout said one thing and the
+arithmetic did another.
+
+**Ruled:** the two tolls have different shapes and the code says so.
+`advanceSurvival` takes `thirstRoll` from the caller, exactly as
+`advanceSettlementTurn` takes `navRoll` — the core stays pure and the impure
+shell owns the dice. Each body throws its own; a shared throw would make a
+party suffer in lockstep, which is not the printed rule. A die with no roll
+supplied reports `unrolled` and charges nothing, so an unsupplied roll is
+visible instead of looking like a body that got off free. The heat's
+multiplier now reaches the toll — `runProvisionDay` was computing
+`heatBurden.dehydrationDrain` and discarding it, so sweltering weather
+charged the same as a mild day.
+
+**Cost:** one more argument through the day-runner, and a caller must know to
+roll. `thirstDie()` exists so it can ask rather than guess.
+
+**Known limit, deliberately not papered over:** the ration vocabulary has
+three levels (full / half / none) and the printed onset has three clauses —
+no water, below half, and below full. Those do not line up: "below half"
+floors to `none` here, so it is charged on the harsher no-water clock. A
+fourth ration level would fix the mapping and would also change what
+`dealProvisions` means, which is a larger change than this defect warrants.
+Recorded so the next reader knows it is a mapping, not an oversight.
+
+**Rejected:** an injected roller callback (`advanceSurvival` would stop being
+pure the moment anyone passed an async one); defaulting an unrolled die to
+its average (an invented figure is exactly what the registry exists to
+prevent); rolling once for the party (cheaper, wrong).
+
+## 2026-08-29 — An i18n key is a leaf or a parent, never both
+
+Re-keying the march's road factors from `roadDriver` to `road.driver` — so the
+movement-mode layer could read `road` as the layer name — left
+`ACKS-VEHICLES.reason.road` in `lang/en.json` as a string while three new keys
+needed that same path as a parent. Foundry expands flat dotted keys into nested
+objects; the expansion hit a string where it wanted an object and dropped the
+**entire language file**. Every string in acks-extras rendered as its raw key,
+in every feature, with nothing logged.
+
+It survived `JSON.parse` (the file is valid JSON), it survived `validate`'s
+i18n check (which asks whether referenced keys exist, and they did), and it
+survived a fresh browser. Only looking at a rendered panel found it.
+
+**Ruled:** a key's path is either a leaf or a parent. `validate-extra.mjs`
+walks `lang/en.json` — nested branches flattened the way Foundry flattens them
+— and fails on any path that is both. The superseded `reason.road`,
+`reason.roadDriver` and `reason.roadWashedOut` labels were deleted rather than
+kept, because nothing emits those part keys any more.
+
+**Cost:** one release-day debug, and three dead label keys removed. The gate is
+cheap and runs on every validate.
+
+**Why it is a gate and not a note:** the failure is silent, total, and
+indistinguishable from "the module did not load" — the class of bug this
+family's live-testing rule exists for, and the one an offline suite is least
+able to see.
+
+**Rejected:** keeping the old keys as aliases (the conflict is the old key's
+existence, not its value); flattening the whole file to dotted keys (the nested
+roots are how the file stays readable); checking only keys this repo adds (the
+conflict is between an old key and a new one, so both halves must be in scope).

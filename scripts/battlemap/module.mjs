@@ -30,6 +30,7 @@ import {
   registerTerrainPaintHooks,
   TERRAIN_COLORS,
 } from "./terrain-paint.mjs";
+import { routePaint, LINK_ROADS } from "./route-paint.mjs";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`,
@@ -154,6 +155,23 @@ function installSceneControls() {
         }
       },
     };
+    // Routes: the road network, drawn between a hex's nodes rather than
+    // filled into its cells. One tool per road kind, so Foundry's own
+    // one-active-tool rule is the kind selection — the same shape the terrain
+    // brush uses, and the reason neither needs a palette window.
+    LINK_ROADS.forEach((kind, i) => {
+      tools[`route-${kind}`] = {
+        name: `route-${kind}`,
+        title: game.i18n.localize(`${LANG_PREFIX}.routes.${kind}`),
+        icon: "fa-solid fa-road",
+        order: CAPTURE_MODES.length + 2 + i,
+        onChange: (_event, active) => {
+          if (active) routePaint.arm(kind);
+          else routePaint.disarm();
+        },
+      };
+    });
+
     tools.wipe = {
       name: "wipe",
       title: game.i18n.localize(`${LANG_PREFIX}.samples.wipe`),
