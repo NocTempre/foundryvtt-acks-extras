@@ -1,6 +1,6 @@
 # Gallery
 
-**Eleven plates — one per feature guide.** This is the highlight reel, not the
+**Twelve plates — one per feature guide.** This is the highlight reel, not the
 archive: for each feature area, the one shot that best answers "what does this
 module actually do?", and nothing else.
 
@@ -17,18 +17,18 @@ the next refresh.
 
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
-| Battlemaps and token scale | The calibration panel floating over the map it is aligning — boxes and corners sampled on the map's own squares, the fitted lattice drawn on top, and the cell it measured read off the card above the two scale decisions | [guide](guides/battlemap.md) | [v4.27.1](releases/v4.27.1/battlemap.png) |
-| Characters and classes | Rolling a character: the attribute rule and the scores, the class above the template die, and what is left to choose | [guide](guides/classes.md) | [v3.5.0](releases/v3.5.0/classes-chargen.png) |
-| Class paths | A class's groups of mutually exclusive options — a region, a dark path, a caste — with the starting templates shown as one of those groups | [guide](guides/classes.md) | [v4.17.0](releases/v4.17.0/classes-paths.png) |
-| Proficiencies and powers | A proficiency's Mechanics tab: classification, the selections a grant reads, and its Active Effects | [guide](guides/abilities.md) | [v3.9.0](releases/v3.9.0/combat-trickery.png) |
-| Equipment and containers | The item sheet: a weapon's rolls pinned to its art, the rails of type, slot and state, and the tabs the item earns | [guide](guides/equipment.md) | [v4.18.0](releases/v4.18.0/equipment-item-sheet.png) |
-| Exploration formations | The party sheet: exploration clock, party rolls, marching-order roles | [guide](guides/formation.md) | [v4.0.0](releases/v4.0.0/formation-party-sheet.png) |
-| Monsters | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v3.0.0](releases/v3.0.0/monster-card.png) |
-| Henchmen and hirelings | An employer's roster tab: who is hired, on what terms | [guide](guides/henchmen.md) | [v3.0.0](releases/v3.0.0/henchmen-roster.png) |
-| Influence and reactions | A social roll with its modifier stack itemized — here with a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v4.0.0](releases/v4.0.0/influence-bribe.png) |
-| Places and storage | A place that holds goods, and who is recorded there | [guide](guides/location.md) | [v4.0.0](releases/v4.0.0/location-sheet.png) |
-| Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v4.0.0](releases/v4.0.0/markets-trade-tab.png) |
-| Vehicles | A holed longship: her hull, her twelve-hour day beside its hour, which of casualties and damage governs her speed, and what a repair would cost | [guide](guides/vehicles.md) | [v4.6.0](releases/v4.6.0/vehicles.png) |
+| Battlemaps and token scale | Hex terrain painted onto a scene as Regions — the Terrain Brush open, several cells claimed by different ground, and one terrain per hex however often you paint over it | [guide](guides/battlemap.md) | [v5.0.0](releases/v5.0.0/battlemap-terrain.png) |
+| Characters and classes | Rolling a character: the attribute rule and the scores, the class above the template die, and what is left to choose | [guide](guides/classes.md) | [v5.0.0](releases/v5.0.0/classes-chargen.png) |
+| Class paths | A class's groups of mutually exclusive options — a region, a dark path, a caste — with the starting templates shown as one of those groups | [guide](guides/classes.md) | [v5.0.0](releases/v5.0.0/classes-paths.png) |
+| Proficiencies and powers | A proficiency's Mechanics tab: classification, the selections a grant reads, and its Active Effects | [guide](guides/abilities.md) | [v5.0.0](releases/v5.0.0/abilities.png) |
+| Equipment and containers | The item sheet: a weapon's rolls pinned to its art, the rails of type, slot and state, and the tabs the item earns | [guide](guides/equipment.md) | [v5.0.0](releases/v5.0.0/equipment-item-sheet.png) |
+| Exploration formations | The party sheet on a journey: the ground it is crossing, the day's sky and the conditions that stack, the day board and its ancillary hours, and the march derived with every factor named | [guide](guides/formation.md) | [v5.0.0](releases/v5.0.0/formation-journey.png) |
+| Monsters | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v5.0.0](releases/v5.0.0/monsters.png) |
+| Henchmen and hirelings | An employer's roster tab: who is hired, on what terms | [guide](guides/henchmen.md) | [v5.0.0](releases/v5.0.0/henchmen.png) |
+| Influence and reactions | A social roll with its modifier stack itemized — here with a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v5.0.0](releases/v5.0.0/influence.png) |
+| Places and storage | A place that holds goods, and who is recorded there | [guide](guides/location.md) | [v5.0.0](releases/v5.0.0/location.png) |
+| Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v5.0.0](releases/v5.0.0/markets.png) |
+| Vehicles | A galley's stations: every seat group with what it requires and who fills it, named hands as chips beside the unnamed complement, an empty officer's chair stating what it costs, and the hold below | [guide](guides/vehicles.md) | [v5.0.0](releases/v5.0.0/vehicles.png) |
 
 There is no plate for [Appearance](guides/appearance.md), the twelfth guide,
 because the ACKS look is in all eleven of the above. A plate of its own would

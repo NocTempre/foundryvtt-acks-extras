@@ -37,9 +37,9 @@ report the same symptom.
   reports "missing". Re-fetch by name after any transfer.
 - **A group's occupants are `system.stacks`, not a count**, and they are added
   by DROPPING an actor on the group sheet.
-- `bracketRow(rows, value)` returns **null** off the end of a table rather
+- `bracketRow(rows, value)` returns **nothing** off the end of a table rather
   than clamping to the last row. Every ladder in the family reads through it,
-  so assert the null.
+  so assert the miss.
 
 ### Driving an initiative roll
 
@@ -115,10 +115,13 @@ report the same symptom.
    apply a class through `applyClass`, and equip two weapons so a loadout
    effect with changes actually exists (a lone plain weapon yields none, and
    no effect is written). Add ONE hand-made effect as the control.
-   *Observable:* on the Effects tab the two managed rows show a lock instead of
-   the trash and keep their toggle and edit controls, while the hand-made row
-   keeps its trash. `effect.delete()` on a managed one is refused and warns
-   naming its owner; the hand-made one deletes, by a real trash click. Emptying
+   *Observable:* on the Effects tab the LOADOUT row shows a lock instead of the
+   trash and keeps its toggle and edit controls, while the hand-made row keeps
+   its trash. The class-training effect has no row there at all — the classes
+   feature removes it and renders the same document as the Class modifiers pill
+   strip instead, because two controls for one document can disagree on screen.
+   `effect.delete()` on a managed one is refused and warns naming its owner;
+   the hand-made one deletes, by a real trash click. Emptying
    (`update({changes: []})`) and disabling both succeed on a managed effect.
    Re-applying the class replaces the training effect (the authorized path),
    and `refreshLoadout` collapses duplicate loadout effects to one.

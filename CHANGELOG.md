@@ -1,5 +1,87 @@
 # Changelog
 
+## 5.0.0
+
+Overland travel: the journey, the weather, the wilds — and vehicles that carry
+what they actually carry.
+
+### Added
+- **One carry model, and stations you can read at a glance.** A rider on a
+  horse, a passenger in a wagon, an ox in the traces, a rower at the bench and
+  a canoe lashed on as cargo are now one relationship. A vehicle sheet shows
+  its seats as groups — what each requires, who is in it, what a shortfall
+  costs — with compact chips instead of full cards, half-hand badges where a
+  body is unqualified, and steppers for the unnamed complement. Dropping an
+  actor asks what they are, with the cost of each option stated before
+  anything is written.
+- **Aboard means what it weighs.** A named occupant charges its own mass —
+  every body a stack stands for, plus what it actually carries — and the
+  printed per-head rate prices only the unnamed complement. Crew bodies ride
+  free; a non-motive role's gear charges the hold (RR ch. 7's marines), and
+  the hold names that share.
+- **A journey on the party sheet.** A formation can leave the dungeon clock
+  behind and count days instead: ground, road and territory, a day board of
+  one dedicated activity plus the four ancillary hours the wilderness rules
+  budget, an End Day that advances the world clock and writes an append-only
+  log, the getting-lost state the Judge alone sees, and the day's march
+  derived in the rules' order with every factor on its own line.
+- **Hex terrain, painted.** A battlemap tool paints a hex-gridded scene's
+  cells into Scene Regions keyed by terrain. On a journey the party token then
+  IS the trace: crossing a boundary names the hex and sets the ground from
+  what the map says.
+- **The mounted and vehicle combat overlay.** Setting-gated prompts for the
+  saves that keep a seat — after an attack by rider or mount without Riding or
+  Mounted Combat, and on damage to either half without a military saddle — plus
+  a card stating who may act by what the mount did, and its vehicle mirror: a
+  howdah's beast fights, a wagon's team only on a charge, a palanquin's bearers
+  never.
+- **Weather over the march.** Three throws a day under the hex's Köppen climate
+  and the season, the night temperature read from the same roll, freezing air
+  turning drizzle to flurries and rain to snow, still air turning them to mist
+  and fog, an optional weather-fronts drift, thirteen mechanical conditions
+  that stack, and the footing they leave — mud that forms, freezes, thaws and
+  dries, and snow that lies and melts to mud. Wheels stop where the footing
+  says so, and the panel names the wagon that cannot roll.
+- **The wilderness encounter chain, end to end.** One throw runs the territory
+  d20 on the column the party's territory, road and the night pick, then a
+  civilized draw, or a rarity throw into the terrain-and-rarity monster draw,
+  or a terrain encounter — standing down while the party rests or retraces its
+  own route. The Judge gets one whispered card with every roll shown, the
+  encounter distance, the party's visibility and evasion target, and a drawn
+  creature resolved against the world and the imported library as a link.
+  Surprise resolves on the system's own matrix; reactions with the influence
+  tools.
+- **Seamanship on the vessel sheet.** The day's navigation and hazard throws in
+  the door-helper shape — decomposed and shown before anything is rolled, with
+  the arts and the helm prefilled from the people actually aboard — a sinking
+  clock that counts a holed hull down, the crew-for-cargo trade deriving itself
+  from the hands a vessel is short, and a per-head gear rate so an abstract
+  contingent of marines stops being weightless freight.
+
+### Changed
+- **Printed values arrive from your own books.** Terrain and road multipliers,
+  wind and tacking, the navigation and hazard targets, hazard dice and rates,
+  hull damage shares, the sinking die, repair rates, speed rounding and the
+  general berth no longer ship in code. They read from ruledata documents
+  imported by ACKS Importer 5.0.0 or later. Every surface that cannot answer
+  says so — a stated reason, an unpriced line, "draw this from your book" —
+  and never a guess. **Until you import, worlds visibly lose numbers they used
+  to have.** That is the trade, and it is deliberate.
+- **`acksExtras.vehicles` is apiVersion 2.** `NAVIGATION_TARGETS`, `HAZARDS`,
+  `DAMAGE_SHARE`, `SINK_FORMULA`, `CREW_PER_POINT` and `BERTH_STONE` are
+  removed rather than aliased; the registry-reading functions and the
+  structural key lists beside them replace each one.
+- **`acksExtras.formation` is apiVersion 6**, adding the travel mode, the
+  weather generator and the encounter chain.
+
+### Internal
+- The carry model is a forest by construction: one flag on the carried actor,
+  a chain guard that refuses a cycle, and a reverse index that is a cache and
+  never the truth. Chains resolve to their root, so a rider whose horse is
+  harnessed to a wagon moves at the wagon's pace.
+- `lib/mount.mjs` is a permanent facade over the one model; legacy symmetric
+  pairs still read, and every write converges them.
+
 ## 4.28.0
 
 Your class's damage bonus reaches your damage roll.
