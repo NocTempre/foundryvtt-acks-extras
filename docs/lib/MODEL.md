@@ -440,6 +440,71 @@ both give `slotsOf` an empty list, and every name-heuristic fallback in the
 family gates on the former so a deliberate ruling is not undone by an item's
 name.
 
+## Carrying: mounts, teams and everything aboard
+
+One relationship covers every actor carried by another
+([attachment.mjs](../../scripts/lib/attachment.mjs)): a flag on the CARRIED
+actor naming its carrier, the STATION it works, and — for an animal in
+harness — the KIND it pulls as. A rider on a horse, a passenger in a wagon,
+an ox in the traces, a rower at a bench and a canoe lashed on as cargo are
+the same binding, which is why a rider whose horse is harnessed to a wagon
+moves at the wagon's pace: chains resolve to their ROOT. One flag per actor
+makes the graph a forest by construction, `attach` refuses a carrier whose
+chain already contains the actor, and the reverse index is a cache that is
+re-verified against the flag on every hit — never the truth.
+
+[mount.mjs](../../scripts/lib/mount.mjs) is a permanent FACADE over that one
+model, not a second one: it keeps the mounted-combat vocabulary
+(`mountActor`/`dismount`/`mountOf`/`riderOf` and the `acksLibMounted` /
+`acksLibDismounted` hooks) that acks-equipment's overlay was promised, and
+implements it as a `rider` attachment. Worlds written before the
+unification still read: a legacy symmetric mount/rider pair answers
+`mountOf`, and every write converges it to the single flag. A rider whose
+attachment exists is never also read from a stale pair.
+
+### What a mount knows about itself
+
+The `acks-extras.animal` sub-type ([data/animal-data.mjs](../../scripts/lib/data/animal-data.mjs))
+carries the two facts the mounted rules ask of a creature, and they are
+different questions:
+
+- **`animal.training`** — what it was trained for (`ANIMAL_TRAINING`:
+  untrained, riding, draft, war, hunting, herding). A war-trained mount
+  joins its rider's charge; an untrained one does not.
+- **`animal.mountable`** — whether it can be ridden at all, which is a fact
+  about the species rather than its schooling: an ox is mountable in
+  principle and untrained in practice, and a war DOG is trained for war and
+  is still not a mount.
+
+Both arrive by import. The RR prices animals BY ROLE — a "Heavy War" horse,
+a "Draft" mule, a "Riding" camel — so the qualifier in the name the book
+printed is its statement of training, and acks-importer reads it there
+(`trainingFromName`); mountability is taken from the species having a
+riding form priced in that same book (`mountableSpecies`). A field the book
+supplies directly always wins over the name. Nothing about which animals
+exist, what they cost or what they carry ships here.
+
+`training` initialises to `untrained`, which is the schema's default rather
+than a claim — so consumers read it as UNSTATED and may fall back to the
+name. That is why `looksWarTrained` treats `untrained` as "not stated" and
+consults the name, while any explicit non-war training is authoritative
+over it.
+
+### Teams
+
+A team is counted in HEAVY-HORSE EQUIVALENTS, so the heavy horse's own value
+is the unit's definition and ships; what every other draft kind is worth
+against it is printed (RR ch. 4 substitutes oxen, mules and medium horses at
+stated rates) and reads from the `travel` document's `draftEquivalents`
+table. Unimported, a team of heavy horses still counts and every other
+animal is UNPRICED — contributing nothing and named on the sheet as
+unpriced, rather than being guessed at. `DRAFT_KINDS` in the vehicle model
+is the structural key list only.
+
+Which equivalence class a harnessed animal belongs to is stated by its
+attachment when it was hitched; `guessDraftKind` is a NAME-form fallback for
+an animal that never said, and is a convenience, not a source of truth.
+
 ## The world clock
 
 `scripts/world-time.mjs` owns the module's one clock policy: the

@@ -22,8 +22,8 @@ import { borneBy6, borneWeight6 } from "../lib/capacity.mjs";
 import { bodyCount } from "../lib/group-logic.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import { abilityRank } from "../lib/capabilities.mjs";
-import { DRAFT_EQUIVALENTS } from "./vehicle-data.mjs";
-import { draftPull } from "./vehicle-speed.mjs";
+import { DRAFT_KINDS } from "./vehicle-data.mjs";
+import { draftPull, draftEquivalent } from "./vehicle-speed.mjs";
 import { stationKeyOf, OFFICER_STATIONS } from "./stations.mjs";
 
 /** The attachment roles a vehicle seats, in the order a sheet shows them. */
@@ -49,7 +49,7 @@ export function guessDraftKind(doc) {
  */
 export function draftKindOf(actor) {
   const stated = attachmentOf(actor)?.kind;
-  if (stated && DRAFT_EQUIVALENTS[stated] != null) return stated;
+  if (stated && DRAFT_KINDS[stated]) return stated;
   return guessDraftKind(actor);
 }
 
@@ -172,7 +172,7 @@ export { OFFICER_STATIONS };
  *  of four oxen pulls as four — every living body counts. */
 export function attachedDraftPull(vehicle) {
   return attachedTo(vehicle, "draft").reduce(
-    (sum, a) => sum + (DRAFT_EQUIVALENTS[draftKindOf(a)] ?? 0) * bodyCount(a),
+    (sum, a) => sum + (draftEquivalent(draftKindOf(a)) ?? 0) * bodyCount(a),
     0,
   );
 }
@@ -215,7 +215,7 @@ export async function normalizeTeamRows(vehicle) {
       keep.push(row);
       continue;
     }
-    const kind = DRAFT_EQUIVALENTS[row.kind] != null ? row.kind : null;
+    const kind = DRAFT_KINDS[row.kind] ? row.kind : null;
     const res = await attach(actor, vehicle, "draft", { kind });
     if (!res.ok) {
       keep.push(row);

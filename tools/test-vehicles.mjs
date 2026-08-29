@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import {
   WIND, windFor, windSpec, conditionMultiplier, crewFraction, seaSpeeds, landSpeed,
-  draftPull, canEnter, cargoRemaining, travelMultiplier, TERRAIN, ROAD_KINDS,
+  draftPull, draftEquivalent, canEnter, cargoRemaining, travelMultiplier, TERRAIN, ROAD_KINDS,
   TRAVEL_DOC, VOYAGES_DOC,
 } from "../scripts/vehicles/vehicle-speed.mjs";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
@@ -21,6 +21,9 @@ const SAMPLE_TRAVEL = {
   id: TRAVEL_DOC,
   tables: {
     terrainMultipliers: { grassland: 1, barrens: 0.75, forest: 0.5, swamp: 0.25, hills: 0.5, mud: 0.5, snow: 0.5 },
+    // Invented ratios — the printed substitutions live in the reader's book
+    // and are asserted only by the machine-local rules suite.
+    draftEquivalents: { ox: 2, mediumHorse: 0.75, mule: 0.25, donkey: 0.1 },
     roads: {
       earth: { multiplier: 2, drivingMultiplier: 3, ineffectiveIf: ["raining"] },
       gravel: { multiplier: 2, ineffectiveIf: ["snowing"] },
@@ -152,15 +155,25 @@ assert.equal(seaSpeeds({ ...crewed, seafaringRank: 2 }, { wind: "strong" }).canT
 assert.equal(seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "moderate" }).tackSpeed, null,
   "in a moderate wind everyone tacks normally, so there is no reduced rate to show");
 
-/* --- teams pull as their equivalents sum --------------------------------- */
+/* --- teams pull as their equivalents sum, at IMPORTED rates -------------- */
 const team = (...kinds) => ({ team: { animals: kinds.map((kind) => ({ kind, pulling: true })) } });
+assert.equal(draftEquivalent("heavyHorse"), 1,
+  "the heavy horse IS the unit — its own value is definitional and needs no import");
 assert.equal(draftPull(team("heavyHorse")), 1);
-assert.equal(draftPull(team("ox")), 1, "one ox substitutes for one heavy horse");
-assert.equal(draftPull(team("mule", "mule")), 1, "and two mules do");
-assert.equal(draftPull(team("mediumHorse", "mediumHorse")), 1);
-assert.equal(draftPull(team("heavyHorse", "ox", "mule")), 2.5, "a mixed team simply adds up");
+assert.equal(draftPull(team("ox")), 2, "an ox pulls what the imported table says");
+assert.equal(draftPull(team("mule", "mule")), 0.5, "and so do two mules");
+assert.equal(draftPull(team("heavyHorse", "ox", "mule")), 3.25, "a mixed team simply adds up");
+assert.equal(draftPull({ team: { animals: [{ kind: "heavyHorse", count: 3, pulling: true }] } }), 3,
+  "a row stands for every animal it counts");
 assert.equal(draftPull({ team: { animals: [{ kind: "heavyHorse", pulling: false }] } }), 0,
   "an animal not pulling contributes nothing");
+
+resetTables();
+assert.equal(draftEquivalent("heavyHorse"), 1, "the unit survives an empty registry");
+assert.equal(draftEquivalent("mule"), null, "every other rate is printed — unpriced, never guessed");
+assert.equal(draftPull(team("heavyHorse", "mule")), 1,
+  "an unpriced animal contributes nothing rather than a made-up share");
+registerSamples();
 
 /* --- passengers ride at the vehicle's own rate --------------------------- */
 const hold = cargoRemaining({ cargo: { capacityStone: 1000, passengerStone: 50, passengers: 4 } }, 500);

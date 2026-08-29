@@ -76,6 +76,37 @@ ford.
 *A vehicle shows only the load buckets it actually has, each with its fill — a
 cart has no cabins to draw.*
 
+## Mounts, and animals in harness
+
+A mount is an actor, not a piece of gear. Drop an animal onto a character (or
+call `acksExtras.lib.mount.mountActor`) and the two are bound: the rider moves
+at the mount's pace, the party sheet shows a mount chip beside the rider, and
+the mounted-combat rules have something to read. Harness the same animal to a
+wagon instead and it joins the team; a rider on a horse that is itself in
+harness travels at the WAGON's pace, because a carried thing resolves to
+whatever is really doing the moving.
+
+Two things about an animal decide what the rules do with it, and they are
+different questions. Its **training** — riding, draft, war, hunting, herding —
+is what it was schooled for; a war-trained mount joins its rider's charge,
+where an untrained one shies off. Its **mountability** is whether the species
+can be ridden at all: an ox is rideable in principle and untrained in
+practice, and a war dog is trained for war and is still not a mount.
+
+Both are filled by importing the animals from your own book. The rulebook
+prices animals by role — a *Heavy War* horse, a *Draft* mule, a *Riding* camel
+— so ACKS Importer reads the training out of the name the page printed, and
+treats a species the book sells in a riding form as one you can sit on. If you
+create an animal by hand instead, set them yourself on its sheet; an animal
+that has never said arrives *untrained*, which the rules read as "not stated"
+rather than as a claim, and fall back to its name.
+
+A team is counted in heavy-horse equivalents. The heavy horse is the unit, so
+it always counts as one; what an ox or a mule is worth against it is a number
+your book prints, and it arrives with the travel tables. Until you import
+them, a team of heavy horses still adds up and anything else is shown as
+unpriced rather than quietly counted as nothing.
+
 ## Making it move
 
 The sheet always shows the speed the vehicle *actually* makes, with a list of

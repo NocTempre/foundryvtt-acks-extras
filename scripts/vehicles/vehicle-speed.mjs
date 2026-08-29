@@ -352,14 +352,33 @@ export function landSpeed(vehicle, loadStone = 0, ground = null, { pull: statedP
   };
 }
 
+/**
+ * What one animal of a draft kind pulls, in heavy-horse equivalents.
+ *
+ * The heavy horse IS the unit, so its own value is definitional and needs no
+ * import. Every other rate is printed (RR ch. 4 states the substitutions) and
+ * reads from the `travel` document's `draftEquivalents` table; unimported it
+ * is null — an unpriced animal, never a guessed one.
+ */
+export function draftEquivalent(kind) {
+  if (kind === "heavyHorse") return 1;
+  const v = Number(readTable(TRAVEL_DOC, "draftEquivalents")?.[kind]);
+  return Number.isFinite(v) && v >= 0 ? v : null;
+}
+
 /** Heavy-horse equivalents in harness, from plain data (no document needed). */
 export function draftPull(vehicle, equivalents = null) {
-  const table = equivalents ?? { heavyHorse: 1, ox: 1, mediumHorse: 0.5, mule: 0.5, donkey: 0.5 };
   // A row stands for `count` animals of its kind — see the model. An older
-  // row carries no count and is one animal, which is what it always was.
+  // row carries no count and is one animal, which is what it always was. A
+  // kind the registry cannot price contributes nothing and is COUNTED as
+  // unpriced, so a caller can say which animals it could not weigh.
+  const rate = (kind) => (equivalents ? Number(equivalents[kind]) : draftEquivalent(kind));
   return (vehicle?.team?.animals ?? [])
     .filter((a) => a.pulling !== false)
-    .reduce((sum, a) => sum + (table[a.kind] ?? 0) * Math.max(1, Number(a.count) || 1), 0);
+    .reduce((sum, a) => {
+      const per = rate(a.kind);
+      return sum + (Number.isFinite(per) ? per : 0) * Math.max(1, Number(a.count) || 1);
+    }, 0);
 }
 
 /**

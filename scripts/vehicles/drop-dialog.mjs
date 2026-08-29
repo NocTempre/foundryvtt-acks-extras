@@ -13,7 +13,7 @@ import { makeLoc } from "../lib/util.mjs";
 import { VEHICLE_TYPE, LANG_PREFIX } from "./constants.mjs";
 import { stationsFor } from "./stations.mjs";
 import { guessDraftKind, draftPullOf, occupantsOf } from "./occupants.mjs";
-import { DRAFT_EQUIVALENTS } from "./vehicle-data.mjs";
+import { draftEquivalent } from "./vehicle-speed.mjs";
 import { borneBy6 } from "../lib/capacity.mjs";
 import { bodyCount } from "../lib/group-logic.mjs";
 import { STONE } from "../lib/item-model.mjs";
@@ -102,7 +102,7 @@ function optionsFor(sys, vehicle, doc) {
       options.push({
         id: g.key, role: "draft", station: null, kind, label,
         note: loc("dropDialog.pull", {
-          pull: (DRAFT_EQUIVALENTS[kind] ?? 0) * bodies,
+          pull: (draftEquivalent(kind) ?? 0) * bodies,
           kind: game.i18n.localize(`${LANG_PREFIX}.draft.${kind}`),
         }),
         recommended: doc.type !== "character",

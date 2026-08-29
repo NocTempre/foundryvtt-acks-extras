@@ -11,8 +11,8 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
-import VehicleData, { VEHICLE_KINDS, DRAFT_EQUIVALENTS, CARRIAGE } from "./vehicle-data.mjs";
-import { seaSpeeds, landSpeed, cargoRemaining, WIND, TERRAIN } from "./vehicle-speed.mjs";
+import VehicleData, { VEHICLE_KINDS, DRAFT_KINDS, CARRIAGE } from "./vehicle-data.mjs";
+import { seaSpeeds, landSpeed, cargoRemaining, draftEquivalent, WIND, TERRAIN } from "./vehicle-speed.mjs";
 import { isSinking, speedFactor, repairPlan, sinkFormula } from "./vessel-damage.mjs";
 import { SINKING_FLAG, openHazardDialog, openNavigationDialog, startSinkingClock, tickSinkingClock } from "./sea-throws.mjs";
 import { voyageDay } from "./voyage.mjs";
@@ -188,8 +188,12 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
         ...a, index,
         count: Math.max(1, Number(a.count) || 1),
         kindLabel: game.i18n.localize(`${LANG_PREFIX}.draft.${a.kind}`),
-        // What the ROW pulls, which is the whole stack it stands for.
-        pull: (DRAFT_EQUIVALENTS[a.kind] ?? 0) * Math.max(1, Number(a.count) || 1),
+        // What the ROW pulls, which is the whole stack it stands for — null
+        // where the registry cannot price that kind, so the sheet can say
+        // "unpriced" rather than show a confident nothing.
+        pull: draftEquivalent(a.kind) == null
+          ? null
+          : draftEquivalent(a.kind) * Math.max(1, Number(a.count) || 1),
       })),
       pull,
       cargoRiders,
@@ -216,9 +220,14 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       // A team that cannot pull what the vehicle was built for is worth
       // flagging even before a load makes it matter.
       underTeamed: !isSea && sys.team?.required > 0 && pull < sys.team.required,
-      draftKinds: Object.keys(DRAFT_EQUIVALENTS).map((k) => ({
+      draftKinds: Object.keys(DRAFT_KINDS).map((k) => ({
         value: k, label: game.i18n.localize(`${LANG_PREFIX}.draft.${k}`),
       })),
+      // Any harnessed kind the registry cannot price, named once. Joined
+      // here because the template layer has no list-joining helper.
+      draftUnpriced: [...new Set((sys.team?.animals ?? [])
+        .filter((a) => a.pulling !== false && draftEquivalent(a.kind) == null)
+        .map((a) => game.i18n.localize(`${LANG_PREFIX}.draft.${a.kind}`)))].join(", "),
     };
   }
 

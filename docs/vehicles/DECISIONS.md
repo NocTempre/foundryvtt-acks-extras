@@ -232,3 +232,40 @@ rather than auto-cleared in render, which would be a write inside a
 prepare. **The unnamed gear rate is per-role typed data** (`gearStone`),
 never a shipped constant — RR p. 316's worked example prices a contingent,
 and that price belongs to the reader's book.
+
+
+## 2026-08-29 — Draft equivalents import; mounts arrive flagged
+
+An audit of the mount path (prompted by review) found the last printed values
+still shipping in this feature and a data path that was never filled.
+
+**`DRAFT_EQUIVALENTS` was a printed table in code** — ox 1, mule ½, medium
+horse ½ are RR ch. 4's stated substitutions, and shipping them is the thing
+Path B exists to stop. Split: `DRAFT_KINDS` keeps the structural key list, and
+the rates read from the `travel` document's `draftEquivalents`. The heavy
+horse's own value STAYS at one and needs no import, because the team is
+counted in heavy-horse equivalents — the unit's value is the unit's
+definition, not a figure off a page. Everything else is unpriced until
+imported: an unpriced animal contributes nothing and the sheet NAMES it, which
+is the honest reading of "we do not know", where counting it as zero silently
+and counting it as one dishonestly are both wrong. The `donkey: 0.5` the code
+carried is in no substitution sentence at all — it was invented, and is now
+simply an unpriced kind like any other.
+
+**Mounts imported unflagged.** Animal entries carry name and description only,
+so every imported creature arrived `training: "untrained"` and
+`mountable: false`, and the overlay compensated with English-name guessing.
+The book states the role in the NAME it prints — "Horse, Heavy War", "Mule,
+Draft", "Camel, Riding" — and those qualifiers are exactly the keys
+`ANIMAL_TRAINING` already enumerates, so acks-importer now reads training from
+the printed name (`trainingFromName`) and mountability from the species having
+a riding form in that same book (`mountableSpecies`). A field the book supplies
+directly still wins. Training and mountability are kept as SEPARATE questions
+on purpose: a war dog is trained for war and is not a mount, and a species
+sold in a riding form is rideable in every form it is sold in.
+
+The name-form fallbacks that remain — `guessDraftKind`, `looksWarTrained`'s
+name read, `hasMilitarySaddle` — are documented as fallbacks rather than
+sources, and each yields to stated data. They are the same class of glue as
+`lib/vocab.mjs`'s name-form rules, which the family already treats as
+structure.

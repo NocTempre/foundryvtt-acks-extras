@@ -314,7 +314,7 @@
           <select name="system.team.animals.{{index}}.kind">
             {{#each @root.draftKinds}}<option value="{{value}}" {{#if (eq value ../kind)}}selected{{/if}}>{{label}}</option>{{/each}}
           </select>
-          <span class="acks-extras-vehicle-pull">{{pull}}</span>
+          <span class="acks-extras-vehicle-pull">{{#if pull}}{{pull}}{{else}}&mdash;{{/if}}</span>
           {{#if @root.editable}}
             <a data-action="togglePulling" data-index="{{index}}"
                data-tooltip="{{localize 'ACKS-VEHICLES.team.togglePulling'}}"><i class="fa-solid {{#if pulling}}fa-link{{else}}fa-link-slash{{/if}}"></i></a>
@@ -323,6 +323,11 @@
         </li>
       {{/each}}
     </ol>
+    {{#if draftUnpriced}}
+      <p class="hint acks-extras-vehicle-team-unpriced">
+        {{localize "ACKS-VEHICLES.team.unpriced" kinds=draftUnpriced}}
+      </p>
+    {{/if}}
     <p class="hint">{{localize "ACKS-VEHICLES.team.dropHint"}}</p>
   </fieldset>
 

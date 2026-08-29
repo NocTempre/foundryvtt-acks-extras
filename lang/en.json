@@ -4069,6 +4069,7 @@
   "ACKS-VEHICLES.wind.strong": "Strong",
   "ACKS-VEHICLES.wind.veryStrong": "Very strong",
   "ACKS-VEHICLES.wind.gale": "Gale",
+  "ACKS-VEHICLES.team.unpriced": "Not imported: {kinds} — import the travel tables to weigh what they pull.",
   "ACKS-VEHICLES.water.lakeOrRiver": "Lake or river",
   "ACKS-VEHICLES.water.coast": "Coastal waters",
   "ACKS-VEHICLES.water.openSea": "Open sea",

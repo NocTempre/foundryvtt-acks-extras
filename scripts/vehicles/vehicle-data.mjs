@@ -23,6 +23,7 @@
 import { num, str, int, bool, html, choice } from "../lib/fields.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
 import { COMPLEMENT_MEANS } from "./berths.mjs";
+import { draftEquivalent } from "./vehicle-speed.mjs";
 
 /**
  * What kind of thing this is. The distinction is not decoration: a cart is
@@ -35,17 +36,20 @@ export const VEHICLE_KINDS = Object.freeze({
 });
 
 /**
- * Draft animals in heavy-horse equivalents (RR ch. 4: "One ox, two mules, or
- * two medium horses can be substituted for 1 heavy horse"). Stored as the
- * PULL each animal contributes so a mixed team — an ox and two mules — adds up
- * without a lookup table of every combination.
+ * The draft kinds a team row can name — the STRUCTURAL half. A team is
+ * counted in heavy-horse equivalents, so the heavy horse's own value is the
+ * UNIT's definition (one, necessarily) and ships; what every other animal is
+ * worth against it is printed (RR ch. 4 substitutes oxen, mules and medium
+ * horses for a heavy horse at rates the page states) and arrives through the
+ * `travel` document's `draftEquivalents` table. Unimported, a team of heavy
+ * horses still counts and anything else is unpriced rather than guessed.
  */
-export const DRAFT_EQUIVALENTS = Object.freeze({
-  heavyHorse: 1,
-  ox: 1,
-  mediumHorse: 0.5,
-  mule: 0.5,
-  donkey: 0.5,
+export const DRAFT_KINDS = Object.freeze({
+  heavyHorse: { label: "ACKS-VEHICLES.draft.heavyHorse", unit: true },
+  mediumHorse: { label: "ACKS-VEHICLES.draft.mediumHorse" },
+  ox: { label: "ACKS-VEHICLES.draft.ox" },
+  mule: { label: "ACKS-VEHICLES.draft.mule" },
+  donkey: { label: "ACKS-VEHICLES.draft.donkey" },
 });
 
 /** Terrains a wheeled vehicle enters only where a road runs (RR ch. 4). */
@@ -120,7 +124,7 @@ export default class VehicleData extends TypeDataModel {
       new SchemaField({
         uuid: str(),
         name: str(),
-        kind: choice(DRAFT_EQUIVALENTS, { initial: "heavyHorse" }),
+        kind: choice(DRAFT_KINDS, { initial: "heavyHorse" }),
         // How many animals this row IS. A four-horse wagon is a team of four
         // identical horses, and making a Judge create four actors to say so —
         // and unharness them one at a time — is bookkeeping the printed table
@@ -282,12 +286,18 @@ export default class VehicleData extends TypeDataModel {
     return data;
   }
 
-  /** Heavy-horse equivalents actually in harness and able to pull. */
+  /**
+   * Heavy-horse equivalents actually in harness and able to pull. A kind the
+   * registry cannot price contributes nothing — see `draftEquivalent`.
+   */
   get draftPull() {
     // Each row stands for `count` animals of its kind.
     return (this.team?.animals ?? [])
       .filter((a) => a.pulling)
-      .reduce((sum, a) => sum + (DRAFT_EQUIVALENTS[a.kind] ?? 0) * Math.max(1, Number(a.count) || 1), 0);
+      .reduce((sum, a) => {
+        const per = draftEquivalent(a.kind);
+        return sum + (Number.isFinite(per) ? per : 0) * Math.max(1, Number(a.count) || 1);
+      }, 0);
   }
 
   /** Is this vessel or cart able to move at all under its own arrangements? */
