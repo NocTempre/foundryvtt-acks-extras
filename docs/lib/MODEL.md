@@ -476,7 +476,18 @@ different questions:
   principle and untrained in practice, and a war DOG is trained for war and
   is still not a mount.
 
-Both arrive by import. The RR prices animals BY ROLE — a "Heavy War" horse,
+**What it CARRIES is a third question, and it has exactly one store.**
+`capacity6()` reads `flags[MODULE_ID].extras.load` — the pair the monster
+sheet already edits under Rating & Saves — so that is where a mount's normal
+and maximum load live, and where acks-importer writes the loads it reads from
+the creature's own printed description. The animal sub-type's like-named
+`capacity6` / `unencumbered6` fields are LEGACY: no consumer reads them and
+nothing writes them, and filling them would make a mount look provisioned
+while `capacity6()` still answered null. The animal panel READS the live
+store beside the training controls rather than offering a second pair of
+inputs, because two controls for one fact can disagree on screen.
+
+Both training and mountability arrive by import. The RR prices animals BY ROLE — a "Heavy War" horse,
 a "Draft" mule, a "Riding" camel — so the qualifier in the name the book
 printed is its statement of training, and acks-importer reads it there
 (`trainingFromName`); mountability is taken from the species having a

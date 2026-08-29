@@ -593,3 +593,48 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   flex: 0 0 auto;
   opacity: 0.7;
 }
+
+/* --- The animal panel: training, mountability and load on a mount --- */
+
+.acks-extras-animal-panel {
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  padding: 6px;
+  margin-bottom: 6px;
+}
+
+.acks-extras-animal-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 4px 0;
+  font-size: var(--acks-fs-h3);
+}
+
+.acks-extras-animal-imported {
+  margin-left: auto;
+  font-size: var(--acks-fs-fine);
+  opacity: 0.75;
+}
+
+.acks-extras-animal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+}
+
+.acks-extras-animal-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-animal-unstated {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.acks-extras-animal-carries {
+  white-space: nowrap;
+}

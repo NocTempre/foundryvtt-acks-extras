@@ -32,6 +32,7 @@ import * as vocab from "./vocab.mjs";
 import * as fields from "./fields.mjs";
 import * as library from "./library.mjs";
 import { registerLibraryWarm } from "./library.mjs";
+import { registerAnimalPanel } from "./animal-panel.mjs";
 import * as tables from "./tables.mjs";
 import * as services from "./services.mjs";
 import * as itemModel from "./item-model.mjs";
@@ -678,6 +679,11 @@ Hooks.once("ready", () => {
   // Load acks-importer's packs, so the synchronous library reads every sheet
   // makes are complete from the first render.
   registerLibraryWarm();
+
+  // An animal's training, mountability and load live in this library's own
+  // subtree, which the system's monster sheet does not render — the panel is
+  // the surface a Judge types them on and an import's values show up in.
+  registerAnimalPanel();
 
   // The body class is a toggle again, owned by `look`: it is the marker that
   // says "ACKS surfaces are themed", and under the `core` look they are not.

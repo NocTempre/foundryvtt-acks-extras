@@ -1,5 +1,56 @@
 # Changelog
 
+## 5.1.0
+
+Mounts know what they are for, and say so on their own sheet.
+
+### Added
+- **The animal panel.** An animal renders on the system's monster sheet, which
+  knows its hit dice and nothing about the two facts the mounted and vehicle
+  rules actually ask of it. Its own panel now sits at the top of that sheet:
+  what it was **trained for**, and whether it **can be ridden** — a different
+  question, since an ox is rideable in principle and untrained in practice, and
+  a war dog is trained for war and is still not a mount. Imported values show
+  up here marked as imported; an animal you made by hand is set here. What it
+  CARRIES is read out beside them from the sheet's own load fields, rather than
+  offered as a second pair of inputs that could disagree with them.
+
+### Changed
+- **The draft substitutions come off your own page.** What an ox or a mule
+  pulls against a heavy horse was a table frozen in this module's code. It now
+  reads from the `travel` document, imported with ACKS Importer 5.1.0. The
+  heavy horse still counts as one without any import — a team is measured in
+  heavy-horse equivalents, so the unit's own value is its definition rather
+  than a figure off a page — and every other kind is **unpriced** until you
+  import: it contributes nothing and the vehicle sheet names it, rather than
+  being quietly counted as nothing or confidently counted as one.
+- The donkey rate this module used to apply appears in no substitution sentence
+  in the rules. It was invented, and is now an unpriced kind like any other.
+
+### Fixed
+- **A mount's carrying capacity had no reachable home.** The animal sub-type
+  carried load fields that nothing in the module ever read — the figure every
+  carrier actually asks for lives with the monster sheet's own Normal/Max Load
+  — so an imported or hand-set load could look recorded while every consumer
+  still saw an unstated capacity. There is now one store, and the panel reads
+  it.
+- **Imported mounts arrive flagged.** Animals imported with no training and no
+  mountability, so a war horse looked untrained and nothing could be ridden;
+  the mounted overlay was falling back to reading English words in names.
+  Requires ACKS Importer 5.1.0, which reads both from the page.
+
+### Internal
+- `DRAFT_EQUIVALENTS` is replaced by `DRAFT_KINDS` (the structural key list)
+  plus `draftEquivalent(kind)`, which reads the registry. The committed test
+  suite asserted the printed ratios directly; it now runs on invented ones,
+  and the printed substitutions are asserted only against the reader's own
+  book.
+- Mounts and the carry model are documented for the first time: `docs/lib`
+  gains a Carrying section — the one attachment model, `mount.mjs` as its
+  permanent facade, training and mountability as separate questions, and how
+  teams are counted — and the vehicles guide gains a user-facing Mounts
+  section.
+
 ## 5.0.0
 
 Overland travel: the journey, the weather, the wilds — and vehicles that carry

@@ -42,6 +42,7 @@ sibling modules) — never the import path for this module's own features.
 | File | Owns |
 | --- | --- |
 | `attachment.mjs` | THE carry model: one actor attached to another in a role (rider/passenger/draft/crew/cargo) with a station and a draft kind — one flag on the carried actor, a forest by construction, `carrierChain`/`rootCarrierOf`, and a cached (never authoritative) reverse index. |
+| `animal-panel.mjs` | The animal panel injected into a mount's sheet: what it was trained for, whether it can be ridden, and what it carries — the GM-entry surface for the `system.animal` fields the system's monster sheet does not render. |
 | `mount.mjs` | Rider-role FACADE over `attachment.mjs` — the mounted-combat vocabulary (`mountOf`/`riderOf`/hooks); legacy symmetric pairs still read, every write converges them. |
 | `capacity.mjs` | How much any document can hold / is holding / is it over — in sixths of a stone. |
 | `movement-scales.mjs` | The four ACKS speeds (combat/running/exploration/expedition) and their book names. |
