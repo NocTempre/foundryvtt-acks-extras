@@ -3,10 +3,11 @@
 ### 📖 [Tutorials and feature gallery → noctempre.github.io/foundryvtt-acks-extras](https://noctempre.github.io/foundryvtt-acks-extras/)
 
 Rules automation for the **Adventurer Conqueror King System II** in Foundry VTT:
-proficiencies and class powers, equipment and fighting styles, exploration
-formations, henchmen and hirelings, influence and reactions, locations and
-storage, and the full Monstrous Manual stat block — over one set of shared
-primitives and one rules-table registry.
+classes and the class builder, proficiencies and class powers, equipment and
+fighting styles, exploration formations and overland travel, battlemaps and hex
+terrain, henchmen and hirelings, influence and reactions, locations, storage and
+markets, vehicles and voyages, and the full Monstrous Manual stat block — over
+one set of shared primitives and one rules-table registry.
 
 This is the merge of eight modules that used to ship separately (`acks-lib`,
 `acks-abilities`, `acks-equipment`, `acks-formation`, `acks-henchmen`,
@@ -152,8 +153,8 @@ RAW equipment-rule automation.
 
 ### Exploration formations
 
-Condenses the party into a marching formation with a single party token, and
-keeps the dungeon-turn bookkeeping.
+Condenses the party into a marching formation with a single party token, keeps
+the dungeon-turn bookkeeping, and runs an overland journey day by day.
 
 - **Party actor and party token** — one token to move, members inside it.
 - **The dungeon turn** — a 10-minute clock with wandering-monster throws at the
@@ -164,6 +165,69 @@ keeps the dungeon-turn bookkeeping.
   are fuzzed without a proficient one.
 - **Player requests** — players steer their own members through a GM relay rather
   than needing ownership of the party.
+
+#### Overland travel
+
+The same sheet switches to a journey: the ground it is crossing, the day's sky,
+a day board of ancillary hours, and the march derived with every factor named.
+
+- **How the order moves** decides which factors it meets at all — on foot,
+  mounted, by vehicle, flying or by vessel. A flier ignores roads entirely and
+  feels wind by its own rule rather than the one that slows a walker; a vessel
+  meets no ground at all. The readout says which factor replaced which.
+- **Weather off the calendar.** The sky is settled once per day for the ground
+  you are on, derived from the date and the climate rather than stored on
+  whoever rolled it, so two parties in the same country get the same day. Mud
+  and snow accumulate and dry out on their own.
+- **Provisions are pooled.** Food and water are shared across the whole marching
+  order and dealt out by a policy you pick: evenly, so everyone goes equally
+  short, or by triage, so as many as possible eat properly.
+- **Hunger, thirst and the cold.** Going short tells — hungry, then unable to
+  force march or heal, then starving and losing Constitution daily. Thirst
+  arrives faster and charges a rolled toll that sweltering weather doubles.
+  Cold runs its own clock: a body left unprotected, or one that simply gets wet,
+  turns hypothermic and loses Constitution by the hour until it reaches a fire.
+  Anyone carrying a cloak or furs is sheltered.
+- **Living off the country.** Foraging for food, water and firewood, hunting
+  with or without dogs, and grazing for the animals. Hard country, settled
+  country whose forage is somebody's crop, and the Survival proficiency each
+  move the throw and each is named separately. What is found is deposited on
+  the people who found it.
+- **Searching and surveying.** An hour spent looking can turn up a lair, a ruin
+  or another party — harder the faster you are moving, harder again for
+  something particular, easier from the air over open country, and worse under
+  a canopy. Surveying tells the Judge how much is left to find. Looking around
+  owes its own encounter throw.
+- **Getting lost.** A failed navigation throw is whispered, not announced. The
+  party walks on believing it is somewhere it is not, and the map fills in with
+  the ground they *think* they crossed, while the Judge alone sees where they
+  really are. When they realise, that imagined ground closes back over — and
+  only finding a known landmark puts the country they really crossed onto the
+  map, in its right place.
+- **City travel.** A settlement is crossed the same way: a pace, the avenues or
+  the alleys, how well the party knows the way, and whether it is dark. Being
+  lost in a city is a wrong turning noticed at once. A large party straggles,
+  and splitting it is the way out — at the price of each group answering for
+  its own encounters.
+
+Every threshold, target, penalty, yield and rate behind this arrives through
+**ACKS Importer** from your own books. Until it does, each readout says plainly
+what it cannot price; nothing is ever guessed.
+
+### Battlemaps and overland maps
+
+Map tools for both scales, on the scene rather than in a separate window.
+
+- **Hex terrain painting.** Claim hexes as Regions and the travel readout picks
+  the ground up from the map. The terrain vocabulary is whatever your own books
+  put in the registry, not a list fixed in the module — and mud and snow are
+  deliberately not paintable, because they are conditions the weather produces.
+- **Roads and routes.** A hex has edges, corners and a centre, and a road is a
+  declared path between them. A road only helps a party actually travelling
+  along it, and a winding route costs more distance than a straight one — stated
+  rather than hidden inside a multiplier.
+- **Battlemap alignment** — line a published battlemap up to the grid, and keep
+  token scale honest across the two scales.
 
 ### Henchmen and hirelings
 
