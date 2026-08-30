@@ -7,6 +7,30 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A tab panel declares its layout on the active state (2026-08-30)
+
+**Ruled.** Every tab section this module renders emits Foundry's `active` class
+from its own template (`tabs.<id>.cssClass`), and any rule giving such a section
+a `display` states it on `.active`. Both halves are the rule, because each half
+alone fails differently.
+
+A bare class selector on a tab panel is declared after core's `.tab {display:
+none}` and out-ranks it by source order, so the panel stands on screen under
+every tab. A flex-sized panel then takes the height the OPEN panel wanted: the
+Rolls list rendered under Description and squeezed the description panel — the
+prose editor with it — to nothing, which reads as the editor having been
+removed rather than as a stylesheet winning an argument.
+
+A panel that emits no `active` class is hidden correctly on first render and
+blank on every one after it. The sheet submits on change, so a field edit
+re-renders, and the tab the Judge is working in empties while its nav button
+still reads as chosen.
+
+**Rejected: `!important`, and raising specificity with an element or id
+selector.** Both restate "this panel is special" where the real statement is
+"this panel is visible when it is the open one", and the next panel added would
+have to rediscover it.
+
 ### A throw may name a score; no importer recipe carries one yet (2026-08-30)
 
 **Ruled.** A throw carries `score: {key, times}` — an ability score the

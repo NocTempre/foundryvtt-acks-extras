@@ -315,7 +315,14 @@
   font-family: var(--acks-font-ui);
 }
 
-.acks-abilities-rolls {
+/* A tab panel is `display: none` until it carries `active`, and a bare class
+   selector declared later out-ranks that rule by source order — so the layout
+   is stated on the ACTIVE state, never unconditionally: a roll list left on
+   screen under every tab is also flex-sized, and starves the Description
+   panel of the height its editor needs. The class comes from the template
+   (`tabs.rolls.cssClass`); a panel that does not emit it renders blank on any
+   re-render. */
+.acks-abilities-rolls.active {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;

@@ -30,8 +30,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 1. Open the ability item's sheet.
    *Observable:* `item.sheet.constructor.name === "AcksAbilitySheet"`, and the
-   window shows the Description / Rolls / Mechanics / Requirements tabs rather
-   than the system's plain ability sheet.
+   window shows the Description / Rolls / Mechanics tabs rather than the
+   system's plain ability sheet.
 2. Read the resolved roll set: `rollsOf(item)`.
    *Observable:* one entry keyed `primary`, whose target matches
    `system.rollTarget`.
@@ -57,6 +57,14 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    screen. Set *Succeeds On* to an exact match: the target must not move, and
    both the preview and the card must say the term is not applied rather than
    claim it.
+7. **Tab isolation, then a re-render.** Walk Description → Rolls → Mechanics,
+   then re-render the open sheet (`sheet.render()` — what a field edit does) and
+   walk back.
+   *Observable:* exactly one `section.tab` has a computed `display` other than
+   `none` at every step, and it is the one the nav marks active. On Description
+   the prose editor and the requirements field have real height; a panel that
+   survives a re-render at `display: none` while its nav button reads active is
+   the failure this step exists to catch.
 
 ## Teardown
 

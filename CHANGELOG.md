@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.5.1
+
+**An ability sheet shows one tab at a time, and the Description tab has room to
+write in again.**
+
+### Fixed
+- **A proficiency's description is a page you can add to.** The list of throws
+  stood on screen under every tab of an ability sheet, and it took the height
+  the open tab wanted — so Description opened onto the roll list with its notes
+  field squeezed to nothing, and there was nowhere left to type. Each tab now
+  shows its own panel and nothing else, and the description editor is back at
+  full height. Text already written was never touched.
+- **The Mechanics tab survives an edit.** The sheet saves as you type and
+  re-draws itself on every save. Changing any field while Mechanics was open
+  left that panel blank under a tab button still reading as chosen; it re-draws
+  in place now.
+
 ## 5.5.0
 
 **The map setup tool says what a map IS — square, hex, or nothing but a scale —
