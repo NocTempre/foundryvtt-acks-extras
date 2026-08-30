@@ -290,3 +290,69 @@ fixture remain and the template folders are empty.
 5. Disable the effect, then re-apply the class.
    *Observable:* the head marks it disabled; the re-apply restores the class's
    full grant over every toggle made — that is how edits here are undone.
+
+## The 1st-level hit-die floor
+
+**Fixtures.** A character actor you create, and one imported class with a
+levels table. Nothing else.
+
+**Steps.**
+1. With no book imported, check `acksExtras.classes.firstLevelDieMinimum()` in
+   the console. Expect 1 — the world has read no floor and applies none.
+2. Generate the character through the Scores Generator on a low-Constitution
+   score and note the hit points. This is the pre-import behaviour and must be
+   unchanged from before this release.
+3. Import the hit-point table (acks-importer, Import Tables, with the rulebook
+   connected). `firstLevelDieMinimum()` now returns the printed floor.
+4. Delete the character and generate a fresh one on the same scores.
+
+**Observable.** The 1st-level total is now taken from a die read at the floor,
+with Constitution added AFTER it. A d4 class can no longer roll below the floor
+at all. The floor must NOT reach 2nd level: bind a 2nd-level character through
+the picker and confirm the total is a full reroll of two dice, unfloored.
+
+**Teardown.** Delete both characters.
+
+## Post-9th hit points on a built class
+
+**Fixtures.** A class document in advanced (builder) mode, and the Dwarf race
+document.
+
+**Steps.**
+1. With the class-builder tables imported, set a Fighting value that yields a
+   fighter chassis and a maximum level above 9. Press Derive.
+2. Read the level 10 and level 11 rows' Hit Dice cells.
+3. Set the class to a racial build spending the dwarf's value and Derive again.
+4. Clear `Extra hit points per level after 9th` on the Dwarf race sheet and
+   Derive once more.
+
+**Observable.** Past 9th the die count stops and a flat appears, growing by the
+per-level rate on each row (cumulative, not per-level). The racial build's flat
+is larger by the race's own rate; clearing that field shrinks it back. With the
+builder tables NOT imported, the cells carry no flat at all and the derive
+report names `missingHpAfterNine` — never an invented number.
+
+**Teardown.** Delete the class document; restore the race field if you changed
+a race the importer materialized (a re-import will also restore it).
+
+## A pick the character owes
+
+**Fixtures.** A spellcasting class whose printed package offers a choice (the
+Mage's spellbook template), imported with its templates.
+
+**Steps.**
+1. Generate a character on that template.
+2. Read the chargen chat card.
+3. Open the character's sheet and find the marker.
+4. Click it and choose an option.
+5. Re-run chargen on the SAME character (Reopen Chargen) and generate again.
+6. Delete the marker by hand on a fresh character, then re-apply the class.
+
+**Observable.** The card lists the pick under its own heading — not among the
+things granted, and not among the unresolved. The sheet shows one marker,
+readable as a question. Choosing replaces it with the chosen document and the
+marker is gone. Re-running chargen does not produce a second marker beside the
+redeemed pick. A world with no spell documents at all shows the marker and says
+so when clicked, rather than offering an empty list silently.
+
+**Teardown.** Delete the characters.

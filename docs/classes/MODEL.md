@@ -73,10 +73,13 @@ else the equipment root's strict name classification, else a bare `item`
 flagged unresolved; a plain proficiency the WORLD defines is linked (one
 shared document), one only a pack defines is copied, one with a printed
 selection becomes a specialized copy stamped `grantedFrom` so `ownsRef` still
-dedupes it, and one nothing defines yet is **minted as a placeholder** — the
-printed name, empty system, flagged unresolved — because a name left on the
-class row is invisible on the character and cannot be repaired. Spells
-resolve the same way. `upgradeUnresolved` runs before any row is read: a
+dedupes it, and one **nothing defines yet stays on the class row** and is
+reported unresolved — it is not minted (DECISIONS 2026-08-24). A row that is
+an OFFER rather than a grant also stays on the row and becomes a marker on the
+character instead; see *Open picks*. Spells resolve the same way.
+`upgradeUnresolved` runs before any row is read — it is the repair path for
+worlds still holding parts materialized before 4.20.0, not something a
+materialize run now produces: a
 placeholder the world can now answer for is replaced (the `type` must
 change), every bundle row repointed and the old document deleted, unless it
 was edited — a Judge's repair is skipped and reported; an upgrade to a
@@ -344,6 +347,28 @@ defaults to none, and is applied through `applyTemplate`, the merging half of
 chargen. `applyChargen`'s wipe belongs to generating a character, which is the
 opposite act.
 
+## Hit points
+
+Three rules, all the book's, and each owned once in `hitpoints.mjs` because both
+the picker (which rebuilds a whole total) and the level-up wizard (which adds one
+level to it) need them.
+
+**Constitution applies per die**, and a penalty cannot take any die below one
+point. Applying the modifier to the total is different arithmetic wherever
+Constitution is a penalty.
+
+**The first hit die is read at a floor, and the floor is on the DIE.** The
+minimum is raised first and Constitution lands after it. What the floor IS is
+printed, so it is imported — `hitPoints.firstLevel.dieMinimum` — and passed in;
+a world that has read no book gets 1, which is the arithmetic of no floor. It
+reaches the first die only.
+
+**Every level after rerolls the whole Hit Dice** and keeps at least one point
+more than the level before. Past 9th the table stops adding dice and prints a
+flat instead, which takes no Constitution. An imported class carries that flat
+in its printed cell; a class built through the builder has it computed from the
+imported per-level rate (see *Advanced mode*).
+
 ## Level-up
 
 [scripts/classes/levelup.mjs](../../scripts/classes/levelup.mjs) watches XP
@@ -456,6 +481,22 @@ and filled by acks-importer, because it cannot be derived from the document
 ([DECISIONS.md](DECISIONS.md)). Below that band the two printed entries are
 withheld and named in the chat summary; above it only the difference is
 offered.
+
+## Open picks
+
+A printed package sometimes offers a choice rather than a thing — "and one spell
+of character's choice". The importer records it as a template row whose `offer`
+is set, carrying a ChoiceSpec for what may be picked and a stable key.
+
+Materializing leaves such a row alone: it is not a document. Chargen mints it as
+an item ON THE CHARACTER, named as a question and marked on the sheet; clicking
+it opens the chooser, and the pick REPLACES the marker with the chosen document.
+The offer's key is recorded on the actor when it is redeemed, so re-applying,
+re-importing and re-running chargen never mint a second marker and never bring a
+settled pick back.
+
+Nothing here is ever written to the world library — that is the line between
+this and the placeholder minting 4.20.0 removed (DECISIONS 2026-08-29).
 
 ## Casting
 

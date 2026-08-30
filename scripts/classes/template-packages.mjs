@@ -31,6 +31,7 @@ import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
 import { libraryItems } from "../lib/library.mjs";
 import { equipmentClass } from "../equipment/profiles.mjs";
+import { isOffer } from "./pending-choices.mjs";
 
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -412,24 +413,6 @@ function copyOf(source) {
   return data;
 }
 
-/**
- * The proficiency a template names but nothing in this world defines yet.
- *
- * Minted so the package is a COMPLETE container a Judge can repair: an
- * unlinked name on the class row is invisible on the character and cannot be
- * dragged, retyped or replaced, which is the whole complaint this shape
- * exists to answer. It carries the printed name and NOTHING else — no
- * description, no rules text — and is flagged `unresolved` so a later
- * materialize run relinks it the moment the real definition arrives.
- */
-export function buildPlaceholderAbility(entry) {
-  return {
-    name: entry.name || entry.ref || "—",
-    type: ITEM_TYPE.ability,
-    system: {},
-    flags: { [MODULE_ID]: { ...(entry.ref ? { grantedFrom: entry.ref } : {}) } },
-  };
-}
 
 /**
  * Build the specialized ability copy a template entry with a printed
@@ -962,7 +945,7 @@ export async function materializeTemplates(
     for (const entry of row.abilities ?? []) {
       // A rung the cell OFFERS rather than grants is a question for the
       // player, not a document — it stays on the row for chargen to ask.
-      if (entry.choice?.from && !entry.ref && !entry.name) {
+      if (isOffer(entry)) {
         keptAbilities.push(entry);
         continue;
       }
@@ -976,6 +959,12 @@ export async function materializeTemplates(
 
     const keptSpells = [];
     for (const entry of row.spells ?? []) {
+      // Same as the abilities loop above: a spell the package OFFERS is a pick,
+      // not a spell, and is never resolved to a document.
+      if (isOffer(entry)) {
+        keptSpells.push(entry);
+        continue;
+      }
       const plan = { ...(await planSpell(entry)), entry, qty: 1, kept: keptSpells };
       if (!plan.doc && !plan.data && entry.name) report.unresolved.push(entry.name);
       plans.push(plan);

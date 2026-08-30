@@ -21,6 +21,7 @@ import { findByRef } from "./registry.mjs";
 import { applyClass, syncClassTraining } from "./apply.mjs";
 import { templateSelection, setActorPath, actorPaths } from "./paths.mjs";
 import { awardKey, grantAbility, grantAdventuring, refOf } from "./grants.mjs";
+import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
@@ -179,8 +180,18 @@ async function grantRanked(actor, entry, report) {
  * leftover cells the materializer could not place, so nothing printed is
  * silently dropped.
  */
-async function grantRowEntries(actor, { abilities = [], items = [], spells = [] }, report) {
+async function grantRowEntries(actor, { abilities = [], items = [], spells = [] }, report, offerCtx = null) {
+  // A row that OFFERS a pick is not a grant and not a failure to resolve one:
+  // it becomes a marker the player answers. Minted before anything else so a
+  // later throw cannot leave the offer unrecorded.
+  if (offerCtx) {
+    for (const [kind, rows] of [["ability", abilities], ["spell", spells]]) {
+      const minted = await mintPendingChoices(actor, rows, { ...offerCtx, kind });
+      report.pending.push(...minted.map((m) => m.name));
+    }
+  }
   for (const entry of abilities) {
+    if (isOffer(entry)) continue;
     if (entry.ref) await grantRanked(actor, entry, report);
     else if (entry.name) report.unresolved.push(entry.name);
   }
@@ -194,6 +205,7 @@ async function grantRowEntries(actor, { abilities = [], items = [], spells = [] 
   // else the printed name matched against the world's spells; what no world
   // spell answers to stays visible on the unresolved list.
   for (const s of spells) {
+    if (isOffer(s)) continue;
     const name = s.name ?? "";
     let doc = null;
     if (s.uuid) doc = await fromUuid(s.uuid).catch(() => null);
@@ -279,7 +291,15 @@ async function grantBundleRows(actor, rows, report) {
 export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null, gold = null } = {}) {
   const gp = Number(gold ?? template.gp) || 0;
   const sp = Number(template.sp) || 0;
-  const report = { granted: [], items: [], unresolved: [], gp, sp, dropped: [], path: null };
+  const report = { granted: [], items: [], unresolved: [], pending: [], gp, sp, dropped: [], path: null };
+  // What identifies an offer on THIS package, so the marker minted for it is
+  // the same one however the row is rewritten afterwards: the class and the
+  // printed band. The kind (ability or spell) is added per list at mint time.
+  const offerCtx = {
+    classKey: classItem?.system?.key || classItem?.name || "",
+    band: String(template?.name ?? template?.rollMin ?? ""),
+    classUuid: classItem?.uuid ?? "",
+  };
   // A TEMPLATE ANSWERS THE GROUP IT NAMES. "Pit Fighter (Jutland)" prints its
   // variant as an annotation, and that annotation IS an option of whichever
   // group the class states it under — so taking the template chooses the
@@ -311,7 +331,7 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
     // construction (materializing removes exactly what it bundled), so
     // nothing is handed over twice. No second shortfall: it was taken above,
     // on the bundle's own order.
-    await grantRowEntries(actor, template, report);
+    await grantRowEntries(actor, template, report, offerCtx);
     if (paidCoin) {
       report.gp = 0;
       report.sp = 0;
@@ -333,7 +353,7 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
       const removed = spells.splice(1, Math.min(short.spells, spells.length - 1));
       for (const gone of removed) report.dropped.push(gone.name || gone.uuid);
     }
-    await grantRowEntries(actor, { abilities, items: template.items ?? [], spells }, report);
+    await grantRowEntries(actor, { abilities, items: template.items ?? [], spells }, report, offerCtx);
     // The template names the coin a character starts with, so this is the one
     // write of it. Core's own gold row adds to a money item the character
     // ALREADY owns and returns silently when they own none — which is every
@@ -406,7 +426,7 @@ export async function applyChargen(
   if (template) {
     report = await applyTemplate(actor, cls, template, { generalRefs, intScore, gold });
   } else {
-    report = { granted: [], items: [], unresolved: [], gp: Number(gold) || 0, sp: 0, dropped: [] };
+    report = { granted: [], items: [], unresolved: [], pending: [], gp: Number(gold) || 0, sp: 0, dropped: [] };
     for (const ref of generalRefs) await grantRanked(actor, { ref, rank: 1 }, report);
     await grantCoin(actor, { gp: report.gp });
   }
@@ -447,6 +467,15 @@ export async function applyChargen(
       // loud — a silently shorter starting package reads as a missing import.
       report.dropped.length
         ? `<p><em>${game.i18n.localize(`${LANG_PREFIX}.chargen.dropped`)}</em> ${report.dropped
+            .map((n) => foundry.utils.escapeHTML(n))
+            .join(", ")}</p>`
+        : ""
+    }${
+      // A pick the package OFFERS is not a thing granted and not a thing that
+      // failed to resolve — it is something the player still owes an answer
+      // to, and it is said as its own line so it is not read as either.
+      report.pending.length
+        ? `<p><em>${game.i18n.localize(`${LANG_PREFIX}.chargen.pending`)}</em> ${report.pending
             .map((n) => foundry.utils.escapeHTML(n))
             .join(", ")}</p>`
         : ""

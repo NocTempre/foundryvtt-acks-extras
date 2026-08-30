@@ -3,6 +3,103 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-29 — the 1st-level hit-die floor is imported, and defaults to no floor
+
+**Problem.** RR Ch. 1 §I.5 puts a minimum under the 1st-level hit die and adds
+Constitution AFTER it. `hitpoints.mjs` floored the TOTAL at one instead, which
+is not the same arithmetic — the modifier is meant to be applied to a die that
+has already been raised. Both the code and the docstring above it asserted the
+absence as if it were the rule, and the offline tests asserted the wrong totals,
+so three statements of it agreed with each other and none agreed with the book.
+
+**Ruled (user).** The floor is a printed value, so it is imported — a
+`hitPoints` ruledata document with a `firstLevel.dieMinimum` — and the STRUCTURE
+is built around a minimum that the imported number fills in. `rollHitDice` takes
+a `dieMinimum` option that raises each face before Constitution is applied to
+it, and `rebuildHitPoints` passes it at 1st level ONLY: every level after is a
+full reroll with no floor above the per-die one.
+
+**The default is 1, and 1 is not a guess.** It is the arithmetic identity of
+"no floor" — it cannot raise any face of any die — so a world that has imported
+nothing behaves exactly as it did before this change, byte for byte. A default
+of 4 would put the printed number back in the module the whole arrangement
+exists to keep it out of.
+
+**World-scoped, not per-class.** `templatesAssumeIntBonus` (2026-08-20) is a
+per-class field because WHICH classes are studious is a per-class fact that
+failed two structural derivations. This is one number true of every character in
+the campaign, and a per-class field would leave every hand-made class unfloored.
+
+**Corrects** the 2026-08-14 chargen entry, which describes 1st level as "one
+roll … and its floor of one".
+
+## 2026-08-29 — hit points past 9th: the rate is imported, the summing is ours
+
+**Problem.** A class built through the Judges Journal builder got
+`9dX` for every level past 9th with no flat term, where an imported class of the
+same spread carries the printed bonus in its own cell. Two 14th-level fighters
+in one world could differ by up to ten hit points with nothing on either sheet
+saying why. The racial half of the rate had been extracted since the dwarf rules
+recipe landed and was read by nothing at all.
+
+**Ruled (user).** Make the structure aware of how to USE the rates and import
+the values. The derivation reads `budget.hpAfterNine` by saves chassis, adds
+the race's own `hpAfter9` when the build actually spends a racial value (the
+gate its four siblings already use), and writes the CUMULATIVE flat onto each
+row past 9th — which is the shape `parseHd` already reads, and the shape the
+printed tables already use.
+
+**A missing rate is a named issue, never an invented flat.** Following the
+2026-08-11 ruling: the row keeps its flat-less cell and `missingHpAfterNine`
+names what the world has not imported. An unrecognised chassis reaches the same
+issue rather than silently taking one of the two rates.
+
+**Judge tool.** `system.hpAfter9` on the race document had no editor in either
+direction, so a race the importer has no recipe for could never carry one. The
+race sheet now has the input. For a race the importer materializes, the IMPORT
+wins — a re-import rebuilds the race's `system` wholesale — so the input serves
+hand-made races and worlds with no book, and the hint says so.
+
+## 2026-08-29 — a pick the character owes is an item on the character
+
+**Problem.** A printed package sometimes offers a choice rather than a thing.
+Dropped, it was invisible: the player was owed a starting spell, nothing on the
+sheet said so, and the pick was never made.
+
+**Ruled (user).** Free-choice options get a placeholder item. It is minted on
+the ACTOR when the package is granted, named as a question, and clicking it
+opens the chooser that replaces it with the document the player picks.
+
+**This does not reverse 4.20.0.** That ruling (lib/DECISIONS.md, 2026-08-24)
+removed placeholders for names a world could not resolve YET — an unresolved
+name has a right answer, so a placeholder for it is a duplicate waiting to
+happen: it answers its own name search, reads as real, and gets dragged onto a
+character beside the real thing when the import finally arrives. An open CHOICE
+has no right answer until a player makes one. The line is WHERE THE DOCUMENT
+LIVES: nothing in `pending-choices.mjs` writes to the world library, only ever
+to the actor who owes the pick, and a test asserts that mechanically. A
+placeholder in the library is a lie about what the world contains; a placeholder
+on a character is a true statement about what that character owes.
+
+**Identity is content, never position.** Materializing rewrites a row's arrays
+and the non-bundle path grants from a spliced copy, so the same printed offer
+sits at different indices on different passes. The importer writes a stable
+`choice.key`; without one the offer is identified by what it OFFERS. A key
+already open or already redeemed is skipped, so re-importing, re-materializing
+and re-running chargen cannot mint a second marker and a redeemed pick never
+returns.
+
+**The spell options reach past the library.** `choosableSpells` is the one
+option source that reads the world's spell compendia as well as the imports.
+The 2026-08-20 ruling governs what a PACKAGE materializes into a template from
+a book the reader may not own; a player electing their own starting spell is a
+different act, and offering nothing would ship a pick that cannot be redeemed.
+
+**Rejected.** Award-rung placeholders: the ladder already has `awardsTaken` and
+the rung dialog, and a second authority beside them buys no capability. A
+`choicesTaken` actor flag as the only record: chargen's wipe deletes the items
+but not the flag, which would silently suppress the re-mint.
+
 ## 2026-08-27 — an unqualified damage bonus is elected by the character, not assumed
 
 **Problem.** A class's damage-bonus column reached the class sheet and stopped
@@ -257,6 +354,13 @@ comment in both files, because a descriptor that resolves to one base there and
 skins itself over another one here is exactly the confusion this fixes.
 
 ## 2026-08-20 — a package resolves through the IMPORTS, and mints what it cannot find
+
+**The minting half was superseded 2026-08-24** (`lib/DECISIONS.md`) on measured
+evidence: placeholders for UNRESOLVED names were removed, and nothing in
+`scripts/` sets `unresolved: true` any more. The resolution half — a package
+reads the imports, not the system's shipped compendium — still stands. A
+placeholder for a pick the player OWES is a different thing, ruled 2026-08-29
+above.
 
 **New evidence** (amending yesterday's entry below, which rejected placeholder
 minting): the first field run produced packages with **no proficiencies at

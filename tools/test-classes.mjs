@@ -29,6 +29,7 @@ import { awardsAt, awardsThrough } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
 import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
+import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
 import { readFileSync } from "node:fs";
 
 let passed = 0;
@@ -720,7 +721,7 @@ await atest("the class picker never wipes what a character already owns", () => 
 
 /* ---------------------- template packages ------------------------- */
 
-const { bestBaseMatch, parseEmbellishment, applyShortfall, templateItemName, buildPlaceholderAbility, stripRepresented, usableAsSource } =
+const { bestBaseMatch, parseEmbellishment, applyShortfall, templateItemName, stripRepresented, usableAsSource } =
   await import("../scripts/classes/template-packages.mjs");
 
 const { pathGroups, pathOptions, chosenOption, pathTrainingChanges, unansweredGroups, templateSelection, templateOptionKey } =
@@ -885,15 +886,39 @@ test("a printed count lives on quantity, never in the name", () => {
   assert.equal(templateItemName({ name: "staff", qty: 1 }), "Staff");
 });
 
-test("an unresolvable proficiency is still a document to repair", () => {
-  // The package is a CONTAINER: a proficiency nothing defines yet must be a
-  // real item a Judge can retype or replace, not invisible text on the class
-  // row. It carries the printed name and nothing else — no rules prose.
-  const ph = buildPlaceholderAbility({ name: "Manual of Arms", ref: "def.prof.manualOfArms", rank: 2 });
-  assert.equal(ph.type, "ability");
-  assert.equal(ph.name, "Manual of Arms");
-  assert.deepEqual(ph.system, {});
-  assert.equal(ph.flags["acks-extras"].grantedFrom, "def.prof.manualOfArms");
+test("an offer is a pick, and only an explicit flag makes one", () => {
+  // The distinction the whole pending-choice surface rests on. A blank row a
+  // Judge just added has no name and an initialised ChoiceSpec, so anything
+  // inferred from emptiness would read it as an offer and put a phantom pick
+  // on every character generated on that band.
+  assert.equal(isOffer({ offer: true, choice: { from: "spellList" } }), true);
+  assert.equal(isOffer({ name: "Fireball", choice: { from: "spellList" } }), false);
+  assert.equal(isOffer({ rank: 1 }), false);
+  assert.equal(isOffer({ choice: { from: "classInventory" } }), false);
+  assert.equal(isOffer(null), false);
+});
+
+test("an offer is remembered by what it offers, never by where it sits", () => {
+  // Materializing rewrites the row's arrays and the non-bundle path grants
+  // from a spliced copy, so an index-keyed marker would be minted twice for
+  // one printed pick.
+  const entry = { offer: true, choice: { from: "spellList", filter: "any", count: 1, label: "Starting spell" } };
+  const ctx = { classKey: "mage", band: "Apprentice", kind: "spell" };
+  assert.equal(offerKey(entry, ctx), offerKey({ ...entry }, ctx));
+  assert.notEqual(offerKey(entry, ctx), offerKey(entry, { ...ctx, band: "Scholar" }));
+  assert.notEqual(offerKey(entry, ctx), offerKey(entry, { ...ctx, kind: "ability" }));
+  // An importer-written key wins over the content fold.
+  const keyed = { offer: true, choice: { key: "rr-mage-2", from: "spellList" } };
+  assert.ok(offerKey(keyed, ctx).includes("rr-mage-2"));
+});
+
+test("nothing in the pending-choice path can write to the world library", () => {
+  // The 4.20.0 boundary, as a mechanical guard: a placeholder on a CHARACTER
+  // is a true statement about what they owe; one in the library is a lie about
+  // what the world contains.
+  const src = readFileSync(new URL("../scripts/classes/pending-choices.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /Item\.implementation\.create|game\.items\.create/);
+  assert.match(src, /createEmbeddedDocuments/);
 });
 
 test("resolution reaches the compendia, not only game.items", () => {
@@ -991,13 +1016,13 @@ test("a template's package and its leftovers are both applied, once each", () =>
   assert.ok(start > 0, "applyTemplate still has a bundle branch");
   const bundleBranch = chargen.slice(start, start + 1400);
   assert.match(bundleBranch, /grantBundleRows\(actor, kept, report\)/, "the bundle's own contents");
-  assert.match(bundleBranch, /grantRowEntries\(actor, template, report\)/, "plus what it could not carry");
+  assert.match(bundleBranch, /grantRowEntries\(actor, template, report, offerCtx\)/, "plus what it could not carry");
 });
 
 test("applyTemplate is bundle-first with the row path as fallback", () => {
   const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
   assert.match(src, /expandTemplate\(template\)/, "the bundle is expanded before any row entry is read");
-  assert.match(src, /grantRowEntries\(actor, \{ abilities, items: template\.items \?\? \[\], spells \}, report\)/,
+  assert.match(src, /grantRowEntries\(actor, \{ abilities, items: template\.items \?\? \[\], spells \}, report, offerCtx\)/,
     "the legacy row path survives for un-upgraded worlds");
 });
 

@@ -239,7 +239,11 @@ export async function processVentureActions(location, log, t) {
           const expert = actor.items.some((i) => {
             if (i.type !== ITEM_TYPE.ability) return false;
             const n = String(i.name).toLowerCase();
-            const related = n.includes(label) || label.includes(n.replace(/^(art|craft|profession)\s*\(?/, "").replace(/\)$/, ""));
+            // The merged proficiency is printed "Art/Craft (weaving)", so the
+            // slash form is tried FIRST — alternation is leftmost-first, and
+            // matching the bare "art" left "/craft (weaving" behind, which no
+            // merchandise label contains.
+            const related = n.includes(label) || label.includes(n.replace(/^(art\/craft|art|craft|profession)\s*\(?/, "").replace(/\)$/, ""));
             return related && abilityRanks(actor, i.name) >= 2;
           });
           if (expert) {

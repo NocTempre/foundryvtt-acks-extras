@@ -73,8 +73,20 @@ export function rungOptions(choice, classItem, actor = null) {
  * @param {boolean} [opts.offerAnswered] offer the "already on the sheet" and
  *   "leave open" answers. Chargen builds a character who owns nothing, so it
  *   has nothing to say they already have and passes false.
+ * @param {boolean} [opts.placeholder] lead with an empty, pre-selected option.
+ *   For a surface where NOT answering has to be distinguishable from answering:
+ *   a select whose first entry is a real option spends the pick on that option
+ *   the moment the player submits without touching the control.
  */
-export function rungSelectHtml({ name, label, atLevel = null, options = [], selected = "", offerAnswered = true }) {
+export function rungSelectHtml({
+  name,
+  label,
+  atLevel = null,
+  options = [],
+  selected = "",
+  offerAnswered = true,
+  placeholder = false,
+}) {
   const option = (value, text, extra = "") =>
     `<option value="${esc(value)}"${selected === value ? " selected" : ""}${extra}>${esc(text)}</option>`;
   const held = options.filter((o) => o.owned);
@@ -94,10 +106,11 @@ export function rungSelectHtml({ name, label, atLevel = null, options = [], sele
   // Nothing left to offer is not an empty control: a rung whose every option is
   // already held still has to be closable, or it is asked forever.
   const empty = !options.length && !offerAnswered ? option("", loc("pick.rung.none")) : "";
+  const lead = placeholder && options.length ? `<option value="" selected>${esc(loc("pick.rung.choose"))}</option>` : "";
   const at = atLevel == null ? "" : ` <span class="acks-extras-classes-refname">(${esc(loc("apply.atLevel", { level: atLevel }))})</span>`;
   return `<div class="form-group"><label>${esc(label)}${at}</label><div class="form-fields"><select name="${esc(
     name,
-  )}">${body}${answers}${empty}</select></div></div>`;
+  )}">${lead}${body}${answers}${empty}</select></div></div>`;
 }
 
 /** What one rung is called, falling back to the surface's generic wording. */

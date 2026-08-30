@@ -523,6 +523,10 @@
                 <span class="acks-extras-classes-refname">{{#if refName}}{{refName}}{{else}}{{name}}{{/if}}</span>
                 <input name="system.templates.{{../index}}.abilities.{{index}}.rank" type="number" value="{{rank}}" title="{{localize "ACKS-CLASSES.sheet.templates.rank"}}" />
                 <input name="system.templates.{{../index}}.abilities.{{index}}.selection" type="text" value="{{selection}}" placeholder="{{localize "ACKS-CLASSES.sheet.templates.selection"}}" />
+                <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.offerHint"}}">
+                  <input type="checkbox" name="system.templates.{{../index}}.abilities.{{index}}.offer" {{#if offer}}checked{{/if}} />
+                  {{localize "ACKS-CLASSES.sheet.templates.offer"}}
+                </label>
                 <a data-action="rowDelete" data-array="templates.{{../index}}.abilities" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
               </div>
             {{/each}}
@@ -547,6 +551,10 @@
               <div class="acks-extras-classes-row">
                 <input name="system.templates.{{../index}}.spells.{{index}}.name" type="text" value="{{name}}" placeholder="{{localize "ACKS-CLASSES.sheet.name"}}" />
                 <input name="system.templates.{{../index}}.spells.{{index}}.uuid" type="text" value="{{uuid}}" placeholder="uuid" />
+                <label class="checkbox" data-tooltip="{{localize "ACKS-CLASSES.sheet.templates.offerHint"}}">
+                  <input type="checkbox" name="system.templates.{{../index}}.spells.{{index}}.offer" {{#if offer}}checked{{/if}} />
+                  {{localize "ACKS-CLASSES.sheet.templates.offer"}}
+                </label>
                 <a data-action="rowDelete" data-array="templates.{{../index}}.spells" data-index="{{index}}"><i class="fa-solid fa-xmark"></i></a>
               </div>
             {{/each}}

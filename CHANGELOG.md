@@ -1,5 +1,51 @@
 # Changelog
 
+## 5.4.0
+
+**The first hit die is read at its floor, levels past 9th carry their printed bonus, and a pick you are owed is something you can see.**
+
+### Added
+- **A pick a starting package offers is an item on the character.** A printed
+  package sometimes hands over a choice rather than a thing — "and one spell of
+  character's choice". It arrived as a sentence nobody could act on, so the pick
+  was simply never made. It is now minted on the character as a marker named for
+  the question it asks; clicking it opens a chooser and the answer replaces it.
+  Re-running chargen or re-applying the class never mints a second one, and a
+  pick already made never comes back.
+- **A race's extra hit points per level after 9th can be typed.** The field
+  existed, was imported for the dwarf, and had neither an editor nor anything
+  reading it. The race sheet now has the input, and the class builder reads it.
+- **A template row can be marked as an offer** on the class sheet, for a class
+  typed by hand rather than imported.
+
+### Fixed
+- **The 1st-level hit die is read at its printed floor, and Constitution lands
+  after it.** RR Ch. 1 §I.5 floors the *die*, not the total; the total was being
+  floored at one instead, which is different arithmetic — the modifier is meant
+  to apply to a die that has already been raised. A 1st-level character rolling
+  under the floor was written short. The floor is a printed value, so it is
+  imported: **a world that has not imported it keeps exactly the hit points it
+  had**, and the code comment and offline tests that asserted the absence as if
+  it were the rule are corrected with it.
+- **A custom class gains its printed hit points past 9th.** Every level from 10th
+  up was derived with a bare die count and no flat, so a built class fell behind
+  an imported class of the same spread by up to ten hit points at 14th with
+  nothing on either sheet saying why. The rate is imported per saving-throw
+  progression and summed with the race's own; a rate the world has not imported
+  is named as an issue rather than replaced by a guess.
+- **An Art/Craft assessor is recognised by a trade venture.** The merged
+  proficiency is printed "Art/Craft (pottery)", and the name strip matched the
+  bare "art" first, leaving "/craft (pottery" — a fragment no merchandise label
+  contains. Specialties naming a whole category still matched by the other half
+  of the test; ones naming *part* of a category — wood, metal, furs — matched
+  neither, so an assessor of those was never recognised.
+
+### Changed
+- **`buildPlaceholderAbility` is no longer part of the classes API.** Nothing has
+  called it since 4.20.0 removed placeholder minting for unresolved names. A
+  placeholder for a pick the character *owes* is a different thing and is the new
+  pending-choice surface above.
+
 ## 5.3.0
 
 The party sheet gets tabs, the city gets its last four rules, and every table

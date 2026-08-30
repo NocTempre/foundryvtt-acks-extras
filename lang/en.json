@@ -4639,5 +4639,16 @@
   "ACKS-VEHICLES.reason.road.driver": "Road, driven well",
   "ACKS-VEHICLES.reason.road.washedOut": "Road washed out — worth nothing in this weather",
   "ACKS-LOCATION.browser.absentBadge": "not supplied",
-  "ACKS-LOCATION.browser.absentHint": "The engine asks for this table and nothing has supplied it yet. Export it for a blank page to author into, or drop a RollTable or journal page onto this row."
+  "ACKS-LOCATION.browser.absentHint": "The engine asks for this table and nothing has supplied it yet. Export it for a blank page to author into, or drop a RollTable or journal page onto this row.",
+  "ACKS-CLASSES.chargen.pending": "Still to choose:",
+  "ACKS-CLASSES.pending.offer": "Choose a starting pick",
+  "ACKS-CLASSES.pending.namedOffer": "Choose: {label}",
+  "ACKS-CLASSES.pending.title": "Make a choice",
+  "ACKS-CLASSES.pending.hint": "A pick this character has not made yet. Click to choose.",
+  "ACKS-CLASSES.pending.noOptions": "Nothing in this world answers that offer yet.",
+  "ACKS-CLASSES.pending.unresolved": "That option no longer resolves ({ref}); the choice is left open.",
+  "ACKS-CLASSES.pending.failed": "The chooser could not be opened.",
+  "ACKS-CLASSES.pick.rung.choose": "— choose —",
+  "ACKS-CLASSES.sheet.templates.offer": "Offer",
+  "ACKS-CLASSES.sheet.templates.offerHint": "This row is a pick the player still makes, not something granted. The character gets a marker to answer instead of the entry."
 }

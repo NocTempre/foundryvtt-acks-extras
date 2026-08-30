@@ -29,6 +29,7 @@ import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
 import { registerHitPointExpectations, firstLevelDieMinimum, HITPOINTS_DOC } from "./hitpoints.mjs";
+import { registerPendingChoices, pendingChoices, isOffer, mintPendingChoices, redeemChoice, openChoiceDialog } from "./pending-choices.mjs";
 import { reopenChargen, registerReopenChargen } from "./reopen-chargen.mjs";
 import {
   applyChargen,
@@ -50,7 +51,6 @@ import {
   expandTemplate,
   buildGearData,
   buildProfData,
-  buildPlaceholderAbility,
   applyShortfall,
   bestBaseMatch,
   findSource,
@@ -74,6 +74,8 @@ Hooks.once("init", () => {
   CONFIG.Item.dataModels[RACE_TYPE] = RaceData;
   builder.registerBuilderExpectations();
   registerHitPointExpectations();
+  // Picks a character owes, drawn on the sheet and answerable from it.
+  registerPendingChoices();
 
   // How a gained level rolls HP. RAW (user-confirmed ruling): reroll the full
   // Hit Dice, minimum one over the old maximum; additive is the house rule.
@@ -169,6 +171,9 @@ Hooks.once("init", () => {
     // read from — exposed so a live check can see what the world imported.
     HITPOINTS_DOC,
     firstLevelDieMinimum,
+    /** Open picks: a printed offer a character has not answered yet, minted as
+     *  an owned marker and redeemed into the document the player chooses. */
+    pending: { pendingChoices, isOffer, mintPendingChoices, redeemChoice, openChoiceDialog },
     openClassPicker,
     openLevelUp,
     applyChargen,
@@ -200,7 +205,6 @@ Hooks.once("init", () => {
       expandTemplate,
       buildGearData,
       buildProfData,
-      buildPlaceholderAbility,
       applyShortfall,
       bestBaseMatch,
       // Resolution reaches the COMPENDIA as well as the world, because the

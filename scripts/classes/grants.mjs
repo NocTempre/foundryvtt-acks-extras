@@ -91,13 +91,68 @@ export async function grantAdventuring(actor, grants) {
   if (doc) await grantAbility(actor, refOf(doc), grants);
 }
 
+/**
+ * Every spell a character of this class may CHOOSE from.
+ *
+ * Unlike every other option source, this one deliberately reaches past the
+ * library into whatever spell compendia the world has. The 2026-08-20 ruling —
+ * read the imports, never the system's shipped compendium — governs what a
+ * PACKAGE materializes into a template from a book the reader may not own. A
+ * player electing their own starting spell is a different act: the offer is
+ * only worth making from what their world actually holds, and a world that has
+ * imported no spell list still has the system's. Offering nothing would leave
+ * the pick unredeemable, which is a surface nobody can reach.
+ *
+ * Narrowed to the class's own traditions where the documents say which they
+ * belong to; a class with no casting row offers no spells at all.
+ */
+export function choosableSpells(classItem) {
+  const traditions = classItem?.system?.casting ?? [];
+  if (!traditions.length) return [];
+  const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  const wanted = new Set(traditions.flatMap((t) => [fold(t.key), fold(t.label)]).filter(Boolean));
+  const packed = (game.packs ?? [])
+    .filter((p) => p.documentName === "Item")
+    .flatMap((p) => [...p.contents].filter((i) => i.type === ITEM_TYPE.spell));
+  const seen = new Set();
+  return [...libraryItems().filter((i) => i.type === ITEM_TYPE.spell), ...packed].filter((doc) => {
+    if (seen.has(doc.uuid)) return false;
+    seen.add(doc.uuid);
+    // The tradition field is free text a Judge may leave blank; an unlabelled
+    // spell is OFFERED rather than hidden, because a hidden option is one the
+    // player cannot pick and cannot see the absence of.
+    const tradition = fold(doc.system?.class);
+    return !tradition || !wanted.size || wanted.has(tradition);
+  });
+}
+
+/**
+ * Load every compendium that holds a spell, so `choosableSpells` can see them.
+ *
+ * A compendium's `contents` is empty until its documents are loaded, and the
+ * system's spell packs are cold in a fresh session — so an offer resolved
+ * without this returns nothing at all and the pick reads as unredeemable in
+ * exactly the world it exists to serve (one that has imported no spells of its
+ * own). The index is always present, so the decision of WHICH packs to load
+ * costs no loading.
+ */
+export async function warmSpellPacks() {
+  const wanted = [];
+  for (const pack of game.packs ?? []) {
+    if (pack.documentName !== "Item") continue;
+    const index = await pack.getIndex({ fields: ["type"] }).catch(() => null);
+    if (index?.some((e) => e.type === ITEM_TYPE.spell)) wanted.push(pack.getDocuments().catch(() => null));
+  }
+  await Promise.all(wanted);
+}
+
 /** Resolve a ChoiceSpec's options against this class doc and the world. */
 export function optionsForChoice(choice, classItem) {
   const generalRefs = choosableGenerals().map(refOf);
   const refs = choiceOptions(choice, {
     inventory: classItem.system.inventory,
     generalRefs,
-    spellRefs: [],
+    spellRefs: choice?.from === "spellList" ? choosableSpells(classItem).map(refOf) : [],
   });
   return refs
     .map((ref) => ({ ref, name: findByRef(ref)?.name ?? ref }))

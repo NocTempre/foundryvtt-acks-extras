@@ -601,3 +601,12 @@
   font-size: var(--acks-fs-fine);
   opacity: 0.7;
 }
+
+/* A pick the character has not made yet: an owned row that is a question, not
+   an answer. Marked rather than hidden — the point is that the player SEES
+   they are owed something. */
+.acks-extras-classes-pending {
+  border-left: 3px solid var(--color-warm-2, #a97);
+  font-style: italic;
+  cursor: pointer;
+}

@@ -81,3 +81,18 @@ export const REPERTOIRE_KINDS = {
  * (lib/managed-effects.mjs) — so it is named once and read from both.
  */
 export const FLAG_FROM_CLASS = "fromClass";
+
+/**
+ * Flag under `flags["acks-extras"]` marking an owned item as a pick the
+ * character still owes rather than something they hold. Carries the offer that
+ * minted it, so the chooser knows what may be picked and a second mint knows
+ * not to ask twice.
+ */
+export const FLAG_PENDING_CHOICE = "pendingChoice";
+
+/**
+ * Flag under `flags["acks-extras"]` on the actor, listing offer keys already
+ * settled. A redeemed placeholder is DELETED, so without this a re-apply would
+ * mint it again the moment the item it became stopped looking like one.
+ */
+export const FLAG_REDEEMED_CHOICES = "redeemedChoices";

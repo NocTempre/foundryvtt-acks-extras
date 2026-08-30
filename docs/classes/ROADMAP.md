@@ -82,3 +82,28 @@ own decision, and not as a side effect of whatever comes next.
   in chargen.mjs already searches compendia, so the codebase is not of one mind.
   Deciding it means saying whether picking from a compendium materializes the
   item.
+
+## Deferred with the 2026-08-29 hit-point and open-pick work
+
+- **The RR's optional 1st-level hit-point rules.** The book offers three (max
+  at 1st, no minimums, the 0th-level walk-up). The imported floor is
+  unconditional; a campaign wanting one of the options has no switch. If this
+  is wanted, extend the existing level-up HP mode setting rather than adding a
+  second one — one family of campaign HP options, not two.
+- **Whether a racial value of 0 should still carry its race's rates.** The
+  books gate neither the racial XP increment nor the racial hit-point rate on
+  points spent, but the derivation gates both (and the cap, traits and
+  requirements) on `racialValue > 0`. The new hit-point term copies that gate
+  for consistency; the whole question is one item, not five.
+- **Race-sheet fields still unreachable.** `stacksWith`, `stackXpDiscount` and
+  `postEight` have readers and no editor. They are deferred together with the
+  question they share with `hpAfter9`: a re-import rebuilds a materialized
+  race's `system` wholesale, so a Judge's typing is replaced rather than
+  merged.
+- **`templateItem.choice`** — an item a package offers rather than grants. The
+  schema carries it; nothing writes or reads one, and no printed RR cell needs
+  it yet.
+- **Proficiency-cell offers from the books.** The open-pick surface handles an
+  ability offer the moment something writes one, but no RR proficiency cell
+  prints a pick — the only printed offer in the corpus is the spell clause. By
+  This Axe has not been swept for one.

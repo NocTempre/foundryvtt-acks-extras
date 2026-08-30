@@ -129,6 +129,25 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         selection: str(), // parenthesized specialization ("weapon & shield")
         role: str(), // bold-cell convention: "region" / "joat" / "mandatory" / "intBonus" / "totem"
         choice: choiceSpecField(), // a pick the cell offers instead of a fixed grant
+        offer: bool(), // this row IS the pick, not a grant — see `isOffer`
+      });
+
+    /**
+     * One spell inside a starting template's bundle — or the OFFER of one.
+     *
+     * A printed package sometimes hands over a spell the player still has to
+     * name ("and one spell of character's choice"). That is not a spell and is
+     * never minted as one, but it is not nothing either: recorded only as a
+     * sentence in a note it is invisible on the character and the pick is
+     * silently never made. So it rides as a row whose `offer` is set, carrying
+     * what may be picked rather than what was granted.
+     */
+    const templateSpell = () =>
+      new SchemaField({
+        uuid: str(), // core spell Item uuid, once one exists in the world
+        name: str(), // printed name — the fallback when no item is linked
+        offer: bool(),
+        choice: choiceSpecField(),
       });
 
     /** One granted item inside a template's bundle, with its printed skin. */
@@ -201,7 +220,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         caste: str(), // the dwarven templates' fifth column
         abilities: new ArrayField(templateAbility()),
         items: new ArrayField(templateItem()),
-        spells: new ArrayField(spellRefField()),
+        spells: new ArrayField(templateSpell()),
         // Printed starting coin. Most templates pay in gold; a few pay partly
         // or wholly in silver ("20sp for alms", "1gp, 8sp"), and a template
         // that prints only silver leaves a character with nothing at all if

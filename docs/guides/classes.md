@@ -224,3 +224,42 @@ Taking a starting template that names a variant answers the group for you:
 "Pit Fighter (Jutland)" chooses Jutland, and the training follows. A template
 that names no variant leaves your choice alone, and so does a second template if
 you have already chosen.
+
+## Picks a character still owes
+
+A printed starting package does not only hand things over. Sometimes it hands
+over a choice — "and one spell of character's choice" — and until now that
+arrived as a sentence on an item's note, where nothing on the character showed
+it and the pick was quietly never made.
+
+Such a row now arrives on the character as a marker named for the question it
+asks. The chargen chat card lists it under its own heading, apart from what was
+granted and from what could not be resolved. Clicking the marker opens the
+chooser; what you pick replaces it.
+
+![](../releases/v5.4.0/open-picks.png)
+
+The list is drawn from the class's own traditions, and — for spells only — from
+whatever spell compendia the world has, so a table that has imported no spell
+list of its own can still answer the offer. Nothing is chosen for you: the
+control opens on "— choose —", so closing it without deciding leaves the pick
+standing rather than spending it on whichever option sorted first.
+
+Answering is remembered against the character, not against the row's position,
+so re-running the generator or re-applying the class never asks twice and never
+brings a settled pick back.
+
+## What a race adds after 9th level
+
+Past 9th level a class stops gaining Hit Dice and gains a flat number of hit
+points instead. The rate comes from the class's saving-throw progression, and
+some races add to it. Both numbers are read from your own books; the race's
+share is on the race document, where you can also type it for a race the
+importer has no recipe for.
+
+![](../releases/v5.4.0/race-post-ninth.png)
+
+A build that spends this race's value picks the bonus up on the next Derive; the
+class's level table then shows the printed flat on every row past 9th. Where the
+world has not imported the class-side rate, the derive reports that gap by name
+and writes no flat at all rather than guessing one.
