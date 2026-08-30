@@ -1,0 +1,166 @@
+---
+/**
+ * Overland travel, shown rather than described.
+ *
+ * The formation guide explains how to drive each of these; this page exists to
+ * answer the question a guide cannot, which is "what does a day of wilderness
+ * travel actually look like on the sheet". One plate per surface, each from a
+ * live game.
+ *
+ * Shots are staged out of `docs/releases/` by tools/sync.mjs, so a plate here
+ * is the same file the release captured — there is no second copy to drift.
+ */
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { Image } from "astro:assets";
+
+type Shot = { default: ImageMetadata };
+const shots = import.meta.glob<Shot>("../assets/shots/**/*.png", { eager: true });
+
+const base = import.meta.env.BASE_URL;
+const guide = `${base}guides/formation/`;
+
+const plates = [
+  {
+    shot: "v5.2.0/formation-weather.png",
+    title: "The sky, and what it costs",
+    body:
+      "Weather is settled once a day for the ground you are standing on, derived from the date and " +
+      "the climate rather than stored on whoever happened to roll it — so two parties in the same " +
+      "country get the same day. The conditions it produces are named, and every one of them shows " +
+      "up in the march beneath: forest, a road, snowfall, wind and snow underfoot, each as its own " +
+      "factor. Mud and snow accumulate and dry out on their own.",
+    alt:
+      "The travel panel's weather controls — climate, season, temperature, precipitation, wind and " +
+      "ground state — above the conditions they produced and a day's march of three miles with " +
+      "every factor itemized.",
+  },
+  {
+    shot: "v5.2.0/formation-camp.png",
+    title: "The camp",
+    body:
+      "How many days the packs hold for everyone in the order, who is going short, and what tonight's " +
+      "chosen hours are worth. Food and water are pooled across the whole party and dealt by a policy " +
+      "you choose. The hours in the weather are yours to declare — a marching day is not automatically " +
+      "a day spent unprotected, so the module does not assume one.",
+    alt:
+      "The camp section: days of food and water for three people, a field for hours spent in the " +
+      "weather with at-a-fire and got-wet toggles, and the night's forage, water, firewood and " +
+      "hunting throws each priced.",
+  },
+  {
+    shot: "v5.2.0/formation-flight.png",
+    title: "Flying, and what a flier skips",
+    body:
+      "How the order moves decides which factors it meets at all. Pick flying and two more fields " +
+      "appear — how much of the day was spent aloft, and what the flier is carrying. A flier still " +
+      "meets the ground below it, ignores roads entirely, and feels wind by its own rule rather than " +
+      "the one that slows a walker. The readout names which factor replaced which.",
+    alt:
+      "The journey pickers with Moving by set to Flying, showing hours aloft, the length of the day, " +
+      "and the flier's load alongside the ground, road and territory.",
+  },
+  {
+    shot: "v5.2.0/formation-city.png",
+    title: "In the city",
+    body:
+      "A settlement is crossed the way a wilderness is, at a different scale: a pace, the avenues or " +
+      "the alleys, how well the party knows the way, and whether it is dark. Take a turn and the party " +
+      "covers its blocks, tests its way, and the street gets its own chance at them. A party that goes " +
+      "looking for trouble finds it more easily — the throw eases, it does not come round sooner.",
+    alt:
+      "The settlement board: pace, streets, route knowledge, after dark, drawing attention set to " +
+      "looking for trouble, and how the party is carried — with the blocks covered, the navigation " +
+      "throw and the street's own cadence beneath.",
+  },
+  {
+    shot: "v5.2.0/formation-journey.png",
+    title: "A day, end to end",
+    body:
+      "The whole Travel tab as a Judge sees it: the ground and the sky at the top, the day board and " +
+      "its four ancillary hours, the march with every factor named, the camp below, and the log of " +
+      "days already walked. End day throws for navigation, feeds the order, walks every body's hunger, " +
+      "thirst and exposure one step, and writes the day down.",
+    alt: "The complete travel tab, from the ground and weather pickers through the day board and march to the camp.",
+  },
+].map((p) => {
+  const image = shots[`../assets/shots/${p.shot}`]?.default;
+  if (!image) throw new Error(`exploring: no staged screenshot for ${p.shot}`);
+  return { ...p, image };
+});
+---
+
+<StarlightPage
+  frontmatter={{
+    title: "Overland travel",
+    description:
+      "What a day of wilderness travel looks like in ACKS II — Extras: weather off the calendar, " +
+      "pooled provisions, hunger, thirst and the cold, foraging and searching, flight, city travel, " +
+      "and getting quietly lost.",
+    tableOfContents: false,
+  }}
+>
+  <p>
+    A journey in ACKS II is a sequence of small, costly decisions — how fast to
+    march, what to spend the day's spare hours on, whether the party can afford
+    to stop. This is what the module makes of that: a day board you fill in, a
+    march derived with every factor named, and a camp that keeps track of what
+    the country and the weather are doing to the people in it.
+  </p>
+
+  <p>
+    Every figure behind these surfaces — each threshold, target, penalty, yield
+    and rate — arrives through <a href="https://github.com/NocTempre/foundryvtt-acks-importer">ACKS
+    Importer</a> from your own books. Until you have imported them the panel
+    still works and says plainly what it cannot price. It never guesses a
+    distance, a target or a toll.
+  </p>
+
+  {
+    plates.map((p) => (
+      <section class="plate">
+        <h2>{p.title}</h2>
+        <p>{p.body}</p>
+        <Image src={p.image} alt={p.alt} loading="lazy" />
+      </section>
+    ))
+  }
+
+  <section class="plate">
+    <h2>Getting lost</h2>
+    <p>
+      The one surface with no screenshot, because the whole point is that the
+      players cannot see it. A failed navigation throw is whispered to the Judge,
+      not announced. The party walks on believing it is somewhere it is not, and
+      the map fills in with the ground they <em>think</em> they crossed — while
+      the Judge alone watches a hidden marker move across the country they are
+      really in.
+    </p>
+    <p>
+      When they realise, that imagined ground closes back over and they are told,
+      in as many words, that the last few days were not where they thought. They
+      do not learn where they went. Finding their way back to a known landmark is
+      what puts the country they really crossed onto the map, in its right place.
+    </p>
+  </section>
+
+  <p>
+    <a href={guide}>The formation guide</a> explains how to drive all of this,
+    step by step.
+  </p>
+</StarlightPage>
+
+<style>
+  .plate {
+    margin-block: 2.5rem;
+  }
+  .plate h2 {
+    margin-block-end: 0.4rem;
+  }
+  .plate img {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    margin-block-start: 1rem;
+    max-width: 100%;
+    height: auto;
+  }
+</style>

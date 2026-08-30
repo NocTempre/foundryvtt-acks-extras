@@ -64,6 +64,12 @@ export default defineConfig({
           link: "/gallery/",
         },
         {
+          // Its own entry rather than a guide: the guide explains how to drive
+          // overland travel, and this shows what a day of it looks like.
+          label: "Overland travel",
+          link: "/exploring/",
+        },
+        {
           // Explicit order, not `autogenerate`: these are staged copies of
           // docs/guides/*.md and the reading order is the README's feature
           // order, which alphabetical would scramble.
