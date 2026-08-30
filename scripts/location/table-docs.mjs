@@ -653,8 +653,12 @@ export async function materializeAll() {
 
   /* --- Journal pages: every create in one call, every changed page in
      another, and only then the stale sweep. --- */
-  const pageEntries = entries.filter((e) => !e.rollable);
-  const have = new Set(entries.map((e) => `${e.docId}.${e.tableId}`));
+  // An ABSENT entry is the placeholder loop's business, not the export loop's:
+  // `listEntries` reports what the engine asks for as well as what it has, and
+  // counting an unsupplied table as "have" left it with neither a real page nor
+  // a placeholder.
+  const pageEntries = entries.filter((e) => !e.rollable && !e.absent);
+  const have = new Set(entries.filter((e) => !e.absent).map((e) => `${e.docId}.${e.tableId}`));
   const expected = [];
   for (const { docId, tableIds } of t?.expectedTables?.() ?? []) {
     for (const tableId of tableIds) {

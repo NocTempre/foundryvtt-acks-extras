@@ -219,7 +219,7 @@ function world({ registry = {}, expected = [] } = {}) {
   };
 }
 
-const { materializeAll, entryLabel, parseDrop } = await import("../scripts/location/table-docs.mjs");
+const { materializeAll, entryLabel, parseDrop, listEntries } = await import("../scripts/location/table-docs.mjs");
 
 /** Write calls only — the folder/journal lookups are reads. */
 const writeCount = () => calls.length;
@@ -442,6 +442,23 @@ await test("expected-but-missing tables get one placeholder each", async () => {
   assert.ok([...journal.pages].some((p) => p.name === "wages.labour"));
   // Placeholders ride the same single create call as the real pages.
   assert.deepEqual(calls.filter((c) => c.startsWith("page.create")), ["page.create:4"]);
+});
+
+await test("an unsupplied table is listed for authoring, and counted once", async () => {
+  // listEntries reports what the engine ASKS for as well as what it has, so a
+  // world with no import still has a list to author from. The two must not
+  // overlap: counting an unsupplied table as "have" once left it with neither
+  // a real page nor a placeholder.
+  world({ registry: manyPages(1), expected: [{ docId: "wages", tableIds: ["labour"] }] });
+  const listed = listEntries();
+  const absent = listed.filter((e) => e.absent);
+  assert.equal(absent.length, 1, "the unsupplied table is listed");
+  assert.equal(absent[0].key, "wages.labour");
+  assert.ok(listed.some((e) => !e.absent), "and the supplied ones are still listed");
+
+  const report = await materializeAll();
+  assert.equal(report.placeholders, 1, "it gets a placeholder, not an export");
+  assert.equal(report.exported, 1, "and is not counted as exported");
 });
 
 await test("a page whose table became rollable is retired after the writes", async () => {
