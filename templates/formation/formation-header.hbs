@@ -1,0 +1,31 @@
+<div class="acks-formation-body acks-formation-head">
+  {{#if formation}}
+  {{#if isGM}}
+  <div class="name-row">
+    {{#if partyImg}}
+    <img class="party-img" src="{{partyImg}}" data-action="editPartyImage"
+         data-tooltip="{{localize 'ACKS-FORMATION.app.editImageHint'}}" alt="" />
+    {{/if}}
+    <input type="text" name="name" value="{{formation.name}}" />
+  </div>
+  <div class="table-row" data-tooltip="{{localize 'ACKS-FORMATION.app.tableHint'}}">
+    <label><i class="fa-solid fa-table-list"></i> {{localize "ACKS-FORMATION.app.table"}}</label>
+    <select name="tableId">
+      <option value="">{{localize "ACKS-FORMATION.app.tableNone"}}</option>
+      {{#each tables}}
+      <option value="{{this.id}}" {{#if this.active}}selected{{/if}}>{{this.name}}</option>
+      {{/each}}
+    </select>
+  </div>
+  {{/if}}
+  {{#if warnings.length}}
+  <section class="warnings acks-callout acks-callout--warning">
+    {{#each warnings}}
+      <p><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>
+    {{/each}}
+  </section>
+  {{/if}}
+  {{else}}
+  <p class="hint empty-state">{{localize "ACKS-FORMATION.app.emptyState"}}</p>
+  {{/if}}
+</div>

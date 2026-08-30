@@ -1229,7 +1229,14 @@ await scenario("template renders live controls for a member-owner", async () => 
   const { default: Handlebars } = await import("handlebars");
   const fs = await import("node:fs");
   Handlebars.registerHelper("localize", (k) => String(k));
-  const template = Handlebars.compile(fs.readFileSync("templates/formation/formation-body.hbs", "utf8"));
+  // The sheet is one form split across tab parts, so a test that asks what the
+  // WHOLE sheet renders has to compile the parts it asserts on and join them,
+  // exactly as the sheet does. Order carries the marching order; Kit carries
+  // the maps section.
+  const part = (name) =>
+    Handlebars.compile(fs.readFileSync(`templates/formation/formation-tab-${name}.hbs`, "utf8"));
+  const parts = [part("order"), part("kit")];
+  const template = (ctx) => parts.map((render) => render(ctx)).join("\n");
   const view = await import("../scripts/formation/formation-view.mjs");
   const partyActorModule = await import("../scripts/formation/party-actor.mjs");
 

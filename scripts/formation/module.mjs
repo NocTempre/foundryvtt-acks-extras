@@ -599,7 +599,11 @@ Hooks.once("init", () => {
   /* --- Template preload (best-effort) --- */
   try {
     foundry.applications.handlebars.loadTemplates([
-      `modules/${MODULE_ID}/templates/formation/formation-body.hbs`,
+      `modules/${MODULE_ID}/templates/formation/formation-header.hbs`,
+      `modules/${MODULE_ID}/templates/formation/formation-tab-party.hbs`,
+      `modules/${MODULE_ID}/templates/formation/formation-tab-order.hbs`,
+      `modules/${MODULE_ID}/templates/formation/formation-tab-travel.hbs`,
+      `modules/${MODULE_ID}/templates/formation/formation-tab-kit.hbs`,
       `modules/${MODULE_ID}/templates/formation/skill-audit.hbs`,
     ]);
   } catch (err) {

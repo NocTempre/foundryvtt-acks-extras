@@ -2546,6 +2546,12 @@
       "searchHint": "Spend one of the day's set-aside hours looking. It owes an encounter throw whatever it finds.",
       "present": "Something is here to find",
       "presentHint": "Your map, not the module's: tick this when the hex actually holds a lair, ruin or landmark. Left unticked, a good throw still finds nothing — and the party cannot tell the difference."
+    },
+    "tab": {
+      "party": "Party",
+      "order": "Order",
+      "travel": "Travel",
+      "kit": "Kit"
     }
   },
   "ACKS-HENCHMEN.sheet.location": "Location / Recruitment Market",

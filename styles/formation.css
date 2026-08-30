@@ -46,6 +46,43 @@
   flex: 0 0 auto;
 }
 
+/* --- Tabs -----------------------------------------------------------------
+   The sheet is a fixed header over one scrolling tab. Only the ACTIVE panel
+   scrolls, so the tab strip and the warnings stay put while a long surface —
+   the journey, which alone runs past a tall window — moves under them. The
+   panels use the same column layout the single body used, so every section
+   inside them keeps its spacing. */
+
+.acks-extras.party-sheet .window-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.acks-extras.party-sheet .acks-formation-head {
+  flex: 0 0 auto;
+}
+
+.acks-extras.party-sheet nav.tabs {
+  flex: 0 0 auto;
+}
+
+.acks-extras.party-sheet .acks-formation-tab {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+  /* The panel is the scroll container, not the window. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.acks-extras.party-sheet .acks-formation-tab.active {
+  display: flex;
+}
+
 /* --- Marching order controls & ranks --- */
 
 .acks-extras:is(.party-sheet, .skill-audit) .members h3 {

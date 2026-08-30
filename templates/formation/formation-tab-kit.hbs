@@ -1,0 +1,124 @@
+<section class="tab acks-formation-tab {{tabs.kit.cssClass}}" data-tab="kit" data-group="primary">
+  {{#if formation}}
+  <section class="lights">
+    <h3>{{localize "ACKS-FORMATION.app.lights"}}</h3>
+    {{#each lights}}
+    <div class="light {{#unless this.lit}}unlit{{/unless}}" data-light-id="{{this.id}}">
+      <i class="{{#if this.lit}}fa-solid fa-fire-flame-curved lit{{else}}fa-regular fa-fire-flame-curved{{/if}}"></i>
+      <span class="label">{{this.label}} — {{this.bearer}}</span>
+      <span class="remaining">{{this.remaining}} {{localize "ACKS-FORMATION.app.turnsLeft"}}{{#if this.shielded}} · {{localize "ACKS-FORMATION.app.shieldedBadge"}}{{/if}}</span>
+      {{#if this.canControl}}
+      {{#if this.shieldable}}
+      <button type="button" data-action="toggleShield" class="{{#if this.shielded}}paused{{/if}}" data-tooltip="{{localize 'ACKS-FORMATION.app.shieldHint'}}">
+        <i class="fa-solid {{#if this.shielded}}fa-door-closed{{else}}fa-door-open{{/if}}"></i>
+      </button>
+      {{/if}}
+      <button type="button" data-action="toggleLight" data-tooltip="{{localize 'ACKS-FORMATION.app.toggleLightHint'}}">
+        <i class="fa-solid {{#if this.lit}}fa-moon{{else}}fa-lightbulb{{/if}}"></i>
+      </button>
+      {{/if}}
+      {{#if @root.isGM}}
+      <button type="button" data-action="removeLight" class="danger"><i class="fa-solid fa-xmark"></i></button>
+      {{/if}}
+    </div>
+    {{/each}}
+    {{#if isGM}}
+    <div class="add-light">
+      <select name="lightType">
+        {{#each lightTypes}}
+        <option value="{{this.key}}">{{this.label}} ({{this.turns}} {{localize "ACKS-FORMATION.app.turns"}})</option>
+        {{/each}}
+      </select>
+      <select name="lightBearer">
+        {{#each bearerOptions}}
+        <option value="{{this.id}}">{{this.name}}</option>
+        {{/each}}
+      </select>
+      <button type="button" data-action="addLight"><i class="fa-solid fa-fire"></i> {{localize "ACKS-FORMATION.app.lightIt"}}</button>
+    </div>
+    {{/if}}
+  </section>
+
+  <section class="spells">
+    <h3>{{localize "ACKS-FORMATION.app.spells"}}</h3>
+    {{#each spells}}
+    <div class="light" data-spell-id="{{this.id}}">
+      <i class="fa-solid fa-wand-sparkles lit"></i>
+      <span class="label">{{this.name}} — {{this.caster}}</span>
+      <span class="remaining">{{this.remaining}} {{localize "ACKS-FORMATION.app.turnsLeft"}}</span>
+      {{#if @root.isGM}}
+      <button type="button" data-action="spellMinus" data-tooltip="{{localize 'ACKS-FORMATION.app.spellMinusHint'}}"><i class="fa-solid fa-minus"></i></button>
+      <button type="button" data-action="spellPlus" data-tooltip="{{localize 'ACKS-FORMATION.app.spellPlusHint'}}"><i class="fa-solid fa-plus"></i></button>
+      <button type="button" data-action="removeSpell" class="danger"><i class="fa-solid fa-xmark"></i></button>
+      {{/if}}
+    </div>
+    {{/each}}
+    {{#if isGM}}
+    <div class="add-light add-spell">
+      <select name="spellPick" data-tooltip="{{localize 'ACKS-FORMATION.app.spellPickHint'}}">
+        <option value="">{{localize "ACKS-FORMATION.app.spellManual"}}</option>
+        {{#each spellOptions}}
+        <option value="{{this.key}}">{{this.label}}</option>
+        {{/each}}
+      </select>
+      <input type="text" name="spellName" placeholder="{{localize 'ACKS-FORMATION.app.spellName'}}" />
+      <input type="number" name="spellTurns" min="1" placeholder="{{localize 'ACKS-FORMATION.app.spellTurns'}}" />
+      <select name="spellCaster">
+        {{#each bearerOptions}}
+        <option value="{{this.id}}">{{this.name}}</option>
+        {{/each}}
+      </select>
+      <button type="button" data-action="addSpell" data-tooltip="{{localize 'ACKS-FORMATION.app.trackSpellHint'}}">
+        <i class="fa-solid fa-wand-sparkles"></i> {{localize "ACKS-FORMATION.app.trackSpell"}}
+      </button>
+    </div>
+    {{/if}}
+  </section>
+
+  <section class="maps">
+    <h3>{{localize "ACKS-FORMATION.map.section"}}</h3>
+    {{#if mapping.session}}
+    <p class="session">
+      <i class="fa-solid fa-map"></i> {{localize "ACKS-FORMATION.map.sessionLabel"}} <strong>{{mapping.itemName}}</strong>
+      {{#if isGM}}{{#unless mapping.proficient}}<i class="fa-solid fa-pen-nib distorted" data-tooltip="{{localize 'ACKS-FORMATION.map.distortedHint'}}"></i>{{/unless}}{{/if}}
+      {{#unless mapping.viewing}}<span class="warn">({{localize "ACKS-FORMATION.map.notViewing"}})</span>{{/unless}}
+    </p>
+    {{else}}
+    <p class="hint">{{localize "ACKS-FORMATION.map.noSession"}}</p>
+    {{/if}}
+    {{#if isGM}}
+    <div class="buttons">
+      <button type="button" data-action="newMap" {{#unless mapping.canStart}}disabled{{/unless}}
+              data-tooltip="{{localize 'ACKS-FORMATION.map.newMapHint'}}">
+        <i class="fa-solid fa-map"></i> {{localize "ACKS-FORMATION.map.newMap"}}
+      </button>
+      {{#if mapping.session}}
+      <button type="button" data-action="archiveMap" data-tooltip="{{localize 'ACKS-FORMATION.map.archiveHint'}}">
+        <i class="fa-solid fa-floppy-disk"></i> {{localize "ACKS-FORMATION.map.archive"}}
+      </button>
+      <button type="button" data-action="closeMap" data-tooltip="{{localize 'ACKS-FORMATION.map.closeHint'}}">
+        <i class="fa-solid fa-box-archive"></i> {{localize "ACKS-FORMATION.map.close"}}
+      </button>
+      {{/if}}
+      <button type="button" data-action="saveFogMap" data-tooltip="{{localize 'ACKS-FORMATION.map.saveFogHint'}}">
+        <i class="fa-solid fa-camera"></i> {{localize "ACKS-FORMATION.map.saveFog"}}
+      </button>
+    </div>
+    {{/if}}
+    {{#each mapItems}}
+    <div class="light map-item" data-item-uuid="{{this.uuid}}">
+      <i class="{{#if this.active}}fa-solid fa-map lit{{else}}fa-regular fa-map{{/if}}"></i>
+      <span class="label clickable" data-action="openMapItem" data-tooltip="{{localize 'ACKS-FORMATION.map.openHint'}}">
+        {{this.name}} — {{this.holder}} <em>({{this.sceneName}})</em>
+        {{#if this.distorted}}<i class="fa-solid fa-pen-nib distorted" data-tooltip="{{localize 'ACKS-FORMATION.map.distortedHint'}}"></i>{{/if}}
+        {{#if this.anchored}}<i class="fa-solid fa-anchor" data-tooltip="{{localize 'ACKS-FORMATION.map.anchoredHint'}}"></i>{{/if}}
+      </span>
+      <button type="button" data-action="anchorMap" {{#unless this.canAnchor}}disabled{{/unless}}
+              data-tooltip="{{#if this.canAnchor}}{{localize 'ACKS-FORMATION.map.anchorHint'}}{{else}}{{this.anchorReason}}{{/if}}">
+        <i class="fa-solid fa-anchor"></i> {{localize "ACKS-FORMATION.map.anchor"}}
+      </button>
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+</section>

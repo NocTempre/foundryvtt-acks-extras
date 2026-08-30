@@ -101,9 +101,40 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     actions: { ...SHARED_ACTIONS },
   };
 
+  /**
+   * A header that is always on screen, a tab strip, and one part per tab.
+   *
+   * Split because the sheet had grown twelve stacked sections in one template
+   * and had become a very long scroll — the travel surface alone runs past a
+   * tall window. The header keeps what must never be hidden behind a tab: the
+   * party's name, its encounter table, and the warnings. A warning you cannot
+   * see because you are on another tab is not a warning.
+   *
+   * Every part renders inside the one form, so an inactive tab's inputs are
+   * still in the DOM and still submit — switching tabs never drops an edit.
+   */
   static PARTS = {
-    body: { template: `modules/${MODULE_ID}/templates/formation/formation-body.hbs`, scrollable: [""] },
+    header: { template: `modules/${MODULE_ID}/templates/formation/formation-header.hbs` },
+    tabs: { template: "templates/generic/tab-navigation.hbs" },
+    party: { template: `modules/${MODULE_ID}/templates/formation/formation-tab-party.hbs`, scrollable: [""] },
+    order: { template: `modules/${MODULE_ID}/templates/formation/formation-tab-order.hbs`, scrollable: [""] },
+    travel: { template: `modules/${MODULE_ID}/templates/formation/formation-tab-travel.hbs`, scrollable: [""] },
+    kit: { template: `modules/${MODULE_ID}/templates/formation/formation-tab-kit.hbs`, scrollable: [""] },
   };
+
+  static TABS = {
+    primary: {
+      tabs: [
+        { id: "party", icon: "fa-solid fa-people-group", label: "ACKS-FORMATION.tab.party" },
+        { id: "order", icon: "fa-solid fa-list-ol", label: "ACKS-FORMATION.tab.order" },
+        { id: "travel", icon: "fa-solid fa-mountain-sun", label: "ACKS-FORMATION.tab.travel" },
+        { id: "kit", icon: "fa-solid fa-fire-flame-simple", label: "ACKS-FORMATION.tab.kit" },
+      ],
+      initial: "party",
+    },
+  };
+
+  tabGroups = { primary: "party" };
 
   /** Re-render all open party sheets (called on any formation change). */
   static refreshAll() {

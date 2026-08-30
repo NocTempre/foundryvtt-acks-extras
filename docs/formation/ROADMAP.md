@@ -207,9 +207,9 @@ territory; the day board and its ancillary slots as a *record*.
 | Aerial reconnaissance | **built** | Two corrections, never both: more throws over open ground, a worse target under canopy. |
 | Land surveying | **built** | Three outcomes: right, confidently wrong on a natural 1, or nothing yet. |
 | Splitting up | **built** | Sub-parties throw and draw encounters separately; mutually supporting groups are not split. |
-| **Flight speed** | **built** | `flight.mjs`: a day aloft, a partial day blended, wind, and the load threshold. Not yet wired into the march readout. |
-| **Starvation** | **built** | The ladder is in `lib/survival.mjs`; nothing ticks it per member yet. |
-| **Dehydration** | **built** | As above. |
+| ~~**Flight speed**~~ | **BUILT** — `flight.mjs` composes into the march readout through the movement-mode layer: a *Moving by* picker, hours aloft out of a stated day, and the load band. A flier meets the terrain below it, refuses roads, and its wind rule supersedes the ground's rather than stacking. |
+| ~~**Starvation**~~ | **BUILT** — `runProvisionDay` walks every member's ladder at End day and writes it to the body, not the marching order. |
+| ~~**Dehydration**~~ | **BUILT** — as above, and its toll is ROLLED: the caller throws the registry's die per body, and the heat multiplies it. |
 | ~~Hunting and foraging~~ | **BUILT** — the specs (11 checks) and `forage-run.mjs`, which rolls them from the camp panel and deposits into the foragers' packs. Live-verified the pool then sees it. |
 | ~~Survival, simplified~~ | **BUILT** — `simplifiedSupply` recommends what to carry; watered country waives the water entirely. |
 | ~~Animal daily food and water~~ | **BUILT** — `animalNeeds` reads each creature's own figures; unstated is null, never zero. |
@@ -232,14 +232,14 @@ price them from the registry. What remains:
 
 ### Cross-cutting defects found in the audit
 
-- **Weather is stored, not derived.** It lives on the formation and refreshes
-  when a Judge presses End day. The book makes it a function of the date and
-  the current hex's climate, so advancing the calendar any other way leaves
-  yesterday's sky standing, and two parties in the same weather roll their
-  own. Deriving from `date × climate` and caching per pair fixes all three and
-  gives the book's fast-travel allowance for free.
-- **Road and development are per-day pickers**, though both are geography and
-  belong on the painted map beside terrain.
+- ~~**Weather is stored, not derived.**~~ **FIXED 2026-08-29** — `sky.mjs`
+  derives the day from `date × climate` and caches per pair, so advancing the
+  calendar any other way no longer leaves yesterday's sky standing and two
+  parties in the same country get the same day.
+- ~~**Road and development are per-day pickers.**~~ **FIXED 2026-08-29** —
+  roads are painted as declared paths between a hex's sides, corners and
+  centre (`hex-topology.mjs`, `hex-routes.mjs`, `route-paint.mjs`); the picker
+  remains for a party not travelling a drawn route.
 - ~~**The terrain vocabulary is frozen.**~~ **FIXED 2026-08-29** — the brush
   now paints the union of shipped and imported keys, with a derived hue for a
   kind the palette has never seen.
