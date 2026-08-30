@@ -25,6 +25,7 @@
  * reason when the table is absent rather than guessing a distance.
  */
 import { getDoc, hasDoc } from "../lib/tables.mjs";
+import { numOrNull } from "../lib/util.mjs";
 
 /**
  * The registered document these derivations read.
@@ -79,11 +80,41 @@ export const ROUTE_KNOWLEDGE = Object.freeze({
   route: { label: "ACKS-FORMATION.settlement.route.route", certain: true },
 });
 
+/**
+ * What the party is doing about being noticed.
+ *
+ * A structural choice with a printed price: making a nuisance of yourself
+ * raises the encounter throw. Holing up is NOT here — that is a LOCATION, and
+ * it changes the cadence rather than the target.
+ */
+export const SETTLEMENT_INTENTS = Object.freeze({
+  ordinary: { label: "ACKS-FORMATION.settlement.intent.ordinary" },
+  trouble: { label: "ACKS-FORMATION.settlement.intent.trouble", seeks: true },
+});
+
+/**
+ * How the party is carried.
+ *
+ * Deliberately carries no rate: the rules say a litter or a wagon affords
+ * privacy and is *not any faster*, so a conveyance that quietly changed the
+ * block rate would be inventing a rule. It is a flag the Judge can see, and
+ * the one thing it is good for — being unseen — is the Judge's call.
+ */
+export const CONVEYANCES = Object.freeze({
+  onFoot: { label: "ACKS-FORMATION.settlement.conveyance.onFoot" },
+  litter: { label: "ACKS-FORMATION.settlement.conveyance.litter", private: true },
+  wagon: { label: "ACKS-FORMATION.settlement.conveyance.wagon", private: true },
+});
+
 /** A table read that answers null rather than a guess. */
 function table(key) {
   if (!hasDoc(SETTLEMENT_DOC)) return null;
   const t = getDoc(SETTLEMENT_DOC)?.tables?.[key];
-  return t && typeof t === "object" ? t : null;
+  // A registered table may be a bare figure — the after-dark shift on the
+  // encounter roll is one number, not a row. Rejecting non-objects made every
+  // such table read as "not imported", which is indistinguishable from a
+  // Judge who has not imported it yet.
+  return t == null ? null : t;
 }
 
 /** A fresh settlement board: on an avenue, by day, going nowhere in particular. */
@@ -93,8 +124,13 @@ export function freshSettlement() {
     where: "avenue",
     route: "unknown",
     night: false,
+    intent: "ordinary",
+    conveyance: "onFoot",
     blocks: 0,
     turns: 0,
+    days: 0,
+    /** How long a stay the Judge has queued up. A control's value, not a tally. */
+    holeUpDays: 1,
     lost: false,
     lastThrow: null,
   };
@@ -111,8 +147,12 @@ export function settlementOf(travel) {
     where: SETTLEMENT_LOCATIONS[s.where] ? s.where : fresh.where,
     route: ROUTE_KNOWLEDGE[s.route] ? s.route : fresh.route,
     night: !!s.night,
+    intent: SETTLEMENT_INTENTS[s.intent] ? s.intent : fresh.intent,
+    conveyance: CONVEYANCES[s.conveyance] ? s.conveyance : fresh.conveyance,
     blocks: Number(s.blocks) || 0,
     turns: Number(s.turns) || 0,
+    days: Number(s.days) || 0,
+    holeUpDays: Math.min(30, Math.max(1, Math.floor(Number(s.holeUpDays) || 1))),
     lost: !!s.lost,
   };
 }
@@ -200,7 +240,7 @@ export function strayBlocks() {
  * the table is absent; a caller must not fall back to the wilderness cadence,
  * which is a different rule at a different scale.
  */
-export function streetCadence({ where = "avenue", night = false } = {}) {
+export function streetCadence({ where = "avenue", night = false, intent = "ordinary" } = {}) {
   if (!SETTLEMENT_LOCATIONS[where]) return null;
   const row = table("encounters")?.[where];
   const cell = row?.[night ? "night" : "day"] ?? row?.any ?? null;
@@ -208,7 +248,76 @@ export function streetCadence({ where = "avenue", night = false } = {}) {
   const everyTurns = Number(cell.everyTurns);
   const target = Number(cell.throw);
   if (!Number.isFinite(everyTurns) || !Number.isFinite(target)) return null;
-  return { everyTurns, target };
+
+  // Looking for trouble does not come round more often — it succeeds more
+  // easily. The size of that is printed; that it eases the throw rather than
+  // shortening the interval is the rule, and lives here.
+  const seeking = !!SETTLEMENT_INTENTS[intent]?.seeks;
+  const bonus = seeking ? (numOrNull(table("encounterIntent")?.trouble) ?? 0) : 0;
+  return {
+    everyTurns,
+    target: target - bonus,
+    bareTarget: target,
+    modifier: bonus,
+    seeking,
+    // A party that WANTS trouble and has no imported figure for it is told,
+    // rather than quietly throwing at the ordinary target.
+    unpricedIntent: seeking && numOrNull(table("encounterIntent")?.trouble) == null,
+  };
+}
+
+/**
+ * A day spent holed up, resolved.
+ *
+ * Holing up is the one settlement rate measured in DAYS rather than turns, so
+ * it gets its own tick: the party covers no ground, and the street is given
+ * exactly one chance at them. Advancing turn by turn through a week of study
+ * would be twenty-four hours of ticks a day to reach the same throw.
+ *
+ * Pure, like the turn: the caller owns the dice.
+ */
+export function advanceSettlementDays(board, { days = 1, rolls = [] } = {}) {
+  const s = settlementOf({ settlement: board });
+  const spec = SETTLEMENT_LOCATIONS[s.where];
+  if (!spec?.stationary) return { board: s, events: [{ kind: "notHoledUp", where: s.where }] };
+
+  const n = Math.max(0, Math.floor(Number(days) || 0));
+  const cadence = streetCadence({ where: s.where, night: s.night, intent: s.intent });
+  const next = { ...s, days: s.days + n };
+  const events = [];
+  if (!cadence) {
+    if (n) events.push({ kind: "unpriced", what: "encounters" });
+    return { board: next, events };
+  }
+  for (let d = 0; d < n; d++) {
+    const owed = { kind: "encounterOwed", scale: "day", day: s.days + d + 1, target: cadence.target };
+    const roll = rolls[d];
+    if (roll != null) {
+      owed.rolled = Number(roll);
+      owed.met = owed.rolled >= cadence.target;
+    }
+    events.push(owed);
+  }
+  return { board: next, events };
+}
+
+/**
+ * Which row of the settlement encounter table a roll lands on.
+ *
+ * The table itself is written content and can only arrive by import — but the
+ * PROCEDURE ships: one d100, a modifier after dark, and the band it falls in.
+ * Returns null when unimported so a caller reports the gap rather than
+ * inventing an incident.
+ */
+export function settlementEncounter(roll, { night = false } = {}) {
+  const rows = table("encounters100");
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const base = Number(roll);
+  if (!Number.isFinite(base)) return null;
+  const after = night ? (numOrNull(table("encounterAfterDark")) ?? 0) : 0;
+  const total = base + after;
+  const row = rows.find((r) => total >= Number(r.min) && total <= Number(r.max));
+  return { roll: base, afterDark: after, total, entry: row?.text ?? null, matched: !!row };
 }
 
 /**
@@ -260,11 +369,15 @@ export function advanceSettlementTurn(board, {
   }
 
   // --- and did anything find them? ---
-  const cadence = streetCadence({ where: s.where, night: s.night });
+  const cadence = streetCadence({ where: s.where, night: s.night, intent: s.intent });
   if (!cadence) {
     events.push({ kind: "unpriced", what: "encounters" });
   } else if (next.turns % cadence.everyTurns === 0) {
-    const owed = { kind: "encounterOwed", target: cadence.target };
+    const owed = {
+      kind: "encounterOwed", scale: "turn", target: cadence.target,
+      ...(cadence.modifier ? { modifier: cadence.modifier, seeking: true } : {}),
+      ...(cadence.unpricedIntent ? { unpricedIntent: true } : {}),
+    };
     if (encounterRoll != null) {
       owed.rolled = Number(encounterRoll);
       owed.met = owed.rolled >= cadence.target;

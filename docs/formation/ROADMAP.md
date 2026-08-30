@@ -215,20 +215,21 @@ territory; the day board and its ancillary slots as a *record*.
 | ~~Animal daily food and water~~ | **BUILT** — `animalNeeds` reads each creature's own figures; unstated is null, never zero. |
 | ~~Temperature effects~~ | **BUILT** — hypothermia as an hourly condition, and the heat as modifiers: more water needed, a worse drain, an armour save. Live-felt in the pool. |
 
-### Not built — the settlement
+### The settlement — complete
 
-City travel landed as `settlement.mjs` in this pass: the paces, the street
-locations, the route memory, the straggling ladder and the derivations that
-price them from the registry. What remains:
+City travel landed as `settlement.mjs`: the paces, the street locations, the
+route memory, the straggling ladder and the derivations that price them from
+the registry. Every row below is now built — kept here, struck through, so the
+walk stays honest about what was once outstanding.
 
 | Rule | State | Note |
 |---|---|---|
 | ~~Settlement panel~~ | **BUILT** — pickers, the derived rate, the throw prospect, and a Take-a-turn button. |
 | ~~Street encounter throws~~ | **BUILT** — the turn tick fires them on the street's own cadence, whispered. |
-| Settlement encounters table | import only | A d100 table of written encounters, with a modifier after dark. Content — it can only ever arrive through the importer. |
-| Looking for trouble | missing | A declared intent that raises the cadence. |
-| Holing up | **partial** | The location carries its own cadence and the tick spends turns in it without covering ground; advancing whole DAYS while holed up is not built. |
-| Travel by litter or wagon | missing | Privacy, not speed — so it is a flavour flag, not a rate. |
+| ~~Settlement encounters table~~ | **BUILT** — the d100 table imports as a real RollTable from the Judge's own Judges Journal (a new `jj` register and cookbook), and the after-dark shift arrives as a registered figure. `settlementEncounter` performs the procedure: one roll, the shift, the band. |
+| ~~Looking for trouble~~ | **BUILT** — a declared intent that eases the THROW rather than shortening the interval, which is what the page says and the difference compounds over a long walk. |
+| ~~Holing up~~ | **BUILT** — `advanceSettlementDays` spends a stay in DAYS, one throw each, and the board offers a day tick in place of the turn tick wherever the party is not going anywhere. |
+| ~~Travel by litter or wagon~~ | **BUILT** — a conveyance the board remembers and that deliberately carries no rate at all, pinned by a test: the page says it is not any faster. |
 
 ### Cross-cutting defects found in the audit
 

@@ -41,6 +41,7 @@ import { driftSummary } from "./lost.mjs";
 import { travelOf, DAY_KINDS, ANCILLARY_ACTIVITIES, ROAD_KINDS, TERRITORY_KEYS } from "./travel.mjs";
 import {
   SETTLEMENT_PACES, SETTLEMENT_LOCATIONS, ROUTE_KNOWLEDGE,
+  SETTLEMENT_INTENTS, CONVEYANCES,
   blocksPerTurn, citySpec, streetCadence, strayBlocks, settlementReady,
 } from "./settlement.mjs";
 import { TERRAIN, travelMultiplier, canEnter } from "../vehicles/vehicle-speed.mjs";
@@ -505,7 +506,7 @@ function buildSettlementView(formation, t) {
 
   const rate = blocksPerTurn({ pace: s.pace, headcount: heads });
   const spec = citySpec({ pace: s.pace, route: s.route });
-  const cadence = streetCadence({ where: s.where, night: s.night });
+  const cadence = streetCadence({ where: s.where, night: s.night, intent: s.intent });
 
   return {
     ...s,
@@ -514,6 +515,12 @@ function buildSettlementView(formation, t) {
     paceOptions: Object.entries(SETTLEMENT_PACES).map(([k, v]) => opt(k, loc(v.label), k === s.pace)),
     whereOptions: Object.entries(SETTLEMENT_LOCATIONS).map(([k, v]) => opt(k, loc(v.label), k === s.where)),
     routeOptions: Object.entries(ROUTE_KNOWLEDGE).map(([k, v]) => opt(k, loc(v.label), k === s.route)),
+    intentOptions: Object.entries(SETTLEMENT_INTENTS).map(([k, v]) => opt(k, loc(v.label), k === s.intent)),
+    conveyanceOptions: Object.entries(CONVEYANCES).map(([k, v]) => opt(k, loc(v.label), k === s.conveyance)),
+    // Holing up is measured in DAYS, so the board offers a day tick instead of
+    // a turn tick when the party is not going anywhere.
+    stationary: !!SETTLEMENT_LOCATIONS[s.where]?.stationary,
+    holeUpDays: Number(s.holeUpDays) || 1,
     blocks: rate.blocks,
     blocksUnpriced: rate.blocks == null,
     straggling: (rate.parts ?? []).some((p) => p.key === "straggling"),

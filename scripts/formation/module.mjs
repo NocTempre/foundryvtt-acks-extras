@@ -319,7 +319,10 @@ Hooks.once("init", () => {
   // City travel: the paces' block rates, the navigation target and its
   // known-destination modifier, the straggling ladder, and the street's
   // encounter cadence. Every one of them is printed, so none of them ships.
-  expectTables(SETTLEMENT_DOC, ["paces", "navigation", "straggling", "encounters"]);
+  expectTables(SETTLEMENT_DOC, [
+    "paces", "navigation", "straggling", "encounters",
+    "encounterIntent", "encounters100", "encounterAfterDark",
+  ]);
   // Flight: the day-aloft factor, what wind costs a flier, and the load
   // threshold's own factor. All printed, so none of them ship.
   expectTables(FLIGHT_DOC, ["aloftFactor", "windFactor", "loadFactors"]);

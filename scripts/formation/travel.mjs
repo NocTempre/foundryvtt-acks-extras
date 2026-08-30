@@ -569,6 +569,10 @@ export function applyTravelForm(formationId, tv = {}) {
           night: !!tv.settlement.night,
         },
       });
+      // How many days a stay lasts is a form field rather than board state the
+      // tick owns; it is kept so the control does not reset itself each render.
+      const stay = Math.min(30, Math.max(1, Math.floor(Number(tv.settlement.holeUpDays) || 1)));
+      next.settlement.holeUpDays = stay;
     }
     if (tv.weather) {
       const wv = tv.weather;

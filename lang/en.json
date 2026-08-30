@@ -2428,12 +2428,32 @@
         "owed": "The street stirs: {target}+ owed.",
         "met": "Threw {rolled} against {target}+ — something finds them.",
         "quiet": "Threw {rolled} against {target}+ — the street lets them pass.",
-        "unpriced": "Not imported: {what}."
+        "unpriced": "Not imported: {what}.",
+        "stayTitle": "Out of sight",
+        "holedUp": "Holed up. {days} day(s) so far.",
+        "interrupted": "{count} day(s) did not pass quietly — day(s) {days}.",
+        "undisturbed": "Nothing found them, over {throws} day(s)."
       },
       "takeTurn": "Take a turn",
       "takeTurnHint": "Walk one turn: the party covers ground, may lose its way, and the street gets its chance.",
       "progress": "{blocks} block(s) over {turns} turn(s).",
-      "astray": "Turned around"
+      "astray": "Turned around",
+      "intentLabel": "Drawing attention",
+      "intent": {
+        "ordinary": "Keeping to ourselves",
+        "trouble": "Looking for trouble"
+      },
+      "conveyanceLabel": "Carried",
+      "conveyanceHint": "A litter or a wagon affords privacy. It is not any faster.",
+      "conveyance": {
+        "onFoot": "On foot",
+        "litter": "By litter",
+        "wagon": "By wagon"
+      },
+      "daysLabel": "For",
+      "holeUp": "Hole up",
+      "holeUpHint": "Spend the days out of sight. One encounter throw each day, and no ground covered.",
+      "notHoledUp": "The party is out on the streets — pick a place to hole up first."
     },
     "lost": {
       "discovered": {

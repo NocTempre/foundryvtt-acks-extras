@@ -41,6 +41,23 @@
                {{#if travel.settlement.night}}checked{{/if}}>
         {{localize "ACKS-FORMATION.settlement.night"}}
       </label>
+      <label>
+        {{localize "ACKS-FORMATION.settlement.intentLabel"}}
+        <select name="travel.settlement.intent">
+          {{#each travel.settlement.intentOptions}}
+          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+      </label>
+      <label>
+        {{localize "ACKS-FORMATION.settlement.conveyanceLabel"}}
+        <select name="travel.settlement.conveyance"
+                data-tooltip="{{localize 'ACKS-FORMATION.settlement.conveyanceHint'}}">
+          {{#each travel.settlement.conveyanceOptions}}
+          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+      </label>
     </div>
     {{/if}}
 
@@ -61,10 +78,22 @@
       {{#if travel.settlement.lost}}
       <span class="acks-extras-formation-settlement-astray">{{localize "ACKS-FORMATION.settlement.astray"}}</span>
       {{/if}}
+      {{#if travel.settlement.stationary}}
+      <label class="acks-extras-formation-settlement-days">
+        {{localize "ACKS-FORMATION.settlement.daysLabel"}}
+        <input type="number" min="1" max="30" step="1" name="travel.settlement.holeUpDays"
+               value="{{travel.settlement.holeUpDays}}">
+      </label>
+      <button type="button" data-action="settlementDays"
+              data-tooltip="{{localize 'ACKS-FORMATION.settlement.holeUpHint'}}">
+        <i class="fa-solid fa-house-lock"></i> {{localize "ACKS-FORMATION.settlement.holeUp"}}
+      </button>
+      {{else}}
       <button type="button" data-action="settlementTurn"
               data-tooltip="{{localize 'ACKS-FORMATION.settlement.takeTurnHint'}}">
         <i class="fa-solid fa-shoe-prints"></i> {{localize "ACKS-FORMATION.settlement.takeTurn"}}
       </button>
+      {{/if}}
     </p>
     <p class="acks-extras-formation-settlement-nav">
       {{#if travel.settlement.throws}}

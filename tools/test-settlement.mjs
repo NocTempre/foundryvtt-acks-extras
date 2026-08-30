@@ -14,6 +14,7 @@ import {
   SETTLEMENT_DOC, SETTLEMENT_PACES, SETTLEMENT_LOCATIONS, ROUTE_KNOWLEDGE,
   freshSettlement, settlementOf, straggleTier, blocksPerTurn, citySpec,
   strayBlocks, streetCadence, settlementReady, advanceSettlementTurn,
+  SETTLEMENT_INTENTS, CONVEYANCES, advanceSettlementDays, settlementEncounter,
 } from "../scripts/formation/settlement.mjs";
 
 let passed = 0;
@@ -35,10 +36,22 @@ const SAMPLE = {
       alley: { day: { everyTurns: 4, throw: 5 }, night: { everyTurns: 2, throw: 4 } },
       holedUp: { any: { everyTurns: 100, throw: 4 } },
     },
+    encounterIntent: { trouble: 2 },          // invented
+    encounterAfterDark: 25,                   // invented
+    encounters100: [                          // invented incidents, invented bands
+      { min: 1, max: 40, text: "A goat is loose in the forum." },
+      { min: 41, max: 80, text: "Two carters are shouting about a wheel." },
+      { min: 81, max: 200, text: "Somebody is following you." },
+    ],
   },
 };
 
 const load = () => registerTable(SAMPLE, { priority: PRIORITY.WORLD, source: "test" });
+
+/** Assert the named fields, ignoring any the reader also returns. */
+assert.match2 = (actual, expected) => {
+  for (const [k, v] of Object.entries(expected)) assert.deepEqual(actual?.[k], v, k);
+};
 
 // ---- structure ships, values do not -------------------------------------
 ok("the vocabularies are structural and complete", () => {
@@ -135,11 +148,11 @@ ok("the stray distance is a registered expression, never a literal", () => {
 // ---- the street ---------------------------------------------------------
 ok("cadence is keyed by where you are and whether it is dark", () => {
   resetTables(); load();
-  assert.deepEqual(streetCadence({ where: "avenue", night: false }), { everyTurns: 8, target: 5 });
-  assert.deepEqual(streetCadence({ where: "avenue", night: true }), { everyTurns: 4, target: 5 });
-  assert.deepEqual(streetCadence({ where: "alley", night: true }), { everyTurns: 2, target: 4 });
+  assert.match2(streetCadence({ where: "avenue", night: false }), { everyTurns: 8, target: 5 });
+  assert.match2(streetCadence({ where: "avenue", night: true }), { everyTurns: 4, target: 5 });
+  assert.match2(streetCadence({ where: "alley", night: true }), { everyTurns: 2, target: 4 });
   // Holed up keeps one cadence around the clock.
-  assert.deepEqual(streetCadence({ where: "holedUp", night: true }), { everyTurns: 100, target: 4 });
+  assert.match2(streetCadence({ where: "holedUp", night: true }), { everyTurns: 100, target: 4 });
   assert.equal(streetCadence({ where: "nowhere" }), null);
 });
 
@@ -249,5 +262,113 @@ ok("an encounter roll is judged against the street's own target", () => {
   assert.equal(owed.target, 4);
   assert.equal(owed.met, true);
 });
+
+/* --- looking for trouble ---------------------------------------------------
+   RAW eases the THROW; it does not make the encounter come round sooner. The
+   distinction matters: a shorter interval would compound over a long walk. */
+ok("the intents are structural and only one of them seeks", () => {
+  assert.deepEqual(Object.keys(SETTLEMENT_INTENTS), ["ordinary", "trouble"]);
+  assert.ok(SETTLEMENT_INTENTS.trouble.seeks);
+  assert.ok(!SETTLEMENT_INTENTS.ordinary.seeks);
+});
+
+ok("looking for trouble eases the throw and leaves the cadence alone", () => {
+  load();
+  const calm = streetCadence({ where: "avenue", intent: "ordinary" });
+  const rowdy = streetCadence({ where: "avenue", intent: "trouble" });
+  assert.equal(rowdy.everyTurns, calm.everyTurns, "trouble does not come round sooner");
+  assert.equal(rowdy.target, calm.target - 2, "it lands on a lower number");
+  assert.equal(rowdy.bareTarget, calm.target, "and the ordinary target is still reported");
+  assert.equal(rowdy.modifier, 2);
+  assert.equal(calm.modifier, 0);
+  resetTables();
+});
+
+ok("a party seeking trouble with no imported figure is TOLD, not quietly ordinary", () => {
+  registerTable({
+    id: SETTLEMENT_DOC, source: "invented",
+    tables: { ...SAMPLE.tables, encounterIntent: {} },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const c = streetCadence({ where: "avenue", intent: "trouble" });
+  assert.equal(c.unpricedIntent, true);
+  assert.equal(c.target, c.bareTarget, "and it does not invent a bonus");
+  resetTables();
+});
+
+/* --- holing up: the one settlement rate measured in days ------------------ */
+ok("holing up throws once a day and covers no ground", () => {
+  load();
+  const board = { ...freshSettlement(), where: "holedUp" };
+  const { board: next, events } = advanceSettlementDays(board, { days: 3, rolls: [6, 1, 4] });
+  assert.equal(next.days, 3);
+  assert.equal(next.blocks, 0, "a party holed up goes nowhere");
+  const owed = events.filter((e) => e.kind === "encounterOwed");
+  assert.equal(owed.length, 3, "one throw per day, not one per turn");
+  assert.deepEqual(owed.map((e) => e.scale), ["day", "day", "day"]);
+  assert.deepEqual(owed.map((e) => e.met), [true, false, true]);
+  resetTables();
+});
+
+ok("a party on the street cannot spend DAYS holed up", () => {
+  load();
+  const { events } = advanceSettlementDays({ ...freshSettlement(), where: "avenue" }, { days: 2 });
+  assert.equal(events[0].kind, "notHoledUp");
+  resetTables();
+});
+
+ok("zero days is a no-op, and an unimported street says so", () => {
+  const board = { ...freshSettlement(), where: "holedUp" };
+  assert.deepEqual(advanceSettlementDays(board, { days: 0 }).events, [], "nothing owed");
+  const un = advanceSettlementDays(board, { days: 1 });
+  assert.equal(un.events[0].kind, "unpriced");
+});
+
+/* --- the settlement encounter table --------------------------------------- */
+ok("a d100 roll finds its band, and the dark shifts it", () => {
+  load();
+  const day = settlementEncounter(35, { night: false });
+  assert.equal(day.total, 35);
+  assert.equal(day.afterDark, 0);
+  assert.equal(day.entry, "A goat is loose in the forum.");
+
+  const night = settlementEncounter(35, { night: true });
+  assert.equal(night.afterDark, 25, "the printed modifier is added");
+  assert.equal(night.total, 60);
+  assert.equal(night.entry, "Two carters are shouting about a wheel.", "the dark reaches worse rows");
+  resetTables();
+});
+
+ok("an unimported table yields no incident rather than an invented one", () => {
+  assert.equal(settlementEncounter(35), null);
+  load();
+  assert.equal(settlementEncounter("nonsense"), null, "and junk is not a roll");
+  resetTables();
+});
+
+/* --- a conveyance is privacy, never speed --------------------------------- */
+ok("the conveyances carry no rate at all", () => {
+  assert.deepEqual(Object.keys(CONVEYANCES), ["onFoot", "litter", "wagon"]);
+  for (const spec of Object.values(CONVEYANCES)) {
+    assert.equal(spec.blocksPerTurn, undefined, "a conveyance must not price movement");
+    assert.equal(spec.multiplier, undefined);
+  }
+  assert.ok(CONVEYANCES.litter.private && CONVEYANCES.wagon.private);
+  assert.ok(!CONVEYANCES.onFoot.private);
+});
+
+ok("and riding in one changes no distance", () => {
+  load();
+  const walking = blocksPerTurn({ pace: "commuting", headcount: 3 });
+  assert.equal(
+    blocksPerTurn({ pace: "commuting", headcount: 3 }).blocks, walking.blocks,
+    "a litter is not any faster",
+  );
+  assert.equal(settlementOf({ settlement: { conveyance: "litter" } }).conveyance, "litter",
+    "but the board remembers it");
+  assert.equal(settlementOf({ settlement: { conveyance: "palanquin" } }).conveyance, "onFoot",
+    "an unknown conveyance falls back rather than inventing one");
+  resetTables();
+});
+
 
 console.log("\ntest-settlement: all " + passed + " checks passed");

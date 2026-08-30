@@ -39,7 +39,7 @@ import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
-import { runSettlementTurn } from "./settlement-turn.mjs";
+import { runSettlementTurn, runSettlementDays } from "./settlement-turn.mjs";
 import { runForageDay } from "./forage-run.mjs";
 import { runSearchHour } from "./search-run.mjs";
 import { askStrayAndBegin, confirmDiscovery, confirmReanchor } from "./lost-dialog.mjs";
@@ -206,6 +206,17 @@ export const SHARED_ACTIONS = {
     const formation = gmFormation(this);
     if (!formation) return;
     await runSettlementTurn(formation);
+    this.render();
+  },
+
+  /**
+   * A stay holed up, spent in days. Offered instead of the turn tick when the
+   * party is somewhere it is not going anywhere from.
+   */
+  async settlementDays() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await runSettlementDays(formation);
     this.render();
   },
 
