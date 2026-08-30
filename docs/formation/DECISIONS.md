@@ -8,6 +8,85 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### The door numbers are content, and move behind the registry (2026-08-30)
+
+**Asked.** `doors.mjs` ships `BASH_TARGET`, `MAX_SPIKES`, `BASH_STR_FACTOR`,
+`DOOR_KINDS`, the inline pair / crowbar / size / spike modifiers, and the
+bludgeoning point a botch costs. `ip-scan.mjs` catches none of them — the value
+rule needs a reviewer. Are they structural, or are they content?
+
+**Ruled: content, all of them.** Two clauses of the doctrine decide it, and
+neither is a close call.
+
+- `DOOR_KINDS` is **a table of options a reader picks from**, which "is content
+  whatever it is made of, and is registered rather than shipped". RR Ch.6 prints
+  a grid of doors and portals with an armour-class and a structural-hit-point
+  column; `DOOR_KINDS` is a subset of those rows retyped, with the batter-down
+  turns from the paragraph above it folded in.
+- The scalars are **a modifier's size** — the doctrine's first named example of
+  what does not ship, "however small and however alone". The doctrine's *own*
+  worked example is this very file: "that a crowbar helps force a door and that
+  its help is additive is the rule being performed". What the crowbar is WORTH
+  is the half that was never meant to be here.
+
+**The transcription had already drifted, and that is the argument.**
+`DOOR_KINDS.portcullis` carries, verbatim, the armour class and structural hit
+points the printed grid gives its largest iron-banded *stone* door. The three
+core books print no portcullis row at all; a portcullis appears there as a
+trap, a gatehouse fitting and a spell target, never as a construction with
+stats. So a hand-copied table grew a row the page does not have, under a name
+the page does not use, and nothing could have caught it — there is no page to
+diff a retyped table against. That is the whole reason values are imported
+rather than typed, stated as a bug instead of as a principle.
+
+**What stays, and it is most of the file.** `bashPlan` is the rule being
+performed and does not change shape: that a bash is a Dungeonbashing throw; that
+Strength scales it; that a pair heaves on the stronger adjustment and gains for
+cooperating; that a crowbar helps and its help is additive; that size steps it
+both ways; that the first spike is free and each one after costs; that a natural
+1 hurts and that failure is never final; that battering asks time rather than a
+throw, and that some constructions do not yield to an axe at all. Every one of
+those is structure. Only the magnitudes leave.
+
+**Rejected: ruling them structural because they are small.** Size is not the
+test — the doctrine says so in as many words — and accepting it here would
+accept it everywhere, since no shipped constant is ever large. Also rejected:
+leaving them because they have shipped for several releases. A leak's age is not
+a licence; it is the reason to stop adding to it, which is why
+`BASH_STR_FACTOR` was named rather than copied a third time earlier today.
+
+**The migration is two steps, and the importer goes first.** Extras cannot
+switch to the registry before a world can fill it: `lib/tables.mjs` ships no
+SAMPLE layer by extraction-program ruling, so an extras-first change would take
+door bashing away from every existing world until a recipe existed AND the GM
+re-imported. Dependency half first (TOOLCHAIN §10e):
+
+1. **acks-importer** gains an RR Ch.6 recipe. This is a trodden path, not new
+   machinery: `def.vehicle.landTable` (p.136) and `def.vehicle.seaTable` (p.319)
+   already extract labelled grids with `ac` and `shp` columns through the same
+   `assists.grids` op, and the prose modifiers are the ordinary
+   `from: {pattern}` shape the skills and powers registers use throughout. RR
+   Ch.6 has no register file yet, so the page range is new; the extraction is
+   not.
+2. **extras** then reads a `doors` document through `getDoc` / `expectTables`,
+   the way `classes/hitpoints.mjs` reads `hitPoints.firstLevel.dieMinimum` and
+   every other formation table already arrives. `doors.mjs` is the outlier in
+   its own feature — travel, weather, encounters, settlement, flight and
+   foraging are all registered already.
+
+**What a bookless world gets, stated now so step 2 does not have to decide it
+under pressure.** There is no arithmetic identity for a missing bash target the
+way `1` is the identity for a missing hit-die floor, so the honest degradation
+is a refusal, not a default: the door tools keep working for everything that is
+structure — open, close, lock, spike, unspike, and the evil-door behaviour —
+and bash and batter report that no door table has been imported. Falling back on
+the target the module remembers would be reinstating the very value this ruling
+removes.
+
+Recorded as unbuilt work in [ROADMAP.md](ROADMAP.md). The same magnitudes appear
+in that file's own prose; they go in the same pass, since `docs/` is tracked even
+though it is not shipped.
+
 ### Strength on a Dungeonbashing throw has one owner (2026-08-30)
 
 **Asked.** A throw can now declare an ability score it is written against

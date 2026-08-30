@@ -270,3 +270,28 @@ Done in the same pass: the open terrain vocabulary, mud/snow withheld,
 straggling shipped ON behind a world setting, and `landNavigationSpec` /
 `navigationCompetence` giving `gettingLost` its first reader.
 
+---
+
+## 6. The door numbers leave the module (ruled 2026-08-30)
+
+`doors.mjs` is the last formation surface holding printed values in code — the
+bash target, the Strength/pair/crowbar/size/spike magnitudes, the spike cap, the
+botch damage, and `DOOR_KINDS`, which is RR Ch.6's door grid retyped (and which
+had already acquired a "portcullis" row the books do not print). Ruled content,
+not structure: [DECISIONS.md](DECISIONS.md).
+
+Two steps, importer first — extras cannot read a table no world can supply.
+
+| Step | Where | Work |
+|---|---|---|
+| 1 | acks-importer | An RR Ch.6 recipe: the door grid through `assists.grids` with `ac` / `shp` columns (as `def.vehicle.seaTable` p.319 already does), the batter-down turns per construction, and the bash modifiers as `from: {pattern}` reads out of the section's prose. Ch.6 has no register file yet, so the page range is new; the extraction shape is not. |
+| 2 | extras | `doors.mjs` reads a `doors` document via `getDoc` / `expectTables`, as `classes/hitpoints.mjs` does. `bashPlan` keeps its shape — only the magnitudes are passed in. |
+
+Degradation is a refusal, not a default: no imported table means bash and batter
+say so, while every structural door gesture (open, close, lock, spike, unspike,
+evil doors) keeps working. There is no identity value for a missing throw target
+the way `1` is the identity for a missing hit-die floor, and falling back on the
+target the module remembers would reinstate the very value the ruling removes.
+
+Also in that pass: this file and `doors.mjs`'s own module docstring state the
+magnitudes in prose. `docs/` is not shipped, but it is tracked.
