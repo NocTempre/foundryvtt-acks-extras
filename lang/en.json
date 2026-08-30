@@ -4631,5 +4631,7 @@
   "ACKS-VEHICLES.reason.aloft.unpriced": "Flight speed not imported yet",
   "ACKS-VEHICLES.reason.road.plain": "Road",
   "ACKS-VEHICLES.reason.road.driver": "Road, driven well",
-  "ACKS-VEHICLES.reason.road.washedOut": "Road washed out — worth nothing in this weather"
+  "ACKS-VEHICLES.reason.road.washedOut": "Road washed out — worth nothing in this weather",
+  "ACKS-LOCATION.browser.absentBadge": "not supplied",
+  "ACKS-LOCATION.browser.absentHint": "The engine asks for this table and nothing has supplied it yet. Export it for a blank page to author into, or drop a RollTable or journal page onto this row."
 }

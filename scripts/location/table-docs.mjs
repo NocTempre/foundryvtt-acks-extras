@@ -74,6 +74,7 @@ export function listEntries() {
   const t = lib()?.tables;
   if (!t) return [];
   const out = [];
+  const seen = new Set();
   for (const { id: docId, priority } of t.docInfo()) {
     if (priority !== t.PRIORITY.WORLD) continue; // enumerate what imports provided
     let doc;
@@ -115,16 +116,36 @@ export function listEntries() {
         continue;
       }
       out.push(entryOf(docId, tableId, null));
+      seen.add(`${docId}.${tableId}`);
     }
   }
+
+  // Every table the engine ASKS for but nothing has supplied, so a world that
+  // has never run an importer still has a list to work from. Without this the
+  // browser was empty until an import happened, which made hand-authoring
+  // impossible: there was nothing to export, no shape to copy, and no way to
+  // discover that a table was wanted at all.
+  for (const { docId, tableIds } of t.expectedTables?.() ?? []) {
+    for (const tableId of tableIds ?? []) {
+      if (seen.has(`${docId}.${tableId}`)) continue;
+      seen.add(`${docId}.${tableId}`);
+      out.push(entryOf(docId, tableId, null, { absent: true }));
+    }
+  }
+
   return out.sort((a, b) => a.key.localeCompare(b.key));
 }
 
 const OCCUPANT_COLUMNS = ["smallCot", "mediumCot", "mediumTownhouse", "largeTownhouse", "generalStreet"];
 
-function entryOf(docId, tableId, subId) {
+function entryOf(docId, tableId, subId, { absent = false } = {}) {
   const key = subId ? `${docId}.${tableId}.${subId}` : `${docId}.${tableId}`;
-  return { docId, tableId, subId, key, label: entryLabel(key), rollable: isRollable(docId, tableId, subId) };
+  return {
+    docId, tableId, subId, key, label: entryLabel(key),
+    rollable: isRollable(docId, tableId, subId),
+    /** True when the engine asks for this table and nothing has supplied it. */
+    absent,
+  };
 }
 
 /** Current EFFECTIVE data for an entry (override layer included). */
@@ -501,6 +522,11 @@ const tableIsCurrent = (table, entry, spec, folderId) =>
   table.formula === spec.formula &&
   table.getFlag(MODULE_ID, FLAG_KEY) === entry.key;
 
+/** The starting page for a table nobody has supplied: a hint and an empty object. */
+function placeholderContent() {
+  return `<p><em>${game.i18n.localize("ACKS-LOCATION.tables.placeholderHint")}</em></p><pre><code>{}</code></pre>`;
+}
+
 /**
  * Materialize an entry as a world document PREFILLED with its current
  * effective data. Re-export updates the same document.
@@ -511,7 +537,27 @@ const tableIsCurrent = (table, entry, spec, folderId) =>
  * @returns {{uuid: string, kind: "rolltable"|"journal"}}
  */
 export async function exportEntry(entry) {
-  const data = entryData(entry);
+  // A table the engine wants but nothing has supplied exports as a BLANK page
+  // to author into — decided BEFORE the data is read, because reading an
+  // absent table throws rather than answering null. Without this a GM who
+  // never runs an importer has nothing to begin from at all.
+  let data = null;
+  try {
+    data = entry.absent ? null : entryData(entry);
+  } catch {
+    data = null;
+  }
+  if (entry.absent || data == null) {
+    const journal = await ensureJournal();
+    const content = placeholderContent();
+    const page = journal.pages.find((p) => p.name === entry.key);
+    if (page) return { uuid: page.uuid, kind: "journal" };
+    const [made] = await journal.createEmbeddedDocuments("JournalEntryPage", [
+      { name: entry.key, type: "text", text: { content, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS?.HTML ?? 1 } },
+    ]);
+    return { uuid: made.uuid, kind: "journal", blank: true };
+  }
+
   if (entry.rollable) {
     const spec = rollTableSpec(entry, data);
     const folder = await ensureFolder(entry.docId);
@@ -653,9 +699,7 @@ export async function materializeAll() {
     }
     for (const key of expected) {
       if (pageOf(key) || queued.has(key)) continue; // reuse the existing one
-      pageCreates.push(
-        textPage(key, `<p><em>${game.i18n.localize("ACKS-LOCATION.tables.placeholderHint")}</em></p><pre><code>{}</code></pre>`),
-      );
+      pageCreates.push(textPage(key, placeholderContent()));
       queued.add(key);
       placeholders++;
     }

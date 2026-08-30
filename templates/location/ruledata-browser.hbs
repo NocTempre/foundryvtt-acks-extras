@@ -17,12 +17,14 @@
       </thead>
       <tbody>
         {{#each entries}}
-        <tr data-entry-key="{{key}}" class="{{#if overridden}}overridden{{/if}}" data-tooltip="{{localize 'ACKS-LOCATION.browser.dropHint'}}">
+        <tr data-entry-key="{{key}}" class="{{#if overridden}}overridden{{/if}} {{#if absent}}absent{{/if}}" data-tooltip="{{localize 'ACKS-LOCATION.browser.dropHint'}}">
           <td>{{label}}</td>
           <td>{{kindLabel}}</td>
           <td>
             {{#if overridden}}
             <span class="override-badge" data-tooltip="{{sourceName}}">{{localize "ACKS-LOCATION.browser.overriddenBadge"}}</span>
+            {{else if absent}}
+            <span class="hint absent-badge" data-tooltip="{{localize 'ACKS-LOCATION.browser.absentHint'}}">{{localize "ACKS-LOCATION.browser.absentBadge"}}</span>
             {{else}}
             <span class="hint">{{localize "ACKS-LOCATION.browser.importedBadge"}}</span>
             {{/if}}
