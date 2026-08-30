@@ -45,6 +45,22 @@ export const MAX_SPIKES = 4;
 export const BASH_TARGET = 18;
 
 /**
+ * What Strength is worth on a Dungeonbashing throw, per point of modifier.
+ *
+ * THE definition for this module. The factor belongs to the THROW, not to the
+ * Adventuring proficiency that makes the best-known one: a character bashes a
+ * door, breaks out of a grab, shoves forward while stuck and tears free of
+ * webbing on the same throw, and Strength is worth the same on all of them. So
+ * every surface that resolves a Dungeonbashing throw reads it here rather than
+ * restating it — the party sheet's bash column did restate it, and a rule with
+ * two copies is a rule that drifts.
+ */
+export const BASH_STR_FACTOR = 4;
+
+/** Strength's contribution to a Dungeonbashing throw for a given modifier. */
+export const bashStrBonus = (strMod) => (Number(strMod) || 0) * BASH_STR_FACTOR;
+
+/**
  * Door constructions from the book's table, with what each implies. `batter`
  * is the turns an axe needs; null means an axe will not do it at all and
  * something that deals structural damage must.
@@ -89,9 +105,9 @@ export const isDoor = (wall) => Number(wall?.door) > 0;
 export function bashPlan({ strMod = 0, pair = false, crowbar = false, sizeSteps = 0, spikes = 0, extra = 0 } = {}) {
   const parts = [];
   const push = (value, key) => { if (value) parts.push({ value, key }); };
-  // Strength moves the ROLL by four per point — the book's own example has an
-  // 18 Strength opening doors on a 6+, which is 18 less 12.
-  push(strMod * 4, "str");
+  // Strength moves the ROLL by BASH_STR_FACTOR per point — the book's own
+  // example has an 18 Strength opening doors on a 6+, which is 18 less 12.
+  push(bashStrBonus(strMod), "str");
   push(pair ? 4 : 0, "pair");
   push(crowbar ? 2 : 0, "crowbar");
   push(sizeSteps * 8, "size");

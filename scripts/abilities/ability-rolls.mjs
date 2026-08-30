@@ -21,7 +21,8 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
-import { slug } from "../lib/vocab.mjs";
+import { slug, ATTRIBUTES } from "../lib/vocab.mjs";
+import { abilityMod } from "../lib/actor-read.mjs";
 
 /**
  * How many times an actor has this ability. The books rate several
@@ -132,6 +133,66 @@ export function throwModifiers(actor, item, roll = null) {
 }
 
 /**
+ * A number with its sign always shown, the way a modifier is written.
+ */
+const signed = (n) => `${n >= 0 ? "+" : ""}${n}`;
+
+/**
+ * What an ability score contributes to this throw — null when the throw
+ * declares none, or when there is no character whose score to read.
+ *
+ * A throw's score term is written two ways: the modifier itself, and a multiple
+ * of it. One multiplier covers both, so `times` is 1 for the plain case and
+ * nothing has to be typed for it.
+ *
+ * @param {object} roll the throw
+ * @param {Actor} actor the character holding it
+ * @returns {{key: string, label: string, times: number, mod: number, bonus: number}|null}
+ */
+export function scoreTerm(roll, actor) {
+  const key = roll?.score?.key;
+  if (!key || !actor) return null;
+  const mod = abilityMod(actor, key);
+  const raw = Number(roll.score.times ?? 1);
+  // A blank multiplier is "once", not "never": the field is left empty far more
+  // often than it is set, and reading it as 0 would silently cancel the score
+  // the reader just chose.
+  const times = Number.isFinite(raw) ? raw : 1;
+  return { key, label: ATTRIBUTES[key]?.label ?? key.toUpperCase(), times, mod, bonus: mod * times };
+}
+
+/**
+ * Does a throw's score term actually move its target?
+ *
+ * An exact-match throw takes no modifier at all — there is no "easier" to be
+ * had — so a score declared on one is stated rather than applied. Every surface
+ * that prints the term asks HERE, so none of them can announce a bonus the
+ * target does not carry.
+ */
+export const scoreApplies = (roll) => (roll?.rollType || "above") !== "result";
+
+/**
+ * A score term as one line — "WIL +2", or "WIL +2 × 4 = +8" when it is
+ * multiplied. Written as the MODIFIER it is, not as the target it moved: the
+ * target is printed beside it and the two read as one sentence. A throw the
+ * term does not reach says so instead of stating it bare.
+ */
+export function scoreText(term, roll = null) {
+  const written = scoreWritten(term);
+  if (!written || !roll || scoreApplies(roll)) return written;
+  return game.i18n.format("ACKS-ABILITIES.roll.scoreUnapplied", { term: written });
+}
+
+/** The term as the modifier it is written as, with no claim about the target. */
+function scoreWritten(term) {
+  if (!term) return "";
+  const where = { score: term.label, mod: signed(term.mod) };
+  return term.times === 1
+    ? game.i18n.format("ACKS-ABILITIES.roll.scoreTerm", where)
+    : game.i18n.format("ACKS-ABILITIES.roll.scoreTermTimes", { ...where, times: term.times, total: signed(term.bonus) });
+}
+
+/**
  * Resolve a roll's target number, or null when it cannot be known here.
  * Delegates to acks-lib so the ladder semantics have one definition.
  *
@@ -155,7 +216,9 @@ export function targetOf(roll, actor, item) {
 }
 
 /**
- * A resolved target with the character's standing bonuses folded in.
+ * A resolved target with the character's standing bonuses folded in — what
+ * their other abilities give this throw, and the ability score it is written
+ * against.
  *
  * The books state these as bonuses to the ROLL; the sheet shows a target, and
  * the two are the same statement read from opposite ends — so a bonus lowers a
@@ -167,7 +230,7 @@ export function targetOf(roll, actor, item) {
  */
 function withModifiers(target, roll, actor, item) {
   if (typeof target !== "number" || !actor) return target;
-  const { bonus } = throwModifiers(actor, item, roll);
+  const bonus = throwModifiers(actor, item, roll).bonus + (scoreTerm(roll, actor)?.bonus ?? 0);
   if (!bonus) return target;
   const type = roll?.rollType || "above";
   if (type === "result") return target;
@@ -291,6 +354,7 @@ export const blankRoll = () => ({
   rollType: "above",
   target: { kind: "flat", flat: null },
   scale: "level",
+  score: { key: "", times: 1 },
   condition: "",
   note: "",
 });
@@ -398,8 +462,13 @@ const esc = (text) => foundry.utils.escapeHTML?.(text) ?? text;
  * world item cannot be scored at all.
  */
 function cardData(item, actor, roll, { target, success, suffix }) {
+  const term = scoreTerm(roll, actor);
   const details = [
     target == null ? esc(game.i18n.localize("ACKS-ABILITIES.roll.noTarget")) : "",
+    // The score is already inside the target, so the line is there to say WHY
+    // the target moved — a throw that reads 4+ on one character and 6+ on
+    // another is otherwise unexplained at the table.
+    term ? esc(scoreText(term, roll)) : "",
     roll.condition ? `<em>${esc(roll.condition)}</em>` : "",
   ].filter(Boolean).join("<br>");
 

@@ -192,6 +192,20 @@
   overflow-y: auto;
 }
 
+/* A throw's score term: the picker takes the row, the times sign is set as a
+   label rather than a field, and the multiplier stays narrow because it holds a
+   factor rather than a number of any size. */
+.acks-abilities-score .acks-abilities-score-times {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--acks-ink-soft);
+}
+
+.acks-abilities-score input[type="number"] {
+  flex: 0 0 4rem;
+  text-align: center;
+}
+
 /* The roll editor's level table: two narrow columns and a delete control, laid
    out on a grid so the rungs line up as a printed table does. */
 .acks-abilities-steps {

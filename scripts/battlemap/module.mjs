@@ -16,7 +16,8 @@ import {
   applyFootprintToSelected,
   resetSelectedFootprints,
 } from "./token-scale.mjs";
-import { fitGrid, feetPerSquare, roundSuggestions, outputGridSize } from "./calibrate-logic.mjs";
+import { fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
+import { familyOfScene, sceneSetup, sceneTravelSystem } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { CAPTURE_MODES, session } from "./session.mjs";
 import {
@@ -59,6 +60,14 @@ Hooks.once("ready", () => {
     feetPerSquare,
     roundSuggestions,
     outputGridSize,
+    pixelsPerUnit,
+    scaleOnlyGrid,
+    hexSizeFromBox,
+    /** What a scene has been set up AS: the record, its declared travel
+     *  system, and which grid family it already uses (scene-setup.mjs). */
+    sceneSetup,
+    sceneTravelSystem,
+    familyOfScene,
     footprintFeet,
     tokenSpan,
     sizeForToken,

@@ -11,7 +11,7 @@ import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, ABILITY_TYPE } from "./constants.mjs";
 import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
 import { createAbilitySheet } from "./ability-sheet.mjs";
-import { rankOf, scalesFor, targetOf, rollsOf, rollAbility, defaultKeyOf, setDefaultKey, throwModifiers } from "./ability-rolls.mjs";
+import { rankOf, scalesFor, targetOf, rollsOf, rollAbility, defaultKeyOf, setDefaultKey, throwModifiers, scoreTerm } from "./ability-rolls.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheetRolls } from "./sheet-rolls.mjs";
 
@@ -56,6 +56,10 @@ Hooks.once("init", () => {
     // parts, including the conditioned ones that are stated rather than
     // applied.
     throwModifiers,
+    // The ability score a throw is written against, resolved for the character
+    // holding it. `targetOf` has already folded it in; this is how a consumer
+    // shows the term rather than only the number it produced.
+    scoreTerm,
     // Every roll an ability offers, in one shape — this module's store, with
     // core's singleton folded in when it has not been edited here yet. THE read
     // path: never assemble an ability's rolls from `system.roll` yourself, or

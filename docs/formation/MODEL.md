@@ -356,7 +356,17 @@ must still deploy around them.
 
 ## The journey
 
-A formation is in one of two MODES. Delve is everything above; **journey**
+A formation is in one of two MODES (three with the city, below), and **a SCENE
+may name which one applies on it**: the battlemap setup tool writes
+`mapSystem` into the scene's own record, and `adoptSceneSystem`
+([travel.mjs](../../scripts/formation/travel.mjs)) switches a formation to it
+when its party token lands there and when the declaration changes underneath
+it. A scene that declares nothing changes nothing — a party mid-march crossing
+an unlabelled map keeps its march. The vocabulary is shared, not copied
+(`lib/vocab.mjs` `TRAVEL_MODES`); what the declaration means to a map is
+`docs/battlemap/MODEL.md`.
+
+Delve is everything above; **journey**
 pauses movement-driven turn ticking (`clock.paused`) and puts the day on the
 table instead: a `travel` subtree on the record
 ([travel.mjs](../../scripts/formation/travel.mjs)) holding the ground, road

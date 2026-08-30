@@ -6,8 +6,10 @@
  * never has two size owners.
  */
 
-import { MODULE_ID, FLAG_BATTLEMAP, FLAG_FOOTPRINT, FLAG_FOOTPRINT_LOCK } from "./constants.mjs";
+import { MODULE_ID, FLAG_FOOTPRINT, FLAG_FOOTPRINT_LOCK } from "./constants.mjs";
+import { sceneSetup } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
+import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { SIZES } from "../monsters/config.mjs";
 import { FLAG_EXTRAS } from "../monsters/constants.mjs";
 import { FLAG_FORMATION_ID } from "../formation/constants.mjs";
@@ -16,7 +18,7 @@ const EPSILON = 1e-6;
 
 /** Whether tokens placed on this scene are auto-sized to its scale. */
 export function autoScaleEnabled(scene) {
-  return !!scene?.getFlag(MODULE_ID, FLAG_BATTLEMAP)?.autoScale;
+  return sceneSetup(scene).autoScale;
 }
 
 /**
@@ -28,7 +30,10 @@ export function autoScaleEnabled(scene) {
 export function sizeForToken(tokenDoc, scene = tokenDoc.parent) {
   if (!tokenDoc || tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return null;
   if (tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK)) return null;
-  const distance = scene?.grid?.distance;
+  // Footprints are in FEET and a scene's squares are in its own units, so
+  // the conversion goes through them: six MILES per hex is the case that
+  // makes an unconverted distance size a man as though he were a county.
+  const distance = sceneFeetPerCell(scene);
   if (!(distance > 0)) return null;
   const override = tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT) ?? tokenDoc.actor?.getFlag(MODULE_ID, FLAG_FOOTPRINT) ?? null;
   const sizeKey = tokenDoc.actor?.getFlag(MODULE_ID, FLAG_EXTRAS)?.size ?? null;
@@ -67,7 +72,7 @@ export async function applyFootprintToSelected({ w, h }) {
   for (const placeable of canvas?.tokens?.controlled ?? []) {
     const token = placeable.document;
     if (token.getFlag(MODULE_ID, FLAG_FORMATION_ID)) continue;
-    const distance = token.parent?.grid?.distance;
+    const distance = sceneFeetPerCell(token.parent);
     const size = distance > 0 ? { width: tokenSpan(w, distance), height: tokenSpan(h, distance) } : {};
     await token.update({ [`flags.${MODULE_ID}.${FLAG_FOOTPRINT}`]: { w, h }, ...size });
     count++;

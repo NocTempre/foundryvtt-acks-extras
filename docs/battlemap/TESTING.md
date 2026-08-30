@@ -15,6 +15,10 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - A disposable 3-member formation with its party token on the first scene
   (see `docs/formation/TESTING.md` fixtures for the drop mechanics).
 - One disposable plain character actor with a default 1×1 prototype token.
+- A disposable scene for the scale-only and hex paths — any background will do,
+  including a flat texture (`ui/parchment.jpg`), because those paths measure
+  what you tell them rather than what is drawn. Set the background through the
+  Level (below), not in `Scene.create`.
 
 ## Drive mechanics (non-obvious)
 
@@ -81,8 +85,20 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   an apply; the panel is unaffected and stays open.
 - **`Scene.create({background: {src}})` does not take on this build** — the
   scene is created with a null background. Set it after creation through the
-  feature's own `setBackgroundSrc()` (`scene-image.mjs`), which knows the
-  background lives on a Level.
+  feature's own `setBackgroundSrc()` (`scene-image.mjs`), or directly:
+  `scene.levels.contents[0].update({"background.src": "ui/parchment.jpg"})`.
+- **Drive the panel's SELECTS as a user does**: set `.value` and dispatch
+  `new Event("change", {bubbles: true})`. That runs the real submit handler, so
+  it also proves the form contract — a field the current family does not render
+  posts nothing, and the handler must leave that slot alone rather than read
+  the absence as an emptied field.
+- **A scene CLONE rebuilds its grid class from a changed `grid.type`** — this
+  is what the hex path depends on. Confirm it directly:
+  `scene.clone({"grid.type": 2, "grid.size": 100}).grid` is a `HexagonalGrid`
+  with `sizeX` 100 and `sizeY` ~115.47, and `getCenterPoint` answers. Equal
+  edges mean the clone did NOT rebuild, and `hexProbe` returns null for that.
+- **`CONST.GRID_MIN_SIZE` is 20 on this build**, not 50 — the scale-only clamp
+  band is real but wider than a guess would put it.
 - The capture overlay swallows canvas pointer events only while a mode is
   armed; scripted sampling can bypass the pointer path by pushing into
   `app.samples.{squares,corners}` (image px) and calling
@@ -125,7 +141,11 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    rounds it (e.g. 4.9 → 5).
 4. Eraser: arm it and click one sample; then press Wipe.
    *Observable:* the clicked sample vanishes (list and canvas); Wipe empties
-   both; Escape and right-click each remove the newest sample while capturing.
+   both. While a mode is armed, **Escape disarms** and **Ctrl+Z removes the
+   newest sample**; a RIGHT-button press changes nothing — drag with it and the
+   canvas pans with every sample intact. (Scripted: `overlay.onPointerDown({
+   button: 2, getLocalPosition: () => ({x: 0, y: 0}) })` must leave
+   `samples.squares.length` unchanged.)
 5. Re-sample (two boxes + two corners), confirm the box value, leave the
    output square at 1:1, press "Apply grid to scene", confirm the dialog.
    *Observable:* one Scene update — `grid.size`, `shiftX/shiftY`,
@@ -159,15 +179,53 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     it: a `<name>-aligned.webp` appears beside the original, the scene
     background swaps to it, and the retained fit locks onto the new image;
     apply then behaves as step 5. The original image file is unchanged.
-12. Formation face width on the calibrated scene: see
+12. **A box that spans several cells.** Draw one box over a single drawn cell
+    and a second across three, and type 3 in the second row's "spans" box.
+    *Observable:* the fit's cell size is the single cell's, not a third of the
+    long box; residual stays tight. Both rows carry their own value box.
+13. **Scale only, on the gridless scene.** Choose "Scale only — no grid", drag
+    along the scale bar, and type what it reads on the bar's own row.
+    *Observable:* the card reads "Measured: N px per <unit>" and NOT "no scale
+    yet"; the ruler-cell field defaults to a round number at a comfortable px
+    size (no clamp warning); the footer says the scene keeps no grid. Apply and
+    confirm: `grid.size`/`grid.distance`/`grid.units` change, **`grid.type`
+    stays 0** and `width`/`height`/`shiftX`/`shiftY` are untouched. Measure the
+    bar with Foundry's own ruler: it reads its printed length (within the
+    rounding of an integer grid size). Pin the px field instead and the
+    distance re-solves to match it.
+14. **Hex.** Choose "Hex grid — rows (pointy top)", draw a box around ONE hex,
+    and type what a hex is worth with the units set to miles.
+    *Observable:* the label reads "One drawn hex is", the card reads "px hex
+    box" with two different edges, and there is no output-square field. Apply
+    and confirm: `grid.type` is 2, the scene's `grid.sizeX`/`sizeY` equal the
+    drawn hex's box mapped onto canvas, and the drawn hex's centre is within a
+    pixel of `scene.grid.getCenterPoint()` of itself. Draw only a multi-cell
+    box and the panel refuses with "draw a box around ONE hex". Flip "Even
+    offset" and re-apply: `grid.type` is 3.
+15. **Units and what they are worth.** With the scene at 10 miles per hex, drop
+    the plain character.
+    *Observable:* the token lands at the quarter-square floor (0.25), not 0.5 —
+    `tokenSpan(5, 10)` is the unconverted answer and must not be what ships.
+16. **The scene's party system.** Set "Party system here" to Settlement.
+    *Observable:* the scene flag carries `mapSystem: "settlement"` at once,
+    with no apply. Place a party token on the scene by hand (drag from the
+    sidebar — a token created carrying a formation flag is a module placement
+    and takes a different branch): the formation's `travel.mode` becomes
+    `settlement`, its clock pauses, and a notification names the switch. Change
+    the select to Wilderness with the party still there: it follows. Set it
+    back to "Leave to the party": a formation already in a mode keeps it.
+17. Formation face width on the calibrated scene: see
     `docs/formation/TESTING.md` step 9 (frontage, heading swap, coarse-scale
-    floor).
+    floor). On a scene whose units are miles the party token sizes through the
+    conversion too — the face is feet and the square is not.
 
 ## Teardown
 
-Delete both scenes, the monster, the character, the party actor (its
-formation goes with it), and the baked `-aligned.webp` file. Confirm the
-scenes directory and `getFormations()` are clean.
+Delete every scene you made (the misaligned one, the stretched one, and the
+scale/hex one), the monster, the character, the party actor (its formation goes
+with it), and the baked `-aligned.webp` file. Confirm the scenes directory and
+`getFormations()` are clean, and that the world's own scenes are as they were —
+the setup tool WRITES to whichever scene is being viewed.
 
 
 ## Terrain painting (added with the hex journey)

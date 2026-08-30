@@ -7,6 +7,31 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A throw may name a score; no importer recipe carries one yet (2026-08-30)
+
+**Ruled.** A throw carries `score: {key, times}` — an ability score the
+character adds to it, times a multiplier — resolved in `withModifiers` beside
+the bonuses other abilities grant, so every surface reads one number. An
+exact-match throw takes no modifier, so a term declared on one is *stated*
+rather than applied and both the preview and the chat card say so; announcing a
+bonus the target does not carry is the failure this guard exists to prevent.
+
+**No recipe emits one.** Reading the three core books for throws that take a
+score modifier turns up exactly two, and neither belongs in a roll spec today:
+
+- **Dungeonbashing (STR ×4)** — the factor attaches to the throw, not to the
+  Adventuring entry, and already has an owner:
+  [formation/DECISIONS.md](../formation/DECISIONS.md).
+- **Disguise** — the throw is the *observer's*, and `rollField` has no
+  `appliesTo`. A modifier on someone else's roll is an effect, which does carry
+  one; modelling it as a roll on the disguised character would invert it, the
+  same inversion `appliesTo` was added to `effectField` to stop.
+
+So the field ships for the Judge authoring by hand and for a book that states
+one; the importer gains nothing until a recipe has a throw to put it on.
+Wiring `materializeRolls` for a spec no cookbook entry uses would be the
+unreachable half of a feature this family has shipped before.
+
 ### An open family's entries are registered; a closed one's are code (2026-08-14)
 
 **Asked.** Are the selection vocabularies registered by import rather than hard

@@ -4,6 +4,7 @@ import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
 import { faceWidthFeet, formationHeading, getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyDepth } from "./formation-model.mjs";
 import { FEET_PER_RANK } from "./trap-rules.mjs";
 import { tokenSpan } from "../battlemap/footprint.mjs";
+import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
 import { emittedLight } from "../lib/light.mjs";
@@ -260,7 +261,9 @@ async function syncDeployedMemberTokens(formation) {
 export async function syncPartyTokenSize(formation) {
   const token = getPartyToken(formation);
   if (!token) return;
-  const distance = token.parent?.grid?.distance;
+  // The scene's squares in FEET — a frontage is in feet and a wilderness
+  // scene's squares are not, so the units convert before the span does.
+  const distance = sceneFeetPerCell(token.parent);
   if (!(distance > 0)) return;
   const across = tokenSpan(faceWidthFeet(formation), distance);
   const deep = tokenSpan(partyDepth(formation) * FEET_PER_RANK, distance);

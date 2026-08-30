@@ -20,8 +20,8 @@
  * registry at roll time.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { blankRoll, keyOf, readRolls, rollAbility, rollsOf, targetOf, writeRolls, scalesFor } from "./ability-rolls.mjs";
-import { choicesOf, ROLL_TYPES, VALUE_KINDS, VALUE_ROUNDING, VALUE_SCALES, PROGRESSION_CLASSES, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
+import { blankRoll, keyOf, readRolls, rollAbility, rollsOf, scoreApplies, scoreTerm, scoreText, targetOf, writeRolls, scalesFor } from "./ability-rolls.mjs";
+import { ATTRIBUTES, choicesOf, ROLL_TYPES, VALUE_KINDS, VALUE_ROUNDING, VALUE_SCALES, PROGRESSION_CLASSES, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
 import { classItems, laddersOf } from "../classes/registry.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -122,8 +122,12 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
     context.isProgression = kind === "progression";
     context.steps = context.isLadder ? (roll.target?.breakpoints ?? []) : [];
     context.scaleLabel = VALUE_SCALES[scale]?.label ?? scale;
+    // The multiplier only exists once a score is named, so the window has to
+    // know which state it rendered in — the same reason `#shownKind` exists.
+    context.hasScore = !!roll.score?.key;
     context.choices = {
       rollType: choicesOf(ROLL_TYPES),
+      score: choicesOf(ATTRIBUTES),
       // Only the kinds this window authors. A roll carrying `conditional` is
       // shown as the table it is; it is not offered as something to choose.
       kind: Object.fromEntries(TARGET_KINDS.map((k) => [k, VALUE_KINDS[k].label])),
@@ -176,9 +180,17 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
     const target = targetOf(roll, actor, this.item);
     const suffix = roll.rollType === "below" ? "-" : roll.rollType === "result" ? "" : "+";
     const where = { scale: VALUE_SCALES[scaleKey]?.label ?? scaleKey, at: at ?? "?", formula: roll.formula || "1d20" };
-    return target == null
-      ? game.i18n.format("ACKS-ABILITIES.roll.previewNoTarget", where)
-      : game.i18n.format("ACKS-ABILITIES.roll.preview", { ...where, target: `${target}${suffix}` });
+    if (target == null) return game.i18n.format("ACKS-ABILITIES.roll.previewNoTarget", where);
+    const line = game.i18n.format("ACKS-ABILITIES.roll.preview", { ...where, target: `${target}${suffix}` });
+    // The score is already inside that number, which is exactly why it is said
+    // out loud: a target that moved with no visible cause reads as a typo. On a
+    // throw the term does not reach, `scoreText` says that instead, so the line
+    // never claims an inclusion the number does not show.
+    const term = scoreTerm(roll, actor);
+    if (!term) return line;
+    return scoreApplies(roll)
+      ? `${line} ${game.i18n.format("ACKS-ABILITIES.roll.previewScore", { term: scoreText(term) })}`
+      : `${line} ${scoreText(term, roll)}`;
   }
 
   /* -------------------------------------------- */
@@ -215,7 +227,15 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
     // The target merges FIELD BY FIELD, so the shape not currently on screen
     // keeps what was typed into it: switching to Flat to check a number and
     // back must not cost the table. `kind` is what says which one is in force.
-    const next = { ...rolls[index], ...form, target: { ...rolls[index]?.target, ...form.target } };
+    // `score` merges field by field for the same reason `target` does: the
+    // multiplier leaves the form when no score is named, and a shallow merge
+    // would read its absence as a deletion.
+    const next = {
+      ...rolls[index],
+      ...form,
+      target: { ...rolls[index]?.target, ...form.target },
+      score: { ...rolls[index]?.score, ...form.score },
+    };
     mutate?.(next);
     // The scale is stated once, on the roll. A `conditional` that came in
     // carrying its own must not keep it: two scales on one throw is exactly the

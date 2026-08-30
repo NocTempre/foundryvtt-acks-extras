@@ -10,6 +10,8 @@ import {
   overrideFor,
 } from "./ability-bridge.mjs";
 import { getMemberActor, hasAbility, isDown, isHurried, updateFormation } from "./formation-model.mjs";
+import { BASH_STR_FACTOR, bashStrBonus } from "./doors.mjs";
+import { abilityMod } from "../lib/actor-read.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
@@ -108,7 +110,7 @@ export const PARTY_CHECKS = Object.freeze({
     icon: "fa-door-open",
     advKey: "dungeonbashing",
     pattern: /dungeon\s*bash|open\s*doors?\b|force\s*open/i,
-    strTimes4: true, // ±4 per point of STR modifier (RR p. 266)
+    strScaled: true, // Strength counts at BASH_STR_FACTOR per point (doors.mjs owns the factor)
     note: "ACKS-FORMATION.rolls.bashNote",
   },
   /*
@@ -368,13 +370,13 @@ export async function rollPartyCheck(formation, checkKey) {
       continue;
     }
     let bonus = check.bonus;
-    if (cfg.strTimes4) bonus += 4 * (actor.system?.scores?.str?.mod ?? 0);
+    if (cfg.strScaled) bonus += bashStrBonus(abilityMod(actor, "str"));
     const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
     const roll = await new Roll(formula).evaluate();
     rolls.push(roll);
     const breakdown = (check.parts ?? [])
       .map((part) => `+${part.value} ${part.label}`)
-      .concat(cfg.strTimes4 ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR×4`] : [])
+      .concat(cfg.strScaled ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR×${BASH_STR_FACTOR}`] : [])
       .join(", ");
     rows.push({
       name: actor.name,

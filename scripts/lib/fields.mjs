@@ -91,13 +91,28 @@ export function levelValueField() {
  * qualifier — is read from the reader's own book.
  */
 export function rollField() {
-  return new (F().SchemaField)({
+  const { SchemaField } = F();
+  return new SchemaField({
     key: str(), // stable within the ability, so a macro can name one roll
     label: str(), // what the roll is called
     formula: str(), // "1d20"
     rollType: choice(ROLL_TYPES, { initial: "above" }),
     target: levelValueField(), // flat, per-level, or a rank ladder
     scale: choice(VALUE_SCALES, { initial: "level" }), // what `target` is keyed on
+    // An ability score the character adds to this throw. `key` is an ATTRIBUTES
+    // key, which is the core system's own score path, so it reads straight out
+    // of `system.scores`; blank means the throw takes no score at all. `times`
+    // multiplies the modifier, so a throw written against a multiple of it
+    // needs no second shape — a plain one leaves the multiplier at 1.
+    //
+    // Kept on the ROLL rather than in the formula because a score term is the
+    // same statement as a target: the sheet, the strip and the chat card all
+    // read a number here, and a term buried in the dice string would move none
+    // of them.
+    score: new SchemaField({
+      key: choice(ATTRIBUTES),
+      times: num({ initial: 1 }),
+    }),
     condition: str(), // when it applies, when that is not unconditional
     note: str(),
   });

@@ -37,3 +37,11 @@ fold in `rollsOf()` reads as "no roll").
 
 Level tables are **internal** — the rungs live on the throw. Pointing several
 abilities at one shared table is [ROADMAP.md](ROADMAP.md).
+
+A throw may also name an **ability score** it is written against, with a
+multiplier: the character's own modifier for that score, counted once or several
+times. It resolves through `targetOf()` like every other bonus, so the number the
+sheet shows, the strip shows, and the chat card scores against are the same one —
+and a score-bearing throw reads differently for two characters, which is the
+point. The chat card and the editor's preview name the term, because a target
+that moved with no visible cause reads as a typo.

@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { fitGrid, feetPerSquare, roundSuggestions, outputGridSize, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
+import { boxCells, fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
 
@@ -147,6 +147,71 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.equal(outputGridSize({ fittedCellPx: 70, mapCellFeet: 5, outputFeet: 7.5 }).aligned, false);
 }
 
+{
+  // A box the GM says spans three cells measures a THIRD of itself. Dragging
+  // across a run is both easier to aim and a better measurement than pinching
+  // one cell, and it is only better if the count is believed.
+  const s = 64;
+  const fit = fitGrid({ squares: [{ x: 10, y: 20, w: 3 * s, h: 3 * s, cells: 3 }], corners: [] });
+  assert.equal(fit.ok, true);
+  near(fit.sizeX, s, 1e-6, "three-cell box");
+  // An absent or nonsense count is one cell, never zero: a divide by it would
+  // hand the apply an infinity that Foundry drops in silence.
+  assert.equal(boxCells({}), 1);
+  assert.equal(boxCells({ cells: 0 }), 1);
+  assert.equal(boxCells({ cells: -2 }), 1);
+}
+
+/* -------------------------------------------- */
+/*  Scale only — the ruler without a grid       */
+/* -------------------------------------------- */
+
+{
+  near(pixelsPerUnit({ dx: 258, dy: 0, value: 400 }), 0.645, 1e-9, "px per unit");
+  near(pixelsPerUnit({ dx: 30, dy: 40, value: 10 }), 5, 1e-9, "px per unit off-axis");
+  assert.equal(pixelsPerUnit({ dx: 0, dy: 0, value: 400 }), null);
+  assert.equal(pixelsPerUnit({ dx: 258, dy: 0, value: 0 }), null);
+}
+
+{
+  // Inside Foundry's bounds the asked-for distance is kept exactly.
+  const easy = scaleOnlyGrid({ pxPerUnit: 2, distance: 50, minSize: 50, maxSize: 300 });
+  assert.deepEqual(easy, { size: 100, distance: 50, clamped: false });
+
+  // Outside them the SIZE is clamped and the distance solves back, because the
+  // pair is one ratio and the ratio is what the ruler reads. A clamp that kept
+  // the round number instead would silently measure wrong.
+  const tiny = scaleOnlyGrid({ pxPerUnit: 0.1, distance: 100, minSize: 50, maxSize: 300 });
+  assert.equal(tiny.size, 50);
+  assert.equal(tiny.clamped, true);
+  near(tiny.size / tiny.distance, 0.1, 1e-9, "clamped-small ratio preserved");
+
+  const huge = scaleOnlyGrid({ pxPerUnit: 10, distance: 100, minSize: 50, maxSize: 300 });
+  assert.equal(huge.size, 300);
+  assert.equal(huge.clamped, true);
+  near(huge.size / huge.distance, 10, 1e-9, "clamped-large ratio preserved");
+
+  assert.equal(scaleOnlyGrid({ pxPerUnit: 0, distance: 50 }), null);
+  assert.equal(scaleOnlyGrid({ pxPerUnit: 2, distance: 0 }), null);
+}
+
+/* -------------------------------------------- */
+/*  Hex sizing                                  */
+/* -------------------------------------------- */
+
+{
+  // The reference box stands in for what a scene clone reports; the solver
+  // only ever SCALES it, so no hex ratio is stated here or anywhere else.
+  const ref = { refW: 100, refH: 115.47, refSize: 100 };
+  near(hexSizeFromBox({ boxW: 200, boxH: 230.94, ...ref }), 200, 1e-6, "hex size from an exact box");
+  // A box drawn a little tall lands BETWEEN the two readings, not on the
+  // taller one: both axes vote.
+  const sloppy = hexSizeFromBox({ boxW: 200, boxH: 242.49, ...ref });
+  assert.ok(sloppy > 200 && sloppy < 210, `sloppy box averages, got ${sloppy}`);
+  assert.equal(hexSizeFromBox({ boxW: 0, boxH: 0, ...ref }), null);
+  assert.equal(hexSizeFromBox({ boxW: 200, boxH: 230, refW: 0, refH: 0, refSize: 100 }), null);
+}
+
 /* -------------------------------------------- */
 /*  Shift solving                               */
 /* -------------------------------------------- */
@@ -228,12 +293,14 @@ for (const [key, entry] of Object.entries(SIZES)) {
  */
 {
   const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
-  const optsLiteral = read("../scripts/battlemap/session.mjs").match(/const emptyOpts = \(\) => \(\{([^}]*)\}\)/);
+  const session = read("../scripts/battlemap/session.mjs");
+  const optsLiteral = session.match(/const emptyOpts = \(\) => \(\{([^}]*)\}\)/);
   assert.ok(optsLiteral, "session.mjs still declares emptyOpts as one literal");
   const slots = [...optsLiteral[1].matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
   assert.ok(slots.length >= 4, `expected the opts slots, got ${slots.join(", ")}`);
 
   const body = read("../templates/battlemap/assistant-body.hbs");
+  const app = read("../scripts/battlemap/assistant-app.mjs");
   const inputs = new Set([...body.matchAll(/name="(\w+)"/g)].map((m) => m[1]));
   for (const slot of slots) {
     assert.ok(inputs.has(slot), `opts.${slot} has no input in the panel — nothing can set it`);
@@ -241,16 +308,28 @@ for (const [key, entry] of Object.entries(SIZES)) {
 
   // And nothing writes a slot that does not exist: a renamed field would
   // otherwise post into an ignored key and read as "the control does nothing".
-  const app = read("../scripts/battlemap/assistant-app.mjs");
   const written = [...app.matchAll(/this\.opts\.(\w+)\s*=[^=]/g)].map((m) => m[1]);
   for (const key of written) {
     assert.ok(slots.includes(key), `a handler writes opts.${key}, which is not a slot`);
   }
 
-  // The session's toggles are the only other named inputs the form carries.
-  const toggles = new Set(["independentXY", "allowSkew"]);
+  // Besides the opts slots, the form carries the session's own state: the two
+  // fit toggles and the setup choices. The setup names are read off
+  // `setSetup`'s own signature, so renaming one there without renaming the
+  // input fails here rather than in a world.
+  const setup = [...session.match(/setSetup\(\{([^}]*)\}/)[1].matchAll(/(\w+)/g)].map((m) => m[1]);
+  assert.ok(setup.length >= 3, `expected the setup choices, got ${setup.join(", ")}`);
+  const owned = new Set(["independentXY", "allowSkew", ...setup]);
   for (const name of inputs) {
-    assert.ok(slots.includes(name) || toggles.has(name), `the panel posts "${name}", which nothing reads`);
+    assert.ok(slots.includes(name) || owned.has(name), `the panel posts "${name}", which nothing reads`);
+  }
+
+  // Indexed inputs (`name="boxCells.{{index}}"`) are invisible to the scan
+  // above — the dot and the interpolation are not word characters — so their
+  // PREFIX is checked instead: the panel posts a group nothing expands is the
+  // same silent failure in a different shape.
+  for (const [, prefix] of body.matchAll(/name="(\w+)\.\{\{/g)) {
+    assert.ok(app.includes(`d.${prefix}`), `the panel posts "${prefix}.*", which the submit handler never expands`);
   }
 }
 

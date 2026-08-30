@@ -45,6 +45,18 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 5. `throwModifiers(actor, item)` with a modifier-bearing Active Effect on the
    actor.
    *Observable:* the effect appears as a named part, not folded into a total.
+6. A throw's **score modifier**, driven through the editor rather than the API:
+   open the throw, set a flat target, choose a score in the picker, then set the
+   multiplier that appears beside it.
+   *Observable:* the multiplier is absent until a score is named and shows the
+   stored factor when one is; the stored `score` round-trips as `{key, times}`;
+   the target drops by `mod × times` on an above-throw and rises by it on a
+   below-throw; the editor's preview, the tag strip (`item.getTags()`) and the
+   chat card's details line all report the same term and the same number.
+   Switch the picker to None and back — the multiplier must survive being off
+   screen. Set *Succeeds On* to an exact match: the target must not move, and
+   both the preview and the card must say the term is not applied rather than
+   claim it.
 
 ## Teardown
 

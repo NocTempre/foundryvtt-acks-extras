@@ -24,16 +24,23 @@ const MIN_DRAG = 8;
 /** Eraser hit radius in canvas px (scaled by zoom at use). */
 const ERASE_RADIUS = 12;
 
-/** Image px per canvas px, per axis, for the current scene background. */
+/**
+ * Image px per canvas px, per axis, for the current scene background.
+ *
+ * Degrades to an identity mapping with no scene and no texture rather than
+ * throwing: this is on the panel's RENDER path, and a canvas with no scene is
+ * an ordinary state — deleting the viewed scene is one — in which a throw here
+ * takes the whole window down.
+ */
 function imageScale() {
-  const scene = canvas.scene;
-  const dims = scene.dimensions;
-  const tex = backgroundTexture(scene);
+  const scene = canvas?.scene ?? null;
+  const dims = scene?.dimensions ?? null;
+  const tex = scene ? backgroundTexture(scene) : null;
   return {
-    sx: tex ? tex.width / dims.sceneWidth : 1,
-    sy: tex ? tex.height / dims.sceneHeight : 1,
-    ox: dims.sceneX,
-    oy: dims.sceneY,
+    sx: tex && dims ? tex.width / dims.sceneWidth : 1,
+    sy: tex && dims ? tex.height / dims.sceneHeight : 1,
+    ox: dims?.sceneX ?? 0,
+    oy: dims?.sceneY ?? 0,
   };
 }
 
@@ -136,8 +143,10 @@ export class CaptureOverlay {
   }
 
   onPointerDown(ev) {
-    // Right-click anywhere while armed: undo the newest sample.
-    if (ev.button === 2) return void this.removeLast();
+    // Left button only. The right button is how a GM PANS the canvas, so it
+    // never edits samples: binding an undo to it meant every drag across a
+    // large map silently ate the last thing sampled. Ctrl+Z undoes; the
+    // eraser and the panel's own rows delete a chosen one.
     if (ev.button !== 0) return;
     const p = this.point(ev);
     if (this.mode === "corners") {
@@ -169,6 +178,8 @@ export class CaptureOverlay {
         y: Math.min(a.y, b.y),
         w: Math.abs(b.x - a.x),
         h: Math.abs(b.y - a.y),
+        // How many drawn cells the box spans, editable on its panel row.
+        cells: 1,
       });
     } else if (this.mode === "scale") {
       const a = canvasToImage(start);
@@ -180,11 +191,17 @@ export class CaptureOverlay {
 
   /**
    * Escape means GET OUT, everywhere else in Foundry and here. It disarms
-   * rather than deleting a sample: undoing the last sample is right-click,
-   * and binding the universal escape key to a destructive edit meant the one
-   * key a GM presses to leave the tool ate their work instead.
+   * rather than deleting a sample: binding the universal escape key to a
+   * destructive edit meant the one key a GM presses to leave the tool ate
+   * their work instead. Ctrl+Z is the undo — the sampling group drives no
+   * placeable layer, so core has no undo of its own to collide with.
    */
   onKeyDown(ev) {
+    if (ev.code === "KeyZ" && (ev.ctrlKey || ev.metaKey)) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      return void this.removeLast();
+    }
     if (ev.code !== "Escape") return;
     ev.preventDefault();
     ev.stopPropagation();
@@ -311,6 +328,11 @@ export class CaptureOverlay {
     this.previewLines.clear();
     this.previewMesh.visible = false;
     if (!fit?.ok) return;
+    // Only a square fit has lines to promise. A hex family measures ONE cell
+    // and lets Foundry pack the rest, and a scale-only calibration draws no
+    // grid at all — a rectangular lattice over either would preview a map
+    // that is not the one about to be written.
+    if (this.host.gridFamily && this.host.gridFamily !== "square") return;
     const dims = canvas.scene.dimensions;
     const { sx, sy } = imageScale();
 

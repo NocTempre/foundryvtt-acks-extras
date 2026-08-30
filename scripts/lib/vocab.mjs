@@ -5,9 +5,10 @@
  * Foundry runtime does. DataModel field-builders that consume these live in
  * `fields.mjs` (Foundry-only).
  *
- * This file is the SINGLE SOURCE for the damage / movement / vision / sense /
- * natural-weapon enums and for alignment. The monsters feature re-exports them
- * from its own `config.mjs` so its consumers keep one import path; nothing
+ * This file is the SINGLE SOURCE for the damage / movement / travel / vision /
+ * sense / natural-weapon enums and for alignment. The monsters feature
+ * re-exports them from its own `config.mjs` so its consumers keep one import
+ * path (formation's `travel.mjs` does the same for `TRAVEL_MODES`); nothing
  * defines a second copy. `NATURAL_WEAPONS` here is the superset — it carries
  * the monster sheet's sting / feeler / envelopment as well.
  *
@@ -222,6 +223,15 @@ export const MOVEMENT_TYPES = {
   swim: { label: "Swim" },
   webcrawl: { label: "Webcrawl" },
 };
+
+/**
+ * The three things a party can be doing, and the three kinds of map that put
+ * them on the table: `delve` ticks dungeon turns, `journey` runs the day
+ * board, `settlement` crosses a city. Here rather than in the formation
+ * feature because a SCENE declares which one applies on it (the battlemap's
+ * setup tool) and the formation obeys — two features, one list.
+ */
+export const TRAVEL_MODES = Object.freeze(["delve", "journey", "settlement"]);
 
 /* ---------------------------------------------------------------- */
 /*  Ability effect model (new — the shared binding target)           */

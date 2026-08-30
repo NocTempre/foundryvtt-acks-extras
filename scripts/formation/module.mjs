@@ -956,7 +956,8 @@ Hooks.on("createToken", (tokenDoc) => {
   // would write back a STALE settings copy read mid-addMember — the write
   // race that erased freshly added members. Only manual placements (dragged
   // from the sidebar, no flag yet) need adoption.
-  if (tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return;
+  const owned = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
+  if (owned) return void adoptSceneSystem(owned, tokenDoc.parent);
   const formation = Object.values(getFormations()).find((f) => f.actorId === tokenDoc.actor.id);
   if (!formation) return;
   const existing = getPartyToken(formation);
@@ -971,5 +972,38 @@ Hooks.on("createToken", (tokenDoc) => {
     formation.clock.lastPosition = { x: tokenDoc.x, y: tokenDoc.y };
     await updateFormation(formation);
     await syncPartyActorSpeed(formation);
-  })().catch((err) => console.error(`${MODULE_ID} | party token adoption failed`, err));
+  })()
+    .then(() => adoptSceneSystem(formation.id, tokenDoc.parent))
+    .catch((err) => console.error(`${MODULE_ID} | party token adoption failed`, err));
+});
+
+/**
+ * The scene says what a party DOES on it (the battlemap setup tool writes the
+ * declaration), and a party standing there follows — both on arrival and when
+ * the Judge changes the declaration under it. Announced, because the switch
+ * starts or pauses a clock and a silent one reads as the module losing count.
+ */
+function adoptSceneSystem(formationId, scene) {
+  return travel
+    .adoptSceneSystem(formationId, scene)
+    .then((mode) => {
+      if (!mode) return;
+      const name = getFormation(formationId)?.name ?? "";
+      ui.notifications.info(
+        game.i18n.format("ACKS-FORMATION.travel.sceneSystem", {
+          name,
+          system: game.i18n.localize(`ACKS-BATTLEMAP.system.${mode}`),
+        })
+      );
+    })
+    .catch((err) => console.error(`${MODULE_ID} | scene travel system adoption failed`, err));
+}
+
+/* A scene's declared system changing is the same event as arriving on it, for
+ * every party already standing there. */
+Hooks.on("updateScene", (scene, changes) => {
+  if (!isPrimaryGM() || !foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.battlemap`)) return;
+  for (const formation of Object.values(getFormations())) {
+    if (formation.sceneId === scene.id) adoptSceneSystem(formation.id, scene);
+  }
 });

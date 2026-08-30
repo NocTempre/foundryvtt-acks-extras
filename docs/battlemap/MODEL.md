@@ -1,9 +1,11 @@
 # Battlemap — how it works
 
-A GM assistant that fits the scene grid to a battlemap image from samples
-drawn on the canvas, converts the confirmed real-world scale into
-`grid.distance`, and sizes tokens to their footprints. Everything user-facing
-hangs off a **Battlemap scene-control group** — the capture modes are its
+A GM assistant that says what a scene IS — its grid family, its distance
+units, what its distances are worth, and which travel system a party uses on
+it — by fitting the scene to a map image from samples drawn on the canvas, and
+that sizes tokens to their footprints.
+
+Everything user-facing hangs off a **Battlemap scene-control group** — the capture modes are its
 tools — and a **Battlemap window** (`assistant-app.mjs`) carrying the numbers
 and the apply actions, opened by entering the group, by its panel tool, or
 from the scene-config row, and dismissed by its own close control.
@@ -32,14 +34,16 @@ token-movement seam that ticks dungeon turns when not journeying).
 
 | File | Responsibility |
 |---|---|
-| `calibrate-logic.mjs` | Pure solver: 1D-per-axis grid fit (square/rect modes), 2D lattice fit with basis reduction (affine mode), scale-bar conversion, nice-number suggestions, output-square conversion. No Foundry. |
+| `calibrate-logic.mjs` | Pure solver: 1D-per-axis grid fit (square/rect modes), 2D lattice fit with basis reduction (affine mode), scale-bar conversion, nice-number suggestions, output-square conversion, the scale-only (size, distance) pair, and hex size from a measured reference box. No Foundry. |
 | `footprint.mjs` | Pure footprint resolution (override → size category → man default) and feet→squares quantization. No Foundry. |
 | `token-scale.mjs` | The ONE writer of width/height for generic tokens: scene-wide rescale, the selection hotbar's stamp/reset, and `preCreateToken` auto-sizing gated on the scene's `autoScale` flag. |
 | `scene-image.mjs` | The one place that knows where a scene's background lives: reads it off the active Level, writes it through that Level's own update. Every background read and write in the feature goes through here. |
 | `capture.mjs` | Canvas overlay: screen-space pointer catcher (core GridConfig's preview pattern), sample glyphs, live fitted-grid preview (GridMesh for square fits, drawn lattice lines otherwise), eraser and undo. |
-| `session.mjs` | The calibration session: samples, the armed mode, the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
-| `assistant-app.mjs` | The window, a VIEW over the session: the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
-| `apply.mjs` | Scene writes: `applyGridCalibration` (one `scene.update`) and `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
+| `session.mjs` | The calibration session: samples (each with what it represents), the armed mode, the setup choices (family, hex parity, units, party system), the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
+| `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
+| `apply.mjs` | Scene writes, one per family: `applyGridCalibration` (square), `applyHexCalibration` (hex), `applyScaleOnly` (no geometry), each one `scene.update`; plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
+| `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
+| `../lib/distance-units.mjs` | What one `grid.units` is worth in FEET. Every feet→squares conversion divides by `sceneFeetPerCell`. |
 | `module.mjs` | Registrar: scene-control tool, scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
 
 ## Data flow
@@ -48,11 +52,26 @@ token-movement seam that ticks dungeon turns when not journeying).
   pointer positions through `scene.dimensions` and the background texture's
   size, so a fit survives the scene being rescaled between captures — and an
   apply does not invalidate the samples that produced it.
-- **Two scale decisions, not one.** *Map square is* says what the map's drawn
-  box is worth; the **output square** selector says what one *Foundry* square
-  should be, defaulting to 1:1 with the drawn box. A different output
-  re-pitches the grid (`G px = fittedCellPx × outputFeet / mapCellFeet`); a
-  non-integer ratio draws a "lines will not coincide" warning.
+- **The family is the first question, and everything else answers under it.**
+  `square`, `hexRows`, `hexCols` and `scale` decide which fields the panel
+  shows, what a drawn box measures, and which apply runs. It defaults to the
+  family the scene already uses (`familyOfScene`), so the panel opens
+  describing the map in front of the Judge.
+- **Two scale decisions, not one.** *One drawn square is* says what the map's
+  own box is worth; the **output square** says what one *Foundry* square should
+  be, defaulting to 1:1 with the drawn box. A different output re-pitches the
+  grid (`G px = fittedCellPx × outputFeet / mapCellFeet`); a non-integer ratio
+  draws a "lines will not coincide" warning. A hex family has only the first of
+  the two: one drawn hex is one Foundry hex, because re-pitching to a fraction
+  of a cell is a square-grid idea and hexes do not tile hexes.
+- **Every field states what it means and in which unit**, and every SAMPLE
+  carries the box that says what it represents — how many drawn cells a box
+  spans (`cells`, divided out by the solver), what a scale bar reads. A
+  measurement and its meaning sit on the same row.
+- **Units are chosen, not assumed.** The picker writes `grid.units` with the
+  scale, and `lib/distance-units.mjs` converts it to feet for every consumer
+  that owns a length — token footprints and the formation's party token both
+  size through `sceneFeetPerCell`, so a six-mile hex sizes a man as a man.
 - **Each of those has one slot and one input**, with its chips banded directly
   beneath it. A chip writes the same slot the input does, so the displayed
   number and the number the arithmetic uses cannot diverge. An entered value
@@ -61,15 +80,17 @@ token-movement seam that ticks dungeon turns when not journeying).
 - **Arming is a mode, and the group has a resting state.** Each capture mode
   is a tool in the `acksBattlemap` control group; `off` is ordered first and is
   the group's `activeTool`, so opening the toolbar arms nothing. Escape
-  disarms, the panel shows an armed banner carrying the same exit, and
-  right-click removes the newest sample. Leaving the group disarms and does
+  disarms, the panel shows an armed banner carrying the same exit, and Ctrl+Z
+  undoes the newest sample. The right button never edits samples: it is how a
+  GM pans. Leaving the group disarms and does
   nothing else — the window outlives it, because core drops a layerless group
   on every canvas redraw and the apply redraws (DECISIONS). Since disarming
   selects `off`, core's per-control tool memory brings the GM back to a
   resting toolbar rather than a re-armed one.
 - **Applying writes core fields directly** — `width`, `height`, `shiftX`,
-  `shiftY`, `grid.size`, `grid.distance` — in one `scene.update`, plus the
-  module's scene flag `battlemap = { calibrated, distance, autoScale }`. The
+  `shiftY`, `grid.size`, `grid.type`, `grid.distance`, `grid.units` — in one
+  `scene.update`, plus the module's scene flag
+  `battlemap = { calibrated, distance, autoScale, mapSystem }`. The
   shift comes from `solveShift` (pure, in `calibrate-logic.mjs`) fed the
   `sceneX`/`sceneY` of a preview clone whose shift is zeroed, so core's
   padding rounding is honoured rather than assumed (see DECISIONS).
@@ -88,12 +109,28 @@ token-movement seam that ticks dungeon turns when not journeying).
   fitted basis to `(s,0)` and `(0,s)`. `s` is the LARGER edge, so the short
   axis is stretched rather than the long one squeezed — resampling up discards
   less. The original file is never modified.
-- **A gridless scene is calibratable and a hex one is not.** No grid at all is
-  the ordinary state of a freshly imported map, so the apply accepts
-  `GRIDLESS` and writes `grid.type: SQUARE` along with the size and shift; the
-  panel says so before the button is pressed. Hex is refused, the solver
-  fitting a rectangular lattice that a hex scene is not. `CALIBRATABLE_GRIDS`
-  is the one list both the apply and the panel read.
+- **A gridless scene is the ordinary state of a freshly imported map.** The
+  square apply accepts `GRIDLESS` and writes `grid.type: SQUARE` along with the
+  size and shift; the panel says so before the button is pressed.
+  `CALIBRATABLE_GRIDS` is the one list both the square apply and the panel
+  read — a hex scene is refused a square fit and told which families it may
+  have instead.
+- **A hex apply pitches ONE hex and lets Foundry pack the rest.** The box drawn
+  around a hex gives its bounding box; `hexProbe` asks a scene CLONE carrying
+  the target grid what that box measures at a reference size, `hexSizeFromBox`
+  scales the answer (both axes voting), and the shift comes from asking that
+  same clone for the hex centre nearest the drawn hex's centre — a phase cannot
+  express packing where every other row starts half a cell over. A clone whose
+  hex box comes back square has not rebuilt its grid, and `hexProbe` returns
+  null rather than scaling a map by a ratio of one.
+- **Scale only writes no geometry at all.** `grid.size` and `grid.distance` are
+  one ratio — so many px are worth so much distance — and a map with no drawn
+  grid offers exactly one measurement, its scale bar. `applyScaleOnly` writes
+  that ratio and the units, leaves the type, the dimensions and the shift
+  untouched, and so leaves a gridless map gridless. Foundry bounds `grid.size`
+  to whole pixels within a range: inside it the asked-for distance is kept and
+  the px solve; outside it the size clamps and the DISTANCE solves back, which
+  keeps what the ruler reads exact at the cost of a round number.
 
 ## Token sizing — ownership
 
@@ -115,14 +152,32 @@ on scenes whose `autoScale` flag is on — which the apply action sets and the
 scene-config row toggles. Formation redeploys create tokens and therefore
 flow through the same hook.
 
+## What the scene declares to the rest of the module
+
+Two of the flag's fields are read by surfaces that never open this panel.
+
+- `autoScale` gates `preCreateToken` sizing on this scene.
+- `mapSystem` is the travel mode a formation adopts on ARRIVAL — a dungeon map
+  runs the turn clock, a wilderness map runs the day board, a settlement
+  crosses in blocks. The vocabulary is `TRAVEL_MODES` (`lib/vocab.mjs`), shared
+  so the declaration and the mode cannot drift apart; the formation half is
+  `adoptSceneSystem` (`docs/formation/MODEL.md`). Unset means silence, not
+  "dungeon": a party crossing an unlabelled scene is left alone.
+
+The select writes the flag the moment it is chosen rather than waiting for an
+apply — it is a statement about the map, not part of the calibration
+arithmetic, and an already-aligned scene should not need re-aligning to be
+labelled.
+
 ## Grid-type seam
 
-Square is the only OUTPUT mode: calibrating produces a square grid, and token
-sizing assumes square cells. A gridless scene is an accepted input and is given
-that square grid; hex is refused. The solver itself is grid-type-agnostic (the
-affine lattice fit carries any two basis vectors), so hex OUTPUT — its own
-scale set, cell-fill arrangement — remains ruled in DECISIONS and staged in
-ROADMAP.
+Three output families ship: square, hex (rows or columns), and none at all.
+Token sizing still assumes square-ish cells — a span in cells, quantized —
+which is right for a square grid and approximate on a hex one; the hex-specific
+half of the ROADMAP ruling (tokens that auto-arrange to fill a hex as its
+occupancy changes, a slots-per-cell override) is not built. The solver itself
+stays grid-type-agnostic: the affine lattice fit carries any two basis vectors,
+and no hex geometry is written down anywhere in this feature.
 
 ## Hex topology
 

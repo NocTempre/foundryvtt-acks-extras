@@ -1,5 +1,53 @@
 # Changelog
 
+## 5.5.0
+
+**The map setup tool says what a map IS — square, hex, or nothing but a scale —
+in the units you name; a throw can be written against an ability score; and the
+right button goes back to panning.**
+
+### Added
+- **A grid FAMILY, chosen first.** Square, hex by rows, hex by columns, or
+  scale only. Everything below it reads under that choice: which fields appear,
+  what a drawn box measures, and what the apply writes. It opens on the family
+  the scene already uses.
+- **Hex maps can be set up at all.** Draw a box around one hex, say what a hex
+  is worth, and apply: the map is scaled so one drawn hex is one Foundry hex,
+  and the grid is shifted so that hex lands on a real one. Foundry's own
+  geometry is asked for the hex's shape and packing, so nothing here can drift
+  from it. This is also what makes the terrain brush and the road tools
+  reachable on a map that arrived without a grid.
+- **Scale only, for a map with no grid to fit.** Drag along the printed scale
+  bar, say what it reads, and the scene measures true — with no grid written,
+  no image rescaled and nothing moved. A gridless map stays gridless.
+- **Distance units are a choice.** Feet, yards, miles, metres or kilometres,
+  written to the scene with the scale. Everything that owns a real length —
+  token footprints, the party token's frontage — converts through them, which
+  fixes a party on a six-mile hex map being sized as though six were six feet.
+- **A scene can say what a party DOES on it** — dungeon, wilderness or
+  settlement. A formation arriving takes that system, and follows if you change
+  it while they are standing there. Saying nothing leaves a party alone.
+- **Every sample carries a box for what it represents.** A dragged box says how
+  many cells it spans, so you can drag across a run instead of pinching one
+  cell; the scale bar's printed value sits on the bar's own row.
+- **A throw can be written against an ability score.** Pick the score on the
+  throw and, where the throw wants a multiple of the modifier, how many times it
+  counts. The character's own modifier is folded into the target, so a throw
+  reads 4+ for one character and 6+ for another — and the editor's preview, the
+  tag strip and the chat card all name the term, because a target that moved
+  with no visible cause reads as a typo. A throw that must match exactly says
+  the term is not applied rather than claiming it. Throws already written carry
+  no score and are unchanged.
+
+### Fixed
+- **The right mouse button no longer eats samples.** It was bound to "undo the
+  last sample" and it is also the button you pan the canvas with, so working
+  across a large map quietly deleted things. Undo is Ctrl+Z; the eraser and the
+  per-row control still delete a chosen sample.
+- **Every field says what it is and in which unit.** "Map square is" and
+  "Foundry square" were bare numbers with no statement of which was the map and
+  which was the grid being written.
+
 ## 5.4.0
 
 **The first hit die is read at its floor, levels past 9th carry their printed bonus, and a pick you are owed is something you can see.**

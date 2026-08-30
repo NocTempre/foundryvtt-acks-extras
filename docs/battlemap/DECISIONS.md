@@ -1,5 +1,81 @@
 # Battlemap — decisions
 
+## 2026-08-30 — The tool says what a scene IS: family, units, system
+
+**Ruled.** The panel asked one question (fit a square grid) and inferred the
+rest, so four separate things had no way to be said at all: that this map is
+hexes, that it has no grid and only a scale, that its distances are miles, and
+that a party on it is in a city rather than a dungeon. The tool now asks them.
+
+- **The grid FAMILY is the first control**, and every field below it answers
+  under that choice: `square`, `hexRows`, `hexCols`, `scale`. It defaults to
+  the family the scene already carries, so the panel opens describing the map
+  rather than proposing to change it.
+- **One drawn hex is one Foundry hex.** A hex family has no output-cell
+  decision, because re-pitching a grid to a fraction of a drawn cell is a
+  square-grid idea and hexes do not tile hexes. **Rejected:** carrying the
+  output selector into hex mode for symmetry — the symmetry is false and the
+  field would have to refuse most of its own values.
+- **No hex geometry is written down.** The bounding box of a hex, and the
+  centre nearest a point, are ASKED of a scene clone carrying the target grid
+  (`hexProbe`, `getCenterPoint`). Live probing found the clone rebuilds its
+  grid class from a changed `grid.type`, which is what makes this possible;
+  a clone that answers with a SQUARE box (equal edges — a hex's never are) is
+  treated as a failure rather than scaled by, so the assumption cannot fail
+  silently. **Rejected:** the √3 ratios and the row-offset packing in our own
+  code, which is a second copy of core's geometry to drift from, and a phase
+  solution for the shift, which cannot express rows that start half a cell over.
+- **Scale-only writes a RATIO and no geometry.** `grid.size` and
+  `grid.distance` are one quantity — px per distance — so the apply writes
+  that pair and leaves the type, dimensions and shift alone: a gridless map
+  stays gridless and the image is never rescaled. Foundry bounds the size to a
+  whole number in a range; inside it the asked-for distance is kept, outside it
+  the size clamps and the DISTANCE solves back. **Rejected:** keeping the round
+  distance and letting the clamp bend the ratio — that silently measures wrong,
+  which is the one thing a ruler must not do.
+- **The ruler cell a scale-only map defaults to is chosen for the screen**, not
+  inherited from the combat square: a map measured in miles with a five-foot
+  default lands under Foundry's floor, which reads as the tool refusing the
+  scale it just took. The default is a nice-number rounding of a comfortable
+  on-screen cell, and only when a BAR is the measurement — a map with drawn
+  cells has already answered the question.
+- **Units are a choice and a conversion.** The picker writes `grid.units`, and
+  `lib/distance-units.mjs` converts it to feet for every consumer that owns a
+  LENGTH. That fixes a bug older than the picker: a party token on a scene of
+  six-mile hexes was sized as though six were six feet — ten hexes wide — and
+  a footprint was one quarter-square by luck rather than by arithmetic.
+- **A SCENE may declare which travel system applies on it**, and a party
+  arriving adopts it. The vocabulary is `TRAVEL_MODES`, moved to `lib/vocab.mjs`
+  so the declaration and the formation's own mode are one list. Unset is
+  SILENCE, not a default: a party mid-march crossing an unlabelled scene keeps
+  its march. The select writes the flag immediately rather than on apply — it
+  is a statement about the map, not part of the arithmetic, and labelling an
+  already-aligned scene must not require re-aligning it.
+
+## 2026-08-30 — The right button pans; a sample says what it represents
+
+**Ruled** (both from a Judge aligning a city map). **Right-click no longer
+edits samples.** It was bound to "undo the newest sample" — and it is also the
+button Foundry pans the canvas with, so every drag across a large map quietly
+ate the last thing sampled. Undo moved to Ctrl+Z, which the sampling group can
+have outright: it drives no placeable layer, so core has no undo of its own
+there. The eraser tool and the panel's per-row control still delete a CHOSEN
+sample, which is what the right button was a poor shortcut for.
+
+**A sample carries the box that says what it represents.** A dragged box was
+assumed to be exactly one drawn cell; it now carries a `cells` count, edited on
+its own row, and the scale bar's printed value sits on the bar's row rather
+than in a field further down the panel. Dragging across a run of cells is both
+easier to aim and a better measurement than pinching one, and it is only better
+if the count is believed. **Rejected:** a separate "how many cells?" field
+beside the fit — the measurement and its meaning have to be on the same row, or
+they are read apart, which is the failure this whole release is about.
+
+**Every field says what it means and in which unit.** The panel showed "Map
+square is 5" and "Foundry square 100" as bare numbers of nothing in
+particular; the second is the OUTPUT — the grid being written — and nothing
+said so.
+
 ## 2026-08-26 — The panel is a window again, dismissed by the toolbar
 
 **Ruled (user):** `BattlemapAssistant` is an `ApplicationV2` window, opened by
@@ -174,7 +250,10 @@ the numbers.
 
 ## 2026-08-19 — The grid-mode seam: hex and gridless are ruled now, built later
 
-**Gridless half superseded 2026-08-24** (see above); the hex ruling stands.
+**Gridless half superseded 2026-08-24**; the hex OUTPUT and gridless-mode
+halves were built 2026-08-30 (both above). What stands unbuilt from this entry
+is the hex TOKEN behaviour — resizing and auto-arranging to fill a hex as its
+occupancy changes, the slots-per-cell override, the show-all button.
 
 **Ruled:** grid-type-specific behaviour — target scale sets, token sizing,
 cell-fill arrangement — sits behind a mode seam: v1 ships the square mode and

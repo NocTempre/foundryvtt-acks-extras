@@ -1,19 +1,61 @@
 <section class="acks-extras-battlemap-body">
 
-  {{! Armed means every click on the map is a sample, so the panel says so and
-      carries the way out. Escape and the toolbar's arrow do the same thing. }}
+  {{! Armed means every click on the map is a sample, so the panel says so,
+      says what a click will DO, and carries the way out. }}
   {{#if armedLabel}}
     <div class="acks-extras-battlemap-armed">
       <span><i class="fa-solid fa-crosshairs"></i> {{armedLabel}}</span>
       <button type="button" data-action="disarm">{{localize "ACKS-BATTLEMAP.mode.off"}}</button>
     </div>
+    {{#if armedHint}}<div class="acks-extras-battlemap-sub">{{armedHint}}</div>{{/if}}
   {{/if}}
+
+  {{! What this scene IS. Everything below reads differently under each answer,
+      so the answer is asked first rather than inferred from the fields. }}
+  <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.setup.title"}}</span></div>
+
+  <label class="acks-extras-battlemap-field">
+    <span>{{localize "ACKS-BATTLEMAP.setup.family"}}</span>
+    <select name="gridFamily">
+      {{#each familyOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+    </select>
+  </label>
+  <p class="acks-extras-battlemap-hint">{{familyHint}}</p>
+
+  {{#if isHex}}
+    <label class="acks-extras-battlemap-check">
+      <input type="checkbox" name="hexEven" {{checked hexEven}}>
+      <span>{{localize "ACKS-BATTLEMAP.setup.hexEven"}}</span>
+    </label>
+    <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.hexEvenHint"}}</p>
+  {{/if}}
+
+  <div class="acks-extras-battlemap-row">
+    <label class="acks-extras-battlemap-field">
+      <span>{{localize "ACKS-BATTLEMAP.setup.units"}}</span>
+      <select name="units">
+        <option value="">{{localize "ACKS-BATTLEMAP.setup.unitsKeep"}}</option>
+        {{#each unitOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </label>
+    <label class="acks-extras-battlemap-field">
+      <span>{{localize "ACKS-BATTLEMAP.setup.system"}}</span>
+      <select name="mapSystem">
+        <option value="">{{localize "ACKS-BATTLEMAP.setup.systemNone"}}</option>
+        {{#each systemOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </label>
+  </div>
+  <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.systemHint"}}</p>
 
   {{#if warnNotSquare}}
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notSquareGrid"}}</p>
   {{/if}}
   {{#if warnNoBackground}}
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.noBackground"}}</p>
+  {{/if}}
+  {{#if warnNoHexBox}}
+    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.noHexBox"}}</p>
   {{/if}}
 
   {{! The fit, read at a glance: this is the live feedback while sampling, so
@@ -22,7 +64,7 @@
     {{#if fitOk}}
       <div class="acks-extras-battlemap-cardhead">
         <span class="acks-extras-battlemap-cell">{{cellLabel}}</span>
-        <span class="acks-extras-battlemap-unit">{{localize "ACKS-BATTLEMAP.fit.pxCell"}}</span>
+        <span class="acks-extras-battlemap-unit">{{cellUnitLabel}}</span>
       </div>
       <div class="acks-extras-battlemap-meter">
         <div class="acks-extras-battlemap-meterbar" style="width: {{residualBar}}%"></div>
@@ -30,8 +72,12 @@
       <div class="acks-extras-battlemap-sub">{{residualPct}}% · {{confidenceLabel}}</div>
       {{#if sampleSummary}}<div class="acks-extras-battlemap-sub">{{sampleSummary}}</div>{{/if}}
       {{#if fitAffine}}<div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.affine"}} {{fitAffine.skew}}° / {{fitAffine.rotation}}°</div>{{/if}}
-    {{else}}
-      <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.none"}}</div>
+    {{/if}}
+    {{#if pxPerUnit}}
+      <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.perUnit" px=pxPerUnit units=unitLabel}}</div>
+    {{/if}}
+    {{#if showNoMeasurement}}
+      <div class="acks-extras-battlemap-sub">{{noFitLabel}}</div>
     {{/if}}
   </div>
 
@@ -39,74 +85,142 @@
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.highResidual"}}</p>
   {{/if}}
 
-  {{#if sampleRows.length}}
+  {{! Every sample carries the box that says what it REPRESENTS: a drag across
+      three cells is three, and the bar reads whatever is printed beside it. }}
+  {{#if boxRows.length}}
     <ul class="acks-extras-battlemap-samples">
-      {{#each sampleRows}}
+      {{#each boxRows}}
         <li>
           <span>{{label}}</span>
-          <button type="button" data-action="deleteSample" data-kind="{{kind}}" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
+          <label class="acks-extras-battlemap-spans">
+            <span>{{localize "ACKS-BATTLEMAP.samples.spans"}}</span>
+            <input type="number" name="boxCells.{{index}}" min="1" step="1" value="{{cells}}">
+          </label>
+          <button type="button" data-action="deleteSample" data-kind="squares" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
         </li>
       {{/each}}
     </ul>
   {{/if}}
 
+  {{#if cornerRows.length}}
+    <ul class="acks-extras-battlemap-samples">
+      {{#each cornerRows}}
+        <li>
+          <span>{{label}}</span>
+          <button type="button" data-action="deleteSample" data-kind="corners" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
+        </li>
+      {{/each}}
+    </ul>
+  {{/if}}
+
+  {{#if scaleRow}}
+    <ul class="acks-extras-battlemap-samples">
+      <li>
+        <span>{{scaleRow.label}}</span>
+        <label class="acks-extras-battlemap-spans">
+          <span>{{localize "ACKS-BATTLEMAP.samples.reads"}}</span>
+          <input type="number" name="scaleValue" min="0" step="any" value="{{opts.scaleValue}}">
+          <span>{{unitLabel}}</span>
+        </label>
+        <button type="button" data-action="deleteSample" data-kind="scale" data-index="0" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
+      </li>
+    </ul>
+  {{/if}}
+
   <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.scale.title"}}</span></div>
 
-  {{! Each field owns the chips directly beneath it. A shared chip row under a
-      two-column pair reads as belonging to whichever field the eye is on. }}
-  <div class="acks-extras-battlemap-scalefield">
-    <label class="acks-extras-battlemap-field">
-      <span>{{localize "ACKS-BATTLEMAP.fields.mapCellFeet"}}</span>
-      <input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="{{mapCellFeet}}">
-    </label>
-    <div class="acks-extras-battlemap-chips">
-      {{#each mapChips}}
-        <button type="button" data-action="mapChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
-      {{/each}}
+  {{! Each field owns the chips directly beneath it, and says in words what its
+      number means. A shared chip row under a two-column pair reads as
+      belonging to whichever field the eye is on. }}
+  {{#unless isScaleOnly}}
+    <div class="acks-extras-battlemap-scalefield">
+      <label class="acks-extras-battlemap-field">
+        <span>{{mapCellLabel}}</span>
+        <div class="acks-extras-battlemap-withunit">
+          <input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="{{mapCellFeet}}">
+          <span>{{unitLabel}}</span>
+        </div>
+      </label>
+      <p class="acks-extras-battlemap-hint">{{mapCellHint}}</p>
+      {{#if mapChips.length}}
+        <div class="acks-extras-battlemap-chips">
+          {{#each mapChips}}
+            <button type="button" data-action="mapChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
+          {{/each}}
+        </div>
+      {{/if}}
+      {{#if barFeet}}
+        <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{unitLabel}}</div>
+      {{/if}}
     </div>
-    {{#if barFeet}}
-      <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{units}}</div>
-    {{/if}}
-  </div>
+  {{/unless}}
 
-  <div class="acks-extras-battlemap-scalefield">
-    <label class="acks-extras-battlemap-field">
-      <span>{{localize "ACKS-BATTLEMAP.scale.output"}}</span>
-      <input type="number" name="outputFeet" min="0" step="any" value="{{opts.outputFeet}}" placeholder="{{outputFeet}}">
-    </label>
-    <div class="acks-extras-battlemap-chips">
-      {{#each outputChips}}
-        <button type="button" data-action="outputChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
-      {{/each}}
+  {{#if isSquare}}
+    <div class="acks-extras-battlemap-scalefield">
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.scale.output"}}</span>
+        <div class="acks-extras-battlemap-withunit">
+          <input type="number" name="outputFeet" min="0" step="any" value="{{opts.outputFeet}}" placeholder="{{outputFeet}}">
+          <span>{{unitLabel}}</span>
+        </div>
+      </label>
+      <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.scale.outputHint"}}</p>
+      <div class="acks-extras-battlemap-chips">
+        {{#each outputChips}}
+          <button type="button" data-action="outputChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
+        {{/each}}
+      </div>
     </div>
-  </div>
+  {{/if}}
+
+  {{#if isScaleOnly}}
+    <div class="acks-extras-battlemap-scalefield">
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.scale.rulerCell"}}</span>
+        <div class="acks-extras-battlemap-withunit">
+          <input type="number" name="outputFeet" min="0" step="any" value="{{opts.outputFeet}}" placeholder="{{outputFeet}}">
+          <span>{{unitLabel}}</span>
+        </div>
+      </label>
+      <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.scale.rulerCellHint"}}</p>
+      <div class="acks-extras-battlemap-chips">
+        {{#each outputChips}}
+          <button type="button" data-action="outputChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
+        {{/each}}
+      </div>
+    </div>
+  {{/if}}
 
   {{#if notAligned}}
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notAligned"}}</p>
   {{/if}}
 
-  <div class="acks-extras-battlemap-row">
-    <label class="acks-extras-battlemap-field">
-      <span>{{localize "ACKS-BATTLEMAP.fields.scaleValue"}}</span>
-      <input type="number" name="scaleValue" min="0" step="any" value="{{opts.scaleValue}}">
-    </label>
-    <label class="acks-extras-battlemap-field">
-      <span>{{localize "ACKS-BATTLEMAP.scale.gridPx"}}</span>
-      <input type="number" name="gridSizePx" min="0" step="1" value="{{opts.gridSizePx}}" placeholder="{{gridSizePx}}">
-    </label>
-  </div>
-
-  <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.fit.title"}}</span></div>
-
-  <label class="acks-extras-battlemap-check">
-    <input type="checkbox" name="independentXY" {{checked independentXY}}>
-    <span>{{localize "ACKS-BATTLEMAP.fit.independentXY"}}</span>
+  <label class="acks-extras-battlemap-field">
+    <span>{{gridPxLabel}}</span>
+    <input type="number" name="gridSizePx" min="0" step="1" value="{{opts.gridSizePx}}" placeholder="{{gridSizePx}}">
   </label>
-  <label class="acks-extras-battlemap-check">
-    <input type="checkbox" name="allowSkew" {{checked allowSkew}}>
-    <span>{{localize "ACKS-BATTLEMAP.fit.allowSkew"}}</span>
-  </label>
-  {{#if dropBack}}<div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.dropBack"}}</div>{{/if}}
+  <p class="acks-extras-battlemap-hint">{{gridPxHint}}</p>
+
+  {{#if scaleClamped}}
+    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.scaleClamped" distance=scaleDistance units=unitLabel}}</p>
+  {{/if}}
+  {{#if warnRepitch}}
+    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.repitch"}}</p>
+  {{/if}}
+
+  {{#if isSquare}}
+    <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.fit.title"}}</span></div>
+
+    <label class="acks-extras-battlemap-check">
+      <input type="checkbox" name="independentXY" {{checked independentXY}}>
+      <span>{{localize "ACKS-BATTLEMAP.fit.independentXY"}}</span>
+    </label>
+    <label class="acks-extras-battlemap-check">
+      <input type="checkbox" name="allowSkew" {{checked allowSkew}}>
+      <span>{{localize "ACKS-BATTLEMAP.fit.allowSkew"}}</span>
+    </label>
+    {{#if dropBack}}<div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.dropBack"}}</div>{{/if}}
+  {{/if}}
 
   {{#if canBake}}
     <div class="acks-extras-battlemap-note">

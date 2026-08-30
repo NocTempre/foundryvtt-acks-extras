@@ -64,6 +64,25 @@ Husbandry, Naturalism — are read against **rank**. The line at the bottom of t
 window shows what the throw comes to for the character holding it, which is the
 quickest way to check you typed the table the way the page prints it.
 
+## A throw against an ability score
+
+Some throws are written against a character's own score rather than a flat
+number. Pick the score in **Score modifier**, and — where the throw wants a
+multiple of the modifier rather than the modifier itself — say how many times
+it counts in the box beside it. Leave it at 1 for the plain case.
+
+![](../releases/v5.5.0/abilities-score.png)
+
+*A throw taking four times the character's Wisdom modifier. The preview at the
+foot of the editor shows the target it produces and names the term inside it.*
+
+The modifier is folded into the target, so the same throw reads 4+ for one
+character and 6+ for another. Every surface that shows the throw names the
+term as well as the number — the editor's preview, and the chat card when it
+is rolled — because a target that moved with no visible cause reads as a typo.
+A throw that must match a number **exactly** takes no modifier at all: the
+score is still shown, said plainly to be unapplied.
+
 ## Level tables
 
 Set **Target** to *Breakpoints* and the window grows a table. Add one step for

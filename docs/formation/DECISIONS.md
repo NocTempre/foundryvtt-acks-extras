@@ -8,6 +8,38 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### Strength on a Dungeonbashing throw has one owner (2026-08-30)
+
+**Asked.** A throw can now declare an ability score it is written against
+(abilities' `score` field). Should the importer put Strength ×4 on the
+Adventuring proficiency's Dungeonbashing roll, and is the ×4 a general rule for
+score-keyed throws?
+
+**Resolved against the page.** RR Ch.1 states the factor exactly once, in the
+Strength attribute entry, scoped to *all* Dungeonbashing throws; the
+character-creation walkthrough repeats it. Every other attribute application in
+that chapter is a plain modifier — attack, damage, saves, AC, initiative, hit
+dice, reaction. So the multiplier is **not** a general rule for score-keyed
+throws, and it is **not** a rule about the Adventuring proficiency: Appendix B
+makes four more Dungeonbashing throws that entry never mentions (escaping a
+grab, shoving forward while stuck, tearing free of webbing, and a condition
+that penalises them).
+
+**Ruled: the factor belongs to the THROW, and `doors.mjs` owns it.**
+`BASH_STR_FACTOR` and `bashStrBonus()` are the definition; `bashPlan` and the
+party sheet's bash column both read it. They did not — the column carried its
+own `strTimes4: true` and multiplied by a second literal 4, reading
+`system.scores.str.mod` inline against the standing rule that score reads go
+through `lib/actor-read.mjs`. Two copies of one rule is a rule that drifts, and
+nothing would have caught the drift.
+
+**Rejected: a `times: 4` in the importer's Adventuring recipe.** It would state
+a character-wide rule in one of the five places it applies and leave the other
+four, and it would put a third copy of the number in the family — in the repo
+whose whole purpose is that printed values arrive from the reader's own book.
+The importer therefore emits no score term for this entry; what it would carry
+is not the entry's rule. See [abilities/DECISIONS.md](../abilities/DECISIONS.md).
+
 ### 2026-08-24 — A trap is a wall PRESET, its marker is its control, and it gets no bucket
 
 Three complaints about the same surface, and one shape answers all of them.

@@ -45,6 +45,7 @@ sibling modules) — never the import path for this module's own features.
 | `mount.mjs` | Rider-role FACADE over `attachment.mjs` — the mounted-combat vocabulary (`mountOf`/`riderOf`/hooks); legacy symmetric pairs still read, every write converges them. |
 | `capacity.mjs` | How much any document can hold / is holding / is it over — in sixths of a stone. |
 | `movement-scales.mjs` | The four ACKS speeds (combat/running/exploration/expedition) and their book names. |
+| `distance-units.mjs` | What a scene's `grid.units` is worth in FEET — the picker's unit table, `feetPerUnit`, and `sceneFeetPerCell`. Every feet→squares conversion divides by that. Foundry-free. |
 | `senses.mjs` | What a creature perceives; `canSeeInDark` + `senseProfile`. |
 | `perception.mjs` | Those senses as Foundry vision/detection modes. |
 | `light.mjs` | The RR light table + "how brightly does this actor's token burn?". |

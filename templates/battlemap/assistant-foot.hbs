@@ -3,10 +3,13 @@
     sibling of the scrolling body for the flex column to hold it down. }}
 <footer class="acks-extras-battlemap-foot">
   {{#if willAddGrid}}
-    <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.apply.willAddGrid"}}</div>
+    <div class="acks-extras-battlemap-sub">{{willAddGridLabel}}</div>
+  {{/if}}
+  {{#if keepsGridless}}
+    <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.apply.keepsGridless"}}</div>
   {{/if}}
   <button type="button" data-action="applyGrid" class="acks-extras-battlemap-primary" {{#unless canApply}}disabled{{/unless}}>
-    <i class="fa-solid fa-border-all"></i> {{localize "ACKS-BATTLEMAP.apply.grid"}}
+    <i class="fa-solid fa-border-all"></i> {{applyLabel}}
   </button>
   <button type="button" data-action="rescaleTokens">
     <i class="fa-solid fa-maximize"></i> {{localize "ACKS-BATTLEMAP.apply.tokens"}}

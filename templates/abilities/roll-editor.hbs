@@ -27,6 +27,24 @@
       </div>
     </div>
 
+    {{! An ability score the character adds to this throw. The multiplier is
+        shown only once a score is named — a lone times sign beside an empty
+        picker is a field asking to be filled in about nothing. }}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.roll.field.score"}}</label>
+      <div class="form-fields acks-abilities-score">
+        <select name="score.key">
+          {{selectOptions choices.score selected=roll.score.key blank=(localize "ACKS-ABILITIES.roll.field.scoreNone")}}
+        </select>
+        {{#if hasScore}}
+        <span class="acks-abilities-score-times" aria-hidden="true">&times;</span>
+        <input type="number" step="any" name="score.times" value="{{roll.score.times}}" placeholder="1"
+               aria-label="{{localize 'ACKS-ABILITIES.roll.field.scoreTimes'}}">
+        {{/if}}
+      </div>
+      <p class="hint">{{localize "ACKS-ABILITIES.roll.field.scoreHint"}}</p>
+    </div>
+
     <div class="form-group">
       <label>{{localize "ACKS-ABILITIES.roll.field.rollType"}}</label>
       <div class="form-fields">

@@ -49,6 +49,14 @@ function circularPhase(offsets, s) {
   return mod((s / (2 * Math.PI)) * Math.atan2(sin, cos), s);
 }
 
+/**
+ * How many map cells a drawn box spans. A box is one cell unless the GM says
+ * otherwise on its own row in the panel: dragging across a run of cells is
+ * both easier to aim and a better measurement than pinching one, so the count
+ * is part of the sample rather than an assumption about it.
+ */
+export const boxCells = (r) => (r?.cells > 0 ? r.cells : 1);
+
 /** Per-axis observations: cell-span deltas and grid-line phase offsets. */
 function axisObservations(squares, corners, axis) {
   const pos = axis === "x" ? (p) => p.x : (p) => p.y;
@@ -56,7 +64,7 @@ function axisObservations(squares, corners, axis) {
   const deltas = [];
   const phases = [];
   for (const r of squares) {
-    deltas.push(side(r));
+    deltas.push(side(r) / boxCells(r));
     phases.push(pos(r), pos(r) + side(r));
   }
   for (let i = 0; i < corners.length; i++) {
@@ -139,8 +147,9 @@ const confidence = (rmsPct) => (rmsPct < RMS_TIGHT ? "tight" : rmsPct < RMS_FAIR
  * Fit the map's drawn grid from GM samples.
  *
  * @param {object} input
- * @param {Array<{x:number,y:number,w:number,h:number}>} input.squares
- *   Dragged rects matching one drawn cell each (normalized, w/h > 0), image px.
+ * @param {Array<{x:number,y:number,w:number,h:number,cells?:number}>} input.squares
+ *   Dragged rects (normalized, w/h > 0), image px. Each spans `cells` drawn
+ *   cells per axis, defaulting to one.
  * @param {Array<{x:number,y:number}>} input.corners  Clicked grid intersections.
  * @param {"square"|"rect"|"affine"} [input.mode]
  * @param {number} [input.minSize] / [input.maxSize]  Cell-size bounds in px.
@@ -171,15 +180,15 @@ export function fitGrid({ squares = [], corners = [], mode = "square", minSize =
   if (mode === "square") {
     const pooled = fitAxis(
       { deltas: [...ox.deltas, ...oy.deltas], phases: [] },
-      [...squares.map((r) => r.w), ...squares.map((r) => r.h)]
+      [...squares.map((r) => r.w / boxCells(r)), ...squares.map((r) => r.h / boxCells(r))]
     );
     if (!pooled) return { ...base, ok: false, reason: "noSeed" };
     sizeX = sizeY = pooled.size;
     phaseX = circularPhase(ox.phases, sizeX);
     phaseY = circularPhase(oy.phases, sizeY);
   } else {
-    const fx = fitAxis(ox, squares.map((r) => r.w));
-    const fy = fitAxis(oy, squares.map((r) => r.h));
+    const fx = fitAxis(ox, squares.map((r) => r.w / boxCells(r)));
+    const fy = fitAxis(oy, squares.map((r) => r.h / boxCells(r)));
     if (!fx || !fy) return { ...base, ok: false, reason: "noSeed" };
     ({ size: sizeX, phase: phaseX } = fx);
     ({ size: sizeY, phase: phaseY } = fy);
@@ -443,4 +452,63 @@ export function outputGridSize({ fittedCellPx, mapCellFeet, outputFeet }) {
   const ratio = mapCellFeet / outputFeet;
   const aligned = Math.abs(ratio - Math.round(ratio)) < 1e-9 || Math.abs(1 / ratio - Math.round(1 / ratio)) < 1e-9;
   return { px: fittedCellPx / ratio, ratio, aligned };
+}
+
+/**
+ * Image px per one distance unit, from a dragged scale bar and its printed
+ * length. The bar is the ONLY measurement a map with no drawn grid offers, so
+ * this is the whole of a scale-only calibration.
+ * @returns {number|null} null when either input is unusable.
+ */
+export function pixelsPerUnit({ dx, dy, value }) {
+  if (!(value > 0)) return null;
+  const px = Math.hypot(dx, dy);
+  return px > 0 ? px / value : null;
+}
+
+/**
+ * The (size, distance) pair a scale-only calibration writes.
+ *
+ * The two are ONE ratio — `size` px of canvas is worth `distance` units — and
+ * Foundry constrains `size` to a whole number within its own bounds. So the
+ * asked-for `distance` is kept whenever the px it implies fits, and only a
+ * clamped size solves the distance back, which keeps the ratio exact at the
+ * cost of a round number nobody but the ruler reads.
+ *
+ * @param {object} input
+ * @param {number} input.pxPerUnit  Canvas px per one distance unit.
+ * @param {number} input.distance  What the GM wants one ruler cell to be worth.
+ * @returns {{size:number, distance:number, clamped:boolean}|null}
+ */
+export function scaleOnlyGrid({ pxPerUnit, distance, minSize = 50, maxSize = 300 }) {
+  if (!(pxPerUnit > 0) || !(distance > 0) || !(minSize > 0) || !(maxSize >= minSize)) return null;
+  const raw = pxPerUnit * distance;
+  const bounded = Math.min(maxSize, Math.max(minSize, raw));
+  const size = Math.round(bounded);
+  const clamped = bounded !== raw;
+  return { size, distance: clamped ? size / pxPerUnit : distance, clamped };
+}
+
+/**
+ * The `grid.size` that makes a Foundry hex as big as the one drawn on the map.
+ *
+ * A hex's bounding box is not `size` square, and the ratio differs between
+ * pointy-topped rows and flat-topped columns — so it is MEASURED off a
+ * reference hex rather than restated here: the caller asks Foundry for the
+ * `sizeX`/`sizeY` of a grid at `refSize`, and this scales that answer to the
+ * box the GM drew around a real one. Both axes vote, so a box drawn a little
+ * tall lands between rather than on the taller reading.
+ *
+ * @param {object} input
+ * @param {number} input.boxW / input.boxH  The drawn hex's bounding box, canvas px.
+ * @param {number} input.refW / input.refH  The same box for a hex at `refSize`.
+ * @returns {number|null} the grid size in canvas px, or null on unusable input.
+ */
+export function hexSizeFromBox({ boxW, boxH, refW, refH, refSize }) {
+  const votes = [];
+  if (boxW > 0 && refW > 0) votes.push((boxW / refW) * refSize);
+  if (boxH > 0 && refH > 0) votes.push((boxH / refH) * refSize);
+  if (!votes.length || !(refSize > 0)) return null;
+  const size = votes.reduce((a, b) => a + b, 0) / votes.length;
+  return Number.isFinite(size) && size > 0 ? size : null;
 }

@@ -36,6 +36,8 @@ import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { terrainAtPoint, hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
+import { sceneTravelSystem } from "../battlemap/scene-setup.mjs";
+import { TRAVEL_MODES } from "../lib/vocab.mjs";
 import { routesOf, stepBetweenHexes } from "../battlemap/hex-routes.mjs";
 import {
   CLIMATES,
@@ -96,11 +98,12 @@ import { isMode } from "../lib/movement-modes.mjs";
 import { FLIGHT_LOADS } from "./flight.mjs";
 
 /**
- * The three things a formation can be doing. `delve` ticks dungeon turns;
- * `journey` puts the day on the table; `settlement` crosses a city in blocks
- * and turns. Only `delve` leaves the turn clock running.
+ * The three things a formation can be doing, re-exported so this feature's
+ * consumers keep one import path. Only `delve` leaves the turn clock running;
+ * a SCENE may declare which of them applies on it (`docs/battlemap/MODEL.md`),
+ * which is why the list itself lives in `lib/vocab.mjs`.
  */
-export const TRAVEL_MODES = Object.freeze(["delve", "journey", "settlement"]);
+export { TRAVEL_MODES };
 
 /**
  * A route the party is following, which spares it the navigation throw.
@@ -280,6 +283,28 @@ export function setJourneyMode(formationId, journey) {
     };
     record.clock = { ...(record.clock ?? {}), paused: mode !== "delve" };
   });
+}
+
+/**
+ * Take the travel system the SCENE declares (the battlemap setup tool writes
+ * it) — a dungeon map runs the turn clock, a wilderness map runs the day, a
+ * settlement crosses in blocks.
+ *
+ * Arriving on a map is the moment the question is answered, so this runs when
+ * a party token lands and when the declaration itself changes. A scene that
+ * declares nothing changes nothing: silence is "nobody has said", not
+ * "dungeon", and a party mid-march must not be reset by crossing an unlabelled
+ * scene.
+ *
+ * @returns {Promise<string|null>} the mode adopted, or null if nothing moved.
+ */
+export async function adoptSceneSystem(formationId, scene) {
+  const system = sceneTravelSystem(scene);
+  if (!system) return null;
+  const formation = getFormation(formationId);
+  if (!formation || travelOf(formation).mode === system) return null;
+  await setJourneyMode(formationId, system);
+  return system;
 }
 
 /** The settlement board's own writer: pace, where, route, night. */
