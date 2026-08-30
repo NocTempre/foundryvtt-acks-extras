@@ -1,5 +1,56 @@
 # Changelog
 
+## 5.3.0
+
+The party sheet gets tabs, the city gets its last four rules, and every table
+the module wants can now be written by hand.
+
+### Changed
+- **The party sheet is four tabs, not one long scroll.** Twelve sections had
+  accumulated in one template, and the overland work in 5.2.0 made a long sheet
+  longer — the whole thing ran past five screens. It is now a fixed header over
+  **Party** (the clock and the player actions), **Order** (the marching order
+  and mounts), **Travel** (the journey, the camp, getting lost, the city) and
+  **Kit** (lights, spells, maps). Only the active tab scrolls. The header keeps
+  what must never be hidden behind a tab — the party's name, its encounter
+  table, and the warnings; a warning you cannot see because you are on another
+  tab is not a warning. Switching tabs cannot lose an edit: every tab is part of
+  the same form.
+- **The weather panel wears its own icons.** Nine temperature bands, eleven
+  kinds of sky, six winds and thirteen conditions read as four rows of identical
+  dropdowns. Each now carries a glyph — the thermometer falls as the band cools,
+  the sky goes sun to cloud to rain to snowflake, the wind builds to a tornado —
+  and the condition chips wear theirs, so a strip of five reads at a glance.
+
+### Added
+- **Looking for trouble.** A party can take to the streets to make a nuisance of
+  itself. That eases the encounter *throw* rather than making the street come
+  round sooner, which is what the rules say and a different thing over a long
+  walk.
+- **Holing up, by the day.** A party out of sight — recuperating, studying,
+  training — spends days rather than turns, with one encounter throw each and no
+  ground covered. The board offers a day tick in place of the turn tick wherever
+  the party is not going anywhere.
+- **Travelling by litter or wagon.** Remembered on the board, and deliberately
+  worth no speed at all: the rules afford it privacy and say plainly it is not
+  any faster.
+- **The settlement encounter table.** The d100 table of written incidents now
+  arrives as a real RollTable from your own Judges Journal, and the shift the
+  dark puts on the roll arrives with it. What the module supplies is the
+  procedure — one roll, the after-dark shift, the band it lands in.
+
+### Fixed
+- **Every expected table can be written by hand, importer or no importer.** The
+  Ruledata Browser listed only tables an import had already provided, so a world
+  that had never run the importer opened an empty browser: nothing to export, no
+  shape to copy, and no way even to discover which tables the module was asking
+  for. It now lists every table the module wants, marking the ones nothing has
+  supplied; exporting one gives you a blank page to write into, and dropping it
+  back supplies it exactly as an import would.
+- **A table stated as a single figure read as "not imported".** The settlement's
+  reader took only objects, so a table that is one number — the after-dark shift
+  is one number, not a row — looked exactly like a table nobody had imported.
+
 ## 5.2.1
 
 ### Fixed

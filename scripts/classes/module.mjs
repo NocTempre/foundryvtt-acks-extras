@@ -28,6 +28,7 @@ import { pathGroups, pathOptions, chosenOption, pathTrainingChanges, unansweredG
 import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
 import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
+import { registerHitPointExpectations, firstLevelDieMinimum, HITPOINTS_DOC } from "./hitpoints.mjs";
 import { reopenChargen, registerReopenChargen } from "./reopen-chargen.mjs";
 import {
   applyChargen,
@@ -72,6 +73,7 @@ Hooks.once("init", () => {
   CONFIG.Item.dataModels[CLASS_TYPE] = ClassData;
   CONFIG.Item.dataModels[RACE_TYPE] = RaceData;
   builder.registerBuilderExpectations();
+  registerHitPointExpectations();
 
   // How a gained level rolls HP. RAW (user-confirmed ruling): reroll the full
   // Hit Dice, minimum one over the old maximum; additive is the house rule.
@@ -163,6 +165,10 @@ Hooks.once("init", () => {
     classUpdateData,
     normalizeHd,
     parseHd,
+    // The imported 1st-level hit-die floor, and the ruledata document it is
+    // read from — exposed so a live check can see what the world imported.
+    HITPOINTS_DOC,
+    firstLevelDieMinimum,
     openClassPicker,
     openLevelUp,
     applyChargen,

@@ -464,13 +464,34 @@ export function derivePlan({
       if (applies && isNum(extra.delta) && increment != null) increment += extra.delta;
     }
   }
+  // --- hit points per level past 9th ---
+  // Past 9th the table stops adding dice and prints a flat instead, and the
+  // rate keys on the SAVES chassis — paired differently from the post-8 XP
+  // increment above (crusader+mage and fighter+thief, not crusader+thief /
+  // fighter / mage), which is why the two read different keys of the budget.
+  // A race may add to it, on the same "only when the class spends a racial
+  // value" gate as its four siblings. A rate the world has not imported is a
+  // named issue and a flat-less cell, never an invented number.
+  const HP_GROUP = { crusader: "crusaderMage", mage: "crusaderMage", fighter: "fighterThief", thief: "fighterThief" };
+  const hpRates = budget.hpAfterNine ?? {};
+  let hpPerLevel = isNum(hpRates[HP_GROUP[chassis]]) ? hpRates[HP_GROUP[chassis]] : null;
+  if (hpPerLevel == null && maxLevel > 9) issues.push({ key: "missingHpAfterNine", chassis });
+  if (hpPerLevel != null && racialValue > 0 && isNum(race?.hpAfter9)) hpPerLevel += race.hpAfter9;
+
   const thresholds = xpSchedule(baseXp, maxLevel, { smoothing: budget.smoothing, postEightIncrement: increment ?? 0 });
-  update.levels = thresholds.map((xp, i) => ({
-    level: i + 1,
-    xp,
-    title: titles.find((r) => r.level === i + 1)?.title ?? "",
-    hd: die ? `${Math.min(i + 1, 9)}${die}` : "",
-  }));
+  update.levels = thresholds.map((xp, i) => {
+    const level = i + 1;
+    // The printed cell carries the CUMULATIVE flat, not the per-level rate:
+    // parseHd reads "9d6+2" as nine dice and two points, so each row past 9th
+    // states the whole bonus earned up to it.
+    const flat = hpPerLevel != null && level > 9 ? (level - 9) * hpPerLevel : 0;
+    return {
+      level,
+      xp,
+      title: titles.find((r) => r.level === level)?.title ?? "",
+      hd: die ? `${Math.min(level, 9)}${die}${flat > 0 ? `+${flat}` : ""}` : "",
+    };
+  });
 
   // --- attack + cleaves + damage bonus ---
   const fightRow = valueRow(tables.fighting, builder?.fighting?.value ?? 0, builder?.fighting?.sub);

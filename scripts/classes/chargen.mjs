@@ -383,10 +383,10 @@ export async function applyChargen(
   }
 
   // Chargen rolls no hit dice of its own, so the 1st-level total is built here:
-  // one roll of the class's own die with Constitution applied per die and its
-  // floor of one (hitpoints.mjs). Without it a generated character keeps
-  // whatever hit points the bare actor was created with — no die, no floor and
-  // no Constitution.
+  // one roll of the class's own die, read at the imported floor, with
+  // Constitution applied after it and its own per-die floor of one
+  // (hitpoints.mjs). Without it a generated character keeps whatever hit points
+  // the bare actor was created with — no die, no floor and no Constitution.
   // Every 1st-level choice rung leaves this page closed: either the package
   // answered it (its printed proficiencies ARE the character's starting ones)
   // or the player answered it in the picks column. Recording that is what stops

@@ -309,8 +309,12 @@ export function advanceSettlementDays(board, { days = 1, rolls = [] } = {}) {
  * Returns null when unimported so a caller reports the gap rather than
  * inventing an incident.
  */
-export function settlementEncounter(roll, { night = false } = {}) {
-  const rows = table("encounters100");
+export function settlementEncounter(roll, { night = false, rows: given = null } = {}) {
+  // Rows may be HANDED IN — the incident list usually arrives as a Foundry
+  // RollTable rather than as ruledata, and this stays pure by being told about
+  // it rather than going looking. A world that authored the table by hand
+  // supplies it through the registry instead, and both read the same way.
+  const rows = given ?? table("encounters100");
   if (!Array.isArray(rows) || !rows.length) return null;
   const base = Number(roll);
   if (!Number.isFinite(base)) return null;

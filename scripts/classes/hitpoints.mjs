@@ -16,7 +16,37 @@
  * THE PRINTED FLAT BONUS TAKES NO CONSTITUTION. Past 9th the table stops
  * adding dice and prints "+2" instead; the book's footnote excludes it from the
  * per-die adjustment, so it is added raw.
+ *
+ * THE FIRST HIT DIE IS READ AT A FLOOR, AND THE FLOOR IS ON THE DIE. RR Ch. 1
+ * §I.5 puts a minimum under the 1st-level roll and adds Constitution AFTER it,
+ * which is not the same arithmetic as flooring the total: the modifier is
+ * applied to a die that has already been raised. What the floor IS is printed,
+ * so it is imported (`hitPoints.firstLevel.dieMinimum`) and passed in; a world
+ * that has read no book gets 1, which is the arithmetic identity of no floor
+ * and leaves today's totals unchanged. It reaches the FIRST die only — every
+ * level after rerolls with no floor above the per-die one.
  */
+import { getDoc, hasDoc, expectTables } from "../lib/tables.mjs";
+
+/** The registered ruledata document these derivations read. */
+export const HITPOINTS_DOC = "hitPoints";
+
+/** Declare what is read, so import UX can name the gap. */
+export function registerHitPointExpectations() {
+  expectTables(HITPOINTS_DOC, ["firstLevel"]);
+}
+
+/**
+ * The printed floor under a 1st-level hit die, or 1 where no book has been
+ * read. Never a guessed number: an absent table means no floor, not a
+ * remembered one.
+ */
+export function firstLevelDieMinimum() {
+  if (!hasDoc(HITPOINTS_DOC)) return 1;
+  const v = getDoc(HITPOINTS_DOC)?.tables?.firstLevel?.dieMinimum;
+  return Number.isInteger(v) && v > 0 ? v : 1;
+}
+
 /** "9d8 + 2*" → "9d8+2": the printed cell as a rollable formula. */
 export function normalizeHd(cell) {
   return String(cell ?? "")
@@ -39,15 +69,20 @@ export function parseHd(formula) {
  * inventing per-die numbers — the same total the wizard used to give, which is
  * right whenever Constitution is not a penalty.
  *
+ * `dieMinimum` raises each face before Constitution is applied to it; the
+ * default of 1 cannot raise any face of any die, so it is the arithmetic of no
+ * floor. The bulk fallback floors the whole roll the same way for the same
+ * reason — a term reporting no faces still owes each of its dice the minimum.
+ *
  * @returns {Promise<{roll: Roll, total: number, perDie: boolean}>}
  */
-export async function rollHitDice(hd, conMod) {
+export async function rollHitDice(hd, conMod, { dieMinimum = 1 } = {}) {
   const roll = await new Roll(`${hd.dice}d${hd.sides}`).evaluate();
   const faces = (roll.dice?.[0]?.results ?? []).filter((r) => r.active !== false).map((r) => r.result);
   const perDie = faces.length === hd.dice;
   const rolled = perDie
-    ? faces.reduce((sum, face) => sum + Math.max(1, face + conMod), 0)
-    : roll.total + hd.dice * conMod;
+    ? faces.reduce((sum, face) => sum + Math.max(1, Math.max(face, dieMinimum) + conMod), 0)
+    : Math.max(roll.total, hd.dice * dieMinimum) + hd.dice * conMod;
   return { roll, total: rolled + (hd.flat ?? 0), perDie };
 }
 
@@ -67,22 +102,25 @@ export function hdAt(classItem, level) {
  * Build a character's hit points from nothing: roll 1st level, then take each
  * level after it the way the level-up wizard does.
  *
- * The two rules are different and both are the book's. First level is a plain
- * roll of the class's die with no floor above the per-die one. Every level
- * after it REROLLS the whole Hit Dice and keeps at least one point more than
- * the level before (classes/DECISIONS.md, 2026-08-05) — so the walk cannot
- * hand back a 5th-level character fewer points than they held at 4th, however
- * the dice fall.
+ * The two rules are different and both are the book's. First level is one roll
+ * of the class's die read at the printed floor, Constitution applied after it.
+ * Every level after it REROLLS the whole Hit Dice — with no floor above the
+ * per-die one — and keeps at least one point more than the level before
+ * (classes/DECISIONS.md, 2026-08-05), so the walk cannot hand back a 5th-level
+ * character fewer points than they held at 4th, however the dice fall.
  *
+ * @param {object} [options]
+ * @param {number} [options.dieMinimum] the printed 1st-level floor; defaults to
+ *   whatever the world has imported, and to 1 (no floor) where it has none
  * @returns {Promise<{max: number, steps: Array<{level: number, formula: string, total: number}>}>}
  */
-export async function rebuildHitPoints(actor, classItem, level) {
+export async function rebuildHitPoints(actor, classItem, level, { dieMinimum = firstLevelDieMinimum() } = {}) {
   const conMod = Number(actor.system?.scores?.con?.mod) || 0;
   const target = Math.max(1, Math.min(Number(level) || 1, classItem.system.maximumLevel || 14));
   const steps = [];
   let max = 0;
   for (let n = 1; n <= target; n++) {
-    const { roll, total } = await rollHitDice(hdAt(classItem, n), conMod);
+    const { roll, total } = await rollHitDice(hdAt(classItem, n), conMod, n === 1 ? { dieMinimum } : {});
     max = n === 1 ? Math.max(1, total) : Math.max(total, max + 1);
     steps.push({ level: n, formula: roll.formula, total });
   }

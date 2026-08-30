@@ -27,7 +27,8 @@ import {
 import { classUpdateData, damageBonusLadder } from "../scripts/classes/apply.mjs";
 import { awardsAt, awardsThrough } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
-import { rebuildHitPoints } from "../scripts/classes/hitpoints.mjs";
+import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
+import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
 import { readFileSync } from "node:fs";
 
 let passed = 0;
@@ -49,6 +50,7 @@ const TABLES = {
     savesPrecedence: ["arcane", "divine", "fighting", "thievery"],
     smoothing: { level: 7, nearest: 5000 },
     postEight: { crusaderThief: 100000, fighter: 120000, mage: 150000 },
+    hpAfterNine: { crusaderMage: 1, fighterThief: 2 },
     racialCaps: [
       { points: 8, maxLevel: 9 },
       { points: 7, maxLevel: 10 },
@@ -120,6 +122,8 @@ const ELF = {
   stacksWith: "arcane",
   stackXpDiscount: 125,
   postEight: [{ chassis: "", delta: 50000 }],
+  // The elf prints no post-9th hit-point rate; null is the printed absence.
+  hpAfter9: null,
   minimumAttributes: [{ attr: "int", min: 9 }],
   values: [
     { value: 1, label: "Elf + 33% Arcane", xpCost: 750, powers: ["def.power.elfTongues"] },
@@ -133,6 +137,7 @@ const DWARF = {
     { chassis: "fighter", delta: 10000 },
     { chassis: "crusaderThief", delta: 30000 },
   ],
+  hpAfter9: 1,
   minimumAttributes: [{ attr: "con", min: 9 }],
   values: [{ value: 0, label: "Dwarf", xpCost: 200, powers: ["def.power.hardy", "def.power.dwarfTongues"] }],
 };
@@ -353,6 +358,29 @@ test("derivePlan assembles a racial build end-to-end (the spellsword shape)", ()
   assert.ok(u.ladders.some((l) => l.key === "mortalWounds"));
   assert.deepEqual(u.requirements, [{ attr: "int", min: 9 }]);
   assert.ok(u.racialTraits.some((t) => t.ref === "def.power.elfTongues"));
+  // Past 9th the die count stops and the printed flat starts: fighter chassis
+  // rate 2, and the elf prints no racial rate to add to it.
+  assert.equal(u.levels[8].hd, "9d6");
+  assert.equal(u.levels[9].hd, "9d6+2");
+});
+
+test("a race's post-9th hit points add to the chassis rate, and the flat is cumulative", () => {
+  // The shared DWARF fixture deliberately has no value-3 rung (another test
+  // asserts that gap is reported), so this build supplies one.
+  const dwarf = { ...DWARF, values: [...DWARF.values, { value: 3, label: "Dwarf +3", xpCost: 900, powers: [] }] };
+  const plan = derivePlan({
+    builder: { hdValue: 1, fighting: { value: 0 }, magic: [{ type: "fairie", value: 2 }], race: { value: 3 } },
+    tables: TABLES,
+    race: dwarf,
+    chassisAttack: CHASSIS_ATTACK,
+  });
+  const u = plan.update;
+  assert.equal(u.saveChassis, "crusader"); // fairie saves as crusader
+  assert.ok(!plan.issues.some((i) => i.key === "missingHpAfterNine"));
+  // crusader -> crusaderMage rate 1, plus the dwarf's own 1 = 2 per level.
+  assert.equal(u.levels[8].hd, "9d6");
+  assert.equal(u.levels[9].hd, "9d6+2");
+  assert.equal(u.levels[10].hd, "9d6+4"); // cumulative, not per-level
 });
 
 test("derivePlan copies progenitor thief-skill ladders for chosen skills", () => {
@@ -388,6 +416,10 @@ test("derivePlan skips what a partial table set cannot answer", () => {
   assert.equal(plan.update.attack, undefined); // no chassis map, no base → absent
   assert.ok(plan.issues.some((i) => i.key === "missingAttackBase" || i.key === "missingAttackResolution"));
   assert.ok(plan.issues.some((i) => i.key === "missingPostEight"));
+  // A rate the world never imported is named, and the cell simply carries no
+  // flat — never an invented one.
+  assert.ok(plan.issues.some((i) => i.key === "missingHpAfterNine"));
+  assert.equal(plan.update.levels[9].hd, "9d4");
 });
 
 /* ------------------- awards owed for a level held ------------------- */
@@ -519,11 +551,12 @@ const scriptDie = (faces) => {
   };
 };
 
-const atLevelOne = async (conMod, faces) => {
+const atLevel = async (conMod, faces, level = 1) => {
   globalThis.Roll = scriptDie(faces);
-  const cls = { system: { maximumLevel: 14, hitDie: "1d8", levelRow: (n) => (n === 1 ? { hd: "1d8" } : null) } };
-  return (await rebuildHitPoints({ system: { scores: { con: { mod: conMod } } } }, cls, 1)).max;
+  const cls = { system: { maximumLevel: 14, hitDie: "1d8", levelRow: (n) => ({ hd: `${Math.min(n, 9)}d8` }) } };
+  return (await rebuildHitPoints({ system: { scores: { con: { mod: conMod } } } }, cls, level)).max;
 };
+const atLevelOne = (conMod, faces) => atLevel(conMod, faces, 1);
 
 const atest = async (name, fn) => {
   try {
@@ -535,15 +568,67 @@ const atest = async (name, fn) => {
   }
 };
 
-await atest("first level applies Constitution to the die it rolls", async () => {
+// Nothing is registered in this block, so these are the totals a world that
+// has imported no book still gets: no floor above the per-die one.
+await atest("with no book imported, first level applies Constitution to the die it rolls", async () => {
   assert.equal(await atLevelOne(2, [1]), 3);
   assert.equal(await atLevelOne(2, [8]), 10);
 });
 
-await atest("a Constitution penalty cannot take the first die below one", async () => {
+await atest("with no book imported, a Constitution penalty cannot take the first die below one", async () => {
   assert.equal(await atLevelOne(-3, [1]), 1);
   assert.equal(await atLevelOne(-3, [2]), 1);
   assert.equal(await atLevelOne(-3, [8]), 5);
+});
+
+// The floor is a fixture, deliberately NOT the printed 4: what the book says
+// is the book's business, and a test asserting it would put the number back in
+// the repo. 3 proves the arithmetic; the importer's own suite proves the read.
+await atest("the first-level die floor is read from the world, and absent means no floor", async () => {
+  assert.equal(firstLevelDieMinimum(), 1, "unregistered");
+  const register = (dieMinimum) =>
+    registerTable({ id: HITPOINTS_DOC, tables: { firstLevel: { dieMinimum } } }, { priority: PRIORITY.WORLD });
+  try {
+    register(3);
+    assert.equal(firstLevelDieMinimum(), 3);
+    unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
+    register("four");
+    assert.equal(firstLevelDieMinimum(), 1, "a non-integer is not a floor");
+    unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
+    register(undefined);
+    assert.equal(firstLevelDieMinimum(), 1, "an empty table is not a floor");
+  } finally {
+    unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
+  }
+  assert.equal(firstLevelDieMinimum(), 1, "unregistered again");
+});
+
+await atest("the floor raises the DIE, and Constitution lands after it", async () => {
+  registerTable({ id: HITPOINTS_DOC, tables: { firstLevel: { dieMinimum: 3 } } }, { priority: PRIORITY.WORLD });
+  try {
+    // A face under the floor is read at the floor, THEN takes Constitution.
+    assert.equal(await atLevelOne(2, [1]), 5);
+    // A face above it is untouched.
+    assert.equal(await atLevelOne(2, [8]), 10);
+    // Flooring the TOTAL instead would give 3 here. The die is raised to 3 and
+    // the penalty then takes it below one, where the per-die minimum holds it.
+    assert.equal(await atLevelOne(-5, [1]), 1);
+    assert.equal(await atLevelOne(-1, [1]), 2);
+    // The floor reaches the FIRST die only: at 2nd level both faces would be
+    // floored to 3 (total 6) if it leaked past level one.
+    assert.equal(await atLevel(0, [1, 1], 2), 4);
+  } finally {
+    unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
+  }
+});
+
+await atest("the level-up wizard never passes a first-level floor", () => {
+  // levelup.mjs adds ONE level to a total that already exists; the floor is a
+  // 1st-level rule and a third argument there would apply it to every reroll.
+  const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
+  for (const call of src.matchAll(/rollHitDice\(([^)]*)\)/g)) {
+    assert.equal(call[1].split(",").length, 2, `rollHitDice(${call[1]}) takes a third argument`);
+  }
 });
 
 await atest("chargen asks for the rebuild, so a generated character's hit points are rolled", () => {

@@ -13,6 +13,7 @@ import { patchFormation, realMembers } from "./formation-model.mjs";
 import { travelOf } from "./travel.mjs";
 import {
   advanceSettlementTurn, advanceSettlementDays, citySpec, streetCadence,
+  settlementEncounter,
 } from "./settlement.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
@@ -103,6 +104,48 @@ export async function runSettlementDays(formation) {
   return { board: next, events };
 }
 
+/**
+ * The world's settlement incident table, whichever way the Judge has it.
+ *
+ * The list of written incidents is CONTENT, and it reaches a world one of two
+ * ways: the importer materializes it as a Foundry RollTable from the Judge's
+ * own book, or a Judge authors it into the ruledata registry by hand. The
+ * procedure is the same either way — one roll, the after-dark shift, the band
+ * it lands in — so the rows are found here and handed to the pure reader.
+ *
+ * The RollTable is matched on the importer's own cookbook id rather than its
+ * name, because a Judge may rename it and a translated world will.
+ */
+const INCIDENT_TABLE_ID = "jj.settlementEncounters";
+
+export async function findIncidentRows() {
+  const flagged = (t) => t?.flags?.["acks-importer"]?.cookbook?.id === INCIDENT_TABLE_ID;
+
+  let table = game.tables?.find(flagged) ?? null;
+  if (!table) {
+    for (const pack of game.packs.filter((p) => p.documentName === "RollTable")) {
+      const index = await pack.getIndex({ fields: ["flags"] });
+      const hit = [...index].find(flagged);
+      if (hit) { table = await pack.getDocument(hit._id); break; }
+    }
+  }
+  if (!table) return null;
+  return [...table.results]
+    .map((r) => ({ min: r.range?.[0], max: r.range?.[1], text: r.text ?? r.description ?? "" }))
+    .filter((r) => Number.isFinite(r.min) && Number.isFinite(r.max));
+}
+
+/**
+ * Roll one settlement incident: the d100, the shift the dark adds, and the row.
+ * Null when neither route has supplied the table.
+ */
+export async function rollSettlementIncident({ night = false } = {}) {
+  const rows = await findIncidentRows();
+  const roll = await new Roll("1d100").evaluate();
+  const found = settlementEncounter(roll.total, { night, rows });
+  return found ? { ...found, roll: roll.total, dice: roll } : null;
+}
+
 /** A stay as one card: how long it lasted, and which days were interrupted. */
 async function whisperStay(board, events, rolls) {
   const owed = events.filter((e) => e.kind === "encounterOwed");
@@ -144,6 +187,21 @@ async function whisperTurn(board, events, rolls) {
       ? loc("settlement.card.owed", { target: owed.target })
       : loc(owed.met ? "settlement.card.met" : "settlement.card.quiet",
         { rolled: owed.rolled, target: owed.target }));
+    // The street answering is only half of it: what actually happened is the
+    // incident table's to say, and the Judge should not have to go and roll it.
+    if (owed.met) {
+      const incident = await rollSettlementIncident({ night: board.night });
+      if (incident) {
+        rolls.push(incident.dice);
+        lines.push(loc("settlement.card.incident", {
+          roll: incident.roll,
+          total: incident.total,
+          text: incident.entry ?? loc("settlement.card.incidentUnmatched"),
+        }));
+      } else {
+        lines.push(loc("settlement.card.noIncidentTable"));
+      }
+    }
   }
   for (const gap of events.filter((e) => e.kind === "unpriced")) {
     lines.push(loc("settlement.card.unpriced", { what: gap.what }));

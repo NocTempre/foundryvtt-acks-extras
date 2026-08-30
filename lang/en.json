@@ -306,6 +306,8 @@
   "ACKS-CLASSES.race.xpCost": "XP cost",
   "ACKS-CLASSES.race.addPower": "Add a power ref",
   "ACKS-CLASSES.race.traits": "Always-on traits",
+  "ACKS-CLASSES.race.hpAfter9": "Extra hit points per level after 9th",
+  "ACKS-CLASSES.race.hpAfter9Hint": "Added to the class's own rate when a build spends this race's value. Blank where the race prints none. An import of this race overwrites what you type here.",
   "ACKS-CLASSES.builder.fightingSub": "The 1-point split: a (Crusader) or b (Thief).",
   "ACKS-CLASSES.builder.derived.ladders": "Ladders: {keys}",
   "ACKS-CLASSES.builder.derived.requirements": "{count} attribute requirement(s) from the race",
@@ -315,6 +317,7 @@
   "ACKS-CLASSES.builder.issues.missingDelayedGrid": "No delayed-progression grid is imported for \"{type}\" at value {value}.",
   "ACKS-CLASSES.builder.issues.missingRacialCap": "No racial level-cap row for {points} total build points.",
   "ACKS-CLASSES.builder.issues.missingPostEight": "No post-8th-level XP increment imported for the {chassis} progression.",
+  "ACKS-CLASSES.builder.issues.missingHpAfterNine": "No post-9th-level hit points per level imported for the {chassis} progression.",
   "ACKS-CLASSES.builder.issues.missingDamageLadder": "The fighting value grants a damage bonus, but no fighter ladder exists to borrow.",
   "ACKS-LIB.settings.look.name": "ACKS look",
   "ACKS-LIB.settings.look.hint": "Whose palette and lettering everything this module draws uses. Book style is the ACKS look — burgundy, inscriptional capitals, square corners. System style hands it all back: every ACKS surface, including this module's own windows, draws in the colours and faces your client is already using, and the two settings below stop applying. Per player.",
@@ -2432,7 +2435,10 @@
         "stayTitle": "Out of sight",
         "holedUp": "Holed up. {days} day(s) so far.",
         "interrupted": "{count} day(s) did not pass quietly — day(s) {days}.",
-        "undisturbed": "Nothing found them, over {throws} day(s)."
+        "undisturbed": "Nothing found them, over {throws} day(s).",
+        "incident": "Rolled {roll} ({total} after the dark): {text}",
+        "incidentUnmatched": "no row covers that roll — check the imported table.",
+        "noIncidentTable": "No incident table yet. Import the Judges Journal, or author one in the Ruledata Browser."
       },
       "takeTurn": "Take a turn",
       "takeTurnHint": "Walk one turn: the party covers ground, may lose its way, and the street gets its chance.",
