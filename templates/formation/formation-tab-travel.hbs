@@ -211,17 +211,17 @@
       <p class="hint acks-extras-formation-travel-weather-missing">{{localize "ACKS-FORMATION.travel.weather.missing"}}</p>
       {{/unless}}
       <div class="acks-extras-formation-travel-weather-bands">
-        <label>{{localize "ACKS-FORMATION.travel.weather.temperature"}}
+        <label>{{#if travel.weather.temperatureIcon}}<i class="fa-solid {{travel.weather.temperatureIcon}} acks-extras-formation-weather-glyph"></i> {{/if}}{{localize "ACKS-FORMATION.travel.weather.temperature"}}
           <select name="travel.weather.temperature">
             {{#each travel.weather.temperatures}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
           </select>
         </label>
-        <label>{{localize "ACKS-FORMATION.travel.weather.precipitation"}}
+        <label>{{#if travel.weather.precipitationIcon}}<i class="fa-solid {{travel.weather.precipitationIcon}} acks-extras-formation-weather-glyph"></i> {{/if}}{{localize "ACKS-FORMATION.travel.weather.precipitation"}}
           <select name="travel.weather.precipitation">
             {{#each travel.weather.precipitations}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
           </select>
         </label>
-        <label>{{localize "ACKS-FORMATION.travel.weather.wind"}}
+        <label>{{#if travel.weather.windIcon}}<i class="fa-solid {{travel.weather.windIcon}} acks-extras-formation-weather-glyph"></i> {{/if}}{{localize "ACKS-FORMATION.travel.weather.wind"}}
           <select name="travel.weather.wind">
             {{#each travel.weather.winds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
           </select>
@@ -244,7 +244,7 @@
     {{/if}}
     {{#if travel.weather.chips.length}}
     <div class="acks-extras-formation-travel-weather-chips">
-      {{#each travel.weather.chips}}<span class="acks-extras-formation-travel-weather-chip" data-cond="{{key}}">{{label}}</span>{{/each}}
+      {{#each travel.weather.chips}}<span class="acks-extras-formation-travel-weather-chip" data-cond="{{key}}">{{#if icon}}<i class="fa-solid {{icon}}"></i> {{/if}}{{label}}</span>{{/each}}
     </div>
     {{/if}}
     {{#each travel.wheels}}

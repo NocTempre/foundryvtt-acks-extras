@@ -35,15 +35,15 @@ export const WIND_BANDS = WIND;
  * condition a band imposes — the middle of the ladder is narration only.
  */
 export const TEMPERATURE_BANDS = Object.freeze({
-  frigid: { label: "ACKS-FORMATION.travel.weather.temp.frigid", freezing: true, condition: "frigid" },
-  cold: { label: "ACKS-FORMATION.travel.weather.temp.cold", freezing: true, condition: "cold" },
-  veryChilly: { label: "ACKS-FORMATION.travel.weather.temp.veryChilly" },
-  chilly: { label: "ACKS-FORMATION.travel.weather.temp.chilly" },
-  brisk: { label: "ACKS-FORMATION.travel.weather.temp.brisk" },
-  balmy: { label: "ACKS-FORMATION.travel.weather.temp.balmy" },
-  warm: { label: "ACKS-FORMATION.travel.weather.temp.warm" },
-  hot: { label: "ACKS-FORMATION.travel.weather.temp.hot" },
-  sweltering: { label: "ACKS-FORMATION.travel.weather.temp.sweltering", condition: "sweltering" },
+  frigid: { label: "ACKS-FORMATION.travel.weather.temp.frigid", icon: "fa-icicles", freezing: true, condition: "frigid" },
+  cold: { label: "ACKS-FORMATION.travel.weather.temp.cold", icon: "fa-temperature-arrow-down", freezing: true, condition: "cold" },
+  veryChilly: { label: "ACKS-FORMATION.travel.weather.temp.veryChilly", icon: "fa-temperature-low" },
+  chilly: { label: "ACKS-FORMATION.travel.weather.temp.chilly", icon: "fa-temperature-low" },
+  brisk: { label: "ACKS-FORMATION.travel.weather.temp.brisk", icon: "fa-temperature-half" },
+  balmy: { label: "ACKS-FORMATION.travel.weather.temp.balmy", icon: "fa-temperature-half" },
+  warm: { label: "ACKS-FORMATION.travel.weather.temp.warm", icon: "fa-temperature-high" },
+  hot: { label: "ACKS-FORMATION.travel.weather.temp.hot", icon: "fa-temperature-arrow-up" },
+  sweltering: { label: "ACKS-FORMATION.travel.weather.temp.sweltering", icon: "fa-fire", condition: "sweltering" },
 });
 
 /**
@@ -54,17 +54,17 @@ export const TEMPERATURE_BANDS = Object.freeze({
  * book's own drying classification — everything not wet, foggy or sunbaked.
  */
 export const PRECIPITATION_KINDS = Object.freeze({
-  sunbaked: { label: "ACKS-FORMATION.travel.weather.precip.sunbaked", condition: true },
-  clear: { label: "ACKS-FORMATION.travel.weather.precip.clear", fair: true },
-  partlyCloudy: { label: "ACKS-FORMATION.travel.weather.precip.partlyCloudy", fair: true },
-  mostlyCloudy: { label: "ACKS-FORMATION.travel.weather.precip.mostlyCloudy", fair: true },
-  overcast: { label: "ACKS-FORMATION.travel.weather.precip.overcast", fair: true },
-  drizzly: { label: "ACKS-FORMATION.travel.weather.precip.drizzly", condition: true, wet: true },
-  rainy: { label: "ACKS-FORMATION.travel.weather.precip.rainy", condition: true, wet: true, raining: true },
-  misty: { label: "ACKS-FORMATION.travel.weather.precip.misty", derived: true, fair: true },
-  foggy: { label: "ACKS-FORMATION.travel.weather.precip.foggy", derived: true, condition: true },
-  flurry: { label: "ACKS-FORMATION.travel.weather.precip.flurry", derived: true, condition: true, wet: true },
-  snowy: { label: "ACKS-FORMATION.travel.weather.precip.snowy", derived: true, condition: true, wet: true, snowing: true },
+  sunbaked: { label: "ACKS-FORMATION.travel.weather.precip.sunbaked", icon: "fa-sun-plant-wilt", condition: true },
+  clear: { label: "ACKS-FORMATION.travel.weather.precip.clear", icon: "fa-sun", fair: true },
+  partlyCloudy: { label: "ACKS-FORMATION.travel.weather.precip.partlyCloudy", icon: "fa-cloud-sun", fair: true },
+  mostlyCloudy: { label: "ACKS-FORMATION.travel.weather.precip.mostlyCloudy", icon: "fa-cloud", fair: true },
+  overcast: { label: "ACKS-FORMATION.travel.weather.precip.overcast", icon: "fa-cloud", fair: true },
+  drizzly: { label: "ACKS-FORMATION.travel.weather.precip.drizzly", icon: "fa-cloud-rain", condition: true, wet: true },
+  rainy: { label: "ACKS-FORMATION.travel.weather.precip.rainy", icon: "fa-cloud-showers-heavy", condition: true, wet: true, raining: true },
+  misty: { label: "ACKS-FORMATION.travel.weather.precip.misty", icon: "fa-smog", derived: true, fair: true },
+  foggy: { label: "ACKS-FORMATION.travel.weather.precip.foggy", icon: "fa-smog", derived: true, condition: true },
+  flurry: { label: "ACKS-FORMATION.travel.weather.precip.flurry", icon: "fa-snowflake", derived: true, condition: true, wet: true },
+  snowy: { label: "ACKS-FORMATION.travel.weather.precip.snowy", icon: "fa-snowflake", derived: true, condition: true, wet: true, snowing: true },
 });
 
 /** The four seasons the modifier grid is keyed by. */
@@ -116,19 +116,19 @@ export const CLIMATES = Object.freeze({
  * features that consume them. Effects of several at once stack.
  */
 export const CONDITIONS = Object.freeze({
-  frigid: { label: "ACKS-FORMATION.travel.weather.cond.frigid" },
-  cold: { label: "ACKS-FORMATION.travel.weather.cond.cold" },
-  sweltering: { label: "ACKS-FORMATION.travel.weather.cond.sweltering" },
-  drizzly: { label: "ACKS-FORMATION.travel.weather.cond.drizzly" },
-  flurry: { label: "ACKS-FORMATION.travel.weather.cond.flurry" },
-  foggy: { label: "ACKS-FORMATION.travel.weather.cond.foggy" },
-  rainy: { label: "ACKS-FORMATION.travel.weather.cond.rainy" },
-  snowy: { label: "ACKS-FORMATION.travel.weather.cond.snowy" },
-  sunbaked: { label: "ACKS-FORMATION.travel.weather.cond.sunbaked" },
-  windy: { label: "ACKS-FORMATION.travel.weather.cond.windy" },
-  stormy: { label: "ACKS-FORMATION.travel.weather.cond.stormy" },
-  muddy: { label: "ACKS-FORMATION.travel.weather.cond.muddy" },
-  snowbound: { label: "ACKS-FORMATION.travel.weather.cond.snowbound" },
+  frigid: { label: "ACKS-FORMATION.travel.weather.cond.frigid", icon: "fa-icicles" },
+  cold: { label: "ACKS-FORMATION.travel.weather.cond.cold", icon: "fa-temperature-arrow-down" },
+  sweltering: { label: "ACKS-FORMATION.travel.weather.cond.sweltering", icon: "fa-fire" },
+  drizzly: { label: "ACKS-FORMATION.travel.weather.cond.drizzly", icon: "fa-cloud-rain" },
+  flurry: { label: "ACKS-FORMATION.travel.weather.cond.flurry", icon: "fa-snowflake" },
+  foggy: { label: "ACKS-FORMATION.travel.weather.cond.foggy", icon: "fa-smog" },
+  rainy: { label: "ACKS-FORMATION.travel.weather.cond.rainy", icon: "fa-cloud-showers-heavy" },
+  snowy: { label: "ACKS-FORMATION.travel.weather.cond.snowy", icon: "fa-snowflake" },
+  sunbaked: { label: "ACKS-FORMATION.travel.weather.cond.sunbaked", icon: "fa-sun-plant-wilt" },
+  windy: { label: "ACKS-FORMATION.travel.weather.cond.windy", icon: "fa-wind" },
+  stormy: { label: "ACKS-FORMATION.travel.weather.cond.stormy", icon: "fa-cloud-bolt" },
+  muddy: { label: "ACKS-FORMATION.travel.weather.cond.muddy", icon: "fa-water" },
+  snowbound: { label: "ACKS-FORMATION.travel.weather.cond.snowbound", icon: "fa-snowman" },
 });
 
 /** The footing before any weather has touched it. */

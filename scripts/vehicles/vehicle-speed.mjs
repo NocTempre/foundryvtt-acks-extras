@@ -172,12 +172,12 @@ export function travelMultiplier({ terrain = "grassland", road = "none", driverP
  * `seaSpeeds` reads.
  */
 export const WIND = Object.freeze({
-  still: { label: "ACKS-VEHICLES.wind.still", stills: true },
-  gentle: { label: "ACKS-VEHICLES.wind.gentle" },
-  moderate: { label: "ACKS-VEHICLES.wind.moderate" },
-  strong: { label: "ACKS-VEHICLES.wind.strong", noTack: true },
-  veryStrong: { label: "ACKS-VEHICLES.wind.veryStrong", noTack: true, condition: "windy" },
-  gale: { label: "ACKS-VEHICLES.wind.gale", noTack: true, mayDrift: true, condition: "stormy" },
+  still: { label: "ACKS-VEHICLES.wind.still", icon: "fa-feather", stills: true },
+  gentle: { label: "ACKS-VEHICLES.wind.gentle", icon: "fa-leaf" },
+  moderate: { label: "ACKS-VEHICLES.wind.moderate", icon: "fa-wind" },
+  strong: { label: "ACKS-VEHICLES.wind.strong", icon: "fa-wind", noTack: true },
+  veryStrong: { label: "ACKS-VEHICLES.wind.veryStrong", icon: "fa-wind", noTack: true, condition: "windy" },
+  gale: { label: "ACKS-VEHICLES.wind.gale", icon: "fa-tornado", noTack: true, mayDrift: true, condition: "stormy" },
 });
 
 /** The registered wind row for a strength key, or null. */

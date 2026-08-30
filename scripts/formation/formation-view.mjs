@@ -742,9 +742,16 @@ function buildWeatherView(t, opt) {
     }
     climateGroups.get(cfg.group).options.push(opt(code, `${code} — ${game.i18n.localize(cfg.label)}`, code === w.climate));
   }
+  // A <select> cannot draw a glyph per option, so the CURRENT choice's icon
+  // sits beside its control. An unset band shows none rather than a stand-in.
+  const glyph = (vocab, current) => (current ? vocab[current]?.icon ?? null : null);
+
   return {
     auto: !!w.auto,
     fronts: !!w.fronts,
+    temperatureIcon: glyph(TEMPERATURE_BANDS, w.temperature),
+    precipitationIcon: glyph(PRECIPITATION_KINDS, w.precipitation),
+    windIcon: glyph(WIND_BANDS, w.wind),
     climateUnset: !w.climate,
     climateGroups: [...climateGroups.values()],
     seasons: SEASONS.map((s) => opt(s, game.i18n.localize(`ACKS-FORMATION.travel.weather.seasons.${s}`), s === w.season)),
@@ -752,7 +759,13 @@ function buildWeatherView(t, opt) {
     precipitations: bands(PRECIPITATION_KINDS, w.precipitation),
     winds: bands(WIND_BANDS, w.wind),
     night: w.temperatureNight ? game.i18n.localize(TEMPERATURE_BANDS[w.temperatureNight]?.label ?? "") : "",
-    chips: conditionsOf(w).map((key) => ({ key, label: game.i18n.localize(CONDITIONS[key].label) })),
+    // Each chip wears the icon its own condition names, so the strip reads at a
+    // glance and a Judge can pick the cold out of a row of five.
+    chips: conditionsOf(w).map((key) => ({
+      key,
+      label: game.i18n.localize(CONDITIONS[key].label),
+      icon: CONDITIONS[key].icon ?? null,
+    })),
     footingMud: ["none", "muddy", "frozen"].map((m) =>
       opt(m, game.i18n.localize(`ACKS-FORMATION.travel.weather.mud.${m}`), m === w.footing.mud)),
     footingSnow: !!w.footing.snow,

@@ -1518,3 +1518,19 @@
   flex-wrap: wrap;
 }
 
+/* --- Weather glyphs -------------------------------------------------------
+   The icon marks the band a control is currently set to; a select cannot draw
+   one per option. Muted and slightly small on purpose — it is a legend for the
+   label beside it, not a second control competing for the eye. */
+
+.acks-extras.party-sheet .acks-extras-formation-weather-glyph {
+  color: var(--acks-ink-muted, currentColor);
+  opacity: 0.75;
+  font-size: 0.9em;
+  margin-inline-end: 1px;
+}
+
+.acks-extras.party-sheet .acks-extras-formation-travel-weather-chip i {
+  margin-inline-end: 3px;
+  opacity: 0.8;
+}
