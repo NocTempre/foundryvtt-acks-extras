@@ -30,6 +30,20 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   off a 4-level table.
 - `registry.classForActor(actor)` answers only after a successful apply; it
   reads the applied ledger flag, not `system.details.class`.
+- **The Scores Generator has no button on the released system's character
+  sheet** — `generateScores` is a registered sheet action with no control
+  rendered for it in the 14.0.1 build. Drive it the way the action would:
+  `sheet.constructor.DEFAULT_OPTIONS.actions.generateScores.call(sheet, new
+  PointerEvent("click"), null)`. Hunting for the button reads as the app being
+  gone.
+- **A score roll posts a chat card whose `rolls` array is EMPTY.** `AcksDice`
+  renders the total into the message HTML, so the die that was actually thrown
+  is read as `.dice-total` out of `message.content` — `message.rolls[0].total`
+  is `undefined` and, read as a number, silently answers every comparison
+  false. This is the only way to tell a raised score from a natural one.
+- **Rolling in a loop outruns a 45 s scripted budget.** Each roll awaits a
+  chat message; do a handful of attempts per call and carry the state on
+  `window`, or the call times out mid-loop and leaves the page half-driven.
 
 ## Steps
 
@@ -51,6 +65,14 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 5. Level-up and chargen: `openLevelUp(actor)` and `reopenChargen(actor)`.
    *Observable:* each opens its wizard and, on completion, changes only the
    fields its summary listed.
+6. With the campaign on the standard generation rule, open the Scores
+   Generator and roll the 5d6 formula until the chat card's `.dice-total`
+   comes up under the floor that formula carries; reset and re-roll between
+   attempts.
+   *Observable:* the score box holds the floor, and the box beside it states
+   the modifier rather than standing empty. Then submit: the actor stores the
+   floor and the modifier its own data model computes, because the modifier
+   box is disabled and carries no key into the submitted form.
 
 ## Template packages
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 5.2.1
+
+### Fixed
+- **A score raised to the method's floor states its modifier.** Under the
+  standard generation rule a 5d6 score that lands short is raised to the floor
+  that rule sets, and the box beside it went blank instead of saying what the
+  raised score is worth — so two attributes on a freshly generated character
+  showed no modifier at all. The modifier is now written the way the system
+  writes the ones beside it, and the box states it like the rest. Nothing about
+  the character was ever wrong: that box is display only, and the sheet has
+  always computed the real modifier from the saved score.
+
 ## 5.2.0
 
 Land travel, end to end. A journey now has weather that comes off the calendar,

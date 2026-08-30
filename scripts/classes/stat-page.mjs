@@ -205,7 +205,10 @@ function raiseToMinimum(root, actor, key, minimum) {
       probe.system.scores[key].value = minimum;
       probe.computeModifiers();
       const value = probe.system.scores[key].mod;
-      if (Number.isFinite(value)) derived = value > 0 ? `+${value}` : String(value);
+      // The box is `type="number"`, so it is written UNSIGNED, as core writes
+      // the ones beside it: a leading "+" fails the value sanitisation every
+      // number input applies and lands as an empty box.
+      if (Number.isFinite(value)) derived = String(value);
     } catch {
       derived = "";
     }
