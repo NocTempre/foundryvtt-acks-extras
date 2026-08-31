@@ -1,4 +1,4 @@
-/* global game, ui */
+/* global game, ui, foundry */
 /**
  * Containers — nested inventory with a RAW weight roll-up (RR pp. 142–145, 161;
  * acks-rules/acks-equipment/RULES.md §1/§3).
@@ -256,6 +256,39 @@ export async function storeIn(actor, item, container) {
   if (overCapacity(actor, container)) {
     warn("overCapacity", { container: container.name, capacity: capacityStone(container) });
   }
+  return true;
+}
+
+/**
+ * Gear that is put to use comes out of the container holding it.
+ *
+ * The other half of `storeIn`, which takes gear off to stow it: a thing is
+ * either in the pack or in the hand, never both. Without this half the sheet
+ * and the loadout describe different characters — a sword drawn while inside a
+ * chest stayed bucketed under the chest, where `containedIn` outranks every
+ * other answer to "where is this?", while the loadout read `equipped` and spent
+ * a hand on it, granted its attack, and counted the shield beside it.
+ *
+ * The seam is the UPDATE, not the control, so every caller is covered by one
+ * rule: this module's Draw and Wear controls, core's own equip toggle sitting
+ * on the same row, and a macro. The pending update is patched rather than
+ * followed by a second write, so the gear leaves the container and enters use
+ * in one document write and no render shows the halfway state.
+ *
+ * A lock is not consulted. Whether the contents can be reached at all is
+ * decided before this — a locked container shows its rows to the Judge alone,
+ * and the Judge is who opens it at the table.
+ *
+ * @param {Item} item the document about to be updated
+ * @param {object} changes the pending update, expanded, mutated in place
+ * @returns {boolean} whether the containment was cleared
+ */
+export function unstowOnUse(item, changes) {
+  if (!containedIn(item)) return false;
+  const equipping = foundry.utils.getProperty(changes, "system.equipped") === true;
+  const wornAt = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${FLAG_GEAR}.wornAt`);
+  if (!equipping && !wornAt) return false;
+  foundry.utils.setProperty(changes, `flags.${MODULE_ID}.-=${ITEM_FLAGS.CONTAINED_IN}`, null);
   return true;
 }
 

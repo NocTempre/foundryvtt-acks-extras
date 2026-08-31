@@ -7,6 +7,32 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-08-30 — a missing-tables notice asks which TABLES are readable, never
+  which document ids are registered.** Both features that greet a Judge with
+  "these rules tables have not been imported" filtered their document list with
+  `hasDoc`, which answers whether any layer holds the id. Henchmen registers a
+  `rarity` document of its own at SAMPLE priority — one inferred
+  alignment-openness shift, module automation rather than book data — so the id
+  is occupied in every world from setup onward and the rarity tables could never
+  be named as missing. A world with nothing imported at all was told the other
+  five were all it lacked, which reads as "rarity arrived". **Ruled:** the
+  notice reads `missingCoverage(docIds)`, which compares each document against
+  the tables consumers declared through `expectTables` — the declarations that
+  already drive placeholder generation — and a document nothing declared falls
+  back to id presence, which is all that can be known about it. A partly
+  arrived import is named with how much of it arrived, because "not imported"
+  about a document holding four of its five tables is the same false statement
+  in the other direction. **Gate:** `test-lib.mjs` reads both features' sources
+  and fails if an id they announce has no `expectTables` declaration — the drift
+  that would silently return the check to id presence. **Cost:** a feature's
+  announced list and its declarations must now agree, which they were already
+  documented to do. *Rejected: moving the rarity automation to a document id of
+  its own.* Per-table layering exists precisely so a module's automation and an
+  import can share a document, and the same trap would then wait for the next
+  feature that uses it. *Rejected: naming the missing tables themselves in the
+  notice.* Twenty table ids in a toast is not a message anyone reads; the count
+  says how much is absent and the ruledata browser holds the detail.
+
 - **2026-08-25 — the effects the module maintains refuse hand-deletion, and
   nothing else about them changes.** A character's combat training and its
   equipment loadout sit in core's ordinary Effects list beside notes a Judge

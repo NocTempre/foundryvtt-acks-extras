@@ -7,6 +7,39 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### Putting gear to use takes it out of the pack (2026-08-30)
+
+**Problem.** The sheet's row controls attach to gear wherever it renders, and
+once the Stowed section claimed a container's rows they attached there too. So a
+sword inside a chest offered Draw, a cloak inside a pack offered Wear, and
+core's own equip toggle sat on the same rows — each of them writing "in use"
+onto an item that stayed inside the container. `wearLocation` answers
+`containedIn` before anything else, so the sheet went on drawing the sword
+inside the chest while the loadout, which reads `equipped`, spent a hand on it,
+granted its attack and counted the shield beside it. The two halves of the
+module described different characters. A lantern in a backpack could be lit.
+
+**Ruled:** a thing is in the pack or in the hand, never both — the other half of
+the rule `storeIn` has always kept from the stowing side, where an equipped item
+is taken off as part of being put away. The seam is the UPDATE rather than the
+control (`unstowOnUse`, patched into the pending write in `preUpdateItem`), so
+one rule covers this module's controls, core's toggle and a macro alike, and the
+gear leaves the container and enters use in a single document write with no
+render of the halfway state.
+
+**Rejected:** hiding Draw and Wear on stowed rows. It removes the incoherent
+state by removing the gesture, leaves core's own toggle still able to produce it,
+and answers a player reaching for their sword with a missing button. Two controls
+*are* hidden, because they describe a position on the BODY and no write could
+give them one inside a chest: the shield strap (hand / back / front), and the
+light control, which names a light TYPE rather than the document under the
+cursor and so cannot bring the right lantern out on its way.
+
+**Rejected:** refusing to draw from a *locked* container. Reaching the contents
+at all is already decided upstream — a locked container shows its rows to the
+Judge alone, and the Judge is who opens it at the table. A second refusal there
+would only contradict the Empty control standing beside it.
+
 ### Whether it is on comes before where it goes (2026-08-21)
 
 **Problem.** A character wearing imported plate showed it under Worn & Wielded /

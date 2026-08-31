@@ -11,7 +11,7 @@
  * the character was given by hand, is never doubled.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { findByRef } from "./registry.mjs";
+import { findByRef, templatePartOf } from "./registry.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { libraryItems } from "../lib/library.mjs";
@@ -76,14 +76,28 @@ const isAdventuring = (item) =>
  *
  * "All player characters are assumed to have Adventuring" (RR Ch. 3 §III.4),
  * so it is never on offer: a pick spent on it buys nothing.
+ *
+ * A CLASS'S OWN SPECIALIZED COPY IS NOT AN OPTION. Materializing a class's
+ * templates mints one world proficiency per printed specialty, per class, and
+ * they are ordinary general abilities in every respect the filter above can
+ * see — so the select listed "Performance (singing)" once for each class whose
+ * template prints it, and a pick spent on one granted that class's copy rather
+ * than the definition. What a player picks here is a DEFINITION, which is the
+ * same rule `findByRef` keeps for a lookup by ref.
  */
 export const choosableGenerals = () =>
   libraryItems().filter(
-    (i) => i.type === ITEM_TYPE.ability && i.system.proficiencytype === "general" && !isAdventuring(i),
+    (i) =>
+      i.type === ITEM_TYPE.ability &&
+      i.system.proficiencytype === "general" &&
+      !templatePartOf(i) &&
+      !isAdventuring(i),
   );
 
-/** The library's Adventuring proficiency document, if it holds one. */
-export const adventuringDoc = () => libraryItems().find((i) => i.type === ITEM_TYPE.ability && isAdventuring(i));
+/** The library's Adventuring proficiency document, if it holds one. Never a
+ *  class's copy of it, for the reason `choosableGenerals` states. */
+export const adventuringDoc = () =>
+  libraryItems().find((i) => i.type === ITEM_TYPE.ability && !templatePartOf(i) && isAdventuring(i));
 
 /** Grant the free-with-every-class Adventuring proficiency, once. */
 export async function grantAdventuring(actor, grants) {
@@ -118,6 +132,8 @@ export function choosableSpells(classItem) {
   return [...libraryItems().filter((i) => i.type === ITEM_TYPE.spell), ...packed].filter((doc) => {
     if (seen.has(doc.uuid)) return false;
     seen.add(doc.uuid);
+    // A class's own copy of a spell is not a second spell to elect.
+    if (templatePartOf(doc)) return false;
     // The tradition field is free text a Judge may leave blank; an unlabelled
     // spell is OFFERED rather than hidden, because a hidden option is one the
     // player cannot pick and cannot see the absence of.

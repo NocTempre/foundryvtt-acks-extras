@@ -26,7 +26,7 @@
  * roll them — the store, not the roller, is the thing that has to change.
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
-import { rollAbility, rollsOf, targetOf, keyOf, defaultKeyOf } from "./ability-rolls.mjs";
+import { rollAbility, rollsOf, keyOf, defaultKeyOf, throwText } from "./ability-rolls.mjs";
 import { THROW_TAG_CLASS, THROW_DEFAULT_CLASS } from "./sheet-rolls.mjs";
 
 /**
@@ -62,7 +62,6 @@ function onGetTags(wrapped) {
 
   const esc = (text) => foundry.utils.escapeHTML?.(text) ?? text;
   const tag = (text) => (text ? `<li class='tag'>${esc(text)}</li>` : "");
-  const suffix = (t) => (t === "below" ? "-" : t === "result" ? "" : "+");
   const current = defaultKeyOf(this);
 
   // Each throw's tag carries its own KEY, which is what turns the strip the
@@ -71,11 +70,10 @@ function onGetTags(wrapped) {
   // its own <ol class="tag-list">, and a strip that renders somewhere with no
   // handler bound is simply a strip again.
   const parts = rolls.map((r, i) => {
-    const target = targetOf(r, this.actor, this);
-    // A ladder with no actor to resolve against says so, rather than printing
-    // a number that is only true at one rank.
-    const shown = target == null ? "—" : `${target}${suffix(r.rollType)}`;
-    const text = [r.label, shown].filter(Boolean).join(" ");
+    // `throwText` is the one renderer: a ladder with no actor to resolve
+    // against says so rather than printing a number true at one rank only, a
+    // measure prints its dice, and a lettered rung prints its cell.
+    const text = [r.label, throwText(r, this.actor, this)].filter(Boolean).join(" ");
     if (!text) return "";
     const key = keyOf(r, i);
     const isDefault = rolls.length > 1 && key === current;

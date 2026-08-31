@@ -7,6 +7,128 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A rung may say something other than a number (2026-08-30)
+
+**Ruled.** A ladder rung carries an `outcome` beside its value: blank (a target
+to throw against), `auto` (no throw is made — it happens) or `none` (not
+available at this rung). It also carries `text`, the cell exactly as the page
+prints it. Both live on the inline breakpoint list and on a class document's
+published ladder, so a throw reads the same whether its table was typed in or
+borrowed.
+
+This is what the Crusader Rebuking Undead table is made of. Its columns run a
+dash, then targets, then two lettered rungs, and a numeric-only rung forced a
+Judge to stop typing at the last number — so a high-level crusader's sheet
+showed the hardest throw they ever needed instead of "no throw required", and
+the levels they cannot touch that undead at all looked identical to the ones
+they can.
+
+**The outcome is DECLARED, never inferred from the cell.** Class ladders already
+carry non-numeric cells that are values printed in words (a backstab column's
+"+2d"), and reading "not a number" as "automatic" would turn one into the other.
+
+**Two structural states, not three.** `R` and `D` are both `auto`: both mean no
+throw. The difference between turning undead and destroying them is the
+ability's own prose, and the letter that distinguishes them rides `text` in from
+the reader's book. A resolver that knew what `R` meant would be shipping the
+rule.
+
+**`resolveLevelValue` was NOT widened.** It returns a number to some twenty
+callers and its null already meant three different things; a fourth would have
+rippled everywhere. `resolveLevelOutcome` is a sibling that returns the whole
+verdict and reads the same rungs by the same rule, so the two cannot disagree
+about a target.
+
+The roller acts on all three: `none` notifies the clicker and posts nothing (a
+throw they cannot make is not a failure they can ever turn into a success),
+`auto` posts a card with no dice (a d20 beside it invites the table to read the
+die as the thing that decided it), and a target throws as always.
+
+### Ability throws resolve through the classes registry (2026-08-30)
+
+**Ruled.** `throwOutcome` resolves a target through
+`classes/registry.mjs#resolveLevelOutcome`, not through `acksExtras.lib`.
+
+lib returns null for the `progression` kind BY DESIGN — it is Foundry-free and
+cannot see the world's class documents — and the abilities roller was reading
+lib. So a throw that named a published ladder ("rebukes as a crusader of half
+his level") resolved to nothing at all and displayed as a throw with no target.
+The picker for it shipped in 4.8.0; nothing behind the picker ever ran.
+
+**Two schema faults found the same way and fixed with it:**
+
+- `levelValueField().as` was `choice(PROGRESSION_CLASSES)` — the four chassis —
+  while the editor offered every class the world publishes. A value outside a
+  closed list is rewritten to the first one, so picking a real class stored
+  `fighter`. It is a class KEY now, resolved at read time against the world.
+  The `progressionAs` EFFECT carried the same field and the same fault.
+- `levelValueField()` had no `table` field at all, so the ladder a Judge picked
+  was dropped by normalization on the first save and the throw silently fell
+  back to attack throws.
+
+Both were invisible offline: the fixtures that exercised them were built by API
+and read back before any write went through the schema. They surfaced the first
+time a real editor gesture round-tripped a throw — which is the case for
+shooting a release snapshot from something a user can produce.
+
+### The level fraction is data, not a member of a shipped list (2026-08-30)
+
+**Ruled.** A `progression` target carries `atLevelNum` / `atLevelDen` — the
+fraction of class level it reads a borrowed table at, written as the page writes
+it. `levelFactor()` prefers that and falls back to the legacy `atLevel`
+shorthand, so anything already stored keeps resolving.
+
+This started as a fourth member added to `PROGRESSION_LEVELS`, because a rule in
+the books needed a fraction the list did not have. That is transcription: the
+member existed only because a page states it, the next book states another one,
+and the code has to change again to read a page it should merely be reading. The
+same argument condemns the shipped list itself — its four members are there for
+the same reason — so it stays only as the compatibility map for values this
+module previously wrote, is documented as that, and is not offered in the
+picker. **The editor asks for a numerator and a denominator; a fraction with no
+member is now a fraction that works.**
+
+**A fraction that is missing or nonsensical reads at the WHOLE level**, and a
+zero denominator never reaches a division. Full level is the only fallback that
+invents nothing.
+
+
+### A throw may have no target at all (2026-08-30)
+
+**Ruled.** `rollType` gains a fourth value, `measure`: a throw with nothing to
+beat, whose result IS the answer. A crusader who rebukes successfully then
+rolls 2d6 for how many Hit Dice of undead are turned; that second roll is not a
+throw against a number and never was.
+
+Until now every throw was scored, so the only way to enter one was to leave the
+target blank — and a blank target is how a MISCONFIGURED throw looks. The Rolls
+tab printed `?`, the tag strip and Favorites printed `—`, and the chat card
+printed "No target on a shared item — open the copy on a character" on an owned
+one. Four surfaces reported a defect in a throw that was written exactly right.
+`measure` is what tells the two apart, and every surface asks the one predicate
+(`measures()`), so none of them can disagree.
+
+A measure carries its **score term in the dice**, not in a target it does not
+have: `measuredFormula` appends it before evaluation. Adjusting the total
+afterwards would be contradicted by the Roll's own dice box beside it.
+
+**`ROLL_TYPES` was NOT widened.** It mirrors core's `CONFIG.ACKS.roll_type`,
+whose field would reject a fourth value, and it is also what an effect's reroll
+polarity reads — where "no target" means nothing. The new `THROW_TYPES` is
+`ROLL_TYPES` plus `measure` and is this module's own throws only; nothing
+writes `measure` into `system.rollType`.
+
+**Also corrected:** the two reasons a scored throw resolves no target were told
+apart. A shared world item has no character to read a ladder against; an owned
+one below the ladder's first rung is a throw the character cannot yet make.
+Both produced the same null and the same "open the copy on a character", which
+sends the reader looking for a copy they already have open.
+
+**Rejected: representing "automatic" as a target the dice always meet.** The
+Crusader Rebuking Undead table's high rungs are `R` and `D`, not numbers, and a
+rung of 0 or 1 would be a printed value invented here to stand for one that is
+not printed. That gap is [ROADMAP.md](ROADMAP.md), unbuilt.
+
 ### A tab panel declares its layout on the active state (2026-08-30)
 
 **Ruled.** Every tab section this module renders emits Foundry's `active` class

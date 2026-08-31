@@ -70,6 +70,10 @@
     </div>
   </fieldset>
 
+  {{! A measure is not rolled AGAINST anything, so the whole section is absent
+      rather than shown empty — a target picker over a throw that has no target
+      is what made a quantity roll read as misconfigured. }}
+  {{#unless isMeasure}}
   <fieldset>
     <legend>{{localize "ACKS-ABILITIES.roll.section.target"}}</legend>
 
@@ -125,10 +129,18 @@
         <select name="target.as">{{selectOptions choices.as selected=roll.target.as}}</select>
       </div>
     </div>
+    {{! The fraction of level the borrowed table is read at, written as the page
+        writes it. Two boxes rather than a list of fractions: which fraction a
+        rule uses is printed, so it is typed (or imported), not chosen from a
+        set this module decided on. Blank is the whole level. }}
     <div class="form-group">
       <label>{{localize "ACKS-ABILITIES.roll.field.atLevel"}}</label>
-      <div class="form-fields">
-        <select name="target.atLevel">{{selectOptions choices.atLevel selected=roll.target.atLevel}}</select>
+      <div class="form-fields acks-abilities-fraction">
+        <input type="number" step="1" min="1" name="target.atLevelNum" value="{{roll.target.atLevelNum}}"
+               placeholder="1" aria-label="{{localize 'ACKS-ABILITIES.roll.field.atLevelNum'}}">
+        <span aria-hidden="true">/</span>
+        <input type="number" step="1" min="1" name="target.atLevelDen" value="{{roll.target.atLevelDen}}"
+               placeholder="1" aria-label="{{localize 'ACKS-ABILITIES.roll.field.atLevelDen'}}">
       </div>
       <p class="hint">{{localize "ACKS-ABILITIES.roll.field.asHint"}}</p>
     </div>
@@ -155,15 +167,25 @@
            data-tooltip="{{localize 'ACKS-ABILITIES.roll.table.add'}}"><i class="fa-solid fa-plus"></i></a>
       </div>
       {{#if steps.length}}
+        {{! Four columns, because a printed rung is not always a target: the
+            cell may say the throw happens without one, or is not offered yet.
+            `outcome` is what the roller acts on; `text` is the cell as printed. }}
         <div class="acks-abilities-step acks-abilities-step-labels">
           <span>{{localize "ACKS-ABILITIES.roll.table.at"}} {{scaleLabel}}</span>
           <span>{{localize "ACKS-ABILITIES.roll.table.value"}}</span>
+          <span>{{localize "ACKS-ABILITIES.roll.table.outcome"}}</span>
+          <span>{{localize "ACKS-ABILITIES.roll.table.cell"}}</span>
           <span></span>
         </div>
         {{#each steps as |step i|}}
         <div class="acks-abilities-step">
           <input type="number" step="1" name="target.breakpoints.{{i}}.atLevel" value="{{step.atLevel}}">
           <input type="number" step="any" name="target.breakpoints.{{i}}.value" value="{{step.value}}">
+          <select name="target.breakpoints.{{i}}.outcome">
+            {{selectOptions @root.choices.outcome selected=step.outcome blank=(localize "ACKS-ABILITIES.roll.table.outcomeThrow")}}
+          </select>
+          <input type="text" name="target.breakpoints.{{i}}.text" value="{{step.text}}"
+                 placeholder="{{localize 'ACKS-ABILITIES.roll.table.cellPlaceholder'}}">
           <a class="acks-abilities-mini" data-action="removeStep" data-index="{{i}}"
              data-tooltip="{{localize 'ACKS-ABILITIES.roll.table.remove'}}"><i class="fa-solid fa-trash"></i></a>
         </div>
@@ -187,6 +209,7 @@
     </div>
     {{/unless}}
   </fieldset>
+  {{/unless}}
 
   <p class="acks-abilities-roll-preview">
     <i class="fa-solid fa-dice-d20" aria-hidden="true"></i> {{preview}}

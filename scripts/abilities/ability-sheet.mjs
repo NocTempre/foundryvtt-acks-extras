@@ -12,7 +12,9 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { definitionId } from "../lib/capabilities.mjs";
 import { libraryItems } from "../lib/library.mjs";
 import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
-import { keyOf, rollsOf, targetOf, scalesFor } from "./ability-rolls.mjs";
+import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf } from "./ability-rolls.mjs";
+import { ladderRungs, classByKey, effectiveLevel } from "../classes/registry.mjs";
+import { PROGRESSION_CLASSES, levelFactorLabel } from "../lib/vocab.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
 import { LANGUAGE_ACTIONS, slotsOf, onDropLanguage } from "./language-slots.mjs";
 import { filledLanguages } from "../classes/languages.mjs";
@@ -68,6 +70,21 @@ const ordinal = (n) => {
   const v = Math.abs(n) % 100;
   return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 };
+
+/**
+ * A class key as a NAME — the world's document for it, then the chassis
+ * vocabulary, then the key itself. The four chassis are not the only classes a
+ * progression may borrow from, so a lookup in the chassis list alone prints a
+ * bare key for every real class.
+ */
+function className(key) {
+  if (!key) return "";
+  try {
+    return classByKey(key)?.name || PROGRESSION_CLASSES?.[key]?.label || key;
+  } catch {
+    return PROGRESSION_CLASSES?.[key]?.label || key;
+  }
+}
 
 /** Human-readable one-liner for an effect row. */
 function describeEffect(e, V) {
@@ -147,7 +164,12 @@ function describeEffect(e, V) {
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${e.forWhat ? `${e.forWhat} ` : ""}throw ${n}${span ? "" : "+"}` };
     }
     case "progressionAs":
-      return { kind: label(V.EFFECT_TYPES, e.type), text: `as ${label(V.PROGRESSION_CLASSES, e.as)} — ${label(V.PROGRESSION_LEVELS, e.atLevel)}` };
+      // The class may be one the WORLD publishes rather than a chassis, so it is
+      // named by its document before falling back to the chassis vocabulary.
+      return {
+        kind: label(V.EFFECT_TYPES, e.type),
+        text: [className(e.as), levelFactorLabel(e)].filter(Boolean).join(" — "),
+      };
     case "proficiencyGrant":
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${label(V.PROFICIENCY_DOMAINS, e.domain)} — ${label(V.PROFICIENCY_BREADTH, e.breadth)}${e.group ? ` (${e.group})` : ""}` };
     case "limitation":
@@ -326,11 +348,50 @@ export function createAbilitySheet(Base) {
       // Read through rollsOf() — the single read path — so an ability whose
       // roll still lives in core's singleton fields presents identically.
       const scales = scalesFor(this.item.actor, this.item);
+      // A throw's rungs, wherever they live: typed onto the throw, or borrowed
+      // from a class document's published ladder. The tab shows the whole table
+      // either way — a throw rated off another class's table is still a ladder
+      // to the reader, and hiding it because the rungs are stored elsewhere is
+      // the difference between the two being visible at all.
+      const borrows = (t) => (t?.kind === "progression" || (!t?.kind && t?.as)) && !!t?.table;
+      const ladderRowsFor = (r) => {
+        if (measures(r)) return [];
+        const t = r.target ?? {};
+        if (borrows(t)) {
+          try {
+            return ladderRungs(t.as, t.table);
+          } catch {
+            return [];
+          }
+        }
+        return t.breakpoints ?? [];
+      };
+      /**
+       * How a BORROWED ladder is read, when it is not read one-for-one.
+       *
+       * The rungs of a borrowed table are the LENDING class's levels, not the
+       * reader's: a character reading one at a fraction of their level stands
+       * well short of the rung their own level would name. A header reading
+       * "Class Level" over those numbers claims they are theirs, and a player
+       * counting along the row lands somewhere they are not.
+       */
+      const borrowedAs = (r) => {
+        const t = r.target ?? {};
+        if (!borrows(t)) return null;
+        let name = t.as;
+        try {
+          name = className(t.as);
+        } catch {
+          /* an unpublished class still labels the row with its key */
+        }
+        const fraction = levelFactorLabel(t);
+        return { name, fraction, round: t.round ? V.VALUE_ROUNDING?.[t.round]?.label : "" };
+      };
       context.rollRows = rollsOf(this.item).map((r, i) => {
         const key = keyOf(r, i);
-        const target = targetOf(r, this.item.actor, this.item);
-        const bp = r.target?.breakpoints ?? [];
-        const varies = bp.length > 1;
+        const verdict = throwOutcome(r, this.item.actor, this.item);
+        const rungs = ladderRowsFor(r);
+        const borrowed = borrowedAs(r);
         const suffix = r.rollType === "below" ? "-" : r.rollType === "result" ? "" : "+";
         // A `conditional` target names its own scale; every other shape is read
         // at the roll's. Label the ladder with whichever one it is actually
@@ -338,16 +399,44 @@ export function createAbilitySheet(Base) {
         const scaleKey = (r.target?.kind === "conditional" ? r.target.on : r.scale) || "level";
         return {
           key,
-          label: r.label || game.i18n.localize("ACKS-ABILITIES.roll.unnamed"),
-          display: target == null ? (varies ? "—" : "?") : `${target}${suffix}`,
+          label: labelOf(r),
+          // ONE renderer for what a throw reads as — a measure shows its dice,
+          // a lettered rung shows its cell, a number shows the number. A "?"
+          // here says the throw is misconfigured, and it is reserved for the
+          // one case that actually is: a scored throw with nothing to score by.
+          display: throwText(r, this.item.actor, this.item) || (rungs.length > 1 ? "—" : "?"),
+          // What the character is due at this rung, when it is not a number.
+          // The row already shows the cell; this is what makes it a sentence.
+          note:
+            verdict.outcome === "auto"
+              ? game.i18n.format("ACKS-ABILITIES.roll.autoDetail", { cell: verdict.text || "—" })
+              : verdict.outcome === "none"
+                ? game.i18n.format("ACKS-ABILITIES.roll.noneDetail", { cell: verdict.text || "—" })
+                : "",
           condition: r.condition,
-          ladder: varies
-            ? {
-                scaleLabel: V.VALUE_SCALES?.[scaleKey]?.label ?? scaleKey,
-                steps: bp.map((b) => b.atLevel),
-                values: bp.map((b) => `${b.value}${suffix}`),
-              }
-            : null,
+          // Which level of WHOSE the ladder is read at, said out loud whenever
+          // it is not simply this character's own.
+          readAt: borrowed?.fraction
+            ? game.i18n.format("ACKS-ABILITIES.roll.readAt", {
+                cls: borrowed.name,
+                fraction: borrowed.fraction,
+                at: effectiveLevel(r.target, scales.level, r.target?.round || "up"),
+              })
+            : "",
+          ladder:
+            rungs.length > 1
+              ? {
+                  // A borrowed table is headed by the LENDING class's levels.
+                  scaleLabel: borrowed
+                    ? game.i18n.format("ACKS-ABILITIES.roll.borrowedScale", { cls: borrowed.name })
+                    : (V.VALUE_SCALES?.[scaleKey]?.label ?? scaleKey),
+                  steps: rungs.map((b) => b.atLevel),
+                  // A rung prints its own CELL where it has one, for a table
+                  // whose rungs are not all numbers. Suffixing those with "+"
+                  // would read them as targets.
+                  values: rungs.map((b) => (b.text ? b.text : b.value == null ? "—" : `${b.value}${suffix}`)),
+                }
+              : null,
         };
       });
       context.scales = scales;

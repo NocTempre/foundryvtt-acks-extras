@@ -17,7 +17,7 @@
  */
 import { num, str, int, bool, html, choice, choiceSet, refList, levelValueField, spellRefField } from "../lib/fields.mjs";
 import { choiceSpecField } from "../lib/choice-spec.mjs";
-import { ATTRIBUTES } from "../lib/vocab.mjs";
+import { ATTRIBUTES, RUNG_OUTCOMES } from "../lib/vocab.mjs";
 import { CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
 
 /** Award kinds: an automatic grant at a level, or an offered pick. */
@@ -63,6 +63,11 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         atLevel: int(1, { min: 0 }),
         value: num(),
         text: str(), // non-numeric cells ("+2d" backstab dice) — value stays null
+        // Whether a rung a THROW reads is a target at all: blank is, `auto` is
+        // reached without one, `none` is not reached. A ladder nothing throws
+        // against never sets it, and its non-numeric cells keep meaning exactly
+        // what they meant.
+        outcome: choice(RUNG_OUTCOMES),
       });
 
     /** One printed save band; null cells mean "not printed" (never 0). */

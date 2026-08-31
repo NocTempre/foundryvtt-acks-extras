@@ -43,18 +43,47 @@ const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? ""
 const loc = makeLoc(LANG_PREFIX);
 
 /**
+ * Is this level-1 offer one the chosen template has already answered?
+ *
+ * A starting template arrives "with weapons, armor, equipment, proficiencies,
+ * and spells ready for play" (RR Ch. 2), and the Intellect bonus is chosen "on
+ * top of those listed for the template" — so the level-1 proficiency picks are
+ * the template's to make, and asking for them beside it hands out two
+ * proficiencies the character never earned. A pick among NAMED alternatives (a
+ * warlock's dark path, a witch's tradition) is not a proficiency the template
+ * lists, and stays on offer.
+ */
+export const answeredByTemplate = (award) => ["classInventory", "generalList"].includes(award?.choice?.from);
+
+/**
  * Every option a rung offers, with the ones the character already holds MARKED
  * rather than removed.
  *
  * `actor` is optional: chargen asks on a character who owns nothing yet, and a
  * question with no actor behind it simply has nothing marked.
+ *
+ * `granted` is the one case an option IS removed, and it does not contradict
+ * the rule above: a held option is a truthful answer to the rung, while an
+ * option the chosen package is about to hand over in this same write is a pick
+ * that buys nothing — `applyTemplate` grants a printed rank as N copies, so
+ * spending a free pick on it doubles the proficiency instead of keeping it.
+ * The rung stays closable either way, because the surfaces that pass a package
+ * also offer the "already on the sheet" and "leave open" answers.
  */
-export function rungOptions(choice, classItem, actor = null) {
-  return optionsForChoice(choice, classItem).map((o) => ({
-    ...o,
-    owned: !!actor && ownsRef(actor, o.ref),
-  }));
+export function rungOptions(choice, classItem, actor = null, granted = null) {
+  return optionsForChoice(choice, classItem)
+    .filter((o) => !isGranted(granted, o))
+    .map((o) => ({
+      ...o,
+      owned: !!actor && ownsRef(actor, o.ref),
+    }));
 }
+
+/** Does a chosen package already hand this option over? Matched on ref where
+ *  the entry carries one and on name otherwise (template-packages.mjs). */
+export const isGranted = (granted, option) =>
+  !!granted &&
+  ((!!option?.ref && granted.refs.has(option.ref)) || granted.names.has(String(option?.name ?? "").trim().toLowerCase()));
 
 /**
  * One rung's `<select>`, held-first.

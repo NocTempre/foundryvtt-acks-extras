@@ -21,8 +21,12 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
-import { slug, ATTRIBUTES } from "../lib/vocab.mjs";
+import { slug, ATTRIBUTES, isMeasure } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+// The classes registry, not lib: lib returns null for the `progression` kind
+// by design (it cannot see the world's class documents), and a throw that
+// borrows a published ladder is exactly that kind.
+import { resolveLevelOutcome } from "../classes/registry.mjs";
 
 /**
  * How many times an actor has this ability. The books rate several
@@ -138,6 +142,27 @@ export function throwModifiers(actor, item, roll = null) {
 const signed = (n) => `${n >= 0 ? "+" : ""}${n}`;
 
 /**
+ * Is this throw a MEASURE — dice with nothing to beat?
+ *
+ * The one predicate every surface asks, so the sheet row, the tag strip,
+ * Favorites, the editor's preview and the chat card cannot disagree about
+ * whether a throw has a target at all. A measure is not "a throw whose target
+ * failed to resolve": the two look identical from a null and read completely
+ * differently, which is the bug this distinction removes.
+ */
+export const measures = (roll) => isMeasure(roll?.rollType);
+
+/**
+ * What a throw is CALLED when the book gave it no name of its own.
+ *
+ * "Proficiency throw" is right for a throw that is one and wrong for a measure,
+ * which is not thrown against anything — an ability's effect roll labelled as a
+ * proficiency throw reads as a second attempt at the first one.
+ */
+export const labelOf = (roll) =>
+  roll?.label || game.i18n.localize(measures(roll) ? "ACKS-ABILITIES.roll.unnamedMeasure" : "ACKS-ABILITIES.roll.unnamed");
+
+/**
  * What an ability score contributes to this throw — null when the throw
  * declares none, or when there is no character whose score to read.
  *
@@ -169,18 +194,27 @@ export function scoreTerm(roll, actor) {
  * that prints the term asks HERE, so none of them can announce a bonus the
  * target does not carry.
  */
-export const scoreApplies = (roll) => (roll?.rollType || "above") !== "result";
+export const scoreApplies = (roll) => {
+  const type = roll?.rollType || "above";
+  return type !== "result" && type !== "measure";
+};
 
 /**
  * A score term as one line — "WIL +2", or "WIL +2 × 4 = +8" when it is
  * multiplied. Written as the MODIFIER it is, not as the target it moved: the
- * target is printed beside it and the two read as one sentence. A throw the
- * term does not reach says so instead of stating it bare.
+ * target is printed beside it and the two read as one sentence.
+ *
+ * Where the term LANDS differs by throw, and the line has to say which, because
+ * all three look identical otherwise. A scored throw carries it in the target
+ * printed beside it. A MEASURE has no target, so it carries it in the result —
+ * `measuredFormula` puts it in the dice. An exact-match throw carries it
+ * nowhere, and says so rather than stating a bonus that does nothing.
  */
 export function scoreText(term, roll = null) {
   const written = scoreWritten(term);
   if (!written || !roll || scoreApplies(roll)) return written;
-  return game.i18n.format("ACKS-ABILITIES.roll.scoreUnapplied", { term: written });
+  const key = measures(roll) ? "ACKS-ABILITIES.roll.scoreInResult" : "ACKS-ABILITIES.roll.scoreUnapplied";
+  return game.i18n.format(key, { term: written });
 }
 
 /** The term as the modifier it is written as, with no claim about the target. */
@@ -193,27 +227,82 @@ function scoreWritten(term) {
 }
 
 /**
- * Resolve a roll's target number, or null when it cannot be known here.
- * Delegates to acks-lib so the ladder semantics have one definition.
+ * What a throw comes to for this character — the WHOLE verdict, not a number.
  *
  * A target is read at the roll's OWN scale. Animal Husbandry's diagnosis ladder
  * is rated by rank, so reading it at the character's class level answers a
  * question nobody asked — a 5th-level character who took the proficiency once
  * would diagnose on the third rung. `scale` is what the sheet already labels the
  * ladder with; it is what the ladder is read at too.
+ *
+ * A number is not always the answer. A printed progression may say the throw is
+ * not made at all — a rung the character cannot act on, or one where the result
+ * simply happens. Those rungs reach the roller through `outcome`, so an
+ * automatic result is not rolled for and an unavailable one is not offered as
+ * though it were merely unresolved.
+ *
+ * Resolution goes through the CLASSES registry, not through lib. lib returns
+ * null for the `progression` kind by design — it cannot see the world's class
+ * documents — so a throw borrowing a published ladder resolved to nothing at
+ * all and read as a throw with no target. The registry completes exactly that
+ * kind and defers to lib for the rest, which is what makes a borrowed table
+ * resolve at roll time and not only in the picker.
+ *
+ * @returns {{outcome: string, target: number|null, text: string}}
+ *   `outcome` is "throw" (roll against `target`), "auto" (no roll — it happens)
+ *   or "none" (not available to this character yet); `text` is the printed cell.
  */
-export function targetOf(roll, actor, item) {
-  const resolve = globalThis.acksExtras?.lib?.resolveLevelValue;
+export function throwOutcome(roll, actor, item) {
+  const none = (target = null, text = "") => ({ outcome: "throw", target, text });
+  // A measure has no target by construction, whatever a previous edit left in
+  // the target fields. Answering from those would score a quantity against a
+  // number nobody rolled towards.
+  if (measures(roll)) return none();
   const target = roll?.target;
-  if (!resolve) return target?.flat ?? null;
   const scales = scalesFor(actor, item);
   const at = scales[roll?.scale || "level"];
   // A scale nothing here can supply (Arcane Value, Hit Dice — no consumer
   // computes them yet). A flat target still answers; a ladder does not, and the
   // sheet shows the whole ladder rather than a number read at the wrong rung.
-  if (at == null) return (target?.kind ?? "flat") === "flat" ? (target?.flat ?? null) : null;
-  return withModifiers(resolve(target, at, scales), roll, actor, item);
+  if (at == null) return none((target?.kind ?? "flat") === "flat" ? (target?.flat ?? null) : null);
+
+  let verdict;
+  try {
+    verdict = resolveLevelOutcome(target, at, scales);
+  } catch (err) {
+    console.error(`${MODULE_ID} | could not resolve a throw's target`, err);
+    return none(target?.flat ?? null);
+  }
+  if (verdict.outcome !== "throw") return verdict;
+  return { ...verdict, target: withModifiers(verdict.target, roll, actor, item) };
 }
+
+/**
+ * How a throw READS on a control — "15+", "3-", "12", a measure's dice, the
+ * cell a lettered rung prints, or "—" when nothing resolved.
+ *
+ * THE one place this string is built. Four surfaces show it (the Rolls tab, the
+ * expanded row's tag strip, Favorites, the cycle control's tooltip) and they
+ * used to build it three different ways, which is how a measure came to read as
+ * `?` on one and `—` on another.
+ */
+export function throwText(roll, actor, item) {
+  if (measures(roll)) return roll?.formula || "1d20";
+  const { outcome, target, text } = throwOutcome(roll, actor, item);
+  if (outcome !== "throw") return text || (outcome === "auto" ? game.i18n.localize("ACKS-ABILITIES.roll.autoShort") : "—");
+  if (target == null) return text || "—";
+  const type = roll?.rollType || "above";
+  return `${target}${type === "below" ? "-" : type === "result" ? "" : "+"}`;
+}
+
+/**
+ * Resolve a roll's target number, or null when it cannot be known here.
+ *
+ * The number half of `throwOutcome`, kept because most callers only want the
+ * number and asking through one function is what stops them disagreeing. An
+ * automatic or unavailable rung has no target, and says so by having none.
+ */
+export const targetOf = (roll, actor, item) => throwOutcome(roll, actor, item).target;
 
 /**
  * A resolved target with the character's standing bonuses folded in — what
@@ -430,11 +519,30 @@ function rollableFormula(roll, item) {
   if (Roll.validate(formula)) return formula;
   ui.notifications.warn(
     game.i18n.format("ACKS-ABILITIES.roll.badFormula", {
-      name: [item?.name, roll?.label].filter(Boolean).join(" — ") || game.i18n.localize("ACKS-ABILITIES.roll.unnamed"),
+      name: [item?.name, roll?.label].filter(Boolean).join(" — ") || labelOf(roll),
       formula,
     }),
   );
   return "1d20";
+}
+
+/**
+ * A measure's dice with its score term folded in — appended to the formula.
+ *
+ * On a SCORED throw a score moves the target, which is where `targetOf` puts
+ * it. A measure has no target to move, so the only place the term can land is
+ * the result, and it has to land in the FORMULA rather than on the total:
+ * `toMessage` attaches the Roll and Foundry renders that Roll's own dice box,
+ * so a total adjusted afterwards would be contradicted by the box beside it.
+ *
+ * Every other throw is returned untouched — a score is already inside its
+ * target, and adding it here would apply it twice.
+ */
+function measuredFormula(roll, item, actor) {
+  const formula = rollableFormula(roll, item);
+  if (!measures(roll)) return formula;
+  const bonus = scoreTerm(roll, actor)?.bonus ?? 0;
+  return bonus ? `${formula} ${signed(bonus)}` : formula;
 }
 
 /**
@@ -453,18 +561,47 @@ const CARD_TEMPLATE = "systems/acks/templates/chat/roll-result.hbs";
 const esc = (text) => foundry.utils.escapeHTML?.(text) ?? text;
 
 /**
+ * Why a SCORED throw came up with no target — "" when it has one.
+ *
+ * Two different failures reach the same null and they are not the same news: a
+ * shared world item has no character to read a ladder against, while an owned
+ * one whose ladder starts above this character's level is a throw they cannot
+ * yet make. Telling the reader the first when the second happened sends them
+ * looking for a copy on a character they are already looking at.
+ */
+function missingTargetText(target, actor) {
+  if (target != null) return "";
+  return game.i18n.localize(actor ? "ACKS-ABILITIES.roll.noRung" : "ACKS-ABILITIES.roll.noTarget");
+}
+
+/**
  * The card's context, in the shape core's template reads.
  *
  * The target rides the SUCCESS row (`Success (14+)`) rather than a line of its
  * own — core's template already prints it there, and stating it twice is how
  * the old flavour line read. The details slot is left for what core has no
- * field for: the condition the book puts on the throw, and the reason a shared
- * world item cannot be scored at all.
+ * field for: the condition the book puts on the throw, and the reason a target
+ * could not be resolved.
+ *
+ * A MEASURE has none of that. It is not scored, so no success row, no target,
+ * and above all no explanation of a missing one — "no target on a shared item"
+ * over a quantity roll reads as a defect in a throw that worked as written.
  */
-function cardData(item, actor, roll, { target, success, suffix }) {
+function cardData(item, actor, roll, { target, success, suffix, verdict }) {
   const term = scoreTerm(roll, actor);
+  const outcome = verdict?.outcome ?? "throw";
   const details = [
-    target == null ? esc(game.i18n.localize("ACKS-ABILITIES.roll.noTarget")) : "",
+    // An automatic rung is not a missing target — the page prints a cell there
+    // saying no throw is made, and the cell is quoted rather than paraphrased.
+    outcome !== "throw"
+      ? esc(
+          game.i18n.format(outcome === "auto" ? "ACKS-ABILITIES.roll.autoDetail" : "ACKS-ABILITIES.roll.noneDetail", {
+            cell: verdict.text || "—",
+          }),
+        )
+      : measures(roll)
+        ? ""
+        : esc(missingTargetText(target, actor)),
     // The score is already inside the target, so the line is there to say WHY
     // the target moved — a throw that reads 4+ on one character and 6+ on
     // another is otherwise unexplained at the table.
@@ -485,7 +622,10 @@ function cardData(item, actor, roll, { target, success, suffix }) {
       details,
       isSuccess: success === true,
       isFailure: success === false,
-      target: target == null ? "" : `${target}${suffix}`,
+      // The SUCCESS row carries the target, and on an automatic rung it carries
+      // the cell the page prints instead — "Success (D)" is the table's own
+      // answer, where "Success ()" would read as a number that failed to load.
+      target: outcome === "auto" ? verdict.text : target == null ? "" : `${target}${suffix}`,
     },
   };
 }
@@ -495,7 +635,9 @@ function cardData(item, actor, roll, { target, success, suffix }) {
  *
  * Success is reported only when a target is known. On a shared world item there
  * is no character to resolve a ladder against, so the roll still happens and
- * the result stands on its own rather than being scored against a guess.
+ * the result stands on its own rather than being scored against a guess. A
+ * MEASURE stands on its own by construction — it is asked "how much", and the
+ * total is the whole answer.
  *
  * THE one place an ability's throw is posted — the Rolls tab's buttons and
  * core's own roll path (through roll-wrap.mjs) both arrive here — so blind is
@@ -511,9 +653,32 @@ export async function rollAbility(item, key) {
   const roll = rolls.find((r, i) => keyOf(r, i) === wanted) ?? rolls[0];
   if (!roll) return null;
   const actor = item.actor ?? null;
-  const target = targetOf(roll, actor, item);
+  const verdict = throwOutcome(roll, actor, item);
 
-  const evaluated = await new Roll(rollableFormula(roll, item)).evaluate();
+  // A rung the character has not reached is not a throw that failed — it is a
+  // throw the page does not offer them. Rolling anyway would post a failure
+  // they can never turn into a success, so the clicker is told and nothing
+  // reaches the table.
+  if (verdict.outcome === "none") {
+    ui.notifications.info(
+      game.i18n.format("ACKS-ABILITIES.roll.notAvailable", {
+        name: [item.name, roll.label].filter(Boolean).join(" — "),
+        cell: verdict.text || "—",
+      }),
+    );
+    return { total: null, target: null, success: null, outcome: "none" };
+  }
+
+  // An AUTOMATIC rung makes no throw at all: the table says the result happens.
+  // Posting a d20 beside it would invite the table to read the die as the thing
+  // that decided it.
+  if (verdict.outcome === "auto") {
+    await postAutomatic(item, actor, roll, verdict);
+    return { total: null, target: null, success: true, outcome: "auto" };
+  }
+
+  const target = verdict.target;
+  const evaluated = await new Roll(measuredFormula(roll, item, actor)).evaluate();
   const type = roll.rollType || "above";
   const total = evaluated.total;
   const success = target == null ? null : type === "below" ? total <= target : type === "result" ? total === target : total >= target;
@@ -528,18 +693,19 @@ export async function rollAbility(item, key) {
   try {
     content = await foundry.applications.handlebars.renderTemplate(
       CARD_TEMPLATE,
-      cardData(item, actor, roll, { target, success, suffix }),
+      cardData(item, actor, roll, { target, success, suffix, verdict }),
     );
   } catch (err) {
     console.error(`${MODULE_ID} | could not render ${CARD_TEMPLATE}; posting the throw without its card`, err);
   }
 
   const label = [item.name, roll.label].filter(Boolean).join(" — ");
-  const targetText =
-    target == null
-      ? game.i18n.localize("ACKS-ABILITIES.roll.noTarget")
+  const targetText = measures(roll)
+    ? ""
+    : target == null
+      ? missingTargetText(target, actor)
       : `${game.i18n.localize("ACKS-ABILITIES.roll.target")} ${target}${suffix}`;
-  const verdict =
+  const word =
     success == null ? "" : success ? game.i18n.localize("ACKS-ABILITIES.roll.success") : game.i18n.localize("ACKS-ABILITIES.roll.failure");
 
   await evaluated.toMessage(
@@ -551,14 +717,52 @@ export async function rollAbility(item, key) {
       ...(content
         ? { content }
         : {
-            flavor: `${esc(label)}<br><span class="acks-abilities-roll-target">${targetText}${
-              verdict ? ` — <strong>${verdict}</strong>` : ""
-            }</span>${roll.condition ? `<br><em>${esc(roll.condition)}</em>` : ""}`,
+            flavor: `${esc(label)}${
+              targetText || word
+                ? `<br><span class="acks-abilities-roll-target">${targetText}${
+                    word ? `${targetText ? " — " : ""}<strong>${word}</strong>` : ""
+                  }</span>`
+                : ""
+            }${roll.condition ? `<br><em>${esc(roll.condition)}</em>` : ""}`,
           }),
     },
     // An undefined mode falls through to the seat's own default, which is what
     // toMessage does when nothing is passed at all.
     { messageMode: messageModeFor(item) },
   );
-  return { total, target, success };
+  return { total, target, success, outcome: "throw" };
+}
+
+/**
+ * The card for a rung that needs no throw — same banner, no dice.
+ *
+ * Posted as a plain message rather than through `Roll#toMessage`, because there
+ * is no Roll: the table's answer is the cell, and attaching a die to it would
+ * put a number on screen that decided nothing. Blind is honoured the same way,
+ * since an automatic result is still a result the GM may be withholding.
+ */
+async function postAutomatic(item, actor, roll, verdict) {
+  let content = null;
+  try {
+    content = await foundry.applications.handlebars.renderTemplate(
+      CARD_TEMPLATE,
+      cardData(item, actor, roll, { target: null, success: true, suffix: "", verdict }),
+    );
+  } catch (err) {
+    console.error(`${MODULE_ID} | could not render ${CARD_TEMPLATE}; posting the automatic result without its card`, err);
+  }
+  const label = [item.name, roll.label].filter(Boolean).join(" — ");
+  await ChatMessage.create(
+    {
+      speaker: ChatMessage.getSpeaker({ actor }),
+      ...(content
+        ? { content }
+        : {
+            content: `<p>${esc(label)} — <strong>${esc(
+              game.i18n.format("ACKS-ABILITIES.roll.autoDetail", { cell: verdict.text || "—" }),
+            )}</strong></p>`,
+          }),
+    },
+    { messageMode: messageModeFor(item) },
+  );
 }

@@ -57,7 +57,51 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    screen. Set *Succeeds On* to an exact match: the target must not move, and
    both the preview and the card must say the term is not applied rather than
    claim it.
-7. **Tab isolation, then a re-render.** Walk Description → Rolls → Mechanics,
+7. **A measure — a throw with no target.** Add a throw, set its dice to `2d6`
+   and *Succeeds On* to **no target**.
+   *Observable:* the editor's second fieldset ("What It Is Rolled Against") is
+   ABSENT, not empty; the preview reads "Rolls 2d6…"; the Rolls tab row, the tag
+   strip (`item.getTags()`) and the Favorites control all print `2d6` where a
+   scored throw prints its number — none of them prints `?` or `—`. Roll it: the
+   card names the throw and shows the total with **no** success/failure row and
+   **no** "no target" explanation. Name a score on it: the Roll's own formula
+   becomes `2d6 + <mod>` (fold it into the DICE, never onto the total — the
+   message renders the Roll's own box) and the card says the term was added to
+   the result.
+   Then take a LADDERED throw, switch it to no target and back: its rungs must
+   survive the round trip. The target section is not rendered while the throw is
+   a measure, so anything that reads the form for rungs or for a scale would
+   read an empty screen as an emptied table.
+8. **A scored throw with no target, both ways.** Roll a laddered throw on the
+   shared world item, then on a character whose level is below the ladder's
+   first rung.
+   *Observable:* two DIFFERENT cards — "no target on a shared item" only for the
+   first; the second says the character has reached no rung yet. One message for
+   both sends the reader looking for a copy on a character they already have open.
+9. **A borrowed ladder, read at a fraction of level.** Create a class document
+   whose `system.ladders` holds a rebuking-shaped column — a `none` rung, then
+   targets, then two `auto` rungs carrying their printed cell. Point a throw at
+   it (`target.kind: "progression"`, `as`, `table`) at **full** level on one
+   character and **half, round down** on another.
+   *Observable:* the full-level reader steps the table one rung per level; the
+   half-level reader stands on `floor(level / 2)` and does NOT advance on odd
+   levels. Both show the SAME table under the throw, headed by the lending
+   class's levels, and the borrower's row carries the line naming which of the
+   lender's levels it is reading. Switch the fraction to two thirds and the
+   rounding to up: the rung moves to `ceil(level × 2/3)`.
+   **Drive it through the editor, not the API.** `as` and `table` are the two
+   fields a closed schema silently discarded — the API path writes the flag
+   directly and never proves they survive normalization, which is exactly how
+   that bug lived through a release. Read the stored target back after a real
+   `change` event on the pickers.
+10. **The three verdicts a rung can give.** Walk one throw up through its ladder.
+   *Observable:* at a `none` rung the row reads the printed cell, says the throw
+   is not available, and clicking it posts NOTHING to chat (a notification only).
+   At a target rung a d20 is rolled and scored. At an `auto` rung the row reads
+   the cell, and clicking posts a card with **no dice attached** whose success
+   row carries the cell. Then roll the ability's measure: that is the 2d6 the
+   procedure ends with, and it must post normally after any of the three.
+11. **Tab isolation, then a re-render.** Walk Description → Rolls → Mechanics,
    then re-render the open sheet (`sheet.render()` — what a field edit does) and
    walk back.
    *Observable:* exactly one `section.tab` has a computed `display` other than

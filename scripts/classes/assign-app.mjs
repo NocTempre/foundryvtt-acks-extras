@@ -30,7 +30,8 @@ import { applyClass } from "./apply.mjs";
 import { applyTemplate, netBonusPicks, templateShortfall } from "./chargen.mjs";
 import { awardsThrough, choosableGenerals, grantAbility, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
-import { grantableRefs, rungLabel, rungOptions } from "./picks.mjs";
+import { answeredByTemplate, grantableRefs, isGranted, rungLabel, rungOptions } from "./picks.mjs";
+import { templateGrantKeys } from "./template-packages.mjs";
 import { unmetRequirements } from "./stat-page.mjs";
 import { makeLoc } from "../lib/util.mjs";
 
@@ -115,21 +116,27 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * or by a previous binding — is not asked again; that record is what stops a
    * played character meeting every choice they ever made a second time.
    */
-  #rungs(cls, level) {
+  #rungs(cls, level, template = null) {
     if (!cls) return { opening: [], ladder: [] };
     const taken = this.actor.getFlag(MODULE_ID, FLAG_CLASSES)?.awardsTaken ?? [];
     const { choices } = awardsThrough(this.actor, cls, level, taken);
+    const granted = template ? templateGrantKeys(template) : null;
     const row = (a) => ({
       name: `rung-${a.key}`,
       label: rungLabel(a),
       atLevel: a.atLevel ?? 1,
-      options: rungOptions(a.choice, cls, this.actor),
+      // Only the opening picks can be answered by a package; a rung the
+      // character climbed to at 4th is theirs whatever they start with.
+      options: rungOptions(a.choice, cls, this.actor, (a.atLevel ?? 1) <= 1 ? granted : null),
       selected: this.binding.answers[a.key] ?? "",
     });
+    const opening = choices.filter((a) => (a.atLevel ?? 1) <= 1);
     return {
       // The opening picks belong with the package that may answer them; the
-      // rest are the ladder a played character climbed.
-      opening: choices.filter((a) => (a.atLevel ?? 1) <= 1).map(row),
+      // rest are the ladder a played character climbed. A chosen package makes
+      // the level-1 proficiency picks itself (picks.mjs), so they come off the
+      // page rather than being asked beside the package that answered them.
+      opening: (template ? opening.filter((a) => !answeredByTemplate(a)) : opening).map(row),
       ladder: choices.filter((a) => (a.atLevel ?? 1) > 1).map(row),
     };
   }
@@ -154,7 +161,8 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const intScore = Number(actor.system?.scores?.int?.value) || 0;
     const assumed = cls?.system?.templatesAssumeIntBonus ?? 0;
     const bonusCount = template ? netBonusPicks(intScore, assumed) : 0;
-    const { opening, ladder } = this.#rungs(cls, level);
+    const { opening, ladder } = this.#rungs(cls, level, template);
+    const granted = template ? templateGrantKeys(template) : null;
 
     context.levelColumn = this.#levelColumnHtml(cls, level, ladder);
     context.classColumn = classPanelHtml({
@@ -182,9 +190,12 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       bonus: Array.from({ length: bonusCount }, (_, i) => ({
         name: `bonus-${i}`,
         label: loc("chargen.bonusPick", { n: i + 1 }),
+        // Chosen "on top of those listed for the template" (RR Ch. 2), so the
+        // picks stand — minus the abilities the package is already handing over.
         options: choosableGenerals()
           .sort((a, b) => a.name.localeCompare(b.name))
-          .map((item) => ({ ref: refOf(item), name: item.name })),
+          .map((item) => ({ ref: refOf(item), name: item.name }))
+          .filter((o) => !isGranted(granted, o)),
         selected: this.binding.bonusPicks[i] ?? "",
       })),
       offerAnswered: true,

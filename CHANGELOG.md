@@ -1,5 +1,123 @@
 # Changelog
 
+## 5.6.0
+
+**Turning undead works the way the book prints it — a table whose top rungs need
+no throw, read at half a level where the rule says half, and the roll that says
+how many. The template die is thrown for a character who forgot it, a package
+makes the picks it prints, the picker's own writing is legible, and gear comes
+back out of a pack in one click.**
+
+### Added
+- **Gear comes out of a container the same way it goes in — from the row you
+  are looking at.** Every item inside an open container on the Inventory tab
+  now carries a take-out control, the one the item sheet's Contents tab has
+  always had. Until now the only gesture on the character sheet was to drag the
+  row all the way back down past every bucket onto one of the type lists below,
+  which gave no sign it was a target until the drop landed. Taking a thing out
+  asks nothing further about where it should go: it is not worn, so it has no
+  slot to choose, and it lands loose among the rest of its kind. Dragging still
+  works exactly as before, and a locked container still shows nobody but the
+  Judge anything to take out.
+- **A ladder rung may say something other than a number.** A printed progression
+  is not always a grid of targets: a rebuking table runs a dash where the
+  character cannot act at all, then targets, then rungs where the result simply
+  happens. A rung now says which of those it is and carries the cell as the page
+  prints it. On an automatic rung nothing is rolled — a card is posted with no
+  dice and the cell on its success line. On an unavailable one nothing is posted
+  at all and the clicker is told, because a throw you cannot make is not a
+  failure you could ever turn into a success. Both are typed in the throw editor
+  beside the target, and both arrive on a class document's published table.
+- **A throw may borrow another class's table, at a fraction of your level.** The
+  books' "as a <class> of <fraction> your level" powers are now that sentence:
+  the lending class's table is published once, and the borrower names the
+  fraction and which way it rounds. You write the fraction as a top and a bottom
+  number rather than choosing from a list, so whatever your book states works.
+  The sheet shows the borrowed table under the throw, headed by the lending
+  class's levels, and says which of those levels you are standing on.
+- **A throw that is not rolled against anything.** *Succeeds On* now offers **no
+  target**, for the rolls the books put AFTER a successful throw rather than as
+  one: the 2d6 that says how many Hit Dice of undead a rebuke turns, the dice a
+  treatment heals. Such a throw shows its dice everywhere the others show a
+  number, its card reports the total with no success or failure, and its editor
+  has no target section to leave blank. An ability score named on one is added to
+  the dice, since there is no target for it to move.
+
+### Fixed
+- **A thing is in the pack or in the hand, never both.** A weapon inside a
+  chest still offered Draw, a cloak inside a backpack still offered Wear, and
+  core's own equip toggle sat on those rows too — so gear could be put to use
+  without ever coming out. The sheet then went on drawing the sword inside the
+  chest, because being in a container outranks every other answer to where a
+  thing is, while the loadout counted it in a hand: it spent the hand, granted
+  the attack, and let a shield be worn beside it. Taking stowed gear into use
+  now takes it out of the container in the same movement, whichever control asks
+  — including core's. Two controls no longer appear on a stowed row at all,
+  because they name a place on the body that nothing inside a chest can be in:
+  a shield's strap position, and lighting a lantern that is still in the pack.
+  Stowing is unchanged, and still takes gear off before putting it away.
+- **A no-target throw no longer reads as a broken one.** Entered the only way
+  that was previously possible — as a throw with its target left empty — a 2d6
+  "how many Hit Dice" printed `?` on the Rolls tab, `—` on the row's tag strip
+  and in Favorites, and told the card's reader to "open the copy on a character"
+  they already had open.
+- **A throw with no rung yet says that, instead of blaming a shared item.** A
+  laddered throw on a character below its first rung and the same throw on a
+  world item gave the same message; only the second is about a shared item.
+- **A throw that borrows a class table now resolves.** Naming a published ladder
+  has been offered in the throw editor since 4.8.0, but nothing behind the
+  picker ever ran: the roller asked the shared library, which cannot see the
+  world's class documents and answers "no target" for exactly this kind. Every
+  such throw displayed as a throw with no target.
+- **The class and table a throw borrows are no longer discarded on save.** The
+  stored shape had no field for the chosen ladder at all, so it was dropped the
+  first time the throw was edited and the throw fell back to attack throws. The
+  class was restricted to the four chassis while the picker offered every class
+  in the world, so choosing a real class stored "fighter". Abilities that
+  progress as a class carried the same fault and are fixed with it. Throws saved
+  before this release kept whatever the fallback produced and want re-picking.
+- **A character who reaches the end of the page is generated.** The starting
+  package a character gets is read against the 3d6 template die, and a die that
+  was never thrown reached no package at all — so a player who rolled their
+  attributes, chose their class and pressed Save was told "No class and template
+  were chosen" and walked away with six numbers: no class, no proficiencies, no
+  equipment, no coin. The die is now thrown for them, the best package it
+  reaches is taken, and the roll and the package are named on screen. A roll
+  that reaches no printed band still gets the lowest one, so a low die never
+  costs a character their whole starting package. A class that prints no
+  packages is unchanged.
+- **A starting package makes the picks it prints, and is not offered among
+  them.** Binding a class beside a chosen package still asked for the 1st-level
+  proficiencies the package itself hands over, and listed the package's own
+  abilities among the answers — and because a package grants a printed rank as
+  separate copies, spending a free pick on one handed the character the same
+  proficiency twice. Those picks now come off the page with the package that
+  answers them, and the Intellect proficiencies, which are still chosen on top
+  of the package, no longer offer anything it is already bringing.
+- **A proficiency is offered once, by its own name.** Materializing a class's
+  starting packages mints one specialized copy per printed specialty, per class
+  — and every list a player picks from was built from the world's proficiencies
+  without telling those copies from the definitions they specialize. So the
+  general-proficiency and Intellect-bonus selects listed "Performance (singing)"
+  once for every class whose package prints it, "Knowledge (history)" seven
+  times, and the plain Performance the pick is actually for not at all: 109
+  entries where 42 proficiencies exist. The picks now offer definitions only.
+- **The class picker is written at a size meant for sentences.** Every note on
+  the picker and the Scores Generator — what a package brings, what it costs,
+  what a level leaves to choose — was set at the smallest step in the type
+  scale, the one meant for a table's micro annotations, and the paragraphs
+  describing a starting package were effectively unreadable. They are back at
+  reading size.
+- **The missing-tables notice names what is actually missing.** The warning a
+  Judge meets in a world whose books have not been imported counted a set of
+  tables as present the moment anything at all was registered under its name.
+  The henchmen rarity tables were therefore never listed, because this module
+  registers one small piece of automation of its own under that name from the
+  moment it loads — so a world holding none of the book's tables was told the
+  rest were all it lacked. The notice now asks after the tables each feature
+  actually reads, and a set only part of an import reached is named with how
+  much of it arrived.
+
 ## 5.5.1
 
 **An ability sheet shows one tab at a time, and the Description tab has room to

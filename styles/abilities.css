@@ -140,6 +140,27 @@
   margin: 2px 0 0 26px;
 }
 
+/* What a lettered rung entitles this character to — "no throw needed", "not
+   available yet". It sits where the condition sits and takes the same indent,
+   because both answer "when does this apply to me"; it is emphasised because
+   unlike a condition it is a statement about the character reading it. */
+/* A fraction typed as it is written: two boxes with the bar between them. The
+   boxes stay narrow so the pair reads as one value rather than two fields. */
+.acks-abilities-fraction {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-abilities-fraction input {
+  max-width: 4.5rem;
+}
+
+.acks-abilities-roll-note {
+  margin: 2px 0 0 26px;
+  font-style: italic;
+}
+
 /* A count above 1 on an ability the book says cannot be taken twice. The data
    contradicts itself, so the field argues with you instead of looking settled.
    The alarm red is a fill/mark colour on the rules that frame the field and on
@@ -222,9 +243,13 @@
   margin-bottom: var(--acks-sp-2);
 }
 
+/* A rung: where on the scale, what number, whether a throw is made at all, and
+   the cell as the page prints it. The level and the target stay the widest
+   columns — they are what a numeric table is entirely made of, and the two
+   beside them are empty on every such rung. */
 .acks-abilities-step {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.75rem;
+  grid-template-columns: 1fr 1fr 1.1fr 1fr 1.75rem;
   gap: var(--acks-sp-2);
   align-items: center;
   margin-bottom: 3px;

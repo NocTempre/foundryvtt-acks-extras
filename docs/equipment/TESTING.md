@@ -65,6 +65,26 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `takeOut`.
    *Observable:* `contentsOf(sack)` lists it, `encumbranceDelta6` changes, and
    `overCapacity` fires when the declared capacity is exceeded.
+4b. Take out from the sheet, not the API: open the character's Inventory tab and
+   click the take-out control (`a.acks-equipment-takeout`) on a stowed row.
+   *Observable:* the row leaves the container's bucket and reappears in core's
+   type list for its type, `containedIn` is gone, and no wear slot was asked
+   for. Lock the container and re-open the tab as a player seat: the bucket
+   shows the locked hint and no rows, so there is no control to click.
+4c. Use gear that is still stowed: with a weapon, a slotted cloak, a shield and
+   a lantern all inside one container, click Draw on the weapon's row, Wear on
+   the cloak's, and core's own equip toggle on the shield's.
+   *Observable:* each item leaves the bucket and appears under Worn & Wielded in
+   **one** `updateItem` firing — count them on a hook, since the whole point is
+   that the containment is patched into the same write — with `containedIn`
+   gone and `getLoadout(actor)` naming the item. The lantern's light control and
+   the shield's strap control are absent while stowed and present once loose
+   (check both halves; absent alone also describes a control that never renders,
+   and the strap needs `overlayShieldVariants` on to appear at all).
+   *Regressions to re-check in the same pass:* `storeIn` on an **equipped**
+   weapon still unequips and stows it; an unrelated write to a stowed item (a
+   rename) leaves it stowed; and writing an EMPTY `gear.wornAt` — taking a thing
+   off — does not take it out of the container.
 5. Locks: `setLocked(container, true)`, then `pickLock` and `bashOpen`.
    *Observable:* each reports its throw before rolling; a locked container's
    contents are not readable through `canSeeInside`.

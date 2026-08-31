@@ -63,7 +63,7 @@ highest layer present:
 
 | layer | who registers |
 |---|---|
-| `PRIORITY.SAMPLE` (0) | a module's shipped defaults — none ship today (extraction-program ruling: no book values, no samples) |
+| `PRIORITY.SAMPLE` (0) | a module's own shipped config — automation and vocabulary only (extraction-program ruling: no book values, no samples), e.g. henchmen's `throws` and its one inferred `rarity` shift |
 | `PRIORITY.CATALOG` (10) | premium/companion content modules |
 | `PRIORITY.WORLD` (20) | per-world imported tables (via the `ruledata-import` contract) |
 
@@ -72,8 +72,16 @@ replaces — idempotent re-import) · `initTables(doc)` (drop-in alias, layer
 0) · `unregisterTable(docId, {priority?})` (layer removal falls back to the
 next-highest; no priority = remove all layers) · `getDoc` / `getTable` /
 `getThrowDef` (throw when absent — callers gate with `hasDoc`) · `hasDoc` ·
-`docInfo()` → `[{id, priority, source}]` for missing-tables UX ·
+`docInfo()` → `[{id, priority, source}]` for diagnostics ·
 `bracketRow(rows, value)` (null max = open-ended) · `resetTables()`.
+
+`expectTables(docId, tableIds)` at `setup` declares what a consumer reads;
+`expectedTables()` → `[{docId, tableIds}]` drives placeholder generation, and
+`missingCoverage(docIds)` → `[{docId, expected, present, missing}]` is what
+**missing-tables UX asks** — a shipped SAMPLE layer claims an id while
+supplying none of the book tables, so `hasDoc` cannot answer "has this been
+imported". The Foundry-side `missingTablesList(docIds)` (ruledata.mjs) turns
+that into a localized list for a notice.
 
 Consumers read ONLY through this registry — never a sibling module's name —
 so any provider can substitute data without consumer changes.

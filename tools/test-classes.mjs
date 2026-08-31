@@ -25,7 +25,7 @@ import {
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
 import { classUpdateData, damageBonusLadder } from "../scripts/classes/apply.mjs";
-import { awardsAt, awardsThrough } from "../scripts/classes/grants.mjs";
+import { awardsAt, awardsThrough, choosableGenerals } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
 import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
@@ -483,6 +483,31 @@ test("a fixed award the character already carries is not offered again", () => {
 test("an award with no printed level is a first-level award", () => {
   const cls = { system: { awards: [{ kind: "fixed", ref: "def.power.unlevelled" }] } };
   assert.equal(awardsThrough({ items: [] }, cls, 1).fixed.length, 1);
+});
+
+/* A world that has materialized its class templates holds one specialized copy
+ * of a proficiency per class that prints a specialty — ordinary general
+ * abilities in every respect but the stamp naming what they are a part of. */
+test("the general list offers definitions, never a class's specialized copy", () => {
+  const general = (name, part = null) => ({
+    type: "ability",
+    name,
+    system: { proficiencytype: "general" },
+    flags: part ? { "acks-extras": { templatePart: { classKey: part, kind: "ability" } } } : {},
+  });
+  const items = globalThis.game.items;
+  globalThis.game.items = [
+    general("Performance"),
+    general("Performance (singing)", "bard"),
+    general("Performance (singing)", "witch"),
+    general("Adventuring"),
+  ];
+  try {
+    // Adventuring is never on offer; the two copies are not two more options.
+    assert.deepEqual(choosableGenerals().map((i) => i.name), ["Performance"]);
+  } finally {
+    globalThis.game.items = items;
+  }
 });
 
 test("a class with an empty ladder owes nothing at any level", () => {

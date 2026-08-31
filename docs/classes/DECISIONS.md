@@ -3,6 +3,93 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-08-30 — a pick list offers definitions, never a class's own copy
+
+**Problem.** Reported from the field as a duplicate IMPORT: the general
+proficiency select on the class picker listed "Performance (singing)" five
+times, "Performance (chanting)" four, and no plain Performance at all. Nothing
+had been imported twice. Materializing a class's starting packages mints one
+world proficiency per printed specialty, per class (`planAbility` reuses a copy
+only within the same class), so a world that has materialized its packages holds
+109 general abilities where the books define 42 — and in the test world every
+one of the 67 extras was a template part.
+
+`findByRef` had known since the skinned-gear ruling that a class's own copy
+never answers for the definition it copied, and enforced it inline. Every list a
+player PICKS from — `choosableGenerals`, and through it the Intellect bonus
+selects — read the library raw, so the same distinction the ref lookup makes was
+absent exactly where a human has to read the result.
+
+The grants were never wrong: a part carries the importer's stamp, so a pick on
+one resolved through `findByRef` back to the definition. The damage was entirely
+in what the player was asked to read.
+
+**Ruled.** The stamp becomes a named predicate, `templatePartOf`, owned by
+`registry.mjs` beside the lookup that first needed it; `findByRef`,
+`choosableGenerals`, `adventuringDoc`, `choosableSpells` and
+`template-packages.mjs` all read it instead of restating the flag path. A list a
+player picks from offers definitions only.
+
+**Cost.** A Judge who hand-builds a specialized proficiency and wants it on the
+general list must leave it unstamped — which is what an unstamped document
+already means everywhere else, and a part is only ever stamped by this module.
+The offline gate is `test-classes.mjs`; `game.items` is the only global the
+option list reads, so the case is testable with no Foundry behind it.
+
+## 2026-08-30 — an unthrown template die is thrown, and a package answers the picks it makes
+
+**Problem.** Three faults on the two character-building surfaces, all reported
+from the field on one character.
+
+The Scores Generator read its legal packages from the template die
+(`legalTemplates(templates, rolled ?? -1)`). An unthrown die legalises NOTHING,
+so the selector rendered empty, `state.template` stayed null, and the close hook
+took its "a build with no package is a deliberate choice" branch. A player who
+rolled their attributes, chose a class and pressed Save walked away with six
+numbers: no class bound, no package, no equipment, no coin — under a notice
+reading "No class and template were chosen", which was false about the class.
+The step they skipped was not the SELECTOR but the 3d6 button beside it, and
+nothing on the page said the omission would void the build.
+
+The class picker asked the level-1 proficiency picks beside a chosen package
+that already makes them, and offered the package's own abilities among the
+answers. `applyTemplate` grants a printed rank as N copies, so spending a free
+pick on one doubled the proficiency.
+
+Every hint on both surfaces rendered at `--acks-fs-fine` — the 6pt step meant
+for a table's micro annotations. The vendored `.acks-ui .form-group > .hint`
+matches at (0,3,0); the module's `.acks-extras-classes-* .hint` at (0,2,0) had
+been losing silently since it was written, and these boxes carry running prose.
+
+**Ruled (user).** The die is thrown FOR a character who reached the end of the
+page without it, and the highest band it reaches is taken. The auto-pick half
+already existed — the selector defaults to the highest legal band — so only the
+die was missing, and a skipped roll and a skipped selection now converge on the
+same package. A die reaching no printed band still yields one: the lowest, so a
+low roll never costs a character their whole starting package.
+
+**A class that prints no packages is not a skipped step**, and keeps the old
+branch. This is deliberate: the class selector always carries a default, so
+applying on every submit regardless would let an untouched dropdown wipe and
+rebuild a character. The auto-roll is scoped to classes that actually print
+packages, which is where the player demonstrably engaged with the column.
+
+**A package answers the level-1 proficiency picks, and is not offered among
+them.** The generator already ruled this at the award level
+(`answeredByTemplate`, RR Ch. 2) and the picker never got it; the helper moves
+to `picks.mjs`, which is the one owner of what a rung asks. The Intellect picks
+stay — they are chosen "on top of those listed for the template" — minus the
+abilities the package hands over, matched on name because a bundled row carries
+no ref.
+
+**Cost.** Removing an option from a rung is the thing `picks.mjs` exists to
+forbid, and the exemption is narrow: a HELD option is a truthful answer to the
+rung, while one the package grants in the same write buys nothing. The rung
+stays closable because both surfaces that pass a package also offer the
+"already on the sheet" and "leave open" answers. `templateGrantKeys` matches on
+name for bundled rows, so a package and a pick list that disagree about an
+ability's name will fail to exclude it — the pick is then wasted, not wrong.
+
 ## 2026-08-29 — the 1st-level hit-die floor is imported, and defaults to no floor
 
 **Problem.** RR Ch. 1 §I.5 puts a minimum under the 1st-level hit die and adds

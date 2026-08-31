@@ -14,7 +14,12 @@
  * documents publishes nothing and every resolver degrades to null.
  */
 import { registerTable, unregisterTable, PRIORITY, bracketRow, getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
-import { resolveLevelValue as libResolveLevelValue, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
+import {
+  resolveLevelValue as libResolveLevelValue,
+  resolveLevelOutcome as libResolveLevelOutcome,
+  outcomeOfRung,
+  levelFactor,
+} from "../lib/vocab.mjs";
 import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, FLAG_TEMPLATE_PART, MODULE_ID } from "./constants.mjs";
 import { libraryItems } from "../lib/library.mjs";
 
@@ -98,12 +103,19 @@ export function findByRef(ref) {
     const doc = fromUuidSync(ref.slice(5));
     return doc ?? null;
   }
-  return (
-    libraryItems().find(
-      (i) => i.flags?.["acks-importer"]?.cookbook?.id === ref && !i.flags?.[MODULE_ID]?.[FLAG_TEMPLATE_PART],
-    ) ?? null
-  );
+  return libraryItems().find((i) => i.flags?.["acks-importer"]?.cookbook?.id === ref && !templatePartOf(i)) ?? null;
 }
+
+/**
+ * The stamp naming what a document is a PART of — a class's own skinned gear,
+ * its specialized proficiency, its copied spell — or null for anything else.
+ *
+ * Stated here because it is what separates the library's DEFINITIONS from the
+ * copies this feature mints from them, and every read that wants definitions
+ * has to make that separation: a lookup by ref (above), and equally every list
+ * a player picks from.
+ */
+export const templatePartOf = (doc) => doc?.flags?.[MODULE_ID]?.[FLAG_TEMPLATE_PART] ?? null;
 
 /* ------------------------------------------------------------------ */
 /*  Effective tables (chassis borrowing)                               */
@@ -192,7 +204,13 @@ export function publish() {
     if (saves.length) tables.saves = saves;
     if (attack.length) tables.attack = attack;
     for (const ladder of sys.ladders ?? []) {
-      if (ladder.key) tables[`ladder.${ladder.key}`] = (ladder.values ?? []).map((r) => ({ atLevel: r.atLevel, value: r.value, text: r.text }));
+      if (ladder.key)
+        tables[`ladder.${ladder.key}`] = (ladder.values ?? []).map((r) => ({
+          atLevel: r.atLevel,
+          value: r.value,
+          text: r.text,
+          outcome: r.outcome,
+        }));
     }
     if (Object.keys(tables).length) {
       const id = `${CLASS_DOC_PREFIX}${key}`;
@@ -222,10 +240,7 @@ export function publish() {
 export function progressionThrow(as, atLevel = "full", level = 1, round = "up") {
   const chassis = classByKey(as);
   if (!chassis) return null;
-  const factor = PROGRESSION_LEVELS[atLevel]?.factor ?? 1;
-  const raw = Math.max(1, level) * factor;
-  const eff = Math.max(1, round === "down" ? Math.floor(raw) : Math.ceil(raw));
-  return bracketRow(effectiveAttack(chassis), eff)?.throw ?? null;
+  return bracketRow(effectiveAttack(chassis), effectiveLevel(atLevel, level, round))?.throw ?? null;
 }
 
 /**
@@ -242,6 +257,37 @@ export function progressionThrow(as, atLevel = "full", level = 1, round = "up") 
  * @returns {number|null} null when the class, or that ladder, is unpublished
  */
 export function ladderValue(as, table, atLevel = "full", level = 1, round = "up") {
+  const value = Number(ladderRungAt(as, table, atLevel, level, round)?.value);
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * The LEVEL a character reads a borrowed table at — their own, scaled by the
+ * fraction the rule prints and rounded the way it prints it.
+ *
+ * The floor is 1, not 0: a fraction of a 1st-level character is less than a
+ * level, and a table has no rung below its first. Which way a fraction rounds
+ * is printed beside it, so `round` is passed rather than assumed; `up` is only
+ * the default for a caller that states nothing.
+ */
+export function effectiveLevel(atLevel = "full", level = 1, round = "up") {
+  const raw = Math.max(1, level) * levelFactor(atLevel);
+  return Math.max(1, round === "down" ? Math.floor(raw) : Math.ceil(raw));
+}
+
+/**
+ * The published RUNG a character reaches on a borrowed ladder — the whole cell,
+ * not the number in it.
+ *
+ * `ladderValue` answers for the numeric columns and is what every existing
+ * caller wants. A throw needs more: a printed column may end in cells that are
+ * not numbers at all, and a caller that only ever sees a null cannot tell
+ * "automatic" from "unpublished". Both read the same rungs through the
+ * same rule, so they cannot disagree about which one a level reaches.
+ *
+ * @returns {{atLevel: number, value: number|null, text: string, outcome: string}|null}
+ */
+export function ladderRungAt(as, table, atLevel = "full", level = 1, round = "up") {
   const key = String(as ?? "").toLowerCase();
   const docId = key ? `${CLASS_DOC_PREFIX}${key}` : null;
   // getDoc THROWS on an id nobody registered, so a class with no published
@@ -249,17 +295,23 @@ export function ladderValue(as, table, atLevel = "full", level = 1, round = "up"
   const doc = docId && hasTableDoc(docId) ? getTableDoc(docId) : null;
   const rungs = doc?.tables?.[`ladder.${table}`];
   if (!Array.isArray(rungs) || !rungs.length) return null;
-  const factor = PROGRESSION_LEVELS[atLevel]?.factor ?? 1;
-  const raw = Math.max(1, level) * factor;
-  const eff = Math.max(1, round === "down" ? Math.floor(raw) : Math.ceil(raw));
+  const eff = effectiveLevel(atLevel, level, round);
   let best = null;
   for (const rung of rungs) {
     const at = Number(rung?.atLevel);
     if (!Number.isFinite(at) || at > eff) continue;
     if (best === null || at >= Number(best.atLevel)) best = rung;
   }
-  const value = Number(best?.value);
-  return Number.isFinite(value) ? value : null;
+  return best;
+}
+
+/** Every rung of a published ladder, in printed order — what a sheet shows. */
+export function ladderRungs(as, table) {
+  const key = String(as ?? "").toLowerCase();
+  const docId = key ? `${CLASS_DOC_PREFIX}${key}` : null;
+  const doc = docId && hasTableDoc(docId) ? getTableDoc(docId) : null;
+  const rungs = doc?.tables?.[`ladder.${table}`];
+  return Array.isArray(rungs) ? [...rungs].sort((a, b) => Number(a.atLevel) - Number(b.atLevel)) : [];
 }
 
 /** Every ladder key a class document publishes, for a picker to offer. */
@@ -285,11 +337,32 @@ export function laddersOf(classKey) {
 export function resolveLevelValue(lv, level = 1, scales = {}) {
   const resolved = libResolveLevelValue(lv, level, scales);
   if (resolved != null) return resolved;
-  if (lv && typeof lv === "object" && (lv.kind === "progression" || (!lv.kind && lv.as))) {
-    if (lv.table) return ladderValue(lv.as, lv.table, lv.atLevel || "full", level, lv.round || "up");
-    return progressionThrow(lv.as, lv.atLevel || "full", level, lv.round || "up");
+  if (isProgression(lv)) {
+    if (lv.table) return ladderValue(lv.as, lv.table, lv, level, lv.round || "up");
+    return progressionThrow(lv.as, lv, level, lv.round || "up");
   }
   return resolved;
+}
+
+/** A LevelValue that names an external table rather than carrying its own. */
+const isProgression = (lv) => !!lv && typeof lv === "object" && (lv.kind === "progression" || (!lv.kind && lv.as));
+
+/**
+ * lib `resolveLevelOutcome`, completed the same way `resolveLevelValue` is.
+ *
+ * A `progression` reads the NAMED ladder's rung whole, so a borrowed table's
+ * non-numeric cells reach a throw exactly as an inline ladder's do. The attack-band form has no such cells and
+ * answers as a plain target.
+ *
+ * @returns {{outcome: string, target: number|null, text: string}}
+ */
+export function resolveLevelOutcome(lv, level = 1, scales = {}) {
+  if (isProgression(lv)) {
+    if (!lv.table) return { outcome: "throw", target: progressionThrow(lv.as, lv, level, lv.round || "up"), text: "" };
+    const rung = ladderRungAt(lv.as, lv.table, lv, level, lv.round || "up");
+    return rung ? outcomeOfRung(rung) : { outcome: "throw", target: null, text: "" };
+  }
+  return libResolveLevelOutcome(lv, level, scales);
 }
 
 /** Wire publication to the world lifecycle: ready + class-item CRUD. */

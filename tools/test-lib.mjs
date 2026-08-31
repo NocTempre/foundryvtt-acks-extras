@@ -4,6 +4,7 @@
  * need a Foundry runtime and are exercised by consuming modules, not here.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import * as vocab from "../scripts/lib/vocab.mjs";
 import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
@@ -159,6 +160,79 @@ t("resolveLevelValue: conditional keys on a scale, not level", () => {
   assert.equal(R(lv, 9, { arcaneValue: 0 }), null); // below the first rung
 });
 
+/* --- Rung outcomes: a printed rung that is not a target number --- */
+
+const O = vocab.resolveLevelOutcome;
+
+t("resolveLevelOutcome: a plain shape is a throw against its number", () => {
+  assert.deepEqual(O({ kind: "flat", flat: 11 }, 5), { outcome: "throw", target: 11, text: "" });
+  assert.deepEqual(O({ kind: "perLevel", base: 18, per: -1 }, 4), { outcome: "throw", target: 15, text: "" });
+  // The number half never disagrees with resolveLevelValue — same rung, same rule.
+  const ladder = { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 19 }, { atLevel: 4, value: 10 }] };
+  for (const at of [1, 3, 4, 9]) assert.equal(O(ladder, at).target, R(ladder, at));
+});
+
+t("resolveLevelOutcome: a rung may say no throw is made, and quote its cell", () => {
+  // The shape of a rebuking column: unavailable, then targets, then automatic.
+  const ladder = {
+    kind: "breakpoints",
+    breakpoints: [
+      { atLevel: 1, outcome: "none", text: "—" },
+      { atLevel: 3, value: 10 },
+      { atLevel: 6, outcome: "auto", text: "R" },
+      { atLevel: 8, outcome: "auto", text: "D" },
+    ],
+  };
+  assert.deepEqual(O(ladder, 2), { outcome: "none", target: null, text: "—" });
+  assert.deepEqual(O(ladder, 4), { outcome: "throw", target: 10, text: "" });
+  assert.deepEqual(O(ladder, 7), { outcome: "auto", target: null, text: "R" });
+  assert.deepEqual(O(ladder, 14), { outcome: "auto", target: null, text: "D" });
+  // Below the FIRST rung is not a rung saying "not available" — nothing to quote.
+  assert.deepEqual(O(ladder, 0), { outcome: "throw", target: null, text: "" });
+});
+
+t("resolveLevelOutcome: an outcome is declared, never read off the cell", () => {
+  // A ladder's non-numeric cells are values the page prints in words ("+2d"
+  // backstab dice), not automatic successes. Inferring would read one as the other.
+  const ladder = { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: null, text: "+2d" }] };
+  assert.equal(O(ladder, 3).outcome, "throw");
+  assert.equal(O(ladder, 3).text, "+2d");
+  // A junk outcome is not an outcome.
+  assert.equal(O({ kind: "breakpoints", breakpoints: [{ atLevel: 1, outcome: "nonesuch", value: 7 }] }, 2).outcome, "throw");
+});
+
+t("resolveLevelOutcome: a conditional ladder carries outcomes on its own scale", () => {
+  const lv = { on: "rank", breakpoints: [{ atLevel: 1, value: 18 }, { atLevel: 3, outcome: "auto", text: "R" }] };
+  assert.equal(O(lv, 14, { rank: 1 }).target, 18);
+  assert.equal(O(lv, 1, { rank: 3 }).outcome, "auto");
+  assert.equal(O(lv, 9).target, null); // scale not supplied — caller's to provide
+});
+
+t("levelFactor: the fraction is DATA, so any printed one resolves", () => {
+  const f = vocab.levelFactor;
+  // Whatever a page states, without a member being added here for it.
+  assert.equal(f({ atLevelNum: 2, atLevelDen: 3 }), 2 / 3);
+  assert.equal(f({ atLevelNum: 3, atLevelDen: 4 }), 0.75);
+  assert.equal(f({ atLevelNum: 1, atLevelDen: 1 }), 1);
+  // Data wins over the legacy shorthand; the shorthand still reads alone.
+  assert.equal(f({ atLevel: "half", atLevelNum: 2, atLevelDen: 3 }), 2 / 3);
+  assert.equal(f({ atLevel: "half" }), 0.5);
+  assert.equal(f("half"), 0.5);
+  // Nothing, or nonsense, is the whole level — the only answer that invents
+  // nothing. A zero denominator must never reach a division.
+  for (const bad of [{}, null, { atLevelNum: 1, atLevelDen: 0 }, { atLevelNum: 0, atLevelDen: 4 }, { atLevel: "nonesuch" }]) {
+    assert.equal(f(bad), 1);
+  }
+});
+
+t("levelFactorLabel writes the fraction, and says nothing at a whole level", () => {
+  assert.equal(vocab.levelFactorLabel({ atLevelNum: 2, atLevelDen: 3 }), "2/3");
+  assert.equal(vocab.levelFactorLabel({ atLevelNum: 1, atLevelDen: 1 }), "");
+  assert.equal(vocab.levelFactorLabel({ atLevel: "full" }), "");
+  assert.equal(vocab.levelFactorLabel({}), "");
+  assert.ok(vocab.levelFactorLabel({ atLevel: "half" }));
+});
+
 t("conversionTip fills {name}; renamed is marked, not silent", () => {
   assert.equal(vocab.conversionTip("renamed", "Detect Traps"), "Detect Traps has been renamed for ACKS II.");
   assert.equal(vocab.conversionTip("renamed"), "This content has been renamed for ACKS II.");
@@ -282,6 +356,52 @@ t("tables: initTables alias + getThrowDef + bracketRow open bound", () => {
   assert.equal(T.bracketRow(rows, 99).r, "open");
   assert.equal(T.bracketRow(rows, 4).r, "low");
   T.resetTables();
+});
+
+t("tables: coverage is per TABLE — an id a module claims for itself is not an import", () => {
+  T.resetTables();
+  T.expectTables("rarity", ["classRarityTables", "randomHenchmanLevel"]);
+  T.expectTables("wages", ["ladder"]);
+
+  // A module's own automation doc claims the id while supplying none of the
+  // tables consumers declared — the shape that makes `hasDoc` the wrong question.
+  T.registerTable({ id: "rarity", tables: { alignmentRecruitment: { shifts: {} } } });
+  assert.equal(T.hasDoc("rarity"), true, "the id is registered");
+  assert.deepEqual(T.missingCoverage(["rarity"]), [
+    { docId: "rarity", expected: ["classRarityTables", "randomHenchmanLevel"], present: [], missing: ["classRarityTables", "randomHenchmanLevel"] },
+  ]);
+
+  // A part-arrived import reports what arrived; a complete one reports nothing.
+  T.registerTable({ id: "rarity", tables: { classRarityTables: { variants: {} } } }, { priority: T.PRIORITY.WORLD });
+  assert.deepEqual(T.missingCoverage(["rarity"])[0].present, ["classRarityTables"]);
+  assert.deepEqual(T.missingCoverage(["rarity"])[0].missing, ["randomHenchmanLevel"]);
+  T.registerTable({ id: "rarity", tables: { classRarityTables: {}, randomHenchmanLevel: {} } }, { priority: T.PRIORITY.WORLD });
+  assert.deepEqual(T.missingCoverage(["rarity"]), []);
+
+  // An unregistered doc is missing every declared table. A doc nothing
+  // declared can only be judged on its id.
+  assert.deepEqual(T.missingCoverage(["wages"])[0].missing, ["ladder"]);
+  assert.deepEqual(T.missingCoverage(["followers"]), [{ docId: "followers", expected: [], present: [], missing: [] }]);
+  T.registerTable({ id: "followers", tables: {} }, { priority: T.PRIORITY.WORLD });
+  assert.deepEqual(T.missingCoverage(["followers"]), []);
+  T.resetTables();
+});
+
+t("tables: every ruledata id a feature announces declares the tables it expects", () => {
+  // The ready-time notice reports missing TABLES. An announced id with nothing
+  // declared for it falls back to id presence — which, for an id the module
+  // itself registers, reads as imported forever.
+  const src = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+  for (const [constants, entry] of [
+    ["../scripts/henchmen/constants.mjs", "../scripts/henchmen/module.mjs"],
+    ["../scripts/markets/constants.mjs", "../scripts/markets/module.mjs"],
+  ]) {
+    const list = /RULEDATA = Object\.freeze\(\[([^\]]*)\]/.exec(src(constants))?.[1] ?? "";
+    const ids = [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(ids.length, `${constants}: RULEDATA read`);
+    const declared = new Set([...src(entry).matchAll(/expectTables\??\.?\(\s*"([^"]+)"/g)].map((m) => m[1]));
+    for (const id of ids) assert.ok(declared.has(id), `${entry}: expectTables("${id}") declared`);
+  }
 });
 
 t("services: register/get/names; absent contract is null, never a throw", () => {

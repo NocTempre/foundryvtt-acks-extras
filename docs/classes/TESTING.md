@@ -313,6 +313,46 @@ the picker and confirm the total is a full reroll of two dice, unfloored.
 
 **Teardown.** Delete both characters.
 
+## A skipped template die, and a package that answers the picks
+
+**Fixtures.** A character actor you create, and one imported class that prints
+starting packages (Venturer serves — eight bands, all bundled).
+
+**Drive mechanics.** Core's generator template declares NO `value` attribute on
+any input: the die and the scores are written into the DOM by its own roll
+actions at runtime. So the page renders empty every time, and a scripted check
+sets `input[name="scores.*"]` directly and dispatches `change`. Throw the
+template die through core's own `button[data-action="rollTemplate"]` and allow
+~3 s — it awaits a chat message. The generator applies at CLOSE, not at submit:
+`requestSubmit()` then `close()`, and read the actor after both settle.
+
+**Steps.**
+1. Set the six scores, choose a class, and leave the template die UNTHROWN.
+   *Observable:* `select[name="acks-template"]` renders with zero options, and
+   the hint beside it asks for the die.
+2. Submit and close.
+   *Observable:* the die is rolled for the character and named in a notice with
+   the package it reached; the class is bound, and the actor carries that
+   package's proficiencies, gear and coin. Before this was fixed the same
+   sequence left the actor with the scores and nothing else — no class, no
+   items — which is the regression this step exists to catch.
+3. Open the class picker on a fresh character and choose a class with NO
+   package.
+   *Observable:* the level-1 proficiency rungs are asked.
+4. Choose a package on the same window.
+   *Observable:* those rungs come OFF the page, and the Intellect bonus picks
+   (raise the actor's `int` to 16 to make them appear) no longer list any
+   ability the package's own "brings" line names. Apply, and each of those
+   abilities is on the sheet exactly once.
+5. Read any hint on either surface with `getComputedStyle`.
+   *Observable:* `--acks-fs-body`, not `--acks-fs-fine`. The vendored
+   `.acks-ui .form-group > .hint` matches at (0,3,0) and silently outranks a
+   two-class module rule, so this is worth asserting numerically rather than
+   by eye.
+
+**Teardown.** Delete the characters you created; the class is imported content
+and is left alone.
+
 ## Post-9th hit points on a built class
 
 **Fixtures.** A class document in advanced (builder) mode, and the Dwarf race

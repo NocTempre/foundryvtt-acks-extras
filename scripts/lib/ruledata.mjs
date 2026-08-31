@@ -5,7 +5,7 @@
  * tables are imported per world, not shipped): it is reported, never thrown,
  * so callers can surface one notice and degrade to stubs.
  */
-import { registerTable, PRIORITY } from "./tables.mjs";
+import { registerTable, PRIORITY, missingCoverage } from "./tables.mjs";
 
 /**
  * @param {string} moduleId - module whose ruledata/ dir to read
@@ -27,4 +27,21 @@ export async function loadRuledata(moduleId, ids, { priority = PRIORITY.SAMPLE }
     }
   }
   return { loaded, missing };
+}
+
+/**
+ * The GM-facing list of documents a feature still needs imported, ready to drop
+ * into a notice: a document nothing supplied is named alone, one only part of
+ * an import reached is named with how much of it arrived. Empty when every
+ * declared table is present — the caller then shows nothing.
+ *
+ * @param {string[]} docIds - the feature's ruledata documents
+ * @returns {string[]} localized list items, in the order given
+ */
+export function missingTablesList(docIds) {
+  return missingCoverage(docIds).map(({ docId, expected, present }) =>
+    present.length
+      ? game.i18n.format("ACKS-LIB.tables.partialDoc", { doc: docId, have: present.length, total: expected.length })
+      : docId,
+  );
 }

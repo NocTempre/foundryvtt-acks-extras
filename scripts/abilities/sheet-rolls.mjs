@@ -29,7 +29,7 @@
  * against. Ours are removed and re-added instead.
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
-import { rollsOf, keyOf, targetOf, rollAbility, defaultKeyOf, setDefaultKey, nextKeyAfter } from "./ability-rolls.mjs";
+import { rollsOf, keyOf, rollAbility, defaultKeyOf, setDefaultKey, nextKeyAfter, throwText } from "./ability-rolls.mjs";
 
 /** Marks a tag in the strip as one of an ability's throws (carries its key). */
 export const THROW_TAG_CLASS = "acks-extras-abilities-throw";
@@ -42,16 +42,8 @@ const BOUND = "acksAbilitiesRolls";
 
 const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
 
-/** How a throw's target reads on a control: "15+", "3-", "12", or "—". */
-function targetText(roll, actor, item) {
-  const target = targetOf(roll, actor, item);
-  if (target == null) return "—";
-  const type = roll.rollType || "above";
-  return `${target}${type === "below" ? "-" : type === "result" ? "" : "+"}`;
-}
-
-/** A throw's name for a tooltip: its label and target, or just its target. */
-const throwLabel = (roll, actor, item) => [roll.label, targetText(roll, actor, item)].filter(Boolean).join(" ");
+/** A throw's name for a tooltip: its label and what it reads as, or just that. */
+const throwLabel = (roll, actor, item) => [roll.label, throwText(roll, actor, item)].filter(Boolean).join(" ");
 
 /** The ability a row stands for, or null when the row is not one. */
 function abilityOf(element, actor) {
@@ -155,7 +147,7 @@ function injectFavorites(root, actor) {
       a.className = FAV_CLASS;
       a.dataset.acksThrow = keyOf(roll, i);
       a.dataset.tooltip = `${esc(item.name)} — ${esc(throwLabel(roll, actor, item))}`;
-      a.innerHTML = `<i class="fa-solid fa-dice-d20"></i><span>${esc(targetText(roll, actor, item))}</span>`;
+      a.innerHTML = `<i class="fa-solid fa-dice-d20"></i><span>${esc(throwText(roll, actor, item))}</span>`;
       return a;
     });
     if (!made.length) continue;

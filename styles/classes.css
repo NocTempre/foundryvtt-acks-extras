@@ -295,13 +295,23 @@
 
 /* The rule that governs the choice above it, and the warning that a template
    is about to hand out less than it prints. Soft ink so it reads as a note on
-   the control rather than as a second control. */
-.acks-extras-classes-chargen .hint,
-.acks-extras-classes-tplbox .hint,
-.acks-extras-classes-picks .hint,
-.acks-extras-classes-rules .hint {
+   the control rather than as a second control.
+
+   LEAD WITH `.acks-ui` AND DO NOT SHORTEN THESE SELECTORS. A hint sits inside
+   a `.form-group`, which the vendored `.acks-ui .form-group > .hint` matches at
+   (0,3,0) to set `--acks-fs-fine` — the 6pt step meant for a table's micro
+   annotations. A two-class selector here loses to it silently, and these boxes
+   carry running prose: what a package hands over, and what a level leaves to
+   choose. Matching that specificity and winning on source order is what puts
+   them back at a size meant for sentences. */
+.acks-ui .acks-extras-classes-chargen .hint,
+.acks-ui .acks-extras-classes-tplbox .hint,
+.acks-ui .acks-extras-classes-picks .hint,
+.acks-ui .acks-extras-classes-rules .hint,
+.acks-ui .acks-extras-classes-col .hint {
   color: var(--acks-ink-soft);
-  font-size: var(--acks-fs-label);
+  font-size: var(--acks-fs-body);
+  line-height: var(--acks-lh-snug);
   margin: 3px 0 0;
 }
 

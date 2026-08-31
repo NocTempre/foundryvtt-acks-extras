@@ -12,7 +12,7 @@ import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, SCHEMA_VERSION } from "./con
 import { installWageGuard, registerDeletionCleanup, sweepAtReady, repairWorld, repairActor, scanActor, describeRepair } from "./repair.mjs";
 import * as config from "./config.mjs";
 import { registerSettings, getSetting } from "./settings.mjs";
-import { getTable, getDoc, hasDoc, initTables } from "./rules/tables.mjs";
+import { getTable, getDoc, initTables } from "./rules/tables.mjs";
 import { THROWS_DATA, RARITY_AUTOMATION } from "./data/throws-data.mjs";
 import * as availabilityRules from "./rules/availability.mjs";
 import * as wageRules from "./rules/wages.mjs";
@@ -22,6 +22,7 @@ import * as adapter from "./acks-adapter.mjs";
 import { collectEffectModifiers, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 import HenchmanRecord from "./data/henchman-record.mjs";
 import { isGroupActor } from "../lib/group-logic.mjs";
+import { missingTablesList } from "../lib/ruledata.mjs";
 import { LocationSheet } from "../location/apps/location-sheet.mjs";
 import { ThrowDialog, openThrowDialog } from "./apps/throw-dialog.mjs";
 import { openPostingDialog } from "./apps/posting-dialog.mjs";
@@ -202,9 +203,12 @@ Hooks.once("ready", () => {
   }
 
   // Book tables are imported per-world, not shipped. If some documents have
-  // not been imported yet, tell the GM once and name them.
+  // not been imported yet, tell the GM once and name them. The question is
+  // which declared TABLES are readable, never which ids are registered: this
+  // feature registers a `rarity` doc of its own automation at setup, so a
+  // doc-presence check could never name rarity's book tables as missing.
   if (game.user.isGM) {
-    const missing = RULEDATA.filter((id) => !hasDoc(id));
+    const missing = missingTablesList(RULEDATA);
     if (missing.length) {
       ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.tablesMissing", { list: missing.join(", ") }));
     }

@@ -15,6 +15,7 @@ import { buildApi } from "./api.mjs";
 import VariationData from "./data/variation-data.mjs";
 import { registerVariationSheet } from "./variation-sheet.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
+import { unstowOnUse } from "./containers.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
@@ -133,6 +134,11 @@ Hooks.once("ready", async () => {
 
 Hooks.on("preUpdateItem", (item, changes) => {
   try {
+    // Before the equip limits are weighed: gear entering use leaves the
+    // container holding it, in this same write. A veto below throws the whole
+    // update away, containment patch included, which is the right outcome —
+    // gear that was refused its hand never came out of the pack.
+    unstowOnUse(item, changes);
     return onPreUpdateItem(item, changes);
   } catch (err) {
     console.error(`${MODULE_ID} | preUpdateItem enforcement failed`, err);

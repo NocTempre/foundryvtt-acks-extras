@@ -629,12 +629,68 @@ export const PROGRESSION_CLASSES = {
   thief: { label: "Thief" },
 };
 
-/** The class-level fraction a `progressionAs` effect uses. */
+/**
+ * Shorthands for the class-level fraction a `progressionAs` effect or a
+ * `progression` target reads at. LEGACY: these are the four spellings this
+ * module wrote before a fraction became data, and they are read so that
+ * anything already stored keeps resolving.
+ *
+ * WHICH fraction a rule uses is printed, so it is not enumerated here. Whatever
+ * a page states is answered by `atLevelNum` / `atLevelDen` on the value itself,
+ * read from the reader's own book. Adding a member here to make a particular
+ * rule work is transcribing that rule. `levelFactor` reads both and prefers the
+ * data.
+ */
 export const PROGRESSION_LEVELS = {
   full: { label: "Full Level", factor: 1 },
   half: { label: "Half Level", factor: 0.5 },
   third: { label: "One-Third Level", factor: 1 / 3 },
   quarter: { label: "One-Quarter Level", factor: 0.25 },
+};
+
+/**
+ * The fraction of class level a borrowed table is read at, as a number.
+ *
+ * Reads the value's own numerator and denominator first — that is where a
+ * printed fraction lands, whatever it is — and falls back to the legacy
+ * shorthand key. A missing or nonsensical fraction is 1: reading at full level
+ * is the only answer that invents nothing.
+ *
+ * @param {object|string} spec a LevelValue (or a bare legacy key)
+ */
+export function levelFactor(spec) {
+  if (typeof spec === "string") return PROGRESSION_LEVELS[spec]?.factor ?? 1;
+  const num = Number(spec?.atLevelNum);
+  const den = Number(spec?.atLevelDen);
+  if (Number.isFinite(num) && Number.isFinite(den) && num > 0 && den > 0) return num / den;
+  return PROGRESSION_LEVELS[spec?.atLevel]?.factor ?? 1;
+}
+
+/** A fraction as it is written — "2/3", or the legacy shorthand's own label. */
+export function levelFactorLabel(spec) {
+  const num = Number(spec?.atLevelNum);
+  const den = Number(spec?.atLevelDen);
+  if (Number.isFinite(num) && Number.isFinite(den) && num > 0 && den > 0) return num === den ? "" : `${num}/${den}`;
+  const key = typeof spec === "string" ? spec : spec?.atLevel;
+  return key && key !== "full" ? (PROGRESSION_LEVELS[key]?.label ?? key) : "";
+}
+
+/**
+ * What a LADDER RUNG says, when what it says is not a target number.
+ *
+ * A printed progression is not always a grid of numbers: a rung may be one the
+ * character cannot act on at all, or one reached without a throw. Blank — the
+ * default — means the rung IS a target number.
+ *
+ * These are the two STRUCTURAL states, and they are all a machine can act on:
+ * whether a throw happens. What the cell SAYS rides the rung's `text` and comes
+ * in with the table, from the reader's own book. Several printed cells can mean
+ * "no throw" while differing in outcome; that difference is the ability's own
+ * prose, not a third thing the ladder resolver knows.
+ */
+export const RUNG_OUTCOMES = {
+  auto: { label: "Automatic — no throw" },
+  none: { label: "Not available yet" },
 };
 
 /** Spell-like ability usage frequency. */
@@ -722,6 +778,28 @@ export const ROLL_TYPES = {
   above: { label: "≥" },
   below: { label: "≤" },
 };
+
+/**
+ * How an ability's throw is READ — the three comparisons plus the one a
+ * comparison cannot express.
+ *
+ * `measure` is a throw with nothing to beat: the dice ARE the answer. It is the
+ * roll that FOLLOWS a successful throw rather than being one — how many, how
+ * far, how much is healed — and the books state a great many of them. Scoring
+ * one against a target reports success or failure for a question that asked
+ * "how much".
+ *
+ * SEPARATE from `ROLL_TYPES` because that mirrors core's own enum, whose field
+ * would reject a fourth value. Nothing writes `measure` into core's
+ * `system.rollType`; it lives only on this module's own throws.
+ */
+export const THROW_TYPES = {
+  ...ROLL_TYPES,
+  measure: { label: "no target" },
+};
+
+/** A throw whose result stands on its own, with nothing to score it against. */
+export const isMeasure = (rollType) => rollType === "measure";
 
 /* ---------------------------------------------------------------- */
 /*  Capabilities — the gate pattern                                  */
@@ -1145,12 +1223,76 @@ function applyRounding(value, round) {
 
 /** The last breakpoint value `at` reaches, or null below the first one. */
 function atBreakpoint(breakpoints, at) {
-  let value = null;
-  for (const bp of [...(breakpoints ?? [])].sort((a, b) => a.atLevel - b.atLevel)) {
-    if (at >= bp.atLevel) value = bp.value;
-  }
-  return value;
+  const rung = rungAt(breakpoints, at);
+  return rung ? rung.value : null;
 }
+
+/** The last RUNG `at` reaches, whole — null below the first one. */
+function rungAt(breakpoints, at) {
+  let found = null;
+  for (const bp of [...(breakpoints ?? [])].sort((a, b) => a.atLevel - b.atLevel)) {
+    if (at >= bp.atLevel) found = bp;
+  }
+  return found;
+}
+
+/**
+ * What a LevelValue comes to, as the whole answer rather than as a number.
+ *
+ * `resolveLevelValue` returns a number or null, and null is doing three jobs at
+ * once: no rung reached, a shape this resolver cannot complete, and a rung that
+ * says something other than a number. A caller that has to tell a target of 7
+ * from "no throw needed" from "you cannot do this yet" cannot get there from a
+ * null — so this returns the rung's own verdict beside the number.
+ *
+ * `outcome` is `"throw"` (roll against `target`), `"auto"` (it happens, no roll)
+ * or `"none"` (not available at this rung). `text` is what the page prints in
+ * the cell, carried through untouched for display.
+ *
+ * The numeric path is unchanged and still goes through `resolveLevelValue`, so
+ * the two can never disagree about a target. Pure and Foundry-free; the
+ * `progression` kind is completed by the classes registry, as always.
+ *
+ * @returns {{outcome: string, target: number|null, text: string}}
+ */
+export function resolveLevelOutcome(lv, level = 1, scales = {}) {
+  const plain = (target) => ({ outcome: "throw", target, text: "" });
+  if (lv == null || typeof lv !== "object") return plain(resolveLevelValue(lv, level, scales));
+  const kind = lv.kind ?? inferLevelKind(lv);
+  if (kind !== "breakpoints" && kind !== "conditional") return plain(resolveLevelValue(lv, level, scales));
+
+  const at = kind === "conditional" ? (lv.on === "level" ? level : scales?.[lv.on]) : level;
+  if (typeof at !== "number") return plain(null);
+  const rung = rungAt(lv.breakpoints, at);
+  // BELOW the first rung is not the same as a rung that says "not available".
+  // The books print the dash for the second and print nothing at all for a
+  // level the table does not reach; both leave the throw unmakeable, and only
+  // one of them has a cell to quote.
+  if (!rung) return plain(null);
+  return rungOutcome(rung, applyRounding(rung.value, lv.round));
+}
+
+/**
+ * One rung's verdict, with its own value already rounded.
+ *
+ * An outcome is DECLARED, never inferred from the cell's text. A rung reading
+ * "+2d" is a value the page prints in words, not an automatic success, and
+ * guessing from the absence of a number would read one as the other — the class
+ * ladders already carry exactly that kind of cell. A rung that declares nothing
+ * is a throw, and a throw with no number is a throw nobody can score, which is
+ * the pre-existing reading and stays it.
+ */
+function rungOutcome(rung, value) {
+  const outcome = RUNG_OUTCOMES[rung?.outcome] ? rung.outcome : "throw";
+  return { outcome, target: outcome === "throw" ? (value ?? null) : null, text: String(rung?.text ?? "") };
+}
+
+/**
+ * A rung as a verdict — the shape `resolveLevelOutcome` returns, for the
+ * consumers that find their own rung (the classes registry reads published
+ * ladders, which are indexed differently from an inline breakpoint list).
+ */
+export const outcomeOfRung = (rung) => rungOutcome(rung, rung?.value ?? null);
 
 function inferLevelKind(lv) {
   if (lv.on) return "conditional";

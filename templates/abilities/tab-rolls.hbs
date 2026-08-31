@@ -41,6 +41,8 @@
                  data-tooltip="{{localize 'ACKS-ABILITIES.roll.delete'}}"><i class="fa-solid fa-trash"></i></a>
             {{/if}}
           </div>
+          {{#if this.note}}<p class="hint acks-abilities-roll-note">{{this.note}}</p>{{/if}}
+          {{#if this.readAt}}<p class="hint acks-abilities-roll-cond">{{this.readAt}}</p>{{/if}}
           {{#if this.condition}}<p class="hint acks-abilities-roll-cond">{{this.condition}}</p>{{/if}}
           {{#if this.ladder}}
             <div class="acks-abilities-ladder-wrap">

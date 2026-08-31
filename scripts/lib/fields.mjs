@@ -24,16 +24,17 @@ import {
   EFFECT_SUBJECTS,
   PROFICIENCY_DOMAINS,
   PROFICIENCY_BREADTH,
-  PROGRESSION_CLASSES,
   PROGRESSION_LEVELS,
   SPELL_LIKE_FREQ,
   RESOURCE_KINDS,
   ROLL_TYPES,
+  THROW_TYPES,
   REROLL_KEEP,
   OUTCOME_TRIGGERS,
   VALUE_SCALES,
   VALUE_KINDS,
   VALUE_ROUNDING,
+  RUNG_OUTCOMES,
 } from "./vocab.mjs";
 
 const F = () => foundry.data.fields;
@@ -65,14 +66,39 @@ export function levelValueField() {
     per: num(),
     // Shared by `breakpoints` and `conditional`: for the latter `atLevel` reads
     // "at this value of `on`" rather than at this class level.
-    breakpoints: new ArrayField(new SchemaField({ atLevel: num({ integer: true }), value: num() })),
+    //
+    // A rung is not always a number: a printed progression may run rungs the
+    // character cannot act on and rungs reached without a throw. So a rung may
+    // DECLARE its outcome (`auto`, `none`; blank is a target) and carries the
+    // cell's printed text for display. `text` is what the page says; `outcome`
+    // is the only part a machine acts on.
+    breakpoints: new ArrayField(
+      new SchemaField({ atLevel: num({ integer: true }), value: num(), outcome: choice(RUNG_OUTCOMES), text: str() }),
+    ),
     on: choice(VALUE_SCALES), // conditional: which scale the ladder is keyed on
     // Fractional per-level values are printed with their rounding — "a bonus
     // to their Mortal Wounds throw of one-half his class level (round up)".
     // Without this the value resolves to 2.5 at 5th level, which is not a
     // number the rule ever produces.
     round: choice(VALUE_ROUNDING),
-    as: choice(PROGRESSION_CLASSES),
+    // WHOSE table, as a class KEY — the four chassis, or any class document the
+    // world holds. Not a closed enum: the editor offers every published class,
+    // and most classes a throw borrows from are not chassis; a value outside a
+    // closed list is silently rewritten to the first one, so choosing a real
+    // class stored `fighter`.
+    as: str(),
+    // WHICH of that class's ladders — blank means its attack bands, which is
+    // what a progression meant before named ladders existed. Absent from this
+    // schema entirely until now, so the ladder a Judge picked was dropped on the
+    // first save and the throw quietly fell back to attack throws.
+    table: str(),
+    // The FRACTION of class level the borrowed table is read at, as the page
+    // writes it — a numerator over a denominator. It is data because which
+    // fraction a rule uses is printed: enumerating the ones some book happens
+    // to state would transcribe those rules and still miss the next one.
+    // `atLevel` is the legacy shorthand and is read when no fraction is set.
+    atLevelNum: num({ integer: true }),
+    atLevelDen: num({ integer: true }),
     atLevel: choice(PROGRESSION_LEVELS),
   });
 }
@@ -96,8 +122,11 @@ export function rollField() {
     key: str(), // stable within the ability, so a macro can name one roll
     label: str(), // what the roll is called
     formula: str(), // "1d20"
-    rollType: choice(ROLL_TYPES, { initial: "above" }),
-    target: levelValueField(), // flat, per-level, or a rank ladder
+    // The three comparisons core knows, plus `measure` — a throw with nothing
+    // to beat, whose result IS the answer. Never written to core's own
+    // `system.rollType`, whose choices are three.
+    rollType: choice(THROW_TYPES, { initial: "above" }),
+    target: levelValueField(), // flat, per-level, or a rank ladder — none on a measure
     scale: choice(VALUE_SCALES, { initial: "level" }), // what `target` is keyed on
     // An ability score the character adds to this throw. `key` is an ATTRIBUTES
     // key, which is the core system's own score path, so it reads straight out
@@ -206,8 +235,12 @@ export function effectField() {
      * narrowing lives in `condition`, as it does for every other effect. */
     attribute: choice(ATTRIBUTES),
     insteadOf: choice(ATTRIBUTES),
-    // progressionAs
-    as: choice(PROGRESSION_CLASSES),
+    // progressionAs — "climbs as a thief of his class level". A class KEY on
+    // the same terms as a progression target's: the four chassis, or any class
+    // the world publishes. A closed enum rewrote every non-chassis class to
+    // `fighter` on save, so an ability that progressed as a craftpriest stored
+    // that it progressed as a fighter.
+    as: str(),
     atLevel: choice(PROGRESSION_LEVELS),
     // proficiencyGrant (weapon/armor/fighting-style proficiency)
     domain: choice(PROFICIENCY_DOMAINS),

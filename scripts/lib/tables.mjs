@@ -80,6 +80,40 @@ export function expectedTables() {
   return [..._expected.entries()].map(([docId, set]) => ({ docId, tableIds: [...set] }));
 }
 
+/**
+ * Which of the documents a feature reads are NOT fully supplied: one entry per
+ * incomplete document, `{docId, expected, present, missing}` (table ids).
+ *
+ * Registration of an ID is not presence of its tables, so a missing-tables
+ * notice asks THIS and never `hasDoc`: a module's own automation layer claims
+ * an id while supplying none of the tables consumers declared — henchmen
+ * registers a `rarity` doc holding one inferred table — and a doc-presence
+ * check reads that as imported forever.
+ *
+ * A document nothing declared through `expectTables` can only be judged on its
+ * id, and is reported with empty table lists when no layer holds it.
+ */
+export function missingCoverage(docIds = []) {
+  const out = [];
+  for (const docId of docIds) {
+    const expected = [...(_expected.get(docId) ?? [])];
+    if (!expected.length) {
+      if (!hasDoc(docId)) out.push({ docId, expected, present: [], missing: [] });
+      continue;
+    }
+    let tables = {};
+    try {
+      tables = getDoc(docId).tables ?? {};
+    } catch {
+      tables = {}; // unregistered: every expected table is missing
+    }
+    const present = expected.filter((id) => tables[id] != null);
+    if (present.length === expected.length) continue;
+    out.push({ docId, expected, present, missing: expected.filter((id) => tables[id] == null) });
+  }
+  return out;
+}
+
 /** @returns {boolean} whether any layer of `docId` is registered */
 export function hasDoc(docId) {
   return _layers.has(docId);

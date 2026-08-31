@@ -9,6 +9,7 @@
  *  ready: system check, missing-tables notice.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
+import { missingTablesList } from "../lib/ruledata.mjs";
 import { MODULE_ID, LANG, RULEDATA, HOOKS } from "./constants.mjs";
 import * as config from "./config.mjs";
 import { registerSettings, getSetting } from "./settings.mjs";
@@ -151,11 +152,12 @@ Hooks.once("ready", () => {
   registerImportWatcher();
 
   // Book tables are imported per-world, not shipped. Name the missing
-  // documents once to the GM. The shared `availability` doc is announced by
-  // henchmen; only this feature's own docs are checked here.
+  // documents once to the GM — by the declared TABLES that are readable, never
+  // by id, so a partly-arrived import is reported as partly arrived. The
+  // shared `availability` doc is announced by henchmen; only this feature's
+  // own docs are checked here.
   if (game.user.isGM) {
-    const hasDoc = (id) => acksExtras.lib?.tables?.hasDoc?.(id);
-    const missing = RULEDATA.filter((id) => !hasDoc(id));
+    const missing = missingTablesList(RULEDATA);
     if (missing.length) {
       ui.notifications.warn(game.i18n.format(`${LANG}.tablesMissing`, { list: missing.join(", ") }));
     }

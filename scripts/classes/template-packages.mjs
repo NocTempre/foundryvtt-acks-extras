@@ -26,7 +26,7 @@
  * edited document is skipped and reported, never clobbered.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
-import { findByRef } from "./registry.mjs";
+import { findByRef, templatePartOf as partOf } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
 import { libraryItems } from "../lib/library.mjs";
@@ -40,8 +40,6 @@ const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  *  Stated in `constants.mjs`, where every lookup that must tell a class's own
  *  copy from the definition it copied can reach it without importing this file. */
 export const TEMPLATE_PART = FLAG_TEMPLATE_PART;
-
-const partOf = (doc) => doc?.flags?.[MODULE_ID]?.[TEMPLATE_PART] ?? null;
 
 const loc = (key, data) => game.i18n?.format?.(`${LANG_PREFIX}.${key}`, data) ?? null;
 
@@ -476,6 +474,26 @@ export function templateContents(template) {
   items.push(...(template?.items ?? []));
   spells.push(...(template?.spells ?? []));
   return { source: "bundle", abilities, items, spells };
+}
+
+/**
+ * The keys a pick list is matched against to keep a package's own abilities
+ * off it.
+ *
+ * Two keys because the two contents shapes carry different ones: a row entry
+ * holds a `ref`, while a bundled row holds only the name of the document it
+ * clones. The name is therefore the only key both sides always share, and it
+ * is normalized on the way in so a caller compares like with like.
+ */
+export function templateGrantKeys(template) {
+  const names = new Set();
+  const refs = new Set();
+  for (const entry of (template ? templateContents(template).abilities : null) ?? []) {
+    if (entry?.ref) refs.add(entry.ref);
+    const name = String(entry?.name ?? "").trim().toLowerCase();
+    if (name) names.add(name);
+  }
+  return { names, refs };
 }
 
 /**

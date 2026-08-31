@@ -40,6 +40,7 @@ import { helmetType } from "./overlays/enclosing-helm.mjs";
 import { MATERIALS, MATERIALS_BY_DAMAGE_TYPE, setMaterial, materialOf } from "./overlays/item-loss.mjs";
 import { wearBuckets, wearLabel } from "./wear.mjs";
 import {
+  containedIn,
   containerReport,
   contentsOf,
   isContainer,
@@ -257,6 +258,10 @@ function injectLightControls(list, actor) {
     // A light source is type `item` and has no `equipped` field — the control
     // shows on the item itself; "held" is the formation light record, below.
     if (!type || li.querySelector(".acks-equipment-light")) continue;
+    // Nothing is lit inside a pack. This control names a light TYPE rather than
+    // this document, so it cannot bring this lantern out on the way — the row
+    // offers Take out instead, and the flame follows.
+    if (containedIn(item)) continue;
     // A TORCH carried as a STACK (an `item`, not a wielded weapon) gets a "Ready"
     // control instead — but that is a pure equipment action, so it lives in
     // injectTorchReady (which runs without acks-formation). Skip it here so a
@@ -444,6 +449,9 @@ function injectStrapControls(tab, actor) {
   for (const li of tab.querySelectorAll("li.item[data-item-id]")) {
     const item = actor.items.get(li.dataset.itemId);
     if (item?.type !== ITEM_TYPE.armor || item.system?.type !== "shield" || li.querySelector(".acks-equipment-strap")) continue;
+    // Hand, back or front are places on the BODY. A shield in a chest is in
+    // none of them, so there is no position to cycle between.
+    if (containedIn(item)) continue;
     const strap = strapOf(item);
     const a = el("a", `item-control acks-equipment-strap acks-equipment-strap--${strap}`);
     a.innerHTML = `<i class="fas ${strap === "hand" ? "fa-hand" : "fa-shield-halved"}"></i> ${game.i18n.localize(`ACKS-EQUIPMENT.strap.${strap}`)}`;
@@ -452,6 +460,44 @@ function injectStrapControls(tab, actor) {
       ev.preventDefault();
       ev.stopPropagation();
       cycleStrap(item).catch((err) => console.error(`${MODULE_ID} | strap cycle failed`, err));
+    });
+    rowControls(li).append(a);
+  }
+}
+
+
+/**
+ * Take-out control on every stowed row.
+ *
+ * Taking gear back out is otherwise a DRAG — the row has to be dropped on one
+ * of core's type lists, which is a long gesture past every bucket in between,
+ * onto a target that gives no sign it is a target until the drop lands. The
+ * control performs the same write in one click.
+ *
+ * It takes no destination, and does not need one: `takeOut` only clears
+ * `containedIn`, so the item lands loose in core's own list for its type. An
+ * unworn item occupies no wear slot, so there is nothing to choose between —
+ * the item sheet's Contents tab offers the same one-click control, and this is
+ * that control where the gear is actually read.
+ *
+ * Only rendered inside a bucket whose contents are already on screen, so the
+ * lock rule is inherited rather than restated: a locked container shows its
+ * contents to the GM alone, and only the GM gets a control to empty it a row
+ * at a time.
+ */
+function injectTakeOutControls(list, actor) {
+  if (!actor?.isOwner) return;
+  for (const li of list.querySelectorAll("li.item[data-item-id]")) {
+    const item = actor.items.get(li.dataset.itemId);
+    if (!item || li.querySelector(".acks-equipment-takeout")) continue;
+    const a = el("a", "item-control acks-equipment-takeout");
+    a.innerHTML = `<i class="fas fa-arrow-up-from-bracket"></i>`;
+    a.dataset.tooltip = game.i18n.localize("ACKS-EQUIPMENT.container.takeOut");
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      // The flag change fires updateItem → the sheet re-renders → fresh buckets.
+      takeOut(item).catch((err) => console.error(`${MODULE_ID} | take out failed`, err));
     });
     rowControls(li).append(a);
   }
@@ -636,6 +682,7 @@ function buildStowedSection(actor, tab) {
     if (c.visible && !c.concealed) {
       const list = el("ul", "item-list unlist");
       const claimed = claimRows(tab, c.contents, list, "stowed");
+      injectTakeOutControls(list, actor);
       bucket.append(list);
       // An empty container is a place to put things, so say so on the thing you
       // put them on. Without this the bucket is a bare header with a silent drop

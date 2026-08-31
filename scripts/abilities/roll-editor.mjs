@@ -20,8 +20,17 @@
  * registry at roll time.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { blankRoll, keyOf, readRolls, rollAbility, rollsOf, scoreApplies, scoreTerm, scoreText, targetOf, writeRolls, scalesFor } from "./ability-rolls.mjs";
-import { ATTRIBUTES, choicesOf, ROLL_TYPES, VALUE_KINDS, VALUE_ROUNDING, VALUE_SCALES, PROGRESSION_CLASSES, PROGRESSION_LEVELS } from "../lib/vocab.mjs";
+import { blankRoll, keyOf, labelOf, measures, readRolls, rollAbility, rollsOf, scoreApplies, scoreTerm, scoreText, throwOutcome, writeRolls, scalesFor } from "./ability-rolls.mjs";
+import {
+  ATTRIBUTES,
+  choicesOf,
+  THROW_TYPES,
+  VALUE_KINDS,
+  VALUE_ROUNDING,
+  VALUE_SCALES,
+  PROGRESSION_CLASSES,
+  RUNG_OUTCOMES,
+} from "../lib/vocab.mjs";
 import { classItems, laddersOf } from "../classes/registry.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -81,7 +90,7 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
   /** @override */
   get title() {
     const roll = this.#find().roll;
-    return `${this.item.name} — ${roll?.label || game.i18n.localize("ACKS-ABILITIES.roll.unnamed")}`;
+    return `${this.item.name} — ${labelOf(roll)}`;
   }
 
   /** This window's roll and where it sits, re-resolved from the store on demand. */
@@ -99,6 +108,21 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
     // was rebuilt. Close rather than render an editor over nothing.
     if (!roll) {
       this.close();
+      return context;
+    }
+    // A MEASURE has no target, so the whole second fieldset is withheld —
+    // including `#shownKind`, which must stay null while nothing is on screen
+    // for it to describe. A stale "breakpoints" there would let #fromForm read
+    // the absent rung inputs as an emptied table and wipe a ladder the reader
+    // only switched away from.
+    const measure = measures(roll);
+    if (measure) {
+      context.roll = { ...roll };
+      context.kind = this.#shownKind = null;
+      context.isMeasure = true;
+      context.choices = { rollType: choicesOf(THROW_TYPES), score: choicesOf(ATTRIBUTES) };
+      context.hasScore = !!roll.score?.key;
+      context.preview = this.#preview(context.roll);
       return context;
     }
     const stored = roll.target?.kind;
@@ -126,13 +150,14 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
     // know which state it rendered in — the same reason `#shownKind` exists.
     context.hasScore = !!roll.score?.key;
     context.choices = {
-      rollType: choicesOf(ROLL_TYPES),
+      rollType: choicesOf(THROW_TYPES),
       score: choicesOf(ATTRIBUTES),
       // Only the kinds this window authors. A roll carrying `conditional` is
       // shown as the table it is; it is not offered as something to choose.
       kind: Object.fromEntries(TARGET_KINDS.map((k) => [k, VALUE_KINDS[k].label])),
       scale: choicesOf(VALUE_SCALES),
       round: choicesOf(VALUE_ROUNDING),
+      outcome: choicesOf(RUNG_OUTCOMES),
       // The four chassis, then every class DOCUMENT the world holds — a
       // published table is named here instead of retyping its rungs. A class
       // whose key matches a chassis takes the class's own label.
@@ -148,7 +173,6 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
           })(),
         ),
       },
-      atLevel: choicesOf(PROGRESSION_LEVELS),
       // The ladders the NAMED class publishes, so a throw can borrow a thief's
       // Climb Walls rather than only a chassis attack row. Blank means the
       // attack bands, which is what a progression meant before ladders were
@@ -174,12 +198,36 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
    */
   #preview(roll) {
     const actor = this.item.actor;
+    // A measure reads the same for everyone — there is no target to resolve
+    // against a character — so it previews on the shared definition too, where
+    // every other shape can only say it has no one to read against.
+    if (measures(roll)) {
+      // The score is shown INSIDE the dice, which is where the roller puts it
+      // (`measuredFormula`). Naming it as a separate inclusion beside "nothing
+      // is scored against it" reads as a contradiction of the sentence it is
+      // in; the reader wants to see what will actually be rolled.
+      const bonus = (actor ? scoreTerm(roll, actor)?.bonus : 0) || 0;
+      const dice = roll.formula || "1d20";
+      return game.i18n.format("ACKS-ABILITIES.roll.previewMeasure", {
+        formula: bonus ? `${dice} ${bonus >= 0 ? "+" : "-"} ${Math.abs(bonus)}` : dice,
+      });
+    }
     if (!actor) return game.i18n.localize("ACKS-ABILITIES.roll.previewUnowned");
     const scaleKey = roll.scale || "level";
     const at = scalesFor(actor, this.item)[scaleKey];
-    const target = targetOf(roll, actor, this.item);
+    const verdict = throwOutcome(roll, actor, this.item);
+    const target = verdict.target;
     const suffix = roll.rollType === "below" ? "-" : roll.rollType === "result" ? "" : "+";
     const where = { scale: VALUE_SCALES[scaleKey]?.label ?? scaleKey, at: at ?? "?", formula: roll.formula || "1d20" };
+    // A rung that is not a target is not a target that failed to resolve. The
+    // preview exists to answer "did I type that right", and "no target at that
+    // rung" over a correctly typed automatic rung answers it wrong.
+    if (verdict.outcome !== "throw") {
+      return game.i18n.format(
+        verdict.outcome === "auto" ? "ACKS-ABILITIES.roll.previewAuto" : "ACKS-ABILITIES.roll.previewNone",
+        { ...where, cell: verdict.text || "—" },
+      );
+    }
     if (target == null) return game.i18n.format("ACKS-ABILITIES.roll.previewNoTarget", where);
     const line = game.i18n.format("ACKS-ABILITIES.roll.preview", { ...where, target: `${target}${suffix}` });
     // The score is already inside that number, which is exactly why it is said
@@ -239,8 +287,11 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
     mutate?.(next);
     // The scale is stated once, on the roll. A `conditional` that came in
     // carrying its own must not keep it: two scales on one throw is exactly the
-    // disagreement this window exists to remove.
-    if (next.target.kind !== "conditional") next.target.on = "";
+    // disagreement this window exists to remove. Only when the target section
+    // was actually RENDERED, though — the same rule the rungs follow. A measure
+    // shows none of it, and re-keying an untouched ladder to class level on the
+    // way past is not an edit the reader made.
+    if (this.#shownKind && next.target.kind !== "conditional") next.target.on = "";
     rolls[index] = next;
     const written = await writeRolls(this.item, rolls);
     // Keys are stable once assigned, but re-read it rather than assume: a
@@ -262,7 +313,7 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
       // Each rung offered one step further along the scale than the last, which
       // is what a printed table does — typing a ladder should be typing values,
       // not re-typing the levels beside them.
-      steps.push({ atLevel: last ? Number(last.atLevel ?? 0) + 1 : 1, value: last?.value ?? null });
+      steps.push({ atLevel: last ? Number(last.atLevel ?? 0) + 1 : 1, value: last?.value ?? null, outcome: "", text: "" });
       roll.target.breakpoints = steps;
     });
   }
@@ -314,7 +365,7 @@ async function deleteRoll(event, target) {
   const rolls = readRolls(this.item);
   const index = rolls.findIndex((r, i) => keyOf(r, i) === target.dataset.rollKey);
   if (index < 0) return;
-  const name = rolls[index].label || game.i18n.localize("ACKS-ABILITIES.roll.unnamed");
+  const name = labelOf(rolls[index]);
   const ok = await foundry.applications.api.DialogV2.confirm({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.localize("ACKS-ABILITIES.roll.deleteTitle") },

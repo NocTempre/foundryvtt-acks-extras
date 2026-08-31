@@ -1,4 +1,4 @@
-/* global game, ui, Hooks, foundry, document, console */
+/* global game, ui, Hooks, foundry, document, console, Roll */
 /**
  * Character generation, on the page that was already doing half of it.
  *
@@ -42,7 +42,8 @@ import { classItems, byBookOrder } from "./registry.mjs";
 import { legalTemplates, netBonusPicks, templateShortfall, applyChargen } from "./chargen.mjs";
 import { choosableGenerals, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
-import { rungLabel, rungOptions } from "./picks.mjs";
+import { answeredByTemplate, isGranted, rungLabel, rungOptions } from "./picks.mjs";
+import { templateGrantKeys } from "./template-packages.mjs";
 import { makeLoc } from "../lib/util.mjs";
 
 const PAGE_CLASS = "acks-extras-classes-statgen";
@@ -142,17 +143,26 @@ export function unmetRequirements(classItem, scores) {
 }
 
 /**
- * Is this level-1 offer one the chosen template has already answered?
+ * Throw the template die for a character who left it unthrown, and take the
+ * best package it reaches.
  *
- * A starting template arrives "with weapons, armor, equipment, proficiencies,
- * and spells ready for play" (RR Ch. 2), and the Intellect bonus is chosen "on
- * top of those listed for the template" — so the level-1 proficiency picks are
- * the template's to make, and asking for them beside it hands out two
- * proficiencies the character never earned. A pick among NAMED alternatives (a
- * warlock's dark path, a witch's tradition) is not a proficiency the template
- * lists, and stays on offer.
+ * The page defaults an unanswered selector to the HIGHEST band the die
+ * legalises, so this only supplies the die that default is read against — a
+ * skipped roll and a skipped selection converge on the same package. A die
+ * that reaches no printed band still yields one: the lowest, so a character is
+ * never handed an empty package as the price of a low roll.
+ *
+ * @returns {Promise<{template: object|null, roll: number|null}>} null when the
+ *   class prints no packages at all, which is not a skipped step.
  */
-const answeredByTemplate = (award) => ["classInventory", "generalList"].includes(award?.choice?.from);
+async function autoTemplate(cls) {
+  const templates = cls?.system?.templates ?? [];
+  if (!templates.length) return { template: null, roll: null };
+  const roll = await new Roll("3d6").evaluate();
+  const legal = legalTemplates(templates, roll.total);
+  const lowest = [...templates].sort((a, b) => a.rollMin - b.rollMin)[0];
+  return { template: legal[legal.length - 1] ?? lowest ?? null, roll: roll.total };
+}
 
 /* -------------------------------------------- */
 /*  The generation rule                          */
@@ -346,9 +356,14 @@ function refresh(root, state) {
 
   const awards = (cls?.system?.awards ?? []).filter((a) => a.atLevel === 1 && a.kind === "choice");
   const asked = template ? awards.filter((a) => !answeredByTemplate(a)) : awards;
+  // The Intellect picks are chosen "on top of those listed for the template"
+  // (RR Ch. 2), so the rungs stay — but an ability the package itself hands
+  // over is not something to spend one of them on.
+  const granted = template ? templateGrantKeys(template) : null;
   const generalOptions = choosableGenerals()
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((i) => ({ ref: refOf(i), name: i.name }));
+    .map((i) => ({ ref: refOf(i), name: i.name }))
+    .filter((o) => !isGranted(granted, o));
 
   // A character being generated owns nothing yet, so no rung here is offered
   // the "already on the sheet" answer — there is no sheet to have it on. The
@@ -733,15 +748,29 @@ export function registerChargenPage() {
     if (!state?.submitted) return;
     states.delete(app);
     try {
+      let template = state.template;
+      let roll = state.roll;
+      // The die is thrown FOR a character who reached the end of the page
+      // without it. An unthrown die legalises no package at all, so leaving it
+      // alone spent the whole build: a player who chose their class and pressed
+      // save walked away with six numbers, no class and no starting package.
+      if (state.cls && !template && !state.manual) {
+        const auto = await autoTemplate(state.cls);
+        if (auto.template) {
+          template = auto.template;
+          roll = auto.roll;
+          ui.notifications?.info(loc("chargen.templateAutoRolled", { roll: auto.roll, name: auto.template.name }));
+        }
+      }
       // A build with no package is a deliberate choice, not an unfinished one.
-      if (!state.cls || (!state.template && !state.manual)) {
+      if (!state.cls || (!template && !state.manual)) {
         ui.notifications?.info(loc("chargen.nothingApplied"));
         return;
       }
-      await applyChargen(state.actor, state.cls, state.template, {
+      await applyChargen(state.actor, state.cls, template, {
         generalRefs: state.bonusPicks,
         awardPicks: state.awardPicks,
-        roll: state.roll,
+        roll,
         gold: state.gold,
         wipe: !state.keep,
       });
