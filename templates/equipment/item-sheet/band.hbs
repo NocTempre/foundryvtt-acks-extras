@@ -30,10 +30,11 @@
   <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.weightHint'}}">
     <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.stone'}}</span>
     {{#if (and editable snap.hasWeight)}}
-    <input class="acks-extras-item-sheet__badge-input acks-nums" type="number" name="acksWeightStone" value="{{weightStone}}" min="0" step="0.1667"
+    <input class="acks-extras-item-sheet__badge-input acks-nums" type="number" name="system.weight6" value="{{snap.weight6}}" min="0" step="1"
            aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.band.weightHint'}}">
+    <span class="acks-extras-item-sheet__badge-note acks-nums">{{band.weight}}{{#if band.carriedDiffers}} · {{band.carried}}{{/if}}</span>
     {{else}}
-    <span class="acks-extras-item-sheet__badge-value acks-nums">{{band.weight}}</span>
+    <span class="acks-extras-item-sheet__badge-value acks-nums">{{band.weight}}{{#if band.carriedDiffers}} · {{band.carried}}{{/if}}</span>
     {{/if}}
   </span>
   {{#if band.masked}}

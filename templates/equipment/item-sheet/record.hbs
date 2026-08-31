@@ -11,7 +11,7 @@
       <input type="checkbox" name="{{name}}" {{checked value}} {{disabled (not ../editable)}}>
       <span>{{label}}</span>
     {{else}}
-      <span class="acks-extras-item-sheet__field-label">{{label}}</span>
+      <span class="acks-extras-item-sheet__field-label"{{#if hint}} data-tooltip="{{hint}}"{{/if}}>{{label}}</span>
       {{#if (eq type "select")}}
       <select class="acks-input acks-input--line" name="{{name}}" {{disabled (not ../editable)}}>
         {{#each choices}}<option value="{{value}}" {{#if (eq value ../value)}}selected{{/if}}>{{label}}</option>{{/each}}

@@ -1,5 +1,45 @@
 # Changelog
 
+## 5.7.0
+
+**A quiver of arrows weighs a quiver, not twenty of them — and weight is typed
+the way the books count it.**
+
+### Changed
+- **Weight is entered in sixths of a stone.** The band's weight field now takes
+  the number the books count in — six to the stone — and shows the stone
+  reading beside it. It used to take stone as a decimal, which made a sixth
+  `0.1667` to type and was the only decimal-stone surface in the module: core's
+  own item sheet and this module's variation items have always taken sixths.
+  **A Judge who typed weights into this field before will type a different
+  number now** — `1` is a sixth, where it used to be a whole stone. Stored
+  weights are untouched and read exactly as before.
+
+### Added
+- **Goods whose weight is stated for a bundle.** The books rate a quiver of
+  twenty arrows or a set of six spikes as one item, however many it holds — and
+  until now there was no way to say so. Reading such a row off the page and
+  typing the printed weight beside the printed count produced an item twenty
+  times too heavy, and nothing on the sheet could explain it. Items now carry a
+  **Per** count saying how many units one stated weight covers. It appears on
+  the Record panel of anything stacked, and stays out of the way on a single
+  item.
+
+  A part-used bundle still counts whole: twenty-one arrows weigh two quivers,
+  not one and a twentieth, which is how the books count them. The band shows
+  both numbers when they differ — what one bundle weighs, and what the whole
+  stack costs whoever carries it — and the character sheet's encumbrance agrees
+  with it.
+
+  Nothing already in your world changes: a bundle size of one is the ordinary
+  case and the arithmetic every existing item already gets.
+- **Annotate declares a bundle it can recognise.** Pressing **Annotate** on an
+  item whose name states its load — "Quiver, 20 Arrows", "Case, 20 Bolts" —
+  now sets the bundle count along with the quantity it already filled in. Until
+  now it wrote the count and left the weight to be multiplied by it, which
+  manufactured the very over-encumbrance the button exists to tidy. A bundle
+  size you have set yourself is never overwritten.
+
 ## 5.6.1
 
 **A weight stops quietly rounding itself away, a proficiency throw shows the die

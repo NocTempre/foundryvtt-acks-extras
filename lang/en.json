@@ -1120,8 +1120,8 @@
       "band": {
         "quantity": "How many are in the stack.",
         "value": "Value",
-        "stone": "St",
-        "weightHint": "Weight, in stone.",
+        "stone": "1/6 st",
+        "weightHint": "Weight in sixths of a stone. Six to the stone. Where the item states a bundle size, this is the weight of one bundle.",
         "openScene": "Open the scene this chart draws.",
         "conditionHint": "Visible to everyone — damage cannot be disguised.",
         "masked": "Masked",
@@ -1205,6 +1205,8 @@
         "subtypeClothing": "Clothing",
         "quantity": "Quantity",
         "quantityMax": "Max",
+        "per": "Per",
+        "perHint": "How many units one stated weight covers. Leave at 1 unless the weight is given for a bundle.",
         "copperValue": "Value each, cp",
         "carried": "Carried",
         "banked": "Banked"

@@ -67,31 +67,3 @@ export function initialOf(name) {
   return String(name ?? "").trim().charAt(0).toUpperCase() || "?";
 }
 
-/**
- * The band's weight badge shows sixths as decimal stone, and writes back what
- * it shows. These two are that conversion, extracted so the round trip can be
- * pinned offline: the badge is a DERIVED control over a stored field, and a
- * derived control that submits on every form change re-quantises the value it
- * displays.
- *
- * The trip is lossy by construction — `weight6FromStone(weightStoneOf(w))`
- * returns `w` only for a whole number of sixths. A bundle's per-unit weight is
- * a fraction of a sixth (twenty arrows at a sixth for the quiver is `0.05`
- * each) and does NOT survive it, which is why the sheet writes the weight back
- * only when the weight badge is the control that fired the change.
- */
-export const STONE_SIXTHS = 6;
-
-/** A stored weight in sixths, as the badge displays it: stone, to three places. */
-export function weightStoneOf(weight6) {
-  const w = Number(weight6);
-  if (!Number.isFinite(w)) return null;
-  return Math.round((w / STONE_SIXTHS) * 1000) / 1000;
-}
-
-/** A typed weight in stone, as the badge stores it: whole sixths, never negative. */
-export function weight6FromStone(stone) {
-  const st = Number(stone);
-  if (!Number.isFinite(st)) return null;
-  return Math.max(0, Math.round(st * STONE_SIXTHS));
-}

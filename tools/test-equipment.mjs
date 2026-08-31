@@ -596,6 +596,32 @@ const rope = gear("Rope", 6, { id: "rope", flags: { containedIn: "bp" } });
 const rations = gear("Rations", 6, { id: "rat", flags: { containedIn: "bp" } });
 const cActor = withItems([pack, rope, rations]);
 check("plain backpack -> no encumbrance correction (core's flat sum is RAW)", encumbranceDelta6(cActor) === 0);
+
+// --- bundles: a stated weight may cover N units ------------------------------
+// The books rate a quiver of arrows or a set of spikes as ONE item however many
+// it holds. Core multiplies weight6 by the whole quantity and cannot be
+// changed, so the correction is contributed here — and the two sums must agree,
+// or the item sheet and the character sheet print different numbers.
+const { weight6Of: w6Of, bundleSizeOf, coreWeight6Of } = await import(new URL("../lib/item-model.mjs", S));
+const bundleQuiver = (over = {}) => gear("Quiver, 20 Arrows", 1, { id: "qv", qty: over.qty ?? 20, flags: { gear: { per: over.per ?? 20 } } });
+
+check("no bundle declared → per is 1", bundleSizeOf(gear("Rope", 6)) === 1);
+check("a bundle counts its weight once, not once per unit", w6Of(bundleQuiver()) === 1);
+check("core's own sum is what over-counted it", coreWeight6Of(bundleQuiver()) === 20);
+check("the correction closes exactly that gap", encumbranceDelta6(withItems([bundleQuiver()])) === -19);
+// A part-used bundle is still one item — this is the ceil ruling, and it is
+// what distinguishes a bundle from a linear per-unit fraction.
+check("21 of a 20-bundle weighs two bundles, not 1.05", w6Of(bundleQuiver({ qty: 21 })) === 2);
+check("1 of a 20-bundle still weighs a whole bundle", w6Of(bundleQuiver({ qty: 1 })) === 1);
+check("an emptied bundle weighs nothing", w6Of(bundleQuiver({ qty: 0 })) === 0);
+check("per below 1 cannot divide a weight away", bundleSizeOf(gear("Odd", 6, { flags: { gear: { per: 0 } } })) === 1);
+check("a bundled stack inside a container rolls up bundled",
+  contentsWeight6(withItems([gear("Pack", 1, { id: "bp2", flags: { container: { capacity: 4 } } }),
+    gear("Quiver, 20 Arrows", 1, { id: "q2", qty: 20, flags: { gear: { per: 20 }, containedIn: "bp2" } })]), "bp2") === 1);
+// Clothing is outside core's multiplied branch, so it must contribute no
+// correction however its bundle reads.
+check("clothing declares no bundle correction",
+  encumbranceDelta6(withItems([gear("Robes", 6, { qty: 4, subtype: "clothing", flags: { gear: { per: 4 } } })])) === 0);
 check("backpack rolls up its contents' weight", contentsWeight6(cActor, "bp") === 12);
 check("backpack under capacity (2 st of 4)", !overCapacity(cActor, pack));
 check("container report lists load in stone", containerReport(cActor)[0].loadStone === 2);

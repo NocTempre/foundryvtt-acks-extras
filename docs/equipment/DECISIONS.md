@@ -698,3 +698,69 @@ and this module's own variation item both take sixths directly; the band is the
 only decimal-stone surface in the family, and the conversion only exists
 because of it. Changing what a Judge types is a user-facing change — see
 [ROADMAP.md](ROADMAP.md).
+
+---
+
+### A stated weight may cover a bundle (2026-08-31)
+
+**Ruled.** `GearExtras` gains `per` — how many units one stated `weight6`
+covers, defaulting to 1. `weight6Of` counts `weight × ceil(quantity / per)`,
+and `encumbranceDelta6` corrects core's sum by the difference.
+
+The books rate a whole class of goods by the bundle: a quiver of twenty arrows,
+a set of six iron spikes, one item however many it holds. `weight6` meant the
+weight of ONE unit and quantity multiplied it, so the two numbers a Judge reads
+off such a row had no way to say they share a denominator. Typing the printed
+weight beside the printed count produced an item twenty times too heavy, and the
+error propagated into container loads.
+
+**`ceil`, not linear division.** A part-used bundle is still one item — twenty-one
+arrows weigh two quivers, not one and a twentieth. Linear division would also
+reintroduce the fractional weights the sheet used to destroy.
+
+**The correction must go through `encumbranceDelta6`.** Core owns the character
+encumbrance loop (`weight6 × quantity.value`) and is unmodifiable, so fixing only
+this module's reader would leave the item sheet and the character sheet printing
+different numbers for the same quiver. `coreWeight6Of` exists solely to say what
+core counted, so the delta can cancel exactly that. The correction is restricted
+to the shape core multiplies — a plain `item` that is not clothing.
+
+**The field ships; the value does not.** What size bundle a given row is priced
+for is printed, so `per` arrives from the importer, from the item's own name
+(`bundledAmmoCount`, a heuristic over world data), or from the Judge. A shipped
+`BUNDLE_SIZES` map would be the frozen-table failure `ip-doctrine.md` names.
+
+**Annotate now sets it.** `annotateItem` already backfilled `quantity.value` from
+a bundled name and would otherwise have manufactured this defect itself — a
+weight for the whole quiver multiplied by the arrow count it had just written.
+It never overwrites a bundle size a Judge has set.
+
+**No migration.** `per` defaults to 1, which is exactly the arithmetic every
+stored item already gets.
+
+**Reachability.** The control appears on a stack or on anything already
+declaring a bundle, and is silent on a single item. It is deliberately NOT
+"hidden until set": a field only the API can reach is a field nobody can
+populate.
+
+### Weight is entered in sixths (2026-08-31)
+
+**Ruled.** The band's weight badge binds `system.weight6` directly, at `step=1`.
+The stone reading stays beside it as a label, and the carried total joins it
+whenever a bundle makes the two differ.
+
+The badge used to take decimal stone and convert on the way in and out. That was
+the only decimal-stone surface in the family — core's own item sheet and this
+module's variation item both take sixths — and the conversion existed solely to
+serve it. It was also lossy: any weight finer than a sixth collapsed through the
+displayed decimal, which is what 5.6.1 had to guard against
+(*A derived control writes back only when it is the control that fired*).
+
+Binding the stored field removes the round trip rather than guarding it, so the
+guard, the `weightStoneOf`/`weight6FromStone` pair and their round-trip tests all
+came out with it. **Superseding note:** that 5.6.1 entry stands as the record of
+why the guard existed; the control it guarded no longer exists. The new evidence
+is nothing more than finishing the job — the guard was the hotfix-safe half.
+
+**What a Judge types changes**, which is why this is a minor and not a patch: a
+sixth is now `1` where it was `0.1667`.

@@ -19,7 +19,7 @@ import {
 } from "./overlays/mounted.mjs";
 import { classifyWeapon, handCost, focusGroup, weaponKey, equipmentClass, inferGear, isHelmet, isShield } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
-import { capacityOf } from "../lib/item-model.mjs";
+import { capacityOf, bundleSizeOf } from "../lib/item-model.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
 import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATERIALS } from "./overlays/item-loss.mjs";
@@ -142,6 +142,17 @@ export async function annotateItem(item) {
     // every time somebody re-annotates their gear.
     if (item.system?.quantity?.value == null) {
       updates["system.quantity.value"] = rounds;
+      key ??= "ammunition";
+    }
+    // The name states a bundle, so the printed weight beside it is the
+    // bundle's. Declaring that here is what keeps the quantity written above
+    // from multiplying a whole quiver's weight by its own arrow count — the
+    // annotate step would otherwise manufacture the very over-encumbrance it
+    // exists to tidy. Never overwrite a bundle size a Judge has already set.
+    if (bundleSizeOf(item) <= 1) {
+      const gearNow = updates[`flags.${MODULE_ID}.${FLAG_GEAR}`];
+      if (gearNow) gearNow.per = rounds;
+      else updates[`flags.${MODULE_ID}.${FLAG_GEAR}.per`] = rounds;
       key ??= "ammunition";
     }
   }

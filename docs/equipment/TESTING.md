@@ -225,3 +225,44 @@ each value in turn for step 4. Enable the "Overlay: mounted saves" setting.
 
 Teardown: dismount, delete every QA fixture, disable the overlay if the
 world had it off.
+
+## Weight in sixths, and bundled goods
+
+Fixtures to create and destroy: one disposable `character`, one disposable
+`item` named for the test.
+
+1. **Entry is sixths.** Open a plain item's sheet. The band's weight field is
+   labelled `1/6 st` and steps by 1. Type `1`.
+   *Observable:* `item.system.weight6 === 1`, and the label beside the field
+   reads `¹⁄₆`. Typing `6` reads `1`. (Before 5.7.0 this field took decimal
+   stone — a Judge who typed `1` got a whole stone.)
+2. **No unrelated submit moves it.** Rename the item through the UI.
+   *Observable:* `weight6` unchanged. There is no derived weight control left
+   to write it, which is what makes this structural rather than guarded.
+3. **A bundle counts once.** Set the item's quantity to 20 — the `Per` field
+   appears on the Record panel — and set `Per` to 20, weight to 1.
+   *Observable:* `weight6Of(item) === 1` — one full bundle. The band prints a
+   single figure here, because at exactly one bundle the stated weight and the
+   carried total ARE the same number; step 5 is where the two diverge and the
+   paired display appears.
+4. **The character sheet agrees.** Put it on the character.
+   *Observable:* encumbrance rises by **1 sixth, not 20**. Read the encumbrance
+   bar with your eyes, not only the API — core computes the sum and this module
+   corrects it, so an API-only check can pass while the sheet disagrees.
+5. **A part-used bundle is whole.** Set quantity to 21.
+   *Observable:* 2 sixths, not 1.05. This is the `ceil` ruling; it is what
+   distinguishes a bundle from a per-unit fraction. The band now shows the pair
+   — `¹⁄₆ · ¹⁄₃`, one bundle's weight and the whole stack's. Open the item's
+   sheet with the owning actor's sheet CLOSED; a known defect duplicates the
+   title band otherwise and hides this readout.
+6. **Annotate declares it.** Create an item named `Quiver, 20 Arrows` with no
+   quantity and no bundle, and press **Annotate**.
+   *Observable:* quantity becomes 20 **and** `gear.per` becomes 20 — the weight
+   does not multiply. Set `per` by hand to something else and re-annotate:
+   *Observable:* the Judge's value survives.
+7. **Containers roll up bundled.** Stow the quiver in a container.
+   *Observable:* the container's load counts one bundle, and its capacity rail
+   is not over-full.
+
+Teardown: delete the item, the container and the character; confirm nothing
+named for the fixture remains.

@@ -9,6 +9,7 @@
  * second reading of the same flag.
  */
 import { MODULE_ID, ITEM_FLAGS, LANG, EFFECT_DOMAINS } from "../constants.mjs";
+import { FLAG_GEAR } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { MASTERWORK, SILVER } from "../config.mjs";
 import { isDisguised } from "../actions.mjs";
@@ -25,7 +26,7 @@ import { getLoadout } from "../loadout.mjs";
 import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
-  isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, weight6Of, isClothing, isAmmoItem, STONE,
+  isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, weight6Of, bundleSizeOf, isClothing, isAmmoItem, STONE,
 } from "../../lib/item-model.mjs";
 import { damageGlyphOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, WEAR_SLOTS } from "../../lib/vocab.mjs";
@@ -226,6 +227,14 @@ function recordOf(item) {
         { name: "system.subtype", label: loc("itemSheet.field.subtype"), type: "select", value: sys.subtype ?? "item", choices: [{ value: "item", label: loc("itemSheet.field.subtypeItem") }, { value: "clothing", label: loc("itemSheet.field.subtypeClothing") }] },
         { name: "system.quantity.value", label: loc("itemSheet.field.quantity"), type: "number", value: sys.quantity?.value ?? 1, width: "xs" },
         { name: "system.quantity.max", label: loc("itemSheet.field.quantityMax"), type: "number", value: sys.quantity?.max ?? 0, width: "xs" },
+        // Silent at 1 on a single item — the ordinary case, and asking every
+        // crowbar how big its bundle is would be noise. It appears wherever a
+        // bundle can mean something: on a STACK, or on anything that already
+        // declares one. A field a Judge cannot reach is a field nobody can
+        // populate, so "hidden until set" is not an option on its own.
+        ...(bundleSizeOf(item) > 1 || Number(sys.quantity?.value ?? 1) > 1
+          ? [{ name: `flags.${MODULE_ID}.${FLAG_GEAR}.per`, label: loc("itemSheet.field.per"), hint: loc("itemSheet.field.perHint"), type: "number", value: bundleSizeOf(item), width: "xs" }]
+          : []),
       ];
     case ITEM_TYPE.money:
       return [
@@ -361,6 +370,11 @@ export function snapshotItem(item, { gm = false, descriptionHTML = "", trueDescr
     stackable,
     weight6: Number(item.system?.weight6 ?? 0),
     hasWeight: "weight6" in (item.system ?? {}),
+    // How many units the stated weight covers, and what the stack therefore
+    // weighs. `carried6` is what encumbrance counts; `weight6` above is what
+    // one bundle is rated at, and the two differ for goods sold in bundles.
+    per: bundleSizeOf(item),
+    carried6: weight6Of(item),
     cost: Number(item.system?.cost ?? 0),
     valueMode: item.getFlag(MODULE_ID, SHEET_FLAGS.VALUE_MODE) ?? "priced",
     wearable: declared || gear.slots.length > 0 || item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor,

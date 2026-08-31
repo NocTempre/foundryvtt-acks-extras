@@ -36,7 +36,7 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // wanted instead (harness heavy-check, shield baseline), which do NOT go
 // through it. `isStowable` is where coin's missing cost/weight6 is reconciled:
 // coin is goods without being physical, so asking `isPhysical` here loses it.
-import { weight6Of, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
+import { weight6Of, coreWeight6Of, bundleSizeOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts } from "./item-sheet/accept-kinds.mjs";
 import { itemBaseType } from "./variation-items.mjs";
 // Containment READS live in lib now (the capacity primitive needs them);
@@ -414,6 +414,22 @@ export function encumbranceDelta6(actor) {
   //    (ammo.mjs marks it; the Recover action clears it).
   for (const w of actor.items.filter((i) => i.getFlag?.(MODULE_ID, ITEM_FLAGS.THROWN_STATE))) {
     delta -= weight6Of(w);
+  }
+
+  // 4. Goods whose stated weight covers a BUNDLE. Core's loop multiplies
+  //    `weight6` by the whole quantity and cannot be changed, so the difference
+  //    between what it counted and what the bundle actually weighs is corrected
+  //    here — this is the ONLY place the two sums are reconciled, and without
+  //    it the item sheet and the character sheet print different numbers for
+  //    the same quiver.
+  //
+  //    Restricted to the shape core multiplies: a plain `item` that is not
+  //    clothing. A weapon or armour has no quantity in the schema, so core
+  //    counts it once whatever a bundle size says.
+  for (const i of actor.items) {
+    if (i.type !== ITEM_TYPE.item || isClothing(i)) continue;
+    if (bundleSizeOf(i) <= 1) continue;
+    delta += weight6Of(i) - coreWeight6Of(i);
   }
 
   return delta;

@@ -45,7 +45,6 @@ import { rollById, rollIds } from "./rolls.mjs";
 import { bindScene, unbindScene, updateFromExploration, chartScene } from "./chart.mjs";
 import { splitOne, restack, canSplit, splitFromOf } from "./stack.mjs";
 import { ACCEPT_KINDS } from "./accept-kinds.mjs";
-import { weightStoneOf, weight6FromStone } from "./format.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -202,7 +201,6 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       // disguised item, the document's otherwise.
       namePath: model.band.nameMasked ? `flags.${MODULE_ID}.${ITEM_FLAGS.DISGUISE}.true.name` : "name",
       descriptionPath: model.band.nameMasked ? `flags.${MODULE_ID}.${ITEM_FLAGS.DISGUISE}.true.description` : "system.description",
-      weightStone: snap.hasWeight ? weightStoneOf(snap.weight6) : null,
       containerPath: `flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINER}`,
       capacityPath: `flags.${MODULE_ID}.gear.capacity`,
       spellbookText: isSpellbook(item) ? formatSpellList(spellbookSpells(item)) : null,
@@ -227,18 +225,6 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       if (event?.target?.name === "acksBandQty" && Number.isFinite(qty)) {
         const qtyPath = this.item.type === ITEM_TYPE.money ? "system.quantity" : "system.quantity.value";
         foundry.utils.setProperty(data, qtyPath, Math.max(0, Math.round(qty)));
-      }
-    }
-    // The weight badge is derived: it shows sixths as decimal stone, so writing
-    // it back re-quantises to the nearest sixth. It counts only when it is the
-    // control that fired the change — on any other submit the stored weight is
-    // left alone, because a fraction of a sixth (what a bundle's per-unit
-    // weight is) does not survive the round trip through the displayed decimal.
-    if ("acksWeightStone" in data) {
-      const w6 = weight6FromStone(data.acksWeightStone);
-      delete data.acksWeightStone;
-      if (event?.target?.name === "acksWeightStone" && w6 !== null) {
-        foundry.utils.setProperty(data, "system.weight6", w6);
       }
     }
     const cap = foundry.utils.getProperty(data, `flags.${MODULE_ID}.gear.capacity`);

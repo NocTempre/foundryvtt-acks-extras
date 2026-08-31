@@ -84,13 +84,50 @@ export const isEquippable = (item) => !!item?.system && "equipped" in item.syste
 export const isEquipped = (item) => !!item?.system?.equipped;
 
 /**
+ * How many units one stated `weight6` covers. 1 for everything that does not
+ * say otherwise, which is the arithmetic every item had before the field
+ * existed.
+ *
+ * A bundle size below 1 is nonsense and would divide the weight away, so it
+ * clamps; the value is a whole number of units because a fifth of an arrow is
+ * not a thing you carry.
+ */
+export function bundleSizeOf(item) {
+  const per = Number(gearOf(item).per);
+  return Number.isFinite(per) && per >= 1 ? Math.floor(per) : 1;
+}
+
+/**
  * Effective weight in `weight6`, honouring quantity the way the system does.
  *
  * Only stackable items multiply: a `weapon` or `armor` has no quantity field,
  * and reading `quantity?.value ?? 1` off one would be harmless today and wrong
  * the moment the system adds it. Quantity is read where it exists.
+ *
+ * A stated weight may cover a BUNDLE of units rather than one (`bundleSizeOf`),
+ * in which case the weight is counted once per bundle and a part-used bundle
+ * still counts whole — twenty-one arrows out of a twenty-arrow quiver weigh two
+ * quivers, not one and a twentieth. That is the books' own rule for goods sold
+ * in bundles, and it is why this CEILS rather than dividing linearly.
  */
 export function weight6Of(item) {
+  if (!isPhysical(item)) return 0;
+  const w = Number(item.system.weight6 ?? 0);
+  const qty = item.system.quantity?.value;
+  if (!Number.isFinite(qty)) return w;
+  const per = bundleSizeOf(item);
+  return per > 1 ? w * Math.ceil(qty / per) : w * qty;
+}
+
+/**
+ * What core's own encumbrance sum would make of this item — `weight6` times
+ * quantity, with no bundle applied.
+ *
+ * Core owns the character encumbrance loop and cannot be modified, so a bundle
+ * has to be corrected AFTER core has counted it. This is the figure to correct
+ * away; `encumbranceDelta6` is the one caller.
+ */
+export function coreWeight6Of(item) {
   if (!isPhysical(item)) return 0;
   const w = Number(item.system.weight6 ?? 0);
   const qty = item.system.quantity?.value;

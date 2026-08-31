@@ -25,6 +25,9 @@
  *  - `access` is RAW retrieval cost (RR pp. 293-294), and it is per-container
  *    rather than per-slot: a pouch on your belt and a sack on your back differ
  *    by what they are, not only by where they hang.
+ *  - `per` is how many units one stated weight covers, for goods the books
+ *    rate by the bundle rather than by the piece. It defaults to 1, which is
+ *    the arithmetic every existing item already gets.
  *
  * Container `capacity` and the clothing `layer` belong here too and are NOT yet
  * declared: both have a live home today (`flags.acks-extras.container.capacity`
@@ -63,6 +66,21 @@ export default class GearExtras extends foundry.abstract.DataModel {
       // concept on "is this a recognised carrying device" made every one of
       // them unable to hold anything at all.
       capacity: new NumberField({ required: false, nullable: true, initial: null, min: 0 }),
+      // How many units one stated `weight6` covers. 1 — the default, and the
+      // identity — is the ordinary case: the weight is per item and quantity
+      // multiplies it.
+      //
+      // The books price a whole class of goods per BUNDLE: a quiver of twenty
+      // arrows, a set of six iron spikes, rated as one item however many it
+      // holds. Without this field the two numbers a Judge reads off such a row
+      // have no way to say they share a denominator, so typing the printed
+      // weight beside the printed count produced an item twenty times too
+      // heavy.
+      //
+      // The FIELD is structure; the value is not. What size bundle a given row
+      // is priced for is printed, so it arrives from the importer, from the
+      // item's own name, or from the Judge — never from a table shipped here.
+      per: new NumberField({ required: false, nullable: false, initial: 1, min: 1, integer: true }),
     };
   }
 

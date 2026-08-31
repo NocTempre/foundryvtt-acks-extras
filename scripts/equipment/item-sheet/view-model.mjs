@@ -273,8 +273,17 @@ export function buildItemSheetModel(snap, viewer = {}) {
       value: value.text,
       valueReason: value.reason,
       valueUnknown: value.reason === "unknown",
+      // The band states the weight of ONE unit — or of one bundle, where the
+      // item declares a bundle size. `carried` is what the whole stack costs
+      // the bearer, and it is shown beside it whenever the two differ, because
+      // one number labelled "weight" meaning two things on one sheet is what
+      // made a bundled quiver unreadable.
       weight: stoneLabel(snap.weight6),
       weight6: snap.weight6,
+      per: snap.per ?? 1,
+      bundled: (snap.per ?? 1) > 1,
+      carried: stoneLabel(snap.carried6 ?? snap.weight6),
+      carriedDiffers: (snap.carried6 ?? snap.weight6) !== snap.weight6,
       masked: maskedForJudge,
       striped: maskedForJudge,
     },

@@ -276,6 +276,27 @@ Two flags rather than one — `locked` is the lock's existence, `opened` records
 that it has been defeated — because picking a lock does not remove it and the
 Judge should not have to re-describe the lock to shut it again.
 
+### Weight, and the bundle
+
+Weight is stored in `system.weight6` — sixths of a stone, core's own unit — and
+is typed that way on the item sheet's band. The stone reading rides beside the
+field as a label.
+
+`gear.per` says how many units one stated weight covers. It is 1 for almost
+everything, meaning the weight is per item and quantity multiplies it. For goods
+the books rate by the bundle — a quiver of arrows, a set of spikes — it is the
+bundle's size, and `weight6Of` counts one bundle's weight per started bundle:
+twenty-one arrows out of a twenty-arrow quiver weigh two, because a part-used
+bundle is still one item.
+
+Core's own encumbrance loop multiplies `weight6` by the whole quantity and
+cannot be changed, so `encumbranceDelta6` contributes the difference. That is
+the only place the two sums are reconciled; `coreWeight6Of` exists to say what
+core counted so the delta can cancel exactly it.
+
+The band therefore prints two numbers where they differ: what one bundle weighs,
+and what the whole stack costs the bearer.
+
 The **load is never hidden**. A locked chest still drags on encumbrance, and
 concealing its weight would make the number on the sheet unexplainable. This is
 a UI rule and not a security boundary: contents are ordinary items on the actor
