@@ -295,3 +295,45 @@ target the module remembers would reinstate the very value the ruling removes.
 
 Also in that pass: this file and `doors.mjs`'s own module docstring state the
 magnitudes in prose. `docs/` is not shipped, but it is tracked.
+- **The lost-episode shadow token has no ending that retires it.** MODEL.md
+  says the shadow survives discovery and retires at a later re-anchor, but
+  `discoverLost` closes the episode and `reanchorLost` refuses a closed one —
+  so `clearShadow`'s only caller is unreachable after the commonest ending, and
+  a hidden token of the party actor stays on the scene forever. Wants a
+  `known` state on the ledger (knows it is lost, does not know where) so the
+  two endings stop sharing one bit, `sceneFor` resolving `formation.sceneId`
+  rather than whatever scene the Judge is looking at, the raw `lostActive`
+  checkbox removed so the episode transitions own the state alone, shadow
+  clearing in `dissolveFormation`, and a `ready` sweep to clear shadows whose
+  formation is gone. TESTING.md step 3 asserts the leak as the expected
+  observable and changes with it.
+- **Players enrolling their own tokens.** Both add paths are hard-gated to the
+  Judge and the player relay has no `join` case — structurally, because every
+  case validates that the actor is already a member. Ruled 2026-08-31: a player
+  may enrol a token they own into a formation they already hold a member in,
+  behind a `playersAddMembers` world setting defaulting off (the shape
+  `playersMoveParty` already set). The relay must resolve the token GM-side by
+  id and never trust a payload. MODEL.md's player-capability table needs the
+  new row and the three it is already missing (`detach`, `trapbreak`,
+  `trapRearm`).
+- **The night, and what a night restores.** ROADMAP §4 claims to walk JJ's
+  expedition sequence rule by rule and omits steps 10 and 11 — fatigue and
+  rest healing — along with RR §VI.2's sleep block. Four clocks that must not
+  be conflated: the dungeon rest turn clears Winded, a night's sleep restores
+  every tradition's castings and **no** hit points, a dedicated day restores
+  hit points, and fatigue clears only to both together. **ACKS II has no watch
+  procedure** — standing watch is an activity, not a throw, and the Surprise
+  Matrix takes no watch input — so a watch roster would be invention and is not
+  planned. Every hour count, healing die and fatigue run is a printed value:
+  the importer recipes ship first and this degrades by refusing to adjudicate
+  the night, never by defaulting. `survival.mjs`'s `naturalHealing` forbid has
+  no consumer until this exists.
+- **One owner for chat visibility.** Three spellings of "the GMs" (`gmIds()`,
+  a hand-rolled filter, `getWhisperRecipients`) and three hand-rolled versions
+  of the public/private split (`initiative-card`, `surprise-card`,
+  `influence-app`). Wants one `lib/` helper taking an explicit policy —
+  `secret`, `declared` (a public notice naming the actor plus a whispered
+  result), `public` — absorbing all of them. **Traps take `secret`
+  explicitly**, stated in the helper's own docstring: a trap crossing has no
+  declaration, and announcing that the party checked is the leak the 2026-08-18
+  secrecy ruling exists to prevent.

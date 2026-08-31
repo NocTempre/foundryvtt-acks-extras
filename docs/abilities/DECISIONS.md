@@ -453,10 +453,44 @@ better than one that rolls nothing.
   field for: the book's condition on the throw, and the reason a shared world
   item cannot be scored at all.
 
-  The card is rendered **without** `rollACKS`, deliberately. `toMessage` attaches
+  ~~The card is rendered **without** `rollACKS`, deliberately. `toMessage` attaches
   the Roll to the message either way, so embedding the dice in the card as well
   would show them twice; leaving it out keeps blind rolls, roll modes and Dice So
-  Nice on the one path every other roll uses. A template the system has moved or
+  Nice on the one path every other roll uses.~~ **Superseded 2026-08-31 — see
+  "The card renders its own dice" below. The premise was false.** A template the system has moved or
   renamed costs the throw its card and never its result — this roller is the one
   place an ability's throw is posted, and a throw that reached it is one the
   player already made.
+
+---
+
+### The card renders its own dice (2026-08-31)
+
+**Ruled.** `cardData` supplies `rollACKS` from an awaited `roll.render()`, the
+same key core's own rollers pass. The card carries its dice box; `toMessage`
+still attaches the Roll, because Dice So Nice and roll inspection read it.
+
+**Supersedes** the "rendered without `rollACKS`, deliberately" paragraph of *A
+throw posts the system's own card*. **New evidence:** Foundry substitutes a
+message's roll HTML for its content **only when that content has no child
+elements** — `ChatMessage#_renderRollContent` tests `childElementCount` before
+replacing. The card's template opens with a `<section>`, so the substitution
+never fired and the ability throw card has shown **no dice at all** since 3.7.0
+— not the total, not the formula, not the natural die. On a measure, which has
+no target and therefore no success row either, the card was the banner and the
+portrait alone: the whole answer was missing.
+
+**What it cost.** Four releases. The false premise was written into this record
+and then into [TESTING.md](TESTING.md), whose steps 3 and 7 asserted an
+observable that could not occur — so the live gate certified the defect instead
+of catching it. The shipped `docs/releases/v3.7.0/abilities-throw-card.png`
+shows the bug and was read as the feature.
+
+**The lesson, stated as a rule:** a claim about what the *host* does is not
+settled by reading our own code, and a test recipe derived from a belief tests
+the belief. An observable in TESTING.md names what is on the screen, never what
+we expect the platform to add to it.
+
+**Rejected:** hand-building a dice block in the extras card. `rollACKS` plus
+`roll.render()` is the system's own renderer; a second one drifts the first time
+core restyles a die.

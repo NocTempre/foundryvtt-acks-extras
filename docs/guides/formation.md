@@ -269,6 +269,17 @@ tokens. Players can never work one from the map at all.
 
 All of it is whispered to you, including the times nothing happened.
 
+There is nothing to press. Trap resolution fires on its own the moment the
+**party token** moves, with no prompt and no button — you are never asked to
+confirm a throw, and the table is never shown one. Two things it needs, though,
+because neither announces itself when it is missing:
+
+- **The party has to move as the party.** Traps resolve for the party token, so
+  a session that moves each character's own token individually gets no trap
+  throws at all. Add them to the party first.
+- **A Judge has to be connected.** The automation runs on the GM's client, so
+  a party moving in a world with no GM present crosses everything untouched.
+
 Anyone who can search throws first — and not only against the trap in the way.
 A thief moving at exploration speed throws against **every** hidden trap the
 party passes within 5' of, 10' with a pole, measured against the ground they

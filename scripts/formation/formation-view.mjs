@@ -151,7 +151,12 @@ export function buildFormationView(formation) {
       // Out on their own feet rather than swept out by a combat. Only a detach
       // can be undone from here; a fighter is recalled when the fight ends.
       detached: !!member.detached,
-      canDetach: !formation.combat?.active && !isDown(actor) && (!isMemberDeployed(member) || member.detached),
+      // A detach places the member's token beside the party token, so with no
+      // party token on the canvas there is nowhere to step out to and the
+      // deploy returns empty. Without this term the control renders enabled and
+      // does nothing at all when pressed.
+      canDetach:
+        !!formation.tokenId && !formation.combat?.active && !isDown(actor) && (!isMemberDeployed(member) || member.detached),
       // How far this character sees with no light at all, for the chip that
       // explains why the scout can go where the rest of the party cannot.
       darkSight: senseProfile(actor).sightRange,

@@ -395,6 +395,10 @@ export const SHARED_ACTIONS = {
       if (result) {
         const name = game.actors.get(actorId)?.name ?? "";
         await announce(formation, loc(`chat.${result}`, { name }));
+      } else {
+        // Nothing moved. The commonest cause is a formation with no party token
+        // on the canvas, where the deploy has no anchor to place a body beside.
+        ui.notifications.warn(loc("warn.detachFailed"));
       }
       this.render();
       return;

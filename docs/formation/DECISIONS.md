@@ -1233,3 +1233,41 @@ they drag. Two consequences:
 The shadow is disposable by construction: it holds no state the ledger does not
 already own, so deleting it can never lose anything.
 
+
+---
+
+### A deployed member is recalled before their stash is read (2026-08-31)
+
+**Ruled.** `removeMembers` and `dissolveFormation` recall every deployed member
+before restoring anyone, and `restoreMemberTokens` refuses a member still
+holding a deployment marker. One fact — where this member's body is — now has
+one reader.
+
+`tokenData` (the snapshot taken when they joined) and `deployedTokenId` (the
+token they are standing under right now) are two records of that one fact, and
+only `recallMembers` knew they are mutually exclusive. `restoreMemberTokens`
+was written when a member was either inside the party token or nowhere, so it
+read a non-null `tokenData` as proof they were off-canvas. Deployment added a
+third state — on the canvas *and* holding a stale stash — and never taught the
+restore path about it.
+
+**What it did.** Detach a scout, then remove them or disband: the live token
+stayed and a second one was created from the pre-detach snapshot. Disband
+mid-combat with the party deployed and *every* member duplicated, the copies
+indistinguishable at a glance, with the stale one carrying the HP and effects
+they had before the fight. Every teardown path funnelled through the one
+unqualified filter, so removal, disband, actor deletion and the startup prune
+all duplicated the same way. Recalling first is also what preserves the fight:
+`recallMembers` refreshes the stash from the **live** token before deleting it.
+
+**Not repairable in place.** A duplicate produced by this is an ordinary token
+with no marker distinguishing it from the real one, so no sweep can find them.
+Worlds that already hold duplicates clean them up by hand, and the changelog
+says so.
+
+**Detach also stopped failing silently.** `canDetach` now requires a party
+token: a detach places the member beside one, so with no party token on the
+canvas the deploy returned empty while the control rendered enabled and said
+nothing when pressed. A player fared worse — they were told the declaration was
+sent and never learned it was dropped. The GM gets a notice, the declaring seat
+gets a whisper.

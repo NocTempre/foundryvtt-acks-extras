@@ -587,7 +587,7 @@ function missingTargetText(target, actor) {
  * and above all no explanation of a missing one — "no target on a shared item"
  * over a quantity roll reads as a defect in a throw that worked as written.
  */
-function cardData(item, actor, roll, { target, success, suffix, verdict }) {
+async function cardData(item, actor, roll, { target, success, suffix, verdict, evaluated }) {
   const term = scoreTerm(roll, actor);
   const outcome = verdict?.outcome ?? "throw";
   const details = [
@@ -611,6 +611,11 @@ function cardData(item, actor, roll, { target, success, suffix, verdict }) {
 
   return {
     title: [item.name, roll.label].filter(Boolean).join(" — "),
+    // The card must carry its own dice box. Foundry substitutes a message's
+    // roll HTML for its content ONLY when that content has no child elements,
+    // and this card's template opens with a section — so a card that omits
+    // `rollACKS` shows no dice at all. Core's own rollers pass the same key.
+    rollACKS: evaluated ? await evaluated.render() : null,
     data: {
       item: { img: item.img },
       actor: { img: actor?.img ?? item.img },
@@ -693,7 +698,7 @@ export async function rollAbility(item, key) {
   try {
     content = await foundry.applications.handlebars.renderTemplate(
       CARD_TEMPLATE,
-      cardData(item, actor, roll, { target, success, suffix, verdict }),
+      await cardData(item, actor, roll, { target, success, suffix, verdict, evaluated }),
     );
   } catch (err) {
     console.error(`${MODULE_ID} | could not render ${CARD_TEMPLATE}; posting the throw without its card`, err);
@@ -711,9 +716,10 @@ export async function rollAbility(item, key) {
   await evaluated.toMessage(
     {
       speaker: ChatMessage.getSpeaker({ actor }),
-      // The card carries the throw's own dice display; `toMessage` attaches the
-      // Roll either way, so the card deliberately renders WITHOUT `rollACKS` and
-      // lets the message show the one box every other roll shows.
+      // The card renders the dice itself, through `rollACKS`. `toMessage` still
+      // attaches the Roll — Dice So Nice and roll inspection read it — but it
+      // never injects a dice box beside custom content, so a card that leaves
+      // the key out shows no dice at all.
       ...(content
         ? { content }
         : {
@@ -746,7 +752,7 @@ async function postAutomatic(item, actor, roll, verdict) {
   try {
     content = await foundry.applications.handlebars.renderTemplate(
       CARD_TEMPLATE,
-      cardData(item, actor, roll, { target: null, success: true, suffix: "", verdict }),
+      await cardData(item, actor, roll, { target: null, success: true, suffix: "", verdict }),
     );
   } catch (err) {
     console.error(`${MODULE_ID} | could not render ${CARD_TEMPLATE}; posting the automatic result without its card`, err);

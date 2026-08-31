@@ -1687,6 +1687,7 @@
       "roleOff": "relieves {name} of the {role} role.",
       "detached": "sends {name} ahead of the party.",
       "recalled": "brings {name} back into the party.",
+      "detachDeclined": "That declaration could not be carried out — the party has no token on the canvas to step out from, or the character cannot leave the party right now.",
       "shield": "closes the shutter on {bearer}'s lantern.",
       "unshield": "opens the shutter on {bearer}'s lantern.",
       "douse": "douses {bearer}'s light.",
@@ -1804,6 +1805,7 @@
     },
     "warn": {
       "noFormationYet": "No formation exists yet — right-click a token and use \"Add to party\", or create a Party Formation actor.",
+      "detachFailed": "Nothing moved — the party has no token on the canvas to step out from.",
       "duplicatePartyToken": "This formation already has a party token on the canvas — delete it first to re-place the party.",
       "alreadyMember": "{name} is already in the formation.",
       "noSelection": "No eligible tokens selected.",

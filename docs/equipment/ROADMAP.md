@@ -42,3 +42,28 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   API each target calls; a real drag onto Contents, the disguise panel, the
   keys row and a Scene onto the band still wants a session with a compositing
   pane.
+- **A weight stated for a bundle.** `weight6` means the weight of one unit and
+  quantity multiplies it, but the books price a whole class of goods per
+  bundle — a quiver, a set of spikes. A Judge who reads such a row and types
+  the printed weight beside the printed count gets an item twenty times too
+  heavy, and nothing in the model can say the two numbers have different
+  denominators. Wants a `per` field on `GearExtras` defaulting to 1 (so no
+  migration), `weight6Of` counting `ceil(qty / per)` because a part-used bundle
+  is still one item, and a matching correction in `encumbranceDelta6` — core
+  owns the multiplication, so fixing only this module's reader would make the
+  item sheet and the character sheet disagree. **`per` itself is content**: it
+  comes from the importer, the item's name or the Judge, never from a shipped
+  table of bundle sizes.
+- **Weight entered in sixths.** The band's badge is the only decimal-stone
+  surface in the family — core's item sheet and this module's variation item
+  both take sixths directly — and the conversion only exists to serve it.
+  Binding `system.weight6` and keeping the stone reading as a label beside it
+  removes the lossy round trip rather than guarding it (DECISIONS 2026-08-31).
+  Changes what a Judge types, so it is user-facing.
+- **One clothing declaration.** The rail's base-type picker writes a
+  `baseType` flag and `isClothing` reads core's `system.subtype`, so declaring
+  clothing through the picker gives the icon and the wear slot but leaves the
+  garment weighing against encumbrance. Wants a forward write in `setBaseType`
+  and the same write in `annotateItem` so re-running Annotate repairs existing
+  worlds. Making `isClothing` read the flag instead is rejected: it silently
+  reinterprets stored data with nothing to roll back.

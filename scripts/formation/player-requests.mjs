@@ -157,7 +157,17 @@ async function executeRequest(formation, user, type, payload) {
     case "detach": {
       if (!userOwnsMember(formation, user, payload.actorId)) return;
       const result = await toggleDetachMember(formation, payload.actorId);
-      if (!result) return; // declined GM-side (mid-combat, or not theirs to recall)
+      // Declined GM-side: mid-combat, not theirs to recall, or no party token to
+      // step out from. The declaring seat was told the request was sent, so
+      // silence here leaves them believing it is still in flight.
+      if (!result) {
+        await ChatMessage.create({
+          content: loc("request.detachDeclined"),
+          whisper: [user.id],
+          speaker: { alias: formation?.name ?? "" },
+        });
+        return;
+      }
       await announceDeclaration(formation, user, loc(`request.${result}`, {
         name: foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?"),
       }));

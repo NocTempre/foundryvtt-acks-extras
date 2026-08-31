@@ -11,7 +11,7 @@ import assert from "node:assert";
 import { buildItemSheetModel, togglePin, effectivePins, resolveTab, valueBadge, TAB_ORDER } from "../scripts/equipment/item-sheet/view-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts, ACCEPT_KINDS } from "../scripts/equipment/item-sheet/accept-kinds.mjs";
 import { priceLedger } from "../scripts/equipment/item-sheet/price-ledger.mjs";
-import { stoneLabel, gpLabel, signed, initialOf } from "../scripts/equipment/item-sheet/format.mjs";
+import { stoneLabel, gpLabel, signed, initialOf, weightStoneOf, weight6FromStone } from "../scripts/equipment/item-sheet/format.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -74,6 +74,27 @@ test("stone labels use the books' fractions", () => {
   assert.equal(stoneLabel(6), "1");
   assert.equal(stoneLabel(15), "2¹⁄₂");
   assert.equal(stoneLabel(1.5), "0.25");
+});
+test("a whole number of sixths survives the weight badge's round trip", () => {
+  for (const w6 of [0, 1, 2, 3, 5, 6, 7, 12, 36]) {
+    assert.equal(weight6FromStone(weightStoneOf(w6)), w6, `${w6} sixths must come back unchanged`);
+  }
+});
+test("a fraction of a sixth does NOT survive it — which is why the badge writes back only when it fired", () => {
+  // The importer stores these: a bundle's per-unit weight is the printed
+  // bundle weight divided across its units. Each collapses through the
+  // displayed decimal, so the sheet must not write the weight back on a
+  // submit some other control fired.
+  for (const [w6, collapsed] of [[0.05, 0], [0.0833, 0], [0.5, 0], [0.6, 1], [0.75, 1]]) {
+    assert.equal(weight6FromStone(weightStoneOf(w6)), collapsed, `${w6} sixths collapses to ${collapsed}`);
+    assert.notEqual(weight6FromStone(weightStoneOf(w6)), w6);
+  }
+});
+test("a cleared weight badge is nothing; a non-number is refused outright", () => {
+  assert.equal(weight6FromStone(""), 0, "clearing the badge means the item weighs nothing");
+  assert.equal(weight6FromStone("abc"), null, "unparseable text is refused, leaving the stored weight alone");
+  assert.equal(weightStoneOf(undefined), null);
+  assert.equal(weight6FromStone(-3), 0, "a negative weight clamps rather than storing a negative");
 });
 test("gold is thousands-separated and a missing price is a dash", () => {
   assert.equal(gpLabel(32000), "32,000 gp");

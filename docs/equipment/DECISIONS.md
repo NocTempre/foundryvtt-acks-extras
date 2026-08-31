@@ -658,3 +658,43 @@ mounted waivers and the vehicle stations both ask it, and the vehicles
 surface re-exports it unchanged. The attack ctx gained `targetActor`
 (additive; height advantage compares mounts, and AC alone cannot say what
 the defender rides).
+
+---
+
+### A derived control writes back only when it is the control that fired (2026-08-31)
+
+**Ruled.** Every badge on the item sheet that displays a *converted* view of a
+stored field writes that field only when `event.target.name` names it. The
+quantity badge already did; the weight badge did not, and the rule is now
+stated rather than remembered.
+
+The weight badge shows `system.weight6` as decimal stone and writes back what
+it shows. With `submitOnChange`, every change to *any* field on the sheet
+submitted the badge's displayed value too — so the stored weight was
+re-quantised to the nearest whole sixth on every rename, every checkbox, every
+unrelated edit.
+
+For a whole number of sixths that is a no-op, which is why it was invisible.
+For a **fraction** of a sixth it is total loss: `0.05` displays as `0.008` and
+comes back `0`. Those fractions are real data — `acks-importer` divides a
+printed bundle weight across its units and stores exactly this, with a
+docstring noting that `weight6` is a plain `NumberField` so the fraction
+survives. It survived the importer and not the sheet: twenty arrows silently
+came to weigh nothing the first time anyone edited the item.
+
+**The conversion is now a pair of pure functions** (`weightStoneOf` /
+`weight6FromStone` in `item-sheet/format.mjs`) with the round trip pinned in
+`tools/test-item-sheet.mjs` — both directions: whole sixths survive, fractions
+demonstrably do not. The lossiness is the reason the guard exists, so the test
+asserts it rather than treating it as a bug to fix later.
+
+**The listed-price badge has the same missing guard and is NOT lossy** — it
+binds the raw unrounded base, so its round trip returns what it was given. It
+is left alone deliberately; noted here so the next reader does not take its
+silence for correctness.
+
+**Entry in stone is the real fault** and is not fixed here. Core's item sheet
+and this module's own variation item both take sixths directly; the band is the
+only decimal-stone surface in the family, and the conversion only exists
+because of it. Changing what a Judge types is a user-facing change — see
+[ROADMAP.md](ROADMAP.md).

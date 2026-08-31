@@ -1,5 +1,55 @@
 # Changelog
 
+## 5.6.1
+
+**A weight stops quietly rounding itself away, a proficiency throw shows the die
+it was decided by, and a scout who steps out comes back as one person instead of
+two.**
+
+### Fixed
+- **An item's weight is no longer rewritten every time you edit anything else on
+  its sheet.** The title band's weight badge shows the stored weight converted
+  to stone, and it was writing that converted number back on *every* submit —
+  renaming the item, ticking a box, changing its price. For a weight that is a
+  whole number of sixths nothing happened, which is why this went unseen. For a
+  weight *finer* than a sixth it was total loss: the value collapsed to the
+  nearest sixth, and anything under half a sixth collapsed to nothing at all.
+  Imported ammunition is stored exactly that way — the printed weight of a
+  bundle divided across its arrows — so a quiver of twenty could come to weigh
+  nothing the first time anyone opened it and typed in an unrelated field. The
+  badge now writes the weight only when the badge is the control you changed.
+  **Weights already flattened cannot be recovered from the document; re-import
+  the affected items, or type the weight in again.**
+- **A proficiency throw's chat card shows its dice again.** The card was built
+  expecting Foundry to attach the usual dice box beside it, and Foundry does not
+  do that for a card with its own layout — so since 3.7.0 an ability throw has
+  posted a banner, a portrait and a verdict with no die, no total and no
+  formula anywhere on it. A throw with *no* target — a measure, like the Hit
+  Dice a crusader turns — was worse still: with no verdict to print either, the
+  card said nothing at all. Both now carry the system's own dice box.
+- **Sending a member ahead and then removing them no longer leaves two of
+  them.** A detached character was recorded twice over — as a token standing on
+  the map, and as the snapshot taken before they left the party. Removing them,
+  disbanding the party, or deleting the party actor read the snapshot and built
+  a *second* token from it without clearing the first. Disbanding mid-fight
+  duplicated everyone who was out, with the copies indistinguishable and the
+  stale one still carrying the hit points they had before the fighting started.
+  Members are now brought back in before their tokens are restored, so what
+  comes back is the body they were actually using, damage and all. **A world
+  that already has duplicate tokens from this must have them removed by hand —
+  nothing marks them apart from real ones.**
+- **The Detach control no longer does nothing in silence.** With no party token
+  on the canvas there is nowhere for a character to step out to, but the button
+  rendered as usable and simply did not respond. It is now disabled in that
+  state, and a player who declares a detach that cannot be carried out is told
+  so instead of being left with "sent to the Judge".
+
+### Documentation
+- The Formation guide now says that trap resolution needs no button, and names
+  the two conditions it quietly depends on: the party must move as the **party
+  token** (a table moving characters individually gets no trap throws at all),
+  and a Judge must be connected.
+
 ## 5.6.0
 
 **Turning undead works the way the book prints it — a table whose top rungs need

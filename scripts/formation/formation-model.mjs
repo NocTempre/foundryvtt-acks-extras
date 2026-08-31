@@ -803,13 +803,51 @@ function freeCellPlacer(scene, anchor) {
  * @param {object[]} members the member records to restore
  * @returns {Promise<number>} how many tokens were created
  */
+/**
+ * Is this member standing on the canvas under their own token?
+ *
+ * Mirrors `deployment.mjs`'s predicate. Declared here rather than imported
+ * because `deployment.mjs` imports this file, and the restore path needs the
+ * answer synchronously inside a filter.
+ */
+const isMemberDeployed = (member) => !!(member?.deployedTokenId || member?.deployedStack);
+
+/**
+ * Bring every deployed member of `members` back inside the party token before
+ * their stashes are read.
+ *
+ * `tokenData` and `deployedTokenId` are two records of one fact — where this
+ * member's body is — and only the recall knows they are mutually exclusive. It
+ * refreshes the stash from the LIVE token before deleting it, so damage and
+ * effects taken while detached survive into the restored token.
+ *
+ * Imported lazily: `deployment.mjs` imports this file, so a static import here
+ * would close a cycle.
+ */
+async function recallDeployed(formation, members) {
+  const deployed = (members ?? []).filter(isMemberDeployed);
+  if (!deployed.length) return;
+  try {
+    const { recallMembers } = await import("./deployment.mjs");
+    await recallMembers(formation, { members: deployed });
+  } catch (err) {
+    console.error(`${MODULE_ID} | failed to recall deployed members before restoring their tokens`, err);
+  }
+}
+
 async function restoreMemberTokens(formation, members, { grid = false } = {}) {
   // A stash whose actor is gone cannot be re-created: the system's own
   // TokenDocument._preCreate reads the token's actor, and a token whose base
   // actor was deleted resolves it to null. Foundry creates the batch in ONE
   // call, so a single dead member would abort the creation of every live one
   // and take their positions down with it.
-  const stashed = members.filter((m) => m?.tokenData && game.actors.get(m.actorId));
+  // A DEPLOYED member is already on the canvas, and their stash is the stale
+  // snapshot taken before they left the party token. Restoring from it would
+  // stand a second copy of them beside the body they are using — so a member
+  // still holding a deployment marker is never restored from. Callers recall
+  // first (`recallDeployed`); this filter is what keeps a future one from
+  // re-opening the hole.
+  const stashed = members.filter((m) => m?.tokenData && !isMemberDeployed(m) && game.actors.get(m.actorId));
   if (!stashed.length) return 0;
   const scene = getPartyScene(formation) ?? game.scenes.viewed;
   if (!scene) return 0;
@@ -863,7 +901,10 @@ export async function removeMembers(formation, actorIds, { restore = true } = {}
   formation.lights = formation.lights.filter((l) => !leaving.has(l.bearerId));
   formation.spells = (formation.spells ?? []).filter((s) => !leaving.has(s.casterId));
 
-  if (restore) await restoreMemberTokens(formation, departing);
+  if (restore) {
+    await recallDeployed(formation, departing);
+    await restoreMemberTokens(formation, departing);
+  }
   await syncPartyActorSpeed(formation);
   await updateFormation(formation);
   return formation;
@@ -883,6 +924,7 @@ export async function removeMember(formation, actorId, { restore = true } = {}) 
  */
 export async function dissolveFormation(formation) {
   try {
+    await recallDeployed(formation, formation.members);
     const restored = await restoreMemberTokens(formation, formation.members, { grid: true });
     // Clear every stash in one write, and only when there was a stash to clear.
     // The creation above is a single call, so there is no half-restored state to

@@ -36,8 +36,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    *Observable:* one entry keyed `primary`, whose target matches
    `system.rollTarget`.
 3. Roll it: `rollAbility(item, defaultKeyOf(item))`.
-   *Observable:* a chat card naming the ability and reporting success or
-   failure against the target — not a bare die.
+   *Observable:* a chat card naming the ability, **carrying the system's dice
+   box** (formula and total, expandable to the die face), and reporting success
+   or failure against the target. Read the dice on the card itself — Foundry
+   does not add a box beside custom content, so "the message will show it" is
+   not an observable and asserting it is how this card shipped with no dice at
+   all for four releases.
 4. Rank and scaling: set a rank on the extras flag and re-read `rankOf(item)`
    and `scalesFor(item)`.
    *Observable:* the rank round-trips, and a scaling ability reports its whole
@@ -63,11 +67,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    ABSENT, not empty; the preview reads "Rolls 2d6…"; the Rolls tab row, the tag
    strip (`item.getTags()`) and the Favorites control all print `2d6` where a
    scored throw prints its number — none of them prints `?` or `—`. Roll it: the
-   card names the throw and shows the total with **no** success/failure row and
-   **no** "no target" explanation. Name a score on it: the Roll's own formula
-   becomes `2d6 + <mod>` (fold it into the DICE, never onto the total — the
-   message renders the Roll's own box) and the card says the term was added to
-   the result.
+   card names the throw and shows its dice box with the total, with **no**
+   success/failure row and **no** "no target" explanation. A measure has no
+   verdict, so the dice box is the entire answer — if it is missing the card is
+   a banner and a portrait and says nothing. Name a score on it: the Roll's own
+   formula becomes `2d6 + <mod>` (fold it into the DICE, never onto the total —
+   the card's own box prints the formula) and the card says the term was added
+   to the result.
    Then take a LADDERED throw, switch it to no target and back: its rungs must
    survive the round trip. The target section is not rendered while the throw is
    a measure, so anything that reads the form for rungs or for a scale would
