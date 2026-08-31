@@ -219,8 +219,9 @@ function installSceneControls() {
 }
 
 /**
- * A second door in scene config: open the assistant, and toggle the scene's
- * autoScale gate (whether tokens placed here are auto-sized to the scale).
+ * A second door in scene config: open the assistant, toggle the scene's
+ * autoScale gate (whether tokens placed here are auto-sized to the scale), and
+ * — on a city map only — say how big a block is drawn here.
  */
 function installSceneConfigRow() {
   Hooks.on("renderSceneConfig", (app, element) => {
@@ -241,6 +242,9 @@ function installSceneConfigRow() {
 
     const scene = app.document;
     const flag = scene.getFlag(MODULE_ID, FLAG_BATTLEMAP) ?? {};
+    // A block is only a unit on a map that has been declared a city; offering
+    // the field on a dungeon would invite a number nothing reads.
+    const city = flag.mapSystem === "settlement";
     const group = document.createElement("div");
     group.className = "form-group acks-extras-battlemap-row";
     group.innerHTML = `
@@ -253,8 +257,14 @@ function installSceneConfigRow() {
           <input type="checkbox" class="acks-extras-battlemap-autoscale" ${flag.autoScale ? "checked" : ""}>
           ${game.i18n.localize(`${LANG_PREFIX}.sceneConfig.autoScale`)}
         </label>
+        ${city ? `<label class="acks-extras-battlemap-block">
+          ${game.i18n.localize(`${LANG_PREFIX}.sceneConfig.blockFeet`)}
+          <input type="number" min="0" step="1" class="acks-extras-battlemap-blockfeet"
+                 value="${flag.blockFeet > 0 ? Number(flag.blockFeet) : ""}"
+                 placeholder="${scene.grid?.units ?? ""}">
+        </label>` : ""}
       </div>
-      <p class="hint">${game.i18n.localize(`${LANG_PREFIX}.sceneConfig.hint`)}</p>`;
+      <p class="hint">${game.i18n.localize(`${LANG_PREFIX}.sceneConfig.${city ? "blockHint" : "hint"}`)}</p>`;
     anchor.after(group);
 
     group.querySelector(".acks-extras-battlemap-open").addEventListener("click", () => openAssistant());
@@ -262,6 +272,15 @@ function installSceneConfigRow() {
     // the scene-config submit handler knows nothing about it.
     group.querySelector(".acks-extras-battlemap-autoscale").addEventListener("change", async (ev) => {
       await scene.setFlag(MODULE_ID, FLAG_BATTLEMAP, { ...flag, autoScale: ev.currentTarget.checked });
+    });
+    // Blank or zero clears the declaration rather than storing a block of no
+    // width: silence is what the city tracker reads as "time them by their feet".
+    group.querySelector(".acks-extras-battlemap-blockfeet")?.addEventListener("change", async (ev) => {
+      const feet = Number(ev.currentTarget.value);
+      await scene.setFlag(MODULE_ID, FLAG_BATTLEMAP, {
+        ...scene.getFlag(MODULE_ID, FLAG_BATTLEMAP) ?? {},
+        blockFeet: Number.isFinite(feet) && feet > 0 ? feet : null,
+      });
     });
   });
 }

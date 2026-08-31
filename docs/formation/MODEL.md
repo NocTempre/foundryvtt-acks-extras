@@ -390,6 +390,22 @@ the board, and advances the world clock a day through `lib/world-time.mjs`'s
 switch. `acksExtras.formation.travel` (apiVersion 4) publishes the mode
 switch, the day board writers, the hex trace and the pure pieces.
 
+**The tracker raises the day's end; the Judge answers it.** `dayIsSpent` is
+asked of every hex entered, and when the march has been walked off
+[day-close.mjs](../../scripts/formation/day-close.mjs) puts one question: call
+it a day, push on into a forced march, or not yet. It is not ended
+automatically, because ending a day spends the provisions, settles the ground,
+rolls tomorrow's sky and moves the calendar — consequences of a decision, not
+of arithmetic — and a party may always choose to press on. Asked once: the
+`offered` flag is written BEFORE the dialog is awaited, so a drag across three
+hexes does not stack three prompts. No day-kind change carries the flag, so
+pushing on re-arms the question for the distance it just bought — and what the
+day has already WALKED survives every kind change, since the ground is crossed
+whatever the party decides to do with the rest of the day.
+
+`closeDay` is the one closer: the panel's **End day** button and the tracker's
+own offer both go through it, so a day can never be ended two different ways.
+
 ## Searching the wild
 
 One throw, three quarries
@@ -612,20 +628,60 @@ and what it costs is printed, so the ladder is registered
 here ships a distance: an unimported city reports which table is missing rather
 than moving the party an invented number of blocks.
 
+**A city turn is marked off the same way a dungeon turn is: the party walks
+it.** The clock pauses for a JOURNEY only (`setJourneyMode`), because a day is
+the wrong grain for a ten-minute tick; a settlement is timed in the same turns
+a delve is, so `onPartyTokenMoved` drives it and there is no button to press.
+One tracker serves both, and only the distance a turn buys differs —
+`turnDistance` asks the mode: a delve spends an exploration move, a city spends
+the pace's blocks in the feet the SCENE draws them at (`feetPerTurn`, taking
+`blockFeet` from the battlemap setup record). How wide a block is belongs to
+the map rather than to the book, which is why it is declared in Scene
+Configuration and not imported. A city map that has not said falls back to the
+party's walking speed and the panel states which of the two is in force — a
+party that moves and is told nothing happened reads as a broken module.
+
+Because it is the same tracker, a city turn costs what a dungeon turn costs:
+the torch burns down, the spell runs out, the rest interval accrues, the world
+clock advances. The delve's action surface comes with it — listening, a hasty
+or methodical search, doors and their spikes, traps — since none of those were
+ever gated on the mode, only on the clock that was stopped.
+
+**What the city keeps for itself** is the encounter cadence and the way. The
+street is not the dungeon's every-N-turns throw at a different number: how often
+it comes round is decided by where the party is standing and whether it is dark,
+and the same turn owes a navigation throw the dungeon never asks for. So
+`onTurnCompleted` hands a settlement turn to `cityTurnCompleted` and returns
+rather than falling through to the wandering-monster throw as well. An Encounter
+Zone region still overrides, which is how a quarter with its own reputation is
+drawn.
+
 **A turn is taken, not simulated.** `advanceSettlementTurn` is pure and owns
 no dice; `settlement-turn.mjs` rolls them, writes the board and whispers the
 Judge. Order matters inside the tick: the party MOVES, then the street gets its
 chance — a turn spent walking into an alley is a turn the alley can answer for.
 Being turned around in a city is known **at once**, unlike the wilderness,
-which is why it reads as a warning on the panel rather than a secret.
+which is why it reads as a warning on the panel rather than a secret. The next
+board is written onto the LIVE record, not patched into the setting, because
+the tracker is mid-tick holding the same object and its own save would
+overwrite a second write.
 
-The tick is what makes the board's `blocks`, `turns`, `lost` and `lastThrow`
-mean anything. Without it they were fields nothing read — the same defect as a
-schema a Judge cannot populate.
+**Holing up is the one rate no movement can report**, so it rides the world
+clock instead (`creditHoledUpDays`, registered through `lib/world-time.mjs`'s
+shared watcher). The board stamps the world time a stay is counted from and
+moves that stamp forward by exactly the days it has charged for, so a calendar
+dragged forward pays once and a party that walks back out into the street
+starts a fresh stay. A stationary party owes nothing at the turn tick
+at all — neither the street's throw, which counted by both clocks would come
+round twice for one stay, nor the navigation throw, because a party hiding in a
+room is not going anywhere it can fail to arrive at. Its turns still pass:
+walking about inside is time, and the torch knows it.
 
-The board rides the journey panel's own submit — `travel.settlement.*` field
+The pickers ride the journey panel's own submit — `travel.settlement.*` field
 names, applied by `applyTravelForm` — because an ApplicationV2 action fires on
-click and a select bound to one never reports a change at all.
+click and a select bound to one never reports a change at all. They declare
+STATE (the pace, the place, what the party knows of the way); nothing on the
+panel advances the clock.
 
 ## The weather
 

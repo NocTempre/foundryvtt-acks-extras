@@ -39,6 +39,7 @@ import { stationsFor } from "../vehicles/stations.mjs";
 import { FOLLOWING_KINDS } from "./travel.mjs";
 import { driftSummary } from "./lost.mjs";
 import { travelOf, DAY_KINDS, ANCILLARY_ACTIVITIES, ROAD_KINDS, TERRITORY_KEYS } from "./travel.mjs";
+import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import {
   SETTLEMENT_PACES, SETTLEMENT_LOCATIONS, ROUTE_KNOWLEDGE,
   SETTLEMENT_INTENTS, CONVEYANCES,
@@ -60,7 +61,7 @@ import { expeditionFrom } from "../lib/movement-scales.mjs";
 import { fractionLabel } from "../lib/util.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
-import { formatTurns, parseSpellTurns } from "./turn-engine.mjs";
+import { formatTurns, parseSpellTurns, turnDistance } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { provisionForecast, daysCarried } from "./provisions.mjs";
 import { survivalStateOf, FOOD_SOURCES, WATER_SOURCES } from "./provision-day.mjs";
@@ -513,20 +514,34 @@ function buildSettlementView(formation, t) {
   const spec = citySpec({ pace: s.pace, route: s.route });
   const cadence = streetCadence({ where: s.where, night: s.night, intent: s.intent });
 
+  // What the party's own movement is being timed by here. The scene answers,
+  // so the panel and the tracker can never disagree about the rate.
+  const scene = getPartyScene(formation);
+  const blockFeet = sceneBlockFeet(scene);
+  const turnFeet = Math.round(turnDistance(formation, scene) || 0);
+  // A party with no token anywhere has no map to have said anything: blaming
+  // one that does not exist reads as a scene the Judge forgot to configure.
+
   return {
     ...s,
     ready: settlementReady(),
     headcount: heads,
+    blockFeet,
+    turnFeet,
+    onMap: !!scene,
+    units: scene?.grid?.units ?? "",
     paceOptions: Object.entries(SETTLEMENT_PACES).map(([k, v]) => opt(k, loc(v.label), k === s.pace)),
     whereOptions: Object.entries(SETTLEMENT_LOCATIONS).map(([k, v]) => opt(k, loc(v.label), k === s.where)),
     routeOptions: Object.entries(ROUTE_KNOWLEDGE).map(([k, v]) => opt(k, loc(v.label), k === s.route)),
     intentOptions: Object.entries(SETTLEMENT_INTENTS).map(([k, v]) => opt(k, loc(v.label), k === s.intent)),
     conveyanceOptions: Object.entries(CONVEYANCES).map(([k, v]) => opt(k, loc(v.label), k === s.conveyance)),
-    // Holing up is measured in DAYS, so the board offers a day tick instead of
-    // a turn tick when the party is not going anywhere.
+    // Holing up is measured in DAYS, and the world clock credits them: a party
+    // that is not going anywhere has no movement for the tracker to read.
     stationary: !!SETTLEMENT_LOCATIONS[s.where]?.stationary,
-    holeUpDays: Number(s.holeUpDays) || 1,
-    blocks: rate.blocks,
+    // The RATE, kept apart from the tally the spread above carries: a panel
+    // that showed one where the other belongs reads as a party that has walked
+    // five blocks and never gets any further.
+    rateBlocks: rate.blocks,
     blocksUnpriced: rate.blocks == null,
     straggling: (rate.parts ?? []).some((p) => p.key === "straggling"),
     throws: !!spec.throws,

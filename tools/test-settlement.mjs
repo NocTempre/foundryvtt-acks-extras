@@ -15,6 +15,7 @@ import {
   freshSettlement, settlementOf, straggleTier, blocksPerTurn, citySpec,
   strayBlocks, streetCadence, settlementReady, advanceSettlementTurn,
   SETTLEMENT_INTENTS, CONVEYANCES, advanceSettlementDays, settlementEncounter,
+  feetPerTurn, carryStay,
 } from "../scripts/formation/settlement.mjs";
 
 let passed = 0;
@@ -367,6 +368,94 @@ ok("and riding in one changes no distance", () => {
     "but the board remembers it");
   assert.equal(settlementOf({ settlement: { conveyance: "palanquin" } }).conveyance, "onFoot",
     "an unknown conveyance falls back rather than inventing one");
+  resetTables();
+});
+
+
+ok("an unstamped stay reads as unstamped, not as world time zero", () => {
+  // Number(null) is 0, and a stay stamped at the epoch is a stay the clock
+  // watcher charges every day since the world began for.
+  assert.equal(settlementOf({ settlement: {} }).holeUpSince, null);
+  assert.equal(settlementOf({ settlement: { holeUpSince: null } }).holeUpSince, null);
+  assert.equal(settlementOf({ settlement: { holeUpSince: "" } }).holeUpSince, null);
+  assert.equal(settlementOf({ settlement: { holeUpSince: 86400 } }).holeUpSince, 86400);
+  assert.equal(settlementOf({ settlement: { holeUpSince: 0 } }).holeUpSince, 0,
+    "but a stay that really began at zero is kept");
+});
+
+ok("changing where the party is ends the stay it was on", () => {
+  const prev = { ...freshSettlement(), where: "holedUp", holeUpSince: 86400 };
+  const stayed = carryStay(prev, { ...prev, night: true });
+  assert.equal(stayed.holeUpSince, 86400, "a stay survives a write that did not move them");
+  const left = carryStay(prev, { ...prev, where: "alley" });
+  assert.equal(left.holeUpSince, null, "and never survives one that did");
+});
+
+/* --- the tracker: blocks are turned into the feet a map draws them at ------ */
+ok("a turn's distance is the pace's blocks in the map's own feet", () => {
+  load();
+  const rate = blocksPerTurn({ pace: "commuting", headcount: 1 }).blocks;
+  const walk = feetPerTurn({ pace: "commuting", headcount: 1, blockFeet: 120 });
+  assert.equal(walk.feet, rate * 120);
+  assert.equal(walk.blocks, rate);
+  assert.equal(walk.blockFeet, 120);
+  resetTables();
+});
+
+ok("a straggling party covers fewer feet for the same turn", () => {
+  load();
+  const small = feetPerTurn({ pace: "commuting", headcount: 2, blockFeet: 120 }).feet;
+  const crowd = feetPerTurn({ pace: "commuting", headcount: 12, blockFeet: 120 }).feet;
+  assert.ok(crowd < small, "the tiers must reach the tracker, not only the readout");
+  resetTables();
+});
+
+ok("a map that has not said how big a block is yields no distance, and names the missing half", () => {
+  load();
+  assert.deepEqual(feetPerTurn({ pace: "commuting", headcount: 1, blockFeet: null }),
+    { feet: null, missing: "blockFeet" });
+  assert.deepEqual(feetPerTurn({ pace: "commuting", headcount: 1, blockFeet: 0 }),
+    { feet: null, missing: "blockFeet" });
+  resetTables();
+});
+
+ok("and an unimported city yields none either, naming the table instead", () => {
+  assert.deepEqual(feetPerTurn({ pace: "commuting", headcount: 1, blockFeet: 120 }),
+    { feet: null, missing: "paces" });
+});
+
+/* --- a stay is thrown for by the day, and only once ----------------------- */
+ok("a holed-up turn owes no street throw - the day tick owns it", () => {
+  load();
+  const board = { ...freshSettlement(), where: "holedUp", turns: 99 };
+  const { board: next, events } = advanceSettlementTurn(board, { headcount: 3, encounterRoll: 6 });
+  assert.equal(next.turns, 100, "the turn is still marked off - time passes while holed up");
+  assert.equal(next.blocks, 0, "and no ground is covered");
+  assert.ok(!events.some((e) => e.kind === "encounterOwed"),
+    "a stay thrown for by both clocks is thrown for twice");
+  assert.ok(!events.some((e) => e.kind === "unpriced"),
+    "nor is the day cadence reported missing when it is merely not this tick's business");
+  resetTables();
+});
+
+ok("nor does a party staying put throw to find its way", () => {
+  load();
+  const board = { ...freshSettlement(), where: "holedUp", pace: "commuting", route: "unknown" };
+  const { board: next, events } = advanceSettlementTurn(board, { headcount: 3, navRoll: 1 });
+  assert.equal(next.lost, false, "there is nowhere it was trying to get to");
+  assert.equal(next.lastThrow, null);
+  assert.ok(!events.some((e) => e.kind === "strayed"));
+  resetTables();
+});
+
+ok("but the day tick still throws for that same stay", () => {
+  load();
+  const board = { ...freshSettlement(), where: "holedUp" };
+  const { events } = advanceSettlementDays(board, { days: 2, rolls: [6, 1] });
+  const owed = events.filter((e) => e.kind === "encounterOwed");
+  assert.equal(owed.length, 2);
+  assert.equal(owed[0].met, true);
+  assert.equal(owed[1].met, false);
   resetTables();
 });
 

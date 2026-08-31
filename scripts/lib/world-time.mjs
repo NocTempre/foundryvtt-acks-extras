@@ -1,7 +1,7 @@
-/* global game */
+/* global game, Hooks */
 /**
  * The module's world-clock policy — the one switch deciding whether this module
- * writes to `game.time`.
+ * writes to `game.time`, and the one place features WATCH it from.
  *
  * Two features move the clock: formation's dungeon turns (a minute per
  * bookkeeping round) and the location sheet's "Advance 1 week" fallback. They
@@ -18,3 +18,24 @@ export const SETTING_ADVANCE_WORLD_TIME = "advanceWorldTime";
 
 /** True when this module may move the world clock. */
 export const mayAdvanceWorldTime = () => game.settings.get(MODULE_ID, SETTING_ADVANCE_WORLD_TIME);
+
+/**
+ * Register a callback fired when world time moves forward, on the one GM
+ * client that is responsible for acting on it.
+ *
+ * Every feature that reacts to the calendar shares this registrar rather than
+ * guarding a hook of its own: the "am I the active GM" test is what stops a
+ * two-GM table processing the same day twice, and one copy of it is the only
+ * way it stays one answer. Callbacks must be idempotent — each keeps its own
+ * watermark, because the hook also fires for a clock the Judge dragged.
+ *
+ * @param {(worldTime: number, dt: number) => void} callback  seconds, and the
+ *   forward step that produced them.
+ */
+export function onWorldTimeAdvanced(callback) {
+  Hooks.on("updateWorldTime", (worldTime, dt) => {
+    if (!game.users.activeGM || game.user !== game.users.activeGM) return;
+    if (dt <= 0) return;
+    callback(Math.floor(worldTime), dt);
+  });
+}

@@ -117,6 +117,13 @@ function table(key) {
   return t == null ? null : t;
 }
 
+/** A world-time stamp, or null for anything that is not one. */
+function stampOrNull(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** A fresh settlement board: on an avenue, by day, going nowhere in particular. */
 export function freshSettlement() {
   return {
@@ -129,8 +136,12 @@ export function freshSettlement() {
     blocks: 0,
     turns: 0,
     days: 0,
-    /** How long a stay the Judge has queued up. A control's value, not a tally. */
-    holeUpDays: 1,
+    /**
+     * World time, in seconds, that the current stay is counted from. Null
+     * until the party is somewhere it stays put; the clock watcher stamps it
+     * and moves it forward by the days it has already charged for.
+     */
+    holeUpSince: null,
     lost: false,
     lastThrow: null,
   };
@@ -152,9 +163,24 @@ export function settlementOf(travel) {
     blocks: Number(s.blocks) || 0,
     turns: Number(s.turns) || 0,
     days: Number(s.days) || 0,
-    holeUpDays: Math.min(30, Math.max(1, Math.floor(Number(s.holeUpDays) || 1))),
+    // Nothing coerces to zero here: `Number(null)` and `Number("")` are both 0,
+    // and a stay stamped at world time zero is a stay the clock watcher charges
+    // every day since the world began for.
+    holeUpSince: stampOrNull(s.holeUpSince),
     lost: !!s.lost,
   };
+}
+
+/**
+ * Carry a stay across a board write: a party that has moved is no longer on it.
+ *
+ * Every writer of the board passes through here, rather than each remembering
+ * the rule, because a stale stamp is not a visible defect — a party that holed
+ * up in spring and walked out in autumn is charged every day between the two
+ * the moment it next stops somewhere, and only the card at the end says so.
+ */
+export function carryStay(previous, next) {
+  return next?.where === previous?.where ? next : { ...next, holeUpSince: null };
 }
 
 /**
@@ -201,6 +227,28 @@ export function blocksPerTurn({ pace = "meandering", headcount = 1 } = {}) {
   if (tier) parts.push({ key: "straggling", factor: tier.multiplier, from: tier.from });
   const blocks = parts.reduce((n, p) => (p.base ? p.factor : n * p.factor), rate);
   return { blocks, parts };
+}
+
+/**
+ * How far one city turn carries the party, in FEET.
+ *
+ * The bridge between the book's abstraction and a drawn map: the rules measure
+ * a city in blocks because feet-per-turn in a village would be tedious, but a
+ * party crossing a city SCENE moves in feet, and the tracker needs one currency
+ * to convert. How big a block is belongs to the map, not to the book — a Judge
+ * draws the blocks — so `blockFeet` is passed in by the scene rather than read
+ * from the registry.
+ *
+ * Null feet with a stated `missing` when either half is unknown, so the caller
+ * can time the party by its walking speed and SAY it is doing that, instead of
+ * ticking against an invented block.
+ */
+export function feetPerTurn({ pace = "meandering", headcount = 1, blockFeet = null } = {}) {
+  const rate = blocksPerTurn({ pace, headcount });
+  if (rate.blocks == null) return { feet: null, missing: rate.missing };
+  const size = Number(blockFeet);
+  if (!Number.isFinite(size) || size <= 0) return { feet: null, missing: "blockFeet" };
+  return { feet: rate.blocks * size, blocks: rate.blocks, blockFeet: size, parts: rate.parts };
 }
 
 /**
@@ -355,7 +403,12 @@ export function advanceSettlementTurn(board, {
   }
 
   // --- did they go the right way? ---
-  const nav = citySpec({ pace: s.pace, route: s.route });
+  // A party that is staying put is not going anywhere to go wrong: the throw
+  // belongs to a journey across the city, not to the ten minutes it spends in
+  // the room it is hiding in.
+  const nav = spec?.stationary
+    ? { throws: false, reason: "stationary" }
+    : citySpec({ pace: s.pace, route: s.route });
   if (nav.throws && nav.target != null && navRoll != null) {
     const total = Number(navRoll) + (nav.modifier ?? 0);
     const kept = total >= nav.target;
@@ -373,8 +426,15 @@ export function advanceSettlementTurn(board, {
   }
 
   // --- and did anything find them? ---
-  const cadence = streetCadence({ where: s.where, night: s.night, intent: s.intent });
-  if (!cadence) {
+  // A party that is not going anywhere is thrown for by the DAY, and
+  // `advanceSettlementDays` owns that throw. Counting the same stay in turns
+  // as well would give a holed-up party two chances at the same interruption.
+  const cadence = spec?.stationary
+    ? null
+    : streetCadence({ where: s.where, night: s.night, intent: s.intent });
+  if (spec?.stationary) {
+    // Nothing owed and nothing missing: the day tick is the one that answers.
+  } else if (!cadence) {
     events.push({ kind: "unpriced", what: "encounters" });
   } else if (next.turns % cadence.everyTurns === 0) {
     const owed = {

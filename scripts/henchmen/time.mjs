@@ -1,4 +1,4 @@
-/* global game, Hooks */
+/* global game, ui */
 /**
  * Time helpers — all recruitment/wage state is anchored on
  * `game.time.worldTime` seconds so any worldTime-driven clock (the core
@@ -9,7 +9,7 @@
  */
 import { SECONDS_PER_DAY, SECONDS_PER_WEEK } from "./constants.mjs";
 import { getSetting } from "./settings.mjs";
-import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
+import { mayAdvanceWorldTime, onWorldTimeAdvanced } from "../lib/world-time.mjs";
 
 export function now() {
   return Math.floor(game.time.worldTime);
@@ -140,12 +140,9 @@ export async function advanceDays(days) {
 /**
  * Register a due-processing callback fired on the GM client whenever world
  * time moves forward. Processing must be idempotent — each consumer keeps its
- * own `lastProcessedTime` watermark.
+ * own `lastProcessedTime` watermark. The guard itself is `lib/world-time.mjs`;
+ * this name is what the henchmen engine has always called it.
  */
 export function onTimeAdvanced(callback) {
-  Hooks.on("updateWorldTime", (worldTime, dt) => {
-    if (!game.users.activeGM || game.user !== game.users.activeGM) return;
-    if (dt <= 0) return;
-    callback(Math.floor(worldTime), dt);
-  });
+  return onWorldTimeAdvanced(callback);
 }

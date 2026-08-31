@@ -1386,6 +1386,12 @@
   color: var(--acks-ink-soft);
 }
 
+/* What the tracker is timing the party by. Quieter than the throw line: it is
+   read once, when a turn arrives at a moment the Judge did not expect. */
+.acks-extras-formation-settlement-tracker {
+  margin: var(--acks-sp-1) 0 0;
+}
+
 /* --- The navigation card --------------------------------------------------
    Judge-whispered, so it is quieter than the encounter card: the verdict is
    the only line meant to be read at a glance. */

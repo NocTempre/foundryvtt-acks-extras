@@ -114,6 +114,9 @@ import { ENCOUNTERS_DOC, ENCOUNTER_TABLE_IDS } from "./encounters.mjs";
 import { SETTING_TRAVEL_ENCOUNTERS, maybeHexThrow, postEncounterThrow, resolveCreature, rollDayEncounters } from "./encounter-card.mjs";
 import { SETTING_TRAVEL_LOG_CAP } from "./travel.mjs";
 import { SETTING_STRAGGLING } from "./settlement.mjs";
+import { creditHoledUpDays } from "./settlement-turn.mjs";
+import { closeDay, offerDayEnd } from "./day-close.mjs";
+import { onWorldTimeAdvanced } from "../lib/world-time.mjs";
 import { SETTING_SKY_CACHE } from "./sky.mjs";
 import * as provisions from "./provisions.mjs";
 import * as foraging from "./foraging.mjs";
@@ -500,7 +503,7 @@ Hooks.once("init", () => {
      * knows the ORDER the three move in.
      */
     apiVersion: 8,
-    travel,
+    travel: { ...travel, closeDay, offerDayEnd },
     weather,
     settlement,
     lost,
@@ -631,6 +634,13 @@ Hooks.once("ready", () => {
   // Index the skill ladders acks-content imported (item directory or the world
   // compendium it writes to when importToCompendium is on).
   initLadders();
+  // A party holed up in a city has no movement to read, so its stay is
+  // credited off the calendar instead. Idempotent: the board carries the world
+  // time each stay is counted from, so a clock the Judge drags forward pays
+  // once for the days it crossed.
+  onWorldTimeAdvanced(() => {
+    creditHoledUpDays().catch((err) => console.error(`${MODULE_ID} | holed-up day failed`, err));
+  });
   if (isPrimaryGM()) {
     // Prune dead records FIRST (formations whose party actor is gone — the
     // phantom source), then sync the environments of what remains.
@@ -713,6 +723,11 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
       if (!formation) return null;
       return runTrapCheck(formation, { from, to: { x: tokenDoc.x, y: tokenDoc.y } });
     })
+    // A journey's tracker counts hexes; when the day's march has been walked
+    // off, the Judge is asked whether it is over. Wired here rather than
+    // inside the tracker: ending a day spends provisions and the calendar, and
+    // that is an answer, not an arithmetic consequence.
+    .then(() => offerDayEnd(formationId))
     .catch((err) => console.error(`${MODULE_ID} | movement processing failed`, err));
 });
 

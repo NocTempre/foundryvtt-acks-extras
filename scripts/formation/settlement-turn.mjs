@@ -9,11 +9,11 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc, gmIds } from "../lib/util.mjs";
-import { patchFormation, realMembers } from "./formation-model.mjs";
+import { readFormations, patchFormation, realMembers } from "./formation-model.mjs";
 import { travelOf } from "./travel.mjs";
 import {
   advanceSettlementTurn, advanceSettlementDays, citySpec, streetCadence,
-  settlementEncounter,
+  settlementEncounter, SETTLEMENT_LOCATIONS,
 } from "./settlement.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
@@ -26,12 +26,19 @@ async function maybeRoll(owed) {
 }
 
 /**
- * Take one turn in the city.
+ * One city turn, marked off because the party MOVED.
  *
- * Both dice are rolled BEFORE the ledger patch, because the patch callback is
- * synchronous — the same shape the sky and the provisions take.
+ * Called from the turn engine's per-turn bookkeeping, so a turn in a city
+ * costs everything a turn in a dungeon costs — the torch, the spell, the rest
+ * — and the city's own business happens in the same tick: the blocks are
+ * credited, the way is checked, and the street gets its chance.
+ *
+ * Writes the next board onto the LIVE record rather than patching the setting.
+ * The caller is mid-tick holding the same object and saves it when the tick
+ * ends; a second write from here would be overwritten by that save, which is
+ * how a city turn would silently lose its blocks.
  */
-export async function runSettlementTurn(formation) {
+export async function cityTurnCompleted(formation, notes = []) {
   if (!game.user?.isGM) return null;
   const t = travelOf(formation);
   if (t.mode !== "settlement") return null;
@@ -39,9 +46,13 @@ export async function runSettlementTurn(formation) {
   const board = t.settlement;
   const headcount = realMembers(formation).length || 1;
 
-  // Only roll what the turn will actually consult.
-  const nav = citySpec({ pace: board.pace, route: board.route });
-  const cadence = streetCadence({ where: board.where, night: board.night, intent: board.intent });
+  // Only roll what the turn will actually consult. A party staying put neither
+  // navigates nor is thrown for by the turn — its day tick owns both.
+  const stationary = !!SETTLEMENT_LOCATIONS[board.where]?.stationary;
+  const nav = stationary ? { throws: false } : citySpec({ pace: board.pace, route: board.route });
+  const cadence = stationary
+    ? null
+    : streetCadence({ where: board.where, night: board.night, intent: board.intent });
   const willOweEncounter = !!cadence && ((board.turns + 1) % cadence.everyTurns === 0);
 
   const navThrow = await maybeRoll(nav.throws && nav.target != null);
@@ -53,47 +64,55 @@ export async function runSettlementTurn(formation) {
     encounterRoll: encThrow.total,
   });
 
-  await patchFormation(formation.id, (record) => {
-    const cur = travelOf(record);
-    record.travel = { ...cur, settlement: next };
-  });
+  formation.travel = { ...t, settlement: next };
+
+  // The turn card is what the Judge is already reading; the two things a city
+  // turn can do that a dungeon turn cannot belong on it.
+  if (events.some((e) => e.kind === "strayed")) {
+    notes.push({ type: "bad", text: loc("settlement.note.strayed") });
+  }
+  if (events.some((e) => e.kind === "encounterOwed" && e.met)) {
+    notes.push({ type: "bad", text: loc("settlement.note.incident") });
+  }
 
   await whisperTurn(next, events, [navThrow.roll, encThrow.roll].filter(Boolean));
   return { board: next, events };
 }
 
 /**
- * Spend days holed up.
+ * Days spent holed up, credited because the WORLD CLOCK moved.
  *
- * Its own runner rather than a loop over turns, because holing up is priced by
- * the DAY: a week of study is seven throws, not a thousand ten-minute ticks
- * that happen to owe seven of them. Each day rolls its own d6, and the whole
- * stay lands as one card.
+ * Holing up is the one settlement rate the party's own motion cannot report:
+ * the party is deliberately not going anywhere, so there is no movement to
+ * tick and the calendar is the only thing that changes. Priced by the DAY —
+ * a week of study is seven throws, not a thousand ten-minute ticks that happen
+ * to owe seven of them — so each day rolls its own die and the stay lands as
+ * one card.
+ *
+ * Patches the setting directly: unlike the turn, nothing else is mid-tick.
  */
-export async function runSettlementDays(formation) {
+export async function runHoledUpDays(formation, days) {
   if (!game.user?.isGM) return null;
   const t = travelOf(formation);
   if (t.mode !== "settlement") return null;
 
+  const n = Math.min(30, Math.max(1, Math.floor(Number(days) || 0)));
+  if (!n) return null;
   const board = t.settlement;
-  const days = Math.min(30, Math.max(1, Math.floor(Number(board.holeUpDays) || 1)));
   const cadence = streetCadence({ where: board.where, night: board.night, intent: board.intent });
 
   const rolls = [];
   const dice = [];
   if (cadence) {
-    for (let d = 0; d < days; d++) {
+    for (let d = 0; d < n; d++) {
       const r = await new Roll("1d6").evaluate();
       rolls.push(r.total);
       dice.push(r);
     }
   }
 
-  const { board: next, events } = advanceSettlementDays(board, { days, rolls });
-  if (events.some((e) => e.kind === "notHoledUp")) {
-    ui.notifications?.info(game.i18n.localize("ACKS-FORMATION.settlement.notHoledUp"));
-    return null;
-  }
+  const { board: next, events } = advanceSettlementDays(board, { days: n, rolls });
+  if (events.some((e) => e.kind === "notHoledUp")) return null;
 
   await patchFormation(formation.id, (record) => {
     const cur = travelOf(record);
@@ -102,6 +121,53 @@ export async function runSettlementDays(formation) {
 
   await whisperStay(next, events, dice);
   return { board: next, events };
+}
+
+/** Seconds in a day, the unit a stay is counted in. */
+const DAY_SECONDS = 24 * 60 * 60;
+
+/**
+ * Credit whatever whole days have passed for every party holed up in a city.
+ *
+ * The watcher for the one settlement rate that has no movement to read. It is
+ * driven by the world clock rather than by a button, so a stay advanced by
+ * anything — a rest, a downtime week, the Judge nudging the calendar — is
+ * priced the same way, and a party cannot be charged twice for the same day:
+ * the stamp moves forward by exactly the days credited, and the remainder
+ * stays on the clock.
+ *
+ * A party that has just holed up is stamped and charged nothing; the first day
+ * begins now, not at whatever the calendar said when the world was made.
+ */
+export async function creditHoledUpDays() {
+  if (!game.user?.isGM) return;
+  const now = Number(game.time?.worldTime) || 0;
+  // The read-only blob, not a deep copy: this runs on every clock advance and
+  // asks two fields of each record. The writes go through `patchFormation`.
+  for (const formation of Object.values(readFormations())) {
+    const t = travelOf(formation);
+    if (t.mode !== "settlement") continue;
+    const board = t.settlement;
+    if (!SETTLEMENT_LOCATIONS[board.where]?.stationary) continue;
+
+    // First sighting: start the clock here rather than at the epoch.
+    if (board.holeUpSince == null) {
+      await patchFormation(formation.id, (record) => {
+        const cur = travelOf(record);
+        record.travel = { ...cur, settlement: { ...cur.settlement, holeUpSince: now } };
+      });
+      continue;
+    }
+
+    const days = Math.floor((now - Number(board.holeUpSince)) / DAY_SECONDS);
+    if (days < 1) continue;
+    await runHoledUpDays(formation, days);
+    await patchFormation(formation.id, (record) => {
+      const cur = travelOf(record);
+      const since = Number(cur.settlement.holeUpSince) + days * DAY_SECONDS;
+      record.travel = { ...cur, settlement: { ...cur.settlement, holeUpSince: since } };
+    });
+  }
 }
 
 /**

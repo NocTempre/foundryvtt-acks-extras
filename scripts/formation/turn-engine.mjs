@@ -14,8 +14,11 @@ import {
   TURNS_PER_DAY,
   WINDED_EFFECT_NAME,
 } from "./constants.mjs";
-import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, updateFormation } from "./formation-model.mjs";
+import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, realMembers, updateFormation } from "./formation-model.mjs";
 import { onJourneyTokenMoved } from "./travel.mjs";
+import { feetPerTurn, settlementOf } from "./settlement.mjs";
+import { cityTurnCompleted } from "./settlement-turn.mjs";
+import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import { maybeHexThrow } from "./encounter-card.mjs";
 import { prepareToLight } from "../lib/light.mjs";
 import { equipForLight } from "./judge-override.mjs";
@@ -367,6 +370,17 @@ async function onTurnCompleted(formation, notes, resting) {
    * the turn now beginning. */
   formation.clock.movedThisTurn = false;
 
+  /* --- A city keeps its own cadence --- */
+  // The street is not the dungeon's every-N-turns throw at a different number:
+  // how often it comes round is decided by where the party is standing and
+  // whether it is dark, and the same tick owes a navigation throw the dungeon
+  // never asks for. The city's tick owns both, so this returns rather than
+  // falling through to the wandering-monster throw as well.
+  if (formation.travel?.mode === "settlement") {
+    await cityTurnCompleted(formation, notes);
+    return;
+  }
+
   formation.clock.encounterCounter += 1;
   const params = getEncounterParams(formation);
   if (params.every > 0 && formation.clock.encounterCounter >= params.every) {
@@ -464,15 +478,19 @@ export async function advanceTurns(formation, n = 1, options = {}) {
 async function postTurnCard(formation, n, { resting, reason, notes }) {
   const litLights = formation.lights.filter((l) => l.lit);
   const rest = formation.clock.turnsSinceRest;
+  // The turn is the same length either way; only the place it is spent in
+  // differs, and a card that says "dungeon" over a city street reads as the
+  // wrong mode rather than as a turn of the right one.
+  const city = formation.travel?.mode === "settlement";
 
   let html = `<div class="acks-formation-card">`;
   html += `<header><strong>${foundry.utils.escapeHTML(formation.name)}</strong> — `;
-  html += resting ? loc("chat.turnRested", { n }) : loc("chat.turnAdvanced", { n });
+  html += resting ? loc("chat.turnRested", { n }) : loc(city ? "chat.turnAdvancedCity" : "chat.turnAdvanced", { n });
   if (reason === "movement") html += ` <em>(${loc("chat.byMovement")})</em>`;
   html += `</header>`;
 
   html += `<ul class="status">`;
-  html += `<li>${loc("chat.elapsed", { turns: formation.clock.turnsTotal, time: formatTurns(formation.clock.turnsTotal) })}</li>`;
+  html += `<li>${loc(city ? "chat.elapsedCity" : "chat.elapsed", { turns: formation.clock.turnsTotal, time: formatTurns(formation.clock.turnsTotal) })}</li>`;
   if (formation.clock.winded) {
     html += `<li class="bad">${loc("chat.windedStatus")}</li>`;
   } else if (!resting) {
@@ -511,6 +529,31 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
 /* -------------------------------------------- */
 
 /**
+ * How far one turn carries the party on this scene, in feet.
+ *
+ * The one place the three adventuring modes differ as trackers. A delve spends
+ * an exploration move a turn, so the party's own speed is the rate. A city
+ * spends the pace's blocks, so the rate is those blocks in the feet this scene
+ * draws them at — and a scene that has not said how big a block is falls back
+ * to the walking speed rather than stopping the clock, because a party that
+ * moves and is told nothing has happened reads as a broken module. Which of
+ * the two is in force is stated on the panel.
+ */
+export function turnDistance(formation, scene) {
+  if (formation.travel?.mode === "settlement") {
+    const s = settlementOf(formation.travel);
+    const city = feetPerTurn({
+      pace: s.pace,
+      headcount: realMembers(formation).length || 1,
+      blockFeet: sceneBlockFeet(scene),
+    });
+    if (city.feet) return city.feet;
+  }
+  // Hurried parties cover combat speed × 10 rounds per turn (RR p. 263).
+  return effectiveSpeed(formation);
+}
+
+/**
  * Process a party-token position change: convert the distance to feet,
  * accumulate it, and mark off dungeon turns each time a full exploration
  * move's worth of distance is spent. Straight-line distance between the last
@@ -542,8 +585,10 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
   if (!dx && !dy) return;
 
   const feet = (Math.hypot(dx, dy) / scene.grid.size) * scene.grid.distance;
-  // Hurried parties cover combat speed × 10 rounds per turn (RR p. 263).
-  const speed = effectiveSpeed(formation);
+  // How far one turn carries this party HERE. A dungeon turn is an exploration
+  // move; a city turn is the pace's blocks, which the scene sizes in feet.
+  // Same tracker either way — only the currency changes.
+  const speed = turnDistance(formation, scene);
 
   if (speed <= 0) {
     await updateFormation(formation);
@@ -551,7 +596,7 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
     return;
   }
 
-  // Rounds, not whole turns: each tenth of an exploration move is a round.
+  // Rounds, not whole turns: each tenth of a turn's distance is a round.
   const roundFeet = speed / ROUNDS_PER_TURN;
   formation.clock.carryFeet = (formation.clock.carryFeet ?? 0) + feet;
   let rounds = 0;

@@ -18,7 +18,8 @@ import {
   toggleRole,
   updateFormation,
 } from "./formation-model.mjs";
-import { maybeHexThrow, postEncounterThrow, rollDayEncounters } from "./encounter-card.mjs";
+import { maybeHexThrow, postEncounterThrow } from "./encounter-card.mjs";
+import { closeDay } from "./day-close.mjs";
 import {
   anchorMap,
   archiveSession,
@@ -39,13 +40,10 @@ import { requestPartyAction } from "./player-requests.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, deployMembers, recallMembers, isMemberDeployed } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
-import { runSettlementTurn, runSettlementDays } from "./settlement-turn.mjs";
 import { runForageDay } from "./forage-run.mjs";
 import { runSearchHour } from "./search-run.mjs";
 import { askStrayAndBegin, confirmDiscovery, confirmReanchor } from "./lost-dialog.mjs";
-import { applyTravelForm, setJourneyMode, enterHex, endDay, rollWeatherNow } from "./travel.mjs";
-import { travelReadout } from "./formation-view.mjs";
-import { partySpeed } from "./formation-model.mjs";
+import { applyTravelForm, setJourneyMode, enterHex, rollWeatherNow } from "./travel.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
 import { openTrapbreakApp } from "./trapbreak-app.mjs";
@@ -199,28 +197,6 @@ export const SHARED_ACTIONS = {
   },
 
   /**
-   * One city turn: the party walks, may lose its way, and the street gets its
-   * chance. Rolls here rather than in the pure tick, which owns no dice.
-   */
-  async settlementTurn() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await runSettlementTurn(formation);
-    this.render();
-  },
-
-  /**
-   * A stay holed up, spent in days. Offered instead of the turn tick when the
-   * party is somewhere it is not going anywhere from.
-   */
-  async settlementDays() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await runSettlementDays(formation);
-    this.render();
-  },
-
-  /**
    * Work the country: roll whatever hours the day board set aside for it, and
    * put what is found into the foragers' own packs.
    */
@@ -317,12 +293,7 @@ export const SHARED_ACTIONS = {
   async travelEndDay() {
     const formation = gmFormation(this);
     if (!formation) return;
-    const r = travelReadout(formation, partySpeed(formation));
-    const entry = await endDay(formation.id, {
-      miles: r.camp ? 0 : r.milesPerDay,
-      hexes: r.camp ? 0 : r.hexesPerDay,
-    });
-    if (entry) await rollDayEncounters(getFormation(formation.id), entry);
+    await closeDay(formation);
     this.render();
   },
 

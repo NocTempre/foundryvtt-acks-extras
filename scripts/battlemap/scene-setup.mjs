@@ -18,7 +18,7 @@ const HEX_PROBE_SIZE = 100;
 /**
  * The scene's setup record, with every field resolved.
  * @returns {{calibrated:boolean, distance:number|null, autoScale:boolean,
- *   mapSystem:string|null}}
+ *   mapSystem:string|null, blockFeet:number|null}}
  */
 export function sceneSetup(scene) {
   const flag = scene?.getFlag?.(MODULE_ID, FLAG_BATTLEMAP) ?? {};
@@ -27,6 +27,7 @@ export function sceneSetup(scene) {
     distance: flag.distance > 0 ? flag.distance : null,
     autoScale: !!flag.autoScale,
     mapSystem: TRAVEL_MODES.includes(flag.mapSystem) ? flag.mapSystem : null,
+    blockFeet: flag.blockFeet > 0 ? Number(flag.blockFeet) : null,
   };
 }
 
@@ -37,6 +38,19 @@ export function sceneSetup(scene) {
  */
 export function sceneTravelSystem(scene) {
   return sceneSetup(scene).mapSystem;
+}
+
+/**
+ * How big one city block is drawn on this map, in the scene's own distance
+ * units, or null when nobody has said.
+ *
+ * A block is a property of the MAP, not of the rules: the book measures a city
+ * in blocks precisely so that nobody has to count feet, and how wide the Judge
+ * drew theirs is theirs to state. Null is silence — the city tracker times the
+ * party by its walking speed instead, and says so.
+ */
+export function sceneBlockFeet(scene) {
+  return sceneSetup(scene).blockFeet;
 }
 
 /**

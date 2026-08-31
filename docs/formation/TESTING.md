@@ -360,16 +360,51 @@ end of the run, so it can disagree with a boolean captured beside it.
 lost", which is what `isAstray` did on its first outing — every offline caller
 happened to wrap correctly, so only the live run caught it.
 
+## The day's end (added with the movement-raised offer)
+
+Fixture: a hex scene (`grid.type: 2`, a mile distance per hex), a party actor
+with one member, its token placed, `setJourneyMode(id, "journey")`.
+
+1. Read the allowance: `await party.sheet._prepareContext({})` →
+   `travel.readout.hexesPerDay`. **Probe the context rather than scraping the
+   panel** — it is what the template would render, and it carries the derived
+   figures the offer compares against.
+2. Walk the token hex centre to hex centre
+   (`scene.grid.getCenterPoint({i, j})`, minus half a grid box for the token's
+   top-left; `{animate: false}`).
+   *Observable:* the first arrival NAMES the hex without counting it; each
+   crossing after that raises `travel.day.hexesEntered` by one, and no dialog
+   appears until the count REACHES the allowance.
+3. At the allowance: one dialog titled after `travel.dayEnd.title`, and
+   `travel.day.offered` is already true.
+   *Observable:* walking further raises no second dialog.
+4. Answer **Push on**.
+   *Observable:* `day.kind` is `forced`, all four ancillary slots read
+   `travel`, `hexesEntered` is UNCHANGED (pushing on must not un-walk the
+   ground), the readout's allowance rises, and `offered` is back to false —
+   the question is re-armed for the distance just bought.
+5. Walk to the new allowance and answer **Call it a day**.
+   *Observable:* a log entry with the figures the panel showed, `dayCount` up
+   one, `hexesEntered` back to 0, the navigation throw whispered, and world
+   time advanced 86400.
+6. Reach the offer again and answer **Not yet**.
+   *Observable:* the day continues, `hexesEntered` counts PAST the allowance,
+   and no further dialog appears. The panel's **End day** button still ends it
+   — click it and confirm it goes through the same closer (a log entry, the
+   reset, and the clock).
+
 ## The city (added with settlement mode)
 
 Fixture: a disposable `acks-extras.party` Actor (creating it auto-creates the
-formation). Reach it with `getFormationForActor(actor)` — there is no
-`listFormations`.
+formation) and a disposable square scene the party token stands on. Reach the
+formation with `getFormationForActor(actor)` — there is no `listFormations`.
 
 1. `travel.setJourneyMode(id, "settlement")`.
-   *Observable:* `travel.mode === "settlement"` and `clock.paused === true`;
-   the sheet grows `.acks-extras-formation-settlement` with four controls
-   named `travel.settlement.{pace,where,route,night}`.
+   *Observable:* `travel.mode === "settlement"` and `clock.paused === false` —
+   a city runs the clock; only a journey stops it. The sheet grows
+   `.acks-extras-formation-settlement` with controls named
+   `travel.settlement.{pace,where,route,night,intent,conveyance}` and **no
+   button that advances anything**.
 2. Run it once with NO `settlement` document registered.
    *Observable:* `blocksPerTurn` answers `{blocks: null, missing: "paces"}` and
    the panel says the rate is not imported — never a distance of zero.
@@ -377,13 +412,47 @@ formation). Reach it with `getFormationForActor(actor)` — there is no
    *Observable:* the block count appears, and the no-throw line states its
    REASON (a meandering pace, or a known route) rather than going blank.
 4. Change the pace select and dispatch `change`; read `travel.settlement.pace`
-   back. **This is the check that matters**: the pickers deliberately do NOT
-   use `data-action`, because an ApplicationV2 action fires on click and a
-   select bound to one silently never writes. The first version of this panel
+   back. **This is the check that matters for the pickers**: they deliberately
+   do NOT use `data-action`, because an ApplicationV2 action fires on click and
+   a select bound to one silently never writes. The first version of this panel
    shipped that bug and the live check is what caught it.
-5. Leave with `setJourneyMode(id, "delve")`.
-   *Observable:* mode is `delve` and `clock.paused === false` — the delve clock
-   resumes.
+5. **The tracker, with no block size declared.** Park the token with an
+   ordinary move first (the clock reads `clock.lastPosition` from the world
+   setting, so a halt leaves it stale and the next move measures zero), then
+   drag it a few exploration moves' worth.
+   *Observable:* `clock.turnsTotal` rises, a turn card is whispered, and the
+   panel's tracker line says the party is being timed by its walking speed.
+6. Declare the block size: `scene.setFlag("acks-extras", "battlemap", {...flag,
+   mapSystem: "settlement", blockFeet: 120})`, then move the token again.
+   *Observable:* turns now arrive at the pace's blocks × 120 feet, the tracker
+   line states the block size, and `travel.settlement.blocks` accrues the
+   pace's rate per turn. The Scene Configuration row shows the field only once
+   the map is declared a settlement.
+7. **The turn costs what a delve turn costs.** Light a torch and note
+   `formation.lights[0].remaining`; walk enough turns to burn one off.
+   *Observable:* it decrements — this is the whole point of the mode change,
+   and it is what a paused clock silently skipped.
+8. **The street throws on its own cadence, and the dungeon's does not fire.**
+   With the invented `encounters` rows registered, walk past the cadence.
+   *Observable:* a city card whispers the throw against the street's target,
+   and no wandering-monster card appears alongside it.
+9. **Holing up rides the calendar.** Set `where` to `holedUp`, advance world
+   time an hour first (the stay is stamped, nothing is charged), then
+   `game.time.advance(86400 * 2)`.
+   *Observable:* one stay card covering two days; `travel.settlement.days`
+   rises by 2 and `holeUpSince` has moved forward by exactly two days.
+   Advance a further 12 hours: nothing is credited. Walking the token while
+   holed up marks off turns but credits no blocks, owes no street throw, and
+   makes no navigation throw.
+
+   **Watch the console on this step.** The watcher sweeps every formation, and
+   the sweep is registered inside a `.catch()` — an exception there is logged
+   and nothing else happens, which reads exactly like a clock that was never
+   watched. `getFormations()` returns an OBJECT keyed by id, not an array; the
+   first version of the sweep iterated it directly and failed silently that way.
+10. Leave with `setJourneyMode(id, "delve")`.
+    *Observable:* mode is `delve`, the clock still runs, and the wandering
+    monster throw returns.
 
 ## Teardown
 

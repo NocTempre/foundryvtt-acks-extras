@@ -65,7 +65,7 @@
       {{#if travel.settlement.blocksUnpriced}}
         <span class="hint">{{localize "ACKS-FORMATION.settlement.blocksUnpriced"}}</span>
       {{else}}
-        <strong>{{travel.settlement.blocks}}</strong> {{localize "ACKS-FORMATION.settlement.blocks"}}
+        <strong>{{travel.settlement.rateBlocks}}</strong> {{localize "ACKS-FORMATION.settlement.blocks"}}
         {{#if travel.settlement.straggling}}
           · <span class="acks-extras-formation-settlement-straggle">{{localize "ACKS-FORMATION.settlement.straggling"}}</span>
         {{/if}}
@@ -78,21 +78,19 @@
       {{#if travel.settlement.lost}}
       <span class="acks-extras-formation-settlement-astray">{{localize "ACKS-FORMATION.settlement.astray"}}</span>
       {{/if}}
+    </p>
+    {{! What the tracker is timing the party BY, so a turn that does not arrive
+        when the Judge expects it is explained where it happens. }}
+    <p class="hint acks-extras-formation-settlement-tracker">
       {{#if travel.settlement.stationary}}
-      <label class="acks-extras-formation-settlement-days">
-        {{localize "ACKS-FORMATION.settlement.daysLabel"}}
-        <input type="number" min="1" max="30" step="1" name="travel.settlement.holeUpDays"
-               value="{{travel.settlement.holeUpDays}}">
-      </label>
-      <button type="button" data-action="settlementDays"
-              data-tooltip="{{localize 'ACKS-FORMATION.settlement.holeUpHint'}}">
-        <i class="fa-solid fa-house-lock"></i> {{localize "ACKS-FORMATION.settlement.holeUp"}}
-      </button>
+        {{localize "ACKS-FORMATION.settlement.trackHoledUp"}}
+      {{else if travel.settlement.onMap}}{{#if travel.settlement.blockFeet}}
+        {{localize "ACKS-FORMATION.settlement.trackBlocks" feet=travel.settlement.blockFeet units=travel.settlement.units turn=travel.settlement.turnFeet}}
       {{else}}
-      <button type="button" data-action="settlementTurn"
-              data-tooltip="{{localize 'ACKS-FORMATION.settlement.takeTurnHint'}}">
-        <i class="fa-solid fa-shoe-prints"></i> {{localize "ACKS-FORMATION.settlement.takeTurn"}}
-      </button>
+        {{localize "ACKS-FORMATION.settlement.trackWalk" turn=travel.settlement.turnFeet units=travel.settlement.units}}
+      {{/if}}
+      {{else}}
+        {{localize "ACKS-FORMATION.settlement.trackNoMap"}}
       {{/if}}
     </p>
     <p class="acks-extras-formation-settlement-nav">

@@ -12,7 +12,7 @@
  * has never journeyed, and `travelOf` answers for it without a migration.
  *
  * Two clocks, one paused at a time: journey mode pauses the movement-driven
- * dungeon turn tracking (`clock.paused`, the flag the turn engine already
+ * turn tracking (`clock.paused`, the flag the turn engine already
  * honours) and the DAY becomes the unit — one dedicated day-kind plus the
  * four ancillary activity slots the wilderness rules budget (RR ch. 6: a
  * dedicated march is the day's eight hours; a forced march is twelve and
@@ -90,7 +90,7 @@ export const ANCILLARY_ACTIVITIES = Object.freeze({
 /** The road vocabulary is the vehicles feature's; re-exported for callers. */
 export { ROAD_KINDS } from "../vehicles/vehicle-speed.mjs";
 import { ROAD_KINDS, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
-import { settlementOf, freshSettlement } from "./settlement.mjs";
+import { settlementOf, freshSettlement, carryStay } from "./settlement.mjs";
 import { skyFor, readSkyCache, priorSky } from "./sky.mjs";
 import { runProvisionDay } from "./provision-day.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
@@ -99,7 +99,8 @@ import { FLIGHT_LOADS } from "./flight.mjs";
 
 /**
  * The three things a formation can be doing, re-exported so this feature's
- * consumers keep one import path. Only `delve` leaves the turn clock running;
+ * consumers keep one import path. A `journey` is the one that stops the turn
+ * clock — a delve and a city are both timed in turns the party walks off;
  * a SCENE may declare which of them applies on it (`docs/battlemap/MODEL.md`),
  * which is why the list itself lives in `lib/vocab.mjs`.
  */
@@ -127,6 +128,12 @@ export function freshDay(kind = "march") {
     hexesEntered: 0,
     // Extra distance the day's bends cost over straight crossings, in hexes.
     winding: 0,
+    /**
+     * Whether the party has already been asked to call this day done. Deliberately
+     * NOT carried across a kind change: pushing on buys more distance, so the
+     * question becomes worth asking again when that is spent too.
+     */
+    offered: false,
   };
 }
 
@@ -134,6 +141,10 @@ export function freshDay(kind = "march") {
  * Apply a day-kind to a board. A forced march CONSUMES the ancillary budget
  * (every slot becomes the march itself); stepping back down returns a fresh
  * budget rather than resurrecting whatever the forced march overwrote.
+ *
+ * What the day has already WALKED survives every kind change: the ground is
+ * crossed whatever the party decides to do with the rest of the day, and only
+ * ending the day (`withDayKind(null, …)`) puts the tally back to nothing.
  */
 export function withDayKind(day, kind) {
   const next = freshDay(kind);
@@ -141,9 +152,30 @@ export function withDayKind(day, kind) {
     next.activities = next.activities.map(() => "travel");
   } else if (day && !DAY_KINDS[day.kind]?.consumesAncillary) {
     next.activities = [...(day.activities ?? next.activities)];
+  }
+  if (day) {
     next.hexesEntered = day.hexesEntered ?? 0;
+    next.winding = day.winding ?? 0;
   }
   return next;
+}
+
+/**
+ * Has the day's march been walked?
+ *
+ * The journey's tracker asks this of every hex the party enters. Pure, and
+ * deliberately blind to the kind — a camp day carries no distance to spend,
+ * which its zero allowance already says — and false for an allowance nobody
+ * could price, because a day that cannot say how far it reaches must never
+ * announce itself over.
+ *
+ * @param {object} day            the day board (`travel.day`)
+ * @param {number} hexesPerDay    what the readout says the march carries
+ */
+export function dayIsSpent(day, hexesPerDay) {
+  const allowance = Number(hexesPerDay);
+  if (!Number.isFinite(allowance) || allowance <= 0) return false;
+  return (Number(day?.hexesEntered) || 0) >= allowance;
 }
 
 /** The travel subtree, defaults answered — never mutates the record. */
@@ -266,9 +298,10 @@ const logCap = () => {
  * where it stood (a dungeon on the route does not reset the march).
  */
 export function setJourneyMode(formationId, journey) {
-  // Historically a boolean; a mode string is now accepted and preferred. The
-  // clock pauses for anything that is not a delve, because both travel modes
-  // put their own scale on the table.
+  // Historically a boolean; a mode string is now accepted and preferred. Only
+  // a JOURNEY pauses the clock: a day is the wrong grain for a ten-minute
+  // tick. A city is timed in the same turns a dungeon is, so its clock runs
+  // and the party's own movement drives it.
   const mode = typeof journey === "string"
     ? (TRAVEL_MODES.includes(journey) ? journey : "delve")
     : (journey ? "journey" : "delve");
@@ -281,7 +314,7 @@ export function setJourneyMode(formationId, journey) {
       // stepping out to the country and back does not forget the route.
       settlement: mode === "settlement" && t.mode !== "settlement" ? freshSettlement() : t.settlement,
     };
-    record.clock = { ...(record.clock ?? {}), paused: mode !== "delve" };
+    record.clock = { ...(record.clock ?? {}), paused: mode === "journey" };
   });
 }
 
@@ -320,7 +353,7 @@ export function patchSettlement(formationId, patch = {}) {
     if (patch.turns !== undefined) next.turns = Number(patch.turns) || 0;
     if (patch.lost !== undefined) next.lost = !!patch.lost;
     if (patch.lastThrow !== undefined) next.lastThrow = patch.lastThrow;
-    record.travel = { ...t, settlement: settlementOf({ settlement: next }) };
+    record.travel = { ...t, settlement: carryStay(t.settlement, settlementOf({ settlement: next })) };
   });
 }
 
@@ -594,10 +627,8 @@ export function applyTravelForm(formationId, tv = {}) {
           night: !!tv.settlement.night,
         },
       });
-      // How many days a stay lasts is a form field rather than board state the
-      // tick owns; it is kept so the control does not reset itself each render.
-      const stay = Math.min(30, Math.max(1, Math.floor(Number(tv.settlement.holeUpDays) || 1)));
-      next.settlement.holeUpDays = stay;
+      // Stepping back into the street ends the stay, stamp and all.
+      next.settlement = carryStay(t.settlement, next.settlement);
     }
     if (tv.weather) {
       const wv = tv.weather;

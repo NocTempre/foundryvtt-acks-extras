@@ -14,6 +14,7 @@ import {
   pushLog,
   travelOf,
   withDayKind,
+  dayIsSpent,
 } from "../scripts/formation/travel.mjs";
 
 /* --- the day board ------------------------------------------------------- */
@@ -35,6 +36,23 @@ const kept = withDayKind(spent, "camp");
 assert.deepEqual(kept.activities, ["hunt", null, "search", null], "changing between unforced kinds keeps the plan");
 assert.equal(kept.kind, "camp");
 assert.equal(DAY_KINDS.camp.travels, false, "a camp day goes nowhere on purpose");
+
+/* --- what the day has walked survives every kind change ------------------- */
+const walked = { ...freshDay(), hexesEntered: 3, winding: 1, activities: ["hunt", null, null, null] };
+const pushed = withDayKind(walked, "forced");
+assert.equal(pushed.hexesEntered, 3, "pushing on does not un-walk the ground already crossed");
+assert.equal(pushed.winding, 1);
+assert.ok(pushed.activities.every((a) => a === "travel"), "though it does spend the hours");
+assert.equal(withDayKind(null, "march").hexesEntered, 0, "and ending the day starts a fresh tally");
+assert.equal(freshDay().offered, false, "a fresh day has not been called done");
+assert.equal(withDayKind({ ...freshDay(), offered: true }, "forced").offered, false,
+  "and pushing on re-arms the question for the distance it just bought");
+
+/* --- the day is spent when the march has been walked ---------------------- */
+assert.equal(dayIsSpent({ hexesEntered: 2 }, 3), false);
+assert.equal(dayIsSpent({ hexesEntered: 3 }, 3), true, "the allowance is reached, not exceeded");
+assert.equal(dayIsSpent({ hexesEntered: 9 }, 0), false, "a day that carries nowhere is never spent");
+assert.equal(dayIsSpent({ hexesEntered: 9 }, null), false, "nor is one whose march is unpriced");
 
 /* --- the activity taxonomy carries its cadence KIND ----------------------- */
 assert.equal(ANCILLARY_ACTIVITIES.travel.frequency, "perHex");

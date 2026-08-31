@@ -528,8 +528,17 @@ location sheet's "Advance 1 week" button — and both go through this gate, so a
 GM whose table runs Simple Timekeeping or a calendar module answers once.
 
 The setting is registered here, in `module.mjs`, rather than by either feature.
-Nothing else about time lives here: worldTime is Foundry's, and each feature
-still decides its own step size and what it does when the gate is shut.
+Each feature still decides its own step size and what it does when the gate is
+shut.
+
+**Watching the clock is the other half, and it is shared too.**
+`onWorldTimeAdvanced` registers a callback on the one GM client responsible for
+acting on a change — henchmen's downtime processing and formation's holed-up
+city stays both ride it. The "am I the active GM" test is what stops a two-GM
+table processing the same day twice, so there is exactly one copy of it;
+`henchmen/time.mjs`'s `onTimeAdvanced` is a name its engine kept, delegating
+here. Callbacks are idempotent by contract — the hook fires for a calendar the
+Judge dragged as readily as for a rest — so each keeps its own watermark.
 
 ## Effects the module maintains
 

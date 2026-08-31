@@ -127,6 +127,16 @@ air, and the readout says so rather than quietly including it.
 every body's hunger, thirst and exposure one step, and writes the day into the
 log.
 
+You rarely have to notice that the day is done. Once the party has walked off
+the hexes its march carries it, moving the token asks:
+
+![](../releases/v5.8.0/formation-day-end.png)
+
+It is never answered for you — ending a day spends the provisions, settles the
+ground, rolls tomorrow's sky and moves the calendar, and pushing on into a
+forced march is a real choice with a real price. The question is put once, and
+put again if pushing on bought more road.
+
 ### The camp
 
 Beneath the march is what the party is living on: how many days of food and
@@ -170,11 +180,26 @@ what puts the country they really crossed onto the map, in its right place.
 **pace**, whether the party is on the **avenues** or in the **alleys**, how
 well it knows **the way**, and whether it is **after dark**.
 
-**Take a turn** covers the party's blocks, tests its way if the pace and the
-route call for it, and gives the street its own chance at them. Being lost in a
-city is a wrong turning the party notices at once — a short detour, not an
-episode. A large party straggles and moves slower; splitting it is the way out,
-at the price of each group answering for its own encounters.
+![](../releases/v5.8.0/formation-settlement.png)
+
+**A city is walked across, not clicked through.** Move the party's token and
+turns are marked off exactly as they are in a dungeon — so a turn in the
+streets costs a torch, a spell's duration and the rest interval, the same as a
+turn in a corridor. Each turn covers the party's blocks, tests its way if the
+pace and the route call for it, and gives the street its own chance at them.
+
+How far a turn carries the party depends on **how big a block is on your map**,
+and only your map can say: set it in **Scene Configuration → A block is** on a
+scene set up as a settlement. Leave it blank and the party is timed by its
+walking speed instead; the panel says which of the two is in force.
+
+Being lost in a city is a wrong turning the party notices at once — a short
+detour, not an episode. A large party straggles and moves slower; splitting it
+is the way out, at the price of each group answering for its own encounters.
+
+Somewhere the party is **holed up** is the one place its own movement cannot
+report, so a stay is counted off the calendar: advance world time however you
+like and each whole day is thrown for once.
 
 ### Flying
 

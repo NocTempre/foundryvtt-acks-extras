@@ -8,6 +8,88 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### The day's end is raised by movement and answered by the Judge (2026-08-31)
+
+**Asked.** With the city moved onto its own tracker, the journey was the last
+mode with a board that drives a clock: **End day** is a button, and the day it
+ends is one the party has already finished walking. Should the day end itself
+when the march is spent?
+
+**Ruled: the tracker raises it, the Judge answers it.** `dayIsSpent` is checked
+on every hex entered and puts one dialog — call it a day, push on into a forced
+march, or not yet. A day that ended itself mid-drag would spend the provisions,
+settle the ground, roll tomorrow's sky and advance the calendar for a decision
+nobody made, and pushing on is a real choice the rules price (a forced march
+buys its distance with every ancillary hour). So the trigger is movement and
+the answer is not.
+
+**Rejected: ending silently**, for the reason above. **Rejected: leaving the
+button alone**, because a day whose march is spent is a thing the map already
+knows and the Judge should not have to notice.
+
+**Two defects this uncovered.** `withDayKind` did not carry `hexesEntered`
+across a change to a *forced* march, so pushing on would have un-walked the
+day's ground — invisible while the only way to change kind was a picker nobody
+touched mid-day, and immediate once the prompt offered it. And the offer flag
+must be written before the dialog is awaited: a drag across three hexes reaches
+the check three times, and an unanswered dialog would otherwise stack.
+
+**Cost.** `travelEndDay` no longer holds the closing sequence; `closeDay` does,
+and the action delegates. One closer was the point — two would have drifted the
+moment either grew a step.
+
+### A city is explored, not administered (2026-08-31)
+
+**Asked.** Settlement mode shipped as a panel: pickers, a derived rate, and a
+**Take a turn** button that walked the party one turn at a time. Every other
+adventuring mode reads the party's own motion — a delve counts the feet it
+walks, a journey counts the hexes it enters — and only the city asked the Judge
+to press something. Should the city keep its board?
+
+**Ruled: no board drives a clock.** A settlement is timed in the same
+ten-minute turns a dungeon is (JJ ch. 2 says so outright: a pace is stated in
+blocks per turn), so it gets the same tracker. `setJourneyMode` now pauses the
+clock for a JOURNEY alone, `turnDistance` supplies the distance one turn buys
+in whichever mode is running, and the Take-a-turn and Hole-up buttons are gone.
+The pickers stay: they declare state the tick reads, which is not the same
+thing as a control that advances it.
+
+**What it bought, and why it is more than tidiness.** The buttons were never
+the real defect — the paused clock was. With it stopped, a city was a place
+where torches did not burn down, spells did not run out, the rest interval did
+not accrue and the world clock stood still; the delve's whole action surface
+(listening, hasty and methodical searching, doors, spikes, traps) was reachable
+and paid for nothing, because all of it is gated on the clock rather than on the
+mode. Un-pausing it was one line, and it is what makes a heist in a guildhouse
+cost what a corridor costs. The tracker is the visible half of the same ruling.
+
+**The block is the map's, not the book's.** How far a turn carries the party is
+printed (blocks per pace, imported); how wide a block is drawn is the Judge's
+map, so `blockFeet` is a scene-setup field and is passed in rather than read
+from the registry — the same seam `jumping.mjs` keeps. **Rejected: refusing to
+tick until a block size is declared.** It is the family's habit to report a
+missing figure rather than invent one, but here the honest fallback exists — the
+party's own walking speed — and a city map that ticks nothing when the party
+walks across it is indistinguishable from a broken module. It falls back and
+says which rate it used.
+
+**Holing up rides the world clock.** A party deliberately staying put has no
+movement to read, and its cadence is per day, so `creditHoledUpDays` credits
+whole days off the calendar instead. **Rejected: a queued "spend N days"
+control**, which is the board again under another name, and which cannot price
+a stay that some other feature's downtime advanced. The stay carries the world
+time it is counted from so a dragged calendar pays exactly once, and the turn
+tick owes a stationary party nothing at all — counted by both clocks, one stay
+would be thrown for twice.
+
+**Cost.** The `updateWorldTime` guard was henchmen's; a second copy in
+formation would have been two answers to "am I the GM responsible for acting on
+this", so it moved to `lib/world-time.mjs` and `onTimeAdvanced` now delegates.
+`holeUpDays` left the board and existing records keep a dead field, which
+`settlementOf` ignores.
+
+---
+
 ### The door numbers are content, and move behind the registry (2026-08-30)
 
 **Asked.** `doors.mjs` ships `BASH_TARGET`, `MAX_SPIKES`, `BASH_STR_FACTOR`,

@@ -1,5 +1,54 @@
 # Changelog
 
+## 5.8.0
+
+**A city is walked across, not clicked through — and on the road, the day
+raises its own end.**
+
+### Changed
+- **A city is explored the way a dungeon is: by moving.** Settlement mode used
+  to stop the turn clock and hand you a **Take a turn** button; the party stood
+  still on the map while the Judge pressed. Now the party's own movement marks
+  off city turns, exactly as it does underground, and the button is gone along
+  with the one for holing up.
+
+  What this really changes is what a city turn *costs*. With the clock stopped,
+  a settlement was a place where torches never burned down, spells never ran
+  out, nobody ever grew winded and the world clock stood still — so a heist
+  through a guildhouse was free in every currency a delve spends. It is not any
+  more. Listening at a door, a hasty or methodical search, spiking a door and
+  everything else the delve panel offers now costs the same time in a city that
+  it costs in a corridor.
+
+  The street keeps its own two rules: the encounter throw comes round on the
+  cadence of where you are standing and whether it is dark — not on the
+  dungeon's wandering-monster schedule — and a commuting party still throws not
+  to lose its way. An Encounter Zone drawn over a quarter still overrides both
+  tables, which is how a bad neighbourhood is drawn.
+
+  **How far a turn carries the party depends on how big a block is on your
+  map**, and only your map can say. Declare it in **Scene Configuration → A
+  block is** on any scene set up as a settlement. Left blank, the party is
+  timed by its walking speed instead and the panel says so.
+
+  **On the road, the day now raises its own end.** Once the party has walked
+  off the hexes its march carries it, moving the token asks the question:
+  **call it a day**, **push on** into a forced march, or **not yet**. It is
+  never answered for you — ending a day spends the provisions, settles the
+  ground, rolls tomorrow's sky and moves the calendar, and pushing on is a real
+  choice — but you no longer have to notice that the day is done. It asks once,
+  and asks again if pushing on bought more road. **End day** is still there and
+  still does exactly what it did.
+
+  Fixed along the way: switching to a forced march mid-day used to reset the
+  day's hex count to zero, un-walking ground the party had already crossed.
+
+  **Holing up now runs off the calendar.** Set the party somewhere it is
+  staying put and advance world time however you like — a rest, a downtime
+  week, dragging the clock — and each whole day is thrown for once, as one
+  card. Your pickers are all still there: they say what the party is *doing*,
+  and nothing on the panel advances the clock any more.
+
 ## 5.7.0
 
 **A quiver of arrows weighs a quiver, not twenty of them — and weight is typed

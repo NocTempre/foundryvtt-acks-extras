@@ -1718,10 +1718,12 @@
     },
     "chat": {
       "turnAdvanced": "{n} dungeon turn(s) pass",
+      "turnAdvancedCity": "{n} turn(s) pass in the streets",
       "turnRested": "the party rests for {n} turn(s)",
       "byMovement": "by movement",
       "manual": "manual",
       "elapsed": "Delve time: {turns} turns ({time})",
+      "elapsedCity": "Time in the city: {turns} turns ({time})",
       "restStatus": "Turns since rest: {n}/{max}",
       "windedStatus": "The party is WINDED — no charging or running until it rests 1 turn",
       "becameWinded": "More than 5 turns without rest — the party is now winded!",
@@ -2135,6 +2137,13 @@
       "slotHint": "One ancillary hour of the day.",
       "endDay": "End day",
       "endDayHint": "Log the day as shown, reset the board, and advance the world clock a day (when the module drives it).",
+      "dayEnd": {
+        "title": "The day's march is walked",
+        "body": "The party has entered {hexes} of the {allowance} hexes this day's march carries it. Call the day done, or push on?",
+        "end": "Call it a day",
+        "push": "Push on (forced march)",
+        "later": "Not yet"
+      },
       "campDay": "In camp — no travel today.",
       "milesPerDay": "miles today",
       "hexesPerDay": "hexes",
@@ -2471,9 +2480,11 @@
         "incidentUnmatched": "no row covers that roll — check the imported table.",
         "noIncidentTable": "No incident table yet. Import the Judges Journal, or author one in the Ruledata Browser."
       },
-      "takeTurn": "Take a turn",
-      "takeTurnHint": "Walk one turn: the party covers ground, may lose its way, and the street gets its chance.",
       "progress": "{blocks} block(s) over {turns} turn(s).",
+      "trackBlocks": "Timed by the map: a block here is {feet} {units}, so a turn is {turn} {units} walked.",
+      "trackWalk": "This map has not said how big a block is, so the party is timed by its walking speed: a turn is {turn} {units}. Set the block size in Scene Configuration.",
+      "trackHoledUp": "Staying put. Each day the calendar passes is thrown for.",
+      "trackNoMap": "The party has no token on a map, so nothing is timing its turns yet.",
       "astray": "Turned around",
       "intentLabel": "Drawing attention",
       "intent": {
@@ -2487,9 +2498,10 @@
         "litter": "By litter",
         "wagon": "By wagon"
       },
-      "daysLabel": "For",
-      "holeUp": "Hole up",
-      "holeUpHint": "Spend the days out of sight. One encounter throw each day, and no ground covered.",
+      "note": {
+        "strayed": "Turned around in the streets.",
+        "incident": "The street answers — see the city card."
+      },
       "notHoledUp": "The party is out on the streets — pick a place to hole up first."
     },
     "lost": {
@@ -4300,6 +4312,8 @@
   "ACKS-BATTLEMAP.sceneConfig.open": "Calibrate…",
   "ACKS-BATTLEMAP.sceneConfig.autoScale": "Auto-size tokens",
   "ACKS-BATTLEMAP.sceneConfig.hint": "Open the map alignment assistant, or toggle whether tokens placed on this scene are sized to its scale.",
+  "ACKS-BATTLEMAP.sceneConfig.blockFeet": "A block is",
+  "ACKS-BATTLEMAP.sceneConfig.blockHint": "How wide one city block is drawn on this map. A party crossing it is timed by blocks; left blank, it is timed by its walking speed instead.",
   "ACKS-VEHICLES.sheet.vehicle": "ACKS Vehicle",
   "ACKS-VEHICLES.kind.land": "Cart or wagon",
   "ACKS-VEHICLES.kind.sea": "Vessel",

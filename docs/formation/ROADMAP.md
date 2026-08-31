@@ -198,6 +198,7 @@ territory; the day board and its ancillary slots as a *record*.
 
 | Rule | State | Note |
 |---|---|---|
+| ~~The day's end~~ | **BUILT** — walking off the day's march raises the question (call it a day / push on / not yet); `closeDay` is the one closer behind both it and the button (DECISIONS 2026-08-31). |
 | ~~**Navigating the Wild**~~ | **BUILT** — the throw is rolled and whispered on End day, reads the imported target, applies the marching order's competence, and is skipped on a road, a river or a known route. |
 | Pathfinding / Navigation bonus | **built** | `navigationCompetence` scans the marching order for either competence; holding both is worth more, and the two figures come from the imported `navigationBonus` row. |
 | ~~Straying direction~~ | **BUILT** — the Judge names the hex face or rolls for it; the grid's own neighbour order IS the face order. |
@@ -224,11 +225,11 @@ walk stays honest about what was once outstanding.
 
 | Rule | State | Note |
 |---|---|---|
-| ~~Settlement panel~~ | **BUILT** — pickers, the derived rate, the throw prospect, and a Take-a-turn button. |
-| ~~Street encounter throws~~ | **BUILT** — the turn tick fires them on the street's own cadence, whispered. |
+| ~~Settlement panel~~ | **BUILT** — pickers, the derived rate and the throw prospect. The Take-a-turn button is **gone**: a city turn is walked off the map like a delve turn (DECISIONS 2026-08-31). |
+| ~~Street encounter throws~~ | **BUILT** — the movement-driven turn tick fires them on the street's own cadence, whispered, in place of the dungeon's wandering-monster throw. |
 | ~~Settlement encounters table~~ | **BUILT** — the d100 table imports as a real RollTable from the Judge's own Judges Journal (a new `jj` register and cookbook), and the after-dark shift arrives as a registered figure. `settlementEncounter` performs the procedure: one roll, the shift, the band. |
 | ~~Looking for trouble~~ | **BUILT** — a declared intent that eases the THROW rather than shortening the interval, which is what the page says and the difference compounds over a long walk. |
-| ~~Holing up~~ | **BUILT** — `advanceSettlementDays` spends a stay in DAYS, one throw each, and the board offers a day tick in place of the turn tick wherever the party is not going anywhere. |
+| ~~Holing up~~ | **BUILT** — `advanceSettlementDays` spends a stay in DAYS, one throw each, credited off the world clock (`creditHoledUpDays`) rather than from a control. |
 | ~~Travel by litter or wagon~~ | **BUILT** — a conveyance the board remembers and that deliberately carries no rate at all, pinned by a test: the page says it is not any faster. |
 
 ### Cross-cutting defects found in the audit
