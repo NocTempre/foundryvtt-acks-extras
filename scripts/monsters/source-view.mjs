@@ -62,7 +62,7 @@ function show(v, depth = 0) {
 }
 
 /**
- * @param rec  `flags["acks-importer"].ose` from the actor, or null
+ * @param rec  `flags["acks-extras"].ose` from the actor, or null
  * @returns a view model, or null when the creature was not imported
  */
 export function oseSourceView(rec) {

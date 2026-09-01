@@ -1,6 +1,6 @@
 ---
 name: acks-hygiene-sweep
-description: Audit foundryvtt-acks-extras and foundryvtt-acks-importer against the standing code-hygiene checklist — typing, guards, silent failures, registrations, Foundry AppV2/v14 conventions, library reuse, i18n, theming, docs, doctrine and rules-vocabulary drift. Use when the user asks for a hygiene sweep or code audit of the acks modules, when accumulated changes want a health check, or as an optional step before a minor/major release.
+description: Audit foundryvtt-acks-extras (its importer subsystem included) against the standing code-hygiene checklist — typing, guards, silent failures, registrations, Foundry AppV2/v14 conventions, library reuse, i18n, theming, docs, doctrine and rules-vocabulary drift. Use when the user asks for a hygiene sweep or code audit of the acks modules, when accumulated changes want a health check, or as an optional step before a minor/major release.
 ---
 
 A standing audit, not a one-off. It runs a fan-out of paired find/verify agents

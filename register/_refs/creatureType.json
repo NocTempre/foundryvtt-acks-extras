@@ -1,0 +1,371 @@
+{
+  "registry": "creatureType",
+  "shape": "descriptor",
+  "tokens": {
+    "Animal": {
+      "key": "animal",
+      "ref": "def.type.animal"
+    },
+    "Beastman": {
+      "key": "beastman",
+      "ref": "def.type.beastman"
+    },
+    "Construct": {
+      "key": "construct",
+      "ref": "def.type.construct"
+    },
+    "Enchanted": {
+      "key": "enchanted",
+      "ref": "def.type.enchanted"
+    },
+    "Enchanted Creature": {
+      "key": "enchanted",
+      "ref": "def.type.enchanted"
+    },
+    "Giant": {
+      "key": "giant",
+      "ref": "def.type.giant"
+    },
+    "Giants": {
+      "key": "giant",
+      "ref": "def.type.giant"
+    },
+    "Humanoid": {
+      "key": "humanoid",
+      "ref": "def.type.humanoid"
+    },
+    "Incarnation": {
+      "key": "incarnation",
+      "ref": "def.type.incarnation"
+    },
+    "Monstrosity": {
+      "key": "monstrosity",
+      "ref": "def.type.monstrosity"
+    },
+    "Ooze": {
+      "key": "ooze",
+      "ref": "def.type.ooze"
+    },
+    "Plant": {
+      "key": "plant",
+      "ref": "def.type.plant"
+    },
+    "Undead": {
+      "key": "undead",
+      "ref": "def.type.undead"
+    },
+    "Vermin": {
+      "key": "vermin",
+      "ref": "def.type.vermin"
+    },
+    "animal": {
+      "key": "animal",
+      "ref": "def.type.animal"
+    },
+    "beastman": {
+      "key": "beastman",
+      "ref": "def.type.beastman"
+    },
+    "construct": {
+      "key": "construct",
+      "ref": "def.type.construct"
+    },
+    "enchanted": {
+      "key": "enchanted",
+      "ref": "def.type.enchanted"
+    },
+    "giant": {
+      "key": "giant",
+      "ref": "def.type.giant"
+    },
+    "humanoid": {
+      "key": "humanoid",
+      "ref": "def.type.humanoid"
+    },
+    "incarnation": {
+      "key": "incarnation",
+      "ref": "def.type.incarnation"
+    },
+    "monstrosity": {
+      "key": "monstrosity",
+      "ref": "def.type.monstrosity"
+    },
+    "ooze": {
+      "key": "ooze",
+      "ref": "def.type.ooze"
+    },
+    "plant": {
+      "key": "plant",
+      "ref": "def.type.plant"
+    },
+    "undead": {
+      "key": "undead",
+      "ref": "def.type.undead"
+    },
+    "vermin": {
+      "key": "vermin",
+      "ref": "def.type.vermin"
+    },
+    "Humanoid Beastman": {
+      "keys": [
+        "humanoid",
+        "beastman"
+      ],
+      "refs": [
+        "def.type.humanoid",
+        "def.type.beastman"
+      ]
+    },
+    "enchanted Humanoid": {
+      "keys": [
+        "enchanted",
+        "humanoid"
+      ],
+      "refs": [
+        "def.type.enchanted",
+        "def.type.humanoid"
+      ]
+    },
+    "undead construct": {
+      "keys": [
+        "undead",
+        "construct"
+      ],
+      "refs": [
+        "def.type.undead",
+        "def.type.construct"
+      ]
+    },
+    "enchanted Monstrosity": {
+      "keys": [
+        "enchanted",
+        "monstrosity"
+      ],
+      "refs": [
+        "def.type.enchanted",
+        "def.type.monstrosity"
+      ]
+    },
+    "Giant Beastman": {
+      "keys": [
+        "giant",
+        "beastman"
+      ],
+      "refs": [
+        "def.type.giant",
+        "def.type.beastman"
+      ]
+    }
+  },
+  "nodes": {
+    "def.type.animal": {
+      "name": "Animal",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Animal:"
+          }
+        }
+      }
+    },
+    "def.type.beastman": {
+      "name": "Beastman",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Beastman:"
+          }
+        }
+      }
+    },
+    "def.type.construct": {
+      "name": "Construct",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Construct:"
+          }
+        }
+      },
+      "note": "ACKS type rule: constructs are immune to enchantment effects, necrotic damage, and poisonous damage.",
+      "defenses": {
+        "immunities": {
+          "damage": [
+            "necrotic",
+            "poisonous"
+          ],
+          "effects": [
+            "enchantment"
+          ]
+        }
+      }
+    },
+    "def.type.enchanted": {
+      "name": "Enchanted Creature",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Enchanted Creature:"
+          }
+        }
+      }
+    },
+    "def.type.giant": {
+      "name": "Giant",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Giants:"
+          }
+        }
+      }
+    },
+    "def.type.humanoid": {
+      "name": "Humanoid",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Humanoid:"
+          }
+        }
+      }
+    },
+    "def.type.incarnation": {
+      "name": "Incarnation",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Incarnation:"
+          }
+        }
+      }
+    },
+    "def.type.monstrosity": {
+      "name": "Monstrosity",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Monstrosity:"
+          }
+        }
+      }
+    },
+    "def.type.ooze": {
+      "name": "Ooze",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Ooze:"
+          }
+        }
+      },
+      "note": "ACKS type rule: oozes vary, but all are immune to enchantment effects.",
+      "defenses": {
+        "immunities": {
+          "effects": [
+            "enchantment"
+          ]
+        }
+      }
+    },
+    "def.type.plant": {
+      "name": "Plant",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Plant:"
+          }
+        }
+      },
+      "note": "ACKS type rule: all plants are immune to necrotic damage and poisonous damage.",
+      "defenses": {
+        "immunities": {
+          "damage": [
+            "necrotic",
+            "poisonous"
+          ]
+        }
+      }
+    },
+    "def.type.undead": {
+      "name": "Undead",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Undead:"
+          }
+        }
+      },
+      "note": "ACKS type rule: all undead are immune to enchantment effects, necrotic damage, and poisonous damage.",
+      "defenses": {
+        "immunities": {
+          "damage": [
+            "necrotic",
+            "poisonous"
+          ],
+          "effects": [
+            "enchantment"
+          ]
+        }
+      }
+    },
+    "def.type.vermin": {
+      "name": "Vermin",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Vermin:"
+          }
+        }
+      }
+    }
+  }
+}

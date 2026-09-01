@@ -28,6 +28,10 @@
  *   battlemap  after monsters — sizes tokens from monsters' SIZES table and
  *              formation's flags; both are plain data imports, so only this
  *              comment depends on the order.
+ *   importer   last — it writes into what every other feature owns (the
+ *              tables registry, the class builder, the sub-types, the ability
+ *              model) and nothing consumes it except through the
+ *              `ability-provider` service, which is looked up at call time.
  */
 import "./lib/module.mjs";
 import "./abilities/module.mjs";
@@ -41,3 +45,4 @@ import "./markets/module.mjs";
 import "./monsters/module.mjs";
 import "./battlemap/module.mjs";
 import "./vehicles/module.mjs";
+import "./importer/module.mjs";

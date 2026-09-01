@@ -1,0 +1,40 @@
+[
+  {
+    "id": "ax2.a1CesspitCave",
+    "kind": "kind.location",
+    "book": "ax2",
+    "name": "A1. Cesspit Cave",
+    "anchor": { "display": "A1. CESSPIT CAVE" },
+    "pages": [26],
+    "meta": { "group": "A. Entrance Caves" },
+    "assists": { "fullWidth": true }
+  },
+  {
+    "id": "ax2.a2MezzanineLevelCave",
+    "kind": "kind.location",
+    "book": "ax2",
+    "name": "A2. Mezzanine Level Cave",
+    "anchor": { "display": "A2. MEZZANINE LEVEL CAVE" },
+    "pages": [26, 27],
+    "meta": { "group": "A. Entrance Caves" },
+    "assists": { "columns": [387] }
+  },
+  {
+    "id": "ax2.a3UpperLevelCave",
+    "kind": "kind.location",
+    "book": "ax2",
+    "name": "A3. Upper Level Cave",
+    "anchor": { "display": "A3. UPPER LEVEL CAVE" },
+    "pages": [27],
+    "meta": { "group": "A. Entrance Caves" }
+  },
+  {
+    "id": "ax2.a4WarlordsCavernEntrance",
+    "kind": "kind.location",
+    "book": "ax2",
+    "name": "A4. Warlord’s Cavern Entrance",
+    "anchor": { "display": "A4. WARLORD’S CAVERN ENTRANCE" },
+    "pages": [28],
+    "meta": { "group": "A. Entrance Caves" }
+  }
+]

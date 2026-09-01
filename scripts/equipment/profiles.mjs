@@ -153,7 +153,7 @@ function strictWeaponKey(name) {
  * become and the stats that type needs — so a
  * torch (a 1d4 light-weapon) and a flask of military oil / holy water (thrown
  * splash flasks) import as WEAPONS, while a lantern/candle stay plain
- * light-bearing items. acks-content CONSUMES this rather than re-hardcoding the
+ * light-bearing items. The importer CONSUMES this rather than re-hardcoding the
  * rules; the WEAPONS config here stays the single source of truth. Uses strict
  * (exact/alias) matching so ordinary gear is never reclassified by a loose
  * substring hit.

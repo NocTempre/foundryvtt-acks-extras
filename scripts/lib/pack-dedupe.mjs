@@ -16,19 +16,17 @@
  * and turning the setting off restores the rows.
  *
  * WHERE A SYSTEM PACK IS NOT SUPERSEDED, THAT IS AN IMPORTER GAP, not a reason
- * to hide it: those packs are absent from the map below and named in
- * acks-importer's ROADMAP so the gap is worked rather than papered over.
+ * to hide it: those packs are absent from the map below and named in the
+ * importer's ROADMAP so the gap is worked rather than papered over.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 
 export const SETTING_HIDE_SUPERSEDED = "hideSupersededPacks";
 
-const IMPORTER_ID = "acks-importer";
-
 /** Does this document come from an import? Both stamps count — the cookbook's
  * own id flag, and the extras model the importer writes alongside it. */
 const isImported = (doc) =>
-  !!(doc?.flags?.[IMPORTER_ID]?.cookbook || doc?.flags?.[MODULE_ID]?.extras?.cookbookId);
+  !!(doc?.flags?.[MODULE_ID]?.cookbook || doc?.flags?.[MODULE_ID]?.extras?.cookbookId);
 
 /**
  * System pack → what must exist in the world before it is considered replaced.
@@ -42,7 +40,7 @@ const isImported = (doc) =>
  * single pack that came back complete — all 58, with neither side carrying an
  * Active Effect. Every other entry here is replaced only in the sense that its
  * subject matter is imported; each still has named documents the import does
- * not produce, recorded as gaps in acks-importer's ROADMAP. `idPrefix` exists
+ * not produce, recorded as gaps in the importer's ROADMAP. `idPrefix` exists
  * so a probe can count the pack's OWN content rather than a type-wide floor,
  * which is what a coverage proof needs.
  */
@@ -54,17 +52,19 @@ const SUPERSEDED = Object.freeze({
   "acks.acks-class-abilities": { probe: "item", types: ["ability"], min: 20 },
   "acks.acks-monster-abilities": { probe: "item", types: ["ability"], min: 20 },
   "acks.acks-monsters": { probe: "actor", types: ["monster"], min: 10 },
-  // The taxonomy is READ from the seat's own book (acks-importer 2.9.x), so the
-  // probe counts the languages themselves rather than abilities at large — a
-  // world with 100 imported proficiencies and no book has replaced nothing.
-  // It counts the SYSTEM's `language` type: an import that lands anything else
-  // has not replaced this pack, whatever it named the documents.
+  // The taxonomy is READ from the seat's own book (since importer 2.9.x), so
+  // the probe counts the languages themselves rather than abilities at large
+  // — a world with 100 imported proficiencies and no book has replaced
+  // nothing. It counts the SYSTEM's `language` type: an import that lands
+  // anything else has not replaced this pack, whatever it named the documents.
   "acks.acks-languages": { probe: "item", types: ["language"], idPrefix: "def.language.", min: 40 },
 });
 
-/** The cookbook id an import stamped on a document, or "". */
+/** The cookbook id an import stamped on a document, or "". Both stamps count
+ *  — the cookbook's own id flag, and the extras model the importer writes
+ *  alongside it. */
 const cookbookIdOf = (doc) =>
-  String(doc?.flags?.[IMPORTER_ID]?.cookbook?.id ?? doc?.flags?.[MODULE_ID]?.extras?.cookbookId ?? "");
+  String(doc?.flags?.[MODULE_ID]?.cookbook?.id ?? doc?.flags?.[MODULE_ID]?.extras?.cookbookId ?? "");
 
 /** Does this document count towards `spec` — right type, and right content? */
 const counts = (doc, spec) =>

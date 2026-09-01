@@ -12,7 +12,7 @@
  * THE MODEL. The template actor stores AXES (rank, age, element, HD…), each
  * option carrying ENGINE-READY patches — `system.*` fragments, embedded-item
  * payloads, a name piece, an art path, a description snippet — that the
- * importing module (acks-content) materialized from the reader's own book.
+ * importer materialized from the reader's own book.
  * Generation is then pure selection + merge (template-logic.mjs): pinned >
  * derived-from-a-dropped-base > rolled per the book's own dice. A dropped base
  * actor makes the same document a MODIFIER (vampire thrall rewriting its

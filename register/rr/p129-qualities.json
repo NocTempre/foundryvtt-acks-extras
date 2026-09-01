@@ -1,0 +1,25 @@
+[
+  {
+    "note": "Silver is the ONLY material quality in ACKS II - the rest of the weapon-quality list (Handy, Impact, Long, Thrown...) are intrinsic traits of a weapon type, not differences applied to one, so none of them is a variation. Its multiplier scales the weapon's LISTED price, which is baseMul rather than mul: silver must not multiply a masterwork surcharge added on top.",
+    "id": "def.variation.materialSilver",
+    "kind": "kind.variation",
+    "book": "rr",
+    "name": "Silver",
+    "anchor": { "runin": "Silver:" },
+    "pages": [129],
+    "meta": {
+      "category": "variation",
+      "key": "material.silver",
+      "variationKind": "material",
+      "appliesTo": ["weapon"],
+      "supersedes": []
+    },
+    "icon": "icons/commodities/metal/ingot-silver.webp",
+    "variation": [
+      {
+        "field": "cost.baseMul",
+        "from": { "into": "amount", "pattern": "commissioned\\s*for\\s*(\\d+)\\s*[x\\u00d7]\\s*the\\s*listed\\s*price" }
+      }
+    ]
+  }
+]

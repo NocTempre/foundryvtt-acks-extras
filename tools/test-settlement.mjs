@@ -2,7 +2,7 @@
  * Settlement travel: the pure derivations.
  *
  * Every number here is INVENTED. The real rates, targets and ladders are
- * printed and arrive through acks-importer, so a committed suite that used
+ * printed and arrive through the importer, so a committed suite that used
  * them would be shipping book content; these prove the SHAPE — that a pace
  * scales, that a straggling tier picks the deepest rung reached, that a known
  * route suppresses the throw, and that an unimported table degrades to null

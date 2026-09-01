@@ -193,7 +193,7 @@ Hooks.once("init", () => {
      * Template packages: a class's printed templates materialized as
      * repairable bundle documents plus the generated 3d6 RollTable.
      * `materializeTemplates(classItem, {stamp, folder, tableFolder})` is the
-     * seam acks-importer calls after creating or updating a class document.
+     * seam the importer calls after creating or updating a class document.
      */
     templates: {
       materializeTemplates,

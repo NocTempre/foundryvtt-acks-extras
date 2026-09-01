@@ -1,0 +1,122 @@
+[
+  {
+    "id": "ax3.gabriolEirenikos",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Gabriol Eirenikos",
+    "anchor": {
+      "display": "GABRIOL EIRENIKOS"
+    },
+    "pages": [
+      199,
+      200
+    ],
+    "meta": {
+      "group": "NPC Party — Imperial Vanguard"
+    },
+    "assists": {
+      "statLabel": "Gabriol Eirenikos:",
+      "noDescStop": true,
+      "artName": "img_p198_1",
+      "artPage": 199
+    }
+  },
+  {
+    "id": "ax3.aghilas",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Aghilas, the Lion of the Desert",
+    "anchor": {
+      "display": "AGHILAS, THE LION OF THE DESERT"
+    },
+    "pages": [
+      200,
+      201
+    ],
+    "meta": {
+      "group": "NPC Party — Imperial Vanguard"
+    },
+    "assists": {
+      "statLabel": "Aghilas:",
+      "statlineAt": 201,
+      "artName": "img_p199_1",
+      "artPage": 200
+    }
+  },
+  {
+    "id": "ax3.asryaRaija",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Asrya Raija, the Lotus of Somirea",
+    "anchor": {
+      "display": "ASRYA RAIJA, THE LOTUS OF SOMIREA"
+    },
+    "pages": [
+      201
+    ],
+    "meta": {
+      "group": "NPC Party — Imperial Vanguard"
+    },
+    "assists": {
+      "statLabel": "Asrya Raija:"
+    }
+  },
+  {
+    "id": "ax3.irialUiAedon",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Irial Ui Aedon",
+    "anchor": {
+      "display": "IRIAL UI AEDON"
+    },
+    "pages": [
+      201,
+      202
+    ],
+    "meta": {
+      "group": "NPC Party — Imperial Vanguard"
+    },
+    "assists": {
+      "statLabel": "Irial Ui Aedon:",
+      "statlineAt": 202
+    }
+  },
+  {
+    "id": "ax3.nikolausTheNicean",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Nikolaus the Nicean",
+    "anchor": {
+      "display": "NIKOLAUS THE NICEAN"
+    },
+    "pages": [
+      202
+    ],
+    "meta": {
+      "group": "NPC Party — Imperial Vanguard"
+    },
+    "assists": {
+      "statLabel": "Nikolaus the Nicean:"
+    }
+  },
+  {
+    "id": "ax3.valenusMirens",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Valenus Mirens, the Antiquarian",
+    "anchor": {
+      "display": "VALENUS MIRENS, THE ANTIQUARIAN"
+    },
+    "pages": [
+      202,
+      203
+    ],
+    "meta": {
+      "group": "NPC Party — Imperial Vanguard"
+    },
+    "assists": {
+      "statLabel": "Valenus Mirens:",
+      "statlineAt": 203
+    }
+  }
+]

@@ -1,0 +1,119 @@
+[
+  {
+    "id": "pc2.area1",
+    "kind": "kind.oseLocation",
+    "book": "pc2",
+    "name": "1. Determine Astral Conditions",
+    "anchor": {
+      "display": "1. Determine Astral"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "areaKey": "1",
+      "areaTitle": "Determine Astral Conditions",
+      "areaSlug": "determineAstralConditions"
+    },
+    "assists": {
+      "prose": [
+        {
+          "page": 34,
+          "box": {
+            "x0": 63.1969,
+            "x1": 209.37189999999995,
+            "y0": 304.15299999999996,
+            "y1": 340.15299999999996
+          }
+        },
+        {
+          "page": 34,
+          "box": {
+            "x0": 63.1969,
+            "x1": 211.31699999999995,
+            "y0": 350.15299999999996,
+            "y1": 532.1533
+          }
+        },
+        {
+          "page": 34,
+          "box": {
+            "x0": 223.719,
+            "x1": 368.13999999999976,
+            "y0": 96.44299999999993,
+            "y1": 235.44299999999993
+          }
+        },
+        {
+          "page": 34,
+          "box": {
+            "x0": 223.719,
+            "x1": 365.795,
+            "y0": 263.4429999999999,
+            "y1": 349.443
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "pc2.area2",
+    "kind": "kind.oseLocation",
+    "book": "pc2",
+    "name": "2. Description",
+    "anchor": {
+      "display": "2. Description"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "areaKey": "2",
+      "areaTitle": "Description",
+      "areaSlug": "description"
+    },
+    "assists": {
+      "prose": [
+        {
+          "page": 34,
+          "box": {
+            "x0": 223.719,
+            "x1": 365.795,
+            "y0": 263.4429999999999,
+            "y1": 349.443
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "pc2.area3",
+    "kind": "kind.oseLocation",
+    "book": "pc2",
+    "name": "3. End of Aperture",
+    "anchor": {
+      "display": "3. End of Aperture"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "areaKey": "3",
+      "areaTitle": "End of Aperture",
+      "areaSlug": "endOfAperture"
+    },
+    "assists": {
+      "prose": [
+        {
+          "page": 34,
+          "box": {
+            "x0": 223.719,
+            "x1": 370.9799999999999,
+            "y0": 377.443,
+            "y1": 413.443
+          }
+        }
+      ]
+    }
+  }
+]

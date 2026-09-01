@@ -1,0 +1,9 @@
+{
+  "id": "kind.power",
+  "role": "definition",
+  "note": "JJ Custom Power Index (p309+): run-in bold 'Name:' + descriptor block to the next run-in (the bracketed class list is container-owned, not captured). 'See X' = alias (token -> target power ref). Prose lazy @PdfText; effects/powerValue from per-entry assists. Binds to an acks-abilities ability item (category classPower).",
+  "fields": {
+    "name": { "locate": "runin" },
+    "description": { "locate": "runinBlock", "type": "blocks" }
+  }
+}

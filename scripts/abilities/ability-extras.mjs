@@ -160,7 +160,7 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
  * way to read them (consumer contract, README). Prefers the stored
  * `selections` array; absent that, absorbs the legacy convention of carrying
  * the pick as a "(X)" suffix on the item name ("Martial Training (Axes)",
- * and the "(specialty)" suffix the acks-content ability-provider stamps), so
+ * and the "(specialty)" suffix the the importer ability-provider stamps), so
  * no consumer ever parses item names itself.
  * @param {Item} item
  * @returns {string[]} trimmed, non-empty picks; [] when none are recorded

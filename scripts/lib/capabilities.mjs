@@ -16,18 +16,7 @@
  */
 
 import { satisfies, ITEM_TYPE } from "./vocab.mjs";
-
-/**
- * The importer owns its provenance flags; they persist even when it is
- * uninstalled. Read them via the raw flag path, never `getFlag` — getFlag
- * throws for any scope that is not a currently ACTIVE module, and this module
- * does not require the importer, so the raw read is what makes the persistence
- * usable in a world running without it. Declared locally rather than shared:
- * the flag-scope validator resolves every scope to its literal VALUE inside
- * the calling file, so a scope imported from elsewhere reads as unresolvable
- * and fails the check.
- */
-const DEFINITION_SCOPE = "acks-importer";
+import { cookbookId } from "./library.mjs";
 
 /** The abilities feature's own flag scope, holding the acks-abilities effect model. */
 const ABILITIES_ID = "acks-extras";
@@ -35,19 +24,18 @@ const ABILITIES_ID = "acks-extras";
 /**
  * One ability item as the `{id, provides}` shape acks-lib reasons over.
  *
- * `id` is the register's definition id, written by acks-content on import
- * (`flags["acks-importer"].cookbook.id`). `provides` comes from the
+ * `id` is the register's definition id, written by the importer on import
+ * (`flags["acks-extras"].cookbook.id`). `provides` comes from the
  * acks-abilities effect model. An item with neither is a hand-made ability and
  * simply has no capability — a caller's name path still covers it.
  */
 /**
  * The register definition id stamped on an imported item ("def.power.longeval"),
- * or null for a hand-made one. THE read path for import provenance: features
- * call this instead of spelling the importer's flag scope themselves, so the
- * scope literal lives in this file alone.
+ * or null for a hand-made one. Delegates to `library.mjs`'s `cookbookId`, the
+ * ONE read of that stamp.
  */
 export function definitionId(item) {
-  return item?.flags?.[DEFINITION_SCOPE]?.cookbook?.id ?? null;
+  return cookbookId(item) || null;
 }
 
 function abilityRef(item) {

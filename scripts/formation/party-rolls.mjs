@@ -14,6 +14,7 @@ import { BASH_STR_FACTOR, bashStrBonus } from "./doors.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { cookbookId } from "../lib/library.mjs";
 
 export { hasAbility };
 
@@ -215,15 +216,13 @@ function skillCandidates(actor, cfg) {
  * what makes it scale — see `scaledSkillTarget`.
  */
 export function inferredThiefSkill(item) {
-  // Raw flag path, never getFlag: the importer need not be active (getFlag
-  // throws for an inactive scope) while the data it wrote persists on the item.
-  const id = item.flags?.["acks-importer"]?.cookbook?.id ?? "";
+  const id = cookbookId(item);
   return /^def\.skill\.([a-zA-Z]+)$/.exec(id)?.[1] ?? null;
 }
 
 /**
  * Skill items auto-scale from the owner's level. Every number comes from the
- * GM's own book by way of acks-content — this module ships no ladder:
+ * GM's own book by way of the importer — this module ships no ladder:
  *   1. an explicit `thiefSkill` flag names the skill to scale AS, and that
  *      skill's imported definition supplies the ladder (the GM's binding is a
  *      deliberate override, so it is consulted first);

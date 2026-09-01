@@ -1,0 +1,8 @@
+{
+  "id": "kind.classMeta",
+  "role": "definition",
+  "note": "Chapter-level class tables that are nobody's spread: the Proficiencies Gained per Level grid (RR Profs chapter). One entry per table, located by printed title; rows keyed by class name, cells raw (C / G / C + G, blank past maximum level). Binds into every class document's award ladder as ChoiceSpec entries, never as its own item.",
+  "fields": {
+    "name": { "locate": "label" }
+  }
+}

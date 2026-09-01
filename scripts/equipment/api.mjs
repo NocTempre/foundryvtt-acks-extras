@@ -198,7 +198,7 @@ export function buildApi() {
     VIOLATION,
     // Profiles
     classifyWeapon,
-    equipmentClass, // the equipment "root": name → core type + stats (acks-content consumes it)
+    equipmentClass, // the equipment "root": name → core type + stats (the importer consumes it)
     handCost,
     focusGroup,
     weaponKey,

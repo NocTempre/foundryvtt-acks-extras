@@ -1,0 +1,26 @@
+{
+  "registry": "naturalWeapon",
+  "shape": "keyword",
+  "note": "Natural-weapon categories (MM Damage table rows). Keyword rows for now (descriptor pages promotable later). The COMPILER stems attack names to these keys offline (bit->bite); the cookbook ships resolved keys per attack segment.",
+  "tokens": {
+    "bite": { "key": "bite" },
+    "stinger": { "key": "stinger" },
+    "sting": { "key": "sting" },
+    "gore": { "key": "gore" },
+    "horn": { "key": "horn" },
+    "tusk": { "key": "tusk" },
+    "spine": { "key": "spine" },
+    "claw": { "key": "claw" },
+    "talon": { "key": "talon" },
+    "pincer": { "key": "pincer" },
+    "hoof": { "key": "hoof" },
+    "tail": { "key": "tail" },
+    "tentacle": { "key": "tentacle" },
+    "tongue": { "key": "tongue" },
+    "constriction": { "key": "constriction" },
+    "ram": { "key": "ram" },
+    "feeler": { "key": "feeler" },
+    "envelopment": { "key": "envelopment" },
+    "weapon": { "key": "weapon" }
+  }
+}

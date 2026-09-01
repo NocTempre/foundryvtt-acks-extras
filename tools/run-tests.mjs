@@ -17,6 +17,9 @@
  * the book's own worked example is how a rule gets read correctly rather than
  * guessed at. They just stay on the machine that owns the books. A checkout
  * without them runs the committed half and says how many it skipped.
+ *
+ * The importer subsystem's own suites live in `tools/importer/`; their names
+ * below carry that prefix.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -59,6 +62,30 @@ const COMMITTED = [
   "test-foraging.mjs",
   "test-searching.mjs",
   "test-hex-topology.mjs",
+  "importer/test-prose.mjs",
+  "importer/test-book-match.mjs",
+  "importer/test-executor.mjs",
+  "importer/test-equipment-binding.mjs",
+  "importer/test-weapon-tables.mjs",
+  "importer/test-armor-tables.mjs",
+  "importer/test-gear-prices.mjs",
+  "importer/test-ability-names.mjs",
+  "importer/test-starting-equipment.mjs",
+  "importer/test-hitpoint-tables.mjs",
+  "importer/test-class-builder-tables.mjs",
+  "importer/test-class-tongues.mjs",
+  "importer/test-class-training.mjs",
+  "importer/test-trap-tiers.mjs",
+  "importer/test-variations.mjs",
+  "importer/test-vehicles.mjs",
+  "importer/test-travel-tables.mjs",
+  "importer/test-weather-tables.mjs",
+  "importer/test-encounter-tables.mjs",
+  "importer/test-voyage-tables.mjs",
+  "importer/test-land-tables.mjs",
+  "importer/test-mount-flags.mjs",
+  "importer/test-item-shelves.mjs",
+  "importer/test-cookbook-coherence.mjs",
 ];
 
 const RULES_DIR = path.join(HERE, "rules-tests");

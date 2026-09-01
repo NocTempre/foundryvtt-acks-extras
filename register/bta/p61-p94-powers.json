@@ -1,0 +1,893 @@
+[
+ {
+  "id": "def.power.dwarvenThroatSinging",
+  "icon": "icons/magic/sonic/scream-wail-shout-teal.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Dwarven Throat-Singing",
+  "anchor": {
+   "runin": "Dwarven Throat-Singing:"
+  },
+  "pages": [
+   63
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.gnosticMagic",
+  "icon": "icons/magic/symbols/rune-sigil-green-purple.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Gnostic Magic",
+  "anchor": {
+   "runin": "Gnostic Magic:"
+  },
+  "pages": [
+   63,
+   64
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.deepKnowledge",
+  "icon": "icons/magic/earth/orb-stone-smoke-teal.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Deep Knowledge",
+  "anchor": {
+   "runin": "Deep Knowledge:"
+  },
+  "pages": [
+   63
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.extemporaneousInvocations",
+  "icon": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Extemporaneous Invocations",
+  "anchor": {
+   "runin": "Extemporaneous Invocations:"
+  },
+  "pages": [
+   63
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.earthforgerSigil",
+  "icon": "icons/magic/symbols/runes-carved-stone-green.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Sigils of Creation",
+  "anchor": {
+   "runin": "Master Sigil Feature ("
+  },
+  "pages": [
+   64
+  ],
+  "assists": {
+   "columns": [36, 306]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.sigilOfTheMountainsBones",
+  "icon": "icons/magic/earth/barrier-stone-brown-green.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Sigil of the Mountain's Bones",
+  "anchor": {
+   "display": "Sigil of the Mountain's Bones"
+  },
+  "pages": [
+   65
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.sigilOfTheEternalForge",
+  "icon": "icons/magic/fire/flame-burning-earth-orange.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Sigil of the Eternal Forge",
+  "anchor": {
+   "display": "Sigil of the Eternal Forge"
+  },
+  "pages": [
+   65
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.sigilOfTheIronCrucible",
+  "icon": "icons/magic/fire/flame-burning-embers-yellow.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Sigil of the Iron Crucible",
+  "anchor": {
+   "display": "Sigil of the Iron Crucible"
+  },
+  "pages": [
+   65
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.sigilOfTheOpenGate",
+  "icon": "icons/magic/movement/portal-vortex-orange.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Sigil of the Open Gate",
+  "anchor": {
+   "display": "Sigil of the Open Gate"
+  },
+  "pages": [
+   66
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.greaterGnosis",
+  "icon": "icons/magic/symbols/runes-star-orange.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Greater Gnosis",
+  "anchor": {
+   "runin": "Greater Gnosis ("
+  },
+  "pages": [
+   63,
+   64
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.masterGnosis",
+  "icon": "icons/magic/symbols/runes-star-pentagon-orange.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Master Gnosis",
+  "anchor": {
+   "runin": "Master Gnosis ("
+  },
+  "pages": [
+   64
+  ],
+  "assists": {
+   "columns": [54, 324]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.earthforgerRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   64
+  ],
+  "assists": {
+   "descStopY": 680,
+   "columns": [54, 324]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.mineManagement",
+  "icon": "icons/skills/trades/mining-pickaxe-stone-cart.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Mine Management",
+  "anchor": {
+   "runin": "Mine Management ("
+  },
+  "pages": [
+   69
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.industrialism",
+  "icon": "icons/skills/trades/plating-metal-welding-steel.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Industrialism",
+  "anchor": {
+   "runin": "Industrialism ("
+  },
+  "pages": [
+   69
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.excavatorRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   69
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.skill.dowsing",
+  "icon": "systems/acks/assets/icons/locate.webp",
+  "kind": "kind.skill",
+  "book": "bta",
+  "name": "Dowsing",
+  "anchor": {
+   "runin": "Dowsing ("
+  },
+  "pages": [
+   68
+  ],
+  "meta": {
+   "category": "classSkill"
+  }
+ },
+ {
+  "id": "def.power.fieryTorch",
+  "icon": "icons/magic/light/torch-fire-hand-orange.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Fiery Torch",
+  "anchor": {
+   "runin": "Fiery Torch:"
+  },
+  "pages": [
+   71
+  ],
+  "assists": {
+   "columns": [36, 306]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.trinketsOfPower",
+  "icon": "icons/magic/symbols/circled-gem-pink.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Trinkets of Power",
+  "anchor": {
+   "runin": "Trinkets of Power:"
+  },
+  "pages": [
+   71
+  ],
+  "assists": {
+   "descStopY": 705,
+   "columns": [36, 306]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.fieryAura",
+  "icon": "icons/magic/fire/barrier-wall-flame-ring-yellow.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Fiery Aura",
+  "anchor": {
+   "runin": "Fiery Aura ("
+  },
+  "pages": [
+   71
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.fieryBlessing",
+  "icon": "icons/magic/fire/flame-burning-hand-orange.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Fiery Blessing",
+  "anchor": {
+   "runin": "Fiery Blessing ("
+  },
+  "pages": [
+   72
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.furnacewifeRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   72
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.superiorFleshRunes",
+  "icon": "icons/magic/symbols/rune-sigil-rough-white-teal.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Superior Flesh-Runes",
+  "anchor": {
+   "runin": "Superior Flesh-Runes ("
+  },
+  "pages": [
+   75
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.delverRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   62
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.mechanicKnowledge",
+  "icon": "icons/magic/symbols/cog-glowing-green.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Mechanic Knowledge",
+  "anchor": {
+   "runin": "Mechanic Knowledge:"
+  },
+  "pages": [
+   77
+  ],
+  "assists": {
+   "columns": [36, 306]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.personalAutomaton",
+  "icon": "icons/creatures/magical/construct-golem-robot-blue.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Personal Automaton",
+  "anchor": {
+   "runin": "Personal Automaton:"
+  },
+  "pages": [
+   77,
+   78
+  ],
+  "assists": {
+   "columns": [36, 306]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.machinistRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   78
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.oldManBones",
+  "icon": "icons/skills/wounds/bone-broken-marrow-yellow.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Old Man Bones",
+  "anchor": {
+   "runin": "Old Man Bones ("
+  },
+  "pages": [
+   80
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.eyeOfTheTiger",
+  "icon": "icons/creatures/abilities/lion-roar-yellow.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Eye of the Tiger",
+  "anchor": {
+   "runin": "Eye of the Tiger ("
+  },
+  "pages": [
+   80,
+   81
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.pugilistRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   81
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.secondWind",
+  "icon": "icons/magic/air/air-wave-gust-blue.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Second Wind",
+  "anchor": {
+   "runin": "Second Wind ("
+  },
+  "pages": [
+   81
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.unyieldingSpirit",
+  "icon": "icons/magic/defensive/shield-hex-gold.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Unyielding Spirit",
+  "anchor": {
+   "runin": "Unyielding Spirit ("
+  },
+  "pages": [
+   81
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.linguistics",
+  "icon": "icons/skills/trades/academics-book-study-runes.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Linguistics",
+  "anchor": {
+   "runin": "Linguistics:"
+  },
+  "pages": [
+   82
+  ],
+  "meta": {
+   "category": "classPower"
+  },
+  "assists": {
+   "descStopY": 733
+  }
+ },
+ {
+  "id": "def.power.jurisprudence",
+  "icon": "icons/skills/social/trading-justice-scale-yellow.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Jurisprudence",
+  "anchor": {
+   "runin": "Jurisprudence:"
+  },
+  "pages": [
+   83
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.ruleOfLaw",
+  "icon": "icons/skills/social/wave-halt-stop.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Rule of Law",
+  "anchor": {
+   "runin": "Rule of Law ("
+  },
+  "pages": [
+   84
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.rhetoricalTraining",
+  "icon": "icons/skills/social/intimidation-impressing.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Rhetorical Training",
+  "anchor": {
+   "runin": "Rhetorical Training ("
+  },
+  "pages": [
+   84
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.tireless",
+  "icon": "icons/skills/movement/feet-spurred-boots-brown.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Tireless",
+  "anchor": {
+   "runin": "Tireless ("
+  },
+  "pages": [
+   84
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.rhetorRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   84
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.conventionalBrewing",
+  "icon": "icons/skills/toxins/cauldron-pot-bubbles-green.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Conventional Brewing",
+  "anchor": {
+   "runin": "Conventional Brewing:"
+  },
+  "pages": [
+   85
+  ],
+  "meta": {
+   "category": "classPower"
+  },
+  "assists": {
+   "descStopY": 745
+  }
+ },
+ {
+  "id": "def.power.bloomingSpores",
+  "icon": "icons/magic/nature/mushroom-glow-red.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Blooming Spores",
+  "anchor": {
+   "runin": "Blooming Spores ("
+  },
+  "pages": [
+   87
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.fungalHumors",
+  "icon": "icons/magic/nature/mushrooms-fire-glow-blue.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Fungal Humors",
+  "anchor": {
+   "runin": "Fungal Humors ("
+  },
+  "pages": [
+   87
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.blossomingSpores",
+  "icon": "icons/magic/nature/plant-glowing-white-purple.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Blossoming Spores",
+  "anchor": {
+   "runin": "Blossoming Spores ("
+  },
+  "pages": [
+   87
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.billowingSpores",
+  "icon": "icons/magic/air/fog-gas-smoke-dense-green.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Billowing Spores",
+  "anchor": {
+   "runin": "Billowing Spores ("
+  },
+  "pages": [
+   87
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.sporeServitude",
+  "icon": "icons/magic/control/control-influence-puppet.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Spore Servitude",
+  "anchor": {
+   "runin": "Spore Servitude ("
+  },
+  "pages": [
+   87
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.mushroomMutation",
+  "icon": "icons/magic/nature/tree-animated-stump-mushrooms-teal.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Mushroom Mutation",
+  "anchor": {
+   "runin": "Mushroom Mutation ("
+  },
+  "pages": [
+   87,
+   88,
+   89
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.sporecasterRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   87
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.lesserRiteOfSealing",
+  "icon": "icons/magic/symbols/rune-sigil-hook-white-red.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Lesser Rite of Sealing",
+  "anchor": {
+   "runin": "Lesser Rite of Sealing:"
+  },
+  "pages": [
+   90
+  ],
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.riteOfDiscovery",
+  "icon": "icons/magic/perception/orb-crystal-ball-scrying.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Rite of Discovery",
+  "anchor": {
+   "runin": "Rite of Discovery ("
+  },
+  "pages": [
+   91
+  ],
+  "assists": {
+   "columns": [36, 306]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.power.tombsealerRenown",
+  "icon": "icons/skills/social/thumbsup-approval-like.webp",
+  "kind": "kind.power",
+  "book": "bta",
+  "name": "Renown",
+  "anchor": {
+   "runin": "Renown ("
+  },
+  "pages": [
+   91
+  ],
+  "assists": {
+   "columns": [36, 306]
+  },
+  "meta": {
+   "category": "classPower"
+  }
+ },
+ {
+  "id": "def.prof.inventing",
+  "icon": "systems/acks/assets/icons/lightning-spanner.webp",
+  "kind": "kind.proficiency",
+  "book": "bta",
+  "name": "Inventing",
+  "anchor": {
+   "runin": "Inventing"
+  },
+  "pages": [
+   93
+  ],
+  "meta": {
+   "category": "proficiency"
+  }
+ },
+ {
+  "id": "def.prof.juryRigging",
+  "icon": "systems/acks/assets/icons/rope-coil.webp",
+  "kind": "kind.proficiency",
+  "book": "bta",
+  "name": "Jury-Rigging",
+  "anchor": {
+   "runin": "Jury-Rigging"
+  },
+  "pages": [
+   93
+  ],
+  "meta": {
+   "category": "proficiency"
+  }
+ },
+ {
+  "id": "def.prof.mechanicalEngineering",
+  "icon": "systems/acks/assets/icons/claw-hammer.webp",
+  "kind": "kind.proficiency",
+  "book": "bta",
+  "name": "Mechanical Engineering",
+  "anchor": {
+   "runin": "Mechanical Engineering"
+  },
+  "pages": [
+   93
+  ],
+  "meta": {
+   "category": "proficiency",
+   "repeatable": true
+  }
+ },
+ {
+  "id": "def.prof.scavenging",
+  "icon": "systems/acks/assets/icons/sack.webp",
+  "kind": "kind.proficiency",
+  "book": "bta",
+  "name": "Scavenging",
+  "anchor": {
+   "runin": "Scavenging"
+  },
+  "pages": [
+   94
+  ],
+  "meta": {
+   "category": "proficiency",
+   "repeatable": true
+  }
+ },
+ {
+  "id": "def.prof.tinkering",
+  "icon": "systems/acks/assets/icons/small-hammer.webp",
+  "kind": "kind.proficiency",
+  "book": "bta",
+  "name": "Tinkering",
+  "anchor": {
+   "runin": "Tinkering"
+  },
+  "pages": [
+   94
+  ],
+  "meta": {
+   "category": "proficiency"
+  }
+ }
+]

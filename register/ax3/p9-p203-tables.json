@@ -1,0 +1,311 @@
+[
+  {
+    "id": "ax3.festivalSpecialEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Festival District — Special Encounters",
+    "anchor": {
+      "display": "SPECIAL ENCOUNTERS"
+    },
+    "pages": [
+      110,
+      111
+    ],
+    "meta": {
+      "group": "Festival District"
+    }
+  },
+  {
+    "id": "ax3.bridgeSpecialEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Bridge District — Special Encounters",
+    "anchor": {
+      "display": "SPECIAL ENCOUNTERS"
+    },
+    "pages": [
+      131,
+      132,
+      133
+    ],
+    "meta": {
+      "group": "Bridge District"
+    }
+  },
+  {
+    "id": "ax3.plazaSpecialEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Plaza District — Special Encounters",
+    "anchor": {
+      "display": "SPECIAL ENCOUNTERS"
+    },
+    "pages": [
+      141,
+      142
+    ],
+    "meta": {
+      "group": "Plaza District"
+    }
+  },
+  {
+    "id": "ax3.towerSpecialEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Tower District — Special Encounters",
+    "anchor": {
+      "display": "SPECIAL ENCOUNTERS"
+    },
+    "pages": [
+      150,
+      151,
+      152
+    ],
+    "meta": {
+      "group": "Tower District"
+    }
+  },
+  {
+    "id": "ax3.templeSpecialEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Temple District — Special Encounters",
+    "anchor": {
+      "display": "SPECIAL ENCOUNTERS"
+    },
+    "pages": [
+      171,
+      172
+    ],
+    "meta": {
+      "group": "Temple District"
+    }
+  },
+  {
+    "id": "ax3.lakeSpecialEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Lake District — Special Encounters",
+    "anchor": {
+      "display": "SPECIAL ENCOUNTERS"
+    },
+    "pages": [
+      183,
+      184
+    ],
+    "meta": {
+      "group": "Lake District"
+    }
+  },
+  {
+    "id": "ax3.palaceSpecialEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Palace District — Special Encounters",
+    "anchor": {
+      "display": "SPECIAL ENCOUNTERS"
+    },
+    "pages": [
+      192,
+      193,
+      194
+    ],
+    "meta": {
+      "group": "Palace District"
+    }
+  },
+  {
+    "id": "ax3.cityEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "City Encounters Table (Cyfaraun)",
+    "anchor": {
+      "runin": "City Encounters Table"
+    },
+    "pages": [
+      61,
+      62,
+      63,
+      64,
+      65
+    ],
+    "meta": {
+      "group": "Cyfaraun"
+    },
+    "assists": {
+      "rollAt": {
+        "page": 61,
+        "box": {
+          "x0": 320,
+          "x1": 578,
+          "y0": 607,
+          "y1": 618
+        }
+      }
+    }
+  },
+  {
+    "id": "ax3.undercityEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Undercity Encounters Table",
+    "anchor": {
+      "display": "RANDOM ENCOUNTERS IN THE UNDERCITY"
+    },
+    "pages": [
+      66,
+      67,
+      68,
+      69
+    ],
+    "meta": {
+      "group": "Cyfaraun"
+    },
+    "assists": {
+      "rollAt": {
+        "page": 66,
+        "box": {
+          "x0": 300,
+          "x1": 578,
+          "y0": 210,
+          "y1": 222
+        }
+      }
+    }
+  },
+  {
+    "id": "ax3.borderlandsRumors",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Random Borderlands Rumors",
+    "anchor": {
+      "display": "RANDOM BORDERLANDS RUMORS"
+    },
+    "pages": [
+      9
+    ],
+    "meta": {
+      "group": "The Borderlands"
+    },
+    "assists": {
+      "grid": {
+        "page": 10,
+        "y0": 90,
+        "y1": 715,
+        "dieX0": 52,
+        "dieX1": 75,
+        "cellX0": 76,
+        "cellX1": 578,
+        "claimDie": true,
+        "centerDies": true
+      }
+    }
+  },
+  {
+    "id": "ax3.cyfaraunRumors",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Rumors of Cyfaraun",
+    "anchor": {
+      "display": "RUMORS OF CYFARAUN"
+    },
+    "pages": [
+      45
+    ],
+    "meta": {
+      "group": "Cyfaraun"
+    },
+    "assists": {
+      "grid": {
+        "page": 46,
+        "y0": 105,
+        "y1": 690,
+        "dieX0": 40,
+        "dieX1": 58,
+        "cellX0": 59,
+        "cellX1": 578,
+        "claimDie": true,
+        "headerSkip": [
+          88,
+          103
+        ],
+        "centerDies": true
+      }
+    }
+  },
+  {
+    "id": "ax3.cyfaraunRumorTruths",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Rumors of Cyfaraun — Behind the Rumor",
+    "anchor": {
+      "label": "Roll"
+    },
+    "pages": [
+      47
+    ],
+    "meta": {
+      "group": "Cyfaraun"
+    },
+    "assists": {
+      "nameExpect": {
+        "page": 47,
+        "box": {
+          "x0": 58,
+          "x1": 210,
+          "y0": 92,
+          "y1": 108
+        },
+        "text": "Roll"
+      },
+      "grid": {
+        "page": 47,
+        "y0": 110,
+        "y1": 700,
+        "dieX0": 62,
+        "dieX1": 80,
+        "cellX0": 81,
+        "cellX1": 578,
+        "claimDie": true,
+        "headerSkip": [
+          92,
+          109
+        ],
+        "centerDies": true
+      }
+    }
+  },
+  {
+    "id": "ax3.randomIrritatingRumors",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Random Irritating Rumors",
+    "anchor": {
+      "display": "RANDOM IRRITATING RUMORS"
+    },
+    "pages": [
+      203
+    ],
+    "meta": {
+      "group": "NPC Party — Imperial Vanguard"
+    },
+    "assists": {
+      "descStopY": 185,
+      "grid": {
+        "page": 203,
+        "y0": 168,
+        "y1": 600,
+        "dieX0": 338,
+        "dieX1": 358,
+        "cellX0": 359,
+        "cellX1": 578,
+        "claimDie": true,
+        "headerSkip": [
+          148,
+          166
+        ],
+        "centerDies": true
+      }
+    }
+  }
+]

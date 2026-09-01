@@ -2,7 +2,7 @@
  * Hunger and thirst, a day at a time.
  *
  * Every threshold below is INVENTED — the real durations, drains and recovery
- * rates are printed and arrive through acks-importer. What this pins is the
+ * rates are printed and arrive through the importer. What this pins is the
  * ladder: its rungs and their order, that a full meal steps a starving body
  * DOWN rather than clearing it, that the clocks never walk a body backwards on
  * short commons, and that an unimported subsystem does nothing rather than

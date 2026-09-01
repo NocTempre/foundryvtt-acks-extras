@@ -1,8 +1,8 @@
 {
   "id": "acks-extras",
   "title": "ACKS II — Extras",
-  "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations and overland travel — weather, wilderness encounters and the vehicles that carry a party — henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block, over shared primitives and one rules-table registry.",
-  "version": "5.8.0",
+  "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations and overland travel — weather, wilderness encounters and the vehicles that carry a party — henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block, over shared primitives and one rules-table registry. Includes the importer: monsters, classes, proficiencies, equipment, price and rules tables, locations and roll tables read from the reader's own ACKS II PDFs — it ships extraction recipes, never the book text. Bring your own book.",
+  "version": "6.0.0",
   "socket": true,
   "compatibility": {
     "minimum": "14",
@@ -29,6 +29,7 @@
     "styles/equipment-item-sheet.css",
     "styles/formation.css",
     "styles/henchmen.css",
+    "styles/importer.css",
     "styles/influence.css",
     "styles/location.css",
     "styles/markets.css",
@@ -196,6 +197,20 @@
         "compatibility": {
           "minimum": "1.1.0"
         }
+      }
+    ],
+    "recommends": [
+      {
+        "id": "game-icons-net",
+        "type": "module",
+        "reason": "Niche ability icons for the ACKS-shaped corners of the imported corpus (Acrobatics, Blind Fighting, Caving, Mapping). Optional: without it every ability falls back to a core Foundry icon."
+      }
+    ],
+    "conflicts": [
+      {
+        "id": "acks-importer",
+        "type": "module",
+        "reason": "The importer is part of this module now. With the separate module still active the built-in importer stays off and every load says so; disable acks-importer and reload, and the imported library is carried over."
       }
     ]
   },

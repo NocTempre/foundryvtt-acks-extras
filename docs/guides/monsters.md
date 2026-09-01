@@ -85,7 +85,7 @@ sized. A source with no ecology data returns nothing, and you type the size.
 ## Where an imported creature came from
 
 A creature converted from another game's book — an Old-School Essentials
-adventure brought in by acks-importer — carries a **Source** tab that a
+adventure brought in by the importer — carries a **Source** tab that a
 hand-built monster does not.
 
 ![The Source tab on an imported creature](../releases/v4.13.0/monster-source-tab.png)

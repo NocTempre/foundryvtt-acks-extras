@@ -1,0 +1,9 @@
+{
+  "id": "kind.combatProficiency",
+  "role": "definition",
+  "note": "RR Combat chapter (p17): the weapon / armor / fighting-style proficiency rules and the non-proficient-use penalty. Anchored on a bold sub-heading that sits alone on its line at body size with no colon. A class GRANTS these (container-owned, a later class extraction); this is the rule they refer to. Binds to an acks-abilities ability item.",
+  "fields": {
+    "name": { "locate": "subheading" },
+    "description": { "locate": "subheadingBlock", "type": "blocks" }
+  }
+}

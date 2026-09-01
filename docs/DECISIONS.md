@@ -377,3 +377,77 @@ building), and **roster modelling** (the stackable group actor is the natural
 export source). REJECTED: building battle resolution in Foundry — it would
 compete with a patron benefit, cost a large build, and fork from whatever
 data model the official tool settles on.
+
+## 16. The importer joins — RESOLVED (2026-09-01)
+
+The family-level ruling (why the edge closed, what it cost) is the template's
+`docs/DECISIONS.md`, 2026-09-01. This entry is what the merge did to this repo
+and the calls it forced.
+
+**Layout.** `scripts/importer/` (the 44 runtime files, flat), `tools/importer/`
+(its module-owned tooling; the synced harness files were duplicates and were
+dropped), `cookbook/` and `register/` at the root (the shared release workflow
+already ships the first and excludes the second), `vendor/pdfjs/`,
+`styles/importer.css`, `docs/importer/` with its topic docs, one guide
+`docs/guides/importer.md`, and the pre-merge screenshots under
+`docs/releases/importer/v*/` — filed under the importer release they came from,
+because an extras `v4.3.0/` directory holding an importer 4.3.0 shot would make
+the gallery's "how stale is this" audit lie.
+
+**Identity.** `MODULE_ID` comes from lib like every feature's; `LANG_PREFIX`
+stays `ACKS-IMPORTER` (roots stay put — the family rule); CSS classes are
+re-prefixed `acks-extras-importer-` (the first merge's precedent); pack `_id`s
+keep `acksc…`, which starts with `acks` and is identity. `module.api` is the
+namespace, so the importer's own `module.api = api` was deleted and the macros
+drill into `acksExtras.importer` (§9's rule, again).
+
+**One flag scope.** Twelve keys moved under `flags["acks-extras"]`; one
+collided — the importer's boolean `generated` ("minted from the page, not
+defined by a register entry") against lib's template-generator provenance
+object of the same name — and is now `minted`. One reader: `cookbookId` in
+`lib/library.mjs`; the six local copies of `flags?.["acks-importer"]?.cookbook?.id`
+went through it.
+
+**Migration, not a clean break — and not dual-read.** The first merge carried
+nothing across and shipped a cleaner, because the old modules' data was
+residue. The importer's stamps are not: `cookbook.id` is the identity every
+class ref, dedup index and library read resolves by, and a world's imported
+library is thousands of documents. Three options were weighed:
+
+- *Clean break (re-import).* The importer's own posture for content shape —
+  "delete-and-re-import is the upgrade path" (its DECISIONS, 2026-08-24/25) —
+  does not reach identity: a re-import under the new scope cannot see the old
+  stamps, so it duplicates every document, and every character's class refs
+  point at the old copies. Rejected.
+- *Dual-read forever.* Read `acks-extras` then `acks-importer` at every site.
+  Zero migration risk, but a dead scope in every world indefinitely, two-scope
+  reads at every seam, and a permanent exemption in the stale-id gate.
+  Rejected.
+- *One-shot migration* (`scripts/importer/migrate.mjs`) — chosen. On the
+  primary GM, once per world: every document carrying the legacy scope in the
+  world collections and the `ACKS Cookbook — *` packs, children at every
+  embedded depth through the document hierarchy, the three world settings
+  read raw from the settings collection (the retired namespace cannot be
+  registered, so `game.settings.get` cannot see them), the two client
+  settings per seat from localStorage, and world macros addressing
+  `globalThis.acksImporter` rewritten in place. Recorded in a world setting;
+  a failure leaves it unset and says so, so the next load retries.
+
+**The merged importer yields while the old module is active.** Both writing
+one library races: two Books dialogs at ready, doubled sidebar buttons, every
+import stamping two scopes, and a migration running under a module that keeps
+writing the scope it is moving. So with `acks-importer` active the subsystem
+registers nothing — no settings, no hooks, no api — and every load says why.
+`module.json` declares the conflict as well, for Foundry's own dialog.
+Rejected: a `globalThis.acksImporter` compat alias (validate 7c forbids it, and
+the migration rewrites the one shipped prelude that used it).
+
+**The cleaner macro is not extended.** It strips residue; the legacy importer
+scope is identity until the migration has moved it, and the migration deletes
+it in the same write. A cleaner that stripped `acks-importer` would destroy
+exactly what the migration exists to keep.
+
+**Tooling.** The importer's `validate-extra` is chained from ours (register
+lint, icon ledger, OSE suites, prose boxes, cookbook drift); its 24 suites
+joined `run-tests.mjs`; its authoring scripts are `package.json` scripts under
+`tools/importer/`. `pdfjs-dist` joined the dev dependencies.

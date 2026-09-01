@@ -206,4 +206,4 @@ export function layerSummary(item) {
   return bits.join(", ");
 }
 
-void game;
+void globalThis.game;

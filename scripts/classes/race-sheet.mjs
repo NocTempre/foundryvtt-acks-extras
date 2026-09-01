@@ -10,13 +10,11 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import RaceData from "./race-data.mjs";
 import { findByRef } from "./registry.mjs";
+import { refOf } from "./grants.mjs";
 import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
-
-/** The ref a world item is addressed by: its cookbook id, else its uuid. */
-const refOf = (item) => item.flags?.["acks-importer"]?.cookbook?.id ?? `uuid:${item.uuid}`;
 
 export default class RaceSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {

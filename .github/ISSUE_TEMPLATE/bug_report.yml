@@ -1,16 +1,16 @@
-# MODULE-OWNED, kept twinned with foundryvtt-acks-importer's copy — an edit to
-# one is an edit to both, differing only in the importer's book-connection
-# fields. The site's "Report a bug" page describes these fields; keep it in
-# step. Reports filed here are triaged through the acks-bug-triage pipeline.
+# MODULE-OWNED. The one bug form for the module, the importer subsystem
+# included (the optional "which book" field is for import problems). The
+# site's "Report a bug" page describes these fields; keep it in step. Reports
+# filed here are triaged through the acks-bug-triage pipeline.
 name: Bug report
-description: Something in ACKS II — Extras misbehaved at the table
+description: Something in ACKS II — Extras or the importer misbehaved at the table
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for the report. One rule before anything else: **never paste
-        book text or attach page scans** — cite the book and page instead
+        book text, attach page scans, or upload a book PDF** — cite the book and page instead
         (e.g. "ACKS II Revised Rulebook p. 47"). The guides at
         [noctempre.github.io/foundryvtt-acks-extras](https://noctempre.github.io/foundryvtt-acks-extras/)
         may already cover the behaviour you hit — worth a look first.
@@ -29,6 +29,14 @@ body:
       placeholder: "14.364"
     validations:
       required: true
+  - type: input
+    id: book
+    attributes:
+      label: Which book (if connecting or importing)
+      description: If the problem is in connecting or importing a book, name it here — and which printing/PDF release if you know it.
+      placeholder: "ACKS II Revised Rulebook"
+    validations:
+      required: false
   - type: textarea
     id: what-happened
     attributes:

@@ -1,7 +1,7 @@
 /**
  * Reads social-roll modifiers out of the **acks-abilities effect model** —
  * `item.flags["acks-extras"].extras.effects[]`, in the acks-lib vocabulary —
- * so abilities imported by acks-content drive the roller without anyone
+ * so abilities imported by the importer drive the roller without anyone
  * hand-authoring an Active Effect.
  *
  * This is the second of two sources. The first, in actor-data.mjs, reads

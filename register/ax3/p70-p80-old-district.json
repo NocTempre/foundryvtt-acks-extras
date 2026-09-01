@@ -1,0 +1,323 @@
+[
+  {
+    "id": "ax3.pylosAurigeus",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "1. Pylos Aurigëus (“Patrician Gate”)",
+    "anchor": {
+      "display": "1. PYLOS AURIGËUS"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.cityWatchtowerI",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "2. City Watchtower I",
+    "anchor": {
+      "display": "2. CITY WATCHTOWER I"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.cityWatchtowerII",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "3. City Watchtower II",
+    "anchor": {
+      "display": "3. CITY WATCHTOWER II"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.imperialWharf",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "4. Imperial Wharf",
+    "anchor": {
+      "display": "4. IMPERIAL WHARF"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.cityWatchHeadquarters",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "5. City Watch Headquarters",
+    "anchor": {
+      "display": "5. CITY WATCH HEADQUARTERS"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.cityWatchtowerIII",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "6. City Watchtower III",
+    "anchor": {
+      "display": "6. CITY WATCHTOWER III"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.emporium",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "7. Emporium",
+    "anchor": {
+      "display": "7. EMPORIUM"
+    },
+    "pages": [
+      71,
+      72
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.merchantGuildhouse",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "8. Merchant Guildhouse",
+    "anchor": {
+      "display": "8. MERCHANT GUILDHOUSE"
+    },
+    "pages": [
+      72,
+      73
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.thievesQuarter",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "9. Thieves’ Quarter",
+    "anchor": {
+      "display": "9. THIEVES’ QUARTER"
+    },
+    "pages": [
+      73
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.mercenaryGuildhouse",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "10. Mercenary Guildhouse",
+    "anchor": {
+      "display": "10. MERCENARY GUILDHOUSE"
+    },
+    "pages": [
+      73
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.theMinkHideout",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "11/11U. The Mink / Argollëan Family Hideout",
+    "anchor": {
+      "display": "11/11U. THE MINK/ARGOLLËAN FAMILY"
+    },
+    "pages": [
+      73
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.publicLatrine",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "12. Public Latrine",
+    "anchor": {
+      "display": "12. PUBLIC LATRINE"
+    },
+    "pages": [
+      73,
+      74,
+      75
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.leakingCesspool",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "12U. Leaking Cesspool",
+    "anchor": {
+      "display": "12U. LEAKING CESSPOOL"
+    },
+    "pages": [
+      75
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.shrineOfTheHornedRat",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "13U. Shrine of the Horned Rat",
+    "anchor": {
+      "display": "13U. SHRINE OF THE HORNED RAT"
+    },
+    "pages": [
+      75
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.doppelgangerDen",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "14U. Doppelgänger Den",
+    "anchor": {
+      "display": "14U. DOPPELGÄNGER DEN"
+    },
+    "pages": [
+      75
+    ],
+    "meta": {
+      "group": "Old District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.argolleanFamily",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "The Argollëan Family",
+    "anchor": {
+      "display": "THE ARGOLLËAN FAMILY"
+    },
+    "pages": [
+      75,
+      76
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "stopLines": [
+        "Liber Faunus"
+      ]
+    }
+  },
+  {
+    "id": "ax3.cityWatch",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "City Watch",
+    "anchor": {
+      "display": "CITY WATCH"
+    },
+    "pages": [
+      78
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "descStopY": 492
+    }
+  },
+  {
+    "id": "ax3.narmirioDrakomir",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Tribune Narmirio Drakomir",
+    "anchor": {
+      "runin": "Tribune Narmirio Drakomir"
+    },
+    "pages": [
+      78
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Narmirio Drakomir:"
+    }
+  },
+  {
+    "id": "ax3.apollonisMeteros",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Guildmaster Apollonis Meteros",
+    "anchor": {
+      "runin": "Guildmaster Apollonis Meteros"
+    },
+    "pages": [
+      78
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Apollonis Meteros:",
+      "descStopY": 390
+    }
+  },
+  {
+    "id": "ax3.oldDistrictSpecialEncounters",
+    "kind": "kind.rolltable",
+    "book": "ax3",
+    "name": "Old District — Special Encounters",
+    "anchor": {
+      "display": "SPECIAL ENCOUNTERS"
+    },
+    "pages": [
+      79,
+      80
+    ],
+    "meta": {
+      "group": "Old District"
+    }
+  }
+]

@@ -1,0 +1,914 @@
+{
+  "registry": "magicProperty",
+  "shape": "open",
+  "note": "Spoils component effects -> magic-property definition nodes (Treasure Tome territory). Seeded empty; grown by promotion. Unknown tokens degrade to plain text at runtime.",
+  "tokens": {
+    "swift sword": {
+      "key": "swiftSword"
+    },
+    "armor +1": {
+      "key": "armorPlus1"
+    },
+    "swimming": {
+      "key": "swimming"
+    },
+    "poison": {
+      "key": "poison"
+    },
+    "deflect ordinary weapons": {
+      "key": "deflectOrdinaryWeapons"
+    },
+    "winged flight": {
+      "key": "wingedFlight"
+    },
+    "weapon +2": {
+      "key": "weaponPlus2"
+    },
+    "weapon +1": {
+      "key": "weaponPlus1"
+    },
+    "striking": {
+      "key": "striking"
+    },
+    "neutralize poison": {
+      "key": "neutralizePoison"
+    },
+    "flight": {
+      "key": "flight"
+    },
+    "silent step": {
+      "key": "silentStep"
+    },
+    "armor +2": {
+      "key": "armorPlus2"
+    },
+    "choking grip": {
+      "key": "chokingGrip"
+    },
+    "cure injury": {
+      "key": "cureInjury"
+    },
+    "skinchange": {
+      "key": "skinchange"
+    },
+    "sharpness": {
+      "key": "sharpness"
+    },
+    "bane-rune": {
+      "key": "baneRune"
+    },
+    "iron maiden": {
+      "key": "ironMaiden"
+    },
+    "dismember": {
+      "key": "dismember"
+    },
+    "cone of fear": {
+      "key": "coneOfFear"
+    },
+    "inspire horror": {
+      "key": "inspireHorror"
+    },
+    "panic": {
+      "key": "panic"
+    },
+    "slumber": {
+      "key": "slumber"
+    },
+    "righteous wrath": {
+      "key": "righteousWrath"
+    },
+    "call of the great cats": {
+      "key": "callOfTheGreatCats"
+    },
+    "weapon +3": {
+      "key": "weaponPlus3"
+    },
+    "water breathing": {
+      "key": "waterBreathing"
+    },
+    "force of impetus": {
+      "key": "forceOfImpetus"
+    },
+    "earth’s movement": {
+      "key": "earth’sMovement"
+    },
+    "circle of agony": {
+      "key": "circleOfAgony"
+    },
+    "battering ram": {
+      "key": "batteringRam"
+    },
+    "inaudibility": {
+      "key": "inaudibility"
+    },
+    "locate animal or plant": {
+      "key": "locateAnimalOrPlant"
+    },
+    "capsizing wave": {
+      "key": "capsizingWave"
+    },
+    "cure disease": {
+      "key": "cureDisease"
+    },
+    "discern evil": {
+      "key": "discernEvil"
+    },
+    "transform beast": {
+      "key": "transformBeast"
+    },
+    "halt humanoid": {
+      "key": "haltHumanoid"
+    },
+    "chameleon": {
+      "key": "chameleon"
+    },
+    "slicing blow": {
+      "key": "slicingBlow"
+    },
+    "earth’s mire": {
+      "key": "earth’sMire"
+    },
+    "noiselessness": {
+      "key": "noiselessness"
+    },
+    "bloody flux": {
+      "key": "bloodyFlux"
+    },
+    "vigor": {
+      "key": "vigor"
+    },
+    "life transfer": {
+      "key": "lifeTransfer"
+    },
+    "cataclysm": {
+      "key": "cataclysm"
+    },
+    "create chasm": {
+      "key": "createChasm"
+    },
+    "create food": {
+      "key": "createFood"
+    },
+    "create water": {
+      "key": "createWater"
+    },
+    "sling stone": {
+      "key": "slingStone"
+    },
+    "lay of the land": {
+      "key": "layOfTheLand"
+    },
+    "locate distant object": {
+      "key": "locateDistantObject"
+    },
+    "locate place of power": {
+      "key": "locatePlaceOfPower"
+    },
+    "locate treasure": {
+      "key": "locateTreasure"
+    },
+    "rain of vitriol": {
+      "key": "rainOfVitriol"
+    },
+    "vitriolic infusion": {
+      "key": "vitriolicInfusion"
+    },
+    "locate object": {
+      "key": "locateObject"
+    },
+    "enslave humanoid": {
+      "key": "enslaveHumanoid"
+    },
+    "call of the wolf pack": {
+      "key": "callOfTheWolfPack"
+    },
+    "dominate beast": {
+      "key": "dominateBeast"
+    },
+    "cone of paralysis": {
+      "key": "coneOfParalysis"
+    },
+    "halt monster": {
+      "key": "haltMonster"
+    },
+    "hypnotic sigil": {
+      "key": "hypnoticSigil"
+    },
+    "petrification": {
+      "key": "petrification"
+    },
+    "call of the wild bear": {
+      "key": "callOfTheWildBear"
+    },
+    "disintegration": {
+      "key": "disintegration"
+    },
+    "cause disease": {
+      "key": "causeDisease"
+    },
+    "safe travels": {
+      "key": "safeTravels"
+    },
+    "fireball": {
+      "key": "fireball"
+    },
+    "dominate humanoid": {
+      "key": "dominateHumanoid"
+    },
+    "armor +3": {
+      "key": "armorPlus3"
+    },
+    "frighten humanoid": {
+      "key": "frightenHumanoid"
+    },
+    "bewitch humanoid": {
+      "key": "bewitchHumanoid"
+    },
+    "adjust self": {
+      "key": "adjustSelf"
+    },
+    "cone of frost": {
+      "key": "coneOfFrost"
+    },
+    "electrical": {
+      "key": "electrical"
+    },
+    "fire": {
+      "key": "fire"
+    },
+    "anti-magic sphere": {
+      "key": "antiMagicSphere"
+    },
+    "blast ward": {
+      "key": "blastWard"
+    },
+    "staffs to snakes": {
+      "key": "staffsToSnakes"
+    },
+    "snakes to staffs": {
+      "key": "snakesToStaffs"
+    },
+    "avian messenger": {
+      "key": "avianMessenger"
+    },
+    "invisibility": {
+      "key": "invisibility"
+    },
+    "passageway": {
+      "key": "passageway"
+    },
+    "tenebrosity": {
+      "key": "tenebrosity"
+    },
+    "shatter blade": {
+      "key": "shatterBlade"
+    },
+    "slickness": {
+      "key": "slickness"
+    },
+    "dispel magic": {
+      "key": "dispelMagic"
+    },
+    "webbing": {
+      "key": "webbing"
+    },
+    "carnage": {
+      "key": "carnage"
+    },
+    "giant strength": {
+      "key": "giantStrength"
+    },
+    "frighten beast": {
+      "key": "frightenBeast"
+    },
+    "ogre strength": {
+      "key": "ogreStrength"
+    },
+    "cloud of poison": {
+      "key": "cloudOfPoison"
+    },
+    "blinding flash": {
+      "key": "blindingFlash"
+    },
+    "protection from temperature": {
+      "key": "protectionFromTemperature"
+    },
+    "beguile humanoid": {
+      "key": "beguileHumanoid"
+    },
+    "curse of swine": {
+      "key": "curseOfSwine"
+    },
+    "remove fear": {
+      "key": "removeFear"
+    },
+    "call of the galloping herd": {
+      "key": "callOfTheGallopingHerd"
+    },
+    "lightless vision": {
+      "key": "lightlessVision"
+    },
+    "fan of flames": {
+      "key": "fanOfFlames"
+    },
+    "bestow curse": {
+      "key": "bestowCurse"
+    },
+    "scry": {
+      "key": "scry"
+    },
+    "frighten crowd": {
+      "key": "frightenCrowd"
+    },
+    "arcane armor": {
+      "key": "arcaneArmor"
+    },
+    "divine armor": {
+      "key": "divineArmor"
+    },
+    "leaping": {
+      "key": "leaping"
+    },
+    "cause injury": {
+      "key": "causeInjury"
+    },
+    "transform self": {
+      "key": "transformSelf"
+    },
+    "weapon +4": {
+      "key": "weaponPlus4"
+    },
+    "level water": {
+      "key": "levelWater"
+    },
+    "call of the ancient tusk": {
+      "key": "callOfTheAncientTusk"
+    },
+    "telepathy": {
+      "key": "telepathy"
+    },
+    "shrinking": {
+      "key": "shrinking"
+    },
+    "any detection effect": {
+      "key": "anyDetectionEffect"
+    },
+    "angelic choir": {
+      "key": "angelicChoir"
+    },
+    "tongues": {
+      "key": "tongues"
+    },
+    "telekinesis": {
+      "key": "telekinesis"
+    },
+    "forest enchantment": {
+      "key": "forestEnchantment"
+    },
+    "plant growth": {
+      "key": "plantGrowth"
+    },
+    "earth’s excrescence": {
+      "key": "earth’sExcrescence"
+    },
+    "conflagration": {
+      "key": "conflagration"
+    },
+    "discern invisible": {
+      "key": "discernInvisible"
+    },
+    "angelic aura": {
+      "key": "angelicAura"
+    },
+    "trollblood": {
+      "key": "trollblood"
+    },
+    "repair disability & disfigurement": {
+      "key": "repairDisabilityDisfigurement"
+    },
+    "restore life & limb": {
+      "key": "restoreLifeLimb"
+    },
+    "illusory duplicates": {
+      "key": "illusoryDuplicates"
+    },
+    "healing circle": {
+      "key": "healingCircle"
+    },
+    "spirit of healing": {
+      "key": "spiritOfHealing"
+    },
+    "call of the wolf": {
+      "key": "callOfTheWolf"
+    },
+    "shrouding fog": {
+      "key": "shroudingFog"
+    },
+    "sunder structure": {
+      "key": "sunderStructure"
+    },
+    "discern poison": {
+      "key": "discernPoison"
+    },
+    "circling winds": {
+      "key": "circlingWinds"
+    },
+    "gale of winds": {
+      "key": "galeOfWinds"
+    },
+    "turn to dust": {
+      "key": "turnToDust"
+    },
+    "disfigure body and soul": {
+      "key": "disfigureBodyAndSoul"
+    },
+    "locate haunting": {
+      "key": "locateHaunting"
+    },
+    "phantasmal horror": {
+      "key": "phantasmalHorror"
+    },
+    "spectral legion": {
+      "key": "spectralLegion"
+    },
+    "spiritwalk": {
+      "key": "spiritwalk"
+    },
+    "flying fortress": {
+      "key": "flyingFortress"
+    },
+    "fillet and serve": {
+      "key": "filletAndServe"
+    },
+    "earth’s teeth": {
+      "key": "earth’sTeeth"
+    },
+    "locate animal/plant": {
+      "key": "locateAnimalPlant"
+    },
+    "allure": {
+      "key": "allure"
+    },
+    "counterspell": {
+      "key": "counterspell"
+    },
+    "discern magic": {
+      "key": "discernMagic"
+    },
+    "levitation": {
+      "key": "levitation"
+    },
+    "depetrification": {
+      "key": "depetrification"
+    },
+    "any elemental fire effect": {
+      "key": "anyElementalFireEffect"
+    },
+    "halt monster If not used for magic research": {
+      "key": "haltMonsterIfNotUsedForMagicResearch"
+    },
+    "+2 saving throw modifier": {
+      "key": "Plus2SavingThrowModifier"
+    },
+    "inflicts paralysis for 2d4 turns": {
+      "key": "inflictsParalysisFor2d4Turns"
+    },
+    "extinguish life": {
+      "key": "extinguishLife"
+    },
+    "flesh to ash": {
+      "key": "fleshToAsh"
+    },
+    "purify food & water": {
+      "key": "purifyFoodWater"
+    },
+    "dominate monster": {
+      "key": "dominateMonster"
+    },
+    "strength of mind": {
+      "key": "strengthOfMind"
+    },
+    "transform other": {
+      "key": "transformOther"
+    },
+    "clairvoyance": {
+      "key": "clairvoyance"
+    },
+    "any transmogrification effects": {
+      "key": "anyTransmogrificationEffects"
+    },
+    "divine protection": {
+      "key": "divineProtection"
+    },
+    "guise self": {
+      "key": "guiseSelf"
+    },
+    "armor +4": {
+      "key": "armorPlus4"
+    },
+    "illusory duplicate": {
+      "key": "illusoryDuplicate"
+    },
+    "growth": {
+      "key": "growth"
+    },
+    "summon weather": {
+      "key": "summonWeather"
+    },
+    "atonement": {
+      "key": "atonement"
+    },
+    "communion": {
+      "key": "communion"
+    },
+    "holy blessing": {
+      "key": "holyBlessing"
+    },
+    "holy chant": {
+      "key": "holyChant"
+    },
+    "prayer": {
+      "key": "prayer"
+    },
+    "find treasure": {
+      "key": "findTreasure"
+    },
+    "earth’s tremor": {
+      "key": "earth’sTremor"
+    },
+    "control weather": {
+      "key": "controlWeather"
+    },
+    "barrier of blades": {
+      "key": "barrierOfBlades"
+    },
+    "speak with beasts": {
+      "key": "speakWithBeasts"
+    },
+    "banner of invincibility": {
+      "key": "bannerOfInvincibility"
+    },
+    "augury": {
+      "key": "augury"
+    },
+    "divination": {
+      "key": "divination"
+    },
+    "fate": {
+      "key": "fate"
+    },
+    "fiery pillar": {
+      "key": "fieryPillar"
+    },
+    "summon hellhounds": {
+      "key": "summonHellhounds"
+    },
+    "cure injuries": {
+      "key": "cureInjuries"
+    },
+    "poisonous": {
+      "key": "poisonous"
+    },
+    "longevity": {
+      "key": "longevity"
+    },
+    "undetectability": {
+      "key": "undetectability"
+    },
+    "madness of crowds": {
+      "key": "madnessOfCrowds"
+    },
+    "weakness of mind": {
+      "key": "weaknessOfMind"
+    },
+    "mirage": {
+      "key": "mirage"
+    },
+    "perpetual figment": {
+      "key": "perpetualFigment"
+    },
+    "discern gist": {
+      "key": "discernGist"
+    },
+    "word of command": {
+      "key": "wordOfCommand"
+    },
+    "sunflare": {
+      "key": "sunflare"
+    },
+    "any protection effect": {
+      "key": "anyProtectionEffect"
+    },
+    "salving rest": {
+      "key": "salvingRest"
+    },
+    "earth’s wave": {
+      "key": "earth’sWave"
+    },
+    "mass lightless vision": {
+      "key": "massLightlessVision"
+    },
+    "mage missile": {
+      "key": "mageMissile"
+    },
+    "+2 arrows/bolts": {
+      "key": "Plus2ArrowsBolts"
+    },
+    "warp wood": {
+      "key": "warpWood"
+    },
+    "beast growth": {
+      "key": "beastGrowth"
+    },
+    "+1 weapon": {
+      "key": "Plus1Weapon"
+    },
+    "phoenix aura": {
+      "key": "phoenixAura"
+    },
+    "any healing spell": {
+      "key": "anyHealingSpell"
+    },
+    "discern good": {
+      "key": "discernGood"
+    },
+    "illusory terrain": {
+      "key": "illusoryTerrain"
+    },
+    "spectral figment": {
+      "key": "spectralFigment"
+    },
+    "any air elemental effects": {
+      "key": "anyAirElementalEffects"
+    },
+    "crafting": {
+      "key": "crafting"
+    },
+    "wall of annihilation": {
+      "key": "wallOfAnnihilation"
+    },
+    "burning sparks": {
+      "key": "burningSparks"
+    },
+    "waterbreathing": {
+      "key": "waterbreathing"
+    },
+    "life drain": {
+      "key": "lifeDrain"
+    },
+    "shrieking skull": {
+      "key": "shriekingSkull"
+    },
+    "sword +1": {
+      "key": "swordPlus1"
+    },
+    "desiccate": {
+      "key": "desiccate"
+    },
+    "delay disease": {
+      "key": "delayDisease"
+    },
+    "plague": {
+      "key": "plague"
+    },
+    "summon ooze": {
+      "key": "summonOoze"
+    },
+    "any enchantment effects": {
+      "key": "anyEnchantmentEffects"
+    },
+    "any detection effects": {
+      "key": "anyDetectionEffects"
+    },
+    "auditory illusion": {
+      "key": "auditoryIllusion"
+    },
+    "any blast effect": {
+      "key": "anyBlastEffect"
+    },
+    "sphere of invulnerability": {
+      "key": "sphereOfInvulnerability"
+    },
+    "inspire awe": {
+      "key": "inspireAwe"
+    },
+    "piercing slashing": {
+      "key": "piercingSlashing"
+    },
+    "fan of flame": {
+      "key": "fanOfFlame"
+    },
+    "lightning strike": {
+      "key": "lightningStrike"
+    },
+    "thunderclap": {
+      "key": "thunderclap"
+    },
+    "thunderbolt": {
+      "key": "thunderbolt"
+    },
+    "magic carpet": {
+      "key": "magicCarpet"
+    },
+    "sudden stair": {
+      "key": "suddenStair"
+    },
+    "wall of smoke": {
+      "key": "wallOfSmoke"
+    },
+    "dominate plants": {
+      "key": "dominatePlants"
+    },
+    "hidden host": {
+      "key": "hiddenHost"
+    },
+    "wall of wood": {
+      "key": "wallOfWood"
+    },
+    "purify food and water": {
+      "key": "purifyFoodAndWater"
+    },
+    "arcane shift": {
+      "key": "arcaneShift"
+    },
+    "cause light injury": {
+      "key": "causeLightInjury"
+    },
+    "discern curse": {
+      "key": "discernCurse"
+    },
+    "illumination": {
+      "key": "illumination"
+    },
+    "kindle flame": {
+      "key": "kindleFlame"
+    },
+    "water walking": {
+      "key": "waterWalking"
+    },
+    "disintegrate": {
+      "key": "disintegrate"
+    },
+    "wall of frost": {
+      "key": "wallOfFrost"
+    },
+    "invuln. to evil": {
+      "key": "invulnToEvil"
+    },
+    "physical protection (all)": {
+      "key": "physicalProtectionAll"
+    },
+    "wish": {
+      "key": "wish"
+    },
+    "physical invulnerability (all)": {
+      "key": "physicalInvulnerabilityAll"
+    },
+    "energy invulnerability (all)": {
+      "key": "energyInvulnerabilityAll"
+    },
+    "energy invulnerability (fire)": {
+      "key": "energyInvulnerabilityFire"
+    },
+    "wall of flame": {
+      "key": "wallOfFlame"
+    },
+    "energy invulnerability (cold)": {
+      "key": "energyInvulnerabilityCold"
+    },
+    "inferno": {
+      "key": "inferno"
+    },
+    "energy protection (fire)": {
+      "key": "energyProtectionFire"
+    },
+    "energy invulnerability (all except fire)": {
+      "key": "energyInvulnerabilityAllExceptFire"
+    },
+    "energy invulnerability (seismic)": {
+      "key": "energyInvulnerabilitySeismic"
+    },
+    "wall of stone": {
+      "key": "wallOfStone"
+    },
+    "energy invulnerability (electrical)": {
+      "key": "energyInvulnerabilityElectrical"
+    },
+    "gaseous form": {
+      "key": "gaseousForm"
+    },
+    "scouring zephyr": {
+      "key": "scouringZephyr"
+    },
+    "wall of thunder": {
+      "key": "wallOfThunder"
+    },
+    "weave water": {
+      "key": "weaveWater"
+    },
+    "energy protection (cold, electrical, fire)": {
+      "key": "energyProtectionColdElectricalFire"
+    },
+    "energy invulnerability (cold, fire)": {
+      "key": "energyInvulnerabilityColdFire"
+    },
+    "selective fire": {
+      "key": "selectiveFire"
+    },
+    "energy invulnerability (luminous, poisonous)": {
+      "key": "energyInvulnerabilityLuminousPoisonous"
+    },
+    "perpetual illumination": {
+      "key": "perpetualIllumination"
+    },
+    "remove curse": {
+      "key": "removeCurse"
+    },
+    "spiritual weapon": {
+      "key": "spiritualWeapon"
+    },
+    "sword of fire": {
+      "key": "swordOfFire"
+    },
+    "energy invulnerability (cold, electrical)": {
+      "key": "energyInvulnerabilityColdElectrical"
+    },
+    "energy protection (cold)": {
+      "key": "energyProtectionCold"
+    },
+    "frostbite": {
+      "key": "frostbite"
+    },
+    "ice floe": {
+      "key": "iceFloe"
+    },
+    "ice sheet": {
+      "key": "iceSheet"
+    },
+    "ice storm": {
+      "key": "iceStorm"
+    },
+    "spellward (any)": {
+      "key": "spellwardAny"
+    },
+    "energy invulnerability (cold, electrical, fire)": {
+      "key": "energyInvulnerabilityColdElectricalFire"
+    },
+    "energy invulnerability (all but fire, luminous)": {
+      "key": "energyInvulnerabilityAllButFireLuminous"
+    },
+    "physical protection (bludgeoning, piercing slashing)": {
+      "key": "physicalProtectionBludgeoningPiercingSlashing"
+    },
+    "torpor": {
+      "key": "torpor"
+    },
+    "spider climb": {
+      "key": "spiderClimb"
+    },
+    "greater clairaudience": {
+      "key": "greaterClairaudience"
+    },
+    "greater clairvoyance": {
+      "key": "greaterClairvoyance"
+    },
+    "bewitch monster": {
+      "key": "bewitchMonster"
+    },
+    "soul eating": {
+      "key": "soulEating"
+    },
+    "shimmer": {
+      "key": "shimmer"
+    },
+    "weapon +5": {
+      "key": "weaponPlus5"
+    },
+    "any water elemental effect": {
+      "key": "anyWaterElementalEffect"
+    },
+    "youthfulness": {
+      "key": "youthfulness"
+    },
+    "any death or necromancy effect": {
+      "key": "anyDeathOrNecromancyEffect"
+    },
+    "death ward": {
+      "key": "deathWard"
+    },
+    "necromantic potence": {
+      "key": "necromanticPotence"
+    },
+    "withering touch": {
+      "key": "witheringTouch"
+    },
+    "necromantic invulnerability": {
+      "key": "necromanticInvulnerability"
+    },
+    "energy invulnerability (cold, electric)": {
+      "key": "energyInvulnerabilityColdElectric"
+    }
+  },
+  "nodes": {}
+}

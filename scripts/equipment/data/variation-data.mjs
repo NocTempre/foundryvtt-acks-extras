@@ -8,7 +8,7 @@ import { VARIATION_KIND } from "../variations.mjs";
  * **Why a document.** A variation applies to a base item the way gear goes into
  * a container: the relation is `containedIn`, and what it holds is a real Item.
  * That buys the whole inventory apparatus at once — drag it on, see it listed
- * under the thing it changed, drag it off — and it gives `acks-importer`
+ * under the thing it changed, drag it off — and it gives the importer
  * something to materialize into, exactly as a trap or an ability is.
  *
  * **The definition and the instance are the same object.** A variation Item

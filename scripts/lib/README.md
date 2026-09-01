@@ -13,7 +13,7 @@ sibling modules) — never the import path for this module's own features.
 | File | Owns |
 | --- | --- |
 | `constants.mjs` | `MODULE_ID`, `LANG_PREFIX`, `FLAG_GEAR` — the module's name constants. The ONLY file that states the module-id literal. |
-| `vocab.mjs` | Canonical ACKS enums (damage/movement/vision/senses/natural weapons/alignment), the `LevelValue` resolver, and the NAME-FORM rules (`nameVariants` / `nameKeys`) that know "Oil, Military (1 pint)" and "Military Oil" are one thing — **acks-importer reads those too; a second copy is how one flask became two documents.** Foundry-free. |
+| `vocab.mjs` | Canonical ACKS enums (damage/movement/vision/senses/natural weapons/alignment), the `LevelValue` resolver, and the NAME-FORM rules (`nameVariants` / `nameKeys`) that know "Oil, Military (1 pint)" and "Military Oil" are one thing — **the importer subsystem reads those too; a second copy is how one flask became two documents.** Foundry-free. |
 | `fields.mjs` | DataModel field-builders over vocab. Foundry-only, lazily so Node still evaluates it. |
 | `field-spec.mjs` | Data-described form shapes for fields nobody shipped (importer-supplied metadata). |
 | `choice-spec.mjs` | The family's one "choose N from …" primitive. |
@@ -63,7 +63,7 @@ sibling modules) — never the import path for this module's own features.
 | `template-logic.mjs` | Generator actors (dragon by age, elemental by tier): choice rolling + patch resolution. Foundry-free. |
 | `follower-card.mjs` | The printed ACKS II Follower Card: one layout, two surfaces. |
 | `roll-card.mjs` | ONE chat card for a roll several people made at once — use this before hand-building a `ChatMessage`. |
-| `library.mjs` | The imported library, wherever it lives: sidebar + acks-importer's world packs. **Every "what has this world imported?" read goes through it** — a bare `game.items` finds an empty shelf. |
+| `library.mjs` | The imported library, wherever it lives: sidebar + the importer subsystem's world packs. **Every "what has this world imported?" read goes through it** — a bare `game.items` finds an empty shelf. `cookbookId(doc)` is the ONE read of the importer's stamp. |
 | `pack-dedupe.mjs` | Family compendiums gathered into one folder; coverage-gated hiding of superseded system packs. |
 | `polyglot.mjs` | Publishing world-imported languages to Polyglot's selector (core owns the base integration). |
 

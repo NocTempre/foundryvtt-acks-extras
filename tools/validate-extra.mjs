@@ -173,3 +173,11 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(`  ok: every registry read is declared (${declared.size} document(s)); no i18n path conflicts`);
+
+/* --- 5. The importer subsystem's own gates --------------------------------
+   register lint, icon ledger, OSE tests, cookbook drift — run from its own
+   tools directory. Non-zero exit here fails validation the same way. */
+{
+  const { execFileSync } = await import("node:child_process");
+  execFileSync(process.execPath, [path.join(ROOT, "tools", "importer", "validate-extra.mjs")], { stdio: "inherit" });
+}

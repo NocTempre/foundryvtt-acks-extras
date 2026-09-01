@@ -1,0 +1,10 @@
+{
+  "id": "kind.npc",
+  "role": "composite",
+  "note": "Named character. Prose and the quick-stat block may sit on different pages (quick vs full presentation); the entry lists every source page, description paras carry per-para pages, and assists.statlineAt names the page holding the block to parse. The statline pattern types the block mechanically (class/level, abilities, AC/HD/hp/attacks/saves, proficiencies, equipment). Binding routes to an actor.",
+  "fields": {
+    "name": { "locate": "display" },
+    "description": { "locate": "proseFlow", "type": "blocks" },
+    "statline": { "locate": "indentBlock", "pattern": "statline" }
+  }
+}

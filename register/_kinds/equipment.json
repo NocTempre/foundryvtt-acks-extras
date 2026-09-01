@@ -1,0 +1,9 @@
+{
+  "id": "kind.equipment",
+  "role": "definition",
+  "note": "Adventuring equipment (RR Equipment chapter descriptions): run-in bold 'Name:' + descriptor block, the same print shape as skills. Cost/weight are PAGE VALUES - never authored here; they materialize per-seat via derive patterns over the entry block and the chapter price tables. Binds to a core inventory item (type item), annotated by acks-equipment when that module is active.",
+  "fields": {
+    "name": { "locate": "runin" },
+    "description": { "locate": "runinBlock", "type": "blocks" }
+  }
+}

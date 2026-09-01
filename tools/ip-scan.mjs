@@ -63,8 +63,8 @@ const CITATION = /\b(?:RR|JJ|MM|BTA|AX\s?\d|revised rulebook|judges?'? journal|m
 /*
  * ...unless the string is NOTHING BUT a citation. A value of "BTA p.62" is a
  * LOCATOR — it says where to look in the reader's own copy and reproduces
- * nothing, which is precisely what an extraction cookbook is for; acks-importer
- * carries ~1,250 of them in `cite` fields and every one is doing its job. What
+ * nothing, which is precisely what an extraction cookbook is for; the importer's
+ * cookbook carries ~1,250 of them in `cite` fields and every one is doing its job. What
  * the rule is actually after is a citation with PROSE attached, because there
  * the citation is a pointer to the sentence that came off that page.
  *
@@ -197,7 +197,7 @@ function scanStrings(node, relPath, keyPath = "") {
     } else if (CITATION.test(node) && !LOCATOR_ONLY.test(node) && !CODE_KEYS.has(keyPath)) {
       errors.push(
         `${relPath}: ${keyPath || "(root)"} cites a page — say what the FIELD does, not what the rule says; ` +
-          `the book's words reach a world through acks-importer`,
+          `the book's words reach a world through the importer`,
       );
     } else if (node.length > PROSE_CHARS && !CODE_KEYS.has(keyPath)) {
       warnings.push(`${relPath}: ${keyPath || "(root)"} is ${node.length} chars — verify this is authored, not transcribed`);

@@ -847,7 +847,7 @@ export function buildConstructionPanel(item) {
 
     // CONDITION — pick a row of the applicable scavenged table directly, or
     // roll it. Both read the reader's OWN imported table (RR p160, extracted
-    // by acks-content) when the world has one; the built-in RAW table is the
+    // by the importer) when the world has one; the built-in RAW table is the
     // fallback. "Pristine" clears.
     const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
     const tableKey = tableFor(item, profile);

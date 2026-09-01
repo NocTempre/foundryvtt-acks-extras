@@ -1,0 +1,79 @@
+[
+  {
+    "id": "ax3.justiriusTavicusBasilio",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Prefect Justirius Tavicus Basilio",
+    "anchor": {
+      "runin": "Prefect Justirius Tavicus Basilio"
+    },
+    "pages": [
+      191
+    ],
+    "meta": {
+      "group": "Palace District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Justirius Tavicus Basilio:",
+      "sameColumnOnly": true
+    }
+  },
+  {
+    "id": "ax3.ladySyrenaAustiriaBasilio",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Lady Syrena Austiria Basilio",
+    "anchor": {
+      "label": "Lady Syrena Austiria Basilio:"
+    },
+    "pages": [
+      191
+    ],
+    "meta": {
+      "group": "Palace District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Lady Syrena Austiria Basilio:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.nicodosEssir",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Court Magist Nicodos Essir",
+    "anchor": {
+      "runin": "Nicodos Essir"
+    },
+    "pages": [
+      191,
+      192
+    ],
+    "meta": {
+      "group": "Palace District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Nicodos Essir:",
+      "statlineAt": 192
+    }
+  },
+  {
+    "id": "ax3.gundusJannion",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Gundus Jannion",
+    "anchor": {
+      "label": "Gundus Jannion:"
+    },
+    "pages": [
+      192
+    ],
+    "meta": {
+      "group": "Palace District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Gundus Jannion:",
+      "anchorAtStatline": true
+    }
+  }
+]

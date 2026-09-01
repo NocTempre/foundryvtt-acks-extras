@@ -1,6 +1,6 @@
 ---
 name: acks-bug-triage
-description: Investigate and resolve bug reports against acks-extras and acks-importer through the persistent intake ledger — pull open GitHub issues or take pasted batches, dedupe against earlier batches and unshipped fixes, dispose each report as false report, docs gap, style feedback or code fix, and ship what broke. Use when the user submits a batch of bug reports, says "triage the bugs", asks to pull or check the GitHub issues, or reports a bug without designating a release kind.
+description: Investigate and resolve bug reports against acks-extras (its importer subsystem included) through the persistent intake ledger — pull open GitHub issues or take pasted batches, dedupe against earlier batches and unshipped fixes, dispose each report as false report, docs gap, style feedback or code fix, and ship what broke. Use when the user submits a batch of bug reports, says "triage the bugs", asks to pull or check the GitHub issues, or reports a bug without designating a release kind.
 ---
 
 The front door for bug reports. `acks-hotfix` turns symptoms into a patch and
@@ -36,7 +36,10 @@ batch — an issue in the queue may be the same defect and should close with it.
   ```
 
   `gh issue view <n> -R <repo> --json title,body,comments` for the ones you
-  take. Source label is `gh:extras#12` / `gh:importer#3`. An issue filed
+  take. Source label is `gh:extras#12` / `gh:importer#3`. The importer repo is
+  a read-only archive since the 2026-09-01 merge: anything still open there is
+  worked as an extras fix (the code lives in `scripts/importer/`) and its row
+  keeps the `gh:importer#n` label so the reporter can be found. An issue filed
   through the site's bug form arrives pre-structured (versions, steps,
   expected, console output) — read the whole body, reporters put the real bug
   in whichever box they liked. Two machine-filed labels are also intake:
@@ -249,14 +252,11 @@ Update the ledger last, after the comments and the report agree with it.
 
 ## 8. The intake surfaces
 
-Reports reach the queues through structured issue forms —
-`.github/ISSUE_TEMPLATE/bug_report.yml` in each repo — and the site's
+Reports reach the queue through one structured issue form —
+`.github/ISSUE_TEMPLATE/bug_report.yml` in acks-extras, module-owned, with an
+optional "which book" field for import problems — and the site's
 [Report a bug](https://noctempre.github.io/foundryvtt-acks-extras/start/report-a-bug/)
-page (`docs/site/src/content/docs/start/report-a-bug.md` in acks-extras),
-which routes reporters to the right repo's form. The two forms are
-**module-owned and kept twinned** (same posture as `pages.yml`): an edit to
-one is an edit to both, differing only in the importer's book-connection
-fields. All three surfaces carry the family's IP rule — cite book and page,
-never paste licensed text or attach scans — and if the forms' fields change,
-the site page's description of what a good report contains changes with
-them.
+page (`docs/site/src/content/docs/start/report-a-bug.md`), which points at
+it. Both surfaces carry the family's IP rule — cite book and page, never paste
+licensed text or attach scans — and if the form's fields change, the site
+page's description of what a good report contains changes with them.

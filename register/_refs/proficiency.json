@@ -1,0 +1,229 @@
+{
+  "registry": "proficiency",
+  "shape": "open",
+  "note": "Open name-index: monster/NPC proficiency tokens -> definition nodes. Page links fill as the RR proficiency pages are authored (unfilled = verify warning, not failure).",
+  "tokens": {
+    "Alertness": {
+      "key": "alertness",
+      "ref": "def.prof.alertness"
+    },
+    "tracking": {
+      "key": "tracking"
+    },
+    "Listening": {
+      "key": "listening"
+    },
+    "climbing": {
+      "key": "climbing"
+    },
+    "swimming": {
+      "key": "swimming"
+    },
+    "navigation": {
+      "key": "navigation"
+    },
+    "caving": {
+      "key": "caving"
+    },
+    "survival": {
+      "key": "survival"
+    },
+    "searching": {
+      "key": "searching"
+    },
+    "endurance": {
+      "key": "endurance"
+    },
+    "Loremastery": {
+      "key": "loremastery"
+    },
+    "Theology": {
+      "key": "theology"
+    },
+    "Precise shooting": {
+      "key": "preciseShooting"
+    },
+    "naturalism": {
+      "key": "naturalism"
+    },
+    "varies": {
+      "key": "varies"
+    },
+    "Hiding": {
+      "key": "hiding"
+    },
+    "seafaring": {
+      "key": "seafaring"
+    },
+    "disguise": {
+      "key": "disguise"
+    },
+    "Mimicry": {
+      "key": "mimicry"
+    },
+    "Prospecting": {
+      "key": "prospecting"
+    },
+    "skirmishing": {
+      "key": "skirmishing"
+    },
+    "Ambushing": {
+      "key": "ambushing"
+    },
+    "By class and level": {
+      "key": "byClassAndLevel"
+    },
+    "sneaking": {
+      "key": "sneaking"
+    },
+    "craft or Labor (various)": {
+      "key": "craftOrLaborVarious"
+    },
+    "sneaking 6+ (owls)": {
+      "key": "sneaking6PlusOwls"
+    },
+    "Manual of Arms": {
+      "key": "manualOfArms"
+    },
+    "combat trickery (knockdown)": {
+      "key": "combatTrickeryKnockdown"
+    },
+    "combat trickery (wrestling)": {
+      "key": "combatTrickeryWrestling"
+    },
+    "Animal Husbandry": {
+      "key": "animalHusbandry"
+    },
+    "Labor (vintner)": {
+      "key": "laborVintner"
+    },
+    "weapon Focus": {
+      "key": "weaponFocus"
+    },
+    "Acrobatics": {
+      "key": "acrobatics"
+    },
+    "seafaring 2": {
+      "key": "seafaring2"
+    },
+    "Labor (domestic chores)": {
+      "key": "laborDomesticChores"
+    },
+    "Labor (Mining)": {
+      "key": "laborMining"
+    },
+    "Performance 3": {
+      "key": "performance3"
+    },
+    "riding": {
+      "key": "riding"
+    },
+    "collegiate Magic": {
+      "key": "collegiateMagic"
+    },
+    "Berserkergang": {
+      "key": "berserkergang"
+    },
+    "trapbreaking": {
+      "key": "trapbreaking"
+    },
+    "skulking": {
+      "key": "skulking"
+    },
+    "Intimidation": {
+      "key": "intimidation"
+    },
+    "seamanship": {
+      "key": "seamanship"
+    },
+    "Labor or riding": {
+      "key": "laborOrRiding"
+    },
+    "Labor (fieldwork)": {
+      "key": "laborFieldwork"
+    },
+    "driving": {
+      "key": "driving"
+    },
+    "shooting (veteran only)": {
+      "key": "shootingVeteranOnly"
+    },
+    "Labor (varies)": {
+      "key": "laborVaries"
+    },
+    "swashbuckling": {
+      "key": "swashbuckling"
+    },
+    "running": {
+      "key": "running"
+    },
+    "climb": {
+      "key": "climb"
+    },
+    "various Mage profic.": {
+      "key": "variousMageProfic"
+    },
+    "Knowledge 3 (any)": {
+      "key": "knowledge3Any"
+    },
+    "Knowledge (various) 3": {
+      "key": "knowledgeVarious"
+    },
+    "Listen.": {
+      "key": "listen"
+    },
+    "combat reflexes": {
+      "key": "combatReflexes"
+    },
+    "Blind Fighting": {
+      "key": "blindFighting"
+    },
+    "Listen": {
+      "key": "listen"
+    },
+    "tracking 3+ (scent hound)": {
+      "key": "tracking3PlusScentHound"
+    },
+    "Alchemy": {
+      "key": "alchemy"
+    },
+    "Lockpicking": {
+      "key": "lockpicking"
+    },
+    "Pickpocket-ing": {
+      "key": "pickpocketIng"
+    },
+    "and Labor or riding": {
+      "key": "andLaborOrRiding"
+    },
+    "Bargaining": {
+      "key": "bargaining"
+    },
+    "Bribery": {
+      "key": "bribery"
+    },
+    "diplomacy": {
+      "key": "diplomacy"
+    },
+    "Precise shooting (veteran only)": {
+      "key": "preciseShootingVeteranOnly"
+    },
+    "riding (cavalry) or survival (bow)": {
+      "key": "ridingCavalryOrSurvivalBow"
+    },
+    "Precise shooting (level 1+ only)": {
+      "key": "preciseShootingLevel1PlusOnly"
+    }
+  },
+  "nodes": {
+    "def.prof.alertness": {
+      "name": "Alertness",
+      "editions": {
+        "acks2": {
+          "book": "rr",
+          "pages": []
+        }
+      }
+    }
+  }
+}

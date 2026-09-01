@@ -1,0 +1,20 @@
+[
+  {
+    "id": "def.classmeta.profGains",
+    "kind": "kind.classMeta",
+    "book": "rr",
+    "name": "Proficiencies Gained per Level",
+    "anchor": {
+      "label": "Proficiencies Gained per Level"
+    },
+    "pages": [104],
+    "meta": {
+      "category": "classMeta"
+    },
+    "grid": {
+      "title": "Proficiencies Gained per Level",
+      "page": 104,
+      "levels": 14
+    }
+  }
+]

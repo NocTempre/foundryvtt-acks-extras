@@ -4,7 +4,7 @@
  * Two things now need to record fields nobody shipped: a base type's metadata
  * (what a gem records that a loaf does not) and a variation entry's own storage
  * (a named weapon's ladder). Both are content, so both arrive from
- * `acks-importer` with the GM's own book behind them — which means neither can
+ * the importer with the GM's own book behind them — which means neither can
  * be a hand-written Handlebars fieldset, because the fields are not known when
  * the template is written.
  *

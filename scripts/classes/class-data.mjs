@@ -7,7 +7,7 @@
  *
  * The model is structure only. Every value a printed page supplies — XP
  * thresholds, save bands, titles, hit dice, proficiency lists, template
- * contents — reaches a world through acks-importer, materialized from the
+ * contents — reaches a world through the importer, materialized from the
  * GM's own book, or is typed by hand into the constructor sheet. A blank
  * class document is a valid homebrew starting point, never an error.
  *
@@ -278,7 +278,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       // WHICH classes those are is a fact off the page: it cannot be derived
       // from the document (the repertoire kind splits them wrongly, and the
       // printed proficiency counts of studious and plain classes overlap in
-      // both directions), so acks-importer fills this from the reader's own
+      // both directions), so the importer fills this from the reader's own
       // book. 0 is the honest default — a class nobody has re-imported keeps
       // behaving exactly as it did.
       templatesAssumeIntBonus: int(0, { min: 0 }),

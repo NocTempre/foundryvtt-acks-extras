@@ -2,8 +2,8 @@
 /**
  * The acks-abilities bridge — proficiency facts read FROM the abilities model.
  *
- * A character built with acks-abilities/acks-content carries generic `ability`
- * items (one per definition, identified by `flags["acks-importer"].cookbook.id`,
+ * A character built with the abilities and importer features carries generic `ability`
+ * items (one per definition, identified by `flags["acks-extras"].cookbook.id`,
  * picks recorded in `flags["acks-extras"].extras.selections`) instead of
  * this module's 42 effect-carrying pack items. This bridge translates those
  * facts into the SAME effect domains the collectors in effects.mjs already
@@ -171,7 +171,7 @@ const NUMERIC_DOMAINS = Object.freeze({
  * entry, and never will: the tables cannot be made to cover every class's name
  * for a rule without restating the rule once per class.
  *
- * The ability items already carry the answer. acks-importer classifies each
+ * The ability items already carry the answer. The importer classifies each
  * entry into `flags["acks-extras"].extras.effects` as TYPED specs — the same
  * shape acks-lib's `effectField()` declares — so `attributeSubstitution
  * dex insteadOf str on attackThrow` says what the mechanic is without anyone

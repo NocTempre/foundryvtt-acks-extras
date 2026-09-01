@@ -1,0 +1,12 @@
+{
+  "id": "kind.monsterTemplate",
+  "role": "composite",
+  "note": "A monster the MM stats as TABLES (dragon, cacodemon, elemental) or as a modifier of an existing creature (vampire thrall). The entry's template block ships authored grid geometry (never values), axis wiring, an optional rolled ability menu (d100 bands are structure, like roll-table ranges), and a nameFormat. The binding materializes an acks-lib.template generator actor from the reader's own book.",
+  "fields": {
+    "name": { "locate": "display" },
+    "description": { "locate": "proseAllPages", "type": "blocks" },
+    "grids": { "locate": "authoredGeometry" },
+    "statsPrinted": { "locate": "labelBlock", "note": "the printed 'varies by …' column, claimed raw for residue honesty; never bound" },
+    "art": { "locate": "pageImage", "select": { "minW": 200, "minH": 200, "maxW": 1500, "maxRatio": 3 } }
+  }
+}

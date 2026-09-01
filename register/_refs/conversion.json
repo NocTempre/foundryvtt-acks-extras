@@ -1,0 +1,837 @@
+{
+  "registry": "conversion",
+  "shape": "table",
+  "note": "OGL/OSR name -> ACKS II name, harvested offline from the System Compatibility Guide (tools/harvest-conversions.mjs). The guide is understood once by the chefs; only the conclusion ships. status: renamed | absent (omitted, may return) | deleted (deliberately removed). Lets a legacy or foreign token be redirected at its ACKS II equivalent.",
+  "table": {
+    "intelligence": {
+      "category": "attribute",
+      "status": "renamed",
+      "to": "intellect"
+    },
+    "Wisdom": {
+      "category": "attribute",
+      "status": "renamed",
+      "to": "Will"
+    },
+    "Cleric": {
+      "category": "class",
+      "status": "renamed",
+      "to": "Crusader"
+    },
+    "Witch, Voudon": {
+      "category": "class",
+      "status": "absent"
+    },
+    "ankheg": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "acanthaspis, Giant"
+    },
+    "ape, White": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Gorilla, Cave"
+    },
+    "basilisk": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "basilisk,petrifying"
+    },
+    "beetle, Giant Fire": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "beetle, Giant"
+    },
+    "blackpudding": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "blackblob"
+    },
+    "blinkdog": {
+      "category": "monster",
+      "status": "deleted"
+    },
+    "Caecilian": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Worm, Giant Grey"
+    },
+    "Carcass Scavenger": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Carrion Horror"
+    },
+    "Cave Kraken": {
+      "category": "monster",
+      "status": "absent"
+    },
+    "Cockatrice": {
+      "category": "monster",
+      "status": "deleted"
+    },
+    "dao": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Genie, Hafar"
+    },
+    "demonboar": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "devilboar"
+    },
+    "desert Ghoul": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Ghoul,desert"
+    },
+    "direbeastmen": {
+      "category": "monster",
+      "status": "absent"
+    },
+    "djinni": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Genie, Jann"
+    },
+    "efreeti": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Genie,efreet"
+    },
+    "Gelatinous Cube": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Gelatinous"
+    },
+    "Ghoul": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Ghoul, Grave"
+    },
+    "Gorgon": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "bronzebull or Catoblepas"
+    },
+    "Grayooze": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Grey Goo"
+    },
+    "Green Slime": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Sage Slime"
+    },
+    "marid": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "Genie,marid"
+    },
+    "mastodon": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "mammoth"
+    },
+    "luminous": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "owlbear"
+    },
+    "mass": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "titanothere"
+    },
+    "Gorgon or": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "medusa"
+    },
+    "Worm, Giant": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "black"
+    },
+    "Worm, Great": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "ice"
+    },
+    "mustardm": {
+      "category": "monster",
+      "status": "renamed",
+      "to": "old"
+    },
+    "Adaptation": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Alter Self": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Adjust Self"
+    },
+    "Animate Dead": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Animate Undead"
+    },
+    "Anti-Magic Shell": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Anti-Magic Sphere"
+    },
+    "Blade Barrier": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Barrier of Blades"
+    },
+    "Bless": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Holy Blessing"
+    },
+    "Burning Hands": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Fan of Flames"
+    },
+    "Call Dragon": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Charm Animal": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Bewitch Beast"
+    },
+    "Charm Monster": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Bewitch Monster"
+    },
+    "Charm Person": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Beguile or Bewitch Humanoid"
+    },
+    "Chimerical Force": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Chimerical Figment"
+    },
+    "Clairaudience": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Clairaudiency"
+    },
+    "Clairvoyance": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Clairvoyancy"
+    },
+    "Cloudkill": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Cloud of Poison"
+    },
+    "Cold Resistance": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Energy Protection"
+    },
+    "Command Person": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Dominate Humanoids"
+    },
+    "Command Plants": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Dominate Plants"
+    },
+    "Command Word": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Word of Command"
+    },
+    "Commune": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Communion"
+    },
+    "Confusion": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Madness of Crowds"
+    },
+    "Conjure Elemental": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Conjure Supreme Elemental"
+    },
+    "Contact Other Plane": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Contact Other Sphere"
+    },
+    "Continual Darkness": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Tenebrosity, Perpetual"
+    },
+    "Continual Light": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Illumination, Perpetual"
+    },
+    "Control Animals": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Dominate Beasts"
+    },
+    "Control Monster": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Dominate Monster"
+    },
+    "Control Plants": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Dominate Plants"
+    },
+    "Control Undead": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Cure wounds": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Cure injury"
+    },
+    "Darkness": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Tenebrosity"
+    },
+    "Death Spell": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Detect Charm": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Discern Bewitchment"
+    },
+    "Detect Curse": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Discern Curse"
+    },
+    "Detect Evil": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Discern Evil"
+    },
+    "Detect Magic": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Discern Magic"
+    },
+    "Detect Poison": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Discern Poison"
+    },
+    "Detect Secret Doors": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Dimension Door": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Arcane Shift"
+    },
+    "Disintegrate": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Disintegration"
+    },
+    "Enchanted Container": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Enervate": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Enslave": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Enslave Humanoid"
+    },
+    "Enthrall": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "ESP": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Eyes of the Eagle": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Faerie Fire": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Feign Death": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Fellowship": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Find Treasure": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Locate Treasure"
+    },
+    "Finger of Death": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Extinguish Life"
+    },
+    "Fire Resistance": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Energy Protection"
+    },
+    "Flamestrike": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Fiery Pillar"
+    },
+    "Flesh to Stone": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Petrification"
+    },
+    "Floating Disc": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Geas": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Quest"
+    },
+    "Glitterdust": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Globe of Invulnerability": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Sphere of Invulnerability"
+    },
+    "Glyph of Warding": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Rune of Warding"
+    },
+    "Growth of Plants": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Growth, Plant"
+    },
+    "Growth, Animal": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Growth, Beast"
+    },
+    "Gust of Wind": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Gale of Wind"
+    },
+    "Hallucinatory Terrain": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Illusory Terrain"
+    },
+    "Haste": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Hold Monster": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Halt Monsters"
+    },
+    "Hold Person": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Halt Humanoids"
+    },
+    "Hold Portal": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Seal Portal"
+    },
+    "Hypnotic Pattern": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Hypnotic Sigil"
+    },
+    "Infravision": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Lightless Vision"
+    },
+    "Insect Plague": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Summon Insect Plague"
+    },
+    "Interior Illusion": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Illusory Interior"
+    },
+    "Invisibility, 10’ Radius": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Jump": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Leaping"
+    },
+    "Knock": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Levitate": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Levitation"
+    },
+    "Light": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Illumination"
+    },
+    "Lightning Bolt": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Thunderbolt"
+    },
+    "Lower Water": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Level Water"
+    },
+    "Magic Jar": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Soul Swap"
+    },
+    "Magic Missile": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Mage Missile"
+    },
+    "Magic Mouth": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Auditory Illusion"
+    },
+    "Magic Rope": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Massmorph": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Hidden Host"
+    },
+    "Mirror Image": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Illusory Duplicates"
+    },
+    "Move Earth": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Earth’s Movement"
+    },
+    "Oblivion": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Obscuring Cloud": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Shrouding Fog"
+    },
+    "Ogre Power": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Ogre Strength"
+    },
+    "Passwall": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Passageway"
+    },
+    "Permanent Illusion": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Perpetual Figment"
+    },
+    "Phantasmal Force": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Phantasmal Figment"
+    },
+    "Phantasmal Killer": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Phantasmal Horror"
+    },
+    "Polymorph Other": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Transform Other"
+    },
+    "Polymorph Self": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Transform Self"
+    },
+    "Prayer": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Holy Prayer"
+    },
+    "Programmed Illusion": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Programmatic Figment"
+    },
+    "Projected Image": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Protection from Evil": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Holy Circle"
+    },
+    "Protection from Normal Missiles": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Deflect Ordinary Missiles"
+    },
+    "Raise Dead": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Restore Life and Limb"
+    },
+    "Read Languages": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Discern Gist"
+    },
+    "Reincarnate": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Scouring Wind": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Scouring Zephyr"
+    },
+    "Shield": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Arcane Armor"
+    },
+    "Silence 10’ Radius": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Noiselessness"
+    },
+    "Sleep": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Slumber"
+    },
+    "Slipperiness": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Slickness"
+    },
+    "Snake Charm": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Speak with Animals": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Speak with Beasts"
+    },
+    "Spectral Force": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Spectral Figment"
+    },
+    "Spell Storing": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Sticks to Snakes": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Staffs to Snakes"
+    },
+    "Stinking Cloud": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Summon Animals": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Various Call Spells"
+    },
+    "Summon Berserkers": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Summon Manes"
+    },
+    "Summon Djinni": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Summon Genie"
+    },
+    "Summon Fantastic Creature": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Summon Hero": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Summon Winged Steed": {
+      "category": "spell",
+      "status": "absent"
+    },
+    "Teleport": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Teleportation"
+    },
+    "Trance": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Transmute Rock to Mud": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Earth’s Mire"
+    },
+    "True Sight": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "True Seeing"
+    },
+    "Unseen Servant": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Faithful Servitor"
+    },
+    "Ventriloquism": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Auditory Illusion"
+    },
+    "Wall of Fire": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Wall of Flame"
+    },
+    "Wall of Ice": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Wall of Frost"
+    },
+    "Web": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Webbing"
+    },
+    "Wizard Eye": {
+      "category": "spell",
+      "status": "deleted"
+    },
+    "Wizard Lock": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "Magic Lock"
+    },
+    "Gauntlets of": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "grepower"
+    },
+    "Helm of Comp.": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "languages"
+    },
+    "mirror oflife": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "trapping"
+    },
+    "Necklace ofa": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "daptation"
+    },
+    "Visor of the": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "eagle"
+    },
+    "Necklace of": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "acclimatization"
+    },
+    "potion ofp": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "assion"
+    },
+    "potion ofb": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "east Control"
+    },
+    "potion ofd": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "ragon Control"
+    },
+    "potion ofe": {
+      "category": "spell",
+      "status": "renamed",
+      "to": "nergy"
+    }
+  }
+}

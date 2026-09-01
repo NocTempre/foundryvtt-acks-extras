@@ -92,7 +92,7 @@ export const ROUNDS_PER_TURN = 10;
 
 /*
  * Thief skill level ladders USED to live here as a literal RR p.31 table.
- * They are now read from the GM's own book: acks-content's `progression` recipe
+ * They are now read from the GM's own book: the importer's `progression` recipe
  * extracts each skill's grid column at import and stores it on the ability as
  * an acks-lib `breakpoints` LevelValue, which resolves at any level. See
  * `ability-bridge.mjs` (`importedLadderFor`) for the lookup and

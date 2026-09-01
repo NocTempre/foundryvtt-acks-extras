@@ -7,7 +7,7 @@
  * page (docs: scans locate, recipes interpret — a fabricated target is worse
  * than no automation). What it does is ROLL THE CHARACTER'S OWN ABILITY: the
  * Lockpicking or Dungeon Bashing item on their sheet, whose target came from
- * their book via acks-content, rolled through acks-abilities' roller.
+ * their book via the importer, rolled through acks-abilities' roller.
  *
  * So this file is plumbing between three things that already exist — the
  * character's proficiency, the roll that proficiency knows how to make, and the

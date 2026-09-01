@@ -1,0 +1,9 @@
+{
+  "registry": "damageColor",
+  "shape": "table",
+  "note": "Fill-color -> damage quality, verified against the MM Damage legend (p.14): the same glyph prints body-black when mundane and red when extraordinary. Consumed by glyphColor instructions.",
+  "table": {
+    "#ff2e17": "extraordinary",
+    "#2c2e35": "mundane"
+  }
+}

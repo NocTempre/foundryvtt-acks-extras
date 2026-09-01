@@ -11,7 +11,7 @@ class, demand chips, search day and masterwork contact.*
 
 ## Setup
 
-1. Import the market tables from your books via **ACKS Importer**: Equipment
+1. Import the market tables from your books via **the importer**: Equipment
    Availability, Merchandise & Market Characteristics, Magic Item
    Transactions, Wage and Construction Rates — or fill the generated
    placeholders by hand.

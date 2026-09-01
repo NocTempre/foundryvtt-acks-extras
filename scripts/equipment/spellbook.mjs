@@ -3,7 +3,7 @@
  * Spell books — RR p. 145 (the item) and p. 390 (value of a scribed spell).
  *
  * A spell book is a RECOGNISED item class, not a property switched on for
- * arbitrary gear: the RR "Spell Book" (which acks-content generates from the
+ * arbitrary gear: the RR "Spell Book" (which the importer generates from the
  * equipment list) IS the spell book, and only it carries the page/value model.
  * Recognition is by name, or by an already-stored spell list so a configured
  * book keeps its identity even if renamed.

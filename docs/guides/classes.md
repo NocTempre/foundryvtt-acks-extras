@@ -3,8 +3,8 @@
 ## Getting class documents
 
 Import them from your own book: connect the Revised Rulebook — and By This
-Axe, if you own it — in ACKS Importer, then run
-`acksImporter.importClasses()` (or the macro). Every class arrives as a
+Axe, if you own it — in the importer, then run
+`acksExtras.importer.importClasses()` (or the macro in the Macros compendium). Every class arrives as a
 **Class** item — progressions, saves, awards, starting templates — read from
 your PDF. Or build homebrew from scratch: **Create Item → Class** opens the
 same constructor.
@@ -168,7 +168,7 @@ tweak afterwards.
 *The Builder tab on an imported Ready-for-Play example: build values, the
 accounting line, and Derive.*
 
-Everything numeric comes from your own book: run the ACKS Importer table
+Everything numeric comes from your own book: run the importer to import tables
 import with the Judges Journal connected and the builder tables,
 the Dwarf and Elf race documents, and the printed Ready-for-Play builds on
 the core and demi-human classes all land together — open any of those
@@ -186,7 +186,7 @@ granted power resolved to the definition its rung names.*
 
 ## Keeping documents current
 
-After reconnecting your book, `acksImporter.cookbookUpdateClasses()` rewrites
+After reconnecting your book, `acksExtras.importer.cookbookUpdateClasses()` rewrites
 imported class documents from the page (hand edits on them are replaced —
 the confirm says so). `repairSaveReferences` under
 `acksExtras.classes` finds stale save-key references world-wide; dry-run by

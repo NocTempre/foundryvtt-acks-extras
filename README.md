@@ -7,13 +7,16 @@ classes and the class builder, proficiencies and class powers, equipment and
 fighting styles, exploration formations and overland travel, battlemaps and hex
 terrain, henchmen and hirelings, influence and reactions, locations, storage and
 markets, vehicles and voyages, and the full Monstrous Manual stat block — over
-one set of shared primitives and one rules-table registry.
+one set of shared primitives and one rules-table registry — and the importer
+that reads all of it from your own ACKS II PDFs.
 
-This is the merge of eight modules that used to ship separately (`acks-lib`,
+This is the merge of nine modules that used to ship separately (`acks-lib`,
 `acks-abilities`, `acks-equipment`, `acks-formation`, `acks-henchmen`,
-`acks-influence`, `acks-location`, `acks-monsters`). They were never really
-independent — seven of the eight required the library, two called into each
-other, and two defined the same Actor sub-type — so they are one module now.
+`acks-influence`, `acks-location`, `acks-monsters`, and later
+`acks-importer`). They were never really independent — seven of the eight
+required the library, two called into each other, two defined the same Actor
+sub-type, and the importer filled structures every one of them owned — so they
+are one module now.
 
 A Foundry VTT module extending the
 [ACKS II game system](https://github.com/AutarchLLC/foundryvtt-acks-core).
@@ -36,11 +39,12 @@ https://github.com/NocTempre/foundryvtt-acks-extras/releases/latest/download/mod
 | System | ACKS II (`acks`) v14+ |
 | [lib-wrapper](https://github.com/ruipin/fvtt-lib-wrapper) | v1.12.0+ — wraps core roll methods |
 | [socketlib](https://github.com/manuelVo/foundryvtt-socketlib) | v1.1.0+ — routes GM-only writes so players can act without ownership grants |
+| Your own ACKS II PDFs | Only for importing. The importer reads them in your browser and never uploads them; everything else works without them |
 
-**Optional:** [ACKS II — Importer](https://github.com/NocTempre/foundryvtt-acks-importer)
-imports book content from your own PDFs into the structures this module owns.
-Everything here works without it; several features simply have more to work with
-once the tables have been imported.
+**Recommended:** [game-icons-net](https://foundryvtt.com/packages/game-icons-net)
+for ability icons in the ACKS-shaped corners of the imported corpus (Acrobatics,
+Blind Fighting, Caving, Mapping). Without it those fall back to core Foundry
+icons.
 
 ### Upgrading from the eight separate modules
 
@@ -54,6 +58,19 @@ document whose sub-type came from a now-absent module cannot load at all and
 throws on every world load. It shows you everything it found before removing
 anything, and it is safe to run twice.
 
+### Upgrading from the separate Importer module
+
+1. Update this module, then **disable ACKS II — Importer** in *Manage Modules*
+   and reload. While it is still active the built-in importer stays off and a
+   notice says so on every load, so two importers never write one library.
+2. The next load as GM carries your imported library over — every document on
+   every *ACKS Cookbook* shelf and in the sidebar, the server-held book shelf,
+   any registered OSE sources, this seat's importer settings, and any imported
+   macros still addressing the old module. It runs once, and the notice
+   reports what moved. Per-seat book locations need nothing.
+3. Uninstall the old module when convenient. Nothing is left behind for the
+   cleanup macro to find.
+
 ---
 
 ## Getting started
@@ -64,13 +81,45 @@ anything, and it is safe to run twice.
    toggles are grouped by feature; the optional-rule *overlays* are all off
    unless the rule is already core.
 3. Import a couple of items from **ACKS Equipment Samples** to see equipment
-   automation working, or open a monster from **ACKS Full Monsters (Example)**
-   to see the Full Monster Sheet.
-4. If you own the books and want the real tables, add the Importer.
+   automation working.
+4. If you own the books, run **Your ACKS Books (this seat)** from the *ACKS
+   Extras Macros* compendium to connect a PDF, then **Import Everything (GM)**:
+   classes, proficiencies, equipment, monsters, tables and more arrive from
+   your own copy. See [Importing from your books](docs/guides/importer.md).
 
 ---
 
 ## Features
+
+### Importing from your books
+
+Book content arrives from **your own PDFs**. The module ships extraction
+*recipes* — for a given entry on a given page, where its fields are and how to
+recognise them — and never the book text. The GM connects a PDF once; the
+recipes run against that file, in the browser, and write real world documents.
+
+- **Everything you import persists.** Stat blocks, tables, prices and each
+  entry's own descriptive text become world data, so once the GM has imported
+  them everyone at the table has them, players who own no books included. Each
+  imported passage closes on the book and page it was read from.
+- **Only the GM needs the books.** Import is the one moment a PDF is read; a
+  book staged on the server is read on every launch with no gesture, and
+  nothing is resolved again afterwards. The bytes are never uploaded.
+- **What it imports.** The Monstrous Manual's monsters with the full stat
+  block, natural weapons, spoils and treasure links; the Revised Rulebook's
+  classes (progressions, saves, award ladders, starting templates),
+  proficiencies and class powers, equipment and the weapon, armour and gear
+  price tables; the Judges Journal's proficiencies, drawbacks, class builder
+  and the rules tables the henchmen market, travel, weather and encounters run
+  on; By This Axe's dwarven classes; the adventure line's locations as
+  journals, roll tables and actors; and another game's books — Old-School
+  Essentials adventures — converted through the System Compatibility Guide.
+- **Nothing is imported twice, and everything can be removed.** Imports land
+  in world compendiums, one per series and document type; re-running updates
+  what the page changed, and *Delete Everything Imported (GM)* takes it all
+  back.
+
+Guide: [Importing from your books](docs/guides/importer.md).
 
 ### Shared primitives (the former `acks-lib`)
 
@@ -285,7 +334,7 @@ context menu.
 | Bestiary | Actor | 8 |
 | Spoils | Item | 7 |
 | Treasure | RollTable | 1 |
-| Macros | Macro | 25, in one *ACKS Extras* folder |
+| Macros | Macro | 32, in the *ACKS Extras* folder — the importer's four sit in its *Your Books* and *Import from your books* sub-folders |
 
 Compendium descriptions are authored restatements with page citations, never
 transcription. The module ships no book text.
@@ -322,22 +371,31 @@ The module exposes one global, `globalThis.acksExtras`, which is also
 `game.modules.get("acks-extras").api`. Each feature hangs off its own key:
 
 ```js
-acksExtras.lib        acksExtras.formation
-acksExtras.abilities  acksExtras.henchmen
-acksExtras.equipment  acksExtras.influence
-acksExtras.location   acksExtras.monsters
+acksExtras.lib        acksExtras.henchmen
+acksExtras.abilities  acksExtras.influence
+acksExtras.classes    acksExtras.location
+acksExtras.equipment  acksExtras.markets
+acksExtras.formation  acksExtras.monsters
+acksExtras.battlemap  acksExtras.vehicles
+acksExtras.importer
 ```
 
-Read it from a hook, not at module top level — features attach during `init`.
+Read it from a hook, not at module top level — features attach during `init`
+(the importer's api at `ready`).
 
 The rules-table registry (`acksExtras.lib.tables`) and the named-service registry
-(`acksExtras.lib.services`) are the seams for feeding this module data. This
-module registers `ruledata-import` (the location feature provides it) and the
-Importer calls it to write a world's imported tables; the Importer in turn
-registers `ability-provider`, which this module calls to resolve proficiency
-names into real items. Contracts are named rather than module-scoped, so neither
-side needs to know who is on the other end — and a contract with no provider
-reads as `null` rather than throwing.
+(`acksExtras.lib.services`) are the seams for feeding this module data. The
+location feature provides `ruledata-import`, which the importer calls to write a
+world's imported tables; the importer provides `ability-provider`, which the
+class and henchmen features call to resolve proficiency names into real items.
+Contracts are named rather than module-scoped, so a third module can stand on
+either side — and a contract with no provider reads as `null` rather than
+throwing.
+
+The importer's api is `acksExtras.importer` — `bookStatus()`,
+`importEverything()`, `importClasses()`, `cookbookRemoveImports()` and the rest.
+An imported document carries `flags["acks-extras"].cookbook.id`, the definition
+id everything else looks it up by.
 
 ---
 

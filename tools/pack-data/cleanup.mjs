@@ -14,7 +14,7 @@
  * uninstalled module are still readable, and invalid Actors are reached through
  * the collection's invalid-document accessors rather than the normal lookup.
  *
- * It does NOT touch anything acks-extras or acks-importer own.
+ * It does not touch anything acks-extras owns, the importer's stamps included.
  */
 import crypto from "node:crypto";
 

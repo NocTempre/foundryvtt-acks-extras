@@ -1,0 +1,19 @@
+{
+  "_id": "ackscFldSetup000",
+  "_key": "!folders!ackscFldSetup000",
+  "name": "Your Books",
+  "type": "Macro",
+  "folder": "acks420ff1a0388a",
+  "sorting": "m",
+  "sort": 100,
+  "description": "",
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784332800000,
+    "modifiedTime": 1784332800000
+  }
+}

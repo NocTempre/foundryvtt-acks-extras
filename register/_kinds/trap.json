@@ -1,0 +1,9 @@
+{
+  "id": "kind.trap",
+  "role": "definition",
+  "note": "JJ dungeon chapter, STEP 7 PLACE TRAPS: one entry per printed trap, anchored on a bold sub-heading alone on its line at body size, no colon. The block runs description then six per-level tiers. Every number in it - damage, save, attack throw - is a PAGE VALUE, never authored here; the block materializes from the seat's copy. Binds to an acks-extras.trap Item, whose schema names the fields.",
+  "fields": {
+    "name": { "locate": "subheading" },
+    "description": { "locate": "subheadingBlock", "type": "blocks" }
+  }
+}

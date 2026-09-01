@@ -672,7 +672,7 @@ export const packs = {
   // Samples STAY: the JJ shield variants and masterwork gear they demonstrate
   // have no importer coverage (register: zero buckler/kite entries, one
   // masterwork mention), so this pack is their only source until that gap is
-  // worked — see acks-importer's ROADMAP.
+  // worked — see the importer's ROADMAP.
   "equipment-samples": buildSamples,
   macros: buildMacros,
 };

@@ -92,7 +92,7 @@ Hooks.once("init", () => {
    *
    * This has to happen at init, before any index is built: a pack indexed
    * without the field answers `undefined` for every row until something calls
-   * `getIndex` again with it. Since acks-importer 3.0.0 every imported place
+   * `getIndex` again with it. Since importer 3.0.0 every imported place
    * lands in a compendium, so without this an imported adventure's rooms are
    * invisible on the adventure's own sheet — the rooms name their parent
    * correctly and nothing can see that they do.

@@ -24,7 +24,7 @@ import path from "node:path";
 import { REPO, walk, matchBrace, cleanExpr, constantIndex, objectConstantIndex, featureOf } from "./parse.mjs";
 
 /** Feature directories in the order the README introduces them. */
-const FEATURE_ORDER = ["lib", "abilities", "equipment", "formation", "henchmen", "influence", "location", "monsters"];
+const FEATURE_ORDER = ["lib", "abilities", "equipment", "formation", "henchmen", "influence", "location", "monsters", "importer"];
 
 const FEATURE_LABEL = {
   lib: "Library",
@@ -35,6 +35,7 @@ const FEATURE_LABEL = {
   influence: "Influence",
   location: "Locations",
   monsters: "Monsters",
+  importer: "Importer",
 };
 
 /**

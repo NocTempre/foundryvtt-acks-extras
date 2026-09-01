@@ -1,0 +1,2081 @@
+[
+  {
+    "id": "def.class.dwarvenDelver",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Delver",
+    "anchor": {
+      "display": "Dwarven Delver"
+    },
+    "pages": [
+      61,
+      62,
+      109
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-worn-green.webp",
+    "class": {
+      "key": "dwarvenDelver",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Delver Level Progression",
+          "page": 62,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "hiding",
+              "header": "Hide in Shadows"
+            },
+            {
+              "key": "sneaking",
+              "header": "Move Silently"
+            },
+            {
+              "key": "climbing",
+              "header": "Climb Wall"
+            },
+            {
+              "key": "searching",
+              "header": "Find Traps"
+            },
+            {
+              "key": "listening",
+              "header": "Hear Noise"
+            },
+            {
+              "key": "backstab",
+              "header": "Backstab"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Delver Attack and Saving Throws",
+          "page": 62,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Delver Templates",
+          "page": 109,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 62
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.attentionToDetail",
+          "starting": true
+        },
+        {
+          "ref": "def.skill.backstabbing",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.endurance",
+          "starting": true,
+          "note": "The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.prof.caving",
+          "starting": true,
+          "note": "Expert Caving — The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.skill.shadowySenses",
+          "starting": true
+        },
+        {
+          "ref": "def.skill.hiding",
+          "starting": true
+        },
+        {
+          "ref": "def.skill.sneaking",
+          "starting": true
+        },
+        {
+          "ref": "def.skill.climbing",
+          "starting": true
+        },
+        {
+          "ref": "def.skill.searching",
+          "starting": true
+        },
+        {
+          "ref": "def.skill.listening",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.naturalism",
+          "starting": true,
+          "note": "Underdark Lore — The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.delverRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "skills": [
+        {
+          "ref": "def.skill.hiding",
+          "ladderKey": "hiding"
+        },
+        {
+          "ref": "def.skill.sneaking",
+          "ladderKey": "sneaking"
+        },
+        {
+          "ref": "def.skill.climbing",
+          "ladderKey": "climbing"
+        },
+        {
+          "ref": "def.skill.searching",
+          "ladderKey": "searching"
+        },
+        {
+          "ref": "def.skill.listening",
+          "ladderKey": "listening"
+        },
+        {
+          "ref": "def.skill.backstabbing",
+          "ladderKey": "backstab"
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenEarthforger",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Earthforger",
+    "anchor": {
+      "display": "Dwarven Earthforger"
+    },
+    "pages": [
+      63,
+      64,
+      65,
+      66,
+      110
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-symbol-axe-red.webp",
+    "class": {
+      "key": "dwarvenEarthforger",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Earthforger Level Progression",
+          "page": 64,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "maxInvocationLevel",
+              "header": "Maximum Invocation Level"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Earthforger Attack and Saving Throws",
+          "page": 64,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackBand",
+              "header": "Level",
+              "occurrence": 2,
+              "pattern": "rollBand"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Earthforger Templates",
+          "page": 110,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 66
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.attentionToDetail",
+          "starting": true
+        },
+        {
+          "ref": "def.power.dwarvenThroatSinging",
+          "starting": true
+        },
+        {
+          "ref": "def.power.gnosticMagic",
+          "starting": true
+        },
+        {
+          "ref": "def.power.deepKnowledge",
+          "starting": true
+        },
+        {
+          "ref": "def.power.extemporaneousInvocations",
+          "starting": true
+        },
+        {
+          "ref": "def.power.trinketsOfPower",
+          "starting": true
+        },
+        {
+          "ref": "def.power.earthforgerSigil",
+          "starting": true,
+          "note": "The rules of sigils; the specific sigil is the pick below."
+        },
+        {
+          "choice": {
+            "label": "Sigil",
+            "refs": [
+              "def.power.sigilOfTheMountainsBones",
+              "def.power.sigilOfTheEternalForge",
+              "def.power.sigilOfTheIronCrucible",
+              "def.power.sigilOfTheOpenGate"
+            ]
+          },
+          "starting": true
+        },
+        {
+          "ref": "def.power.earthforgerSigil",
+          "from": {
+            "pattern": "Greater Sigil Feature \\((\\d+)"
+          },
+          "note": "The chosen sigil deepens."
+        },
+        {
+          "ref": "def.power.earthforgerSigil",
+          "from": {
+            "pattern": "Master Sigil Feature \\((\\d+)"
+          },
+          "note": "The chosen sigil deepens again."
+        },
+        {
+          "ref": "def.power.greaterGnosis",
+          "from": {
+            "pattern": "Greater Gnosis \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.masterGnosis",
+          "from": {
+            "pattern": "Master Gnosis \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.minorMagicalResearch",
+          "from": {
+            "pattern": "Minor Magical Research \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.majorMagicalResearch",
+          "from": {
+            "pattern": "Major Magical Research \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.earthforgerRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "casting": [
+        {
+          "key": "gnosis",
+          "label": "Gnostic",
+          "kind": "gnosis",
+          "casterLevel": "maxInvocationLevel"
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenExcavator",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Excavator",
+    "anchor": {
+      "display": "Dwarven Excavator"
+    },
+    "pages": [
+      67,
+      68,
+      69,
+      111
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-pink.webp",
+    "class": {
+      "key": "dwarvenExcavator",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Excavator Level Progression",
+          "page": 68,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "pyroclastics",
+              "header": "Pyroclastics"
+            },
+            {
+              "key": "dowsing",
+              "header": "Dowsing"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Excavator Attack and Saving Throws",
+          "page": 68,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Excavator Templates",
+          "page": 111,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 69
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.attentionToDetail",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.caving",
+          "starting": true,
+          "note": "Expert Caving — The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.loadbearing",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.labor",
+          "starting": true,
+          "note": "Mine Working — The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.prof.prospecting",
+          "starting": true,
+          "note": "The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.pyroclastics",
+          "starting": true
+        },
+        {
+          "ref": "def.skill.dowsing",
+          "from": {
+            "pattern": "Dowsing \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.mineManagement",
+          "from": {
+            "pattern": "Mine Management \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.prof.engineering",
+          "from": {
+            "pattern": "Engineering \\((\\d+)"
+          },
+          "note": "Four ranks of the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.industrialism",
+          "from": {
+            "pattern": "Industrialism\\s*\\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.excavatorRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "skills": [
+        {
+          "ref": "def.power.pyroclastics",
+          "ladderKey": "pyroclastics"
+        },
+        {
+          "ref": "def.skill.dowsing",
+          "ladderKey": "dowsing"
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenFurnacewife",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Furnacewife",
+    "anchor": {
+      "display": "Dwarven Furnacewife"
+    },
+    "pages": [
+      70,
+      71,
+      72,
+      112
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-worn-red.webp",
+    "class": {
+      "key": "dwarvenFurnacewife",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Furnacewife Level Progression",
+          "page": 71,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "maxInvocationLevel",
+              "header": "Maximum Invocation Level"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Furnacewife Attack and Saving Throws",
+          "page": 71,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackBand",
+              "header": "Level",
+              "occurrence": 2,
+              "pattern": "rollBand"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Furnacewife Templates",
+          "page": 112,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 72
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.attentionToDetail",
+          "starting": true
+        },
+        {
+          "ref": "def.power.dwarvenThroatSinging",
+          "starting": true
+        },
+        {
+          "ref": "def.power.fieryResistance",
+          "starting": true
+        },
+        {
+          "ref": "def.power.crafting",
+          "starting": true
+        },
+        {
+          "ref": "def.power.gnosticMagic",
+          "starting": true
+        },
+        {
+          "ref": "def.power.fieryTorch",
+          "starting": true
+        },
+        {
+          "ref": "def.power.fieryCauterization",
+          "starting": true
+        },
+        {
+          "ref": "def.power.trinketsOfPower",
+          "starting": true
+        },
+        {
+          "ref": "def.power.fieryAura",
+          "from": {
+            "pattern": "Fiery Aura \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.fieryBlessing",
+          "from": {
+            "pattern": "Fiery Blessing \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.majorMagicalResearch",
+          "from": {
+            "pattern": "Major Magical Research \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.furnacewifeRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "casting": [
+        {
+          "key": "gnosis",
+          "label": "Gnostic",
+          "kind": "gnosis",
+          "casterLevel": "maxInvocationLevel"
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenFury",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Fury",
+    "anchor": {
+      "display": "Dwarven Fury"
+    },
+    "pages": [
+      73,
+      74,
+      75,
+      113
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-flag-pirate.webp",
+    "class": {
+      "key": "dwarvenFury",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Fury Level Progression",
+          "page": 74,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "meleeDamageBonus",
+              "header": "Melee Damage Bonus"
+            },
+            {
+              "key": "acBonus",
+              "header": "AC Bonus"
+            },
+            {
+              "key": "damageReduction",
+              "header": "Damage Reduction"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Fury Attack and Saving Throws",
+          "page": 74,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Fury Templates",
+          "page": 113,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 75
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.fleshRunes",
+          "starting": true
+        },
+        {
+          "ref": "def.power.fightingFury",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.intimidation",
+          "starting": true,
+          "note": "The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.savageResilience",
+          "starting": true
+        },
+        {
+          "ref": "def.power.superiorFleshRunes",
+          "from": {
+            "pattern": "Superior Flesh-Runes \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenMachinist",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Machinist",
+    "anchor": {
+      "display": "Dwarven Machinist"
+    },
+    "pages": [
+      76,
+      77,
+      78,
+      114
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-blue.webp",
+    "class": {
+      "key": "dwarvenMachinist",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Machinist Level Progression",
+          "page": 77,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "ballisticsExpertise",
+              "header": "Ballistics Expertise"
+            },
+            {
+              "key": "lockpicking",
+              "header": "Open Locks"
+            },
+            {
+              "key": "searching",
+              "header": "Find Traps"
+            },
+            {
+              "key": "trapbreaking",
+              "header": "Remove Traps"
+            },
+            {
+              "key": "designBuildRepair",
+              "header": "Design/Build/Repair"
+            },
+            {
+              "key": "construction",
+              "header": "Construction"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Machinist Attack and Saving Throws",
+          "page": 77,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Machinist Templates",
+          "page": 114,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 78
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.attentionToDetail",
+          "starting": true
+        },
+        {
+          "ref": "def.power.crafting",
+          "starting": true
+        },
+        {
+          "ref": "def.power.ballisticsExpertise",
+          "starting": true
+        },
+        {
+          "ref": "def.power.designBuildAndRepairAutomatons",
+          "starting": true
+        },
+        {
+          "ref": "def.power.mechanicKnowledge",
+          "starting": true
+        },
+        {
+          "ref": "def.power.personalAutomaton",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.siegeEngineering",
+          "starting": true,
+          "note": "Two ranks of the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.machinistRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "skills": [
+        {
+          "ref": "def.skill.lockpicking",
+          "ladderKey": "lockpicking"
+        },
+        {
+          "ref": "def.skill.searching",
+          "ladderKey": "searching"
+        },
+        {
+          "ref": "def.skill.trapbreaking",
+          "ladderKey": "trapbreaking"
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenPugilist",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Pugilist",
+    "anchor": {
+      "display": "Dwarven Pugilist"
+    },
+    "pages": [
+      79,
+      80,
+      81,
+      115
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-flag-pirate-swords.webp",
+    "class": {
+      "key": "dwarvenPugilist",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Pugilist Level Progression",
+          "page": 80,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "unarmedDamage",
+              "header": "Unarmed Damage"
+            },
+            {
+              "key": "acBonus",
+              "header": "AC Bonus"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Pugilist Attack and Saving Throws",
+          "page": 80,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Pugilist Templates",
+          "page": 115,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 81
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.attentionToDetail",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.combatTrickery",
+          "starting": true,
+          "note": "Combat Trickery — The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.prof.endurance",
+          "starting": true,
+          "note": "Endurance — The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.prof.intimidation",
+          "starting": true,
+          "note": "The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.pugilism",
+          "starting": true
+        },
+        {
+          "ref": "def.power.legwork",
+          "from": {
+            "pattern": "Legwork \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.oldManBones",
+          "from": {
+            "pattern": "Old Man Bones \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.eyeOfTheTiger",
+          "from": {
+            "pattern": "Eye of the Tiger \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.pugilistRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.secondWind",
+          "from": {
+            "pattern": "Second Wind \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.unyieldingSpirit",
+          "from": {
+            "pattern": "Unyielding Spirit \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenRhetor",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Rhetor",
+    "anchor": {
+      "display": "Dwarven Rhetor"
+    },
+    "pages": [
+      82,
+      83,
+      84,
+      116
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-flag-blue.webp",
+    "class": {
+      "key": "dwarvenRhetor",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Rhetor Level Progression",
+          "page": 83,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "loremastery",
+              "header": "Loremastery"
+            },
+            {
+              "key": "rhetoric",
+              "header": "Rhetoric"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Rhetor Attack and Saving Throws",
+          "page": 83,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Rhetor Templates",
+          "page": 116,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 84
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.attentionToDetail",
+          "starting": true
+        },
+        {
+          "ref": "def.power.linguistics",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.endurance",
+          "starting": true,
+          "note": "The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.jurisprudence",
+          "starting": true
+        },
+        {
+          "ref": "def.power.loremastery",
+          "starting": true
+        },
+        {
+          "ref": "def.power.rhetoric",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.performance",
+          "starting": true,
+          "note": "The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.inspireCourage",
+          "starting": true
+        },
+        {
+          "ref": "def.power.rhetoricalTraining",
+          "from": {
+            "pattern": "Rhetorical Training \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.tireless",
+          "from": {
+            "pattern": "Tireless \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.rhetoricalTraining",
+          "from": {
+            "pattern": "Rhetorical Training II \\((\\d+)"
+          },
+          "note": "II — the training repeats at the higher level."
+        },
+        {
+          "ref": "def.power.rhetorRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.ruleOfLaw",
+          "from": {
+            "pattern": "Rule of Law \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenSporecaster",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Sporecaster",
+    "anchor": {
+      "display": "Dwarven Sporecaster"
+    },
+    "pages": [
+      85,
+      86,
+      87,
+      88,
+      89,
+      117
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-green.webp",
+    "class": {
+      "key": "dwarvenSporecaster",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Sporecaster Level Progression",
+          "page": 86,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "sporeZombies",
+              "header": "Spore Zombies"
+            },
+            {
+              "key": "alchemy",
+              "header": "Alchemy"
+            },
+            {
+              "key": "dwarvenBrewing",
+              "header": "Dwarven Brewing"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Sporecaster Attack and Saving Throws",
+          "page": 86,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Sporecaster Templates",
+          "page": 117,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 89
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.attentionToDetail",
+          "starting": true
+        },
+        {
+          "ref": "def.power.necrosporing",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.dwarvenBrewing",
+          "starting": true,
+          "note": "The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.conventionalBrewing",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.alchemy",
+          "starting": true,
+          "note": "Three ranks, slightly modified; the spread says so."
+        },
+        {
+          "ref": "def.power.fungalFriendship",
+          "starting": true
+        },
+        {
+          "ref": "def.power.fungalImmunity",
+          "starting": true
+        },
+        {
+          "ref": "def.power.bloomingSpores",
+          "from": {
+            "pattern": "Blooming Spores \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.fungalHumors",
+          "from": {
+            "pattern": "Fungal Humors \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.blossomingSpores",
+          "from": {
+            "pattern": "Blossoming Spores \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.mushroomManagement",
+          "from": {
+            "pattern": "Mushroom Management \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.billowingSpores",
+          "from": {
+            "pattern": "Billowing Spores \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.sporeServitude",
+          "from": {
+            "pattern": "Spore Servitude \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.mushroomMutation",
+          "from": {
+            "pattern": "Mushroom\\s*Mutation\\s*\\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.fungalSpawn",
+          "from": {
+            "pattern": "Fungal Spawn \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.sporecasterRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  },
+  {
+    "id": "def.class.dwarvenTombsealer",
+    "kind": "kind.class",
+    "book": "bta",
+    "name": "Dwarven Tombsealer",
+    "anchor": {
+      "display": "Dwarven Tombsealer"
+    },
+    "pages": [
+      90,
+      91,
+      92,
+      118
+    ],
+    "meta": {
+      "category": "class"
+    },
+    "icon": "icons/sundries/flags/banner-flag-pirate-blue.webp",
+    "class": {
+      "key": "dwarvenTombsealer",
+      "factored": true,
+      "tables": {
+        "progression": {
+          "title": "Dwarven Tombsealer Level Progression",
+          "page": 91,
+          "labelHeader": "Level",
+          "cols": [
+            {
+              "key": "xp",
+              "header": "Experience"
+            },
+            {
+              "key": "title",
+              "header": "Title"
+            },
+            {
+              "key": "hd",
+              "header": "Hit Dice"
+            },
+            {
+              "key": "damageBonus",
+              "header": "Damage Bonus"
+            }
+          ]
+        },
+        "attackSaves": {
+          "title": "Dwarven Tombsealer Attack and Saving Throws",
+          "page": 91,
+          "labelHeader": "Level",
+          "band": true,
+          "cols": [
+            {
+              "key": "paralysis",
+              "header": "Petrification & Paralysis",
+              "pattern": "intDash"
+            },
+            {
+              "key": "death",
+              "header": "Poison & Death",
+              "pattern": "intDash"
+            },
+            {
+              "key": "blast",
+              "header": "Blast & Breath",
+              "pattern": "intDash"
+            },
+            {
+              "key": "implements",
+              "header": "Staffs & Wands",
+              "pattern": "intDash"
+            },
+            {
+              "key": "spells",
+              "header": "Spells",
+              "pattern": "intDash"
+            },
+            {
+              "key": "attackThrow",
+              "header": "Attack Throw",
+              "pattern": "intDash"
+            }
+          ]
+        },
+        "templates": {
+          "title": "Dwarven Tombsealer Templates",
+          "page": 118,
+          "kind": "templates",
+          "cols": [
+            {
+              "key": "template",
+              "header": "Template"
+            },
+            {
+              "key": "caste",
+              "header": "Caste"
+            },
+            {
+              "key": "proficiencies",
+              "header": "Proficiencies"
+            },
+            {
+              "key": "equipment",
+              "header": "Starting Equipment"
+            }
+          ]
+        }
+      },
+      "profList": {
+        "label": "Proficiency List:",
+        "page": 92
+      },
+      "cleaves": {
+        "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(?:every\\s*)?(class\\s*level|two\\s*class\\s*levels)"
+      },
+      "awards": [
+        {
+          "ref": "def.power.undeadslaying",
+          "starting": true
+        },
+        {
+          "ref": "def.prof.manualOfArms",
+          "starting": true,
+          "note": "The class power is the proficiency; the spread says so."
+        },
+        {
+          "ref": "def.power.detectEvil",
+          "starting": true
+        },
+        {
+          "ref": "def.power.lesserRiteOfSealing",
+          "starting": true
+        },
+        {
+          "ref": "def.power.auraOfProtection",
+          "from": {
+            "pattern": "Aura of Protection \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.battlefieldProwess",
+          "from": {
+            "pattern": "Battlefield Prowess \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.stalwartSoul",
+          "from": {
+            "pattern": "Stalwart Soul \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.riteOfDiscovery",
+          "from": {
+            "pattern": "Rite of Discovery \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.greaterRiteOfSealing",
+          "from": {
+            "pattern": "Greater Rite of Sealing \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.tombsealerRenown",
+          "from": {
+            "pattern": "Renown \\((\\d+)"
+          }
+        },
+        {
+          "ref": "def.power.giftOfTongues",
+          "starting": true,
+          "note": "Dwarf Tongues — Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.hardyPeople",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        },
+        {
+          "ref": "def.power.sensitivityToRockAndStone",
+          "starting": true,
+          "note": "Racial trait; save adjustments are already factored into the printed tables."
+        }
+      ],
+      "training": {
+        "runin": "Armor and Weapon Proficiencies:"
+      }
+    }
+  }
+]

@@ -1,0 +1,294 @@
+[
+  {
+    "id": "def.trap.ceilingCollapse",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Ceiling Collapse Trap",
+    "anchor": {
+      "subheading": "Ceiling Collapse Trap"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/environment/wilderness/terrain-stone-stalagtite.webp",
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.trap.deadfall",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Deadfall Trap",
+    "anchor": {
+      "subheading": "Deadfall Trap"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/commodities/stone/rock-pile-grey.webp",
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.trap.excavatedEarthPit",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Excavated Earth Pit Trap",
+    "anchor": {
+      "subheading": "Excavated Earth Pit Trap"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/environment/traps/spike-skull-white-brown.webp",
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.trap.fire",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Fire Trap",
+    "anchor": {
+      "subheading": "Fire Trap"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/magic/fire/explosion-embers-orange.webp",
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.trap.missile",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Missile Trap",
+    "anchor": {
+      "subheading": "Missile Trap"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/skills/ranged/arrow-barbed-flying-gray.webp",
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.trap.needle",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Needle Trap",
+    "anchor": {
+      "subheading": "Needle Trap"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/tools/hand/needle-grey.webp",
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.trap.portcullis",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Portcullis Trap",
+    "anchor": {
+      "subheading": "Portcullis Trap"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/environment/traps/grate-steel.webp",
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.trap.rockCutPit",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Rock-Cut Pit Trap",
+    "anchor": {
+      "subheading": "Rock-Cut Pit Trap"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/environment/traps/metal-spikes.webp",
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.trap.rollingRock",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Rolling Rock Trap",
+    "anchor": {
+      "subheading": "Rolling Rock Trap"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/commodities/stone/boulder-grey.webp",
+    "assists": {
+      "columns": [
+        45,
+        302
+      ]
+    }
+  },
+  {
+    "id": "def.trap.scythingBlade",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Scything Blade Trap",
+    "anchor": {
+      "subheading": "Scything Blade Trap"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/environment/traps/saw-steel.webp",
+    "assists": {
+      "columns": [
+        45,
+        302
+      ],
+      "flowColumns": {
+        "243": [
+          72,
+          329
+        ]
+      }
+    }
+  },
+  {
+    "id": "def.trap.springSnare",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Spring Snare Trap",
+    "anchor": {
+      "subheading": "Spring Snare Trap"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/environment/traps/net.webp",
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.trap.swingingLog",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Swinging Log Trap",
+    "anchor": {
+      "subheading": "Swinging Log Trap"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/commodities/wood/log-rough-brown.webp",
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  },
+  {
+    "id": "def.trap.whippingBranch",
+    "kind": "kind.trap",
+    "book": "jj",
+    "name": "Whipping Branch Trap",
+    "anchor": {
+      "subheading": "Whipping Branch Trap"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "trap"
+    },
+    "icon": "icons/commodities/materials/plant-branch-brown-green.webp",
+    "assists": {
+      "columns": [
+        72,
+        329
+      ]
+    }
+  }
+]

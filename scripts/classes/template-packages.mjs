@@ -29,7 +29,7 @@ import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef, templatePartOf as partOf } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
-import { libraryItems } from "../lib/library.mjs";
+import { libraryItems, cookbookId } from "../lib/library.mjs";
 import { equipmentClass } from "../equipment/profiles.mjs";
 import { isOffer } from "./pending-choices.mjs";
 
@@ -168,7 +168,7 @@ export function templateItemName(entry) {
 const GEAR_TYPES = [ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item];
 
 /** Index fields every pack lookup needs: the type, and the importer's stamp. */
-const INDEX_FIELDS = ["type", "flags.acks-importer.cookbook.id"];
+const INDEX_FIELDS = ["type", `flags.${MODULE_ID}.cookbook.id`];
 
 /** One pack's index, or null when it cannot be read (never fatal). */
 async function packIndex(pack) {
@@ -200,7 +200,7 @@ async function importPacks() {
     const index = await packIndex(pack);
     if (!index) continue;
     const rows = [...index];
-    if (!rows.some((r) => r.flags?.["acks-importer"]?.cookbook?.id)) continue;
+    if (!rows.some((r) => cookbookId(r))) continue;
     out.push({ pack, rows });
   }
   return out;
@@ -218,7 +218,7 @@ async function importPacks() {
 async function findInPacks({ ref = "", name = "", types = [] }) {
   const wanted = fold(name);
   for (const { pack, rows } of await importPacks()) {
-    let row = ref ? rows.find((r) => r.flags?.["acks-importer"]?.cookbook?.id === ref) : null;
+    let row = ref ? rows.find((r) => cookbookId(r) === ref) : null;
     if (!row && wanted) row = rows.find((r) => (!types.length || types.includes(r.type)) && fold(r.name) === wanted);
     if (!row) continue;
     const doc = await pack.getDocument(row._id).catch(() => null);
@@ -311,7 +311,7 @@ export async function resolveBaseDoc(entry, { exclude = [] } = {}) {
   const world = resolveBase(entry, { exclude });
   if (world) return world;
   for (const { pack, rows } of await importPacks()) {
-    let row = entry.ref ? rows.find((r) => r.flags?.["acks-importer"]?.cookbook?.id === entry.ref) : null;
+    let row = entry.ref ? rows.find((r) => cookbookId(r) === entry.ref) : null;
     if (!row) row = bestBaseMatch(entry.name, rows.filter((r) => GEAR_TYPES.includes(r.type)));
     if (!row) continue;
     const doc = await pack.getDocument(row._id).catch(() => null);
@@ -346,8 +346,13 @@ export async function buildGearData(entry, { exclude = [] } = {}) {
     // flag set with it, importer stamp included, so an unstripped skin
     // advertises itself as the definition and answers ref lookups meant for
     // the base — one template's "aged and dusty staff" standing in for Staff.
-    // What this copy is is recorded on its own `skin` flag below.
-    delete data.flags?.["acks-importer"];
+    // Only the importer's own keys under `flags[MODULE_ID]` are stripped
+    // (`cookbook`, `minted`); this feature's own keys there, including the
+    // `skin` flag below, stay.
+    if (data.flags?.[MODULE_ID]) {
+      delete data.flags[MODULE_ID].cookbook;
+      delete data.flags[MODULE_ID].minted;
+    }
     data.name = skinName;
     foundry.utils.setProperty(data, "system.quantity.value", entry.qty || 1);
     // A PRICE THE PAGE STATES ABOUT THIS PIECE OUTRANKS THE BASE'S. The cell
@@ -698,10 +703,10 @@ export async function materializeTemplates(
   // A class ROW in a compendium is fine; the package it builds is not.
   //
   // This used to refuse a pack class outright, on the grounds that the registry
-  // never read one. It does now (`lib/library.mjs` spans the sidebar and
-  // acks-importer's packs), and since acks-importer 3.0.0 every imported class
-  // IS a pack document — so the refusal made template packages a permanent
-  // no-op for exactly the classes that ship with them.
+  // never read one. It does now (`lib/library.mjs` spans the sidebar and the
+  // importer's packs), and since importer 3.0.0 every imported class IS a pack
+  // document — so the refusal made template packages a permanent no-op for
+  // exactly the classes that ship with them.
   //
   // What stays true is where the PACKAGE lands: bundles, gear and the table are
   // created in the world, because a package exists to be repaired and a Judge
@@ -747,7 +752,7 @@ export async function materializeTemplates(
    *
    * A definition that already exists is LINKED, wherever it lives — one shared
    * document, no duplicate Adventuring per band and no second copy of an
-   * ability the GM imported. Linking a document held in acks-importer's pack is
+   * ability the GM imported. Linking a document held in the importer's pack is
    * the point: those packs are world packs, which are unlocked and editable, so
    * the copy that used to be made "because a Judge cannot fix a pack document"
    * bought nothing and cost a duplicate of every granted ability.

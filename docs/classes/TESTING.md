@@ -150,15 +150,15 @@ looks fine until someone tries to swing it.
 | `Feathered darts` ×5 | *(none)* | `weapon`, base `Dart` — resolved by name, plural |
 | `Weighted net` | *(none)* | bare `item`, `unresolved: true`, named in `report.unresolved` |
 
-*Also observable on every one of them:* `flags["acks-importer"]` is absent. A
+*Also observable on every one of them:* `flags["acks-extras"]` is present. A
 skin that keeps the base's importer stamp answers ref lookups meant for the
 base.
 
 9. **The importer half, without a book connected.** `parseEquipment` is
    exported, so the split can be driven directly:
-   `const m = await import("/modules/acks-importer/scripts/cookbook.mjs")`,
+   `const m = await import("/modules/acks-extras/scripts/importer/cookbook.mjs")`,
    then build a menu row `{name, ref, fold, foldStripped}` per imported gear
-   item (`flags["acks-importer"].cookbook.id`, types weapon/armor/item,
+   item (`flags["acks-extras"].cookbook.id`, types weapon/armor/item,
    template parts excluded, sorted by name length descending) and call
    `m.parseEquipment(cell, menu, {})`.
    *Observable:* `polished sword and dagger` → TWO items, `def.weapon.sword`
@@ -302,7 +302,7 @@ levels table. Nothing else.
 2. Generate the character through the Scores Generator on a low-Constitution
    score and note the hit points. This is the pre-import behaviour and must be
    unchanged from before this release.
-3. Import the hit-point table (acks-importer, Import Tables, with the rulebook
+3. Import the hit-point table (the importer, Import Tables, with the rulebook
    connected). `firstLevelDieMinimum()` now returns the printed floor.
 4. Delete the character and generate a fresh one on the same scores.
 

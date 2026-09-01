@@ -1,0 +1,28 @@
+{
+  "_note": "Chef-authored map from a SYSTEM COMPENDIUM name to the register name that covers it. Used only by tools/verify-against-compendium.mjs to silence a difference someone has read and settled. Keys are case/punctuation-folded (lowercase, alphanumeric only). Never guessed by a tool.",
+  "_renames": "The pack carries an ACKS I name the Revised Rulebook replaced. Each was settled by searching the RR for both spellings: the old name does not appear in it and the new one does.",
+  "righteousturning": "Righteous Rebuke",
+  "masterofcharmsillusions": "Mastery of Enchantments & Illusions",
+  "blacklore": "Black Lore of Zahar",
+  "intimidate": "Intimidation",
+  "dungeonbashing": "Dungeonbashing Expertise",
+
+  "_thiefSkills": "The pack ships the ACKS I thief-skill names as class-ability items. The Revised Rulebook's own table names the eight skills Climbing, Hiding, Listening, Lockpicking, Pickpocketing, Searching, Sneaking and Trapbreaking, which is what the register carries as kind.skill; Trapbreaking is the one that both finds and removes.",
+  "backstab": "Backstabbing",
+  "climbwalls": "Climbing",
+  "hearnoise": "Listening",
+  "hideinshadows": "Hiding",
+  "movesilently": "Sneaking",
+  "findtraps": "Trapbreaking",
+  "tracker": "Tracking",
+  "friendtobirdsbeasts": "Friend of Birds and Beasts",
+
+  "_splits": "The pack enumerates one item per discipline or style where the register carries a single entry whose picks record which one. The tool already folds a 'Craft: Bowyer' prefix to 'Craft'; these map that fold's result onto the register's actual entry name.",
+  "craft": "Art/Craft",
+  "fightingstyle2handedweapon": "Fighting Styles",
+  "fightingstylemissileweapon": "Fighting Styles",
+  "fightingstylepoleweapon": "Fighting Styles",
+  "fightingstylesingleweapon": "Fighting Styles",
+  "fightingstyletwoweapon": "Fighting Styles",
+  "fightingstyleweaponshield": "Fighting Styles"
+}

@@ -1,0 +1,30 @@
+{
+  "books": [
+    "aft",
+    "ax2",
+    "ax3",
+    "dmb",
+    "jj",
+    "mm",
+    "pc1",
+    "pc2",
+    "pc3",
+    "qd1",
+    "qd2",
+    "qd3",
+    "wld1",
+    "wld2",
+    "wld3"
+  ],
+  "content": [
+    "classes",
+    "constants",
+    "equipment",
+    "powers",
+    "proficiencies",
+    "skills",
+    "traps",
+    "variations",
+    "vehicles"
+  ]
+}

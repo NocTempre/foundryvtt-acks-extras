@@ -12,11 +12,21 @@
     "validate": "node tools/validate.mjs",
     "prepare": "git config core.hooksPath .githooks",
     "test": "node tools/run-tests.mjs",
-    "find:dead-config": "node tools/find-dead-config.mjs"
+    "find:dead-config": "node tools/find-dead-config.mjs",
+    "lint:register": "node tools/importer/lint-register.mjs",
+    "icons": "node tools/importer/icon-ledger.mjs",
+    "check:drift": "node tools/importer/check-cookbook-drift.mjs",
+    "harvest": "node tools/importer/harvest-page.mjs",
+    "harvest:index": "node tools/importer/harvest-index.mjs",
+    "compile": "node tools/importer/compile-cookbook.mjs",
+    "verify:cookbook": "node tools/importer/verify-cookbook.mjs",
+    "ledger": "node tools/importer/ledger-init.mjs",
+    "verify:compendium": "node tools/importer/verify-against-compendium.mjs"
   },
   "devDependencies": {
     "@foundryvtt/foundryvtt-cli": "^1.0.0",
     "classic-level": "^3.0.0",
-    "handlebars": "^4.7.9"
+    "handlebars": "^4.7.9",
+    "pdfjs-dist": "^4.6.82"
   }
 }

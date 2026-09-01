@@ -1,0 +1,152 @@
+[
+  {
+    "id": "def.variation.masterworkWeaponToHit",
+    "kind": "kind.variation",
+    "book": "rr",
+    "name": "Masterwork Weapon (Attack Throw)",
+    "anchor": { "runin": "Masterwork Weapon:" },
+    "pages": [161],
+    "meta": {
+      "category": "variation",
+      "key": "masterwork.weaponToHit",
+      "variationKind": "quality",
+      "appliesTo": ["weapon"],
+      "supersedes": ["magical.*"]
+    },
+    "icon": "icons/tools/smithing/hammer-sledge-steel-grey.webp",
+    "variation": [
+      {
+        "field": "cost.add",
+        "from": { "into": "amount", "pattern": "weapon\\s*costing\\s*an\\s*additional\\s*(\\d+)\\s*gp\\s*can\\s*provide" }
+      },
+      {
+        "field": "deltas.bonus",
+        "from": { "into": "amount", "pattern": "can\\s*provide\\s*\\+(\\d+)\\s*to\\s*hit\\s*or" }
+      }
+    ]
+  },
+  {
+    "id": "def.variation.masterworkWeaponDamage",
+    "kind": "kind.variation",
+    "book": "rr",
+    "name": "Masterwork Weapon (Damage)",
+    "anchor": { "runin": "Masterwork Weapon:" },
+    "pages": [161],
+    "meta": {
+      "category": "variation",
+      "key": "masterwork.weaponDamage",
+      "variationKind": "quality",
+      "appliesTo": ["weapon"],
+      "supersedes": ["magical.*"]
+    },
+    "icon": "icons/tools/smithing/anvil.webp",
+    "variation": [
+      {
+        "field": "cost.add",
+        "from": { "into": "amount", "pattern": "weapon\\s*costing\\s*an\\s*additional\\s*(\\d+)\\s*gp\\s*can\\s*provide" }
+      },
+      {
+        "field": "deltas.damage",
+        "from": { "into": "amount", "pattern": "to\\s*hit\\s*or\\s*\\+(\\d+)\\s*to\\s*damage" }
+      }
+    ]
+  },
+  {
+    "id": "def.variation.masterworkWeaponBoth",
+    "kind": "kind.variation",
+    "book": "rr",
+    "name": "Masterwork Weapon (Attack & Damage)",
+    "anchor": { "runin": "Masterwork Weapon:" },
+    "pages": [161],
+    "meta": {
+      "category": "variation",
+      "key": "masterwork.weaponBoth",
+      "variationKind": "quality",
+      "appliesTo": ["weapon"],
+      "supersedes": ["magical.*"]
+    },
+    "icon": "icons/tools/smithing/furnace-fire-metal-orange.webp",
+    "variation": [
+      {
+        "field": "cost.add",
+        "from": { "into": "amount", "pattern": "additional\\s*(\\d+)\\s*gp\\s*can\\s*provide\\s*both" }
+      },
+      {
+        "field": "deltas.bonus",
+        "from": { "into": "amount", "pattern": "provide\\s*both\\s*\\+(\\d+)\\s*to\\s*hit\\s*and\\s*damage" }
+      },
+      {
+        "field": "deltas.damage",
+        "from": { "into": "amount", "pattern": "provide\\s*both\\s*\\+(\\d+)\\s*to\\s*hit\\s*and\\s*damage" }
+      }
+    ]
+  },
+  {
+    "id": "def.variation.ornamented",
+    "kind": "kind.variation",
+    "book": "rr",
+    "name": "Ornamented",
+    "anchor": { "runin": "Masterwork Weapon:" },
+    "pages": [161],
+    "meta": {
+      "category": "variation",
+      "key": "appearance.ornamented",
+      "variationKind": "appearance",
+      "appliesTo": [],
+      "supersedes": []
+    },
+    "icon": "icons/commodities/metal/ingot-engraved-gold.webp"
+  },
+  {
+    "id": "def.variation.masterworkArmorLight",
+    "kind": "kind.variation",
+    "book": "rr",
+    "name": "Masterwork Armor (Lightened)",
+    "anchor": { "runin": "Masterwork Armor:" },
+    "pages": [161],
+    "meta": {
+      "category": "variation",
+      "key": "masterwork.armorLight",
+      "variationKind": "quality",
+      "appliesTo": ["armor", "shield"],
+      "supersedes": ["magical.*"]
+    },
+    "icon": "icons/tools/smithing/plate-steel-grey.webp",
+    "variation": [
+      {
+        "field": "cost.add",
+        "from": { "into": "amount", "pattern": "armor\\s*costing\\s*an\\s*additional\\s*(\\d+)\\s*gp\\s*weighs" }
+      },
+      {
+        "field": "deltas.stoneLighter",
+        "from": { "into": "amount", "pattern": "gp\\s*weighs\\s*(\\w+)\\s*less\\s*stone" }
+      }
+    ]
+  },
+  {
+    "id": "def.variation.masterworkArmorAC",
+    "kind": "kind.variation",
+    "book": "rr",
+    "name": "Masterwork Armor (Protection)",
+    "anchor": { "runin": "Masterwork Armor:" },
+    "pages": [161],
+    "meta": {
+      "category": "variation",
+      "key": "masterwork.armorAC",
+      "variationKind": "quality",
+      "appliesTo": ["armor", "shield"],
+      "supersedes": ["magical.*"]
+    },
+    "icon": "icons/commodities/metal/armor-plate-reticulated.webp",
+    "variation": [
+      {
+        "field": "cost.add",
+        "from": { "into": "amount", "pattern": "armor\\s*costing\\s*an\\s*additional\\s*(\\d+)\\s*gp\\s*provides" }
+      },
+      {
+        "field": "deltas.ac",
+        "from": { "into": "amount", "pattern": "gp\\s*provides\\s*\\+(\\d+)\\s*AC" }
+      }
+    ]
+  }
+]

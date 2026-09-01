@@ -1,6 +1,6 @@
 ---
 title: Report a bug
-description: Where bug reports go for ACKS II — Extras and ACKS II — Importer, which module owns which symptom, and what makes a report easy to act on.
+description: Where bug reports go for ACKS II — Extras, the importer included, and what makes a report easy to act on.
 ---
 
 Something misbehaved at the table? Reports are welcome — every one is
@@ -8,22 +8,18 @@ investigated, and you will hear back on the issue whether the answer is a
 fix, a documentation improvement, a design-feedback note, or an explanation
 of what the module was doing and why.
 
-Two modules share this site, and each keeps its own issue queue. Pick by
-symptom, not by which module you installed first — and don't worry about
-getting it wrong; a misfiled report is rerouted, not dropped.
+One module, one issue queue — the importer is part of ACKS II — Extras, so a
+problem connecting or importing a book goes to the same form as a problem on a
+sheet. The form has an optional field for which book, if that is where it
+happened.
 
 ## Where to file
 
 <ul class="acks-buy">
   <li>
     <h3>ACKS II — Extras</h3>
-    <p>Everything on the sheet and at the table: class documents and the class builder, proficiencies and class powers, equipment and encumbrance, formations and marching order, henchmen and hirelings, influence and reactions, places and markets, monster stat blocks.</p>
-    <p><a href="https://github.com/NocTempre/foundryvtt-acks-extras/issues/new?template=bug_report.yml">File an Extras bug report</a></p>
-  </li>
-  <li>
-    <h3>ACKS II — Importer</h3>
-    <p>Connecting your books, importing content and tables from them, page references, and the Getting Started dialog that opens at launch.</p>
-    <p><a href="https://github.com/NocTempre/foundryvtt-acks-importer/issues/new?template=bug_report.yml">File an Importer bug report</a></p>
+    <p>Everything on the sheet and at the table: class documents and the class builder, proficiencies and class powers, equipment and encumbrance, formations and marching order, henchmen and hirelings, influence and reactions, places and markets, monster stat blocks — and connecting your books, importing content and tables from them, and the Getting Started band in the Books window.</p>
+    <p><a href="https://github.com/NocTempre/foundryvtt-acks-extras/issues/new?template=bug_report.yml">File a bug report</a></p>
   </li>
 </ul>
 
@@ -34,6 +30,8 @@ walks you through everything below.
 
 - **Versions** — the module's and Foundry's. Both are on the form, and both
   matter: the bug you hit may already be fixed in a newer release.
+- **Which book**, if it happened while connecting or importing one — by name,
+  and the printing or PDF release if you know it.
 - **What you did and what you saw**, step by step. Which sheet, which
   button, which actor or item. "Encumbrance is wrong" takes a conversation;
   "I dragged a shield onto Marcus and his stone count didn't change" takes a

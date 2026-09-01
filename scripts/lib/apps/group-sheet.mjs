@@ -16,13 +16,13 @@
  * stack's `size.current` and roster so the invariant is never edited into an
  * inconsistent state.
  */
-import { MODULE_ID } from "../constants.mjs";
+import { MODULE_ID, GROUP_TYPE } from "../constants.mjs";
 import { GROUP_CATEGORY, GROUP_STATE } from "../data/group-data.mjs";
 import * as groups from "../group.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
-export const GROUP_TYPE = `${MODULE_ID}.group`;
+export { GROUP_TYPE };
 
 /**
  * The sheet for a STACK — a headcount plus a roster of the individuals in it,

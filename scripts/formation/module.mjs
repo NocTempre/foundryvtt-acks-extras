@@ -631,7 +631,7 @@ Hooks.once("ready", () => {
   registerMapSocket();
   registerLostSocket();
   registerRequestSocket();
-  // Index the skill ladders acks-content imported (item directory or the world
+  // Index the skill ladders the importer imported (item directory or the world
   // compendium it writes to when importToCompendium is on).
   initLadders();
   // A party holed up in a city has no movement to read, so its stay is

@@ -14,10 +14,10 @@ import { MODULE_ID } from "./constants.mjs";
 import { findByRef, templatePartOf } from "./registry.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { libraryItems } from "../lib/library.mjs";
+import { libraryItems, cookbookId } from "../lib/library.mjs";
 
 /** The ref a world item is addressed by (the importer's stamp, else uuid). */
-export const refOf = (item) => item.flags?.["acks-importer"]?.cookbook?.id ?? `uuid:${item.uuid}`;
+export const refOf = (item) => cookbookId(item) || `uuid:${item.uuid}`;
 
 /** The ref an owned copy was granted from, stamped when this file granted it. */
 const grantedFrom = (item) => item.flags?.[MODULE_ID]?.grantedFrom ?? null;

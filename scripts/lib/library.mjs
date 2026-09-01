@@ -2,12 +2,12 @@
 /**
  * The imported library, wherever it lives.
  *
- * acks-importer materializes a world's books into WORLD COMPENDIUMS — one pack
- * per document type, labelled "ACKS Cookbook — <Type>". Everything in this
- * module that used to read `game.items` for a class, a race, a proficiency or
- * a language was reading the sidebar, which is now empty of all of them: the
- * class list rendered blank, `findByRef` answered null for every imported ref,
- * and chargen offered no proficiencies at all.
+ * The importer subsystem materializes a world's books into WORLD COMPENDIUMS
+ * — one pack per document type, labelled "ACKS Cookbook — <Type>". Everything
+ * in this module that used to read `game.items` for a class, a race, a
+ * proficiency or a language was reading the sidebar, which is now empty of
+ * all of them: the class list rendered blank, `findByRef` answered null for
+ * every imported ref, and chargen offered no proficiencies at all.
  *
  * THE SIDEBAR STILL COUNTS. A Judge's own homebrew class lives there, and so
  * do the class-template packages — bundles and their skinned gear, deliberately
@@ -25,8 +25,11 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 
-/** The module whose imports this reads. Not ours — we only consume them. */
-export const IMPORTER_ID = "acks-importer";
+/**
+ * The definition id the importer stamped on a document, or the empty string;
+ * the ONE read of that stamp.
+ */
+export const cookbookId = (doc) => String(doc?.flags?.[MODULE_ID]?.cookbook?.id ?? "");
 
 /** How the importer labels its packs. Matching its `packLabel`. */
 const PACK_LABEL_PREFIX = "ACKS Cookbook — ";
@@ -122,10 +125,7 @@ export const libraryActors = () => libraryDocs("Actor");
 export function byCookbookId(type, id) {
   if (!id) return null;
   return (
-    libraryDocs(type).find(
-      (d) =>
-        d.flags?.[IMPORTER_ID]?.cookbook?.id === id && !d.flags?.[MODULE_ID]?.templatePart,
-    ) ?? null
+    libraryDocs(type).find((d) => cookbookId(d) === id && !d.flags?.[MODULE_ID]?.templatePart) ?? null
   );
 }
 

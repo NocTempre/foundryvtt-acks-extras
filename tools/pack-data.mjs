@@ -27,9 +27,10 @@ import { packs as influence } from "./pack-data/influence.mjs";
 import { packs as lib } from "./pack-data/lib.mjs";
 import { packs as location } from "./pack-data/location.mjs";
 import { packs as monsters } from "./pack-data/monsters.mjs";
+import { packs as importer } from "./pack-data/importer.mjs";
 import { packs as cleanup } from "./pack-data/cleanup.mjs";
 
-const FEATURES = { lib, abilities, equipment, formation, henchmen, influence, location, monsters, cleanup };
+const FEATURES = { lib, abilities, equipment, formation, henchmen, influence, location, monsters, importer, cleanup };
 
 /** Deterministic 16-char id under the module's declared idPrefix ("acks"). */
 const did = (seed) => "acks" + crypto.createHash("sha1").update(seed).digest("hex").slice(0, 12);
@@ -66,7 +67,17 @@ function collect() {
     }
   }
   if (out.macros?.length) {
-    out.macros = [macroFolder(), ...out.macros.map((m) => ({ ...m, folder: MACRO_FOLDER_ID }))];
+    // A macro that already names a folder — the importer's own macros, filed
+    // under its two sub-folders — keeps that assignment; only a TOP-level
+    // document (folder: null/undefined: every other feature's flat macros,
+    // and the importer's two sub-folders themselves) is promoted into the
+    // shared folder. That nests the importer's tree one level under "ACKS
+    // Extras" instead of flattening it — a plain overwrite here would have
+    // discarded every macro's own folder assignment.
+    out.macros = [
+      macroFolder(),
+      ...out.macros.map((m) => ({ ...m, folder: m.folder == null ? MACRO_FOLDER_ID : m.folder })),
+    ];
   }
   return out;
 }

@@ -1,0 +1,1706 @@
+{
+  "schema": "acks-cookbook/2",
+  "content": "skills",
+  "entries": {
+    "def.skill.dowsing": {
+      "id": "def.skill.dowsing",
+      "kind": "kind.skill",
+      "name": "Dowsing",
+      "book": "bta",
+      "cite": "BTA p.67",
+      "pages": [
+        68
+      ],
+      "meta": {
+        "category": "classSkill"
+      },
+      "icon": "systems/acks/assets/icons/locate.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 68,
+          "box": {
+            "x0": 322,
+            "x1": 384.93340000000006,
+            "y0": 439,
+            "y1": 448
+          },
+          "text": "Dowsing ("
+        },
+        "description": {
+          "op": "text",
+          "page": 68,
+          "paras": [
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 441,
+                "y1": 747
+              },
+              "fixes": {
+                "joinSpace": [
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  11,
+                  12,
+                  13,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  25,
+                  26,
+                  27,
+                  28,
+                  29,
+                  30,
+                  32,
+                  33,
+                  34,
+                  35,
+                  36,
+                  37,
+                  38,
+                  39,
+                  40,
+                  42,
+                  43,
+                  44,
+                  46,
+                  47,
+                  48,
+                  50,
+                  51,
+                  52
+                ],
+                "drop": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.backstabbing": {
+      "id": "def.skill.backstabbing",
+      "kind": "kind.skill",
+      "name": "Backstabbing",
+      "book": "rr",
+      "cite": "RR p.30",
+      "pages": [
+        32
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "icon": "systems/acks/assets/icons/backstab.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 32,
+          "box": {
+            "x0": 43,
+            "x1": 96.78499999999998,
+            "y0": 531,
+            "y1": 540
+          },
+          "text": "Backstabbing:"
+        },
+        "description": {
+          "op": "text",
+          "page": 32,
+          "paras": [
+            {
+              "box": {
+                "x0": 45,
+                "x1": 334,
+                "y0": 533,
+                "y1": 609
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  20,
+                  25,
+                  27
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "attackThrow",
+              "mode": "add",
+              "condition": "backstabbing a vulnerable opponent",
+              "from": {
+                "pattern": "backstabbing[^.]{0,40}?\\+\\s*(\\d+)\\s*bonus\\s*to\\s*hit"
+              }
+            },
+            {
+              "type": "capability",
+              "condition": "backstabbing a vulnerable opponent",
+              "note": "Extra damage dice are added as the thief gains levels; the description states the levels, and the class table the die count."
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.climbing": {
+      "id": "def.skill.climbing",
+      "kind": "kind.skill",
+      "name": "Climbing",
+      "book": "rr",
+      "cite": "RR p.30",
+      "pages": [
+        32
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "audited": true,
+      "icon": "systems/acks/assets/icons/climb-walls.webp",
+      "iconNiche": "modules/game-icons-net/blacktransparent/mountain-climbing.svg",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 32,
+          "box": {
+            "x0": 43,
+            "x1": 82.00699999999999,
+            "y0": 621,
+            "y1": 630
+          },
+          "text": "Climbing:"
+        },
+        "description": {
+          "op": "text",
+          "page": 32,
+          "paras": [
+            {
+              "box": {
+                "x0": 45,
+                "x1": 334,
+                "y0": 623,
+                "y1": 739
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "progression": {
+          "op": "progression",
+          "page": 33,
+          "levelBox": {
+            "x0": 80.2045,
+            "x1": 104.2045,
+            "y0": 224.74,
+            "y1": 380.1597
+          },
+          "valueBox": {
+            "x0": 115.8625,
+            "x1": 149.8625,
+            "y0": 224.74,
+            "y1": 380.1597
+          }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Climbing",
+              "mode": "add",
+              "condition": "climbing at one-half combat speed",
+              "from": {
+                "pattern": "one-half\\s*combat\\s*speed[^.]{0,40}?(-\\s*\\d+)\\s*penalty"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Climbing",
+              "mode": "add",
+              "condition": "climbing at full combat speed",
+              "from": {
+                "pattern": "full\\s*combat\\s*speed[^.]{0,40}?(-\\s*\\d+)\\s*penalty"
+              }
+            },
+            {
+              "type": "outcome",
+              "trigger": "failure",
+              "consequence": "the climber falls",
+              "note": "Fall distance and damage as the entry states them - the formula involves dice and a midpoint, which no numeric field can honestly carry."
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.hiding": {
+      "id": "def.skill.hiding",
+      "kind": "kind.skill",
+      "name": "Hiding",
+      "book": "rr",
+      "cite": "RR p.31",
+      "pages": [
+        33
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "icon": "systems/acks/assets/icons/hide-in-shadows.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 33,
+          "box": {
+            "x0": 70,
+            "x1": 99.93499999999999,
+            "y0": 391,
+            "y1": 400
+          },
+          "text": "Hiding:"
+        },
+        "description": {
+          "op": "text",
+          "page": 33,
+          "paras": [
+            {
+              "box": {
+                "x0": 67,
+                "x1": 322.5,
+                "y0": 393,
+                "y1": 479
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 67,
+                "x1": 322.5,
+                "y0": 493,
+                "y1": 589
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12
+                ]
+              }
+            }
+          ]
+        },
+        "progression": {
+          "op": "progression",
+          "page": 33,
+          "levelBox": {
+            "x0": 80.2045,
+            "x1": 104.2045,
+            "y0": 224.74,
+            "y1": 380.1597
+          },
+          "valueBox": {
+            "x0": 161.6591,
+            "x1": 195.6591,
+            "y0": 224.74,
+            "y1": 380.1597
+          }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "surprise",
+              "appliesTo": "opponent",
+              "mode": "add",
+              "condition": "stationary in cover, dim light, or darkness",
+              "note": "Applies whether or not the Hiding throw succeeded.",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\s*\\d+)\\s*penalty\\s*to\\s*surprise"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "attackThrow",
+              "appliesTo": "opponent",
+              "mode": "add",
+              "condition": "while hidden; opponent knows his general location",
+              "note": "An opponent that does not know the location cannot attack him at all.",
+              "from": {
+                "pattern": "attack\\s*him\\s*in\\s*melee\\s*at\\s*a\\s*(-\\s*\\d+)\\s*penalty"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.listening": {
+      "id": "def.skill.listening",
+      "kind": "kind.skill",
+      "name": "Listening",
+      "book": "rr",
+      "cite": "RR p.31",
+      "pages": [
+        33
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "audited": true,
+      "icon": "systems/acks/assets/icons/human-ear.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 33,
+          "box": {
+            "x0": 70,
+            "x1": 108.49399999999999,
+            "y0": 601,
+            "y1": 610
+          },
+          "text": "Listening:"
+        },
+        "description": {
+          "op": "text",
+          "page": 33,
+          "paras": [
+            {
+              "box": {
+                "x0": 67,
+                "x1": 322.5,
+                "y0": 603,
+                "y1": 699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "progression": {
+          "op": "progression",
+          "page": 33,
+          "levelBox": {
+            "x0": 80.2045,
+            "x1": 104.2045,
+            "y0": 224.74,
+            "y1": 380.1597
+          },
+          "valueBox": {
+            "x0": 210.259,
+            "x1": 244.259,
+            "y0": 224.74,
+            "y1": 380.1597
+          }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "limitation",
+              "restriction": "One use per turn while the party is moving"
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.lockpicking": {
+      "id": "def.skill.lockpicking",
+      "kind": "kind.skill",
+      "name": "Lockpicking",
+      "book": "rr",
+      "cite": "RR p.31",
+      "pages": [
+        33
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "audited": true,
+      "icon": "systems/acks/assets/icons/lockpicking.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 33,
+          "box": {
+            "x0": 326.5,
+            "x1": 376.3151,
+            "y0": 391,
+            "y1": 400
+          },
+          "text": "Lockpicking:"
+        },
+        "description": {
+          "op": "text",
+          "page": 33,
+          "paras": [
+            {
+              "box": {
+                "x0": 323.5,
+                "x1": 612,
+                "y0": 393,
+                "y1": 419
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 323.5,
+                "x1": 612,
+                "y0": 433,
+                "y1": 519
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 323.5,
+                "x1": 612,
+                "y0": 533,
+                "y1": 599
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 323.5,
+                "x1": 612,
+                "y0": 613,
+                "y1": 629
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "progression": {
+          "op": "progression",
+          "page": 33,
+          "levelBox": {
+            "x0": 80.2045,
+            "x1": 104.2045,
+            "y0": 224.74,
+            "y1": 380.1597
+          },
+          "valueBox": {
+            "x0": 266.7791,
+            "x1": 300.7791,
+            "y0": 224.74,
+            "y1": 380.1597
+          }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Lockpicking",
+              "mode": "add",
+              "appliesToRoll": "methodical",
+              "condition": "methodical attempt (one turn); not a hasty attempt",
+              "from": {
+                "pattern": "methodically\\s*pick\\s*a\\s*lock[\\s\\S]{0,140}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
+              },
+              "note": "Applies only to the methodical method; a hasty attempt uses the unmodified throw."
+            },
+            {
+              "type": "outcome",
+              "trigger": "naturalBand",
+              "consequence": "the pick breaks in the lock, jamming it",
+              "condition": "hasty attempt (one round)",
+              "from": {
+                "into": "naturalMax",
+                "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*1\\s*[-–—]\\s*(\\d+)\\s*,\\s*the\\s*thief\\s*breaks"
+              }
+            },
+            {
+              "type": "outcome",
+              "trigger": "naturalBand",
+              "consequence": "the pick breaks in the lock, jamming it",
+              "condition": "methodical attempt (one turn)",
+              "from": {
+                "into": "naturalMax",
+                "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*(1)\\s*,\\s*the\\s*thief\\s*breaks"
+              }
+            }
+          ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "hasty",
+              "label": {
+                "pattern": "(hastily)"
+              },
+              "target": {
+                "fromProgression": true
+              },
+              "condition": "one round; botch band applies on a low natural roll"
+            },
+            {
+              "key": "methodical",
+              "label": {
+                "pattern": "(methodically)"
+              },
+              "target": {
+                "fromProgression": true
+              },
+              "condition": "one turn; add the methodical bonus; repeatable"
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.pickpocketing": {
+      "id": "def.skill.pickpocketing",
+      "kind": "kind.skill",
+      "name": "Pickpocketing",
+      "book": "rr",
+      "cite": "RR p.32",
+      "pages": [
+        34
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "audited": true,
+      "icon": "systems/acks/assets/icons/pick-pockets.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 34,
+          "box": {
+            "x0": 43,
+            "x1": 99.9521,
+            "y0": 81,
+            "y1": 90
+          },
+          "text": "Pickpocketing:"
+        },
+        "description": {
+          "op": "text",
+          "page": 34,
+          "paras": [
+            {
+              "box": {
+                "x0": 45,
+                "x1": 294,
+                "y0": 83,
+                "y1": 189
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "progression": {
+          "op": "progression",
+          "page": 33,
+          "levelBox": {
+            "x0": 80.2045,
+            "x1": 104.2045,
+            "y0": 224.74,
+            "y1": 380.1597
+          },
+          "valueBox": {
+            "x0": 332.299,
+            "x1": 366.299,
+            "y0": 224.74,
+            "y1": 380.1597
+          }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Pickpocketing",
+              "mode": "add",
+              "condition": "target is unaware of the thief",
+              "from": {
+                "pattern": "unaware\\s*of\\s*the\\s*thief[\\s\\S]{0,60}?\\+(\\d+)\\s*bonus"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "reaction",
+              "mode": "add",
+              "condition": "the victim notices the theft attempt",
+              "from": {
+                "pattern": "reaction\\s*roll\\s*with\\s*a\\s*(-\\d+)\\s*penalt"
+              },
+              "note": "Thrown by the Judge for the victim after a badly failed attempt. A penalty on the thief's own reaction roll, not one he imposes on a roll of someone else's, so it stays appliesTo self."
+            },
+            {
+              "type": "outcome",
+              "trigger": "naturalBand",
+              "consequence": "the intended victim notices the attempt",
+              "condition": "on a failed throw",
+              "from": {
+                "into": "naturalMax",
+                "pattern": "a\\s*natural\\s*roll\\s*of\\s*(1)\\s*or"
+              }
+            },
+            {
+              "type": "outcome",
+              "trigger": "belowFraction",
+              "consequence": "the intended victim notices the attempt",
+              "condition": "on a failed throw",
+              "from": {
+                "into": "belowFraction",
+                "pattern": "less\\s*than\\s*(half)\\s*the\\s*target\\s*value"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.searching": {
+      "id": "def.skill.searching",
+      "kind": "kind.skill",
+      "name": "Searching",
+      "book": "rr",
+      "cite": "RR p.32",
+      "pages": [
+        34
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "icon": "systems/acks/assets/icons/spot.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 34,
+          "box": {
+            "x0": 43,
+            "x1": 83.50909999999999,
+            "y0": 201,
+            "y1": 210
+          },
+          "text": "Searching:"
+        },
+        "description": {
+          "op": "text",
+          "page": 34,
+          "paras": [
+            {
+              "box": {
+                "x0": 45,
+                "x1": 294,
+                "y0": 203,
+                "y1": 249
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 294,
+                "y0": 263,
+                "y1": 339
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 294,
+                "y0": 353,
+                "y1": 429
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 294,
+                "y0": 443,
+                "y1": 519
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 294,
+                "y0": 533,
+                "y1": 589
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        },
+        "progression": {
+          "op": "progression",
+          "page": 33,
+          "levelBox": {
+            "x0": 80.2045,
+            "x1": 104.2045,
+            "y0": 224.74,
+            "y1": 380.1597
+          },
+          "valueBox": {
+            "x0": 393.859,
+            "x1": 427.859,
+            "y0": 224.74,
+            "y1": 380.1597
+          }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "mode": "add",
+              "forWhat": "Searching",
+              "appliesToRoll": "methodical",
+              "condition": "methodical search (one turn), not a hasty one",
+              "from": {
+                "pattern": "methodically\\s*search\\s*requires[\\s\\S]{0,110}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
+              },
+              "note": "Adds to the level-indexed Searching throw. The hasty variant, which takes one round instead of one turn, gets no bonus."
+            },
+            {
+              "type": "limitation",
+              "condition": "hasty search (one round)",
+              "restriction": "One hasty try per area until the thief gains a level",
+              "note": "A methodical search of the same area is still allowed, and may be repeated. A failed throw made while hastily searching on the move spends that area's one hasty attempt."
+            }
+          ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "hasty",
+              "label": {
+                "pattern": "(hastily)"
+              },
+              "target": {
+                "fromProgression": true
+              },
+              "condition": "one round; one try per area until the thief gains a level"
+            },
+            {
+              "key": "methodical",
+              "label": {
+                "pattern": "(methodically)"
+              },
+              "target": {
+                "fromProgression": true
+              },
+              "condition": "one turn; add the methodical bonus; repeatable"
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.shadowySenses": {
+      "id": "def.skill.shadowySenses",
+      "kind": "kind.skill",
+      "name": "Shadowy Senses",
+      "book": "rr",
+      "cite": "RR p.32",
+      "pages": [
+        34
+      ],
+      "meta": {
+        "category": "skill",
+        "provides": [
+          "kw:lightlessvision"
+        ]
+      },
+      "audited": true,
+      "icon": "systems/acks/assets/icons/third-eye.webp",
+      "iconNiche": "modules/game-icons-net/blacktransparent/all-seeing-eye.svg",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 34,
+          "box": {
+            "x0": 43,
+            "x1": 106.87400000000001,
+            "y0": 601,
+            "y1": 610
+          },
+          "text": "Shadowy Senses:"
+        },
+        "description": {
+          "op": "text",
+          "page": 34,
+          "paras": [
+            {
+              "box": {
+                "x0": 45,
+                "x1": 294,
+                "y0": 603,
+                "y1": 729
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "sense",
+              "vision": "lightless",
+              "condition": "moving at combat or exploration speed",
+              "from": {
+                "into": "range",
+                "pattern": "sheds\\s*dim\\s*light\\s*in\\s*a\\s*(\\d+)"
+              },
+              "note": "Sight with no light source, equal to dim light out to the located radius. Usable to fight and to probe for traps."
+            },
+            {
+              "type": "limitation",
+              "restriction": "Fails when deafened or in magical silence"
+            },
+            {
+              "type": "limitation",
+              "restriction": "Fails in bright light or in magical darkness"
+            },
+            {
+              "type": "limitation",
+              "restriction": "No colour or fine detail; cannot read by it"
+            },
+            {
+              "type": "limitation",
+              "restriction": "Counts as dim light, so a foe can still hide"
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.sneaking": {
+      "id": "def.skill.sneaking",
+      "kind": "kind.skill",
+      "name": "Sneaking",
+      "book": "rr",
+      "cite": "RR p.32",
+      "pages": [
+        34
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "icon": "systems/acks/assets/icons/move-silently.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 34,
+          "box": {
+            "x0": 299.5,
+            "x1": 337.39910000000003,
+            "y0": 81,
+            "y1": 90
+          },
+          "text": "Sneaking:"
+        },
+        "description": {
+          "op": "text",
+          "page": 34,
+          "paras": [
+            {
+              "box": {
+                "x0": 295,
+                "x1": 612,
+                "y0": 83,
+                "y1": 129
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 295,
+                "x1": 612,
+                "y0": 143,
+                "y1": 199
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 295,
+                "x1": 612,
+                "y0": 213,
+                "y1": 269
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            }
+          ]
+        },
+        "progression": {
+          "op": "progression",
+          "page": 33,
+          "levelBox": {
+            "x0": 80.2045,
+            "x1": 104.2045,
+            "y0": 224.74,
+            "y1": 380.1597
+          },
+          "valueBox": {
+            "x0": 452.5391,
+            "x1": 486.5391,
+            "y0": 224.74,
+            "y1": 380.1597
+          }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "mode": "add",
+              "forWhat": "Sneaking",
+              "condition": "moving faster than one-half combat speed",
+              "from": {
+                "pattern": "greater\\s*than\\s*one-half\\s*combat\\s*speed,?\\s*he\\s*takes\\s*a\\s*(-\\d+)"
+              },
+              "note": "Exploration speed and one-half combat speed carry no penalty."
+            },
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "mode": "add",
+              "forWhat": "Sneaking",
+              "condition": "running",
+              "from": {
+                "pattern": "If\\s*he\\s*runs,?\\s*he\\s*takes\\s*a\\s*(-\\d+)\\s*penalty"
+              },
+              "note": "Alternative to the faster-than-half-combat-speed penalty, not cumulative with it."
+            },
+            {
+              "type": "modifier",
+              "target": "surprise",
+              "mode": "add",
+              "appliesTo": "opponent",
+              "condition": "thief outside their line of sight",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*surprise"
+              },
+              "note": "Imposed on opponents encountering the thief, whether or not the Sneaking throw succeeded."
+            },
+            {
+              "type": "capability",
+              "condition": "while sneaking (throw succeeded)",
+              "note": "The thief moves in total silence: even an alert creature that makes its Listening throw hears nothing."
+            },
+            {
+              "type": "capability",
+              "condition": "engaging an unengaged foe from the rear",
+              "note": "Engaging an unengaged opponent from the rear while sneaking denies that opponent its free facing change."
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.streetwise": {
+      "id": "def.skill.streetwise",
+      "kind": "kind.skill",
+      "name": "Streetwise",
+      "book": "rr",
+      "cite": "RR p.32",
+      "pages": [
+        34
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "audited": true,
+      "icon": "systems/acks/assets/icons/suspicious.webp",
+      "iconNiche": "modules/game-icons-net/blacktransparent/hooded-figure.svg",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 34,
+          "box": {
+            "x0": 299.5,
+            "x1": 341.20610000000005,
+            "y0": 281,
+            "y1": 290
+          },
+          "text": "Streetwise:"
+        },
+        "description": {
+          "op": "text",
+          "page": 34,
+          "paras": [
+            {
+              "box": {
+                "x0": 295,
+                "x1": 612,
+                "y0": 283,
+                "y1": 379
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "capability",
+              "condition": "has the needed proficiencies or thief skills",
+              "note": "Lets the character undertake hijinks."
+            },
+            {
+              "type": "capability",
+              "note": "Counts as one rank of the Streetwise proficiency; the two do not stack."
+            }
+          ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "identifyForeign",
+              "label": {
+                "pattern": "can\\s*(identify\\s*those\\s*of\\s*other\\s*\\w+\\s*\\w+)"
+              },
+              "target": {
+                "pattern": "other\\s*urban\\s*settlements\\s*with\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+              },
+              "rollType": "above",
+              "formula": "1d20",
+              "condition": "urban settlements other than his home settlement",
+              "note": "Automatic in his own home settlement, with no throw. The Judge may set a harder target for secretive or distant organizations."
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.trapbreaking": {
+      "id": "def.skill.trapbreaking",
+      "kind": "kind.skill",
+      "name": "Trapbreaking",
+      "book": "rr",
+      "cite": "RR p.32",
+      "pages": [
+        34
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "audited": true,
+      "icon": "systems/acks/assets/icons/remove-trap.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 34,
+          "box": {
+            "x0": 299.5,
+            "x1": 353.8061,
+            "y0": 391,
+            "y1": 400
+          },
+          "text": "Trapbreaking:"
+        },
+        "description": {
+          "op": "text",
+          "page": 34,
+          "paras": [
+            {
+              "box": {
+                "x0": 295,
+                "x1": 612,
+                "y0": 393,
+                "y1": 419
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 295,
+                "x1": 612,
+                "y0": 433,
+                "y1": 519
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 295,
+                "x1": 612,
+                "y0": 533,
+                "y1": 609
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 295,
+                "x1": 612,
+                "y0": 623,
+                "y1": 649
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9
+                ]
+              }
+            }
+          ]
+        },
+        "progression": {
+          "op": "progression",
+          "page": 33,
+          "levelBox": {
+            "x0": 80.2045,
+            "x1": 104.2045,
+            "y0": 224.74,
+            "y1": 380.1597
+          },
+          "valueBox": {
+            "x0": 517.629,
+            "x1": 551.629,
+            "y0": 224.74,
+            "y1": 380.1597
+          }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Trapbreaking",
+              "mode": "add",
+              "appliesToRoll": "methodical",
+              "condition": "methodical attempt (one turn)",
+              "from": {
+                "pattern": "methodically\\s*disarm[\\s\\S]{0,120}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
+              },
+              "note": "Applies only to the slow method; a hasty attempt uses the unmodified throw."
+            },
+            {
+              "type": "outcome",
+              "trigger": "naturalBand",
+              "consequence": "the trap is accidentally triggered",
+              "condition": "hasty attempt (one round)",
+              "from": {
+                "into": "naturalMax",
+                "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*1\\s*[-–—]\\s*(\\d+)\\s*,\\s*the\\s*thief\\s*accidentally"
+              }
+            },
+            {
+              "type": "outcome",
+              "trigger": "naturalBand",
+              "consequence": "the trap is accidentally triggered",
+              "condition": "methodical attempt (one turn)",
+              "from": {
+                "into": "naturalMax",
+                "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*(1)\\s*,\\s*the\\s*thief\\s*accidentally"
+              }
+            },
+            {
+              "type": "limitation",
+              "forWhat": "Trapbreaking",
+              "condition": "hasty attempt (one round)",
+              "restriction": "Hasty: one try per trap until he gains a level",
+              "note": "Any other failure only denies the quick fix; a methodical attempt on the same trap is still open. TODO: retry rules await their own primitive per the owner's 2026-08-01 note."
+            }
+          ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "hasty",
+              "label": {
+                "pattern": "(hastily)"
+              },
+              "target": {
+                "fromProgression": true
+              },
+              "condition": "one round; botch band applies on a low natural roll"
+            },
+            {
+              "key": "methodical",
+              "label": {
+                "pattern": "(methodically)"
+              },
+              "target": {
+                "fromProgression": true
+              },
+              "condition": "one turn; add the methodical bonus; repeatable"
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.deciphering": {
+      "id": "def.skill.deciphering",
+      "kind": "kind.skill",
+      "name": "Deciphering",
+      "book": "rr",
+      "cite": "RR p.33",
+      "pages": [
+        35
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "audited": true,
+      "icon": "systems/acks/assets/icons/open-book.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 35,
+          "box": {
+            "x0": 70,
+            "x1": 157.09120000000001,
+            "y0": 124,
+            "y1": 130
+          },
+          "text": "Deciphering (4level):"
+        },
+        "description": {
+          "op": "text",
+          "page": 35,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 184,
+                "y0": 123,
+                "y1": 179
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "drop": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.skill.hideout": {
+      "id": "def.skill.hideout",
+      "kind": "kind.skill",
+      "name": "Hideout",
+      "book": "rr",
+      "cite": "RR p.33",
+      "pages": [
+        35
+      ],
+      "meta": {
+        "category": "skill"
+      },
+      "icon": "systems/acks/assets/icons/dungeon-hide.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 35,
+          "box": {
+            "x0": 70,
+            "x1": 141.31900000000002,
+            "y0": 194,
+            "y1": 200
+          },
+          "text": "Hideout (9level):"
+        },
+        "description": {
+          "op": "text",
+          "page": 35,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 304,
+                "y0": 193,
+                "y1": 299
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7,
+                  8,
+                  9,
+                  10,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20
+                ],
+                "drop": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "companion",
+              "condition": "owns a hideout worth at least the printed sum",
+              "note": "Novice thief followers. Both how many arrive and how long they take are rolled on the page's own dice. At least one is a plant spying for a local rival; any the thief hires draw the standard ruffian wage."
+            },
+            {
+              "type": "capability",
+              "note": "The followers can be built into a criminal syndicate; those rules are printed in the Campaigns chapter."
+            }
+          ]
+        }
+      }
+    }
+  }
+}

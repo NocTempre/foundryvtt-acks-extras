@@ -1,0 +1,46 @@
+{
+  "registry": "subtype",
+  "shape": "keyword",
+  "note": "Monster subtypes are repeated keywords with no descriptor text (no page, no tooltip). Grown by promotion as pages are authored.",
+  "tokens": {
+    "bestial": {
+      "key": "bestial"
+    },
+    "angel": {
+      "key": "angel"
+    },
+    "wild": {
+      "key": "wild"
+    },
+    "sapient": {
+      "key": "sapient"
+    },
+    "demi-human": {
+      "key": "demiHuman"
+    },
+    "giant": {
+      "key": "giant"
+    },
+    "domestic": {
+      "key": "domestic"
+    },
+    "elemental": {
+      "key": "elemental"
+    },
+    "prehistoric": {
+      "key": "prehistoric"
+    },
+    "demon": {
+      "key": "demon"
+    },
+    "domestic or wild": {
+      "key": "domesticOrWild"
+    },
+    "angel or demon": {
+      "key": "angelOrDemon"
+    },
+    "dire": {
+      "key": "dire"
+    }
+  }
+}

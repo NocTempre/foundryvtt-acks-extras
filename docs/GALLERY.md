@@ -1,6 +1,6 @@
 # Gallery
 
-**Twelve plates — one per feature guide.** This is the highlight reel, not the
+**Thirteen plates — one per feature guide.** This is the highlight reel, not the
 archive: for each feature area, the one shot that best answers "what does this
 module actually do?", and nothing else.
 
@@ -17,6 +17,7 @@ the next refresh.
 
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
+| Importing from your books | The book loader, whole: the server list folded behind its count, the picker that puts a library there at once, and Add to server on the rows of books this computer has never opened | [guide](guides/importer.md#connecting-a-book) | [importer v4.2.1](releases/importer/v4.2.1/book-loader.png) |
 | Battlemaps and token scale | Hex terrain painted onto a scene as Regions — the Terrain Brush open, several cells claimed by different ground, and one terrain per hex however often you paint over it | [guide](guides/battlemap.md) | [v5.0.0](releases/v5.0.0/battlemap-terrain.png) |
 | Characters and classes | Rolling a character: the attribute rule and the scores, the class above the template die, and what is left to choose | [guide](guides/classes.md) | [v5.0.0](releases/v5.0.0/classes-chargen.png) |
 | Class paths | A class's groups of mutually exclusive options — a region, a dark path, a caste — with the starting templates shown as one of those groups | [guide](guides/classes.md) | [v5.0.0](releases/v5.0.0/classes-paths.png) |
@@ -30,8 +31,8 @@ the next refresh.
 | Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v5.0.0](releases/v5.0.0/markets.png) |
 | Vehicles | A galley's stations: every seat group with what it requires and who fills it, named hands as chips beside the unnamed complement, an empty officer's chair stating what it costs, and the hold below | [guide](guides/vehicles.md) | [v5.0.0](releases/v5.0.0/vehicles.png) |
 
-There is no plate for [Appearance](guides/appearance.md), the twelfth guide,
-because the ACKS look is in all eleven of the above. A plate of its own would
+There is no plate for [Appearance](guides/appearance.md), the thirteenth guide,
+because the ACKS look is in all of the above. A plate of its own would
 show what every other plate already shows.
 
 ## Adding to it

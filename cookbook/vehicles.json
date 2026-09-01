@@ -1,0 +1,217 @@
+{
+  "schema": "acks-cookbook/2",
+  "content": "vehicles",
+  "entries": {
+    "def.vehicle.landTable": {
+      "id": "def.vehicle.landTable",
+      "kind": "kind.vehicle",
+      "name": "Vehicles",
+      "book": "rr",
+      "cite": "",
+      "pages": [
+        136
+      ],
+      "meta": {
+        "category": "vehicle",
+        "kindOfVehicle": "land"
+      },
+      "icon": "icons/environment/settlement/wagon.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 136,
+          "box": {
+            "x0": 41,
+            "x1": 121.42199999999998,
+            "y0": 83,
+            "y1": 95
+          },
+          "text": "Vehicles"
+        },
+        "grids.land": {
+          "op": "grid",
+          "page": 136,
+          "box": {
+            "x0": 45,
+            "x1": 575,
+            "y0": 128,
+            "y1": 345
+          },
+          "label": {
+            "x0": 45,
+            "x1": 208
+          },
+          "cols": [
+            {
+              "key": "crew",
+              "x0": 208,
+              "x1": 256,
+              "pattern": "raw"
+            },
+            {
+              "key": "movement",
+              "x0": 256,
+              "x1": 310,
+              "pattern": "raw"
+            },
+            {
+              "key": "expedition",
+              "x0": 310,
+              "x1": 366,
+              "pattern": "raw"
+            },
+            {
+              "key": "cargo",
+              "x0": 366,
+              "x1": 413,
+              "pattern": "raw"
+            },
+            {
+              "key": "ac",
+              "x0": 413,
+              "x1": 453,
+              "pattern": "intDash"
+            },
+            {
+              "key": "shp",
+              "x0": 453,
+              "x1": 508,
+              "pattern": "intDash"
+            },
+            {
+              "key": "cost",
+              "x0": 508,
+              "x1": 575,
+              "pattern": "raw"
+            }
+          ]
+        }
+      },
+      "_col": 0
+    },
+    "def.vehicle.seaTable": {
+      "id": "def.vehicle.seaTable",
+      "kind": "kind.vehicle",
+      "name": "Sea Vessels",
+      "book": "rr",
+      "cite": "",
+      "pages": [
+        318,
+        319
+      ],
+      "meta": {
+        "category": "vehicle",
+        "kindOfVehicle": "sea"
+      },
+      "icon": "icons/environment/settlement/ship.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 318,
+          "box": {
+            "x0": 297.5,
+            "x1": 434.51,
+            "y0": 87,
+            "y1": 99
+          },
+          "text": "SEA VESSELS"
+        },
+        "grids.sea": {
+          "op": "grid",
+          "page": 319,
+          "box": {
+            "x0": 45,
+            "x1": 575,
+            "y0": 118,
+            "y1": 350
+          },
+          "label": {
+            "x0": 45,
+            "x1": 155
+          },
+          "cols": [
+            {
+              "key": "sailors",
+              "x0": 155,
+              "x1": 178,
+              "pattern": "raw"
+            },
+            {
+              "key": "rowers",
+              "x0": 178,
+              "x1": 208,
+              "pattern": "raw"
+            },
+            {
+              "key": "marines",
+              "x0": 208,
+              "x1": 235,
+              "pattern": "raw"
+            },
+            {
+              "key": "oarSprint",
+              "x0": 235,
+              "x1": 268,
+              "pattern": "raw"
+            },
+            {
+              "key": "oarCruise",
+              "x0": 268,
+              "x1": 302,
+              "pattern": "raw"
+            },
+            {
+              "key": "oarSlow",
+              "x0": 302,
+              "x1": 335,
+              "pattern": "raw"
+            },
+            {
+              "key": "sail",
+              "x0": 335,
+              "x1": 368,
+              "pattern": "raw"
+            },
+            {
+              "key": "voyageOar",
+              "x0": 368,
+              "x1": 398,
+              "pattern": "raw"
+            },
+            {
+              "key": "voyageSail",
+              "x0": 398,
+              "x1": 425,
+              "pattern": "raw"
+            },
+            {
+              "key": "cargo",
+              "x0": 425,
+              "x1": 465,
+              "pattern": "raw"
+            },
+            {
+              "key": "ac",
+              "x0": 465,
+              "x1": 490,
+              "pattern": "intDash"
+            },
+            {
+              "key": "shp",
+              "x0": 490,
+              "x1": 520,
+              "pattern": "raw"
+            },
+            {
+              "key": "cost",
+              "x0": 520,
+              "x1": 575,
+              "pattern": "raw"
+            }
+          ]
+        }
+      },
+      "_col": 1
+    }
+  }
+}

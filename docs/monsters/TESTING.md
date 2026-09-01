@@ -83,7 +83,7 @@ negative half.
 2. Change the select, then RE-QUERY and tick the checkbox (see above). Read
    back `actor.system.animal` — both writes land through the sheet's own
    submission, with no handler of ours in the path.
-3. `setFlag("acks-importer", "cookbook", …)` and re-render: the legend gains
+3. `setFlag("acks-extras", "cookbook", …)` and re-render: the legend gains
    the `.acksm-cat-tag` badge.
 4. Build `FullMonsterSheet` on the plain monster (see above). It must show
    neither `[data-tab="animal"]` nor any `[name^="system.animal"]` — the part

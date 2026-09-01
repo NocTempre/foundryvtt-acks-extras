@@ -6,7 +6,7 @@
  * the race's attribute minimums and prose.
  *
  * The model is structure only: every rung's numbers and every power the book
- * prints reach a world through acks-importer (`def.race.<key>` cookbook
+ * prints reach a world through the importer (`def.race.<key>` cookbook
  * entries), or are typed by hand. A race document serves both class modes —
  * advanced mode spends its ladder through the builder, and a simple-mode
  * (imported) class may bind one by ref so its racial traits resolve from the

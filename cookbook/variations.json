@@ -1,0 +1,591 @@
+{
+  "schema": "acks-cookbook/2",
+  "content": "variations",
+  "entries": {
+    "def.variation.materialSilver": {
+      "id": "def.variation.materialSilver",
+      "kind": "kind.variation",
+      "name": "Silver",
+      "book": "rr",
+      "cite": "RR p.127",
+      "pages": [
+        129
+      ],
+      "meta": {
+        "category": "variation",
+        "key": "material.silver",
+        "variationKind": "material",
+        "appliesTo": [
+          "weapon"
+        ],
+        "supersedes": []
+      },
+      "icon": "icons/commodities/metal/ingot-silver.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 129,
+          "box": {
+            "x0": 88,
+            "x1": 110.77999999999999,
+            "y0": 631,
+            "y1": 640
+          },
+          "text": "Silver:"
+        },
+        "description": {
+          "op": "text",
+          "page": 129,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 612,
+                "y0": 633,
+                "y1": 709
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  32,
+                  33,
+                  34
+                ],
+                "drop": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        "variation": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "cost.baseMul",
+              "from": {
+                "into": "amount",
+                "pattern": "commissioned\\s*for\\s*(\\d+)\\s*[x\\u00d7]\\s*the\\s*listed\\s*price"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.variation.masterworkWeaponToHit": {
+      "id": "def.variation.masterworkWeaponToHit",
+      "kind": "kind.variation",
+      "name": "Masterwork Weapon (Attack Throw)",
+      "book": "rr",
+      "cite": "RR p.159",
+      "pages": [
+        161
+      ],
+      "meta": {
+        "category": "variation",
+        "key": "masterwork.weaponToHit",
+        "variationKind": "quality",
+        "appliesTo": [
+          "weapon"
+        ],
+        "supersedes": [
+          "magical.*"
+        ]
+      },
+      "icon": "icons/tools/smithing/hammer-sledge-steel-grey.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 161,
+          "box": {
+            "x0": 70,
+            "x1": 150.9641,
+            "y0": 181,
+            "y1": 190
+          },
+          "text": "Masterwork Weapon:"
+        },
+        "description": {
+          "op": "text",
+          "page": 161,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 612,
+                "y0": 183,
+                "y1": 259
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "variation": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "cost.add",
+              "from": {
+                "into": "amount",
+                "pattern": "weapon\\s*costing\\s*an\\s*additional\\s*(\\d+)\\s*gp\\s*can\\s*provide"
+              }
+            },
+            {
+              "field": "deltas.bonus",
+              "from": {
+                "into": "amount",
+                "pattern": "can\\s*provide\\s*\\+(\\d+)\\s*to\\s*hit\\s*or"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.variation.masterworkWeaponDamage": {
+      "id": "def.variation.masterworkWeaponDamage",
+      "kind": "kind.variation",
+      "name": "Masterwork Weapon (Damage)",
+      "book": "rr",
+      "cite": "RR p.159",
+      "pages": [
+        161
+      ],
+      "meta": {
+        "category": "variation",
+        "key": "masterwork.weaponDamage",
+        "variationKind": "quality",
+        "appliesTo": [
+          "weapon"
+        ],
+        "supersedes": [
+          "magical.*"
+        ]
+      },
+      "icon": "icons/tools/smithing/anvil.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 161,
+          "box": {
+            "x0": 70,
+            "x1": 150.9641,
+            "y0": 181,
+            "y1": 190
+          },
+          "text": "Masterwork Weapon:"
+        },
+        "description": {
+          "op": "text",
+          "page": 161,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 612,
+                "y0": 183,
+                "y1": 259
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "variation": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "cost.add",
+              "from": {
+                "into": "amount",
+                "pattern": "weapon\\s*costing\\s*an\\s*additional\\s*(\\d+)\\s*gp\\s*can\\s*provide"
+              }
+            },
+            {
+              "field": "deltas.damage",
+              "from": {
+                "into": "amount",
+                "pattern": "to\\s*hit\\s*or\\s*\\+(\\d+)\\s*to\\s*damage"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.variation.masterworkWeaponBoth": {
+      "id": "def.variation.masterworkWeaponBoth",
+      "kind": "kind.variation",
+      "name": "Masterwork Weapon (Attack & Damage)",
+      "book": "rr",
+      "cite": "RR p.159",
+      "pages": [
+        161
+      ],
+      "meta": {
+        "category": "variation",
+        "key": "masterwork.weaponBoth",
+        "variationKind": "quality",
+        "appliesTo": [
+          "weapon"
+        ],
+        "supersedes": [
+          "magical.*"
+        ]
+      },
+      "icon": "icons/tools/smithing/furnace-fire-metal-orange.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 161,
+          "box": {
+            "x0": 70,
+            "x1": 150.9641,
+            "y0": 181,
+            "y1": 190
+          },
+          "text": "Masterwork Weapon:"
+        },
+        "description": {
+          "op": "text",
+          "page": 161,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 612,
+                "y0": 183,
+                "y1": 259
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "variation": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "cost.add",
+              "from": {
+                "into": "amount",
+                "pattern": "additional\\s*(\\d+)\\s*gp\\s*can\\s*provide\\s*both"
+              }
+            },
+            {
+              "field": "deltas.bonus",
+              "from": {
+                "into": "amount",
+                "pattern": "provide\\s*both\\s*\\+(\\d+)\\s*to\\s*hit\\s*and\\s*damage"
+              }
+            },
+            {
+              "field": "deltas.damage",
+              "from": {
+                "into": "amount",
+                "pattern": "provide\\s*both\\s*\\+(\\d+)\\s*to\\s*hit\\s*and\\s*damage"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.variation.ornamented": {
+      "id": "def.variation.ornamented",
+      "kind": "kind.variation",
+      "name": "Ornamented",
+      "book": "rr",
+      "cite": "RR p.159",
+      "pages": [
+        161
+      ],
+      "meta": {
+        "category": "variation",
+        "key": "appearance.ornamented",
+        "variationKind": "appearance",
+        "appliesTo": [],
+        "supersedes": []
+      },
+      "icon": "icons/commodities/metal/ingot-engraved-gold.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 161,
+          "box": {
+            "x0": 70,
+            "x1": 150.9641,
+            "y0": 181,
+            "y1": 190
+          },
+          "text": "Masterwork Weapon:"
+        },
+        "description": {
+          "op": "text",
+          "page": 161,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 612,
+                "y0": 183,
+                "y1": 259
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.variation.masterworkArmorLight": {
+      "id": "def.variation.masterworkArmorLight",
+      "kind": "kind.variation",
+      "name": "Masterwork Armor (Lightened)",
+      "book": "rr",
+      "cite": "RR p.159",
+      "pages": [
+        161
+      ],
+      "meta": {
+        "category": "variation",
+        "key": "masterwork.armorLight",
+        "variationKind": "quality",
+        "appliesTo": [
+          "armor",
+          "shield"
+        ],
+        "supersedes": [
+          "magical.*"
+        ]
+      },
+      "icon": "icons/tools/smithing/plate-steel-grey.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 161,
+          "box": {
+            "x0": 70,
+            "x1": 149.59249999999997,
+            "y0": 271,
+            "y1": 280
+          },
+          "text": "Masterwork Armor:"
+        },
+        "description": {
+          "op": "text",
+          "page": 161,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 612,
+                "y0": 273,
+                "y1": 339
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  6,
+                  8,
+                  9,
+                  10
+                ],
+                "drop": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  7
+                ]
+              }
+            }
+          ]
+        },
+        "variation": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "cost.add",
+              "from": {
+                "into": "amount",
+                "pattern": "armor\\s*costing\\s*an\\s*additional\\s*(\\d+)\\s*gp\\s*weighs"
+              }
+            },
+            {
+              "field": "deltas.stoneLighter",
+              "from": {
+                "into": "amount",
+                "pattern": "gp\\s*weighs\\s*(\\w+)\\s*less\\s*stone"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.variation.masterworkArmorAC": {
+      "id": "def.variation.masterworkArmorAC",
+      "kind": "kind.variation",
+      "name": "Masterwork Armor (Protection)",
+      "book": "rr",
+      "cite": "RR p.159",
+      "pages": [
+        161
+      ],
+      "meta": {
+        "category": "variation",
+        "key": "masterwork.armorAC",
+        "variationKind": "quality",
+        "appliesTo": [
+          "armor",
+          "shield"
+        ],
+        "supersedes": [
+          "magical.*"
+        ]
+      },
+      "icon": "icons/commodities/metal/armor-plate-reticulated.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 161,
+          "box": {
+            "x0": 70,
+            "x1": 149.59249999999997,
+            "y0": 271,
+            "y1": 280
+          },
+          "text": "Masterwork Armor:"
+        },
+        "description": {
+          "op": "text",
+          "page": 161,
+          "paras": [
+            {
+              "box": {
+                "x0": 65,
+                "x1": 612,
+                "y0": 273,
+                "y1": 339
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  6,
+                  8,
+                  9,
+                  10
+                ],
+                "drop": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  7
+                ]
+              }
+            }
+          ]
+        },
+        "variation": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "cost.add",
+              "from": {
+                "into": "amount",
+                "pattern": "armor\\s*costing\\s*an\\s*additional\\s*(\\d+)\\s*gp\\s*provides"
+              }
+            },
+            {
+              "field": "deltas.ac",
+              "from": {
+                "into": "amount",
+                "pattern": "gp\\s*provides\\s*\\+(\\d+)\\s*AC"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

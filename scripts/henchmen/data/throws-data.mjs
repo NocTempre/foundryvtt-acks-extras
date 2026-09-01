@@ -2,7 +2,7 @@
  * Social-roll AUTOMATION config — this module's own, NOT the book database.
  *
  * Unlike availability/wages/rarity/people (proprietary book tables that ship
- * NOWHERE and are materialized per-seat from the reader's PDF via acks-content
+ * NOWHERE and are materialized per-seat from the reader's PDF via the importer
  * extraction), this file is henchmen's ROLL AUTOMATION: how the module presents
  * and computes its 2d6 social throws. It is expressed entirely in module
  * vocabulary — the universal ACKS 2d6 outcome ladder (2 / 3-5 / 6-8 / 9-11 /

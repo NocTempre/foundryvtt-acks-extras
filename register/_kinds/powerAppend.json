@@ -1,0 +1,9 @@
+{
+  "id": "kind.powerAppend",
+  "role": "definition",
+  "note": "A PLAYER-FACING addendum another book prints for an existing power (RR-primary: RR class text is canonical; JJ appends only when it adds player-facing material). Anchored where the addendum prints; binds as an extra description section on the target power's item, never as its own import. Judge-only commentary does not use this kind.",
+  "fields": {
+    "name": { "locate": "runin" },
+    "description": { "locate": "runinBlock", "type": "blocks" }
+  }
+}

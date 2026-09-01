@@ -683,7 +683,7 @@ t("resolveActor carries preset flags and token fragments", () => {
       options: [{
         key: "lion", label: "Lion", nameLabel: "Cat, Lion",
         merge: { aac: { value: 4 } }, items: [],
-        flags: { "acks-extras": { extras: { classification: "Animal" } }, "acks-content": { cookbook: { id: "mm.catLion" } } },
+        flags: { "acks-extras": { extras: { classification: "Animal" } }, "some-other-module": { cookbook: { id: "mm.catLion" } } },
         token: { width: 2, height: 1 },
       }],
     }],
@@ -691,7 +691,7 @@ t("resolveActor carries preset flags and token fragments", () => {
   const r = resolveActor(fam, { variant: "lion" }, { templateName: "Cat" });
   assert.equal(r.name, "Cat, Lion");
   assert.equal(r.flags["acks-extras"].extras.classification, "Animal");
-  assert.equal(r.flags["acks-content"].cookbook.id, "mm.catLion");
+  assert.equal(r.flags["some-other-module"].cookbook.id, "mm.catLion");
   assert.deepEqual(r.token, { width: 2, height: 1 });
 });
 
@@ -1296,7 +1296,7 @@ const capableActor = (names, provides, statuses = []) => ({
   items: names.map((name) => ({
     type: "ability",
     name,
-    flags: { "acks-importer": { cookbook: { id: "def.skill.shadowySenses" } } },
+    flags: { "acks-extras": { cookbook: { id: "def.skill.shadowySenses" } } },
     getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { provides } : undefined),
   })),
   effects: [],
@@ -1541,7 +1541,7 @@ t("slot capacity: a third ring overfills, and two do not", () => {
 
 /* ------------------- selection vocabularies ------------------- */
 
-const abilityWith = (defId, name = "X") => ({ name, flags: { "acks-importer": { cookbook: { id: defId } } } });
+const abilityWith = (defId, name = "X") => ({ name, flags: { "acks-extras": { cookbook: { id: defId } } } });
 
 t("an ability's own vocabulary wins over its category's", () => {
   // Weapon Focus and Combat Trickery are both category `proficiency`, so a

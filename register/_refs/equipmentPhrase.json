@@ -1,0 +1,187 @@
+{
+  "registry": "equipmentPhrase",
+  "shape": "table",
+  "note": "What a template's Starting Equipment cell calls a thing where the catalogue calls it something else and no rule bridges the two. `as`: catalogue = same object, other words; group = a row the price list files under a category prefix; equivalent = a real-world weapon name used as flavour. Keys match by containment, as menu names do; per-class equipAliases win. Why: docs/DECISIONS.md.",
+  "table": {
+    "hide armor": {
+      "ref": "def.armor.hideAndFurArmor",
+      "as": "catalogue"
+    },
+    "fur armor": {
+      "ref": "def.armor.hideAndFurArmor",
+      "as": "catalogue"
+    },
+    "riding tack and saddle": {
+      "ref": "def.priced.saddle-and-tack-riding",
+      "as": "catalogue"
+    },
+    "draft harness and tack": {
+      "ref": "def.priced.saddle-and-tack-draft",
+      "as": "catalogue"
+    },
+    "large treasure sack": {
+      "ref": "def.equip.sackLarge",
+      "as": "catalogue"
+    },
+    "small hide sack": {
+      "ref": "def.equip.sackSmall",
+      "as": "catalogue"
+    },
+    "quarterstaff": {
+      "ref": "def.weapon.staff",
+      "as": "catalogue"
+    },
+    "weighted net": {
+      "ref": "def.weapon.net",
+      "as": "catalogue"
+    },
+    "pole": {
+      "ref": "def.equip.poleWooden",
+      "as": "catalogue"
+    },
+    "girdle": {
+      "ref": "def.equip.belt",
+      "as": "catalogue"
+    },
+    "case with 30 bolts": {
+      "ref": "def.weapon.case20Bolts",
+      "as": "catalogue"
+    },
+    "aloe": {
+      "ref": "def.equip.herbAloe",
+      "as": "group"
+    },
+    "belladonna": {
+      "ref": "def.equip.herbBelladonna",
+      "as": "group"
+    },
+    "birthwort": {
+      "ref": "def.equip.herbBirthwort",
+      "as": "group"
+    },
+    "bitterwood": {
+      "ref": "def.priced.herb-bitterwood-1-lb",
+      "as": "group"
+    },
+    "blessed thistle": {
+      "ref": "def.equip.herbBlessedThistle",
+      "as": "group"
+    },
+    "comfrey": {
+      "ref": "def.equip.herbComfrey",
+      "as": "group"
+    },
+    "garlic": {
+      "ref": "def.equip.herbGarlic",
+      "as": "group"
+    },
+    "goldenrod": {
+      "ref": "def.equip.herbGoldenrod",
+      "as": "group"
+    },
+    "horsetail": {
+      "ref": "def.equip.herbHorsetail",
+      "as": "group"
+    },
+    "lungwort": {
+      "ref": "def.equip.herbLungwort",
+      "as": "group"
+    },
+    "willow-bark": {
+      "ref": "def.equip.herbWillowBark",
+      "as": "group"
+    },
+    "willowbark": {
+      "ref": "def.equip.herbWillowBark",
+      "as": "group"
+    },
+    "wolfsbane": {
+      "ref": "def.equip.herbWolfsbane",
+      "as": "group"
+    },
+    "woundwort": {
+      "ref": "def.equip.herbWoundwort",
+      "as": "group"
+    },
+    "long bearded axe": {
+      "ref": "def.weapon.greatAxe",
+      "as": "equivalent"
+    },
+    "bearded axe": {
+      "ref": "def.weapon.greatAxe",
+      "as": "equivalent"
+    },
+    "francisca": {
+      "ref": "def.weapon.handAxe",
+      "as": "equivalent"
+    },
+    "scimitar": {
+      "ref": "def.weapon.shortSword",
+      "as": "equivalent"
+    },
+    "glaive": {
+      "ref": "def.weapon.polearm",
+      "as": "equivalent"
+    },
+    "stiletto": {
+      "ref": "def.weapon.dagger",
+      "as": "equivalent"
+    },
+    "scourge": {
+      "ref": "def.weapon.whip",
+      "as": "equivalent"
+    },
+    "ball-and-chain": {
+      "ref": "def.weapon.flail",
+      "as": "equivalent"
+    },
+    "scalpel": {
+      "ref": "def.weapon.knife",
+      "as": "equivalent"
+    },
+    "two-handed iron sword": {
+      "ref": "def.weapon.twoHandedSword",
+      "as": "catalogue"
+    },
+    "silver sacrificial dagger": {
+      "ref": "def.weapon.silverDagger",
+      "as": "catalogue"
+    },
+    "wax candle": {
+      "ref": "def.priced.candle-wax-1-lb",
+      "as": "catalogue"
+    },
+    "week’s rations": {
+      "ref": "def.equip.rationsIron",
+      "as": "catalogue"
+    },
+    "heavy black horned helmet": {
+      "ref": "def.armor.helmetHeavy",
+      "as": "catalogue"
+    },
+    "breast band": {
+      "ref": "def.equip.breastwrap",
+      "as": "catalogue"
+    },
+    "hat": {
+      "ref": "def.equip.hat",
+      "as": "catalogue"
+    },
+    "alchemist’s tools": {
+      "ref": "def.priced.craftsman-s-tools-any",
+      "as": "equivalent"
+    },
+    "freeholder’s dress": {
+      "ref": "def.priced.dress-crafter-freeholder",
+      "as": "catalogue"
+    },
+    "head dress": {
+      "ref": "def.equip.hat",
+      "as": "catalogue"
+    },
+    "headdress": {
+      "ref": "def.equip.hat",
+      "as": "catalogue"
+    }
+  }
+}

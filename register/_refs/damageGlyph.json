@@ -1,0 +1,36 @@
+{
+  "registry": "damageGlyph",
+  "shape": "descriptor",
+  "tokenEncoding": "puaHex",
+  "note": "PUA icon glyphs from the MM Damage table legend (PDF p.14). Tokens are hex codepoints (source stays ASCII, per stats-map.mjs convention); the compiler emits the literal glyph chars into the cookbook table.",
+  "tokens": {
+    "e900": { "key": "acidic", "ref": "def.dmg.acidic" },
+    "e901": { "key": "arcane", "ref": "def.dmg.arcane" },
+    "e902": { "key": "bludgeoning", "ref": "def.dmg.bludgeoning" },
+    "e903": { "key": "necrotic", "ref": "def.dmg.necrotic" },
+    "e904": { "key": "cold", "ref": "def.dmg.cold" },
+    "e905": { "key": "electrical", "ref": "def.dmg.electrical" },
+    "e906": { "key": "fire", "ref": "def.dmg.fire" },
+    "e907": { "key": "luminous", "ref": "def.dmg.luminous" },
+    "e908": { "key": "slashing", "ref": "def.dmg.slashing" },
+    "e90b": { "key": "piercing", "ref": "def.dmg.piercing" },
+    "e90c": { "key": "poisonous", "ref": "def.dmg.poisonous" },
+    "e90d": { "key": "seismic", "ref": "def.dmg.seismic" },
+    "e910": { "key": "varies", "ref": "def.dmg.varies" }
+  },
+  "nodes": {
+    "def.dmg.acidic": { "name": "Acidic", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.arcane": { "name": "Arcane", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.bludgeoning": { "name": "Bludgeoning", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.necrotic": { "name": "Necrotic", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.cold": { "name": "Cold", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.electrical": { "name": "Electrical", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.fire": { "name": "Fire", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.luminous": { "name": "Luminous", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.slashing": { "name": "Slashing", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.piercing": { "name": "Piercing", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.poisonous": { "name": "Poisonous", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.seismic": { "name": "Seismic", "editions": { "acks2": { "book": "mm", "pages": [14] } } },
+    "def.dmg.varies": { "name": "Varies", "editions": { "acks2": { "book": "mm", "pages": [14] } } }
+  }
+}

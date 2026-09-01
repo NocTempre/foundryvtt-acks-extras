@@ -1,0 +1,25 @@
+{
+  "registry": "defenseEffect",
+  "shape": "keyword",
+  "note": "Non-damage effect keywords the executor's defense scan matches in a monster's OWN prose (materialized per seat from that seat's book) — the vocabulary ships, never which apply to which creature. Grown by chefs when a page uses an effect word not listed here.",
+  "tokens": {
+    "enchantment": { "key": "enchantment" },
+    "charm": { "key": "charm" },
+    "sleep": { "key": "sleep" },
+    "hold": { "key": "hold" },
+    "paralysis": { "key": "paralysis" },
+    "petrification": { "key": "petrification" },
+    "death": { "key": "death" },
+    "poison": { "key": "poison" },
+    "disease": { "key": "disease" },
+    "energy drain": { "key": "energyDrain" },
+    "level drain": { "key": "energyDrain" },
+    "fear": { "key": "fear" },
+    "gaze": { "key": "gaze" },
+    "illusion": { "key": "illusion" },
+    "mind-affecting": { "key": "mindAffecting" },
+    "bleeding": { "key": "bleeding" },
+    "critical hits": { "key": "criticalHits" },
+    "surprise": { "key": "surprise" }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "kind.skill",
+  "role": "definition",
+  "note": "Class skills (RR_Thief thief skills; JJ_FV_TV): run-in bold 'Name:' + descriptor block. Level-indexed — the scaling value comes from the class progression table via a progressionAs effect (per-entry assist). Binds to an acks-abilities ability item (category skill).",
+  "fields": {
+    "name": { "locate": "runin" },
+    "description": { "locate": "runinBlock", "type": "blocks" }
+  }
+}

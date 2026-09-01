@@ -104,11 +104,11 @@ meantime.
 The module ships **no book text** — its sample tables are placeholders, and its
 compendium descriptions are authored restatements with page citations.
 
-To use the real tables, the optional
-[ACKS II — Importer](https://github.com/NocTempre/foundryvtt-acks-importer)
-imports content from **your own PDFs** into the structures this module owns.
-Everything here works without it; several features simply have more to work with
-once the tables have been imported.
+To use the real tables, the importer built into the module reads content from
+**your own PDFs** into the structures the rest of it owns — see
+[Importing from your books](../../guides/importer/). Everything works before
+you import; several features simply have more to work with once the tables are
+in.
 
 :::caution
 Prices and availability are the publisher's and change without notice — the

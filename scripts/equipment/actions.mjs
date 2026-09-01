@@ -313,7 +313,7 @@ export async function scavengeItem(item, { roll } = {}) {
   const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
   const tableKey = tableFor(item, profile);
 
-  // THE READER'S OWN TABLE WINS. acks-content extracts RR p160 from the seat's
+  // THE READER'S OWN TABLE WINS. The importer extracts RR p160 from the seat's
   // PDF into the acks-lib ruledata registry; when it is there, the bands, the
   // category names, the effects and the resale percentages all come from that
   // page. The built-in RAW table is only the stand-in for a world that has not

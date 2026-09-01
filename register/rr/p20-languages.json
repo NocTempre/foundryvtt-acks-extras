@@ -1,0 +1,17 @@
+[
+  {
+    "id": "def.classmeta.startingTongues",
+    "kind": "kind.classMeta",
+    "book": "rr",
+    "name": "Starting languages",
+    "anchor": {
+      "label": "LANGUAGES"
+    },
+    "pages": [20],
+    "meta": {
+      "category": "classMeta"
+    },
+    "window": true,
+    "note": "The chargen chapter's LANGUAGES section. Read once per class-import run for the human default: the name the common tongue goes by in this setting, which the binder patterns out of the reader's own sentence. Demi-human classes never consult it - their spreads print a Tongues runin naming the whole list."
+  }
+]

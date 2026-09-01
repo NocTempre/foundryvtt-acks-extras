@@ -1,0 +1,178 @@
+[
+  {
+    "id": "def.drawback.boundWaist",
+    "icon": "icons/magic/control/debuff-chains-ropes-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Bound Waist",
+    "anchor": {
+      "runin": "Bound Waist:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.daggerNails",
+    "icon": "icons/creatures/claws/claw-curved-jagged-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Dagger Nails",
+    "anchor": {
+      "runin": "Dagger Nails:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.darkSoul",
+    "icon": "icons/magic/unholy/silhouette-robe-evil-glow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Dark Soul",
+    "anchor": {
+      "runin": "Dark Soul:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.deadSoul",
+    "icon": "icons/magic/death/skeleton-skull-soul-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Dead Soul",
+    "anchor": {
+      "runin": "Dead Soul:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.discomfitedByCivilization",
+    "icon": "icons/magic/light/beam-strike-village-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Discomfited by Civilization",
+    "anchor": {
+      "runin": "Discomfited by Civilization:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.easilyEncumbered",
+    "icon": "icons/skills/wounds/injury-body-pain-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Easily Encumbered",
+    "anchor": {
+      "runin": "Easily Encumbered:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.reverseHealing",
+    "icon": "icons/magic/life/heart-broken-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Reverse Healing",
+    "anchor": {
+      "runin": "Reverse Healing:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.shortStatured",
+    "icon": "icons/magic/control/silhouette-grow-shrink-tan.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Short-Statured",
+    "anchor": {
+      "runin": "Short-Statured:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.unholy",
+    "icon": "icons/magic/unholy/hands-praying-fire-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Unholy",
+    "anchor": {
+      "runin": "Unholy:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.walkOnSpikes",
+    "icon": "icons/magic/nature/trap-spikes-thorns-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Walk on Spikes",
+    "anchor": {
+      "runin": "Walk on Spikes:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  },
+  {
+    "id": "def.drawback.weak",
+    "icon": "icons/skills/wounds/injury-pain-body-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Weak",
+    "anchor": {
+      "runin": "Weak:"
+    },
+    "pages": [
+      331
+    ],
+    "meta": {
+      "category": "drawback"
+    }
+  }
+]

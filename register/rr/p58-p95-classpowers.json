@@ -1,0 +1,339 @@
+[
+  {
+    "id": "def.power.bladedancerGracefulFighting",
+    "icon": "icons/skills/melee/sword-twirl-orange.webp",
+    "kind": "kind.power",
+    "book": "rr",
+    "name": "Graceful Fighting",
+    "anchor": {
+      "runin": "Graceful Fighting:"
+    },
+    "pages": [
+      58
+    ],
+    "assists": {
+      "columns": [
+        45,
+        176
+      ]
+    },
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "initiative",
+        "mode": "add",
+        "condition": "light, very light, or no armor; 5 stones or less",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*initiative"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "condition": "light, very light, or no armor; 5 stones or less",
+        "stacksWith": [
+          "def.prof.swashbuckling"
+        ],
+        "from": {
+          "on": "level",
+          "pairs": true,
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,40}?At\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+        }
+      },
+      {
+        "type": "modifies",
+        "ref": "def.prof.swashbuckling",
+        "target": "ac",
+        "mode": "set",
+        "condition": "while wearing any armor",
+        "from": {
+          "pattern": "capped\\s*at\\s*\\+\\s*(\\d+)"
+        },
+        "note": "The two stack, but the page caps what Swashbuckling contributes unless the bladedancer is unarmored."
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.bladedancerStrengthOfFaith",
+    "icon": "icons/magic/holy/prayer-hands-glowing-yellow.webp",
+    "kind": "kind.power",
+    "book": "rr",
+    "name": "Strength of Faith",
+    "anchor": {
+      "runin": "Strength of Faith:"
+    },
+    "pages": [
+      59
+    ],
+    "assists": {
+      "columns": [
+        72,
+        328
+      ]
+    },
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "attributeSubstitution",
+        "attribute": "wis",
+        "insteadOf": "str",
+        "target": "damage",
+        "condition": "damage rolls STR would modify"
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.bladedancerWeaponFinesse",
+    "icon": "icons/skills/melee/blade-tip-orange.webp",
+    "kind": "kind.power",
+    "book": "rr",
+    "name": "Weapon Finesse",
+    "anchor": {
+      "runin": "Weapon Finesse:"
+    },
+    "pages": [
+      59
+    ],
+    "assists": {
+      "columns": [
+        72,
+        328
+      ],
+      "descStopY": 418
+    },
+    "meta": {
+      "category": "classPower",
+      "notStacksWith": [
+        "def.prof.weaponFinesse"
+      ]
+    },
+    "effects": [
+      {
+        "type": "attributeSubstitution",
+        "attribute": "dex",
+        "insteadOf": "str",
+        "target": "attackThrow",
+        "condition": "melee, with weapons she is proficient in",
+        "notStacksWith": [
+          "def.prof.weaponFinesse"
+        ],
+        "note": "Narrower than the proficiency of the same name, which covers every tiny, small or medium melee weapon; this covers the weapons the bladedancer is proficient with. The page states the two do not stack."
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.paladinAuraOfProtection",
+    "icon": "icons/magic/defensive/barrier-shield-dome-deflect-blue.webp",
+    "kind": "kind.power",
+    "book": "rr",
+    "name": "Aura of Protection",
+    "anchor": {
+      "runin": "Aura of Protection:"
+    },
+    "pages": [
+      62
+    ],
+    "assists": {
+      "columns": [
+        45,
+        300
+      ]
+    },
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*AC"
+        },
+        "condition": "vs attacks and effects by evil creatures"
+      },
+      {
+        "type": "modifier",
+        "target": "save",
+        "mode": "add",
+        "condition": "vs attacks and effects by evil creatures",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*(?:to|on)\\s*saving\\s*throws"
+        }
+      }
+    ],
+    "audited": "2026-07-29"
+  },
+  {
+    "id": "def.power.paladinLayOnHands",
+    "icon": "icons/magic/life/heart-hand-gold-green.webp",
+    "kind": "kind.power",
+    "book": "rr",
+    "name": "Lay on Hands",
+    "anchor": {
+      "runin": "Lay on Hands:"
+    },
+    "pages": [
+      62
+    ],
+    "assists": {
+      "columns": [
+        45,
+        300
+      ]
+    },
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "hp",
+        "appliesTo": "ally",
+        "mode": "add",
+        "condition": "wounded creature",
+        "from": {
+          "as": "perLevel",
+          "pattern": "restore\\s*(\\d+)\\s*hit\\s*points\\s*per\\s*experience\\s*level"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "mortalWounds",
+        "appliesTo": "ally",
+        "mode": "add",
+        "condition": "incapacitated creature",
+        "from": {
+          "as": "perLevel",
+          "round": "up",
+          "pattern": "throw\\s*of\\s*(one-half|half)\\s*(?:his|her)\\s*class\\s*level"
+        }
+      },
+      {
+        "type": "conditionRemove",
+        "conditions": [
+          "paralysis"
+        ],
+        "appliesTo": "ally",
+        "condition": "paralyzed creature"
+      },
+      {
+        "type": "capability",
+        "frequency": "perDay",
+        "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.priestessLayOnHands",
+    "icon": "icons/magic/life/heart-hand-gold-green.webp",
+    "kind": "kind.power",
+    "book": "rr",
+    "name": "Lay on Hands",
+    "anchor": {
+      "runin": "Lay on Hands:"
+    },
+    "pages": [
+      67
+    ],
+    "assists": {
+      "columns": [
+        72,
+        328
+      ]
+    },
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "hp",
+        "appliesTo": "ally",
+        "mode": "add",
+        "condition": "wounded creature",
+        "from": {
+          "as": "perLevel",
+          "pattern": "restore\\s*(\\d+)\\s*hit\\s*points\\s*per\\s*experience\\s*level"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "mortalWounds",
+        "appliesTo": "ally",
+        "mode": "add",
+        "condition": "incapacitated creature",
+        "from": {
+          "as": "perLevel",
+          "round": "up",
+          "pattern": "throw\\s*of\\s*(one-half|half)\\s*(?:his|her)\\s*class\\s*level"
+        }
+      },
+      {
+        "type": "conditionRemove",
+        "conditions": [
+          "paralysis"
+        ],
+        "appliesTo": "ally",
+        "condition": "paralyzed creature"
+      },
+      {
+        "type": "capability",
+        "frequency": "perDay",
+        "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.wonderworkerLayOnHands",
+    "icon": "icons/magic/life/heart-hand-gold-green.webp",
+    "kind": "kind.power",
+    "book": "rr",
+    "name": "Lay on Hands",
+    "anchor": {
+      "runin": "Lay on Hands:"
+    },
+    "pages": [
+      95
+    ],
+    "assists": {
+      "columns": [
+        72,
+        328
+      ],
+      "descStopY": 478
+    },
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "hp",
+        "appliesTo": "ally",
+        "mode": "add",
+        "from": {
+          "as": "perLevel",
+          "pattern": "heal\\s*(\\d+)\\s*damage\\s*per\\s*class\\s*level"
+        }
+      },
+      {
+        "type": "capability",
+        "frequency": "perDay",
+        "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+      }
+    ],
+    "audited": "2026-07-28"
+  }
+]

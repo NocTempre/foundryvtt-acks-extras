@@ -1,0 +1,14 @@
+{
+  "id": "kind.oseLocation",
+  "role": "composite",
+  "note": "A keyed area of an authored OSE/B-X adventure. Binds to an acks-extras.location actor rather than a journal page: a place in this family is an actor, with a parent, a roster and contents, and an area that arrives as prose alone can never grow those. Supplies GEOMETRY only - the heading naming the area and the boxes its text occupies.",
+  "fields": {
+    "name": {
+      "locate": "display"
+    },
+    "description": {
+      "locate": "proseFlow",
+      "type": "blocks"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "kind.monster",
+  "role": "composite",
+  "note": "Learned from the MM monster A-Z structure (outline blocks: Combat/Ecology/Spoils/Encounter). Compiler v1 implements this kind natively; the rows map drives the stat compilation.",
+  "fields": {
+    "name": { "locate": "display" },
+    "description": { "locate": "proseColumn", "type": "blocks" },
+    "stats": {
+      "locate": "labelBlock",
+      "rows": {
+        "Armor Class": { "field": "armorClass", "pattern": "int" },
+        "Hit Dice": { "field": "hitDice", "pattern": "raw" },
+        "Save": { "field": "save", "pattern": "raw" },
+        "Morale": { "field": "morale", "pattern": "int" },
+        "XP": { "field": "xp", "pattern": "int" },
+        "Alignment": { "field": "alignment", "pattern": "raw", "table": "alignment" },
+        "Treasure Type": { "field": "treasureType", "pattern": "raw" },
+        "Dungeon Enc": { "field": "dungeonEnc", "pattern": "raw" },
+        "Wilderness Enc": { "field": "wildernessEnc", "pattern": "raw" },
+        "Lair": { "field": "lairChance", "pattern": "int" },
+        "Type": { "field": "type", "pattern": "parenSplit", "table": "creatureType", "parenTable": "subtype" },
+        "Size": { "field": "size", "pattern": "parenSplit", "table": "size" },
+        "Vision": { "field": "vision", "pattern": "raw" },
+        "Other Senses": { "field": "otherSenses", "pattern": "raw" },
+        "Normal Load": { "field": "normalLoad", "pattern": "int" },
+        "Max Load": { "field": "maxLoad", "pattern": "int" },
+        "Proficiencies": { "field": "proficiencies", "pattern": "refList", "table": "proficiency", "stripRoll": true }
+      },
+      "speedRows": { "prefix": "Speed", "pattern": "raw" },
+      "attackRows": { "attacks": "Attacks", "damage": "Damage" }
+    },
+    "attacks": { "type": "attackList", "glyphTable": "damageGlyph", "colorTable": "damageColor", "weaponTable": "naturalWeapon" },
+    "spoils": { "locate": "subsection", "header": "Spoils", "pattern": "spoilList", "effectsTable": "magicProperty" },
+    "art": { "locate": "pageImage", "select": { "minW": 200, "minH": 200, "maxW": 1500, "maxRatio": 3 } }
+  }
+}

@@ -1,7 +1,7 @@
 /**
  * Shared ACKS vocabulary — the family's canonical enums + the LevelValue
  * resolver. FOUNDRY-FREE and Node-importable (no `foundry.*`): offline tooling
- * (acks-content's cookbook compiler/executor) imports this the same as the
+ * (the importer's cookbook compiler/executor) imports this the same as the
  * Foundry runtime does. DataModel field-builders that consume these live in
  * `fields.mjs` (Foundry-only).
  *
@@ -19,6 +19,7 @@
 // The ruledata registry is a pure module too, so importing it here keeps this
 // file Node-importable by the offline tooling that depends on that.
 import { getDoc, hasDoc } from "./tables.mjs";
+import { cookbookId } from "./library.mjs";
 
 /** `{ key: { label, … } }` → `{ key: label }` for DataModel `choices`. */
 export const choicesOf = (enumObj) =>
@@ -49,7 +50,7 @@ export const slug = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "
  *   two things.
  *
  * Lives here because at least three callers must agree or they disagree
- * silently: acks-importer's price-list claim (which of its rows a shelf already
+ * silently: the importer's price-list claim (which of its rows a shelf already
  * holds) and its `parseEquipment`, and this module's `bestBaseMatch` (which
  * base a printed descriptor skins). When those disagree a descriptor points at
  * one base and skins itself over another, or one flask of military oil becomes
@@ -300,8 +301,8 @@ export const SELECTION_VOCAB = {
  * sheet offers and the picks the equipment bridge resolves are keyed alike.
  */
 export const abilitySlug = (item) => {
-  const id = item?.flags?.["acks-importer"]?.cookbook?.id;
-  if (typeof id === "string" && id) return slug(id.split(".").pop());
+  const id = cookbookId(item);
+  if (id) return slug(id.split(".").pop());
   return slug(String(item?.name ?? "").replace(/\([^)]*\)\s*$/, ""));
 };
 
@@ -374,7 +375,7 @@ export const SELECTION_VOCAB_BY_ABILITY = {
   // somebody else's text. Writing even a handful here as "examples" is shipping
   // a value read off a page, which no repo in this family does; a shortlist is
   // not a smaller kind of quotation. They arrive by registration, read from the
-  // GM's own book by acks-importer (`SELECTION_VOCAB_DOC` below), and until
+  // GM's own book by the importer (`SELECTION_VOCAB_DOC` below), and until
   // something registers them the free-text line is the whole surface — which
   // is exactly what it was there for.
   //
@@ -585,7 +586,7 @@ export const MODIFIER_TARGETS = {
   cleaves: { label: "Cleaves" },
 };
 
-/** Non-damage effect keywords (mirror acks-content `defenseEffect` register). */
+/** Non-damage effect keywords (mirror the importer's `defenseEffect` register). */
 export const EFFECT_KEYS = {
   enchantment: { label: "Enchantment" },
   charm: { label: "Charm" },

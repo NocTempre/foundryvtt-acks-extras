@@ -22,7 +22,9 @@ export const acksExtras = (globalThis.acksExtras ??= {});
 // attaches under its own key on the same object, so attach timing never
 // matters). This file is evaluated before any feature body (they all import
 // it), so this is the first init callback registered by the module.
-Hooks.once("init", () => {
+// Optional-chained for the Node test harness, which imports pure-logic files
+// that import this one and defines no Hooks; under Foundry, Hooks always exists.
+globalThis.Hooks?.once("init", () => {
   const module = game.modules.get("acks-extras");
   if (module) module.api = acksExtras;
 });

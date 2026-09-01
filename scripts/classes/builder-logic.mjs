@@ -6,7 +6,7 @@
  * The engine is STRUCTURE only. Every number the Judges Journal's builder
  * chapter prints — category XP costs, per-value spell grids, trade-off
  * yields, racial ladders, the post-8th increments — reaches it through the
- * `acks.classBuilder` ruledata document (assembled per world by acks-importer
+ * `acks.classBuilder` ruledata document (assembled per world by the importer
  * from the GM's own book, or hand-authored at OVERRIDE priority). A missing
  * table degrades to a named issue on the plan, never a throw and never a
  * shipped fallback value.

@@ -1,0 +1,55 @@
+{
+  "registry": "alignment",
+  "shape": "keyword",
+  "note": "Lowercase duplicates are smallcaps surface forms (the font's unicode is lowercase) — exact-match tables carry every form seen.",
+  "tokens": {
+    "Lawful": {
+      "key": "lawful"
+    },
+    "Neutral": {
+      "key": "neutral"
+    },
+    "Chaotic": {
+      "key": "chaotic"
+    },
+    "lawful": {
+      "key": "lawful"
+    },
+    "neutral": {
+      "key": "neutral"
+    },
+    "chaotic": {
+      "key": "chaotic"
+    },
+    "varies": {
+      "key": "varies"
+    },
+    "Lawful, neutral": {
+      "key": "lawfulNeutral"
+    },
+    "neutral (chaotic)": {
+      "key": "neutralChaotic"
+    },
+    "Any (usually neutral)": {
+      "key": "anyUsuallyNeutral"
+    },
+    "chaotic (85%) or neutral (15%)": {
+      "key": "chaotic85OrNeutral15"
+    },
+    "neutral (75%) or chaotic (25%)": {
+      "key": "neutral75OrChaotic25"
+    },
+    "Lawful (65%), neutral (30%), chaotic (5%)": {
+      "key": "lawful65Neutral30Chaotic5"
+    },
+    "chaotic (70%) or neutral (30%)": {
+      "key": "chaotic70OrNeutral30"
+    },
+    "neutral (75) or chaotic (25%)": {
+      "key": "neutral75OrChaotic25"
+    },
+    "Any": {
+      "key": "any"
+    }
+  }
+}

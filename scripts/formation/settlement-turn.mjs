@@ -9,6 +9,7 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc, gmIds } from "../lib/util.mjs";
+import { cookbookId } from "../lib/library.mjs";
 import { readFormations, patchFormation, realMembers } from "./formation-model.mjs";
 import { travelOf } from "./travel.mjs";
 import {
@@ -185,7 +186,7 @@ export async function creditHoledUpDays() {
 const INCIDENT_TABLE_ID = "jj.settlementEncounters";
 
 export async function findIncidentRows() {
-  const flagged = (t) => t?.flags?.["acks-importer"]?.cookbook?.id === INCIDENT_TABLE_ID;
+  const flagged = (t) => cookbookId(t) === INCIDENT_TABLE_ID;
 
   let table = game.tables?.find(flagged) ?? null;
   if (!table) {

@@ -35,7 +35,7 @@
  *
  * WHICH languages exist is SETTING-DEFINED and never shipped: the Auran
  * Empire's are a campaign's answer, not the rules'. They arrive from the GM's
- * own books through acks-importer, or a Judge writes their own. This module
+ * own books through the importer, or a Judge writes their own. This module
  * only ever counts slots and fills them with whatever documents the world
  * holds.
  *
@@ -57,7 +57,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
-import { libraryItems } from "../lib/library.mjs";
+import { libraryItems, cookbookId } from "../lib/library.mjs";
 
 /** The system's item type for a language. */
 export const LANGUAGE_TYPE = "language";
@@ -109,7 +109,7 @@ export function languagesFromAbilities(actor) {
       n += declared;
       continue;
     }
-    const id = String(item.flags?.["acks-importer"]?.cookbook?.id ?? "").toLowerCase();
+    const id = cookbookId(item).toLowerCase();
     if (GRANTING_IDS.has(id)) n += LANGUAGES_PER_GRANT;
   }
   return n;
@@ -196,7 +196,7 @@ export async function resolveLanguage(entry) {
     if (doc) return doc;
   }
   if (raw.includes(".")) {
-    const byId = libraryItems().find((i) => i.flags?.["acks-importer"]?.cookbook?.id === raw);
+    const byId = libraryItems().find((i) => cookbookId(i) === raw);
     if (byId) return byId;
   }
 

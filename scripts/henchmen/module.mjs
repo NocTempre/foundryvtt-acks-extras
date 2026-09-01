@@ -86,7 +86,7 @@ Hooks.once("init", () => {
 Hooks.once("setup", async () => {
   // Book tables are NOT shipped and NOT fetched here. Every rules function
   // reads through rules/tables.mjs, which delegates to the acks-lib registry
-  // (acksLib.tables). Tables arrive per world via acks-content extraction →
+  // (acksLib.tables). Tables arrive per world via importer extraction →
   // the ruledata-import contract → acks-lib at world priority; acks-location
   // mirrors the persisted set into the registry before this module's `ready`.
   //

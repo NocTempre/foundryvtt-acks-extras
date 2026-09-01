@@ -434,7 +434,7 @@ globalThis.game = { items: [] };
 globalThis.fromUuidSync = () => null;
 
 /** A world ability item as `refOf` addresses it: the importer's cookbook stamp. */
-const stamped = (id) => ({ flags: { "acks-importer": { cookbook: { id } } } });
+const stamped = (id) => ({ flags: { "acks-extras": { cookbook: { id } } } });
 
 /** A class whose ladder prints one fixed and one choice award per level. */
 const LADDERED = {
@@ -998,7 +998,7 @@ test("a placeholder can never resolve itself", () => {
   // re-run, with nothing repaired. An unresolved part is never a source.
   const placeholder = { flags: { "acks-extras": { templatePart: { kind: "ability", unresolved: true } } } };
   const resolvedCopy = { flags: { "acks-extras": { templatePart: { kind: "ability", unresolved: false } } } };
-  const anImport = { flags: { "acks-importer": { cookbook: { id: "def.prof.alertness" } } } };
+  const anImport = { flags: { "acks-extras": { cookbook: { id: "def.prof.alertness" } } } };
   assert.equal(usableAsSource(placeholder), false);
   // A part that DID resolve stays usable, so an earlier copy is relinked
   // rather than doubled on the next pass.

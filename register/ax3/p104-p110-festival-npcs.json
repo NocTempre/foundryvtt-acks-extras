@@ -1,0 +1,226 @@
+[
+  {
+    "id": "ax3.seleneNictorian",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Selene Nictorian",
+    "anchor": {
+      "runin": "Selene Nictorian"
+    },
+    "pages": [
+      104,
+      105
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Selene:",
+      "statlineAt": 105
+    }
+  },
+  {
+    "id": "ax3.thanaNyssand",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Thana Nyssand",
+    "anchor": {
+      "runin": "Thana Nyssand"
+    },
+    "pages": [
+      105
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Thana Nyssand:"
+    }
+  },
+  {
+    "id": "ax3.jonusKrusaro",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Jonus Krusaro",
+    "anchor": {
+      "runin": "Jonus Krusaro"
+    },
+    "pages": [
+      105
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Jonus Krusaro:"
+    }
+  },
+  {
+    "id": "ax3.lutariusSinorix",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Lutarius Sinorix",
+    "anchor": {
+      "runin": "Lutarius Sinorix"
+    },
+    "pages": [
+      105
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Lutarius Sinorix:"
+    }
+  },
+  {
+    "id": "ax3.maximusArjenturan",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Lanista Maximus Arjentüran",
+    "anchor": {
+      "runin": "Lanista Maximus Arjentüran"
+    },
+    "pages": [
+      107
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Maximus:"
+    }
+  },
+  {
+    "id": "ax3.celictorNuvicus",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Lanista Celictor Nuvicus",
+    "anchor": {
+      "runin": "Lanista Celictor Nuvicus"
+    },
+    "pages": [
+      108
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Celictor Nuvicus:"
+    }
+  },
+  {
+    "id": "ax3.omnusPluris",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Lanista Omnus Pluris",
+    "anchor": {
+      "runin": "Lanista Omnus Pluris"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Omnus Pluris:",
+      "anchor": "Lanista Omnis Pluris"
+    }
+  },
+  {
+    "id": "ax3.abedsh",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Abedsh, Veteran Gladiator Pursuer",
+    "anchor": {
+      "label": "Abedsh, Veteran Gladiator Pursuer:"
+    },
+    "pages": [
+      108
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Abedsh, Veteran Gladiator Pursuer:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.baruch",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Baruch, Veteran Gladiator Spearfighter",
+    "anchor": {
+      "label": "Baruch, Veteran Gladiator Spearfighter:"
+    },
+    "pages": [
+      108
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Baruch, Veteran Gladiator Spearfighter:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.khet",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Khet, Veteran Gladiator Striker",
+    "anchor": {
+      "label": "Khet, Veteran Gladiator Striker:"
+    },
+    "pages": [
+      108
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Khet, Veteran Gladiator Striker:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.braig",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Braig, Veteran Gladiator Challenger",
+    "anchor": {
+      "label": "Braig, Veteran Gladiator Challenger:"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Braig, Veteran Gladiator Challenger:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.agilusBalventius",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Agilus Balventius",
+    "anchor": {
+      "label": "Agilus Balventius:"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "group": "Festival District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Agilus Balventius:",
+      "anchorAtStatline": true
+    }
+  }
+]

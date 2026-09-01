@@ -1,0 +1,9 @@
+{
+  "id": "kind.variation",
+  "role": "definition",
+  "note": "RR Equipment chapter: a way an item differs from its plain self (masterwork quality, a material, a shield form), anchored on the run-in defining the family. Several variations share one passage - the book defines them together. Every NUMBER is a page value located per entry: `variation` specs carry the regex and the field it fills, never the value. Binds to an acks-extras.variation Item.",
+  "fields": {
+    "name": { "locate": "runin" },
+    "description": { "locate": "runinBlock", "type": "blocks" }
+  }
+}

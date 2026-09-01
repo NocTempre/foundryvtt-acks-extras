@@ -1,0 +1,8 @@
+{
+  "id": "kind.constant",
+  "role": "definition",
+  "note": "One printed number a shipped procedure takes as an argument. A definition by role but not by shape - no heading to locate and no prose block to bound - so it has its own compiler. Two instructions: an `expect` on a clause carrying no standalone number, and an `int` read of the clause carrying it. Binds to no document; scg-constants.mjs hands the values to the converter.",
+  "fields": {
+    "name": { "locate": "display" }
+  }
+}

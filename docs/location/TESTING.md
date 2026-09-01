@@ -93,8 +93,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    confirming rather than discovering.
 
 9. **A place held in a COMPENDIUM.** Import an authored adventure with
-   acks-importer (`acksImporter.oseImportAreas("pc3")` — one adventure plus 32
-   rooms). Since acks-importer 4.3.0 these land in the pack for the book's own
+   the importer (`acksExtras.importer.oseImportAreas("pc3")` — one adventure plus 32
+   rooms). These land in the pack for the book's own
    SERIES — "ACKS Cookbook — Planar Compass — Actor", not the shared
    "ACKS Cookbook — Actor" — so find the pack by label rather than assuming it.
    Then open the adventure's sheet.
@@ -129,6 +129,6 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 ## Teardown
 
 Delete every document the compendium steps imported (filter the pack index by
-`flags["acks-importer"].cookbook.book`), and the location and the character. Confirm nothing the storage steps
+`flags["acks-extras"].cookbook.book`), and the location and the character. Confirm nothing the storage steps
 created survives — `game.items` holds no fixture goods, and `providers()` no
 longer lists the location.

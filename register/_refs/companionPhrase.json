@@ -1,0 +1,16 @@
+{
+  "registry": "companionPhrase",
+  "shape": "table",
+  "note": "A creature a template names in its Starting Equipment cell, and the ability whose companion slot it fills. The ability is granted elsewhere and its slot is empty on purpose — which creature it is was never a property of the ability — so the phrase becomes the ability's selection, not inventory. Key = the trailing phrase; ref = the ability. Why: docs/DECISIONS.md.",
+  "table": {
+    "totem animal": {
+      "ref": "def.power.totemanimal"
+    },
+    "familiar": {
+      "ref": "def.prof.familiar"
+    },
+    "animal companion": {
+      "ref": "def.power.animalCompanion"
+    }
+  }
+}

@@ -1,0 +1,145 @@
+[
+  {
+    "id": "ax2.wallGraveOccupants",
+    "kind": "kind.rolltable",
+    "book": "ax2",
+    "name": "Wall Grave Occupants (roll per column)",
+    "anchor": {
+      "display": "WALL GRAVES"
+    },
+    "pages": [
+      16
+    ],
+    "meta": {
+      "group": "Nethercity Tables"
+    },
+    "assists": {
+      "grid": {
+        "page": 17,
+        "y0": 104,
+        "y1": 370,
+        "dieX0": 62,
+        "dieX1": 82,
+        "cellX0": 83,
+        "cellX1": 578,
+        "claimDie": true,
+        "headerSkip": [
+          78,
+          102
+        ]
+      }
+    }
+  },
+  {
+    "id": "ax2.mummyReaction",
+    "kind": "kind.rolltable",
+    "book": "ax2",
+    "name": "Mummy Reaction to Being Woken",
+    "anchor": {
+      "display": "Mummy Reaction to Being Woken"
+    },
+    "pages": [
+      19
+    ],
+    "meta": {
+      "group": "Nethercity Tables"
+    },
+    "assists": {
+      "sameColumnOnly": true,
+      "grid": {
+        "page": 19,
+        "y0": 100,
+        "y1": 500,
+        "dieX0": 335,
+        "dieX1": 362,
+        "cellX0": 363,
+        "cellX1": 578,
+        "claimDie": true,
+        "headerSkip": [
+          78,
+          96
+        ],
+        "centerDies": true
+      }
+    }
+  },
+  {
+    "id": "ax2.animalCharacteristics",
+    "kind": "kind.rolltable",
+    "book": "ax2",
+    "name": "Animal Characteristics (Cloak)",
+    "anchor": {
+      "label": "Roll"
+    },
+    "pages": [
+      133
+    ],
+    "meta": {
+      "group": "New Treasure"
+    },
+    "assists": {
+      "nameExpect": {
+        "page": 133,
+        "box": {
+          "x0": 318,
+          "x1": 510,
+          "y0": 376,
+          "y1": 392
+        },
+        "text": "Roll"
+      },
+      "grid": {
+        "page": 133,
+        "y0": 395,
+        "y1": 505,
+        "dieX0": 340,
+        "dieX1": 358,
+        "cellX0": 359,
+        "cellX1": 578,
+        "claimDie": true,
+        "headerSkip": [
+          374,
+          393
+        ],
+        "centerDies": true
+      }
+    }
+  },
+  {
+    "id": "ax2.summonedCreatures",
+    "kind": "kind.rolltable",
+    "book": "ax2",
+    "name": "Summoned Creatures (Horn)",
+    "anchor": {
+      "label": "Die Roll"
+    },
+    "pages": [
+      134
+    ],
+    "meta": {
+      "group": "New Treasure"
+    },
+    "assists": {
+      "nameExpect": {
+        "page": 134,
+        "box": {
+          "x0": 42,
+          "x1": 190,
+          "y0": 76,
+          "y1": 92
+        },
+        "text": "Die Roll"
+      },
+      "grid": {
+        "page": 134,
+        "y0": 90,
+        "y1": 226,
+        "dieX0": 52,
+        "dieX1": 72,
+        "cellX0": 73,
+        "cellX1": 300,
+        "claimDie": true
+      }
+    }
+  }
+]

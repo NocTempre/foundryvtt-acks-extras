@@ -1,0 +1,37 @@
+[
+  {
+    "id": "def.vehicle.seaTable",
+    "kind": "kind.vehicle",
+    "book": "rr",
+    "name": "Sea Vessels",
+    "anchor": { "display": "SEA VESSELS" },
+    "pages": [318, 319],
+    "meta": { "category": "vehicle", "kindOfVehicle": "sea" },
+    "icon": "icons/environment/settlement/ship.webp",
+    "assists": {
+      "grids": {
+        "sea": {
+          "page": 319,
+          "box": { "x0": 45, "x1": 575, "y0": 118, "y1": 350 },
+          "label": { "x0": 45, "x1": 155 },
+          "expectRows": 20,
+          "cols": [
+            { "key": "sailors", "x0": 155, "x1": 178, "pattern": "raw" },
+            { "key": "rowers", "x0": 178, "x1": 208, "pattern": "raw" },
+            { "key": "marines", "x0": 208, "x1": 235, "pattern": "raw" },
+            { "key": "oarSprint", "x0": 235, "x1": 268, "pattern": "raw" },
+            { "key": "oarCruise", "x0": 268, "x1": 302, "pattern": "raw" },
+            { "key": "oarSlow", "x0": 302, "x1": 335, "pattern": "raw" },
+            { "key": "sail", "x0": 335, "x1": 368, "pattern": "raw" },
+            { "key": "voyageOar", "x0": 368, "x1": 398, "pattern": "raw" },
+            { "key": "voyageSail", "x0": 398, "x1": 425, "pattern": "raw" },
+            { "key": "cargo", "x0": 425, "x1": 465, "pattern": "raw" },
+            { "key": "ac", "x0": 465, "x1": 490, "pattern": "intDash" },
+            { "key": "shp", "x0": 490, "x1": 520, "pattern": "raw" },
+            { "key": "cost", "x0": 520, "x1": 575, "pattern": "raw" }
+          ]
+        }
+      }
+    }
+  }
+]

@@ -34,7 +34,7 @@ function resolveAbilitySheetBase() {
 }
 
 Hooks.once("init", () => {
-  // Public API for consumer modules (acks-content writes this flag on import;
+  // Public API for consumer modules (the importer writes this flag on import;
   // other modules read the effect model to drive automation).
   const api = {
     MODULE_ID,

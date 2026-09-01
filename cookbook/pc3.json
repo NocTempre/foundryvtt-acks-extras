@@ -1,0 +1,4906 @@
+{
+  "schema": "acks-cookbook/2",
+  "book": {
+    "id": "pc3",
+    "label": "Planar Compass, Issue 3",
+    "short": "PC3",
+    "pages": 72,
+    "titleRe": "Planar\\s*Compass\\s*3"
+  },
+  "entries": {
+    "pc3.area1": {
+      "id": "pc3.area1",
+      "kind": "kind.oseLocation",
+      "name": "1. The Docks",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        35
+      ],
+      "meta": {
+        "areaKey": "1",
+        "areaTitle": "The Docks",
+        "areaSlug": "theDocks"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 35,
+          "box": {
+            "x0": 62.495999999999995,
+            "x1": 146.2808,
+            "y0": 58.97900000000004,
+            "y1": 70.97900000000004
+          },
+          "text": "1.The Docks"
+        },
+        "description": {
+          "op": "text",
+          "page": 35,
+          "paras": [
+            {
+              "box": {
+                "x0": 63.6897,
+                "x1": 215.56270000000012,
+                "y0": 80.86800000000005,
+                "y1": 113.26800000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 259.887,
+                "x1": 385.4039999999999,
+                "y0": 61.71900000000005,
+                "y1": 94.11900000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area2": {
+      "id": "pc3.area2",
+      "kind": "kind.oseLocation",
+      "name": "2. The Cathedral The seat of power for the",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        36
+      ],
+      "meta": {
+        "areaKey": "2",
+        "areaTitle": "The Cathedral The seat of power for the",
+        "areaSlug": "theCathedralTheSeatOfPowerForThe"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 36,
+          "box": {
+            "x0": 18.2782,
+            "x1": 136.19580000000002,
+            "y0": 31.297000000000025,
+            "y1": 43.297000000000025
+          },
+          "text": "2.The Cathedral"
+        },
+        "description": {
+          "op": "text",
+          "page": 36,
+          "paras": [
+            {
+              "box": {
+                "x0": 196.762,
+                "x1": 350.98900000000015,
+                "y0": 51.81200000000001,
+                "y1": 176.61200000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  12,
+                  14
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area3": {
+      "id": "pc3.area3",
+      "kind": "kind.oseLocation",
+      "name": "3. The Machine Shop",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        36
+      ],
+      "meta": {
+        "areaKey": "3",
+        "areaTitle": "The Machine Shop",
+        "areaSlug": "theMachineShop"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 36,
+          "box": {
+            "x0": 17.2703,
+            "x1": 159.7969,
+            "y0": 114.39900000000006,
+            "y1": 126.39900000000006
+          },
+          "text": "3.The Machine Shop"
+        },
+        "description": {
+          "op": "text",
+          "page": 36,
+          "paras": [
+            {
+              "box": {
+                "x0": 20.0767,
+                "x1": 166.81269999999998,
+                "y0": 137.09500000000003,
+                "y1": 182.69500000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 19.2703,
+                "x1": 172.70930000000004,
+                "y0": 199.18200000000007,
+                "y1": 284.38200000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 196.762,
+                "x1": 350.98900000000015,
+                "y0": 51.81200000000001,
+                "y1": 176.61200000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  12,
+                  14
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area4": {
+      "id": "pc3.area4",
+      "kind": "kind.oseLocation",
+      "name": "4. The Commons",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        37
+      ],
+      "meta": {
+        "areaKey": "4",
+        "areaTitle": "The Commons",
+        "areaSlug": "theCommons"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 37,
+          "box": {
+            "x0": 61.6237,
+            "x1": 178.5533,
+            "y0": 32.3420000000001,
+            "y1": 44.3420000000001
+          },
+          "text": "4.The Commons"
+        },
+        "description": {
+          "op": "text",
+          "page": 37,
+          "paras": [
+            {
+              "box": {
+                "x0": 62.817400000000006,
+                "x1": 220.30040000000002,
+                "y0": 55.84400000000005,
+                "y1": 141.04400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 260.628,
+                "x1": 389.005,
+                "y0": 58.861000000000104,
+                "y1": 78.06100000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area5": {
+      "id": "pc3.area5",
+      "kind": "kind.oseLocation",
+      "name": "5. The Divine Gale",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        38
+      ],
+      "meta": {
+        "areaKey": "5",
+        "areaTitle": "The Divine Gale",
+        "areaSlug": "theDivineGale"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 38,
+          "box": {
+            "x0": 16.5644,
+            "x1": 150.121,
+            "y0": 31.160000000000082,
+            "y1": 43.16000000000008
+          },
+          "text": "5.The Divine Gale"
+        },
+        "description": {
+          "op": "text",
+          "page": 38,
+          "paras": [
+            {
+              "box": {
+                "x0": 19.3708,
+                "x1": 174.0158,
+                "y0": 57.08100000000002,
+                "y1": 142.28100000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 19.3708,
+                "x1": 170.02280000000002,
+                "y0": 161.48100000000005,
+                "y1": 193.88100000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area1b": {
+      "id": "pc3.area1b",
+      "kind": "kind.oseLocation",
+      "name": "1. 1 - Holy Mercury Basin",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        41
+      ],
+      "meta": {
+        "areaKey": "1",
+        "areaTitle": "1 - Holy Mercury Basin",
+        "areaSlug": "1HolyMercuryBasin"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 41,
+          "box": {
+            "x0": 241.005,
+            "x1": 384.08799999999997,
+            "y0": 425.836,
+            "y1": 437.836
+          },
+          "text": "1.1 - Holy Mercury Basin"
+        },
+        "description": {
+          "op": "text",
+          "page": 41,
+          "paras": [
+            {
+              "box": {
+                "x0": 243.005,
+                "x1": 399.289,
+                "y0": 445.58700000000005,
+                "y1": 543.9872
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  9,
+                  10
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.cathedralLocations": {
+      "id": "pc3.cathedralLocations",
+      "kind": "kind.oseMonster",
+      "name": "Cathedral Locations",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        41
+      ],
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 41,
+          "box": {
+            "x0": 240.856,
+            "x1": 387.96,
+            "y0": 35.21100000000001,
+            "y1": 47.21100000000001
+          },
+          "text": "Cathedral Locations"
+        },
+        "block": {
+          "op": "value",
+          "page": 41,
+          "box": {
+            "x0": 239.156,
+            "x1": 398.01000000000005,
+            "y0": 160.33200000000005,
+            "y1": 209.53200000000004
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 41,
+          "paras": [
+            {
+              "box": {
+                "x0": 241.937,
+                "x1": 396.17499999999984,
+                "y0": 81.55900000000008,
+                "y1": 140.35900000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 250.436,
+                "x1": 372.56999999999994,
+                "y0": 221.99500000000006,
+                "y1": 249.59500000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 250.436,
+                "x1": 398.0489999999999,
+                "y0": 266.39500000000004,
+                "y1": 304.7950000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 250.436,
+                "x1": 396.348,
+                "y0": 321.595,
+                "y1": 359.99500000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 250.436,
+                "x1": 396.90599999999995,
+                "y0": 376.7950000000001,
+                "y1": 415.19500000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        },
+        "art": {
+          "op": "art",
+          "page": 41,
+          "name": "img_p40_1",
+          "box": {
+            "x0": 55.0046,
+            "x1": 249.66719400000002,
+            "y0": 420.94900000000007,
+            "y1": 595.657086
+          }
+        }
+      }
+    },
+    "pc3.area1c": {
+      "id": "pc3.area1c",
+      "kind": "kind.oseLocation",
+      "name": "1. 2 - The Altar",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        42
+      ],
+      "meta": {
+        "areaKey": "1",
+        "areaTitle": "2 - The Altar",
+        "areaSlug": "2TheAltar"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 42,
+          "box": {
+            "x0": 16.7972,
+            "x1": 102.91420000000001,
+            "y0": 29.576999999999998,
+            "y1": 41.577
+          },
+          "text": "1.2 - The Altar"
+        },
+        "description": {
+          "op": "text",
+          "page": 42,
+          "paras": [
+            {
+              "box": {
+                "x0": 18.1687,
+                "x1": 175.401,
+                "y0": 47.649,
+                "y1": 146.04900000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.801,
+                "x1": 348.1119999999999,
+                "y0": 51.833000000000084,
+                "y1": 84.23300000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area2b": {
+      "id": "pc3.area2b",
+      "kind": "kind.oseLocation",
+      "name": "2. 1 - Bank Entrance",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        42
+      ],
+      "meta": {
+        "areaKey": "2",
+        "areaTitle": "1 - Bank Entrance",
+        "areaSlug": "1BankEntrance"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 42,
+          "box": {
+            "x0": 194.188,
+            "x1": 308.905,
+            "y0": 29.943000000000097,
+            "y1": 41.9430000000001
+          },
+          "text": "2.1 - Bank Entrance"
+        },
+        "description": {
+          "op": "text",
+          "page": 42,
+          "paras": [
+            {
+              "box": {
+                "x0": 197.801,
+                "x1": 348.1119999999999,
+                "y0": 51.833000000000084,
+                "y1": 84.23300000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area2c": {
+      "id": "pc3.area2c",
+      "kind": "kind.oseLocation",
+      "name": "2. 2 - The Vault",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        42
+      ],
+      "meta": {
+        "areaKey": "2",
+        "areaTitle": "2 - The Vault",
+        "areaSlug": "2TheVault"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 42,
+          "box": {
+            "x0": 196.798,
+            "x1": 288.206,
+            "y0": 346.76200000000006,
+            "y1": 358.76200000000006
+          },
+          "text": "2.2 - The Vault"
+        },
+        "description": {
+          "op": "text",
+          "page": 42,
+          "paras": [
+            {
+              "box": {
+                "x0": 197.948,
+                "x1": 356.208,
+                "y0": 367.6360000000001,
+                "y1": 421.6360000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area2d": {
+      "id": "pc3.area2d",
+      "kind": "kind.oseLocation",
+      "name": "2. 3 - Secret Passage to Portal",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        42
+      ],
+      "meta": {
+        "areaKey": "2",
+        "areaTitle": "3 - Secret Passage to Portal",
+        "areaSlug": "3SecretPassageToPortal"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 42,
+          "box": {
+            "x0": 193.186,
+            "x1": 322.346,
+            "y0": 441.32700000000006,
+            "y1": 453.32700000000006
+          },
+          "text": "2.3 - Secret Passage to"
+        },
+        "description": {
+          "op": "text",
+          "page": 42,
+          "paras": [
+            {
+              "box": {
+                "x0": 196.846,
+                "x1": 355.06599999999986,
+                "y0": 473.77000000000004,
+                "y1": 545.7699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.priestOfordo": {
+      "id": "pc3.priestOfordo",
+      "kind": "kind.oseMonster",
+      "name": "Priest Ofordo",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        42
+      ],
+      "fields": {
+        "block": {
+          "op": "value",
+          "page": 42,
+          "box": {
+            "x0": 18.4807,
+            "x1": 171.23269999999997,
+            "y0": 209.57000000000005,
+            "y1": 258.77000000000004
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 42,
+          "paras": [
+            {
+              "box": {
+                "x0": 20.4094,
+                "x1": 144.19939999999994,
+                "y0": 189.86200000000008,
+                "y1": 195.86200000000008
+              }
+            },
+            {
+              "box": {
+                "x0": 29.8579,
+                "x1": 178.11789999999996,
+                "y0": 273.07300000000004,
+                "y1": 303.07300000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 29.8579,
+                "x1": 165.91800000000006,
+                "y0": 321.07300000000004,
+                "y1": 363.0730000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.801,
+                "x1": 348.1119999999999,
+                "y0": 51.833000000000084,
+                "y1": 84.23300000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        "art": {
+          "op": "art",
+          "page": 42,
+          "name": "img_p41_1",
+          "box": {
+            "x0": 17.1408,
+            "x1": 182.27533799999998,
+            "y0": 441.33200000000005,
+            "y1": 572.035194
+          }
+        }
+      }
+    },
+    "pc3.clockworkGuard": {
+      "id": "pc3.clockworkGuard",
+      "kind": "kind.oseMonster",
+      "name": "Clockwork Guard",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        42
+      ],
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 42,
+          "box": {
+            "x0": 194.101,
+            "x1": 288.201,
+            "y0": 103.53100000000006,
+            "y1": 115.53100000000006
+          },
+          "text": "Clockwork Guard"
+        },
+        "block": {
+          "op": "value",
+          "page": 42,
+          "box": {
+            "x0": 196.215,
+            "x1": 354.105,
+            "y0": 130.69700000000006,
+            "y1": 184.69700000000006
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 42,
+          "paras": [
+            {
+              "box": {
+                "x0": 197.948,
+                "x1": 353.12800000000004,
+                "y0": 202.31200000000007,
+                "y1": 256.31200000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.948,
+                "x1": 353.70799999999997,
+                "y0": 274.31200000000007,
+                "y1": 328.31200000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area5b": {
+      "id": "pc3.area5b",
+      "kind": "kind.oseLocation",
+      "name": "5. 1 - Library",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        44
+      ],
+      "meta": {
+        "areaKey": "5",
+        "areaTitle": "1 - Library",
+        "areaSlug": "1Library"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 44,
+          "box": {
+            "x0": 17.2177,
+            "x1": 90.36070000000001,
+            "y0": 30.02900000000011,
+            "y1": 42.02900000000011
+          },
+          "text": "5.1 - Library"
+        },
+        "description": {
+          "op": "text",
+          "page": 44,
+          "paras": [
+            {
+              "box": {
+                "x0": 18.1802,
+                "x1": 175.96020000000004,
+                "y0": 51.474000000000046,
+                "y1": 136.60000000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26.1486,
+                "x1": 147.709,
+                "y0": 151.40000000000003,
+                "y1": 166.20000000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26.1486,
+                "x1": 176.91899999999998,
+                "y0": 181.00000000000006,
+                "y1": 195.80000000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26.1486,
+                "x1": 175.47899999999998,
+                "y0": 210.60000000000008,
+                "y1": 225.40000000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26.1486,
+                "x1": 160.369,
+                "y0": 240.20000000000005,
+                "y1": 255.00000000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26.1486,
+                "x1": 169.96899999999997,
+                "y0": 269.80000000000007,
+                "y1": 284.6000000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 198.835,
+                "x1": 355.19600000000014,
+                "y0": 63.822,
+                "y1": 149.02200000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "mergeHyphen": [
+                  7
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area5c": {
+      "id": "pc3.area5c",
+      "kind": "kind.oseLocation",
+      "name": "5. 2 - Planartarium",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        44
+      ],
+      "meta": {
+        "areaKey": "5",
+        "areaTitle": "2 - Planartarium",
+        "areaSlug": "2Planartarium"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 44,
+          "box": {
+            "x0": 195.175,
+            "x1": 302.105,
+            "y0": 30.63000000000011,
+            "y1": 42.63000000000011
+          },
+          "text": "5.2 - Planartarium"
+        },
+        "description": {
+          "op": "text",
+          "page": 44,
+          "paras": [
+            {
+              "box": {
+                "x0": 198.835,
+                "x1": 355.19600000000014,
+                "y0": 50.62200000000007,
+                "y1": 149.02200000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "mergeHyphen": [
+                  8
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area5d": {
+      "id": "pc3.area5d",
+      "kind": "kind.oseLocation",
+      "name": "5. 3 - Secret Stair to the Jail",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        44
+      ],
+      "meta": {
+        "areaKey": "5",
+        "areaTitle": "3 - Secret Stair to the Jail",
+        "areaSlug": "3SecretStairToTheJail"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 44,
+          "box": {
+            "x0": 195.447,
+            "x1": 353.129,
+            "y0": 364.35900000000004,
+            "y1": 376.35900000000004
+          },
+          "text": "5.3 - Secret Stair to the Jail"
+        },
+        "description": {
+          "op": "text",
+          "page": 44,
+          "paras": [
+            {
+              "box": {
+                "x0": 198.111,
+                "x1": 348.41100000000006,
+                "y0": 385.3470000000001,
+                "y1": 430.94700000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area6": {
+      "id": "pc3.area6",
+      "kind": "kind.oseLocation",
+      "name": "6. 1 - Basement Stairs",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        46
+      ],
+      "meta": {
+        "areaKey": "6",
+        "areaTitle": "1 - Basement Stairs",
+        "areaSlug": "1BasementStairs"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 46,
+          "box": {
+            "x0": 16.242,
+            "x1": 138.304,
+            "y0": 72.38400000000001,
+            "y1": 84.38400000000001
+          },
+          "text": "6.1 - Basement Stairs"
+        },
+        "description": {
+          "op": "text",
+          "page": 46,
+          "paras": [
+            {
+              "box": {
+                "x0": 18.242,
+                "x1": 175.68099999999993,
+                "y0": 93.20600000000007,
+                "y1": 125.60600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.53,
+                "x1": 353.51700000000005,
+                "y0": 53.36400000000003,
+                "y1": 164.96400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.53,
+                "x1": 354.96900000000016,
+                "y0": 184.16400000000004,
+                "y1": 216.56400000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area6b": {
+      "id": "pc3.area6b",
+      "kind": "kind.oseLocation",
+      "name": "6. 2 - Mercury Well",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        46
+      ],
+      "meta": {
+        "areaKey": "6",
+        "areaTitle": "2 - Mercury Well",
+        "areaSlug": "2MercuryWell"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 46,
+          "box": {
+            "x0": 16.242,
+            "x1": 128.385,
+            "y0": 157.87800000000004,
+            "y1": 169.87800000000004
+          },
+          "text": "6.2 - Mercury Well"
+        },
+        "description": {
+          "op": "text",
+          "page": 46,
+          "paras": [
+            {
+              "box": {
+                "x0": 18.242,
+                "x1": 172.656,
+                "y0": 180.36000000000007,
+                "y1": 278.76000000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5,
+                  6
+                ],
+                "mergeHyphen": [
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.53,
+                "x1": 353.51700000000005,
+                "y0": 53.36400000000003,
+                "y1": 164.96400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.53,
+                "x1": 354.96900000000016,
+                "y0": 184.16400000000004,
+                "y1": 216.56400000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area6c": {
+      "id": "pc3.area6c",
+      "kind": "kind.oseLocation",
+      "name": "6. 3 - Dissident Jail",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        46
+      ],
+      "meta": {
+        "areaKey": "6",
+        "areaTitle": "3 - Dissident Jail",
+        "areaSlug": "3DissidentJail"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 46,
+          "box": {
+            "x0": 16.242,
+            "x1": 126.39600000000002,
+            "y0": 318.90600000000006,
+            "y1": 330.90600000000006
+          },
+          "text": "6.3 - Dissident Jail"
+        },
+        "description": {
+          "op": "text",
+          "page": 46,
+          "paras": [
+            {
+              "box": {
+                "x0": 18.242,
+                "x1": 176.60499999999993,
+                "y0": 342.2180000000001,
+                "y1": 427.41800000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.53,
+                "x1": 353.51700000000005,
+                "y0": 53.36400000000003,
+                "y1": 164.96400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.53,
+                "x1": 354.96900000000016,
+                "y0": 184.16400000000004,
+                "y1": 216.56400000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area6d": {
+      "id": "pc3.area6d",
+      "kind": "kind.oseLocation",
+      "name": "6. 4 - Portal to Gnosis",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        46
+      ],
+      "meta": {
+        "areaKey": "6",
+        "areaTitle": "4 - Portal to Gnosis",
+        "areaSlug": "4PortalToGnosis"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 46,
+          "box": {
+            "x0": 196.361,
+            "x1": 318.852,
+            "y0": 31.712000000000103,
+            "y1": 43.7120000000001
+          },
+          "text": "6.4 - Portal to Gnosis"
+        },
+        "description": {
+          "op": "text",
+          "page": 46,
+          "paras": [
+            {
+              "box": {
+                "x0": 197.53,
+                "x1": 353.51700000000005,
+                "y0": 53.36400000000003,
+                "y1": 164.96400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.53,
+                "x1": 354.96900000000016,
+                "y0": 184.16400000000004,
+                "y1": 216.56400000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area6e": {
+      "id": "pc3.area6e",
+      "kind": "kind.oseLocation",
+      "name": "6. 5 - Crypt",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        47
+      ],
+      "meta": {
+        "areaKey": "6",
+        "areaTitle": "5 - Crypt",
+        "areaSlug": "5Crypt"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 47,
+          "box": {
+            "x0": 63.4829,
+            "x1": 373.58500000000004,
+            "y0": 31.712000000000103,
+            "y1": 43.7120000000001
+          },
+          "text": "6.5 - Crypt"
+        },
+        "description": {
+          "op": "text",
+          "page": 47,
+          "paras": [
+            {
+              "box": {
+                "x0": 64.6529,
+                "x1": 223.86290000000002,
+                "y0": 55.85400000000004,
+                "y1": 127.85400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 64.6529,
+                "x1": 221.24489999999997,
+                "y0": 147.05400000000003,
+                "y1": 205.85400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 64.6529,
+                "x1": 216.59189999999995,
+                "y0": 225.05400000000003,
+                "y1": 257.45400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 254.78499999999997,
+                "x1": 396.255,
+                "y0": 57.27500000000009,
+                "y1": 123.27500000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 400.4549999999999,
+                "y0": 139.74500000000006,
+                "y1": 214.94500000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 400.60500000000013,
+                "y0": 231.54500000000007,
+                "y1": 258.74500000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 390.3450000000001,
+                "y0": 275.345,
+                "y1": 291.94500000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 366.0350000000001,
+                "y0": 309.14500000000004,
+                "y1": 315.14500000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 400.735,
+                "y0": 333.14500000000004,
+                "y1": 382.345
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 399.8049999999999,
+                "y0": 392.94500000000005,
+                "y1": 434.94500000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.undeadClockworkPriest": {
+      "id": "pc3.undeadClockworkPriest",
+      "kind": "kind.oseMonster",
+      "name": "Undead Clockwork Priest",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        47
+      ],
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 47,
+          "box": {
+            "x0": 240.281,
+            "x1": 373.58500000000004,
+            "y0": 31.012000000000057,
+            "y1": 43.01200000000006
+          },
+          "text": "Undead Clockwork Priest"
+        },
+        "block": {
+          "op": "value",
+          "page": 47,
+          "box": {
+            "x0": 64.6529,
+            "x1": 268.435,
+            "y0": 55.85400000000004,
+            "y1": 111.27500000000003
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 47,
+          "paras": [
+            {
+              "box": {
+                "x0": 64.6529,
+                "x1": 118.276,
+                "y0": 121.85400000000004,
+                "y1": 127.85400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 64.6529,
+                "x1": 221.24489999999997,
+                "y0": 147.05400000000003,
+                "y1": 205.85400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 64.6529,
+                "x1": 216.59189999999995,
+                "y0": 225.05400000000003,
+                "y1": 257.45400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 255.64499999999998,
+                "x1": 265.325,
+                "y0": 117.27500000000003,
+                "y1": 123.27500000000003
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 400.4549999999999,
+                "y0": 139.74500000000006,
+                "y1": 214.94500000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 400.60500000000013,
+                "y0": 231.54500000000007,
+                "y1": 258.74500000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 390.3450000000001,
+                "y0": 275.345,
+                "y1": 291.94500000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 366.0350000000001,
+                "y0": 309.14500000000004,
+                "y1": 315.14500000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 400.735,
+                "y0": 333.14500000000004,
+                "y1": 382.345
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 252.345,
+                "x1": 399.8049999999999,
+                "y0": 392.94500000000005,
+                "y1": 434.94500000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area1d": {
+      "id": "pc3.area1d",
+      "kind": "kind.oseLocation",
+      "name": "1. The Great Wheel",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        49
+      ],
+      "meta": {
+        "areaKey": "1",
+        "areaTitle": "The Great Wheel",
+        "areaSlug": "theGreatWheel"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 49,
+          "box": {
+            "x0": 62.057900000000004,
+            "x1": 180.3057,
+            "y0": 71.82400000000007,
+            "y1": 83.82400000000007
+          },
+          "text": "1.The Great Wheel"
+        },
+        "description": {
+          "op": "text",
+          "page": 49,
+          "paras": [
+            {
+              "box": {
+                "x0": 65.0658,
+                "x1": 220.26080000000002,
+                "y0": 92.70500000000004,
+                "y1": 257.1050000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 253.544,
+                "x1": 392.69699999999995,
+                "y0": 54.99700000000007,
+                "y1": 511.59700000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  24,
+                  25,
+                  26,
+                  27,
+                  28,
+                  29,
+                  30,
+                  31,
+                  32,
+                  33,
+                  34,
+                  35,
+                  36,
+                  37,
+                  38,
+                  39,
+                  40,
+                  41,
+                  42,
+                  43,
+                  44,
+                  45,
+                  46,
+                  47,
+                  48,
+                  49,
+                  50,
+                  51,
+                  52,
+                  53,
+                  54,
+                  55
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area2e": {
+      "id": "pc3.area2e",
+      "kind": "kind.oseLocation",
+      "name": "2. The Kingdom of Ritus Divinus",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        50
+      ],
+      "meta": {
+        "areaKey": "2",
+        "areaTitle": "The Kingdom of Ritus Divinus",
+        "areaSlug": "theKingdomOfRitusDivinus"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 50,
+          "box": {
+            "x0": 17.7445,
+            "x1": 153.7165,
+            "y0": 30.926000000000045,
+            "y1": 42.926000000000045
+          },
+          "text": "2. The Kingdom of Ritus"
+        },
+        "description": {
+          "op": "text",
+          "page": 50,
+          "paras": [
+            {
+              "box": {
+                "x0": 18.6358,
+                "x1": 176.1078,
+                "y0": 67.02700000000004,
+                "y1": 165.42700000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 196.027,
+                "x1": 354.50700000000006,
+                "y0": 52.607000000000085,
+                "y1": 130.60700000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.64,
+                "x1": 352.92999999999984,
+                "y0": 145.33400000000006,
+                "y1": 199.33400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 227.844,
+                "x1": 356.454,
+                "y0": 217.33400000000006,
+                "y1": 223.33400000000006
+              }
+            },
+            {
+              "box": {
+                "x0": 196.995,
+                "x1": 356.3349999999999,
+                "y0": 242.92900000000003,
+                "y1": 308.92900000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  24
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 354.467,
+                "y0": 321.43100000000004,
+                "y1": 350.23100000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 352.52299999999997,
+                "y0": 363.831,
+                "y1": 400.23100000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 341.336,
+                "y0": 413.831,
+                "y1": 435.03100000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 353.9089999999999,
+                "y0": 448.6310000000001,
+                "y1": 477.43100000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 342.76700000000005,
+                "y0": 491.03100000000006,
+                "y1": 504.63070000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 353.963,
+                "y0": 518.2307000000001,
+                "y1": 554.6307
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area3b": {
+      "id": "pc3.area3b",
+      "kind": "kind.oseLocation",
+      "name": "3. The Timewell",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        50
+      ],
+      "meta": {
+        "areaKey": "3",
+        "areaTitle": "The Timewell",
+        "areaSlug": "theTimewell"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 50,
+          "box": {
+            "x0": 16.6358,
+            "x1": 108.94080000000001,
+            "y0": 204.03000000000003,
+            "y1": 216.03000000000003
+          },
+          "text": "3. The Timewell"
+        },
+        "description": {
+          "op": "text",
+          "page": 50,
+          "paras": [
+            {
+              "box": {
+                "x0": 18.6358,
+                "x1": 173.34680000000003,
+                "y0": 224.30700000000007,
+                "y1": 283.107
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 196.027,
+                "x1": 354.50700000000006,
+                "y0": 52.607000000000085,
+                "y1": 130.60700000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.64,
+                "x1": 352.92999999999984,
+                "y0": 145.33400000000006,
+                "y1": 199.33400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 227.844,
+                "x1": 356.454,
+                "y0": 217.33400000000006,
+                "y1": 223.33400000000006
+              }
+            },
+            {
+              "box": {
+                "x0": 196.995,
+                "x1": 356.3349999999999,
+                "y0": 242.92900000000003,
+                "y1": 308.92900000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  24
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 354.467,
+                "y0": 321.43100000000004,
+                "y1": 350.23100000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 352.52299999999997,
+                "y0": 363.831,
+                "y1": 400.23100000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 341.336,
+                "y0": 413.831,
+                "y1": 435.03100000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 353.9089999999999,
+                "y0": 448.6310000000001,
+                "y1": 477.43100000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 342.76700000000005,
+                "y0": 491.03100000000006,
+                "y1": 504.63070000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 353.963,
+                "y0": 518.2307000000001,
+                "y1": 554.6307
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.caelligo": {
+      "id": "pc3.caelligo",
+      "kind": "kind.oseMonster",
+      "name": "Caelligo",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        50
+      ],
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 50,
+          "box": {
+            "x0": 195.64,
+            "x1": 241.62,
+            "y0": 29.923000000000002,
+            "y1": 41.923
+          },
+          "text": "Caelligo"
+        },
+        "block": {
+          "op": "value",
+          "page": 50,
+          "box": {
+            "x0": 196.995,
+            "x1": 356.3349999999999,
+            "y0": 242.92900000000003,
+            "y1": 308.92900000000003
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 50,
+          "paras": [
+            {
+              "box": {
+                "x0": 196.027,
+                "x1": 354.50700000000006,
+                "y0": 52.607000000000085,
+                "y1": 130.60700000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.64,
+                "x1": 352.92999999999984,
+                "y0": 145.33400000000006,
+                "y1": 199.33400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 227.844,
+                "x1": 356.454,
+                "y0": 217.33400000000006,
+                "y1": 223.33400000000006
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 354.467,
+                "y0": 321.43100000000004,
+                "y1": 350.23100000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 352.52299999999997,
+                "y0": 363.831,
+                "y1": 400.23100000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 341.336,
+                "y0": 413.831,
+                "y1": 435.03100000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 353.9089999999999,
+                "y0": 448.6310000000001,
+                "y1": 477.43100000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 342.76700000000005,
+                "y0": 491.03100000000006,
+                "y1": 504.63070000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 211.579,
+                "x1": 353.963,
+                "y0": 518.2307000000001,
+                "y1": 554.6307
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            }
+          ]
+        },
+        "art": {
+          "op": "art",
+          "page": 50,
+          "name": "img_p49_1",
+          "box": {
+            "x0": 6.07788,
+            "x1": 221.07850499999998,
+            "y0": 284.87700000000007,
+            "y1": 570.1521150000001
+          }
+        }
+      }
+    },
+    "pc3.area4b": {
+      "id": "pc3.area4b",
+      "kind": "kind.oseLocation",
+      "name": "4. The Dunes ofTime Heretic Enlightenment",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        51
+      ],
+      "meta": {
+        "areaKey": "4",
+        "areaTitle": "The Dunes ofTime Heretic Enlightenment",
+        "areaSlug": "theDunesOftimeHereticEnlightenment"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 51,
+          "box": {
+            "x0": 61.3124,
+            "x1": 314.514,
+            "y0": 30.635000000000105,
+            "y1": 42.635000000000105
+          },
+          "text": "4. The Dunes ofTime Heretic"
+        },
+        "description": {
+          "op": "text",
+          "page": 51,
+          "paras": [
+            {
+              "box": {
+                "x0": 242.84,
+                "x1": 394.6800000000001,
+                "y0": 63.72900000000004,
+                "y1": 96.12900000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 92.48,
+                "x1": 294.84999999999997,
+                "y0": 108.94700000000006,
+                "y1": 200.35700000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 92.48,
+                "x1": 258.835,
+                "y0": 217.15700000000004,
+                "y1": 277.15700000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 92.48,
+                "x1": 216.216,
+                "y0": 293.95700000000005,
+                "y1": 364.75700000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 92.48,
+                "x1": 221.93999999999997,
+                "y0": 381.557,
+                "y1": 495.5570000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 306.266,
+                "x1": 395.244,
+                "y0": 76.92900000000009,
+                "y1": 82.92900000000009
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 266.77,
+                "x1": 400.58,
+                "y0": 108.94700000000006,
+                "y1": 162.94700000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 268.845,
+                "x1": 399.325,
+                "y0": 174.75900000000007,
+                "y1": 228.75900000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 268.845,
+                "x1": 399.245,
+                "y0": 246.75900000000007,
+                "y1": 300.75900000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area5e": {
+      "id": "pc3.area5e",
+      "kind": "kind.oseLocation",
+      "name": "5. The Sea of Salvation",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        52
+      ],
+      "meta": {
+        "areaKey": "5",
+        "areaTitle": "The Sea of Salvation",
+        "areaSlug": "theSeaOfSalvation"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 52,
+          "box": {
+            "x0": 16.4354,
+            "x1": 148.2994,
+            "y0": 30.70500000000004,
+            "y1": 42.70500000000004
+          },
+          "text": "5. The Sea of Salvation"
+        },
+        "description": {
+          "op": "text",
+          "page": 52,
+          "paras": [
+            {
+              "box": {
+                "x0": 19.4433,
+                "x1": 176.59630000000004,
+                "y0": 53.603000000000065,
+                "y1": 191.60300000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 19.4433,
+                "x1": 176.15630000000002,
+                "y0": 210.80300000000005,
+                "y1": 348.80300000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.06,
+                "x1": 345.94100000000014,
+                "y0": 63.23000000000002,
+                "y1": 95.63000000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.909,
+                "x1": 349.1129999999999,
+                "y0": 115.95900000000006,
+                "y1": 165.15900000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 350.805,
+                "y0": 181.48600000000005,
+                "y1": 197.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 353.2750000000001,
+                "y0": 213.48600000000005,
+                "y1": 239.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 346.9950000000001,
+                "y0": 255.48600000000005,
+                "y1": 271.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 352.06500000000005,
+                "y0": 287.48600000000005,
+                "y1": 333.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 350.57500000000016,
+                "y0": 349.48600000000005,
+                "y1": 385.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.clockworkSeaWyrm": {
+      "id": "pc3.clockworkSeaWyrm",
+      "kind": "kind.oseMonster",
+      "name": "Clockwork Sea Wyrm",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        52
+      ],
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 52,
+          "box": {
+            "x0": 195.843,
+            "x1": 313.247,
+            "y0": 43.10800000000006,
+            "y1": 55.10800000000006
+          },
+          "text": "Clockwork Sea Wyrm"
+        },
+        "block": {
+          "op": "value",
+          "page": 52,
+          "box": {
+            "x0": 197.909,
+            "x1": 349.1129999999999,
+            "y0": 115.95900000000006,
+            "y1": 165.15900000000005
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 52,
+          "paras": [
+            {
+              "box": {
+                "x0": 197.06,
+                "x1": 336.0299999999999,
+                "y0": 63.23000000000002,
+                "y1": 69.23000000000002
+              }
+            },
+            {
+              "box": {
+                "x0": 197.06,
+                "x1": 345.94100000000014,
+                "y0": 76.43000000000006,
+                "y1": 82.43000000000006
+              }
+            },
+            {
+              "box": {
+                "x0": 197.06,
+                "x1": 292.778,
+                "y0": 89.63000000000005,
+                "y1": 95.63000000000005
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 350.805,
+                "y0": 181.48600000000005,
+                "y1": 197.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 353.2750000000001,
+                "y0": 213.48600000000005,
+                "y1": 239.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 346.9950000000001,
+                "y0": 255.48600000000005,
+                "y1": 271.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 352.06500000000005,
+                "y0": 287.48600000000005,
+                "y1": 333.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 203.675,
+                "x1": 350.57500000000016,
+                "y0": 349.48600000000005,
+                "y1": 385.48600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        },
+        "art": {
+          "op": "art",
+          "page": 52,
+          "name": "img_p51_1",
+          "box": {
+            "x0": 3.18966,
+            "x1": 397.895733,
+            "y0": 343.66100000000006,
+            "y1": 582.4412040000001
+          }
+        }
+      }
+    },
+    "pc3.knightRotar": {
+      "id": "pc3.knightRotar",
+      "kind": "kind.oseMonster",
+      "name": "Knight Rotar",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        55
+      ],
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 55,
+          "box": {
+            "x0": 61.3728,
+            "x1": 140.1058,
+            "y0": 30.267000000000053,
+            "y1": 42.26700000000005
+          },
+          "text": "Knight Rotar"
+        },
+        "block": {
+          "op": "value",
+          "page": 55,
+          "box": {
+            "x0": 62.833,
+            "x1": 135.043,
+            "y0": 127.46100000000007,
+            "y1": 181.46100000000007
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 55,
+          "paras": [
+            {
+              "box": {
+                "x0": 63.3728,
+                "x1": 212.38579999999996,
+                "y0": 52.15700000000004,
+                "y1": 110.95700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 73.5163,
+                "x1": 212.54599999999994,
+                "y0": 196.24400000000003,
+                "y1": 214.24400000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 73.5163,
+                "x1": 215.07629999999995,
+                "y0": 232.24400000000003,
+                "y1": 274.244
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area1e": {
+      "id": "pc3.area1e",
+      "kind": "kind.oseLocation",
+      "name": "1. Landing Grounds",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        60
+      ],
+      "meta": {
+        "areaKey": "1",
+        "areaTitle": "Landing Grounds",
+        "areaSlug": "landingGrounds"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 17.2257,
+            "x1": 122.75170000000003,
+            "y0": 66.46000000000004,
+            "y1": 78.46000000000004
+          },
+          "text": "1. Landing Grounds"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 19.2257,
+                "x1": 174.35569999999993,
+                "y0": 87.40100000000007,
+                "y1": 189.40100000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.85,
+                "x1": 354.5099999999999,
+                "y0": 88.06500000000005,
+                "y1": 140.67400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 205.155,
+                "x1": 350.59899999999993,
+                "y0": 157.47400000000005,
+                "y1": 195.87400000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.186,
+                "x1": 355.56599999999975,
+                "y0": 215.55900000000008,
+                "y1": 269.5590000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 206.483,
+                "x1": 352.8000000000001,
+                "y0": 279.40200000000004,
+                "y1": 285.40200000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 206.483,
+                "x1": 351.459,
+                "y0": 302.20200000000006,
+                "y1": 340.60200000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area2f": {
+      "id": "pc3.area2f",
+      "kind": "kind.oseLocation",
+      "name": "2. AmbleTrack",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        60
+      ],
+      "meta": {
+        "areaKey": "2",
+        "areaTitle": "AmbleTrack",
+        "areaSlug": "ambletrack"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 16.5617,
+            "x1": 100.2217,
+            "y0": 207.89900000000006,
+            "y1": 219.89900000000006
+          },
+          "text": "2. AmbleTrack"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 19.2257,
+                "x1": 175.45569999999995,
+                "y0": 226.84700000000004,
+                "y1": 376.8470000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.85,
+                "x1": 354.5099999999999,
+                "y0": 88.06500000000005,
+                "y1": 140.67400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 205.155,
+                "x1": 350.59899999999993,
+                "y0": 157.47400000000005,
+                "y1": 195.87400000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.186,
+                "x1": 355.56599999999975,
+                "y0": 215.55900000000008,
+                "y1": 269.5590000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 206.483,
+                "x1": 352.8000000000001,
+                "y0": 279.40200000000004,
+                "y1": 285.40200000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 206.483,
+                "x1": 351.459,
+                "y0": 302.20200000000006,
+                "y1": 340.60200000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area3c": {
+      "id": "pc3.area3c",
+      "kind": "kind.oseLocation",
+      "name": "3. Mercury Lake",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        60
+      ],
+      "meta": {
+        "areaKey": "3",
+        "areaTitle": "Mercury Lake",
+        "areaSlug": "mercuryLake"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 16.5617,
+            "x1": 110.20570000000001,
+            "y0": 397.148,
+            "y1": 409.148
+          },
+          "text": "3. Mercury Lake"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 19.2257,
+                "x1": 173.11569999999998,
+                "y0": 418.75200000000007,
+                "y1": 496.75200000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.85,
+                "x1": 354.5099999999999,
+                "y0": 88.06500000000005,
+                "y1": 140.67400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 205.155,
+                "x1": 350.59899999999993,
+                "y0": 157.47400000000005,
+                "y1": 195.87400000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.186,
+                "x1": 355.56599999999975,
+                "y0": 215.55900000000008,
+                "y1": 269.5590000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 206.483,
+                "x1": 352.8000000000001,
+                "y0": 279.40200000000004,
+                "y1": 285.40200000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 206.483,
+                "x1": 351.459,
+                "y0": 302.20200000000006,
+                "y1": 340.60200000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 196.522,
+                "x1": 354.922,
+                "y0": 397.50300000000004,
+                "y1": 475.50300000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area4c": {
+      "id": "pc3.area4c",
+      "kind": "kind.oseLocation",
+      "name": "4. Guest Housing",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        60
+      ],
+      "meta": {
+        "areaKey": "4",
+        "areaTitle": "Guest Housing",
+        "areaSlug": "guestHousing"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 195.85,
+            "x1": 293.095,
+            "y0": 65.13200000000006,
+            "y1": 77.13200000000006
+          },
+          "text": "4. Guest Housing"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 197.85,
+                "x1": 354.5099999999999,
+                "y0": 88.06500000000005,
+                "y1": 140.67400000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 205.155,
+                "x1": 350.59899999999993,
+                "y0": 157.47400000000005,
+                "y1": 195.87400000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 197.186,
+                "x1": 355.56599999999975,
+                "y0": 215.55900000000008,
+                "y1": 269.5590000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 206.483,
+                "x1": 352.8000000000001,
+                "y0": 279.40200000000004,
+                "y1": 285.40200000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 206.483,
+                "x1": 351.459,
+                "y0": 302.20200000000006,
+                "y1": 340.60200000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area5f": {
+      "id": "pc3.area5f",
+      "kind": "kind.oseLocation",
+      "name": "5. Feasting Hall",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        60
+      ],
+      "meta": {
+        "areaKey": "5",
+        "areaTitle": "Feasting Hall",
+        "areaSlug": "feastingHall"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 195.85,
+            "x1": 288.688,
+            "y0": 374.571,
+            "y1": 386.571
+          },
+          "text": "5. Feasting Hall"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 196.522,
+                "x1": 354.922,
+                "y0": 397.50300000000004,
+                "y1": 475.50300000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area6f": {
+      "id": "pc3.area6f",
+      "kind": "kind.oseLocation",
+      "name": "6. The Castle",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        61
+      ],
+      "meta": {
+        "areaKey": "6",
+        "areaTitle": "The Castle",
+        "areaSlug": "theCastle"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 62.1426,
+            "x1": 138.1846,
+            "y0": 30.603000000000065,
+            "y1": 42.603000000000065
+          },
+          "text": "6. The Castle"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 63.4786,
+                "x1": 215.9986000000001,
+                "y0": 48.22300000000007,
+                "y1": 114.22300000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 63.4786,
+                "x1": 209.32860000000002,
+                "y0": 132.22300000000007,
+                "y1": 162.22300000000007
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 399.143,
+                "y0": 52.20700000000011,
+                "y1": 130.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 393.59299999999996,
+                "y0": 148.20700000000005,
+                "y1": 214.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 390.9129999999999,
+                "y0": 232.20700000000005,
+                "y1": 286.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area7": {
+      "id": "pc3.area7",
+      "kind": "kind.oseLocation",
+      "name": "7. The Plaza",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        61
+      ],
+      "meta": {
+        "areaKey": "7",
+        "areaTitle": "The Plaza",
+        "areaSlug": "thePlaza"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 61.4786,
+            "x1": 137.2086,
+            "y0": 191.96200000000005,
+            "y1": 203.96200000000005
+          },
+          "text": "7. The Plaza"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 63.4786,
+                "x1": 217.73860000000008,
+                "y0": 213.56700000000006,
+                "y1": 303.56700000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 399.143,
+                "y0": 52.20700000000011,
+                "y1": 130.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 393.59299999999996,
+                "y0": 148.20700000000005,
+                "y1": 214.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 390.9129999999999,
+                "y0": 232.20700000000005,
+                "y1": 286.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area8": {
+      "id": "pc3.area8",
+      "kind": "kind.oseLocation",
+      "name": "8. Jousting Arena",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        61
+      ],
+      "meta": {
+        "areaKey": "8",
+        "areaTitle": "Jousting Arena",
+        "areaSlug": "joustingArena"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 240.103,
+            "x1": 338.73900000000003,
+            "y0": 30.603000000000065,
+            "y1": 42.603000000000065
+          },
+          "text": "8. Jousting Arena"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 399.143,
+                "y0": 52.20700000000011,
+                "y1": 130.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 393.59299999999996,
+                "y0": 148.20700000000005,
+                "y1": 214.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 242.103,
+                "x1": 390.9129999999999,
+                "y0": 232.20700000000005,
+                "y1": 286.20700000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.area9": {
+      "id": "pc3.area9",
+      "kind": "kind.oseLocation",
+      "name": "9. Village",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        61
+      ],
+      "meta": {
+        "areaKey": "9",
+        "areaTitle": "Village",
+        "areaSlug": "village"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 239.439,
+            "x1": 297.94399999999996,
+            "y0": 316.81000000000006,
+            "y1": 328.81000000000006
+          },
+          "text": "9. Village"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 241.439,
+                "x1": 399.839,
+                "y0": 335.75800000000004,
+                "y1": 485.75800000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11
+                ],
+                "mergeHyphen": [
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pc3.vigilantOfordo": {
+      "id": "pc3.vigilantOfordo",
+      "kind": "kind.oseMonster",
+      "name": "Vigilant Ofordo",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        65
+      ],
+      "fields": {
+        "block": {
+          "op": "value",
+          "page": 65,
+          "box": {
+            "x0": 64.3352,
+            "x1": 226.87900000000002,
+            "y0": 397.06800000000004,
+            "y1": 446.26800000000003
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 65,
+          "paras": [
+            {
+              "box": {
+                "x0": 64.1609,
+                "x1": 188.09089999999998,
+                "y0": 353.41600000000005,
+                "y1": 383.41600000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 72.5506,
+                "x1": 220.9556,
+                "y0": 455.54600000000005,
+                "y1": 504.7456000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 72.5506,
+                "x1": 218.4626,
+                "y0": 521.5456,
+                "y1": 559.9456
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 274.251,
+                "x1": 396.921,
+                "y0": 83.95500000000004,
+                "y1": 137.95500000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 269.222,
+                "x1": 398.782,
+                "y0": 161.99900000000008,
+                "y1": 215.99900000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 269.222,
+                "x1": 399.6120000000001,
+                "y0": 233.99900000000008,
+                "y1": 287.9990000000001
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 269.222,
+                "x1": 398.1220000000002,
+                "y0": 305.9990000000001,
+                "y1": 347.999
+              },
+              "fixes": {
+                "joinSpace": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        },
+        "art": {
+          "op": "art",
+          "page": 65,
+          "name": "img_p64_1",
+          "box": {
+            "x0": 176.373,
+            "x1": 410.760164,
+            "y0": 340.3190000000001,
+            "y1": 595.463021
+          }
+        }
+      }
+    },
+    "pc3.theTraitor": {
+      "id": "pc3.theTraitor",
+      "kind": "kind.oseMonster",
+      "name": "The Traitor",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        67
+      ],
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 67,
+          "box": {
+            "x0": 240.669,
+            "x1": 306.713,
+            "y0": 30.079000000000065,
+            "y1": 42.079000000000065
+          },
+          "text": "The Traitor"
+        },
+        "block": {
+          "op": "value",
+          "page": 67,
+          "box": {
+            "x0": 242.558,
+            "x1": 392.318,
+            "y0": 81.15600000000006,
+            "y1": 133.15600000000006
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 67,
+          "paras": [
+            {
+              "box": {
+                "x0": 242.669,
+                "x1": 396.687,
+                "y0": 51.186000000000035,
+                "y1": 66.38600000000008
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 250.527,
+                "x1": 397.42700000000013,
+                "y0": 145.75300000000004,
+                "y1": 285.55300000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  9,
+                  10,
+                  12,
+                  13,
+                  15,
+                  16,
+                  18,
+                  19,
+                  20
+                ]
+              }
+            }
+          ]
+        },
+        "art": {
+          "op": "art",
+          "page": 67,
+          "name": "img_p66_1",
+          "box": {
+            "x0": 31.6965,
+            "x1": 216.22860100000003,
+            "y0": 410.26000000000005,
+            "y1": 595.764346
+          }
+        }
+      }
+    },
+    "pc3.giantClockworkBeetle": {
+      "id": "pc3.giantClockworkBeetle",
+      "kind": "kind.oseMonster",
+      "name": "Giant Clockwork Beetle",
+      "book": "pc3",
+      "cite": "",
+      "pages": [
+        70
+      ],
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 70,
+          "box": {
+            "x0": 18.4096,
+            "x1": 142.68960000000004,
+            "y0": 291.65400000000005,
+            "y1": 303.65400000000005
+          },
+          "text": "Giant Clockwork Beetle"
+        },
+        "block": {
+          "op": "value",
+          "page": 70,
+          "box": {
+            "x0": 18.3068,
+            "x1": 173.87700000000004,
+            "y0": 343.7710000000001,
+            "y1": 386.571
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 70,
+          "paras": [
+            {
+              "box": {
+                "x0": 20.0871,
+                "x1": 170.95909999999998,
+                "y0": 311.82400000000007,
+                "y1": 327.02400000000006
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 25.325,
+                "x1": 175.635,
+                "y0": 402.39400000000006,
+                "y1": 416.59400000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 25.325,
+                "x1": 153.445,
+                "y0": 430.7940000000001,
+                "y1": 444.994
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 25.325,
+                "x1": 173.71499999999997,
+                "y0": 459.1940000000001,
+                "y1": 497.994
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 25.325,
+                "x1": 171.54499999999996,
+                "y0": 512.1944000000001,
+                "y1": 542.7944
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        },
+        "art": {
+          "op": "art",
+          "page": 70,
+          "name": "img_p69_1",
+          "box": {
+            "x0": 186.259,
+            "x1": 382.85407,
+            "y0": 363.74700000000007,
+            "y1": 558.2702250000001
+          }
+        }
+      }
+    }
+  }
+}

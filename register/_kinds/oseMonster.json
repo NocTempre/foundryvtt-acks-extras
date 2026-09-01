@@ -1,0 +1,18 @@
+{
+  "id": "kind.oseMonster",
+  "role": "composite",
+  "note": "A creature in an authored OSE/B-X book. The entry supplies GEOMETRY - the box its stat block occupies, its prose, its art - and the SHIPPED grammar reads what comes out of it. kind.monster is shaped for the MM bold label/value rows; an OSE block is one inline comma-separated line. Authoring the box rather than a second reader keeps the authored books and the grammar improving together.",
+  "fields": {
+    "name": {
+      "locate": "display"
+    },
+    "block": {
+      "locate": "box",
+      "pattern": "raw"
+    },
+    "description": {
+      "locate": "proseFlow",
+      "type": "blocks"
+    }
+  }
+}

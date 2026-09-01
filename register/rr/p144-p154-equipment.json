@@ -1,0 +1,2526 @@
+[
+  {
+    "id": "def.equip.adventurerSHarness",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Adventurer’s Harness",
+    "anchor": {
+      "runin": "Adventurer’s Harness:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/bags/pack-leather-strapped-tan.webp"
+  },
+  {
+    "id": "def.equip.archeryTarget",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Archery Target",
+    "anchor": {
+      "runin": "Archery Target:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/environment/settlement/target.webp"
+  },
+  {
+    "id": "def.equip.armyEmblem",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Army Emblem",
+    "anchor": {
+      "runin": "Army Emblem:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/misc/badge-law-sheriff.webp"
+  },
+  {
+    "id": "def.equip.backpack",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Backpack",
+    "anchor": {
+      "runin": "Backpack:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/bags/pack-leather-brown.webp"
+  },
+  {
+    "id": "def.equip.barrel",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Barrel",
+    "anchor": {
+      "runin": "Barrel:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/barrels/barrel-oak-tan.webp"
+  },
+  {
+    "id": "def.equip.blanket",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Blanket",
+    "anchor": {
+      "runin": "Blanket:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/commodities/cloth/cloth-worn-teal.webp"
+  },
+  {
+    "id": "def.equip.boardgame",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Boardgame",
+    "anchor": {
+      "runin": "Boardgame:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/gaming/chess-king-gray.webp"
+  },
+  {
+    "id": "def.equip.bowquiver",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Bowquiver",
+    "anchor": {
+      "runin": "Bowquiver:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/ammunition/quiver-simple-brown.webp"
+  },
+  {
+    "id": "def.equip.candles",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Candles",
+    "anchor": {
+      "runin": "Candles:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/lights/candle-unlit-tan.webp"
+  },
+  {
+    "id": "def.equip.crowbar",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Crowbar",
+    "anchor": {
+      "runin": "Crowbar:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/hand/pry-bar-steel.webp"
+  },
+  {
+    "id": "def.equip.crutch",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Crutch",
+    "anchor": {
+      "runin": "Crutch:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/weapons/staves/staff-simple-hooked.webp"
+  },
+  {
+    "id": "def.equip.dice",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Dice",
+    "anchor": {
+      "runin": "Dice:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/gaming/dice-runed-brown.webp"
+  },
+  {
+    "id": "def.equip.disguiseKit",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Disguise Kit",
+    "anchor": {
+      "runin": "Disguise Kit:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/hand/paint-palette.webp"
+  },
+  {
+    "id": "def.equip.earplugs",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Earplugs",
+    "anchor": {
+      "runin": "Earplugs:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/commodities/materials/material-cotton-white.webp"
+  },
+  {
+    "id": "def.equip.earTrumpet",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Ear Trumpet",
+    "anchor": {
+      "runin": "Ear Trumpet:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/instruments/horn-flared-wood.webp"
+  },
+  {
+    "id": "def.equip.firewoodBundle",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Firewood Bundle",
+    "anchor": {
+      "runin": "Firewood Bundle:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/commodities/wood/log-stack-hickory-brown.webp"
+  },
+  {
+    "id": "def.equip.flag",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Flag",
+    "anchor": {
+      "runin": "Flag:"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/commodities/cloth/cloth-bolt-gold-red.webp"
+  },
+  {
+    "id": "def.equip.grapplingHook",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Grappling Hook",
+    "anchor": {
+      "runin": "Grappling Hook:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/fasteners/chain-claw-hook-steel.webp"
+  },
+  {
+    "id": "def.equip.hammerSmall",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Hammer (small)",
+    "anchor": {
+      "runin": "Hammer (small):"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/hand/hammer-simple-wood.webp"
+  },
+  {
+    "id": "def.equip.herbAloe",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Aloe",
+    "anchor": {
+      "runin": "Herb, Aloe:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/aloe-succulent-green.webp"
+  },
+  {
+    "id": "def.equip.herbBelladonna",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Belladonna",
+    "anchor": {
+      "runin": "Herb, Belladonna:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/thorned-stem-vine-green.webp"
+  },
+  {
+    "id": "def.equip.herbBirthwort",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Birthwort",
+    "anchor": {
+      "runin": "Herb, Birthwort:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/heart-cordate-leaf-yellow-green.webp"
+  },
+  {
+    "id": "def.equip.herbBlessedThistle",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Blessed Thistle",
+    "anchor": {
+      "runin": "Herb, Blessed Thistle:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/flax-leaves-spiked-bundle-orange.webp"
+  },
+  {
+    "id": "def.equip.herbComfrey",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Comfrey",
+    "anchor": {
+      "runin": "Herb, Comfrey:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/herb-tied-bundle-green.webp"
+  },
+  {
+    "id": "def.equip.herbGarlic",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Garlic",
+    "anchor": {
+      "runin": "Herb, Garlic:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/sprout-leaf-herb-green.webp"
+  },
+  {
+    "id": "def.equip.herbGoldenrod",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Goldenrod",
+    "anchor": {
+      "runin": "Herb, Goldenrod:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/herb-tied-bundle-dried-yellow.webp"
+  },
+  {
+    "id": "def.equip.herbHorsetail",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Horsetail",
+    "anchor": {
+      "runin": "Herb, Horsetail:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/fern-fiddlehead-dried-brown.webp"
+  },
+  {
+    "id": "def.equip.herbLungwort",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Lungwort",
+    "anchor": {
+      "runin": "Herb, Lungwort:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/lobed-leaf-green.webp"
+  },
+  {
+    "id": "def.equip.herbWillowBark",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Willow-Bark",
+    "anchor": {
+      "runin": "Herb, Willow-Bark:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/dried-leaf-stem-twig-green.webp"
+  },
+  {
+    "id": "def.equip.herbWolfsbane",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Wolfsbane",
+    "anchor": {
+      "runin": "Herb, Wolfsbane:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/holly-pointy-leaf-green.webp"
+  },
+  {
+    "id": "def.equip.herbWoundwort",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Herb, Woundwort",
+    "anchor": {
+      "runin": "Herb, Woundwort:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/plants/herb-marjoram-basil-oregano-leaf-bunch-green.webp"
+  },
+  {
+    "id": "def.equip.holyBook",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Holy Book",
+    "anchor": {
+      "runin": "Holy Book:"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/books/book-symbol-cross-blue.webp"
+  },
+  {
+    "id": "def.equip.holySymbol",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Holy Symbol",
+    "anchor": {
+      "runin": "Holy Symbol:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/equipment/neck/amulet-carved-stone-cross.webp"
+  },
+  {
+    "id": "def.equip.holyWater",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Holy Water",
+    "anchor": {
+      "runin": "Holy Water:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/drinks/glass-liquid-blue.webp"
+  },
+  {
+    "id": "def.equip.ink",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Ink",
+    "anchor": {
+      "runin": "Ink:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/scribal/ink-quill-pink.webp"
+  },
+  {
+    "id": "def.equip.ironSpikes",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Iron Spikes",
+    "anchor": {
+      "runin": "Iron Spikes:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/fasteners/nails-steel-brown.webp"
+  },
+  {
+    "id": "def.equip.journal",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Journal",
+    "anchor": {
+      "runin": "Journal:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/books/book-notes-ragged-green.webp"
+  },
+  {
+    "id": "def.equip.laborerSTools",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Laborer’s Tools",
+    "anchor": {
+      "runin": "Laborer’s Tools:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/hand/shovel-spade-steel-brown-grey.webp"
+  },
+  {
+    "id": "def.equip.lantern",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Lantern",
+    "anchor": {
+      "runin": "Lantern:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/lights/lantern-iron-lit-yellow.webp"
+  },
+  {
+    "id": "def.equip.lock",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Lock",
+    "anchor": {
+      "runin": "Lock:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/misc/lock-bronze-reinforced.webp"
+  },
+  {
+    "id": "def.equip.manacles",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Manacles",
+    "anchor": {
+      "runin": "Manacles:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/survival/cuffs-shackles-steel.webp"
+  },
+  {
+    "id": "def.equip.messKit",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Mess Kit",
+    "anchor": {
+      "runin": "Mess Kit:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/kitchenware/pot-meal.webp"
+  },
+  {
+    "id": "def.equip.metamphora",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Metamphora",
+    "anchor": {
+      "runin": "Metamphora:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/drinks/wine-amphora-clay-gray.webp"
+  },
+  {
+    "id": "def.equip.mirror",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Mirror",
+    "anchor": {
+      "runin": "Mirror:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/survival/mirror-plain.webp"
+  },
+  {
+    "id": "def.equip.musicalInstrument",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Musical Instrument",
+    "anchor": {
+      "runin": "Musical Instrument:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/instruments/lute-gold-brown.webp"
+  },
+  {
+    "id": "def.equip.oil",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Oil",
+    "anchor": {
+      "runin": "Oil:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/kitchenware/jug-clay-brown-sealed.webp"
+  },
+  {
+    "id": "def.equip.pavilion",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Pavilion",
+    "anchor": {
+      "runin": "Pavilion:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/environment/settlement/tent-flag.webp"
+  },
+  {
+    "id": "def.equip.pell",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Pell",
+    "anchor": {
+      "runin": "Pell:"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/environment/settlement/target-dummy.webp"
+  },
+  {
+    "id": "def.equip.poleWooden",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Pole, Wooden",
+    "anchor": {
+      "runin": "Pole, Wooden:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/weapons/staves/staff-simple-brown.webp"
+  },
+  {
+    "id": "def.equip.pouchPurse",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Pouch/purse",
+    "anchor": {
+      "runin": "Pouch/purse:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/bags/coinpouch-simple-leather-brown.webp"
+  },
+  {
+    "id": "def.equip.prosthesis",
+    "iconNiche": "modules/game-icons-net/blacktransparent/wooden-pegleg.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Prosthesis",
+    "anchor": {
+      "runin": "Prosthesis:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/equipment/hand/gauntlet-iron-riveted-brown.webp"
+  },
+  {
+    "id": "def.equip.quill",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Quill",
+    "anchor": {
+      "runin": "Quill:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/scribal/ink-quill-red.webp"
+  },
+  {
+    "id": "def.equip.quintain",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Quintain",
+    "anchor": {
+      "runin": "Quintain:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/environment/settlement/scarecrow.webp"
+  },
+  {
+    "id": "def.equip.rationsIron",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Rations, Iron",
+    "anchor": {
+      "runin": "Rations, Iron:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/food/dried-meat-jerky-fish-red.webp"
+  },
+  {
+    "id": "def.equip.rationsStandard",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Rations, Standard",
+    "anchor": {
+      "runin": "Rations, Standard:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/consumables/grains/breadsticks-crackers-wrapped-ration-brown.webp"
+  },
+  {
+    "id": "def.equip.rope50",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Rope, 50’",
+    "anchor": {
+      "runin": "Rope, 50’:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/survival/rope-coiled-brown.webp"
+  },
+  {
+    "id": "def.equip.rucksack",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Rucksack",
+    "anchor": {
+      "runin": "Rucksack:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/bags/duffel-simple-leather.webp"
+  },
+  {
+    "id": "def.equip.sackLarge",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Sack, Large",
+    "anchor": {
+      "runin": "Sack, Large:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/bags/sack-cloth-heavy-brown.webp"
+  },
+  {
+    "id": "def.equip.sackSmall",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Sack, Small",
+    "anchor": {
+      "runin": "Sack, Small:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/bags/sack-simple-brown.webp"
+  },
+  {
+    "id": "def.equip.saddlebag",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Saddlebag",
+    "anchor": {
+      "runin": "Saddlebag:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/containers/bags/satchel-leather-brown.webp"
+  },
+  {
+    "id": "def.equip.saddleTack",
+    "iconNiche": "modules/game-icons-net/blacktransparent/saddle.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Saddle & Tack",
+    "anchor": {
+      "runin": "Saddle & Tack:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/misc/horseshoe-iron.webp"
+  },
+  {
+    "id": "def.equip.scabbard",
+    "iconNiche": "modules/game-icons-net/blacktransparent/scabbard.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Scabbard",
+    "anchor": {
+      "runin": "Scabbard:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/equipment/waist/belt-coiled-leather-steel.webp"
+  },
+  {
+    "id": "def.equip.spellBookBlank",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Spell Book (Blank)",
+    "anchor": {
+      "runin": "Spell Book (Blank):"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/books/book-embossed-jewel-gold-purple.webp"
+  },
+  {
+    "id": "def.equip.stakesAndMallet",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Stakes and Mallet",
+    "anchor": {
+      "runin": "Stakes and Mallet:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/survival/stake-rough-simple-brown.webp"
+  },
+  {
+    "id": "def.equip.specialComponentsMiscellaneous",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Special Components, Miscellaneous",
+    "anchor": {
+      "runin": "Special Components, Miscellaneous:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/laboratory/vials-blue-pink.webp"
+  },
+  {
+    "id": "def.equip.surgicalSaw",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Surgical Saw",
+    "anchor": {
+      "runin": "Surgical Saw:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/hand/saw-surgical-steel-grey.webp"
+  },
+  {
+    "id": "def.equip.tent",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Tent",
+    "anchor": {
+      "runin": "Tent:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/environment/settlement/tent.webp"
+  },
+  {
+    "id": "def.equip.thievesTools",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Thieves’ Tools",
+    "anchor": {
+      "runin": "Thieves’ Tools:"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/hand/lockpicks-steel-grey.webp"
+  },
+  {
+    "id": "def.equip.thievesToolsSuperior",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Thieves’ Tools, Superior",
+    "anchor": {
+      "runin": "Thieves’ Tools, Superior:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/hand/awl.webp"
+  },
+  {
+    "id": "def.equip.tinderbox",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Tinderbox",
+    "anchor": {
+      "runin": "Tinderbox:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/survival/fire-lighter-brass-lit.webp"
+  },
+  {
+    "id": "def.equip.torch",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Torch",
+    "anchor": {
+      "runin": "Torch:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/lights/torch-brown-lit.webp"
+  },
+  {
+    "id": "def.equip.treatise",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Treatise",
+    "anchor": {
+      "runin": "Treatise:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/books/book-tooled-brass-brown.webp"
+  },
+  {
+    "id": "def.equip.whistle",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Whistle",
+    "anchor": {
+      "runin": "Whistle:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/tools/instruments/whistle-copper.webp"
+  },
+  {
+    "id": "def.equip.waterskinWineskin",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Waterskin/Wineskin",
+    "anchor": {
+      "runin": "Waterskin/Wineskin:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "gear"
+    },
+    "icon": "icons/sundries/survival/waterskin-leather-brown.webp"
+  },
+  {
+    "id": "def.equip.belt",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Belt",
+    "anchor": {
+      "runin": "Belt:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/waist/belt-leather-brown.webp"
+  },
+  {
+    "id": "def.equip.boots",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Boots",
+    "anchor": {
+      "runin": "Boots:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/feet/boots-leather-simple-brown.webp"
+  },
+  {
+    "id": "def.equip.breastwrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Breastwrap",
+    "anchor": {
+      "runin": "Breastwrap:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/chest/vest-cloth-tattered-tan.webp"
+  },
+  {
+    "id": "def.equip.cassock",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Cassock",
+    "anchor": {
+      "runin": "Cassock:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/chest/robe-collared-blue.webp"
+  },
+  {
+    "id": "def.equip.chiton",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Chiton",
+    "anchor": {
+      "runin": "Chiton:"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/chest/shirt-long.webp"
+  },
+  {
+    "id": "def.equip.cloak",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Cloak",
+    "anchor": {
+      "runin": "Cloak:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/back/cloak-brown.webp"
+  },
+  {
+    "id": "def.equip.gloves",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Gloves",
+    "anchor": {
+      "runin": "Gloves:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/hand/gloves-leather-tan.webp"
+  },
+  {
+    "id": "def.equip.hat",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Hat",
+    "anchor": {
+      "runin": "Hat:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/head/hat-belted-simple-brown.webp"
+  },
+  {
+    "id": "def.equip.robe",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Robe",
+    "anchor": {
+      "runin": "Robe:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/chest/robe-layered-white.webp"
+  },
+  {
+    "id": "def.equip.sandalsShoes",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Sandals/Shoes",
+    "anchor": {
+      "runin": "Sandals/Shoes:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/feet/shoes-sandals.webp"
+  },
+  {
+    "id": "def.equip.tunic",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Tunic",
+    "anchor": {
+      "runin": "Tunic:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "clothing",
+      "subtype": "clothing"
+    },
+    "icon": "icons/equipment/chest/shirt-simple-white.webp",
+    "assists": {
+      "descStopY": 400
+    }
+  },
+  {
+    "id": "def.equip.camels",
+    "iconNiche": "modules/game-icons-net/blacktransparent/camel.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Camels",
+    "anchor": {
+      "runin": "Camels:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/commodities/treasure/figurine-camel.webp"
+  },
+  {
+    "id": "def.equip.dogHunting",
+    "iconNiche": "modules/game-icons-net/blacktransparent/sitting-dog.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Dog, Hunting",
+    "anchor": {
+      "runin": "Dog, Hunting:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/creatures/mammals/dog-husky-white-blue.webp"
+  },
+  {
+    "id": "def.equip.dogWar",
+    "iconNiche": "modules/game-icons-net/blacktransparent/jumping-dog.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Dog, War",
+    "anchor": {
+      "runin": "Dog, War:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/creatures/mammals/wolf-howl-moon-gray.webp"
+  },
+  {
+    "id": "def.equip.donkey",
+    "iconNiche": "modules/game-icons-net/blacktransparent/donkey.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Donkey",
+    "anchor": {
+      "runin": "Donkey:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/environment/settlement/stables-horses.webp"
+  },
+  {
+    "id": "def.equip.horseHeavy",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Horse, Heavy",
+    "anchor": {
+      "runin": "Horse, Heavy:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/environment/creatures/horses.webp"
+  },
+  {
+    "id": "def.equip.horseLight",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Horse, Light",
+    "anchor": {
+      "runin": "Horse, Light:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/environment/creatures/horse-white.webp"
+  },
+  {
+    "id": "def.equip.horseMedium",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Horse, Medium",
+    "anchor": {
+      "runin": "Horse, Medium:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/environment/creatures/horse-brown.webp"
+  },
+  {
+    "id": "def.equip.horseSteppe",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Horse, Steppe",
+    "anchor": {
+      "runin": "Horse, Steppe:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/environment/creatures/horse-tan.webp"
+  },
+  {
+    "id": "def.equip.mule",
+    "iconNiche": "modules/game-icons-net/blacktransparent/horse-head.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Mule",
+    "anchor": {
+      "runin": "Mule:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/environment/settlement/stable.webp"
+  },
+  {
+    "id": "def.equip.ox",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Ox",
+    "anchor": {
+      "runin": "Ox:"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "animal"
+    },
+    "icon": "icons/creatures/mammals/ox-buffalo-horned-green.webp"
+  },
+  {
+    "id": "def.equip.animalFeed",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Animal Feed",
+    "anchor": {
+      "runin": "Animal Feed:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "provisions"
+    },
+    "icon": "icons/consumables/grains/sacks-grain-white.webp"
+  },
+  {
+    "id": "def.equip.inn",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Inn",
+    "anchor": {
+      "runin": "Inn:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "lodging"
+    },
+    "icon": "icons/environment/settlement/tavern.webp"
+  },
+  {
+    "id": "def.equip.adit",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Adit",
+    "anchor": {
+      "runin": "Adit:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/wilderness/mine-exterior-entrance.webp"
+  },
+  {
+    "id": "def.equip.arrowSlit",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Arrow Slit",
+    "anchor": {
+      "runin": "Arrow Slit:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/city-wall.webp"
+  },
+  {
+    "id": "def.equip.barbican",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Barbican",
+    "anchor": {
+      "runin": "Barbican:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/castle-gatehouse.webp"
+  },
+  {
+    "id": "def.equip.barracksBlock",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Barracks Block",
+    "anchor": {
+      "runin": "Barracks Block:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/house-poles.webp"
+  },
+  {
+    "id": "def.equip.battlement",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Battlement",
+    "anchor": {
+      "runin": "Battlement:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/castle-tan.webp"
+  },
+  {
+    "id": "def.equip.building",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Building",
+    "anchor": {
+      "runin": "Building:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/house-construction.webp"
+  },
+  {
+    "id": "def.equip.chapterhouse",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Chapterhouse",
+    "anchor": {
+      "runin": "Chapterhouse:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/church.webp"
+  },
+  {
+    "id": "def.equip.cottage",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Cottage",
+    "anchor": {
+      "runin": "Cottage:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/house-farmland-small.webp"
+  },
+  {
+    "id": "def.equip.drawbridge",
+    "iconNiche": "modules/game-icons-net/blacktransparent/drawbridge.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Drawbridge",
+    "anchor": {
+      "runin": "Drawbridge:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/bridge-stone.webp"
+  },
+  {
+    "id": "def.equip.gatehouse",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Gatehouse",
+    "anchor": {
+      "runin": "Gatehouse:"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/stone-gatehouse-tan.webp"
+  },
+  {
+    "id": "def.equip.granaryWarehouse",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Granary/Warehouse",
+    "anchor": {
+      "runin": "Granary/Warehouse:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/warehouse-barn-crates.webp"
+  },
+  {
+    "id": "def.equip.headquarters",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Headquarters",
+    "anchor": {
+      "runin": "Headquarters:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/city-hall.webp"
+  },
+  {
+    "id": "def.equip.hospital",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Hospital",
+    "anchor": {
+      "runin": "Hospital:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/tools/medical/medkit-white-red.webp"
+  },
+  {
+    "id": "def.equip.hut",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Hut",
+    "anchor": {
+      "runin": "Hut:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/hut.webp"
+  },
+  {
+    "id": "def.equip.keep",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Keep",
+    "anchor": {
+      "runin": "Keep:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/castle.webp"
+  },
+  {
+    "id": "def.equip.moat",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Moat",
+    "anchor": {
+      "runin": "Moat:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/sewer-entrance.webp"
+  },
+  {
+    "id": "def.equip.moatCrude",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Moat, Crude",
+    "anchor": {
+      "runin": "Moat, Crude:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/wilderness/terrain-rocky-ground.webp"
+  },
+  {
+    "id": "def.equip.palisade",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Palisade",
+    "anchor": {
+      "runin": "Palisade:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/fence-wooden-picket.webp"
+  },
+  {
+    "id": "def.equip.palisadeCrude",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Palisade, Crude",
+    "anchor": {
+      "runin": "Palisade, Crude:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/sundries/survival/stake-rough-heavy-brown.webp"
+  },
+  {
+    "id": "def.equip.rampart",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Rampart",
+    "anchor": {
+      "runin": "Rampart:"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/wilderness/terrain-rocks-brown.webp"
+  },
+  {
+    "id": "def.equip.roads",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Roads",
+    "anchor": {
+      "runin": "Roads:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/wilderness/terrain-river-road-gray.webp"
+  },
+  {
+    "id": "def.equip.shaft",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Shaft",
+    "anchor": {
+      "runin": "Shaft:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/wilderness/mine-interior-dungeon-door.webp"
+  },
+  {
+    "id": "def.equip.stableBarracks",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Stable-Barracks",
+    "anchor": {
+      "runin": "Stable-Barracks:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/stables-logo.webp"
+  },
+  {
+    "id": "def.equip.tower",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Tower",
+    "anchor": {
+      "runin": "Tower:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/tower-stone-blue.webp"
+  },
+  {
+    "id": "def.equip.townhouse",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Townhouse",
+    "anchor": {
+      "runin": "Townhouse:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/house-two-stories.webp"
+  },
+  {
+    "id": "def.equip.trap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Trap",
+    "anchor": {
+      "runin": "Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/traps/pressure-plate.webp"
+  },
+  {
+    "id": "def.equip.arrowFiringTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Arrow-Firing Trap",
+    "anchor": {
+      "runin": "Arrow-Firing Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/weapons/bows/shortbow-arrows-black.webp"
+  },
+  {
+    "id": "def.equip.ceilingCollapseTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Ceiling Collapse Trap",
+    "anchor": {
+      "runin": "Ceiling Collapse Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/wilderness/terrain-stone-stalagtite.webp"
+  },
+  {
+    "id": "def.equip.dartFiringTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Dart-Firing Trap",
+    "anchor": {
+      "runin": "Dart-Firing Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/weapons/thrown/dart-feathered.webp"
+  },
+  {
+    "id": "def.equip.deadfallTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Deadfall Trap",
+    "anchor": {
+      "runin": "Deadfall Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/commodities/stone/rock-pile-grey.webp"
+  },
+  {
+    "id": "def.equip.excavatedEarthPitTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Excavated Earth Pit Trap",
+    "anchor": {
+      "runin": "Excavated Earth Pit Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/traps/spike-skull-white-brown.webp"
+  },
+  {
+    "id": "def.equip.needleFiringTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Needle-Firing Trap",
+    "anchor": {
+      "runin": "Needle-Firing Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/tools/hand/needle-thread-spool.webp"
+  },
+  {
+    "id": "def.equip.portcullisTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Portcullis Trap",
+    "anchor": {
+      "runin": "Portcullis Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/traps/grate-steel.webp"
+  },
+  {
+    "id": "def.equip.rockCutPitTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Rock-Cut Pit Trap",
+    "anchor": {
+      "runin": "Rock-Cut Pit Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/traps/metal-spikes.webp"
+  },
+  {
+    "id": "def.equip.rollingRockTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Rolling Rock Trap",
+    "anchor": {
+      "runin": "Rolling Rock Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/commodities/stone/boulder-grey.webp"
+  },
+  {
+    "id": "def.equip.scythingBladeTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Scything Blade Trap",
+    "anchor": {
+      "runin": "Scything Blade Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/traps/saw-steel.webp"
+  },
+  {
+    "id": "def.equip.springSnareTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Spring Snare Trap",
+    "anchor": {
+      "runin": "Spring Snare Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/traps/net.webp"
+  },
+  {
+    "id": "def.equip.swingingLogTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Swinging Log Trap",
+    "anchor": {
+      "runin": "Swinging Log Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/commodities/wood/log-rough-brown.webp"
+  },
+  {
+    "id": "def.equip.whippingBranchTrap",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Whipping Branch Trap",
+    "anchor": {
+      "runin": "Whipping Branch Trap:"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/commodities/materials/plant-branch-brown-green.webp"
+  },
+  {
+    "id": "def.equip.trapAccessory",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Trap Accessory",
+    "anchor": {
+      "runin": "Trap Accessory:"
+    },
+    "pages": [
+      153
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/traps/wire-fencing-coil.webp"
+  },
+  {
+    "id": "def.equip.villa",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Villa",
+    "anchor": {
+      "runin": "Villa:"
+    },
+    "pages": [
+      153
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/house-manor.webp"
+  },
+  {
+    "id": "def.equip.wall",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Wall",
+    "anchor": {
+      "runin": "Wall:"
+    },
+    "pages": [
+      153
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/fence-stone-brick.webp"
+  },
+  {
+    "id": "def.equip.wallWalk",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Wall-Walk",
+    "anchor": {
+      "runin": "Wall-Walk:"
+    },
+    "pages": [
+      153
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "structure"
+    },
+    "icon": "icons/environment/settlement/stone-stairs.webp"
+  },
+  {
+    "id": "def.equip.cartLarge",
+    "iconNiche": "modules/game-icons-net/blacktransparent/old-wagon.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Cart, Large",
+    "anchor": {
+      "runin": "Cart, Large:"
+    },
+    "pages": [
+      153
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "vehicle"
+    },
+    "icon": "icons/environment/settlement/wagon-black.webp"
+  },
+  {
+    "id": "def.equip.cartSmall",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Cart, Small",
+    "anchor": {
+      "runin": "Cart, Small:"
+    },
+    "pages": [
+      153
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "vehicle"
+    },
+    "icon": "icons/containers/misc/wheelbarrow-white.webp"
+  },
+  {
+    "id": "def.equip.chariotHeavy",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Chariot, Heavy",
+    "anchor": {
+      "runin": "Chariot, Heavy:"
+    },
+    "pages": [
+      153
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "vehicle"
+    },
+    "icon": "icons/tools/smithing/horseshoe-steel-grey.webp"
+  },
+  {
+    "id": "def.equip.chariotLight",
+    "iconNiche": "modules/game-icons-net/blacktransparent/chariot.svg",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Chariot, Light",
+    "anchor": {
+      "runin": "Chariot, Light:"
+    },
+    "pages": [
+      154
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "vehicle"
+    },
+    "icon": "icons/tools/smithing/horseshoe-steel-blue.webp"
+  },
+  {
+    "id": "def.equip.chariotMedium",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Chariot, Medium",
+    "anchor": {
+      "runin": "Chariot, Medium:"
+    },
+    "pages": [
+      154
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "vehicle"
+    },
+    "icon": "icons/tools/smithing/horsehoe-worn-steel-grey.webp"
+  },
+  {
+    "id": "def.equip.howdah",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Howdah",
+    "anchor": {
+      "runin": "Howdah:"
+    },
+    "pages": [
+      154
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "vehicle"
+    },
+    "icon": "icons/environment/settlement/gazebo.webp"
+  },
+  {
+    "id": "def.equip.palanquin",
+    "kind": "kind.equipment",
+    "book": "rr",
+    "name": "Palanquin",
+    "anchor": {
+      "runin": "Palanquin:"
+    },
+    "pages": [
+      154
+    ],
+    "meta": {
+      "category": "equipment",
+      "group": "vehicle"
+    },
+    "icon": "icons/sundries/survival/shelter-tent-small.webp"
+  }
+]

@@ -29,7 +29,7 @@ export function classifyAlignment(value) {
 
 /**
  * This module's alignment tokens → acks-lib's (`lawful`/`neutral`/`chaotic`,
- * which is what acks-monsters and acks-content already use). Kept as a
+ * which is what acks-monsters and the importer already use). Kept as a
  * boundary translation rather than a rename: `law`/`chaos` are baked into
  * published effect flags, and breaking those to tidy a spelling is not worth
  * it. Unknown/"other" maps to null — an alignment nobody established cannot

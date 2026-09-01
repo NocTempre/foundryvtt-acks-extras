@@ -21,7 +21,7 @@ import {
   levelFactor,
 } from "../lib/vocab.mjs";
 import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, FLAG_TEMPLATE_PART, MODULE_ID } from "./constants.mjs";
-import { libraryItems } from "../lib/library.mjs";
+import { libraryItems, cookbookId } from "../lib/library.mjs";
 
 /** Every class Item the library holds — the sidebar's and the imported pack's. */
 export function classItems() {
@@ -83,8 +83,8 @@ export function classForActor(actor) {
 
 /**
  * Resolve an ability/equipment ref to a world Item: a cookbook id matches the
- * importer's stamp (`flags["acks-importer"].cookbook.id`), a `uuid:` ref
- * resolves directly. Null when nothing in this world carries the ref.
+ * importer's stamp (`flags[MODULE_ID].cookbook.id`), a `uuid:` ref resolves
+ * directly. Null when nothing in this world carries the ref.
  *
  * A CLASS'S OWN COPY NEVER ANSWERS FOR THE DEFINITION IT COPIED. A template
  * package skins its gear and specializes its proficiencies by copying, and a
@@ -103,7 +103,7 @@ export function findByRef(ref) {
     const doc = fromUuidSync(ref.slice(5));
     return doc ?? null;
   }
-  return libraryItems().find((i) => i.flags?.["acks-importer"]?.cookbook?.id === ref && !templatePartOf(i)) ?? null;
+  return libraryItems().find((i) => cookbookId(i) === ref && !templatePartOf(i)) ?? null;
 }
 
 /**

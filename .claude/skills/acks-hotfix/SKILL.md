@@ -37,8 +37,8 @@ ship without the live gate.
 | Repo | What it is |
 | --- | --- |
 | `foundryvtt-acks-core` | The ACKS II system (AutarchLLC fork). **Read-only reference — a module task never edits it.** |
-| `foundryvtt-acks-extras` | The merged rules-automation module (`acks-extras`). Subsystems under `scripts/`: `lib abilities classes equipment formation henchmen influence location markets monsters vehicles`. |
-| `foundryvtt-acks-importer` | `acks-importer` — book connection and content/table extraction. `requires acks-extras`; extras never names it. |
+| `foundryvtt-acks-extras` | The merged module (`acks-extras`). Subsystems under `scripts/`: `lib abilities classes equipment formation henchmen influence location markets monsters vehicles importer` — the last is book connection and content/table extraction (`cookbook/`, `register/`, `tools/importer/`). |
+| `foundryvtt-acks-importer` | Retired 2026-09-01: a read-only archive. Its open issues are worked in extras. |
 | `acks-module-template` | Toolchain source of truth; skills, rules and hooks are canonical here. |
 | `acks-rules` | LOCAL-ONLY rules extracts + `TEST_ENVIRONMENT.md` + the intake ledger and hygiene audit. Never committed, never shipped. |
 | `acks-reference` | LOCAL-ONLY reference library (book scans/extracts, `WIKI-SNAPSHOT`). |
@@ -62,7 +62,7 @@ only for a gap. Cite book/chapter/section, never a snapshot path.
 
 | The report mentions | Repo |
 | --- | --- |
-| Linking/connecting books, importing content or tables, page-reference extraction, the launch "Getting Started" dialog | `acks-importer` |
+| Linking/connecting books, importing content or tables, page-reference extraction, the launch "Getting Started" dialog | `acks-extras` — the importer subsystem (`scripts/importer/`) |
 | Proficiencies, classes and class powers, weapons/armor/encumbrance, formations and marching order, henchmen/hirelings/morale, reactions and influence, locations/storage/markets, monster stat blocks, vehicles, party & group actors | `acks-extras` |
 | Domains, downtime, hijinks, syndicates | out of scope (`acks-domains` is not part of this project) — record `routed-elsewhere` |
 | Divine Conduit class mechanics | `acks-divine-conduit` — isolated one-off; only on explicit request |

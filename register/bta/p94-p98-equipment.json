@@ -1,0 +1,657 @@
+[
+ {
+  "id": "def.equip.dwarvenBelts",
+  "icon": "icons/equipment/waist/belt-thick-studded-leather.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Belts",
+  "anchor": {
+   "runin": "Belts:"
+  },
+  "pages": [
+   94
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "clothing",
+   "subtype": "clothing"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenBoots",
+  "icon": "icons/equipment/feet/boots-leather-simple-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Boots",
+  "anchor": {
+   "runin": "Boots:"
+  },
+  "pages": [
+   94
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "clothing",
+   "subtype": "clothing"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenCap",
+  "icon": "icons/equipment/head/cap-simple-leather-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Cap",
+  "anchor": {
+   "runin": "Cap:"
+  },
+  "pages": [
+   94
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "clothing",
+   "subtype": "clothing"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenCloak",
+  "icon": "icons/equipment/back/cloak-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Cloak",
+  "anchor": {
+   "runin": "Cloak:"
+  },
+  "pages": [
+   94
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "clothing",
+   "subtype": "clothing"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenCoat",
+  "icon": "icons/equipment/chest/coat-trench-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Coat",
+  "anchor": {
+   "runin": "Coat:"
+  },
+  "pages": [
+   95
+  ],
+  "assists": {
+   "columns": [
+    36,
+    306
+   ]
+  },
+  "meta": {
+   "category": "equipment",
+   "group": "clothing",
+   "subtype": "clothing"
+  }
+ },
+ {
+  "id": "def.equip.tunicAndPants",
+  "icon": "icons/equipment/leg/pants-breeches-leather-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Tunic and Pants",
+  "anchor": {
+   "runin": "Tunic and Pants:"
+  },
+  "pages": [
+   95
+  ],
+  "assists": {
+   "columns": [
+    36,
+    306
+   ]
+  },
+  "meta": {
+   "category": "equipment",
+   "group": "clothing",
+   "subtype": "clothing"
+  }
+ },
+ {
+  "id": "def.equip.turban",
+  "icon": "icons/equipment/head/headwrap-cloth-white.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Turban",
+  "anchor": {
+   "runin": "Turban:"
+  },
+  "pages": [
+   95
+  ],
+  "assists": {
+   "descStopY": 290,
+   "columns": [
+    36,
+    306
+   ]
+  },
+  "meta": {
+   "category": "equipment",
+   "group": "clothing",
+   "subtype": "clothing"
+  }
+ },
+ {
+  "id": "def.equip.basket",
+  "icon": "icons/containers/misc/basket-handle-woven-yellow.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Basket",
+  "anchor": {
+   "runin": "Basket:"
+  },
+  "pages": [
+   95
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.bucket",
+  "icon": "icons/containers/misc/bucket-wooden-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Bucket",
+  "anchor": {
+   "runin": "Bucket:"
+  },
+  "pages": [
+   95
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.craftsmansWorkshop",
+  "icon": "icons/tools/hand/hammer-and-nail.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Craftsman's Workshop",
+  "anchor": {
+   "runin": "Craftsman’s Workshop:"
+  },
+  "pages": [
+   95
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.delversHarness",
+  "icon": "icons/sundries/survival/leather-strap-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Delver's Harness",
+  "anchor": {
+   "runin": "Delver’s Harness:"
+  },
+  "pages": [
+   95
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenBrew",
+  "icon": "icons/consumables/drinks/alcohol-beer-stein-wooden-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Dwarven Brew",
+  "anchor": {
+   "runin": "Dwarven Brew:"
+  },
+  "pages": [
+   95
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenBrewersLab",
+  "icon": "icons/tools/laboratory/cauldron-filled-gold.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Dwarven Brewer's Lab",
+  "anchor": {
+   "runin": "Dwarven Brewer’s Lab:"
+  },
+  "pages": [
+   95
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.gnosticImplements",
+  "icon": "icons/tools/laboratory/alembic-glass-ball-blue.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Gnostic Implements",
+  "anchor": {
+   "runin": "Gnostic Implements:"
+  },
+  "pages": [
+   96
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.helmetLightDwarven",
+  "icon": "icons/equipment/head/helm-spangen-tan.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Helmet, Light Dwarven",
+  "anchor": {
+   "runin": "Helmet, Light Dwarven:"
+  },
+  "pages": [
+   96
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.helmetHeavyDwarven",
+  "icon": "icons/equipment/head/greathelm-banded-steel.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Helmet, Heavy Dwarven",
+  "anchor": {
+   "runin": "Helmet, Heavy Dwarven:"
+  },
+  "pages": [
+   96
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.hoist",
+  "icon": "icons/tools/fasteners/chain-hook-grey.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Hoist",
+  "anchor": {
+   "runin": "Hoist:"
+  },
+  "pages": [
+   96
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenJournal",
+  "icon": "icons/sundries/books/book-notes-ragged-green.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Journal",
+  "anchor": {
+   "runin": "Journal:"
+  },
+  "pages": [
+   96
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.laborersTools",
+  "icon": "icons/tools/hand/shovel-spade-steel-brown-grey.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Laborer's Tools",
+  "anchor": {
+   "runin": "Laborer’s Tools:"
+  },
+  "pages": [
+   96
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.machinistsSpareParts",
+  "icon": "icons/tools/fasteners/nut-and-bolt-threaded-screw.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Machinist's Spare Parts",
+  "anchor": {
+   "runin": "Machinist’s Spare Parts:"
+  },
+  "pages": [
+   96
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenManacles",
+  "icon": "icons/sundries/survival/cuffs-shackles-steel.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Manacles",
+  "anchor": {
+   "runin": "Manacles:"
+  },
+  "pages": [
+   96
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.minersHelm",
+  "icon": "icons/equipment/head/helmet-mining-lamp.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Miner's Helm",
+  "anchor": {
+   "runin": "Miner’s Helm:"
+  },
+  "pages": [
+   97
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.petard",
+  "icon": "icons/weapons/thrown/bomb-fuse-black.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Petard",
+  "anchor": {
+   "runin": "Petard:"
+  },
+  "pages": [
+   97
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.portableBatteringRam",
+  "icon": "icons/commodities/wood/log-cut-hickory-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Portable Battering Ram",
+  "anchor": {
+   "runin": "Portable Battering Ram:"
+  },
+  "pages": [
+   97
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.prayerBook",
+  "icon": "icons/sundries/books/book-symbol-canterbury-cross.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Prayer Book",
+  "anchor": {
+   "runin": "Prayer Book:"
+  },
+  "pages": [
+   97
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.specialComponents",
+  "icon": "icons/tools/laboratory/vials-blue-pink.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Special Components, Miscellaneous",
+  "anchor": {
+   "runin": "Special Components, Miscellaneous:"
+  },
+  "pages": [
+   97
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.specialMushrooms",
+  "icon": "icons/consumables/mushrooms/campanulate-bell-red-white.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Special Mushrooms",
+  "anchor": {
+   "runin": "Special Mushrooms:"
+  },
+  "pages": [
+   97
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.dwarvenWhistle",
+  "icon": "icons/tools/instruments/whistle-copper.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Whistle",
+  "anchor": {
+   "runin": "Whistle:"
+  },
+  "pages": [
+   97
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.alchemicalFuel",
+  "icon": "icons/sundries/survival/fuel-canister-glass-green.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Alchemical Fuel",
+  "anchor": {
+   "runin": "Alchemical Fuel:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.charcoal",
+  "icon": "icons/commodities/materials/powder-black.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Charcoal",
+  "anchor": {
+   "runin": "Charcoal:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.commonOil",
+  "icon": "icons/containers/kitchenware/jug-clay-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Common Oil",
+  "anchor": {
+   "runin": "Common Oil:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.compost",
+  "icon": "icons/commodities/materials/slime-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Compost",
+  "anchor": {
+   "runin": "Compost:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.firewood",
+  "icon": "icons/commodities/wood/logs-pile-rough-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Firewood",
+  "anchor": {
+   "runin": "Firewood:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.refinedOil",
+  "icon": "icons/sundries/survival/fuel-canister-glass-yellow.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Refined Oil",
+  "anchor": {
+   "runin": "Refined Oil:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "gear"
+  }
+ },
+ {
+  "id": "def.equip.earthshooter",
+  "icon": "icons/weapons/artillery/ballista-wood-green.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Earthshooter",
+  "anchor": {
+   "runin": "Earthshooter:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "weapon"
+  }
+ },
+ {
+  "id": "def.equip.warBear",
+  "icon": "icons/creatures/abilities/bear-roar-bite-brown.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "War Bear",
+  "anchor": {
+   "runin": "War Bear:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "animal"
+  }
+ },
+ {
+  "id": "def.equip.guardBear",
+  "icon": "icons/creatures/abilities/bear-roar-bite-brown-green.webp",
+  "kind": "kind.equipment",
+  "book": "bta",
+  "name": "Guard Bear",
+  "anchor": {
+   "runin": "Guard Bear:"
+  },
+  "pages": [
+   98
+  ],
+  "meta": {
+   "category": "equipment",
+   "group": "animal"
+  }
+ }
+]

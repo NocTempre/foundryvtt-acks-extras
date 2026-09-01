@@ -1,0 +1,14 @@
+{
+  "id": "kind.class",
+  "role": "definition",
+  "note": "Class spreads (templates in its ch.4). Display anchor = class name; header bullets become value ops. 'class' block is chef wiring: tables located by printed TITLE, awards with from.pattern grant levels (starting:true = 1st), chassis keys, cleave pattern, prof-list label. Binds to acks-extras.class; only geometry+patterns ship.",
+  "fields": {
+    "name": {
+      "locate": "display"
+    },
+    "description": {
+      "locate": "displayBlock",
+      "type": "blocks"
+    }
+  }
+}

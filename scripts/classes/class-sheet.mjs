@@ -19,6 +19,7 @@ import { ARMOR_LADDER, STYLE } from "../equipment/config.mjs";
 import { AWARD_KINDS } from "./class-data.mjs";
 import ClassData from "./class-data.mjs";
 import { findByRef } from "./registry.mjs";
+import { refOf } from "./grants.mjs";
 import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabel } from "./builder.mjs";
 import { materializeTemplates, detachTemplatePackages } from "./template-packages.mjs";
 import { CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
@@ -39,9 +40,6 @@ const optionsOf = (enumObj, current, { blankLabel } = {}) => {
   if (blankLabel != null) out.unshift({ value: "", label: blankLabel, selected: !current });
   return out;
 };
-
-/** The ref a world item is addressed by: its cookbook id, else its uuid. */
-const refOf = (item) => item.flags?.["acks-importer"]?.cookbook?.id ?? `uuid:${item.uuid}`;
 
 export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {

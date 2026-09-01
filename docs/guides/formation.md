@@ -102,7 +102,7 @@ top of the travel panel switches between the dungeon clock and the overland
 one, and a third button takes the order into a city.
 
 Every number behind this section is printed in your books and arrives through
-**acks-importer**. Until you have imported them the panel still works, and says
+**the importer**. Until you have imported them the panel still works, and says
 plainly what it cannot price — it never guesses a distance, a target or a toll.
 
 ### The day
@@ -539,7 +539,7 @@ modifier stack behind each one.*
 Party **saving throws** post the same card, and so does the Surprise Matrix
 (below) — one shape for every roll the whole party makes at once.
 
-Every number comes from your own imported book by way of acks-importer — this
+Every number comes from your own imported book by way of the importer — this
 module ships no skill ladder. Resolution order:
 
 1. an explicit **Used for** binding on an ability item;

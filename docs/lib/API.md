@@ -95,7 +95,7 @@ defined HERE, never by module ids.
 ### Contract `ruledata-import` v1
 
 Provider: the location-domain binding target (the location feature). Consumers:
-content import flows (acks-importer). Shape:
+content import flows (the importer subsystem, `scripts/importer/`). Shape:
 
 ```
 {
@@ -124,15 +124,15 @@ and import UIs say "no import target installed".
 
 ### Contract `import-provenance` v1
 
-Writer: an importer that converts a creature from another game's book
-(acks-importer's OSE path). Reader: the Full Monster sheet, which grows a
+Writer: an importer that converts a creature from another game's book (the
+importer subsystem's OSE path). Reader: the Full Monster sheet, which grows a
 **Source** tab when the flag is present and shows none when it is not.
 
 A flag rather than a function call, deliberately: the record has to survive on
 the document long after the import session is gone, because that is when a
 conversion actually gets questioned.
 
-Written to `flags["acks-importer"].ose` on the created Actor:
+Written to `flags["acks-extras"].ose` on the created Actor:
 
 ```
 {
@@ -164,7 +164,7 @@ information the Judge should see.
 
 ### Contract `ability-provider` v1
 
-Provider: the content binding (acks-importer). Consumers: anything that
+Provider: the content binding (the importer subsystem). Consumers: anything that
 embeds proficiency/power items on an actor from name tokens (henchmen's
 hire-time occupation packages). Shape:
 
@@ -380,10 +380,11 @@ them today; treat a change here as cheap until magic lands.
 
 `apiVersion` is bumped when this surface changes shape, and it is informational:
 the lib and its callers are one module at one version, so nothing pins a minimum
-against it. It matters to **`acks-importer`**, which is a separate repo reading
-this surface across the family's one dependency edge — before tagging the
-importer against a symbol here, that symbol must exist in `acks-extras` HEAD
-*and* in its released tag.
+against it. The importer subsystem (`scripts/importer/`) lives in this repo now,
+so a symbol added here and the importer code that consumes it land in the same
+commit — the cross-repo tag-first rule this section used to state (a symbol
+must exist in `acks-extras` HEAD *and* in its released tag before the importer,
+as a separate repo, could tag against it) has no live instance left to apply to.
 
 The `(v0.x)` markers throughout this page are the pre-merge `acks-lib` release
 that first shipped a surface. They are provenance, not anything to check a
@@ -564,9 +565,9 @@ pages — and modifier creatures (vampire thrall) rewrite a victim rather than
 standing alone. `TemplateData` holds that procedure as a document: AXES whose
 options carry **engine-ready patches** (`system.*` fragments, embedded-item
 payloads, name pieces, art paths, description snippets), N-dimensional `cells`
-refinements, and a rolled special-ability `menu`. The importing module
-(acks-importer) materializes all of it from the reader's own book; this library
-never interprets book content — a bookless template has empty axes and the
+refinements, and a rolled special-ability `menu`. The importer subsystem
+materializes all of it from the reader's own book; this library never
+interprets book content — a bookless template has empty axes and the
 sheet says so instead of offering an empty Generate.
 
 ```js

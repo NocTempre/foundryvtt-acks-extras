@@ -1,0 +1,79 @@
+{
+  "updated": "2026-09-01T08:26:34.531Z",
+  "kinds": {
+    "kind.proficiency": {
+      "total": 121,
+      "placed": 121,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
+    "kind.combatProficiency": {
+      "total": 4,
+      "placed": 4,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
+    "kind.skill": {
+      "total": 14,
+      "placed": 14,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
+    "kind.class": {
+      "total": 31,
+      "placed": 31,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
+    "kind.power": {
+      "total": 437,
+      "placed": 437,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
+    "kind.equipment": {
+      "total": 190,
+      "placed": 190,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
+    "kind.variation": {
+      "total": 7,
+      "placed": 7,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
+    "kind.trap": {
+      "total": 13,
+      "placed": 13,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    },
+    "kind.vehicle": {
+      "total": 2,
+      "placed": 2,
+      "missing": 0,
+      "placeholder": 0,
+      "offFamily": 0,
+      "shared": 0
+    }
+  },
+  "debt": 0,
+  "total": 819
+}

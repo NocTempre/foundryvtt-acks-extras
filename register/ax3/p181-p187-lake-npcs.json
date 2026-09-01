@@ -1,0 +1,98 @@
+[
+  {
+    "id": "ax3.valensIcusAmbador",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Councilor Valens Icus Ambador",
+    "anchor": {
+      "runin": "Valens Icus Ambador"
+    },
+    "pages": [
+      182
+    ],
+    "meta": {
+      "group": "Lake District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Valens Icus Ambador:",
+      "stopLines": [
+        "Other Members"
+      ]
+    }
+  },
+  {
+    "id": "ax3.arjenusIonicusDrakomir",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Councilor Arjenus Ionicus Drakomir",
+    "anchor": {
+      "runin": "Arjenus Ionicus Drakomir"
+    },
+    "pages": [
+      182
+    ],
+    "meta": {
+      "group": "Lake District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Arjenus Ionicus Drakomir:"
+    }
+  },
+  {
+    "id": "ax3.jonusAmbador",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Jonus Ambador",
+    "anchor": {
+      "label": "Jonus Ambador:"
+    },
+    "pages": [
+      184
+    ],
+    "meta": {
+      "group": "Lake District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Jonus Ambador:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.rhankurTheDoombringer",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Rhankur the Doombringer",
+    "anchor": {
+      "label": "Rhankur the Doombringer:"
+    },
+    "pages": [
+      187
+    ],
+    "meta": {
+      "group": "Lake District — Death Cult"
+    },
+    "assists": {
+      "statLabel": "Rhankur the Doombringer:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.malthusia",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Malthusia the Diabolist",
+    "anchor": {
+      "label": "Malthusia the Diabolist:"
+    },
+    "pages": [
+      187
+    ],
+    "meta": {
+      "group": "Lake District — Death Cult"
+    },
+    "assists": {
+      "statLabel": "Malthusia the Diabolist:",
+      "anchorAtStatline": true
+    }
+  }
+]

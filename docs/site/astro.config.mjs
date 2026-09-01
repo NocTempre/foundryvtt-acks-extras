@@ -80,6 +80,7 @@ export default defineConfig({
           // rather than letting it go quiet again.
           label: "Guides",
           items: [
+            { label: "Importing from your books", slug: "guides/importer" },
             { label: "Classes & the class builder", slug: "guides/classes" },
             { label: "Proficiencies & class powers", slug: "guides/abilities" },
             { label: "Equipment & fighting styles", slug: "guides/equipment" },

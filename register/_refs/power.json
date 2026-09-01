@@ -1,0 +1,7 @@
+{
+  "registry": "power",
+  "shape": "open",
+  "note": "Open name-index: class-power tokens -> definition nodes. Authored from the JJ Custom Power Index (and other books that print powers). 'See X' surface forms map to the target power's ref (aliases). Page links fill as powers are authored (unfilled = verify warning, not failure).",
+  "tokens": {},
+  "nodes": {}
+}

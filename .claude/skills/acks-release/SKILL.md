@@ -131,10 +131,9 @@ the full pipeline (build + validate, no publish) is available anytime:
    without saying exactly which run is red and why.
 8. Verify the manifest resolves with the new version (bounded, `-m 15`):
    `curl -sm 15 -L https://github.com/NocTempre/<repo>/releases/latest/download/module.json`
-   `<repo>` is the GitHub repo name, which is NOT always the module id — the
-   merged repos are `foundryvtt-acks-extras` / `foundryvtt-acks-importer`
-   (ids `acks-extras` / `acks-importer`). The repos are public (since
-   2026-08); if one has been taken private (e.g. IP quarantine), the URL
+   `<repo>` is the GitHub repo name, which is NOT the module id — the merged
+   repo is `foundryvtt-acks-extras` (id `acks-extras`). The repo is public
+   (since 2026-08); if it has been taken private (e.g. IP quarantine), the URL
    404s unauthenticated — use `gh release view` instead and note it.
 9. Report: release kind, version, release URL, the status of every triggered
    workflow, the snapshots captured (and any obligation you could not meet,

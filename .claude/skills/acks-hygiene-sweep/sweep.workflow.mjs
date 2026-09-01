@@ -23,7 +23,7 @@
 
 export const meta = {
   name: 'acks-hygiene-sweep',
-  description: 'Audit acks-extras and acks-importer against the standing hygiene checklist',
+  description: 'Audit acks-extras (importer subsystem included) against the standing hygiene checklist',
   whenToUse: 'Invoked by the /acks-hygiene-sweep skill. Run the generated copy that plan-sweep.mjs emits.',
   phases: [
     { title: 'WikiVocab', detail: 'extract canonical ACKS II rules vocabulary' },
@@ -180,7 +180,7 @@ const DOCTRINE_CONTEXT = `FAMILY DOCTRINE — this family of Foundry VTT modules
   10d. Every module that persists flags or Active Effects ships its uninstall path.
   10e. Cross-repo feature halves land dependency-first; a guarded read makes a missing half invisible rather than acceptable.
   10g. foundry.utils.duplicate() strips getters — a duplicated snapshot has _id but no id, and a lookup on the wrong key must not no-op silently.
-- 2026-08-01 merge: eight modules became scripts/<feature>/ subsystems of acks-extras; acks-content became acks-importer. acks-importer requires acks-extras; extras must never name the importer.
+- 2026-08-01 merge: eight modules became scripts/<feature>/ subsystems of acks-extras; acks-content became acks-importer. 2026-09-01 merge: acks-importer became the scripts/importer/ subsystem of acks-extras (tools in tools/importer/, cookbook/ and register/ at the root). There is one repo and one flag scope; every former globalThis.acksExtras probe in the importer is now a static import.
 - 2026-08-04: a shared check MUST report what it checked. A green run that verified nothing is the failure mode this rule exists to prevent.`
 
 const CORE_FLAW_CONTEXT = `CORE FLAW CONTEXT — foundryvtt-acks-core is read-only reference. Never report a finding against core itself; report only where THIS cluster repeats one of its patterns (category core-flaw-inherited).
@@ -206,7 +206,7 @@ const APPV2_CONTEXT = `APPLICATIONV2 CONTEXT — what this project's own modern 
 const LIBRARY_CONTEXT = `LIBRARY CONTEXT — extras declares lib-wrapper (>=1.12.0) and socketlib (>=1.1.0) in module.json relationships.requires.
 - scripts/lib/sockets.mjs is the module's ONE socketlib transport, and is confirmed to be the only place in either repo touching game.socket. Its two internal game.socket.emit/on calls are a DELIBERATE, documented native fallback for when socketlib never came up, gated behind if (socket) / if (!socket). Do NOT report that dual path as a violation — it is the intended design.
 - A confirmed finding already in hand, to CITE rather than re-derive: scripts/henchmen/repair.mjs (installWageGuard, around lines 123-156) raw-monkeypatches CONFIG.Actor.documentClass.prototype.getTotalWages — captures the original, substitutes a wrapper carrying a hand-rolled \`_<moduleId>Guarded\` reentrancy flag — instead of libWrapper.register(), which provides exactly that protection. It is structurally invisible to tools/validate-extra.mjs's "one libWrapper registration per target" gate, because that gate regexes the literal text libWrapper.register(. If your cluster owns that file, report it (library-reinvention, and note the lint blind spot for the convention-gap stage).
-- Scope note, not a defect: acks-importer gates 20 operations on game.user.isGM and REFUSES for non-GMs rather than routing the write to a GM seat. That is why it declares neither library. Do not report it as a missing integration.`
+- Scope note, not a defect: the importer subsystem gates 20 operations on game.user.isGM and REFUSES for non-GMs rather than routing the write to a GM seat. That is why it declares neither library. Do not report it as a missing integration.`
 
 function vocabContext(vocab) {
   if (!vocab || !Array.isArray(vocab.domains) || !vocab.domains.length) {
@@ -665,7 +665,7 @@ log(
 
 phase('Triage')
 const triageMarkdown = await agent(
-  `Write the triage report for a code-hygiene sweep of two Foundry VTT modules (foundryvtt-acks-extras, foundryvtt-acks-importer). foundryvtt-acks-core was read-only reference, checked only for inherited flaws. Output GitHub-flavored Markdown, no front matter, starting with a single H1.
+  `Write the triage report for a code-hygiene sweep of one Foundry VTT module (foundryvtt-acks-extras, its importer subsystem included). foundryvtt-acks-core was read-only reference, checked only for inherited flaws. Output GitHub-flavored Markdown, no front matter, starting with a single H1.
 
 Run: mode=${MODE}, lens=${LENS}, clusters swept this run = ${JSON.stringify(PLAN.sweptClusterIds)}, clusters carried forward unchanged from previous runs = ${JSON.stringify(PLAN.carriedClusterIds)}.
 ${LENS === 'all'

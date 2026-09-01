@@ -2,7 +2,7 @@
 
 /**
  * Capability-aware ability matching — the bridge to the abilities program
- * (acks-lib vocabulary, acks-abilities effect model, acks-content import).
+ * (acks-lib vocabulary, acks-abilities effect model, importer import).
  * The capability primitives themselves live in `lib/capabilities.mjs`; what
  * this file adds is how a formation CONSUMES them, plus the skill ladders.
  *
@@ -25,12 +25,8 @@
 
 import { MODULE_ID } from "./constants.mjs";
 import { slug, resolveLevelValue, ITEM_TYPE } from "../lib/vocab.mjs";
+import { cookbookId } from "../lib/library.mjs";
 
-// Declared here as well as in lib/capabilities.mjs: the flag-scope validator
-// resolves a scope to its literal value within the calling file. Read via the
-// raw flag path, never getFlag — the importer need not be active (getFlag
-// throws for an inactive scope) while the data it wrote persists on the item.
-const DEFINITION_SCOPE = "acks-importer";
 const ABILITIES_ID = "acks-extras";
 
 /**
@@ -43,7 +39,7 @@ export { abilityRefs, hasCapability, itemHasCapability } from "../lib/capabiliti
 /**
  * The throw target an imported ability carries, resolved at `level` — or null.
  *
- * acks-content materializes each classified throw into the acks-abilities
+ * The importer materializes each classified throw into the acks-abilities
  * extras (`extras.rolls[].target`, an acks-lib LevelValue carried WHOLE), and
  * deliberately never writes `system.rollTarget`. So the number a party roll
  * needs lives here for exactly the items the program produces.
@@ -76,7 +72,7 @@ export function importedThrowTarget(item, level) {
 }
 
 /* -------------------------------------------- */
-/*  Skill ladders, sourced from acks-content     */
+/*  Skill ladders, sourced from the importer     */
 /* -------------------------------------------- */
 
 /** A cookbook skill definition id, e.g. "def.skill.listening". */
@@ -94,10 +90,10 @@ function ladderOf(item) {
 /*
  * Where the imported definitions actually live.
  *
- * acks-content's `importToCompendium` setting sends every import to a WORLD
+ * The importer's `importToCompendium` setting sends every import to a WORLD
  * compendium ("ACKS Cookbook — Item") instead of the item directory, so a read
  * that only walks `game.items` finds nothing in exactly the worlds that have
- * imported the most. acks-content learned this the hard way — the setting moved
+ * imported the most. The importer learned this the hard way — the setting moved
  * the WRITES and not the READS, and its dedup silently duplicated everything —
  * and the same trap caught this module's first cut, live, on a test world with
  * 467 imported items and an empty `game.items`.
@@ -132,8 +128,8 @@ export function invalidateLadders() {
 }
 
 function takeLadder(map, item) {
-  const id = item?.type === ITEM_TYPE.ability ? item.flags?.[DEFINITION_SCOPE]?.cookbook?.id : null;
-  if (!id?.startsWith(SKILL_PREFIX)) return;
+  const id = item?.type === ITEM_TYPE.ability ? cookbookId(item) : "";
+  if (!id.startsWith(SKILL_PREFIX)) return;
   const ladder = ladderOf(item);
   if (ladder && !map.has(id.slice(SKILL_PREFIX.length))) map.set(id.slice(SKILL_PREFIX.length), ladder);
 }
@@ -163,7 +159,7 @@ export function initLadders() {
 
 /**
  * The ladder for a named thief skill, read from this world's imported copy of
- * that skill — the definition acks-content materialized from the GM's own book.
+ * that skill — the definition the importer materialized from the GM's own book.
  *
  * This is what the `thiefSkill` flag means now: not an index into a table this
  * module ships, but a POINTER at a cookbook definition ("scale as Listening
@@ -180,7 +176,7 @@ export function importedLadderFor(key, actor = null) {
   if (!key) return null;
   const id = skillDefId(key);
   const carries = (item) =>
-    item?.type === ITEM_TYPE.ability && item.flags?.[DEFINITION_SCOPE]?.cookbook?.id === id ? ladderOf(item) : null;
+    item?.type === ITEM_TYPE.ability && cookbookId(item) === id ? ladderOf(item) : null;
   // Everything readable synchronously is read synchronously, so a world that
   // imports into the item directory never depends on the cache at all.
   for (const item of actor?.items ?? []) {
@@ -243,7 +239,7 @@ export const SETTING_ABILITY_OVERRIDES = "abilityOverrides";
  * it has one (stable across renames — the whole point), else its folded name.
  */
 export function abilityKey(item) {
-  const id = item?.flags?.[DEFINITION_SCOPE]?.cookbook?.id;
+  const id = cookbookId(item);
   if (id) return id;
   return `name:${slug(item?.name)}`;
 }

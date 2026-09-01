@@ -1,0 +1,37 @@
+{
+  "registry": "size",
+  "shape": "keyword",
+  "note": "Keyword rows for now; promotable to descriptor when the size-definition page is authored. Tokens are printed surface forms (the mass parenthetical is split off by the parenSplit pattern).",
+  "tokens": {
+    "Small": {
+      "key": "small"
+    },
+    "Man-sized": {
+      "key": "man"
+    },
+    "Man-Sized": {
+      "key": "man"
+    },
+    "Large": {
+      "key": "large"
+    },
+    "Huge": {
+      "key": "huge"
+    },
+    "Gigantic": {
+      "key": "gigantic"
+    },
+    "Colossal": {
+      "key": "colossal"
+    },
+    "Large/Huge/Gigantic": {
+      "key": "largeHugeGigantic"
+    },
+    "small": {
+      "key": "small"
+    },
+    "colossal": {
+      "key": "colossal"
+    }
+  }
+}

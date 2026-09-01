@@ -1,0 +1,614 @@
+[
+  {
+    "id": "ax2.fungalCreeper",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Fungal Creeper",
+    "anchor": {
+      "display": "FUNGAL CREEPER"
+    },
+    "pages": [
+      145,
+      146
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        54,
+        324
+      ]
+    }
+  },
+  {
+    "id": "ax2.khepri",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Khepri",
+    "anchor": {
+      "display": "KHEPRI"
+    },
+    "pages": [
+      149,
+      150
+    ],
+    "meta": {
+      "group": "New Monsters",
+      "revisedBy": "mm.khepri"
+    },
+    "assists": {
+      "columns": [
+        54,
+        324
+      ]
+    }
+  },
+  {
+    "id": "ax2.mummyLord",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy Lord",
+    "anchor": {
+      "display": "MUMMY LORD"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "group": "New Monsters",
+      "revisedBy": "mm.mummyLord"
+    },
+    "assists": {
+      "columns": [
+        54,
+        324
+      ]
+    }
+  },
+  {
+    "id": "ax2.tunnelPrawn",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Tunnel Prawn",
+    "anchor": {
+      "display": "TUNNEL PRAWN"
+    },
+    "pages": [
+      153
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        54,
+        324
+      ]
+    }
+  },
+  {
+    "id": "ax2.cobraMechanicalBronze",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Cobra, Mechanical (Bronze)",
+    "anchor": {
+      "display": "COBRA, MECHANICAL"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        38,
+        308
+      ],
+      "variantCol": "Bronze"
+    }
+  },
+  {
+    "id": "ax2.cobraMechanicalIron",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Cobra, Mechanical (Iron)",
+    "anchor": {
+      "display": "COBRA, MECHANICAL"
+    },
+    "pages": [
+      144
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        38,
+        308
+      ],
+      "variantCol": "Iron"
+    }
+  },
+  {
+    "id": "ax2.faewyrdLesser",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Faewyrd, Lesser",
+    "anchor": {
+      "display": "FAEWYRD"
+    },
+    "pages": [
+      144,
+      145
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        38,
+        308
+      ],
+      "variantCol": "Lesser"
+    }
+  },
+  {
+    "id": "ax2.faewyrdGreater",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Faewyrd, Greater",
+    "anchor": {
+      "display": "FAEWYRD"
+    },
+    "pages": [
+      144,
+      145
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        38,
+        308
+      ],
+      "variantCol": "Greater"
+    }
+  },
+  {
+    "id": "ax2.flailingSpirit",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Flailing Spirit",
+    "anchor": {
+      "display": "FLAILING SPIRIT"
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        54,
+        324
+      ]
+    }
+  },
+  {
+    "id": "ax2.golemUndeadBoneLesser",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Golem, Undead Bone (Lesser)",
+    "anchor": {
+      "display": "GOLEM, UNDEAD BONE"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Lesser"
+    }
+  },
+  {
+    "id": "ax2.golemUndeadBoneGreater",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Golem, Undead Bone (Greater)",
+    "anchor": {
+      "display": "GOLEM, UNDEAD BONE"
+    },
+    "pages": [
+      146
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Greater"
+    }
+  },
+  {
+    "id": "ax2.hydropion",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Hydropion",
+    "anchor": {
+      "display": "HYDROPION"
+    },
+    "pages": [
+      146,
+      147
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ]
+    }
+  },
+  {
+    "id": "ax2.incarnationOfTerror",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Incarnation of Terror",
+    "anchor": {
+      "display": "INCARNATION OF TERROR"
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        54,
+        324
+      ]
+    }
+  },
+  {
+    "id": "ax2.jackalOfDarkness",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Jackal of Darkness",
+    "anchor": {
+      "display": "JACKAL OF DARKNESS"
+    },
+    "pages": [
+      147,
+      148,
+      149
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        54,
+        324
+      ]
+    }
+  },
+  {
+    "id": "ax2.mummyBaboon",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy, Baboon",
+    "anchor": {
+      "display": "MUMMY, ANIMAL"
+    },
+    "pages": [
+      150,
+      151
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Baboon Mummy",
+      "statBlockY": [
+        88,
+        282
+      ],
+      "descStartY": 480,
+      "blockFullWidth": true
+    }
+  },
+  {
+    "id": "ax2.mummyCat",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy, Cat",
+    "anchor": {
+      "display": "MUMMY, ANIMAL"
+    },
+    "pages": [
+      150,
+      151
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Cat Mummy",
+      "statBlockY": [
+        88,
+        282
+      ],
+      "descStartY": 480,
+      "blockFullWidth": true
+    }
+  },
+  {
+    "id": "ax2.mummyCrocodile",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy, Crocodile",
+    "anchor": {
+      "display": "MUMMY, ANIMAL"
+    },
+    "pages": [
+      150,
+      151
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Crocodile Mummy",
+      "statBlockY": [
+        88,
+        282
+      ],
+      "descStartY": 480,
+      "blockFullWidth": true
+    }
+  },
+  {
+    "id": "ax2.mummyJackal",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy, Jackal",
+    "anchor": {
+      "display": "MUMMY, ANIMAL"
+    },
+    "pages": [
+      150,
+      151
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Jackal Mummy",
+      "statBlockY": [
+        88,
+        282
+      ],
+      "descStartY": 480,
+      "blockFullWidth": true
+    }
+  },
+  {
+    "id": "ax2.mummyPanther",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy, Panther",
+    "anchor": {
+      "display": "MUMMY, ANIMAL"
+    },
+    "pages": [
+      150,
+      151
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Panther Mummy",
+      "statBlockY": [
+        282,
+        478
+      ],
+      "descStartY": 480,
+      "blockFullWidth": true
+    }
+  },
+  {
+    "id": "ax2.mummyRat",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy, Rat",
+    "anchor": {
+      "display": "MUMMY, ANIMAL"
+    },
+    "pages": [
+      150,
+      151
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Rat Mummy",
+      "statBlockY": [
+        282,
+        478
+      ],
+      "descStartY": 480,
+      "blockFullWidth": true
+    }
+  },
+  {
+    "id": "ax2.mummyViper",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy, Viper",
+    "anchor": {
+      "display": "MUMMY, ANIMAL"
+    },
+    "pages": [
+      150,
+      151
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Viper Mummy",
+      "statBlockY": [
+        282,
+        478
+      ],
+      "descStartY": 480,
+      "blockFullWidth": true
+    }
+  },
+  {
+    "id": "ax2.mummyWolf",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Mummy, Wolf",
+    "anchor": {
+      "display": "MUMMY, ANIMAL"
+    },
+    "pages": [
+      150,
+      151
+    ],
+    "meta": {
+      "group": "New Monsters"
+    },
+    "assists": {
+      "columns": [
+        36,
+        306
+      ],
+      "variantCol": "Wolf Mummy",
+      "statBlockY": [
+        282,
+        478
+      ],
+      "descStartY": 480,
+      "blockFullWidth": true
+    }
+  },
+  {
+    "id": "ax2.sarcophagalWorm",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Sarcophagal Worm",
+    "anchor": {
+      "display": "SARCOPHAGAL WORM"
+    },
+    "pages": [
+      151,
+      152
+    ],
+    "meta": {
+      "group": "New Monsters",
+      "revisedBy": "mm.sepulchralWorm"
+    },
+    "assists": {
+      "columns": [
+        54,
+        324
+      ]
+    }
+  },
+  {
+    "id": "ax2.statueAnimatedBronze",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Statue, Animated (Bronze)",
+    "anchor": {
+      "display": "STATUTE, ANIMATED"
+    },
+    "pages": [
+      152,
+      153
+    ],
+    "meta": {
+      "group": "New Monsters",
+      "revisedBy": "mm.statueAnimatedBronze"
+    },
+    "assists": {
+      "columns": [
+        39,
+        309
+      ],
+      "variantCol": "Bronze"
+    }
+  },
+  {
+    "id": "ax2.statueAnimatedChryselephantine",
+    "kind": "kind.monsterLegacy",
+    "book": "ax2",
+    "name": "Statue, Animated (Chryselephantine)",
+    "anchor": {
+      "display": "STATUTE, ANIMATED"
+    },
+    "pages": [
+      152,
+      153
+    ],
+    "meta": {
+      "group": "New Monsters",
+      "revisedBy": "mm.statueAnimatedChryselephantine"
+    },
+    "assists": {
+      "columns": [
+        39,
+        309
+      ],
+      "variantCol": "Chryselephantine"
+    }
+  }
+]

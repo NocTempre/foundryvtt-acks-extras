@@ -1,0 +1,9 @@
+{
+  "id": "kind.proficiency",
+  "role": "definition",
+  "note": "RR Proficiency Descriptions (p107+): each proficiency is a display heading (e.g. 'Alchemy (G)') followed by its descriptor block to the next heading; '(G)' marks a general proficiency. Descriptor prose materializes per seat (lazy @PdfText); structured effects come from per-entry assists. Binds to an acks-abilities ability item (category proficiency).",
+  "fields": {
+    "name": { "locate": "display", "strip": "(G)", "generalMarker": "(G)" },
+    "description": { "locate": "displayBlock", "type": "blocks" }
+  }
+}

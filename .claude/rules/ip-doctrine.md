@@ -9,8 +9,8 @@ line is **structure vs content**, and it is finer than it looks:
   performed, and it belongs in the function performing it.
 - **The values do not.** A modifier's size, a botch band's edge, a rate, a
   price, a ladder rung — every number read off a page is content, however
-  small and however alone. They arrive through `acks-importer` from the GM's
-  own copy and are **passed in**. `formation/jumping.mjs` is the pattern: it
+  small and however alone. They arrive through the importer (acks-extras'
+  `scripts/importer/`) from the GM's own copy and are **passed in**. `formation/jumping.mjs` is the pattern: it
   knows a proficiency raises the score and that the landing is a Paralysis
   save, and it takes `dexCap` and `saveBonus` as arguments because what
   Acrobatics is *worth* is printed, not structural.
@@ -29,7 +29,7 @@ line is **structure vs content**, and it is finer than it looks:
 `ip-scan.mjs` hard-FAILS on a tracked `ruledata/` directory and on a page
 citation in shipped text; **the value rule still needs a reviewer** — no gate
 can tell a structural constant from a printed one. Book content reaches a
-world through `acks-importer`, materialized from the GM's own books.
+world through the importer, materialized from the GM's own books.
 
 The real gate fires **pre-commit** (`ip-quarantine.mjs`, armed by the
 `prepare` script on every clone): a flagged staged file is unstaged and

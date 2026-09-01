@@ -17,7 +17,7 @@
  *
  * THE MODEL IS STRUCTURE ONLY, as everywhere in this family: no printed cargo
  * capacity, crew complement, speed or cost ships here. A galley's 170 rowers
- * reach a world through acks-importer from the GM's own book, or a Judge types
+ * reach a world through the importer from the GM's own book, or a Judge types
  * them. A blank vehicle is a valid homebrew starting point.
  */
 import { num, str, int, bool, html, choice } from "../lib/fields.mjs";

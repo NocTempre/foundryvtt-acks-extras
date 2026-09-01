@@ -376,7 +376,7 @@ check("masterwork samples ship the pristine baseline their fields imply", mwSamp
   );
 }));
 
-// The sample-character pack retired in 4.1 (acks-importer builds real parties
+// The sample-character pack retired in 4.1 (the importer builds real parties
 // from the GM's books); the embedded-key invariants it guarded are exercised by
 // the samples pack above, which still ships because its shield variants and
 // masterwork gear have no importer coverage.
@@ -1235,8 +1235,7 @@ const abil = (name, defId, extras = {}, over = {}) => ({
   type: "ability",
   system: {},
   flags: {
-    ...(defId ? { "acks-content": { cookbook: { id: defId } } } : {}),
-    "acks-extras": { extras },
+    "acks-extras": { ...(defId ? { cookbook: { id: defId } } : {}), extras },
   },
   getFlag: () => undefined,
   effects: over.effects ?? [],
@@ -1300,15 +1299,15 @@ check("bridge: pure abilities item contributes the same +1",
 // table entry and never will. The bladedancer's three combat powers reached no
 // roll at all until the bridge read what the abilities model already says.
 //
-// The importer stamps its provenance under its OWN scope, so these use it —
-// a test written against the wrong scope passes on the name fallback and
-// proves nothing about the id.
+// The importer stamps its provenance under this module's own scope, so these
+// use it — a test written against the wrong scope passes on the name fallback
+// and proves nothing about the id.
 const power = (name, defId, effects) => ({
   id: name.replace(/\W/g, ""),
   name,
   type: "ability",
   system: {},
-  flags: { "acks-importer": { cookbook: { id: defId } }, "acks-extras": { extras: { effects } } },
+  flags: { "acks-extras": { cookbook: { id: defId }, extras: { effects } } },
   getFlag: () => undefined,
   effects: [],
 });
@@ -1785,7 +1784,7 @@ check("setShieldVariant standard clears the flag", shieldVar._flags.shieldVarian
 SETTINGS_STATE.overlayShieldVariants = false;
 
 /* ---------------------------------------------------------------------- */
-/*  The IMPORTED scavenged table (acks-content → acks-lib ruledata)        */
+/*  The IMPORTED scavenged table (the importer → acks-lib ruledata)        */
 /* ---------------------------------------------------------------------- */
 
 const { rowToEffects, importedTable, accumulateImported } = await import(new URL("overlays/scavenged.mjs", S));

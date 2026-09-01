@@ -1,0 +1,4 @@
+# Pipeline state — local-only, regenerable, not shipped content.
+_ledger.json
+_manifest/
+_proposals/

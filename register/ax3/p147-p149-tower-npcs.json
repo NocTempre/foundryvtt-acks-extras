@@ -1,0 +1,76 @@
+[
+  {
+    "id": "ax3.aureusAmbador",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Regent Aurëus Ambador",
+    "anchor": {
+      "runin": "Regent Aurëus Ambador"
+    },
+    "pages": [
+      147,
+      148
+    ],
+    "meta": {
+      "group": "Tower District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Aurëus Ambador:",
+      "statlineAt": 148
+    }
+  },
+  {
+    "id": "ax3.mentenusCavie",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Provost Mentenus Cavië",
+    "anchor": {
+      "runin": "Mentenus Cavië"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "group": "Tower District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Mentenus Cavië:"
+    }
+  },
+  {
+    "id": "ax3.clitusOmnus",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Clitus Omnus",
+    "anchor": {
+      "runin": "Clitus Omnus"
+    },
+    "pages": [
+      148
+    ],
+    "meta": {
+      "group": "Tower District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Clitus Omnus:"
+    }
+  },
+  {
+    "id": "ax3.maraReavus",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Inspector Mara Rëavus",
+    "anchor": {
+      "runin": "Mara Rëavus"
+    },
+    "pages": [
+      149
+    ],
+    "meta": {
+      "group": "Tower District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Mara Rëavus:"
+    }
+  }
+]

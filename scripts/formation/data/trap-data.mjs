@@ -17,7 +17,7 @@ import {
  *
  * **Why this is a document and not a pile of fields on the region.** The book
  * prints thirteen worked traps, each at six levels, and those numbers are book
- * content with an owner: they reach a world through `acks-importer`, from the
+ * content with an owner: they reach a world through the importer, from the
  * GM's own copy, exactly as the thief ladders and the Spelunking table do. A
  * trap has to be a DOCUMENT for the importer to have something to materialize
  * into, for a Judge to keep a compendium of the ones they use, and for the same

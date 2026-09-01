@@ -43,7 +43,7 @@ export const CHOICE_FILTERS = {
  * calls the offer when the rule names it ("Expert Traveling choice").
  *
  * `key` is a stable identity for the offer, written by whatever authored it —
- * acks-importer stamps one built from the page it read. It is what lets a
+ * the importer stamps one built from the page it read. It is what lets a
  * consumer tell "this same pick again" from "a different pick" where position
  * cannot: materializing a template rewrites its arrays, so an index moves while
  * the printed offer does not. A blank key is normal for a hand-authored offer,

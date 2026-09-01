@@ -1,0 +1,8 @@
+{
+  "id": "kind.vehicle",
+  "role": "definition",
+  "note": "RR Equipment chapter: the land-vehicle table, whose ROWS are the vehicles. One entry covers the table and the binding makes an actor per row - the opposite arrangement from a definition with a prose block, which is why it has its own compiler. Geometry is authored (row band, label span, column spans); every cell comes from the seat's page. Binds to an acks-extras.vehicle ACTOR.",
+  "fields": {
+    "name": { "locate": "display" }
+  }
+}

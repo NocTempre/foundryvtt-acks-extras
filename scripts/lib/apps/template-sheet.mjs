@@ -14,13 +14,13 @@
  * provenance rides in `flags["acks-extras"].generated` so a sheet can later say
  * "derived from Dragon (Adult · Wyvern)".
  */
-import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
+import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE } from "../constants.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollMenu } from "../template-logic.mjs";
 import { hitDiceOrLevel } from "../actor-read.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
-export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
+export { TEMPLATE_TYPE };
 
 /**
  * The sheet for a template actor — the generator behind a creature the book

@@ -1,7 +1,7 @@
 import { usableSpecs } from "../lib/field-spec.mjs";
 
 /**
- * What a BASE TYPE records, from the GM's own books by way of `acks-importer`
+ * What a BASE TYPE records, from the GM's own books by way of the importer
  * and acks-lib's ruledata registry.
  *
  * Variations themselves are documents and carry their own numbers

@@ -26,7 +26,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import * as movementScales from "./movement-scales.mjs";
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE } from "./constants.mjs";
 import { isPrimaryGM } from "./util.mjs";
 import * as vocab from "./vocab.mjs";
 import * as fields from "./fields.mjs";
@@ -84,10 +84,8 @@ import { SETTING_ADVANCE_WORLD_TIME } from "./world-time.mjs";
 import * as movementModes from "./movement-modes.mjs";
 import * as survival from "./survival.mjs";
 
-/** The actor sub-types this library adds to the system. */
-export const ANIMAL_TYPE = `${MODULE_ID}.animal`;
-export const GROUP_TYPE = `${MODULE_ID}.group`;
-export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
+/** The actor sub-types this library adds to the system (named in constants.mjs). */
+export { ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE };
 
 /**
  * The Follower Card is the per-instance default sheet for RETAINERS (hirelings) of
@@ -104,7 +102,7 @@ const localImpl = Object.freeze({
   fields,
   /**
    * The imported library, wherever it lives (library.mjs): `libraryItems` /
-   * `libraryActors` / `libraryDocs(type)` read the sidebar AND acks-importer's
+   * `libraryActors` / `libraryDocs(type)` read the sidebar AND the importer's
    * world packs, `whenReady()` awaits the warm. Every "what has this world
    * imported?" question goes through it — a bare `game.items` finds an empty
    * shelf, because imports are written to a pack.
@@ -685,7 +683,7 @@ function applyFontScale(px) {
  * world failing to load — and the console says which.
  */
 Hooks.once("ready", () => {
-  // Load acks-importer's packs, so the synchronous library reads every sheet
+  // Load the importer's packs, so the synchronous library reads every sheet
   // makes are complete from the first render.
   registerLibraryWarm();
 

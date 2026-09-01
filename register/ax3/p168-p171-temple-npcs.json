@@ -1,0 +1,135 @@
+[
+  {
+    "id": "ax3.matriarchAundeme",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Matriarch Aundëmë",
+    "anchor": {
+      "runin": "Matriarch Aundëmë"
+    },
+    "pages": [
+      168,
+      169
+    ],
+    "meta": {
+      "group": "Temple District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Matriarch Aundëmë:",
+      "statlineAt": 169
+    }
+  },
+  {
+    "id": "ax3.bladeDancerValara",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Blade-Dancer Valara",
+    "anchor": {
+      "runin": "Blade-Dancer Valara"
+    },
+    "pages": [
+      169
+    ],
+    "meta": {
+      "group": "Temple District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Blade-Dancer Valara:"
+    }
+  },
+  {
+    "id": "ax3.reveredMotherDoare",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Revered Mother Doarë",
+    "anchor": {
+      "runin": "Revered Mother Doarë"
+    },
+    "pages": [
+      169
+    ],
+    "meta": {
+      "group": "Temple District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Doarë:"
+    }
+  },
+  {
+    "id": "ax3.motherAurelyn",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Mother Aurëlyn",
+    "anchor": {
+      "runin": "Mother Aurëlyn"
+    },
+    "pages": [
+      169
+    ],
+    "meta": {
+      "group": "Temple District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Mother Aurëlyn:"
+    }
+  },
+  {
+    "id": "ax3.prelateEzelus",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Prelate Ezelus",
+    "anchor": {
+      "runin": "Prelate Ezelus"
+    },
+    "pages": [
+      169,
+      170
+    ],
+    "meta": {
+      "group": "Temple District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Ezelus:",
+      "statlineAt": 170
+    }
+  },
+  {
+    "id": "ax3.rectorSuromus",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Rector Süromus",
+    "anchor": {
+      "runin": "Rector Süromus"
+    },
+    "pages": [
+      170
+    ],
+    "meta": {
+      "group": "Temple District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Rector Süromus:",
+      "stopLines": [
+        "Other Members"
+      ]
+    }
+  },
+  {
+    "id": "ax3.centurionCelle",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Centurion Cellë",
+    "anchor": {
+      "runin": "Centurion Cellë"
+    },
+    "pages": [
+      170
+    ],
+    "meta": {
+      "group": "Temple District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Cellë:"
+    }
+  }
+]

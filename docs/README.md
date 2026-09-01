@@ -6,15 +6,17 @@ this file only indexes what this repo has.
 
 - [DECISIONS.md](DECISIONS.md) — repo-level: the merge, namespacing, flag scope.
 - [ROADMAP.md](ROADMAP.md) — repo-level: magic, the domain-module family.
+- [TESTING.md](TESTING.md) — repo-level: the entry point and the namespace load at all.
 - [GALLERY.md](GALLERY.md) — one row per feature: guide, and the release its
   screenshot came from.
 - [guides/](guides/) — user-facing how-to, one per feature area.
 
 Per-feature: `abilities`, `battlemap`, `classes`, `equipment`, `formation`,
-`henchmen`, `influence`, `lib`, `location`, `markets`, `monsters`, `vehicles`.
-The `lib`
-feature additionally splits by topic (API, GROUPS, PLACES, FOLLOWER-CARD)
-because it is the shared surface every other feature reads.
+`henchmen`, `importer`, `influence`, `lib`, `location`, `markets`, `monsters`, `vehicles`.
+The `lib` feature additionally splits by topic (API, GROUPS, PLACES, FOLLOWER-CARD)
+because it is the shared surface every other feature reads. The `importer`
+feature additionally splits by topic (COOKBOOK, RECIPES, BINDING-FOUNDRY, OSE, EXTRACTION)
+because it is the extraction pipeline with multiple independently-versioned surfaces.
 
 ## `site/`
 

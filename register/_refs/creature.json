@@ -1,0 +1,15 @@
+{
+  "registry": "creature",
+  "shape": "table",
+  "note": "Printed creature surface form (AX quick-stat labels, stripColon/stripParen applied) -> the composite the seat defers to: the ACKS II MM entry when it exists there (conversion registry rulings), else the adventure's own New Monsters entry. Grown per-entry as pages are authored; an unmapped name degrades to plain text by design (named NPCs, generic mobs).",
+  "table": {
+    "Carcass scavenger": { "ref": "mm.carrionHorror", "note": "renamed in ACKS II (conversion registry row)" },
+    "Insect swarm": { "ref": "mm.swarmInsect" },
+    "Insect swarms": { "ref": "mm.swarmInsect" },
+    "Skeletons": { "ref": "mm.skeleton" },
+    "Skeleton": { "ref": "mm.skeleton" },
+    "Tunnel prawn": { "ref": "ax2.tunnelPrawn" },
+    "Tunnel prawns": { "ref": "ax2.tunnelPrawn" },
+    "Fungal creeper": { "ref": "ax2.fungalCreeper" }
+  }
+}

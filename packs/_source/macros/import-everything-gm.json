@@ -1,0 +1,20 @@
+{
+  "_id": "ackscMacImportAl",
+  "_key": "!macros!ackscMacImportAl",
+  "name": "Import Everything (GM)",
+  "type": "script",
+  "img": "icons/svg/upgrade.svg",
+  "scope": "global",
+  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is not ready (is the module enabled?).\");\nif (typeof api.importEverything !== \"function\") return ui.notifications.warn(\"ACKS Extras | Import Everything needs a newer build of this module.\");\nawait api.importEverything();",
+  "folder": "ackscFldImport00",
+  "sort": 200,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784332800000,
+    "modifiedTime": 1784332800000
+  }
+}

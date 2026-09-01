@@ -24,13 +24,10 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { SLOT_FLAG, LANGUAGE_TYPE, ensureLanguage, slotsOf } from "./languages.mjs";
-import { libraryItems } from "../lib/library.mjs";
+import { libraryItems, cookbookId } from "../lib/library.mjs";
 
 /** The taxonomy import's id prefix — an ability carrying it is a language. */
 const IMPORTED_PREFIX = "def.language.";
-
-/** The cookbook id stamped on a document, or "". */
-const cookbookIdOf = (doc) => String(doc?.flags?.["acks-importer"]?.cookbook?.id ?? "");
 
 /**
  * World abilities the taxonomy import minted before the type was right.
@@ -40,7 +37,7 @@ const cookbookIdOf = (doc) => String(doc?.flags?.["acks-importer"]?.cookbook?.id
  * converts what it finds rather than waiting.
  */
 function staleWorldLanguages() {
-  return libraryItems().filter((i) => i.type === "ability" && cookbookIdOf(i).startsWith(IMPORTED_PREFIX));
+  return libraryItems().filter((i) => i.type === "ability" && cookbookId(i).startsWith(IMPORTED_PREFIX));
 }
 
 /** Retype the world's imported language abilities. */

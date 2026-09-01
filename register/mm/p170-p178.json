@@ -1,0 +1,11 @@
+[
+  { "id": "mm.gorillaCave", "kind": "kind.monster", "book": "mm", "pages": [170], "name": "Gorilla, Cave", "anchor": { "display": "GORILLA, CAVE" } },
+  { "id": "mm.griffon", "kind": "kind.monster", "book": "mm", "pages": [171], "name": "Griffon", "anchor": { "display": "GRIFFON" } },
+  { "id": "mm.grimlock", "kind": "kind.monster", "book": "mm", "pages": [172], "name": "Grimlock", "anchor": { "display": "GRIMLOCK" } },
+  { "id": "mm.hag", "kind": "kind.monster", "book": "mm", "pages": [173], "name": "Hag", "anchor": { "display": "HAG" } },
+  { "id": "mm.halfling", "kind": "kind.monster", "book": "mm", "pages": [174], "name": "Halfling", "anchor": { "display": "HALFLING" } },
+  { "id": "mm.harpy", "kind": "kind.monster", "book": "mm", "pages": [175], "name": "Harpy", "anchor": { "display": "HARPY" } },
+  { "id": "mm.haugbui", "kind": "kind.monster", "book": "mm", "pages": [176], "name": "Haugbui", "anchor": { "display": "HAUGBUI" } },
+  { "id": "mm.haunt", "kind": "kind.monster", "book": "mm", "pages": [177], "name": "Haunt", "anchor": { "display": "HAUNT" } },
+  { "id": "mm.hellhawk", "kind": "kind.monster", "book": "mm", "pages": [178], "name": "Hellhawk", "anchor": { "display": "HELLHAWK" } }
+]

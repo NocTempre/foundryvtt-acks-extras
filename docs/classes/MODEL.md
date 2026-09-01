@@ -3,7 +3,7 @@
 The `acks-extras.class` Item sub-type ([scripts/classes/class-data.mjs](../../scripts/classes/class-data.mjs))
 holds a character class as a document: what an RR class spread prints, held as
 structure. The module ships no values — a class document is filled by
-acks-importer from the GM's own book, or typed by hand in the constructor
+the importer from the GM's own book, or typed by hand in the constructor
 sheet. Both produce the same document and open in the same sheet.
 
 ## The document
@@ -117,7 +117,7 @@ so the row's `bundle` uuid is a cache the materializer re-derives from that
 flag, then re-strips the freshly rewritten arrays (`stripRepresented`).
 Every created document carries an `asImported` snapshot; a pass that would
 replace one compares live against snapshot first and skips-and-reports an
-edited document, so a repair survives re-import. acks-importer calls the
+edited document, so a repair survives re-import. The importer calls the
 materializer after class import/update and ships a standalone
 `importTemplatePackages()` macro as the upgrade path for worlds imported
 before packages existed.
@@ -182,7 +182,7 @@ tables cannot answer is skipped, never zeroed.
 Every number the engine consumes arrives per world as the
 `acks.classBuilder` ruledata document (expected tables declared via lib
 `expectTables`: budget, hd, fighting, thievery, magicTypes, tradeoffs) —
-acks-importer extracts the raw JJ tables and assembles this shape
+The importer extracts the raw JJ tables and assembles this shape
 (its `builder-binding.mjs`), or a world hand-authors an OVERRIDE layer.
 Extras ships none of it. The same import materializes race documents
 (`def.race.dwarf`, `def.race.elf`) and stamps the JJ's Ready-for-Play
@@ -206,7 +206,7 @@ being restated per class.
 
 A rung stores each power as a REF, and the sheet resolves it to a name for
 display — so a rung may point at a definition the world has not imported yet
-and light up when it arrives. Refs written by import come from acks-importer,
+and light up when it arrives. Refs written by import come from the importer,
 which resolves the name a race spread PRINTS ("Hardy") to the definition it
 means (`def.power.hardyPeople`); a name it cannot place unambiguously stays
 in the rung's note instead. Whatever a name means is that module's business,
@@ -477,7 +477,7 @@ Judge unlock a second control offers the additive behaviour instead.
 (RR Ch. 2 §II.1), so the whole bonus is the player's to spend. The studious
 spellcasters' templates assume one — a proficiency listed last and a spell
 listed second — recorded as `templatesAssumeIntBonus` on the class document
-and filled by acks-importer, because it cannot be derived from the document
+and filled by the importer, because it cannot be derived from the document
 ([DECISIONS.md](DECISIONS.md)). Below that band the two printed entries are
 withheld and named in the chat summary; above it only the difference is
 offered.
@@ -557,7 +557,7 @@ clearing a slot deletes the document the slot bought.
 worlds written the old way at `ready` — GM-only, idempotent, and creating every
 replacement before removing what it replaced.
 
-Which languages exist is never shipped: they arrive through acks-importer from
+Which languages exist is never shipped: they arrive through the importer from
 the GM's own books, or a Judge writes their own. Telling Polyglot about those
 imported ones is [lib/polyglot.mjs](../../scripts/lib/polyglot.mjs).
 

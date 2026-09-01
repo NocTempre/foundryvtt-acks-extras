@@ -1,0 +1,116 @@
+[
+  {
+    "id": "ax3.destrio",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Destrio, Cult Deathbringer",
+    "anchor": {
+      "label": "Destrio (Cult Deathbringer):"
+    },
+    "pages": [
+      177
+    ],
+    "meta": {
+      "group": "Temple District — Eclipse Hideout"
+    },
+    "assists": {
+      "statLabel": "Destrio (Cult Deathbringer):",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.kalbo",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Kalbo, City Watch Subaltern",
+    "anchor": {
+      "label": "Kalbo aka “Baldy,” City Watch Subaltern:"
+    },
+    "pages": [
+      177
+    ],
+    "meta": {
+      "group": "Temple District — Eclipse Hideout"
+    },
+    "assists": {
+      "statLabel": "Kalbo aka “Baldy,” City Watch Subaltern:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.larce",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Larce, Mercenary Hero",
+    "anchor": {
+      "label": "Larce, Mercenary Hero:"
+    },
+    "pages": [
+      177
+    ],
+    "meta": {
+      "group": "Temple District — Eclipse Hideout"
+    },
+    "assists": {
+      "statLabel": "Larce, Mercenary Hero:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.virathos",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Virathos, the Krysean Trader",
+    "anchor": {
+      "label": "Virathos, the Krysean Trader:"
+    },
+    "pages": [
+      177
+    ],
+    "meta": {
+      "group": "Temple District — Eclipse Hideout"
+    },
+    "assists": {
+      "statLabel": "Virathos, the Krysean Trader:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.hradTheBloodAxe",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Hrad the Blood Axe",
+    "anchor": {
+      "label": "Hrad the Blood Axe:"
+    },
+    "pages": [
+      177
+    ],
+    "meta": {
+      "group": "Temple District — Eclipse Hideout"
+    },
+    "assists": {
+      "statLabel": "Hrad the Blood Axe:",
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.una",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Una, the Mysterious Woman",
+    "anchor": {
+      "label": "Una, the Mysterious Woman:"
+    },
+    "pages": [
+      177
+    ],
+    "meta": {
+      "group": "Temple District — Eclipse Hideout"
+    },
+    "assists": {
+      "statLabel": "Una, the Mysterious Woman:",
+      "anchorAtStatline": true
+    }
+  }
+]

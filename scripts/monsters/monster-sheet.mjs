@@ -149,7 +149,7 @@ export function createFullMonsterSheet(Base) {
      * hand-built monster has none, and gets no Source tab.
      */
     get #oseRecord() {
-      return this.actor.flags?.["acks-importer"]?.ose ?? null;
+      return this.actor.flags?.[MODULE_ID]?.ose ?? null;
     }
 
     /**
@@ -185,7 +185,7 @@ export function createFullMonsterSheet(Base) {
       context.extras = extras;
       context.ose = oseSourceView(this.#oseRecord);
       // Enrich the entry-prose fields so text enrichers run in them the way the
-      // core sheet already enriches biography — most importantly acks-content's
+      // core sheet already enriches biography — most importantly the importer's
       // @PdfText tags, which stream book prose per seat. The raw value still
       // drives editing (prose-mirror `value`); the enriched HTML is the display.
       // `relativeTo` is what resolves relative @UUID links in that display, and
@@ -219,7 +219,7 @@ export function createFullMonsterSheet(Base) {
             training: animal.training || "untrained",
             mountable: !!animal.mountable,
             trainingChoices: ANIMAL_TRAINING,
-            imported: !!this.actor.flags?.["acks-importer"]?.cookbook,
+            imported: !!this.actor.flags?.[MODULE_ID]?.cookbook,
           }
         : null;
       // Pre-localized save rows for the Classification tab. Resolve each save to

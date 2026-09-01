@@ -1,0 +1,20 @@
+{
+  "_id": "ackscMacRemoveAl",
+  "_key": "!macros!ackscMacRemoveAl",
+  "name": "Delete Everything Imported (GM)",
+  "type": "script",
+  "img": "icons/svg/cancel.svg",
+  "scope": "global",
+  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is not ready (is the module enabled?).\");\nif (typeof api.cookbookRemoveImports !== \"function\") return ui.notifications.warn(\"ACKS Extras | Delete Everything Imported (GM) needs a newer build of this module.\");\napi.cookbookRemoveImports();",
+  "folder": "ackscFldImport00",
+  "sort": 220,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784332800000,
+    "modifiedTime": 1784332800000
+  }
+}

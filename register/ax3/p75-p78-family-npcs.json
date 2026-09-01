@@ -1,0 +1,97 @@
+[
+  {
+    "id": "ax3.liberFaunus",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Liber Faunus",
+    "anchor": {
+      "runin": "Liber Faunus"
+    },
+    "pages": [
+      76
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Liber Faunus:"
+    }
+  },
+  {
+    "id": "ax3.hestaFaunus",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Hesta Faunus",
+    "anchor": {
+      "runin": "Hesta Faunus"
+    },
+    "pages": [
+      76,
+      77
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Hesta Faunus:",
+      "statlineAt": 77
+    }
+  },
+  {
+    "id": "ax3.aranthFaunus",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Aranth Faunus",
+    "anchor": {
+      "runin": "Aranth Faunus"
+    },
+    "pages": [
+      77
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Aranth Faunus:"
+    }
+  },
+  {
+    "id": "ax3.megaravicos",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Megaravicos Eight-Fingers",
+    "anchor": {
+      "runin": "Megaravicos Eight-Fingers"
+    },
+    "pages": [
+      77
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Megaravicos:",
+      "stopLines": [
+        "Other Members"
+      ]
+    }
+  },
+  {
+    "id": "ax3.balcadurBrogitarius",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "Guildmaster Balcadur Brogitarius",
+    "anchor": {
+      "runin": "Guildmaster Balcadur Brogitarius"
+    },
+    "pages": [
+      78
+    ],
+    "meta": {
+      "group": "Old District — Notable Residents"
+    },
+    "assists": {
+      "statLabel": "Balcadur Brogitarius:"
+    }
+  }
+]

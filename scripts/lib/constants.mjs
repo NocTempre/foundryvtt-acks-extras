@@ -8,3 +8,13 @@ export const LANG_PREFIX = "ACKS-LIB";
  * instantiating the model, and both must name it once.
  */
 export const FLAG_GEAR = "gear";
+
+/**
+ * The actor sub-types this library adds to the system. Named here, in the
+ * one Foundry-free constants file, so a pure-logic module (and the Node test
+ * harness that loads it) can import them without pulling in the sheets and
+ * models that register them.
+ */
+export const ANIMAL_TYPE = `${MODULE_ID}.animal`;
+export const GROUP_TYPE = `${MODULE_ID}.group`;
+export const TEMPLATE_TYPE = `${MODULE_ID}.template`;

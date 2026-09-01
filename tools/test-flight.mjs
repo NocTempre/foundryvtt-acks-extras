@@ -2,7 +2,7 @@
  * Flight: the blend, the wind, and the load threshold.
  *
  * Every figure below is INVENTED — the real factors are printed and arrive
- * through acks-importer. What this pins is the shape: a partial day blends
+ * through the importer. What this pins is the shape: a partial day blends
  * rather than switching, wind and load compose, and an unpriced flight has no
  * speed rather than a guessed one.
  */

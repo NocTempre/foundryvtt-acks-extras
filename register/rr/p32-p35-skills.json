@@ -1,0 +1,689 @@
+[
+  {
+    "id": "def.skill.backstabbing",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Backstabbing",
+    "anchor": {
+      "runin": "Backstabbing:"
+    },
+    "pages": [
+      32
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "icon": "systems/acks/assets/icons/backstab.webp",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "attackThrow",
+        "mode": "add",
+        "condition": "backstabbing a vulnerable opponent",
+        "from": {
+          "pattern": "backstabbing[^.]{0,40}?\\+\\s*(\\d+)\\s*bonus\\s*to\\s*hit"
+        }
+      },
+      {
+        "type": "capability",
+        "condition": "backstabbing a vulnerable opponent",
+        "note": "Extra damage dice are added as the thief gains levels; the description states the levels, and the class table the die count."
+      }
+    ]
+  },
+  {
+    "id": "def.skill.climbing",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Climbing",
+    "anchor": {
+      "runin": "Climbing:"
+    },
+    "pages": [
+      32
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "progression": {
+        "table": "Thief Skills",
+        "column": "Climbing",
+        "page": 33
+      },
+      "descStopY": 745
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "forWhat": "Climbing",
+        "mode": "add",
+        "condition": "climbing at one-half combat speed",
+        "from": {
+          "pattern": "one-half\\s*combat\\s*speed[^.]{0,40}?(-\\s*\\d+)\\s*penalty"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "forWhat": "Climbing",
+        "mode": "add",
+        "condition": "climbing at full combat speed",
+        "from": {
+          "pattern": "full\\s*combat\\s*speed[^.]{0,40}?(-\\s*\\d+)\\s*penalty"
+        }
+      },
+      {
+        "type": "outcome",
+        "trigger": "failure",
+        "consequence": "the climber falls",
+        "note": "Fall distance and damage as the entry states them - the formula involves dice and a midpoint, which no numeric field can honestly carry."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/climb-walls.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/mountain-climbing.svg",
+    "audited": "2026-08-01",
+    "auditor": "chef"
+  },
+  {
+    "id": "def.skill.hiding",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Hiding",
+    "anchor": {
+      "runin": "Hiding:"
+    },
+    "pages": [
+      33
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "progression": {
+        "table": "Thief Skills",
+        "column": "Hiding",
+        "page": 33
+      }
+    },
+    "icon": "systems/acks/assets/icons/hide-in-shadows.webp",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "surprise",
+        "appliesTo": "opponent",
+        "mode": "add",
+        "condition": "stationary in cover, dim light, or darkness",
+        "note": "Applies whether or not the Hiding throw succeeded.",
+        "from": {
+          "pattern": "suffer\\s*a\\s*(-\\s*\\d+)\\s*penalty\\s*to\\s*surprise"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "attackThrow",
+        "appliesTo": "opponent",
+        "mode": "add",
+        "condition": "while hidden; opponent knows his general location",
+        "note": "An opponent that does not know the location cannot attack him at all.",
+        "from": {
+          "pattern": "attack\\s*him\\s*in\\s*melee\\s*at\\s*a\\s*(-\\s*\\d+)\\s*penalty"
+        }
+      }
+    ]
+  },
+  {
+    "id": "def.skill.listening",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Listening",
+    "anchor": {
+      "runin": "Listening:"
+    },
+    "pages": [
+      33
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "progression": {
+        "table": "Thief Skills",
+        "column": "Listening",
+        "page": 33
+      },
+      "descStopY": 700
+    },
+    "icon": "systems/acks/assets/icons/human-ear.webp",
+    "effects": [
+      {
+        "type": "limitation",
+        "restriction": "One use per turn while the party is moving"
+      }
+    ],
+    "audited": "2026-08-01",
+    "auditor": "chef"
+  },
+  {
+    "id": "def.skill.lockpicking",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Lockpicking",
+    "anchor": {
+      "runin": "Lockpicking:"
+    },
+    "pages": [
+      33
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "progression": {
+        "table": "Thief Skills",
+        "column": "Lockpicking",
+        "page": 33
+      }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "forWhat": "Lockpicking",
+        "mode": "add",
+        "appliesToRoll": "methodical",
+        "condition": "methodical attempt (one turn); not a hasty attempt",
+        "from": {
+          "pattern": "methodically\\s*pick\\s*a\\s*lock[\\s\\S]{0,140}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
+        },
+        "note": "Applies only to the methodical method; a hasty attempt uses the unmodified throw."
+      },
+      {
+        "type": "outcome",
+        "trigger": "naturalBand",
+        "consequence": "the pick breaks in the lock, jamming it",
+        "condition": "hasty attempt (one round)",
+        "from": {
+          "into": "naturalMax",
+          "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*1\\s*[-–—]\\s*(\\d+)\\s*,\\s*the\\s*thief\\s*breaks"
+        }
+      },
+      {
+        "type": "outcome",
+        "trigger": "naturalBand",
+        "consequence": "the pick breaks in the lock, jamming it",
+        "condition": "methodical attempt (one turn)",
+        "from": {
+          "into": "naturalMax",
+          "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*(1)\\s*,\\s*the\\s*thief\\s*breaks"
+        }
+      }
+    ],
+    "icon": "systems/acks/assets/icons/lockpicking.webp",
+    "rolls": [
+      {
+        "key": "hasty",
+        "label": {
+          "pattern": "(hastily)"
+        },
+        "target": {
+          "fromProgression": true
+        },
+        "condition": "one round; botch band applies on a low natural roll"
+      },
+      {
+        "key": "methodical",
+        "label": {
+          "pattern": "(methodically)"
+        },
+        "target": {
+          "fromProgression": true
+        },
+        "condition": "one turn; add the methodical bonus; repeatable"
+      }
+    ],
+    "audited": "2026-08-01",
+    "auditor": "chef"
+  },
+  {
+    "id": "def.skill.pickpocketing",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Pickpocketing",
+    "anchor": {
+      "runin": "Pickpocketing:"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "progression": {
+        "table": "Thief Skills",
+        "column": "Pickpocketing",
+        "page": 33
+      }
+    },
+    "icon": "systems/acks/assets/icons/pick-pockets.webp",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "forWhat": "Pickpocketing",
+        "mode": "add",
+        "condition": "target is unaware of the thief",
+        "from": {
+          "pattern": "unaware\\s*of\\s*the\\s*thief[\\s\\S]{0,60}?\\+(\\d+)\\s*bonus"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "condition": "the victim notices the theft attempt",
+        "from": {
+          "pattern": "reaction\\s*roll\\s*with\\s*a\\s*(-\\d+)\\s*penalt"
+        },
+        "note": "Thrown by the Judge for the victim after a badly failed attempt. A penalty on the thief's own reaction roll, not one he imposes on a roll of someone else's, so it stays appliesTo self."
+      },
+      {
+        "type": "outcome",
+        "trigger": "naturalBand",
+        "consequence": "the intended victim notices the attempt",
+        "condition": "on a failed throw",
+        "from": {
+          "into": "naturalMax",
+          "pattern": "a\\s*natural\\s*roll\\s*of\\s*(1)\\s*or"
+        }
+      },
+      {
+        "type": "outcome",
+        "trigger": "belowFraction",
+        "consequence": "the intended victim notices the attempt",
+        "condition": "on a failed throw",
+        "from": {
+          "into": "belowFraction",
+          "pattern": "less\\s*than\\s*(half)\\s*the\\s*target\\s*value"
+        }
+      }
+    ],
+    "audited": "2026-08-01",
+    "auditor": "chef"
+  },
+  {
+    "id": "def.skill.searching",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Searching",
+    "anchor": {
+      "runin": "Searching:"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "progression": {
+        "table": "Thief Skills",
+        "column": "Searching",
+        "page": 33
+      }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "mode": "add",
+        "forWhat": "Searching",
+        "appliesToRoll": "methodical",
+        "condition": "methodical search (one turn), not a hasty one",
+        "from": {
+          "pattern": "methodically\\s*search\\s*requires[\\s\\S]{0,110}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
+        },
+        "note": "Adds to the level-indexed Searching throw. The hasty variant, which takes one round instead of one turn, gets no bonus."
+      },
+      {
+        "type": "limitation",
+        "condition": "hasty search (one round)",
+        "restriction": "One hasty try per area until the thief gains a level",
+        "note": "A methodical search of the same area is still allowed, and may be repeated. A failed throw made while hastily searching on the move spends that area's one hasty attempt."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/spot.webp",
+    "rolls": [
+      {
+        "key": "hasty",
+        "label": {
+          "pattern": "(hastily)"
+        },
+        "target": {
+          "fromProgression": true
+        },
+        "condition": "one round; one try per area until the thief gains a level"
+      },
+      {
+        "key": "methodical",
+        "label": {
+          "pattern": "(methodically)"
+        },
+        "target": {
+          "fromProgression": true
+        },
+        "condition": "one turn; add the methodical bonus; repeatable"
+      }
+    ]
+  },
+  {
+    "id": "def.skill.shadowySenses",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Shadowy Senses",
+    "anchor": {
+      "runin": "Shadowy Senses:"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "category": "skill",
+      "provides": [
+        "kw:lightlessvision"
+      ]
+    },
+    "icon": "systems/acks/assets/icons/third-eye.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/all-seeing-eye.svg",
+    "effects": [
+      {
+        "type": "sense",
+        "vision": "lightless",
+        "condition": "moving at combat or exploration speed",
+        "from": {
+          "into": "range",
+          "pattern": "sheds\\s*dim\\s*light\\s*in\\s*a\\s*(\\d+)"
+        },
+        "note": "Sight with no light source, equal to dim light out to the located radius. Usable to fight and to probe for traps."
+      },
+      {
+        "type": "limitation",
+        "restriction": "Fails when deafened or in magical silence"
+      },
+      {
+        "type": "limitation",
+        "restriction": "Fails in bright light or in magical darkness"
+      },
+      {
+        "type": "limitation",
+        "restriction": "No colour or fine detail; cannot read by it"
+      },
+      {
+        "type": "limitation",
+        "restriction": "Counts as dim light, so a foe can still hide"
+      }
+    ],
+    "audited": "2026-08-01",
+    "auditor": "chef"
+  },
+  {
+    "id": "def.skill.sneaking",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Sneaking",
+    "anchor": {
+      "runin": "Sneaking:"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "progression": {
+        "table": "Thief Skills",
+        "column": "Sneaking",
+        "page": 33
+      }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "mode": "add",
+        "forWhat": "Sneaking",
+        "condition": "moving faster than one-half combat speed",
+        "from": {
+          "pattern": "greater\\s*than\\s*one-half\\s*combat\\s*speed,?\\s*he\\s*takes\\s*a\\s*(-\\d+)"
+        },
+        "note": "Exploration speed and one-half combat speed carry no penalty."
+      },
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "mode": "add",
+        "forWhat": "Sneaking",
+        "condition": "running",
+        "from": {
+          "pattern": "If\\s*he\\s*runs,?\\s*he\\s*takes\\s*a\\s*(-\\d+)\\s*penalty"
+        },
+        "note": "Alternative to the faster-than-half-combat-speed penalty, not cumulative with it."
+      },
+      {
+        "type": "modifier",
+        "target": "surprise",
+        "mode": "add",
+        "appliesTo": "opponent",
+        "condition": "thief outside their line of sight",
+        "from": {
+          "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*surprise"
+        },
+        "note": "Imposed on opponents encountering the thief, whether or not the Sneaking throw succeeded."
+      },
+      {
+        "type": "capability",
+        "condition": "while sneaking (throw succeeded)",
+        "note": "The thief moves in total silence: even an alert creature that makes its Listening throw hears nothing."
+      },
+      {
+        "type": "capability",
+        "condition": "engaging an unengaged foe from the rear",
+        "note": "Engaging an unengaged opponent from the rear while sneaking denies that opponent its free facing change."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/move-silently.webp"
+  },
+  {
+    "id": "def.skill.streetwise",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Streetwise",
+    "anchor": {
+      "runin": "Streetwise:"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "rolls": [
+      {
+        "key": "identifyForeign",
+        "label": {
+          "pattern": "can\\s*(identify\\s*those\\s*of\\s*other\\s*\\w+\\s*\\w+)"
+        },
+        "target": {
+          "pattern": "other\\s*urban\\s*settlements\\s*with\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+        },
+        "rollType": "above",
+        "formula": "1d20",
+        "condition": "urban settlements other than his home settlement",
+        "note": "Automatic in his own home settlement, with no throw. The Judge may set a harder target for secretive or distant organizations."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/suspicious.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/hooded-figure.svg",
+    "effects": [
+      {
+        "type": "capability",
+        "condition": "has the needed proficiencies or thief skills",
+        "note": "Lets the character undertake hijinks."
+      },
+      {
+        "type": "capability",
+        "note": "Counts as one rank of the Streetwise proficiency; the two do not stack."
+      }
+    ],
+    "audited": "2026-08-01",
+    "auditor": "chef"
+  },
+  {
+    "id": "def.skill.trapbreaking",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Trapbreaking",
+    "anchor": {
+      "runin": "Trapbreaking:"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "progression": {
+        "table": "Thief Skills",
+        "column": "Trapbreaking",
+        "page": 33
+      },
+      "descStopY": 660
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "forWhat": "Trapbreaking",
+        "mode": "add",
+        "appliesToRoll": "methodical",
+        "condition": "methodical attempt (one turn)",
+        "from": {
+          "pattern": "methodically\\s*disarm[\\s\\S]{0,120}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
+        },
+        "note": "Applies only to the slow method; a hasty attempt uses the unmodified throw."
+      },
+      {
+        "type": "outcome",
+        "trigger": "naturalBand",
+        "consequence": "the trap is accidentally triggered",
+        "condition": "hasty attempt (one round)",
+        "from": {
+          "into": "naturalMax",
+          "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*1\\s*[-–—]\\s*(\\d+)\\s*,\\s*the\\s*thief\\s*accidentally"
+        }
+      },
+      {
+        "type": "outcome",
+        "trigger": "naturalBand",
+        "consequence": "the trap is accidentally triggered",
+        "condition": "methodical attempt (one turn)",
+        "from": {
+          "into": "naturalMax",
+          "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*(1)\\s*,\\s*the\\s*thief\\s*accidentally"
+        }
+      },
+      {
+        "type": "limitation",
+        "forWhat": "Trapbreaking",
+        "condition": "hasty attempt (one round)",
+        "restriction": "Hasty: one try per trap until he gains a level",
+        "note": "Any other failure only denies the quick fix; a methodical attempt on the same trap is still open. TODO: retry rules await their own primitive per the owner's 2026-08-01 note."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/remove-trap.webp",
+    "rolls": [
+      {
+        "key": "hasty",
+        "label": {
+          "pattern": "(hastily)"
+        },
+        "target": {
+          "fromProgression": true
+        },
+        "condition": "one round; botch band applies on a low natural roll"
+      },
+      {
+        "key": "methodical",
+        "label": {
+          "pattern": "(methodically)"
+        },
+        "target": {
+          "fromProgression": true
+        },
+        "condition": "one turn; add the methodical bonus; repeatable"
+      }
+    ],
+    "audited": "2026-08-01",
+    "auditor": "chef"
+  },
+  {
+    "id": "def.skill.deciphering",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Deciphering",
+    "anchor": {
+      "runin": "Deciphering (4level):"
+    },
+    "pages": [
+      35
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "expectTop": 2
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/open-book.webp"
+  },
+  {
+    "id": "def.skill.hideout",
+    "kind": "kind.skill",
+    "book": "rr",
+    "name": "Hideout",
+    "anchor": {
+      "runin": "Hideout (9level):"
+    },
+    "pages": [
+      35
+    ],
+    "meta": {
+      "category": "skill"
+    },
+    "assists": {
+      "columns": [
+        70,
+        310
+      ],
+      "descStopY": 315,
+      "expectTop": 2
+    },
+    "icon": "systems/acks/assets/icons/dungeon-hide.webp",
+    "effects": [
+      {
+        "type": "companion",
+        "condition": "owns a hideout worth at least the printed sum",
+        "note": "Novice thief followers. Both how many arrive and how long they take are rolled on the page's own dice. At least one is a plant spying for a local rival; any the thief hires draw the standard ruffian wage."
+      },
+      {
+        "type": "capability",
+        "note": "The followers can be built into a criminal syndicate; those rules are printed in the Campaigns chapter."
+      }
+    ]
+  }
+]

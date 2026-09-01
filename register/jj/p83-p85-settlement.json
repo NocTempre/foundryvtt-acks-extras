@@ -1,0 +1,61 @@
+[
+  {
+    "id": "jj.settlementEncounters",
+    "kind": "kind.rolltable",
+    "book": "jj",
+    "name": "Settlement Encounters",
+    "anchor": {
+      "label": "Settlement Encounters"
+    },
+    "pages": [83, 84, 85],
+    "meta": {
+      "group": "Settlement Adventures"
+    },
+    "assists": {
+      "nameExpect": {
+        "page": 83,
+        "box": { "x0": 70, "x1": 300, "y0": 78, "y1": 92 },
+        "text": "Settlement Encounters"
+      },
+      "grids": [
+        {
+          "page": 83,
+          "y0": 148,
+          "y1": 740,
+          "dieX0": 70,
+          "dieX1": 108,
+          "cellX0": 109,
+          "cellX1": 610,
+          "claimDie": true,
+          "headerSkip": [135, 150]
+        },
+        {
+          "page": 84,
+          "y0": 92,
+          "y1": 720,
+          "dieX0": 44,
+          "dieX1": 82,
+          "cellX0": 83,
+          "cellX1": 610,
+          "claimDie": true,
+          "headerSkip": [78, 92]
+        },
+        {
+          "page": 85,
+          "y0": 92,
+          "y1": 706,
+          "dieX0": 70,
+          "dieX1": 108,
+          "cellX0": 109,
+          "cellX1": 610,
+          "claimDie": true,
+          "headerSkip": [78, 92]
+        }
+      ],
+      "rollAt": {
+        "page": 83,
+        "box": { "x0": 70, "x1": 600, "y0": 92, "y1": 112 }
+      }
+    }
+  }
+]

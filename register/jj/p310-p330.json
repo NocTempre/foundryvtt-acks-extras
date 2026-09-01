@@ -1,0 +1,4674 @@
+[
+  {
+    "id": "def.power.abominableMutation",
+    "icon": "icons/creatures/slimes/slime-face-melting-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Abominable Mutation",
+    "anchor": {
+      "runin": "Abominable Mutation:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.accuracy",
+    "icon": "icons/skills/targeting/crosshair-pointed-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Accuracy",
+    "anchor": {
+      "runin": "Accuracy:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.adhesiveToePads",
+    "icon": "icons/creatures/reptiles/lizard-iguana-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Adhesive Toe Pads",
+    "anchor": {
+      "runin": "Adhesive Toe Pads:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.ageless",
+    "icon": "icons/magic/time/hourglass-tilted-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Ageless",
+    "anchor": {
+      "runin": "Ageless:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.alienBeings",
+    "icon": "icons/creatures/magical/humanoid-silhouette-aliens-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Alien Beings",
+    "anchor": {
+      "runin": "Alien Beings:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.alienintuition",
+    "icon": "icons/creatures/magical/humanoid-silhoette-alien-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Alien Intuition",
+    "anchor": {
+      "runin": "AlienIntuition:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.alienLore",
+    "icon": "icons/magic/symbols/squares-3d-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Alien Lore",
+    "anchor": {
+      "runin": "Alien Lore:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.alienSenses",
+    "icon": "icons/creatures/eyes/void-single-black-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Alien Senses",
+    "anchor": {
+      "runin": "Alien Senses:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.alluringBeauty",
+    "icon": "icons/creatures/unholy/demon-female-succubus-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Alluring Beauty",
+    "anchor": {
+      "runin": "Alluring Beauty:"
+    },
+    "pages": [
+      310
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.analyzeData",
+    "icon": "icons/skills/trades/electronics-tech-circuit-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Analyze Data",
+    "anchor": {
+      "runin": "Analyze Data:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.animalCompanion",
+    "icon": "icons/creatures/mammals/wolf-howl-moon-forest-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Animal Companion",
+    "anchor": {
+      "runin": "Animal Companion:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "companion",
+        "amount": 1,
+        "note": "Animal companion"
+      }
+    ]
+  },
+  {
+    "id": "def.power.animalFriendship",
+    "icon": "icons/magic/nature/wolf-paw-glow-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Animal Friendship",
+    "anchor": {
+      "runin": "Animal Friendship:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.antennaeForPotions",
+    "icon": "icons/creatures/invertebrates/bug-sixlegged-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Antennae for Potions",
+    "anchor": {
+      "runin": "Antennae for Potions:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.arenaReputation",
+    "icon": "icons/skills/social/thumbs-up.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Arena Reputation",
+    "anchor": {
+      "runin": "Arena Reputation:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.armorTraining",
+    "icon": "systems/acks/assets/icons/plate-armor.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Armor Training",
+    "anchor": {
+      "runin": "Armor Training:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifies",
+        "refs": [
+          "kw:armorproficiency"
+        ],
+        "domain": "armor",
+        "value": 1,
+        "mode": "add",
+        "note": "One weight category heavier than the class permits."
+      }
+    ]
+  },
+  {
+    "id": "def.power.artificialYouth",
+    "icon": "icons/magic/time/clock-spinning-gold-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Artificial Youth",
+    "anchor": {
+      "runin": "Artificial Youth:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.avoidGettingLost",
+    "icon": "icons/skills/trades/academics-astronomy-navigation-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Avoid Getting Lost",
+    "anchor": {
+      "runin": "Avoid Getting Lost:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.awarenessOfTheEarth",
+    "icon": "icons/magic/earth/construct-stone.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Awareness of the Earth",
+    "anchor": {
+      "runin": "Awareness of the Earth:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.auraOfProtection",
+    "icon": "icons/magic/defensive/barrier-shield-dome-deflect-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Aura of Protection",
+    "anchor": {
+      "runin": "Aura of Protection:"
+    },
+    "pages": [
+      311
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*AC"
+        },
+        "condition": "vs attacks and effects by evil (or good) creatures"
+      },
+      {
+        "type": "modifier",
+        "target": "save",
+        "mode": "add",
+        "condition": "vs attacks and effects by evil (or good) creatures",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*(?:to|on)\\s*saving\\s*throws"
+        },
+        "note": "The JJ printing lets the polarity be reversed for an anti-paladin, so the scope may be good creatures instead of evil ones."
+      }
+    ],
+    "audited": "2026-07-29"
+  },
+  {
+    "id": "def.power.balefulTransformation",
+    "icon": "icons/magic/control/silhouette-hold-change-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Baleful Transformation",
+    "anchor": {
+      "runin": "Baleful Transformation:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.ballisticsExpertise",
+    "icon": "icons/skills/ranged/cannon-barrel-firing-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Ballistics Expertise",
+    "anchor": {
+      "runin": "Ballistics Expertise:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.battleMagic",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Battle Magic",
+    "anchor": {
+      "runin": "Battle Magic:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "icon": "systems/acks/assets/icons/battle-magic.webp"
+  },
+  {
+    "id": "def.power.battlePlan",
+    "icon": "icons/skills/trades/academics-investigation-study-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Battle Plan",
+    "anchor": {
+      "runin": "Battle Plan:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.bedazzlingGlamour",
+    "icon": "icons/magic/control/hypnosis-mesmerism-swirl.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Bedazzling Glamour",
+    "anchor": {
+      "runin": "Bedazzling Glamour:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.berserkergangGreater",
+    "icon": "icons/magic/control/buff-strength-muscle-damage-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Berserkergang, Greater",
+    "anchor": {
+      "runin": "Berserkergang, Greater:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.berserkergangLesser",
+    "icon": "icons/magic/control/buff-strength-muscle-damage.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Berserkergang, Lesser",
+    "anchor": {
+      "runin": "Berserkergang, Lesser:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.bestialCry",
+    "icon": "icons/creatures/abilities/cougar-roar-rush-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Bestial Cry",
+    "anchor": {
+      "runin": "Bestial Cry:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.bestialFury",
+    "icon": "icons/creatures/abilities/bull-head-horns-glowing.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Bestial Fury",
+    "anchor": {
+      "runin": "Bestial Fury:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.bladeDancing",
+    "icon": "icons/skills/melee/maneuver-daggers-paired-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Blade-Dancing",
+    "anchor": {
+      "runin": "Blade-Dancing:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "condition": "light, very light, or no armor; 5 stones or less",
+        "stacksWith": [
+          "def.prof.swashbuckling"
+        ],
+        "from": {
+          "on": "level",
+          "pairs": true,
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+        }
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.blessingOfTheDead",
+    "icon": "icons/magic/death/grave-tombstone-glow-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Blessing of the Dead",
+    "anchor": {
+      "runin": "Blessing of the Dead:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.blindsight",
+    "icon": "icons/creatures/eyes/humanoid-single-blind.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Blindsight",
+    "anchor": {
+      "runin": "Blindsight:"
+    },
+    "pages": [
+      312
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.bloodyHealing",
+    "icon": "icons/magic/unholy/strike-beam-blood-red-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Bloody Healing",
+    "anchor": {
+      "runin": "Bloody Healing:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.boneBreakingStrength",
+    "icon": "icons/skills/wounds/bone-broken-knee-beam.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Bone-Breaking Strength",
+    "anchor": {
+      "runin": "Bone-Breaking Strength:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.bonusLanguages",
+    "icon": "icons/skills/social/diplomacy-handshake-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Bonus Languages",
+    "anchor": {
+      "runin": "Bonus Languages:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.boonCompanion",
+    "icon": "icons/creatures/birds/raptor-hawk-flying.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Boon Companion",
+    "anchor": {
+      "runin": "Boon Companion:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "reroll",
+        "keep": "latest",
+        "times": 1,
+        "target": "attackThrow",
+        "rollType": "above",
+        "resource": "fatePoint",
+        "action": "spend",
+        "condition": "ally within range; never a natural 1"
+      },
+      {
+        "type": "reroll",
+        "keep": "latest",
+        "times": 1,
+        "target": "proficiencyThrow",
+        "rollType": "above",
+        "resource": "fatePoint",
+        "action": "spend",
+        "condition": "ally within range; never a natural 1"
+      },
+      {
+        "type": "reroll",
+        "keep": "latest",
+        "times": 1,
+        "target": "save",
+        "rollType": "above",
+        "resource": "fatePoint",
+        "action": "spend",
+        "condition": "ally within range; never a natural 1"
+      }
+    ]
+  },
+  {
+    "id": "def.power.brewingQuacksalves",
+    "icon": "icons/skills/toxins/bottle-open-vapors-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Brewing Quacksalves",
+    "anchor": {
+      "runin": "Brewing Quacksalves:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.brightLore",
+    "icon": "icons/magic/light/beam-rays-yellow-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Bright Lore",
+    "anchor": {
+      "runin": "Bright Lore:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.broadSpectrumInoculations",
+    "icon": "icons/skills/wounds/blood-cells-disease-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Broad Spectrum Inoculations",
+    "anchor": {
+      "runin": "Broad Spectrum Inoculations:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.brutality",
+    "icon": "icons/skills/melee/strike-club-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Brutality",
+    "anchor": {
+      "runin": "Brutality:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.castTheRunes",
+    "icon": "icons/magic/symbols/runes-carved-stone-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Cast the Runes",
+    "anchor": {
+      "runin": "Cast the Runes:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.ceremonialMagic",
+    "icon": "icons/magic/symbols/rune-sigil-black-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Ceremonial Magic",
+    "anchor": {
+      "runin": "Ceremonial Magic:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.charismaticFerocity",
+    "icon": "icons/magic/control/control-influence-rally-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Charismatic Ferocity",
+    "anchor": {
+      "runin": "Charismatic Ferocity:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.childLike",
+    "icon": "icons/creatures/magical/fae-fairy-winged-glowing-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Child-Like",
+    "anchor": {
+      "runin": "Child-Like:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.chitinousCarapace",
+    "icon": "icons/creatures/invertebrates/beetle-stag-tan-brown.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Chitinous Carapace",
+    "anchor": {
+      "runin": "Chitinous Carapace:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.chosenweapon",
+    "icon": "icons/skills/melee/hand-grip-sword-white-brown.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Chosen Weapon",
+    "anchor": {
+      "runin": "ChosenWeapon:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.chthonicHegemon",
+    "icon": "icons/magic/earth/construct-stone-long-arms.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Chthonic Hegemon",
+    "anchor": {
+      "runin": "Chthonic Hegemon:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.clarionCommander",
+    "icon": "icons/magic/sonic/bell-alarm-red-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Clarion Commander",
+    "anchor": {
+      "runin": "Clarion Commander:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.classicalWeaponsTraining",
+    "icon": "icons/skills/melee/weapons-crossed-poleaxes-white.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Classical Weapons Training",
+    "anchor": {
+      "runin": "Classical Weapons Training:"
+    },
+    "pages": [
+      313
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.clawsAndBite",
+    "icon": "icons/creatures/abilities/fangs-teeth-bite.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Claws and Bite",
+    "anchor": {
+      "runin": "Claws and Bite:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.cleansingTouch",
+    "icon": "icons/magic/life/heart-hand-gold-green-light.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Cleansing Touch",
+    "anchor": {
+      "runin": "Cleansing Touch:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.closeFriendOfBirdsAndBeasts",
+    "icon": "icons/creatures/birds/songbird-yellow-flying.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Close Friend of Birds and Beasts",
+    "anchor": {
+      "runin": "Close Friend of Birds and Beasts:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.comfortAndConsoleTheWounded",
+    "icon": "icons/skills/wounds/injury-stitched-flesh-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Comfort and Console the Wounded",
+    "anchor": {
+      "runin": "Comfort and Console the Wounded:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.commandOfVoice",
+    "icon": "icons/magic/sonic/projectile-sound-rings-wave.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Command of Voice",
+    "anchor": {
+      "runin": "Command of Voice:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.commandUndead",
+    "icon": "icons/magic/death/undead-skeleton-energy-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Command Undead",
+    "anchor": {
+      "runin": "Command Undead:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.communeWithAncestralSpirits",
+    "icon": "icons/creatures/magical/spirit-undead-ghost-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Commune with Ancestral Spirits",
+    "anchor": {
+      "runin": "Commune with Ancestral Spirits:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.compelSubmission",
+    "icon": "icons/magic/control/debuff-energy-hold-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Compel Submission",
+    "anchor": {
+      "runin": "Compel Submission:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.concealedFromUndead",
+    "icon": "icons/magic/death/skull-humanoid-worn-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Concealed from Undead",
+    "anchor": {
+      "runin": "Concealed from Undead:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.conduitToTheEsoteric",
+    "icon": "icons/magic/control/energy-stream-link-spiral-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Conduit to the Esoteric",
+    "anchor": {
+      "runin": "Conduit to the Esoteric:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "requires",
+        "refs": [
+          "kw:familiar"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "def.power.conjureDarkPowers",
+    "icon": "icons/creatures/unholy/demon-horned-winged-laughing.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Conjure Dark Powers (1level)",
+    "anchor": {
+      "runin": "Conjure Dark Powers (1level):"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.consumeSouls",
+    "icon": "icons/magic/unholy/strike-body-life-soul-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Consume Souls",
+    "anchor": {
+      "runin": "Consume Souls:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.contactDarkPowers",
+    "icon": "icons/magic/unholy/hands-cloud-light-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Contact Dark Powers",
+    "anchor": {
+      "runin": "Contact Dark Powers:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.courage",
+    "icon": "icons/magic/holy/barrier-shield-winged-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Courage",
+    "anchor": {
+      "runin": "Courage:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.createAdvancedTechnology",
+    "icon": "icons/magic/symbols/cog-orange-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Create Advanced Technology",
+    "anchor": {
+      "runin": "Create Advanced Technology:"
+    },
+    "pages": [
+      314
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.cunningAndFlexibleReconnoiter",
+    "icon": "icons/magic/perception/orb-eye-scrying.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Cunning and Flexible Reconnoiter",
+    "anchor": {
+      "runin": "Cunning and Flexible Reconnoiter:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.curseWithIllFate",
+    "icon": "icons/magic/control/modfiy-luck-fortune-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Curse with Ill Fate",
+    "anchor": {
+      "runin": "Curse with Ill Fate:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.daredevil",
+    "icon": "icons/skills/movement/feet-winged-boots-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Daredevil",
+    "anchor": {
+      "runin": "Daredevil:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.darkBlessing",
+    "icon": "icons/magic/unholy/hand-marked-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Dark Blessing",
+    "anchor": {
+      "runin": "Dark Blessing:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.deadlyAdditive",
+    "icon": "icons/skills/toxins/poison-bottle-open-blood-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Deadly Additive",
+    "anchor": {
+      "runin": "Deadly Additive:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.deathDealingDance",
+    "icon": "icons/magic/death/weapon-scythe-rune-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Death-Dealing Dance",
+    "anchor": {
+      "runin": "Death-Dealing Dance:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.deathlyVisage",
+    "icon": "icons/magic/death/skull-humanoid-white-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Deathly Visage",
+    "anchor": {
+      "runin": "Deathly Visage:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.deciphering",
+    "icon": "systems/acks/assets/icons/open-book.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Deciphering",
+    "anchor": {
+      "runin": "Deciphering:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.demandSurrender",
+    "icon": "icons/magic/control/fear-fright-white.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Demand Surrender",
+    "anchor": {
+      "runin": "Demand Surrender:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.demiHumanAncestry",
+    "icon": "icons/creatures/magical/humanoid-silhouette-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Demi-Human Ancestry",
+    "anchor": {
+      "runin": "Demi-Human Ancestry:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.designBuildAndRepairAutomatons",
+    "icon": "icons/creatures/magical/construct-iron-stomping-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Design, Build, and Repair Automatons",
+    "anchor": {
+      "runin": "Design, Build, and Repair Automatons:"
+    },
+    "pages": [
+      315
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.designBuildAndRepairIngeniousDevices",
+    "icon": "icons/magic/symbols/cog-shield-white-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Design, Build, and Repair Ingenious Devices",
+    "anchor": {
+      "runin": "Design, Build, and Repair Ingenious Devices:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "assists": {
+      "aliasOf": "def.power.designBuildAndRepairAutomatons"
+    }
+  },
+  {
+    "id": "def.power.destined",
+    "icon": "icons/magic/control/buff-luck-fortune-rainbow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Destined",
+    "anchor": {
+      "runin": "Destined:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.detachableTail",
+    "icon": "icons/creatures/abilities/tail-swipe-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Detachable Tail",
+    "anchor": {
+      "runin": "Detachable Tail:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.detectGood",
+    "icon": "icons/magic/holy/saint-glass-portrait-halo.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Detect Good",
+    "anchor": {
+      "runin": "Detect Good:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.detectEvil",
+    "icon": "icons/magic/perception/eye-ringed-glow-angry-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Detect Evil",
+    "anchor": {
+      "runin": "Detect Evil:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.detectTraps",
+    "icon": "icons/magic/perception/hand-eye-black.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Detect Traps",
+    "anchor": {
+      "runin": "Detect Traps:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower",
+      "deprecated": true,
+      "replacedBy": "def.power.sensitivityToRockAndStone"
+    }
+  },
+  {
+    "id": "def.power.determined",
+    "icon": "icons/magic/defensive/shield-hex-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Determined",
+    "anchor": {
+      "runin": "Determined:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.difficultToCorrupt",
+    "icon": "icons/magic/defensive/armor-shield-barrier-steel.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Difficult to Corrupt",
+    "anchor": {
+      "runin": "Difficult to Corrupt:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.difficultToSpot",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Difficult to Spot",
+    "anchor": {
+      "runin": "Difficult to Spot:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower",
+      "deprecated": true,
+      "replacedBy": "def.power.naturalStealth"
+    },
+    "icon": "systems/acks/assets/icons/difficult-to-spot.webp"
+  },
+  {
+    "id": "def.power.divineBlessing",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Divine Blessing",
+    "anchor": {
+      "runin": "Divine Blessing:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "icon": "systems/acks/assets/icons/divine-blessing.webp"
+  },
+  {
+    "id": "def.power.divineProficiency",
+    "icon": "icons/magic/holy/meditation-chi-focus-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Divine Proficiency",
+    "anchor": {
+      "runin": "Divine Proficiency:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.discernGood",
+    "icon": "icons/magic/light/orb-beams-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Discern Good",
+    "anchor": {
+      "runin": "Discern Good:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.discernevil",
+    "icon": "icons/magic/perception/third-eye-blue-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Discern Evil",
+    "anchor": {
+      "runin": "DiscernEvil:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.distract",
+    "icon": "icons/magic/control/hypnosis-mesmerism-pendulum.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Distract",
+    "anchor": {
+      "runin": "Distract:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.dominateBeastmen",
+    "icon": "icons/magic/control/control-influence-crown-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Dominate Beastmen",
+    "anchor": {
+      "runin": "Dominate Beastmen:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.dreadShadow",
+    "icon": "icons/magic/perception/shadow-stealth-eyes-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Dread Shadow",
+    "anchor": {
+      "runin": "Dread Shadow:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.eldritchTalent",
+    "icon": "icons/magic/symbols/triangle-glow-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Eldritch Talent",
+    "anchor": {
+      "runin": "Eldritch Talent:"
+    },
+    "pages": [
+      316
+    ],
+    "meta": {
+      "category": "classPower",
+      "provides": [
+        "kw:eldritchtalent"
+      ]
+    }
+  },
+  {
+    "id": "def.power.eldritchWarrior",
+    "icon": "icons/skills/melee/sword-engraved-glow-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Eldritch Warrior",
+    "anchor": {
+      "runin": "Eldritch Warrior:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "requires",
+        "refs": [
+          "kw:eldritchtalent"
+        ],
+        "condition": "or already an eldritch caster"
+      }
+    ]
+  },
+  {
+    "id": "def.power.elementalConnection",
+    "icon": "icons/magic/symbols/elements-air-earth-fire-water.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Elemental Connection",
+    "anchor": {
+      "runin": "Elemental Connection:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.enchantedForest",
+    "icon": "icons/magic/nature/tree-spirit-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Enchanted Forest",
+    "anchor": {
+      "runin": "Enchanted Forest:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.engineeringAptitude",
+    "icon": "icons/skills/trades/construction-mason-bricklayer-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Engineering Aptitude",
+    "anchor": {
+      "runin": "Engineering Aptitude:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.evilEye",
+    "icon": "icons/magic/perception/eye-slit-red-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Evil Eye",
+    "anchor": {
+      "runin": "Evil Eye:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.experimentation",
+    "icon": "icons/skills/toxins/cup-glass-poisoned-held.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Experimentation",
+    "anchor": {
+      "runin": "Experimentation:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.exquisiteTorture",
+    "icon": "icons/skills/wounds/injury-pain-impaled-hand-blood.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Exquisite Torture",
+    "anchor": {
+      "runin": "Exquisite Torture:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.expertTraveler",
+    "icon": "icons/skills/movement/feet-winged-sandals-tan.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Expert Traveler",
+    "anchor": {
+      "runin": "Expert Traveler:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.extensiveFirearmsTraining",
+    "icon": "icons/skills/ranged/rifle-scoped-firing-yellow-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Extensive Firearms Training",
+    "anchor": {
+      "runin": "Extensive Firearms Training:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.exultInGloriousBattle",
+    "icon": "icons/skills/melee/swords-triple-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Exult in Glorious Battle",
+    "anchor": {
+      "runin": "Exult in Glorious Battle:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.familialLoyalty",
+    "icon": "icons/skills/social/diplomacy-handshake-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Familial Loyalty",
+    "anchor": {
+      "runin": "Familial Loyalty:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.familiarWithTechnology",
+    "icon": "icons/skills/trades/tech-energy-charged-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Familiar with Technology",
+    "anchor": {
+      "runin": "Familiar with Technology:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.farseeing",
+    "icon": "icons/magic/perception/orb-crystal-ball-scrying-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Farseeing",
+    "anchor": {
+      "runin": "Farseeing:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fellowshipOfAnimals",
+    "icon": "icons/magic/nature/wolf-paw-glow-purple-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fellowship of Animals",
+    "anchor": {
+      "runin": "Fellowship of Animals:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "assists": {
+      "aliasOf": "def.power.animalFriendship"
+    }
+  },
+  {
+    "id": "def.power.expertScout",
+    "icon": "icons/magic/perception/eye-ringed-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Expert Scout",
+    "anchor": {
+      "runin": "Expert Scout:"
+    },
+    "pages": [
+      317
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fierySpirit",
+    "icon": "icons/creatures/magical/spirit-fire-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fiery Spirit",
+    "anchor": {
+      "runin": "Fiery Spirit:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fieryCauterization",
+    "icon": "icons/magic/fire/flame-burning-fist-strike.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fiery Cauterization",
+    "anchor": {
+      "runin": "Fiery Cauterization:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fieryResistance",
+    "icon": "icons/magic/fire/barrier-shield-explosion-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fiery Resistance",
+    "anchor": {
+      "runin": "Fiery Resistance:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fightingFury",
+    "icon": "icons/skills/melee/strike-slashes-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fighting Fury",
+    "anchor": {
+      "runin": "Fighting Fury:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fistsOfIron",
+    "icon": "icons/skills/melee/unarmed-punch-fist.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fists of Iron",
+    "anchor": {
+      "runin": "Fists of Iron:"
+    },
+    "pages": [
+      318
+    ],
+    "assists": {
+      "descStopY": 365
+    },
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.flagellation",
+    "icon": "icons/skills/melee/strike-chain-whip-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Flagellation",
+    "anchor": {
+      "runin": "Flagellation:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.flawlessPrecision",
+    "icon": "icons/skills/targeting/crosshair-triple-strike-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Flawless Precision",
+    "anchor": {
+      "runin": "Flawless Precision:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fleshRunes",
+    "icon": "icons/magic/symbols/rune-sigil-horned-white-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Flesh-Runes",
+    "anchor": {
+      "runin": "Flesh-Runes:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.flying",
+    "icon": "icons/magic/control/buff-flight-wings-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Flying",
+    "anchor": {
+      "runin": "Flying:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.foolsLuck",
+    "icon": "icons/magic/control/buff-luck-fortune-clover-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fool’s Luck",
+    "anchor": {
+      "runin": "Fool’s Luck:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fourArms",
+    "icon": "icons/creatures/magical/humanoid-silhouette-glowing-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Four Arms",
+    "anchor": {
+      "runin": "Four Arms:"
+    },
+    "pages": [
+      318
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.forbiddenSpells",
+    "icon": "icons/magic/unholy/silhouette-light-fire-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Forbidden Spells",
+    "anchor": {
+      "runin": "Forbidden Spells:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.friendOfBirdsAndBeasts",
+    "icon": "icons/creatures/birds/dove-pigeon-flying-white.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Friend of Birds and Beasts",
+    "anchor": {
+      "runin": "Friend of Birds and Beasts:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fungalAwareness",
+    "icon": "icons/creatures/eyes/slime-stalk-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fungal Awareness",
+    "anchor": {
+      "runin": "Fungal Awareness:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fungalCommunion",
+    "icon": "icons/magic/nature/plant-undersea-glow-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fungal Communion",
+    "anchor": {
+      "runin": "Fungal Communion:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fungalFriendship",
+    "icon": "icons/magic/nature/plant-sprout-hands-vines.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fungal Friendship",
+    "anchor": {
+      "runin": "Fungal Friendship:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fungalImmunity",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-triangle-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fungal Immunity",
+    "anchor": {
+      "runin": "Fungal Immunity:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.fungalSpawn",
+    "icon": "icons/creatures/slimes/slime-bubble-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Fungal Spawn (10)",
+    "anchor": {
+      "runin": "Fungal Spawn (10):"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.gatherTogetherTheDarkness",
+    "icon": "icons/magic/unholy/energy-smoke-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Gather Together the Darkness",
+    "anchor": {
+      "runin": "Gather Together the Darkness:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.giftOfTongues",
+    "icon": "icons/skills/social/handshake.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Gift of Tongues",
+    "anchor": {
+      "runin": "Gift of Tongues:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.glamorousAura",
+    "icon": "icons/magic/light/explosion-glow-spiral-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Glamorous Aura",
+    "anchor": {
+      "runin": "Glamorous Aura:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.gracefulFighting",
+    "icon": "icons/skills/melee/sword-twirl-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Graceful Fighting",
+    "anchor": {
+      "runin": "Graceful Fighting:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "condition": "light, very light, or no armor; 5 stones or less",
+        "stacksWith": [
+          "def.prof.swashbuckling"
+        ],
+        "from": {
+          "on": "level",
+          "pairs": true,
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+        }
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.greaterRiteOfSealing",
+    "icon": "icons/magic/symbols/runes-triangle-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Greater Rite of Sealing",
+    "anchor": {
+      "runin": "Greater Rite of Sealing:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.greatnessOfSoul",
+    "icon": "icons/magic/holy/angel-winged-humanoid-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Greatness of Soul",
+    "anchor": {
+      "runin": "Greatness of Soul:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.greyLore",
+    "icon": "icons/magic/light/beam-layered-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Grey Lore",
+    "anchor": {
+      "runin": "Grey Lore:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.grotesqueArtsOfTransformation",
+    "icon": "icons/creatures/slimes/slime-face-hollow-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Grotesque Arts of Transformation (1)",
+    "anchor": {
+      "runin": "Grotesque Arts of Transformation (1):"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.guardianSpirit",
+    "icon": "icons/creatures/magical/spirit-undead-masked-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Guardian Spirit",
+    "anchor": {
+      "runin": "Guardian Spirit:"
+    },
+    "pages": [
+      319
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "companion",
+        "amount": 1,
+        "note": "Guardian spirit"
+      }
+    ]
+  },
+  {
+    "id": "def.power.hardToKill",
+    "icon": "icons/magic/life/heart-cross-strong-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Hard to Kill",
+    "anchor": {
+      "runin": "Hard to Kill:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.harmonyOfSpirit",
+    "icon": "icons/magic/holy/yin-yang-balance-symbol.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Harmony of Spirit",
+    "anchor": {
+      "runin": "Harmony of Spirit:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.healingTouch",
+    "icon": "icons/magic/life/heart-cross-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Healing Touch",
+    "anchor": {
+      "runin": "Healing Touch:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.heartyConstitution",
+    "icon": "icons/magic/life/heart-glowing-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Hearty Constitution",
+    "anchor": {
+      "runin": "Hearty Constitution:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.heroicBreakfast",
+    "icon": "icons/skills/trades/baking-bread-rolls-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Heroic Breakfast",
+    "anchor": {
+      "runin": "Heroic Breakfast:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.heroicSpirit",
+    "icon": "icons/magic/light/explosion-star-glow-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Heroic Spirit",
+    "anchor": {
+      "runin": "Heroic Spirit:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.hideousServant",
+    "icon": "icons/creatures/magical/construct-face-stone-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Hideous Servant",
+    "anchor": {
+      "runin": "Hideous Servant:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "companion",
+        "amount": 1,
+        "note": "Hideous servant"
+      }
+    ]
+  },
+  {
+    "id": "def.power.horribleTruths",
+    "icon": "icons/magic/control/fear-fright-monster-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Horrible Truths",
+    "anchor": {
+      "runin": "Horrible Truths:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.impersonateOthers",
+    "icon": "icons/magic/symbols/mask-metal-silver-white.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Impersonate Others",
+    "anchor": {
+      "runin": "Impersonate Others:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower",
+      "deprecated": true,
+      "replacedBy": "def.prof.disguise"
+    }
+  },
+  {
+    "id": "def.power.implacableWill",
+    "icon": "icons/magic/defensive/shield-hex-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Implacable Will",
+    "anchor": {
+      "runin": "Implacable Will:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.infravision",
+    "icon": "icons/creatures/eyes/humanoid-single-red-brown.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Infravision",
+    "anchor": {
+      "runin": "Infravision:"
+    },
+    "pages": [
+      320
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.inhumanity",
+    "icon": "icons/creatures/unholy/demon-horned-black-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Inhumanity",
+    "anchor": {
+      "runin": "Inhumanity:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.initiative",
+    "icon": "icons/magic/movement/trail-streak-impact-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Initiative",
+    "anchor": {
+      "runin": "Initiative:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.innateIllusionMastery",
+    "icon": "icons/magic/control/hypnosis-mesmerism-eye.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Innate Illusion Mastery",
+    "anchor": {
+      "runin": "Innate Illusion Mastery:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.innovativeResearcher",
+    "icon": "icons/magic/symbols/question-stone-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Innovative Researcher",
+    "anchor": {
+      "runin": "Innovative Researcher:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.inspireDread",
+    "icon": "icons/magic/control/fear-fright-shadow-monster-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Inspire Dread",
+    "anchor": {
+      "runin": "Inspire Dread:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.inspireExceptionalPerformance",
+    "icon": "icons/skills/trades/music-notes-sound-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Inspire Exceptional Performance",
+    "anchor": {
+      "runin": "Inspire Exceptional Performance:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.instillStrength",
+    "icon": "icons/magic/life/cross-beam-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Instill Strength",
+    "anchor": {
+      "runin": "Instill Strength:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.instinctiveDodge",
+    "icon": "icons/skills/movement/ball-spinning-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Instinctive Dodge",
+    "anchor": {
+      "runin": "Instinctive Dodge:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.invulnerable",
+    "icon": "icons/magic/defensive/barrier-shield-dome-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Invulnerable",
+    "anchor": {
+      "runin": "Invulnerable:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.ironLeadership",
+    "icon": "icons/magic/defensive/shield-barrier-deflect-gold.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Iron Leadership",
+    "anchor": {
+      "runin": "Iron Leadership:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.irresistibleVoice",
+    "icon": "icons/magic/sonic/explosion-shock-sound-wave.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Irresistible Voice",
+    "anchor": {
+      "runin": "Irresistible Voice:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.jumping",
+    "icon": "icons/skills/movement/arrow-upward-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Jumping",
+    "anchor": {
+      "runin": "Jumping:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.keenEyes",
+    "icon": "icons/creatures/eyes/human-single-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Keen Eyes",
+    "anchor": {
+      "runin": "Keen Eyes:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower",
+      "deprecated": true,
+      "replacedBy": "def.power.attunementToNature"
+    }
+  },
+  {
+    "id": "def.power.keenInsectSenses",
+    "icon": "icons/creatures/invertebrates/dragonfly-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Keen Insect Senses",
+    "anchor": {
+      "runin": "Keen Insect Senses:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.killingSpree",
+    "icon": "icons/skills/melee/strikes-sword-triple-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Killing Spree",
+    "anchor": {
+      "runin": "Killing Spree:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.kinshipWithArthropodsAndFungi",
+    "icon": "icons/creatures/invertebrates/ant-strength-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Kinship with Arthropods and Fungi",
+    "anchor": {
+      "runin": "Kinship with Arthropods and Fungi:"
+    },
+    "pages": [
+      321
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.kissOfLife",
+    "icon": "icons/magic/life/heart-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Kiss of Life",
+    "anchor": {
+      "runin": "Kiss of Life:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "requires",
+        "refs": [
+          "kw:necrosporing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "def.power.laughAtPain",
+    "icon": "icons/skills/wounds/injury-face-impact-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Laugh at Pain",
+    "anchor": {
+      "runin": "Laugh at Pain:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.layOnHands",
+    "icon": "icons/magic/life/heart-hand-gold-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Lay on Hands",
+    "anchor": {
+      "runin": "Lay on Hands:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "hp",
+        "appliesTo": "ally",
+        "mode": "add",
+        "condition": "wounded creature",
+        "from": {
+          "as": "perLevel",
+          "pattern": "restore\\s*(\\d+)\\s*hit\\s*points\\s*per\\s*experience\\s*level"
+        }
+      },
+      {
+        "type": "capability",
+        "frequency": "perDay",
+        "note": "Selecting the Laying on Hands proficiency adds uses per day."
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.legwork",
+    "icon": "icons/skills/social/theft-pickpocket-bribery-brown.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Legwork",
+    "anchor": {
+      "runin": "Legwork:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "condition": "light, very light, or no armor; 5 stones or less",
+        "stacksWith": [
+          "def.prof.swashbuckling"
+        ],
+        "from": {
+          "on": "level",
+          "pairs": true,
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+        }
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.power.lightlessVision",
+    "icon": "icons/creatures/eyes/humanoid-single-purple-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Lightless Vision",
+    "anchor": {
+      "runin": "Lightless Vision:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.lionHeartedLeader",
+    "icon": "icons/creatures/abilities/wolf-heads-swirl-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Lion-Hearted Leader",
+    "anchor": {
+      "runin": "Lion-Hearted Leader:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.lizardBrain",
+    "icon": "icons/creatures/reptiles/serpent-horned-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Lizard Brain",
+    "anchor": {
+      "runin": "Lizard Brain:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.loadbearing",
+    "icon": "icons/skills/wounds/anatomy-bone-joint.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Loadbearing",
+    "anchor": {
+      "runin": "Loadbearing:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.lordshipOverTheUndead",
+    "icon": "icons/magic/death/skull-humanoid-crown-white-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Lordship Over the Undead",
+    "anchor": {
+      "runin": "Lordship Over the Undead:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.loreOfStarsAndSpheres",
+    "icon": "icons/magic/nature/symbol-moon-stars-white.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Lore of Stars and Spheres",
+    "anchor": {
+      "runin": "Lore of Stars and Spheres:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.lowLightVision",
+    "icon": "icons/creatures/eyes/humanoid-single-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Low-Light Vision",
+    "anchor": {
+      "runin": "Low-Light Vision:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.lucksBoon",
+    "icon": "icons/magic/control/buff-luck-fortune-green-gold.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Luck’s Boon",
+    "anchor": {
+      "runin": "Luck’s Boon:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.lucky",
+    "icon": "icons/magic/symbols/clover-luck-white-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Lucky",
+    "anchor": {
+      "runin": "Lucky:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "reroll",
+        "keep": "better",
+        "times": 1,
+        "target": "attackThrow",
+        "rollType": "above",
+        "resource": "fatePoint",
+        "action": "spend",
+        "condition": "when a Fate Point buys the re-roll"
+      },
+      {
+        "type": "reroll",
+        "keep": "better",
+        "times": 1,
+        "target": "proficiencyThrow",
+        "rollType": "above",
+        "resource": "fatePoint",
+        "action": "spend",
+        "condition": "when a Fate Point buys the re-roll"
+      },
+      {
+        "type": "reroll",
+        "keep": "better",
+        "times": 1,
+        "target": "save",
+        "rollType": "above",
+        "resource": "fatePoint",
+        "action": "spend",
+        "condition": "when a Fate Point buys the re-roll"
+      }
+    ]
+  },
+  {
+    "id": "def.power.magicHands",
+    "icon": "icons/magic/light/orb-hand-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Magic Hands",
+    "anchor": {
+      "runin": "Magic Hands:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.magicMirror",
+    "icon": "icons/magic/light/orb-shadow-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Magic Mirror",
+    "anchor": {
+      "runin": "Magic Mirror:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.magicalProficiency",
+    "icon": "icons/magic/symbols/star-solid-gold.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Magical Proficiency",
+    "anchor": {
+      "runin": "Magical Proficiency:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.majestyOfTheDragon",
+    "icon": "icons/creatures/reptiles/dragon-winged-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Majesty of the Dragon",
+    "anchor": {
+      "runin": "Majesty of the Dragon:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.malevolentReputation",
+    "icon": "icons/magic/control/fear-fright-mask-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Malevolent Reputation",
+    "anchor": {
+      "runin": "Malevolent Reputation:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.mapper",
+    "icon": "icons/environment/wilderness/terrain-forest-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Mapper",
+    "anchor": {
+      "runin": "Mapper:"
+    },
+    "pages": [
+      322
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.martialProficiency",
+    "icon": "icons/skills/melee/weapons-crossed-swords-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Martial Proficiency",
+    "anchor": {
+      "runin": "Martial Proficiency:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.martialTalent",
+    "icon": "icons/skills/melee/weapons-crossed-swords-white-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Martial Talent",
+    "anchor": {
+      "runin": "Martial Talent:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.martyrdom",
+    "icon": "icons/magic/holy/projectiles-blades-salvo-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Martyrdom",
+    "anchor": {
+      "runin": "Martyrdom:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.marvelousmachines",
+    "icon": "icons/creatures/magical/construct-golem-stone-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Marvelous Machines",
+    "anchor": {
+      "runin": "MarvelousMachines:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.masteryOfEnchantmentsAndIllusions",
+    "icon": "icons/magic/control/hypnosis-mesmerism-eye-tan.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Mastery of Enchantments and Illusions",
+    "anchor": {
+      "runin": "Mastery of Enchantments and Illusions:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.masteryofdominationanddeception",
+    "icon": "icons/magic/control/hypnosis-mesmerism-watch.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Mastery of Domination and Deception",
+    "anchor": {
+      "runin": "MasteryofDominationandDeception:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "assists": {
+      "aliasOf": "def.power.masteryOfEnchantmentsAndIllusions"
+    }
+  },
+  {
+    "id": "def.power.meditativeFocus",
+    "icon": "icons/magic/light/circle-window-clock-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Meditative Focus",
+    "anchor": {
+      "runin": "Meditative Focus:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.mindfulness",
+    "icon": "icons/magic/perception/hand-eye-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Mindfulness",
+    "anchor": {
+      "runin": "Mindfulness:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.militaryGenius",
+    "icon": "icons/skills/social/symbol-pyramid-eye.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Military Genius",
+    "anchor": {
+      "runin": "Military Genius:"
+    },
+    "pages": [
+      323
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.mitigateDamage",
+    "icon": "icons/magic/defensive/barrier-shield-dome-deflect-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Mitigate Damage",
+    "anchor": {
+      "runin": "Mitigate Damage:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.modernThought",
+    "icon": "icons/magic/symbols/chevron-elipse-circle-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Modern Thought",
+    "anchor": {
+      "runin": "Modern Thought:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.mushroomManagement",
+    "icon": "icons/magic/nature/plant-sprout-potted-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Mushroom Management",
+    "anchor": {
+      "runin": "Mushroom Management:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.mushroomOverlord",
+    "icon": "icons/magic/nature/plant-maneater-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Mushroom Overlord",
+    "anchor": {
+      "runin": "Mushroom Overlord:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.mysticalBloodline",
+    "icon": "icons/magic/unholy/orb-glowing-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Mystical Bloodline",
+    "anchor": {
+      "runin": "Mystical Bloodline:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.necrosporing",
+    "icon": "icons/magic/nature/plant-vines-skull-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Necrosporing",
+    "anchor": {
+      "runin": "Necrosporing:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower",
+      "provides": [
+        "kw:necrosporing"
+      ]
+    }
+  },
+  {
+    "id": "def.power.nervousWatchfulness",
+    "icon": "icons/creatures/birds/corvid-watchful-glowing-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Nervous Watchfulness",
+    "anchor": {
+      "runin": "Nervous Watchfulness:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.noseForPotions",
+    "icon": "icons/skills/toxins/poison-skull-herbs-bottle-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Nose for Potions",
+    "anchor": {
+      "runin": "Nose for Potions:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.onenessOfLandAndLord",
+    "icon": "icons/magic/nature/root-vines-grow-brown.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Oneness of Land and Lord",
+    "anchor": {
+      "runin": "Oneness of Land and Lord:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.perceiveIntentions",
+    "icon": "icons/magic/perception/eye-tendrils-web-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Perceive Intentions",
+    "anchor": {
+      "runin": "Perceive Intentions:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.perfectionOfBody",
+    "icon": "icons/magic/life/cross-area-circle-green-white.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Perfection of Body",
+    "anchor": {
+      "runin": "Perfection of Body:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.personalTalisman",
+    "icon": "icons/magic/symbols/star-rising-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Personal Talisman",
+    "anchor": {
+      "runin": "Personal Talisman:"
+    },
+    "pages": [
+      324
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.placate",
+    "icon": "icons/skills/social/diplomacy-offering-ritual.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Placate",
+    "anchor": {
+      "runin": "Placate:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.preciseShot",
+    "icon": "icons/skills/ranged/target-bullseye-arrow-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Precise Shot",
+    "anchor": {
+      "runin": "Precise Shot:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.prestidigitation",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Prestidigitation",
+    "anchor": {
+      "runin": "Prestidigitation:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "icon": "systems/acks/assets/icons/prestidigitation.webp"
+  },
+  {
+    "id": "def.power.probabilitytrance",
+    "icon": "icons/magic/time/arrows-circling-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Probability Trance",
+    "anchor": {
+      "runin": "ProbabilityTrance:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.profaneEndurance",
+    "icon": "icons/magic/unholy/barrier-shield-glowing-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Profane Endurance",
+    "anchor": {
+      "runin": "Profane Endurance:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.provokeThePassion",
+    "icon": "icons/magic/life/heart-red-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Provoke the Passion",
+    "anchor": {
+      "runin": "Provoke the Passion:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.publicEducation",
+    "icon": "icons/environment/settlement/sign-wood.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Public Education",
+    "anchor": {
+      "runin": "Public Education:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.publicFlagellation",
+    "icon": "icons/skills/wounds/injury-triple-slash-bleed.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Public Flagellation",
+    "anchor": {
+      "runin": "Public Flagellation:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.pugilism",
+    "icon": "icons/skills/melee/unarmed-punch-fist-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Pugilism",
+    "anchor": {
+      "runin": "Pugilism:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.purityOfBodyAndSoul",
+    "icon": "icons/magic/life/cross-worn-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Purity of Body and Soul",
+    "anchor": {
+      "runin": "Purity of Body and Soul:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.pyroclastics",
+    "icon": "icons/magic/earth/volcano-explosion-lava-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Pyroclastics",
+    "anchor": {
+      "runin": "Pyroclastics:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.quickening",
+    "icon": "icons/magic/movement/trail-streak-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Quickening",
+    "anchor": {
+      "runin": "Quickening:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.rallyTheFaithful",
+    "icon": "icons/magic/holy/prayer-hands-glowing-yellow-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Rally the Faithful",
+    "anchor": {
+      "runin": "Rally the Faithful:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.ravishingBeauty",
+    "icon": "icons/magic/light/explosion-star-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Ravishing Beauty",
+    "anchor": {
+      "runin": "Ravishing Beauty:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.readLanguages",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Read Languages",
+    "anchor": {
+      "runin": "Read Languages:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "icon": "systems/acks/assets/icons/read-languages.webp"
+  },
+  {
+    "id": "def.power.relentless",
+    "icon": "icons/skills/movement/arrows-up-trio-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Relentless",
+    "anchor": {
+      "runin": "Relentless:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.rhetoric",
+    "icon": "icons/skills/social/diplomacy-handshake.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Rhetoric",
+    "anchor": {
+      "runin": "Rhetoric:"
+    },
+    "pages": [
+      325
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.rightStuff",
+    "icon": "icons/magic/light/explosion-star-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Right Stuff",
+    "anchor": {
+      "runin": "Right Stuff:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.rouseToFury",
+    "icon": "icons/magic/control/fear-fright-monster-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Rouse to Fury",
+    "anchor": {
+      "runin": "Rouse to Fury:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.rotlessRot",
+    "icon": "icons/creatures/slimes/slime-movement-dripping-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Rotless Rot",
+    "anchor": {
+      "runin": "Rotless Rot:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.scalyHide",
+    "icon": "icons/creatures/reptiles/turtle-shell-glowing-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Scaly Hide",
+    "anchor": {
+      "runin": "Scaly Hide:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.scientificMindset",
+    "icon": "icons/skills/trades/helix-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Scientific Mindset",
+    "anchor": {
+      "runin": "Scientific Mindset:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.scionOfKings",
+    "icon": "icons/magic/symbols/fleur-de-lis-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Scion of Kings",
+    "anchor": {
+      "runin": "Scion of Kings:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.secondSight",
+    "icon": "icons/magic/perception/eye-winged-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Second Sight",
+    "anchor": {
+      "runin": "Second Sight:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.secretKnowledge",
+    "icon": "icons/magic/symbols/runes-carved-stone-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Secret Knowledge",
+    "anchor": {
+      "runin": "Secret Knowledge:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.secretion",
+    "icon": "icons/creatures/slimes/slime-movement-dripping-pseudopods-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Secretion",
+    "anchor": {
+      "runin": "Secretion:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.secretsOfTheDarkArts",
+    "icon": "icons/magic/unholy/orb-swirling-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Secrets of the Dark Arts",
+    "anchor": {
+      "runin": "Secrets of the Dark Arts:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.secretsOfLifeAndDeath",
+    "icon": "icons/magic/life/ankh-shadow-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Secrets of Life and Death",
+    "anchor": {
+      "runin": "Secrets of Life and Death:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.shapechange",
+    "icon": "icons/creatures/mammals/humanoid-wolf-dog-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Shapechange",
+    "anchor": {
+      "runin": "Shapechange:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.shapeFleshAndBone",
+    "icon": "icons/skills/wounds/anatomy-organ-brain-pink-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Shape Flesh and Bone",
+    "anchor": {
+      "runin": "Shape Flesh and Bone:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.sleepless",
+    "icon": "icons/magic/control/sleep-bubble-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Sleepless",
+    "anchor": {
+      "runin": "Sleepless:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.solidityOfRock",
+    "icon": "icons/creatures/magical/construct-stone-earth-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Solidity of Rock",
+    "anchor": {
+      "runin": "Solidity of Rock:"
+    },
+    "pages": [
+      326
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.soulOfTheDragon",
+    "icon": "icons/creatures/reptiles/dragon-horned-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Soul of the Dragon",
+    "anchor": {
+      "runin": "Soul of the Dragon:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.speakWithAnimals",
+    "icon": "icons/creatures/mammals/deer-antlers-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Speak with Animals",
+    "anchor": {
+      "runin": "Speak with Animals:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.speakWithArthropods",
+    "icon": "icons/creatures/invertebrates/bee-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Speak with Arthropods",
+    "anchor": {
+      "runin": "Speak with Arthropods:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.speedOfThought",
+    "icon": "icons/magic/movement/pinwheel-turning-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Speed of Thought",
+    "anchor": {
+      "runin": "Speed of Thought:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.spellStoring",
+    "icon": "icons/magic/symbols/ring-circle-smoke-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Spell Storing",
+    "anchor": {
+      "runin": "Spell Storing:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.spiritwalk",
+    "icon": "icons/creatures/magical/spirit-undead-winged-ghost.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Spiritwalk",
+    "anchor": {
+      "runin": "Spiritwalk:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.sporeCalibration",
+    "icon": "icons/magic/nature/plant-seed-hands-glow-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Spore Calibration",
+    "anchor": {
+      "runin": "Spore Calibration:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "requires",
+        "refs": [
+          "kw:necrosporing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "def.power.sporeFermentation",
+    "icon": "icons/magic/nature/plant-sproud-hands-dirt-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Spore Fermentation",
+    "anchor": {
+      "runin": "Spore Fermentation:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "requires",
+        "refs": [
+          "kw:necrosporing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "def.power.sporePerception",
+    "icon": "icons/creatures/eyes/slime-stalks-yellow-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Spore Perception",
+    "anchor": {
+      "runin": "Spore Perception:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "requires",
+        "refs": [
+          "kw:necrosporing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "def.power.sporeSynchronization",
+    "icon": "icons/magic/nature/plant-sprout-snow-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Spore Synchronization",
+    "anchor": {
+      "runin": "Spore Synchronization:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    },
+    "effects": [
+      {
+        "type": "requires",
+        "refs": [
+          "kw:necrosporing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "def.power.stalwartSoul",
+    "icon": "icons/magic/defensive/shield-barrier-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Stalwart Soul",
+    "anchor": {
+      "runin": "Stalwart Soul:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.strengthOfSpirit",
+    "icon": "icons/magic/holy/chalice-glowing-yellow-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Strength of Spirit",
+    "anchor": {
+      "runin": "Strength of Spirit:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.stewardOfTheWild",
+    "icon": "icons/magic/nature/tree-elm-roots-brown.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Steward of the Wild",
+    "anchor": {
+      "runin": "Steward of the Wild:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.stigmata",
+    "icon": "icons/skills/wounds/injury-hand-blood-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Stigmata",
+    "anchor": {
+      "runin": "Stigmata:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.studentOfWar",
+    "icon": "icons/skills/melee/swords-parry-block-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Student of War",
+    "anchor": {
+      "runin": "Student of War:"
+    },
+    "pages": [
+      327
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.subtlebeguilement",
+    "icon": "icons/magic/control/sihouette-hold-beam-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Subtle Beguilement",
+    "anchor": {
+      "runin": "SubtleBeguilement:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.summoninfernalpowers",
+    "icon": "icons/creatures/unholy/demon-fire-imp.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Summon Infernal Powers",
+    "anchor": {
+      "runin": "SummonInfernalPowers:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.supernaturalResilience",
+    "icon": "icons/magic/defensive/shield-barrier-glowing-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Supernatural Resilience",
+    "anchor": {
+      "runin": "Supernatural Resilience:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.survivabilityOfCockroaches",
+    "icon": "icons/creatures/invertebrates/bug-cross-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Survivability of Cockroaches",
+    "anchor": {
+      "runin": "Survivability of Cockroaches:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.swimming",
+    "icon": "icons/magic/water/wave-water-rolling-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Swimming",
+    "anchor": {
+      "runin": "Swimming:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.swornFoe",
+    "icon": "icons/skills/targeting/crosshair-mark-rough-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Sworn Foe",
+    "anchor": {
+      "runin": "Sworn Foe:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.taintedBlood",
+    "icon": "icons/magic/unholy/projectile-helix-blood-red.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Tainted Blood",
+    "anchor": {
+      "runin": "Tainted Blood:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.taunt",
+    "icon": "icons/skills/social/thumbs-down.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Taunt",
+    "anchor": {
+      "runin": "Taunt:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.technologicaljargon",
+    "icon": "icons/magic/symbols/triangle-glowing-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Technological Jargon",
+    "anchor": {
+      "runin": "TechnologicalJargon:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.thieveryproficiency",
+    "icon": "icons/skills/trades/security-lockpicking-chest-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Thievery Proficiency",
+    "anchor": {
+      "runin": "ThieveryProficiency:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.tormentTheMind",
+    "icon": "icons/magic/control/voodoo-doll-pain-damage-purple.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Torment the Mind",
+    "anchor": {
+      "runin": "Torment the Mind:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.totemBenefit",
+    "icon": "icons/magic/nature/wolf-paw-glow-small-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Totem Benefit",
+    "anchor": {
+      "runin": "Totem Benefit:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.jargon",
+    "icon": "icons/magic/symbols/mask-yellow-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Jargon",
+    "anchor": {
+      "runin": "Jargon:"
+    },
+    "pages": [
+      328
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.tribulatingAdversary",
+    "icon": "icons/magic/control/debuff-chains-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Tribulating Adversary",
+    "anchor": {
+      "runin": "Tribulating Adversary:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.unconquerableSoul",
+    "icon": "icons/magic/defensive/shield-barrier-flaming-pentagon-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Unconquerable Soul",
+    "anchor": {
+      "runin": "Unconquerable Soul:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.undeadslaying",
+    "icon": "icons/magic/death/bones-crossed-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Undead Slaying",
+    "anchor": {
+      "runin": "UndeadSlaying:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.unholyFanaticism",
+    "icon": "icons/magic/unholy/silhouette-evil-horned-giant.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Unholy Fanaticism",
+    "anchor": {
+      "runin": "Unholy Fanaticism:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.unliving",
+    "icon": "icons/magic/death/undead-zombie-grave-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Unliving",
+    "anchor": {
+      "runin": "Unliving:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.unveilEsotericMeaning",
+    "icon": "icons/magic/symbols/runes-carved-stone-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Unveil Esoteric Meaning",
+    "anchor": {
+      "runin": "Unveil Esoteric Meaning:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.utterDomination",
+    "icon": "icons/magic/control/debuff-energy-hold-blue-yellow.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Utter Domination",
+    "anchor": {
+      "runin": "Utter Domination:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.weaponsystemsexpert",
+    "icon": "icons/skills/ranged/energy-weapon-fire-blue.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Weapon Systems Expert",
+    "anchor": {
+      "runin": "WeaponSystemsExpert:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.whiteLuckPresence",
+    "icon": "icons/magic/control/modfiy-luck-fortune-gray.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "White Luck Presence",
+    "anchor": {
+      "runin": "White Luck Presence:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.wildernessEvasion",
+    "icon": "icons/magic/nature/stealth-hide-beast-eyes-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Wilderness Evasion",
+    "anchor": {
+      "runin": "Wilderness Evasion:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.wisdomOfTheAges",
+    "icon": "icons/magic/time/day-night-sun-moon.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Wisdom of the Ages",
+    "anchor": {
+      "runin": "Wisdom of the Ages:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.wholenessOfBody",
+    "icon": "icons/magic/life/cross-explosion-burst-green.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Wholeness of Body",
+    "anchor": {
+      "runin": "Wholeness of Body:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.widespreadRenown",
+    "icon": "icons/magic/light/explosion-star-large-orange.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Widespread Renown",
+    "anchor": {
+      "runin": "Widespread Renown:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.wordsOfCommandAndObedience",
+    "icon": "icons/magic/sonic/explosion-shock-wave-teal.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Words of Command and Obedience",
+    "anchor": {
+      "runin": "Words of Command and Obedience:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  },
+  {
+    "id": "def.power.underfoot",
+    "icon": "icons/skills/movement/arrow-down-pink.webp",
+    "kind": "kind.power",
+    "book": "jj",
+    "name": "Underfoot",
+    "anchor": {
+      "runin": "Underfoot:"
+    },
+    "pages": [
+      330
+    ],
+    "meta": {
+      "category": "classPower"
+    }
+  }
+]

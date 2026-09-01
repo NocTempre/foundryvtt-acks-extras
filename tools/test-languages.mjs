@@ -72,12 +72,12 @@ assert.equal(slotsOf({ flags: {} }), null, "an ability with no slot flag is not 
  * route to literacy in what they already speak.                            */
 const withItems = (...items) => ({ items });
 const prof = (n = 1) =>
-  Array.from({ length: n }, () => ({ flags: { "acks-importer": { cookbook: { id: "def.prof.language" } } } }));
+  Array.from({ length: n }, () => ({ flags: { "acks-extras": { cookbook: { id: "def.prof.language" } } } }));
 
 assert.equal(languagesFromAbilities(withItems(...prof(1))), 3, "one rank buys three");
 assert.equal(languagesFromAbilities(withItems(...prof(2))), 6, "two takings buy six");
 assert.equal(
-  languagesFromAbilities(withItems({ flags: { "acks-importer": { cookbook: { id: "def.power.bonusLanguages" } } } })),
+  languagesFromAbilities(withItems({ flags: { "acks-extras": { cookbook: { id: "def.power.bonusLanguages" } } } })),
   3,
   "the custom power grants the same three, case-blind on the id",
 );

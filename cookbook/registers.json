@@ -1,0 +1,6752 @@
+{
+  "schema": "acks-cookbook/2",
+  "tables": {
+    "alignment": {
+      "Lawful": {
+        "key": "lawful"
+      },
+      "Neutral": {
+        "key": "neutral"
+      },
+      "Chaotic": {
+        "key": "chaotic"
+      },
+      "lawful": {
+        "key": "lawful"
+      },
+      "neutral": {
+        "key": "neutral"
+      },
+      "chaotic": {
+        "key": "chaotic"
+      },
+      "varies": {
+        "key": "varies"
+      },
+      "Lawful, neutral": {
+        "key": "lawfulNeutral"
+      },
+      "neutral (chaotic)": {
+        "key": "neutralChaotic"
+      },
+      "Any (usually neutral)": {
+        "key": "anyUsuallyNeutral"
+      },
+      "chaotic (85%) or neutral (15%)": {
+        "key": "chaotic85OrNeutral15"
+      },
+      "neutral (75%) or chaotic (25%)": {
+        "key": "neutral75OrChaotic25"
+      },
+      "Lawful (65%), neutral (30%), chaotic (5%)": {
+        "key": "lawful65Neutral30Chaotic5"
+      },
+      "chaotic (70%) or neutral (30%)": {
+        "key": "chaotic70OrNeutral30"
+      },
+      "neutral (75) or chaotic (25%)": {
+        "key": "neutral75OrChaotic25"
+      },
+      "Any": {
+        "key": "any"
+      }
+    },
+    "companionPhrase": {
+      "totem animal": {
+        "ref": "def.power.totemanimal"
+      },
+      "familiar": {
+        "ref": "def.prof.familiar"
+      },
+      "animal companion": {
+        "ref": "def.power.animalCompanion"
+      }
+    },
+    "conversion": {
+      "intelligence": {
+        "category": "attribute",
+        "status": "renamed",
+        "to": "intellect"
+      },
+      "Wisdom": {
+        "category": "attribute",
+        "status": "renamed",
+        "to": "Will"
+      },
+      "Cleric": {
+        "category": "class",
+        "status": "renamed",
+        "to": "Crusader"
+      },
+      "Witch, Voudon": {
+        "category": "class",
+        "status": "absent"
+      },
+      "ankheg": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "acanthaspis, Giant"
+      },
+      "ape, White": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Gorilla, Cave"
+      },
+      "basilisk": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "basilisk,petrifying"
+      },
+      "beetle, Giant Fire": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "beetle, Giant"
+      },
+      "blackpudding": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "blackblob"
+      },
+      "blinkdog": {
+        "category": "monster",
+        "status": "deleted"
+      },
+      "Caecilian": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Worm, Giant Grey"
+      },
+      "Carcass Scavenger": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Carrion Horror"
+      },
+      "Cave Kraken": {
+        "category": "monster",
+        "status": "absent"
+      },
+      "Cockatrice": {
+        "category": "monster",
+        "status": "deleted"
+      },
+      "dao": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Genie, Hafar"
+      },
+      "demonboar": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "devilboar"
+      },
+      "desert Ghoul": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Ghoul,desert"
+      },
+      "direbeastmen": {
+        "category": "monster",
+        "status": "absent"
+      },
+      "djinni": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Genie, Jann"
+      },
+      "efreeti": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Genie,efreet"
+      },
+      "Gelatinous Cube": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Gelatinous"
+      },
+      "Ghoul": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Ghoul, Grave"
+      },
+      "Gorgon": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "bronzebull or Catoblepas"
+      },
+      "Grayooze": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Grey Goo"
+      },
+      "Green Slime": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Sage Slime"
+      },
+      "marid": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "Genie,marid"
+      },
+      "mastodon": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "mammoth"
+      },
+      "luminous": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "owlbear"
+      },
+      "mass": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "titanothere"
+      },
+      "Gorgon or": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "medusa"
+      },
+      "Worm, Giant": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "black"
+      },
+      "Worm, Great": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "ice"
+      },
+      "mustardm": {
+        "category": "monster",
+        "status": "renamed",
+        "to": "old"
+      },
+      "Adaptation": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Alter Self": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Adjust Self"
+      },
+      "Animate Dead": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Animate Undead"
+      },
+      "Anti-Magic Shell": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Anti-Magic Sphere"
+      },
+      "Blade Barrier": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Barrier of Blades"
+      },
+      "Bless": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Holy Blessing"
+      },
+      "Burning Hands": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Fan of Flames"
+      },
+      "Call Dragon": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Charm Animal": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Bewitch Beast"
+      },
+      "Charm Monster": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Bewitch Monster"
+      },
+      "Charm Person": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Beguile or Bewitch Humanoid"
+      },
+      "Chimerical Force": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Chimerical Figment"
+      },
+      "Clairaudience": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Clairaudiency"
+      },
+      "Clairvoyance": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Clairvoyancy"
+      },
+      "Cloudkill": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Cloud of Poison"
+      },
+      "Cold Resistance": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Energy Protection"
+      },
+      "Command Person": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Dominate Humanoids"
+      },
+      "Command Plants": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Dominate Plants"
+      },
+      "Command Word": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Word of Command"
+      },
+      "Commune": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Communion"
+      },
+      "Confusion": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Madness of Crowds"
+      },
+      "Conjure Elemental": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Conjure Supreme Elemental"
+      },
+      "Contact Other Plane": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Contact Other Sphere"
+      },
+      "Continual Darkness": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Tenebrosity, Perpetual"
+      },
+      "Continual Light": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Illumination, Perpetual"
+      },
+      "Control Animals": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Dominate Beasts"
+      },
+      "Control Monster": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Dominate Monster"
+      },
+      "Control Plants": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Dominate Plants"
+      },
+      "Control Undead": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Cure wounds": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Cure injury"
+      },
+      "Darkness": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Tenebrosity"
+      },
+      "Death Spell": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Detect Charm": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Discern Bewitchment"
+      },
+      "Detect Curse": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Discern Curse"
+      },
+      "Detect Evil": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Discern Evil"
+      },
+      "Detect Magic": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Discern Magic"
+      },
+      "Detect Poison": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Discern Poison"
+      },
+      "Detect Secret Doors": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Dimension Door": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Arcane Shift"
+      },
+      "Disintegrate": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Disintegration"
+      },
+      "Enchanted Container": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Enervate": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Enslave": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Enslave Humanoid"
+      },
+      "Enthrall": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "ESP": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Eyes of the Eagle": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Faerie Fire": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Feign Death": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Fellowship": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Find Treasure": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Locate Treasure"
+      },
+      "Finger of Death": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Extinguish Life"
+      },
+      "Fire Resistance": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Energy Protection"
+      },
+      "Flamestrike": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Fiery Pillar"
+      },
+      "Flesh to Stone": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Petrification"
+      },
+      "Floating Disc": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Geas": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Quest"
+      },
+      "Glitterdust": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Globe of Invulnerability": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Sphere of Invulnerability"
+      },
+      "Glyph of Warding": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Rune of Warding"
+      },
+      "Growth of Plants": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Growth, Plant"
+      },
+      "Growth, Animal": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Growth, Beast"
+      },
+      "Gust of Wind": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Gale of Wind"
+      },
+      "Hallucinatory Terrain": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Illusory Terrain"
+      },
+      "Haste": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Hold Monster": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Halt Monsters"
+      },
+      "Hold Person": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Halt Humanoids"
+      },
+      "Hold Portal": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Seal Portal"
+      },
+      "Hypnotic Pattern": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Hypnotic Sigil"
+      },
+      "Infravision": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Lightless Vision"
+      },
+      "Insect Plague": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Summon Insect Plague"
+      },
+      "Interior Illusion": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Illusory Interior"
+      },
+      "Invisibility, 10’ Radius": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Jump": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Leaping"
+      },
+      "Knock": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Levitate": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Levitation"
+      },
+      "Light": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Illumination"
+      },
+      "Lightning Bolt": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Thunderbolt"
+      },
+      "Lower Water": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Level Water"
+      },
+      "Magic Jar": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Soul Swap"
+      },
+      "Magic Missile": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Mage Missile"
+      },
+      "Magic Mouth": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Auditory Illusion"
+      },
+      "Magic Rope": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Massmorph": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Hidden Host"
+      },
+      "Mirror Image": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Illusory Duplicates"
+      },
+      "Move Earth": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Earth’s Movement"
+      },
+      "Oblivion": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Obscuring Cloud": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Shrouding Fog"
+      },
+      "Ogre Power": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Ogre Strength"
+      },
+      "Passwall": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Passageway"
+      },
+      "Permanent Illusion": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Perpetual Figment"
+      },
+      "Phantasmal Force": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Phantasmal Figment"
+      },
+      "Phantasmal Killer": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Phantasmal Horror"
+      },
+      "Polymorph Other": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Transform Other"
+      },
+      "Polymorph Self": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Transform Self"
+      },
+      "Prayer": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Holy Prayer"
+      },
+      "Programmed Illusion": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Programmatic Figment"
+      },
+      "Projected Image": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Protection from Evil": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Holy Circle"
+      },
+      "Protection from Normal Missiles": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Deflect Ordinary Missiles"
+      },
+      "Raise Dead": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Restore Life and Limb"
+      },
+      "Read Languages": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Discern Gist"
+      },
+      "Reincarnate": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Scouring Wind": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Scouring Zephyr"
+      },
+      "Shield": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Arcane Armor"
+      },
+      "Silence 10’ Radius": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Noiselessness"
+      },
+      "Sleep": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Slumber"
+      },
+      "Slipperiness": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Slickness"
+      },
+      "Snake Charm": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Speak with Animals": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Speak with Beasts"
+      },
+      "Spectral Force": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Spectral Figment"
+      },
+      "Spell Storing": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Sticks to Snakes": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Staffs to Snakes"
+      },
+      "Stinking Cloud": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Summon Animals": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Various Call Spells"
+      },
+      "Summon Berserkers": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Summon Manes"
+      },
+      "Summon Djinni": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Summon Genie"
+      },
+      "Summon Fantastic Creature": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Summon Hero": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Summon Winged Steed": {
+        "category": "spell",
+        "status": "absent"
+      },
+      "Teleport": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Teleportation"
+      },
+      "Trance": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Transmute Rock to Mud": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Earth’s Mire"
+      },
+      "True Sight": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "True Seeing"
+      },
+      "Unseen Servant": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Faithful Servitor"
+      },
+      "Ventriloquism": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Auditory Illusion"
+      },
+      "Wall of Fire": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Wall of Flame"
+      },
+      "Wall of Ice": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Wall of Frost"
+      },
+      "Web": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Webbing"
+      },
+      "Wizard Eye": {
+        "category": "spell",
+        "status": "deleted"
+      },
+      "Wizard Lock": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "Magic Lock"
+      },
+      "Gauntlets of": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "grepower"
+      },
+      "Helm of Comp.": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "languages"
+      },
+      "mirror oflife": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "trapping"
+      },
+      "Necklace ofa": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "daptation"
+      },
+      "Visor of the": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "eagle"
+      },
+      "Necklace of": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "acclimatization"
+      },
+      "potion ofp": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "assion"
+      },
+      "potion ofb": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "east Control"
+      },
+      "potion ofd": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "ragon Control"
+      },
+      "potion ofe": {
+        "category": "spell",
+        "status": "renamed",
+        "to": "nergy"
+      }
+    },
+    "creature": {
+      "Carcass scavenger": {
+        "ref": "mm.carrionHorror",
+        "note": "renamed in ACKS II (conversion registry row)"
+      },
+      "Insect swarm": {
+        "ref": "mm.swarmInsect"
+      },
+      "Insect swarms": {
+        "ref": "mm.swarmInsect"
+      },
+      "Skeletons": {
+        "ref": "mm.skeleton"
+      },
+      "Skeleton": {
+        "ref": "mm.skeleton"
+      },
+      "Tunnel prawn": {
+        "ref": "ax2.tunnelPrawn"
+      },
+      "Tunnel prawns": {
+        "ref": "ax2.tunnelPrawn"
+      },
+      "Fungal creeper": {
+        "ref": "ax2.fungalCreeper"
+      }
+    },
+    "creatureType": {
+      "Animal": {
+        "key": "animal",
+        "ref": "def.type.animal"
+      },
+      "Beastman": {
+        "key": "beastman",
+        "ref": "def.type.beastman"
+      },
+      "Construct": {
+        "key": "construct",
+        "ref": "def.type.construct"
+      },
+      "Enchanted": {
+        "key": "enchanted",
+        "ref": "def.type.enchanted"
+      },
+      "Enchanted Creature": {
+        "key": "enchanted",
+        "ref": "def.type.enchanted"
+      },
+      "Giant": {
+        "key": "giant",
+        "ref": "def.type.giant"
+      },
+      "Giants": {
+        "key": "giant",
+        "ref": "def.type.giant"
+      },
+      "Humanoid": {
+        "key": "humanoid",
+        "ref": "def.type.humanoid"
+      },
+      "Incarnation": {
+        "key": "incarnation",
+        "ref": "def.type.incarnation"
+      },
+      "Monstrosity": {
+        "key": "monstrosity",
+        "ref": "def.type.monstrosity"
+      },
+      "Ooze": {
+        "key": "ooze",
+        "ref": "def.type.ooze"
+      },
+      "Plant": {
+        "key": "plant",
+        "ref": "def.type.plant"
+      },
+      "Undead": {
+        "key": "undead",
+        "ref": "def.type.undead"
+      },
+      "Vermin": {
+        "key": "vermin",
+        "ref": "def.type.vermin"
+      },
+      "animal": {
+        "key": "animal",
+        "ref": "def.type.animal"
+      },
+      "beastman": {
+        "key": "beastman",
+        "ref": "def.type.beastman"
+      },
+      "construct": {
+        "key": "construct",
+        "ref": "def.type.construct"
+      },
+      "enchanted": {
+        "key": "enchanted",
+        "ref": "def.type.enchanted"
+      },
+      "giant": {
+        "key": "giant",
+        "ref": "def.type.giant"
+      },
+      "humanoid": {
+        "key": "humanoid",
+        "ref": "def.type.humanoid"
+      },
+      "incarnation": {
+        "key": "incarnation",
+        "ref": "def.type.incarnation"
+      },
+      "monstrosity": {
+        "key": "monstrosity",
+        "ref": "def.type.monstrosity"
+      },
+      "ooze": {
+        "key": "ooze",
+        "ref": "def.type.ooze"
+      },
+      "plant": {
+        "key": "plant",
+        "ref": "def.type.plant"
+      },
+      "undead": {
+        "key": "undead",
+        "ref": "def.type.undead"
+      },
+      "vermin": {
+        "key": "vermin",
+        "ref": "def.type.vermin"
+      },
+      "Humanoid Beastman": {
+        "keys": [
+          "humanoid",
+          "beastman"
+        ],
+        "refs": [
+          "def.type.humanoid",
+          "def.type.beastman"
+        ]
+      },
+      "enchanted Humanoid": {
+        "keys": [
+          "enchanted",
+          "humanoid"
+        ],
+        "refs": [
+          "def.type.enchanted",
+          "def.type.humanoid"
+        ]
+      },
+      "undead construct": {
+        "keys": [
+          "undead",
+          "construct"
+        ],
+        "refs": [
+          "def.type.undead",
+          "def.type.construct"
+        ]
+      },
+      "enchanted Monstrosity": {
+        "keys": [
+          "enchanted",
+          "monstrosity"
+        ],
+        "refs": [
+          "def.type.enchanted",
+          "def.type.monstrosity"
+        ]
+      },
+      "Giant Beastman": {
+        "keys": [
+          "giant",
+          "beastman"
+        ],
+        "refs": [
+          "def.type.giant",
+          "def.type.beastman"
+        ]
+      }
+    },
+    "damageColor": {
+      "#ff2e17": "extraordinary",
+      "#2c2e35": "mundane"
+    },
+    "damageGlyph": {
+      "": {
+        "key": "acidic",
+        "ref": "def.dmg.acidic"
+      },
+      "": {
+        "key": "arcane",
+        "ref": "def.dmg.arcane"
+      },
+      "": {
+        "key": "bludgeoning",
+        "ref": "def.dmg.bludgeoning"
+      },
+      "": {
+        "key": "necrotic",
+        "ref": "def.dmg.necrotic"
+      },
+      "": {
+        "key": "cold",
+        "ref": "def.dmg.cold"
+      },
+      "": {
+        "key": "electrical",
+        "ref": "def.dmg.electrical"
+      },
+      "": {
+        "key": "fire",
+        "ref": "def.dmg.fire"
+      },
+      "": {
+        "key": "luminous",
+        "ref": "def.dmg.luminous"
+      },
+      "": {
+        "key": "slashing",
+        "ref": "def.dmg.slashing"
+      },
+      "": {
+        "key": "piercing",
+        "ref": "def.dmg.piercing"
+      },
+      "": {
+        "key": "poisonous",
+        "ref": "def.dmg.poisonous"
+      },
+      "": {
+        "key": "seismic",
+        "ref": "def.dmg.seismic"
+      },
+      "": {
+        "key": "varies",
+        "ref": "def.dmg.varies"
+      }
+    },
+    "defenseEffect": {
+      "enchantment": {
+        "key": "enchantment"
+      },
+      "charm": {
+        "key": "charm"
+      },
+      "sleep": {
+        "key": "sleep"
+      },
+      "hold": {
+        "key": "hold"
+      },
+      "paralysis": {
+        "key": "paralysis"
+      },
+      "petrification": {
+        "key": "petrification"
+      },
+      "death": {
+        "key": "death"
+      },
+      "poison": {
+        "key": "poison"
+      },
+      "disease": {
+        "key": "disease"
+      },
+      "energy drain": {
+        "key": "energyDrain"
+      },
+      "level drain": {
+        "key": "energyDrain"
+      },
+      "fear": {
+        "key": "fear"
+      },
+      "gaze": {
+        "key": "gaze"
+      },
+      "illusion": {
+        "key": "illusion"
+      },
+      "mind-affecting": {
+        "key": "mindAffecting"
+      },
+      "bleeding": {
+        "key": "bleeding"
+      },
+      "critical hits": {
+        "key": "criticalHits"
+      },
+      "surprise": {
+        "key": "surprise"
+      }
+    },
+    "equipmentPhrase": {
+      "hide armor": {
+        "ref": "def.armor.hideAndFurArmor",
+        "as": "catalogue"
+      },
+      "fur armor": {
+        "ref": "def.armor.hideAndFurArmor",
+        "as": "catalogue"
+      },
+      "riding tack and saddle": {
+        "ref": "def.priced.saddle-and-tack-riding",
+        "as": "catalogue"
+      },
+      "draft harness and tack": {
+        "ref": "def.priced.saddle-and-tack-draft",
+        "as": "catalogue"
+      },
+      "large treasure sack": {
+        "ref": "def.equip.sackLarge",
+        "as": "catalogue"
+      },
+      "small hide sack": {
+        "ref": "def.equip.sackSmall",
+        "as": "catalogue"
+      },
+      "quarterstaff": {
+        "ref": "def.weapon.staff",
+        "as": "catalogue"
+      },
+      "weighted net": {
+        "ref": "def.weapon.net",
+        "as": "catalogue"
+      },
+      "pole": {
+        "ref": "def.equip.poleWooden",
+        "as": "catalogue"
+      },
+      "girdle": {
+        "ref": "def.equip.belt",
+        "as": "catalogue"
+      },
+      "case with 30 bolts": {
+        "ref": "def.weapon.case20Bolts",
+        "as": "catalogue"
+      },
+      "aloe": {
+        "ref": "def.equip.herbAloe",
+        "as": "group"
+      },
+      "belladonna": {
+        "ref": "def.equip.herbBelladonna",
+        "as": "group"
+      },
+      "birthwort": {
+        "ref": "def.equip.herbBirthwort",
+        "as": "group"
+      },
+      "bitterwood": {
+        "ref": "def.priced.herb-bitterwood-1-lb",
+        "as": "group"
+      },
+      "blessed thistle": {
+        "ref": "def.equip.herbBlessedThistle",
+        "as": "group"
+      },
+      "comfrey": {
+        "ref": "def.equip.herbComfrey",
+        "as": "group"
+      },
+      "garlic": {
+        "ref": "def.equip.herbGarlic",
+        "as": "group"
+      },
+      "goldenrod": {
+        "ref": "def.equip.herbGoldenrod",
+        "as": "group"
+      },
+      "horsetail": {
+        "ref": "def.equip.herbHorsetail",
+        "as": "group"
+      },
+      "lungwort": {
+        "ref": "def.equip.herbLungwort",
+        "as": "group"
+      },
+      "willow-bark": {
+        "ref": "def.equip.herbWillowBark",
+        "as": "group"
+      },
+      "willowbark": {
+        "ref": "def.equip.herbWillowBark",
+        "as": "group"
+      },
+      "wolfsbane": {
+        "ref": "def.equip.herbWolfsbane",
+        "as": "group"
+      },
+      "woundwort": {
+        "ref": "def.equip.herbWoundwort",
+        "as": "group"
+      },
+      "long bearded axe": {
+        "ref": "def.weapon.greatAxe",
+        "as": "equivalent"
+      },
+      "bearded axe": {
+        "ref": "def.weapon.greatAxe",
+        "as": "equivalent"
+      },
+      "francisca": {
+        "ref": "def.weapon.handAxe",
+        "as": "equivalent"
+      },
+      "scimitar": {
+        "ref": "def.weapon.shortSword",
+        "as": "equivalent"
+      },
+      "glaive": {
+        "ref": "def.weapon.polearm",
+        "as": "equivalent"
+      },
+      "stiletto": {
+        "ref": "def.weapon.dagger",
+        "as": "equivalent"
+      },
+      "scourge": {
+        "ref": "def.weapon.whip",
+        "as": "equivalent"
+      },
+      "ball-and-chain": {
+        "ref": "def.weapon.flail",
+        "as": "equivalent"
+      },
+      "scalpel": {
+        "ref": "def.weapon.knife",
+        "as": "equivalent"
+      },
+      "two-handed iron sword": {
+        "ref": "def.weapon.twoHandedSword",
+        "as": "catalogue"
+      },
+      "silver sacrificial dagger": {
+        "ref": "def.weapon.silverDagger",
+        "as": "catalogue"
+      },
+      "wax candle": {
+        "ref": "def.priced.candle-wax-1-lb",
+        "as": "catalogue"
+      },
+      "week’s rations": {
+        "ref": "def.equip.rationsIron",
+        "as": "catalogue"
+      },
+      "heavy black horned helmet": {
+        "ref": "def.armor.helmetHeavy",
+        "as": "catalogue"
+      },
+      "breast band": {
+        "ref": "def.equip.breastwrap",
+        "as": "catalogue"
+      },
+      "hat": {
+        "ref": "def.equip.hat",
+        "as": "catalogue"
+      },
+      "alchemist’s tools": {
+        "ref": "def.priced.craftsman-s-tools-any",
+        "as": "equivalent"
+      },
+      "freeholder’s dress": {
+        "ref": "def.priced.dress-crafter-freeholder",
+        "as": "catalogue"
+      },
+      "head dress": {
+        "ref": "def.equip.hat",
+        "as": "catalogue"
+      },
+      "headdress": {
+        "ref": "def.equip.hat",
+        "as": "catalogue"
+      }
+    },
+    "magicProperty": {
+      "swift sword": {
+        "key": "swiftSword"
+      },
+      "armor +1": {
+        "key": "armorPlus1"
+      },
+      "swimming": {
+        "key": "swimming"
+      },
+      "poison": {
+        "key": "poison"
+      },
+      "deflect ordinary weapons": {
+        "key": "deflectOrdinaryWeapons"
+      },
+      "winged flight": {
+        "key": "wingedFlight"
+      },
+      "weapon +2": {
+        "key": "weaponPlus2"
+      },
+      "weapon +1": {
+        "key": "weaponPlus1"
+      },
+      "striking": {
+        "key": "striking"
+      },
+      "neutralize poison": {
+        "key": "neutralizePoison"
+      },
+      "flight": {
+        "key": "flight"
+      },
+      "silent step": {
+        "key": "silentStep"
+      },
+      "armor +2": {
+        "key": "armorPlus2"
+      },
+      "choking grip": {
+        "key": "chokingGrip"
+      },
+      "cure injury": {
+        "key": "cureInjury"
+      },
+      "skinchange": {
+        "key": "skinchange"
+      },
+      "sharpness": {
+        "key": "sharpness"
+      },
+      "bane-rune": {
+        "key": "baneRune"
+      },
+      "iron maiden": {
+        "key": "ironMaiden"
+      },
+      "dismember": {
+        "key": "dismember"
+      },
+      "cone of fear": {
+        "key": "coneOfFear"
+      },
+      "inspire horror": {
+        "key": "inspireHorror"
+      },
+      "panic": {
+        "key": "panic"
+      },
+      "slumber": {
+        "key": "slumber"
+      },
+      "righteous wrath": {
+        "key": "righteousWrath"
+      },
+      "call of the great cats": {
+        "key": "callOfTheGreatCats"
+      },
+      "weapon +3": {
+        "key": "weaponPlus3"
+      },
+      "water breathing": {
+        "key": "waterBreathing"
+      },
+      "force of impetus": {
+        "key": "forceOfImpetus"
+      },
+      "earth’s movement": {
+        "key": "earth’sMovement"
+      },
+      "circle of agony": {
+        "key": "circleOfAgony"
+      },
+      "battering ram": {
+        "key": "batteringRam"
+      },
+      "inaudibility": {
+        "key": "inaudibility"
+      },
+      "locate animal or plant": {
+        "key": "locateAnimalOrPlant"
+      },
+      "capsizing wave": {
+        "key": "capsizingWave"
+      },
+      "cure disease": {
+        "key": "cureDisease"
+      },
+      "discern evil": {
+        "key": "discernEvil"
+      },
+      "transform beast": {
+        "key": "transformBeast"
+      },
+      "halt humanoid": {
+        "key": "haltHumanoid"
+      },
+      "chameleon": {
+        "key": "chameleon"
+      },
+      "slicing blow": {
+        "key": "slicingBlow"
+      },
+      "earth’s mire": {
+        "key": "earth’sMire"
+      },
+      "noiselessness": {
+        "key": "noiselessness"
+      },
+      "bloody flux": {
+        "key": "bloodyFlux"
+      },
+      "vigor": {
+        "key": "vigor"
+      },
+      "life transfer": {
+        "key": "lifeTransfer"
+      },
+      "cataclysm": {
+        "key": "cataclysm"
+      },
+      "create chasm": {
+        "key": "createChasm"
+      },
+      "create food": {
+        "key": "createFood"
+      },
+      "create water": {
+        "key": "createWater"
+      },
+      "sling stone": {
+        "key": "slingStone"
+      },
+      "lay of the land": {
+        "key": "layOfTheLand"
+      },
+      "locate distant object": {
+        "key": "locateDistantObject"
+      },
+      "locate place of power": {
+        "key": "locatePlaceOfPower"
+      },
+      "locate treasure": {
+        "key": "locateTreasure"
+      },
+      "rain of vitriol": {
+        "key": "rainOfVitriol"
+      },
+      "vitriolic infusion": {
+        "key": "vitriolicInfusion"
+      },
+      "locate object": {
+        "key": "locateObject"
+      },
+      "enslave humanoid": {
+        "key": "enslaveHumanoid"
+      },
+      "call of the wolf pack": {
+        "key": "callOfTheWolfPack"
+      },
+      "dominate beast": {
+        "key": "dominateBeast"
+      },
+      "cone of paralysis": {
+        "key": "coneOfParalysis"
+      },
+      "halt monster": {
+        "key": "haltMonster"
+      },
+      "hypnotic sigil": {
+        "key": "hypnoticSigil"
+      },
+      "petrification": {
+        "key": "petrification"
+      },
+      "call of the wild bear": {
+        "key": "callOfTheWildBear"
+      },
+      "disintegration": {
+        "key": "disintegration"
+      },
+      "cause disease": {
+        "key": "causeDisease"
+      },
+      "safe travels": {
+        "key": "safeTravels"
+      },
+      "fireball": {
+        "key": "fireball"
+      },
+      "dominate humanoid": {
+        "key": "dominateHumanoid"
+      },
+      "armor +3": {
+        "key": "armorPlus3"
+      },
+      "frighten humanoid": {
+        "key": "frightenHumanoid"
+      },
+      "bewitch humanoid": {
+        "key": "bewitchHumanoid"
+      },
+      "adjust self": {
+        "key": "adjustSelf"
+      },
+      "cone of frost": {
+        "key": "coneOfFrost"
+      },
+      "electrical": {
+        "key": "electrical"
+      },
+      "fire": {
+        "key": "fire"
+      },
+      "anti-magic sphere": {
+        "key": "antiMagicSphere"
+      },
+      "blast ward": {
+        "key": "blastWard"
+      },
+      "staffs to snakes": {
+        "key": "staffsToSnakes"
+      },
+      "snakes to staffs": {
+        "key": "snakesToStaffs"
+      },
+      "avian messenger": {
+        "key": "avianMessenger"
+      },
+      "invisibility": {
+        "key": "invisibility"
+      },
+      "passageway": {
+        "key": "passageway"
+      },
+      "tenebrosity": {
+        "key": "tenebrosity"
+      },
+      "shatter blade": {
+        "key": "shatterBlade"
+      },
+      "slickness": {
+        "key": "slickness"
+      },
+      "dispel magic": {
+        "key": "dispelMagic"
+      },
+      "webbing": {
+        "key": "webbing"
+      },
+      "carnage": {
+        "key": "carnage"
+      },
+      "giant strength": {
+        "key": "giantStrength"
+      },
+      "frighten beast": {
+        "key": "frightenBeast"
+      },
+      "ogre strength": {
+        "key": "ogreStrength"
+      },
+      "cloud of poison": {
+        "key": "cloudOfPoison"
+      },
+      "blinding flash": {
+        "key": "blindingFlash"
+      },
+      "protection from temperature": {
+        "key": "protectionFromTemperature"
+      },
+      "beguile humanoid": {
+        "key": "beguileHumanoid"
+      },
+      "curse of swine": {
+        "key": "curseOfSwine"
+      },
+      "remove fear": {
+        "key": "removeFear"
+      },
+      "call of the galloping herd": {
+        "key": "callOfTheGallopingHerd"
+      },
+      "lightless vision": {
+        "key": "lightlessVision"
+      },
+      "fan of flames": {
+        "key": "fanOfFlames"
+      },
+      "bestow curse": {
+        "key": "bestowCurse"
+      },
+      "scry": {
+        "key": "scry"
+      },
+      "frighten crowd": {
+        "key": "frightenCrowd"
+      },
+      "arcane armor": {
+        "key": "arcaneArmor"
+      },
+      "divine armor": {
+        "key": "divineArmor"
+      },
+      "leaping": {
+        "key": "leaping"
+      },
+      "cause injury": {
+        "key": "causeInjury"
+      },
+      "transform self": {
+        "key": "transformSelf"
+      },
+      "weapon +4": {
+        "key": "weaponPlus4"
+      },
+      "level water": {
+        "key": "levelWater"
+      },
+      "call of the ancient tusk": {
+        "key": "callOfTheAncientTusk"
+      },
+      "telepathy": {
+        "key": "telepathy"
+      },
+      "shrinking": {
+        "key": "shrinking"
+      },
+      "any detection effect": {
+        "key": "anyDetectionEffect"
+      },
+      "angelic choir": {
+        "key": "angelicChoir"
+      },
+      "tongues": {
+        "key": "tongues"
+      },
+      "telekinesis": {
+        "key": "telekinesis"
+      },
+      "forest enchantment": {
+        "key": "forestEnchantment"
+      },
+      "plant growth": {
+        "key": "plantGrowth"
+      },
+      "earth’s excrescence": {
+        "key": "earth’sExcrescence"
+      },
+      "conflagration": {
+        "key": "conflagration"
+      },
+      "discern invisible": {
+        "key": "discernInvisible"
+      },
+      "angelic aura": {
+        "key": "angelicAura"
+      },
+      "trollblood": {
+        "key": "trollblood"
+      },
+      "repair disability & disfigurement": {
+        "key": "repairDisabilityDisfigurement"
+      },
+      "restore life & limb": {
+        "key": "restoreLifeLimb"
+      },
+      "illusory duplicates": {
+        "key": "illusoryDuplicates"
+      },
+      "healing circle": {
+        "key": "healingCircle"
+      },
+      "spirit of healing": {
+        "key": "spiritOfHealing"
+      },
+      "call of the wolf": {
+        "key": "callOfTheWolf"
+      },
+      "shrouding fog": {
+        "key": "shroudingFog"
+      },
+      "sunder structure": {
+        "key": "sunderStructure"
+      },
+      "discern poison": {
+        "key": "discernPoison"
+      },
+      "circling winds": {
+        "key": "circlingWinds"
+      },
+      "gale of winds": {
+        "key": "galeOfWinds"
+      },
+      "turn to dust": {
+        "key": "turnToDust"
+      },
+      "disfigure body and soul": {
+        "key": "disfigureBodyAndSoul"
+      },
+      "locate haunting": {
+        "key": "locateHaunting"
+      },
+      "phantasmal horror": {
+        "key": "phantasmalHorror"
+      },
+      "spectral legion": {
+        "key": "spectralLegion"
+      },
+      "spiritwalk": {
+        "key": "spiritwalk"
+      },
+      "flying fortress": {
+        "key": "flyingFortress"
+      },
+      "fillet and serve": {
+        "key": "filletAndServe"
+      },
+      "earth’s teeth": {
+        "key": "earth’sTeeth"
+      },
+      "locate animal/plant": {
+        "key": "locateAnimalPlant"
+      },
+      "allure": {
+        "key": "allure"
+      },
+      "counterspell": {
+        "key": "counterspell"
+      },
+      "discern magic": {
+        "key": "discernMagic"
+      },
+      "levitation": {
+        "key": "levitation"
+      },
+      "depetrification": {
+        "key": "depetrification"
+      },
+      "any elemental fire effect": {
+        "key": "anyElementalFireEffect"
+      },
+      "halt monster If not used for magic research": {
+        "key": "haltMonsterIfNotUsedForMagicResearch"
+      },
+      "+2 saving throw modifier": {
+        "key": "Plus2SavingThrowModifier"
+      },
+      "inflicts paralysis for 2d4 turns": {
+        "key": "inflictsParalysisFor2d4Turns"
+      },
+      "extinguish life": {
+        "key": "extinguishLife"
+      },
+      "flesh to ash": {
+        "key": "fleshToAsh"
+      },
+      "purify food & water": {
+        "key": "purifyFoodWater"
+      },
+      "dominate monster": {
+        "key": "dominateMonster"
+      },
+      "strength of mind": {
+        "key": "strengthOfMind"
+      },
+      "transform other": {
+        "key": "transformOther"
+      },
+      "clairvoyance": {
+        "key": "clairvoyance"
+      },
+      "any transmogrification effects": {
+        "key": "anyTransmogrificationEffects"
+      },
+      "divine protection": {
+        "key": "divineProtection"
+      },
+      "guise self": {
+        "key": "guiseSelf"
+      },
+      "armor +4": {
+        "key": "armorPlus4"
+      },
+      "illusory duplicate": {
+        "key": "illusoryDuplicate"
+      },
+      "growth": {
+        "key": "growth"
+      },
+      "summon weather": {
+        "key": "summonWeather"
+      },
+      "atonement": {
+        "key": "atonement"
+      },
+      "communion": {
+        "key": "communion"
+      },
+      "holy blessing": {
+        "key": "holyBlessing"
+      },
+      "holy chant": {
+        "key": "holyChant"
+      },
+      "prayer": {
+        "key": "prayer"
+      },
+      "find treasure": {
+        "key": "findTreasure"
+      },
+      "earth’s tremor": {
+        "key": "earth’sTremor"
+      },
+      "control weather": {
+        "key": "controlWeather"
+      },
+      "barrier of blades": {
+        "key": "barrierOfBlades"
+      },
+      "speak with beasts": {
+        "key": "speakWithBeasts"
+      },
+      "banner of invincibility": {
+        "key": "bannerOfInvincibility"
+      },
+      "augury": {
+        "key": "augury"
+      },
+      "divination": {
+        "key": "divination"
+      },
+      "fate": {
+        "key": "fate"
+      },
+      "fiery pillar": {
+        "key": "fieryPillar"
+      },
+      "summon hellhounds": {
+        "key": "summonHellhounds"
+      },
+      "cure injuries": {
+        "key": "cureInjuries"
+      },
+      "poisonous": {
+        "key": "poisonous"
+      },
+      "longevity": {
+        "key": "longevity"
+      },
+      "undetectability": {
+        "key": "undetectability"
+      },
+      "madness of crowds": {
+        "key": "madnessOfCrowds"
+      },
+      "weakness of mind": {
+        "key": "weaknessOfMind"
+      },
+      "mirage": {
+        "key": "mirage"
+      },
+      "perpetual figment": {
+        "key": "perpetualFigment"
+      },
+      "discern gist": {
+        "key": "discernGist"
+      },
+      "word of command": {
+        "key": "wordOfCommand"
+      },
+      "sunflare": {
+        "key": "sunflare"
+      },
+      "any protection effect": {
+        "key": "anyProtectionEffect"
+      },
+      "salving rest": {
+        "key": "salvingRest"
+      },
+      "earth’s wave": {
+        "key": "earth’sWave"
+      },
+      "mass lightless vision": {
+        "key": "massLightlessVision"
+      },
+      "mage missile": {
+        "key": "mageMissile"
+      },
+      "+2 arrows/bolts": {
+        "key": "Plus2ArrowsBolts"
+      },
+      "warp wood": {
+        "key": "warpWood"
+      },
+      "beast growth": {
+        "key": "beastGrowth"
+      },
+      "+1 weapon": {
+        "key": "Plus1Weapon"
+      },
+      "phoenix aura": {
+        "key": "phoenixAura"
+      },
+      "any healing spell": {
+        "key": "anyHealingSpell"
+      },
+      "discern good": {
+        "key": "discernGood"
+      },
+      "illusory terrain": {
+        "key": "illusoryTerrain"
+      },
+      "spectral figment": {
+        "key": "spectralFigment"
+      },
+      "any air elemental effects": {
+        "key": "anyAirElementalEffects"
+      },
+      "crafting": {
+        "key": "crafting"
+      },
+      "wall of annihilation": {
+        "key": "wallOfAnnihilation"
+      },
+      "burning sparks": {
+        "key": "burningSparks"
+      },
+      "waterbreathing": {
+        "key": "waterbreathing"
+      },
+      "life drain": {
+        "key": "lifeDrain"
+      },
+      "shrieking skull": {
+        "key": "shriekingSkull"
+      },
+      "sword +1": {
+        "key": "swordPlus1"
+      },
+      "desiccate": {
+        "key": "desiccate"
+      },
+      "delay disease": {
+        "key": "delayDisease"
+      },
+      "plague": {
+        "key": "plague"
+      },
+      "summon ooze": {
+        "key": "summonOoze"
+      },
+      "any enchantment effects": {
+        "key": "anyEnchantmentEffects"
+      },
+      "any detection effects": {
+        "key": "anyDetectionEffects"
+      },
+      "auditory illusion": {
+        "key": "auditoryIllusion"
+      },
+      "any blast effect": {
+        "key": "anyBlastEffect"
+      },
+      "sphere of invulnerability": {
+        "key": "sphereOfInvulnerability"
+      },
+      "inspire awe": {
+        "key": "inspireAwe"
+      },
+      "piercing slashing": {
+        "key": "piercingSlashing"
+      },
+      "fan of flame": {
+        "key": "fanOfFlame"
+      },
+      "lightning strike": {
+        "key": "lightningStrike"
+      },
+      "thunderclap": {
+        "key": "thunderclap"
+      },
+      "thunderbolt": {
+        "key": "thunderbolt"
+      },
+      "magic carpet": {
+        "key": "magicCarpet"
+      },
+      "sudden stair": {
+        "key": "suddenStair"
+      },
+      "wall of smoke": {
+        "key": "wallOfSmoke"
+      },
+      "dominate plants": {
+        "key": "dominatePlants"
+      },
+      "hidden host": {
+        "key": "hiddenHost"
+      },
+      "wall of wood": {
+        "key": "wallOfWood"
+      },
+      "purify food and water": {
+        "key": "purifyFoodAndWater"
+      },
+      "arcane shift": {
+        "key": "arcaneShift"
+      },
+      "cause light injury": {
+        "key": "causeLightInjury"
+      },
+      "discern curse": {
+        "key": "discernCurse"
+      },
+      "illumination": {
+        "key": "illumination"
+      },
+      "kindle flame": {
+        "key": "kindleFlame"
+      },
+      "water walking": {
+        "key": "waterWalking"
+      },
+      "disintegrate": {
+        "key": "disintegrate"
+      },
+      "wall of frost": {
+        "key": "wallOfFrost"
+      },
+      "invuln. to evil": {
+        "key": "invulnToEvil"
+      },
+      "physical protection (all)": {
+        "key": "physicalProtectionAll"
+      },
+      "wish": {
+        "key": "wish"
+      },
+      "physical invulnerability (all)": {
+        "key": "physicalInvulnerabilityAll"
+      },
+      "energy invulnerability (all)": {
+        "key": "energyInvulnerabilityAll"
+      },
+      "energy invulnerability (fire)": {
+        "key": "energyInvulnerabilityFire"
+      },
+      "wall of flame": {
+        "key": "wallOfFlame"
+      },
+      "energy invulnerability (cold)": {
+        "key": "energyInvulnerabilityCold"
+      },
+      "inferno": {
+        "key": "inferno"
+      },
+      "energy protection (fire)": {
+        "key": "energyProtectionFire"
+      },
+      "energy invulnerability (all except fire)": {
+        "key": "energyInvulnerabilityAllExceptFire"
+      },
+      "energy invulnerability (seismic)": {
+        "key": "energyInvulnerabilitySeismic"
+      },
+      "wall of stone": {
+        "key": "wallOfStone"
+      },
+      "energy invulnerability (electrical)": {
+        "key": "energyInvulnerabilityElectrical"
+      },
+      "gaseous form": {
+        "key": "gaseousForm"
+      },
+      "scouring zephyr": {
+        "key": "scouringZephyr"
+      },
+      "wall of thunder": {
+        "key": "wallOfThunder"
+      },
+      "weave water": {
+        "key": "weaveWater"
+      },
+      "energy protection (cold, electrical, fire)": {
+        "key": "energyProtectionColdElectricalFire"
+      },
+      "energy invulnerability (cold, fire)": {
+        "key": "energyInvulnerabilityColdFire"
+      },
+      "selective fire": {
+        "key": "selectiveFire"
+      },
+      "energy invulnerability (luminous, poisonous)": {
+        "key": "energyInvulnerabilityLuminousPoisonous"
+      },
+      "perpetual illumination": {
+        "key": "perpetualIllumination"
+      },
+      "remove curse": {
+        "key": "removeCurse"
+      },
+      "spiritual weapon": {
+        "key": "spiritualWeapon"
+      },
+      "sword of fire": {
+        "key": "swordOfFire"
+      },
+      "energy invulnerability (cold, electrical)": {
+        "key": "energyInvulnerabilityColdElectrical"
+      },
+      "energy protection (cold)": {
+        "key": "energyProtectionCold"
+      },
+      "frostbite": {
+        "key": "frostbite"
+      },
+      "ice floe": {
+        "key": "iceFloe"
+      },
+      "ice sheet": {
+        "key": "iceSheet"
+      },
+      "ice storm": {
+        "key": "iceStorm"
+      },
+      "spellward (any)": {
+        "key": "spellwardAny"
+      },
+      "energy invulnerability (cold, electrical, fire)": {
+        "key": "energyInvulnerabilityColdElectricalFire"
+      },
+      "energy invulnerability (all but fire, luminous)": {
+        "key": "energyInvulnerabilityAllButFireLuminous"
+      },
+      "physical protection (bludgeoning, piercing slashing)": {
+        "key": "physicalProtectionBludgeoningPiercingSlashing"
+      },
+      "torpor": {
+        "key": "torpor"
+      },
+      "spider climb": {
+        "key": "spiderClimb"
+      },
+      "greater clairaudience": {
+        "key": "greaterClairaudience"
+      },
+      "greater clairvoyance": {
+        "key": "greaterClairvoyance"
+      },
+      "bewitch monster": {
+        "key": "bewitchMonster"
+      },
+      "soul eating": {
+        "key": "soulEating"
+      },
+      "shimmer": {
+        "key": "shimmer"
+      },
+      "weapon +5": {
+        "key": "weaponPlus5"
+      },
+      "any water elemental effect": {
+        "key": "anyWaterElementalEffect"
+      },
+      "youthfulness": {
+        "key": "youthfulness"
+      },
+      "any death or necromancy effect": {
+        "key": "anyDeathOrNecromancyEffect"
+      },
+      "death ward": {
+        "key": "deathWard"
+      },
+      "necromantic potence": {
+        "key": "necromanticPotence"
+      },
+      "withering touch": {
+        "key": "witheringTouch"
+      },
+      "necromantic invulnerability": {
+        "key": "necromanticInvulnerability"
+      },
+      "energy invulnerability (cold, electric)": {
+        "key": "energyInvulnerabilityColdElectric"
+      }
+    },
+    "modifierTarget": {
+      "avoid surprise": {
+        "key": "surprise"
+      },
+      "surprise rolls": {
+        "key": "surprise"
+      },
+      "surprise roll": {
+        "key": "surprise"
+      },
+      "surprise throws": {
+        "key": "surprise"
+      },
+      "surprise throw": {
+        "key": "surprise"
+      },
+      "reaction rolls": {
+        "key": "reaction"
+      },
+      "reaction roll": {
+        "key": "reaction"
+      },
+      "reactions": {
+        "key": "reaction"
+      },
+      "saving throws": {
+        "key": "save"
+      },
+      "saving throw": {
+        "key": "save"
+      },
+      "attack throws": {
+        "key": "attackThrow"
+      },
+      "attack throw": {
+        "key": "attackThrow"
+      },
+      "hit": {
+        "key": "attackThrow"
+      },
+      "armor class": {
+        "key": "ac"
+      },
+      "ac": {
+        "key": "ac"
+      },
+      "initiative rolls": {
+        "key": "initiative"
+      },
+      "initiative roll": {
+        "key": "initiative"
+      },
+      "initiative": {
+        "key": "initiative"
+      },
+      "damage rolls": {
+        "key": "damage"
+      },
+      "damage roll": {
+        "key": "damage"
+      },
+      "morale": {
+        "key": "morale"
+      },
+      "morale score": {
+        "key": "morale"
+      },
+      "morale scores": {
+        "key": "morale"
+      },
+      "morale rolls": {
+        "key": "morale"
+      },
+      "morale roll": {
+        "key": "morale"
+      },
+      "loyalty score": {
+        "key": "loyalty"
+      },
+      "loyalty scores": {
+        "key": "loyalty"
+      },
+      "loyalty rolls": {
+        "key": "loyalty"
+      },
+      "loyalty roll": {
+        "key": "loyalty"
+      },
+      "loyalty": {
+        "key": "loyalty"
+      },
+      "proficiency throws": {
+        "key": "proficiencyThrow"
+      },
+      "proficiency throw": {
+        "key": "proficiencyThrow"
+      },
+      "magic research throws": {
+        "key": "research"
+      },
+      "magic research throw": {
+        "key": "research"
+      },
+      "research throws": {
+        "key": "research"
+      },
+      "research throw": {
+        "key": "research"
+      },
+      "hit points": {
+        "key": "hp"
+      },
+      "cleaves": {
+        "key": "cleaves"
+      },
+      "base speed": {
+        "key": "speed"
+      },
+      "speed": {
+        "key": "speed"
+      },
+      "throws": {
+        "key": "proficiencyThrow"
+      },
+      "throw": {
+        "key": "proficiencyThrow"
+      },
+      "rolls": {
+        "key": "proficiencyThrow"
+      },
+      "roll": {
+        "key": "proficiencyThrow"
+      }
+    },
+    "naturalWeapon": {
+      "bite": {
+        "key": "bite"
+      },
+      "stinger": {
+        "key": "stinger"
+      },
+      "sting": {
+        "key": "sting"
+      },
+      "gore": {
+        "key": "gore"
+      },
+      "horn": {
+        "key": "horn"
+      },
+      "tusk": {
+        "key": "tusk"
+      },
+      "spine": {
+        "key": "spine"
+      },
+      "claw": {
+        "key": "claw"
+      },
+      "talon": {
+        "key": "talon"
+      },
+      "pincer": {
+        "key": "pincer"
+      },
+      "hoof": {
+        "key": "hoof"
+      },
+      "tail": {
+        "key": "tail"
+      },
+      "tentacle": {
+        "key": "tentacle"
+      },
+      "tongue": {
+        "key": "tongue"
+      },
+      "constriction": {
+        "key": "constriction"
+      },
+      "ram": {
+        "key": "ram"
+      },
+      "feeler": {
+        "key": "feeler"
+      },
+      "envelopment": {
+        "key": "envelopment"
+      },
+      "weapon": {
+        "key": "weapon"
+      }
+    },
+    "power": {},
+    "powerSource": {
+      "fighter": [
+        {
+          "name": "Manual of Arms",
+          "ref": "def.prof.manualOfArms",
+          "rr": 26,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Battlefield Prowess",
+          "ref": "def.power.battlefieldProwess",
+          "rr": 26,
+          "jj": 312,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Castle",
+          "ref": "def.power.castle",
+          "rr": 26,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "explorer": [
+        {
+          "name": "Alertness",
+          "ref": "def.power.alertness",
+          "rr": 28,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Ambushing",
+          "ref": "def.power.ambushing",
+          "rr": 28,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Animal Reflexes",
+          "ref": "def.power.animalReflexes",
+          "rr": 28,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Endurance",
+          "ref": "def.prof.endurance",
+          "rr": 28,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Evasion",
+          "ref": "def.power.evasion",
+          "rr": 29,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Pathfinding",
+          "ref": "def.power.pathfinding",
+          "rr": 29,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Natural Stealth",
+          "ref": "def.power.naturalStealth",
+          "rr": 29,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Experience and Hardiness",
+          "ref": "def.power.experienceAndHardiness",
+          "rr": 30,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Border Fort",
+          "ref": "def.power.borderFort",
+          "rr": 30,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "thief": [
+        {
+          "name": "backstabbing",
+          "ref": "def.skill.backstabbing",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "climbing",
+          "ref": "def.skill.climbing",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "hiding",
+          "ref": "def.skill.hiding",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "listening",
+          "ref": "def.skill.listening",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "lockpicking",
+          "ref": "def.skill.lockpicking",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "pickpocketing",
+          "ref": "def.skill.pickpocketing",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "searching",
+          "ref": "def.skill.searching",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "shadowySenses",
+          "ref": "def.skill.shadowySenses",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "sneaking",
+          "ref": "def.skill.sneaking",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "streetwise",
+          "ref": "def.skill.streetwise",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "trapbreaking",
+          "ref": "def.skill.trapbreaking",
+          "rr": 32,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Deciphering",
+          "ref": "def.skill.deciphering",
+          "rr": 35,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Hideout",
+          "ref": "def.skill.hideout",
+          "rr": 35,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Scrollreading",
+          "ref": "def.power.scrollreading",
+          "rr": 35,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "venturer": [
+        {
+          "name": "Bribery",
+          "ref": "def.power.bribery",
+          "rr": 42,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Diplomacy",
+          "ref": "def.prof.diplomacy",
+          "rr": 42,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Expert Bargaining",
+          "ref": "def.power.expertBargaining",
+          "rr": 42,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Expert Traveling",
+          "ref": "def.power.expertTraveling",
+          "rr": 43,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Mercantile Network",
+          "ref": "def.power.mercantileNetwork",
+          "rr": 43,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Multilingual",
+          "ref": "def.power.multilingual",
+          "rr": 43,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Treachery",
+          "ref": "def.power.treachery",
+          "rr": 43,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Steady Trade Route",
+          "ref": "def.power.steadyTradeRoute",
+          "rr": 43,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Rumormongering",
+          "ref": "def.power.rumormongering",
+          "rr": 43,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Access to Capital",
+          "ref": "def.power.accessToCapital",
+          "rr": 44,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Guildhouse",
+          "ref": "def.power.guildhouse",
+          "rr": 45,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Monopoly Power",
+          "ref": "def.power.monopolyPower",
+          "rr": 45,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "assassin": [
+        {
+          "name": "backstabbing",
+          "ref": "def.skill.backstabbing",
+          "rr": 47,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "hiding",
+          "ref": "def.skill.hiding",
+          "rr": 47,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "shadowySenses",
+          "ref": "def.skill.shadowySenses",
+          "rr": 47,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "sneaking",
+          "ref": "def.skill.sneaking",
+          "rr": 47,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "streetwise",
+          "ref": "def.skill.streetwise",
+          "rr": 47,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Hideout",
+          "ref": "def.skill.hideout",
+          "rr": 48,
+          "disposition": "skillRef"
+        }
+      ],
+      "barbarian": [
+        {
+          "name": "Animal Reflexes",
+          "ref": "def.power.animalReflexes",
+          "rr": 50,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Natural Proficiency",
+          "ref": "def.power.naturalProficiency",
+          "rr": 51,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Natural Stealth",
+          "ref": "def.power.naturalStealth",
+          "rr": 51,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Savage Resilience",
+          "ref": "def.power.savageResilience",
+          "rr": 51,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Animal Magnetism",
+          "ref": "def.power.animalMagnetism",
+          "rr": 51,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Chieftains Hall",
+          "ref": "def.power.chieftainsHall",
+          "rr": 51,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Tribal Origin: Jutland",
+          "ref": "def.power.barbarianOriginJutland",
+          "rr": 50,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Tribal Origin: Skysostan",
+          "ref": "def.power.barbarianOriginSkysostan",
+          "rr": 50,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Tribal Origin: Ivory Kingdoms",
+          "ref": "def.power.barbarianOriginIvoryKingdoms",
+          "rr": 50,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "bard": [
+        {
+          "name": "Arcane Dabbling",
+          "ref": "def.power.arcaneDabbling",
+          "rr": 54,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Inspire Courage",
+          "ref": "def.power.inspireCourage",
+          "rr": 55,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Jack of All Trades",
+          "ref": "def.power.jackOfAllTrades",
+          "rr": 55,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Listening",
+          "ref": "def.skill.listening",
+          "rr": 55,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Loremastery",
+          "ref": "def.power.loremastery",
+          "rr": 55,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Multilingual",
+          "ref": "def.power.multilingual",
+          "rr": 55,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Performance",
+          "ref": "def.prof.performance",
+          "rr": 55,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Deciphering",
+          "ref": "def.skill.deciphering",
+          "rr": 55,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Chronicles of Battle",
+          "ref": "def.power.chroniclesOfBattle",
+          "rr": 55,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Inspire Hope",
+          "ref": "def.power.inspireHope",
+          "rr": 56,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Great Hall",
+          "ref": "def.power.greatHall",
+          "rr": 56,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Scrollreading",
+          "ref": "def.power.scrollreading",
+          "rr": 56,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "paladin": [
+        {
+          "name": "Aura of Protection",
+          "ref": "def.power.paladinAuraOfProtection",
+          "rr": 62,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Lay on Hands",
+          "ref": "def.power.paladinLayOnHands",
+          "rr": 62,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Manual of Arms",
+          "ref": "def.prof.manualOfArms",
+          "rr": 62,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Sanctified Body",
+          "ref": "def.power.sanctifiedBody",
+          "rr": 63,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sense Evil",
+          "ref": "def.power.senseEvil",
+          "rr": 63,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Holy Fervor",
+          "ref": "def.power.holyFervor",
+          "rr": 63,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Fortress",
+          "ref": "def.power.fortress",
+          "rr": 63,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "mage": [
+        {
+          "name": "Arcane Magic",
+          "ref": "def.power.arcaneMagic",
+          "rr": 36,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Collegiate Wizardry",
+          "ref": "def.prof.collegiateWizardry",
+          "rr": 36,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Minor Magical Research",
+          "ref": "def.power.minorMagicalResearch",
+          "rr": 36,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Major Magical Research",
+          "ref": "def.power.majorMagicalResearch",
+          "rr": 36,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sanctum",
+          "ref": "def.power.sanctum",
+          "rr": 36,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Supreme Magical Research",
+          "ref": "def.power.supremeMagicalResearch",
+          "rr": 37,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "crusader": [
+        {
+          "name": "Divine Magic",
+          "ref": "def.power.divineMagic",
+          "rr": 38,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Theology",
+          "ref": "def.prof.theology",
+          "rr": 38,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Rebuke Undead",
+          "ref": "def.power.rebukeUndead",
+          "rr": 39,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Fortified Church",
+          "ref": "def.power.fortifiedChurch",
+          "rr": 40,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "bladedancer": [
+        {
+          "name": "Graceful Fighting",
+          "ref": "def.power.bladedancerGracefulFighting",
+          "rr": 58,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Divine Magic",
+          "ref": "def.power.divineMagic",
+          "rr": 58,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Strength of Faith",
+          "ref": "def.power.bladedancerStrengthOfFaith",
+          "rr": 59,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Theology",
+          "ref": "def.prof.theology",
+          "rr": 59,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Weapon Finesse",
+          "ref": "def.power.bladedancerWeaponFinesse",
+          "rr": 59,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Temple",
+          "ref": "def.power.temple",
+          "rr": 59,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "priestess": [
+        {
+          "name": "Consolation",
+          "ref": "def.power.consolation",
+          "rr": 66,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Diplomacy",
+          "ref": "def.prof.diplomacy",
+          "rr": 66,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Divine Magic",
+          "ref": "def.power.divineMagic",
+          "rr": 66,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Lay on Hands",
+          "ref": "def.power.priestessLayOnHands",
+          "rr": 67,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Purity of the Body",
+          "ref": "def.power.purityOfTheBody",
+          "rr": 67,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Theology",
+          "ref": "def.prof.theology",
+          "rr": 67,
+          "disposition": "profEquivalent"
+        }
+      ],
+      "shaman": [
+        {
+          "name": "Commune with Spirits",
+          "ref": "def.power.communeWithSpirits",
+          "rr": 70,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Divine Magic",
+          "ref": "def.power.divineMagic",
+          "rr": 71,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Tribal Traditions",
+          "ref": "def.power.tribalTraditions",
+          "rr": 71,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Totem Animal",
+          "ref": "def.power.totemanimal",
+          "rr": 71,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "warlock": [
+        {
+          "name": "Arcane Magic",
+          "ref": "def.power.arcaneMagic",
+          "rr": 74,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Dark Path",
+          "ref": "def.power.darkPath",
+          "rr": 75,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Occultism",
+          "ref": "def.power.occultism",
+          "rr": 75,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Dark Path: Demonology",
+          "ref": "def.power.darkPathDemonology",
+          "rr": 75,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Dark Path: Necromancy",
+          "ref": "def.power.darkPathNecromancy",
+          "rr": 75,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Dark Path: Transmogrification",
+          "ref": "def.power.darkPathTransmogrification",
+          "rr": 75,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "witch": [
+        {
+          "name": "Studious Divine Magic",
+          "ref": "def.power.studiousDivineMagic",
+          "rr": 78,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Tradition",
+          "ref": "def.power.witchTradition",
+          "rr": 78,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Village Wisdom",
+          "ref": "def.power.villageWisdom",
+          "rr": 79,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Tradition: Antiquarian",
+          "ref": "def.power.witchTraditionAntiquarian",
+          "rr": 79,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Tradition: Chthonic",
+          "ref": "def.power.witchTraditionChthonic",
+          "rr": 79,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Tradition: Sylvan",
+          "ref": "def.power.witchTraditionSylvan",
+          "rr": 79,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "dwarvenCraftpriest": [
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "rr": 82,
+          "disposition": "rrPrimary",
+          "bta": 59,
+          "note": "BTA reprints the spread (its p.59) with identical values. Level titles there carry a 'Dwarven' prefix; one template name is spelled differently. RR is primary."
+        },
+        {
+          "name": "Crafting",
+          "ref": "def.power.crafting",
+          "rr": 82,
+          "disposition": "rrPrimary",
+          "bta": 59
+        },
+        {
+          "name": "Rebuke Undead",
+          "ref": "def.power.rebukeUndead",
+          "rr": 82,
+          "disposition": "rrPrimary",
+          "bta": 59
+        },
+        {
+          "name": "Studious Divine Magic",
+          "ref": "def.power.studiousDivineMagic",
+          "rr": 82,
+          "disposition": "rrPrimary",
+          "bta": 59
+        },
+        {
+          "name": "Theology",
+          "ref": "def.prof.theology",
+          "rr": 83,
+          "disposition": "profEquivalent",
+          "bta": 59
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "rr": 83,
+          "disposition": "rrPrimary",
+          "bta": 59
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "disposition": "rrPrimary",
+          "bta": 59
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "disposition": "rrPrimary",
+          "bta": 59
+        },
+        {
+          "name": "Vault",
+          "ref": "def.power.vault",
+          "rr": 83,
+          "disposition": "rrPrimary",
+          "bta": 59
+        }
+      ],
+      "dwarvenVaultguard": [
+        {
+          "name": "Manual of Arms",
+          "ref": "def.prof.manualOfArms",
+          "rr": 86,
+          "disposition": "profEquivalent",
+          "bta": 57,
+          "note": "BTA reprints the spread (its p.57). Two mid-table XP thresholds (5th, 6th) differ between the books - RR is primary. Same template set; one template name is spelled differently."
+        },
+        {
+          "name": "Battlefield Prowess",
+          "ref": "def.power.battlefieldProwess",
+          "rr": 86,
+          "disposition": "rrPrimary",
+          "bta": 57
+        },
+        {
+          "name": "Vault",
+          "ref": "def.power.vault",
+          "rr": 86,
+          "disposition": "rrPrimary",
+          "bta": 57
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "rr": 86,
+          "disposition": "rrPrimary",
+          "bta": 57
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 86,
+          "disposition": "rrPrimary",
+          "bta": 57
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 86,
+          "disposition": "rrPrimary",
+          "bta": 57
+        }
+      ],
+      "elvenNightblade": [
+        {
+          "name": "Acrobatics",
+          "ref": "def.power.acrobatics",
+          "rr": 88,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "backstabbing",
+          "ref": "def.skill.backstabbing",
+          "rr": 89,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "climbing",
+          "ref": "def.skill.climbing",
+          "rr": 89,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "hiding",
+          "ref": "def.skill.hiding",
+          "rr": 89,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "shadowySenses",
+          "ref": "def.skill.shadowySenses",
+          "rr": 89,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "sneaking",
+          "ref": "def.skill.sneaking",
+          "rr": 89,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "streetwise",
+          "ref": "def.skill.streetwise",
+          "rr": 89,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "hideout",
+          "ref": "def.skill.hideout",
+          "rr": 89,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Attunement to Nature",
+          "ref": "def.power.attunementToNature",
+          "rr": 92,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Connection to Nature",
+          "ref": "def.power.connectionToNature",
+          "rr": 93,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Elf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "rr": 91,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "elvenSpellsword": [
+        {
+          "name": "Arcane Magic",
+          "ref": "def.power.arcaneMagic",
+          "rr": 92,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Collegiate Wizardry",
+          "ref": "def.prof.collegiateWizardry",
+          "rr": 92,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Fastness",
+          "ref": "def.power.fastness",
+          "rr": 92,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Attunement to Nature",
+          "ref": "def.power.attunementToNature",
+          "rr": 92,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Connection to Nature",
+          "ref": "def.power.connectionToNature",
+          "rr": 93,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Elf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "rr": 93,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "nobiranWonderworker": [
+        {
+          "name": "Arcane Magic",
+          "ref": "def.power.arcaneMagic",
+          "rr": 94,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Collegiate Wizardry",
+          "ref": "def.prof.collegiateWizardry",
+          "rr": 95,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Divine Magic",
+          "ref": "def.power.divineMagic",
+          "rr": 95,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Lay on Hands",
+          "ref": "def.power.wonderworkerLayOnHands",
+          "rr": 95,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Divine Health",
+          "ref": "def.power.divineHealth",
+          "rr": 95,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Blood of Ancient Kings",
+          "ref": "def.power.bloodOfKings",
+          "rr": 95,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Favor of the Empyrean Powers",
+          "ref": "def.power.favorOfTheGods",
+          "rr": 95,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Longeval",
+          "ref": "def.power.longeval",
+          "rr": 95,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "zaharanRuinguard": [
+        {
+          "name": "Dark Blessing",
+          "ref": "def.power.darkBlessing",
+          "rr": 99,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Manual of Arms",
+          "ref": "def.prof.manualOfArms",
+          "rr": 99,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Preternatural Quickening",
+          "ref": "def.power.preternaturalQuickening",
+          "rr": 99,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Weapon Focus",
+          "ref": "def.prof.weaponFocus",
+          "rr": 99,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Spell Storing",
+          "ref": "def.power.spellStoring",
+          "rr": 100,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "After the Flesh",
+          "ref": "def.power.afterTheFlesh",
+          "rr": 100,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Ancient Pacts",
+          "ref": "def.power.ancientPacts",
+          "rr": 100,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Dark Souls",
+          "ref": "def.power.darkSouls",
+          "rr": 100,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Inexorable",
+          "ref": "def.power.inexorable",
+          "rr": 101,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Zaharan Tongues",
+          "ref": "def.power.giftOfTongues",
+          "rr": 101,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "jjOnly": [
+        {
+          "name": "Abominable Mutation",
+          "ref": "def.power.abominableMutation",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Accuracy",
+          "ref": "def.power.accuracy",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Adhesive Toe Pads",
+          "ref": "def.power.adhesiveToePads",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Ageless",
+          "ref": "def.power.ageless",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Alien Beings",
+          "ref": "def.power.alienBeings",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Alien Intuition",
+          "ref": "def.power.alienintuition",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Alien Lore",
+          "ref": "def.power.alienLore",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Alien Senses",
+          "ref": "def.power.alienSenses",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Alluring Beauty",
+          "ref": "def.power.alluringBeauty",
+          "jj": 310,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Analyze Data",
+          "ref": "def.power.analyzeData",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Animal Companion",
+          "ref": "def.power.animalCompanion",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Animal Friendship",
+          "ref": "def.power.animalFriendship",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Antennae for Potions",
+          "ref": "def.power.antennaeForPotions",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Arena Reputation",
+          "ref": "def.power.arenaReputation",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Armor Training",
+          "ref": "def.power.armorTraining",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Artificial Youth",
+          "ref": "def.power.artificialYouth",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Avoid Getting Lost",
+          "ref": "def.power.avoidGettingLost",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Awareness of the Earth",
+          "ref": "def.power.awarenessOfTheEarth",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Aura of Protection",
+          "ref": "def.power.auraOfProtection",
+          "jj": 311,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Baleful Transformation",
+          "ref": "def.power.balefulTransformation",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Ballistics Expertise",
+          "ref": "def.power.ballisticsExpertise",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Battle Magic",
+          "ref": "def.power.battleMagic",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Battle Plan",
+          "ref": "def.power.battlePlan",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Bedazzling Glamour",
+          "ref": "def.power.bedazzlingGlamour",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Berserkergang, Greater",
+          "ref": "def.power.berserkergangGreater",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Berserkergang, Lesser",
+          "ref": "def.power.berserkergangLesser",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Bestial Cry",
+          "ref": "def.power.bestialCry",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Bestial Fury",
+          "ref": "def.power.bestialFury",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Blade-Dancing",
+          "ref": "def.power.bladeDancing",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Blessing of the Dead",
+          "ref": "def.power.blessingOfTheDead",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Blindsight",
+          "ref": "def.power.blindsight",
+          "jj": 312,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Bloody Healing",
+          "ref": "def.power.bloodyHealing",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Bone-Breaking Strength",
+          "ref": "def.power.boneBreakingStrength",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Bonus Languages",
+          "ref": "def.power.bonusLanguages",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Boon Companion",
+          "ref": "def.power.boonCompanion",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Brewing Quacksalves",
+          "ref": "def.power.brewingQuacksalves",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Bright Lore",
+          "ref": "def.power.brightLore",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Broad Spectrum Inoculations",
+          "ref": "def.power.broadSpectrumInoculations",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Brutality",
+          "ref": "def.power.brutality",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Cast the Runes",
+          "ref": "def.power.castTheRunes",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Ceremonial Magic",
+          "ref": "def.power.ceremonialMagic",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Charismatic Ferocity",
+          "ref": "def.power.charismaticFerocity",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Child-Like",
+          "ref": "def.power.childLike",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Chitinous Carapace",
+          "ref": "def.power.chitinousCarapace",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Chosen Weapon",
+          "ref": "def.power.chosenweapon",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Chthonic Hegemon",
+          "ref": "def.power.chthonicHegemon",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Clarion Commander",
+          "ref": "def.power.clarionCommander",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Classical Weapons Training",
+          "ref": "def.power.classicalWeaponsTraining",
+          "jj": 313,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Claws and Bite",
+          "ref": "def.power.clawsAndBite",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Cleansing Touch",
+          "ref": "def.power.cleansingTouch",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Close Friend of Birds and Beasts",
+          "ref": "def.power.closeFriendOfBirdsAndBeasts",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Comfort and Console the Wounded",
+          "ref": "def.power.comfortAndConsoleTheWounded",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Command of Voice",
+          "ref": "def.power.commandOfVoice",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Command Undead",
+          "ref": "def.power.commandUndead",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Commune with Ancestral Spirits",
+          "ref": "def.power.communeWithAncestralSpirits",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Compel Submission",
+          "ref": "def.power.compelSubmission",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Concealed from Undead",
+          "ref": "def.power.concealedFromUndead",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Conduit to the Esoteric",
+          "ref": "def.power.conduitToTheEsoteric",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Conjure Dark Powers (1level)",
+          "ref": "def.power.conjureDarkPowers",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Consume Souls",
+          "ref": "def.power.consumeSouls",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Contact Dark Powers",
+          "ref": "def.power.contactDarkPowers",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Courage",
+          "ref": "def.power.courage",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Create Advanced Technology",
+          "ref": "def.power.createAdvancedTechnology",
+          "jj": 314,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Cunning and Flexible Reconnoiter",
+          "ref": "def.power.cunningAndFlexibleReconnoiter",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Curse with Ill Fate",
+          "ref": "def.power.curseWithIllFate",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Daredevil",
+          "ref": "def.power.daredevil",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Dark Blessing",
+          "ref": "def.power.darkBlessing",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Deadly Additive",
+          "ref": "def.power.deadlyAdditive",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Death-Dealing Dance",
+          "ref": "def.power.deathDealingDance",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Deathly Visage",
+          "ref": "def.power.deathlyVisage",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Deciphering",
+          "ref": "def.power.deciphering",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Demand Surrender",
+          "ref": "def.power.demandSurrender",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Demi-Human Ancestry",
+          "ref": "def.power.demiHumanAncestry",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Design, Build, and Repair Automatons",
+          "ref": "def.power.designBuildAndRepairAutomatons",
+          "jj": 315,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Design, Build, and Repair Ingenious Devices",
+          "ref": "def.power.designBuildAndRepairIngeniousDevices",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Destined",
+          "ref": "def.power.destined",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Detachable Tail",
+          "ref": "def.power.detachableTail",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Detect Good",
+          "ref": "def.power.detectGood",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Detect Evil",
+          "ref": "def.power.detectEvil",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Detect Traps",
+          "ref": "def.power.detectTraps",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Determined",
+          "ref": "def.power.determined",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Difficult to Corrupt",
+          "ref": "def.power.difficultToCorrupt",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Difficult to Spot",
+          "ref": "def.power.difficultToSpot",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Divine Blessing",
+          "ref": "def.power.divineBlessing",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Divine Proficiency",
+          "ref": "def.power.divineProficiency",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Discern Good",
+          "ref": "def.power.discernGood",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Discern Evil",
+          "ref": "def.power.discernevil",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Distract",
+          "ref": "def.power.distract",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Dominate Beastmen",
+          "ref": "def.power.dominateBeastmen",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Dread Shadow",
+          "ref": "def.power.dreadShadow",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Eldritch Talent",
+          "ref": "def.power.eldritchTalent",
+          "jj": 316,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Eldritch Warrior",
+          "ref": "def.power.eldritchWarrior",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Elemental Connection",
+          "ref": "def.power.elementalConnection",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Enchanted Forest",
+          "ref": "def.power.enchantedForest",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Engineering Aptitude",
+          "ref": "def.power.engineeringAptitude",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Evil Eye",
+          "ref": "def.power.evilEye",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Experimentation",
+          "ref": "def.power.experimentation",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Exquisite Torture",
+          "ref": "def.power.exquisiteTorture",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Expert Traveler",
+          "ref": "def.power.expertTraveler",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Extensive Firearms Training",
+          "ref": "def.power.extensiveFirearmsTraining",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Exult in Glorious Battle",
+          "ref": "def.power.exultInGloriousBattle",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Familial Loyalty",
+          "ref": "def.power.familialLoyalty",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Familiar with Technology",
+          "ref": "def.power.familiarWithTechnology",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Farseeing",
+          "ref": "def.power.farseeing",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fellowship of Animals",
+          "ref": "def.power.fellowshipOfAnimals",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Expert Scout",
+          "ref": "def.power.expertScout",
+          "jj": 317,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fiery Spirit",
+          "ref": "def.power.fierySpirit",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fiery Cauterization",
+          "ref": "def.power.fieryCauterization",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fiery Resistance",
+          "ref": "def.power.fieryResistance",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fighting Fury",
+          "ref": "def.power.fightingFury",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fists of Iron",
+          "ref": "def.power.fistsOfIron",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Flagellation",
+          "ref": "def.power.flagellation",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Flawless Precision",
+          "ref": "def.power.flawlessPrecision",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Flesh-Runes",
+          "ref": "def.power.fleshRunes",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Flying",
+          "ref": "def.power.flying",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Four Arms",
+          "ref": "def.power.fourArms",
+          "jj": 318,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Forbidden Spells",
+          "ref": "def.power.forbiddenSpells",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Friend of Birds and Beasts",
+          "ref": "def.power.friendOfBirdsAndBeasts",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fungal Awareness",
+          "ref": "def.power.fungalAwareness",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fungal Communion",
+          "ref": "def.power.fungalCommunion",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fungal Friendship",
+          "ref": "def.power.fungalFriendship",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fungal Immunity",
+          "ref": "def.power.fungalImmunity",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Fungal Spawn (10)",
+          "ref": "def.power.fungalSpawn",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Gather Together the Darkness",
+          "ref": "def.power.gatherTogetherTheDarkness",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Gift of Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Glamorous Aura",
+          "ref": "def.power.glamorousAura",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Graceful Fighting",
+          "ref": "def.power.gracefulFighting",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Greater Rite of Sealing",
+          "ref": "def.power.greaterRiteOfSealing",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Greatness of Soul",
+          "ref": "def.power.greatnessOfSoul",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Grey Lore",
+          "ref": "def.power.greyLore",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Grotesque Arts of Transformation (1)",
+          "ref": "def.power.grotesqueArtsOfTransformation",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Guardian Spirit",
+          "ref": "def.power.guardianSpirit",
+          "jj": 319,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Hard to Kill",
+          "ref": "def.power.hardToKill",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Harmony of Spirit",
+          "ref": "def.power.harmonyOfSpirit",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Healing Touch",
+          "ref": "def.power.healingTouch",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Hearty Constitution",
+          "ref": "def.power.heartyConstitution",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Heroic Breakfast",
+          "ref": "def.power.heroicBreakfast",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Heroic Spirit",
+          "ref": "def.power.heroicSpirit",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Hideous Servant",
+          "ref": "def.power.hideousServant",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Horrible Truths",
+          "ref": "def.power.horribleTruths",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Impersonate Others",
+          "ref": "def.power.impersonateOthers",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Implacable Will",
+          "ref": "def.power.implacableWill",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Infravision",
+          "ref": "def.power.infravision",
+          "jj": 320,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Inhumanity",
+          "ref": "def.power.inhumanity",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Initiative",
+          "ref": "def.power.initiative",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Innate Illusion Mastery",
+          "ref": "def.power.innateIllusionMastery",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Innovative Researcher",
+          "ref": "def.power.innovativeResearcher",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Inspire Dread",
+          "ref": "def.power.inspireDread",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Inspire Exceptional Performance",
+          "ref": "def.power.inspireExceptionalPerformance",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Instill Strength",
+          "ref": "def.power.instillStrength",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Instinctive Dodge",
+          "ref": "def.power.instinctiveDodge",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Invulnerable",
+          "ref": "def.power.invulnerable",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Iron Leadership",
+          "ref": "def.power.ironLeadership",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Irresistible Voice",
+          "ref": "def.power.irresistibleVoice",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Jumping",
+          "ref": "def.power.jumping",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Keen Eyes",
+          "ref": "def.power.keenEyes",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Keen Insect Senses",
+          "ref": "def.power.keenInsectSenses",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Killing Spree",
+          "ref": "def.power.killingSpree",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Kinship with Arthropods and Fungi",
+          "ref": "def.power.kinshipWithArthropodsAndFungi",
+          "jj": 321,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Kiss of Life",
+          "ref": "def.power.kissOfLife",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Laugh at Pain",
+          "ref": "def.power.laughAtPain",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Lay on Hands",
+          "ref": "def.power.layOnHands",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Legwork",
+          "ref": "def.power.legwork",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Lightless Vision",
+          "ref": "def.power.lightlessVision",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Lion-Hearted Leader",
+          "ref": "def.power.lionHeartedLeader",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Lizard Brain",
+          "ref": "def.power.lizardBrain",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Loadbearing",
+          "ref": "def.power.loadbearing",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Lordship Over the Undead",
+          "ref": "def.power.lordshipOverTheUndead",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Lore of Stars and Spheres",
+          "ref": "def.power.loreOfStarsAndSpheres",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Low-Light Vision",
+          "ref": "def.power.lowLightVision",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Lucky",
+          "ref": "def.power.lucky",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Magic Hands",
+          "ref": "def.power.magicHands",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Magic Mirror",
+          "ref": "def.power.magicMirror",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Magical Proficiency",
+          "ref": "def.power.magicalProficiency",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Majesty of the Dragon",
+          "ref": "def.power.majestyOfTheDragon",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Malevolent Reputation",
+          "ref": "def.power.malevolentReputation",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mapper",
+          "ref": "def.power.mapper",
+          "jj": 322,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Martial Proficiency",
+          "ref": "def.power.martialProficiency",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Martial Talent",
+          "ref": "def.power.martialTalent",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Martyrdom",
+          "ref": "def.power.martyrdom",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Marvelous Machines",
+          "ref": "def.power.marvelousmachines",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mastery of Enchantments and Illusions",
+          "ref": "def.power.masteryOfEnchantmentsAndIllusions",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mastery of Domination and Deception",
+          "ref": "def.power.masteryofdominationanddeception",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Meditative Focus",
+          "ref": "def.power.meditativeFocus",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mindfulness",
+          "ref": "def.power.mindfulness",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Military Genius",
+          "ref": "def.power.militaryGenius",
+          "jj": 323,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mitigate Damage",
+          "ref": "def.power.mitigateDamage",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Modern Thought",
+          "ref": "def.power.modernThought",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mushroom Management",
+          "ref": "def.power.mushroomManagement",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mushroom Overlord",
+          "ref": "def.power.mushroomOverlord",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mystical Bloodline",
+          "ref": "def.power.mysticalBloodline",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Necrosporing",
+          "ref": "def.power.necrosporing",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Nervous Watchfulness",
+          "ref": "def.power.nervousWatchfulness",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Nose for Potions",
+          "ref": "def.power.noseForPotions",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Oneness of Land and Lord",
+          "ref": "def.power.onenessOfLandAndLord",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Perceive Intentions",
+          "ref": "def.power.perceiveIntentions",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Perfection of Body",
+          "ref": "def.power.perfectionOfBody",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Personal Talisman",
+          "ref": "def.power.personalTalisman",
+          "jj": 324,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Placate",
+          "ref": "def.power.placate",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Precise Shot",
+          "ref": "def.power.preciseShot",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Prestidigitation",
+          "ref": "def.power.prestidigitation",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Probability Trance",
+          "ref": "def.power.probabilitytrance",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Profane Endurance",
+          "ref": "def.power.profaneEndurance",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Provoke the Passion",
+          "ref": "def.power.provokeThePassion",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Public Education",
+          "ref": "def.power.publicEducation",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Public Flagellation",
+          "ref": "def.power.publicFlagellation",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Pugilism",
+          "ref": "def.power.pugilism",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Purity of Body and Soul",
+          "ref": "def.power.purityOfBodyAndSoul",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Pyroclastics",
+          "ref": "def.power.pyroclastics",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Quickening",
+          "ref": "def.power.quickening",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Rally the Faithful",
+          "ref": "def.power.rallyTheFaithful",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Ravishing Beauty",
+          "ref": "def.power.ravishingBeauty",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Read Languages",
+          "ref": "def.power.readLanguages",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Relentless",
+          "ref": "def.power.relentless",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Rhetoric",
+          "ref": "def.power.rhetoric",
+          "jj": 325,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Right Stuff",
+          "ref": "def.power.rightStuff",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Rouse to Fury",
+          "ref": "def.power.rouseToFury",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Rotless Rot",
+          "ref": "def.power.rotlessRot",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Scaly Hide",
+          "ref": "def.power.scalyHide",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Scientific Mindset",
+          "ref": "def.power.scientificMindset",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Scion of Kings",
+          "ref": "def.power.scionOfKings",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Second Sight",
+          "ref": "def.power.secondSight",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Secret Knowledge",
+          "ref": "def.power.secretKnowledge",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Secretion",
+          "ref": "def.power.secretion",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Secrets of the Dark Arts",
+          "ref": "def.power.secretsOfTheDarkArts",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Secrets of Life and Death",
+          "ref": "def.power.secretsOfLifeAndDeath",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Shapechange",
+          "ref": "def.power.shapechange",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Shape Flesh and Bone",
+          "ref": "def.power.shapeFleshAndBone",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Sleepless",
+          "ref": "def.power.sleepless",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Solidity of Rock",
+          "ref": "def.power.solidityOfRock",
+          "jj": 326,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Soul of the Dragon",
+          "ref": "def.power.soulOfTheDragon",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Speak with Animals",
+          "ref": "def.power.speakWithAnimals",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Speak with Arthropods",
+          "ref": "def.power.speakWithArthropods",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Speed of Thought",
+          "ref": "def.power.speedOfThought",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Spell Storing",
+          "ref": "def.power.spellStoring",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Spiritwalk",
+          "ref": "def.power.spiritwalk",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Spore Calibration",
+          "ref": "def.power.sporeCalibration",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Spore Fermentation",
+          "ref": "def.power.sporeFermentation",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Spore Perception",
+          "ref": "def.power.sporePerception",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Spore Synchronization",
+          "ref": "def.power.sporeSynchronization",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Stalwart Soul",
+          "ref": "def.power.stalwartSoul",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Strength of Spirit",
+          "ref": "def.power.strengthOfSpirit",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Steward of the Wild",
+          "ref": "def.power.stewardOfTheWild",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Stigmata",
+          "ref": "def.power.stigmata",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Student of War",
+          "ref": "def.power.studentOfWar",
+          "jj": 327,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Subtle Beguilement",
+          "ref": "def.power.subtlebeguilement",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Summon Infernal Powers",
+          "ref": "def.power.summoninfernalpowers",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Supernatural Resilience",
+          "ref": "def.power.supernaturalResilience",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Survivability of Cockroaches",
+          "ref": "def.power.survivabilityOfCockroaches",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Swimming",
+          "ref": "def.power.swimming",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Sworn Foe",
+          "ref": "def.power.swornFoe",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Tainted Blood",
+          "ref": "def.power.taintedBlood",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Taunt",
+          "ref": "def.power.taunt",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Technological Jargon",
+          "ref": "def.power.technologicaljargon",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Thievery Proficiency",
+          "ref": "def.power.thieveryproficiency",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Torment the Mind",
+          "ref": "def.power.tormentTheMind",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Totem Benefit",
+          "ref": "def.power.totemBenefit",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Jargon",
+          "ref": "def.power.jargon",
+          "jj": 328,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Tribulating Adversary",
+          "ref": "def.power.tribulatingAdversary",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Unconquerable Soul",
+          "ref": "def.power.unconquerableSoul",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Undead Slaying",
+          "ref": "def.power.undeadslaying",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Unholy Fanaticism",
+          "ref": "def.power.unholyFanaticism",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Unliving",
+          "ref": "def.power.unliving",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Unveil Esoteric Meaning",
+          "ref": "def.power.unveilEsotericMeaning",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Utter Domination",
+          "ref": "def.power.utterDomination",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Weapon Systems Expert",
+          "ref": "def.power.weaponsystemsexpert",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "White Luck Presence",
+          "ref": "def.power.whiteLuckPresence",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Wilderness Evasion",
+          "ref": "def.power.wildernessEvasion",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Wisdom of the Ages",
+          "ref": "def.power.wisdomOfTheAges",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Wholeness of Body",
+          "ref": "def.power.wholenessOfBody",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Widespread Renown",
+          "ref": "def.power.widespreadRenown",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Words of Command and Obedience",
+          "ref": "def.power.wordsOfCommandAndObedience",
+          "jj": 330,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Underfoot",
+          "ref": "def.power.underfoot",
+          "jj": 330,
+          "disposition": "jjOnly"
+        }
+      ],
+      "dwarvenDelver": [
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "rr": 82,
+          "bta": 61,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Backstabbing",
+          "ref": "def.skill.backstabbing",
+          "rr": 32,
+          "bta": 61,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Endurance",
+          "ref": "def.prof.endurance",
+          "rr": 112,
+          "bta": 61,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Expert Caving",
+          "ref": "def.prof.caving",
+          "rr": 110,
+          "bta": 61,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Shadowy Senses",
+          "ref": "def.skill.shadowySenses",
+          "rr": 34,
+          "bta": 61,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Thief Skills",
+          "ref": "def.skill.hiding",
+          "rr": 33,
+          "bta": 61,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Underdark Lore",
+          "ref": "def.prof.naturalism",
+          "rr": 118,
+          "bta": 61,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.delverRenown",
+          "bta": 61,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 61,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 61,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 61,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "dwarvenEarthforger": [
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "rr": 82,
+          "bta": 63,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Dwarven Throat-Singing",
+          "ref": "def.power.dwarvenThroatSinging",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Gnostic Magic",
+          "ref": "def.power.gnosticMagic",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Deep Knowledge",
+          "ref": "def.power.deepKnowledge",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Sigils of Creation",
+          "ref": "def.power.earthforgerSigil",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Greater Gnosis",
+          "ref": "def.power.greaterGnosis",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Master Gnosis",
+          "ref": "def.power.masterGnosis",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Minor Magical Research",
+          "ref": "def.power.minorMagicalResearch",
+          "rr": 36,
+          "bta": 63,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Major Magical Research",
+          "ref": "def.power.majorMagicalResearch",
+          "rr": 36,
+          "bta": 63,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.earthforgerRenown",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 63,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 63,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 63,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sigil of the Mountain's Bones",
+          "ref": "def.power.sigilOfTheMountainsBones",
+          "bta": 65,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Sigil of the Eternal Forge",
+          "ref": "def.power.sigilOfTheEternalForge",
+          "bta": 65,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Sigil of the Iron Crucible",
+          "ref": "def.power.sigilOfTheIronCrucible",
+          "bta": 65,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Sigil of the Open Gate",
+          "ref": "def.power.sigilOfTheOpenGate",
+          "bta": 66,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Extemporaneous Invocations",
+          "ref": "def.power.extemporaneousInvocations",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Trinkets of Power",
+          "ref": "def.power.trinketsOfPower",
+          "bta": 63,
+          "disposition": "btaPrimary"
+        }
+      ],
+      "dwarvenExcavator": [
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "rr": 82,
+          "bta": 67,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Prospecting",
+          "ref": "def.prof.prospecting",
+          "rr": 119,
+          "bta": 67,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Pyroclastics",
+          "ref": "def.power.pyroclastics",
+          "jj": 325,
+          "bta": 67,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Dowsing",
+          "ref": "def.skill.dowsing",
+          "bta": 67,
+          "disposition": "skillRef"
+        },
+        {
+          "name": "Mine Management",
+          "ref": "def.power.mineManagement",
+          "bta": 67,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Engineering",
+          "ref": "def.prof.engineering",
+          "rr": 112,
+          "bta": 67,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Industrialism",
+          "ref": "def.power.industrialism",
+          "bta": 67,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.excavatorRenown",
+          "bta": 67,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 67,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 67,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 67,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Expert Caving",
+          "ref": "def.prof.caving",
+          "bta": 67,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Loadbearing",
+          "ref": "def.power.loadbearing",
+          "bta": 67,
+          "disposition": "jjOnly"
+        },
+        {
+          "name": "Mine Working",
+          "ref": "def.prof.labor",
+          "bta": 67,
+          "disposition": "profEquivalent"
+        }
+      ],
+      "dwarvenFurnacewife": [
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "rr": 82,
+          "bta": 70,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Fiery Resistance",
+          "ref": "def.power.fieryResistance",
+          "jj": 318,
+          "bta": 70,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Crafting",
+          "ref": "def.power.crafting",
+          "rr": 82,
+          "bta": 70,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Gnostic Magic",
+          "ref": "def.power.gnosticMagic",
+          "bta": 70,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Fiery Torch",
+          "ref": "def.power.fieryTorch",
+          "bta": 70,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Trinkets of Power",
+          "ref": "def.power.trinketsOfPower",
+          "bta": 70,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Fiery Aura",
+          "ref": "def.power.fieryAura",
+          "bta": 70,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Fiery Blessing",
+          "ref": "def.power.fieryBlessing",
+          "bta": 70,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Major Magical Research",
+          "ref": "def.power.majorMagicalResearch",
+          "rr": 36,
+          "bta": 70,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.furnacewifeRenown",
+          "bta": 70,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 70,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 70,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 70,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Dwarven Throat-Singing",
+          "ref": "def.power.dwarvenThroatSinging",
+          "bta": 70,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Fiery Cauterization",
+          "ref": "def.power.fieryCauterization",
+          "bta": 70,
+          "disposition": "jjOnly"
+        }
+      ],
+      "dwarvenFury": [
+        {
+          "name": "Flesh-Runes",
+          "ref": "def.power.fleshRunes",
+          "jj": 318,
+          "bta": 73,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Intimidation",
+          "ref": "def.prof.intimidation",
+          "rr": 114,
+          "bta": 73,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Savage Resilience",
+          "ref": "def.power.savageResilience",
+          "rr": 51,
+          "bta": 73,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Superior Flesh-Runes",
+          "ref": "def.power.superiorFleshRunes",
+          "bta": 73,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 73,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 73,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 73,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Fighting Fury",
+          "ref": "def.power.fightingFury",
+          "bta": 73,
+          "disposition": "jjOnly"
+        }
+      ],
+      "dwarvenMachinist": [
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "rr": 82,
+          "bta": 76,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Ballistics Expertise",
+          "ref": "def.power.ballisticsExpertise",
+          "jj": 312,
+          "bta": 76,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Design, Build, and Repair Automatons",
+          "ref": "def.power.designBuildAndRepairAutomatons",
+          "jj": 315,
+          "bta": 76,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Mechanic Knowledge",
+          "ref": "def.power.mechanicKnowledge",
+          "bta": 76,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Personal Automaton",
+          "ref": "def.power.personalAutomaton",
+          "bta": 76,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Siege Engineering",
+          "ref": "def.prof.siegeEngineering",
+          "rr": 120,
+          "bta": 76,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.machinistRenown",
+          "bta": 76,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 76,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 76,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 76,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Crafting",
+          "ref": "def.power.crafting",
+          "bta": 76,
+          "disposition": "rrPrimary"
+        }
+      ],
+      "dwarvenPugilist": [
+        {
+          "name": "Intimidation",
+          "ref": "def.prof.intimidation",
+          "rr": 114,
+          "bta": 79,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Pugilism",
+          "ref": "def.power.pugilism",
+          "jj": 325,
+          "bta": 79,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Legwork",
+          "ref": "def.power.legwork",
+          "jj": 322,
+          "bta": 79,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Old Man Bones",
+          "ref": "def.power.oldManBones",
+          "bta": 79,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Eye of the Tiger",
+          "ref": "def.power.eyeOfTheTiger",
+          "bta": 79,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.pugilistRenown",
+          "bta": 79,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Second Wind",
+          "ref": "def.power.secondWind",
+          "bta": 79,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Unyielding Spirit",
+          "ref": "def.power.unyieldingSpirit",
+          "bta": 79,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 79,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 79,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 79,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "bta": 79,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Combat Trickery",
+          "ref": "def.prof.combatTrickery",
+          "bta": 79,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Endurance",
+          "ref": "def.prof.endurance",
+          "bta": 79,
+          "disposition": "profEquivalent"
+        }
+      ],
+      "dwarvenRhetor": [
+        {
+          "name": "Endurance",
+          "ref": "def.prof.endurance",
+          "rr": 112,
+          "bta": 82,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Jurisprudence",
+          "ref": "def.power.jurisprudence",
+          "bta": 82,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Loremastery",
+          "ref": "def.power.loremastery",
+          "rr": 55,
+          "bta": 82,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Performance",
+          "ref": "def.prof.performance",
+          "rr": 118,
+          "bta": 82,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Inspire Courage",
+          "ref": "def.power.inspireCourage",
+          "rr": 55,
+          "bta": 82,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Rhetorical Training",
+          "ref": "def.power.rhetoricalTraining",
+          "bta": 82,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Tireless",
+          "ref": "def.power.tireless",
+          "bta": 82,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.rhetorRenown",
+          "bta": 82,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Rule of Law",
+          "ref": "def.power.ruleOfLaw",
+          "bta": 82,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 82,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 82,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 82,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "bta": 82,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Linguistics",
+          "ref": "def.power.linguistics",
+          "bta": 82,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Rhetoric",
+          "ref": "def.power.rhetoric",
+          "bta": 83,
+          "disposition": "jjOnly"
+        }
+      ],
+      "dwarvenSporecaster": [
+        {
+          "name": "Necrosporing",
+          "ref": "def.power.necrosporing",
+          "jj": 324,
+          "bta": 85,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Dwarven Brewing",
+          "ref": "def.prof.dwarvenBrewing",
+          "rr": 112,
+          "bta": 85,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Alchemy",
+          "ref": "def.prof.alchemy",
+          "rr": 107,
+          "bta": 85,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Fungal Friendship",
+          "ref": "def.power.fungalFriendship",
+          "jj": 319,
+          "bta": 85,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Fungal Immunity",
+          "ref": "def.power.fungalImmunity",
+          "jj": 319,
+          "bta": 85,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Blooming Spores",
+          "ref": "def.power.bloomingSpores",
+          "bta": 85,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Fungal Humors",
+          "ref": "def.power.fungalHumors",
+          "bta": 85,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Blossoming Spores",
+          "ref": "def.power.blossomingSpores",
+          "bta": 85,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Mushroom Management",
+          "ref": "def.power.mushroomManagement",
+          "jj": 324,
+          "bta": 85,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Billowing Spores",
+          "ref": "def.power.billowingSpores",
+          "bta": 85,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Spore Servitude",
+          "ref": "def.power.sporeServitude",
+          "bta": 85,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Mushroom Mutation",
+          "ref": "def.power.mushroomMutation",
+          "bta": 85,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Fungal Spawn (10)",
+          "ref": "def.power.fungalSpawn",
+          "jj": 319,
+          "bta": 85,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.sporecasterRenown",
+          "bta": 85,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 85,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 85,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 85,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Attention to Detail",
+          "ref": "def.power.attentionToDetail",
+          "bta": 85,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Conventional Brewing",
+          "ref": "def.power.conventionalBrewing",
+          "bta": 85,
+          "disposition": "btaPrimary"
+        }
+      ],
+      "dwarvenTombsealer": [
+        {
+          "name": "Undead Slaying",
+          "ref": "def.power.undeadslaying",
+          "jj": 330,
+          "bta": 90,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Manual of Arms",
+          "ref": "def.prof.manualOfArms",
+          "rr": 116,
+          "bta": 90,
+          "disposition": "profEquivalent"
+        },
+        {
+          "name": "Detect Evil",
+          "ref": "def.power.detectEvil",
+          "jj": 316,
+          "bta": 90,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Lesser Rite of Sealing",
+          "ref": "def.power.lesserRiteOfSealing",
+          "bta": 90,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Aura of Protection",
+          "ref": "def.power.auraOfProtection",
+          "jj": 311,
+          "bta": 90,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Battlefield Prowess",
+          "ref": "def.power.battlefieldProwess",
+          "rr": 26,
+          "bta": 90,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Stalwart Soul",
+          "ref": "def.power.stalwartSoul",
+          "jj": 327,
+          "bta": 90,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Rite of Discovery",
+          "ref": "def.power.riteOfDiscovery",
+          "bta": 90,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Greater Rite of Sealing",
+          "ref": "def.power.greaterRiteOfSealing",
+          "jj": 319,
+          "bta": 90,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Renown",
+          "ref": "def.power.tombsealerRenown",
+          "bta": 90,
+          "disposition": "btaPrimary"
+        },
+        {
+          "name": "Dwarf Tongues",
+          "ref": "def.power.giftOfTongues",
+          "jj": 319,
+          "bta": 90,
+          "disposition": "jjPrimary"
+        },
+        {
+          "name": "Hardy",
+          "ref": "def.power.hardyPeople",
+          "rr": 83,
+          "bta": 90,
+          "disposition": "rrPrimary"
+        },
+        {
+          "name": "Sensitivity to Rock and Stone",
+          "ref": "def.power.sensitivityToRockAndStone",
+          "rr": 83,
+          "bta": 90,
+          "disposition": "rrPrimary"
+        }
+      ]
+    },
+    "proficiency": {
+      "Alertness": {
+        "key": "alertness",
+        "ref": "def.prof.alertness"
+      },
+      "tracking": {
+        "key": "tracking"
+      },
+      "Listening": {
+        "key": "listening"
+      },
+      "climbing": {
+        "key": "climbing"
+      },
+      "swimming": {
+        "key": "swimming"
+      },
+      "navigation": {
+        "key": "navigation"
+      },
+      "caving": {
+        "key": "caving"
+      },
+      "survival": {
+        "key": "survival"
+      },
+      "searching": {
+        "key": "searching"
+      },
+      "endurance": {
+        "key": "endurance"
+      },
+      "Loremastery": {
+        "key": "loremastery"
+      },
+      "Theology": {
+        "key": "theology"
+      },
+      "Precise shooting": {
+        "key": "preciseShooting"
+      },
+      "naturalism": {
+        "key": "naturalism"
+      },
+      "varies": {
+        "key": "varies"
+      },
+      "Hiding": {
+        "key": "hiding"
+      },
+      "seafaring": {
+        "key": "seafaring"
+      },
+      "disguise": {
+        "key": "disguise"
+      },
+      "Mimicry": {
+        "key": "mimicry"
+      },
+      "Prospecting": {
+        "key": "prospecting"
+      },
+      "skirmishing": {
+        "key": "skirmishing"
+      },
+      "Ambushing": {
+        "key": "ambushing"
+      },
+      "By class and level": {
+        "key": "byClassAndLevel"
+      },
+      "sneaking": {
+        "key": "sneaking"
+      },
+      "craft or Labor (various)": {
+        "key": "craftOrLaborVarious"
+      },
+      "sneaking 6+ (owls)": {
+        "key": "sneaking6PlusOwls"
+      },
+      "Manual of Arms": {
+        "key": "manualOfArms"
+      },
+      "combat trickery (knockdown)": {
+        "key": "combatTrickeryKnockdown"
+      },
+      "combat trickery (wrestling)": {
+        "key": "combatTrickeryWrestling"
+      },
+      "Animal Husbandry": {
+        "key": "animalHusbandry"
+      },
+      "Labor (vintner)": {
+        "key": "laborVintner"
+      },
+      "weapon Focus": {
+        "key": "weaponFocus"
+      },
+      "Acrobatics": {
+        "key": "acrobatics"
+      },
+      "seafaring 2": {
+        "key": "seafaring2"
+      },
+      "Labor (domestic chores)": {
+        "key": "laborDomesticChores"
+      },
+      "Labor (Mining)": {
+        "key": "laborMining"
+      },
+      "Performance 3": {
+        "key": "performance3"
+      },
+      "riding": {
+        "key": "riding"
+      },
+      "collegiate Magic": {
+        "key": "collegiateMagic"
+      },
+      "Berserkergang": {
+        "key": "berserkergang"
+      },
+      "trapbreaking": {
+        "key": "trapbreaking"
+      },
+      "skulking": {
+        "key": "skulking"
+      },
+      "Intimidation": {
+        "key": "intimidation"
+      },
+      "seamanship": {
+        "key": "seamanship"
+      },
+      "Labor or riding": {
+        "key": "laborOrRiding"
+      },
+      "Labor (fieldwork)": {
+        "key": "laborFieldwork"
+      },
+      "driving": {
+        "key": "driving"
+      },
+      "shooting (veteran only)": {
+        "key": "shootingVeteranOnly"
+      },
+      "Labor (varies)": {
+        "key": "laborVaries"
+      },
+      "swashbuckling": {
+        "key": "swashbuckling"
+      },
+      "running": {
+        "key": "running"
+      },
+      "climb": {
+        "key": "climb"
+      },
+      "various Mage profic.": {
+        "key": "variousMageProfic"
+      },
+      "Knowledge 3 (any)": {
+        "key": "knowledge3Any"
+      },
+      "Knowledge (various) 3": {
+        "key": "knowledgeVarious"
+      },
+      "Listen.": {
+        "key": "listen"
+      },
+      "combat reflexes": {
+        "key": "combatReflexes"
+      },
+      "Blind Fighting": {
+        "key": "blindFighting"
+      },
+      "Listen": {
+        "key": "listen"
+      },
+      "tracking 3+ (scent hound)": {
+        "key": "tracking3PlusScentHound"
+      },
+      "Alchemy": {
+        "key": "alchemy"
+      },
+      "Lockpicking": {
+        "key": "lockpicking"
+      },
+      "Pickpocket-ing": {
+        "key": "pickpocketIng"
+      },
+      "and Labor or riding": {
+        "key": "andLaborOrRiding"
+      },
+      "Bargaining": {
+        "key": "bargaining"
+      },
+      "Bribery": {
+        "key": "bribery"
+      },
+      "diplomacy": {
+        "key": "diplomacy"
+      },
+      "Precise shooting (veteran only)": {
+        "key": "preciseShootingVeteranOnly"
+      },
+      "riding (cavalry) or survival (bow)": {
+        "key": "ridingCavalryOrSurvivalBow"
+      },
+      "Precise shooting (level 1+ only)": {
+        "key": "preciseShootingLevel1PlusOnly"
+      }
+    },
+    "size": {
+      "Small": {
+        "key": "small"
+      },
+      "Man-sized": {
+        "key": "man"
+      },
+      "Man-Sized": {
+        "key": "man"
+      },
+      "Large": {
+        "key": "large"
+      },
+      "Huge": {
+        "key": "huge"
+      },
+      "Gigantic": {
+        "key": "gigantic"
+      },
+      "Colossal": {
+        "key": "colossal"
+      },
+      "Large/Huge/Gigantic": {
+        "key": "largeHugeGigantic"
+      },
+      "small": {
+        "key": "small"
+      },
+      "colossal": {
+        "key": "colossal"
+      }
+    },
+    "subtype": {
+      "bestial": {
+        "key": "bestial"
+      },
+      "angel": {
+        "key": "angel"
+      },
+      "wild": {
+        "key": "wild"
+      },
+      "sapient": {
+        "key": "sapient"
+      },
+      "demi-human": {
+        "key": "demiHuman"
+      },
+      "giant": {
+        "key": "giant"
+      },
+      "domestic": {
+        "key": "domestic"
+      },
+      "elemental": {
+        "key": "elemental"
+      },
+      "prehistoric": {
+        "key": "prehistoric"
+      },
+      "demon": {
+        "key": "demon"
+      },
+      "domestic or wild": {
+        "key": "domesticOrWild"
+      },
+      "angel or demon": {
+        "key": "angelOrDemon"
+      },
+      "dire": {
+        "key": "dire"
+      }
+    }
+  },
+  "nodes": {
+    "def.type.animal": {
+      "role": "definition",
+      "name": "Animal",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Animal:"
+          }
+        }
+      }
+    },
+    "def.type.beastman": {
+      "role": "definition",
+      "name": "Beastman",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Beastman:"
+          }
+        }
+      }
+    },
+    "def.type.construct": {
+      "role": "definition",
+      "name": "Construct",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Construct:"
+          }
+        }
+      },
+      "note": "ACKS type rule: constructs are immune to enchantment effects, necrotic damage, and poisonous damage.",
+      "defenses": {
+        "immunities": {
+          "damage": [
+            "necrotic",
+            "poisonous"
+          ],
+          "effects": [
+            "enchantment"
+          ]
+        }
+      }
+    },
+    "def.type.enchanted": {
+      "role": "definition",
+      "name": "Enchanted Creature",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Enchanted Creature:"
+          }
+        }
+      }
+    },
+    "def.type.giant": {
+      "role": "definition",
+      "name": "Giant",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Giants:"
+          }
+        }
+      }
+    },
+    "def.type.humanoid": {
+      "role": "definition",
+      "name": "Humanoid",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Humanoid:"
+          }
+        }
+      }
+    },
+    "def.type.incarnation": {
+      "role": "definition",
+      "name": "Incarnation",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            11
+          ],
+          "anchor": {
+            "runin": "Incarnation:"
+          }
+        }
+      }
+    },
+    "def.type.monstrosity": {
+      "role": "definition",
+      "name": "Monstrosity",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Monstrosity:"
+          }
+        }
+      }
+    },
+    "def.type.ooze": {
+      "role": "definition",
+      "name": "Ooze",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Ooze:"
+          }
+        }
+      },
+      "note": "ACKS type rule: oozes vary, but all are immune to enchantment effects.",
+      "defenses": {
+        "immunities": {
+          "effects": [
+            "enchantment"
+          ]
+        }
+      }
+    },
+    "def.type.plant": {
+      "role": "definition",
+      "name": "Plant",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Plant:"
+          }
+        }
+      },
+      "note": "ACKS type rule: all plants are immune to necrotic damage and poisonous damage.",
+      "defenses": {
+        "immunities": {
+          "damage": [
+            "necrotic",
+            "poisonous"
+          ]
+        }
+      }
+    },
+    "def.type.undead": {
+      "role": "definition",
+      "name": "Undead",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Undead:"
+          }
+        }
+      },
+      "note": "ACKS type rule: all undead are immune to enchantment effects, necrotic damage, and poisonous damage.",
+      "defenses": {
+        "immunities": {
+          "damage": [
+            "necrotic",
+            "poisonous"
+          ],
+          "effects": [
+            "enchantment"
+          ]
+        }
+      }
+    },
+    "def.type.vermin": {
+      "role": "definition",
+      "name": "Vermin",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            12
+          ],
+          "anchor": {
+            "runin": "Vermin:"
+          }
+        }
+      }
+    },
+    "def.dmg.acidic": {
+      "role": "definition",
+      "name": "Acidic",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.arcane": {
+      "role": "definition",
+      "name": "Arcane",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.bludgeoning": {
+      "role": "definition",
+      "name": "Bludgeoning",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.necrotic": {
+      "role": "definition",
+      "name": "Necrotic",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.cold": {
+      "role": "definition",
+      "name": "Cold",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.electrical": {
+      "role": "definition",
+      "name": "Electrical",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.fire": {
+      "role": "definition",
+      "name": "Fire",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.luminous": {
+      "role": "definition",
+      "name": "Luminous",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.slashing": {
+      "role": "definition",
+      "name": "Slashing",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.piercing": {
+      "role": "definition",
+      "name": "Piercing",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.poisonous": {
+      "role": "definition",
+      "name": "Poisonous",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.seismic": {
+      "role": "definition",
+      "name": "Seismic",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.dmg.varies": {
+      "role": "definition",
+      "name": "Varies",
+      "editions": {
+        "acks2": {
+          "book": "mm",
+          "pages": [
+            14
+          ]
+        }
+      }
+    },
+    "def.prof.alertness": {
+      "role": "definition",
+      "name": "Alertness",
+      "editions": {
+        "acks2": {
+          "book": "rr",
+          "pages": []
+        }
+      }
+    }
+  },
+  "derive": {
+    "powerValue": {
+      "pattern": "counts\\s*as\\s+((?:\\d+\\s+)?\\d+\\s*/\\s*\\d+|\\d+)\\s*(?:a\\s+)?(?:custom\\s+)?powers?\\b",
+      "as": "count"
+    }
+  }
+}

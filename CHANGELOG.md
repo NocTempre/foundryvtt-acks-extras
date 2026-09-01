@@ -1,5 +1,43 @@
 # Changelog
 
+## 6.0.0
+
+**The importer is part of Extras now — one module, one library, and nothing
+left behind.**
+
+### Changed
+- **ACKS II — Importer merged into this module.** Connecting your books,
+  importing everything the cookbook ships, browsing and auditing entries, and
+  importing another game's adventures are Extras features now: the four
+  macros ship in the *ACKS Extras Macros* compendium under *Your Books* and
+  *Import from your books*, the importer's settings sit with the rest under
+  ACKS II — Extras, and its guide is
+  [Importing from your books](docs/guides/importer.md). The separate module
+  is retired — its repository is an archive, and this module declares a
+  conflict with it so Foundry says so too.
+- **Upgrading is one disable and one reload.** Disable *ACKS II — Importer*
+  and reload. While it is still active the built-in importer stays off and
+  says so on every load, so two importers never write one library. On the
+  first load without it, everything the old module owned is carried over,
+  once: the imported library — every document on every *ACKS Cookbook* shelf
+  and in the sidebar, at every depth — the server-held book shelf, any
+  registered OSE sources, this seat's importer settings, and any imported
+  macros still addressing the old module. The notice reports the count.
+  Per-seat book locations were never in the old module's name and need
+  nothing.
+- **`game-icons-net`** moved from the importer's recommendations to this
+  module's.
+
+### For module authors
+- `globalThis.acksImporter` is gone; the api is `acksExtras.importer`
+  (`game.modules.get("acks-extras").api.importer`), the same surface under a
+  new key.
+- Imported documents are stamped in this module's own flag scope:
+  `flags["acks-extras"].cookbook` (was `flags["acks-importer"].cookbook`), and
+  the importer's `generated` marker is now `minted`.
+- `ability-provider` and `ruledata-import` remain the named seams; nothing
+  outside this module registers or is required to.
+
 ## 5.8.0
 
 **A city is walked across, not clicked through — and on the road, the day

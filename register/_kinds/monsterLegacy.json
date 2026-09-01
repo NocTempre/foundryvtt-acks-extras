@@ -1,0 +1,31 @@
+{
+  "id": "kind.monsterLegacy",
+  "role": "composite",
+  "note": "ACKS I appendix stat block (AX line New Monsters): a label column ('% In Lair:', 'Movement:', ...) with one value column per variant, prose below. One register entry per variant; assists.variantCol picks the x-band by variant heading run. No damage glyphs or ink-color qualities in this era - attacks/damage stay raw text. Binding routes to an actor like kind.monster.",
+  "fields": {
+    "name": { "locate": "display" },
+    "description": { "locate": "proseFlow", "type": "blocks" },
+    "stats": {
+      "locate": "labelColumn",
+      "rows": {
+        "% In Lair": { "field": "lairChance", "pattern": "raw" },
+        "Dungeon Enc": { "field": "dungeonEnc", "pattern": "raw" },
+        "Wilderness Enc": { "field": "wildernessEnc", "pattern": "raw" },
+        "Alignment": { "field": "alignment", "pattern": "raw", "table": "alignment" },
+        "Movement": { "field": "movement", "pattern": "raw" },
+        "Climb": { "field": "speedClimb", "pattern": "raw" },
+        "Fly": { "field": "speedFly", "pattern": "raw" },
+        "Swim": { "field": "speedSwim", "pattern": "raw" },
+        "Burrow": { "field": "speedBurrow", "pattern": "raw" },
+        "Armor Class": { "field": "armorClass", "pattern": "int" },
+        "Hit Dice": { "field": "hitDice", "pattern": "raw" },
+        "Attacks": { "field": "attacks", "pattern": "raw" },
+        "Damage": { "field": "damage", "pattern": "raw" },
+        "Save": { "field": "save", "pattern": "raw" },
+        "Morale": { "field": "morale", "pattern": "raw" },
+        "Treasure Type": { "field": "treasureType", "pattern": "raw" },
+        "XP": { "field": "xp", "pattern": "int" }
+      }
+    }
+  }
+}

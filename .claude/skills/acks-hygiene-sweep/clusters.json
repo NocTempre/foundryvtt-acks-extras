@@ -1,8 +1,7 @@
 {
- "_comment": "Cluster -> file map for /acks-hygiene-sweep. SINGLE SOURCE OF TRUTH: plan-sweep.mjs reads this to pick clusters for a delta run, and passes the selected entries to sweep.workflow.mjs as args.clusters (workflow scripts cannot read the filesystem). Every source file in both repos belongs to exactly one cluster — add a cluster or extend a file list when a repo grows a new directory, or plan-sweep.mjs --check will report the file as unowned.",
+ "_comment": "Cluster -> file map for /acks-hygiene-sweep. SINGLE SOURCE OF TRUTH: plan-sweep.mjs reads this to pick clusters for a delta run, and passes the selected entries to sweep.workflow.mjs as args.clusters (workflow scripts cannot read the filesystem). Every source file in the repo (the importer subsystem under scripts/importer/ and tools/importer/ included) belongs to exactly one cluster — add a cluster or extend a file list when a repo grows a new directory, or plan-sweep.mjs --check will report the file as unowned.",
  "repos": {
-  "foundryvtt-acks-extras": "C:/Proj/foundryvtt-acks-extras",
-  "foundryvtt-acks-importer": "C:/Proj/foundryvtt-acks-importer"
+  "foundryvtt-acks-extras": "C:/Proj/foundryvtt-acks-extras"
  },
  "clusters": [
   {
@@ -406,10 +405,10 @@
   },
   {
    "id": "I1",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "cookbook.mjs part 1 of 2",
    "partial": {
-    "file": "scripts/cookbook.mjs",
+    "file": "scripts/importer/cookbook.mjs",
     "startLine": 1,
     "endLine": 2600,
     "totalLines": 4932
@@ -417,10 +416,10 @@
   },
   {
    "id": "I2",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "cookbook.mjs part 2 of 2",
    "partial": {
-    "file": "scripts/cookbook.mjs",
+    "file": "scripts/importer/cookbook.mjs",
     "startLine": 2450,
     "endLine": 4932,
     "totalLines": 4932
@@ -428,58 +427,58 @@
   },
   {
    "id": "I3",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "executor + extract engine",
    "files": [
-    "scripts/executor.mjs",
-    "scripts/extract.mjs"
+    "scripts/importer/executor.mjs",
+    "scripts/importer/extract.mjs"
    ]
   },
   {
    "id": "I4",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "table extraction + table recipes",
    "files": [
-    "scripts/table-extract.mjs",
-    "scripts/table-recipes.mjs"
+    "scripts/importer/table-extract.mjs",
+    "scripts/importer/table-recipes.mjs"
    ]
   },
   {
    "id": "I5",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "category extractors + monster stat mapping",
    "files": [
-    "scripts/weapon-tables.mjs",
-    "scripts/armor-tables.mjs",
-    "scripts/gear-prices.mjs",
-    "scripts/stats.mjs",
-    "scripts/stats-map.mjs"
+    "scripts/importer/weapon-tables.mjs",
+    "scripts/importer/armor-tables.mjs",
+    "scripts/importer/gear-prices.mjs",
+    "scripts/importer/stats.mjs",
+    "scripts/importer/stats-map.mjs"
    ]
   },
   {
    "id": "I6",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "entry point + support scripts + stylesheet",
    "files": [
-    "scripts/module.mjs",
-    "scripts/books.mjs",
-    "scripts/recipes.mjs",
-    "scripts/poc.mjs",
-    "scripts/getting-started.mjs",
-    "scripts/progress.mjs",
-    "scripts/constants.mjs",
-    "scripts/tables-binding.mjs",
-    "styles/module.css",
-    "scripts/book-match.mjs",
-    "scripts/builder-binding.mjs"
+    "scripts/importer/module.mjs",
+    "scripts/importer/books.mjs",
+    "scripts/importer/recipes.mjs",
+    "scripts/importer/poc.mjs",
+    "scripts/importer/getting-started.mjs",
+    "scripts/importer/progress.mjs",
+    "scripts/importer/constants.mjs",
+    "scripts/importer/tables-binding.mjs",
+    "styles/importer.css",
+    "scripts/importer/book-match.mjs",
+    "scripts/importer/builder-binding.mjs"
    ]
   },
   {
    "id": "I7",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "compile-cookbook.mjs part 1 of 2",
    "partial": {
-    "file": "tools/compile-cookbook.mjs",
+    "file": "tools/importer/compile-cookbook.mjs",
     "startLine": 1,
     "endLine": 1900,
     "totalLines": 3537
@@ -488,10 +487,10 @@
   },
   {
    "id": "I8",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "compile-cookbook.mjs part 2 of 2",
    "partial": {
-    "file": "tools/compile-cookbook.mjs",
+    "file": "tools/importer/compile-cookbook.mjs",
     "startLine": 1700,
     "endLine": 3537,
     "totalLines": 3537
@@ -500,66 +499,66 @@
   },
   {
    "id": "I9",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "validate/lint/build/pack tooling",
    "files": [
-    "tools/validate.mjs",
-    "tools/validate-extra.mjs",
-    "tools/lint-register.mjs",
-    "tools/build-packs.mjs",
-    "tools/pack-data.mjs"
+    "tools/importer/validate.mjs",
+    "tools/importer/validate-extra.mjs",
+    "tools/importer/lint-register.mjs",
+    "tools/importer/build-packs.mjs",
+    "tools/importer/pack-data.mjs"
    ],
    "toolingCluster": true
   },
   {
    "id": "I10",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "acceptance-gate tooling",
    "files": [
-    "tools/verify-cookbook.mjs",
-    "tools/verify-against-compendium.mjs",
-    "tools/check-cookbook-drift.mjs"
+    "tools/importer/verify-cookbook.mjs",
+    "tools/importer/verify-against-compendium.mjs",
+    "tools/importer/check-cookbook-drift.mjs"
    ],
    "toolingCluster": true
   },
   {
    "id": "I11",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "authoring/fleet pipeline lifecycle tools",
    "files": [
-    "tools/harvest-page.mjs",
-    "tools/harvest-index.mjs",
-    "tools/harvest-conversions.mjs",
-    "tools/merge-recipes.mjs",
-    "tools/promote-candidates.mjs",
-    "tools/seed-entries.mjs",
-    "tools/build-chefdb.mjs",
-    "tools/ledger-init.mjs"
+    "tools/importer/harvest-page.mjs",
+    "tools/importer/harvest-index.mjs",
+    "tools/importer/harvest-conversions.mjs",
+    "tools/importer/merge-recipes.mjs",
+    "tools/importer/promote-candidates.mjs",
+    "tools/importer/seed-entries.mjs",
+    "tools/importer/build-chefdb.mjs",
+    "tools/importer/ledger-init.mjs"
    ],
    "toolingCluster": true
   },
   {
    "id": "I12",
-   "repo": "foundryvtt-acks-importer",
+   "repo": "foundryvtt-acks-extras",
    "label": "small dev utilities + tests",
    "files": [
-    "tools/ip-scan.mjs",
-    "tools/ip-quarantine.mjs",
-    "tools/audit-dump.mjs",
-    "tools/dump-entry.mjs",
-    "tools/propose-icons.mjs",
-    "tools/reference-lib.mjs",
-    "tools/dev-extract-check.mjs",
-    "tools/find-anchor.mjs",
-    "tools/probe-table.mjs",
-    "tools/test-weapon-tables.mjs",
-    "tools/test-armor-tables.mjs",
-    "tools/test-gear-prices.mjs",
-    "tools/test-executor.mjs",
-    "tools/test-equipment-binding.mjs",
-    "tools/test-book-match.mjs",
-    "tools/test-class-builder-tables.mjs",
-    "tools/test-starting-equipment.mjs"
+    "tools/importer/ip-scan.mjs",
+    "tools/importer/ip-quarantine.mjs",
+    "tools/importer/audit-dump.mjs",
+    "tools/importer/dump-entry.mjs",
+    "tools/importer/propose-icons.mjs",
+    "tools/importer/reference-lib.mjs",
+    "tools/importer/dev-extract-check.mjs",
+    "tools/importer/find-anchor.mjs",
+    "tools/importer/probe-table.mjs",
+    "tools/importer/test-weapon-tables.mjs",
+    "tools/importer/test-armor-tables.mjs",
+    "tools/importer/test-gear-prices.mjs",
+    "tools/importer/test-executor.mjs",
+    "tools/importer/test-equipment-binding.mjs",
+    "tools/importer/test-book-match.mjs",
+    "tools/importer/test-class-builder-tables.mjs",
+    "tools/importer/test-starting-equipment.mjs"
    ],
    "toolingCluster": true
   }

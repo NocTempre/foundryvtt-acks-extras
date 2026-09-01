@@ -1,0 +1,75 @@
+[
+  {
+    "id": "def.prof.weaponProficiency",
+    "kind": "kind.combatProficiency",
+    "book": "rr",
+    "name": "Weapons",
+    "anchor": {
+      "subheading": "Weapons"
+    },
+    "pages": [
+      17
+    ],
+    "meta": {
+      "category": "weaponProficiency"
+    },
+    "icon": "systems/acks/assets/icons/crossed-swords.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/sword-array.svg"
+  },
+  {
+    "id": "def.prof.armorProficiency",
+    "kind": "kind.combatProficiency",
+    "book": "rr",
+    "name": "Armor",
+    "anchor": {
+      "subheading": "Armor"
+    },
+    "pages": [
+      17
+    ],
+    "meta": {
+      "category": "armorProficiency"
+    },
+    "icon": "systems/acks/assets/icons/scale-mail.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/armor-vest.svg"
+  },
+  {
+    "id": "def.prof.fightingStyles",
+    "kind": "kind.combatProficiency",
+    "book": "rr",
+    "name": "Fighting Styles",
+    "anchor": {
+      "subheading": "Fighting Styles"
+    },
+    "pages": [
+      17
+    ],
+    "meta": {
+      "category": "fightingStyle",
+      "provides": [
+        "kw:fightingstyles"
+      ]
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/weapon-and-shield.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/duel.svg"
+  },
+  {
+    "id": "def.prof.nonProficientUse",
+    "kind": "kind.combatProficiency",
+    "book": "rr",
+    "name": "Non-Proficient Use of Weapons and Armor",
+    "anchor": {
+      "subheading": "Non-Proficient Use of Weapons and Armor"
+    },
+    "pages": [
+      17
+    ],
+    "meta": {
+      "category": "proficiency"
+    },
+    "icon": "systems/acks/assets/icons/cancel.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/broken-shield.svg"
+  }
+]

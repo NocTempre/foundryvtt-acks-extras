@@ -1,0 +1,530 @@
+/* Styles for the importer subsystem's dialogs — every selector scoped under
+   acks-extras-importer-*.
+
+   Colour, type and rule work read the ACKS design tokens, declared at `:root`
+   by acks-extras' own lib subsystem, so nothing here vendors a second copy of
+   them.
+
+   Tokens are read BARE — the name alone, never a literal fallback after the
+   comma. A fallback survives a missing declaration silently and then holds that
+   one value in every theme. Foundry's own `--color-*` variables have the same
+   defect by construction: they are declared once, unscoped, so they are
+   light-theme constants and a dark seat renders them unchanged. Neither a
+   `--color-*` read nor a colour literal belongs in this file. */
+
+/* -------------------------------------------- */
+/*  Dialog contract                             */
+/* -------------------------------------------- */
+
+/* Every dialog this module opens carries `acks-extras-importer-dialog`, and this is
+   what the class buys: one scroll region inside the content, with the buttons
+   pinned below it. A new dialog inherits the fix by wearing the class.
+
+   Core caps the frame at `calc(100vh - 1.5 * var(--hotbar-height))` and gives
+   `.application .window-content` `overflow: hidden`. The frame, the content,
+   the dialog form and the dialog body are all column flex boxes whose items
+   resolve `min-height` to `auto`, so nothing in that chain may shrink: the
+   frame stops at the cap, the surplus is clipped, and the footer — last in the
+   column — is the first thing to vanish, with no scrollbar to say so. Every
+   rung therefore has to be told it may shrink, down to the one that scrolls.
+
+   Specificity is not decoration here. Core's `.application .window-content`
+   is (0,2,0), so a single class never outranks it — which is why core's own
+   `.scrollable` cannot reach it. Module sheets load unlayered today and would
+   win on the cascade alone, but core's layer list reserves a `modules` layer,
+   so each rule carries its own weight instead of borrowing that. The module
+   class leads the selector because the namespacing check reads the first
+   class on the line. */
+.acks-extras-importer-dialog.application .window-content {
+  min-height: 0;
+}
+
+.acks-extras-importer-dialog.application .dialog-form {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The scroller. Core's own `.scrollable` idiom: a stable gutter so the layout
+   does not jump the moment content passes the fold, pulled back out of the
+   padding so text keeps the window's right edge. `overflow-wrap: anywhere`
+   rather than `break-word` because it also lowers min-content width — a
+   remembered path or a joined file list is one unbreakable token, and it is
+   the intrinsic width that would otherwise push the window sideways into the
+   horizontal clip. */
+.acks-extras-importer-dialog.application .dialog-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  --scroll-margin: 0.75rem;
+  margin-right: calc(-1 * var(--scroll-margin));
+  padding-right: var(--scroll-margin);
+  overflow: hidden auto;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
+}
+
+/* The buttons are the way out of the dialog: they keep their height whatever
+   the content does. */
+.acks-extras-importer-dialog.application .form-footer {
+  flex: 0 0 auto;
+}
+
+/* A select's intrinsic width is its longest option, and a book row can name a
+   remembered path. The window has no horizontal scroll to recover from that,
+   so the control is allowed to shrink and clip its own text instead. */
+.acks-extras-importer-dialog select {
+  min-width: 0;
+}
+
+/* The scroller's `overflow-wrap: anywhere` is inherited by everything under it,
+   and unlike `break-word` it also lowers MIN-CONTENT width — to a single
+   character. For prose in a column that is the whole point. In a flex row it is
+   the opposite of what is wanted: a flex item's automatic minimum size IS its
+   min-content width, so a label beside a control that will not shrink is ground
+   down to a vertical column of letters rather than wrapping the row or pushing
+   the control. Every flex row this module puts inside a dialog therefore breaks
+   at word boundaries, and inside a word only as a last resort — which leaves
+   min-content at the longest word. There is no selector for "is a flex
+   container": a new row has to join this list. */
+.acks-extras-importer-dialog
+  :is(
+    .acks-extras-importer-reconnect-head,
+    .acks-extras-importer-browse-row,
+    .acks-extras-importer-gs-action,
+    .acks-extras-importer-band-actions,
+    .acks-extras-importer-abil-filters,
+    .acks-extras-importer-abil-actions
+  ) {
+  overflow-wrap: break-word;
+}
+
+/* `.notes` is an AppV1 class: core styles it only under `body.game .app form`,
+   and a DialogV2 root is `.application`, never `.app` — so an unstyled hint
+   renders as body text at 14px with a paragraph's own margins. Core's v14
+   spelling is `.hint`; both are matched here so markup written either way
+   lands the same. `flex` is deliberately left alone: these paragraphs sit in a
+   COLUMN flex box, where core's `flex: 0 0 100%` would mean "as tall as the
+   dialog". Margins are zero because the standard-form gap owns the rhythm;
+   a hint nested inside a row sets its own. */
+.acks-extras-importer-dialog :is(.notes, .hint) {
+  margin: 0;
+  font-size: var(--acks-fs-label);
+  line-height: var(--acks-lh-snug);
+  color: var(--acks-ink-soft);
+}
+
+/* Imported book text: the books' own callout idiom — a tinted panel held by a
+   spot-colour rule down its leading edge, so an extract reads as quoted matter
+   and not as the module's own prose. The stroke is the HEAVY rule, which is the
+   weight every tinted callout in the family carries. The tint is a fill, not a
+   translucency, so it stays legible whatever ground a description field gives
+   it. */
+.acks-extras-importer-book-text {
+  display: block;
+  margin: 0.35em 0 0.15em;
+  padding: 0.4em 0.6em;
+  border-left: var(--acks-rule-heavy) solid var(--acks-rule-color);
+  background: var(--acks-tint);
+  /* The fill brings its own ink. A panel that states an OPAQUE ground and
+     borrows its text colour from whatever it was dropped into is legible only
+     by luck: tint and ink inverting together is what makes the pair readable,
+     and these blocks land in sheets and chat cards coloured by core, which can
+     be carrying the opposite end of the scale. Never state one without the
+     other. */
+  color: var(--acks-ink);
+  font-style: normal;
+}
+
+/* The closing line of an imported block, and the same figure wherever a dialog
+   row cites a page. */
+.acks-extras-importer-cite {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+/* The elastic part of every browse dialog: the list takes whatever height the
+   window has left, so dragging the window taller shows more rows rather than
+   more empty space — which is exactly what a fixed pixel cap cannot do. The
+   floor keeps a few rows readable when the filters and buttons above have
+   claimed the rest, and the list stays its own scroller so the sticky book and
+   group headings have something to stick to. Spacing below is the
+   standard-form gap's job, not a margin's. */
+.acks-extras-importer-browse-list {
+  flex: 1 1 auto;
+  min-height: 6em;
+  overflow-y: auto;
+  border: var(--acks-border-soft);
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+}
+
+.acks-extras-importer-browse-row {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  padding: var(--acks-sp-1) 0;
+}
+
+.acks-extras-importer-browse-row .acks-extras-importer-cite {
+  margin-left: auto;
+}
+
+/* Book / group headings inside the monster-import list: one list spans every
+   connected book, so each block has to say where it came from. Sticky so the
+   heading stays visible while scrolling a long book — which is why the ground
+   is the opaque paper token and not a tint: rows pass underneath it — and, by
+   the same rule as the reveal panel, an opaque ground states its own ink. */
+.acks-extras-importer-book-head,
+.acks-extras-importer-group-head {
+  position: sticky;
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+  padding: 3px 0 2px;
+}
+
+.acks-extras-importer-book-head {
+  top: 0;
+  margin-top: var(--acks-sp-3);
+  font-weight: var(--acks-weight-bold);
+  border-bottom: var(--acks-border-soft);
+  z-index: 2;
+}
+
+.acks-extras-importer-group-head {
+  top: 1.4em;
+  margin-top: 3px;
+  font-size: 0.9em;
+  opacity: 0.75;
+  padding-left: 0.4em;
+  z-index: 1;
+}
+
+/* GM ability tools in the Item directory header. Sits above the search box, so
+   it keeps the directory's own spacing rather than introducing its own. */
+.acks-extras-importer-ability-tools {
+  display: flex;
+  gap: var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-2);
+}
+
+.acks-extras-importer-ability-tools button {
+  flex: 1;
+  font-size: var(--acks-fs-label);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* Browse dialogs (abilities and monsters): filters, bulk actions, per-row
+   markers. Named for the ability dialog they were built for; the monster
+   dialog now shares them rather than restating the same rules. */
+.acks-extras-importer-abil-filters,
+.acks-extras-importer-abil-actions {
+  display: flex;
+  gap: var(--acks-sp-3);
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.acks-extras-importer-abil-filters input[type="text"] {
+  flex: 1;
+}
+
+.acks-extras-importer-abil-actions .acks-extras-importer-abil-count {
+  margin-left: auto;
+  font-size: var(--acks-fs-label);
+  opacity: 0.8;
+}
+
+/* Per-row markers: alias, deprecated, already-present. Each is a distinct
+   glyph, so the set carries its meaning without hue — the whole group is held
+   back from the row's name by opacity alone and inherits the row's ink. */
+.acks-extras-importer-marks {
+  display: inline-flex;
+  gap: var(--acks-sp-2);
+  margin-left: var(--acks-sp-3);
+  opacity: 0.75;
+  font-size: var(--acks-fs-label);
+}
+
+/* Reconnect dialog: one row per book that could not reopen itself. A row is
+   either a line of explanation (handle/url) or a file picker (the browsers
+   that cannot reopen a file at all), so the rule set has to suit both. */
+.acks-extras-importer-reconnect-row {
+  padding: 3px 0;
+  border-top: var(--acks-border-soft);
+}
+
+/* Nested in a row rather than in the dialog's own column, so this one carries
+   its own spacing; size and colour come from the dialog contract. */
+.acks-extras-importer-reconnect-row .notes {
+  margin: var(--acks-sp-1) 0 0;
+}
+
+/* A book's name and its control share the line while both fit, and the control
+   drops to a line of its own when they do not. A file picker is a fixed slab of
+   browser chrome — its button and "no file chosen" are its own, and no amount
+   of shrinking makes them narrower — so on the widest book names there is not
+   room for both, and wrapping is the only answer that leaves the name whole. */
+.acks-extras-importer-reconnect-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  align-items: center;
+}
+
+/* `auto` basis, not `0`: the name asks for its full width first, which is what
+   decides whether the row wraps. A zero basis would always fit and so never
+   wrap, leaving the name to be squeezed instead. */
+.acks-extras-importer-reconnect-head strong {
+  flex: 1 1 auto;
+}
+
+/* Grows to own the line it wraps onto; shrinks below its chrome only once the
+   reader has dragged the window narrower than one, clipping like the selects. */
+.acks-extras-importer-reconnect-head input[type="file"] {
+  flex: 1 1 15em;
+  min-width: 0;
+}
+
+.acks-extras-importer-reconnect-head button {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* A row can carry two pickers — one connects the book here, one puts it on the
+   server — and a bare file input says which it is nowhere. The staging one
+   wears its name, so the pair is never a guess. */
+.acks-extras-importer-shelf-pick {
+  display: flex;
+  flex: 1 1 18em;
+  gap: 0.35em;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.acks-extras-importer-shelf-pick input[type="file"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.acks-extras-importer-reconnect-done {
+  opacity: 0.6;
+}
+
+/* The walkthrough band: its own headings, actions on their own row. */
+.acks-extras-importer-gs h4 {
+  margin: 0.6em 0 0.2em;
+  border-bottom: var(--acks-border-soft);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-importer-gs-action {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  margin: 0.3em 0 0.5em;
+}
+
+.acks-extras-importer-gs-action button {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.acks-extras-importer-gs-action .notes {
+  margin: 0;
+  opacity: 0.85;
+}
+
+.acks-extras-importer-gs-dismiss {
+  display: flex;
+  gap: 0.4em;
+  align-items: center;
+  margin-top: 0.5em;
+  font-size: var(--acks-fs-label);
+}
+
+/* Entry dump: one JSON line can be longer than the window, and `pre` neither
+   wraps nor answers to the dialog's `overflow-wrap`, so it is wrapped here
+   explicitly rather than widening the window into the horizontal clip. */
+.acks-extras-importer-debug-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The Books window is four bands (walkthrough, server, this computer, the
+   books). A band is a titled group with a rule above it; the heading sits
+   tight to its content so the rule reads as a divider between bands rather
+   than a box around each. */
+.acks-extras-importer-books .acks-extras-importer-band {
+  margin-top: var(--acks-sp-2);
+  padding-top: var(--acks-sp-2);
+  border-top: var(--acks-border-soft);
+}
+
+.acks-extras-importer-books .acks-extras-importer-band > h4 {
+  margin: 0 0 var(--acks-sp-1);
+  font-size: var(--acks-fs-label);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--acks-ink-soft);
+}
+
+/* A row of controls that answer for several books at once. Wraps like every
+   other flex row here, and its file input grows into the line it wraps onto. */
+.acks-extras-importer-band-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  align-items: center;
+  margin-bottom: var(--acks-sp-1);
+}
+
+.acks-extras-importer-band-actions button {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.acks-extras-importer-band-actions input[type="file"] {
+  flex: 1 1 15em;
+  min-width: 0;
+}
+
+/* Book groups collapse behind their count. This is what a twenty-book shelf
+   needed and a six-row `<select>` could never give: the books WAITING stay
+   open, and the ones with nothing to ask for fold away. A summary is a list
+   item by default in some engines, so the marker is restated here rather than
+   inherited. */
+.acks-extras-importer-books .acks-extras-importer-book-group > summary,
+.acks-extras-importer-books .acks-extras-importer-gs > summary {
+  cursor: pointer;
+  padding: var(--acks-sp-1) 0;
+  font-weight: 600;
+}
+
+.acks-extras-importer-books .acks-extras-importer-book-group[open] > summary {
+  border-bottom: var(--acks-border-soft);
+}
+
+/* A shelved book is stated, not actioned: the server answers for it, so the
+   row carries no picker and reads as settled. */
+.acks-extras-importer-shelf-row strong {
+  font-weight: 600;
+}
+
+/* Forgetting is destructive and confirmed, so it is coloured as the exception
+   among a window full of ordinary controls. */
+.acks-extras-importer-dialog button.acks-extras-importer-danger {
+  color: var(--acks-ink-warn, inherit);
+}
+
+/* One row per ability whose description would be replaced: its name and choice
+   on one line, the text that would be lost underneath. */
+.acks-extras-importer-collide-row {
+  padding: var(--acks-sp-2) 0;
+  border-bottom: var(--acks-border-soft);
+}
+
+.acks-extras-importer-collide-row:last-child {
+  border-bottom: none;
+}
+
+/* --- Importing another game's books (docs/importer/OSE.md) -------------------------- */
+
+/* One candidate stat block in the review dialog. Each is a self-contained
+   judgement — the block as printed, what it converted to, and what was left
+   alone — so each gets its own frame rather than a row in a list. */
+.acks-extras-importer-ose-block {
+  border: 1px solid var(--acks-rule-color);
+  border-radius: 3px;
+  padding: var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-3);
+}
+
+/* A candidate the locator marked: another game's block, or two creatures read
+   as one. Its checkbox is disabled, so the styling has to say why it looks
+   inert rather than merely looking different. */
+.acks-extras-importer-ose-blocked {
+  border-style: dashed;
+  opacity: 0.85;
+}
+.acks-extras-importer-ose-warn {
+  color: var(--acks-ink);
+  background: var(--acks-tint);
+  border-left: 3px solid var(--acks-rule-heavy);
+  padding: var(--acks-sp-1) var(--acks-sp-2);
+  margin: 0 0 var(--acks-sp-2);
+  font-size: 0.9em;
+}
+
+/* The block exactly as extracted — evidence to hold against the page, so it
+   wraps rather than scrolls and keeps its own spacing. */
+.acks-extras-importer-ose-raw {
+  font-family: monospace;
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 var(--acks-sp-2);
+  padding: var(--acks-sp-1) var(--acks-sp-2);
+  background: var(--acks-tint);
+  border-radius: 3px;
+}
+
+.acks-extras-importer-ose-axes {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+.acks-extras-importer-ose-axes th {
+  text-align: left;
+  color: var(--acks-ink-soft);
+  font-weight: var(--acks-weight-bold);
+  border-bottom: 1px solid var(--acks-rule-color);
+  padding: var(--acks-sp-1);
+}
+.acks-extras-importer-ose-axes td {
+  padding: var(--acks-sp-1);
+  border-bottom: 1px solid var(--acks-border-soft);
+  vertical-align: top;
+}
+
+/* An axis the converter refused to fill. Muted rather than alarming: a gap is
+   the correct outcome for a value neither rulebook supplies, not a failure. */
+.acks-extras-importer-ose-gap td {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+
+/* The hand-conversion editor. Each row is one label's clause in the source
+   game's own idiom, so the fields read like the block they came from — the
+   label narrow and fixed, the clause taking the rest of the width. */
+.acks-extras-importer-ose-fields .acks-extras-importer-ose-row {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-1);
+}
+.acks-extras-importer-ose-fields .acks-extras-importer-ose-row > label {
+  flex: 0 0 4.5em;
+  font-weight: var(--acks-weight-bold);
+  color: var(--acks-ink-soft);
+}
+.acks-extras-importer-ose-fields .acks-extras-importer-ose-row > input {
+  flex: 1 1 auto;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+/* Wording recovered only because a book taught it: a quiet note, because it is
+   the tool working rather than something needing attention. */
+.acks-extras-importer-ose-learned {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+
+/* Text the reader could not place. Not an error — but it goes nowhere unless
+   the Judge moves it, so it is marked rather than muted. */
+.acks-extras-importer-ose-leftover {
+  border-left: 3px solid var(--acks-rule-heavy);
+  padding-left: var(--acks-sp-2);
+  color: var(--acks-ink);
+}

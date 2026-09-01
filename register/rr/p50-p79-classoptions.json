@@ -1,0 +1,92 @@
+[
+ {
+  "id": "def.power.darkPathDemonology",
+  "icon": "icons/creatures/unholy/demon-fire-horned-clawed.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Dark Path: Demonology",
+  "anchor": { "runin": "Dark Path:" },
+  "pages": [75],
+  "meta": { "category": "classPower" }
+ },
+ {
+  "id": "def.power.darkPathNecromancy",
+  "icon": "icons/magic/death/undead-skeleton-lich-armor.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Dark Path: Necromancy",
+  "anchor": { "runin": "Dark Path:" },
+  "pages": [75],
+  "meta": { "category": "classPower" }
+ },
+ {
+  "id": "def.power.darkPathTransmogrification",
+  "icon": "icons/magic/control/silhouette-grow-shrink-blue.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Dark Path: Transmogrification",
+  "anchor": { "runin": "Dark Path:" },
+  "pages": [75],
+  "meta": { "category": "classPower" }
+ },
+ {
+  "id": "def.power.witchTraditionAntiquarian",
+  "icon": "icons/skills/trades/academics-study-archaeology-bones.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Tradition: Antiquarian",
+  "anchor": { "runin": "Witch Traditions" },
+  "pages": [79],
+  "meta": { "category": "classPower" }
+ },
+ {
+  "id": "def.power.witchTraditionChthonic",
+  "icon": "icons/magic/earth/barrier-stone-pillar-purple.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Tradition: Chthonic",
+  "anchor": { "runin": "Witch Traditions" },
+  "pages": [79],
+  "meta": { "category": "classPower" }
+ },
+ {
+  "id": "def.power.witchTraditionSylvan",
+  "icon": "icons/magic/nature/tree-spirit-green.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Tradition: Sylvan",
+  "anchor": { "runin": "Witch Traditions" },
+  "pages": [79],
+  "meta": { "category": "classPower" }
+ },
+ {
+  "id": "def.power.barbarianOriginJutland",
+  "icon": "icons/magic/water/snowflake-ice-blue-white.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Tribal Origin: Jutland",
+  "anchor": { "runin": "Barbarian Combat Proficiencies" },
+  "pages": [50],
+  "meta": { "category": "classPower" }
+ },
+ {
+  "id": "def.power.barbarianOriginSkysostan",
+  "icon": "icons/magic/air/wind-stream-blue-gray.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Tribal Origin: Skysostan",
+  "anchor": { "runin": "Barbarian Combat Proficiencies" },
+  "pages": [50],
+  "meta": { "category": "classPower" }
+ },
+ {
+  "id": "def.power.barbarianOriginIvoryKingdoms",
+  "icon": "icons/creatures/mammals/cat-hunched-glowing-red.webp",
+  "kind": "kind.power",
+  "book": "rr",
+  "name": "Tribal Origin: Ivory Kingdoms",
+  "anchor": { "runin": "Barbarian Combat Proficiencies" },
+  "pages": [50],
+  "meta": { "category": "classPower" }
+ }
+]

@@ -1,0 +1,20 @@
+{
+  "_id": "ackscMacStatus00",
+  "_key": "!macros!ackscMacStatus00",
+  "name": "Your ACKS Books (this seat)",
+  "type": "script",
+  "img": "icons/svg/book.svg",
+  "scope": "global",
+  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is not ready (is the module enabled?).\");\nif (typeof api.bookStatus !== \"function\") return ui.notifications.warn(\"ACKS Extras | Your ACKS Books (this seat) needs a newer build of this module.\");\napi.bookStatus();",
+  "folder": "ackscFldSetup000",
+  "sort": 100,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1784332800000,
+    "modifiedTime": 1784332800000
+  }
+}

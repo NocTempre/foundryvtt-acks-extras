@@ -95,7 +95,7 @@ practice, and a war dog is trained for war and is still not a mount.
 
 Both are filled by importing the animals from your own book. The rulebook
 prices animals by role — a *Heavy War* horse, a *Draft* mule, a *Riding* camel
-— so ACKS Importer reads the training out of the name the page printed, and
+— so the importer reads the training out of the name the page printed, and
 treats a species the book sells in a riding form as one you can sit on. If you
 create an animal by hand instead, set them yourself on its sheet; an animal
 that has never said arrives *untrained*, which the rules read as "not stated"

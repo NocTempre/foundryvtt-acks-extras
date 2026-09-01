@@ -343,7 +343,7 @@
   padding: var(--acks-sp-2) var(--acks-sp-4);
 }
 /* Display (not editing): the editors should grow to fit their content — most
-   importantly acks-content's streamed book text — rather than each capping at
+   importantly the importer's streamed book text — rather than each capping at
    the 70px floor and scrolling internally. Core lays the editor-content out
    position:absolute (inset 0) so it never contributes height; return it to flow
    only while inactive, so the whole tab (part root is scrollable) does the

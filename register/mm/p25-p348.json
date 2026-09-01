@@ -1,0 +1,4754 @@
+[
+  {
+    "id": "mm.acanthaspisGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      25
+    ],
+    "name": "Acanthaspis, Giant",
+    "anchor": {
+      "display": "Acanthaspis, Giant"
+    }
+  },
+  {
+    "id": "mm.amphisbaena",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      26
+    ],
+    "name": "Amphisbaena",
+    "anchor": {
+      "display": "Amphisbaena"
+    }
+  },
+  {
+    "id": "mm.antGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      27
+    ],
+    "name": "Ant, Giant",
+    "anchor": {
+      "display": "Ant, Giant"
+    }
+  },
+  {
+    "id": "mm.arane",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      29
+    ],
+    "name": "Arane",
+    "anchor": {
+      "display": "Arane"
+    }
+  },
+  {
+    "id": "mm.attercopDemonic",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      30
+    ],
+    "name": "Attercop, Demonic",
+    "anchor": {
+      "display": "Attercop, Demonic"
+    },
+    "assists": {
+      "spoilsPage": 30,
+      "descColumns": 2
+    }
+  },
+  {
+    "id": "mm.attercopFoul",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      32
+    ],
+    "name": "Attercop, Foul",
+    "anchor": {
+      "display": "Attercop, Foul"
+    }
+  },
+  {
+    "id": "mm.attercopHideous",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      33
+    ],
+    "name": "Attercop, Hideous",
+    "anchor": {
+      "display": "Attercop, Hideous"
+    }
+  },
+  {
+    "id": "mm.attercopMonstrous",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      34
+    ],
+    "name": "Attercop, Monstrous",
+    "anchor": {
+      "display": "Attercop, Monstrous"
+    }
+  },
+  {
+    "id": "mm.baboonRock",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      35
+    ],
+    "name": "Baboon, Rock",
+    "anchor": {
+      "display": "Baboon, Rock"
+    }
+  },
+  {
+    "id": "mm.bLeygr",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      36
+    ],
+    "name": "Báleygr",
+    "anchor": {
+      "display": "Báleygr"
+    }
+  },
+  {
+    "id": "mm.barghestGreater",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      38
+    ],
+    "name": "Barghest, Greater",
+    "anchor": {
+      "display": "Barghest, Greater"
+    }
+  },
+  {
+    "id": "mm.barghestLesser",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      39
+    ],
+    "name": "Barghest, Lesser",
+    "anchor": {
+      "display": "Barghest, Lesser"
+    }
+  },
+  {
+    "id": "mm.basiliskNoxious",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      40
+    ],
+    "name": "Basilisk, Noxious",
+    "anchor": {
+      "display": "Basilisk, Noxious"
+    }
+  },
+  {
+    "id": "mm.basiliskPetrifying",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      41
+    ],
+    "name": "Basilisk, Petrifying",
+    "anchor": {
+      "display": "Basilisk, Petrifying"
+    }
+  },
+  {
+    "id": "mm.batCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      42
+    ],
+    "name": "Bat, Common",
+    "anchor": {
+      "display": "Bat, Common"
+    }
+  },
+  {
+    "id": "mm.batGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      43
+    ],
+    "name": "Bat, Giant",
+    "anchor": {
+      "display": "Bat, Giant"
+    }
+  },
+  {
+    "id": "mm.batGiantVampire",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      44
+    ],
+    "name": "Bat, Giant Vampire",
+    "anchor": {
+      "display": "Bat, Giant Vampire"
+    }
+  },
+  {
+    "id": "mm.bearBlack",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      45
+    ],
+    "name": "Bear, Black",
+    "anchor": {
+      "display": "Bear, Black"
+    }
+  },
+  {
+    "id": "mm.bearBrown",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      46
+    ],
+    "name": "Bear, Brown",
+    "anchor": {
+      "display": "Bear, Brown"
+    }
+  },
+  {
+    "id": "mm.bearCave",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      47
+    ],
+    "name": "Bear, Cave",
+    "anchor": {
+      "display": "Bear, Cave"
+    }
+  },
+  {
+    "id": "mm.bearPolar",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      48
+    ],
+    "name": "Bear, Polar",
+    "anchor": {
+      "display": "Bear, Polar"
+    }
+  },
+  {
+    "id": "mm.beastman",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      49
+    ],
+    "name": "Beastman",
+    "anchor": {
+      "display": "Beastman"
+    },
+    "assists": {
+      "descColumns": 2
+    }
+  },
+  {
+    "id": "mm.beastmanBugbear",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      50
+    ],
+    "name": "Beastman, Bugbear",
+    "anchor": {
+      "display": "Beastman, Bugbear"
+    }
+  },
+  {
+    "id": "mm.beastmanGnoll",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      51
+    ],
+    "name": "Beastman, Gnoll",
+    "anchor": {
+      "display": "Beastman, Gnoll"
+    }
+  },
+  {
+    "id": "mm.beastmanGoblin",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      52
+    ],
+    "name": "Beastman, Goblin",
+    "anchor": {
+      "display": "Beastman, Goblin"
+    }
+  },
+  {
+    "id": "mm.beastmanHobgoblin",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      53
+    ],
+    "name": "Beastman, Hobgoblin",
+    "anchor": {
+      "display": "Beastman, Hobgoblin"
+    }
+  },
+  {
+    "id": "mm.beastmanKobold",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      54
+    ],
+    "name": "Beastman, Kobold",
+    "anchor": {
+      "display": "Beastman, Kobold"
+    }
+  },
+  {
+    "id": "mm.beastmanOrc",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      55
+    ],
+    "name": "Beastman, Orc",
+    "anchor": {
+      "display": "Beastman, Orc"
+    }
+  },
+  {
+    "id": "mm.beeGiantKiller",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      60
+    ],
+    "name": "Bee, Giant Killer",
+    "anchor": {
+      "display": "Bee, Giant Killer"
+    }
+  },
+  {
+    "id": "mm.beetleGiantBombardier",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      62
+    ],
+    "name": "Beetle, Giant Bombardier",
+    "anchor": {
+      "display": "Beetle, Giant Bombardier"
+    }
+  },
+  {
+    "id": "mm.beetleGiantLuminous",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      63
+    ],
+    "name": "Beetle, Giant Luminous",
+    "anchor": {
+      "display": "Beetle, Giant Luminous"
+    }
+  },
+  {
+    "id": "mm.beetleGiantTiger",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      64
+    ],
+    "name": "Beetle, Giant Tiger",
+    "anchor": {
+      "display": "Beetle, Giant Tiger"
+    }
+  },
+  {
+    "id": "mm.blobBlack",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      65
+    ],
+    "name": "Blob, Black",
+    "anchor": {
+      "display": "Blob, Black"
+    }
+  },
+  {
+    "id": "mm.bloodHound",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      66
+    ],
+    "name": "Blood Hound",
+    "anchor": {
+      "display": "Blood Hound"
+    }
+  },
+  {
+    "id": "mm.boarCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      67
+    ],
+    "name": "Boar, Common",
+    "anchor": {
+      "display": "Boar, Common"
+    }
+  },
+  {
+    "id": "mm.boarGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      68
+    ],
+    "name": "Boar, Giant",
+    "anchor": {
+      "display": "Boar, Giant"
+    }
+  },
+  {
+    "id": "mm.bronzeBull",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      69
+    ],
+    "name": "Bronze Bull",
+    "anchor": {
+      "display": "Bronze Bull"
+    }
+  },
+  {
+    "id": "mm.cacodemon",
+    "kind": "kind.monsterTemplate",
+    "book": "mm",
+    "pages": [
+      70,
+      71,
+      72,
+      73,
+      74,
+      75
+    ],
+    "name": "Cacodemon",
+    "anchor": {
+      "display": "Cacodemon"
+    },
+    "template": {
+      "nameFormat": "{rank} ({bodyForm})",
+      "prose": {
+        "70": [
+          302
+        ],
+        "71": [],
+        "72": [
+          45,
+          302
+        ],
+        "73": [
+          45,
+          302
+        ],
+        "74": [
+          55
+        ],
+        "75": [
+          82
+        ]
+      },
+      "runinX": {
+        "74": [
+          87
+        ],
+        "75": [
+          114
+        ]
+      },
+      "axes": [
+        {
+          "key": "rank",
+          "label": "Rank",
+          "grids": [
+            "primary",
+            "encounter"
+          ],
+          "budgetCol": "specialAbilities"
+        },
+        {
+          "key": "bodyForm",
+          "label": "Body Form",
+          "grids": [
+            "forms"
+          ]
+        }
+      ],
+      "cells": [
+        {
+          "by": [
+            "rank",
+            "bodyForm"
+          ],
+          "grid": "formDamage"
+        }
+      ],
+      "menu": {
+        "die": "1d100",
+        "budgetAxis": "rank",
+        "rows": [
+          {
+            "min": 1,
+            "max": 2,
+            "label": "Acid",
+            "section": "acid",
+            "cost": 1
+          },
+          {
+            "min": 3,
+            "max": 4,
+            "label": "Aura",
+            "section": "aura",
+            "cost": 1
+          },
+          {
+            "min": 5,
+            "max": 5,
+            "label": "Berserk",
+            "section": "berserk",
+            "cost": 0.5
+          },
+          {
+            "min": 6,
+            "max": 7,
+            "label": "Bonus Attack",
+            "section": "bonusAttack",
+            "cost": 1
+          },
+          {
+            "min": 8,
+            "max": 9,
+            "label": "Breath Weapon",
+            "section": "breathWeapon",
+            "cost": 1
+          },
+          {
+            "min": 10,
+            "max": 12,
+            "label": "Charge",
+            "section": "charge",
+            "cost": 0.5
+          },
+          {
+            "min": 13,
+            "max": 14,
+            "label": "Class Powers/Proficiencies",
+            "section": "classPowersProficiencies",
+            "cost": 1
+          },
+          {
+            "min": 15,
+            "max": 16,
+            "label": "Dreadful",
+            "section": "dreadful",
+            "cost": 1
+          },
+          {
+            "min": 17,
+            "max": 18,
+            "label": "Enervation",
+            "section": "enervation",
+            "cost": 2
+          },
+          {
+            "min": 19,
+            "max": 20,
+            "label": "Enslave",
+            "section": "enslave",
+            "cost": 1
+          },
+          {
+            "min": 21,
+            "max": 23,
+            "label": "Flying",
+            "section": "flying",
+            "cost": 0.25
+          },
+          {
+            "min": 24,
+            "max": 25,
+            "label": "Grab/Restrain",
+            "section": "grabRestrain",
+            "cost": 1
+          },
+          {
+            "min": 26,
+            "max": 27,
+            "label": "Horrific",
+            "section": "horrific",
+            "cost": 1
+          },
+          {
+            "min": 28,
+            "max": 31,
+            "label": "Hug",
+            "section": "hug",
+            "cost": 0.5
+          },
+          {
+            "min": 32,
+            "max": 37,
+            "label": "Immunity",
+            "section": "immunity",
+            "cost": 1
+          },
+          {
+            "min": 38,
+            "max": 38,
+            "label": "Incorporeal",
+            "section": "incorporeal",
+            "cost": 1
+          },
+          {
+            "min": 39,
+            "max": 39,
+            "label": "Infectious",
+            "section": "infectious",
+            "cost": 0.5
+          },
+          {
+            "min": 40,
+            "max": 41,
+            "label": "Invisibility",
+            "section": "invisibility",
+            "cost": 1
+          },
+          {
+            "min": 42,
+            "max": 43,
+            "label": "Lightning Reflexes",
+            "section": "lightningReflexes",
+            "cost": 0.5
+          },
+          {
+            "min": 44,
+            "max": 44,
+            "label": "Magic Resistance",
+            "section": "magicResistance",
+            "cost": 1
+          },
+          {
+            "min": 45,
+            "max": 48,
+            "label": "Ongoing Damage",
+            "section": "ongoingDamage",
+            "cost": 0.25
+          },
+          {
+            "min": 49,
+            "max": 51,
+            "label": "Paralysis",
+            "section": "paralysis",
+            "cost": 1
+          },
+          {
+            "min": 52,
+            "max": 53,
+            "label": "Petrification",
+            "section": "petrification",
+            "cost": 2
+          },
+          {
+            "min": 54,
+            "max": 61,
+            "label": "Poison",
+            "section": "poison",
+            "cost": 1
+          },
+          {
+            "min": 62,
+            "max": 63,
+            "label": "Regeneration",
+            "section": "regeneration",
+            "cost": 1
+          },
+          {
+            "min": 64,
+            "max": 67,
+            "label": "Resistance",
+            "section": "resistance",
+            "cost": 1
+          },
+          {
+            "min": 68,
+            "max": 69,
+            "label": "Special Senses",
+            "section": "specialSenses",
+            "cost": 1
+          },
+          {
+            "min": 70,
+            "max": 71,
+            "label": "Spellcasting",
+            "section": "spellcasting",
+            "cost": 2
+          },
+          {
+            "min": 72,
+            "max": 75,
+            "label": "Spell-like Abilities",
+            "section": "spellLikeAbilities",
+            "cost": 1
+          },
+          {
+            "min": 76,
+            "max": 80,
+            "label": "Stealth",
+            "section": "stealth",
+            "cost": 0.125
+          },
+          {
+            "min": 81,
+            "max": 83,
+            "label": "Swallow Attack",
+            "section": "swallowAttack",
+            "cost": 1
+          },
+          {
+            "min": 84,
+            "max": 86,
+            "label": "Swift",
+            "section": "swift",
+            "cost": 0.5
+          },
+          {
+            "min": 87,
+            "max": 88,
+            "label": "Terrifying",
+            "section": "terrifying",
+            "cost": 1
+          },
+          {
+            "min": 89,
+            "max": 91,
+            "label": "Topple and Fling",
+            "section": "toppleAndFling",
+            "cost": 0.25
+          },
+          {
+            "min": 92,
+            "max": 94,
+            "label": "Tough",
+            "section": "tough",
+            "cost": 1
+          },
+          {
+            "min": 95,
+            "max": 97,
+            "label": "Trample",
+            "section": "trample",
+            "cost": 0.5
+          },
+          {
+            "min": 98,
+            "max": 99,
+            "label": "Vicious Attack",
+            "section": "viciousAttack",
+            "cost": 0.25
+          },
+          {
+            "min": 100,
+            "max": 100,
+            "label": "Unusual",
+            "section": "unusual",
+            "cost": 1
+          }
+        ]
+      },
+      "grids": {
+        "primary": {
+          "page": 71,
+          "expectRows": 10,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 80,
+            "y1": 258
+          },
+          "label": {
+            "x0": 60,
+            "x1": 142
+          },
+          "dropRows": [
+            "rank"
+          ],
+          "cols": [
+            {
+              "key": "armorClass",
+              "x0": 146,
+              "x1": 163,
+              "pattern": "int"
+            },
+            {
+              "key": "hitDice",
+              "x0": 164,
+              "x1": 205,
+              "pattern": "raw"
+            },
+            {
+              "key": "save",
+              "x0": 206,
+              "x1": 240,
+              "pattern": "raw"
+            },
+            {
+              "key": "morale",
+              "x0": 241,
+              "x1": 275,
+              "pattern": "intDash"
+            },
+            {
+              "key": "specialAbilities",
+              "x0": 276,
+              "x1": 340,
+              "pattern": "raw"
+            },
+            {
+              "key": "chanceSpeech",
+              "x0": 341,
+              "x1": 385,
+              "pattern": "raw"
+            },
+            {
+              "key": "casterLevel",
+              "x0": 386,
+              "x1": 425,
+              "pattern": "raw"
+            },
+            {
+              "key": "spells",
+              "x0": 426,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "encounter": {
+          "page": 71,
+          "expectRows": 10,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 270,
+            "y1": 428
+          },
+          "label": {
+            "x0": 60,
+            "x1": 145
+          },
+          "dropRows": [
+            "rank"
+          ],
+          "cols": [
+            {
+              "key": "lairChance",
+              "x0": 146,
+              "x1": 200,
+              "pattern": "raw"
+            },
+            {
+              "key": "dungeonEnc",
+              "x0": 201,
+              "x1": 270,
+              "pattern": "raw"
+            },
+            {
+              "key": "wildernessEnc",
+              "x0": 271,
+              "x1": 350,
+              "pattern": "raw"
+            },
+            {
+              "key": "treasureType",
+              "x0": 351,
+              "x1": 430,
+              "pattern": "raw"
+            },
+            {
+              "key": "xpSpeechless",
+              "x0": 431,
+              "x1": 495,
+              "pattern": "raw"
+            },
+            {
+              "key": "xpSpeaking",
+              "x0": 496,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "forms": {
+          "page": 71,
+          "transpose": true,
+          "expectRows": 9,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 432,
+            "y1": 563
+          },
+          "label": {
+            "x0": 60,
+            "x1": 145
+          },
+          "dropRows": [
+            "bodyForm"
+          ],
+          "props": {
+            "damageType": {
+              "pattern": "glyphs"
+            },
+            "ac": {
+              "pattern": "intDash"
+            }
+          },
+          "cols": [
+            {
+              "key": "arachnine",
+              "label": "Arachnine",
+              "x0": 150,
+              "x1": 232,
+              "pattern": "raw"
+            },
+            {
+              "key": "humanoid",
+              "label": "Humanoid",
+              "x0": 233,
+              "x1": 322,
+              "pattern": "raw"
+            },
+            {
+              "key": "monadine",
+              "label": "Monadine",
+              "x0": 324,
+              "x1": 404,
+              "pattern": "raw"
+            },
+            {
+              "key": "scolopendrine",
+              "label": "Scolopendrine",
+              "x0": 406,
+              "x1": 483,
+              "pattern": "raw"
+            },
+            {
+              "key": "wyverine",
+              "label": "Wyverine",
+              "x0": 484,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "formDamage": {
+          "page": 71,
+          "expectRows": 10,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 565,
+            "y1": 685
+          },
+          "label": {
+            "x0": 60,
+            "x1": 145
+          },
+          "cols": [
+            {
+              "key": "arachnine",
+              "label": "Arachnine",
+              "x0": 150,
+              "x1": 232,
+              "pattern": "raw"
+            },
+            {
+              "key": "humanoid",
+              "label": "Humanoid",
+              "x0": 233,
+              "x1": 322,
+              "pattern": "raw"
+            },
+            {
+              "key": "monadine",
+              "label": "Monadine",
+              "x0": 324,
+              "x1": 404,
+              "pattern": "raw"
+            },
+            {
+              "key": "scolopendrine",
+              "label": "Scolopendrine",
+              "x0": 406,
+              "x1": 483,
+              "pattern": "raw"
+            },
+            {
+              "key": "wyverine",
+              "label": "Wyverine",
+              "x0": 484,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "mm.cairnDwellers",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      76
+    ],
+    "name": "Cairn Dwellers",
+    "anchor": {
+      "display": "Cairn Dwellers"
+    }
+  },
+  {
+    "id": "mm.camel",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      77
+    ],
+    "name": "Camel",
+    "anchor": {
+      "display": "Camel"
+    }
+  },
+  {
+    "id": "mm.carrionHorror",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      78
+    ],
+    "name": "Carrion Horror",
+    "anchor": {
+      "display": "Carrion Horror"
+    }
+  },
+  {
+    "id": "mm.catCatamount",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      79
+    ],
+    "name": "Cat, Catamount",
+    "anchor": {
+      "display": "Cat, Catamount"
+    }
+  },
+  {
+    "id": "mm.catCheetah",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      80
+    ],
+    "name": "Cat, Cheetah",
+    "anchor": {
+      "display": "Cat, Cheetah"
+    }
+  },
+  {
+    "id": "mm.catLeopard",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      81
+    ],
+    "name": "Cat, Leopard",
+    "anchor": {
+      "display": "Cat, Leopard"
+    }
+  },
+  {
+    "id": "mm.catLion",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      82
+    ],
+    "name": "Cat, Lion",
+    "anchor": {
+      "display": "Cat, Lion"
+    }
+  },
+  {
+    "id": "mm.catLynx",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      83
+    ],
+    "name": "Cat, Lynx",
+    "anchor": {
+      "display": "Cat, Lynx"
+    }
+  },
+  {
+    "id": "mm.catSaberTooth",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      84
+    ],
+    "name": "Cat, Saber-Tooth",
+    "anchor": {
+      "display": "Cat, Saber-Tooth"
+    }
+  },
+  {
+    "id": "mm.catTiger",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      85
+    ],
+    "name": "Cat, Tiger",
+    "anchor": {
+      "display": "Cat, Tiger"
+    }
+  },
+  {
+    "id": "mm.catoblepas",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      86
+    ],
+    "name": "Catoblepas",
+    "anchor": {
+      "display": "Catoblepas"
+    }
+  },
+  {
+    "id": "mm.centaur",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      87
+    ],
+    "name": "Centaur",
+    "anchor": {
+      "display": "Centaur"
+    }
+  },
+  {
+    "id": "mm.centipedeGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      88
+    ],
+    "name": "Centipede, Giant",
+    "anchor": {
+      "display": "Centipede, Giant"
+    }
+  },
+  {
+    "id": "mm.chaosHulk",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      89
+    ],
+    "name": "Chaos Hulk",
+    "anchor": {
+      "display": "Chaos Hulk"
+    },
+    "assists": {
+      "descColumns": 2
+    }
+  },
+  {
+    "id": "mm.childOfNasga",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      90
+    ],
+    "name": "Child of Nasga",
+    "anchor": {
+      "display": "Child of Nasga"
+    }
+  },
+  {
+    "id": "mm.chimera",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      91
+    ],
+    "name": "Chimera",
+    "anchor": {
+      "display": "Chimera"
+    }
+  },
+  {
+    "id": "mm.crabGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      92
+    ],
+    "name": "Crab, Giant",
+    "anchor": {
+      "display": "Crab, Giant"
+    }
+  },
+  {
+    "id": "mm.crocodileCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      93
+    ],
+    "name": "Crocodile, Common",
+    "anchor": {
+      "display": "Crocodile, Common"
+    }
+  },
+  {
+    "id": "mm.crocodileGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      94
+    ],
+    "name": "Crocodile, Giant",
+    "anchor": {
+      "display": "Crocodile, Giant"
+    }
+  },
+  {
+    "id": "mm.crocodileLarge",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      95
+    ],
+    "name": "Crocodile, Large",
+    "anchor": {
+      "display": "Crocodile, Large"
+    }
+  },
+  {
+    "id": "mm.cyclops",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      96
+    ],
+    "name": "Cyclops",
+    "anchor": {
+      "display": "Cyclops"
+    }
+  },
+  {
+    "id": "mm.dakhanavarGreater",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      97
+    ],
+    "name": "Dakhanavar, Greater",
+    "anchor": {
+      "display": "Dakhanavar, Greater"
+    }
+  },
+  {
+    "id": "mm.dakhanavarLesser",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      98
+    ],
+    "name": "Dakhanavar, Lesser",
+    "anchor": {
+      "display": "Dakhanavar, Lesser"
+    }
+  },
+  {
+    "id": "mm.deathCharger",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      99
+    ],
+    "name": "Death Charger",
+    "anchor": {
+      "display": "Death Charger"
+    }
+  },
+  {
+    "id": "mm.deathKnight",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      100
+    ],
+    "name": "Death Knight",
+    "anchor": {
+      "display": "Death Knight"
+    }
+  },
+  {
+    "id": "mm.devilBoar",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      101
+    ],
+    "name": "Devil Boar",
+    "anchor": {
+      "display": "Devil Boar"
+    }
+  },
+  {
+    "id": "mm.devilRayGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      102
+    ],
+    "name": "Devil Ray, Giant",
+    "anchor": {
+      "display": "Devil Ray, Giant"
+    }
+  },
+  {
+    "id": "mm.dogHunting",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      103
+    ],
+    "name": "Dog, Hunting",
+    "anchor": {
+      "display": "Dog, Hunting"
+    }
+  },
+  {
+    "id": "mm.dogWar",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      104
+    ],
+    "name": "Dog, War",
+    "anchor": {
+      "display": "Dog, War"
+    }
+  },
+  {
+    "id": "mm.dolphinCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      105
+    ],
+    "name": "Dolphin, Common",
+    "anchor": {
+      "display": "Dolphin, Common"
+    }
+  },
+  {
+    "id": "mm.doppelgNger",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      106
+    ],
+    "name": "Doppelgänger",
+    "anchor": {
+      "display": "Doppelgänger"
+    }
+  },
+  {
+    "id": "mm.dragon",
+    "kind": "kind.monsterTemplate",
+    "book": "mm",
+    "pages": [
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113
+    ],
+    "name": "Dragon",
+    "anchor": {
+      "display": "Dragon"
+    },
+    "template": {
+      "nameFormat": "{age} {type} ({bodyForm})",
+      "prose": {
+        "107": [
+          65,
+          333
+        ],
+        "108": [],
+        "109": [
+          72
+        ],
+        "110": [
+          45,
+          302
+        ],
+        "111": [
+          72,
+          329
+        ],
+        "112": [
+          45,
+          302
+        ],
+        "113": [
+          72,
+          329
+        ]
+      },
+      "axes": [
+        {
+          "key": "age",
+          "label": "Age",
+          "grids": [
+            "primary",
+            "encounter"
+          ],
+          "budgetCol": "specialAbilities"
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "grids": [
+            "habitat"
+          ]
+        },
+        {
+          "key": "bodyForm",
+          "label": "Body Form",
+          "grids": [
+            "forms"
+          ],
+          "art": {
+            "drake": {
+              "page": 109,
+              "name": "img_p108_4"
+            },
+            "guivre": {
+              "page": 109,
+              "name": "img_p108_5"
+            },
+            "lindworm": {
+              "page": 109,
+              "name": "img_p108_6"
+            },
+            "wyvern": {
+              "page": 109,
+              "name": "img_p108_7"
+            }
+          }
+        }
+      ],
+      "cells": [
+        {
+          "by": [
+            "age",
+            "bodyForm"
+          ],
+          "grid": "formDamage"
+        }
+      ],
+      "menu": {
+        "budgetAxis": "age",
+        "rows": [
+          {
+            "label": "Breath Weapons",
+            "section": "breathWeapons",
+            "cost": 1
+          },
+          {
+            "label": "Clutching Claws",
+            "section": "clutchingClaws",
+            "cost": 0.5
+          },
+          {
+            "label": "Constriction",
+            "section": "constriction",
+            "cost": 1
+          },
+          {
+            "label": "Decapitating Bite",
+            "section": "decapitatingBite",
+            "cost": 1
+          },
+          {
+            "label": "Gem-Encrusted Hide",
+            "section": "gemEncrustedHide",
+            "cost": 1
+          },
+          {
+            "label": "Horrific Stench",
+            "section": "horrificStench",
+            "cost": 1
+          },
+          {
+            "label": "Invulnerable",
+            "section": "invulnerable",
+            "cost": 1
+          },
+          {
+            "label": "Lightning Reflexes",
+            "section": "lightningReflexes",
+            "cost": 0.25
+          },
+          {
+            "label": "Massive Size",
+            "section": "massiveSize",
+            "cost": 1
+          },
+          {
+            "label": "Paralyzing Blows",
+            "section": "paralyzingBlows",
+            "cost": 1
+          },
+          {
+            "label": "Poisonous Blood",
+            "section": "poisonousBlood",
+            "cost": 1
+          },
+          {
+            "label": "Proficiency",
+            "section": "proficiency",
+            "cost": 0.125
+          },
+          {
+            "label": "Resistant",
+            "section": "resistant",
+            "cost": 0.5
+          },
+          {
+            "label": "Stealthy",
+            "section": "stealthy",
+            "cost": 0.125
+          },
+          {
+            "label": "Swallow Attack",
+            "section": "swallowAttack",
+            "cost": 1
+          },
+          {
+            "label": "Swift",
+            "section": "swift",
+            "cost": 0.25
+          },
+          {
+            "label": "Tail Lash",
+            "section": "tailLash",
+            "cost": 1
+          },
+          {
+            "label": "Terrifying Charge",
+            "section": "terrifyingCharge",
+            "cost": 1
+          },
+          {
+            "label": "Trample",
+            "section": "trample",
+            "cost": 0.25
+          },
+          {
+            "label": "Transformation",
+            "section": "transformation",
+            "cost": 1
+          },
+          {
+            "label": "Venomous Bite or Tail",
+            "section": "venomousBiteOrTail",
+            "cost": 1
+          },
+          {
+            "label": "Wing / Arm Claws",
+            "section": "wingArmClaws",
+            "cost": 1
+          }
+        ]
+      },
+      "grids": {
+        "habitat": {
+          "page": 108,
+          "expectRows": 9,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 56,
+            "y1": 212
+          },
+          "label": {
+            "x0": 191,
+            "x1": 268
+          },
+          "dropRows": [
+            "commonName"
+          ],
+          "cols": [
+            {
+              "key": "habitat",
+              "x0": 60,
+              "x1": 190,
+              "pattern": "raw"
+            },
+            {
+              "key": "hideColor",
+              "x0": 269,
+              "x1": 413,
+              "pattern": "raw"
+            },
+            {
+              "key": "breathWeapon",
+              "x0": 414,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "primary": {
+          "page": 108,
+          "expectRows": 11,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 216,
+            "y1": 401
+          },
+          "label": {
+            "x0": 60,
+            "x1": 173
+          },
+          "dropRows": [
+            "age"
+          ],
+          "cols": [
+            {
+              "key": "size",
+              "x0": 174,
+              "x1": 244,
+              "pattern": "raw"
+            },
+            {
+              "key": "armorClass",
+              "x0": 245,
+              "x1": 266,
+              "pattern": "int"
+            },
+            {
+              "key": "hitDice",
+              "x0": 267,
+              "x1": 305,
+              "pattern": "raw"
+            },
+            {
+              "key": "save",
+              "x0": 306,
+              "x1": 334,
+              "pattern": "raw"
+            },
+            {
+              "key": "morale",
+              "x0": 335,
+              "x1": 355,
+              "pattern": "intDash"
+            },
+            {
+              "key": "normalLoad",
+              "x0": 356,
+              "x1": 396,
+              "pattern": "raw"
+            },
+            {
+              "key": "chanceSpeech",
+              "x0": 397,
+              "x1": 436,
+              "pattern": "raw"
+            },
+            {
+              "key": "specialAbilities",
+              "x0": 437,
+              "x1": 480,
+              "pattern": "raw"
+            },
+            {
+              "key": "spells",
+              "x0": 481,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "encounter": {
+          "page": 108,
+          "expectRows": 11,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 402,
+            "y1": 552
+          },
+          "label": {
+            "x0": 60,
+            "x1": 183
+          },
+          "dropRows": [
+            "age"
+          ],
+          "cols": [
+            {
+              "key": "lairChance",
+              "x0": 184,
+              "x1": 233,
+              "pattern": "raw"
+            },
+            {
+              "key": "dungeonEnc",
+              "x0": 234,
+              "x1": 290,
+              "pattern": "raw"
+            },
+            {
+              "key": "wildernessEnc",
+              "x0": 291,
+              "x1": 340,
+              "pattern": "raw"
+            },
+            {
+              "key": "caughtAsleep",
+              "x0": 341,
+              "x1": 404,
+              "pattern": "raw"
+            },
+            {
+              "key": "treasureType",
+              "x0": 405,
+              "x1": 455,
+              "pattern": "raw"
+            },
+            {
+              "key": "xpSpeechless",
+              "x0": 456,
+              "x1": 510,
+              "pattern": "raw"
+            },
+            {
+              "key": "xpSpeaking",
+              "x0": 511,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "forms": {
+          "page": 108,
+          "transpose": true,
+          "expectRows": 3,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 556,
+            "y1": 622
+          },
+          "label": {
+            "x0": 60,
+            "x1": 160
+          },
+          "dropRows": [
+            "bodyType"
+          ],
+          "props": {
+            "damageType": {
+              "pattern": "glyphs"
+            }
+          },
+          "cols": [
+            {
+              "key": "guivre",
+              "label": "Guivre",
+              "x0": 161,
+              "x1": 260,
+              "pattern": "raw"
+            },
+            {
+              "key": "lindworm",
+              "label": "Lindworm",
+              "x0": 261,
+              "x1": 360,
+              "pattern": "raw"
+            },
+            {
+              "key": "wyvern",
+              "label": "Wyvern",
+              "x0": 361,
+              "x1": 458,
+              "pattern": "raw"
+            },
+            {
+              "key": "drake",
+              "label": "Drake",
+              "x0": 459,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        },
+        "formDamage": {
+          "page": 108,
+          "expectRows": 12,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 60,
+            "x1": 565,
+            "y0": 624,
+            "y1": 763
+          },
+          "label": {
+            "x0": 60,
+            "x1": 160
+          },
+          "cols": [
+            {
+              "key": "guivre",
+              "label": "Guivre",
+              "x0": 161,
+              "x1": 260,
+              "pattern": "raw"
+            },
+            {
+              "key": "lindworm",
+              "label": "Lindworm",
+              "x0": 261,
+              "x1": 360,
+              "pattern": "raw"
+            },
+            {
+              "key": "wyvern",
+              "label": "Wyvern",
+              "x0": 361,
+              "x1": 458,
+              "pattern": "raw"
+            },
+            {
+              "key": "drake",
+              "label": "Drake",
+              "x0": 459,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "mm.dragonTurtle",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      114
+    ],
+    "name": "Dragon Turtle",
+    "anchor": {
+      "display": "Dragon Turtle"
+    }
+  },
+  {
+    "id": "mm.dragonflyGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      115
+    ],
+    "name": "Dragonfly, Giant",
+    "anchor": {
+      "display": "Dragonfly, Giant"
+    }
+  },
+  {
+    "id": "mm.draugr",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      116
+    ],
+    "name": "Draugr",
+    "anchor": {
+      "display": "Draugr"
+    },
+    "assists": {
+      "spoilsPage": 117
+    }
+  },
+  {
+    "id": "mm.dwarf",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      118
+    ],
+    "name": "Dwarf",
+    "anchor": {
+      "display": "Dwarf"
+    }
+  },
+  {
+    "id": "mm.elemental",
+    "kind": "kind.monsterTemplate",
+    "book": "mm",
+    "pages": [
+      119,
+      120
+    ],
+    "name": "Elemental",
+    "anchor": {
+      "display": "Elemental"
+    },
+    "template": {
+      "nameFormat": "{tier} {element} Elemental",
+      "axes": [
+        {
+          "key": "tier",
+          "label": "Tier",
+          "grids": [
+            "tiers"
+          ]
+        },
+        {
+          "key": "element",
+          "label": "Element",
+          "grids": [
+            "elements"
+          ]
+        }
+      ],
+      "grids": {
+        "tiers": {
+          "page": 119,
+          "expectRows": 4,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 75,
+            "x1": 330,
+            "y0": 345,
+            "y1": 421
+          },
+          "label": {
+            "x0": 75,
+            "x1": 115
+          },
+          "cols": [
+            {
+              "key": "size",
+              "x0": 116,
+              "x1": 155,
+              "pattern": "raw"
+            },
+            {
+              "key": "armorClass",
+              "x0": 156,
+              "x1": 178,
+              "pattern": "int"
+            },
+            {
+              "key": "hitDice",
+              "x0": 179,
+              "x1": 203,
+              "pattern": "raw"
+            },
+            {
+              "key": "damage",
+              "x0": 204,
+              "x1": 250,
+              "pattern": "raw"
+            },
+            {
+              "key": "save",
+              "x0": 251,
+              "x1": 281,
+              "pattern": "raw"
+            },
+            {
+              "key": "xp",
+              "x0": 282,
+              "x1": 330,
+              "pattern": "int"
+            }
+          ],
+          "dropRows": [
+            "rank"
+          ]
+        },
+        "elements": {
+          "page": 120,
+          "expectRows": 7,
+          "gapMin": 1.5,
+          "transpose": true,
+          "box": {
+            "x0": 42,
+            "x1": 565,
+            "y0": 630,
+            "y1": 745
+          },
+          "label": {
+            "x0": 60,
+            "x1": 147
+          },
+          "props": {
+            "damageType": {
+              "pattern": "glyphs"
+            }
+          },
+          "cols": [
+            {
+              "key": "air",
+              "label": "Air",
+              "x0": 148,
+              "x1": 260,
+              "pattern": "raw"
+            },
+            {
+              "key": "earth",
+              "label": "Earth",
+              "x0": 262,
+              "x1": 360,
+              "pattern": "raw"
+            },
+            {
+              "key": "fire",
+              "label": "Fire",
+              "x0": 365,
+              "x1": 465,
+              "pattern": "raw"
+            },
+            {
+              "key": "water",
+              "label": "Water",
+              "x0": 468,
+              "x1": 560,
+              "pattern": "raw"
+            }
+          ],
+          "dropRows": [
+            "element"
+          ]
+        }
+      },
+      "prose": {
+        "119": [
+          72,
+          333
+        ],
+        "120": [
+          45,
+          302
+        ]
+      }
+    }
+  },
+  {
+    "id": "mm.elephant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      121
+    ],
+    "name": "Elephant",
+    "anchor": {
+      "display": "Elephant"
+    }
+  },
+  {
+    "id": "mm.elf",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      122
+    ],
+    "name": "Elf",
+    "anchor": {
+      "display": "Elf"
+    }
+  },
+  {
+    "id": "mm.equineDonkey",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      123
+    ],
+    "name": "Equine, Donkey",
+    "anchor": {
+      "display": "Equine, Donkey"
+    }
+  },
+  {
+    "id": "mm.equineHeavyHorse",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      124
+    ],
+    "name": "Equine, Heavy Horse",
+    "anchor": {
+      "display": "Equine, Heavy Horse"
+    }
+  },
+  {
+    "id": "mm.equineLightHorse",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      125
+    ],
+    "name": "Equine, Light Horse",
+    "anchor": {
+      "display": "Equine, Light Horse"
+    }
+  },
+  {
+    "id": "mm.equineMediumHorse",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      126
+    ],
+    "name": "Equine, Medium Horse",
+    "anchor": {
+      "display": "Equine, Medium Horse"
+    }
+  },
+  {
+    "id": "mm.equineMule",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      127
+    ],
+    "name": "Equine, Mule",
+    "anchor": {
+      "display": "Equine, Mule"
+    }
+  },
+  {
+    "id": "mm.equineSteppeHorse",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      128
+    ],
+    "name": "Equine, Steppe Horse",
+    "anchor": {
+      "display": "Equine, Steppe Horse"
+    }
+  },
+  {
+    "id": "mm.ettin",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      129
+    ],
+    "name": "Ettin",
+    "anchor": {
+      "display": "Ettin"
+    }
+  },
+  {
+    "id": "mm.faerieBrownieBoggart",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      130
+    ],
+    "name": "Faerie, Brownie (Boggart)",
+    "anchor": {
+      "display": "Faerie, Brownie (Boggart)"
+    },
+    "assists": {
+      "anchor": "Faerie, Brownie(Boggart)"
+    }
+  },
+  {
+    "id": "mm.faerieKnocker",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      131
+    ],
+    "name": "Faerie, Knocker",
+    "anchor": {
+      "display": "Faerie, Knocker"
+    }
+  },
+  {
+    "id": "mm.faerieNixie",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      132
+    ],
+    "name": "Faerie, Nixie",
+    "anchor": {
+      "display": "Faerie, Nixie"
+    }
+  },
+  {
+    "id": "mm.faeriePiskie",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      133
+    ],
+    "name": "Faerie, Piskie",
+    "anchor": {
+      "display": "Faerie, Piskie"
+    }
+  },
+  {
+    "id": "mm.faeriePixie",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      134
+    ],
+    "name": "Faerie, Pixie",
+    "anchor": {
+      "display": "Faerie, Pixie"
+    }
+  },
+  {
+    "id": "mm.faerieRedcap",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      135
+    ],
+    "name": "Faerie, Redcap",
+    "anchor": {
+      "display": "Faerie, Redcap"
+    }
+  },
+  {
+    "id": "mm.faerieSpriggan",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      136
+    ],
+    "name": "Faerie, Spriggan",
+    "anchor": {
+      "display": "Faerie, Spriggan"
+    }
+  },
+  {
+    "id": "mm.faerieSprite",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      137
+    ],
+    "name": "Faerie, Sprite",
+    "anchor": {
+      "display": "Faerie, Sprite"
+    }
+  },
+  {
+    "id": "mm.faravahar",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      138
+    ],
+    "name": "Faravahar",
+    "anchor": {
+      "display": "Faravahar"
+    }
+  },
+  {
+    "id": "mm.fishGiantCatfish",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      139
+    ],
+    "name": "Fish, Giant Catfish",
+    "anchor": {
+      "display": "Fish, Giant Catfish"
+    }
+  },
+  {
+    "id": "mm.fishGiantPiranha",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      140
+    ],
+    "name": "Fish, Giant Piranha",
+    "anchor": {
+      "display": "Fish, Giant Piranha"
+    }
+  },
+  {
+    "id": "mm.fishGiantRockfish",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      141
+    ],
+    "name": "Fish, Giant Rockfish",
+    "anchor": {
+      "display": "Fish, Giant Rockfish"
+    }
+  },
+  {
+    "id": "mm.fishGiantSturgeon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      142
+    ],
+    "name": "Fish, Giant Sturgeon",
+    "anchor": {
+      "display": "Fish, Giant Sturgeon"
+    }
+  },
+  {
+    "id": "mm.flayFiend",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      143
+    ],
+    "name": "Flay Fiend",
+    "anchor": {
+      "display": "Flay Fiend"
+    }
+  },
+  {
+    "id": "mm.flyGiantCarnivorous",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      144
+    ],
+    "name": "Fly, Giant Carnivorous",
+    "anchor": {
+      "display": "Fly, Giant Carnivorous"
+    }
+  },
+  {
+    "id": "mm.frogGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      145
+    ],
+    "name": "Frog, Giant",
+    "anchor": {
+      "display": "Frog, Giant"
+    }
+  },
+  {
+    "id": "mm.fungusShrieking",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      146
+    ],
+    "name": "Fungus, Shrieking",
+    "anchor": {
+      "display": "Fungus, Shrieking"
+    }
+  },
+  {
+    "id": "mm.fungusViolet",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      147
+    ],
+    "name": "Fungus, Violet",
+    "anchor": {
+      "display": "Fungus, Violet"
+    }
+  },
+  {
+    "id": "mm.galdrtr",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      148
+    ],
+    "name": "Galdrtré",
+    "anchor": {
+      "display": "Galdrtré"
+    }
+  },
+  {
+    "id": "mm.gargoyle",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      149
+    ],
+    "name": "Gargoyle",
+    "anchor": {
+      "display": "Gargoyle"
+    },
+    "icon": "systems/acks/assets/icons/gargoyle.webp"
+  },
+  {
+    "id": "mm.genieEfreet",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      150
+    ],
+    "name": "Genie, Efreet",
+    "anchor": {
+      "display": "Genie, Efreet"
+    }
+  },
+  {
+    "id": "mm.genieHafar",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      151
+    ],
+    "name": "Genie, Hafar",
+    "anchor": {
+      "display": "Genie, Hafar"
+    }
+  },
+  {
+    "id": "mm.genieJann",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      152
+    ],
+    "name": "Genie, Jann",
+    "anchor": {
+      "display": "Genie, Jann"
+    }
+  },
+  {
+    "id": "mm.genieMarid",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      153
+    ],
+    "name": "Genie, Marid",
+    "anchor": {
+      "display": "Genie, Marid"
+    }
+  },
+  {
+    "id": "mm.ghoulDesert",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      154
+    ],
+    "name": "Ghoul, Desert",
+    "anchor": {
+      "display": "Ghoul, Desert"
+    }
+  },
+  {
+    "id": "mm.ghoulGrave",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      155
+    ],
+    "name": "Ghoul, Grave",
+    "anchor": {
+      "display": "Ghoul, Grave"
+    }
+  },
+  {
+    "id": "mm.ghoulMarsh",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      156
+    ],
+    "name": "Ghoul, Marsh",
+    "anchor": {
+      "display": "Ghoul, Marsh"
+    }
+  },
+  {
+    "id": "mm.giantFire",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      157
+    ],
+    "name": "Giant, Fire",
+    "anchor": {
+      "display": "Giant, Fire"
+    }
+  },
+  {
+    "id": "mm.giantFrost",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      158
+    ],
+    "name": "Giant, Frost",
+    "anchor": {
+      "display": "Giant, Frost"
+    }
+  },
+  {
+    "id": "mm.giantHill",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      159
+    ],
+    "name": "Giant, Hill",
+    "anchor": {
+      "display": "Giant, Hill"
+    }
+  },
+  {
+    "id": "mm.giantStone",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      160
+    ],
+    "name": "Giant, Stone",
+    "anchor": {
+      "display": "Giant, Stone"
+    }
+  },
+  {
+    "id": "mm.gnome",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      161
+    ],
+    "name": "Gnome",
+    "anchor": {
+      "display": "Gnome"
+    }
+  },
+  {
+    "id": "mm.golemAmber",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      162
+    ],
+    "name": "Golem, Amber",
+    "anchor": {
+      "display": "Golem, Amber"
+    }
+  },
+  {
+    "id": "mm.golemBone",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      163
+    ],
+    "name": "Golem, Bone",
+    "anchor": {
+      "display": "Golem, Bone"
+    }
+  },
+  {
+    "id": "mm.golemBronze",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      164
+    ],
+    "name": "Golem, Bronze",
+    "anchor": {
+      "display": "Golem, Bronze"
+    }
+  },
+  {
+    "id": "mm.golemIron",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      165
+    ],
+    "name": "Golem, Iron",
+    "anchor": {
+      "display": "Golem, Iron"
+    }
+  },
+  {
+    "id": "mm.golemStone",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      166
+    ],
+    "name": "Golem, Stone",
+    "anchor": {
+      "display": "Golem, Stone"
+    }
+  },
+  {
+    "id": "mm.golemWood",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      167
+    ],
+    "name": "Golem, Wood",
+    "anchor": {
+      "display": "Golem, Wood"
+    }
+  },
+  {
+    "id": "mm.gooGrey",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      168
+    ],
+    "name": "Goo, Grey",
+    "anchor": {
+      "display": "Goo, Grey"
+    }
+  },
+  {
+    "id": "mm.gorgon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      169
+    ],
+    "name": "Gorgon",
+    "anchor": {
+      "display": "Gorgon"
+    }
+  },
+  {
+    "id": "mm.hellhoundGreater",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      179
+    ],
+    "name": "Hellhound, Greater",
+    "anchor": {
+      "display": "Hellhound, Greater"
+    }
+  },
+  {
+    "id": "mm.hellhoundLesser",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      180
+    ],
+    "name": "Hellhound, Lesser",
+    "anchor": {
+      "display": "Hellhound, Lesser"
+    }
+  },
+  {
+    "id": "mm.heraldAngel",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      181
+    ],
+    "name": "Herald Angel",
+    "anchor": {
+      "display": "Herald Angel"
+    }
+  },
+  {
+    "id": "mm.herdAnimal",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      182
+    ],
+    "name": "Herd Animal",
+    "anchor": {
+      "display": "Herd Animal"
+    }
+  },
+  {
+    "id": "mm.hippogriff",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      185
+    ],
+    "name": "Hippogriff",
+    "anchor": {
+      "display": "Hippogriff"
+    }
+  },
+  {
+    "id": "mm.hippopotamus",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      186
+    ],
+    "name": "Hippopotamus",
+    "anchor": {
+      "display": "Hippopotamus"
+    }
+  },
+  {
+    "id": "mm.hoarflesh",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      187
+    ],
+    "name": "Hoarflesh",
+    "anchor": {
+      "display": "Hoarflesh"
+    }
+  },
+  {
+    "id": "mm.hobgholl",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      188
+    ],
+    "name": "Hobgholl",
+    "anchor": {
+      "display": "Hobgholl"
+    }
+  },
+  {
+    "id": "mm.hydra",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      189
+    ],
+    "name": "Hydra",
+    "anchor": {
+      "display": "Hydra"
+    }
+  },
+  {
+    "id": "mm.hyenaCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      190
+    ],
+    "name": "Hyena, Common",
+    "anchor": {
+      "display": "Hyena, Common"
+    }
+  },
+  {
+    "id": "mm.hyenaGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      191
+    ],
+    "name": "Hyena, Giant",
+    "anchor": {
+      "display": "Hyena, Giant"
+    }
+  },
+  {
+    "id": "mm.invisibleStalker",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      192
+    ],
+    "name": "Invisible Stalker",
+    "anchor": {
+      "display": "Invisible Stalker"
+    }
+  },
+  {
+    "id": "mm.jackalCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      193
+    ],
+    "name": "Jackal, Common",
+    "anchor": {
+      "display": "Jackal, Common"
+    }
+  },
+  {
+    "id": "mm.jellyfishGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      194
+    ],
+    "name": "Jellyfish, Giant",
+    "anchor": {
+      "display": "Jellyfish, Giant"
+    }
+  },
+  {
+    "id": "mm.khepri",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      195
+    ],
+    "name": "Khepri",
+    "anchor": {
+      "display": "Khepri"
+    },
+    "assists": {
+      "spoilsPage": 196
+    }
+  },
+  {
+    "id": "mm.kraken",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      197
+    ],
+    "name": "Kraken",
+    "anchor": {
+      "display": "Kraken"
+    },
+    "assists": {
+      "spoilsPage": 198
+    }
+  },
+  {
+    "id": "mm.lamia",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      199
+    ],
+    "name": "Lamia",
+    "anchor": {
+      "display": "Lamia"
+    }
+  },
+  {
+    "id": "mm.lammasu",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      200
+    ],
+    "name": "Lammasu",
+    "anchor": {
+      "display": "Lammasu"
+    }
+  },
+  {
+    "id": "mm.leechGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      201
+    ],
+    "name": "Leech, Giant",
+    "anchor": {
+      "display": "Leech, Giant"
+    }
+  },
+  {
+    "id": "mm.leyak",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      202
+    ],
+    "name": "Leyak",
+    "anchor": {
+      "display": "Leyak"
+    },
+    "assists": {
+      "spoilsPage": 203
+    }
+  },
+  {
+    "id": "mm.livingAncestor",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      204
+    ],
+    "name": "Living Ancestor",
+    "anchor": {
+      "display": "Living Ancestor"
+    }
+  },
+  {
+    "id": "mm.lizardGiantDraco",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      205
+    ],
+    "name": "Lizard, Giant Draco",
+    "anchor": {
+      "display": "Lizard, Giant Draco"
+    }
+  },
+  {
+    "id": "mm.lizardGiantGecko",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      206
+    ],
+    "name": "Lizard, Giant Gecko",
+    "anchor": {
+      "display": "Lizard, Giant Gecko"
+    }
+  },
+  {
+    "id": "mm.lizardGiantHornedChameleon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      207
+    ],
+    "name": "Lizard, Giant Horned Chameleon",
+    "anchor": {
+      "display": "Lizard, Giant Horned Chameleon"
+    }
+  },
+  {
+    "id": "mm.lizardGiantTuatara",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      208
+    ],
+    "name": "Lizard, Giant Tuatara",
+    "anchor": {
+      "display": "Lizard, Giant Tuatara"
+    }
+  },
+  {
+    "id": "mm.lizardman",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      209
+    ],
+    "name": "Lizardman",
+    "anchor": {
+      "display": "Lizardman"
+    }
+  },
+  {
+    "id": "mm.locustCavern",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      210
+    ],
+    "name": "Locust, Cavern",
+    "anchor": {
+      "display": "Locust, Cavern"
+    }
+  },
+  {
+    "id": "mm.lycanthrope",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      211
+    ],
+    "name": "Lycanthrope",
+    "anchor": {
+      "display": "Lycanthrope"
+    },
+    "assists": {
+      "noSpoils": true,
+      "descStopHeading": "The Disease of Lycanthropy",
+      "descColumns": 2,
+      "skips": [
+        {
+          "page": 211,
+          "box": {
+            "x0": 325,
+            "x1": 612,
+            "y0": 262,
+            "y1": 792
+          },
+          "reason": "rules section, not this creature"
+        }
+      ]
+    }
+  },
+  {
+    "id": "mm.lycanthropeWerebear",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      212
+    ],
+    "name": "Lycanthrope, Werebear",
+    "anchor": {
+      "display": "Lycanthrope, Werebear"
+    }
+  },
+  {
+    "id": "mm.lycanthropeWereboar",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      213
+    ],
+    "name": "Lycanthrope, Wereboar",
+    "anchor": {
+      "display": "Lycanthrope, Wereboar"
+    }
+  },
+  {
+    "id": "mm.lycanthropeWererat",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      214
+    ],
+    "name": "Lycanthrope, Wererat",
+    "anchor": {
+      "display": "Lycanthrope, Wererat"
+    }
+  },
+  {
+    "id": "mm.lycanthropeWeretiger",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      215
+    ],
+    "name": "Lycanthrope, Weretiger",
+    "anchor": {
+      "display": "Lycanthrope, Weretiger"
+    }
+  },
+  {
+    "id": "mm.lycanthropeWerewolf",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      216
+    ],
+    "name": "Lycanthrope, Werewolf",
+    "anchor": {
+      "display": "Lycanthrope, Werewolf"
+    }
+  },
+  {
+    "id": "mm.maggotMurder",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      217
+    ],
+    "name": "Maggot, Murder",
+    "anchor": {
+      "display": "Maggot, Murder"
+    }
+  },
+  {
+    "id": "mm.mammoth",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      218
+    ],
+    "name": "Mammoth",
+    "anchor": {
+      "display": "Mammoth"
+    }
+  },
+  {
+    "id": "mm.manBandit",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      219
+    ],
+    "name": "Man, Bandit",
+    "anchor": {
+      "display": "Man, Bandit"
+    }
+  },
+  {
+    "id": "mm.manBerserker",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      220
+    ],
+    "name": "Man, Berserker",
+    "anchor": {
+      "display": "Man, Berserker"
+    }
+  },
+  {
+    "id": "mm.manBrigand",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      221
+    ],
+    "name": "Man, Brigand",
+    "anchor": {
+      "display": "Man, Brigand"
+    }
+  },
+  {
+    "id": "mm.manCommoner",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      222
+    ],
+    "name": "Man, Commoner",
+    "anchor": {
+      "display": "Man, Commoner"
+    }
+  },
+  {
+    "id": "mm.manMerchant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      223
+    ],
+    "name": "Man, Merchant",
+    "anchor": {
+      "display": "Man, Merchant"
+    }
+  },
+  {
+    "id": "mm.manMerchantMariner",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      224
+    ],
+    "name": "Man, Merchant Mariner",
+    "anchor": {
+      "display": "Man, Merchant Mariner"
+    }
+  },
+  {
+    "id": "mm.manNavalMariner",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      226
+    ],
+    "name": "Man, Naval Mariner",
+    "anchor": {
+      "display": "Man, Naval Mariner"
+    }
+  },
+  {
+    "id": "mm.manNomad",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      227
+    ],
+    "name": "Man, Nomad",
+    "anchor": {
+      "display": "Man, Nomad"
+    }
+  },
+  {
+    "id": "mm.manPatroller",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      228
+    ],
+    "name": "Man, Patroller",
+    "anchor": {
+      "display": "Man, Patroller"
+    }
+  },
+  {
+    "id": "mm.manPilgrim",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      229
+    ],
+    "name": "Man, Pilgrim",
+    "anchor": {
+      "display": "Man, Pilgrim"
+    }
+  },
+  {
+    "id": "mm.manPirate",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      230
+    ],
+    "name": "Man, Pirate",
+    "anchor": {
+      "display": "Man, Pirate"
+    }
+  },
+  {
+    "id": "mm.manRaider",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      232
+    ],
+    "name": "Man, Raider",
+    "anchor": {
+      "display": "Man, Raider"
+    }
+  },
+  {
+    "id": "mm.manTribalWarrior",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      233
+    ],
+    "name": "Man, Tribal Warrior",
+    "anchor": {
+      "display": "Man, Tribal Warrior"
+    }
+  },
+  {
+    "id": "mm.manes",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      234
+    ],
+    "name": "Manes",
+    "anchor": {
+      "display": "Manes"
+    }
+  },
+  {
+    "id": "mm.manticore",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      235
+    ],
+    "name": "Manticore",
+    "anchor": {
+      "display": "Manticore"
+    }
+  },
+  {
+    "id": "mm.massGelatinous",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      236
+    ],
+    "name": "Mass, Gelatinous",
+    "anchor": {
+      "display": "Mass, Gelatinous"
+    }
+  },
+  {
+    "id": "mm.medusa",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      237
+    ],
+    "name": "Medusa",
+    "anchor": {
+      "display": "Medusa"
+    }
+  },
+  {
+    "id": "mm.minotaur",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      238
+    ],
+    "name": "Minotaur",
+    "anchor": {
+      "display": "Minotaur"
+    },
+    "icon": "systems/acks/assets/icons/minotaur.webp"
+  },
+  {
+    "id": "mm.moldMustard",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      239
+    ],
+    "name": "Mold, Mustard",
+    "anchor": {
+      "display": "Mold, Mustard"
+    }
+  },
+  {
+    "id": "mm.morlock",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      240
+    ],
+    "name": "Morlock",
+    "anchor": {
+      "display": "Morlock"
+    }
+  },
+  {
+    "id": "mm.mummy",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      241
+    ],
+    "name": "Mummy",
+    "anchor": {
+      "display": "Mummy"
+    }
+  },
+  {
+    "id": "mm.mummyLord",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      242
+    ],
+    "name": "Mummy Lord",
+    "anchor": {
+      "display": "Mummy Lord"
+    }
+  },
+  {
+    "id": "mm.nathagholGlintersnatch",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      244
+    ],
+    "name": "Nathaghol (Glintersnatch)",
+    "anchor": {
+      "display": "Nathaghol (Glintersnatch)"
+    }
+  },
+  {
+    "id": "mm.neanderthal",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      246
+    ],
+    "name": "Neanderthal",
+    "anchor": {
+      "display": "Neanderthal"
+    }
+  },
+  {
+    "id": "mm.necropede",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      247
+    ],
+    "name": "Necropede",
+    "anchor": {
+      "display": "Necropede"
+    }
+  },
+  {
+    "id": "mm.nymphDryad",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      248
+    ],
+    "name": "Nymph, Dryad",
+    "anchor": {
+      "display": "Nymph, Dryad"
+    }
+  },
+  {
+    "id": "mm.nymphNaiad",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      249
+    ],
+    "name": "Nymph, Naiad",
+    "anchor": {
+      "display": "Nymph, Naiad"
+    }
+  },
+  {
+    "id": "mm.nymphOread",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      250
+    ],
+    "name": "Nymph, Oread",
+    "anchor": {
+      "display": "Nymph, Oread"
+    }
+  },
+  {
+    "id": "mm.octopusGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      251
+    ],
+    "name": "Octopus, Giant",
+    "anchor": {
+      "display": "Octopus, Giant"
+    }
+  },
+  {
+    "id": "mm.ogre",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      252
+    ],
+    "name": "Ogre",
+    "anchor": {
+      "display": "Ogre"
+    }
+  },
+  {
+    "id": "mm.oozeOchre",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      253
+    ],
+    "name": "Ooze, Ochre",
+    "anchor": {
+      "display": "Ooze, Ochre"
+    }
+  },
+  {
+    "id": "mm.ostrichCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      254
+    ],
+    "name": "Ostrich, Common",
+    "anchor": {
+      "display": "Ostrich, Common"
+    }
+  },
+  {
+    "id": "mm.ostrichGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      255
+    ],
+    "name": "Ostrich, Giant",
+    "anchor": {
+      "display": "Ostrich, Giant"
+    }
+  },
+  {
+    "id": "mm.owlbeast",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      256
+    ],
+    "name": "Owlbeast",
+    "anchor": {
+      "display": "Owlbeast"
+    }
+  },
+  {
+    "id": "mm.pegasus",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      257
+    ],
+    "name": "Pegasus",
+    "anchor": {
+      "display": "Pegasus"
+    }
+  },
+  {
+    "id": "mm.phoenix",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      258
+    ],
+    "name": "Phoenix",
+    "anchor": {
+      "display": "Phoenix"
+    }
+  },
+  {
+    "id": "mm.rakshasa",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      259
+    ],
+    "name": "Rakshasa",
+    "anchor": {
+      "display": "Rakshasa"
+    }
+  },
+  {
+    "id": "mm.raptorGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      260
+    ],
+    "name": "Raptor, Giant",
+    "anchor": {
+      "display": "Raptor, Giant"
+    }
+  },
+  {
+    "id": "mm.raptorLarge",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      261
+    ],
+    "name": "Raptor, Large",
+    "anchor": {
+      "display": "Raptor, Large"
+    }
+  },
+  {
+    "id": "mm.raptorMedium",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      262
+    ],
+    "name": "Raptor, Medium",
+    "anchor": {
+      "display": "Raptor, Medium"
+    }
+  },
+  {
+    "id": "mm.raptorSmall",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      263
+    ],
+    "name": "Raptor, Small",
+    "anchor": {
+      "display": "Raptor, Small"
+    }
+  },
+  {
+    "id": "mm.rhinocerosCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      264
+    ],
+    "name": "Rhinoceros, Common",
+    "anchor": {
+      "display": "Rhinoceros, Common"
+    }
+  },
+  {
+    "id": "mm.rhinocerosWoolly",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      265
+    ],
+    "name": "Rhinoceros, Woolly",
+    "anchor": {
+      "display": "Rhinoceros, Woolly"
+    }
+  },
+  {
+    "id": "mm.rocGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      266
+    ],
+    "name": "Roc, Giant",
+    "anchor": {
+      "display": "Roc, Giant"
+    }
+  },
+  {
+    "id": "mm.rocLarge",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      267
+    ],
+    "name": "Roc, Large",
+    "anchor": {
+      "display": "Roc, Large"
+    }
+  },
+  {
+    "id": "mm.rocSmall",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      268
+    ],
+    "name": "Roc, Small",
+    "anchor": {
+      "display": "Roc, Small"
+    }
+  },
+  {
+    "id": "mm.rustbeast",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      269
+    ],
+    "name": "Rustbeast",
+    "anchor": {
+      "display": "Rustbeast"
+    }
+  },
+  {
+    "id": "mm.salamanderFlame",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      270
+    ],
+    "name": "Salamander, Flame",
+    "anchor": {
+      "display": "Salamander, Flame"
+    }
+  },
+  {
+    "id": "mm.salamanderFrost",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      271
+    ],
+    "name": "Salamander, Frost",
+    "anchor": {
+      "display": "Salamander, Frost"
+    }
+  },
+  {
+    "id": "mm.scorpionGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      272
+    ],
+    "name": "Scorpion, Giant",
+    "anchor": {
+      "display": "Scorpion, Giant"
+    }
+  },
+  {
+    "id": "mm.sealCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      273
+    ],
+    "name": "Seal, Common",
+    "anchor": {
+      "display": "Seal, Common"
+    }
+  },
+  {
+    "id": "mm.seaSerpent",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      274
+    ],
+    "name": "Sea Serpent",
+    "anchor": {
+      "display": "Sea Serpent"
+    }
+  },
+  {
+    "id": "mm.sepulchralWorm",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      275
+    ],
+    "name": "Sepulchral Worm",
+    "anchor": {
+      "display": "Sepulchral Worm"
+    }
+  },
+  {
+    "id": "mm.shadow",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      276
+    ],
+    "name": "Shadow",
+    "anchor": {
+      "display": "Shadow"
+    }
+  },
+  {
+    "id": "mm.sharkBull",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      277
+    ],
+    "name": "Shark, Bull",
+    "anchor": {
+      "display": "Shark, Bull"
+    }
+  },
+  {
+    "id": "mm.sharkGreatWhite",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      278
+    ],
+    "name": "Shark, Great White",
+    "anchor": {
+      "display": "Shark, Great White"
+    }
+  },
+  {
+    "id": "mm.sharkMako",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      279
+    ],
+    "name": "Shark, Mako",
+    "anchor": {
+      "display": "Shark, Mako"
+    }
+  },
+  {
+    "id": "mm.siren",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      280
+    ],
+    "name": "Siren",
+    "anchor": {
+      "display": "Siren"
+    }
+  },
+  {
+    "id": "mm.skeletalSlayer",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      281
+    ],
+    "name": "Skeletal Slayer",
+    "anchor": {
+      "display": "Skeletal Slayer"
+    }
+  },
+  {
+    "id": "mm.skeleton",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      282
+    ],
+    "name": "Skeleton",
+    "anchor": {
+      "display": "Skeleton"
+    }
+  },
+  {
+    "id": "mm.skitteringMaw",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      283
+    ],
+    "name": "Skittering Maw",
+    "anchor": {
+      "display": "Skittering Maw"
+    }
+  },
+  {
+    "id": "mm.slimeSage",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      284
+    ],
+    "name": "Slime, Sage",
+    "anchor": {
+      "display": "Slime, Sage"
+    }
+  },
+  {
+    "id": "mm.slugGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      285
+    ],
+    "name": "Slug, Giant",
+    "anchor": {
+      "display": "Slug, Giant"
+    }
+  },
+  {
+    "id": "mm.snakeGiantConstrictingViper",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      286
+    ],
+    "name": "Snake, Giant Constricting Viper",
+    "anchor": {
+      "display": "Snake, Giant Constricting Viper"
+    }
+  },
+  {
+    "id": "mm.snakeKingCobra",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      287
+    ],
+    "name": "Snake, King Cobra",
+    "anchor": {
+      "display": "Snake, King Cobra"
+    }
+  },
+  {
+    "id": "mm.snakePython",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      288
+    ],
+    "name": "Snake, Python",
+    "anchor": {
+      "display": "Snake, Python"
+    }
+  },
+  {
+    "id": "mm.snakeSeaSnake",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      289
+    ],
+    "name": "Snake, Sea Snake",
+    "anchor": {
+      "display": "Snake, Sea Snake"
+    }
+  },
+  {
+    "id": "mm.snakeSpittingCobra",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      290
+    ],
+    "name": "Snake, Spitting Cobra",
+    "anchor": {
+      "display": "Snake, Spitting Cobra"
+    }
+  },
+  {
+    "id": "mm.snakeViper",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      291
+    ],
+    "name": "Snake, Viper",
+    "anchor": {
+      "display": "Snake, Viper"
+    }
+  },
+  {
+    "id": "mm.specter",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      292
+    ],
+    "name": "Specter",
+    "anchor": {
+      "display": "Specter"
+    }
+  },
+  {
+    "id": "mm.spellTyrant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      293
+    ],
+    "name": "Spell Tyrant",
+    "anchor": {
+      "display": "Spell Tyrant"
+    }
+  },
+  {
+    "id": "mm.sphinx",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      294
+    ],
+    "name": "Sphinx",
+    "anchor": {
+      "display": "Sphinx"
+    }
+  },
+  {
+    "id": "mm.spiderGiantBlackWidow",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      295
+    ],
+    "name": "Spider, Giant Black Widow",
+    "anchor": {
+      "display": "Spider, Giant Black Widow"
+    }
+  },
+  {
+    "id": "mm.spiderGiantCrab",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      296
+    ],
+    "name": "Spider, Giant Crab",
+    "anchor": {
+      "display": "Spider, Giant Crab"
+    }
+  },
+  {
+    "id": "mm.spiderGiantTarantula",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      297
+    ],
+    "name": "Spider, Giant Tarantula",
+    "anchor": {
+      "display": "Spider, Giant Tarantula"
+    }
+  },
+  {
+    "id": "mm.squidGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      298
+    ],
+    "name": "Squid, Giant",
+    "anchor": {
+      "display": "Squid, Giant"
+    }
+  },
+  {
+    "id": "mm.statueAnimatedBronze",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      299
+    ],
+    "name": "Statue, Animated Bronze",
+    "anchor": {
+      "display": "Statue, Animated Bronze"
+    }
+  },
+  {
+    "id": "mm.statueAnimatedChryselephantine",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      300
+    ],
+    "name": "Statue, Animated Chryselephantine",
+    "anchor": {
+      "display": "Statue, Animated Chryselephantine"
+    }
+  },
+  {
+    "id": "mm.statueAnimatedCrystal",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      301
+    ],
+    "name": "Statue, Animated Crystal",
+    "anchor": {
+      "display": "Statue, Animated Crystal"
+    }
+  },
+  {
+    "id": "mm.statueAnimatedIron",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      302
+    ],
+    "name": "Statue, Animated Iron",
+    "anchor": {
+      "display": "Statue, Animated Iron"
+    }
+  },
+  {
+    "id": "mm.statueAnimatedStone",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      303
+    ],
+    "name": "Statue, Animated Stone",
+    "anchor": {
+      "display": "Statue, Animated Stone"
+    }
+  },
+  {
+    "id": "mm.strix",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      304
+    ],
+    "name": "Strix",
+    "anchor": {
+      "display": "Strix"
+    }
+  },
+  {
+    "id": "mm.stymph",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      305
+    ],
+    "name": "Stymph",
+    "anchor": {
+      "display": "Stymph"
+    }
+  },
+  {
+    "id": "mm.swarmBat",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      306
+    ],
+    "name": "Swarm, Bat",
+    "anchor": {
+      "display": "Swarm, Bat"
+    }
+  },
+  {
+    "id": "mm.swarmFish",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      307
+    ],
+    "name": "Swarm, Fish",
+    "anchor": {
+      "display": "Swarm, Fish"
+    }
+  },
+  {
+    "id": "mm.swarmInsect",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      308
+    ],
+    "name": "Swarm, Insect",
+    "anchor": {
+      "display": "Swarm, Insect"
+    }
+  },
+  {
+    "id": "mm.swarmRat",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      309
+    ],
+    "name": "Swarm, Rat",
+    "anchor": {
+      "display": "Swarm, Rat"
+    }
+  },
+  {
+    "id": "mm.thrassianGreaterLizardman",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      310
+    ],
+    "name": "Thrassian (Greater Lizardman)",
+    "anchor": {
+      "display": "Thrassian (Greater Lizardman)"
+    },
+    "assists": {
+      "spoilsPage": 311
+    }
+  },
+  {
+    "id": "mm.tickGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      312
+    ],
+    "name": "Tick, Giant",
+    "anchor": {
+      "display": "Tick, Giant"
+    }
+  },
+  {
+    "id": "mm.titanGreater",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      313
+    ],
+    "name": "Titan, Greater",
+    "anchor": {
+      "display": "Titan, Greater"
+    }
+  },
+  {
+    "id": "mm.titanLesser",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      314
+    ],
+    "name": "Titan, Lesser",
+    "anchor": {
+      "display": "Titan, Lesser"
+    }
+  },
+  {
+    "id": "mm.toadGiant",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      315
+    ],
+    "name": "Toad, Giant",
+    "anchor": {
+      "display": "Toad, Giant"
+    }
+  },
+  {
+    "id": "mm.tokayGull",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      316
+    ],
+    "name": "Tokay Gull",
+    "anchor": {
+      "display": "Tokay Gull"
+    }
+  },
+  {
+    "id": "mm.treeherder",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      317
+    ],
+    "name": "Treeherder",
+    "anchor": {
+      "display": "Treeherder"
+    }
+  },
+  {
+    "id": "mm.triton",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      318
+    ],
+    "name": "Triton",
+    "anchor": {
+      "display": "Triton"
+    }
+  },
+  {
+    "id": "mm.troglodyte",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      319
+    ],
+    "name": "Troglodyte",
+    "anchor": {
+      "display": "Troglodyte"
+    }
+  },
+  {
+    "id": "mm.troll",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      320
+    ],
+    "name": "Troll",
+    "anchor": {
+      "display": "Troll"
+    }
+  },
+  {
+    "id": "mm.turtleSea",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      321
+    ],
+    "name": "Turtle, Sea",
+    "anchor": {
+      "display": "Turtle, Sea"
+    }
+  },
+  {
+    "id": "mm.unicorn",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      322
+    ],
+    "name": "Unicorn",
+    "anchor": {
+      "display": "Unicorn"
+    }
+  },
+  {
+    "id": "mm.vampire",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      323
+    ],
+    "name": "Vampire",
+    "anchor": {
+      "display": "Vampire"
+    },
+    "assists": {
+      "spoilsPage": 324
+    }
+  },
+  {
+    "id": "mm.vampireThrall",
+    "kind": "kind.monsterTemplate",
+    "book": "mm",
+    "pages": [
+      325
+    ],
+    "name": "Vampire Thrall",
+    "anchor": {
+      "display": "Vampire Thrall"
+    },
+    "template": {
+      "nameFormat": "{base}, Vampire Thrall",
+      "axes": [
+        {
+          "key": "hd",
+          "label": "Hit Dice",
+          "derive": {
+            "from": "hd",
+            "max": 8
+          },
+          "grids": [
+            "chars",
+            "powers"
+          ],
+          "keyIsHd": true
+        }
+      ],
+      "grids": {
+        "chars": {
+          "page": 325,
+          "expectRows": 8,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 70,
+            "x1": 565,
+            "y0": 262,
+            "y1": 382
+          },
+          "label": {
+            "x0": 70,
+            "x1": 105
+          },
+          "cols": [
+            {
+              "key": "armorClass",
+              "x0": 106,
+              "x1": 130,
+              "pattern": "int"
+            },
+            {
+              "key": "attacks",
+              "x0": 131,
+              "x1": 218,
+              "pattern": "raw"
+            },
+            {
+              "key": "damage",
+              "x0": 219,
+              "x1": 425,
+              "pattern": "raw"
+            },
+            {
+              "key": "save",
+              "x0": 426,
+              "x1": 458,
+              "pattern": "raw"
+            },
+            {
+              "key": "morale",
+              "x0": 459,
+              "x1": 490,
+              "pattern": "intDash"
+            },
+            {
+              "key": "treasureType",
+              "x0": 491,
+              "x1": 540,
+              "pattern": "raw"
+            },
+            {
+              "key": "xp",
+              "x0": 541,
+              "x1": 565,
+              "pattern": "int"
+            }
+          ],
+          "dropRows": [
+            "hd"
+          ]
+        },
+        "powers": {
+          "page": 325,
+          "expectRows": 8,
+          "gapMin": 1.5,
+          "box": {
+            "x0": 70,
+            "x1": 565,
+            "y0": 392,
+            "y1": 500
+          },
+          "label": {
+            "x0": 70,
+            "x1": 105
+          },
+          "cols": [
+            {
+              "key": "rebukedAs",
+              "x0": 106,
+              "x1": 182,
+              "pattern": "raw"
+            },
+            {
+              "key": "abilitiesGained",
+              "x0": 183,
+              "x1": 565,
+              "pattern": "raw"
+            }
+          ],
+          "dropRows": [
+            "hd"
+          ]
+        }
+      },
+      "prose": {
+        "325": [
+          70
+        ]
+      }
+    }
+  },
+  {
+    "id": "mm.varmintGiantFerret",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      326
+    ],
+    "name": "Varmint, Giant Ferret",
+    "anchor": {
+      "display": "Varmint, Giant Ferret"
+    }
+  },
+  {
+    "id": "mm.varmintGiantRat",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      327
+    ],
+    "name": "Varmint, Giant Rat",
+    "anchor": {
+      "display": "Varmint, Giant Rat"
+    }
+  },
+  {
+    "id": "mm.varmintGiantShrew",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      328
+    ],
+    "name": "Varmint, Giant Shrew",
+    "anchor": {
+      "display": "Varmint, Giant Shrew"
+    }
+  },
+  {
+    "id": "mm.varmintGiantWeasel",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      329
+    ],
+    "name": "Varmint, Giant Weasel",
+    "anchor": {
+      "display": "Varmint, Giant Weasel"
+    }
+  },
+  {
+    "id": "mm.venousSentinel",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      330
+    ],
+    "name": "Venous Sentinel",
+    "anchor": {
+      "display": "Venous Sentinel"
+    }
+  },
+  {
+    "id": "mm.waspGiantParasitic",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      331
+    ],
+    "name": "Wasp, Giant Parasitic",
+    "anchor": {
+      "display": "Wasp, Giant Parasitic"
+    }
+  },
+  {
+    "id": "mm.whaleKiller",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      332
+    ],
+    "name": "Whale, Killer",
+    "anchor": {
+      "display": "Whale, Killer"
+    }
+  },
+  {
+    "id": "mm.whaleNarwhal",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      333
+    ],
+    "name": "Whale, Narwhal",
+    "anchor": {
+      "display": "Whale, Narwhal"
+    }
+  },
+  {
+    "id": "mm.whaleSperm",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      334
+    ],
+    "name": "Whale, Sperm",
+    "anchor": {
+      "display": "Whale, Sperm"
+    }
+  },
+  {
+    "id": "mm.wight",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      335
+    ],
+    "name": "Wight",
+    "anchor": {
+      "display": "Wight"
+    }
+  },
+  {
+    "id": "mm.wildHuntsman",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      336
+    ],
+    "name": "Wild Huntsman",
+    "anchor": {
+      "display": "Wild Huntsman"
+    },
+    "assists": {
+      "spoilsPage": 337
+    }
+  },
+  {
+    "id": "mm.wolfCommon",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      338
+    ],
+    "name": "Wolf, Common",
+    "anchor": {
+      "display": "Wolf, Common"
+    }
+  },
+  {
+    "id": "mm.wolfDire",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      339
+    ],
+    "name": "Wolf, Dire",
+    "anchor": {
+      "display": "Wolf, Dire"
+    }
+  },
+  {
+    "id": "mm.wolfWarg",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      340
+    ],
+    "name": "Wolf, Warg",
+    "anchor": {
+      "display": "Wolf, Warg"
+    }
+  },
+  {
+    "id": "mm.wormGiantOverview",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      341
+    ],
+    "name": "Worm, Giant (Overview)",
+    "anchor": {
+      "display": "Worm, Giant (Overview)"
+    }
+  },
+  {
+    "id": "mm.wormGiantBlack",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      342
+    ],
+    "name": "Worm, Giant Black",
+    "anchor": {
+      "display": "Worm, Giant Black"
+    }
+  },
+  {
+    "id": "mm.wormGiantGrey",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      343
+    ],
+    "name": "Worm, Giant Grey",
+    "anchor": {
+      "display": "Worm, Giant Grey"
+    }
+  },
+  {
+    "id": "mm.wormGreatIce",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      344
+    ],
+    "name": "Worm, Great Ice",
+    "anchor": {
+      "display": "Worm, Great Ice"
+    }
+  },
+  {
+    "id": "mm.wraith",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      345
+    ],
+    "name": "Wraith",
+    "anchor": {
+      "display": "Wraith"
+    }
+  },
+  {
+    "id": "mm.wyvern",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      346
+    ],
+    "name": "Wyvern",
+    "anchor": {
+      "display": "Wyvern"
+    }
+  },
+  {
+    "id": "mm.yali",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      347
+    ],
+    "name": "Yali",
+    "anchor": {
+      "display": "Yali"
+    }
+  },
+  {
+    "id": "mm.zombie",
+    "kind": "kind.monster",
+    "book": "mm",
+    "pages": [
+      348
+    ],
+    "name": "Zombie",
+    "anchor": {
+      "display": "Zombie"
+    }
+  }
+]

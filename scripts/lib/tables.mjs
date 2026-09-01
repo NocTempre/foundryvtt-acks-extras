@@ -10,7 +10,7 @@
  *   0  SAMPLE   — module-shipped default (none ship today: extraction-program
  *                 ruling 1 — no book values, no fallback samples)
  *   10 CATALOG  — premium/companion content module
- *   20 WORLD    — per-world imported tables (acks-content import via the
+ *   20 WORLD    — per-world imported tables (importer import via the
  *                 `ruledata-import` service; persisted by its provider)
  *   30 OVERRIDE — GM tweaks parsed from world documents (RollTables /
  *                 journals); usually a PARTIAL doc carrying only the

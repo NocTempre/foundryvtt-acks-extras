@@ -1,0 +1,2750 @@
+[
+  {
+    "id": "def.prof.adventuring",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Adventuring",
+    "anchor": {
+      "display": "Adventuring (G)"
+    },
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "rolls": [
+      {
+        "key": "dungeonbashing",
+        "label": {
+          "pattern": "(Dungeonbashing) proficiency throw"
+        },
+        "target": {
+          "pattern": "Dungeonbashing proficiency throw of (\\d+)\\+"
+        },
+        "condition": "combat action; stuck doors"
+      },
+      {
+        "key": "climbing",
+        "label": {
+          "pattern": "(Climbing) proficiency throw"
+        },
+        "target": {
+          "pattern": "Climbing proficiency throw of (\\d+)\\+"
+        },
+        "condition": "easy-to-scale obstacles only"
+      },
+      {
+        "key": "searching",
+        "label": {
+          "pattern": "(Searching) proficiency throw"
+        },
+        "target": {
+          "pattern": "Searching proficiency throw of (\\d+)\\+"
+        },
+        "condition": "one turn spent searching methodically"
+      },
+      {
+        "key": "trapbreaking",
+        "label": {
+          "pattern": "(Trapbreaking) proficiency throw"
+        },
+        "target": {
+          "pattern": "Trapbreaking proficiency throw of (\\d+)\\+"
+        },
+        "condition": "one turn spent disarming methodically"
+      },
+      {
+        "key": "listening",
+        "label": {
+          "pattern": "(Listening) proficiency throw"
+        },
+        "target": {
+          "pattern": "Listening proficiency throw of (\\d+)\\+"
+        },
+        "condition": "one round spent pausing to listen"
+      }
+    ],
+    "icon": "systems/acks/assets/icons/adventuring.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/backpack.svg"
+  },
+  {
+    "id": "def.prof.acrobatics",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Acrobatics",
+    "anchor": {
+      "display": "Acrobatics"
+    },
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/acrobatics.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/acrobatic.svg"
+  },
+  {
+    "id": "def.prof.alchemy",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Alchemy",
+    "anchor": {
+      "display": "Alchemy (G)"
+    },
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "rolls": [
+      {
+        "key": "identifySubstance",
+        "label": {
+          "pattern": "(identify \\w+ alchemical substances)"
+        },
+        "target": {
+          "on": "rank",
+          "pattern": "identify \\w+ alchemical substances[\\s\\S]{0,80}?of (\\d+)\\+[\\s\\S]{0,1200}?identify substances[^.;]{0,30}?(\\d+)\\+[\\s\\S]{0,600}?identify substances[^.;]{0,30}?(\\d+)\\+"
+        },
+        "condition": "one turn; by aroma and color"
+      },
+      {
+        "key": "identifyComponents",
+        "label": {
+          "pattern": "(identify special components)"
+        },
+        "target": {
+          "on": "rank",
+          "pattern": "identify which parts[\\s\\S]{0,90}?throw of (\\d+)\\+[\\s\\S]{0,1200}?special components on (\\d+)\\+[\\s\\S]{0,600}?special components on (\\d+)\\+"
+        },
+        "note": "Identifies which parts of a monster are special components."
+      },
+      {
+        "key": "extractToxinFresh",
+        "label": {
+          "pattern": "of \\d+\\+ for (fresh plants)"
+        },
+        "target": {
+          "on": "rank",
+          "pattern": "of (\\d+)\\+ for fresh[\\s\\S]{0,900}?toxins on (\\d+)\\+\\s*/[\\s\\S]{0,600}?toxins on (\\d+)\\+\\s*/"
+        },
+        "condition": "one day of dedicated activity",
+        "note": "Extracting toxin from poisonous plants; one dose on a success, spoiled plants on a failure. On an unmodified 1 the character is exposed and must make a Death saving throw."
+      },
+      {
+        "key": "extractToxinDried",
+        "label": {
+          "pattern": "and \\d+\\+ for (dried plants)"
+        },
+        "target": {
+          "on": "rank",
+          "pattern": "and (\\d+)\\+ for dried[\\s\\S]{0,900}?toxins on \\d+\\+\\s*/\\s*(\\d+)\\+[\\s\\S]{0,600}?toxins on \\d+\\+\\s*/\\s*(\\d+)\\+"
+        },
+        "condition": "one day of dedicated activity",
+        "note": "Extracting toxin from poisonous plants; one dose on a success, spoiled plants on a failure. On an unmodified 1 the character is exposed and must make a Death saving throw."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/alchemy.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/cauldron.svg"
+  },
+  {
+    "id": "def.prof.alertness",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Alertness",
+    "anchor": {
+      "display": "Alertness"
+    },
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "rolls": [
+      {
+        "key": "searchListen",
+        "label": {
+          "pattern": "Adventuring proficiency to (search or listen)"
+        },
+        "target": {
+          "pattern": "search or listen[\\s\\S]{0,60}?proficiency throw of (\\d+)\\+"
+        },
+        "condition": "using Adventuring to search or listen",
+        "note": "Used in place of the usual Adventuring search/listen target, not added to it."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/alertness.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/hunter-eyes.svg"
+  },
+  {
+    "id": "def.prof.ambushing",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Ambushing",
+    "anchor": {
+      "display": "Ambushing"
+    },
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/ambushing.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/hidden.svg"
+  },
+  {
+    "id": "def.prof.animalHusbandry",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Animal Husbandry",
+    "anchor": {
+      "display": "Animal Husbandry (G)"
+    },
+    "pages": [
+      108
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "rolls": [
+      {
+        "key": "diagnose",
+        "label": {
+          "pattern": "(Diagnosis)\\s"
+        },
+        "target": {
+          "on": "rank",
+          "pattern": "proficiency throw of (\\d+)\\+[\\s\\S]{0,900}?diagnose illness on (\\d+)\\+[\\s\\S]{0,900}?diagnose illness on (\\d+)\\+"
+        },
+        "note": "Identifies whether the affliction is magical or mundane; no retry until further symptoms."
+      },
+      {
+        "key": "cure",
+        "label": {
+          "pattern": "(cure light \\w+)"
+        },
+        "target": {
+          "pattern": "cure light injury[\\s\\S]{0,320}?proficiency throw of (\\d+)\\+"
+        },
+        "condition": "two ranks; the affliction must already be diagnosed"
+      },
+      {
+        "key": "cureSerious",
+        "label": {
+          "pattern": "(cure serious \\w+)"
+        },
+        "target": {
+          "pattern": "cure serious injury[^.]{0,90}?proficiency throw of (\\d+)\\+"
+        },
+        "condition": "three ranks"
+      },
+      {
+        "key": "extractVenom",
+        "label": {
+          "pattern": "(extract venom) from slain"
+        },
+        "target": {
+          "on": "rank",
+          "pattern": "extract venom[\\s\\S]{0,220}?throw of (\\d+)\\+\\s*/\\s*(\\d+)\\+\\s*/\\s*(\\d+)\\+"
+        },
+        "note": "On an unmodified 1 the character is exposed and must make a Death saving throw."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/animal-husbandry.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/cow.svg"
+  },
+  {
+    "id": "def.prof.animalTraining",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Animal Training",
+    "anchor": {
+      "display": "Animal Training (G)"
+    },
+    "pages": [
+      108
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/animal-training.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/jumping-dog.svg"
+  },
+  {
+    "id": "def.prof.arcaneDabbling",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Arcane Dabbling",
+    "anchor": {
+      "display": "Arcane Dabbling"
+    },
+    "pages": [
+      108
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "rolls": [
+      {
+        "key": "activateArcaneItem",
+        "label": {
+          "pattern": "attempt to (use wands, \\w+, and other magic items)"
+        },
+        "target": {
+          "pattern": "command word[\\s\\S]{0,60}?proficiency throw of (\\d+)\\+"
+        },
+        "condition": "arcane-only wands, staffs and items",
+        "note": "No command word needed. On a failure the attempt backfires in some desultory way, at the Judge's discretion."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/arcane-dabbling.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/spell-book.svg"
+  },
+  {
+    "id": "def.prof.armorTraining",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Armor Training",
+    "anchor": {
+      "display": "Armor Training"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "effects": [
+      {
+        "type": "modifies",
+        "refs": [
+          "kw:armorproficiency"
+        ],
+        "domain": "armor",
+        "value": 1,
+        "mode": "add",
+        "note": "One weight category heavier than the class permits."
+      },
+      {
+        "type": "capability",
+        "condition": "in armor this proficiency makes available",
+        "note": "A spellcaster may cast spells in it."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/plate-armor.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/helmet.svg"
+  },
+  {
+    "id": "def.prof.artCraft",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Art/Craft",
+    "aliases": ["Art", "Craft"],
+    "anchor": {
+      "display": "Art/Craft (G)"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "rolls": [
+      {
+        "key": "identify",
+        "label": {
+          "pattern": "can (identify masterwork \\w+)"
+        },
+        "target": {
+          "on": "rank",
+          "pattern": "identify[\\s\\S]{0,95}?of (\\d+)\\+[\\s\\S]{0,750}?identify[\\s\\S]{0,45}?of (\\d+)\\+[\\s\\S]{0,750}?identify[\\s\\S]{0,45}?of (\\d+)\\+[\\s\\S]{0,750}?identify[\\s\\S]{0,45}?of (\\d+)\\+"
+        },
+        "condition": "one rank per selection of the same art or craft",
+        "note": "One throw, improving at every rank; what it identifies is named on the page."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/paint-brush.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/anvil.svg"
+  },
+  {
+    "id": "def.prof.bargaining",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Bargaining",
+    "anchor": {
+      "display": "Bargaining (G)"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/bargaining.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/trade.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "condition": "negotiating with another bargainer",
+        "from": {
+          "pattern": "([+-]?\\d+)\\s+bonus\\s+on\\s+his\\s+reaction\\s+roll\\s+when\\s+negotiating"
+        },
+        "note": "Per selection; the proficiency is repeatable."
+      }
+    ],
+    "audited": "2026-07-19"
+  },
+  {
+    "id": "def.prof.battleMagic",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Battle Magic",
+    "anchor": {
+      "display": "Battle Magic"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/battle-magic.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/magic-swirl.svg"
+  },
+  {
+    "id": "def.prof.beastFriendship",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Beast Friendship",
+    "anchor": {
+      "display": "Beast Friendship"
+    },
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "rolls": [
+      {
+        "key": "identify",
+        "label": {
+          "pattern": "(identify plants and \\w+) with a proficiency"
+        },
+        "target": {
+          "pattern": "plants and fauna with a proficiency throw of (\\d+)\\+"
+        }
+      },
+      {
+        "key": "identifyWithPower",
+        "label": {
+          "pattern": "(identify plants and \\w+) with a throw"
+        },
+        "target": {
+          "pattern": "plants and fauna with a throw of (\\d+)\\+"
+        },
+        "condition": "has the Friend of Birds and Beasts class power",
+        "note": "Replaces the base target; the reaction bonus does not improve with it."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/beast-friendship.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/wolf-head.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "vsKinds": [
+          "animal"
+        ],
+        "from": {
+          "pattern": "([+-]?\\d+)\\s+to\\s+all\\s+reaction\\s+rolls\\s+when\\s+encountering\\s+normal\\s+animals"
+        },
+        "note": "Normal animals only. Friend of Bird and Beasts does not increase this bonus."
+      }
+    ],
+    "audited": "2026-07-19"
+  },
+  {
+    "id": "def.prof.berserkergang",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Berserkergang",
+    "anchor": {
+      "display": "Berserkergang"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "effects": [
+      {
+        "type": "immunity",
+        "conditions": [
+          "cowering",
+          "faltering",
+          "frightened"
+        ],
+        "condition": "while enraged",
+        "note": "Cowering, faltering, frightened."
+      },
+      {
+        "type": "capability",
+        "condition": "while enraged",
+        "note": "Makes no morale check."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/berserkergang.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/enrage.svg"
+  },
+  {
+    "id": "def.prof.blackLoreOfZahar",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Black Lore of Zahar",
+    "anchor": {
+      "display": "Black Lore of Zahar"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/black-lore.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/evil-book.svg"
+  },
+  {
+    "id": "def.prof.blindFighting",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Blind Fighting",
+    "audited": "2026-07-18",
+    "anchor": {
+      "display": "Blind Fighting"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "attackThrow",
+        "mode": "replace",
+        "condition": "blinded or unseen foe",
+        "from": {
+          "pattern": "only a (-?\\d+) penalty on attack throws"
+        },
+        "note": "Replaces the base non-visibility penalty; a smaller penalty, so a net gain."
+      },
+      {
+        "type": "modifier",
+        "target": "surprise",
+        "value": {
+          "kind": "flat",
+          "flat": 0
+        },
+        "mode": "set",
+        "condition": "blinded",
+        "note": "The blinded surprise penalty does not apply."
+      },
+      {
+        "type": "modifier",
+        "target": "speed",
+        "value": {
+          "kind": "flat",
+          "flat": 0
+        },
+        "mode": "set",
+        "condition": "blinded",
+        "note": "The blinded speed reduction does not apply."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/blindfighting.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/blindfold.svg"
+  },
+  {
+    "id": "def.prof.bribery",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Bribery",
+    "anchor": {
+      "display": "Bribery"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "condition": "bribe worth a day's pay",
+        "from": {
+          "pattern": "([+-]?\\d+)\\s+bonus\\s+to\\s+reaction\\s+rolls\\s+if\\s+he\\s+offers\\s+one\\s+day"
+        },
+        "note": "One tier applies, by the size of the bribe offered."
+      },
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "condition": "bribe worth a week's pay",
+        "from": {
+          "pattern": "a\\s+([+-]?\\d+)\\s+bonus\\s+for\\s+a\\s+week"
+        },
+        "note": "One tier applies, by the size of the bribe offered."
+      },
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "condition": "bribe worth a month's pay",
+        "from": {
+          "pattern": "a\\s+([+-]?\\d+)\\s+bonus\\s+for\\s+a\\s+month"
+        },
+        "note": "One tier applies, by the size of the bribe offered."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/bribery.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/coins-pile.svg",
+    "audited": "2026-07-19"
+  },
+  {
+    "id": "def.prof.brightLoreOfAura",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Bright Lore of Aura",
+    "anchor": {
+      "display": "Bright Lore of Aura"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/beams-aura.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/book-aura.svg"
+  },
+  {
+    "id": "def.prof.catBurglary",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Cat Burglary",
+    "anchor": {
+      "display": "Cat Burglary"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/cat-burglary.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/lock-picking.svg"
+  },
+  {
+    "id": "def.prof.caving",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Caving",
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "anchor": {
+      "display": "Caving (G)"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/caving.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/cave-entrance.svg"
+  },
+  {
+    "id": "def.prof.climbing",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Climbing",
+    "anchor": {
+      "display": "Climbing"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/climb-walls.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/mountain-climbing.svg"
+  },
+  {
+    "id": "def.prof.collegiateWizardry",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Collegiate Wizardry",
+    "anchor": {
+      "display": "Collegiate Wizardry (G)"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/collegiate-wizardry.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/spell-book.svg"
+  },
+  {
+    "id": "def.prof.combatFerocity",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Combat Ferocity",
+    "anchor": {
+      "display": "Combat Ferocity"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/crossed-slashes.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/enrage.svg"
+  },
+  {
+    "id": "def.prof.combatReflexes",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Combat Reflexes",
+    "anchor": {
+      "display": "Combat Reflexes"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/combat-reflexes.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/dodge.svg"
+  },
+  {
+    "id": "def.prof.combatTrickery",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Combat Trickery",
+    "anchor": {
+      "display": "Combat Trickery"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/disarm.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/hunting-bolas.svg"
+  },
+  {
+    "id": "def.prof.command",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Command",
+    "anchor": {
+      "display": "Command"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/command.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/knight-banner.svg"
+  },
+  {
+    "id": "def.prof.contemplation",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Contemplation",
+    "anchor": {
+      "display": "Contemplation"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/contemplation.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/meditation.svg"
+  },
+  {
+    "id": "def.prof.contortionism",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Contortionism",
+    "anchor": {
+      "display": "Contortionism"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/contortionism.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/contortionist.svg"
+  },
+  {
+    "id": "def.prof.counterspelling",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Counterspelling",
+    "anchor": {
+      "display": "Counterspelling"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/shield-reflect.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/magic-shield.svg"
+  },
+  {
+    "id": "def.prof.diplomacy",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Diplomacy",
+    "audited": "2026-07-19",
+    "anchor": {
+      "display": "Diplomacy (G)"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/diplomacy.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/conversation.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "tones": [
+          "diplomacy"
+        ],
+        "notStacksWith": [
+          "def.prof.intimidation",
+          "def.prof.seduction"
+        ],
+        "from": {
+          "pattern": "([+-]?\\d+)\\s+bonus\\s+on\\s+all\\s+reaction\\s+rolls\\s+when\\s+he\\s+attempts"
+        },
+        "note": "Parleying only. Stacks with Mystic Aura, but not with the other two tone proficiencies."
+      }
+    ]
+  },
+  {
+    "id": "def.prof.disguise",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Disguise",
+    "anchor": {
+      "display": "Disguise (G)"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/disguise.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/duality-mask.svg"
+  },
+  {
+    "id": "def.prof.divineBlessing",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Divine Blessing",
+    "anchor": {
+      "display": "Divine Blessing"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/divine-blessing.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/prayer.svg"
+  },
+  {
+    "id": "def.prof.divineHealth",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Divine Health",
+    "anchor": {
+      "display": "Divine Health"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/divine-health.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/healing-shield.svg"
+  },
+  {
+    "id": "def.prof.driving",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Driving",
+    "anchor": {
+      "display": "Driving (G)"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/cart.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/old-wagon.svg"
+  },
+  {
+    "id": "def.prof.dungeonbashingExpertise",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Dungeonbashing Expertise",
+    "aliases": ["Dungeon Bashing"],
+    "anchor": {
+      "display": "Dungeonbashing Expertise"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/dungeon-bashing.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/hammer-break.svg"
+  },
+  {
+    "id": "def.prof.dwarvenBrewing",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Dwarven Brewing",
+    "audited": "2026-07-18",
+    "anchor": {
+      "display": "Dwarven Brewing"
+    },
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/dwarven-brewing.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/barrel.svg"
+  },
+  {
+    "id": "def.prof.eavesdropping",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Eavesdropping",
+    "anchor": {
+      "display": "Eavesdropping"
+    },
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false,
+      "provides": [
+        "kw:listening"
+      ]
+    },
+    "icon": "systems/acks/assets/icons/hear-noise.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/echo-ripples.svg"
+  },
+  {
+    "id": "def.prof.elementalism",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Elementalism",
+    "anchor": {
+      "display": "Elementalism"
+    },
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/elementalism.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/fire-ray.svg"
+  },
+  {
+    "id": "def.prof.elvenBloodline",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Elven Bloodline",
+    "anchor": {
+      "display": "Elven Bloodline"
+    },
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/elven-bloodline.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/elf-ear.svg"
+  },
+  {
+    "id": "def.prof.endurance",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Endurance",
+    "anchor": {
+      "display": "Endurance (G)"
+    },
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/endurance.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/muscle-up.svg"
+  },
+  {
+    "id": "def.prof.engineering",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Engineering",
+    "anchor": {
+      "display": "Engineering (G)"
+    },
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/engineering.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/gears.svg"
+  },
+  {
+    "id": "def.prof.expandedRepertoire",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Expanded Repertoire",
+    "anchor": {
+      "display": "Expanded Repertoire"
+    },
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/spellbook.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/scroll-unfurled.svg"
+  },
+  {
+    "id": "def.prof.experimenting",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Experimenting",
+    "anchor": {
+      "display": "Experimenting"
+    },
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/bubbling-flask.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/cauldron.svg"
+  },
+  {
+    "id": "def.prof.familiar",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Familiar",
+    "anchor": {
+      "display": "Familiar"
+    },
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false,
+      "provides": [
+        "kw:familiar"
+      ]
+    },
+    "effects": [
+      {
+        "type": "companion",
+        "amount": 1,
+        "note": "Familiar"
+      }
+    ],
+    "icon": "systems/acks/assets/icons/familiar.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/barn-owl.svg"
+  },
+  {
+    "id": "def.prof.fightingStyleSpecialization",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Fighting Style Specialization",
+    "aliases": ["Fighting Style Spec", "Fighting Style"],
+    "anchor": {
+      "display": "Fighting Style Specialization"
+    },
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "effects": [
+      {
+        "type": "requires",
+        "refs": [
+          "kw:fightingstyles"
+        ]
+      },
+      {
+        "type": "modifies",
+        "refs": [
+          "kw:fightingstyles"
+        ],
+        "domain": "fightingStyle",
+        "mode": "add",
+        "choose": 1,
+        "note": "Specializes one style the character is already proficient in."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/dual-wield.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/duel.svg"
+  },
+  {
+    "id": "def.prof.folkways",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Folkways",
+    "anchor": {
+      "display": "Folkways (G)"
+    },
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/three-friends.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/conversation.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "condition": "0th-level characters, in a settlement the character knows",
+        "from": {
+          "pattern": "([+-]?\\d+)\\s+bonus\\s+to\\s+reaction\\s+rolls\\s+with\\s+0th\\s+level"
+        },
+        "note": "Which settlements the character knows is not tracked; the Judge confirms it applies."
+      }
+    ],
+    "audited": "2026-07-19"
+  },
+  {
+    "id": "def.prof.gambling",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Gambling",
+    "anchor": {
+      "display": "Gambling (G)"
+    },
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/gambling.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/coinflip.svg"
+  },
+  {
+    "id": "def.prof.goblinSlaying",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Goblin-Slaying",
+    "anchor": {
+      "display": "Goblin-Slaying"
+    },
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/goblin-head.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/goblin-head.svg"
+  },
+  {
+    "id": "def.prof.healing",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Healing",
+    "anchor": {
+      "display": "Healing (G)"
+    },
+    "pages": [
+      114
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/healing.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/healing.svg"
+  },
+  {
+    "id": "def.prof.illusionResistance",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Illusion Resistance",
+    "anchor": {
+      "display": "Illusion Resistance"
+    },
+    "pages": [
+      114
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/illusion.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/magic-shield.svg"
+  },
+  {
+    "id": "def.prof.intimidation",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Intimidation",
+    "anchor": {
+      "display": "Intimidation (G)"
+    },
+    "pages": [
+      114
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "audited": "2026-07-19",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/intimidate.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/shouting.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "tones": [
+          "intimidation"
+        ],
+        "notStacksWith": [
+          "def.prof.diplomacy",
+          "def.prof.seduction"
+        ],
+        "condition": "targets under 5 HD, or outnumbered/outranked",
+        "from": {
+          "pattern": "([+-]?\\d+)\\s+bonus\\s+on\\s+all\\s+reaction\\s+rolls\\s+when\\s+implicitly"
+        },
+        "note": "Target-strength requirement is a Judge's call, not automated."
+      }
+    ]
+  },
+  {
+    "id": "def.prof.kinSlaying",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Kin-Slaying",
+    "anchor": {
+      "display": "Kin-Slaying"
+    },
+    "pages": [
+      114
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/kin-slaying.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/daggers.svg"
+  },
+  {
+    "id": "def.prof.knowledge",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Knowledge",
+    "anchor": {
+      "display": "Knowledge (G)"
+    },
+    "pages": [
+      114
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/knowledge.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/book-pile.svg"
+  },
+  {
+    "id": "def.prof.labor",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Labor",
+    "anchor": {
+      "display": "Labor (G)"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/laborer.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/wood-axe.svg"
+  },
+  {
+    "id": "def.prof.landSurveying",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Land Surveying",
+    "anchor": {
+      "display": "Land Surveying"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/land-surveying.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/compass.svg"
+  },
+  {
+    "id": "def.prof.language",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Language",
+    "anchor": {
+      "display": "Language (G)"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/language.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/conversation.svg"
+  },
+  {
+    "id": "def.prof.layingOnHands",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Laying on Hands",
+    "anchor": {
+      "display": "Laying on Hands"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/laying-on-hands.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/healing.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "hp",
+        "appliesTo": "ally",
+        "mode": "add",
+        "condition": "wounded creature",
+        "from": {
+          "as": "perLevel",
+          "pattern": "restore\\s*(\\d+)\\s*hit\\s*points\\s*per\\s*experience\\s*level"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "mortalWounds",
+        "appliesTo": "ally",
+        "mode": "add",
+        "condition": "incapacitated creature",
+        "from": {
+          "as": "perLevel",
+          "round": "up",
+          "pattern": "throw\\s*of\\s*(one-half|half)\\s*(?:his|her)\\s*class\\s*level"
+        }
+      },
+      {
+        "type": "conditionRemove",
+        "conditions": [
+          "paralysis"
+        ],
+        "appliesTo": "ally",
+        "condition": "paralyzed creature"
+      },
+      {
+        "type": "capability",
+        "frequency": "perDay",
+        "note": "Each further rank grants one more use per day."
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.prof.leadership",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Leadership",
+    "anchor": {
+      "display": "Leadership (G)"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/rally-the-troops.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/tattered-banner.svg"
+  },
+  {
+    "id": "def.prof.lipReading",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Lip Reading",
+    "anchor": {
+      "display": "Lip Reading (G)"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/lip-reading.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/talk.svg"
+  },
+  {
+    "id": "def.prof.lockpickingExpertise",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Lockpicking Expertise",
+    "anchor": {
+      "display": "Lockpicking Expertise"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/lockpicks.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/lock-picking.svg"
+  },
+  {
+    "id": "def.prof.loremastery",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Loremastery",
+    "anchor": {
+      "display": "Loremastery"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/loremastery.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/book-aura.svg"
+  },
+  {
+    "id": "def.prof.magicalEngineering",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Magical Engineering",
+    "anchor": {
+      "display": "Magical Engineering"
+    },
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/orbital.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/gears.svg"
+  },
+  {
+    "id": "def.prof.magicalMusic",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Magical Music",
+    "anchor": {
+      "display": "Magical Music"
+    },
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/magical-music.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/music-spell.svg"
+  },
+  {
+    "id": "def.prof.manualOfArms",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Manual of Arms",
+    "anchor": {
+      "display": "Manual of Arms (G)"
+    },
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/manual-of-arms.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/swords-power.svg"
+  },
+  {
+    "id": "def.prof.mapping",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Mapping",
+    "anchor": {
+      "display": "Mapping (G)"
+    },
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/mapping.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/treasure-map.svg"
+  },
+  {
+    "id": "def.prof.martialTraining",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Martial Training",
+    "anchor": {
+      "display": "Martial Training"
+    },
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "effects": [
+      {
+        "type": "modifies",
+        "refs": [
+          "kw:weaponproficiency"
+        ],
+        "domain": "weapon",
+        "breadth": "narrow",
+        "mode": "add",
+        "choose": 1,
+        "note": "Adds one selected weapon group to the class list."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/martial-training.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/battle-gear.svg"
+  },
+  {
+    "id": "def.prof.masteryOfConjurationSummoning",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Mastery of Conjuration & Summoning",
+    "anchor": {
+      "display": "Mastery of Conjuration & Summoning"
+    },
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/portal.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/pentacle.svg"
+  },
+  {
+    "id": "def.prof.masteryOfEnchantmentsIllusions",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Mastery of Enchantments & Illusions",
+    "anchor": {
+      "display": "Mastery of Enchantments & Illusions"
+    },
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/hypnotic-pattern.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/magic-swirl.svg"
+  },
+  {
+    "id": "def.prof.militaryStrategy",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Military Strategy",
+    "anchor": {
+      "display": "Military Strategy (G)"
+    },
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/conqueror.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/chess-knight.svg"
+  },
+  {
+    "id": "def.prof.mimicry",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Mimicry",
+    "anchor": {
+      "display": "Mimicry (G)"
+    },
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/mimicry.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/talk.svg"
+  },
+  {
+    "id": "def.prof.mountaineering",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Mountaineering",
+    "anchor": {
+      "display": "Mountaineering (G)"
+    },
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/mountaineering.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/mountain-road.svg"
+  },
+  {
+    "id": "def.prof.mountedCombat",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Mounted Combat",
+    "anchor": {
+      "display": "Mounted Combat"
+    },
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/mounted-knight.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/horse-head.svg"
+  },
+  {
+    "id": "def.prof.mysticAura",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Mystic Aura",
+    "anchor": {
+      "display": "Mystic Aura"
+    },
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/mystic-aura.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/beams-aura.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "from": [
+          {
+            "pattern": "([+-]?\\d+)\\s+bonus\\s+to\\s+reaction\\s+rolls\\s+to\\s+impress"
+          },
+          {
+            "pattern": "a\\s+total\\s+of\\s+(\\d+)\\s+or\\s+more",
+            "into": "kickerAt"
+          }
+        ],
+        "note": "Stacks with any one of the three tone proficiencies."
+      }
+    ],
+    "audited": "2026-07-19"
+  },
+  {
+    "id": "def.prof.naturalism",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Naturalism",
+    "anchor": {
+      "display": "Naturalism (G)"
+    },
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/naturalism.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/herbs-bundle.svg"
+  },
+  {
+    "id": "def.prof.navigation",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Navigation",
+    "anchor": {
+      "display": "Navigation (G)"
+    },
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/navigation.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/compass.svg"
+  },
+  {
+    "id": "def.prof.passingWithoutTrace",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Passing Without Trace",
+    "anchor": {
+      "display": "Passing Without Trace"
+    },
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/pass-without-trace.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/footprint.svg"
+  },
+  {
+    "id": "def.prof.performance",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Performance",
+    "anchor": {
+      "display": "Performance (G)"
+    },
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/drama-masks.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/harp.svg"
+  },
+  {
+    "id": "def.prof.poisoning",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Poisoning",
+    "anchor": {
+      "display": "Poisoning"
+    },
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/snake-jar.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/poison-bottle.svg"
+  },
+  {
+    "id": "def.prof.preciseShooting",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Precise Shooting",
+    "anchor": {
+      "display": "Precise Shooting"
+    },
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/precise-shooting.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/archery-target.svg"
+  },
+  {
+    "id": "def.prof.prestidigitation",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Prestidigitation",
+    "anchor": {
+      "display": "Prestidigitation"
+    },
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/prestidigitation.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/magic-broom.svg"
+  },
+  {
+    "id": "def.prof.profession",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Profession",
+    "anchor": {
+      "display": "Profession (G)"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/merchant.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/teacher.svg"
+  },
+  {
+    "id": "def.prof.prophecy",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Prophecy",
+    "anchor": {
+      "display": "Prophecy"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/prophecy.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/crystal-ball.svg"
+  },
+  {
+    "id": "def.prof.prospecting",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Prospecting",
+    "anchor": {
+      "display": "Prospecting"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/mining.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/mining.svg"
+  },
+  {
+    "id": "def.prof.quietMagic",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Quiet Magic",
+    "anchor": {
+      "display": "Quiet Magic"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/quiet-magic.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/magic-swirl.svg"
+  },
+  {
+    "id": "def.prof.reliquarianism",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Reliquarianism",
+    "anchor": {
+      "display": "Reliquarianism"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/locked-chest.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/gem-chain.svg"
+  },
+  {
+    "id": "def.prof.revelry",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Revelry",
+    "anchor": {
+      "display": "Revelry (G)"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/cornucopia.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/drinking.svg"
+  },
+  {
+    "id": "def.prof.riding",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Riding",
+    "anchor": {
+      "display": "Riding (G)"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/riding.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/horse-head.svg"
+  },
+  {
+    "id": "def.prof.righteousRebuke",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Righteous Rebuke",
+    "anchor": {
+      "display": "Righteous Rebuke"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/righteous_turning.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/holy-symbol.svg"
+  },
+  {
+    "id": "def.prof.running",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Running",
+    "anchor": {
+      "display": "Running"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/running.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/run.svg"
+  },
+  {
+    "id": "def.prof.seafaring",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Seafaring",
+    "anchor": {
+      "display": "Seafaring (G)"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/seafaring.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/sail.svg"
+  },
+  {
+    "id": "def.prof.seduction",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Seduction",
+    "anchor": {
+      "display": "Seduction (G)"
+    },
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "audited": "2026-07-19",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/seduction.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/charm.svg",
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "tones": [
+          "seduction"
+        ],
+        "notStacksWith": [
+          "def.prof.diplomacy",
+          "def.prof.intimidation"
+        ],
+        "condition": "the subject is potentially attracted to the character",
+        "from": {
+          "pattern": "([+-]?\\d+)\\s+bonus\\s+on\\s+reaction\\s+rolls\\s+when\\s+interacting"
+        }
+      }
+    ]
+  },
+  {
+    "id": "def.prof.sensingEvil",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Sensing Evil",
+    "anchor": {
+      "display": "Sensing Evil"
+    },
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/sensing-evil.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/evil-moon.svg"
+  },
+  {
+    "id": "def.prof.sensingGood",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Sensing Good",
+    "anchor": {
+      "display": "Sensing Good"
+    },
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/templar-eye.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/holy-grail.svg"
+  },
+  {
+    "id": "def.prof.sensingPower",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Sensing Power",
+    "anchor": {
+      "display": "Sensing Power"
+    },
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/sensing-power.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/beams-aura.svg"
+  },
+  {
+    "id": "def.prof.siegeEngineering",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Siege Engineering",
+    "anchor": {
+      "display": "Siege Engineering (G)"
+    },
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/siege-engineering.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/siege-ram.svg"
+  },
+  {
+    "id": "def.prof.signaling",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Signaling",
+    "anchor": {
+      "display": "Signaling (G)"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/signaling.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/whistle.svg"
+  },
+  {
+    "id": "def.prof.skirmishing",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Skirmishing",
+    "anchor": {
+      "display": "Skirmishing"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/skirmishing.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/run.svg"
+  },
+  {
+    "id": "def.prof.skulking",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Skulking",
+    "anchor": {
+      "display": "Skulking"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/skulking.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/hidden.svg"
+  },
+  {
+    "id": "def.prof.sniping",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Sniping",
+    "anchor": {
+      "display": "Sniping"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/sniping.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/crosshair.svg"
+  },
+  {
+    "id": "def.prof.soothsaying",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Soothsaying",
+    "anchor": {
+      "display": "Soothsaying"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/prophecy2.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/crystal-ball.svg"
+  },
+  {
+    "id": "def.prof.streetwise",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Streetwise",
+    "anchor": {
+      "display": "Streetwise (G)"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "rolls": [
+      {
+        "key": "recognize",
+        "label": {
+          "pattern": "can (identify those of other \\w+ \\w+)"
+        },
+        "target": {
+          "pattern": "identify those of other[\\s\\S]{0,45}?throw of (\\d+)\\+"
+        },
+        "condition": "settlements other than his home settlement",
+        "note": "No throw is needed in the character's own home settlement."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/suspicious.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/hooded-figure.svg"
+  },
+  {
+    "id": "def.prof.survival",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Survival",
+    "anchor": {
+      "display": "Survival (G)"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "icon": "systems/acks/assets/icons/survival.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/campfire.svg"
+  },
+  {
+    "id": "def.prof.swashbuckling",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Swashbuckling",
+    "anchor": {
+      "display": "Swashbuckling"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/swashbuckling.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/sword-brandish.svg"
+  },
+  {
+    "id": "def.prof.swimming",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Swimming",
+    "anchor": {
+      "display": "Swimming (G)"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "forWhat": "Swimming",
+        "mode": "add",
+        "from": {
+          "pattern": "\\+(\\d+) bonus\\s+when making Swimming"
+        }
+      }
+    ],
+    "icon": "systems/acks/assets/icons/splashy-stream.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/swimfins.svg"
+  },
+  {
+    "id": "def.prof.syncretism",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Syncretism",
+    "anchor": {
+      "display": "Syncretism"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "effects": [
+      {
+        "type": "capability",
+        "note": "Replaces part of the divine repertoire with divine spells outside the character's god's list."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/theology1.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/holy-oak.svg"
+  },
+  {
+    "id": "def.prof.theology",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Theology",
+    "anchor": {
+      "display": "Theology (G)"
+    },
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/theology.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/prayer-beads.svg"
+  },
+  {
+    "id": "def.prof.tracking",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Tracking",
+    "anchor": {
+      "display": "Tracking (G)"
+    },
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true,
+      "repeatable": true
+    },
+    "rolls": [
+      {
+        "key": "track",
+        "label": {
+          "pattern": "requires a (Tracking) proficiency throw"
+        },
+        "target": {
+          "pattern": "Tracking proficiency throw of (\\d+)\\+"
+        },
+        "note": "On a failure the same area cannot be searched again for a time. Each rank past the first improves this throw; neither that improvement nor the printed circumstance modifiers are modelled here."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/tracking.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/deer-track.svg"
+  },
+  {
+    "id": "def.prof.transmogrification",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Transmogrification",
+    "anchor": {
+      "display": "Transmogrification"
+    },
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/transmogrification.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/transform.svg"
+  },
+  {
+    "id": "def.prof.trapfinding",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Trapfinding",
+    "anchor": {
+      "display": "Trapfinding"
+    },
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "effects": [
+      {
+        "type": "modifies",
+        "refs": [
+          "kw:searching",
+          "kw:trapbreaking"
+        ],
+        "target": "proficiencyThrow",
+        "mode": "add",
+        "from": {
+          "pattern": "(\\+\\d+) bonus on Searching and Trapbreaking"
+        },
+        "note": "Applies to these two throws only, not to proficiency throws generally."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/find-trap.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/wolf-trap.svg"
+  },
+  {
+    "id": "def.prof.trapping",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Trapping",
+    "anchor": {
+      "display": "Trapping (G)"
+    },
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": true
+    },
+    "rolls": [
+      {
+        "key": "catchGame",
+        "label": {
+          "pattern": "Wilderness traps can (catch game)"
+        },
+        "target": {
+          "pattern": "catch game[\\s\\S]{0,160}?target value of (\\d+)\\+"
+        },
+        "note": "Thrown once per day per trap by the Judge; a failure on an unmodified 1 destroys a crude trap. The yield is stated in the description."
+      },
+      {
+        "key": "trapStumble",
+        "formula": "1d6",
+        "rollType": "below",
+        "label": {
+          "pattern": "will (stumble into the trap)"
+        },
+        "target": {
+          "pattern": "trap on a throw of \\d+-(\\d+) on 1d6"
+        },
+        "note": "Thrown when a wandering monster turns up near managed traps; on a failure it lurks nearby instead."
+      }
+    ],
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "mode": "add",
+        "ifHas": [
+          "kw:searching",
+          "kw:trapfinding"
+        ],
+        "condition": "finding and removing wilderness traps",
+        "from": {
+          "pattern": "additional (\\+\\d+) bonus against wilderness traps"
+        },
+        "note": "Applies only if the character is separately proficient in Searching or Trapfinding, and only against wilderness traps."
+      }
+    ],
+    "icon": "systems/acks/assets/icons/wolf-trap.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/wolf-trap.svg"
+  },
+  {
+    "id": "def.prof.unarmedFighting",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Unarmed Fighting",
+    "anchor": {
+      "display": "Unarmed Fighting"
+    },
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/unarmed-fighting.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/fist.svg"
+  },
+  {
+    "id": "def.prof.unflappableCasting",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Unflappable Casting",
+    "anchor": {
+      "display": "Unflappable Casting"
+    },
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/meditation.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/concentration-orb.svg"
+  },
+  {
+    "id": "def.prof.verminSlaying",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Vermin-Slaying",
+    "anchor": {
+      "display": "Vermin-Slaying"
+    },
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "audited": "2026-07-18",
+    "auditor": "first-pass",
+    "icon": "systems/acks/assets/icons/vermin-slaying.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/long-legged-spider.svg"
+  },
+  {
+    "id": "def.prof.wakefulness",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Wakefulness",
+    "anchor": {
+      "display": "Wakefulness"
+    },
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/wakefulness.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/sleepy.svg"
+  },
+  {
+    "id": "def.prof.weaponFinesse",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Weapon Finesse",
+    "anchor": {
+      "display": "Weapon Finesse"
+    },
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false
+    },
+    "icon": "systems/acks/assets/icons/fencer.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/knife-thrust.svg",
+    "effects": [
+      {
+        "type": "attributeSubstitution",
+        "attribute": "dex",
+        "insteadOf": "str",
+        "target": "attackThrow",
+        "condition": "tiny, small, or medium melee weapons"
+      }
+    ],
+    "audited": "2026-07-28"
+  },
+  {
+    "id": "def.prof.weaponFocus",
+    "kind": "kind.proficiency",
+    "book": "rr",
+    "name": "Weapon Focus",
+    "anchor": {
+      "display": "Weapon Focus"
+    },
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "proficiency",
+      "general": false,
+      "repeatable": true
+    },
+    "icon": "systems/acks/assets/icons/weapon-focus.webp",
+    "iconNiche": "modules/game-icons-net/blacktransparent/sword-brandish.svg"
+  }
+]
