@@ -1,5 +1,22 @@
 # Changelog
 
+## 6.1.1
+
+**The attack boxes state what this character can actually reach.**
+
+### Fixed
+- **The Melee and Ranged boxes on the character sheet show your best.** They
+  name no weapon, so they now answer the question a summary is asked: what does
+  this character hit on, with gear they are trained for. Melee takes Dexterity
+  in place of Strength where Weapon Finesse allows it and Dexterity is the
+  better of the two, and both boxes include a fighting-style bonus you are
+  trained for but are not holding the weapons to collect right now — a
+  Specialization on a style you have put down, the second weapon you are not
+  currently wielding. Picking that gear up does not add the bonus twice: the
+  boxes only ever show the difference between what your gear earns now and the
+  best you could earn, so the number is the same either way. The tooltip names
+  which attribute the figure came from.
+
 ## 6.1.0
 
 **Training you added after the fact counts, and a proficiency stops charging you for owning it.**

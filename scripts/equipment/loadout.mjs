@@ -6,7 +6,7 @@
  * loadout Active Effect, the roll wrapper, and the public API.
  */
 import { MODULE_ID, ITEM_FLAGS, ACTOR_FLAGS, SETTINGS } from "./constants.mjs";
-import { STYLE } from "./config.mjs";
+import { STYLE, STYLE_SPEC_BONUS, DUAL_WIELD_ATTACK_BONUS } from "./config.mjs";
 import { classifyWeapon, handCost, inferStyle, canOneHand, isTwoHandedOnly, isHelmet, isShield } from "./profiles.mjs";
 import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
@@ -133,6 +133,43 @@ export function specializedStyles(actor) {
     if (kind === "spec") set.add(style);
   }
   return set;
+}
+
+/**
+ * How much better this character's attack throw could be with gear they are
+ * already trained for — the gap between the style-gated bonus the CURRENT
+ * loadout earns and the best any trained style could earn. Zero for a character
+ * already equipped as well as they can be.
+ *
+ * A DIFFERENCE, and that is the whole point: only the style-gated terms of
+ * `buildLoadoutChanges` are in scope — the Specialization bonus for the active
+ * style, and the base dual-weapon bonus. Everything else that function writes is
+ * unconditional and is already inside `system.thac0.mod`, so a caller adding an
+ * absolute best on top of that field would count the same bonus twice. Mirror
+ * any change to those gated terms here.
+ *
+ * `specApplies()` is deliberately not consulted: it withholds only the Weapon &
+ * Shield bonus, which is Armour Class and never an attack throw. Training is
+ * required — this answers "with the right gear", not "with a better character".
+ *
+ * @param {"melee"|"missile"} type which attack throw to measure
+ * @returns {number} bonus the character is not currently collecting, never < 0
+ */
+export function attackBonusHeadroom(actor, type, loadout = getLoadout(actor)) {
+  const key = type === "missile" ? "attackMissile" : "attackMelee";
+  const trained = trainedStyles(actor);
+  const spec = specializedStyles(actor);
+  const earns = (style) => {
+    const specBonus = spec.has(styleKey(style)) ? Number(STYLE_SPEC_BONUS[style]?.[key] ?? 0) : 0;
+    const dualBase = key === "attackMelee" && style === STYLE.DUAL ? DUAL_WIELD_ATTACK_BONUS : 0;
+    return specBonus + dualBase;
+  };
+  let best = 0;
+  for (const style of Object.values(STYLE)) {
+    if (trained.has(styleKey(style))) best = Math.max(best, earns(style));
+  }
+  const current = loadout?.activeStyle ? earns(loadout.activeStyle) : 0;
+  return Math.max(0, best - current);
 }
 
 /**
