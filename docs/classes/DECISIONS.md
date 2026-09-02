@@ -3,6 +3,61 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-09-02 — a disabled control says why, and the die is not always the reason
+
+**Problem.** Reported from the field as "the template menu doesn't work during
+character creation — inactive, will not open, including if Judge Override is
+active". Nothing was broken: `stat-page.mjs` and `panels.mjs` are byte-identical
+across all of v6, and the select carries `disabled` for exactly one reason —
+there is nothing to put in it. Three states reach that, and the override
+relieves only the first: the die is unrolled, a package-less build is ticked, or
+**the selected class prints no packages at all**. The reporter had eliminated
+the first themselves and been given no way to tell the third.
+
+**Ruled.** The note under the menu names the actual cause. A class with no
+packages is answered before the die is consulted, because a hint that says "roll
+the template die" sends a reader at a control that cannot open however they
+answer — and the chargen page auto-selects the first class in book order, so
+they may never have chosen the one they are looking at.
+
+**Rejected: giving the chargen page the `noneLabel` escape.** `assign-app.mjs`
+passes it and chargen does not, which is the whole lineage of this report — the
+4.11.0 fix landed on one of the shared builder's two callers. Adding it here
+would make a package-less build reachable without the Judge's own
+build-without-a-package tick, which is a behaviour change overlapping
+`chargen.manual` and a decision about who may skip a starting package. That is
+not a hint fix, and it is not made in passing.
+
+**Rejected: enabling the empty select.** A select with no options opens onto
+nothing. The control is honest; only its caption was not.
+
+**Cost:** one more string to translate, and a class whose packages simply have
+not been imported yet reads as a class that prints none — the note names both
+paths out, but cannot tell the two apart.
+
+**Also ruled, from the same report's evidence: what closes applies what the page
+offered.** `refresh` gates the build-without-a-package tick behind the override
+(`manual = judge && state.manual`), but three reads in the CLOSE path took the
+raw tick and so escaped that gate. A Judge who ticked it, then lowered the
+override, saw a live template selector and a hint asking for the die — while the
+close path suppressed the auto-template rescue and wrote a package-less build.
+The page displayed one thing and wrote another. The gated value is now hoisted
+onto the state as `manualInForce`, and `state.manual` is read nowhere but
+`refresh`.
+
+**Rejected: clearing `state.manual` when the override goes down.** One line
+instead of five, and arguably the truer semantics — a Judge-only option arguably
+should not outlive its gate. It destroys a Judge's setting on a transient toggle
+(lowering the override to preview the player's view silently loses the tick),
+which is a visible behaviour change; this fixes only the write, which is what
+was wrong. The counter-argument is real and this may be revisited outside a
+hotfix.
+
+**Not changed: `state.keep`.** It has the identical sticky-behind-the-override
+shape, but nothing on the page displays it, so there is no contradiction to fix —
+an invisible sticky preference is a wart, not a desync. Changing it would be a
+behaviour change with no defect behind it.
+
 ## 2026-08-30 — a pick list offers definitions, never a class's own copy
 
 **Problem.** Reported from the field as a duplicate IMPORT: the general

@@ -519,11 +519,30 @@ cannot read the book than from the one that imported it. Flags are stored in
    it, and that *Remove ALL Imports* + a fresh import replaces it with real text.
    A world upgraded from an older build looks like this until it is re-imported,
    and the report should say so rather than implying otherwise.
+9. **The same shape ON AN ACTOR — the case step 8 cannot see.** Put the
+   placeholder on an ability item owned by a character, not in a world
+   collection. *Remove ALL Imports* walks world collections and the library
+   packs and never descends into an actor, so this copy survives the gesture
+   step 8 proves; only the update pass reaches it. Confirm *Import Everything*
+   clears it, and that deleting the imports and importing again does not.
+10. **A book left disconnected must cost nothing.** Import an entry and confirm
+    its prose. Corrupt two of its flags by hand — one that comes from the
+    register (`extras.category`) and one that comes from the extracted text
+    (`extras.effects`) — then disconnect that book on this seat and run the
+    abilities update. *Observable:* the description keeps its paragraphs AND
+    both flags keep their corrupted values, because the entry is passed over
+    whole; the notification counts it as left untouched and says the book is not
+    open. Check `effects` specifically: an earlier guard held back only the
+    description, and `effects` came back empty while `category` repaired
+    correctly — which is how we learned that a nodeless rebuild is impoverished
+    everywhere, not just in its prose. Reconnect the book, run it again, and
+    confirm both flags now repair. This is invisible on a seat that happens to
+    have every book open.
 
 ### Teardown
 
-9. Delete the folder and everything created, and the hand-made fixture from
-   step 8.
+11. Delete the folder and everything created, and the hand-made fixtures from
+    steps 8 and 9.
 
 ## Location journals refuse a page they cannot anchor
 

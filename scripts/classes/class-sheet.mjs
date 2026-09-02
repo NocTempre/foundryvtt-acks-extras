@@ -84,10 +84,11 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     context.show = Object.fromEntries(TABS.map((id) => [id, id === this.#tab]));
     context.isStub = sys.isStub;
 
-    // Prose renders ENRICHED (an imported class's @PdfText tag resolves to
-    // the reader's own page text) inside a toggled prose-mirror — the same
-    // view-then-edit element the system's own sheets use. Never reach for
-    // the bare TextEditor global.
+    // Prose renders ENRICHED — an imported class holds its book text in the
+    // field, and enrichment is what resolves the links and rolls written
+    // alongside it — inside a toggled prose-mirror, the same view-then-edit
+    // element the system's own sheets use. Never reach for the bare
+    // TextEditor global.
     const enrich = (html) =>
       foundry.applications.ux.TextEditor.implementation.enrichHTML(html ?? "", {
         relativeTo: this.item,

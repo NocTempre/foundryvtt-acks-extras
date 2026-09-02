@@ -7817,6 +7817,10 @@ export async function cookbookUpdateAbilities() {
   let overwritten = 0;
   let kept = 0;
   let preserved = 0;
+  // Entries passed over because their book is not open on this seat. Counted
+  // apart from `preserved`: that one reports a Judge's own writing kept against
+  // a rebuild that happened, and these had no rebuild worth writing.
+  let unread = 0;
   // Name-adopted items whose description carries someone else's writing. The
   // write is held back until the GM has answered for them.
   const collisions = [];
@@ -7872,8 +7876,20 @@ export async function cookbookUpdateAbilities() {
         }
         nodeCache.set(id, node);
       }
+      const node = nodeCache.get(id);
+      // Nothing was read — this entry's book is not open on this seat, or its
+      // extraction failed — so nothing can be rebuilt from it. A rebuild made
+      // without a node carries the citation line alone in place of the text,
+      // and an extras block whose node-derived parts (the effects among them)
+      // are empty; writing it trades real prose and real mechanics for the
+      // shape of an entry nobody here could read. Left exactly as it is:
+      // connect the book and run it again.
+      if (!node) {
+        unread++;
+        continue;
+      }
       if (!ladderCache.has(id)) ladderCache.set(id, await laddersForEntry(found.entry));
-      const built = bindAbility(found.entry, nodeCache.get(id), id, {
+      const built = bindAbility(found.entry, node, id, {
         // A copy that recorded arriving under an older name keeps saying so.
         ...(extras.conversionStatus ? { conversionStatus: extras.conversionStatus } : {}),
         ...(extras.conversionFrom ? { conversionFrom: extras.conversionFrom } : {}),
@@ -7954,10 +7970,11 @@ export async function cookbookUpdateAbilities() {
       `${renamed ? `; ${renamed} of your own renamed aside, ${created} reference(s) created beside them` : ""}` +
       `${overwritten ? `; ${overwritten} replaced on request` : ""}` +
       `${preserved ? `; ${preserved} kept the description you wrote` : ""}` +
+      `${unread ? `; ${unread} left untouched — their book is not open on this seat` : ""}` +
       `${kept ? `; ${kept} left untouched` : ""}` +
       `${stale ? `; ${stale} left over from a withdrawn definition — run Prune` : ""}.`,
   );
-  return { updated, adopted, onActors, guessed, skipped, renamed, created, overwritten, kept, preserved, stale };
+  return { updated, adopted, onActors, guessed, skipped, renamed, created, overwritten, kept, preserved, unread, stale };
 }
 
 /**

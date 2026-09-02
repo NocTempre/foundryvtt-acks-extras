@@ -1,5 +1,50 @@
 # Changelog
 
+## 6.1.3
+
+**Importing again repairs what it did not create, and the library stops
+overlooking half its own shelves.**
+
+### Fixed
+- **A description showing `@PdfText[...]` can be repaired.** Import creates
+  documents and steps over the ones already in your world, so a description
+  written by an older version kept its placeholder however many times you
+  imported the book again. *Import Everything* now finishes the abilities step by
+  refreshing them, which is also the only path that reaches an ability living on
+  a character — *Delete Everything Imported* never looks inside an actor, so a
+  proficiency on a player's sheet could not be repaired by any means you had.
+  A description you have written in yourself is still asked about before
+  anything replaces it.
+- **An entry whose book is not open is left alone, instead of losing its text.**
+  Refreshing an ability while its book was disconnected rebuilt it from nothing
+  and wrote the result: the paragraphs became a bare page citation, and the
+  mechanics that are read out of the book's own words — a proficiency's effects
+  among them — came back empty. Nothing is read, so nothing is rewritten; the
+  report says how many entries were passed over and why.
+- **Classes and items from a third-party book are visible again.** Anything
+  imported from a book shelved under its own line — Dolmenwood, Old-School
+  Essentials, Quick Delve, Planar Compass, Wicked Little Delves — was written to
+  its own compendium and then never read back, because the reader recognised
+  only the shelf the ACKS books use. Every part of the module that asks "what has
+  this world imported?" now sees all of them. Where an ACKS document and a
+  third-party one share a name, the ACKS one still answers first.
+- **Character creation no longer comes up blank when it is opened early.** The
+  imported library loads in the background, and a generator opened in the first
+  seconds of a session could see no classes yet. It gave up at that moment and
+  core's page never renders itself again, so the window stayed empty until it was
+  closed and reopened. It now waits for the library before concluding there is
+  nothing to show.
+- **The template menu says why it is empty.** A class that prints no starting
+  packages left the menu closed while the note beside it asked you to roll the
+  template die — a roll that could not open it, and neither could a Judge's
+  override. The note now names the real reason, and the die and the override are
+  still asked for when they are genuinely what is missing.
+- **A build without a package no longer follows the Judge's override down.**
+  Ticking *build without a package*, then lowering the override, left the page
+  offering packages again while the save still applied the earlier tick — a
+  character finished with a class, no starting package and no gold, from a page
+  that had shown the opposite. What closes now applies what the page offered.
+
 ## 6.1.2
 
 **The Melee and Ranged buttons are the quick roll they look like.**

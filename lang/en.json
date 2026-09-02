@@ -199,6 +199,7 @@
   "ACKS-CLASSES.chargen.tooltip": "Roll a starting template (3d6, choose at or below)",
   "ACKS-CLASSES.chargen.noneQualify": "No class in this world accepts these scores. A Judge may offer them anyway.",
   "ACKS-CLASSES.chargen.rollFirst": "Roll the template die to see which packages it reaches.",
+  "ACKS-CLASSES.chargen.noTemplates": "This class has no starting packages in this world, so there is nothing to choose here. Import the class again from the book that prints them, or pick another class.",
   "ACKS-CLASSES.chargen.reset": "Clear this roll",
   "ACKS-CLASSES.chargen.judgeUnlock": "Judge override",
   "ACKS-CLASSES.chargen.judgeUnlockHint": "Offer every class and every template whatever the dice say, ignore the campaign's attribute rule, and set any rolled field by hand. Remembered for you.",

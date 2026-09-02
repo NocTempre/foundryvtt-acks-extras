@@ -279,6 +279,17 @@ whole and resolve against the character who owns the item.
 present; a duplicate usually means the first copy was renamed or moved out of the
 folder it was created in.
 
+**A description shows `@PdfText[...]` instead of the text.** The document was
+written by a version that stored a placeholder and resolved it while you looked
+at it; the text is materialized into the document itself now, and nothing
+renders the placeholder any more. Importing again does not clear it — import
+creates documents and steps over the ones you already have. Connect the book and
+run **Import Everything**, which now refreshes what it did not create; the same
+repair reaches abilities living on a character, where *Delete Everything
+Imported* does not look. A description you have written in yourself is left
+alone, so if a placeholder sits beside your own words, clear the placeholder and
+run it again.
+
 **The page an item cites is two pages past the entry.** Fixed in 4.3.2: a
 citation now names the number printed on the page, where before it named the
 page's position in the PDF file, which the front matter puts two ahead (one, in

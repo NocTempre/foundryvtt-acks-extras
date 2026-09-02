@@ -1,8 +1,9 @@
 <section class="tab {{tab.cssClass}}" data-group="primary" data-tab="description">
   <div class="content flexcol acksm-content acksm-lore">
     {{!-- A toggled <prose-mirror> displays its innerHTML while not editing, so
-          the ENRICHED HTML renders inside each element (running @PdfText and
-          other enrichers), while `value` keeps the raw stored text for editing. --}}
+          the ENRICHED HTML renders inside each element (running the links,
+          rolls and other enrichers written beside the imported book text),
+          while `value` keeps the raw stored text for editing. --}}
     <label class="acksm-lore-label">{{localize "ACKS-MONSTERS.desc.appearance"}}</label>
     <prose-mirror name="{{x}}.description.appearance" value="{{extras.description.appearance}}" toggled data-document-uuid="{{actor.uuid}}">{{{enrichedDesc.appearance}}}</prose-mirror>
 

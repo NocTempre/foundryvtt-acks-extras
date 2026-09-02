@@ -45,7 +45,10 @@ Three small controls appear beside the class field:
 
   *Every change old → new before it lands, with hand edits flagged.*
 - **Dice** (level 1 characters) — roll a starting template: 3d6, then choose
-  the rolled template or any lower band. Applying grants the proficiencies
+  the rolled template or any lower band. The menu stays closed until the die
+  gives it something to offer, and a class whose entry prints no packages
+  leaves it closed for good — the note under the menu says which of the two you
+  are looking at. A Judge's override lifts the die, never the empty class. Applying grants the proficiencies
   (ranks and selections included), the equipment — each piece named as
   printed over its base item's mechanics — the coin, and your Intellect
   bonus proficiency picks.

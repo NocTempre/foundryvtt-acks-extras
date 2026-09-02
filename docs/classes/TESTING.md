@@ -350,8 +350,35 @@ template die through core's own `button[data-action="rollTemplate"]` and allow
    two-class module rule, so this is worth asserting numerically rather than
    by eye.
 
-**Teardown.** Delete the characters you created; the class is imported content
-and is left alone.
+6. **A class that prints no packages at all** — the state a field report read as
+   a broken menu. Create a class Item whose `system.templates` is empty (a
+   hand-made class does this by construction) and select it on the chargen page.
+   *Observable:* the menu is disabled, and the note under it says the class has
+   no packages — NOT "roll the template die". Throw the die and tick the Judge
+   override in turn: the note does not change and the menu does not open, which
+   is correct. Both branches read the same empty array, so the override lifts
+   the die-band filter and nothing else; a note that still asked for the die
+   here is the defect this step exists to catch.
+   *Then select a class that does print packages, without reopening the window:*
+   the note and the menu recover. The page auto-selects the first class in book
+   order, so a reader can land on the empty one without having chosen it.
+
+7. **The override goes down and the write follows the page.** As GM: tick Judge
+   Override, tick *build without a package*, then UNTICK Judge Override. First
+   confirm the non-defect — re-tick the override and read
+   `input[name="acks-manual"].checked`: it is `true` and the label is visibly
+   there, so a dead menu at that moment is the tick saying so, not a fault.
+   Then leave the override DOWN, roll the six attributes, pick a class, leave
+   the template die unthrown, and save.
+   *Observable:* the auto-roll notice fires and the package's proficiencies,
+   gear and coin are on the actor. The page was offering packages, so the close
+   must apply one. Before this was fixed the close read the tick that the page
+   had stopped honouring, suppressed the rescue, and wrote a class with no
+   package and no gold — the page showing one thing and the write doing another.
+   Verify on the actor's own fields, not on the notification.
+
+**Teardown.** Delete the characters you created, and the empty class from step
+6; the imported class is content and is left alone.
 
 ## Post-9th hit points on a built class
 

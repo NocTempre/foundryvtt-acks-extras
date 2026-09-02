@@ -1,7 +1,7 @@
 /**
  * Gear + clothing PRICE extraction (RR p131 Adventuring Equipment, p132
  * Clothing) → a name→{cost,weight6} map that enriches the gear/clothing
- * cookbook items (which carry names + @PdfText descriptions but no price).
+ * cookbook items (which carry names + descriptions but no price).
  *
  * These pages are TWO-COLUMN price grids (left Item/Cost/Enc, right
  * Item/Cost/Enc). Same IP posture as the weapon/armour tables: geometry ships,

@@ -42,20 +42,37 @@ const worldCollection = (type) =>
   ({ Item: game.items, Actor: game.actors, JournalEntry: game.journal, RollTable: game.tables })[type] ?? null;
 
 /**
- * The importer's pack for a document type, or null.
+ * Every shelf the importer has minted for a document type — every LINE of it.
+ *
+ * Matched on the label PREFIX, never on a whole label: a lined book is shelved
+ * on its own pack (`ACKS Cookbook — Dolmenwood — Item`), so a reader that
+ * demanded the unlined label answered for the ACKS books and reported every
+ * other one absent. This reads back the writer's own shape — the importer keeps
+ * the prefix on every shelf precisely so that one prefix finds them all.
  *
  * Found by label rather than by collection id, because the id is minted by
  * Foundry when the pack is created and differs between worlds.
+ *
+ * The unlined shelf sorts FIRST, so a lookup that has to choose between two
+ * shelves holding the same name answers with the ACKS document rather than
+ * with whichever pack Foundry happened to register first.
  */
-export function libraryPack(type) {
-  return (
-    game.packs?.find(
+export function libraryPacks(type) {
+  const own = `${PACK_LABEL_PREFIX}${type}`;
+  return (game.packs ?? [])
+    .filter(
       (p) =>
         p.metadata.packageType === "world" &&
         p.documentName === type &&
-        p.metadata.label === `${PACK_LABEL_PREFIX}${type}`,
-    ) ?? null
-  );
+        String(p.metadata.label ?? "").startsWith(PACK_LABEL_PREFIX),
+    )
+    .sort((a, b) =>
+      a.metadata.label === own
+        ? -1
+        : b.metadata.label === own
+          ? 1
+          : String(a.metadata.label).localeCompare(String(b.metadata.label)),
+    );
 }
 
 /**
@@ -91,16 +108,21 @@ const loading = new Map();
 const isCold = (pack) => pack.index.size > pack.size;
 
 function loadPack(type) {
-  const pack = libraryPack(type);
-  if (!pack || !isCold(pack)) return loading.get(type) ?? Promise.resolve();
+  const cold = libraryPacks(type).filter(isCold);
+  if (!cold.length) return loading.get(type) ?? Promise.resolve();
   if (!loading.has(type)) {
     loading.set(
       type,
-      pack
-        .getDocuments()
-        .catch((err) => console.warn(`${MODULE_ID} | could not load the imported ${type} library`, err))
-        // Cleared on settle: the pack may go cold again when the importer
-        // creates it fresh, or grow rows a later import added.
+      Promise.all(
+        cold.map((pack) =>
+          pack
+            .getDocuments()
+            .catch((err) => console.warn(`${MODULE_ID} | could not load the imported ${type} library`, err)),
+        ),
+      )
+        // Cleared on settle: a shelf may go cold again when the importer creates
+        // it fresh, grow rows a later import added, or arrive whole when a world
+        // imports its first book of a line that had no shelf at all.
         .finally(() => loading.delete(type)),
     );
   }
@@ -119,20 +141,23 @@ export const warmLibrary = () => Promise.all(LIBRARY_TYPES.map(loadPack));
 export const whenReady = () => warmLibrary();
 
 /**
- * Every library document of a type — the sidebar's, then the pack's.
+ * Every library document of a type — the sidebar's, then every shelf's.
  *
- * Synchronous by design (see the file header). A pack that is still cold — the
+ * Synchronous by design (see the file header). A shelf that is still cold — the
  * importer created it after `ready`, or this is the first read of the session —
  * starts loading in the background and answers with what is in hand; sheets
  * re-render on the document creates that follow, so the next read is complete.
- * Anything that must not miss an imported document awaits `whenReady()` first.
+ * Anything that must not miss an imported document awaits `whenReady()` first —
+ * and a caller that CANNOT re-render must, because for it "what is in hand"
+ * never becomes complete.
  */
 export function libraryDocs(type) {
-  const world = [...(worldCollection(type) ?? [])];
-  const pack = libraryPack(type);
-  if (!pack) return world;
-  if (isCold(pack)) loadPack(type);
-  return [...world, ...pack.contents];
+  const docs = [...(worldCollection(type) ?? [])];
+  const packs = libraryPacks(type);
+  if (!packs.length) return docs;
+  if (packs.some(isCold)) loadPack(type);
+  for (const pack of packs) docs.push(...pack.contents);
+  return docs;
 }
 
 /** Every library Item — the read that replaced `game.items` across this module. */

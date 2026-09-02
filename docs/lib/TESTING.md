@@ -216,9 +216,69 @@ warns, returns null, and neither the folders nor the setting change. Confirm the
 cookbook packs are still `visible` to that seat — the ownership reset must not
 cost players sight of the library.
 
+## A lined shelf is part of the library
+
+**Fixture.** A world compendium you create, labelled for a line the ACKS books
+do not use:
+`CompendiumCollection.createCompendium({ label: "ACKS Cookbook — Dolmenwood — Item", type: "Item" })`,
+holding one class Item with a `system.key`.
+
+1. **Negative control first, on the build you are replacing.** Confirm
+   `libraryItems()` does NOT count it. Without this the positive result proves
+   nothing — the shelf might simply have been found all along.
+2. Run the same read on the build under test. The class is counted,
+   `classItems()` lists it, and the chargen page's class `<select>` offers it by
+   name.
+3. **Order.** Put a document of the SAME name on the unlined shelf and on the
+   lined one, then resolve it by name. The unlined one wins, whichever pack
+   Foundry registered first — the sort exists so this does not depend on that.
+4. **Cost, measured — not assumed.** With the lined shelf populated, reload and
+   time `whenReady()` from a fresh F5. Record the elapsed milliseconds, the
+   resulting `libraryItems().length`, `libraryPacks("Item").length` and the total
+   document count across the shelves. Warming touches every line's shelf rather
+   than four packs, and this number is the reason the widen was allowed to ship.
+   **Take it more than once and report a RANGE.** The measured spread was
+   1.1–3.7 s on ~2030 documents across ten shelves; a single reading here looks
+   authoritative and is not. Take it only while nothing else is driving the
+   world — another agent reloading in the same window shares or contends the
+   load, and a contended reading is worse than none because it will be acted on.
+5. **The DELETE path.** Delete the compendium and read again: the count returns
+   to what step 1 saw. A shelf that goes away must stop being answered for.
+
+## A generator opened before the library is warm
+
+The failure this catches is permanent, and only a REAL cold render produces it.
+
+**Drive mechanic — winning the race with auto-warm.** A plain navigate followed
+by an immediate script call reliably lands AFTER the library has warmed itself,
+so the cold path is never entered and the check passes vacuously. Batch the
+navigate together with a tight polling loop that yields (`setTimeout` at ~5 ms —
+a busy-wait deadlocks the page's own scripts), waiting for `game`, `game.packs`,
+`game.actors` and `acksExtras` to EXIST and acting the instant they do, without
+waiting for `game.ready`. Prove the render really was cold before trusting the
+result: `game.ready === false` and the shelf reporting `pack.size === 0` against
+a non-zero `pack.index.size` at click time. A run that cannot show both of those
+proves the handler, not the race.
+
+6. Create the lined shelf from the section above **after** the world has reached
+   `ready`, so it is genuinely cold and unwarmed — `registerLibraryWarm` has
+   already run.
+7. Open a character sheet and click **Generate Scores** — a real click, not a
+   scripted construction.
+   *Observable:* on the FIRST open, without reloading, the injected boxes are all
+   present and populated and the class list includes the fixture class. Before
+   this was fixed the page rendered core's own two columns with no injected
+   element at all, and stayed that way for the life of the window even after the
+   shelf finished loading.
+8. Reopen the generator in the same session.
+   *Observable:* identical — this is the warm path, and it proves the await did
+   not cost the case that already worked.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.
+Delete the lined compendium with `deleteCompendium()` and confirm
+`libraryItems()` returns to its pre-fixture count.
 Confirm `storedItems(location)` is empty before the location goes. The
 initiative step also leaves a combat, a scene with tokens, and the chat messages
 both settings produced — delete all three, and issue the scene delete WITHOUT

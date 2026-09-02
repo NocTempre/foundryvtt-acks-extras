@@ -259,7 +259,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       // nothing still lists its classes in book order.
       sortOrder: int(0, { min: 0 }),
 
-      description: html(), // lazy @PdfText content, or hand-written homebrew prose
+      description: html(), // materialized book text, or hand-written homebrew prose
       codeOfBehavior: html(),
 
       requirements: new ArrayField(new SchemaField({ attr: choice(ATTRIBUTES), min: num({ integer: true }) })),

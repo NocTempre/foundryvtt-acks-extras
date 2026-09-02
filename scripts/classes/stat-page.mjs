@@ -45,6 +45,7 @@ import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs"
 import { answeredByTemplate, isGranted, rungLabel, rungOptions } from "./picks.mjs";
 import { templateGrantKeys } from "./template-packages.mjs";
 import { makeLoc } from "../lib/util.mjs";
+import { whenReady } from "../lib/library.mjs";
 
 const PAGE_CLASS = "acks-extras-classes-statgen";
 const COLUMN = "acks-extras-classes-col";
@@ -347,7 +348,18 @@ function refresh(root, state) {
       legal,
       selectedMin: state.templateMin,
       template,
-      ruleHint: manual ? loc("chargen.manualRule") : rolled == null ? loc("chargen.rollFirst") : loc("chargen.rule"),
+      // A class that prints no packages is answered BEFORE the die: the box is
+      // disabled because there is nothing to put in it, and telling a reader to
+      // roll — or which band they may take — sends them at a control that
+      // cannot open however they answer. The Judge override reaches the same
+      // empty array, so it does not relieve this one either.
+      ruleHint: manual
+        ? loc("chargen.manualRule")
+        : cls && !templates.length
+          ? loc("chargen.noTemplates")
+          : rolled == null
+            ? loc("chargen.rollFirst")
+            : loc("chargen.rule"),
       shortfall: short,
     }),
   );
@@ -416,6 +428,12 @@ function refresh(root, state) {
   applyUnlock(root, judge);
   state.cls = cls;
   state.template = template;
+  // What the page is OFFERING, not what a checkbox behind a lifted override
+  // once said. Building without a package is a Judge's option, so the tick only
+  // counts while the override is up: with it down the page offers packages
+  // again, and what closes has to apply what was offered. Never read
+  // `state.manual` outside this function.
+  state.manualInForce = manual;
 }
 
 /**
@@ -653,7 +671,7 @@ function inject(app, root, state) {
         // bookkeeping. Whatever is about to pay this character — a package or a
         // 3d6×10 roll — would then pay them twice, so the field is cleared and
         // chargen stays the single writer.
-        if (field && state.cls && (state.template || state.manual)) field.value = "";
+        if (field && state.cls && (state.template || state.manualInForce)) field.value = "";
       },
       { capture: true },
     );
@@ -707,14 +725,25 @@ export function registerChargenPage() {
     }
   });
 
-  Hooks.on("renderApplicationV2", (app, element) => {
+  Hooks.on("renderApplicationV2", async (app, element) => {
     try {
       if (game.system?.id !== "acks") return;
       const root = element instanceof HTMLElement ? element : element?.[0];
       if (!root || !isStatPage(root)) return;
       const actor = app.options?.actor ?? app.actor ?? null;
       if (!actor?.isOwner) return;
-      if (!classItems().length) return;
+      if (!classItems().length) {
+        // The library warms in the background and a cold shelf answers with
+        // what is in hand, so a generator opened in the first seconds of a
+        // session can see no classes at all. Core's page never re-renders
+        // itself, so bailing on that reading loses the injected boxes for the
+        // LIFE of the window rather than for a moment — decide against the
+        // whole library, not against whatever happened to be loaded. Free once
+        // the shelves are warm: nothing above this yields, so a warm session
+        // still injects inside the render hook.
+        await whenReady();
+        if (!root.isConnected || !classItems().length) return;
+      }
 
       let state = states.get(app);
       if (!state) {
@@ -728,6 +757,7 @@ export function registerChargenPage() {
           judge: !!game.user.getFlag(MODULE_ID, JUDGE_FLAG),
           keep: false,
           manual: false,
+          manualInForce: false,
           submitted: false,
           roll: null,
           gold: null,
@@ -754,7 +784,7 @@ export function registerChargenPage() {
       // without it. An unthrown die legalises no package at all, so leaving it
       // alone spent the whole build: a player who chose their class and pressed
       // save walked away with six numbers, no class and no starting package.
-      if (state.cls && !template && !state.manual) {
+      if (state.cls && !template && !state.manualInForce) {
         const auto = await autoTemplate(state.cls);
         if (auto.template) {
           template = auto.template;
@@ -763,7 +793,7 @@ export function registerChargenPage() {
         }
       }
       // A build with no package is a deliberate choice, not an unfinished one.
-      if (!state.cls || (!template && !state.manual)) {
+      if (!state.cls || (!template && !state.manualInForce)) {
         ui.notifications?.info(loc("chargen.nothingApplied"));
         return;
       }

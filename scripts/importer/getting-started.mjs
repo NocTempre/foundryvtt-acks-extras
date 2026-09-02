@@ -61,7 +61,20 @@ export const gettingStartedDismissed = () => !!game.settings.get(MODULE_ID, SETT
  * sequences them and narrates which one is running.
  */
 const GM_STEPS = [
-  ["stepAbilities", (api) => api.cookbookImportAbilities()],
+  // Import CREATES; it steps over every document that already exists, so a
+  // description written before this module materialized book text keeps
+  // whatever it held. The update pass is the only path that rewrites an
+  // existing description, and the only one that reaches an ability embedded on
+  // an actor — where removing the imports and importing again cannot follow.
+  // It runs inside this step rather than beside it: refreshing the abilities is
+  // part of importing them, not a decision a Judge is asked to make.
+  [
+    "stepAbilities",
+    async (api) => {
+      await api.cookbookImportAbilities();
+      await api.cookbookUpdateAbilities();
+    },
+  ],
   ["stepEquipment", (api) => api.importAllEquipment()],
   // Variations go ON the gear imported above, so they follow it. Traps and
   // vehicles depend on nothing; each needs ACKS Extras for its document type
@@ -69,6 +82,14 @@ const GM_STEPS = [
   ["stepVariations", (api) => api.importVariations()],
   ["stepTraps", (api) => api.importTraps()],
   ["stepVehicles", (api) => api.importVehicles()],
+  // `cookbookUpdateClasses` is deliberately NOT run here, though it is the
+  // matching half of the abilities step above. It has no ownership guard — it
+  // asks once and then replaces each class's whole `system`, hand edits with it
+  // — and it asks through a modal, which a chain that narrates its own progress
+  // must not stop on. A stale class is also reachable the ordinary way: classes
+  // are world documents, so removing the imports and importing again rewrites
+  // them. That is the gap abilities do not have, and the reason only abilities
+  // are refreshed from here.
   ["stepClasses", (api) => api.importClasses()],
   // Template packages resolve their gear against the equipment imported above
   // and their rows against the classes just landed — so they follow both.

@@ -7,6 +7,52 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-02 — the library reads every shelf, and a caller that cannot
+  re-render awaits.** Two faults with one shape: the reader answered a smaller
+  question than any of its callers asked. (a) It matched the WHOLE pack label
+  `ACKS Cookbook — <Type>`, while the importer shelves a lined book on its own
+  pack `ACKS Cookbook — <Line> — <Type>`; a class from Dolmenwood, OSE, Quick
+  Delve, Planar Compass or Wicked Little Delves was invisible to every consumer,
+  and the chargen page — which bails entirely on an empty class list — showed
+  nothing at all. Every other reader in the family already matched on the prefix;
+  this one was the outlier, and it had been since before the importer merged.
+  Matching now follows the writer's own shape, with the unlined shelf sorted
+  first so a name collision between an ACKS document and a third-party one
+  resolves to the ACKS one instead of to pack-registration order.
+  (b) The cold-pack rule — "the read answers with what is in hand" — assumed the
+  caller renders again. **This does not supersede "one reader, and it is
+  synchronous" (2026-08-24); the readers stay synchronous.** What that entry got
+  wrong was its stated cost: *"the re-render that follows is complete"* assumes a
+  re-render, and core's Scores Generator never performs one. A first render that
+  beat the warm lost its injected boxes for the LIFE of that window, not for a
+  moment. Callers that cannot re-render now await `whenReady()` — which that same
+  entry provisioned for exactly this — before concluding they found nothing.
+  **Rejected: a loading state.** It is a new user-facing surface and new strings
+  for a wait nothing has yet measured as visible. **Rejected: re-running the
+  injection when the warm resolves.** It creates a second entry point into a
+  function whose guards all close over the first `root`. Awaiting keeps one
+  injection and needs no new guard.
+  **Cost, measured before shipping rather than assumed.** Warming now loads every
+  line's shelf rather than four packs. On a world holding ~2030 documents across
+  ten shelves (Item ×2, Actor ×6, JournalEntry, RollTable), `whenReady()` from a
+  cold reload took **1.1–3.7 s** over repeated readings — a range, not a point,
+  the spread being IO variance rather than anything in the reader, and
+  `warmLibrary` awaits all four types together rather than the one a caller
+  wanted. Accepted because the warm does not block `ready` — `registerLibraryWarm`
+  does not await it — and because the alternative is a whole class of imported
+  content staying invisible. It is charged in one visible place: a generator
+  opened in those first seconds waits that long instead of rendering blank, and
+  grows as the boxes arrive (below).
+
+  **Known and accepted: the generator visibly grows on the cold path.** Measured
+  at 1100×400 before injection and 1100×822 after, with no scrollbar and no
+  clipping at either point — `position.height` is already `auto` and `setPosition`
+  runs once, early, so the frame simply follows its content. A reader opening the
+  page in the first seconds of a session sees core's compact layout for the warm
+  interval above and then a jump. Left alone deliberately: reserving height or
+  showing a loading state is a new user-facing surface, and the state being
+  replaced is a window that stayed blank permanently.
+
 - **2026-09-01 — the system's compendium tree is the system's, and the library
   can be put back.** Supersedes the 2026-08-15 ruling below. `organizeFamilyPacks`
   gathered the system's thirteen packs into this module's own "ACKS II" folder,

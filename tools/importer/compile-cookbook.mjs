@@ -2960,7 +2960,7 @@ async function compileClass(doc, entry, kindRow) {
 
   /* --- the intro prose: everything in the anchor column between the header
          bullets and the first section heading, as claimed paragraphs the
-         lazy @PdfText tag resolves per seat --- */
+         import materializes into the document it creates --- */
   {
     const stopHeadings = ["Combat Characteristics", "Starting Class Powers", "Class Proficiencies"];
     // Below the four header bullets (they end ~50px under the anchor), above
@@ -3245,8 +3245,8 @@ const joinBody = (items) =>
  *    heading in the same column.
  *  - runin: a bold "Name:" run (JJ powers, class skills) → block to the next
  *    same-alias run-in in the same column; the heading run is dropped.
- * Descriptor prose materializes per seat (lazy @PdfText); structured effects are
- * per-entry assists (emitted later — descriptor first).
+ * Descriptor prose is materialized into the document at import; structured
+ * effects are per-entry assists (emitted later — descriptor first).
  */
 async function compileDefinition(doc, entry, kindRow, siblings = []) {
   DEF_BODY_MAX_H = DEF_BODY_MAX_H_BY_BOOK[entry.book] ?? 10;

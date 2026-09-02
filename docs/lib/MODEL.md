@@ -24,15 +24,24 @@ MODEL. One owner per wrapped core method.
 
 ## The imported library
 
-acks-importer writes what a world imports into WORLD COMPENDIUMS — one pack per
-document type, labelled `ACKS Cookbook — <Type>`. `lib/library.mjs` is the one
-reader for them, and every "what has this world imported?" question in this
-module goes through it. A bare `game.items` finds an empty shelf.
+The importer writes what a world imports into WORLD COMPENDIUMS — one pack per
+document type **per line**: `ACKS Cookbook — <Type>` for the ACKS books, and
+`ACKS Cookbook — <Line> — <Type>` for every book shelved under a line of its own.
+`lib/library.mjs` is the one reader for them, and every "what has this world
+imported?" question in this module goes through it. A bare `game.items` finds an
+empty shelf.
+
+Shelves are matched on the `ACKS Cookbook — ` PREFIX, never on a whole label:
+a reader that demanded the unlined label answered for the ACKS books and called
+every lined one absent. The unlined shelf sorts first, so a lookup that has to
+choose between two shelves answers with the ACKS document rather than with
+whichever pack Foundry registered first.
 
 - `libraryItems()` / `libraryActors()` / `libraryDocs(type)` — the sidebar's
-  documents first, then the pack's. The sidebar still counts: a Judge's homebrew
-  class lives there, and so do the class-template packages, which are world
-  documents on purpose so a Judge can repair one.
+  documents first, then every shelf's. The sidebar still counts: a Judge's
+  homebrew class lives there, and so do the class-template packages, which are
+  world documents on purpose so a Judge can repair one.
+- `libraryPacks(type)` — the shelves themselves, unlined first.
 - `byCookbookId(type, id)` — the id lookup, skipping template parts. A skinned
   copy inherits the id of the definition it was made from, so a plain id search
   finds one class's engraved silver waterskin where the shared Waterskin was
@@ -48,6 +57,12 @@ memory — the same cost the `game.items` reads had. A pack that is still cold
 (the importer creates its packs on first use, and core emits no hook when a
 compendium is created) starts loading in the background and the read answers
 with what is in hand.
+
+**A caller that would be WRONG for the life of its window must await instead.**
+Answering with what is in hand assumes the caller renders again; a surface that
+never re-renders — core's Scores Generator is the one that bit — turns a
+half-warm read into a permanent empty. Such a caller awaits `whenReady()` before
+deciding it has found nothing, which costs nothing once the shelves are warm.
 
 Consumers: the class registry and `findByRef`, the race list, proficiency
 grants, the language resolver and its migration, the ability sheet's relation

@@ -185,8 +185,9 @@ export function createFullMonsterSheet(Base) {
       context.extras = extras;
       context.ose = oseSourceView(this.#oseRecord);
       // Enrich the entry-prose fields so text enrichers run in them the way the
-      // core sheet already enriches biography — most importantly the importer's
-      // @PdfText tags, which stream book prose per seat. The raw value still
+      // core sheet already enriches biography — imported book text is stored in
+      // the field itself, but a Judge writing beside it reaches for the same
+      // links and rolls core enriches everywhere else. The raw value still
       // drives editing (prose-mirror `value`); the enriched HTML is the display.
       // `relativeTo` is what resolves relative @UUID links in that display, and
       // secrets stay hidden from anyone who does not own the actor.

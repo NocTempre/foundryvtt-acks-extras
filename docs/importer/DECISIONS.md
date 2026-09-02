@@ -9,6 +9,79 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### Importing again refreshes what it did not create (2026-09-02)
+
+**Ruled.** `cookbookUpdateAbilities` closes `stepAbilities`. Refreshing the
+abilities is part of importing them, not a separate gesture a Judge is asked to
+know about.
+
+**Rejected: doing the same for classes.** `cookbookUpdateClasses` is the
+matching half and stays out of the chain. It has no ownership guard — it asks
+once, then replaces each class's whole `system`, hand edits with it — and it
+asks through a MODAL, which a chain that narrates its own progress must not
+stop on. The gap that justifies routing the abilities pass does not exist here
+either: classes are world documents, so removing the imports and importing
+again already rewrites them. Abilities are routed because an ability can live
+on an actor, where that gesture cannot follow.
+
+**This supersedes the "Accepted cost" paragraph of "Imported text is written
+into the world, once, by the GM who owns the book" (2026-08-24)**, which said
+worlds imported before the change hold `@PdfText` tags, that the repair is
+*Remove ALL Imports* + import again, and that there is no repair pass. Two
+things that ruling did not know:
+
+- **Its stated repair cannot reach the documents that matter.** *Remove ALL
+  Imports* enumerates world collections and label-matched packs and never
+  descends into an actor. `cookbookUpdateAbilities` is the only function that
+  walks an ability owned by a character, so a proficiency on a player's sheet
+  was unrepairable by any gesture a user had — permanently, by construction.
+  Import itself never revisits an existing document, so importing again could
+  not have cleared it either.
+- **The repair pass it declined to build already existed.** The cost it weighed
+  — "would keep the whole per-seat resolution path alive" — does not apply,
+  because nothing is built here. The pass was written, correct, and reachable
+  only from a sidebar button and the API. This routes it; it does not add it.
+
+**Rejected: a separate *Update Abilities* macro.** The macro pack deliberately
+ships only what a Judge chooses between — connect books, import everything,
+delete everything, rebuild one shelf — because the individual steps have a
+dependency order and offering them invites running them in the wrong one.
+Refreshing is not a decision; it is the second half of importing.
+
+**Rejected: widening the import path's overwrite to match legacy-scoped
+documents.** `cookbookImportAbilities` has no ownership guard at all, so a
+broadened match there would clobber a Judge's own copies and edits
+unconditionally. The guard lives only on the update path, which is why the
+update path is the one that got routed.
+
+**A book that is not connected must not cost text — or mechanics.** With no
+session for an entry's book the executor yields no node, and everything rebuilt
+from one degrades together: the description becomes the citation line alone, and
+the extras block loses its node-derived parts. The stamp marks that description
+as this module's own, so the ownership guard read it as overwritable and the
+write went through — trading a Judge's imported paragraphs for a stub on any
+seat that ran the pass without every book open.
+
+**An entry whose book yielded no node is now passed over entirely**, and counted
+as such in the report. A narrower first attempt held back only the description
+and let the rest of the rebuild land, on the reasoning that the register repairs
+the mechanics without the book. Live verification refuted it: `category` and
+`deprecated` did come back from the register, and `extras.effects` came back
+**empty**, because effect detection reads the extracted text. Holding back one
+field of a rebuild that is uniformly impoverished is a guess about which fields
+are node-derived, and it was wrong on the first one checked. What cannot be read
+is not rewritten.
+
+**Cost:** *Import Everything* now walks every ability in the world, actors
+included, so it takes longer on a large world. An unflagged, hand-made ability
+whose description is **empty** and whose name matches a definition is adopted and
+stamped by a run a Judge may have thought of as import-only; anything holding
+words is asked about first, as before. A seat that has not connected its books
+now repairs nothing rather than repairing a little — which is the honest report,
+and the notification says how many were passed over and why.
+
+---
+
 ### One picture per entry, one register per kind (2026-09-01)
 
 **Ruled.** Every one of the 819 register entries that becomes an Item carries an
@@ -648,7 +721,11 @@ reference closes the last one that received text — the creature carries it onc
 at the bottom of the Description tab, rather than six times.
 
 **Accepted cost: worlds imported before this hold `@PdfText` tags, and there is
-no repair pass.** The enricher that used to render them is gone, so an
+no repair pass.** — SUPERSEDED 2026-09-02 by "Importing again refreshes what it
+did not create": the repair named here reaches no ability owned by an actor, and
+the pass this paragraph declined to build already existed and is now routed into
+*Import Everything*. The rest of the entry stands. The enricher that used to
+render them is gone, so an
 unrepaired document shows the literal `@PdfText[mm.ghoul]{MM p.112}` until it is
 re-imported (*Remove ALL Imports*, then import again). A citation-only shim was
 rejected: it would keep the whole per-seat resolution path alive to pretty-print
