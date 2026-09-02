@@ -1,6 +1,6 @@
 # Changelog
 
-## 6.0.1
+## 6.0.2
 
 **The system gets its own shelves back, and the library can be put back.**
 

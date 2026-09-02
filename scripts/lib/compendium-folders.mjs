@@ -198,7 +198,9 @@ async function filePacks(targets, { reset }) {
   for (const [collection, path] of targets) {
     const entry = config[collection] ?? {};
     if (!needsWrite(entry, reset)) continue;
-    const key = path.map((p) => p.name).join(" ");
+    // JSON, not a joined string: a separator is a guess about what a folder
+    // name cannot contain, and there is no such character.
+    const key = JSON.stringify(path.map((p) => p.name));
     if (!built.has(key)) {
       const before = countFolders();
       built.set(key, await materialize(path));
