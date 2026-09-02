@@ -86,6 +86,7 @@ export async function openNavigationDialog(vehicleActor) {
     `<label class="checkbox"><input type="checkbox" name="${name}" ${on ? "checked" : ""}> ${label}</label>`;
 
   const result = await DialogV2.prompt({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: loc("sea.navigationTitle") },
     content: `
       <div class="acks-extras-sea-throw-dialog">
@@ -131,6 +132,7 @@ export async function openHazardDialog(vehicleActor) {
     `<label class="checkbox"><input type="checkbox" name="${name}" ${on ? "checked" : ""}> ${label}</label>`;
 
   const result = await DialogV2.prompt({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: loc("sea.hazardTitle") },
     content: `
       <div class="acks-extras-sea-throw-dialog">

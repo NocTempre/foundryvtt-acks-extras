@@ -100,11 +100,22 @@ export async function recoverThrown(actor) {
  * @param {Actor} actor
  * @param {Item} item      the weapon rolled
  * @param {object} profile classifyWeapon(item)
- * @param {{type?:string}} options  "melee" | "missile"
+ * @param {{type?:string}} options  options.type: "melee" | "missile" | "attack" —
+ *   core's NPC/monster roll path (item.mjs#rollWeapon) always sends "attack"
+ *   regardless of how the weapon was actually used, since it never runs the
+ *   character-only missile/melee split.
  */
 export async function consumeForAttack(actor, item, profile, options = {}) {
   if (!game.settings.get(MODULE_ID, SETTINGS.AMMO_TRACKING)) return;
-  if (options.type !== "missile") return; // only ranged/thrown attacks consume
+  // A monster attack always arrives as "attack" (core never assigns it
+  // "missile", even for a bow) — treat it as missile only when the weapon
+  // can ONLY be used at range, so a melee-and-missile weapon (hand axe),
+  // which core gives no way to disambiguate, stays unconsumed rather than
+  // wrongly falling into the thrown branch below on every melee swing.
+  const isMissile =
+    options.type === "missile" ||
+    (options.type === "attack" && item.system?.missile && !item.system?.melee);
+  if (!isMissile) return; // only ranged/thrown attacks consume
   if (!actor || !item) return;
 
   // A weapon used at range (a "missile" attack) is being THROWN — this covers a

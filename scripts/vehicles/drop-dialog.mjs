@@ -53,6 +53,7 @@ export async function routeActorDrop(vehicle, doc, { preselect = null, auto = fa
     .join("");
 
   const pick = await foundry.applications.api.DialogV2.prompt({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: loc("dropDialog.title", { name: doc.name, vehicle: vehicle.name }) },
     content: `<fieldset class="acks-extras-vehicle-drop">${rows}</fieldset>`,
     rejectClose: false,

@@ -53,6 +53,7 @@ const unitsWritten = (scene, units) => DISTANCE_UNITS[units]?.abbr ?? scene.grid
 function confirmApply(body, { shifts }) {
   const note = shifts ? `<p class="hint">${loc("apply.confirmShift")}</p>` : "";
   return foundry.applications.api.DialogV2.confirm({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: loc("apply.confirmTitle") },
     content: `<p>${body}</p>${note}`,
   });

@@ -63,6 +63,12 @@ const enrich = (html, item) =>
 
 export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
+    // no-scroll: this sheet scrolls at its PART root, not at `.window-content`.
+    // The shared contract would move the scroller onto `.window-content`, which
+    // is not a part — and ApplicationV2 restores scroll per part, so the body's
+    // `scrollable: [""]` below would stop working. A sheet whose fields submit
+    // on change needs the retention more than it needs the shared rule; the
+    // scroller lives in styles/equipment-item-sheet.css instead.
     classes: ["acks-ui", "acks-extras", "acks-extras-item-sheet"],
     position: { width: 620, height: "auto" },
     tag: "form",
@@ -116,7 +122,7 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
 
   static PARTS = {
     band: { template: `${T}/band.hbs` },
-    body: { template: `${T}/body.hbs`, scrollable: [".acks-extras-item-sheet__scroll"] },
+    body: { template: `${T}/body.hbs`, scrollable: [""] },
   };
 
   tabGroups = { primary: "rolls" };

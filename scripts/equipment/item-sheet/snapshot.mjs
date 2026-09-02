@@ -8,10 +8,10 @@
  * model — so the sheet shows what the rest of the module computes and never a
  * second reading of the same flag.
  */
-import { MODULE_ID, ITEM_FLAGS, LANG, EFFECT_DOMAINS } from "../constants.mjs";
+import { MODULE_ID, ITEM_FLAGS, LANG, EFFECT_DOMAINS, SETTINGS } from "../constants.mjs";
 import { FLAG_GEAR } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
-import { MASTERWORK, SILVER } from "../config.mjs";
+import { MASTERWORK, SILVER, SIZE } from "../config.mjs";
 import { isDisguised } from "../actions.mjs";
 import { masterworkTierOf, scavengedOf, silveredFlagOf, pristineOf, layerDeltas } from "../properties.mjs";
 import { variationItemsOf, itemBaseType } from "../variation-items.mjs";
@@ -21,8 +21,9 @@ import * as named from "../overlays/named.mjs";
 import { materialOf } from "../overlays/item-loss.mjs";
 import { classifyWeapon, inferGear, isShield, isHelmet } from "../profiles.mjs";
 import { wearLabel } from "../wear.mjs";
-import { collectEffectModifiers } from "../effects.mjs";
+import { collectEffectModifiers, hasEffectFlag, collectStringFlags } from "../effects.mjs";
 import { getLoadout } from "../loadout.mjs";
+import { isWeaponProficient } from "../proficiency.mjs";
 import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
@@ -38,6 +39,10 @@ import { priceLedger } from "./price-ledger.mjs";
 import { signed } from "./format.mjs";
 
 const loc = makeLoc(LANG);
+
+/** Sizes eligible for Weapon Finesse — mirrors roll-wrap.mjs's own list, the
+ * gate that actually decides the attack throw's attribute at roll time. */
+const FINESSE_SIZES = [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM];
 
 /** The flags this sheet owns on the item (the rest belong to their features). */
 export const SHEET_FLAGS = Object.freeze({
@@ -134,22 +139,65 @@ function inheritedGrants(item, actor) {
   const scores = actor.system?.scores ?? {};
   const str = Number(scores.str?.mod ?? 0);
   const dex = Number(scores.dex?.mod ?? 0);
-  if (melee && str) out.push({ label: loc("itemSheet.grant.strength", { n: scores.str?.value ?? "" }), detail: `${signed(str)} ${loc("itemSheet.grant.attackDamage")}`, src: loc("itemSheet.src.attribute") });
-  if (missile && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMissile")}`, src: loc("itemSheet.src.attribute") });
-  if (item.type === ITEM_TYPE.armor && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.ac")}`, src: loc("itemSheet.src.attribute") });
-  if (item.type === ITEM_TYPE.weapon) {
+  // One loadout read serves every row below that depends on the actor's
+  // current equip state: which style is active, whether non-proficient use
+  // has cancelled attribute bonuses, and (for melee) whether this weapon is
+  // the proficient one the finesse gate requires.
+  let loadout = null;
+  if (item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor) {
     try {
-      const loadout = getLoadout(actor);
-      const entry = loadout.weapons?.find((w) => w.item?.id === item.id);
-      if (entry && loadout.activeStyle) {
-        out.push({
-          label: loc("itemSheet.grant.style", { style: loadout.activeStyle }),
-          detail: loc(loadout.styleProficient ? "itemSheet.grant.styleTrained" : "itemSheet.grant.styleUntrained"),
-          src: loc("itemSheet.src.class"),
-        });
-      }
+      loadout = getLoadout(actor);
     } catch {
-      /* a loadout that cannot be computed grants nothing to list */
+      /* a loadout that cannot be computed grants nothing conditioned on it */
+    }
+  }
+  if (melee) {
+    const profile = classifyWeapon(item);
+    const entry = loadout?.weapons?.find((w) => w.item?.id === item.id) ?? null;
+    const usingNonProfWeapon = !!loadout && (entry ? !entry.proficient : !isWeaponProficient(actor, profile));
+    // Mirrors roll-wrap.mjs's Weapon Finesse gate exactly: only while roll
+    // automation is on to actually apply it, the weapon is proficiently and
+    // properly equipped, its size is finesse-eligible, and an effect grants
+    // the substitution — otherwise the attack throw is still keyed on STR.
+    // `dex > str` is part of the gate, not a display nicety: the swap is the
+    // character's election, so the roll only takes it when Dexterity is the
+    // better of the two, and a ledger that named DEX any earlier would be
+    // describing a throw the roll does not make.
+    const finesse = !!loadout && game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION) &&
+      !loadout.nonProficientUse && !usingNonProfWeapon && dex > str &&
+      FINESSE_SIZES.includes(profile.size) && hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE);
+    if (finesse && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute") });
+    else if (str) out.push({ label: loc("itemSheet.grant.strength", { n: scores.str?.value ?? "" }), detail: `${signed(str)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute") });
+
+    // Mirrors roll-wrap.mjs's damage-attribute substitution: a domain-named
+    // score stands in for Strength on the damage term when the actor
+    // actually carries it and the weapon takes a damage bonus at all.
+    let damageAttr = "str";
+    if (!profile.special?.includes("noDamageBonus")) {
+      const [subAttr] = collectStringFlags(actor, EFFECT_DOMAINS.DAMAGE_ATTRIBUTE);
+      if (subAttr && scores[subAttr]?.mod != null) damageAttr = subAttr;
+    }
+    const damageMod = Number(scores[damageAttr]?.mod ?? 0);
+    if (damageMod) {
+      const label = damageAttr === "str" ? loc("itemSheet.grant.strength", { n: scores.str?.value ?? "" })
+        : damageAttr === "dex" ? loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" })
+        : loc("itemSheet.grant.attribute", { attr: game.i18n.localize(CONFIG.ACKS?.scores?.[damageAttr] ?? ""), n: scores[damageAttr]?.value ?? "" });
+      out.push({ label, detail: `${signed(damageMod)} ${loc("itemSheet.grant.damageMelee")}`, src: loc("itemSheet.src.attribute") });
+    }
+  }
+  if (missile && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMissile")}`, src: loc("itemSheet.src.attribute") });
+  // effects.mjs's loadout AE subtracts this same DEX bonus back out under
+  // nonProficientUse (RR p. 106: no attribute bonus to AC while so equipped),
+  // so the ledger stops claiming a bonus that never reaches the actor's AC.
+  if (item.type === ITEM_TYPE.armor && dex && !loadout?.nonProficientUse) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.ac")}`, src: loc("itemSheet.src.attribute") });
+  if (item.type === ITEM_TYPE.weapon && loadout) {
+    const entry = loadout.weapons?.find((w) => w.item?.id === item.id);
+    if (entry && loadout.activeStyle) {
+      out.push({
+        label: loc("itemSheet.grant.style", { style: loadout.activeStyle }),
+        detail: loc(loadout.styleProficient ? "itemSheet.grant.styleTrained" : "itemSheet.grant.styleUntrained"),
+        src: loc("itemSheet.src.class"),
+      });
     }
   }
   return out;

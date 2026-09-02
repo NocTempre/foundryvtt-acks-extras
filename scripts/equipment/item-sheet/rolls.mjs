@@ -232,6 +232,7 @@ export async function rollById(item, id, { event } = {}) {
     if (key === "bash") {
       const fragile = !!containerOf(item)?.fragile;
       const ok = await foundry.applications.api.DialogV2.confirm({
+        classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
         window: { title: item.name },
         content: `<p>${game.i18n.localize(fragile ? "ACKS-EQUIPMENT.container.bashConfirmFragile" : "ACKS-EQUIPMENT.container.bashConfirm")}</p>`,
       });

@@ -12,7 +12,7 @@
  *
  * Runs identically in the browser (Foundry binding) and Node (verify harness).
  */
-import { pageItems, pageArtInfo } from "./extract.mjs";
+import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
 import { rowsByY, applyCellPattern, slugLabel, joinRuns as joinCellRuns } from "./table-extract.mjs";
 
 /**
@@ -194,9 +194,6 @@ const isDamageSeg = (s) => {
   const c = clean(s);
   return DICE_RE.test(c) || /^\d+$/.test(c) || /weapon/i.test(c);
 };
-// Component: "name (W st, Ngp, effects…)" where W = "2", "2 3/6", or "4/6" —
-// the whole-stone part is OPTIONAL (fractional-only weights are common).
-const SPOIL_RE = /([A-Za-z][A-Za-z' -]*?)\s*\((?:(\d+)\s*)?(?:(\d)\/6\s*)?st,\s*([\d,]+)\s*gp(?:,\s*((?:[^()]|\([^)]*\))+?))?\)/g;
 
 /** Split on commas at parenthesis depth 0 ("a (b, c), d" -> ["a (b, c)", "d"]). */
 function splitTop(s) {

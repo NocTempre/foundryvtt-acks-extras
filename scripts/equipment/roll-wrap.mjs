@@ -138,11 +138,17 @@ export function computeAttackMods(actor, attData, options = {}) {
   // Weapon Finesse — DEX replaces STR on the attack throw. Core pushed str.mod
   // for melee, so contribute the difference. Not while non-proficiently
   // equipped: no attribute grants any bonus then, so there is nothing to swap.
+  //
+  // The swap is the character's ELECTION, not a forced exchange, so automating
+  // it applies only when Dexterity is the better of the two — swapping a good
+  // Strength away for a worse Dexterity is a choice no one would make, and
+  // automation that made it would be worse than no automation. It replaces the
+  // Strength term; it never stacks with it.
   if (item && !loadout.nonProficientUse && !usingNonProfWeapon &&
       options.type === "melee" && FINESSE_SIZES.includes(profile.size) && hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE)) {
     const str = Number(actor.system?.scores?.str?.mod ?? 0);
     const dex = Number(actor.system?.scores?.dex?.mod ?? 0);
-    if (dex !== str) {
+    if (dex > str) {
       bonusDelta += dex - str;
       notes.push(`Weapon Finesse (DEX ${dex >= 0 ? "+" : ""}${dex} instead of STR ${str >= 0 ? "+" : ""}${str})`);
     }

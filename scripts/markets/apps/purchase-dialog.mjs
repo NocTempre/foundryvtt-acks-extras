@@ -24,7 +24,7 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-markets-purchase-{id}",
     tag: "form",
-    classes: ["acks-ui", "acks-extras", "acks-extras-markets-dialog"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-markets-dialog", "acks-extras-scroll"],
     position: { width: 420 },
     window: { contentClasses: ["standard-form"] },
     form: { handler: PurchaseDialog.#onSubmit, closeOnSubmit: true },

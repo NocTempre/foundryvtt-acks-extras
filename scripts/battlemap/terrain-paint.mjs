@@ -355,7 +355,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = globalThis.foundry?.applic
 export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-terrain-palette",
-    classes: ["acks-ui", "acks-extras", "acks-extras-terrain-palette"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-terrain-palette", "acks-extras-scroll"],
     position: { width: 260 },
     window: { title: "ACKS-BATTLEMAP.terrain.palette", icon: "fa-solid fa-paintbrush" },
     actions: { pickBrush: TerrainPaletteApp.#pickBrush },

@@ -329,7 +329,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const ok = await DialogV2.confirm({
       window: { title: loc("manager.disable") },
-      classes: ["acks-ui", "acks-extras"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       content: `<p>${loc("manager.disablePrompt", { name: foundry.utils.escapeHTML(place.name) })}</p>`,
     }).catch(() => false);
     if (!ok) return;

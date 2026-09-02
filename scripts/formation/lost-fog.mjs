@@ -93,6 +93,7 @@ function showDiscovery({ days = null, fakedHexes = 0 } = {}) {
     + (days != null ? `<p>${loc("lost.discovered.drift", { days, hexes: fakedHexes })}</p>` : "")
     + `<p class="hint">${loc("lost.discovered.hint")}</p>`;
   DialogV2.prompt({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: loc("lost.discovered.title"), icon: "fa-solid fa-compass-drafting" },
     content,
     ok: { label: loc("lost.discovered.ok") },

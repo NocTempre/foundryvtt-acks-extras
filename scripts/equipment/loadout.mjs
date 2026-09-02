@@ -102,17 +102,25 @@ export function handBudget(actor) {
   return base + sumEffectModifiers(actor, EFFECT_DOMAINS.HAND_BUDGET);
 }
 
+/**
+ * Fold a style token to its comparison key: lowercase, letters only. Canonical
+ * keys are already letters-only, so this is a no-op for them and only bites
+ * hand-written values — a `styles` flag typed "Weapon & Shield" has to land on
+ * the same key `STYLE.WEAPON_SHIELD` folds to, or the Training pill lights while
+ * the enforcement gate stays shut. Every style comparison here folds both sides;
+ * the Training strip folds identically, and the two must not drift apart.
+ */
+const styleKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
+
 /** Fighting styles the actor is TRAINED in (RAW: single + missile mandatory). */
 export function trainedStyles(actor) {
-  // All style keys are stored lowercased for case-insensitive comparison
-  // against `activeStyle.toLowerCase()`.
   const set = new Set(["single", "missile"]);
   const flag = actor.getFlag?.(MODULE_ID, ACTOR_FLAGS.STYLES);
-  if (typeof flag === "string") flag.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean).forEach((s) => set.add(s));
-  else if (Array.isArray(flag)) flag.forEach((s) => set.add(String(s).toLowerCase()));
+  if (typeof flag === "string") flag.split(",").map(styleKey).filter(Boolean).forEach((s) => set.add(s));
+  else if (Array.isArray(flag)) flag.forEach((s) => set.add(styleKey(s)));
   for (const s of collectStringFlags(actor, EFFECT_DOMAINS.STYLE_PROFICIENT)) {
     const [style, kind] = s.split(":");
-    if (!kind) set.add(style); // base training marker (already lowercased)
+    if (!kind) set.add(styleKey(style)); // base training marker
   }
   return set;
 }
@@ -232,7 +240,7 @@ export function getLoadout(actor, opts = {}) {
   // proficiency, so it falls under the same kill switch: with acks-abilities
   // installed those flags are absent on a correctly built character and every
   // style would read as untrained, triggering Non-Proficient Use.
-  const styleProficient = !enforcementActive() || trained.has(activeStyle?.toLowerCase());
+  const styleProficient = !enforcementActive() || trained.has(styleKey(activeStyle));
 
   // --- Violations -------------------------------------------------------
   const violations = [];
@@ -340,7 +348,7 @@ export function getLoadout(actor, opts = {}) {
 
 /** Does the actor have the Weapon & Shield style (so shields grant AC)? */
 function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
-  return trained.has(STYLE.WEAPON_SHIELD.toLowerCase());
+  return trained.has(styleKey(STYLE.WEAPON_SHIELD));
 }
 
 /**

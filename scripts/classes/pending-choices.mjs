@@ -171,6 +171,7 @@ export async function openChoiceDialog(actor, item) {
   let ref = null;
   try {
     ref = await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize(`${LANG_PREFIX}.pending.title`) },
       content,
       modal: true,

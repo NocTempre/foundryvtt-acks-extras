@@ -21,7 +21,7 @@ export class SellDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-markets-sell-{id}",
     tag: "form",
-    classes: ["acks-ui", "acks-extras", "acks-extras-markets-dialog"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-markets-dialog", "acks-extras-scroll"],
     position: { width: 420 },
     window: { contentClasses: ["standard-form"] },
     form: { handler: SellDialog.#onSubmit, closeOnSubmit: true },

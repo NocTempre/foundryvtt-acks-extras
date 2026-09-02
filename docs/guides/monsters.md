@@ -45,6 +45,9 @@ sheet replaces core's flat "attributes" and "notes" panes with tabs:
 - **Defenses** — immunities, resistances, senses and vision modes.
 - **Abilities** — special abilities, tagged by category and carrying their XP
   contribution.
+- **Inventory** — generic items, armor and clothing the monster carries.
+  Armor Class is the value typed on the header and is not changed by
+  anything carried here.
 - **Ecology** — habitat, number appearing, lair chance, treasure.
 - **Spoils** — what a body is worth.
 - **Henchman** — the fields that apply when this creature is hired.

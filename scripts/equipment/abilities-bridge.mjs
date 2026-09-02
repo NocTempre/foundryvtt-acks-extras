@@ -57,6 +57,35 @@ function picksOf(item) {
   return m ? m[1].split(",").map((s) => s.trim()).filter(Boolean) : [];
 }
 
+/**
+ * The category the abilities model records for this item, via the API when
+ * live, else its documented flag shape — the same key lib/proficiency-strip.mjs
+ * reads. A category describes what an ability IS; a slug names which one it is.
+ */
+function categoryOf(item) {
+  const api = globalThis.acksExtras?.abilities;
+  if (api?.getExtras) {
+    try {
+      const c = api.getExtras(item)?.category;
+      if (c) return String(c);
+    } catch {
+      /* fall through to the flag */
+    }
+  }
+  return String(item?.flags?.[ABILITIES_FLAG_SCOPE]?.extras?.category ?? "");
+}
+
+/**
+ * Style picks for a fighting-style ability, in the shape the Training strip
+ * resolves: an explicit pick where there is one, else the tail of the item's own
+ * name ("Fighting Style: Dual Weapon" -> "Dual Weapon"). A generic name resolves
+ * to nothing, so the fallback cannot invent training.
+ */
+function stylePicksOf(item) {
+  const picks = picksOf(item);
+  return picks.length ? picks : [String(item?.name ?? "").split(":").pop()];
+}
+
 /** Rank via the abilities API when live (its rule, not ours), else qty. */
 function rankOf(actor, item) {
   const api = globalThis.acksExtras?.abilities;
@@ -308,6 +337,22 @@ export function bridgeContributions(actor) {
     // that declares its mechanic needs no name to be recognised, which is what
     // lets a class power grant a proficiency's rule without being listed here.
     const claimed = addTypedEffects(actor, item, { addNum, addStr, booleans: out.booleans });
+
+    // A fighting-style proficiency trains its picks whatever it is named. The
+    // switch below dispatches on the slug, which only ever matches
+    // Specialization, so the base pick is recognised by its CATEGORY instead —
+    // the same key the Training strip reads to light a pill. Both surfaces then
+    // answer from one source; keying this on the slug is what let the strip and
+    // the loadout disagree about the same character.
+    //
+    // Only fightingStyle is honoured here. weaponProficiency and
+    // armorProficiency answer permissively when undeclared (proficiency.mjs
+    // weaponProficiency/armorMax), so bridging those categories would turn an
+    // unconfigured character from unrestricted into restricted — never widen
+    // this branch to them.
+    if (categoryOf(item) === "fightingStyle" && !claimed.has(EFFECT_DOMAINS.STYLE_PROFICIENT)) {
+      for (const pick of stylePicksOf(item)) addStr(EFFECT_DOMAINS.STYLE_PROFICIENT, resolveStylePick(pick));
+    }
 
     // Named abilityKey, not slug: the vocab.mjs slug() import must stay
     // reachable inside this block (the combattrickery case normalizes picks

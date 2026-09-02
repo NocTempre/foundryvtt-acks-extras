@@ -69,7 +69,7 @@ export async function offerDayEnd(formationId) {
 
   const answer = await foundry.applications.api.DialogV2.wait({
     window: { title: loc("travel.dayEnd.title") },
-    classes: ["acks-ui", "acks-extras"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     content: `<p>${loc("travel.dayEnd.body", {
       hexes: t.day.hexesEntered, allowance: readout.hexesPerDay,
     })}</p>`,

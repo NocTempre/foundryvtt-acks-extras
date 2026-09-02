@@ -1923,6 +1923,7 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
       const forgetBtn = root.querySelector("[data-forget]");
       forgetBtn?.addEventListener("click", async () => {
         const confirmed = await foundry.applications.api.DialogV2.confirm({
+          classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
           window: { title: L("forgetGo") },
           content: dialogContent(`<p>${L("forgetConfirm")}</p>`),
           rejectClose: false,

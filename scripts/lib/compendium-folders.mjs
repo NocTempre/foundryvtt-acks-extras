@@ -330,7 +330,7 @@ export async function restoreCompendiumLibrary({ confirm = true } = {}) {
     const shelves = new Set([...targets.values()].map((path) => path.map((p) => p.name).join(" / ")));
     const ok = await foundry.applications.api.DialogV2.confirm({
       window: { title: game.i18n.localize("ACKS-LIB.library.restoreTitle") },
-      classes: ["acks-extras"],
+      classes: ["acks-extras", "acks-extras-scroll"],
       content:
         `<p>${game.i18n.format("ACKS-LIB.library.restoreBody", { packs: targets.size, folders: shelves.size })}</p>` +
         `<p>${game.i18n.localize("ACKS-LIB.library.restoreCost")}</p>`,

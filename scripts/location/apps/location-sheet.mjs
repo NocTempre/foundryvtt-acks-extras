@@ -156,7 +156,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   };
 
   static PARTS = {
-    body: { template: `modules/${MODULE_ID}/templates/location/location-sheet.hbs` },
+    body: { template: `modules/${MODULE_ID}/templates/location/location-sheet.hbs`, scrollable: [""] },
   };
 
   /** Sheet tabs. A place accumulates unrelated concerns; one scrolling page
@@ -1026,7 +1026,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   async #promptNote(current, title) {
     return foundry.applications.api.DialogV2.prompt({
       window: { title },
-      classes: ["acks-ui", "acks-extras"],
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       content: `<div class="form-group"><textarea name="note" rows="4">${foundry.utils.escapeHTML(current ?? "")}</textarea></div>`,
       ok: { callback: (_e, button) => button.form.elements.note.value.trim() },
     }).catch(() => null);
@@ -1336,6 +1336,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static async #onVentureEnter() {
     const content = `<div class="form-group"><label>${game.i18n.localize("ACKS-MARKETS.ventures.cargo")}</label><input type="number" name="cargoSt" value="0" min="0" step="1"></div>`;
     const cargoSt = await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize("ACKS-MARKETS.ventures.enter") },
       content,
       ok: { callback: (_ev, button) => Number(button.form.elements.cargoSt?.value) || 0 },
@@ -1372,6 +1373,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const current = demand.find((d) => d.category === category)?.modifier ?? 0;
     const content = `<div class="form-group"><label>${game.i18n.localize("ACKS-MARKETS.ventures.dmValue")}</label><input type="number" name="modifier" value="${current}" min="-6" max="6" step="1"></div>`;
     const modifier = await foundry.applications.api.DialogV2.prompt({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: game.i18n.localize("ACKS-MARKETS.ventures.setDemand") },
       content,
       ok: { callback: (_ev, button) => Number(button.form.elements.modifier?.value) || 0 },

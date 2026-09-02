@@ -1,5 +1,60 @@
 # Changelog
 
+## 6.1.0
+
+**Training you added after the fact counts, and a proficiency stops charging you for owning it.**
+
+### Fixed
+- **A fighting style you add after building the character now counts.** The
+  Training row and the Worn & Wielded line beneath it were answering from two
+  different places, and only one of them could see a style recorded on a
+  proficiency you dropped on the sheet yourself. So the style lit up in the
+  badge row while the line under it read *untrained style* — and that was not
+  cosmetic: the character took the full non-proficient penalty on every attack,
+  and lost the Dexterity bonus to Armour Class, for a style the sheet said they
+  had. Both surfaces read one answer now. It looked like a timing problem
+  because applying a class writes the training a second way, which the line
+  could always see — that is why a character built in one sitting worked and the
+  same character edited afterwards did not.
+- **Weapon Finesse no longer trades a good Strength for a worse Dexterity.** The
+  substitution applied whenever the two scores differed, in either direction, so
+  a strong and clumsy character with the proficiency attacked *worse* than one
+  without it. It is an option the character takes, so it applies only when it
+  helps. It has always replaced the Strength term rather than adding to it, and
+  still does.
+- **A weapon's sheet names the attribute its attack throw actually uses.** The
+  *Granted while equipped* panel always said Strength, even where the roll had
+  been re-keyed to something else, and it folded attack and damage into a single
+  line. They are separate lines now, each naming the attribute in force.
+- **A monster's bow spends its arrows.** Ammunition was deducted only for an
+  attack the game marks as a missile attack, and a monster's attacks never carry
+  that mark — so no monster ever used a single arrow. A monster's melee weapons
+  are untouched: not consumed, and not put down.
+- **A monster's proficiencies are reachable again.** A fighting-style, weapon or
+  armour proficiency on a monster was hidden from its card on the grounds that
+  the training strips would carry it, while the strips declined to draw anything
+  for a monster at all. The item was there and nothing rendered it, so its
+  options could not be picked.
+- **Every harvestable part imports, whatever it weighs.** One of the two copies
+  of the same parsing rule required a whole number of stone, so a part weighing
+  a fraction of one was dropped without a word. There is one copy now.
+- **Windows scroll instead of cutting themselves off.** Foundry caps a window at
+  the height of your screen, and past that the content was simply gone with no
+  scrollbar to say so. Nineteen windows that sat outside this module's scroll
+  handling are inside it now, and the character sheet — whose frame belongs to
+  the game system — scrolls its open tab rather than clipping it. The item sheet
+  also fits a narrower screen.
+- **Changing a field no longer throws you back to the top.** Four sheets asked
+  to remember your scroll position in a way that could never work. They remember
+  it now.
+
+### Changed
+- **A monster's Armour Class says where it comes from.** It is the number typed
+  on the header, and nothing a monster carries changes it — armour in a
+  monster's inventory is carried, not worn. The Inventory tab's hint says so,
+  and the guide lists that tab at last.
+
+
 ## 6.0.2
 
 **The system gets its own shelves back, and the library can be put back.**

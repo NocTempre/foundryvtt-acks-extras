@@ -6287,6 +6287,7 @@ export async function cookbookUpdateClasses() {
     return 0;
   }
   const ok = await foundry.applications.api.DialogV2.confirm({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: "Update Classes" },
     content: `<p>Rewrite ${targets.length} imported class document(s) from the connected book? Hand edits on them are replaced.</p>`,
     modal: true,

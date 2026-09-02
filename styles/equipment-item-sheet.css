@@ -21,10 +21,11 @@
      the aura ring's colour (set by the school class on the art). */
   --acks-extras-fill: 0%;
   --acks-extras-aura: var(--acks-ink-soft);
-  /* 620px is the design's width and the resize floor; the window may be
-     dragged wider and the prose column takes the slack. */
+  /* 620px is the design's width, opened by default; the floor is lower so the
+     window still fits a small display, and the window may be dragged wider
+     with the prose column taking the slack. */
   width: 620px;
-  min-width: 620px;
+  min-width: 420px;
   /* GEOMETRY ONLY. Ground, ink and frame belong to the `.acks-ui` dress
      (vendor/acks-design/foundry.css § 2) — never to this class. The dress
      out-specifies a bare root class, so a ground named here is inert while the

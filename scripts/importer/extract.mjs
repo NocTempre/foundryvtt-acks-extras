@@ -13,6 +13,14 @@ import { getDocument, GlobalWorkerOptions, OPS } from "../../vendor/pdfjs/pdf.mj
 const HEADING_MIN_H = 12; // display headings are >=14pt; body is 9-10pt
 const FOOTER_BAND = 32; // pt from page bottom: folios + DTRPG watermark line
 
+// Spoil component: "name (W st, Ngp, effects…)" where W = "2", "2 3/6", or
+// "4/6" — the whole-stone part is OPTIONAL (fractional-only weights are
+// common), and the effects group is paren-aware so an effect list containing
+// its own parentheses still captures whole. Shared with executor.mjs, which
+// imports it from here rather than the reverse to avoid a cycle (executor.mjs
+// already imports pageItems/pageArtInfo from this module).
+export const SPOIL_RE = /([A-Za-z][A-Za-z' -]*?)\s*\((?:(\d+)\s*)?(?:(\d)\/6\s*)?st,\s*([\d,]+)\s*gp(?:,\s*((?:[^()]|\([^)]*\))+?))?\)/g;
+
 export function setWorker(url) {
   GlobalWorkerOptions.workerSrc = url;
 }
@@ -259,8 +267,8 @@ export function extractSpoils({ items, height }) {
   const yMax = stop ? stop.y : height;
   const text = joinProse(items.filter((it) => colOf(it.x, cols) === col && it.y > anchor.y && it.y < yMax));
   const spoils = [];
-  for (const m of text.matchAll(/([A-Za-z][A-Za-z' -]*?)\s*\((\d+)(?:\s*(\d)\/6)?\s*st,\s*([\d,]+)\s*gp(?:,\s*([^)]+))?\)/g)) {
-    const stone = parseInt(m[2], 10); // book weights are authoritative as printed
+  for (const m of text.matchAll(SPOIL_RE)) {
+    const stone = m[2] ? parseInt(m[2], 10) : 0; // whole-stone part is optional
     spoils.push({
       name: m[1].trim(),
       weight6: stone * 6 + (m[3] ? parseInt(m[3], 10) : 0),

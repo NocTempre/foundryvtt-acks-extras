@@ -10,7 +10,7 @@ behavior.
 | Stat block line | Storage | Path |
 |---|---|---|
 | Name / image | core | `name`, `img` |
-| Armor Class | core | `system.aac.value` / `.mod` |
+| Armor Class | core | `system.aac.value` / `.mod` (authored on the header; core's `computeAC()` hard-returns for non-character actors, so nothing carried on Inventory derives or changes it) |
 | Hit points (rolled) | core | `system.hp.hd` (formula), `.value`, `.max`, `.bhr` |
 | Saving throws (values) | core | `system.saves.{paralysis,death,blast,implements,spell}.value` |
 | Morale | core | `system.details.morale` |

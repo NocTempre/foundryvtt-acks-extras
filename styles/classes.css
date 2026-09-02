@@ -383,6 +383,35 @@
   animation-iteration-count: 3;
 }
 
+/* The character sheet on a short display. The sheet class belongs to the
+   system, and core leaves `.window-content` `overflow: hidden` with the active
+   tab unbounded — so on a window shorter than the content, the tab is amputated
+   with no scrollbar to say anything is missing. Measured at a 380px-tall
+   window: 247px of tab inside a 70px box.
+
+   The tab becomes the scroller rather than `.window-content`, so the header and
+   the tab strip stay put while only the pane under them moves. Header and strip
+   are pinned at their natural height because a flex child shrinks by default,
+   and the scrolling child needs its min-height floor released or it refuses to
+   shrink at all. Scoped to this module's own marker class, which is added only
+   to a character sheet its owner can edit. */
+.acks-extras-classes-charsheet > .window-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.acks-extras-classes-charsheet > .window-content > .sheet-header,
+.acks-extras-classes-charsheet > .window-content > .sheet-tabs {
+  flex: 0 0 auto;
+}
+
+.acks-extras-classes-charsheet > .window-content > .tab.active {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 /* The window is made resizable so a Judge can see the whole build at once
    (scripts/classes/stat-page.mjs). Core's `.application .window-content` is
    `overflow: hidden`, so dragging it larger would otherwise reveal nothing and

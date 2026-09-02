@@ -48,7 +48,7 @@ export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.
   };
 
   static PARTS = {
-    body: { template: `modules/${MODULE_ID}/templates/lib/group-sheet.hbs`, scrollable: [".acks-lib-group-body"] },
+    body: { template: `modules/${MODULE_ID}/templates/lib/group-sheet.hbs`, scrollable: [""] },
   };
 
   /** @override */

@@ -16,7 +16,7 @@ export class PartyConfigApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-markets-parties",
     tag: "form",
-    classes: ["acks-ui", "acks-extras", "acks-extras-markets-dialog"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-markets-dialog", "acks-extras-scroll"],
     position: { width: 480, height: "auto" },
     window: { resizable: true },
     form: { handler: PartyConfigApp.#onSubmit, closeOnSubmit: true },

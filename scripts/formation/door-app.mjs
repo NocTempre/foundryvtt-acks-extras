@@ -18,7 +18,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-door",
-    classes: ["acks-ui", "acks", "acks2", "acks-extras"],
+    classes: ["acks-ui", "acks", "acks2", "acks-extras", "acks-extras-scroll"],
     tag: "form",
     window: { title: `${LANG_PREFIX}.title`, icon: "fa-solid fa-door-closed" },
     position: { width: 460 },

@@ -150,8 +150,13 @@ export async function followerCardContext(actor, { editable = false, interactive
   // `hasText` earns the power a Read-aloud button: a named power whose prose the
   // book supplies is the thing a table stops to read out ("Terrifying Visage"),
   // and it is worth posting whether or not it also rolls.
+  // Computed up front (not just at ctx.strips below) so the powers list can hide
+  // a profile ability only when the strips will actually render it — the strips
+  // panel is empty for any non-character actor, so a monster's proficiency item
+  // must stay in this list or it is filtered out and rendered by nothing.
+  const strips = profileStrips(actor);
   const powers = items
-    .filter((i) => i.type === ITEM_TYPE.ability && !isProfileAbility(i))
+    .filter((i) => i.type === ITEM_TYPE.ability && (!isProfileAbility(i) || !strips.any))
     .map((i) => ({ id: i.id, name: i.name, rollable: !!i.system?.roll, hasText: !!i.system?.description }));
   const equipment = items
     .filter((i) => i.type === ITEM_TYPE.weapon || i.type === ITEM_TYPE.armor || i.type === ITEM_TYPE.item)
@@ -396,7 +401,7 @@ export async function followerCardContext(actor, { editable = false, interactive
   ctx.hasAdventuring =
     !!ctx.adventuring.length && items.some((i) => i.type === ITEM_TYPE.ability && /adventuring/i.test(i.name ?? ""));
 
-  ctx.strips = profileStrips(actor);
+  ctx.strips = strips;
   ctx.hasOverrides =
     overrides.ac != null ||
     overrides.speed != null ||

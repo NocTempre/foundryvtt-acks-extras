@@ -66,7 +66,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
   };
 
   static PARTS = {
-    body: { template: `modules/${MODULE_ID}/templates/lib/template-sheet.hbs`, scrollable: [".acks-lib-template-body"] },
+    body: { template: `modules/${MODULE_ID}/templates/lib/template-sheet.hbs`, scrollable: [""] },
   };
 
   /** Per-window build state (never persisted): axis pins + the dropped base. */

@@ -62,6 +62,7 @@ export async function askStrayAndBegin(formation) {
     + `<p class="hint">${loc("lost.askHint")}</p>`;
 
   const picked = await DialogV2.wait({
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: loc("lost.askTitle"), icon: "fa-solid fa-compass-drafting" },
     content,
     buttons: [

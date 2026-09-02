@@ -580,7 +580,97 @@ if (module_?.id) {
   });
 }
 
-/* 8. IP leak scan — licensed book material must never reach a public repo or a
+/* 8. The UI layout contract — every window a module opens stays reachable on a
+ *    small display. Two failure modes are decidable from the source, and both
+ *    are invisible to every other check because they need a real viewport:
+ *
+ *    a. A window outside the scroll contract. Core caps an application frame at
+ *       the viewport height and gives `.window-content` `overflow: hidden`, so a
+ *       window taller than the cap is amputated — trailing footer first — with
+ *       no scrollbar to say so. The contract is the class `<id>-scroll`, and
+ *       membership in it is the whole of the fix.
+ *    b. Scroll retention that can never fire. ApplicationV2 restores a part's
+ *       scroll position by resolving `selector === "" ? partRoot :
+ *       partRoot.querySelector(selector)`, and querySelector searches
+ *       DESCENDANTS ONLY — so a part naming its own root element retains
+ *       nothing while reading as entirely correct.
+ *
+ *    A window that must sit outside the contract says so where it is declared:
+ *    `// no-scroll: <reason>` on or just above its `classes:` line. */
+if (module_?.id) {
+  const id = module_.id;
+  const SCROLL_CLASS = `${id}-scroll`;
+
+  // Which classes actually CARRY a scroll contract, read from the stylesheets
+  // rather than assumed: a rule that claims the `.window-content` box for a
+  // class is that class taking responsibility for the window's overflow. The
+  // shared `<id>-scroll` is the common one, and a subsystem may own another
+  // (an importer dialog, a battlemap panel) without being wrong.
+  //
+  // Opt-in per repo: a module whose styles claim no window-content box has no
+  // contract to join, so 8a stays silent rather than inventing one.
+  const contracts = new Set();
+  walk(path.join(ROOT, "styles"), (full) => {
+    if (!full.endsWith(".css")) return;
+    const css = fs.readFileSync(full, "utf8");
+    for (const m of css.matchAll(/\.([A-Za-z][\w-]*)(?:\.[\w-]+)*\.application\s+\.window-content/g)) contracts.add(m[1]);
+  });
+  const contractDefined = contracts.size > 0;
+
+  // The classes on the FIRST element of each template — exactly the selectors a
+  // part must not name in `scrollable`.
+  const rootClasses = new Set();
+  walk(path.join(ROOT, "templates"), (full) => {
+    if (!full.endsWith(".hbs")) return;
+    const m = /<[a-zA-Z][^>]*\sclass="([^"{]+)"/.exec(fs.readFileSync(full, "utf8"));
+    if (m) for (const c of m[1].split(/\s+/).filter(Boolean)) rootClasses.add(c);
+  });
+
+  const lineOf = (text, index) => text.slice(0, index).split("\n").length;
+
+  walk(path.join(ROOT, "scripts"), (full) => {
+    if (!full.endsWith(".mjs")) return;
+    const text = fs.readFileSync(full, "utf8");
+    const lines = text.split("\n");
+
+    // 8a. every declared `classes` array joins the scroll contract.
+    if (contractDefined) {
+      for (const m of text.matchAll(/classes:\s*\[([^\]]*)\]/g)) {
+        const declared = [...m[1].matchAll(/["'`]([^"'`]+)["'`]/g)].map((c) => c[1]);
+        if (declared.some((c) => contracts.has(c))) continue;
+        const lineNo = lineOf(text, m.index);
+        // The declaration itself, plus the contiguous comment block above it —
+        // a reason worth stating is usually longer than one line, and a waiver
+        // that has to fit on one encourages a reason that explains nothing.
+        let i = lineNo - 1; // 0-based index of the declaration line
+        let waived = lines[i]?.includes("no-scroll:") ?? false;
+        for (let j = i - 1; j >= 0 && /^\s*(\/\/|\*|\/\*)/.test(lines[j] ?? ""); j--) {
+          if (lines[j].includes("no-scroll:")) waived = true;
+        }
+        if (waived) continue;
+        fail(
+          rel(full),
+          `line ${lineNo}: classes array joins no scroll contract — a window outside one clips its own content on a short display, with no scrollbar to say so. Add "${SCROLL_CLASS}" (or another contract class: ${[...contracts].join(", ")}), or state why not with "// no-scroll: <reason>"`,
+        );
+      }
+    }
+
+    // 8b. no part names its own root element as its scroll target.
+    for (const m of text.matchAll(/scrollable:\s*\[([^\]]*)\]/g)) {
+      for (const sel of m[1].matchAll(/["'`]([^"'`]*)["'`]/g)) {
+        if (!sel[1].startsWith(".")) continue;
+        const cls = sel[1].slice(1);
+        if (!rootClasses.has(cls)) continue;
+        fail(
+          rel(full),
+          `line ${lineOf(text, m.index)}: scrollable names ".${cls}", which is a template ROOT element — querySelector searches descendants only, so this part retains no scroll position. Use scrollable: [""] to address the part's own root`,
+        );
+      }
+    }
+  });
+}
+
+/* 9. IP leak scan — licensed book material must never reach a public repo or a
  *    release artifact. CI runs this again against the built zip and quarantines
  *    the repo if it trips; running it here means you find out before the push. */
 const ipScan = path.join(ROOT, "tools", "ip-scan.mjs");
@@ -592,7 +682,7 @@ if (fs.existsSync(ipScan)) {
   }
 }
 
-/* 9. Optional module-owned extra validation. A repo drops tools/validate-extra.mjs
+/* 10. Optional module-owned extra validation. A repo drops tools/validate-extra.mjs
  *    for checks specific to it (e.g. an IP-safety lint); the canonical validator
  *    runs it here so `npm run validate` stays the single entry point. It should
  *    exit non-zero on failure. Modules without the file skip this cleanly. */

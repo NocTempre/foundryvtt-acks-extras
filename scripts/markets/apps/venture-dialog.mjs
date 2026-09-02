@@ -22,7 +22,7 @@ export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2
   static DEFAULT_OPTIONS = {
     id: "acks-extras-markets-venture-{id}",
     tag: "form",
-    classes: ["acks-ui", "acks-extras", "acks-extras-markets-dialog"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-markets-dialog", "acks-extras-scroll"],
     position: { width: 420 },
     window: { contentClasses: ["standard-form"] },
     form: { handler: VentureTradeDialog.#onSubmit, closeOnSubmit: true },

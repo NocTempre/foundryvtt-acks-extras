@@ -28,7 +28,7 @@ export async function reopenChargen(actor) {
   if (!actor?.isOwner) return false;
   const items = actor.items?.size ?? 0;
   const ok = await foundry.applications.api.DialogV2.confirm({
-    classes: ["acks-ui", "acks-extras"],
+    classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.localize(`${LANG_PREFIX}.reopen.title`) },
     content: `<p>${game.i18n.format(`${LANG_PREFIX}.reopen.confirm`, {
       name: foundry.utils.escapeHTML(actor.name),
