@@ -46,6 +46,39 @@ for ability icons in the ACKS-shaped corners of the imported corpus (Acrobatics,
 Blind Fighting, Caving, Mapping). Without it those fall back to core Foundry
 icons.
 
+### Installing from source
+
+A clone is not a module: the compiled compendiums are build output and are not
+in git, so a clone straight from GitHub loads with every compendium present and
+empty. One command closes the gap.
+
+```bash
+git clone https://github.com/NocTempre/foundryvtt-acks-extras.git acks-extras
+cd acks-extras
+npm run rebuild
+```
+
+**Clone as `acks-extras`, not as the repository name.** Foundry resolves a
+module by the name of its folder under `Data/modules`, so a folder called
+`foundryvtt-acks-extras` never appears in the module list at all — with no error
+to explain it. Cloning into `Data/modules/acks-extras` installs it in place;
+`npm run rebuild` reports the mistake before it builds anything.
+
+`npm run rebuild` installs the build dependencies, compiles the compendiums, and
+then verifies that every path the manifest declares is really on disk — a
+compendium that would load with no documents is reported rather than shipped.
+Two options:
+
+| | |
+|---|---|
+| `node tools/rebuild.mjs --prune` | the same, then delete `node_modules` — around 100 MB the running module never reads |
+| `node tools/rebuild.mjs --check` | verify only; build nothing |
+
+Rerun it after a `git pull` that changes `packs/_source` or `tools/pack-data`.
+Any released version can be built this way — `git checkout v5.8.0 && npm run
+rebuild` — so a tag is enough to get that version running, with or without its
+release zip.
+
 ### Upgrading from the eight separate modules
 
 1. Install this module, **disable all eight old ones**, and reload.

@@ -21,7 +21,8 @@
     "compile": "node tools/importer/compile-cookbook.mjs",
     "verify:cookbook": "node tools/importer/verify-cookbook.mjs",
     "ledger": "node tools/importer/ledger-init.mjs",
-    "verify:compendium": "node tools/importer/verify-against-compendium.mjs"
+    "verify:compendium": "node tools/importer/verify-against-compendium.mjs",
+    "rebuild": "node tools/rebuild.mjs"
   },
   "devDependencies": {
     "@foundryvtt/foundryvtt-cli": "^1.0.0",
