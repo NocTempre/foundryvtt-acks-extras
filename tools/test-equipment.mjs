@@ -67,7 +67,7 @@ const { classifyWeapon, handCost, equipmentClass } = await import(new URL("profi
 const { getLoadout, VIOLATION } = await import(new URL("loadout.mjs", S));
 const { buildLoadoutChanges } = await import(new URL("effects.mjs", S));
 const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
-const { buildProficiencies, buildSamples, buildMacros } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
+const { buildMacros } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
 const { MASTERWORK } = await import(new URL("config.mjs", S));
 const { computeAttackMods } = await import(new URL("roll-wrap.mjs", S));
 const { readiedWeaponData, prepareTorch, unarmedStrikeData, masterworkTiersFor, addToDamage, setMasterwork, scavengeItem, clearScavenged, rollScavengedD20s, setShieldVariant } = await import(new URL("actions.mjs", S));
@@ -211,17 +211,7 @@ check("token kinds are reported", classifyGrantToken("tiny") === "meleeSize" && 
 // that way left characters silently non-proficient with every weapon they owned.
 check("a profile that parses to no tokens stays permissive", isWeaponProficient(actor([], { flags: { weaponProficiency: " , " } }), swordP));
 
-// --- Phase 2: proficiencies compendium ---------------------------------------
-const profs = buildProficiencies();
 const ID = /^[A-Za-z0-9]{16}$/;
-check("compendium builds 42 proficiencies", profs.length === 42);
-check("all proficiency ids 16-char alphanumeric + matching _key", profs.every((d) => ID.test(d._id) && d._key === `!items!${d._id}`));
-const ids = new Set(profs.map((d) => d._id));
-check("proficiency ids unique", ids.size === profs.length);
-const changeKeys = profs.flatMap((d) => (d.effects[0]?.changes ?? []).map((c) => c.key));
-check("effect change keys are flags.acks-extras.* with override type", changeKeys.length > 0 && changeKeys.every((k) => k.startsWith("flags.acks-extras.")) && profs.every((d) => (d.effects[0]?.changes ?? []).every((c) => c.type === "override")));
-const wsSpec = profs.find((d) => d.name.includes("Weapon & Shield"));
-check("W&S spec item carries styleProficient=weaponShield:spec + freeSwap", wsSpec.effects[0].changes.some((c) => c.key.endsWith("styleProficient") && c.value === "weaponShield:spec") && wsSpec.effects[0].changes.some((c) => c.key.endsWith("freeSwap")));
 
 // --- Phase 3: per-attack roll modifiers --------------------------------------
 // Actors here need items.get(id); extend the mock minimally.
@@ -343,43 +333,11 @@ check("dual style → +1 melee attack in the loadout effect", dualChanges.some((
 
 // Phase 4 was the Paper Doll slot config; removed with the feature.
 
-// --- Phase 5a: sample equipment + actors compendiums -------------------------
-const samples = buildSamples();
-check("samples build (6 shield variants + masterwork + named)", samples.length === 9);
-check("every shield variant is a shield armour item with a variant flag", samples.filter((d) => d.flags["acks-extras"].shieldVariant).every((d) => d.type === "armor" && d.system.type === "shield" && d.system.aac.value === 1));
-check("sample ids 16-char + _key matches", samples.every((d) => ID.test(d._id) && d._key === `!items!${d._id}`));
-
-// A shipped masterwork sample has to speak the shape the RUNTIME reads — a
-// TIER KEY, not a copy of the row that key names — and has to carry the
-// pristine baseline, because its system fields already reflect the tier: with
-// no snapshot, recomputeItemFields reads the finished item as the mundane one
-// and clearing masterwork leaves the bonus behind. Both samples shipped the
-// row shape and no baseline, so the sheet's select read "None" on gear whose
-// whole point is to demonstrate the tier.
-const mwSamples = samples.filter((d) => d.flags["acks-extras"].masterwork);
-check("masterwork samples ship a real tier key", mwSamples.length === 2 && mwSamples.every((d) => {
-  const tier = d.flags["acks-extras"].masterwork.tier;
-  return typeof tier === "string" && Object.hasOwn(MASTERWORK, tier);
-}));
-check("masterwork samples ship the pristine baseline their fields imply", mwSamples.every((d) => {
-  const { tier } = d.flags["acks-extras"].masterwork;
-  const base = d.flags["acks-extras"].pristine;
-  const row = MASTERWORK[tier];
-  if (!base || !row) return false;
-  const shippedAc = d.system.aac?.value ?? 0;
-  const shippedBonus = d.system.bonus ?? 0;
-  return (
-    base.bonus + (row.toHit ?? 0) === shippedBonus &&
-    base.ac + (row.ac ?? 0) === shippedAc &&
-    base.weight6 - (row.weightMinusStone ?? 0) * 6 === d.system.weight6 &&
-    base.cost + (row.cost ?? 0) === d.system.cost
-  );
-}));
-
-// The sample-character pack retired in 4.1 (the importer builds real parties
-// from the GM's books); the embedded-key invariants it guarded are exercised by
-// the samples pack above, which still ships because its shield variants and
-// masterwork gear have no importer coverage.
+// The shipped content packs retired: sample gear, the proficiency items and the
+// class-training chunks all came out when the module stopped shipping a library
+// of its own. What they demonstrated is exercised below against constructed
+// items instead — the overlays and the effect model are the mechanics, and they
+// never depended on a pack to be true.
 
 // --- Phase 5b: JJ shield-variant overlay -------------------------------------
 const shieldItem = (name, variant, strap = "hand") =>
@@ -812,7 +770,6 @@ check("breaks/cannotSneak recorded as a flag for the Judge", toItemUpdates(armor
 
 // --- Class training chunks (JJ p. 290-291) ------------------------------------
 const { grantMatches } = await import(new URL("proficiency.mjs", S));
-const { buildTraining } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
 
 const pAxe = classifyWeapon(weapon("Battle Axe", { melee: true }));
 const pSword = classifyWeapon(weapon("Sword", { melee: true }));
@@ -842,13 +799,6 @@ const dualChunk = actor([weapon("Sword", { melee: true, id: "d1" }), weapon("Dag
 const dualLo2 = getLoadout(dualChunk);
 check("Fighting Style chunk trains the style (dual proficient)", dualLo2.activeStyle === "dual" && dualLo2.styleProficient);
 check("single + missile are mandatory even with no chunks", getLoadout(actor([weapon("Sword", { melee: true, id: "z" })])).trainedStyles.has("single"));
-
-const training = buildTraining();
-check("training pack has all 34 JJ chunks", training.length === 34);
-check("training chunks are ability items with 16-char ids", training.every((d) => d.type === "ability" && ID.test(d._id)));
-check("all 5 fighting styles are individually available", ["single", "missile", "dual", "twoHanded", "weaponShield"].every((st) => training.some((d) => (d.effects[0]?.changes ?? []).some((c) => c.key.endsWith("styleProficient") && c.value === st))));
-check("all 5 armour rungs are individually available", ["unarmored", "veryLight", "light", "medium", "heavy"].every((a) => training.some((d) => (d.effects[0]?.changes ?? []).some((c) => c.key.endsWith("armourProficiency") && c.value === a))));
-check("all 10 restricted weapons are individually available", training.filter((d) => d.name.startsWith("Restricted Weapon:")).length === 10);
 
 // --- Named items (JJ p. 399) --------------------------------------------------
 SETTINGS_STATE.overlayNamed = true;
@@ -942,8 +892,6 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
 // shim (whose setter does Number(mode) -> NaN, silently never setting type).
 const typedChanges = buildLoadoutChanges(specActor, specLo);
 check("loadout AE changes use string `type`, not `mode`", typedChanges.every((c) => c.type === "add" && c.mode === undefined));
-const profEffectChanges = buildProficiencies().flatMap((d) => d.effects[0]?.changes ?? []);
-check("pack effect changes use string `type`, not `mode`", profEffectChanges.length > 0 && profEffectChanges.every((c) => c.type === "override" && c.mode === undefined));
 
 
 // Every register* entry point runs too. These have function-body references

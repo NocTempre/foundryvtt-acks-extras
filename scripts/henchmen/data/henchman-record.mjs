@@ -38,7 +38,11 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
       locationUuid: str(),
       settlementName: str(),
       employerUuid: str(),
-      hiredTime: int(),
+      // NEVER give a wage clock a numeric initial. Zero is a real worldTime, so
+      // an unset clock has to materialize as null or the billing guard cannot
+      // tell "never enrolled" from "hired at the dawn of the world" and invoices
+      // every month since. The guards downstream all test `== null`.
+      hiredTime: num({ integer: true }),
 
       // Generated identity (RR 495-503 People; JJ 245-257 NPCs).
       identity: new fields.SchemaField({
@@ -83,7 +87,8 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
         // discovery of the truth prefills the loyalty roll's apparent-level
         // penalty. null = hired honestly.
         claimedEmployerLevel: num({ integer: true }),
-        lastPaidTime: int(),
+        // Null, not zero — the same wage-clock rule as `hiredTime` above.
+        lastPaidTime: num({ integer: true }),
         arrearsGp: new fields.NumberField({ required: true, initial: 0 }),
         vassalDomain: new fields.BooleanField({ initial: false }),
       }),

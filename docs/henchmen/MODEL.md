@@ -114,8 +114,33 @@ regexes (Leadership, Command, Blood of Kings, Diplomacy…); an item with any
 the henchmen feature effect change opts out of name matching. Bribery is detected by
 name to select the cheaper signing-bonus scale.
 
-The compendium pack `proficiencies-powers` ships ready-made items carrying
-these effects (`tools/pack-data.mjs`).
+No pack ships ready-made items carrying these effects. The abilities a world
+holds come from the Judge's own books through the importer, and the name
+fallbacks above are what makes an imported item — which carries the importer's
+typed effect model, not this feature's change keys — drive the same modifiers.
+
+## 4b. Keeping core's wage math on its feet
+
+Core reads `system.henchmenList` in `getTotalWages` and dereferences each id
+without checking, so one deleted hireling throws inside the character sheet's
+`_prepareContext` and takes the whole sheet down. Core has no deletion cleanup,
+so the ids accumulate. Three layers answer it, all in `repair.mjs`:
+
+| Layer | What it does |
+| --- | --- |
+| `registerDeletionCleanup()` | on a hireling's delete, clears its id from every employer's list and any `managerid` naming it — the ids never accumulate in the first place |
+| `sweepAtReady()` | one GM-side pass for the ids a world already has, under the `autoRepairReferences` setting (default on) |
+| `installWageGuard()` | a libWrapper MIXED wrap on `getTotalWages` that skips a missing hireling instead of throwing, so a sheet renders even mid-repair |
+
+**The wrap lives here rather than in `lib/`** — the module's default home for
+overrides of core logic — because the method it replaces reads
+`system.henchmenList` and `system.retainer.wage` and recomputes the wage from
+them. That is this feature's rule, and lib would be owning a henchmen formula.
+One owner: nothing else in the module wraps `getTotalWages`.
+
+A wage clock is never given a numeric initial. Zero is a real `worldTime`, so an
+unset clock has to materialize as null or the billing guard cannot tell "never
+enrolled" from "hired at the dawn of the world".
 
 ## 5. Time model
 

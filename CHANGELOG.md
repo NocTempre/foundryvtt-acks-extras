@@ -1,5 +1,62 @@
 # Changelog
 
+## 6.0.1
+
+**The system gets its own shelves back, and the library can be put back.**
+
+### Fixed
+- **The game system's compendiums are in the game system's own folders again.**
+  This module used to gather all thirteen of them into its own *ACKS II* folder
+  at every load. The system declares five shelves of its own — a Rulebook, a
+  Revised Rulebook with Equipment and Setting beneath it, a Judges Journal, a
+  Monstrous Manual and VTT Vitals — and in a world that had run this module,
+  every one of them stood empty. Each package's compendiums now go where that
+  package's own manifest says, and this module stays out of the system's tree.
+- **A compendium stranded at the root of the sidebar finds its folder.** Foundry
+  files a pack once and skips any pack whose configuration already names a
+  folder — so a folder you deleted years ago left every pack that named it
+  stranded, permanently, with nothing able to fix it. Those are repaired at
+  every load now. A folder you put a pack in yourself is never touched.
+
+### Added
+- **Restore the Compendium Library (GM)** — a new macro in the *ACKS Extras
+  Macros* compendium. It puts the whole library back: the system's packs into
+  the system's shelves, this module's and everything you have imported into
+  *ACKS II — Extras*, and each pack's ordering, lock and player visibility back
+  to their defaults. It asks first, because it overwrites arrangements you made
+  yourself — that is what makes it a restore rather than the tidying that
+  happens on its own.
+- **Your imported library has shelves.** The compendiums the importer writes are
+  filed under *ACKS II — Extras › From your books*, and a book line that is not
+  ACKS II — Dolmenwood, Quick Delve, a source you registered — gets a folder of
+  its own. A line's folder is made by the first pack that needs it, so you never
+  see a shelf for a book you have not imported.
+
+### Changed
+- **This module ships no library of its own any more.** Four compendiums are
+  gone — *ACKS Class Training*, *ACKS Equipment & Combat Proficiencies*, *ACKS
+  Equipment Samples* and *ACKS Henchmen Proficiencies & Powers*, 105 documents.
+  Everything they held comes from your own books through the importer instead:
+  an imported class carries its own weapon, armour and fighting-style training,
+  and an imported proficiency or power drives the same automation the pack items
+  did. **Anything you already imported from them stays in your world untouched;
+  only the compendium rows go.** Three mechanics do not yet come back — the
+  Goblin-Slaying and Vermin-Slaying bonuses and Inspire Courage's morale bonus —
+  and building a class by hand no longer has ready-made training items to drag
+  onto it.
+- **Six macros retired.** Four were one-time cleanups for the module merge and
+  for worlds upgrading into it: *Clean Up After the Merge*, *Recover Coin from
+  Unloadable Locations*, *Migrate Token Vision* and *Advance 1 Week*. The other
+  two are replaced by the code that makes them unnecessary — *Repair Henchmen
+  References* (a hireling's references are cleaned up when it is deleted, swept
+  at load, and the sheet no longer breaks either way) and *Forgive Wage Arrears*
+  (writing off back wages is still there, on the roster). **Copies you already
+  imported into your world keep working.**
+- **A hireling the module never enrolled can no longer be billed from the dawn
+  of the world.** An unset wage clock read as time zero rather than as unset in
+  one path — the one behind those six-figure invoices — and now reads as unset
+  everywhere.
+
 ## 6.0.0
 
 **The importer is part of Extras now — one module, one library, and nothing

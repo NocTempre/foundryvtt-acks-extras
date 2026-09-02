@@ -39,7 +39,12 @@ import * as mount from "./mount.mjs";
 import * as attachment from "./attachment.mjs";
 import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
-import { installPackDedupe, supersededPackIds, refreshPackDedupe, organizeFamilyPacks, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
+import { installPackDedupe, supersededPackIds, refreshPackDedupe, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
+import {
+  organizeCompendiumFolders,
+  restoreCompendiumLibrary,
+  fileImportedPack,
+} from "./compendium-folders.mjs";
 import { installPolyglotBridge, publishWorldLanguages } from "./polyglot.mjs";
 import { registerManagedEffectGuard, lockManagedEffectRows } from "./managed-effects.mjs";
 import * as moneyLogic from "./money-logic.mjs";
@@ -157,8 +162,21 @@ const localImpl = Object.freeze({
    * exchange terms by place, the HOUSE_OWNER sentinel and creditCoin.
    */
   money: { ...moneyLogic, ...money },
-  /** Which system packs this world has replaced by importing (pack-dedupe.mjs). */
-  packs: { supersededPackIds, refreshPackDedupe, organizeFamilyPacks, SETTING_HIDE_SUPERSEDED },
+  /**
+   * The compendium sidebar: which system packs this world has replaced by
+   * importing (pack-dedupe.mjs), and where every ACKS pack sits
+   * (compendium-folders.mjs). `restoreCompendiumLibrary` is the macro's call
+   * and OVERRULES a Judge's arrangement; `organizeCompendiumFolders` is the
+   * gentle pass that only fills an empty or dangling slot.
+   */
+  packs: {
+    supersededPackIds,
+    refreshPackDedupe,
+    SETTING_HIDE_SUPERSEDED,
+    organizeCompendiumFolders,
+    restoreCompendiumLibrary,
+    fileImportedPack,
+  },
   /**
    * Handing Polyglot the world's own imported languages (polyglot.mjs). The
    * system's provider already answers what a character speaks; exposed so a
@@ -686,6 +704,14 @@ Hooks.once("ready", () => {
   // Load the importer's packs, so the synchronous library reads every sheet
   // makes are complete from the first render.
   registerLibraryWarm();
+
+  // File any compendium that has no folder, or names one that is gone — the
+  // system's into the system's own declared tree, this module's into this
+  // module's. A slot that resolves is a Judge's arrangement and is left; the
+  // macro is what overrules (compendium-folders.mjs).
+  organizeCompendiumFolders().catch((err) =>
+    console.error(`${MODULE_ID} | filing the ACKS compendiums failed`, err),
+  );
 
   // An animal's training, mountability and load live in this library's own
   // subtree, which the system's monster sheet does not render — the panel is

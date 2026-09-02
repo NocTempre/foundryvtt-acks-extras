@@ -58,6 +58,32 @@ export function libraryPack(type) {
   );
 }
 
+/**
+ * Every pack the importer has minted in this world, with the LINE each holds.
+ *
+ * The inverse of the importer's `packLabel`, and it lives here because the
+ * label prefix does: a pack's line is the segment between the prefix and the
+ * document type, and the ACKS library has none — its label carries no line and
+ * neither does its shelf. Read by the sidebar organizer
+ * (`compendium-folders.mjs`), which files each pack under the line it holds
+ * and cannot ask the importer, whose own `lineOf` answers for a book id rather
+ * than for a pack that already exists.
+ *
+ * @returns {{pack: object, line: string|null, type: string}[]}
+ */
+export function importedPacks() {
+  const out = [];
+  for (const pack of game.packs ?? []) {
+    if (pack.metadata.packageType !== "world") continue;
+    const label = String(pack.metadata.label ?? "");
+    if (!label.startsWith(PACK_LABEL_PREFIX)) continue;
+    const rest = label.slice(PACK_LABEL_PREFIX.length);
+    const cut = rest.lastIndexOf(" — ");
+    out.push({ pack, line: cut < 0 ? null : rest.slice(0, cut), type: pack.documentName });
+  }
+  return out;
+}
+
 /** Per-type load promise, so a pack is instantiated once and not per read. */
 const loading = new Map();
 

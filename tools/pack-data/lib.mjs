@@ -16,57 +16,39 @@
  */
 
 /**
- * The world-wide vision sweep, as a macro.
+ * Putting the compendium sidebar back the way the manifests describe it.
  *
- * The library derives a token's sight from its sheet whenever something it
- * watches changes, but everything it watches is local: the scene on screen, the
- * actor just edited. A world that turns the setting on mid-campaign, or upgrades
- * into a corrected sense model, has scenes nobody will open for months still
- * carrying whatever their tokens were last set to. This is the one surface that
- * asks for all of them at once.
+ * A library drifts and cannot right itself: Foundry files a package's packs
+ * from its manifest once, skips any pack whose configuration already names a
+ * folder, and never revisits the decision — so a folder deleted years ago
+ * strands every pack that named it at the sidebar root permanently. This is
+ * the surface that asks for all of them at once.
  *
- * Taking back hand-edited tokens is the second question rather than part of the
- * first: a released token is a Judge's override, and a sweep that silently undid
- * every one of them would be the destructive reading of "migrate".
+ * It OVERRULES rather than repairs: every ACKS pack goes back to its declared
+ * place and every per-pack override — a custom sort, a lock, an ownership
+ * grant — is dropped back to the package's own default. That is what "restore"
+ * means, and it is why the macro asks before it writes. The gentle pass that
+ * only fills an empty or dangling slot runs by itself at every load and needs
+ * no macro (scripts/lib/compendium-folders.mjs).
  */
-const MIGRATE_VISION = `// Re-derive every token's sight from its sheet, on every scene.
+const RESTORE_LIBRARY = `// Put every ACKS compendium back where its package's manifest says it goes.
 const api = game.modules.get("acks-extras")?.api?.lib ?? globalThis.acksExtras?.lib;
-if (!api?.vision) return ui.notifications.error("ACKS Extras is not active.");
-if (!game.user.isGM) return ui.notifications.warn("Only the Judge can migrate token vision.");
-
-const reclaim = await foundry.applications.api.DialogV2.confirm({
-  window: { title: "Migrate Token Vision" },
-  content:
-    "<p>Re-derive every token's sight from its sheet, on every scene in this world.</p>" +
-    "<p>Tokens whose vision you edited by hand are left alone, permanently. Take those back as well?</p>",
-  yes: { label: "Take hand-edited tokens back" },
-  no: { label: "Leave hand-edited tokens alone", default: true },
-  rejectClose: false,
-});
-if (reclaim === null) return;
-
-const report = await api.vision.migrateWorld({ reclaim });
-if (!report.ran) {
-  return ui.notifications.warn(
-    "Nothing swept: either token vision management is switched off in the module settings, or another GM is the primary one."
-  );
+if (!api?.packs) return ui.notifications.error("ACKS Extras is not active.");
+if (typeof api.packs.restoreCompendiumLibrary !== "function") {
+  return ui.notifications.warn("ACKS Extras | Restore the Compendium Library needs a newer build of this module.");
 }
-console.log("acks-extras | vision migration", report);
-ui.notifications.info(
-  \`Vision migrated: \${report.written} of \${report.tokens} token(s) rewritten across \${report.scenes} scene(s). \` +
-    \`\${report.reclaimed} taken back; \${report.released} still left to your own edits.\`
-);`;
+await api.packs.restoreCompendiumLibrary();`;
 
 export function buildMacros() {
   return [
     {
-      _id: "acksLibVisionMig",
-      _key: "!macros!acksLibVisionMig",
-      name: "Migrate Token Vision",
+      _id: "acksLibRestore00",
+      _key: "!macros!acksLibRestore00",
+      name: "Restore the Compendium Library (GM)",
       type: "script",
       scope: "global",
-      img: "icons/svg/eye.svg",
-      command: MIGRATE_VISION,
+      img: "icons/svg/book.svg",
+      command: RESTORE_LIBRARY,
       ownership: { default: 0 },
       _stats: { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 },
     },

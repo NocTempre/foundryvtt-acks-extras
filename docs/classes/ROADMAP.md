@@ -72,16 +72,15 @@ own decision, and not as a side effect of whatever comes next.
   convention — is unbuilt.
 - **Where a general proficiency may be picked from** — `choosableGenerals()`
   reads `game.items` alone, so the picker offers only proficiencies already
-  materialized into the world; the proficiencies shipped in compendia (core's
-  `acks-proficiencies`, this module's `proficiencies-powers`) are invisible
-  until something imports them. Note that core's pack cannot be used to tell
-  general from class — every document in it carries the schema's `initial:
-  "general"`, so the column asserts nothing. That is consistent with the
-  family's model — the importer materializes book content, and a ref is a
-  cookbook id — but nothing states it where a user meets it, and `coinSource()`
-  in chargen.mjs already searches compendia, so the codebase is not of one mind.
-  Deciding it means saying whether picking from a compendium materializes the
-  item.
+  materialized into the world; system compendia are invisible until something
+  imports them. Proficiencies from the importer materialize into the world and
+  become available. Note that core's pack cannot be used to tell general from
+  class — every document in it carries the schema's `initial: "general"`, so
+  the column asserts nothing. That is consistent with the family's model — the
+  importer materializes book content, and a ref is a cookbook id — but nothing
+  states it where a user meets it, and `coinSource()` in chargen.mjs already
+  searches compendia, so the codebase is not of one mind. Deciding it means
+  saying whether picking from a compendium materializes the item.
 
 ## Deferred with the 2026-08-29 hit-point and open-pick work
 

@@ -153,7 +153,7 @@ export const SETTINGS = Object.freeze({
   // NOTE: there is deliberately no masterwork overlay — RR p. 159 masterwork is
   // fully expressible in fields core already has (+1 hit = item.system.bonus,
   // +1 damage = a "1d6+1" damage string, +1 AC = aac.value, −1 stone = weight6),
-  // so it needs data (see the equipment-samples pack), not automation.
+  // so it needs data on the item, not automation (see config.mjs MASTERWORK).
   OVERLAY_SHIELD_VARIANTS: "overlayShieldVariants",
   OVERLAY_MANEUVERS: "overlayManeuvers",
   OVERLAY_ITEM_LOSS: "overlayItemLoss",

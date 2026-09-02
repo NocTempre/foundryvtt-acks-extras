@@ -26,7 +26,7 @@ read-only inputs; nothing here was a change to them.
 > guard); the §10 WARN family is now enforced — every hook fires under
 > `acksExtras.*` and the retired names FAIL validation; the pack-data rewrite
 > miss §10 records for bestiary-data had a second, still-live instance
-> (`flags.acks-henchmen` change keys shipping inert in proficiencies-powers);
+> (stale `flags.acks-henchmen` scope keys that are now removed);
 > and the §4 CSS-class rename was one of five — the merge renamed the scope
 > classes inside every JS `classes:` array while the stylesheets kept the old
 > selectors, leaving ~255 rules dead. validate-extra now carries guards for all

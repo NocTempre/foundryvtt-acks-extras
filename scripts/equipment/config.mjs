@@ -183,10 +183,10 @@ export const SHIELD_VARIANTS = Object.freeze({
  * REFERENCE DATA, not automation — deliberately (see constants.mjs, the note by
  * the overlay settings). Masterwork is fully expressible in fields core already
  * has: +1 hit is `system.bonus`, +1 damage is a "1d6+1" damage string, +1 AC is
- * `aac.value`, and −1 stone is `weight6`. So a masterwork item is DATA, and the
- * equipment-samples pack ships examples of each tier. Nothing reads this table
- * at runtime and nothing should; it is here so the numbers behind those samples
- * are written down in one place.
+ * `aac.value`, and −1 stone is `weight6`. So a masterwork item is DATA — a tier
+ * key plus the pristine baseline, written onto the item. Nothing reads this
+ * table at runtime and nothing should; it is here so the numbers a tier stands
+ * for are written down in one place.
  */
 export const MASTERWORK = Object.freeze({
   weaponToHit: { cost: 80, toHit: 1 },

@@ -1,7 +1,6 @@
-/* global game, Hooks, ui, foundry, Folder */
+/* global game, Hooks */
 /**
- * Gathering the family's compendiums into one folder, and hiding the ones a
- * world has already replaced.
+ * Hiding the compendiums a world has already replaced by importing.
  *
  * The importer materializes the same content out of the GM's own books, in
  * more of it and in this family's shapes — so a world that has imported ends
@@ -99,62 +98,6 @@ export function supersededPackIds() {
   return hidden;
 }
 
-/* -------------------------------------------- */
-/*  Gathering the family's packs into one folder */
-/* -------------------------------------------- */
-
-/** The one folder every ACKS compendium belongs under. */
-const FAMILY_FOLDER = "ACKS II";
-const SYSTEM_ID = "acks";
-
-/**
- * The modules place their OWN packs through `packFolders` in their manifests,
- * matched by folder name so both land in the same folder. The SYSTEM's packs
- * cannot be placed that way — a manifest folder only accepts packs belonging
- * to the package that declares it — so they are filed here instead, by writing
- * the same assignment Foundry's own initializer writes.
- */
-function familyFolder() {
-  return game.folders?.find((f) => f.type === "Compendium" && f.name === FAMILY_FOLDER) ?? null;
-}
-
-/**
- * File the system's ACKS compendiums beside the modules' own.
- *
- * A pack the GM has deliberately placed is left alone. A pack pointing at a
- * folder that NO LONGER EXISTS is repaired: Foundry only assigns a folder to a
- * pack whose config does not already name one, so a stale id — left behind
- * when a folder is deleted — strands that pack at the sidebar root forever and
- * silently defeats every `packFolders` declaration, the system's included.
- *
- * @returns {Promise<number>} how many packs were filed.
- */
-export async function organizeFamilyPacks() {
-  if (!game.user?.isGM) return 0;
-  let folder = familyFolder();
-  if (!folder) {
-    folder = await Folder.create({ name: FAMILY_FOLDER, type: "Compendium", color: "#822638" }).catch(() => null);
-    if (!folder) return 0;
-  }
-  const config = foundry.utils.deepClone(game.settings.get("core", "compendiumConfiguration") ?? {});
-  let filed = 0;
-  for (const pack of game.packs) {
-    if (pack.metadata?.packageName !== SYSTEM_ID) continue;
-    const entry = config[pack.collection] ?? {};
-    const current = entry.folder ?? null;
-    if (current === folder.id) continue;
-    // Someone's real choice, honoured. Only an empty or dangling slot is ours.
-    if (current && game.folders.get(current)) continue;
-    config[pack.collection] = { ...entry, folder: folder.id };
-    filed++;
-  }
-  if (filed) {
-    await game.settings.set("core", "compendiumConfiguration", config);
-    ui.compendium?.render();
-  }
-  return filed;
-}
-
 const STYLE_ID = `${MODULE_ID}-pack-dedupe`;
 
 /**
@@ -204,7 +147,6 @@ export function installPackDedupe() {
   // on the events that can change it — cheaply, and never during a render.
   Hooks.once("ready", () => {
     publishHideRule();
-    organizeFamilyPacks().catch((err) => console.error(`${MODULE_ID} | filing the ACKS compendiums failed`, err));
   });
   for (const hook of ["createActor", "deleteActor", "createItem", "deleteItem", "createRollTable", "deleteRollTable"]) {
     Hooks.on(hook, () => publishHideRule());

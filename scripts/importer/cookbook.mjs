@@ -26,6 +26,7 @@ import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, PR
 import { savesForLevel } from "./stats.mjs";
 import { progressBar } from "./progress.mjs";
 import * as services from "../lib/services.mjs";
+import { fileImportedPack } from "../lib/compendium-folders.mjs";
 import { nameKeys, ABILITY_CATEGORIES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
 import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
@@ -788,6 +789,15 @@ async function packFor(type, line = null) {
       if (found) return found.collection;
       const CC = foundry.documents?.collections?.CompendiumCollection ?? globalThis.CompendiumCollection;
       const made = await CC.createCompendium({ label, type });
+      // A pack created this way carries no folder and lands loose at the
+      // sidebar root, which is where every imported library sat. The LINE the
+      // label was built from is handed over with it, so the shelf and the
+      // label can never disagree about which books this pack holds; the folder
+      // for a line is made by the first pack that needs it and by no other
+      // path, so a world that never imported that line has no empty shelf.
+      await fileImportedPack(made.collection, line).catch((err) =>
+        console.warn(`${MODULE_ID} | could not shelve the ${label} compendium`, err),
+      );
       return made.collection;
     })().catch((err) => {
       // The sidebar is the only place left to put it. Say so loudly: a silent

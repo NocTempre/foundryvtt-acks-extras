@@ -1,0 +1,18 @@
+{
+  "_id": "acksLibRestore00",
+  "_key": "!macros!acksLibRestore00",
+  "name": "Restore the Compendium Library (GM)",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/book.svg",
+  "command": "// Put every ACKS compendium back where its package's manifest says it goes.\nconst api = game.modules.get(\"acks-extras\")?.api?.lib ?? globalThis.acksExtras?.lib;\nif (!api?.packs) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.packs.restoreCompendiumLibrary !== \"function\") {\n  return ui.notifications.warn(\"ACKS Extras | Restore the Compendium Library needs a newer build of this module.\");\n}\nawait api.packs.restoreCompendiumLibrary();",
+  "ownership": {
+    "default": 0
+  },
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  },
+  "folder": "acks420ff1a0388a"
+}

@@ -2,12 +2,13 @@
 /**
  * The acks-abilities bridge — proficiency facts read FROM the abilities model.
  *
- * A character built with the abilities and importer features carries generic `ability`
- * items (one per definition, identified by `flags["acks-extras"].cookbook.id`,
- * picks recorded in `flags["acks-extras"].extras.selections`) instead of
- * this module's 42 effect-carrying pack items. This bridge translates those
- * facts into the SAME effect domains the collectors in effects.mjs already
- * serve, so loadout, proficiency, and roll-wrap consume them unchanged.
+ * A character carries generic `ability` items — one per definition, identified
+ * by `flags["acks-extras"].cookbook.id`, picks recorded in
+ * `flags["acks-extras"].extras.selections` — imported from the Judge's own
+ * books. This bridge translates those facts into the SAME effect domains the
+ * collectors in effects.mjs already serve, so loadout, proficiency and
+ * roll-wrap consume them unchanged. It is the ONLY route now: the module used
+ * to ship 42 effect-carrying proficiency items and no longer ships any.
  *
  * Posture (mirrors acks-influence's ability-effects.mjs): read the FLAGS
  * directly so the data works even when acks-abilities is inactive — the flag

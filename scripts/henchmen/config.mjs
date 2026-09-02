@@ -107,10 +107,10 @@ export const RARITY_TIERS = Object.freeze([
  * book mechanics from the item name alone (graceful degradation for worlds
  * built before this module — the AE contract is always preferred and a
  * name match is skipped when the item has any of this feature's effect
- * changes). Also load-bearing for two merge-era populations: worlds that
- * imported the 0.1.0 proficiencies-powers pack (its change keys shipped under
- * the dead `flags.acks-henchmen` scope), and worlds where the cleanup macro
- * ran — it deletes stale AE changes rather than rewriting them.
+ * changes). This is the ONLY route for an imported ability, which carries the
+ * importer's typed effect model rather than this feature's change keys, and it
+ * still answers for worlds holding items from a retired pack whose change keys
+ * shipped under a dead flag scope.
  * `condition` marks the bonus as situational (GM/player toggles it in the
  * roll dialog); absent condition means always-on.
  */

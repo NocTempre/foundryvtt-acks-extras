@@ -2,9 +2,9 @@
 /**
  * Category tabs over the character sheet's ability and spell lists.
  *
- * Abilities file into fixed buckets — fighting (the equipment-training
- * items), thief skills, general proficiencies, class proficiencies, class
- * powers, racial abilities — resolved from what the items already carry:
+ * Abilities file into fixed buckets — fighting, thief skills, general
+ * proficiencies, class proficiencies, class powers, racial abilities —
+ * resolved from what the items already carry:
  * the training flag, the importer's cookbook id, the proficiency type, and
  * the bound class document's award notes (a racial trait is whatever the
  * class awards with a racial-trait note). Spells file by their tradition

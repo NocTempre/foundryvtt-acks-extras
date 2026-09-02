@@ -7,6 +7,51 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### The module stops shipping a library of its own (2026-09-01)
+
+User direction: there is to be no non-import library. Three packs went with it
+here — `equipment-training` (34 class-training abilities), `equipment-proficiencies`
+(42) and `equipment-samples` (9) — and `proficiencies-powers` (20) went from
+henchmen. 105 documents, 92 of them carrying Active Effects. Nothing in
+`scripts/` ever resolved a document out of any of them, so the removal is a
+content decision and not a code one.
+
+**What replaces each, measured rather than assumed.**
+
+- **Training (34).** No cookbook entry matches any of them, and none is wanted:
+  an imported class carries its combat training as one embedded Active Effect
+  the importer writes, on the SAME three flag keys these items used
+  (`weaponProf`, `armourProficiency`, `styleProficient`). The pack was the
+  hand-assembly route to a fact the class now states itself.
+- **Proficiencies (42).** All 42 have a cookbook entry. 15 of the 41 that carry
+  this module's mechanical markers get them back as typed effect specs from the
+  entry itself; 24 more reach the same effect domains through
+  `abilities-bridge.mjs`, which resolves presence, numeric, style, martial,
+  focus and trickery grants off the definition id.
+- **Powers (20).** All 20 have an entry. 16 of the 19 carrying markers are
+  recovered by `NAME_FALLBACKS`, which reads the mechanic off the item's own
+  name precisely for items that arrive without an Active Effect.
+- **Samples (9).** The six shield variants have entries. The three masterwork
+  and named examples never could: they are module-authored demonstrations that
+  a tier is expressible in fields core already has, not book content.
+
+**The gaps this leaves, in full — three mechanics and one workflow:**
+
+| Lost | Marker | Why nothing covers it |
+| --- | --- | --- |
+| Goblin-Slaying | `slayer` | no effect spec on its entry, and no `abilities-bridge` case |
+| Vermin-Slaying | `slayer` | same |
+| Inspire Courage | `moraleRoll` | no effect spec, and no `NAME_FALLBACKS` pattern |
+
+And the workflow: a Judge building a class **by hand** no longer has ready-made
+training items to drag onto it, because the replacement rides on the class
+import. Hand-built classes set the three flags directly.
+
+**Cost.** A world that imported from these packs keeps every document it made;
+what disappears is the compendium row. The three mechanics above are named in
+the importer's ROADMAP rather than fixed here — closing them means adding effect
+specs to cookbook entries, which is extraction work, not a pack.
+
 ### Putting gear to use takes it out of the pack (2026-08-30)
 
 **Problem.** The sheet's row controls attach to gear wherever it renders, and

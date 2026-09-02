@@ -55,6 +55,44 @@ labels, and template-packages' source resolution — where `findSource` reads
 `world` off `doc.pack` rather than assuming it, because a ref now resolves to
 either side and only a world document may be LINKED rather than copied.
 
+## The compendium sidebar
+
+`lib/compendium-folders.mjs` decides where every ACKS pack sits, and reads each
+package's own manifest `packFolders` to do it — the system's declaration for the
+system's packs, this module's for this module's. Neither states a folder name
+belonging to the other, and a system release that re-shelves its own compendiums
+re-shelves them here with nothing to change.
+
+Two strengths:
+
+| | `organizeCompendiumFolders()` | `restoreCompendiumLibrary()` |
+| --- | --- | --- |
+| When | every load, GM only | the *Restore the Compendium Library (GM)* macro |
+| Claims | a pack with no folder, or one naming a folder that is gone | every ACKS pack |
+| Per-pack config | untouched | reset to the package's defaults — sort, lock and ownership grants dropped |
+| Empty folders | never made, never removed | the ones it empties, and any empty shelf inside this module's own tree |
+
+Foundry files a package's packs once, matches a folder by hierarchy NAME, and
+skips a pack whose configuration already names a folder — so a folder deleted
+long ago strands every pack that named it at the sidebar root permanently. Both
+strengths exist to answer that; the gentle one repairs it, the macro overrules
+whatever a world has become.
+
+Planning is separate from building: a folder is created only where a pack is
+actually being written to it. That is what stops the gentle pass from growing a
+second empty copy of the tree at every load, and it is also how a per-line
+import shelf works — the importer's world packs are filed under this module's
+folder in `From your books`, and a line's own folder (`Dolmenwood`, `Quick
+Delve`) is made by the first pack that needs it. The ACKS library carries no
+line in its label and gets none in the sidebar; it is the default shelf. The
+importer calls `fileImportedPack` from `packFor` at the moment it mints a pack,
+so a new shelf and its pack appear together.
+
+A configuration entry holds a folder open only while its PACK still exists. A
+world keeps the entry of every pack it has ever had, and a dead one would
+otherwise pin an empty shelf open forever; those are dropped with the folder
+they named.
+
 ## Theming: one palette, three layers
 
 Every colour any ACKS surface draws comes from an `--acks-*` token. There are no

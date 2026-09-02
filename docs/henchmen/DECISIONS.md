@@ -8,6 +8,38 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### Two repair macros retire into the code that made them unnecessary (2026-09-01)
+
+User direction: fix the bug, do not ship a script that repairs it.
+
+**Repair Henchmen References.** It swept dangling ids out of `system.henchmenList`,
+the shape that makes core's `getTotalWages` throw on a deleted hireling and takes
+the whole character sheet down with it. Core has no deletion cleanup of any kind,
+so the ids accumulate; but this module has carried the durable answer since
+`repair.mjs` landed — a `preDelete` prune that clears the list entry, the monster
+list and `managerid`, a sweep at ready under `autoRepairReferences` (default on),
+and a libWrapper guard on `getTotalWages` itself. The macro added a preview
+dialog and a token-scoped run; it added no capability. **Ruled: retired.** The
+API stays exposed (`acksExtras.henchmen.repair.*`) for a Judge who turned the
+setting off.
+
+**Forgive Wage Arrears.** It repaired worlds billed for every month since
+worldTime zero. The three read sites have guarded on `last == null` for some
+time, and `enrollNewcomers` starts an unenrolled hireling's clock from today, so
+the bug is not reachable through any shipped path. It was still reachable
+through the DATA MODEL: `hiredTime` and `lastPaidTime` were declared with `int()`,
+whose initial is **0**, so materializing a record for an unenrolled hireling
+produced two wage clocks reading the epoch — `0 == null` is false, and every
+guard is defeated. No in-repo caller did that, but `getRecord` is public API and
+the model is where the contract is supposed to be written down. **Ruled: both
+fields become nullable (`num({ integer: true })`), so "never enrolled" survives
+materialization**, and the macro retires. `forgiveWageDebts` stays on the API and
+in the roster — writing off back wages is a thing a Judge does on purpose.
+
+**Rejected:** treating `lastPaidTime === 0` as unset in the ready sweep. In a
+world genuinely sitting at worldTime 0 that silently re-adopts legitimately
+hired henchmen.
+
 ### Recruiting needs no GM client online (2026-07-22)
 
 User direction. A location is a public bulletin board: new location actors

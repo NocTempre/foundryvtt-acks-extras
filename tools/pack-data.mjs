@@ -7,15 +7,14 @@
  *
  *   export const packs = { "<pack-name>": () => [documents...] };
  *
- * MACROS ARE CONCATENATED, NOT OVERWRITTEN. Five of the eight features each
- * shipped a pack literally named `macros`, so a plain object spread would have
- * silently kept only the last one. They union into a single `macros` pack —
- * checked when the repos were merged: no filename and no `_id` collisions
- * across the five, so nothing had to be renamed.
+ * MACROS ARE CONCATENATED, NOT OVERWRITTEN. Several features each ship a pack
+ * literally named `macros`, so a plain object spread would silently keep only
+ * the last one. They union into a single `macros` pack — no filename and no
+ * `_id` collisions across them, so nothing has to be renamed.
  *
- * All 24 land in ONE compendium folder rather than the five per-feature trees
- * they arrived in; a flat wall of macros in a single pack is worse than the
- * five packs were.
+ * They land in ONE compendium folder rather than the per-feature trees they
+ * arrived in; a flat wall of macros in a single pack is worse than the
+ * separate packs were.
  */
 import crypto from "node:crypto";
 
@@ -28,9 +27,8 @@ import { packs as lib } from "./pack-data/lib.mjs";
 import { packs as location } from "./pack-data/location.mjs";
 import { packs as monsters } from "./pack-data/monsters.mjs";
 import { packs as importer } from "./pack-data/importer.mjs";
-import { packs as cleanup } from "./pack-data/cleanup.mjs";
 
-const FEATURES = { lib, abilities, equipment, formation, henchmen, influence, location, monsters, importer, cleanup };
+const FEATURES = { lib, abilities, equipment, formation, henchmen, influence, location, monsters, importer };
 
 /** Deterministic 16-char id under the module's declared idPrefix ("acks"). */
 const did = (seed) => "acks" + crypto.createHash("sha1").update(seed).digest("hex").slice(0, 12);

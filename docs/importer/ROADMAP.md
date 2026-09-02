@@ -353,8 +353,7 @@ passage, which is why they share an anchor.
   **Owed on the extras side:** a carry-state model that reads those enums off
   the document, after which the frozen `SHIELD_VARIANTS` table in
   `scripts/equipment/config.mjs` retires. Until then the overlay reads only the
-  `shieldVariant` flag the import stamps, and the six sample documents in
-  `equipment-samples` are what this now replaces.
+  `shieldVariant` flag the import stamps.
 - ~~**Silver, and the other material qualities.**~~ DONE 2026-08-16, and there
   are no others. Silver is printed at RR p.129 as a run-in in the weapon-quality
   list — which is why a heading search missed it — and imports as
@@ -556,30 +555,34 @@ whether the document exists; the module packs are the reverse (41/42, 32/34,
   with the bonus already applied, and an invented named weapon. The JJ shield
   half of this row is CLOSED: the six forms import as shields (see
   DECISIONS 2026-09-01), which is what extras' six samples were.
-- **Class training grants — what a class may WIELD and WEAR.** The whole of
-  extras' `equipment-training` pack (34 items: 5 fighting styles, 5 armour
-  rungs, 18 weapon selections) has no counterpart here. The register's four
-  `kind.combatProficiency` entries (`def.prof.weaponProficiency`,
-  `armorProficiency`, `fightingStyles`, `nonProficientUse`) are the RULES TEXT
-  and carry no effects; `kind.class` entries carry `profList`, `awards`,
-  tables and `equipAliases` but no weapon-selection or armour-rung data. So an
-  imported class says which proficiencies it awards and never which weapons it
-  may carry. Until this is read off the JJ pp. 290–291 class-construction
-  chunks, that pack is the only source of those grants, and a world without it
-  falls open: extras' `weaponProficiency()` answers "all" and `armorMax()`
-  answers "heavy" rather than refusing. Closing it needs the grant vocabulary
-  (`flags.acks-extras.weaponProf` / `.armourProficiency` / `.styleProficient`,
-  documented in extras' `scripts/equipment/proficiency.mjs`) emitted per class.
-- **Three henchmen mechanics the abilities model cannot yet say.** Extras'
-  `proficiencies-powers` is otherwise redundant — its bonuses are recovered
-  either by the henchmen collector's name fallbacks or by the typed
-  `modifier target=reaction` specs this module already ships — but three have
-  neither route: **Inspire Courage's morale-roll bonus**, **Utter Domination's
-  morale BASE of 4** (a floor, not a bonus), and **Beast Friendship's hiring
-  magnitude** (the name fallback grants a bonus but not the +2). Additionally
-  `def.prof.command` and `def.prof.leadership` are `audited: false` with no
-  effects, so the two proficiencies most central to henchman morale are
-  carried by the name fallback alone.
+- **Class training grants — what a class may WIELD and WEAR.** Imported
+  classes carry their training as embedded Active Effects on the class
+  document, writing the grant vocabulary (`flags.acks-extras.weaponProf` /
+  `.armourProficiency` / `.styleProficient`, documented in extras'
+  `scripts/equipment/proficiency.mjs`). The training originates from the JJ
+  pp. 290–291 class-construction chapters.
+- **Three henchmen mechanics the abilities model cannot yet say.** Imported
+  proficiencies and powers reach effect domains through
+  `scripts/equipment/abilities-bridge.mjs` and the name fallbacks in
+  `scripts/henchmen/config.mjs`. Three cases carry no locators and reach only
+  through the name fallback: **Inspire Courage's morale-roll bonus**, **Utter
+  Domination's morale BASE of 4** (a floor, not a bonus), and **Beast
+  Friendship's hiring magnitude** (the name fallback grants a bonus but not the
+  +2). Additionally `def.prof.command` and `def.prof.leadership` are
+  `audited: false` with no effects, so the two proficiencies most central to
+  henchman morale are carried by the name fallback alone. **Inspire Courage
+  reaches nothing at all**: no locator on its entry and no fallback pattern, so
+  its morale-roll bonus is silently absent since the pack that carried it
+  retired.
+- **The two slayer proficiencies reach no route.** Goblin-Slaying and
+  Vermin-Slaying wrote a `slayer` grant (`group:bonus`) as an Active Effect
+  from the pack that retired. Their register entries carry no effect spec, and
+  `abilities-bridge.mjs` has no case for the domain — it handles presence,
+  numeric, style, martial, focus and trickery grants and stops there. So an
+  imported Goblin-Slaying is prose: the bonus against its kind never reaches
+  `scopeApplies`. Closing it wants either a locator on the two entries or a
+  bridge case reading the pick, and the bridge case is the cheaper of the two
+  because the group is the proficiency's own name.
 
 ## Which languages a class or a race speaks — the human homeland pick
 

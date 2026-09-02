@@ -7,6 +7,47 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-01 — the system's compendium tree is the system's, and the library
+  can be put back.** Supersedes the 2026-08-15 ruling below. `organizeFamilyPacks`
+  gathered the system's thirteen packs into this module's own "ACKS II" folder,
+  on the reasoning that one folder is tidier than two. What that actually did is
+  visible in a world that had run it: the system declares five compendium trees
+  of its own — a Rulebook shelf, a Revised Rulebook with Equipment and Setting
+  beneath it, a Judges Journal, a Monstrous Manual, VTT Vitals — and every one
+  of them stood **empty**, because a module had taken their contents. A module
+  is a guest in the sidebar. **Ruled: each package's packs go where that
+  package's own manifest says**, read live from `packFolders` at runtime, so
+  neither this module nor the system states a folder name belonging to the
+  other and a system release that re-shelves its own compendiums needs nothing
+  here.
+
+  **Ruled: two strengths, and the difference is consent.** The pass that runs at
+  every load only FILLS — a pack with no folder, or one naming a folder that no
+  longer exists, is filed where its manifest says; a reference that resolves is
+  a Judge's arrangement and is untouched. That half of the old ruling was the
+  good half and survives intact. The new *Restore the Compendium Library* macro
+  OVERRULES: it re-files every ACKS pack and resets each pack's configuration —
+  custom sort, lock, ownership grant — to the package's default. Overwriting a
+  Judge's arrangement is what "restore" means, so it is a macro a GM runs and
+  never something that happens to them.
+
+  **Cost, and the bug it bought:** the first build planned nothing and built as
+  it walked, so the gentle pass created the entire declared tree at every load
+  and then declined to move anything into it — a second, empty copy of the
+  library appearing on a live world's first reload. Planning is now separate
+  from building and **a folder comes into existence only where a pack is
+  actually being written to it**, which is also what makes a per-line import
+  shelf materialize on the first pack that needs it instead of standing empty in
+  every world.
+
+  **Ruled: a dead configuration entry does not hold a folder open.** A world
+  keeps the `compendiumConfiguration` entry of every pack it has ever had. Four
+  entries for packs this release stopped shipping, and one for the retired
+  importer module, pinned the old "ACKS II" folder open through the restore —
+  an empty shelf nothing could remove, which is the exact disease the file
+  exists to end. An entry counts only while its pack exists, and is dropped with
+  the folder it named.
+
 - **2026-08-30 — a missing-tables notice asks which TABLES are readable, never
   which document ids are registered.** Both features that greet a Judge with
   "these rules tables have not been imported" filtered their document list with
@@ -1042,7 +1083,7 @@ coverage-gated — a world that has imported nothing has replaced nothing, and
 sees no change at all (verified: an empty world hides zero rows with the
 setting on).
 
-### The same day — one folder for the family's compendiums
+### The same day — one folder for the family's compendiums (SUPERSEDED 2026-09-01)
 
 The modules' own packs are placed by `packFolders` in their manifests, both
 declaring the name **ACKS II**, which is how Foundry merges them: its

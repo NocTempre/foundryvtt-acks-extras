@@ -154,6 +154,68 @@ report the same symptom.
     and roll again: core's one message per roller is back, unchanged. Rolling a
     single combatant posts a one-row card. No console errors on any of it.
 
+### The compendium sidebar
+
+The whole surface is world configuration, so it is driven and read from page
+context; no canvas is needed.
+
+**Build the pre-restore shape on purpose.** A world already arranged correctly
+proves nothing, and the arrangement this exists to undo is a real one:
+
+```js
+for (const f of game.folders.filter(f => f.type === "Compendium")) await f.delete();
+const bad = await Folder.create({ name: "ACKS II", type: "Compendium" });
+const cfg = {};
+for (const p of game.packs) cfg[p.collection] = { folder: bad.id, sort: 900000, locked: false };
+cfg["acks-extras.a-pack-that-no-longer-ships"] = { folder: bad.id };  // the dead entry
+await game.settings.set("core", "compendiumConfiguration", cfg);
+```
+
+Then run the macro the way a Judge does — `pack.getDocuments()`, find
+`acksLibRestore00`, `execute()`, and click **Restore it** in the dialog.
+Observables, all readable off `game.folders` and the setting:
+
+- the system's own declared trees exist again and hold the system's thirteen
+  packs — `ACKS Rulebook` (7), `ACKS II Revised Rulebook › Equipment` (2) and
+  `› Setting` (2), `Judges Journal` (1), `VTT Vitals` (1). **Core's tree is the
+  observable that matters**; a pass that leaves them empty has done the old
+  wrong thing.
+- this module's packs and every `ACKS Cookbook — …` world pack sit under
+  `ACKS II — Extras`, imports in `From your books` with a sub-folder per line.
+- the stale `ACKS II` folder is GONE, and so is the dead configuration entry
+  that named it. If the folder survives, look for a config entry whose pack no
+  longer exists — that is what used to pin it open.
+- `pack.locked` is `true` again for a system pack and `false` for a cookbook
+  pack: the reset drops the override, it does not set a value. Read `locked`,
+  not the config keys — cleared keys remain present with value `undefined`, so
+  `Object.keys(entry).length` lies.
+- run it twice: the second run creates no folders and moves nothing.
+
+**The gentle pass must create NOTHING** in a world that is already right.
+Reload and diff `game.folders.filter(f => f.type === "Compendium")` across the
+reload — a second empty copy of the tree appearing here is the bug this design
+exists to prevent.
+
+**A new line's shelf materializes with its pack, not before.** No import in a
+world whose lines all have packs can mint one, so drive the same call `packFor`
+makes:
+
+```js
+const made = await foundry.documents.collections.CompendiumCollection
+  .createCompendium({ label: "ACKS Cookbook — Test Line — Item", type: "Item" });
+await acksExtras.lib.packs.fileImportedPack(made.collection, "Test Line");
+```
+
+Exactly one folder appears (`Test Line`), and the pack is in it. Then exercise
+the DELETE path: `deleteCompendium()` the pack and run the restore again — the
+now-empty line shelf is swept, because a restore also collapses empty shelves
+inside this module's own tree.
+
+**Join as Player** and call `restoreCompendiumLibrary({confirm:false})`: it
+warns, returns null, and neither the folders nor the setting change. Confirm the
+cookbook packs are still `visible` to that seat — the ownership reset must not
+cost players sight of the library.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.
@@ -161,3 +223,8 @@ Confirm `storedItems(location)` is empty before the location goes. The
 initiative step also leaves a combat, a scene with tokens, and the chat messages
 both settings produced — delete all three, and issue the scene delete WITHOUT
 awaiting it (awaiting a viewed scene's deletion hangs the headless driver).
+
+The sidebar step leaves a throwaway compendium and its folder: delete the pack
+with `deleteCompendium()`, then run the restore once more to sweep the shelf.
+The pre-restore shape you built is undone by the restore itself — that is the
+step, not the cleanup.

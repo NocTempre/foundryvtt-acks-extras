@@ -2,7 +2,7 @@
   "id": "acks-extras",
   "title": "ACKS II — Extras",
   "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations and overland travel — weather, wilderness encounters and the vehicles that carry a party — henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block, over shared primitives and one rules-table registry. Includes the importer: monsters, classes, proficiencies, equipment, price and rules tables, locations and roll tables read from the reader's own ACKS II PDFs — it ships extraction recipes, never the book text. Bring your own book.",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "socket": true,
   "compatibility": {
     "minimum": "14",
@@ -103,39 +103,6 @@
   },
   "packs": [
     {
-      "name": "equipment-training",
-      "label": "ACKS Class Training (Fighting Styles, Weapons, Armour)",
-      "path": "packs/equipment-training",
-      "type": "Item",
-      "system": "acks",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "equipment-proficiencies",
-      "label": "ACKS Equipment & Combat Proficiencies",
-      "path": "packs/equipment-proficiencies",
-      "type": "Item",
-      "system": "acks",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
-      "name": "equipment-samples",
-      "label": "ACKS Equipment Samples (Shield Variants, Masterwork, Named)",
-      "path": "packs/equipment-samples",
-      "type": "Item",
-      "system": "acks",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
       "name": "macros",
       "label": "ACKS Extras Macros",
       "path": "packs/macros",
@@ -144,30 +111,23 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
-    },
-    {
-      "name": "proficiencies-powers",
-      "label": "ACKS Henchmen Proficiencies & Powers",
-      "path": "packs/proficiencies-powers",
-      "type": "Item",
-      "system": "acks",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
     }
   ],
   "packFolders": [
     {
-      "name": "ACKS II",
+      "name": "ACKS II — Extras",
       "sorting": "m",
       "color": "#822638",
-      "packs": [
-        "equipment-training",
-        "equipment-proficiencies",
-        "equipment-samples",
-        "proficiencies-powers",
-        "macros"
+      "packs": [],
+      "folders": [
+        {
+          "name": "Macros",
+          "sorting": "a",
+          "color": "#822638",
+          "packs": [
+            "macros"
+          ]
+        }
       ]
     }
   ],
