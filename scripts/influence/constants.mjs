@@ -9,7 +9,14 @@
  */
 
 import { MODULE_ID } from "../lib/constants.mjs";
+import { getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
 export { MODULE_ID };
+
+/** Lang root for this feature's own keys. */
+const LANG_PREFIX = "ACKS-INFLUENCE";
+
+/** Ruledata document holding this feature's printed tables, once imported. */
+const TABLE_DOC = "influence";
 
 /**
  * Active Effect convention: an effect on any item/actor with a change keyed
@@ -129,26 +136,61 @@ export const INFLUENCE_BAND_LABELS = Object.freeze({
 });
 
 /**
- * Attempt levels & their time cost. Level 0 is the initial reaction (instant,
- * which sets the attitude directly); levels 1-5 are attempts to influence that
- * shift the current attitude, from the Judges Journal GM screen.
+ * The attempt ladder: which attempt this is, and what it costs in time.
+ *
+ * WHAT SHIPS is the procedure — the first step is the initial reaction, which
+ * SETS an attitude rather than shifting one; every later step is a repeated
+ * attempt to influence, and each is a further rung.
+ *
+ * WHAT DOES NOT is how many rungs there are and what each costs. Both are read
+ * off a page, and a ladder of rungs a reader picks from is a table of options,
+ * so it arrives registered (`lib/tables.mjs`, doc `influence`, table
+ * `attemptTime`) rather than shipped.
+ *
+ * With nothing registered the ladder still works and simply says less: a rung
+ * is named by its own ordinal, which is a fact about this tracker rather than a
+ * fact from a book, and no time is quoted because none is known. `maxAttempt`
+ * is null in that state — the module does not invent a printed limit.
+ *
+ * @param {number} attempt which rung the tracker is on now — only consulted
+ *   when nothing is registered, to decide how far the ladder can be shown
+ * @returns {{steps: Array<{value: number, label: string, time: string}>, maxAttempt: number|null}}
  */
-export const INFLUENCE_TIME_STEPS = Object.freeze([
-  { value: 0, label: "ACKS-INFLUENCE.time.0" },
-  { value: 1, label: "ACKS-INFLUENCE.time.1" },
-  { value: 2, label: "ACKS-INFLUENCE.time.2" },
-  { value: 3, label: "ACKS-INFLUENCE.time.3" },
-  { value: 4, label: "ACKS-INFLUENCE.time.4" },
-  { value: 5, label: "ACKS-INFLUENCE.time.5" },
-]);
+export function influenceTimeLadder(attempt = 0) {
+  const rows = hasTableDoc(TABLE_DOC) ? getTableDoc(TABLE_DOC)?.tables?.attemptTime : null;
+  const times = Array.isArray(rows) ? rows : null;
+  // One rung per printed row when they are known. Otherwise the rungs this
+  // tracker can actually be on — the initial reaction, every attempt already
+  // made, and the next one — which is read off its own state, never off a page.
+  const count = times?.length ?? Math.max(0, Number(attempt) || 0) + 2;
+  const steps = Array.from({ length: count }, (_, value) => ({
+    value,
+    label: value === 0 ? `${LANG_PREFIX}.time.initial` : `${LANG_PREFIX}.time.attempt`,
+    time: String(times?.[value]?.time ?? times?.[value] ?? ""),
+  }));
+  return { steps, maxAttempt: times ? count - 1 : null };
+}
 
 /**
- * Henchman Monthly Wage by class level (index = level 0-14), in gp. Used to
- * auto-populate the bribe fee from the target's HD/level.
+ * The monthly wage a henchman of a given level is owed, used to suggest a
+ * bribe fee from the target's HD.
+ *
+ * A printed ladder of prices, so it is imported rather than shipped
+ * (`lib/tables.mjs`, doc `influence`, table `henchmanWage`). That a bribe can
+ * be offered, that its size is keyed to what the target is worth, and that the
+ * fee is gold moved on a successful attempt are the procedure and stay here.
+ *
+ * @returns {number|null} null when nothing is registered — the field is then
+ *   simply not pre-filled, and the Judge names the sum
  */
-export const HENCHMAN_MONTHLY_WAGE = Object.freeze([
-  12, 25, 50, 100, 200, 400, 800, 1600, 3000, 7250, 12000, 32000, 50000, 135000, 350000,
-]);
+export function henchmanMonthlyWage(hd) {
+  const rows = hasTableDoc(TABLE_DOC) ? getTableDoc(TABLE_DOC)?.tables?.henchmanWage : null;
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const level = Math.max(0, Math.min(rows.length - 1, Math.floor(Number(hd) || 0)));
+  const row = rows[level];
+  const wage = Number(row?.wage ?? row);
+  return Number.isFinite(wage) ? wage : null;
+}
 
 /**
  * Modifier field types:

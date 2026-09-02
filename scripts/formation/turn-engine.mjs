@@ -8,7 +8,7 @@ import {
   LIGHT_SOURCES,
   MODULE_ID,
   RATION_PATTERN,
-  REST_INTERVAL,
+  restInterval,
   ROUNDS_PER_TURN,
   TURN_SECONDS,
   TURNS_PER_DAY,
@@ -328,7 +328,8 @@ async function onTurnCompleted(formation, notes, resting) {
     }
   } else {
     formation.clock.turnsSinceRest += 1;
-    if (formation.clock.turnsSinceRest > REST_INTERVAL && !formation.clock.winded) {
+    const restEvery = restInterval();
+    if (restEvery != null && formation.clock.turnsSinceRest > restEvery && !formation.clock.winded) {
       formation.clock.winded = true;
       notes.push({ type: "bad", text: loc("chat.becameWinded") });
     }
@@ -494,7 +495,7 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
   if (formation.clock.winded) {
     html += `<li class="bad">${loc("chat.windedStatus")}</li>`;
   } else if (!resting) {
-    html += `<li>${loc("chat.restStatus", { n: rest, max: REST_INTERVAL })}</li>`;
+    html += `<li>${loc("chat.restStatus", { n: rest, max: restInterval() ?? "?" })}</li>`;
   }
   if (isHurried(formation)) html += `<li class="warn">${loc("chat.hurriedStatus")}</li>`;
   for (const light of litLights) {

@@ -25,6 +25,7 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_PENDING_CHOICE, FLAG_REDEEMED_CHOICES } from "./constants.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { grantAbility, warmSpellPacks } from "./grants.mjs";
+import { whenReady } from "../lib/library.mjs";
 import { rungOptions, rungSelectHtml } from "./picks.mjs";
 
 /**
@@ -151,6 +152,11 @@ export async function openChoiceDialog(actor, item) {
   const pending = item?.getFlag?.(MODULE_ID, FLAG_PENDING_CHOICE);
   if (!pending) return false;
   const classItem = pending.classUuid ? await fromUuid(pending.classUuid).catch(() => null) : null;
+  // The general-proficiency options are read out of the imported library, so a
+  // shelf still warming presents as an offer nothing can answer — and the
+  // warning below would say the world holds no options when it does. Cheaper
+  // than the spell warm on the next line, which indexes every Item pack.
+  await whenReady();
   // Spells live in compendia that are cold until something loads them.
   if (pending.choice?.from === "spellList") await warmSpellPacks();
   const options = classItem ? rungOptions(pending.choice, classItem, actor) : [];

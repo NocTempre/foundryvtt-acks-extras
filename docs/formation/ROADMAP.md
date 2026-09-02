@@ -275,11 +275,19 @@ straggling shipped ON behind a world setting, and `landNavigationSpec` /
 
 ## 6. The door numbers leave the module (ruled 2026-08-30)
 
-`doors.mjs` is the last formation surface holding printed values in code — the
-bash target, the Strength/pair/crowbar/size/spike magnitudes, the spike cap, the
-botch damage, and `DOOR_KINDS`, which is RR Ch.6's door grid retyped (and which
-had already acquired a "portcullis" row the books do not print). Ruled content,
-not structure: [DECISIONS.md](DECISIONS.md).
+**Correction (2026-09-02): the claim this section opened with was false.** It
+read "`doors.mjs` is the last formation surface holding printed values in code",
+and it was wrong when written — an audit found printed values across the
+feature, several of them plainer violations than the ones this section lists. A
+doc asserting a clean bill of health is worse than no doc, because it stops the
+next reader looking. What is now known to remain is inventoried in §6a below;
+`doors.mjs` is one surface among several, not the last.
+
+`doors.mjs` holds printed values in code — the bash target, the
+Strength/pair/crowbar/size/spike magnitudes, the spike cap, the botch damage,
+and `DOOR_KINDS`, which is RR Ch.6's door grid retyped (and which had already
+acquired a "portcullis" row the books do not print). Ruled content, not
+structure: [DECISIONS.md](DECISIONS.md).
 
 Two steps, importer first — extras cannot read a table no world can supply.
 
@@ -296,6 +304,49 @@ target the module remembers would reinstate the very value the ruling removes.
 
 Also in that pass: this file and `doors.mjs`'s own module docstring state the
 magnitudes in prose. `docs/` is not shipped, but it is tracked.
+
+---
+
+## 6a. What else in formation still holds printed values (opened 2026-09-02)
+
+The audit that corrected §6's claim. 6.2.0 took the three clearest cases and
+stopped, because each remaining one needs its own ruling and no gate can make
+it — the structure/content line is a reviewer's call by design
+(`.claude/rules/ip-doctrine.md`).
+
+**Done in 6.2.0** — `SPEED_TIERS` deleted outright (a printed grid with zero
+readers anywhere in the repo); the carried-body weight and its gear share, which
+existed as two copies of one figure in `constants.mjs` and `swimming.mjs`, now
+registered with one owner; the rest cadence likewise. All read the `formation`
+ruledata document through the shape `flight.mjs` and `foraging.mjs` already use,
+and all degrade by saying less rather than by inventing a default.
+
+**Still to rule, roughly worst first:**
+
+| Where | What | Note |
+|---|---|---|
+| `swimming.mjs` | water modifiers, the proficiency bonus, the speed share, the sink rate, the breath base | The whole file is printed magnitudes; it is the largest single pocket left. |
+| `party-rolls.mjs` resolver | the methodical-use bonuses, the proficiency bonus magnitudes, a substituted throw target | The worst by doctrine: each is a magnitude the book attaches to a NAMED proficiency a reader picked, so each already has an owner — the character's own imported ability. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read, not a subsystem. |
+| `turn-engine.mjs` | the encounter die and the encounter-distance formula | Decisive argument: two of the same throw's three parameters are ALREADY settings-backed (`module.mjs`), and only the dice are hardwired. That inconsistency, not the size of the numbers, is the case. |
+| `obstacles.mjs` | the registered obstacle magnitudes | Counter-example to §6's original claim; unexamined in detail. |
+| `lib/light.mjs` | the light-source durations and radii, re-exported into this feature by `constants.mjs` | Owned by `lib`, not formation — rule it there. |
+
+**Explicitly ruled STRUCTURAL and NOT to be stripped**, recorded so a later pass
+does not "fix" them: `party-rolls.mjs`'s `consumesRound` / `consumesTurn` and
+their sibling flags are booleans naming WHICH unit of the game's own time an
+action spends, which is the procedure being performed; `TURN_SECONDS`,
+`TURNS_PER_HOUR`, `TURNS_PER_DAY` and `ROUNDS_PER_TURN` are the module's own
+unit system, which everything else derives from; `MARCH_FEET_PER_BODY_DEFAULT`
+was already ruled structure by a human on the Judge-editable-and-derived
+grounds. Stripping any of these would leave the code unable to state the rule it
+performs, which is the opposite of what the doctrine asks.
+
+**The test pattern this pass established.** Removing a printed value breaks the
+offline suites that assert it, and that failure is CORRECT — it proves the value
+was load-bearing. The fix is for the test to register the ruledata itself, as
+`test-classes.mjs` and `test-battlemap.mjs` already do. `tools/rules-tests/` is
+gitignored and local-only, which makes it the one place a printed value may
+legitimately sit.
 - **The lost-episode shadow token has no ending that retires it.** MODEL.md
   says the shadow survives discovery and retires at a later re-anchor, but
   `discoverLost` closes the episode and `reanchorLost` refuses a closed one —

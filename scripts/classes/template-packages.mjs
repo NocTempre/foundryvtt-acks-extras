@@ -184,9 +184,9 @@ async function packIndex(pack) {
  * A package is built from what the GM imported from their own book, never
  * from the system's shipped compendium: a shipped "Staff" carries the
  * system's own values, and pulling one would put content into a template
- * that the reader's book never supplied. Extras already treats imported
- * documents as SUPERSEDING the shipped packs (`hideSupersededPacks`), and
- * this is the same rule at the resolution layer.
+ * that the reader's book never supplied. The imported document is the one
+ * this module reads; the shipped pack stays in the sidebar and is simply not
+ * a source a package resolves against.
  *
  * The importer's compendium mode creates a **world-level** pack (its
  * `packFor`), so a qualifying source is a world-level Item pack whose index

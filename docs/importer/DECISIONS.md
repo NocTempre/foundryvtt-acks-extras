@@ -9,6 +9,39 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### The whole chain gets one bar, and it counts steps (2026-09-02)
+
+**Ruled.** *Import Everything* opens a single progress notification for the run
+and clears it in a `finally`. Five of the thirteen steps drew nothing at all, so
+a run could sit silent for minutes with no way to tell work from a hang — the
+report that prompted this said exactly that.
+
+**A progress notification belongs to no window, which is what makes it the
+right surface.** The chain runs from the Getting Started band AND from the
+hotbar macro, where there is no window and the old per-step toasts were all a
+Judge got. One notification serves both, and it does not expire while short of
+its total, so it persists for the whole run. **Rejected: a window of its own.**
+A new surface, new strings, and a thing to keep on screen for nine minutes,
+when core already has the shape.
+
+**It counts STEPS, because that is the only total knowable in advance.**
+Several steps cannot say how much they hold until they begin — a table recipe
+scans until it hits, a vehicle expands into rows only the page knows — and the
+per-step bars already report items where an item count exists. So the two
+answer different questions and both are needed: the per-step bar ticking is
+what says *still working*, and this one says *how much is left*. **Nothing is
+faked**: no invented denominator, and no smoothing across steps of wildly
+unequal length.
+
+**A step counts as done whether it succeeded or threw.** The chain already
+survives a failing step; a bar that stalled on one would report a hang that is
+not happening.
+
+**Known and accepted:** core stacks newest-first and caps at five live
+notifications, so this bar sits below the per-step bar and shares the cap with
+anything else the session raises. Neither costs correctness, and both are
+core's behaviour rather than ours to fix.
+
 ### Importing again refreshes what it did not create (2026-09-02)
 
 **Ruled.** `cookbookUpdateAbilities` closes `stepAbilities`. Refreshing the

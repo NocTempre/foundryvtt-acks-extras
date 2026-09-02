@@ -24,7 +24,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { SLOT_FLAG, LANGUAGE_TYPE, ensureLanguage, slotsOf } from "./languages.mjs";
-import { libraryItems, cookbookId } from "../lib/library.mjs";
+import { libraryItems, cookbookId, whenReady } from "../lib/library.mjs";
 
 /** The taxonomy import's id prefix — an ability carrying it is a language. */
 const IMPORTED_PREFIX = "def.language.";
@@ -138,7 +138,12 @@ export async function migrateLanguages() {
 /** Run the sweep once the world is up. */
 export function installLanguageMigration() {
   Hooks.once("ready", () => {
-    migrateLanguages()
+    // This sweep WRITES, and it decides what to create by asking the library
+    // what already exists. A shelf still warming reads as absent, so a language
+    // sitting in a cold pack would be minted again beside itself. Everything
+    // else can tolerate a partial read; a create cannot.
+    whenReady()
+      .then(() => migrateLanguages())
       .then((r) => {
         if (r.world || r.languages) {
           console.log(

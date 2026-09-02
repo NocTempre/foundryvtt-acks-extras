@@ -39,7 +39,6 @@ import * as mount from "./mount.mjs";
 import * as attachment from "./attachment.mjs";
 import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
-import { installPackDedupe, supersededPackIds, refreshPackDedupe, SETTING_HIDE_SUPERSEDED } from "./pack-dedupe.mjs";
 import {
   organizeCompendiumFolders,
   restoreCompendiumLibrary,
@@ -163,16 +162,13 @@ const localImpl = Object.freeze({
    */
   money: { ...moneyLogic, ...money },
   /**
-   * The compendium sidebar: which system packs this world has replaced by
-   * importing (pack-dedupe.mjs), and where every ACKS pack sits
+   * The compendium sidebar: where every ACKS pack sits
    * (compendium-folders.mjs). `restoreCompendiumLibrary` is the macro's call
    * and OVERRULES a Judge's arrangement; `organizeCompendiumFolders` is the
-   * gentle pass that only fills an empty or dangling slot.
+   * gentle pass that only fills an empty or dangling slot. Nothing here hides
+   * a pack — every compendium a world has stays in the sidebar.
    */
   packs: {
-    supersededPackIds,
-    refreshPackDedupe,
-    SETTING_HIDE_SUPERSEDED,
     organizeCompendiumFolders,
     restoreCompendiumLibrary,
     fileImportedPack,
@@ -394,10 +390,6 @@ Hooks.once("init", () => {
   // FALLBACK, not a rule: returning them keeps a GM tidying the actor directory
   // from wiping the party's belongings, but a campaign where a sacked city
   // really does take your warehouse with it sets "lose".
-  // Fold away the system compendiums this world has genuinely replaced by
-  // importing. Coverage-gated and display-only — see pack-dedupe.mjs.
-  installPackDedupe();
-
   // Polyglot reads what a character speaks off the system's own language items
   // and needs nothing from us; this only tells it about the tongues a world
   // imported from its own books (polyglot.mjs).

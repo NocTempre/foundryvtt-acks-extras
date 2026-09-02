@@ -14,8 +14,8 @@ import {
   INFLUENCE_TONE,
   INFLUENCE_BANDS,
   INFLUENCE_RELATIONSHIP_MOD,
-  INFLUENCE_TIME_STEPS,
-  HENCHMAN_MONTHLY_WAGE,
+  influenceTimeLadder,
+  henchmanMonthlyWage,
 } from "./constants.mjs";
 import { getActorHD, monthlyWageForHD, getProficiencies, getEffectReactionMods } from "./actor-data.mjs";
 import { kindOf, matchesKind, registerRaceRelations, relationFor } from "./racial.mjs";
@@ -78,8 +78,8 @@ Hooks.once("init", () => {
       INFLUENCE_TONE,
       INFLUENCE_BANDS,
       INFLUENCE_RELATIONSHIP_MOD,
-      INFLUENCE_TIME_STEPS,
-      HENCHMAN_MONTHLY_WAGE,
+      influenceTimeLadder,
+      henchmanMonthlyWage,
     },
     getActorHD,
     monthlyWageForHD,

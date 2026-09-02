@@ -6,7 +6,7 @@ import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { load6 } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import {
-  BODY_STONE,
+  carriedBody,
   DEFAULT_PARTY_IMAGE,
   FLAG_FORMATION_ID,
   MARCH_FEET_PER_BODY_DEFAULT,
@@ -430,11 +430,15 @@ export function carriedLoad(formation) {
   // lying where it fell and weighs on nobody.
   const down = members.filter((e) => isCasualty(e.actor, e.member) && !e.member?.left);
   const carriers = members.filter((e) => !isDown(e.actor) && e.member.roles?.includes(ROLES.CARRIER));
-  const totalStone = down.reduce(
-    (sum, e) => sum + BODY_STONE + Number(e.actor?.system?.encumbrance?.value ?? 0) / 2,
-    0,
-  );
-  const sharePerCarrier = carriers.length ? Math.round((totalStone / carriers.length) * 10) / 10 : 0;
+  // Null until the figures are imported: a carry share nobody can compute is
+  // reported as unknown rather than as zero, which would read as weightless.
+  const body = carriedBody();
+  const totalStone =
+    body.stone == null || body.gearShare == null
+      ? null
+      : down.reduce((sum, e) => sum + body.stone + Number(e.actor?.system?.encumbrance?.value ?? 0) * body.gearShare, 0);
+  const sharePerCarrier =
+    totalStone != null && carriers.length ? Math.round((totalStone / carriers.length) * 10) / 10 : null;
   return {
     down: down.map((e) => e.actor),
     carriers: carriers.map((e) => {

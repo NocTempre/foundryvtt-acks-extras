@@ -34,6 +34,7 @@ import { answeredByTemplate, grantableRefs, isGranted, rungLabel, rungOptions } 
 import { templateGrantKeys } from "./template-packages.mjs";
 import { unmetRequirements } from "./stat-page.mjs";
 import { makeLoc } from "../lib/util.mjs";
+import { whenReady } from "../lib/library.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -79,6 +80,9 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
        *  level changes and the list of rungs on screen changes with it. */
       answers: {},
       bonusPicks: [],
+      /** What the last render actually offered; the write reads these. */
+      offeredRungKeys: [],
+      offeredBonus: 0,
     };
   }
 
@@ -100,6 +104,18 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** @override */
   get title() {
     return loc("pick.title", { name: this.actor.name });
+  }
+
+  /**
+   * The rung answers the page was actually ASKING for when it closed.
+   *
+   * `binding.answers` keeps every answer ever given, so that changing level or
+   * package and changing back does not lose one. What applies is the narrower
+   * set the last render offered — see where `offeredRungKeys` is recorded.
+   */
+  #offeredAnswers() {
+    const offered = new Set(this.binding.offeredRungKeys ?? []);
+    return Object.fromEntries(Object.entries(this.binding.answers ?? {}).filter(([key]) => offered.has(key)));
   }
 
   /** The class document currently selected, or null while the world has none. */
@@ -163,6 +179,16 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const bonusCount = template ? netBonusPicks(intScore, assumed) : 0;
     const { opening, ladder } = this.#rungs(cls, level, template);
     const granted = template ? templateGrantKeys(template) : null;
+
+    // What the page is OFFERING, recorded for the write. Both lists shrink when
+    // a package is chosen — it answers the opening picks itself — and the bonus
+    // row disappears entirely when no package is. The answers given before that
+    // change stay in `binding`, so a write reading the raw bag applies picks the
+    // page had stopped asking for: a proficiency granted twice, or granted at
+    // all on a page showing no such question. Never read `answers` or
+    // `bonusPicks` in the submit path without these.
+    this.binding.offeredRungKeys = [...opening, ...ladder].map((r) => r.name.slice("rung-".length));
+    this.binding.offeredBonus = bonusCount;
 
     context.levelColumn = this.#levelColumnHtml(cls, level, ladder);
     context.classColumn = classPanelHtml({
@@ -274,11 +300,11 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       confirm: false,
       rebuildVitals: true,
       grantAwards: true,
-      answers: this.binding.answers,
+      answers: this.#offeredAnswers(),
     });
     if (!applied?.applied) return;
     const intScore = Number(this.actor.system?.scores?.int?.value) || 0;
-    const bonus = grantableRefs(this.binding.bonusPicks);
+    const bonus = grantableRefs(this.binding.bonusPicks.slice(0, this.binding.offeredBonus ?? 0));
     if (template) {
       // The merging half of chargen — no wipe, so what the character already
       // owns stays. `applyTemplate` grants a printed rank as N copies by
@@ -301,14 +327,26 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
  *  says so rather than opening an empty window. */
 export async function openClassPicker(actor) {
   if (!classItems().length) {
-    ui.notifications?.info(loc("pick.empty"));
-    return;
+    // This message states what the WORLD holds, so it must be answered against
+    // the whole library rather than against whatever had finished loading.
+    // Awaited only in the empty branch: a warm open pays nothing.
+    await whenReady();
+    if (!classItems().length) {
+      ui.notifications?.info(loc("pick.empty"));
+      return;
+    }
   }
   return new ClassAssignApp({ actor }).render(true);
 }
 
 /** Bind a class DROPPED on a sheet: the same window, opened on that class. */
 export async function openClassPickerFor(actor, classItem) {
+  // The window resolves its binding against the offer list and quietly falls
+  // back to the first class when the bound uuid is not in it — so a class
+  // dropped from a shelf that is still cold would open the window on a
+  // DIFFERENT class than the one dropped. Warm before constructing, never
+  // after. Conditional, so a warm drop pays nothing.
+  if (!classItems().some((c) => c.uuid === classItem?.uuid)) await whenReady();
   const app = new ClassAssignApp({ actor });
   app.binding.classUuid = classItem.uuid;
   // A dropped class the offer list would have hidden still has to be visible in

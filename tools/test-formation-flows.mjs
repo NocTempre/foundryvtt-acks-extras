@@ -1512,7 +1512,14 @@ await scenario("winded markers apply and clear across the rest cycle", async () 
   await drain();
   const id = onlyFormation().id;
 
-  // Six turns without rest crosses REST_INTERVAL (5) and sets winded.
+  // The rest cadence is a printed figure, so the module ships without one and
+  // asks for no rest until a world imports it. The test supplies its own, which
+  // is what a reader's book does — the number below is this scenario's premise,
+  // not a claim about any page.
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  registerTable({ id: "formation", tables: { restInterval: 5 } }, { priority: PRIORITY.WORLD });
+
+  // Six turns without rest crosses the registered interval and sets winded.
   await engine.advanceTurns(model.getFormation(id), 6, { reason: "manual" });
   await drain();
   assert.ok(onlyFormation().clock.winded, "party is winded after 6 turns without rest");
@@ -1530,6 +1537,7 @@ await scenario("winded markers apply and clear across the rest cycle", async () 
     "Winded active effect removed on rest",
   );
 
+  unregisterTable("formation", { priority: PRIORITY.WORLD });
   await model.disband(model.getFormation(id));
   await drain();
 });

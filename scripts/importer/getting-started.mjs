@@ -14,6 +14,7 @@
 
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { acksExtras } from "../namespace.mjs";
+import { progressBar } from "./progress.mjs";
 
 export const SETTING_DISMISSED = "gettingStartedDismissed";
 
@@ -125,10 +126,24 @@ export async function runImportEverything(root = null) {
   const status = root?.querySelector("[data-gs-import-status]") ?? null;
   const button = root?.querySelector("[data-gs-import]") ?? null;
   if (button) button.disabled = true;
+  // ONE bar for the whole chain, beside whatever each step draws for itself.
+  // A progress notification belongs to no window, so this is the same surface
+  // whether the run was started from the Getting Started band or from the
+  // macro — and the macro path is where there was nothing to look at at all.
+  // It does not expire while it is short of its total, so it stays for the
+  // whole run; `finish` is idempotent and clears it from the `finally`.
+  //
+  // The chain is counted in STEPS, which is the only total knowable before the
+  // run: several steps cannot say how much work they hold until they begin, and
+  // some never can. What answers "is it still working" is the per-step bar
+  // ticking underneath this one; what this answers is "how much is left".
+  const overall = progressBar(t("importOverall"), GM_STEPS.length);
   try {
     for (const [key, run] of GM_STEPS) {
       if (status) status.textContent = t(key);
-      else ui.notifications.info(`${MODULE_ID} | ${t(key)}`);
+      // Name the step ABOUT to run against the count already finished, so the
+      // five steps that draw no bar of their own are still visibly current.
+      overall.note(t(key));
       // One failed step must not silence the rest — each importer covers a
       // different document type and they share no state beyond the world.
       try {
@@ -137,10 +152,13 @@ export async function runImportEverything(root = null) {
         console.error(`${MODULE_ID} | getting started: ${key}`, err);
         ui.notifications.error(`${MODULE_ID} | ${t(key)}: ${err.message}`);
       }
+      // Counted whether it succeeded or threw: the step is over either way, and
+      // a bar that stalls on a failure the chain survived tells a lie.
+      overall.step();
     }
     if (status) status.textContent = t("importDone");
-    else ui.notifications.info(`${MODULE_ID} | ${t("importDone")}`);
   } finally {
+    overall.finish(t("importDone"));
     if (button) button.disabled = false;
   }
 }

@@ -8,6 +8,56 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### Three printed figures leave the module; the rest are inventoried (2026-09-02)
+
+**Ruled.** The exploration speed grid, the carried-body weight with its gear
+share, and the rest cadence are content. They are read from the `formation`
+ruledata document through the shape `flight.mjs` and `foraging.mjs` already use,
+or — in the grid's case — deleted.
+
+**The grid was deleted rather than registered** because it had NO reader
+anywhere in the repo: a printed table transcribed whole and then never consulted,
+while the authoritative per-actor speed is the one the acks system computes. A
+value with no consumer has no argument for being kept in any form.
+
+**One printed figure had two owners.** The carried-body weight sat in
+`constants.mjs` and again in `swimming.mjs`, which is precisely how a value
+survives being registered in one place and not the other. Both now read
+`carriedBody()`.
+
+**Degradation says less; it never invents.** With nothing registered the clock
+counts turns and calls for no rest, and a rescue load reads as unknown rather
+than as zero — an unknown weight reported as nothing would say a body is
+weightless. **Rejected: keeping the figures as fallbacks.** `lib/tables.mjs` has
+forbidden fallback samples since the extraction program, and a fallback is how a
+printed table survives registration.
+
+**What is NOT content, recorded so a later pass does not strip it.** The
+module's own unit system (`TURN_SECONDS`, `TURNS_PER_HOUR`, `TURNS_PER_DAY`,
+`ROUNDS_PER_TURN`) is what everything else derives from, and `party-rolls`'
+`consumesRound`/`consumesTurn` are booleans naming which unit an action spends —
+the rule being performed, which the doctrine puts on the shipping side. Removing
+either would leave the code unable to state its own procedure.
+
+**The doctrine's prose cannot be applied literally, and this is the joint.**
+Read literally — "every number read off a page is content, however small" — it
+condemns `jumping.mjs`, the file the doctrine names as its own model, which
+keeps eight printed constants deliberately. The narrower test this repo actually
+runs, reconstructed from the doors, jumping and march-width rulings: a number
+ships only if nothing else owns it, it is not a magnitude the book attaches to a
+named option a reader picks, and it is a unit the module defines or derives, or
+a Judge-editable parameter whose default is derived rather than transcribed.
+
+**Cost, stated plainly: this pass is incomplete and known to be.** `swimming.mjs`
+is almost entirely printed magnitudes, and the `party-rolls` resolver holds
+proficiency bonuses that already have an owner in the character's own imported
+ability. Both are inventoried in ROADMAP §6a rather than rushed, because each
+needs a ruling no gate can make. Stopping with the inventory written is the
+honest half-measure; stopping with it unwritten would have been the dishonest
+one.
+
+---
+
 ### The day's end is raised by movement and answered by the Judge (2026-08-31)
 
 **Asked.** With the city moved onto its own tracker, the journey was the last

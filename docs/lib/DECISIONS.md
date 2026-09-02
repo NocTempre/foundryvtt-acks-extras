@@ -7,6 +7,63 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-02 — hiding compendiums was a BAD DIRECTION. Explored, shipped,
+  withdrawn; do not propose it again without new argument.** The whole of
+  `hideSupersededPacks` is removed — the `SUPERSEDED` map, the coverage floors,
+  the `idPrefix` mechanism, the stylesheet hide, the setting, and
+  `scripts/lib/pack-dedupe.mjs` itself. **Every compendium a world holds stays
+  in its sidebar, always.** This ABANDONS the 2026-08-15 ruling below (marked
+  there) rather than refining it: the thing that entry was tuning should not
+  have existed.
+
+  **Why it was a bad direction, stated so the next session does not rediscover
+  it as a good one.** A module does not decide which of the SYSTEM's shelves a
+  Judge may see. The sidebar is the system's surface; folding rows out of it was
+  this module reaching past its own boundary, and every problem the feature then
+  had followed from that overreach — the coverage floors that could not actually
+  prove coverage, the type-wide probes that let one pack's imports hide another
+  pack, the default-on that made it everyone's problem, and a hide keyed on a
+  guess about what a Judge no longer needs. Three sessions were spent tuning a
+  gate whose premise was wrong. The design ladder in CLAUDE.md — reuse → extend
+  → enhance → invent — has an unstated fourth question: whether the surface is
+  ours to change at all.
+
+  **The new evidence the original ruling did not have: the feature had not
+  worked since 6.0.0, and nobody noticed.** Its coverage gate counted imported
+  documents out of `game.items` / `game.actors` directly, but the importer
+  writes into world compendium packs, so the gate counted zero in exactly the
+  worlds the feature existed for. It was default-ON and fully inert across
+  6.0.0, 6.0.1, 6.0.2, 6.1.0, 6.1.1, 6.1.2 and 6.1.3 while these entries
+  asserted it worked. Five releases of a duplicate-hiding feature hiding
+  nothing, with no report, is the measurement the 2026-08-15 entry was missing:
+  the duplicate rows it set out to fold away were not costing anyone enough to
+  mention.
+
+  **Rejected: repairing the gate to count the packs.** It is the smaller diff
+  and it restores the ruling as written, but it makes an upgrading world lose
+  eight sidebar rows in a patch — on floors this record already admits are not
+  coverage proofs, where twenty generic imported items satisfy `acks-clothing`
+  and `acks-adventuring-equipment` alike. Restoring a hide nobody has missed, on
+  a gate we know to be loose, is a worse trade than dropping it.
+
+  **Rejected: repairing the gate and defaulting the setting OFF.** It keeps the
+  code working and hides nothing until a Judge asks, which sounds like the
+  cautious middle. It is the worse end state: it leaves a loose coverage gate in
+  the tree as a supported feature, and the first Judge to switch it on gets the
+  bad behaviour with our blessing. A direction that should not have been taken
+  is not made safe by putting it behind a toggle.
+
+  Imported documents remain what this module READS — that rule is untouched and
+  lives at the resolution layer (`template-packages.mjs`), which is inside our
+  own boundary.
+
+  **Cost:** a world that imported its own corpus sees both copies in the
+  sidebar again, which is the duplicate noise the original entry set out to
+  remove. Judged acceptable on the evidence above. The orphaned world setting
+  is left where it is: an unregistered setting is inert in Foundry, and a
+  migration to delete a boolean nobody reads is more risk than the row it
+  occupies. **No migration ships for this.**
+
 - **2026-09-02 — the library reads every shelf, and a caller that cannot
   re-render awaits.** Two faults with one shape: the reader answered a smaller
   question than any of its callers asked. (a) It matched the WHOLE pack label
@@ -1087,7 +1144,7 @@ changer can split a coin.
 
 ---
 
-### 2026-08-15 — a hidden pack must be one the import really replaces
+### 2026-08-15 — a hidden pack must be one the import really replaces (ABANDONED 2026-09-02 — the whole direction was withdrawn; see the head of this file)
 
 `hideSupersededPacks` folds a system compendium out of the sidebar once the
 world holds imported documents "covering" it. Every probe was a TYPE-WIDE

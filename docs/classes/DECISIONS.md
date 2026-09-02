@@ -58,6 +58,28 @@ shape, but nothing on the page displays it, so there is no contradiction to fix 
 an invisible sticky preference is a wart, not a desync. Changing it would be a
 behaviour change with no defect behind it.
 
+**2026-09-02 — re-examined, conclusion unchanged, reasoning corrected, and a
+guard added. `wipe: !state.keep` is deliberately NOT gated on the Judge
+override. Reject any diff that adds one.** Hoisting a `keepInForce = judge &&
+state.keep` the way `manualInForce` was hoisted looks like the consistent
+follow-up and is a data-loss regression: `state.keep` initialises `false` and is
+only ever set true, so the only reachable staleness is keep-true-while-hidden,
+which yields `wipe:false` and SKIPS the deletion. Gating it flips that to
+`wipe:true` for a Judge who ticked "Add, do not replace" and then lowered the
+override — and the wipe deletes EVERY embedded Item on the actor, not only what
+chargen granted. The flag is stale in the direction that declines to destroy;
+the "fix" points it at destruction. Its worst current outcome is an additive
+double-build, which is visible, announced in the chat card, and repairable by
+hand.
+
+The reasoning above is also wrong on one point, kept here rather than edited
+away: the promise IS made, just not on this page. The reopen dialog states that
+the character's existing items will be replaced, and a stale keep silently
+breaks that. The contradiction is real and merely benign. If it is ever worth
+closing, the safe direction is clearing `state.keep` when the override drops, so
+the flag dies with its control — a behaviour change that loses a Judge's tick on
+a transient toggle, and therefore a minor with a live check, never a tidy-up.
+
 ## 2026-08-30 — a pick list offers definitions, never a class's own copy
 
 **Problem.** Reported from the field as a duplicate IMPORT: the general

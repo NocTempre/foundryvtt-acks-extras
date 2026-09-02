@@ -17,6 +17,8 @@
  * where every one of those differences would have had to be a special case.
  */
 
+import { carriedBody } from "./constants.mjs";
+
 const LANG_PREFIX = "ACKS-FORMATION.swimming";
 
 /** What the water itself does to the throw. */
@@ -35,13 +37,14 @@ export const SPEED_SHARE = 1 / 4;
 /** How deep a drowning body sinks each round, per stone it carries. */
 export const SINK_FEET_PER_STONE = 10;
 
-/**
- * A drowning swimmer being hauled up counts as this much, plus half of what
- * their kit weighs — a rescuer takes the body's whole weight and only some of
- * its baggage, because the rest is what is pulling them both down.
+/*
+ * A drowning swimmer being hauled up counts as their own weight plus a share of
+ * what their kit weighs — a rescuer takes the body whole and only some of its
+ * baggage, because the rest is what is pulling them both down. That IS the
+ * procedure and it stays; the two figures it needs are printed, and used to sit
+ * here as a second copy of the same numbers `constants.mjs` already held. One
+ * owner now: `carriedBody()`.
  */
-export const RESCUE_BODY_STONE = 7.5;
-export const RESCUE_GEAR_SHARE = 1 / 2;
 
 /**
  * The throw one swimmer needs this round.
@@ -86,9 +89,14 @@ export function drowning({ conMod = 0, encumbrance = 0 } = {}) {
   return { rounds, feetPerRound, depthAtDeath: rounds * feetPerRound };
 }
 
-/** What a rescuer is lifting: the whole body, and half of what it carries. */
-export const rescueStone = (gearStone = 0) =>
-  RESCUE_BODY_STONE + Math.max(0, Number(gearStone) || 0) * RESCUE_GEAR_SHARE;
+/** What a rescuer is lifting: the whole body, and a share of what it carries.
+ *  Null until both printed figures have been imported — an unknown load is
+ *  reported as unknown, never as nothing. */
+export const rescueStone = (gearStone = 0) => {
+  const { stone, gearShare } = carriedBody();
+  if (stone == null || gearShare == null) return null;
+  return stone + Math.max(0, Number(gearStone) || 0) * gearShare;
+};
 
 /**
  * Everyone in a formation, and what the water asks of each — so a Judge can

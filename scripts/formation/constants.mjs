@@ -9,6 +9,7 @@
  */
 
 import { MODULE_ID } from "../lib/constants.mjs";
+import { getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
 export { MODULE_ID };
 
 /** Flag on the party TokenDocument / party Actor pointing back at a formation. */
@@ -21,8 +22,29 @@ export const TURN_SECONDS = 600;
 export const TURNS_PER_HOUR = 6;
 export const TURNS_PER_DAY = 144;
 
-/** All adventurers must rest 1 turn per 5 turns of exploration and combat. */
-export const REST_INTERVAL = 5;
+/** The registered document this feature's printed figures arrive in. */
+export const FORMATION_DOC = "formation";
+
+/**
+ * One printed figure, or null when nothing is registered.
+ *
+ * The same shape `flight.mjs` and `foraging.mjs` already use. What ships is
+ * that a party must rest, that a carried body weighs on whoever carries it,
+ * and that only part of its kit weighs with it — the procedure. How OFTEN, and
+ * HOW MUCH, are read off a page and arrive with the reader's own book.
+ */
+export function formationValue(key) {
+  if (!hasTableDoc(FORMATION_DOC)) return null;
+  const value = getTableDoc(FORMATION_DOC)?.tables?.[key];
+  return value == null ? null : value;
+}
+
+/**
+ * Turns of exploration a party may spend before it owes a rest, or null when
+ * the figure has not been imported — the clock then counts turns and asks for
+ * no rest, because nothing here knows when one is due.
+ */
+export const restInterval = () => formationValue("restInterval");
 
 /** World setting: feet of frontage each marching body occupies. */
 export const SETTING_MARCH_FEET = "marchFeetPerBody";
@@ -167,11 +189,20 @@ export const ROLE_HAND_COST = Object.freeze({
 });
 
 /**
- * Carrying a body: the carried character counts as 7 3/6 stone plus half of
- * their equipment encumbrance (RULES.md §12, the rescue rule — the only
- * quantified carrying figure in the references).
+ * Carrying a body: what the carried character weighs, and what share of their
+ * kit is carried with them.
+ *
+ * ONE OWNER for one printed figure. The rescue path in `swimming.mjs` used to
+ * keep its own copy of both, so the same number was transcribed twice inside
+ * one feature — which is how a printed value survives being registered in one
+ * place and not the other.
+ *
+ * @returns {{stone: number|null, gearShare: number|null}}
  */
-export const BODY_STONE = 7.5;
+export const carriedBody = () => ({
+  stone: formationValue("carriedBodyStone"),
+  gearShare: formationValue("carriedGearShare"),
+});
 
 /** Inventory name matcher for ration items (1-day preferred over 1-week). */
 export const RATION_PATTERN = /ration/i;
@@ -179,14 +210,10 @@ export const RATION_PATTERN = /ration/i;
 /** Default image used for the party token / party actor. */
 export const DEFAULT_PARTY_IMAGE = "icons/environment/people/group.webp";
 
-/**
- * Exploration speed tiers by encumbrance in stone (RR / reference sheet).
- * Used only for display; the authoritative per-actor value is
- * `actor.system.movementacks.exploration`, computed by the acks system.
- */
-export const SPEED_TIERS = Object.freeze([
-  { maxStone: 5, exploration: 120, combat: 40, running: 120 },
-  { maxStone: 7, exploration: 90, combat: 30, running: 90 },
-  { maxStone: 10, exploration: 60, combat: 20, running: 60 },
-  { maxStone: Infinity, exploration: 30, combat: 10, running: 30 },
-]);
+/* The exploration speed grid that stood here was a printed table transcribed
+   whole — four encumbrance bands against three speeds — with no reader left in
+   the module: the authoritative per-actor figure is
+   `actor.system.movementacks.exploration`, which the acks system computes. A
+   printed grid nothing consults is content with no argument for shipping it, so
+   it is gone rather than registered. If a speed band is ever needed here, read
+   the system's value or register the table; do not retype it. */

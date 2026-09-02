@@ -64,7 +64,6 @@ sibling modules) — never the import path for this module's own features.
 | `follower-card.mjs` | The printed ACKS II Follower Card: one layout, two surfaces. |
 | `roll-card.mjs` | ONE chat card for a roll several people made at once — use this before hand-building a `ChatMessage`. |
 | `library.mjs` | The imported library, wherever it lives: sidebar + the importer subsystem's world packs. **Every "what has this world imported?" read goes through it** — a bare `game.items` finds an empty shelf. `cookbookId(doc)` is the ONE read of the importer's stamp. |
-| `pack-dedupe.mjs` | Coverage-gated hiding of the system compendiums a world has replaced by importing. Display-only; nothing is unlinked. |
 | `compendium-folders.mjs` | Where every ACKS compendium sits in the sidebar, read from each package's own manifest `packFolders` — the system's tree is the system's. Two strengths: `organizeCompendiumFolders()` fills an empty or dangling slot at every load, `restoreCompendiumLibrary()` is the macro and overrules. Also shelves the importer's world packs, a line's folder made by the first pack that needs it. |
 | `polyglot.mjs` | Publishing world-imported languages to Polyglot's selector (core owns the base integration). |
 

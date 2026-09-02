@@ -7,6 +7,44 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+## 2026-09-02 — the attempt ladder and the wage ladder are imported, not shipped
+
+**Ruled: both were IP leaks and are gone from the shipped artifact.**
+
+`INFLUENCE_TIME_STEPS` paired six attempt rungs with six `ACKS-INFLUENCE.time.*`
+strings, and `lang/en.json` ships. That is the wrong side of the line twice
+over: a ladder of rungs a reader picks from is a TABLE OF OPTIONS, content
+whatever it is made of, and the strings stated what the BOOK says rather than
+what the FIELD does. `HENCHMAN_MONTHLY_WAGE` — a frozen array of printed prices
+— sat in the same file and is fixed with it.
+
+**What ships is the procedure, and only that.** An influence attempt can be
+repeated; the first step is the initial reaction, which SETS an attitude rather
+than shifting one; each later step is a further attempt; a bribe may be offered
+and its size is keyed to what the target is worth. None of that is printed — it
+is the rule being performed.
+
+**What arrives registered** (`lib/tables.mjs`, doc `influence`):
+`tables.attemptTime`, which carries how many rungs there are and what each
+costs, and `tables.henchmanWage`.
+
+**Degradation is honest, never invented.** With nothing registered the ladder
+still runs: a rung is labelled by its own ORDINAL, a fact about this tracker
+rather than a fact from a page, and no time is quoted because none is known.
+`maxAttempt` is null in that state, so the tracker does not cap at a limit
+nobody supplied, and the bribe fee is left blank for the Judge to name.
+
+**Rejected: keeping the printed values as a fallback sample.** `lib/tables.mjs`
+has forbidden that since the extraction program, and for this exact reason — a
+fallback is how a printed table survives being registered.
+
+**Cost:** a world that has not imported this table sees ordinals where it used
+to see times, and an uncapped attempt counter. That is the shape the whole
+family already has: the procedure ships, the numbers come from the GM's own
+book.
+
+---
+
 ### A stand-in power is claimed by the box it fills, and named once (2026-08-03)
 
 Hotfix 1.3.2, completing the entry below. Claiming by NAME could not reach a

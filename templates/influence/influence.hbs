@@ -61,7 +61,7 @@
         <label class="flex-1" for="{{@root.partId}}-attempt">{{localize 'ACKS-INFLUENCE.field.attempt'}}</label>
         <div class="form-fields flex-1">
           <select name="attempt" id="{{@root.partId}}-attempt" data-dtype="Number">
-            {{selectOptions timeChoices valueAttr="value" labelAttr="label" selected=system.attempt localize=true}}
+            {{selectOptions timeChoices valueAttr="value" labelAttr="label" selected=system.attempt}}
           </select>
         </div>
       </div>

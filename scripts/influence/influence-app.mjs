@@ -6,7 +6,7 @@ import {
   INFLUENCE_BANDS,
   INFLUENCE_MODIFIERS,
   INFLUENCE_RELATIONSHIP_MOD,
-  INFLUENCE_TIME_STEPS,
+  influenceTimeLadder,
   INFLUENCE_TONE,
   INFLUENCE_TONE_CHOICES,
   MODULE_ID,
@@ -711,7 +711,15 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     context.isContinuing = this.#system.attempt > 0;
 
     context.toneChoices = INFLUENCE_TONE_CHOICES;
-    context.timeChoices = INFLUENCE_TIME_STEPS;
+    // The rung's own ordinal is a fact about this tracker and is built here;
+    // the time beside it is printed, and is appended only when a book supplied
+    // one. Pre-resolved, so the template does not localize a bare key.
+    const ladder = influenceTimeLadder(this.#system.attempt);
+    context.timeChoices = ladder.steps.map((step) => {
+      const label = game.i18n.format(step.label, { n: step.value });
+      if (!step.time) return { value: step.value, label };
+      return { value: step.value, label: game.i18n.format("ACKS-INFLUENCE.time.withCost", { label, time: step.time }) };
+    });
 
     context.parties = resolveParties(this.#actor, this.#targetActor);
     context.hasTarget = Boolean(this.#targetActor);
@@ -722,8 +730,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     context.targetHidden = this.#targetHidden();
     context.targetKindOverridden = this.#system.targetKindOverridden;
 
-    const timeStep = INFLUENCE_TIME_STEPS.find((step) => step.value === this.#system.attempt);
-    context.timeLabel = timeStep ? game.i18n.localize(timeStep.label) : "";
+    // The printed cost when a book supplied one; nothing when none did. The
+    // template already hides the line on an empty string.
+    context.timeLabel = ladder.steps.find((step) => step.value === this.#system.attempt)?.time ?? "";
 
     // External mode: hide the tone selector, attitude ladder, and attempt
     // tracker; the page shows only the mode's own modifier groups.
@@ -1187,7 +1196,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const toneLabel = game.i18n.localize(
       INFLUENCE_TONE_CHOICES.find((t) => t.value === tone)?.label ?? tone,
     );
-    const timeStep = INFLUENCE_TIME_STEPS.find((step) => step.value === this.#system.attempt);
+    const timeStep = influenceTimeLadder(this.#system.attempt).steps.find((s) => s.value === this.#system.attempt);
 
     // If a bribe was offered with a fee, move the gold now.
     const bribePaid = await this.#maybePayBribe();
@@ -1220,7 +1229,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       // Mystic Aura / aura-power kicker: a total of 12+ bewitches the subject.
       bewitched: bewitchedActive && total >= 12,
       attempt: this.#system.attempt,
-      timeLabel: isContinuing && timeStep ? game.i18n.localize(timeStep.label) : null,
+      timeLabel: isContinuing && timeStep?.time ? timeStep.time : null,
       opposed,
       ...this.#rawNotes(tone, newIndex, diceResult),
     };
@@ -1266,7 +1275,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     // Advance the tracker to the new attitude and step to the next attempt level
     // (the initial reaction rolls into the 1st attempt to influence).
     this.#system.currentAttitude = newIndex;
-    const nextAttempt = Math.min(INFLUENCE_TIME_STEPS.length - 1, this.#system.attempt + 1);
+    // Capped only where a book said where the ladder ends; with nothing
+    // imported the module does not invent a printed limit.
+    const cap = influenceTimeLadder(this.#system.attempt).maxAttempt;
+    const raised = this.#system.attempt + 1;
+    const nextAttempt = cap == null ? raised : Math.min(cap, raised);
     this.#system.attempt = nextAttempt;
     // Persist the updated relationship (auto save/load).
     void this.#saveAttitude(newIndex, nextAttempt);

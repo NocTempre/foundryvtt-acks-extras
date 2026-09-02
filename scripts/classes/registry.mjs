@@ -21,7 +21,7 @@ import {
   levelFactor,
 } from "../lib/vocab.mjs";
 import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, FLAG_TEMPLATE_PART, MODULE_ID } from "./constants.mjs";
-import { libraryItems, cookbookId } from "../lib/library.mjs";
+import { libraryItems, cookbookId, whenReady } from "../lib/library.mjs";
 
 /** Every class Item the library holds — the sidebar's and the imported pack's. */
 export function classItems() {
@@ -367,7 +367,12 @@ export function resolveLevelOutcome(lv, level = 1, scales = {}) {
 
 /** Wire publication to the world lifecycle: ready + class-item CRUD. */
 export function registerRegistryHooks() {
-  Hooks.once("ready", () => {
+  // The library warms in the background and lib's own ready hook does not await
+  // it, so publishing here reads whatever happened to be loaded — and this
+  // publication is not repeated, so a cold read is what the registry answers
+  // with for the rest of the session. Await the shelves before reading them.
+  Hooks.once("ready", async () => {
+    await whenReady();
     const count = publish();
     if (count) console.log(`${MODULE_ID} | classes registry published ${count} ruledata doc(s).`);
   });

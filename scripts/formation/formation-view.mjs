@@ -2,7 +2,7 @@
 import { isCasualty, isDead } from "./formation-model.mjs";
 import {
   LIGHT_SOURCES,
-  REST_INTERVAL,
+  restInterval,
   ROLE_HINTS,
   ROLE_LABELS,
   ROLE_ORDER,
@@ -88,7 +88,7 @@ export function buildFormationView(formation) {
     combatSpeed: Math.floor((speed / 3) * 10) / 10,
     clock: formation.clock,
     elapsed: formatTurns(formation.clock.turnsTotal),
-    restMax: REST_INTERVAL,
+    restMax: restInterval(),
     inCombat: !!formation.combat?.active,
   };
 
@@ -339,7 +339,7 @@ function buildWarnings(formation, speed) {
   }
   if (formation.clock.winded) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.winded"));
-  } else if (formation.clock.turnsSinceRest >= REST_INTERVAL) {
+  } else if (restInterval() != null && formation.clock.turnsSinceRest >= restInterval()) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.restDue"));
   }
   if (speed <= 0 && formation.members.length) {

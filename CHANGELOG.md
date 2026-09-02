@@ -1,5 +1,53 @@
 # Changelog
 
+## 6.2.0
+
+**Importing tells you where it has got to, the library is read before it is
+judged empty, and two printed tables stop shipping.**
+
+### Added
+- **Import Everything shows one progress bar for the whole run.** Five of its
+  thirteen steps drew nothing at all, so a long import could sit silent for
+  minutes with no way to tell work from a hang. The new bar names the step
+  running and counts steps done, beside whatever each step already draws for
+  itself. It works the same whether you start the import from the Getting
+  Started panel or from the hotbar macro — the macro had nothing before. It
+  counts steps rather than items because several steps cannot know how much they
+  hold until they begin, and it never invents a number it does not have.
+
+### Fixed
+- **The class picker no longer says your world has no classes while it is still
+  reading them.** Opening it in the first seconds of a session could report an
+  empty world; dropping a class onto a sheet in that moment could open the
+  window bound to a *different* class than the one dropped. Both now wait for
+  the library. The same wait was added where a pending choice offers its
+  options, and to the two startup passes that read the library — one of which
+  could create a duplicate of a language it had not finished loading.
+- **A class binding applies what the page was showing.** Choosing a starting
+  package answers some picks itself and takes them off the page, and the
+  Intellect bonus picks only appear once a package is chosen — but answers given
+  before that change were still applied on save, granting proficiencies the page
+  had stopped asking about. What closes now applies what was offered.
+
+### Changed
+- **No compendium is hidden any more.** The setting that folded away ACKS system
+  compendiums once you had imported your own content is gone, along with the
+  code behind it. It had not worked since 6.0.0 — it counted imported documents
+  in the wrong place and hid nothing — and rather than switch it on for the
+  first time and have eight shelves vanish from your sidebar, the whole idea is
+  withdrawn. Which of the system's shelves you see is not this module's call.
+  Nothing was ever deleted or unlinked by it, so there is nothing to restore.
+- **The influence attempt ladder and the henchman wage ladder come from your
+  own books.** Both were printed tables shipped inside the module. They are now
+  read from what you import, like every other table in this family. Until they
+  are imported the attempt selector names each attempt by its number instead of
+  its time cost, the attempt counter is not capped, and the bribe fee is left
+  blank for you to fill in.
+- **A carried body's weight and the rest cadence likewise.** The same figures
+  were held in two places at once; now they have one owner and arrive with your
+  books. Until imported, the party clock counts turns without calling for rest,
+  and a rescue load reads as unknown rather than as nothing.
+
 ## 6.1.3
 
 **Importing again repairs what it did not create, and the library stops

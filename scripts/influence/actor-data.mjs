@@ -3,7 +3,7 @@
  * Reads auto-populatable values from the influencing actor and the targeted
  * token's actor, using only public ACKS data paths (no system internals).
  */
-import { CHANGE_KEY_FAMILY, HENCHMAN_MONTHLY_WAGE, INFLUENCE_MODIFIERS, MODULE_ID } from "./constants.mjs";
+import { CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_MODIFIERS, MODULE_ID } from "./constants.mjs";
 import { inferRace, optionalRuleEnabled, parseKindList } from "./racial.mjs";
 // Ability mod + level-or-HD read once from acks-lib (acks-henchmen read the same
 // schema). hitDiceOrLevel also anchors the HD parse, fixing the old "d8" → 8
@@ -158,11 +158,9 @@ export function itemsWithProficiencyRows(actor, groups) {
  */
 export const getActorHD = hitDiceOrLevel;
 
-/** Henchman monthly wage (gp) for a given HD/level, clamped to the table. */
-export function monthlyWageForHD(hd) {
-  const level = Math.max(0, Math.min(HENCHMAN_MONTHLY_WAGE.length - 1, Math.floor(Number(hd) || 0)));
-  return HENCHMAN_MONTHLY_WAGE[level];
-}
+/** Henchman monthly wage (gp) for a given HD/level, or null when the printed
+ *  ladder has not been imported — the fee is then left for the Judge to name. */
+export const monthlyWageForHD = (hd) => henchmanMonthlyWage(hd);
 
 /** The first currently-targeted token's actor, if any. */
 export function getTargetActor() {
