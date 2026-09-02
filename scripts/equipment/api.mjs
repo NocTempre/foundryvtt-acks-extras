@@ -7,7 +7,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, HOOKS, EFFECT_DOMAINS, ITEM_FLAGS } from "./constants.mjs";
-import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands, releaseOrder, attackBonusHeadroom } from "./loadout.mjs";
+import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands, releaseOrder, bestAttackBonus } from "./loadout.mjs";
 import { grantGear, clearHands, findGearSource } from "./grant.mjs";
 import {
   mountedCombatCard,
@@ -194,7 +194,7 @@ export function buildApi() {
     clearHands,
     findGearSource,
     trainedStyles,
-    attackBonusHeadroom, // style-gated bonus a better-equipped loadout would add
+    bestAttackBonus, // the character alone: attribute + training, no gear
 
     specializedStyles,
     VIOLATION,

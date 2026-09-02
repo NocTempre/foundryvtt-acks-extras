@@ -23,49 +23,23 @@ import { ACTOR_TYPE } from "../vocab.mjs";
 
 const signed = (n) => (n >= 0 ? `+${n}` : `${n}`);
 
-/**
- * Is Weapon Finesse in force for this character's melee attacks?
- *
- * Read through the equipment API rather than off the actor's effects: the
- * proficiency usually arrives as an ability item from the Judge's own books and
- * reaches the domain through the abilities bridge, so a bare effect scan misses
- * exactly the characters that have it. Equipment's own automation setting gates
- * it too — with that off nothing re-keys the roll, and a box claiming otherwise
- * would state a bonus the dice never see. Absent or unreadable equipment means
- * no substitution, never an assumed one.
- */
-function meleeFinesse(actor) {
-  const api = equipment();
-  const domain = api?.EFFECT_DOMAINS?.FINESSE;
-  if (!api?.hasEffectFlag || !domain) return false;
-  try {
-    if (!game.settings.get(MODULE_ID, "rollAutomation")) return false;
-    return !!api.hasEffectFlag(actor, domain);
-  } catch {
-    return false; // equipment not registered here — nothing re-keys anything
-  }
-}
-
 /** The equipment subsystem, when it is live. Optional by design. */
 const equipment = () => globalThis.acksExtras?.equipment ?? game.modules?.get(MODULE_ID)?.api?.equipment ?? null;
 
 /**
- * Style bonus this character is trained for but is not currently equipped to
- * collect — Specialization on a style they are not holding, the dual-weapon
- * bonus with only one weapon in hand.
- *
- * Equipment owns the arithmetic (`attackBonusHeadroom`), and it returns a
- * DIFFERENCE rather than a total precisely so this can be added to
- * `thac0.mod`: that field already carries whatever the current loadout earns,
- * and adding an absolute best would count the same bonus twice.
+ * The stat these buttons state — Strength or Dexterity, whichever this
+ * character's throw actually keys on. Equipment owns that decision (Weapon
+ * Finesse re-keys melee), and the same call backs the button's ROLL, so the two
+ * cannot drift. Without equipment the boxes fall back to the plain reading.
  */
-function styleHeadroom(actor, type) {
+function bestBonus(actor, type) {
   const api = equipment();
-  if (!api?.attackBonusHeadroom) return 0;
+  if (!api?.bestAttackBonus) return null;
   try {
-    return num(api.attackBonusHeadroom(actor, type));
+    const b = api.bestAttackBonus(actor, type);
+    return b && Number.isFinite(b.total) ? b : null;
   } catch {
-    return 0;
+    return null;
   }
 }
 
@@ -84,34 +58,28 @@ function fixAttackDisplays(app, element) {
   if (!root) return;
   const sys = actor.system;
   const T = num(sys.thac0?.throw, 10);
-  const finesse = meleeFinesse(actor);
   for (const type of ["melee", "missile"]) {
     const header = root.querySelector(`a[data-action="rollAttack"][data-attack="${type}"]`);
     const input = header?.closest(".form-group")?.querySelector("input");
     if (!input) continue; // not this sheet's markup (e.g. the Follower Card)
-    // These boxes name no weapon, so they state the character's BEST — what
-    // this character reaches with gear they are trained for, which is the
-    // reading a player wants from a summary. Two parts, and each is a
-    // replacement or a difference so neither can stack with what is already
-    // counted:
+    // These buttons name no weapon, so they answer for the CHARACTER: the base
+    // attack throw and the stat, which is what a table needs off the cuff. The
+    // situational terms are deliberately absent — `system.thac0.mod` (where the
+    // current loadout and any magic item deposit their results), a weapon's own
+    // bonus, a style bonus. The weapon's own roll applies all of those exactly,
+    // and a summary carrying them would disagree with the dice.
     //
-    //   attribute — Strength, unless Weapon Finesse lets the character take
-    //     Dexterity instead. An election, so the better of the two and never
-    //     both; `thac0.mod` never carries this term, so it substitutes cleanly.
-    //   style     — Specialization and the dual-weapon bonus. `thac0.mod`
-    //     already holds whatever the CURRENT loadout earns, so only the unearned
-    //     remainder is added (see equipment's attackBonusHeadroom).
-    const substitutes = type === "melee" && finesse && num(sys.scores?.dex?.mod) > num(sys.scores?.str?.mod);
-    const abilityKey = type === "missile" || substitutes ? "dex" : "str";
-    const ability = num(sys.scores?.[abilityKey]?.mod);
-    const adjustment = num(sys.thac0?.mod?.[type]) + styleHeadroom(actor, type);
-    input.value = `${T}+ ${signed(ability + adjustment)}`;
+    // Melee and Ranged stay separate, as they are on the sheet: each asks
+    // equipment for its own throw, so neither figure can reach the other.
+    const best = bestBonus(actor, type);
+    const abilityKey = best?.abilityKey ?? (type === "missile" ? "dex" : "str");
+    const bonus = best ? best.total : num(sys.scores?.[abilityKey]?.mod);
+    input.value = `${T}+ ${signed(bonus)}`;
     input.dataset.dtype = "String";
     input.dataset.tooltip = game.i18n.format("ACKS-LIB.attack.displayTooltip", {
       target: T,
-      bonus: signed(ability + adjustment),
-      ability: `${signed(ability)} (${scoreLabel(abilityKey)})`,
-      adjustment: signed(adjustment),
+      bonus: signed(bonus),
+      ability: scoreLabel(abilityKey),
     });
   }
 }

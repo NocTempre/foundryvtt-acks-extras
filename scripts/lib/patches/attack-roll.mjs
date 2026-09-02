@@ -31,6 +31,7 @@
  * application and every other chat listener keep working.
  */
 import { MODULE_ID } from "../constants.mjs";
+import { toNum as num } from "../util.mjs";
 import { attackTerms, termTotal, resolveAttack } from "../attack-logic.mjs";
 
 export const PRE_ATTACK_HOOK = "acksLibPreAttackRoll";
@@ -51,14 +52,36 @@ let coreRollAttack = null;
 /*  Roll construction                            */
 /* -------------------------------------------- */
 
+/**
+ * The character's own best throw, from equipment's model — used only for the
+ * weaponless Melee/Ranged buttons. Null when equipment is not live.
+ */
+function bestBonus(actor, type) {
+  const api = globalThis.acksExtras?.equipment ?? game.modules?.get("acks-extras")?.api?.equipment ?? null;
+  if (!api?.bestAttackBonus) return null;
+  try {
+    const b = api.bestAttackBonus(actor, type);
+    return b && Number.isFinite(b.total) ? b : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildContext(actor, attData, options) {
   const sys = actor.system;
   const type = options.type ?? "melee";
-  const abilityKey = type === "missile" ? "dex" : "str";
+  // A roll with no item is the sheet's Melee/Ranged button: a quick throw for
+  // the CHARACTER, answering with attribute plus training and nothing a weapon
+  // or worn item adds. It reads the same figure the box displays, from the same
+  // call, so the button cannot promise a number the dice do not produce. A roll
+  // that DOES carry an item keeps the exact per-weapon path below, where the
+  // loadout adjustment and the item's own bonus belong.
+  const quick = attData?.item ? null : bestBonus(actor, type);
+  const abilityKey = quick?.abilityKey ?? (type === "missile" ? "dex" : "str");
   const terms = attackTerms({
     type,
-    abilityMod: sys.scores?.[abilityKey]?.mod,
-    attackMod: sys.thac0?.mod?.[type],
+    abilityMod: quick ? quick.abilityMod : sys.scores?.[abilityKey]?.mod,
+    attackMod: quick ? 0 : sys.thac0?.mod?.[type],
     itemBonus: attData?.item?.system?.bonus,
   }).map((t) => ({
     ...t,

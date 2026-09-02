@@ -1,5 +1,25 @@
 # Changelog
 
+## 6.1.2
+
+**The Melee and Ranged buttons are the quick roll they look like.**
+
+### Changed
+- **The Melee and Ranged boxes show the attack throw and your stat, and nothing
+  else.** They name no weapon, so they answer for the character: the throw your
+  class and level give you, plus the attribute that throw keys on — the two
+  numbers a table needs to roll off the cuff without modelling its equipment in
+  Foundry. A weapon's own bonus, anything worn, and fighting-style bonuses are
+  deliberately not folded in; the weapon's own roll applies all of those exactly,
+  and a summary carrying some of them would disagree with the dice. Clicking the
+  button rolls the same figure the box shows, and the tooltip says what is left
+  out. Melee and Ranged stay separate, as they always were.
+- **Melee names Dexterity where Weapon Finesse applies.** The box, its tooltip
+  and its roll all key on whichever attribute the character actually uses —
+  Dexterity when Weapon Finesse allows it and Dexterity is the better of the two,
+  Strength otherwise. The better one replaces the other; the two never add.
+
+
 ## 6.1.1
 
 **The attack boxes state what this character can actually reach.**

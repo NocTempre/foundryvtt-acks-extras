@@ -6,9 +6,9 @@
  * loadout Active Effect, the roll wrapper, and the public API.
  */
 import { MODULE_ID, ITEM_FLAGS, ACTOR_FLAGS, SETTINGS } from "./constants.mjs";
-import { STYLE, STYLE_SPEC_BONUS, DUAL_WIELD_ATTACK_BONUS } from "./config.mjs";
+import { STYLE } from "./config.mjs";
 import { classifyWeapon, handCost, inferStyle, canOneHand, isTwoHandedOnly, isHelmet, isShield } from "./profiles.mjs";
-import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
+import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, lightInit, enforcementActive } from "./proficiency.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
@@ -136,40 +136,34 @@ export function specializedStyles(actor) {
 }
 
 /**
- * How much better this character's attack throw could be with gear they are
- * already trained for — the gap between the style-gated bonus the CURRENT
- * loadout earns and the best any trained style could earn. Zero for a character
- * already equipped as well as they can be.
+ * The attack throw bonus the sheet's Melee and Ranged buttons state: the
+ * character's attribute modifier, and nothing else.
  *
- * A DIFFERENCE, and that is the whole point: only the style-gated terms of
- * `buildLoadoutChanges` are in scope — the Specialization bonus for the active
- * style, and the base dual-weapon bonus. Everything else that function writes is
- * unconditional and is already inside `system.thac0.mod`, so a caller adding an
- * absolute best on top of that field would count the same bonus twice. Mirror
- * any change to those gated terms here.
+ * Those buttons are a quick roll for play that has not modelled its equipment
+ * in Foundry — base attack throw plus the stat, the two numbers a table needs
+ * off the cuff. Deliberately NOT `system.thac0.mod` (where the current loadout
+ * and any magic item deposit their results), NOT a weapon's own bonus, and NOT
+ * a style bonus: every one of those is a situational term the weapon's own roll
+ * applies exactly, and folding them into a summary makes the summary disagree
+ * with the dice.
  *
- * `specApplies()` is deliberately not consulted: it withholds only the Weapon &
- * Shield bonus, which is Armour Class and never an attack throw. Training is
- * required — this answers "with the right gear", not "with a better character".
+ * Melee and Ranged stay separate, as they are on the sheet. Missile keys on
+ * Dexterity. Melee keys on Strength unless Weapon Finesse lets the character
+ * take Dexterity instead and Dexterity is the better of the two — an election,
+ * so the better one REPLACES the other and never adds to it.
  *
- * @param {"melee"|"missile"} type which attack throw to measure
- * @returns {number} bonus the character is not currently collecting, never < 0
+ * @param {"melee"|"missile"} type which throw to measure
+ * @returns {{abilityKey: string, abilityMod: number, total: number}}
  */
-export function attackBonusHeadroom(actor, type, loadout = getLoadout(actor)) {
-  const key = type === "missile" ? "attackMissile" : "attackMelee";
-  const trained = trainedStyles(actor);
-  const spec = specializedStyles(actor);
-  const earns = (style) => {
-    const specBonus = spec.has(styleKey(style)) ? Number(STYLE_SPEC_BONUS[style]?.[key] ?? 0) : 0;
-    const dualBase = key === "attackMelee" && style === STYLE.DUAL ? DUAL_WIELD_ATTACK_BONUS : 0;
-    return specBonus + dualBase;
-  };
-  let best = 0;
-  for (const style of Object.values(STYLE)) {
-    if (trained.has(styleKey(style))) best = Math.max(best, earns(style));
-  }
-  const current = loadout?.activeStyle ? earns(loadout.activeStyle) : 0;
-  return Math.max(0, best - current);
+export function bestAttackBonus(actor, type) {
+  const missile = type === "missile";
+  const scores = actor?.system?.scores ?? {};
+  const str = Number(scores.str?.mod ?? 0);
+  const dex = Number(scores.dex?.mod ?? 0);
+  const finesse = !missile && dex > str && hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE);
+  const abilityKey = missile || finesse ? "dex" : "str";
+  const abilityMod = missile || finesse ? dex : str;
+  return { abilityKey, abilityMod, total: abilityMod };
 }
 
 /**
