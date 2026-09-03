@@ -13,8 +13,15 @@
  * Design note: this file deliberately contains NO book text. It cannot match
  * "known passages" — storing them here would itself be the leak. It works on
  * structural signals instead: files that are supposed to be local-only,
- * pipeline artifacts that are supposed to stay untracked, and attribution
+ * pipeline artifacts that are supposed to stay untracked, and copyright
  * boilerplate showing up inside data files (where authored content lives).
+ *
+ * What it deliberately does NOT flag is a page reference. A citation
+ * reproduces nothing and points at the reader's own copy, so it ships
+ * everywhere — `.claude/rules/ip-doctrine.md` is the ruling. That leaves the
+ * two rules that matter with no mechanism at all: the book's sentences and
+ * the book's numbers both need a REVIEWER, and no green run here is evidence
+ * about either.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -37,42 +44,21 @@ const FORBIDDEN_FILES = [/^RULES\.md$/iu, /^PROFICIENCIES\.md$/iu, /Reactions-Re
  * were table rows and name lists, all individually short: no prose-length rule
  * would ever have caught them, which is why this is a path ban. */
 const FORBIDDEN_PATHS = [/(^|[/\\])_proposals([/\\]|$)/u, /(^|[/\\])_manifest([/\\]|$)/u, /(^|[/\\])_ledger\.json$/u, /(^|[/\\])acks-rules([/\\]|$)/u, /(^|[/\\])ruledata([/\\]|$)/u];
-/* Publisher attribution has no business inside machine data — in a pack source
- * or cookbook it means text was copied in wholesale rather than authored. */
-const ATTRIBUTION = /all rights reserved|adventurer conqueror king|autarch/iu;
-/*
- * A PAGE CITATION in shipped text. A book sigil (or its printed name) followed
- * by a page or chapter reference is the fingerprint of transcribed rules: the
- * only reason to cite a page in a string a player reads is that the sentence
- * around it came off that page.
- *
- * This is the mechanical half of the math-vs-words rule (template
- * DECISIONS.md, 2026-08-15). Numbers may ship in the code that computes with
- * them; the book's sentences may not, and a citation is a pointer into them.
- * It earns its place the same way `ruledata/` did: acks-extras shipped
- * masterwork and silver hints citing RR p. 159 and RR ch. 4, and a pack
- * description citing the Revised Rulebook by name, through every release from
- * v1.x to v4.9.0. All were far under PROSE_CHARS and carried no attribution
- * string, so nothing here could see them.
- *
- * Deliberately NOT applied to source comments or docs/: a comment citing a page
- * is attribution, and the family's comment doctrine asks for it. What is banned
- * is a citation in something a player or Judge READS — lang, templates, packs.
- */
-const CITATION = /\b(?:RR|JJ|MM|BTA|AX\s?\d|revised rulebook|judges?'? journal|monstrous manual)\b[\s,.]*(?:pp?\.|ch(?:apter|\.)|page)\s*\d/iu;
-/*
- * ...unless the string is NOTHING BUT a citation. A value of "BTA p.62" is a
- * LOCATOR — it says where to look in the reader's own copy and reproduces
- * nothing, which is precisely what an extraction cookbook is for; the importer's
- * cookbook carries ~1,250 of them in `cite` fields and every one is doing its job. What
- * the rule is actually after is a citation with PROSE attached, because there
- * the citation is a pointer to the sentence that came off that page.
- *
- * Keyed on the shape of the value rather than on a list of blessed field names:
- * a locator is a locator wherever it is stored, and a paragraph is not one
- * however the key is spelled.
- */
-const LOCATOR_ONLY = new RegExp(String.raw`^[\s(\[]*(?:see\s+)?(?:RR|JJ|MM|BTA|AX\s?\d|revised rulebook|judges?'? journal|monstrous manual)\b[\s,.]*(?:pp?\.|ch(?:apter|\.)|page)?\s*[\d–—\-,\s]*[)\]]*[.;]?\s*$`, "iu");
+/* A COPYRIGHT NOTICE inside machine data. Naming the book or its publisher is
+ * a reference and is welcome anywhere; a reservation-of-rights line is not one
+ * — nobody types "all rights reserved" to cite a page — so in a pack source or
+ * a cookbook it means a page footer travelled in with the text above it. */
+const ATTRIBUTION = /all rights reserved|(?:©|\(c\)|copyright)\s*(?:\d{4}[\s,–—-]*)*autarch/iu;
+/* There is no CITATION signal, and its absence is a ruling rather than a gap.
+ * One lived here from 2026-08-15 to 2026-09-03 and failed the build on a book
+ * sigil beside a page number in lang, a template or a pack source. It was
+ * built on the premise that the only reason to cite a page in a string a
+ * player reads is that the sentence around it came off that page — which
+ * inverts the harm. A citation is the one thing in a shipped string that
+ * cannot substitute for the book, because it only pays out to a reader who
+ * has one. Removing it does not remove the paraphrase it sat beside; it just
+ * makes the paraphrase unattributed, which is what the rule's first full
+ * application actually produced (extras 6.3.0, 22 strings). */
 const DATA_GLOBS = [/packs[/\\]_source[/\\].*\.json$/u, /^cookbook[/\\].*\.json$/u, /^register[/\\].*\.json$/u, /^lang[/\\].*\.json$/u];
 /* Handlebars is shipped text too, and is not JSON-walkable. */
 const TEMPLATE_GLOBS = [/^templates[/\\].*\.hbs$/u];
@@ -96,9 +82,7 @@ const STRING_LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*
 /* A string leaf this long in a data file is a paragraph, not a label. */
 const PROSE_CHARS = 1500;
 /* ...unless it is source code. Macro bodies are authored JS and legitimately
- * long; letting them warn every run is how a gate gets tuned out. They are
- * exempt from CITATION for the same reason source comments are: a macro that
- * cites a page in a `//` line is attributing, not reproducing. */
+ * long; letting them warn every run is how a gate gets tuned out. */
 const CODE_KEYS = new Set(["command"]);
 
 const SKIP_DIRS = new Set(["node_modules", ".git", ".github", "dist"]);
@@ -158,12 +142,11 @@ function inspect(abs, relPath) {
   }
   if (TEMPLATE_GLOBS.some((re) => re.test(relPath))) {
     if (!fs.existsSync(abs)) return;
-    // Handlebars comments are code comments and never render; a citation there
-    // is attribution, exactly like a `//` line. Only what a reader can SEE is
-    // held to the no-citation rule.
-    const text = fs.readFileSync(abs, "utf8").replace(/\{\{!--[\s\S]*?--\}\}|\{\{![\s\S]*?\}\}/g, "");
-    if (CITATION.test(text)) {
-      errors.push(`${relPath} — page citation in a shipped template; cite in a comment or docs/, never in what a reader sees`);
+    // Scanned whole, comments included: a copyright footer is a paste artifact
+    // wherever it landed, and a Handlebars comment is not a safer place to
+    // have pasted a page into than the body.
+    if (ATTRIBUTION.test(fs.readFileSync(abs, "utf8"))) {
+      errors.push(`${relPath} — copyright notice in a shipped template; a page footer travelled in with the text`);
     }
     return;
   }
@@ -193,12 +176,7 @@ function scanSource(text, relPath) {
 function scanStrings(node, relPath, keyPath = "") {
   if (typeof node === "string") {
     if (ATTRIBUTION.test(node)) {
-      errors.push(`${relPath}: ${keyPath || "(root)"} contains publisher attribution — copied book text, not authored data`);
-    } else if (CITATION.test(node) && !LOCATOR_ONLY.test(node) && !CODE_KEYS.has(keyPath)) {
-      errors.push(
-        `${relPath}: ${keyPath || "(root)"} cites a page — say what the FIELD does, not what the rule says; ` +
-          `the book's words reach a world through the importer`,
-      );
+      errors.push(`${relPath}: ${keyPath || "(root)"} contains a copyright notice — copied book text, not authored data`);
     } else if (node.length > PROSE_CHARS && !CODE_KEYS.has(keyPath)) {
       warnings.push(`${relPath}: ${keyPath || "(root)"} is ${node.length} chars — verify this is authored, not transcribed`);
     }

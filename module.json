@@ -2,7 +2,7 @@
   "id": "acks-extras",
   "title": "ACKS II — Extras",
   "description": "Rules automation for ACKS II: proficiencies and class powers, equipment and fighting styles, exploration formations and overland travel — weather, wilderness encounters and the vehicles that carry a party — henchmen and hirelings, influence and reactions, locations and storage, and the full Monstrous Manual stat block, over shared primitives and one rules-table registry. Includes the importer: monsters, classes, proficiencies, equipment, price and rules tables, locations and roll tables read from the reader's own ACKS II PDFs — it ships extraction recipes, never the book text. Bring your own book.",
-  "version": "6.2.0",
+  "version": "6.3.0",
   "socket": true,
   "compatibility": {
     "minimum": "14",

@@ -650,3 +650,48 @@ missing by accident.
   one. The fix is to split on commas and on the LAST "and" only when the clause
   carries no comma; it is a behaviour change to a shipped read and was not part
   of the 2026-08-29 rulings.
+
+## A loaded book leaves nothing readable in the world (2026-09-03)
+
+**Owner request.** Loading a book should put it in a **journal in the world**,
+not only into places a Judge cannot open and read.
+
+Where a loaded book currently lives, and why none of it reads as the book:
+
+- The **connection** is a `FileSystemHandle` in the seat's IndexedDB
+  (`module.mjs`). It is per-browser, invisible to other seats, and not a world
+  document at all — a GM on a second machine sees no sign a book was ever
+  connected.
+- The **extracted prose** is materialized into the document each recipe creates
+  (`prose.mjs`): a proficiency's paragraphs live in that Item's description with
+  the page reference as the closing line. Readable, but only one entry at a
+  time, and only by finding the Item first.
+- **Location journals** are the one existing exception (`cookbookImportJournals`
+  — one `JournalEntry` per `meta.group`, one page per keyed entry). The shape
+  works. Nothing else uses it.
+
+So a world that has imported everything holds hundreds of readable fragments
+and no readable *book*: no table of contents, no way to read a chapter through,
+nothing to hand a player, and no record of what was taken from which book at
+which pages beyond the per-document citations.
+
+**What has to be decided before this is built**, because each answer changes
+the shape:
+
+- **What a journal is per: the book, the shelf, or the recipe run?** A journal
+  per book reads like the book and grows enormous. A journal per shelf matches
+  how imports are already grouped and shelved. A journal per run is an import
+  log, which is a different artifact answering a different question — possibly
+  both are wanted.
+- **Does it duplicate the prose, or link to it?** Duplicating gives a readable
+  chapter and two copies to keep in step on re-import. Linking gives one copy
+  and a page of `@UUID` references, which reads like an index rather than a
+  book. `prose.mjs`'s `data-acks-entry` stamp already distinguishes imported
+  text from a Judge's edits, so either can be re-imported safely; the choice is
+  about what a reader wants, not what is implementable.
+- **Ownership.** Imported book content is app-licensed in-world material. A
+  journal is the easiest thing in Foundry to hand to a player, so its default
+  ownership is a deliberate decision and not a default to inherit.
+
+Not blocked on anything. The journal-writing machinery exists and is proven by
+the location journals.

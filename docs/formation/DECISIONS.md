@@ -1403,3 +1403,41 @@ canvas the deploy returned empty while the control rendered enabled and said
 nothing when pressed. A player fared worse — they were told the declaration was
 sent and never learned it was dropped. The GM gets a notice, the declaring seat
 gets a whisper.
+
+## 2026-09-02 — Swimming's printed magnitudes move to the register
+
+Ruled after 6.2.0 shipped. `swimming.mjs` was the largest single pocket of
+printed values left in the feature (ROADMAP §6a), and it is now clear of them:
+the Swimming proficiency's bonus, what cold and rough water cost, the share of
+speed a swimmer makes, how fast a body sinks per stone, and the base breath in
+rounds are all read through `formationValue()` from the reader's own book.
+
+**What stayed, and why it is not a printed value.** `WATER`'s three keys stay
+frozen in source: something must name the options a select offers, and the
+names are this module's vocabulary rather than a page's. `calm` contributes
+zero *structurally* — that is what calm means, not a figure anyone printed —
+which is why the commonest case in the file still computes with nothing
+registered at all. The one-round floor under a drowning character's breath
+likewise stays: a breath cannot last no rounds however bad the Constitution,
+which is arithmetic, not a rule read off a page.
+
+**The line this file drew.** The rule this module owns is that *the target IS
+the swimmer's encumbrance* — a figure belonging to the character, not to a
+book. So an unencumbered swimmer in calm water, and any non-proficient swimmer
+in calm water, is fully computed with nothing imported. Only a throw that
+actually needs a printed magnitude reports one missing.
+
+**Unknown is reported, not defaulted.** `swimmingThrow` returns a null target
+with an `unknown` array naming the figures it wanted, rather than a number
+built on a zero. Rejected: defaulting an unimported modifier to 0, which reads
+as "calm water" and would silently tell a Judge that a mailed swimmer in rough
+water needs the same throw as a naked one in a millpond. `swimSpeed`,
+`drowning` and `rescueStone` return null on the same grounds — a swimmer of
+unknown pace is not a still one.
+
+**What it cost.** The return shapes of `swimmingThrow` and `drowning` are now
+nullable, and `SWIMMING_BONUS`, `SPEED_SHARE`, `SINK_FEET_PER_STONE` and
+`WATER[x].modifier` are gone from the public API. Nothing in the module read
+them — `swimming` is reached only through `acksExtras.formation.swimming`, and
+no template or sheet consumes it — so the change is confined to the API surface
+and to the local rules test, which now registers the figures itself.

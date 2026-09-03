@@ -22,9 +22,11 @@ each row's value is a number the user types into the box beside the label — so
 they never appeared in the constants sweep. Searching for values the code
 *reads* does not find values the code only *prints*.
 
-`ip-scan.mjs` does not catch these and is not expected to: it fails on tracked
-`ruledata/` and on page citations, and the doctrine states plainly that the
-value rule needs a reviewer. This is what that reviewer clause is for.
+`ip-scan.mjs` does not catch these and cannot: it decides file paths and
+pasted copyright notices, and since the 2026-09-03 ruling nothing else — the
+prose rule and the value rule are both reviewer-only. This is what that clause
+is for. Note that these labels carry no page reference either, having never had
+one; the fix that retires a magnitude should leave a reference behind it.
 
 **Shape of the fix.** The label states what the row *is*; the magnitude arrives
 registered, the way `influenceTimeLadder` now takes its ladder — so the row
@@ -34,6 +36,16 @@ book supplied one. The awkward cases are the two that are not a single number
 a value, not a value, and want deciding before the sweep rather than during it.
 
 Not a 6.2.0 regression — these have shipped since the feature existed.
+
+**The surface is wider than `mod.*`.** A sweep of `lang/en.json` for a signed
+number, a coin/weight/die quantity, or a `per`-scaled figure inside a string a
+user reads counts **73** `ACKS-INFLUENCE` keys and **125** module-wide
+(`ACKS-HENCHMEN` 22, `ACKS-FORMATION` 12, `ACKS-EQUIPMENT` 9, the rest in
+ones and twos). The 25 above are the concentration, not the extent; whatever
+mechanism retires them has to run over the other roots too, and
+`ACKS-EQUIPMENT` reaches into macro bodies as well as labels
+(`item-loss-from-damage` prints its threshold in three places, one of them the
+default value of an input).
 
 ## 2. The unaudited badge is a standing admission
 

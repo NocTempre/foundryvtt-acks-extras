@@ -1,5 +1,44 @@
 # Changelog
 
+## 6.3.0
+
+**Page references stay; the figures printed beside them go. Swimming names the
+figure it is missing instead of guessing zero.**
+
+### Changed
+- **Twenty-one henchmen hints and messages stop quoting numbers off the page —
+  and go on pointing at it.** "Cumulative −1 per prior attempt the candidate
+  rejected (RR 162)" now reads "Cumulative penalty for each prior attempt the
+  candidate rejected (RR 162)": the modifier's size is gone, the reference is
+  not. The same for the henchman cap's formula, the weekly split of a town's
+  hiring pool, the loyalty adjustments on the chat cards, the officer's command
+  limit and the level followers arrive at. Each still says where to read the
+  rule, so the figure is a page-turn away rather than printed in your tooltip.
+  Nothing moved, nothing was renamed, and no setting changed.
+- **Swimming takes its figures from what you have imported.** The swimming
+  bonus, the share of your speed you swim at, how far a stone of gear sinks you
+  and how long you can hold your breath all arrive with your own books now.
+  Import them and the throw resolves as it did. Import nothing and each reads
+  as unknown — the throw names the figure it is missing rather than standing in
+  a zero and handing you a number that looks calculated. Calm water is the
+  exception and stays zero, because no water is the absence of a modifier
+  rather than a figure someone printed.
+
+  **If you script against it:** `swimmingBonus()`, `swimSpeedShare()`,
+  `sinkFeetPerStone()`, `breathRounds()` and `waterModifier()` return `null`
+  where they used to return a number, and `swimmingThrow()` returns a null
+  `target` with the missing keys listed in `unknown`. Check for `null` before
+  doing arithmetic.
+
+### Internal
+- **The leak check stops failing on a page reference, because that had the harm
+  backwards.** A citation reproduces nothing — it only pays out to a reader
+  who already owns the book — so it is the one thing in a shipped string that
+  is always safe, and stripping it from a paraphrase leaves the paraphrase and
+  loses the attribution. The check now decides file paths and pasted copyright
+  notices; whether a string quotes the book's words or its numbers is a review
+  question and is written down as one.
+
 ## 6.2.0
 
 **Importing tells you where it has got to, the library is read before it is

@@ -118,7 +118,7 @@ anything, and it is safe to run twice.
 4. If you own the books, run **Your ACKS Books (this seat)** from the *ACKS
    Extras Macros* compendium to connect a PDF, then **Import Everything (GM)**:
    classes, proficiencies, equipment, monsters, tables and more arrive from
-   your own copy. See [Importing from your books](docs/guides/importer.md).
+   your own copy. See [Importing from your books](https://noctempre.github.io/foundryvtt-acks-extras/guides/importer/).
 
 ---
 
@@ -152,7 +152,7 @@ recipes run against that file, in the browser, and write real world documents.
   what the page changed, and *Delete Everything Imported (GM)* takes it all
   back.
 
-Guide: [Importing from your books](docs/guides/importer.md).
+Guide: [Importing from your books](https://noctempre.github.io/foundryvtt-acks-extras/guides/importer/).
 
 ### Shared primitives (the former `acks-lib`)
 

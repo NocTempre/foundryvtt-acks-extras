@@ -186,7 +186,7 @@ lists, and two kinds of piece are taken off that list because they are not gear:
   prayer book is read exactly as a mage's spellbook is.
 - **A choice the player has not made.** A cell that offers a spell of the
   character's choosing names a decision, not a spell. It stays on the book's note
-  and nothing is minted for it — see [ROADMAP.md](../importer/ROADMAP.md) for turning it into a prompt.
+  and nothing is minted for it — see [ROADMAP.md](https://github.com/NocTempre/foundryvtt-acks-extras/blob/main/docs/importer/ROADMAP.md) for turning it into a prompt.
 
 Before 2.13.2 neither separation happened: a three-spell book arrived as the book
 welded to its first spell, with the rest of the list beside it as inventory. A

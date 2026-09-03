@@ -454,6 +454,64 @@ formation with `getFormationForActor(actor)` — there is no `listFormations`.
     *Observable:* mode is `delve`, the clock still runs, and the wandering
     monster throw returns.
 
+## Swimming (added with the registry migration)
+
+Swimming's printed figures arrive registered, so the surface has **two** states
+and both have to be walked: nothing registered, and a document registered. The
+first is the one that regresses silently — a missing figure that becomes `0`
+hands the Judge a number that looks calculated.
+
+**Fixtures**: one disposable character Actor. No scene, no token, no canvas —
+every call is API-level.
+
+**Steps and observables**
+
+1. Confirm the empty state first: `acksExtras.lib.tables.hasDoc("formation")`
+   is `false`. If a previous session left a document registered, the whole
+   check below reads green for the wrong reason.
+2. With nothing registered, call `swimmingBonus()`, `swimSpeedShare()`,
+   `sinkFeetPerStone()` and `breathRounds()`. **Every one returns `null`.** A
+   `0` here is the bug this recipe exists to catch.
+
+   Every accessor named in this recipe hangs off
+   `acksExtras.formation.swimming` — not `acksExtras.formation`, where the
+   feature's other surfaces sit. `const s = acksExtras.formation.swimming`
+   first and the rest of the recipe reads as written.
+3. `waterModifier("calm")` returns `0`; `waterModifier("rough")` and
+   `waterModifier("cold")` return `null`. Calm is the absence of a modifier and
+   is structural; the other two are printed and are not.
+4. `swimmingThrow({actor, water: "rough"})` returns `target: null`,
+   `needed: null`, and `unknown: ["swimWaterModifiers"]` — it **names** the
+   figure it lacks. The same call with `water: "calm"` returns `target: 0`,
+   `needed: false`, `unknown: []`, because nothing is missing.
+5. `drowning({actor})` returns `rounds`, `feetPerRound` and `depthAtDeath` all
+   `null`.
+6. Now register a document and re-run. Use figures that are obviously **not**
+   from a book — the point is to prove the wiring, and a real value in a test
+   script is a leak:
+
+   ```js
+   const t = acksExtras.lib.tables;
+   t.registerTable({ id: "formation", tables: {
+     swimmingBonus: 77, swimSpeedShare: 0.42, sinkFeetPerStone: 88,
+     breathRounds: 99, swimWaterModifiers: { calm: 0, rough: -55, cold: -66 },
+   }}, { priority: t.PRIORITY.OVERRIDE, source: "live-check" });
+   ```
+
+   Each accessor now returns its fabricated figure, and
+   `swimmingThrow({actor, water: "rough"})` returns `unknown: []` with a
+   `parts` entry `{key: "water.rough", value: -55}` and the target built from
+   it. A `parts` array that still lacks the water row means the throw is
+   reading the constant it used to hold rather than the document.
+7. **Exercise the removal**, not only the registration:
+   `t.unregisterTable("formation", t.PRIORITY.OVERRIDE)`, then re-read one
+   accessor. It returns `null` again and `hasDoc("formation")` is `false`. A
+   value that survives here is a cache with no invalidation story.
+
+**Teardown**: delete the actor; unregister the document if step 7 did not.
+Leaving a fabricated `formation` document registered poisons every later check
+in the same world session.
+
 ## Teardown
 
 Delete the scene, the party actor (its formation goes with it), the member

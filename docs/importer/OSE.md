@@ -31,13 +31,13 @@ of its own.
 
 | Module | Job | Pure? |
 |---|---|---|
-| [`ose-blocks.mjs`](../scripts/ose-blocks.mjs) | find candidate stat blocks on a page | yes |
-| [`ose-statline.mjs`](../scripts/ose-statline.mjs) | read one block, in OSE's own idiom | yes |
-| [`ose-convert.mjs`](../scripts/ose-convert.mjs) | turn that into ACKS values | yes |
-| [`ose-source.mjs`](../scripts/ose-source.mjs) | the Judge's source registry | world state |
-| [`ose-binding.mjs`](../scripts/ose-binding.mjs) | build the actor | Foundry |
-| [`ose-app.mjs`](../scripts/ose-app.mjs) | the Judge-facing dialogs | Foundry |
-| [`ose-manual.mjs`](../scripts/ose-manual.mjs) | converting a block by hand | Foundry |
+| [`ose-blocks.mjs`](../../scripts/importer/ose-blocks.mjs) | find candidate stat blocks on a page | yes |
+| [`ose-statline.mjs`](../../scripts/importer/ose-statline.mjs) | read one block, in OSE's own idiom | yes |
+| [`ose-convert.mjs`](../../scripts/importer/ose-convert.mjs) | turn that into ACKS values | yes |
+| [`ose-source.mjs`](../../scripts/importer/ose-source.mjs) | the Judge's source registry | world state |
+| [`ose-binding.mjs`](../../scripts/importer/ose-binding.mjs) | build the actor | Foundry |
+| [`ose-app.mjs`](../../scripts/importer/ose-app.mjs) | the Judge-facing dialogs | Foundry |
+| [`ose-manual.mjs`](../../scripts/importer/ose-manual.mjs) | converting a block by hand | Foundry |
 
 The first three touch neither Foundry nor a PDF, which is why almost all of the
 behaviour is checked offline — `test-ose-blocks`, `test-ose-statline`,
@@ -93,7 +93,7 @@ another. See DECISIONS, "Another game's books get their own shelf".
 ACKS II publishes the arithmetic in its **System Compatibility Guide**, which is
 a book id (`scg`) like any other. The rule ships; the constants do not — they
 are read off the Judge's own page 2 by
-[`scg-constants.mjs`](../scripts/scg-constants.mjs) and handed to the converter
+[`scg-constants.mjs`](../../scripts/importer/scg-constants.mjs) and handed to the converter
 as arguments. `tools/validate-extra.mjs` §3 fails the build if a number that
 could be one of them appears in the converter.
 

@@ -250,3 +250,39 @@ modifiers come in **ladders, not sums**, no natural-2/12 clamp is stated
 (unlike Hireling Loyalty, RR 166), and PCs never roll it — they choose.
 Hireling Obedience (RR 167) is a fourth, separate morale-based roll.
 Full text: LOCAL-ONLY extract `acks-rules/acks-influence/` §8.
+
+### Stripping a printed magnitude from a label without migrating its constant is a regression (2026-09-03)
+
+**Ruled:** the pass that removed every page citation from `lang/en.json`
+stopped at the citations and left the printed magnitudes standing — "Apparent
+level difference (−1 per level)", "Judge's adjustment (±2)", the 25
+`ACKS-INFLUENCE.mod.*` labels of ROADMAP §1 and the 22 `ACKS-HENCHMEN` ones
+beside them.
+
+**Why, given the doctrine puts both on the far side of the line.** For these
+rows the label is the *only* disclosure. The number in the parentheses is not
+a second copy of a constant the user could otherwise see; it is the sole place
+the applied figure is stated, and the code applies it either from a hard-coded
+constant or from a value the row pre-fills. Deleting the parenthesis therefore
+does not stop a printed number reaching the reader — it stops the reader
+learning which number is being applied to their roll. The label and the
+constant have to move together: the row loses its magnitude in the same change
+that makes the magnitude arrive registered, so a world with no imported table
+shows no figure and says so, and a world with one shows the reader's own.
+
+**What it cost.** A release that removes every citation still ships the
+magnitudes, so `ip-scan` reporting clean is not the same as the feature being
+clean, and this entry is the standing reason. The order is forced, not
+preferred — the alternative ships a UI that silently applies undisclosed
+printed numbers, which is worse than one that prints them.
+
+**Amended the same day.** The citation half was reversed by owner ruling
+(template `DECISIONS.md`, 2026-09-03): a page reference reproduces nothing and
+ships. 6.3.0 therefore keeps every reference it had and removes only the
+figures beside them. That strengthens this entry rather than weakening it — a
+label reduced to "Apparent level difference (RR 168)" still tells the reader
+where the applied figure is printed, which is the disclosure the magnitude was
+carrying. The magnitudes still have to move together with their constants; the
+reference is what makes their absence survivable in the meantime, and the 22
+`ACKS-HENCHMEN` labels below have no reference to fall back on because they
+never carried one.

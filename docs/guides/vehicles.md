@@ -173,4 +173,4 @@ holds her until she is cut free; rock, reef and wreck hole her; a shoal grounds
 her until the tide lifts her or the crew throws enough cargo over the side.
 
 These are derived and published for macros, but nothing rolls them for you yet
-— see [the roadmap](../vehicles/ROADMAP.md).
+— see [the roadmap](https://github.com/NocTempre/foundryvtt-acks-extras/blob/main/docs/vehicles/ROADMAP.md).

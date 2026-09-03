@@ -321,11 +321,17 @@ registered with one owner; the rest cadence likewise. All read the `formation`
 ruledata document through the shape `flight.mjs` and `foraging.mjs` already use,
 and all degrade by saying less rather than by inventing a default.
 
+**Done after 6.2.0** — `swimming.mjs`, the largest single pocket, is clear:
+the proficiency bonus, the cold and rough water costs, the speed share, the sink
+rate and the breath base all arrive registered. `WATER`’s keys stay as this
+module’s own select vocabulary and `calm` stays structurally zero, so the
+commonest throw still computes with nothing imported. Ruling and the rejected
+zero-default: DECISIONS 2026-09-02.
+
 **Still to rule, roughly worst first:**
 
 | Where | What | Note |
 |---|---|---|
-| `swimming.mjs` | water modifiers, the proficiency bonus, the speed share, the sink rate, the breath base | The whole file is printed magnitudes; it is the largest single pocket left. |
 | `party-rolls.mjs` resolver | the methodical-use bonuses, the proficiency bonus magnitudes, a substituted throw target | The worst by doctrine: each is a magnitude the book attaches to a NAMED proficiency a reader picked, so each already has an owner — the character's own imported ability. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read, not a subsystem. |
 | `turn-engine.mjs` | the encounter die and the encounter-distance formula | Decisive argument: two of the same throw's three parameters are ALREADY settings-backed (`module.mjs`), and only the dice are hardwired. That inconsistency, not the size of the numbers, is the case. |
 | `obstacles.mjs` | the registered obstacle magnitudes | Counter-example to §6's original claim; unexamined in detail. |
