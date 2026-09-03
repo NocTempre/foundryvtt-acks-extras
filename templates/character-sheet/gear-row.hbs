@@ -1,0 +1,44 @@
+{{!-- One gear row: art, name and line, the three control groups. A container
+      row carries its capacity bar, its header controls and its contents. --}}
+<div class="acks-extras-character-sheet__gear draggable{{#if wielded}} is-wielded{{/if}}{{#if container}} is-container{{/if}}{{#if isMoney}} is-money{{/if}}"
+     data-item-id="{{id}}"{{#if container}} data-drop="container:{{id}}"{{/if}}>
+  <div class="acks-extras-character-sheet__gear-main">
+    <img class="acks-extras-character-sheet__gear-img" src="{{img}}" alt="" inert>
+    <span class="acks-extras-character-sheet__gear-text">
+      <a class="acks-extras-character-sheet__gear-name" data-action="itemEdit">{{name}}{{#if stack}} <span class="acks-nums">×{{qty}}</span>{{/if}}</a>
+      {{#if line}}<span class="acks-extras-character-sheet__gear-line acks-nums">{{line}}</span>{{/if}}
+    </span>
+    <span class="acks-extras-character-sheet__ctls">
+      {{#if controls.roll}}
+      <span class="acks-extras-character-sheet__grp">
+        <button type="button" class="acks-extras-character-sheet__mini{{#if wielded}} is-eq{{/if}}" data-action="roll" data-roll="{{controls.roll}}" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.attack'}}"><i class="fa-solid fa-dice-d20" inert></i></button>
+      </span>
+      {{/if}}
+      {{#if controls.state.length}}
+      <span class="acks-extras-character-sheet__grp">
+        {{#each controls.state}}<button type="button" class="acks-extras-character-sheet__ctl{{#if cls}} {{cls}}{{/if}}" data-action="{{action}}" {{{attrs}}} data-tooltip="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
+      </span>
+      {{/if}}
+      {{#if controls.keep.length}}
+      <span class="acks-extras-character-sheet__grp">
+        {{#each controls.keep}}<button type="button" class="acks-extras-character-sheet__ctl" data-action="{{action}}" data-tooltip="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
+      </span>
+      {{/if}}
+    </span>
+  </div>
+  {{#if container}}
+  <div class="acks-extras-character-sheet__bar is-thin{{#if container.over}} is-bad{{/if}}"><i style="width: {{container.pct}}%"></i>{{#each container.ticks}}<u style="left: {{this}}%"></u>{{/each}}</div>
+  <div class="acks-extras-character-sheet__gear-head">
+    <span class="acks-extras-character-sheet__gear-line acks-nums">{{container.load}}{{#if container.visible}} · {{container.count}}{{/if}}</span>
+    <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
+      {{#each container.controls}}<button type="button" class="acks-extras-character-sheet__ctl" data-action="{{action}}" data-tooltip="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
+    </span></span>
+  </div>
+  {{#if container.rows.length}}
+  <div class="acks-extras-character-sheet__contents">
+    {{#each container.rows}}{{> "modules/acks-extras/templates/character-sheet/gear-row.hbs" this}}{{/each}}
+  </div>
+  {{/if}}
+  {{#if container.hint}}<div class="acks-extras-character-sheet__hint">{{container.hint}}</div>{{/if}}
+  {{/if}}
+</div>

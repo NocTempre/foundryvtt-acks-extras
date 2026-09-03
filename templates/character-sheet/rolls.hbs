@@ -1,0 +1,38 @@
+{{!-- Rolls: every throw on the sheet with its target, three columns. The whole
+      row is the button; the pin puts it on the folded card. --}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__intro">{{localize "ACKS-CHARACTER.rolls.intro"}}</div>
+  <div class="acks-extras-character-sheet__cols is-3">
+    {{#each panels.rolls.columns as |col|}}
+    <div class="acks-extras-character-sheet__col">
+      {{#each col as |group|}}
+      <div class="acks-extras-character-sheet__group">
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{group.name}}</span>
+          {{#if group.note}}<span class="acks-extras-character-sheet__rule-note">{{group.note}}</span>{{/if}}
+        </div>
+        {{#each group.rows as |row|}}
+        <div class="acks-extras-character-sheet__row is-roll{{#if row.eq}} is-eq{{/if}}" data-action="roll" data-roll="{{row.id}}">
+          <button type="button" class="acks-extras-character-sheet__pin{{#if row.pinned}} is-on{{/if}}" data-action="pinRoll" data-roll="{{row.id}}"
+                  data-tooltip="{{localize (ifThen row.pinned 'ACKS-CHARACTER.rolls.unpin' 'ACKS-CHARACTER.rolls.pin')}}" {{disabled (not @root.editable)}}>
+            <span class="acks-sr-only">{{localize 'ACKS-CHARACTER.rolls.pin'}}</span>
+          </button>
+          <span class="acks-extras-character-sheet__row-text">
+            <span class="acks-extras-character-sheet__row-label">{{row.label}}</span>
+            {{#if row.line}}<span class="acks-extras-character-sheet__row-line">{{row.line}}</span>{{/if}}
+          </span>
+          {{#if row.mods.length}}<span class="acks-tag-group">{{#each row.mods}}<span class="acks-tag acks-tag--ghost">{{this}}</span>{{/each}}</span>{{/if}}
+          <span class="acks-extras-character-sheet__row-value acks-nums">{{row.value}}</span>
+          {{#if row.big}}
+          <span class="acks-extras-character-sheet__roll"><i class="fa-solid fa-dice-d20" inert></i>{{localize "ACKS-CHARACTER.rolls.roll"}}</span>
+          {{else}}
+          <span class="acks-extras-character-sheet__mini{{#if row.eq}} is-eq{{/if}}"><i class="fa-solid fa-dice-d20" inert></i></span>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/each}}
+    </div>
+    {{/each}}
+  </div>
+</div>

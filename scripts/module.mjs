@@ -28,6 +28,10 @@
  *   battlemap  after monsters — sizes tokens from monsters' SIZES table and
  *              formation's flags; both are plain data imports, so only this
  *              comment depends on the order.
+ *   character-sheet after every feature it draws from — it reads equipment's
+ *              loadout, the class registry, the abilities roller, henchmen's
+ *              cards and location's storage through direct imports, and
+ *              registers a sheet at ready that nothing else consumes.
  *   importer   last — it writes into what every other feature owns (the
  *              tables registry, the class builder, the sub-types, the ability
  *              model) and nothing consumes it except through the
@@ -45,4 +49,5 @@ import "./markets/module.mjs";
 import "./monsters/module.mjs";
 import "./battlemap/module.mjs";
 import "./vehicles/module.mjs";
+import "./character-sheet/module.mjs";
 import "./importer/module.mjs";

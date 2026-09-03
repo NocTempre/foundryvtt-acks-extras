@@ -1,0 +1,46 @@
+{{!-- The art row: the left rail (influence, the five saves), the portrait, the
+      right rail (HP, AC, movement, grip, light, formation), the prose column and
+      the sheet-tools rail. Folded, only the rails and the portrait remain. --}}
+<div class="acks-extras-character-sheet__rail acks-extras-character-sheet__rail--left">
+  {{#each cells.left}}{{> "modules/acks-extras/templates/character-sheet/cell.hbs" this}}{{/each}}
+</div>
+
+<div class="acks-extras-character-sheet__art">
+  {{#if editable}}
+  <img class="acks-extras-character-sheet__img" src="{{art.img}}" alt="{{actor.name}}" data-action="editImage" data-edit="img" data-tooltip="{{localize 'ACKS-CHARACTER.tools.changeArt'}}">
+  {{else}}
+  <img class="acks-extras-character-sheet__img" src="{{art.img}}" alt="{{actor.name}}">
+  {{/if}}
+</div>
+
+<div class="acks-extras-character-sheet__rail acks-extras-character-sheet__rail--right">
+  {{#each cells.right}}{{> "modules/acks-extras/templates/character-sheet/cell.hbs" this}}{{/each}}
+</div>
+
+{{#unless folded}}
+<div class="acks-extras-character-sheet__prose">
+  <div class="acks-extras-character-sheet__prose-body">
+    <div class="acks-extras-character-sheet__overline">{{art.overline}}</div>
+    {{#if art.editing}}
+    <prose-mirror class="acks-extras-character-sheet__editor" name="system.details.biography" value="{{art.proseSource}}" toggled
+                  data-document-uuid="{{actor.uuid}}">{{{art.prose}}}</prose-mirror>
+    {{else}}
+    <div class="acks-extras-character-sheet__description acks-prose">{{{art.prose}}}</div>
+    {{/if}}
+    {{#if art.tags.length}}
+    <div class="acks-tag-group">
+      {{#each art.tags}}<span class="acks-tag">{{this}}</span>{{/each}}
+    </div>
+    {{/if}}
+  </div>
+  {{#if editable}}
+  <div class="acks-extras-character-sheet__rail acks-extras-character-sheet__rail--tools">
+    {{#each sheetTools}}
+    <button type="button" class="acks-extras-character-sheet__cell is-icon" data-action="{{key}}" data-tooltip="{{title}}">
+      <i class="{{icon}}" inert></i><span class="acks-sr-only">{{title}}</span>
+    </button>
+    {{/each}}
+  </div>
+  {{/if}}
+</div>
+{{/unless}}

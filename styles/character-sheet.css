@@ -1,0 +1,1672 @@
+/* ACKS II — the character sheet.
+ *
+ * One window for a character (scripts/character-sheet/). Every colour is an
+ * --acks-* token read bare; every face and size comes off the design-system
+ * scale, so a dark seat and the `core` look both follow. The geometry is the
+ * design canvas's: a 900px window, 32px rail cells six tall, a 202px portrait,
+ * a 38/40px rail either side and a 32px tools rail — stated once here as custom
+ * properties on the root.
+ *
+ * The title band is this module's own part, moved into Foundry's
+ * `.window-header` at render, exactly as the item sheet does it.
+ *
+ * Six tones, one meaning each (DECISIONS 2026-09-03): pos green a positive
+ * status, neg/bad red a negative status or harm, warn/tm amber a mundane thing
+ * burning down or a slowed load, ts the magic tone, gold specialization and
+ * achievement, burgundy (hi/full) identity and selection. The magic tone has
+ * no token of its own yet and is MIXED from the spot colour and the ink, so it
+ * follows both seats without a literal colour entering this file.
+ */
+
+.acks-extras-character-sheet {
+  --acks-extras-cell: 32px;
+  --acks-extras-rail-left: 38px;
+  --acks-extras-rail-right: 40px;
+  --acks-extras-rail-tools: 32px;
+  --acks-extras-art: 202px;
+  --acks-extras-fill: 0%;
+  --acks-extras-magic: color-mix(in srgb, var(--acks-burgundy) 45%, var(--acks-ink) 55%);
+  --acks-extras-magic-ink: color-mix(in srgb, var(--acks-spot) 55%, var(--acks-ink) 45%);
+  --acks-extras-magic-tint: color-mix(in srgb, var(--acks-extras-magic) 12%, var(--acks-paper-pure));
+  width: 900px;
+  min-width: 640px;
+  /* GEOMETRY ONLY: ground, ink and frame are the `.acks-ui` dress's. */
+}
+
+/* The folded card: the band, the portrait, the rails and the pin bar. */
+.acks-extras-character-sheet.is-folded {
+  min-width: 380px;
+}
+
+/* --- Window chrome: the band IS the header. ------------------------------ */
+
+.acks-extras-character-sheet.application > .window-header {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  height: auto;
+  min-height: 0;
+  padding: 0 var(--acks-sp-2) 0 0;
+  background: transparent;
+  border-block-end: var(--acks-rule) solid var(--acks-spot);
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet.application > .window-header .window-icon,
+.acks-extras-character-sheet.application > .window-header .window-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.acks-extras-character-sheet.application > .window-header .header-control {
+  flex: none;
+  inline-size: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-character-sheet.application > .window-header .header-control:hover {
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet.application .acks-extras-character-sheet__content {
+  padding: 0;
+  overflow: visible;
+}
+
+.acks-extras-character-sheet__scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 85vh;
+  overflow: auto;
+  container-type: inline-size;
+}
+
+/* --- Title band ----------------------------------------------------------- */
+
+.acks-extras-character-sheet__band {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) var(--acks-sp-3);
+}
+
+.acks-extras-character-sheet__glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__glyph img {
+  width: 22px;
+  height: 22px;
+  border: none;
+  object-fit: contain;
+}
+
+.acks-extras-character-sheet__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-ink);
+  padding: 0 var(--acks-sp-1);
+}
+
+.acks-extras-character-sheet__rank {
+  flex: none;
+  font-family: var(--acks-font-display);
+  font-size: 10.5px;
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+  white-space: nowrap;
+}
+
+.acks-extras-character-sheet .acks-extras-character-sheet__name {
+  flex: 1;
+  min-width: 6ch;
+  border: none;
+  font-family: var(--acks-font-display);
+  font-weight: var(--acks-weight-bold);
+  font-size: 19px;
+  letter-spacing: 0.03em;
+  padding-block: var(--acks-sp-1);
+  min-height: 0;
+  text-overflow: ellipsis;
+}
+
+.acks-extras-character-sheet__band.is-folded .acks-extras-character-sheet__name {
+  font-size: 15px;
+}
+
+.acks-extras-character-sheet__band.is-folded .acks-extras-character-sheet__rank {
+  font-size: 9.5px;
+}
+
+/* The XP bar: burgundy toward the threshold, gold and labelled at it. */
+.acks-extras-character-sheet__xp {
+  position: relative;
+  flex: none;
+  width: 176px;
+  height: 26px;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__xp-fill {
+  display: block;
+  height: 100%;
+  width: var(--acks-extras-fill);
+  background: var(--acks-burgundy);
+}
+
+.acks-extras-character-sheet__xp > b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--acks-font-display);
+  font-size: 9.5px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--acks-ink);
+  text-shadow: 0 0 2px var(--acks-paper), 0 0 3px var(--acks-paper), 0 0 4px var(--acks-paper);
+}
+
+.acks-extras-character-sheet__xp.is-full {
+  border-color: var(--acks-gold-deep);
+}
+
+.acks-extras-character-sheet__xp.is-full .acks-extras-character-sheet__xp-fill {
+  background: var(--acks-gold);
+}
+
+/* --- Art row -------------------------------------------------------------- */
+
+.acks-extras-character-sheet__art-row {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--acks-sp-5);
+}
+
+.acks-extras-character-sheet__rail {
+  position: relative;
+  display: grid;
+  grid-template-rows: repeat(6, var(--acks-extras-cell));
+  gap: 2px;
+  flex: none;
+  align-content: start;
+}
+
+.acks-extras-character-sheet__rail--left {
+  width: var(--acks-extras-rail-left);
+}
+
+.acks-extras-character-sheet__rail--right {
+  width: var(--acks-extras-rail-right);
+  margin-inline-start: 5px;
+}
+
+.acks-extras-character-sheet__rail--tools {
+  width: var(--acks-extras-rail-tools);
+  margin-inline-start: var(--acks-sp-3);
+}
+
+.acks-extras-character-sheet__art {
+  position: relative;
+  flex: none;
+  width: var(--acks-extras-art);
+  height: var(--acks-extras-art);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-inline-start: none;
+  background: var(--acks-tint);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.acks-extras-character-sheet__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+}
+
+.acks-extras-character-sheet__img[data-action] {
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__prose {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: var(--acks-sp-4);
+  align-items: stretch;
+  padding-inline-start: 14px;
+}
+
+.acks-extras-character-sheet__prose-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: var(--acks-sp-3);
+  align-content: start;
+}
+
+.acks-extras-character-sheet__overline {
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+  line-height: 1.2;
+}
+
+.acks-extras-character-sheet__description {
+  font-family: var(--acks-font-body);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--acks-ink);
+  max-height: 130px;
+  overflow: auto;
+}
+
+.acks-extras-character-sheet__description > :first-child {
+  margin-block-start: 0;
+}
+
+.acks-extras-character-sheet__description > :last-child {
+  margin-block-end: 0;
+}
+
+.acks-extras-character-sheet__editor {
+  --min-height: 6rem;
+}
+
+.acks-extras-character-sheet__prose .acks-tag {
+  font-size: 10px;
+}
+
+/* --- Rail cells ----------------------------------------------------------- */
+
+.acks-extras-character-sheet__cell {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  height: var(--acks-extras-cell);
+  min-height: 0;
+  width: 100%;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: linear-gradient(to top, var(--acks-tint-2) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+  color: var(--acks-ink);
+  font-family: var(--acks-font-display);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__cell:disabled {
+  cursor: default;
+}
+
+.acks-extras-character-sheet__cell:hover:not(:disabled) {
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__cell-glyph {
+  font-size: 13px;
+}
+
+.acks-extras-character-sheet__cell-glyph.is-big {
+  font-size: 18px;
+}
+
+.acks-extras-character-sheet__cell-img {
+  width: 16px;
+  height: 16px;
+  border: none;
+  object-fit: contain;
+}
+
+.acks-extras-character-sheet__cell-sub {
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__cell-corner {
+  position: absolute;
+  inset-inline-end: 1px;
+  inset-block-end: 1px;
+  font-size: 8px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__cell-count {
+  position: absolute;
+  inset-inline-start: 1px;
+  inset-block-start: 1px;
+  min-width: 10px;
+  height: 10px;
+  padding: 0 2px;
+  display: grid;
+  place-items: center;
+  background: var(--acks-spot);
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-ui);
+  font-size: 8px;
+  font-weight: var(--acks-weight-bold);
+}
+
+/* A figure set inside its glyph: the heart holds the HP, the shield the AC. */
+.acks-extras-character-sheet__in {
+  position: relative;
+  display: grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.acks-extras-character-sheet__in > i {
+  font-size: 24px;
+  color: var(--acks-tint-2);
+  -webkit-text-stroke: 1px var(--acks-ink);
+}
+
+.acks-extras-character-sheet__in > b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--acks-font-ui);
+  font-size: 11px;
+  font-weight: var(--acks-weight-bold);
+  line-height: 1;
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__in.is-dash {
+  width: 24px;
+  height: 24px;
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+}
+
+/* Two hands, open or clenched; joined on one haft for a two-handed weapon. */
+.acks-extras-character-sheet__hands {
+  display: flex;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.acks-extras-character-sheet__hands.is-joined {
+  gap: 0;
+}
+
+.acks-extras-character-sheet__hands.is-joined > i:first-child {
+  transform: scaleX(-1);
+}
+
+/* Cell tones. */
+.acks-extras-character-sheet__cell.is-btn {
+  color: var(--acks-spot);
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+.acks-extras-character-sheet__cell.is-icon {
+  color: var(--acks-spot);
+  border-color: var(--acks-spot);
+  background: transparent;
+  font-size: 13px;
+}
+
+.acks-extras-character-sheet__cell.is-pad {
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+  background: transparent;
+  opacity: 0.55;
+}
+
+.acks-extras-character-sheet__cell.is-on::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-end: 2px;
+  width: 5px;
+  height: 5px;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+.acks-extras-character-sheet__cell.is-hi {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint-2);
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__cell.is-hi .acks-extras-character-sheet__cell-sub {
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__cell.is-full {
+  border-color: var(--acks-burgundy);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-character-sheet__cell.is-full .acks-extras-character-sheet__cell-sub {
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-character-sheet__cell.is-warn {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+}
+
+.acks-extras-character-sheet__cell.is-warn .acks-extras-character-sheet__cell-sub {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-character-sheet__cell.is-bad {
+  border-color: var(--acks-danger);
+  background: var(--acks-danger-tint);
+}
+
+.acks-extras-character-sheet__cell.is-bad .acks-extras-character-sheet__cell-sub,
+.acks-extras-character-sheet__cell.is-bad .acks-extras-character-sheet__in > b {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-character-sheet__cell.is-pos {
+  border-color: var(--acks-success);
+  background: linear-gradient(to top, var(--acks-success-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-character-sheet__cell.is-pos .acks-extras-character-sheet__cell-sub {
+  color: var(--acks-success-ink);
+}
+
+.acks-extras-character-sheet__cell.is-neg {
+  border-color: var(--acks-danger);
+  background: linear-gradient(to top, var(--acks-danger-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-character-sheet__cell.is-neg .acks-extras-character-sheet__cell-sub {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-character-sheet__cell.is-tm {
+  border-color: var(--acks-warning);
+  background: linear-gradient(to top, var(--acks-warning-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-character-sheet__cell.is-tm .acks-extras-character-sheet__cell-sub {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-character-sheet__cell.is-ts {
+  border-color: var(--acks-extras-magic);
+  background: linear-gradient(to top, var(--acks-extras-magic-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-character-sheet__cell.is-ts .acks-extras-character-sheet__cell-sub {
+  color: var(--acks-extras-magic-ink);
+}
+
+.acks-extras-character-sheet__cell.is-split {
+  border-color: var(--acks-danger);
+  background: linear-gradient(135deg, var(--acks-success-tint) 0 50%, var(--acks-danger-tint) 50% 100%);
+}
+
+/* The rail menu: one row per option, the current one marked. */
+.acks-extras-character-sheet__menu {
+  position: absolute;
+  inset-inline-start: calc(100% + 4px);
+  z-index: 5;
+  display: grid;
+  min-width: 170px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-paper-pure);
+  box-shadow: 0 2px 0 var(--acks-tint-2);
+}
+
+.acks-extras-character-sheet__rail--left .acks-extras-character-sheet__menu {
+  inset-inline-start: calc(100% + 4px);
+}
+
+.acks-extras-character-sheet__menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: 5px 8px;
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+  background: transparent;
+  color: var(--acks-ink);
+  font-family: var(--acks-font-ui);
+  font-size: 12px;
+  text-align: start;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.acks-extras-character-sheet__menu-item:last-child {
+  border-block-end: none;
+}
+
+.acks-extras-character-sheet__menu-item:hover:not(:disabled) {
+  background: var(--acks-tint);
+}
+
+.acks-extras-character-sheet__menu-item.is-on {
+  background: var(--acks-tint);
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-character-sheet__menu-item > i {
+  width: 14px;
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__menu-item > img {
+  width: 16px;
+  height: 16px;
+  border: none;
+}
+
+.acks-extras-character-sheet__menu-item > span {
+  flex: 1;
+}
+
+.acks-extras-character-sheet__menu-item > b {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* --- Tabs and panels ------------------------------------------------------ */
+
+.acks-extras-character-sheet__tabs {
+  flex-wrap: wrap;
+  margin: 0 var(--acks-sp-5);
+}
+
+.acks-extras-character-sheet__tabs .acks-tab {
+  font-size: 10.5px;
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.07em;
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+  display: inline-flex;
+  align-items: center;
+}
+
+.acks-extras-character-sheet__tabs .acks-tab.active {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-character-sheet__tabs .acks-tab.is-dyn {
+  border-color: var(--acks-gold-deep);
+  color: var(--acks-gold-deep);
+  background: var(--acks-gold-tint);
+}
+
+.acks-extras-character-sheet__tabs .acks-tab.is-dyn.active {
+  background: var(--acks-gold);
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__tabs .acks-extras-character-sheet__fold {
+  padding: var(--acks-sp-3) 7px;
+  background: transparent;
+}
+
+.acks-extras-character-sheet__tab-count {
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  font-weight: var(--acks-weight-body);
+  opacity: 0.75;
+  margin-inline-start: var(--acks-sp-2);
+}
+
+.acks-extras-character-sheet__tab-pending {
+  display: inline-grid;
+  place-items: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  margin-inline-start: 5px;
+  background: var(--acks-gold);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-ui);
+  font-size: 9.5px;
+  font-weight: var(--acks-weight-bold);
+}
+
+.acks-extras-character-sheet__panel {
+  display: none;
+  padding: var(--acks-sp-4) var(--acks-sp-5) var(--acks-sp-5);
+}
+
+.acks-extras-character-sheet__panel.active {
+  display: block;
+}
+
+.acks-extras-character-sheet__stack {
+  display: grid;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-character-sheet__cols {
+  display: grid;
+  gap: var(--acks-sp-4) 26px;
+  align-items: start;
+}
+
+.acks-extras-character-sheet__cols.is-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.acks-extras-character-sheet__cols.is-2.is-wide-left {
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.acks-extras-character-sheet__cols.is-3 {
+  grid-template-columns: 1fr 1.15fr 1fr;
+}
+
+.acks-extras-character-sheet__col {
+  min-width: 0;
+}
+
+.acks-extras-character-sheet__group {
+  display: grid;
+  gap: 0;
+}
+
+.acks-extras-character-sheet__group + .acks-extras-character-sheet__group {
+  margin-block-start: var(--acks-sp-5);
+}
+
+.acks-extras-character-sheet__group.is-hidden {
+  display: none;
+}
+
+.acks-extras-character-sheet__intro,
+.acks-extras-character-sheet__hint {
+  font-family: var(--acks-font-ui);
+  font-size: 11px;
+  color: var(--acks-ink-soft);
+  padding-block: var(--acks-sp-2);
+}
+
+/* A rule: the group heading, underlined in spot. */
+.acks-extras-character-sheet__rule {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+  padding-block-end: 3px;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-character-sheet__rule.is-bar {
+  border-block-end: none;
+  padding-block-end: 0;
+  align-items: center;
+}
+
+.acks-extras-character-sheet__rule.is-spaced {
+  margin-block-start: var(--acks-sp-5);
+}
+
+.acks-extras-character-sheet__rule-title {
+  font-family: var(--acks-font-display);
+  font-size: 10px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__rule-note {
+  margin-inline-start: auto;
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__subhead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) 0 2px;
+  font-family: var(--acks-font-display);
+  font-size: 9.5px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__subhead-note {
+  margin-inline-start: auto;
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  font-weight: var(--acks-weight-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A row: label over line, a value, an action — underlined in tint. */
+.acks-extras-character-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding-block: 5px;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-character-sheet__row.is-bare {
+  border-block-end: none;
+  padding-block: 2px;
+}
+
+.acks-extras-character-sheet__row.is-head {
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  padding-block-end: var(--acks-sp-3);
+}
+
+.acks-extras-character-sheet__row.is-roll {
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__row.is-roll:hover {
+  background: var(--acks-tint);
+}
+
+.acks-extras-character-sheet__row.is-disabled {
+  opacity: 0.6;
+}
+
+.acks-extras-character-sheet__row-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.acks-extras-character-sheet__row-label {
+  font-family: var(--acks-font-ui);
+  font-size: 13px;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__row-label.is-big {
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__row-line {
+  font-family: var(--acks-font-ui);
+  font-size: 11px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__row-name {
+  font-family: var(--acks-font-ui);
+  font-size: 12.5px;
+  color: var(--acks-ink);
+}
+
+a.acks-extras-character-sheet__row-name:hover,
+a.acks-extras-character-sheet__gear-name:hover {
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__row-value {
+  font-family: var(--acks-font-ui);
+  font-size: 12.5px;
+  font-weight: var(--acks-weight-medium);
+  min-width: 30px;
+  text-align: end;
+}
+
+/* The pin: a 16px box that holds a lozenge when the roll is on the card. */
+.acks-extras-character-sheet__pin {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: none;
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__pin.is-on::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--acks-spot);
+  transform: rotate(45deg);
+}
+
+/* The roll button and the mini d20. */
+.acks-extras-character-sheet__roll {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-display);
+  font-size: 9px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-extras-character-sheet__mini {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__mini.is-eq,
+.acks-extras-character-sheet__row.is-eq .acks-extras-character-sheet__roll {
+  box-shadow: 0 0 0 1px var(--acks-paper), 0 0 0 3px var(--acks-spot);
+}
+
+/* Chips, badges, tags. */
+.acks-extras-character-sheet__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: transparent;
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: 9px;
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__chip:hover {
+  background: var(--acks-tint);
+}
+
+.acks-extras-character-sheet__chip.is-gold {
+  border-color: var(--acks-gold-deep);
+  color: var(--acks-gold-deep);
+  background: var(--acks-gold-tint);
+}
+
+.acks-extras-character-sheet__badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--acks-sp-2);
+  padding: 2px 6px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  white-space: nowrap;
+}
+
+.acks-extras-character-sheet__badge-k {
+  font-family: var(--acks-font-display);
+  font-size: 9px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__badge-v {
+  font-family: var(--acks-font-ui);
+  font-size: 11.5px;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  padding-block: var(--acks-sp-3);
+}
+
+/* Bars. The thin one is a header's underline: fill, breakpoint ticks, no frame. */
+.acks-extras-character-sheet__bar {
+  position: relative;
+  height: 18px;
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  background: var(--acks-neutral);
+  overflow: hidden;
+}
+
+.acks-extras-character-sheet__bar > i {
+  display: block;
+  height: 100%;
+  background: var(--acks-burgundy);
+}
+
+.acks-extras-character-sheet__bar.is-thin {
+  height: 7px;
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+.acks-extras-character-sheet__bar.is-thin > u {
+  position: absolute;
+  inset-block: 0;
+  width: 1px;
+  background: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__bar.is-warn { border-block-end-color: var(--acks-warning); }
+.acks-extras-character-sheet__bar.is-warn > i { background: var(--acks-warning); }
+.acks-extras-character-sheet__bar.is-bad,
+.acks-extras-character-sheet__bar.is-neg { border-block-end-color: var(--acks-danger); }
+.acks-extras-character-sheet__bar.is-bad > i,
+.acks-extras-character-sheet__bar.is-neg > i { background: var(--acks-danger); }
+.acks-extras-character-sheet__bar.is-pos { border-block-end-color: var(--acks-success); }
+.acks-extras-character-sheet__bar.is-pos > i { background: var(--acks-success); }
+.acks-extras-character-sheet__bar.is-tm { border-block-end-color: var(--acks-warning); }
+.acks-extras-character-sheet__bar.is-tm > i { background: var(--acks-warning); }
+.acks-extras-character-sheet__bar.is-ts { border-block-end-color: var(--acks-extras-magic); }
+.acks-extras-character-sheet__bar.is-ts > i { background: var(--acks-extras-magic); }
+
+/* --- Equipment ------------------------------------------------------------ */
+
+.acks-extras-character-sheet__slot {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--acks-sp-3);
+  min-height: 34px;
+  padding: 3px 0;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-character-sheet__slot.is-empty {
+  min-height: 26px;
+  align-items: center;
+}
+
+.acks-extras-character-sheet__slot.is-over {
+  background: var(--acks-danger-tint);
+}
+
+.acks-extras-character-sheet__where {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 92px;
+  flex: none;
+  padding-block-start: 6px;
+  font-family: var(--acks-font-ui);
+  font-size: 11.5px;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__slot.is-empty .acks-extras-character-sheet__where {
+  padding-block-start: 0;
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-character-sheet__where > i {
+  width: 14px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.acks-extras-character-sheet__slot-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.acks-extras-character-sheet__slot-cap {
+  flex: none;
+  padding-block-start: 6px;
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__drop {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+  opacity: 0.5;
+  font-family: var(--acks-font-ui);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--acks-ink-soft);
+}
+
+[data-drop].is-over > .acks-extras-character-sheet__drop,
+[data-drop].is-over > .acks-extras-character-sheet__slot-body > .acks-extras-character-sheet__drop {
+  opacity: 1;
+  border-color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__gear {
+  padding-block: 3px;
+}
+
+.acks-extras-character-sheet__gear + .acks-extras-character-sheet__gear {
+  border-block-start: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-character-sheet__gear.is-container.is-over,
+.acks-extras-character-sheet__gear.is-container[data-drop].is-over {
+  background: var(--acks-tint);
+}
+
+.acks-extras-character-sheet__gear-main {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-character-sheet__gear-img {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: var(--acks-tint);
+  object-fit: cover;
+  font-size: 12px;
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__gear-img.is-big {
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+}
+
+.acks-extras-character-sheet__gear-img.is-big > img {
+  width: 100%;
+  height: 100%;
+  border: none;
+  object-fit: contain;
+}
+
+.acks-extras-character-sheet__gear-img.is-dashed {
+  border-style: dashed;
+  background: transparent;
+}
+
+.acks-extras-character-sheet__gear-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.acks-extras-character-sheet__gear-name {
+  font-family: var(--acks-font-ui);
+  font-size: 12.5px;
+  color: var(--acks-ink);
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__gear.is-wielded .acks-extras-character-sheet__gear-name {
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-character-sheet__gear-line {
+  font-family: var(--acks-font-ui);
+  font-size: 11px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__gear-head {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: 2px 0 2px 32px;
+}
+
+.acks-extras-character-sheet__gear-head .acks-extras-character-sheet__ctls {
+  margin-inline-start: auto;
+}
+
+.acks-extras-character-sheet__contents {
+  padding-inline-start: 32px;
+}
+
+/* Row controls: three groups with a hairline between. */
+.acks-extras-character-sheet__ctls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.acks-extras-character-sheet__grp {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.acks-extras-character-sheet__grp + .acks-extras-character-sheet__grp {
+  margin-inline-start: 4px;
+  padding-inline-start: 6px;
+  border-inline-start: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-character-sheet__ctl {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__ctl:hover:not(:disabled) {
+  background: var(--acks-tint);
+}
+
+.acks-extras-character-sheet__ctl.is-on {
+  color: var(--acks-gold-deep);
+}
+
+.acks-extras-character-sheet__ctl.is-locked {
+  color: var(--acks-ink-faint);
+  cursor: default;
+}
+
+.acks-extras-character-sheet__ctl.is-blocked {
+  color: var(--acks-danger-ink);
+}
+
+/* --- Stats ---------------------------------------------------------------- */
+
+.acks-extras-character-sheet__attrs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
+  gap: var(--acks-sp-3);
+  align-items: stretch;
+}
+
+.acks-extras-character-sheet .acks-attribute-value.acks-extras-character-sheet__score.acks-extras-character-sheet__score {
+  width: 100%;
+  min-height: 0;
+  padding: var(--acks-sp-3) var(--acks-sp-2) var(--acks-sp-1);
+  border: none;
+  background: transparent;
+  text-align: center;
+}
+
+.acks-extras-character-sheet__attrs-tools {
+  display: grid;
+  gap: var(--acks-sp-2);
+  align-content: center;
+}
+
+.acks-extras-character-sheet__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: var(--acks-sp-3) 0 var(--acks-sp-2);
+}
+
+.acks-extras-character-sheet__pills.is-inline {
+  display: inline-flex;
+  padding: 0;
+}
+
+.acks-extras-character-sheet__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 30px;
+  height: 24px;
+  padding: 0 8px;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: transparent;
+  color: var(--acks-ink-faint);
+  font-family: var(--acks-font-display);
+  font-size: 10px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  cursor: default;
+}
+
+button.acks-extras-character-sheet__pill:not(:disabled) {
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__pill.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-character-sheet__pill.is-gold {
+  border-color: var(--acks-gold-deep);
+  background: var(--acks-gold);
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__pill.is-unset {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.acks-extras-character-sheet__pill.is-weapon {
+  height: 20px;
+  padding: 0 6px;
+  font-family: var(--acks-font-ui);
+  font-size: 10.5px;
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.acks-extras-character-sheet__pill.is-filter {
+  height: 22px;
+  font-family: var(--acks-font-ui);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+}
+
+.acks-extras-character-sheet__pill-n {
+  opacity: 0.7;
+  font-weight: var(--acks-weight-body);
+}
+
+.acks-extras-character-sheet__bucket {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 0;
+}
+
+.acks-extras-character-sheet__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Facts: an icon, a label, a value or a write-on field. */
+.acks-extras-character-sheet__fact {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding-block: 3px;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-character-sheet__fact-icon {
+  width: 16px;
+  text-align: center;
+  color: var(--acks-spot);
+  font-size: 12px;
+}
+
+.acks-extras-character-sheet__fact-label {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--acks-font-ui);
+  font-size: 12px;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__fact-note {
+  font-size: 10.5px;
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-character-sheet__fact-value {
+  font-family: var(--acks-font-ui);
+  font-size: 12.5px;
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__fact-unit {
+  width: 5.5em;
+  font-family: var(--acks-font-ui);
+  font-size: 10.5px;
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-character-sheet__fact-of {
+  color: var(--acks-ink-soft);
+}
+
+/* The design system's field rule sets `width: 100%` at three classes deep,
+   and its sheet is applied AFTER this one, so a tie goes against these
+   fields; the write-on fields sit one class heavier than that rule. */
+.acks-extras-character-sheet .acks-input.acks-extras-character-sheet__fact-input.acks-extras-character-sheet__fact-input {
+  flex: none;
+  width: 5ch;
+  min-height: 0;
+  height: 22px;
+  padding: 1px 4px;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.acks-extras-character-sheet .acks-input.acks-extras-character-sheet__fact-input.acks-extras-character-sheet__fact-input.is-wide {
+  width: 9ch;
+}
+
+.acks-extras-character-sheet .acks-input.acks-extras-character-sheet__fact-input.acks-extras-character-sheet__fact-input.is-xs {
+  width: 4ch;
+}
+
+.acks-extras-character-sheet select.acks-input.acks-extras-character-sheet__fact-input.acks-extras-character-sheet__fact-input {
+  width: auto;
+  min-width: 12ch;
+  text-align: start;
+}
+
+.acks-extras-character-sheet__note.is-box {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: 6px 10px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-tint);
+  font-family: var(--acks-font-ui);
+  font-size: 11.5px;
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__note.is-box > i {
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__note.is-box > span {
+  flex: 1;
+}
+
+.acks-extras-character-sheet__note.is-box > .acks-tag {
+  cursor: pointer;
+}
+
+/* --- Class ---------------------------------------------------------------- */
+
+.acks-extras-character-sheet__gold-band {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding: 8px 10px;
+  border: var(--acks-rule-hair) solid var(--acks-gold-deep);
+  background: var(--acks-gold-tint);
+  color: var(--acks-gold-deep);
+}
+
+.acks-extras-character-sheet__gold-title {
+  font-family: var(--acks-font-display);
+  font-size: 11px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.acks-extras-character-sheet__delta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  padding-block: 4px;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+  font-family: var(--acks-font-ui);
+  font-size: 12px;
+}
+
+.acks-extras-character-sheet__delta-label {
+  flex: 1;
+}
+
+.acks-extras-character-sheet__delta-from {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-character-sheet__delta > i {
+  font-size: 9px;
+  color: var(--acks-spot);
+}
+
+.acks-extras-character-sheet__delta-to {
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-character-sheet__levelup {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-5);
+  padding-block-start: var(--acks-sp-3);
+  border-block-start: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-character-sheet__gold-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 8px 20px;
+  border: var(--acks-rule-hair) solid var(--acks-gold-deep);
+  background: var(--acks-gold);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-display);
+  font-size: 13px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* --- Followers ------------------------------------------------------------ */
+
+.acks-extras-character-sheet__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) 0;
+}
+
+.acks-extras-character-sheet__card {
+  position: relative;
+  min-width: 0;
+}
+
+.acks-extras-character-sheet__card-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 3px;
+  padding-block-end: 2px;
+}
+
+/* --- Effects -------------------------------------------------------------- */
+
+.acks-extras-character-sheet__timer {
+  padding-block: 3px;
+}
+
+.acks-extras-character-sheet__timer.is-disabled {
+  opacity: 0.6;
+}
+
+/* --- Folded --------------------------------------------------------------- */
+
+.acks-extras-character-sheet__art-row.is-folded {
+  padding-block-end: var(--acks-sp-3);
+}
+
+.acks-extras-character-sheet__foldbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 var(--acks-sp-5);
+  padding: 0 0 var(--acks-sp-5);
+}
+
+.acks-extras-character-sheet__foldbar .acks-extras-character-sheet__cell.is-fold {
+  width: 26px;
+  height: 24px;
+}
+
+.acks-extras-character-sheet__pinchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: linear-gradient(to right, var(--acks-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: 10px;
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+button.acks-extras-character-sheet__pinchip {
+  cursor: pointer;
+}
+
+.acks-extras-character-sheet__pinchip.is-roll {
+  background: transparent;
+}
+
+.acks-extras-character-sheet__pinchip.is-eq {
+  box-shadow: 0 0 0 1px var(--acks-paper), 0 0 0 3px var(--acks-spot);
+}
+
+.acks-extras-character-sheet__pinchip > i {
+  font-size: 11px;
+}
+
+.acks-extras-character-sheet__pinchip > img {
+  width: 12px;
+  height: 12px;
+  border: none;
+}
+
+.acks-extras-character-sheet__pinchip > b {
+  font-family: var(--acks-font-ui);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--acks-ink);
+}
+
+.acks-extras-character-sheet__pinchip.is-tm {
+  border-color: var(--acks-warning);
+  color: var(--acks-warning-ink);
+  background: linear-gradient(to right, var(--acks-warning-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-character-sheet__pinchip.is-ts {
+  border-color: var(--acks-extras-magic);
+  color: var(--acks-extras-magic-ink);
+  background: linear-gradient(to right, var(--acks-extras-magic-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-character-sheet__pinchip.is-pos {
+  border-color: var(--acks-success);
+  color: var(--acks-success-ink);
+  background: linear-gradient(to right, var(--acks-success-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+.acks-extras-character-sheet__pinchip.is-neg {
+  border-color: var(--acks-danger);
+  color: var(--acks-danger-ink);
+  background: linear-gradient(to right, var(--acks-danger-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
+}
+
+/* --- Narrow: at the core width the place column collapses to its icon. --- */
+
+@container (max-width: 840px) {
+  .acks-extras-character-sheet__where {
+    width: 22px;
+  }
+
+  .acks-extras-character-sheet__where-label {
+    display: none;
+  }
+
+  .acks-extras-character-sheet__cols.is-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container (max-width: 700px) {
+  .acks-extras-character-sheet__cols.is-2,
+  .acks-extras-character-sheet__cols.is-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .acks-extras-character-sheet__prose {
+    display: none;
+  }
+}

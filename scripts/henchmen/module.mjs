@@ -38,6 +38,7 @@ import { bindCardListeners, registerCardAction } from "./chat/cards.mjs";
 
 import { registerEventEngine, openLoyaltyRoll, openObedienceRoll, recordCalamity, payWagesFor, enrollNewcomers, forgiveWageDebts, setPermanentCompensated, allEmployers, effectiveLoyaltyFor, effectiveMoraleFor } from "./engine/events.mjs";
 import { openRosterApp } from "./apps/roster-app.mjs";
+import { ownsSheet } from "../lib/util.mjs";
 import { installHirelingsGrid } from "./apps/hirelings-grid.mjs";
 import { recruitMonster, hireMonster, validateMonsterRecruit } from "./engine/monster.mjs";
 import { openFollowersDialog } from "./apps/followers-dialog.mjs";
@@ -299,6 +300,9 @@ Hooks.on("renderActorSheetV2", (app, element) => {
   const actor = app.actor ?? app.document;
   if (actor?.type !== ACTOR_TYPE.character || actor.system?.retainer?.enabled) return;
   if (!actor.isOwner) return;
+  // The module's own character sheet carries Roster as a chip on its
+  // Followers tab; the header button dresses the system's sheet alone.
+  if (ownsSheet(app)) return;
   const root = element instanceof HTMLElement ? element : element?.[0];
   const header = root?.querySelector(".window-header");
   if (!header || header.querySelector(".acks-henchmen-roster-button")) return;

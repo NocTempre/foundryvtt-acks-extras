@@ -18,7 +18,7 @@
  * destroyed while an injected section (not being a part) survives — removing
  * both and re-adding them is what keeps the two halves consistent.
  */
-import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
+import { makeLoc, libStorage as storage, ownsSheet } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 import { depositReach, pinnedPlaces, setPinnedPlace } from "../reach.mjs";
@@ -242,6 +242,9 @@ export function installStorageTab() {
       if (game.system?.id !== "acks") return;
       const actor = app.actor ?? app.document;
       if (actor?.type !== ACTOR_TYPE.character) return;
+      // The module's own character sheet lists storage under its Equipment
+      // tab's "Kept elsewhere" rule; this tab dresses the system's sheet alone.
+      if (ownsSheet(app)) return;
       const root = element instanceof HTMLElement ? element : element?.[0];
       // The core sheet has a primary tab strip; the Follower Card and our own
       // location sheet do not, and neither wants one bolted on.

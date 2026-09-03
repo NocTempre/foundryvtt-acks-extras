@@ -1,0 +1,18 @@
+{{!-- The title band: rendered as a part, then moved into the window header by
+      the sheet so Foundry's drag handle and buttons stay where they are. --}}
+<div class="acks-extras-character-sheet__band{{#if folded}} is-folded{{/if}}">
+  <button type="button" class="acks-extras-character-sheet__glyph" data-action="goTab" data-tab="class" data-tooltip="{{cls.name}}">
+    {{#if cls.img}}<img src="{{cls.img}}" alt="" inert>{{else}}<i class="fa-solid fa-graduation-cap" inert></i>{{/if}}
+  </button>
+  <div class="acks-extras-character-sheet__title">
+    {{#if cls.title}}<span class="acks-extras-character-sheet__rank" data-tooltip="{{band.rankTitle}}">{{cls.title}}</span>{{/if}}
+    <input class="acks-input acks-input--line acks-extras-character-sheet__name" type="text" name="name" value="{{actor.name}}" {{disabled (not editable)}}>
+  </div>
+  {{#unless folded}}
+  <button type="button" class="acks-extras-character-sheet__xp{{#if frame.xp.full}} is-full{{/if}}" data-action="goTab" data-tab="class"
+          data-tooltip="{{band.xpTitle}}" style="--acks-extras-fill: {{frame.xp.pct}}%">
+    <i class="acks-extras-character-sheet__xp-fill"></i>
+    <b class="acks-nums">{{band.xpLabel}}</b>
+  </button>
+  {{/unless}}
+</div>

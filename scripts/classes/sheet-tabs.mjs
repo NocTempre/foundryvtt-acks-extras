@@ -21,8 +21,29 @@ import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 const ABILITY_ORDER = ["fighting", "thief", "general", "class", "powers", "racial", "language"];
 
+/** The buckets in display order, for a sheet that files abilities itself. */
+export const ABILITY_BUCKETS = Object.freeze([...ABILITY_ORDER]);
+
+/**
+ * The refs the bound class awards as racial traits — what tells a racial
+ * bucket from the powers it is otherwise indistinguishable from.
+ * @returns {Set<string>}
+ */
+export function racialRefsOf(actor) {
+  return new Set(
+    (classForActor(actor)?.system.awards ?? [])
+      .filter((a) => /racial trait/i.test(a.note ?? ""))
+      .map((a) => a.ref)
+      .filter(Boolean),
+  );
+}
+
 /** The bucket one ability item belongs to. Racial outranks powers: racial
  *  traits ARE power defs, distinguished only by how the class awards them. */
+export function abilityBucket(item, racialRefs) {
+  return categorize(item, racialRefs);
+}
+
 function categorize(item, racialRefs) {
   const id = cookbookId(item);
   // A language is declared, never inferred from its name: "Goblin" is a
@@ -96,12 +117,7 @@ function onRenderCharacterSheet(app, element) {
   if (!root) return;
   const doc = app.document;
   if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character) return;
-  const racialRefs = new Set(
-    (classForActor(doc)?.system.awards ?? [])
-      .filter((a) => /racial trait/i.test(a.note ?? ""))
-      .map((a) => a.ref)
-      .filter(Boolean),
-  );
+  const racialRefs = racialRefsOf(doc);
   wireBar(app, root, doc, "abilities", (it) => it.type === ITEM_TYPE.ability, (it) => categorize(it, racialRefs));
   wireBar(app, root, doc, "spells", (it) => it.type === ITEM_TYPE.spell, (it) => String(it.system?.class || "other").toLowerCase());
 }

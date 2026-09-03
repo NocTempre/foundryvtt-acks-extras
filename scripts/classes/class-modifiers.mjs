@@ -119,6 +119,13 @@ function buildSection(actor) {
 }
 
 /**
+ * The section as an element, for a sheet this module draws itself to place
+ * where its own Effects tab wants it (the character sheet mounts it under
+ * "Managed by the module"). Null when the actor has no training to show.
+ */
+export const classModifiersSection = buildSection;
+
+/**
  * Mount the section on the Effects tab and take the training row out of the
  * ordinary list — the row and the section are the same document, and showing
  * both would be two controls for one thing that can disagree on screen.

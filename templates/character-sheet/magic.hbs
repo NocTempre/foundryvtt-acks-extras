@@ -1,0 +1,52 @@
+{{!-- Magic: the casting pools (mounted from the classes feature) and the
+      repertoire by level, with the slot pair core stores. --}}
+{{#with panels.magic as |mg|}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__rule">
+    <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.magic.pools"}}</span>
+    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.magic.poolsNote"}}</span>
+    {{#if mg.editable}}
+    <button type="button" class="acks-extras-character-sheet__chip" data-action="rest" data-tooltip="{{localize 'ACKS-CLASSES.casting.restTip'}}"><i class="fa-solid fa-bed" inert></i>{{localize "ACKS-CHARACTER.magic.rest"}}</button>
+    <button type="button" class="acks-extras-character-sheet__chip" data-action="spellReset" data-tooltip="{{mg.resetLabel}}"><i class="fa-solid fa-rotate" inert></i>{{localize "ACKS-CHARACTER.magic.resetSlots"}}</button>
+    <button type="button" class="acks-extras-character-sheet__chip" data-action="itemCreate" data-type="spell"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS.category.spells"}}</button>
+    {{/if}}
+  </div>
+  <div data-mount="casting"></div>
+  {{#unless mg.pools}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.magic.noPools"}}</div>{{/unless}}
+
+  {{#each mg.levels as |lvl|}}
+  <div class="acks-extras-character-sheet__group">
+    <div class="acks-extras-character-sheet__rule">
+      <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS.spells.Level"}} {{lvl.n}}</span>
+      <span class="acks-extras-character-sheet__rule-note acks-nums">{{localize "ACKS.spells.Slots"}} {{lvl.used}} /
+        <input class="acks-input acks-extras-character-sheet__fact-input is-xs acks-nums" type="number" name="{{lvl.maxPath}}" value="{{lvl.max}}" {{disabled (not @root.editable)}}>
+      </span>
+    </div>
+    {{#each lvl.rows as |spell|}}
+    <div class="acks-extras-character-sheet__row is-spell draggable" data-item-id="{{spell.id}}">
+      <img class="acks-extras-character-sheet__gear-img" src="{{spell.img}}" alt="" inert>
+      <span class="acks-extras-character-sheet__row-text">
+        <a class="acks-extras-character-sheet__row-name" data-action="itemEdit">{{spell.name}}</a>
+        {{#if spell.line}}<span class="acks-extras-character-sheet__row-line">{{spell.line}}</span>{{/if}}
+      </span>
+      <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.spells.Cast"}}</span>
+      <input class="acks-input acks-extras-character-sheet__fact-input is-xs acks-nums" type="number" data-item-field="system.cast" value="{{spell.cast}}" {{disabled (not @root.editable)}}>
+      <span class="acks-extras-character-sheet__ctls">
+        <span class="acks-extras-character-sheet__grp">
+          <button type="button" class="acks-extras-character-sheet__mini" data-action="spellCast" data-tooltip="{{localize 'ACKS-CHARACTER.magic.cast'}}"><i class="fa-solid fa-wand-magic-sparkles" inert></i></button>
+        </span>
+        {{#if @root.editable}}
+        <span class="acks-extras-character-sheet__grp">
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="itemShow" data-tooltip="{{localize 'ACKS.Show'}}"><i class="fa-solid fa-eye" inert></i></button>
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="itemEdit" data-tooltip="{{localize 'ACKS.Edit'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="itemDelete" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i></button>
+        </span>
+        {{/if}}
+      </span>
+    </div>
+    {{/each}}
+  </div>
+  {{/each}}
+  {{#unless mg.hasSpells}}<div class="acks-empty"><span class="acks-empty-title">{{localize "ACKS.category.spells"}}</span><span class="acks-empty-hint">{{mg.emptyHint}}</span></div>{{/unless}}
+</div>
+{{/with}}

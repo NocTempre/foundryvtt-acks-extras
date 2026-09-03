@@ -17,6 +17,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
+import { ownsSheet } from "../lib/util.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** The vancian slot row for `level`: exact rung, else the highest below it. */
@@ -125,16 +126,15 @@ function stripHtml(actor) {
   return `<div class="acks-extras-classes-strip">${parts.join("")}<a class="acks-extras-classes-rest" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.casting.restTip`)}"><i class="fa-solid fa-bed"></i></a></div>`;
 }
 
-function onRenderCharacterSheet(app, element) {
-  const root = element instanceof HTMLElement ? element : element?.[0];
-  if (!root) return;
-  const doc = app.document;
-  if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character) return;
-  root.querySelector(".acks-extras-classes-strip")?.remove();
-  const html = stripHtml(doc);
-  if (!html) return;
-  const anchor = root.querySelector('input[name="system.details.class"]')?.closest(".form-group") ?? root.querySelector("header");
-  if (!anchor) return;
+/**
+ * The strip as an element with its controls wired — a pip spends or refunds
+ * a slot, the +/− pair adjusts a points pool, the bed rests. Null when nothing
+ * casts. The core-sheet injector below and the module's own character sheet
+ * mount exactly this, so the two cannot drift.
+ */
+export function castingStripElement(actor) {
+  const html = stripHtml(actor);
+  if (!html) return null;
   const holder = document.createElement("div");
   holder.innerHTML = html;
   const strip = holder.firstElementChild;
@@ -142,20 +142,39 @@ function onRenderCharacterSheet(app, element) {
     const pip = event.target.closest(".acks-extras-classes-pip");
     if (pip) {
       event.preventDefault();
-      adjustPool(doc, pip.dataset.tradition, pip.dataset.slot, pip.classList.contains("spent") ? -1 : 1);
+      adjustPool(actor, pip.dataset.tradition, pip.dataset.slot, pip.classList.contains("spent") ? -1 : 1);
       return;
     }
     const pt = event.target.closest(".acks-extras-classes-ptbtn");
     if (pt) {
       event.preventDefault();
-      adjustPool(doc, pt.dataset.tradition, "points", Number(pt.dataset.delta) || 0);
+      adjustPool(actor, pt.dataset.tradition, "points", Number(pt.dataset.delta) || 0);
       return;
     }
     if (event.target.closest(".acks-extras-classes-rest")) {
       event.preventDefault();
-      restPools(doc);
+      restPools(actor);
     }
   });
+  return strip;
+}
+
+function onRenderCharacterSheet(app, element) {
+  const root = element instanceof HTMLElement ? element : element?.[0];
+  if (!root) return;
+  const doc = app.document;
+  if (!(doc instanceof Actor) || doc.type !== ACTOR_TYPE.character) return;
+  // A sheet this module draws itself places the strip where its own Magic
+  // tab wants it; this injector dresses the system's sheet alone.
+  if (ownsSheet(app)) return;
+  root.querySelector(".acks-extras-classes-strip")?.remove();
+  const strip = castingStripElement(doc);
+  if (!strip) return;
+  // Core's class field, else core's own header SECTION — never a bare
+  // `header`, which matches the window frame's header on every sheet and put
+  // the strip between the frame and the content of any non-core one.
+  const anchor = root.querySelector('input[name="system.details.class"]')?.closest(".form-group") ?? root.querySelector(".sheet-header");
+  if (!anchor) return;
   anchor.insertAdjacentElement("afterend", strip);
 }
 

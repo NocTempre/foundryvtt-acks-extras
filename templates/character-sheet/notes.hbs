@@ -1,0 +1,28 @@
+{{!-- Notes: the character's notes as prose, and the relationships on record. --}}
+{{#with panels.notes as |nt|}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__rule">
+    <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS.category.notes"}}</span>
+    {{#if nt.editable}}<button type="button" class="acks-extras-character-sheet__chip" data-action="editNotes"><i class="fa-solid fa-pen-to-square" inert></i>{{localize (ifThen nt.editing "ACKS-CHARACTER.notes.close" "ACKS-CHARACTER.notes.edit")}}</button>{{/if}}
+  </div>
+  {{#if nt.editing}}
+  <prose-mirror class="acks-extras-character-sheet__editor" name="system.details.notes" value="{{nt.notesSource}}" toggled data-document-uuid="{{actor.uuid}}">{{{nt.notesHTML}}}</prose-mirror>
+  {{else}}
+  <div class="acks-extras-character-sheet__description acks-prose">{{{nt.notesHTML}}}</div>
+  {{#unless nt.notesSource}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.notes.empty"}}</div>{{/unless}}
+  {{/if}}
+
+  <div class="acks-extras-character-sheet__rule is-spaced">
+    <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-INFLUENCE.attitude.relationships"}}</span>
+    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.notes.relationshipsNote"}}</span>
+  </div>
+  {{#each nt.relationships as |rel|}}
+  <div class="acks-extras-character-sheet__row draggable" data-item-id="{{rel.id}}">
+    <img class="acks-extras-character-sheet__gear-img" src="{{rel.img}}" alt="" inert>
+    <span class="acks-extras-character-sheet__row-text"><a class="acks-extras-character-sheet__row-name" data-action="relationshipOpen">{{rel.name}}</a><span class="acks-extras-character-sheet__row-line">{{rel.attitude}}</span></span>
+    {{#if @root.editable}}<span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp"><button type="button" class="acks-extras-character-sheet__ctl" data-action="relationshipDelete" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i></button></span></span>{{/if}}
+  </div>
+  {{/each}}
+  {{#unless nt.relationships.length}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-INFLUENCE.attitude.none"}}</div>{{/unless}}
+</div>
+{{/with}}

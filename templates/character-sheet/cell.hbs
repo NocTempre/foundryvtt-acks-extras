@@ -1,0 +1,22 @@
+{{!-- One rail cell. Context: {key, action, attrs, cls, fill, title, icon, big,
+      img, inside: {icon, n, dash}, hands: [], joined, sub, corner, count, disabled} --}}
+<button type="button" class="acks-extras-character-sheet__cell{{#if cls}} {{cls}}{{/if}}"
+        {{#if action}}data-action="{{action}}"{{/if}} {{{attrs}}}
+        {{#if title}}data-tooltip="{{title}}"{{/if}}
+        {{#if fill}}style="--acks-extras-fill: {{fill}}%"{{/if}}
+        {{#if disabled}}disabled{{/if}}>
+  {{#if inside}}
+    <span class="acks-extras-character-sheet__in{{#if inside.dash}} is-dash{{/if}}">
+      {{#if inside.icon}}<i class="{{inside.icon}}" inert></i>{{/if}}<b class="acks-nums">{{inside.n}}</b>
+    </span>
+  {{else if hands}}
+    <span class="acks-extras-character-sheet__hands{{#if joined}} is-joined{{/if}}">{{#each hands}}<i class="{{this}}" inert></i>{{/each}}</span>
+  {{else if img}}
+    <img class="acks-extras-character-sheet__cell-img" src="{{img}}" alt="" inert>
+  {{else if icon}}
+    <i class="{{icon}} acks-extras-character-sheet__cell-glyph{{#if big}} is-big{{/if}}" inert></i>
+  {{/if}}
+  {{#if sub}}<span class="acks-extras-character-sheet__cell-sub acks-nums">{{sub}}</span>{{/if}}
+  {{#if corner}}<i class="{{corner}} acks-extras-character-sheet__cell-corner" inert></i>{{/if}}
+  {{#if count}}<span class="acks-extras-character-sheet__cell-count acks-nums">{{count}}</span>{{/if}}
+</button>

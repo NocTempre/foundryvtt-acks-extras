@@ -1,0 +1,207 @@
+{{!-- Stats: what is not a throw — attributes, training, movement, vision,
+      vitals, and the throw targets Rolls reads (this is the pen). --}}
+{{#with panels.stats as |st|}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__attrs">
+    {{#each st.scores}}
+    <div class="acks-attribute">
+      <div class="acks-attribute-name" data-tooltip="{{long}}">{{label}}</div>
+      <input class="acks-attribute-value acks-extras-character-sheet__score acks-nums" type="number" name="system.scores.{{key}}.value" value="{{value}}" {{disabled (not @root.editable)}}>
+      <div class="acks-attribute-mod acks-nums">{{modLabel}}</div>
+    </div>
+    {{/each}}
+    <div class="acks-extras-character-sheet__attrs-tools">
+      <button type="button" class="acks-extras-character-sheet__chip" data-action="modifiers" data-tooltip="{{localize 'ACKS.Modifiers'}}"><i class="fa-regular fa-book" inert></i>{{localize "ACKS.Modifiers"}}</button>
+      {{#if st.editable}}<button type="button" class="acks-extras-character-sheet__chip" data-action="generateScores" data-tooltip="{{localize 'ACKS.dialog.generateScores'}}"><i class="fa-regular fa-dice" inert></i>{{localize "ACKS-CHARACTER.stats.scores"}}</button>{{/if}}
+    </div>
+  </div>
+
+  <div class="acks-extras-character-sheet__cols is-2 is-wide-left">
+    <div class="acks-extras-character-sheet__col acks-extras-character-sheet__stack">
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.styles"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.stylesNote"}}</span>
+        </div>
+        <div class="acks-extras-character-sheet__pills">
+          {{#each st.training.styles}}
+          <button type="button" class="acks-extras-character-sheet__pill{{#if on}} is-on{{/if}}{{#if gold}} is-gold{{/if}}{{#if unset}} is-unset{{/if}}" data-action="toggleTraining" data-group="styles" data-slot="{{key}}" data-tooltip="{{label}}" {{disabled (or (not @root.editable) (not ../st.training.source))}}>
+            <i class="{{icon}}" inert></i>{{label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.weapons"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.weaponsNote"}}</span>
+        </div>
+        <div class="acks-extras-character-sheet__pills">
+          <span class="acks-extras-character-sheet__pill{{#if st.training.weaponsAll}} is-on{{/if}}">{{localize "ACKS-CHARACTER.stats.allWeapons"}}</span>
+        </div>
+        {{#each st.training.buckets as |b|}}
+        <div class="acks-extras-character-sheet__bucket">
+          <button type="button" class="acks-extras-character-sheet__pill is-bucket{{#if b.on}} is-on{{/if}}{{#if b.gold}} is-gold{{/if}}{{#if b.unset}} is-unset{{/if}}" data-action="toggleBucket" data-bucket="{{b.key}}" data-tooltip="{{b.label}}">
+            <i class="fa-solid {{#if b.open}}fa-chevron-down{{else}}fa-chevron-right{{/if}}" inert></i>{{b.label}}
+          </button>
+          {{#if @root.editable}}{{#if ../st.training.source}}
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="toggleTraining" data-group="weapons" data-slot="{{b.key}}" data-tooltip="{{localize 'ACKS-CHARACTER.stats.toggleClass'}}"><i class="fa-solid fa-toggle-{{#if b.on}}on{{else}}off{{/if}}" inert></i></button>
+          {{/if}}{{/if}}
+          {{#if b.open}}
+          <span class="acks-extras-character-sheet__pills is-inline">
+            {{#each b.weapons}}<span class="acks-extras-character-sheet__pill is-weapon{{#if on}} is-on{{/if}}{{#if gold}} is-gold{{/if}}">{{name}}</span>{{/each}}
+          </span>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.armour"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.armourNote"}}</span>
+        </div>
+        <div class="acks-extras-character-sheet__pills">
+          {{#if st.training.armour}}
+          <span class="acks-extras-character-sheet__pill is-on"><i class="{{st.training.armour.icon}}" inert></i>{{st.training.armour.label}}</span>
+          {{else}}
+          <span class="acks-extras-character-sheet__pill is-unset">{{st.training.armourMaxLabel}}</span>
+          {{/if}}
+        </div>
+      </div>
+      <div class="acks-extras-character-sheet__note is-box">
+        <i class="fa-solid fa-lock" inert></i>
+        <span>{{#if st.training.source}}{{localize "ACKS-CHARACTER.stats.trainingSource" source=st.training.source}}{{else}}{{localize "ACKS-CHARACTER.stats.trainingNone"}}{{/if}}</span>
+        <button type="button" class="acks-tag" data-action="goTab" data-tab="effects">{{localize "ACKS-CHARACTER.tab.effects"}}</button>
+      </div>
+    </div>
+
+    <div class="acks-extras-character-sheet__col acks-extras-character-sheet__stack">
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.movement"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{#if st.movement.auto}}{{localize "ACKS-CHARACTER.stats.movementAuto"}}{{else}}{{localize "ACKS-CHARACTER.stats.movementManual"}}{{/if}}</span>
+        </div>
+        {{#each st.movement.rows}}
+        <div class="acks-extras-character-sheet__fact">
+          <i class="{{icon}} acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{label}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="{{path}}" value="{{value}}" step="any" {{disabled (or ../st.movement.auto (not @root.editable))}}>
+          <span class="acks-extras-character-sheet__fact-unit">{{unit}}</span>
+        </div>
+        {{/each}}
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.vision"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.visionNote"}}</span>
+        </div>
+        {{#each st.vision}}
+        <div class="acks-extras-character-sheet__fact">
+          <i class="{{icon}} acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{label}}</span>
+          <span class="acks-extras-character-sheet__fact-value acks-nums">{{value}}{{#if note}} <span class="acks-extras-character-sheet__fact-note">· {{note}}</span>{{/if}}</span>
+        </div>
+        {{/each}}
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__rule"><span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.vitals"}}</span></div>
+        <div class="acks-extras-character-sheet__fact">
+          <i class="fa-solid fa-heart acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS-CHARACTER.vitals.hp"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.hp.value" value="{{st.vitals.hp.value}}" {{disabled (not @root.editable)}}>
+          <span class="acks-extras-character-sheet__fact-of">/</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.hp.max" value="{{st.vitals.hp.max}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <i class="fa-solid fa-dice acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.HitDice"}} <span class="acks-extras-character-sheet__fact-note">· {{localize "ACKS-CHARACTER.vitals.hdNote"}}</span></span>
+          <input class="acks-input acks-extras-character-sheet__fact-input is-wide" type="text" name="system.hp.hd" value="{{st.vitals.hd}}" {{disabled (not @root.editable)}}>
+          {{#if @root.editable}}<button type="button" class="acks-extras-character-sheet__mini" data-action="rollHitDice" data-tooltip="{{localize 'ACKS-CHARACTER.vitals.reroll'}}"><i class="fa-solid fa-dice-d20" inert></i></button>{{/if}}
+        </div>
+        {{#each st.vitals.ac}}
+        <div class="acks-extras-character-sheet__fact">
+          <i class="{{icon}} acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{label}}</span>
+          <span class="acks-extras-character-sheet__fact-value acks-nums">{{value}}</span>
+        </div>
+        {{/each}}
+        <div class="acks-extras-character-sheet__fact">
+          <i class="fa-solid fa-shield-halved acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.ArmorClassBonus"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.aac.mod" value="{{st.vitals.acMod}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <i class="fa-solid fa-hand-fist acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.Cleaves"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.fight.cleaves" value="{{st.vitals.cleaves}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <i class="fa-solid fa-skull acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.MortalWounds"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.fight.mortalwounds" value="{{st.vitals.mortalWounds}}" {{disabled (not @root.editable)}}>
+        </div>
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.throws"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.throwsNote"}}</span>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <i class="fa-solid fa-crosshairs acks-extras-character-sheet__fact-icon" inert></i>
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.ABShort"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.thac0.throw" value="{{st.vitals.attackThrow}}" {{disabled (not @root.editable)}}>
+        </div>
+        {{#each st.throws.saves}}
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{label}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="{{path}}" value="{{value}}" {{disabled (not @root.editable)}}>
+        </div>
+        {{/each}}
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS-CHARACTER.stats.saveMod"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.save.mod" value="{{st.throws.saveMod}}" {{disabled (not @root.editable)}}>
+        </div>
+        {{#each st.throws.adventuring}}
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{label}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="{{path}}" value="{{value}}" {{disabled (not @root.editable)}}>
+        </div>
+        {{/each}}
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.Initiative"}} <span class="acks-extras-character-sheet__fact-note">· {{st.throws.initiative}}</span></span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.initiative.mod" value="{{st.throws.initiativeMod}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.SurpriseOthers"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.surprise.surpriseothers" value="{{st.throws.surpriseOthers}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.AvoidSurprise"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.surprise.avoidsurprise" value="{{st.throws.avoidSurprise}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.HealingRate"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input is-wide" type="text" name="system.hp.bhr" value="{{st.throws.healingRate}}" {{disabled (not @root.editable)}}>
+        </div>
+      </div>
+      {{#if st.retainer}}
+      <div>
+        <div class="acks-extras-character-sheet__rule"><span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.retainer"}}</span><span class="acks-extras-character-sheet__rule-note">{{st.retainer.employer}}</span></div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.RetainerWage"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input is-wide" type="text" name="system.retainer.wage" value="{{st.retainer.wage}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.morale"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.details.morale" value="{{st.retainer.morale}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.Loyalty"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.retainer.loyalty" value="{{st.retainer.loyalty}}" {{disabled (not @root.editable)}}>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</div>
+{{/with}}

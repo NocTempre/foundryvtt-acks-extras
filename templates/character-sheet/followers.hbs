@@ -1,0 +1,36 @@
+{{!-- Followers: the roster chip, the wage line, and the Follower Cards. --}}
+{{#with panels.followers as |fw|}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__rule">
+    <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.followers.title"}}</span>
+    {{#if fw.editable}}{{#unless fw.isRetainer}}
+    <button type="button" class="acks-extras-character-sheet__chip" data-action="roster" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.open'}}"><i class="fa-solid fa-people-group" inert></i>{{localize "ACKS-CHARACTER.followers.roster"}}</button>
+    {{/unless}}{{/if}}
+    {{#if fw.count}}
+    <span class="acks-extras-character-sheet__rule-note acks-nums">{{localize "ACKS-CHARACTER.followers.wages" gp=fw.wages}}</span>
+    {{#if fw.editable}}<button type="button" class="acks-extras-character-sheet__chip" data-action="payWages"><i class="fa-solid fa-coins" inert></i>{{localize "ACKS-CHARACTER.followers.pay"}}</button>{{/if}}
+    {{/if}}
+  </div>
+  {{#each fw.groups as |g|}}
+  <div class="acks-extras-character-sheet__group">
+    <div class="acks-extras-character-sheet__subhead"><span>{{g.title}}</span></div>
+    <div class="acks-extras-character-sheet__cards">
+      {{#each g.cards as |card|}}
+      <div class="acks-extras-character-sheet__card" data-actor-id="{{card.id}}">
+        <div class="acks-extras-character-sheet__card-tools">
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="hirelingShow" data-tooltip="{{localize 'ACKS.Show'}}"><i class="fa-solid fa-eye" inert></i></button>
+          {{#if @root.editable}}
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="hirelingLoyalty" data-tooltip="{{localize 'ACKS.Loyalty'}}"><i class="fa-solid fa-heart" inert></i></button>
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="hirelingMorale" data-tooltip="{{localize 'ACKS.details.morale'}}"><i class="fa-solid fa-flag" inert></i></button>
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="hirelingDelete" data-tooltip="{{localize 'ACKS-CHARACTER.followers.dismiss'}}"><i class="fa-solid fa-user-minus" inert></i></button>
+          {{/if}}
+        </div>
+        {{#if card.html}}{{{card.html}}}{{else}}<div class="acks-extras-character-sheet__row"><img class="acks-extras-character-sheet__gear-img" src="{{card.img}}" alt="" inert><span class="acks-extras-character-sheet__row-name">{{card.name}}</span></div>{{/if}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/each}}
+  {{#unless fw.count}}<div class="acks-empty"><span class="acks-empty-title">{{localize "ACKS-CHARACTER.followers.title"}}</span><span class="acks-empty-hint">{{fw.emptyHint}}</span></div>{{/unless}}
+</div>
+{{/with}}

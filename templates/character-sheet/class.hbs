@@ -1,0 +1,97 @@
+{{!-- Class: always there; gold while the XP bar is full, carrying the level-up. --}}
+{{#with panels.class as |c|}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__row is-head">
+    <span class="acks-extras-character-sheet__gear-img is-big">{{#if c.img}}<img src="{{c.img}}" alt="" inert>{{else}}<i class="fa-solid fa-graduation-cap" inert></i>{{/if}}</span>
+    <span class="acks-extras-character-sheet__row-text">
+      {{#if c.bound}}
+      <a class="acks-extras-character-sheet__row-label is-big" data-action="classOpen">{{c.className}} · {{localize "ACKS-CHARACTER.class.level" n=c.level}}{{#if c.title}} · {{c.title}}{{/if}}</a>
+      <span class="acks-extras-character-sheet__row-line">{{localize "ACKS-CHARACTER.class.boundNote"}}</span>
+      {{else}}
+      <span class="acks-extras-character-sheet__row-label is-big">{{#if c.className}}{{c.className}}{{else}}{{localize "ACKS-CHARACTER.class.none"}}{{/if}} · {{localize "ACKS-CHARACTER.class.level" n=c.level}}</span>
+      <span class="acks-extras-character-sheet__row-line">{{localize "ACKS-CHARACTER.class.unboundNote"}}</span>
+      {{/if}}
+    </span>
+    {{#if c.editable}}
+    <button type="button" class="acks-extras-character-sheet__chip" data-action="classPick" data-tooltip="{{localize 'ACKS-CLASSES.pick.tooltip'}}"><i class="fa-solid fa-graduation-cap" inert></i>{{localize "ACKS-CHARACTER.class.pick"}}</button>
+    {{#unless c.isNew}}<button type="button" class="acks-extras-character-sheet__chip" data-action="classReopen" data-tooltip="{{localize 'ACKS-CLASSES.reopen.tooltip'}}"><i class="fa-solid fa-dice" inert></i>{{localize "ACKS-CHARACTER.class.reopen"}}</button>{{/unless}}
+    {{/if}}
+  </div>
+
+  {{#if c.full}}
+  <div class="acks-extras-character-sheet__gold-band">
+    <i class="fa-solid fa-arrow-up-right-dots" inert></i>
+    <span class="acks-extras-character-sheet__gold-title">{{localize "ACKS-CHARACTER.class.advances" n=c.nextLevel}}</span>
+    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.class.advancesNote"}}</span>
+  </div>
+  {{/if}}
+
+  <div class="acks-extras-character-sheet__cols is-2">
+    <div class="acks-extras-character-sheet__col acks-extras-character-sheet__stack">
+      <div>
+        <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS.details.experience.base"}}</span></div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.experience.baseshort"}}{{#if c.xp.bonus}} <span class="acks-extras-character-sheet__fact-note">+{{c.xp.bonus}}%</span>{{/if}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input is-wide acks-nums" type="number" name="system.details.xp.value" value="{{c.xp.value}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.experience.next"}}{{#if c.bound}} <span class="acks-extras-character-sheet__fact-note">· {{localize "ACKS-CHARACTER.class.nextFromClass" n=c.xp.next}}</span>{{/if}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input is-wide acks-nums" type="number" name="system.details.xp.next" value="{{c.xp.nextField}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.level"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.details.level" value="{{c.level}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.class"}}</span>
+          <input class="acks-input acks-extras-character-sheet__fact-input is-wide" type="text" name="system.details.class" value="{{c.className}}" {{disabled (not @root.editable)}}>
+        </div>
+      </div>
+      {{#if c.preview}}
+      <div>
+        <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS-CHARACTER.class.changes" n=c.nextLevel}}</span></div>
+        {{#each c.preview.deltas}}
+        <div class="acks-extras-character-sheet__delta"><span class="acks-extras-character-sheet__delta-label">{{label}}</span><span class="acks-extras-character-sheet__delta-from acks-nums">{{from}}</span><i class="fa-solid fa-chevron-right" inert></i><span class="acks-extras-character-sheet__delta-to acks-nums">{{to}}</span></div>
+        {{/each}}
+        {{#unless c.preview.deltas.length}}<div class="acks-extras-character-sheet__hint">{{#if c.atCap}}{{localize "ACKS-CHARACTER.class.atCap"}}{{else}}{{localize "ACKS-CHARACTER.class.noChanges"}}{{/if}}</div>{{/unless}}
+      </div>
+      {{/if}}
+    </div>
+    <div class="acks-extras-character-sheet__col acks-extras-character-sheet__stack">
+      {{#if c.preview}}
+      <div>
+        <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS-CHARACTER.class.granted"}}</span></div>
+        {{#each c.preview.granted}}<div class="acks-extras-character-sheet__row"><span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{this}}</span></span></div>{{/each}}
+        {{#unless c.preview.granted.length}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.class.nothingGranted"}}</div>{{/unless}}
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS-CHARACTER.class.choose"}}</span></div>
+        {{#each c.preview.choices}}<div class="acks-extras-character-sheet__row"><span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{this}}</span></span><span class="acks-extras-character-sheet__chip is-gold">{{localize "ACKS-CHARACTER.class.pending"}}</span></div>{{/each}}
+        {{#unless c.preview.choices.length}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.class.nothingToChoose"}}</div>{{/unless}}
+      </div>
+      {{/if}}
+      {{#if c.paths.length}}
+      <div>
+        <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS-CLASSES.sheet.tab.paths"}}</span></div>
+        {{#each c.paths as |g|}}
+        <div class="acks-extras-character-sheet__fact">
+          <span class="acks-extras-character-sheet__fact-label">{{g.label}}</span>
+          <select class="acks-input acks-extras-character-sheet__fact-input is-wide" data-path-group="{{g.key}}" {{disabled (not @root.editable)}}>
+            <option value="">{{localize "ACKS-CHARACTER.class.unchosen"}}</option>
+            {{#each g.options}}<option value="{{key}}" {{#if on}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+    </div>
+  </div>
+
+  {{#if c.full}}
+  <div class="acks-extras-character-sheet__levelup">
+    {{#if c.editable}}<button type="button" class="acks-extras-character-sheet__gold-btn" data-action="levelUp"><i class="fa-solid fa-check" inert></i>{{localize "ACKS-CHARACTER.class.levelUp"}}</button>{{/if}}
+    <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.class.levelUpNote"}}</span>
+  </div>
+  {{/if}}
+</div>
+{{/with}}

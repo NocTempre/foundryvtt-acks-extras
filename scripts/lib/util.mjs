@@ -52,6 +52,15 @@ export const isPrimaryGM = () => game.users.activeGM?.isSelf ?? false;
 export const libStorage = () => globalThis.acksExtras.lib.storage;
 
 /**
+ * Is this application a sheet this module draws itself? An injector dresses
+ * the SYSTEM's sheet; a sheet of this module's own asks each feature for what
+ * it wants and places the result, so the injectors stand down on it. The
+ * declared classes carry the answer: every window this module draws declares
+ * `acks-extras` on its root.
+ */
+export const ownsSheet = (app) => !!app?.options?.classes?.includes?.("acks-extras");
+
+/**
  * 0.6667 → "2/3", because that is how the book says it. Whole numbers stay
  * whole ("2", not "200%"), so a row of factors reads in one idiom rather than
  * mixing fractions and percentages. The vehicle sheet's speed reasons and the

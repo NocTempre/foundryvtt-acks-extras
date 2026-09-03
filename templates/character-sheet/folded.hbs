@@ -1,0 +1,23 @@
+{{!-- The folded card's bottom row: the unfold chevron, then the starred rolls,
+      timers and counts. --}}
+<div class="acks-extras-character-sheet__foldbar">
+  <button type="button" class="acks-extras-character-sheet__cell is-btn is-fold" data-action="fold" data-tooltip="{{frame.rails.foldTitle}}">
+    <i class="fa-solid fa-chevron-right" inert></i>
+  </button>
+  {{#each pins.rolls}}
+  <button type="button" class="acks-extras-character-sheet__pinchip is-roll{{#if eq}} is-eq{{/if}}" data-action="roll" data-roll="{{id}}" data-tooltip="{{value}}">
+    <i class="fa-solid fa-dice-d20" inert></i><span>{{label}}</span>
+  </button>
+  {{/each}}
+  {{#each pins.timers}}
+  <span class="acks-extras-character-sheet__pinchip is-{{tone}}" style="--acks-extras-fill: {{pct}}%">
+    {{#if icon}}<i class="{{icon}}" inert></i>{{else if img}}<img src="{{img}}" alt="" inert>{{/if}}<span>{{label}}</span>
+  </span>
+  {{/each}}
+  {{#each pins.resources}}
+  <span class="acks-extras-character-sheet__pinchip">
+    <i class="{{icon}}" inert></i><span>{{label}}</span><b class="acks-nums">{{count}}</b>
+  </span>
+  {{/each}}
+  {{#unless pins.any}}<span class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.fold.noPins"}}</span>{{/unless}}
+</div>

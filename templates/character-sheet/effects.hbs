@@ -1,0 +1,125 @@
+{{!-- Effects: timers with their bars, what rides on a save, what the module
+      manages, the resources, and the modifiers in force. --}}
+{{#with panels.effects as |ef|}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__cols is-2">
+    <div class="acks-extras-character-sheet__col acks-extras-character-sheet__stack">
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.effects.timers"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.effects.timersNote"}}</span>
+        </div>
+        {{#each ef.timers as |t|}}
+        <div class="acks-extras-character-sheet__timer{{#if t.disabled}} is-disabled{{/if}}" {{#if t.effectId}}data-effect-id="{{t.effectId}}"{{/if}}>
+          <div class="acks-extras-character-sheet__row is-bare">
+            {{#if t.icon}}<span class="acks-extras-character-sheet__gear-img"><i class="{{t.icon}}" inert></i></span>{{else}}<img class="acks-extras-character-sheet__gear-img" src="{{t.img}}" alt="" inert>{{/if}}
+            <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{t.name}}</span><span class="acks-extras-character-sheet__row-line acks-nums">{{t.line}}</span></span>
+            {{#if t.rider}}<span class="acks-tag acks-tag--ghost">{{localize "ACKS-CHARACTER.effects.riderTag"}}</span>{{/if}}
+            <span class="acks-extras-character-sheet__ctls">
+              {{#if @root.editable}}
+              <span class="acks-extras-character-sheet__grp">
+                {{#if (eq t.kind "light")}}
+                <button type="button" class="acks-extras-character-sheet__ctl" data-action="lightAction" data-light="lightToggle" data-light-id="{{t.lightId}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.light.douse'}}"><i class="fa-solid fa-fire" inert></i></button>
+                {{#if t.shieldable}}<button type="button" class="acks-extras-character-sheet__ctl{{#if t.shielded}} is-on{{/if}}" data-action="lightAction" data-light="lightShield" data-light-id="{{t.lightId}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.light.shutter'}}"><i class="fa-solid fa-lightbulb" inert></i></button>{{/if}}
+                {{else}}
+                <button type="button" class="acks-extras-character-sheet__ctl" data-action="effectToggle" data-tooltip="{{localize 'ACKS-CHARACTER.effects.toggle'}}"><i class="fa-solid fa-toggle-{{#if t.disabled}}off{{else}}on{{/if}}" inert></i></button>
+                {{/if}}
+              </span>
+              <span class="acks-extras-character-sheet__grp">
+                <button type="button" class="acks-extras-character-sheet__ctl{{#if t.pinned}} is-on{{/if}}" data-action="pinItem" data-pin="{{t.id}}" data-tooltip="{{localize 'ACKS-CHARACTER.effects.pin'}}"><i class="{{#if t.pinned}}fa-solid{{else}}fa-regular{{/if}} fa-star" inert></i></button>
+                {{#if t.effectId}}
+                <button type="button" class="acks-extras-character-sheet__ctl" data-action="effectEdit" data-tooltip="{{localize 'ACKS.Edit'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
+                <button type="button" class="acks-extras-character-sheet__ctl" data-action="effectDelete" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i></button>
+                {{/if}}
+              </span>
+              {{/if}}
+            </span>
+          </div>
+          <div class="acks-extras-character-sheet__bar is-thin is-{{t.tone}}"><i style="width: {{t.pct}}%"></i></div>
+        </div>
+        {{/each}}
+        {{#unless ef.timers.length}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.effects.noTimers"}}</div>{{/unless}}
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.effects.riders"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.effects.ridersNote"}}</span>
+        </div>
+        {{#each ef.riders as |r|}}
+        <div class="acks-extras-character-sheet__row" data-effect-id="{{r.id}}">
+          <img class="acks-extras-character-sheet__gear-img" src="{{r.img}}" alt="" inert>
+          <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{r.name}}</span><span class="acks-extras-character-sheet__row-line acks-nums">{{r.clock}} · {{r.saveLabel}}</span></span>
+          <button type="button" class="acks-extras-character-sheet__mini" data-action="roll" data-roll="save:{{r.save}}" data-tooltip="{{r.saveLabel}}"><i class="fa-solid fa-dice-d20" inert></i></button>
+        </div>
+        {{/each}}
+        {{#unless ef.riders.length}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.effects.noRiders"}}</div>{{/unless}}
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.effects.managed"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.effects.managedNote"}}</span>
+        </div>
+        <div data-mount="classModifiers"></div>
+        {{#each ef.managed as |m|}}
+        <div class="acks-extras-character-sheet__row{{#if m.disabled}} is-disabled{{/if}}" data-effect-id="{{m.id}}">
+          <img class="acks-extras-character-sheet__gear-img" src="{{m.img}}" alt="" inert>
+          <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{m.name}}</span><span class="acks-extras-character-sheet__row-line">{{m.line}}</span></span>
+          <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
+            <span class="acks-extras-character-sheet__ctl is-locked" data-tooltip="{{localize 'ACKS-LIB.managedEffect.locked'}}"><i class="fa-solid fa-lock" inert></i></span>
+            <button type="button" class="acks-extras-character-sheet__ctl" data-action="effectEdit" data-tooltip="{{localize 'ACKS.Show'}}"><i class="fa-solid fa-chevron-right" inert></i></button>
+          </span></span>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    <div class="acks-extras-character-sheet__col acks-extras-character-sheet__stack">
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.effects.resources"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.effects.resourcesNote"}}</span>
+        </div>
+        {{#each ef.resources as |r|}}
+        <div class="acks-extras-character-sheet__row">
+          <span class="acks-extras-character-sheet__gear-img"><i class="{{r.icon}}" inert></i></span>
+          <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{r.name}}</span><span class="acks-extras-character-sheet__row-line">{{r.line}}</span></span>
+          <span class="acks-extras-character-sheet__row-value acks-nums">{{#if (eq r.count null)}}—{{else}}{{r.count}}{{/if}}</span>
+          <span class="acks-extras-character-sheet__ctls">
+            {{#if @root.editable}}
+            {{#if r.adjustable}}<span class="acks-extras-character-sheet__grp">
+              <button type="button" class="acks-extras-character-sheet__ctl" data-action="fateAdjust" data-delta="-1" data-tooltip="{{localize 'ACKS-CHARACTER.effects.spend'}}"><i class="fa-solid fa-minus" inert></i></button>
+              <button type="button" class="acks-extras-character-sheet__ctl" data-action="fateAdjust" data-delta="1" data-tooltip="{{localize 'ACKS-CHARACTER.effects.award'}}"><i class="fa-solid fa-plus" inert></i></button>
+            </span>{{/if}}
+            <span class="acks-extras-character-sheet__grp">
+              <button type="button" class="acks-extras-character-sheet__ctl{{#if r.pinned}} is-on{{/if}}" data-action="pinItem" data-pin="{{r.id}}" data-tooltip="{{localize 'ACKS-CHARACTER.effects.pin'}}"><i class="{{#if r.pinned}}fa-solid{{else}}fa-regular{{/if}} fa-star" inert></i></button>
+            </span>
+            {{/if}}
+          </span>
+        </div>
+        {{/each}}
+      </div>
+      <div>
+        <div class="acks-extras-character-sheet__rule">
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.effects.modifiers"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.effects.modifiersNote"}}</span>
+          {{#if @root.editable}}<button type="button" class="acks-extras-character-sheet__chip" data-action="effectCreate"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.effects.add"}}</button>{{/if}}
+        </div>
+        {{#each ef.modifiers as |m|}}
+        <div class="acks-extras-character-sheet__row draggable{{#if m.disabled}} is-disabled{{/if}}" data-effect-id="{{m.id}}">
+          <img class="acks-extras-character-sheet__gear-img" src="{{m.img}}" alt="" inert>
+          <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{m.name}}</span><span class="acks-extras-character-sheet__row-line">{{m.line}}</span></span>
+          {{#if @root.editable}}
+          <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
+            <button type="button" class="acks-extras-character-sheet__ctl" data-action="effectToggle" data-tooltip="{{localize 'ACKS-CHARACTER.effects.toggle'}}"><i class="fa-solid fa-toggle-{{#if m.disabled}}off{{else}}on{{/if}}" inert></i></button>
+            <button type="button" class="acks-extras-character-sheet__ctl" data-action="effectEdit" data-tooltip="{{localize 'ACKS.Edit'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
+            <button type="button" class="acks-extras-character-sheet__ctl" data-action="effectDelete" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i></button>
+          </span></span>
+          {{/if}}
+        </div>
+        {{/each}}
+        {{#unless ef.modifiers.length}}<div class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.effects.noModifiers"}}</div>{{/unless}}
+      </div>
+    </div>
+  </div>
+</div>
+{{/with}}

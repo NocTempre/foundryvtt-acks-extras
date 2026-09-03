@@ -1,0 +1,37 @@
+{{!-- Everything below the band: the art row, then the tab strip and the panels
+      — or, folded, the pin bar alone. --}}
+<div class="acks-extras-character-sheet__scroll">
+  <div class="acks-extras-character-sheet__art-row{{#if folded}} is-folded{{/if}}">
+    {{> "modules/acks-extras/templates/character-sheet/rails.hbs"}}
+  </div>
+
+  {{#if folded}}
+    {{> "modules/acks-extras/templates/character-sheet/folded.hbs"}}
+  {{else}}
+    <nav class="acks-tabs tabs acks-extras-character-sheet__tabs" data-group="primary" aria-label="{{localize 'ACKS-CHARACTER.tabsLabel'}}">
+      <button type="button" class="acks-tab acks-extras-character-sheet__fold" data-action="fold" data-tooltip="{{frame.rails.foldTitle}}">
+        <i class="fa-solid fa-chevron-down" inert></i>
+      </button>
+      {{#each frame.tabs}}
+      <button type="button" class="acks-tab{{#if active}} active{{/if}}{{#if dyn}} is-dyn{{/if}}" data-action="tab" data-group="primary" data-tab="{{key}}"
+              aria-selected="{{#if active}}true{{else}}false{{/if}}">
+        {{label}}{{#if n}}<span class="acks-extras-character-sheet__tab-count acks-nums">{{n}}</span>{{/if}}{{#if p}}<span class="acks-extras-character-sheet__tab-pending acks-nums" data-tooltip="{{pTitle}}">{{p}}</span>{{/if}}
+      </button>
+      {{/each}}
+    </nav>
+
+    {{#each frame.tabs}}
+    <section class="tab acks-tab-panel acks-extras-character-sheet__panel{{#if active}} active{{/if}}" data-group="primary" data-tab="{{key}}">
+      {{#if (eq key "rolls")}}{{> "modules/acks-extras/templates/character-sheet/rolls.hbs" ../this}}{{/if}}
+      {{#if (eq key "abilities")}}{{> "modules/acks-extras/templates/character-sheet/abilities.hbs" ../this}}{{/if}}
+      {{#if (eq key "equipment")}}{{> "modules/acks-extras/templates/character-sheet/equipment.hbs" ../this}}{{/if}}
+      {{#if (eq key "stats")}}{{> "modules/acks-extras/templates/character-sheet/stats.hbs" ../this}}{{/if}}
+      {{#if (eq key "class")}}{{> "modules/acks-extras/templates/character-sheet/class.hbs" ../this}}{{/if}}
+      {{#if (eq key "magic")}}{{> "modules/acks-extras/templates/character-sheet/magic.hbs" ../this}}{{/if}}
+      {{#if (eq key "followers")}}{{> "modules/acks-extras/templates/character-sheet/followers.hbs" ../this}}{{/if}}
+      {{#if (eq key "notes")}}{{> "modules/acks-extras/templates/character-sheet/notes.hbs" ../this}}{{/if}}
+      {{#if (eq key "effects")}}{{> "modules/acks-extras/templates/character-sheet/effects.hbs" ../this}}{{/if}}
+    </section>
+    {{/each}}
+  {{/if}}
+</div>

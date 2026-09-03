@@ -21,7 +21,7 @@ sibling modules) — never the import path for this module's own features.
 | `ruledata.mjs` | Foundry-side loader: fetches `ruledata/<id>.json` and registers it into the tables registry. |
 | `services.mjs` | Named-contract service registry — providers register at `init`, consumers look up by contract name (contracts: `docs/lib/API.md`). |
 | `sockets.mjs` | The module's ONE cross-client transport (socketlib + handler registry + native fallback). |
-| `util.mjs` | `makeLoc` / `toNum` / `gmIds` / `isPrimaryGM` / `libStorage` / `announceChange` — the helpers every feature used to copy. |
+| `util.mjs` | `makeLoc` / `toNum` / `gmIds` / `isPrimaryGM` / `libStorage` / `announceChange` / `ownsSheet` — the helpers every feature used to copy, and the one predicate that tells a sheet this module draws from the system's. |
 | `world-time.mjs` | The one switch deciding whether this module writes `game.time`. |
 | `module.mjs` | The barrel + patch layer: builds `acksExtras.lib`, registers settings, sub-types and patches. Import FROM the individual files, not from here. |
 

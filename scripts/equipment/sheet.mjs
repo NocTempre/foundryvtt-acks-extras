@@ -161,8 +161,9 @@ function buildWornSection(actor, tab, loadout) {
 }
 
 /** A light source's formation light type from its name, or null. A torch is a
- * WEAPON (RR: 1d4), lanterns/candles are items — so match by name, not type. */
-function lightTypeOf(item) {
+ * WEAPON (RR: 1d4), lanterns/candles are items — so match by name, not type.
+ * Exported for the character sheet, which offers the same controls. */
+export function lightTypeOf(item) {
   const n = String(item?.name ?? "").toLowerCase();
   if (/lantern/.test(n)) return "lantern";
   if (/torch/.test(n)) return "torch";

@@ -1,0 +1,78 @@
+{{!-- Abilities: proficiencies, powers and languages filed by bucket; one d20
+      per throw; a pending pick where it will land. --}}
+{{#with panels.abilities as |ab|}}
+<div class="acks-extras-character-sheet__stack">
+  <div class="acks-extras-character-sheet__filters">
+    {{#each ab.filters}}
+    <button type="button" class="acks-extras-character-sheet__pill is-filter{{#if on}} is-on{{/if}}" data-action="abilityFilter" data-filter="{{key}}">{{label}}<span class="acks-extras-character-sheet__pill-n acks-nums">{{n}}</span></button>
+    {{/each}}
+    {{#if ab.editable}}
+    <span class="acks-spacer"></span>
+    <button type="button" class="acks-extras-character-sheet__chip" data-action="itemCreate" data-type="ability"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.abilities.add"}}</button>
+    <button type="button" class="acks-extras-character-sheet__chip" data-action="itemCreate" data-type="language"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CLASSES.cattabs.language"}}</button>
+    {{/if}}
+  </div>
+
+  {{#if ab.pending.length}}
+  <div>
+    <div class="acks-extras-character-sheet__rule"><span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.abilities.pending"}}</span><span class="acks-extras-character-sheet__rule-note">{{ab.pendingNote}}</span></div>
+    {{#each ab.pending}}
+    <div class="acks-extras-character-sheet__row is-pending" data-item-id="{{id}}">
+      <span class="acks-extras-character-sheet__gear-img is-dashed"><i class="fa-solid fa-plus" inert></i></span>
+      <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{name}}</span></span>
+      <span class="acks-extras-character-sheet__chip is-gold">{{localize "ACKS-CHARACTER.class.pending"}}</span>
+    </div>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  <div class="acks-extras-character-sheet__cols is-2">
+    {{#each ab.groups as |g|}}
+    <div class="acks-extras-character-sheet__group{{#if g.hidden}} is-hidden{{/if}}">
+      <div class="acks-extras-character-sheet__rule">
+        <span class="acks-extras-character-sheet__rule-title">{{g.label}}</span>
+        <span class="acks-extras-character-sheet__rule-note acks-nums">{{g.n}}{{#if g.openSlots}} · {{localize "ACKS-CHARACTER.abilities.openSlots" n=g.openSlots}}{{/if}}</span>
+      </div>
+      {{#each g.rows as |row|}}
+      <div class="acks-extras-character-sheet__row is-ability draggable" data-item-id="{{row.id}}">
+        <img class="acks-extras-character-sheet__gear-img" src="{{row.img}}" alt="" inert>
+        <span class="acks-extras-character-sheet__row-text">
+          <a class="acks-extras-character-sheet__row-name" data-action="itemEdit">{{row.name}}</a>
+          {{#if row.line}}<span class="acks-extras-character-sheet__row-line">{{row.line}}</span>{{/if}}
+        </span>
+        {{#if row.profile}}<span class="acks-tag acks-tag--ghost">{{localize "ACKS-CHARACTER.abilities.training"}}</span>{{/if}}
+        <span class="acks-extras-character-sheet__ctls">
+          {{#if row.throws.length}}
+          <span class="acks-extras-character-sheet__grp">
+            {{#each row.throws}}<button type="button" class="acks-extras-character-sheet__mini" data-action="roll" data-roll="{{id}}" data-tooltip="{{#if label}}{{label}} · {{/if}}{{value}}"><i class="fa-solid fa-dice-d20" inert></i></button>{{/each}}
+          </span>
+          {{/if}}
+          {{#if row.editable}}
+          <span class="acks-extras-character-sheet__grp">
+            <button type="button" class="acks-extras-character-sheet__ctl{{#if row.favorite}} is-on{{/if}}" data-action="itemFavorite" data-tooltip="{{localize (ifThen row.favorite 'ACKS.items.RemoveFromFavorites' 'ACKS.items.AddToFavorites')}}"><i class="{{#if row.favorite}}fa-solid{{else}}fa-regular{{/if}} fa-star" inert></i></button>
+            <button type="button" class="acks-extras-character-sheet__ctl" data-action="itemShow" data-tooltip="{{localize 'ACKS.Show'}}"><i class="fa-solid fa-eye" inert></i></button>
+            <button type="button" class="acks-extras-character-sheet__ctl" data-action="itemEdit" data-tooltip="{{localize 'ACKS.Edit'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
+            <button type="button" class="acks-extras-character-sheet__ctl" data-action="itemDelete" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i></button>
+          </span>
+          {{/if}}
+        </span>
+      </div>
+      {{/each}}
+      {{#each g.carriers as |carrier|}}
+      <div class="acks-extras-character-sheet__row is-pending" data-item-id="{{carrier.id}}">
+        <span class="acks-extras-character-sheet__gear-img is-dashed"><i class="fa-solid fa-plus" inert></i></span>
+        <span class="acks-extras-character-sheet__row-text">
+          <span class="acks-extras-character-sheet__row-name">{{localize "ACKS-CHARACTER.abilities.chooseLanguage"}}</span>
+          <span class="acks-extras-character-sheet__row-line">{{localize "ACKS-CHARACTER.abilities.slotsFree" n=carrier.free}}</span>
+        </span>
+        {{#if @root.editable}}<button type="button" class="acks-extras-character-sheet__chip is-gold" data-action="pickLanguage">{{localize "ACKS-CHARACTER.class.pending"}}</button>{{else}}<span class="acks-extras-character-sheet__chip is-gold">{{localize "ACKS-CHARACTER.class.pending"}}</span>{{/if}}
+      </div>
+      {{/each}}
+    </div>
+    {{/each}}
+  </div>
+  {{#if ab.empty}}
+  <div class="acks-empty"><span class="acks-empty-title">{{localize "ACKS-CHARACTER.abilities.none"}}</span><span class="acks-empty-hint">{{localize "ACKS-CHARACTER.abilities.noneHint"}}</span></div>
+  {{/if}}
+</div>
+{{/with}}

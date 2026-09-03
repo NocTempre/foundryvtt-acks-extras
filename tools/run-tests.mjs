@@ -34,6 +34,7 @@ const COMMITTED = [
   "test-battlemap.mjs",
   "test-equipment.mjs",
   "test-item-sheet.mjs",
+  "test-character-sheet.mjs",
   "test-formation-flows.mjs",
   "test-formation-heading.mjs",
   "test-marching-templates.mjs",

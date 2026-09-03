@@ -81,6 +81,7 @@ export default defineConfig({
           label: "Guides",
           items: [
             { label: "Importing from your books", slug: "guides/importer" },
+            { label: "The character sheet", slug: "guides/character-sheet" },
             { label: "Classes & the class builder", slug: "guides/classes" },
             { label: "Proficiencies & class powers", slug: "guides/abilities" },
             { label: "Equipment & fighting styles", slug: "guides/equipment" },

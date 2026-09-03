@@ -1,5 +1,46 @@
 # Changelog
 
+## 6.4.0
+
+**A character sheet of the module's own, and it is the default.**
+
+### Added
+- **The character sheet.** Every character now opens on the module's own
+  sheet: the title band in the window header with the class glyph, the level
+  title and an XP bar that goes gold at the threshold; the portrait between
+  two rails — Influence and the five saves on the left, hit points, armour
+  class, movement, the grip, the light you see by and the party on the
+  right — with a condition riding on the save that clears it; and tabs
+  organised by play: Rolls (every throw with its target, the wielded weapon
+  ringed), Abilities, Equipment (every wear slot a drop target, containers
+  with their capacity bars, what is kept elsewhere), Stats (attributes,
+  training opened to individual weapons, movement, vision, vitals and the
+  throw targets), Class (the level-up preview and wizard while the bar is
+  full), Magic for a caster, Followers as Follower Cards, Notes, and Effects
+  (timers with their bars, riders, resources, modifiers). The chevron before
+  the tabs folds the sheet to a table card with the starred rolls, timers
+  and counts along the bottom; the fold is remembered per viewer.
+  **The system's own sheet is untouched and still registered** — Sheet
+  Config switches any actor back, and everything this module adds to it
+  keeps working there. Nothing is migrated: both sheets read and write the
+  same fields.
+- **The party cell.** The last cell of the right rail is the character's own
+  party: how many of their henchmen are on the scene as a figure and each
+  summon present as an asterisk (`1**` is one henchman and two summons),
+  red while any henchman is down with a calamity pending. Clicking lists who
+  is here — a pick selects the token and pans to it — with the roster, the
+  Followers tab, and for an owner the binding of the controlled tokens as
+  this character's summons and their release. While the character marches
+  in a formation whose party token is on the scene the cell is that
+  formation instead, counting its members present, and opens the party
+  sheet.
+
+### Changed
+- **Three sheet injectors stand down on the module's own sheets.** The
+  casting strip no longer falls back to the window's frame header on a
+  non-core sheet, and the Storage tab and the roster header button dress the
+  system's sheet alone; the new sheet places the same builders itself.
+
 ## 6.3.0
 
 **Page references stay; the figures printed beside them go. Swimming names the
