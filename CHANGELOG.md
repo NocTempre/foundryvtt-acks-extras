@@ -1,5 +1,34 @@
 # Changelog
 
+## 6.5.0
+
+**Training is edited once, on Stats, down to the weapon.**
+
+### Changed
+- **The Stats tab's Training block is now the one place a character's combat
+  training is edited.** Every fighting style, every weapon in the game as its
+  own pill, every armour rung and the shield are shown; a view button regroups
+  the weapons by category, by size, or as one flat list, and each group's
+  header says what kind of choice it is. Press **Edit** to arm the pills: a
+  weapon, a whole group, a style, an armour rung or the shield each toggle
+  with one click, and the grant is rewritten in its shortest form — no edit
+  widens what a class printed, which the old class-level toggles could not
+  promise. A pill moved off what the class prints wears a dot, **Reset to
+  class** puts the printed training back, and a pill lit by an ability or
+  another effect names its source and will not switch off here. A character
+  with no class gets a *Training, by hand* effect on the first edit.
+- **The Class modifiers grid has left the Effects tab of the module's sheet**,
+  and the training row there no longer opens Foundry's Active Effect window
+  (which could not scroll); its control goes to Stats. The system's own sheet
+  keeps its grid.
+- The Shield pill's label no longer states what a shield is worth; the page
+  reference stays beside the slot.
+
+### Fixed
+- **A single crossbow can be granted without granting the arbalest.** The
+  grammar read `crossbow` as the whole category; a per-weapon grant is now
+  written `weapon:crossbow`.
+
 ## 6.4.2
 
 **A book on the server is a journal.**

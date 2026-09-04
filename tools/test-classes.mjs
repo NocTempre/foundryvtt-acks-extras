@@ -1106,65 +1106,182 @@ test("the election is asked on every path, not only in the confirm dialog", () =
   assert.match(src, /damageBonus: \{ class: classKey, applies: election \}/, "and is recorded against its class");
 });
 
-/* ---- the class-training editor reads the whole grant grammar ---- */
-const { grantedKeys, toggleTraining } = await import("../scripts/classes/training.mjs");
+/* ---- the training editor: units, organisations, the canonical grant ---- */
+const { grantedKeys, toggleTraining, editedSlots, trainingProvenance, classTraining } = await import("../scripts/classes/training.mjs");
 const { FLAG_FROM_CLASS } = await import("../scripts/classes/constants.mjs");
 const { WEAPONS: WEAPON_TABLE } = await import("../scripts/equipment/config.mjs");
+const { WEAPON_UNITS, TRAINING_VIEWS, arrangeUnits, coveredUnits, canonicalGrant, toggledGrant, nextTrainingView } = await import(
+  "../scripts/equipment/training-view.mjs"
+);
 
 // A named weapon is placed through equipment's own table when that feature is
 // live, which in a running module it always is.
 const savedNamespace = globalThis.acksExtras;
 globalThis.acksExtras = { ...(globalThis.acksExtras ?? {}), equipment: { config: { WEAPONS: WEAPON_TABLE } } };
 
-const trainingActor = (weapons) => {
+const trainingActor = (weapons, { from = "Item.class1", extra = [] } = {}) => {
   const effect = {
-    changes: [{ key: "flags.acks-extras.weaponProf", mode: 2, value: weapons, priority: 20 }],
-    getFlag: (_m, k) => (k === FLAG_FROM_CLASS ? "Item.class1" : undefined),
+    name: "Class Training",
+    changes: [{ key: "flags.acks-extras.weaponProf", type: "add", value: weapons, priority: 20 }],
+    getFlag: (_m, k) => (k === FLAG_FROM_CLASS ? from : undefined),
     async update(data) {
       Object.assign(effect, data);
       return effect;
     },
   };
-  return { effects: [effect], effect };
+  const actor = { type: "character", items: [], effects: [effect, ...extra], effect, getFlag: () => undefined };
+  actor.appliedEffects = actor.effects;
+  return actor;
 };
 const weaponGrant = (a) => a.effect.changes.find((c) => c.key === "flags.acks-extras.weaponProf")?.value ?? "";
 
 try {
-  test("the training editor lights the classes a missile or size clause covers", () => {
+  test("every weapon is one unit, placed exactly once by every organisation", () => {
+    assert.equal(WEAPON_UNITS.length, Object.keys(WEAPON_TABLE).length);
+    for (const view of TRAINING_VIEWS) {
+      const groups = arrangeUnits(view.key);
+      const placed = groups.flatMap((g) => g.members.map((m) => m.key));
+      assert.equal(placed.length, WEAPON_UNITS.length, `${view.key} places every unit`);
+      assert.equal(new Set(placed).size, placed.length, `${view.key} places each unit once`);
+      assert.ok(!groups.some((g) => g.key === "leftovers"), `${view.key} leaves nothing over for the shipped table`);
+    }
+    // The staff sling is melee AND missile: its melee size claims it first.
+    const bySize = arrangeUnits("size");
+    assert.ok(bySize.find((g) => g.key === "melee-medium").members.some((m) => m.key === "staffsling"));
+    assert.ok(!bySize.find((g) => g.key === "missile").members.some((m) => m.key === "staffsling"));
+    assert.ok(arrangeUnits("category").find((g) => g.key === "other").members.some((m) => m.key === "staffsling"));
+    assert.equal(arrangeUnits("flat").length, 1);
+    assert.equal(nextTrainingView("flat"), "category");
+    assert.equal(nextTrainingView("nonsense"), "category");
+  });
+
+  test("the canonical grant is the shortest clause list for the set, in a fixed order", () => {
+    const every = WEAPON_UNITS.map((u) => u.key);
+    assert.equal(canonicalGrant(every), "all");
+    const thief = coveredUnits(["missile:all", "melee:tiny", "melee:small", "melee:medium"]);
+    assert.equal(canonicalGrant(thief.units), "missile:all,melee:tiny,melee:small,melee:medium");
+    // A category minus one weapon is written as the weapons that remain.
+    const axes = coveredUnits(["axe"]).units;
+    axes.delete("greataxe");
+    assert.equal(canonicalGrant(axes), "battleaxe,handaxe");
+    // Unknown tokens ride at the end, as written.
+    assert.equal(canonicalGrant(axes, ["pointy stick"]), "battleaxe,handaxe,pointy stick");
+    assert.deepEqual(coveredUnits(["axe", "pointy stick"]).unknown, ["pointy stick"]);
+  });
+
+  test("the class-granularity reading still lights what a clause covers", () => {
     const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
     const lit = grantedKeys(thief.effect, "weapons");
     for (const k of ["bow", "crossbow", "other", "axe", "sworddagger", "flailhammermace", "spearpolearm"]) assert.ok(lit.has(k), `${k} lit`);
     assert.ok(!lit.has("unarmed"), "a class grant says nothing about unarmed");
-    const mage = trainingActor("club,dagger,dart,staff");
-    assert.deepEqual([...grantedKeys(mage.effect, "weapons")].sort(), ["other", "spearpolearm", "sworddagger"]);
+    // A size clause lights only the classes holding a weapon of that size: no
+    // axe is tiny, so a grant reduced to `melee:tiny` cannot keep Axes lit.
+    const tiny = grantedKeys(trainingActor("melee:tiny").effect, "weapons");
+    assert.deepEqual([...tiny].sort(), ["other", "sworddagger"]);
+    assert.ok(!tiny.has("axe"));
   });
 
-  await atest("switching a class ON appends its key and keeps the clauses as written", async () => {
-    const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
-    assert.equal(await toggleTraining(thief, "weapons", "unarmed"), true);
-    assert.equal(weaponGrant(thief), "missile:all,melee:tiny,melee:small,melee:medium,unarmed");
-  });
-
-  await atest("switching a class OFF drops what grants it alone, and expands only a wider clause", async () => {
-    // A named weapon filed under the class goes; the rest of the list stands.
-    const mage = trainingActor("club,dagger,dart,staff");
-    await toggleTraining(mage, "weapons", "sworddagger");
-    assert.equal(weaponGrant(mage), "club,dart,staff");
-    // A size clause cannot lose one class: the grant is written out as the
-    // explicit classes it covered, minus the one dropped — the `all` rule.
-    const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
-    await toggleTraining(thief, "weapons", "axe");
-    assert.equal(weaponGrant(thief), "sworddagger,flailhammermace,spearpolearm,bow,crossbow,other");
-    // `all` still expands the way it always has.
+  await atest("a toggle at any granularity rewrites the grant canonically, and never widens it", async () => {
+    // ON one weapon that completes a category collapses to the category.
+    const mage = trainingActor("club,dagger,dart,staff,battleaxe,handaxe");
+    await toggleTraining(mage, "weapons", "greataxe");
+    assert.equal(weaponGrant(mage), "axe,club,dagger,dart,staff");
+    // OFF one weapon from `all` names the rest — no clause left whole loses its members.
     const fighter = trainingActor("all");
-    await toggleTraining(fighter, "weapons", "crossbow");
-    assert.equal(weaponGrant(fighter), "unarmed,axe,sworddagger,flailhammermace,spearpolearm,bow,other");
-    // A token nothing recognises rides along rather than being discarded.
+    await toggleTraining(fighter, "weapons", "weapon:crossbow");
+    assert.ok(!weaponGrant(fighter).split(",").includes("all"));
+    assert.ok(!weaponGrant(fighter).split(",").includes("crossbow"));
+    assert.ok(weaponGrant(fighter).split(",").includes("arbalest"));
+    await toggleTraining(fighter, "weapons", "weapon:crossbow");
+    assert.equal(weaponGrant(fighter), "all");
+    // The bare `crossbow` is the CATEGORY; the one weapon is written so it cannot be read as one.
+    assert.equal(canonicalGrant(["crossbow"]), "weapon:crossbow");
+    assert.deepEqual([...coveredUnits(["weapon:crossbow"]).units], ["crossbow"]);
+    assert.deepEqual([...coveredUnits(["crossbow"]).units].sort(), ["arbalest", "crossbow"]);
+    assert.equal(WEAPON_UNITS.find((u) => u.key === "crossbow").token, "weapon:crossbow");
+    assert.equal(WEAPON_UNITS.find((u) => u.key === "arbalest").token, "arbalest");
+    // OFF a size group from a size grant drops exactly that size.
+    const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
+    await toggleTraining(thief, "weapons", "melee:small");
+    assert.equal(weaponGrant(thief), "missile:all,melee:tiny,melee:medium");
+    // OFF one weapon inside a size clause names the size's other weapons.
+    await toggleTraining(thief, "weapons", "sword");
+    assert.ok(!weaponGrant(thief).includes("melee:medium"));
+    assert.ok(!weaponGrant(thief).split(",").includes("sword"));
+    assert.ok(weaponGrant(thief).split(",").includes("battleaxe"));
+    // A token nothing recognises rides along; unarmed is no weapon and writes nothing.
     const typo = trainingActor("axe,pointy stick");
+    assert.equal(await toggleTraining(typo, "weapons", "unarmed"), false);
     await toggleTraining(typo, "weapons", "bow");
-    assert.equal(weaponGrant(typo), "axe,pointy stick,bow");
-    await toggleTraining(typo, "weapons", "axe");
-    assert.equal(weaponGrant(typo), "pointy stick,bow");
+    assert.equal(weaponGrant(typo), "axe,bow,pointy stick");
+    assert.equal(toggledGrant("axe", "nonsense"), null);
+    // A partly covered group completes when left to decide; forced OFF it withdraws.
+    const partly = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
+    await toggleTraining(partly, "weapons", "axe", { on: false });
+    const after = weaponGrant(partly).split(",");
+    assert.ok(after.includes("missile:all") && after.includes("melee:tiny"), "whole clauses stand");
+    assert.ok(!after.some((t) => ["axe", "battleaxe", "handaxe", "greataxe"].includes(t)), "no axe remains");
+    assert.ok(!after.includes("melee:small") && after.includes("shortsword"), "a clause missing one weapon names the rest");
+    assert.equal(toggledGrant("melee:medium", "axe"), "melee:medium,axe");
+  });
+
+  await atest("the shield is the Weapon & Shield style by another name", async () => {
+    const actor = trainingActor("axe");
+    await toggleTraining(actor, "armour", "shield");
+    assert.equal(actor.effect.changes.find((c) => c.key === "flags.acks-extras.styleProficient")?.value, "weaponShield");
+    await toggleTraining(actor, "armour", "shield");
+    assert.ok(!actor.effect.changes.some((c) => c.key === "flags.acks-extras.styleProficient"));
+  });
+
+  test("provenance names each source, and the badge marks a departure from the printed grant", () => {
+    const martial = {
+      name: "Martial Training (Swords)",
+      changes: [{ key: "flags.acks-extras.martialWeapons", type: "add", value: "swordDagger", priority: 20 }],
+      getFlag: () => undefined,
+    };
+    const actor = trainingActor("axe", { extra: [martial] });
+    actor.getFlag = (_m, k) => (k === "weaponProficiency" ? "sling" : undefined);
+    const prov = trainingProvenance(actor);
+    assert.deepEqual(
+      prov.weapons.map((c) => c.source),
+      ["class", "effect", "flag"],
+    );
+    assert.equal(prov.weapons[1].name, "Martial Training (Swords)");
+    assert.deepEqual(classTraining(actor).weapons, ["axe"]);
+
+    // The class prints axes; a hand added the great sword and dropped the hand axe.
+    // Its `effects` is an EmbeddedCollection at runtime — iterable, `map` and
+    // `filter`, and NO `flatMap`; a plain array here hid a sheet-killing throw.
+    class CollectionLike {
+      #rows;
+      constructor(rows) {
+        this.#rows = rows;
+      }
+      [Symbol.iterator]() {
+        return this.#rows[Symbol.iterator]();
+      }
+      map(fn) {
+        return this.#rows.map(fn);
+      }
+      filter(fn) {
+        return this.#rows.filter(fn);
+      }
+    }
+    const printed = {
+      effects: new CollectionLike([{ changes: [{ key: "flags.acks-extras.weaponProf", value: "axe" }] }]),
+      system: {},
+      type: "acks-extras.class",
+    };
+    globalThis.fromUuidSync = (uuid) => (uuid === "Item.class1" ? printed : null);
+    try {
+      const edited = editedSlots(trainingActor("battleaxe,greataxe,twohandedsword"));
+      assert.ok(edited.known);
+      assert.deepEqual([...edited.weapons].sort(), ["handaxe", "twohandedsword"]);
+      assert.equal(editedSlots(trainingActor("axe")).weapons.size, 0);
+      assert.equal(editedSlots(trainingActor("axe", { from: "manual" })).known, false);
+    } finally {
+      delete globalThis.fromUuidSync;
+    }
   });
 } finally {
   globalThis.acksExtras = savedNamespace;

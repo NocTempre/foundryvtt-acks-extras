@@ -85,6 +85,7 @@ and the `weaponProf` / `martialWeapons` effect domains:
 | `melee:<size>` | melee weapons of that size — `tiny`/`small`/`medium`/`large`. Broad choices i–ii are size-based, not category-based, so a **bare size is read as this**: `tiny,small,medium` is broad choice i |
 | `<category>` | `axe`, `bow`, `crossbow`, `flailHammerMace`, `swordDagger`, `spearPolearm`, `other` |
 | `<weapon>` | one named weapon, by any name config.mjs knows (aliases resolve: "Great Sword" → `twohandedsword`) |
+| `weapon:<key>` | the same, written so it cannot be read as a category where the key is also one (`crossbow`); what a per-weapon control writes |
 
 A token outside the grammar matches nothing — `api.classifyGrantToken` reports
 which kind a token is, or `"unknown"`. A profile that parses to **no** tokens is
@@ -94,8 +95,9 @@ the alternative made one typo silently non-proficient with everything.
 The same tokens are the keys of the ability sheet's weapon-proficiency boxes
 (`lib/vocab.mjs` `SELECTION_VOCAB.weaponProficiency`), and
 `lib/proficiency-strip.mjs` `weaponTokenClasses` is the one reading of them at
-class granularity — the strips and the class-training editor both go through
-it. Nothing else spells a grant.
+class granularity — the strips and the system sheet's class-modifiers section
+both go through it — and `training-view.mjs` (below) the one reading at the
+weapon. Nothing else spells a grant.
 
 ## 4. Public API & hooks
 
@@ -413,3 +415,24 @@ count.
 variation's own storage get rendered without being shipped: a definition
 declares its fields as data and one renderer builds the form. A spec naming a
 kind this version cannot render is reported by name rather than dropped.
+
+## Training units and organisations — `training-view.mjs`
+
+The grant grammar above is read one more way: as ATOMIC UNITS. `WEAPON_UNITS`
+is every weapon of `config.mjs` as `{key, token, name, cat, size, melee,
+missile, icon, profile}` — `token` is what a control for that weapon alone
+writes (the bare key, or `weapon:<key>` where the bare key is also a category:
+`crossbow`), `profile` the shape `grantMatches` reads. `TRAINING_VIEWS` are the
+organisations a training list can be regrouped by — *category* (the seven
+narrow tokens), *size* (`melee:<size>` lightest first, then `missile:all`),
+*flat* (`all`) — each group named by the one token that means all of it and
+captioned with the token's kind (`TIER`). `arrangeUnits(view)` places every
+unit under the first group whose token covers it and the rest under a
+trailing `leftovers` group with no token. `coveredUnits(tokens)` folds a grant
+to its unit set and the tokens the grammar does not know; `canonicalGrant(set,
+unknown)` is the inverse — `all` when everything is covered, else
+`missile:all`, the size clauses, the categories (each only when whole and
+adding something), then units by name, unknown tokens last as written — and
+`toggledGrant(csv, token)` is one edit expressed through both. The character
+sheet's Stats tab draws the units; `classes/training.mjs` writes through
+`toggledGrant`.

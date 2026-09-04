@@ -140,10 +140,13 @@ const matchSynonym = (token, table) => {
  * clause written into a training effect agree:
  *   all             → every class
  *   missile:all     → every missile class
- *   melee:<size>    → every melee WEAPON class (size is per weapon and cannot
- *                     be told apart at class granularity; unarmed is no weapon
- *                     in equipment's grammar, so a size clause never names it —
- *                     the strips light it for every body on their own)
+ *   melee:<size>    → every melee WEAPON class holding a weapon of that size,
+ *                     read off equipment's table (a class with no tiny weapon
+ *                     is not lit by `melee:tiny`, or a chip could never be
+ *                     withdrawn); every melee class when no table is live.
+ *                     Unarmed is no weapon in equipment's grammar, so a size
+ *                     clause never names it — the strips light it for every
+ *                     body on their own.
  *   <category>      → that class, by key or by the book's plural name
  * Anything else is a single NAMED weapon or a phrasing the vocabulary does not
  * list: the synonym table places it, else equipment's own weapon table when
@@ -151,11 +154,24 @@ const matchSynonym = (token, table) => {
  * @returns {string[]} `SLOT_VOCAB.weapons[].key` values, in vocabulary order
  */
 export function weaponTokenClasses(token, equipment = equipmentApi()) {
+  // `weapon:<key>` is the grammar's way of naming one weapon where the bare
+  // key would read as a category; at class granularity it is the weapon's class.
+  if (/^weapon:/i.test(String(token ?? "").trim())) token = String(token).trim().slice(7);
   const key = matchSelectionKey(SELECTION_VOCAB.weaponProficiency, token);
   const keysWhere = (test) => WEAPON_CLASSES.filter(test).map((c) => c.key);
   if (key === "all") return keysWhere(() => true);
   if (key === "missile:all") return keysWhere((c) => c.missile);
-  if (key?.startsWith("melee:")) return keysWhere((c) => c.melee && c.key !== "unarmed");
+  if (key?.startsWith("melee:")) {
+    const size = key.slice(6);
+    const table = equipment?.config?.WEAPONS;
+    if (!table) return keysWhere((c) => c.melee && c.key !== "unarmed");
+    const sized = new Set(
+      Object.values(table)
+        .filter((w) => w?.melee && norm(w.size) === norm(size))
+        .map((w) => norm(w.cat)),
+    );
+    return keysWhere((c) => c.melee && c.key !== "unarmed" && sized.has(c.key));
+  }
   if (key && WEAPON_CLASSES.some((c) => c.key === key)) return [key];
   const syn = matchSynonym(token, WEAPON_SYNONYMS);
   if (syn) return [syn];
@@ -164,14 +180,18 @@ export function weaponTokenClasses(token, equipment = equipmentApi()) {
 }
 
 /**
- * What the character's IMPORTED proficiency items grant. Read through
- * acks-abilities' own API (`getExtras().category` + `selectionsOf`) — never by
- * parsing item names, which that module explicitly owns. `equipment` is that
- * feature's API, for placing a named weapon by its table.
+ * The character's IMPORTED proficiency items that state a training, one entry
+ * per item: its name, its category (`fightingStyle` | `weaponProficiency` |
+ * `armorProficiency`) and its picks as written. Read through acks-abilities'
+ * own API (`getExtras().category` + `selectionsOf`) — never by parsing item
+ * names, which that module explicitly owns. A category with no explicit pick
+ * still declares the DOMAIN; the item's own name is the fallback pick
+ * ("Fighting Style: Dual Weapon" → dual).
+ * @returns {{name: string, category: string, tokens: string[]}[]}
  */
-function abilityGrants(actor, equipment) {
-  const out = { styles: new Set(), spec: new Set(), weapons: new Set(), armourRank: -1, has: { styles: false, weapons: false, armour: false } };
-  const api = globalThis.acksExtras?.abilities ?? game.modules?.get("acks-extras")?.api?.abilities ?? null;
+export function abilityContributions(actor) {
+  const out = [];
+  const api = globalThis.acksExtras?.abilities ?? globalThis.game?.modules?.get("acks-extras")?.api?.abilities ?? null;
   if (!api?.selectionsOf) return out;
   for (const item of actor?.items ?? []) {
     if (item.type !== ITEM_TYPE.ability) continue;
@@ -181,6 +201,7 @@ function abilityGrants(actor, equipment) {
     } catch {
       continue;
     }
+    if (!["fightingStyle", "weaponProficiency", "armorProficiency"].includes(category)) continue;
     const picks = (() => {
       try {
         return api.selectionsOf(item) ?? [];
@@ -188,9 +209,20 @@ function abilityGrants(actor, equipment) {
         return [];
       }
     })();
-    // A category with no explicit pick still declares the DOMAIN; the item's own
-    // name is the fallback pick ("Fighting Style: Dual Weapon" → dual).
-    const tokens = picks.length ? picks : [String(item.name ?? "").split(":").pop()];
+    const tokens = (picks.length ? picks : [String(item.name ?? "").split(":").pop()]).map((t) => String(t ?? "").trim()).filter(Boolean);
+    out.push({ name: String(item.name ?? ""), category, tokens });
+  }
+  return out;
+}
+
+/**
+ * What the character's imported proficiency items grant, folded to the
+ * strips' vocabulary. `equipment` is that feature's API, for placing a named
+ * weapon by its table.
+ */
+function abilityGrants(actor, equipment) {
+  const out = { styles: new Set(), spec: new Set(), weapons: new Set(), armourRank: -1, has: { styles: false, weapons: false, armour: false } };
+  for (const { category, tokens } of abilityContributions(actor)) {
     if (category === "fightingStyle") {
       out.has.styles = true;
       for (const t of tokens) {
@@ -359,11 +391,12 @@ export function profileStrips(actor) {
   }));
   // A SHIELD is its own armour category (RR pp. 128/140-141), not a rung on the
   // suit ladder — and RAW it only benefits a class with the Weapon & Shield
-  // fighting style (JJ p. 291), so that style is what lights it.
+  // fighting style (JJ p. 291), so that style is what lights it. What a shield
+  // is worth is printed on those pages, not in the label.
   armour.push({
     key: "shield",
     icon: "fas fa-shield-halved",
-    label: loc("ACKS-LIB.armour.shield", "Shield (+1 AC — needs the Weapon & Shield style)"),
+    label: loc("ACKS-LIB.armour.shield", "Shield"),
     on: stylesConfigured && trained.has("weaponshield"),
     gold: stylesConfigured && spec.has("weaponshield"),
     unset: !stylesConfigured,

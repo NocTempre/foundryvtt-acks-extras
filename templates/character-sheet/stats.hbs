@@ -18,60 +18,63 @@
 
   <div class="acks-extras-character-sheet__cols is-2 is-wide-left">
     <div class="acks-extras-character-sheet__col acks-extras-character-sheet__stack">
+      {{!-- One pill, the same in every row: a button while the pencil is armed
+            (disabled when another source lit it), a span otherwise. --}}
+      {{#*inline "acksExtrasTrainingPill"}}
+      {{#if editing}}<button type="button" class="acks-extras-character-sheet__pill{{#if weapon}} is-weapon{{/if}}{{#if on}} is-on{{/if}}{{#if gold}} is-gold{{/if}}{{#if unset}} is-unset{{/if}}{{#if edited}} is-edited{{/if}}{{#if locked}} is-locked{{/if}}" data-action="toggleTraining" data-group="{{group}}" data-slot="{{token}}" data-tooltip="{{tooltip}}" {{disabled locked}}>{{#if icon}}<i class="{{icon}}" inert></i>{{/if}}{{label}}</button>{{else}}<span class="acks-extras-character-sheet__pill{{#if weapon}} is-weapon{{/if}}{{#if on}} is-on{{/if}}{{#if gold}} is-gold{{/if}}{{#if unset}} is-unset{{/if}}{{#if edited}} is-edited{{/if}}" data-tooltip="{{tooltip}}">{{#if icon}}<i class="{{icon}}" inert></i>{{/if}}{{label}}</span>{{/if}}
+      {{/inline}}
       <div>
         <div class="acks-extras-character-sheet__rule">
-          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.styles"}}</span>
-          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.stylesNote"}}</span>
+          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.training"}}</span>
+          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.trainingNote"}}</span>
         </div>
+        <div class="acks-extras-character-sheet__training-tools">
+          <button type="button" class="acks-extras-character-sheet__chip" data-action="trainingView" data-tooltip="{{localize 'ACKS-CHARACTER.stats.view' view=st.training.viewLabel}}"><i class="fa-solid fa-layer-group" inert></i>{{st.training.viewLabel}}</button>
+          {{#if st.training.editable}}
+          <button type="button" class="acks-extras-character-sheet__chip{{#if st.training.editing}} is-on{{/if}}" data-action="trainingEdit" data-tooltip="{{localize 'ACKS-CHARACTER.stats.edit'}}"><i class="fa-solid fa-pen" inert></i>{{#if st.training.editing}}{{localize "ACKS-CHARACTER.stats.done"}}{{else}}{{localize "ACKS-CHARACTER.stats.edit"}}{{/if}}</button>
+          {{#if st.training.editing}}{{#if st.training.hasPrinted}}{{#if st.training.anyEdited}}
+          <button type="button" class="acks-extras-character-sheet__chip" data-action="trainingReset" data-tooltip="{{localize 'ACKS-CHARACTER.stats.resetTip' source=st.training.source}}"><i class="fa-solid fa-rotate-left" inert></i>{{localize "ACKS-CHARACTER.stats.reset"}}</button>
+          {{/if}}{{/if}}{{/if}}
+          {{else}}
+          <span class="acks-extras-character-sheet__hint">{{localize "ACKS-CHARACTER.stats.viewOnly"}}</span>
+          {{/if}}
+        </div>
+        {{#if st.training.editing}}<div class="acks-extras-character-sheet__hint is-editing">{{localize "ACKS-CHARACTER.stats.editing"}}</div>{{/if}}
+
+        <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS-CHARACTER.stats.styles"}}</span></div>
         <div class="acks-extras-character-sheet__pills">
-          {{#each st.training.styles}}
-          <button type="button" class="acks-extras-character-sheet__pill{{#if on}} is-on{{/if}}{{#if gold}} is-gold{{/if}}{{#if unset}} is-unset{{/if}}" data-action="toggleTraining" data-group="styles" data-slot="{{key}}" data-tooltip="{{label}}" {{disabled (or (not @root.editable) (not ../st.training.source))}}>
-            <i class="{{icon}}" inert></i>{{label}}
-          </button>
-          {{/each}}
+          {{#each st.training.styles}}{{> acksExtrasTrainingPill this group="styles"}}{{/each}}
         </div>
-      </div>
-      <div>
-        <div class="acks-extras-character-sheet__rule">
-          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.weapons"}}</span>
-          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.weaponsNote"}}</span>
-        </div>
-        <div class="acks-extras-character-sheet__pills">
-          <span class="acks-extras-character-sheet__pill{{#if st.training.weaponsAll}} is-on{{/if}}">{{localize "ACKS-CHARACTER.stats.allWeapons"}}</span>
-        </div>
-        {{#each st.training.buckets as |b|}}
+
+        <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS-CHARACTER.stats.weapons"}}</span><span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.weaponsNote"}}</span></div>
+        {{#if st.training.unarmed}}
+        <div class="acks-extras-character-sheet__pills">{{> acksExtrasTrainingPill st.training.unarmed group="weapons" editing=false}}</div>
+        {{/if}}
+        {{#each st.training.groups as |g|}}
         <div class="acks-extras-character-sheet__bucket">
-          <button type="button" class="acks-extras-character-sheet__pill is-bucket{{#if b.on}} is-on{{/if}}{{#if b.gold}} is-gold{{/if}}{{#if b.unset}} is-unset{{/if}}" data-action="toggleBucket" data-bucket="{{b.key}}" data-tooltip="{{b.label}}">
-            <i class="fa-solid {{#if b.open}}fa-chevron-down{{else}}fa-chevron-right{{/if}}" inert></i>{{b.label}}
+          <button type="button" class="acks-extras-character-sheet__pill is-bucket{{#if g.on}} is-on{{/if}}{{#if g.partial}} is-partial{{/if}}{{#if g.unset}} is-unset{{/if}}{{#if g.edited}} is-edited{{/if}}" data-action="toggleBucket" data-bucket="{{g.key}}" data-tooltip="{{g.label}}">
+            <i class="fa-solid {{#if g.open}}fa-chevron-down{{else}}fa-chevron-right{{/if}}" inert></i>{{g.label}}{{#if g.tier}}<span class="acks-extras-character-sheet__pill-n">{{g.tier}}</span>{{/if}}
           </button>
-          {{#if @root.editable}}{{#if ../st.training.source}}
-          <button type="button" class="acks-extras-character-sheet__ctl" data-action="toggleTraining" data-group="weapons" data-slot="{{b.key}}" data-tooltip="{{localize 'ACKS-CHARACTER.stats.toggleClass'}}"><i class="fa-solid fa-toggle-{{#if b.on}}on{{else}}off{{/if}}" inert></i></button>
+          {{#if g.token}}{{#if g.editing}}
+          <button type="button" class="acks-extras-character-sheet__ctl{{#if g.on}} is-on{{/if}}" data-action="toggleTraining" data-group="weapons" data-slot="{{g.token}}" data-tooltip="{{g.label}}" {{disabled g.locked}}><i class="fa-solid fa-toggle-{{#if g.on}}on{{else}}off{{/if}}" inert></i></button>
           {{/if}}{{/if}}
-          {{#if b.open}}
+          {{#if g.open}}
           <span class="acks-extras-character-sheet__pills is-inline">
-            {{#each b.weapons}}<span class="acks-extras-character-sheet__pill is-weapon{{#if on}} is-on{{/if}}{{#if gold}} is-gold{{/if}}">{{name}}</span>{{/each}}
+            {{#each g.members}}{{> acksExtrasTrainingPill this group="weapons" weapon=true}}{{/each}}
           </span>
           {{/if}}
         </div>
         {{/each}}
-      </div>
-      <div>
-        <div class="acks-extras-character-sheet__rule">
-          <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.stats.armour"}}</span>
-          <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.armourNote"}}</span>
-        </div>
+
+        <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS-CHARACTER.stats.armour"}}</span><span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.stats.armourNote"}}</span></div>
         <div class="acks-extras-character-sheet__pills">
-          {{#if st.training.armour}}
-          <span class="acks-extras-character-sheet__pill is-on"><i class="{{st.training.armour.icon}}" inert></i>{{st.training.armour.label}}</span>
-          {{else}}
-          <span class="acks-extras-character-sheet__pill is-unset">{{st.training.armourMaxLabel}}</span>
-          {{/if}}
+          {{#each st.training.rungs}}{{> acksExtrasTrainingPill this group="armour"}}{{/each}}
+          {{#if st.training.shield}}{{> acksExtrasTrainingPill st.training.shield group="armour"}}{{/if}}
         </div>
       </div>
       <div class="acks-extras-character-sheet__note is-box">
         <i class="fa-solid fa-lock" inert></i>
         <span>{{#if st.training.source}}{{localize "ACKS-CHARACTER.stats.trainingSource" source=st.training.source}}{{else}}{{localize "ACKS-CHARACTER.stats.trainingNone"}}{{/if}}</span>
-        <button type="button" class="acks-tag" data-action="goTab" data-tab="effects">{{localize "ACKS-CHARACTER.tab.effects"}}</button>
       </div>
     </div>
 

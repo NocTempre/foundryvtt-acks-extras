@@ -2,20 +2,22 @@
 /**
  * The Stats tab's data: what is not a throw. The six attributes (checks are
  * not rolls in ACKS II, so no die), the training as the most explicit list
- * the vocabulary allows — every style, every weapon class opened to the
- * weapons the equipment table files under it, the heaviest armour rung —
- * movement by mode, vision light by light, the vitals, and the throw targets
- * the Rolls tab reads (this is the pen; Rolls is the gauge).
+ * the grammar allows — every style, every weapon of the equipment table as
+ * its own pill under whichever organisation the viewer chose, every armour
+ * rung and the shield — each pill saying where it came from and whether a hand
+ * moved it off what the class prints; movement by mode, vision light by
+ * light, the vitals, and the throw targets the Rolls tab reads (this is the
+ * pen; Rolls is the gauge).
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS, MOVE_MODES, LIGHT_ICONS } from "../constants.mjs";
-import { makeLoc, locOr } from "../../lib/util.mjs";
+import { makeLoc } from "../../lib/util.mjs";
 import { profileStrips, SLOT_VOCAB } from "../../lib/proficiency-strip.mjs";
-import { WEAPONS } from "../../equipment/config.mjs";
 import { EFFECT_DOMAINS } from "../../equipment/constants.mjs";
-import { weaponProficiency, isWeaponProficient, armorMax } from "../../equipment/proficiency.mjs";
+import { weaponProficiency, isWeaponProficient, armorMax, grantMatches } from "../../equipment/proficiency.mjs";
 import { focusGroup } from "../../equipment/profiles.mjs";
 import { collectStringFlags } from "../../equipment/effects.mjs";
-import { trainingSourceName } from "../../classes/training.mjs";
+import { TRAINING_VIEWS, arrangeUnits } from "../../equipment/training-view.mjs";
+import { trainingSourceName, trainingProvenance, editedSlots, classTraining, hasTraining } from "../../classes/training.mjs";
 import { LIGHT_SOURCES } from "../../lib/light.mjs";
 import { senseProfile, VISION_MODES } from "../../lib/senses.mjs";
 import { ATTRIBUTES } from "../../lib/vocab.mjs";
@@ -26,50 +28,67 @@ const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
 
-/** A weapon key as a name: the table's keys are run-together words. */
-const WEAPON_NAMES = Object.freeze({
-  battleaxe: "Battle axe", greataxe: "Great axe", handaxe: "Hand axe", compositebow: "Composite bow", longbow: "Long bow",
-  shortbow: "Short bow", morningstar: "Morning star", warhammer: "War hammer", shortsword: "Short sword",
-  twohandedsword: "Two-handed sword", silverdagger: "Silver dagger", staffsling: "Staff sling", militaryoil: "Military oil",
-  holywater: "Holy water",
-});
-const weaponName = (key) => WEAPON_NAMES[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+/**
+ * The names a pill's tooltip lists as its sources, class first. A flag has
+ * no name; it reads as the sheet's own profile.
+ */
+function sourceNames(contributions) {
+  const names = [];
+  for (const c of contributions) {
+    const name = c.source === "flag" ? loc("stats.sourceFlag") : c.name || loc(`stats.source.${c.source}`);
+    if (!names.includes(name)) names.push(name);
+  }
+  return names;
+}
 
-/** Every weapon class as a bucket opened to its weapons, lit by the attack roll's own test. */
-function weaponBuckets(actor, strips) {
+/**
+ * Decorate one pill with its provenance and its edit state. `covering` tests
+ * whether a contribution's token reaches this pill.
+ */
+function annotate(pill, contributions, covering, { editing, edited }) {
+  const mine = contributions.filter((c) => c.tokens.some(covering));
+  const fromClass = mine.some((c) => c.source === "class");
+  const others = sourceNames(mine.filter((c) => c.source !== "class"));
+  const locked = editing && pill.on && !fromClass && others.length > 0;
+  const tip = [pill.label];
+  if (locked) tip.push(loc("stats.lockedTip", { names: others.join(", ") }));
+  else if (others.length) tip.push(loc("stats.sourceTip", { names: others.join(", ") }));
+  if (edited) tip.push(loc("stats.editedTip"));
+  return { ...pill, fromClass, others, locked, edited, editing, tooltip: tip.join(" · ") };
+}
+
+/** The weapon list: every unit once, under the view's groups. */
+function weaponGroups(actor, strips, { view, openBuckets, editing, prov, edited }) {
   const prof = weaponProficiency(actor);
   const focus = new Set([...collectStringFlags(actor, EFFECT_DOMAINS.WEAPON_FOCUS)].map(norm));
   const configured = strips.weapons.some((w) => !w.unset);
-  return SLOT_VOCAB.weapons
-    .filter((cls) => cls.key !== "unarmed")
-    .map((cls) => {
-      const strip = strips.weapons.find((w) => w.key === cls.key) ?? {};
-      const weapons = Object.entries(WEAPONS)
-        .filter(([, w]) => norm(w.cat) === cls.key)
-        .map(([key, w]) => {
-          const profile = { ...w, key };
-          const group = focusGroup(profile);
-          return {
-            key,
-            name: weaponName(key),
-            on: configured && !prof.all ? isWeaponProficient(actor, profile, prof) : configured && prof.all,
-            gold: !!group && focus.has(norm(group)),
-          };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-      return {
-        key: cls.key,
-        label: locOr(cls.label, cls.fallback),
-        on: !!strip.on,
-        gold: !!strip.gold,
-        unset: !!strip.unset,
-        weapons,
-      };
+  const unitOn = (u) => (configured && !prof.all ? isWeaponProficient(actor, u.profile, prof) : configured && prof.all);
+  return arrangeUnits(view).map((g) => {
+    const members = g.members.map((u) => {
+      const group = focusGroup(u.profile);
+      const pill = { key: u.key, token: u.token, label: u.name, icon: u.icon, on: unitOn(u), gold: !!group && focus.has(norm(group)), unset: !configured };
+      return annotate(pill, prov.weapons, (t) => grantMatches(t, u.profile), { editing, edited: edited.weapons.has(u.key) });
     });
+    const lit = members.filter((m) => m.on);
+    const head = {
+      key: g.key,
+      token: g.token,
+      label: game.i18n.localize(g.label),
+      tier: g.tier ? loc(`stats.tier.${g.tier}`) : "",
+      on: members.length > 0 && lit.length === members.length,
+      partial: lit.length > 0 && lit.length < members.length,
+      unset: !configured,
+      edited: members.some((m) => m.edited),
+      locked: editing && lit.length > 0 && lit.every((m) => m.locked),
+      open: view === "flat" || openBuckets.has(g.key),
+      editing,
+    };
+    return { ...head, members };
+  });
 }
 
 /** Build the tab's data. */
-export function buildStatsTab(actor, { openBuckets = new Set() } = {}) {
+export function buildStatsTab(actor, { openBuckets = new Set(), editing = false, view = TRAINING_VIEWS[0].key } = {}) {
   const sys = actor.system ?? {};
   const strips = profileStrips(actor);
   const scores = Object.keys(ATTRIBUTES).map((key) => ({
@@ -82,16 +101,64 @@ export function buildStatsTab(actor, { openBuckets = new Set() } = {}) {
     modLabel: signed(num(sys.scores?.[key]?.mod)),
   }));
 
-  const armourRank = strips.armour.reduce((best, a, i) => (a.on ? i : best), -1);
-  const max = armorMax(actor);
+  const editable = !!actor.isOwner;
+  editing = editable && !!editing;
+  // The explainers never decide, so they never get to kill the sheet: a throw
+  // in either leaves the pills lit by the profile's own answer, unannotated.
+  let prov = { weapons: [], armour: [], styles: [] };
+  let edited = { weapons: new Set(), armour: new Set(), styles: new Set(), known: false };
+  try {
+    prov = trainingProvenance(actor);
+    edited = editedSlots(actor);
+  } catch (err) {
+    console.error("acks-extras | training provenance failed; the pills stand unannotated", err);
+  }
+  const styleKey = (t) => norm(String(t).split(":")[0]);
+  const styles = strips.styles.map((s) =>
+    annotate({ ...s, token: s.key }, prov.styles, (t) => styleKey(t) === s.key, { editing, edited: edited.styles.has(s.key) }),
+  );
+
+  const rank = (t) => SLOT_VOCAB.armour.findIndex((a) => a.key === norm(t));
+  const classCeiling = rank(classTraining(actor).armour);
+  const rungs = strips.armour
+    .filter((a) => a.key !== "shield")
+    .map((a, i) =>
+      annotate(
+        { ...a, token: a.key },
+        prov.armour,
+        (t) => (/^[+-]?\d+$/.test(String(t).trim()) ? i > classCeiling : rank(t) >= i),
+        { editing, edited: edited.armour.has(a.key) },
+      ),
+    );
+  const shieldStrip = strips.armour.find((a) => a.key === "shield");
+  const shield = shieldStrip
+    ? {
+        ...annotate({ ...shieldStrip, token: "shield" }, prov.styles, (t) => styleKey(t) === "weaponshield", { editing, edited: edited.styles.has("weaponshield") }),
+        tooltip: [shieldStrip.label, loc("stats.shieldTip")].join(" · "),
+      }
+    : null;
+
+  const unarmed = strips.weapons.find((w) => w.key === "unarmed") ?? null;
+  const currentView = TRAINING_VIEWS.find((v) => v.key === view) ?? TRAINING_VIEWS[0];
   const training = {
     any: strips.any,
-    styles: strips.styles,
-    weaponsAll: strips.weapons.length > 1 && strips.weapons.filter((w) => w.key !== "unarmed").every((w) => w.on),
-    buckets: weaponBuckets(actor, strips).map((b) => ({ ...b, open: openBuckets.has(b.key) })),
-    armour: armourRank >= 0 ? strips.armour[armourRank] : null,
-    armourMaxLabel: max ? locOr(`ACKS-LIB.armour.${max}`, max) : "",
+    editable,
+    editing,
+    hasEffect: hasTraining(actor),
+    view: currentView.key,
+    viewLabel: game.i18n.localize(currentView.label),
+    styles,
+    unarmed: unarmed ? { ...unarmed, tooltip: unarmed.label } : null,
+    groups: weaponGroups(actor, strips, { view: currentView.key, openBuckets, editing, prov, edited }),
+    rungs,
+    shield,
+    armourMaxLabel: (() => {
+      const max = armorMax(actor);
+      return max ? game.i18n.localize(`ACKS-LIB.armour.${max}`) : "";
+    })(),
     source: trainingSourceName(actor),
+    hasPrinted: edited.known,
+    anyEdited: edited.weapons.size + edited.armour.size + edited.styles.size > 0,
   };
 
   const movement = {
@@ -151,5 +218,5 @@ export function buildStatsTab(actor, { openBuckets = new Set() } = {}) {
       }
     : null;
 
-  return { scores, training, movement, vision, vitals, throws, retainer, editable: actor.isOwner, isNew: !!sys.isNew };
+  return { scores, training, movement, vision, vitals, throws, retainer, editable, isNew: !!sys.isNew };
 }

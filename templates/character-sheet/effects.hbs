@@ -59,14 +59,17 @@
           <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.effects.managed"}}</span>
           <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.effects.managedNote"}}</span>
         </div>
-        <div data-mount="classModifiers"></div>
         {{#each ef.managed as |m|}}
         <div class="acks-extras-character-sheet__row{{#if m.disabled}} is-disabled{{/if}}" data-effect-id="{{m.id}}">
           <img class="acks-extras-character-sheet__gear-img" src="{{m.img}}" alt="" inert>
           <span class="acks-extras-character-sheet__row-text"><span class="acks-extras-character-sheet__row-name">{{m.name}}</span><span class="acks-extras-character-sheet__row-line">{{m.line}}</span></span>
           <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
             <span class="acks-extras-character-sheet__ctl is-locked" data-tooltip="{{localize 'ACKS-LIB.managedEffect.locked'}}"><i class="fa-solid fa-lock" inert></i></span>
+            {{#if m.training}}
+            <button type="button" class="acks-extras-character-sheet__ctl" data-action="goTab" data-tab="stats" data-tooltip="{{localize 'ACKS-CHARACTER.effects.editOnStats'}}"><i class="fa-solid fa-sliders" inert></i></button>
+            {{else}}
             <button type="button" class="acks-extras-character-sheet__ctl" data-action="effectEdit" data-tooltip="{{localize 'ACKS.Show'}}"><i class="fa-solid fa-chevron-right" inert></i></button>
+            {{/if}}
           </span></span>
         </div>
         {{/each}}

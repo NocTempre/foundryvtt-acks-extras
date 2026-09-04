@@ -106,3 +106,8 @@ own decision, and not as a side effect of whatever comes next.
   ability offer the moment something writes one, but no RR proficiency cell
   prints a pick — the only printed offer in the corpus is the spell clause. By
   This Axe has not been swept for one.
+- **Retire the Class modifiers injection with the system sheet.**
+  `class-modifiers.mjs` still dresses the SYSTEM sheet's Effects tab at class
+  granularity; the module's own sheet edits training on Stats at the weapon.
+  When the system sheet stops being a supported surface, the injector and
+  `grantedKeys` go with it.

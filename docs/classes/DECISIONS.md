@@ -1150,3 +1150,32 @@ recognises is kept as written through either edit.
 every sword, two-handed included — because a class pill cannot say "swords of
 medium size". Re-applying the class restores the printed clause. The abilities
 side of the same change is [abilities](../abilities/DECISIONS.md), same date.
+
+## 2026-09-04 — Superseded: the canonical grant replaces append-and-expand
+
+The 2026-09-03 ruling above ("Toggling ON appends the class key… only when a
+wider clause still covers the class is the grant expanded…") is superseded.
+`toggleTraining` now accepts any grant token — a weapon, a category, a size,
+every missile, everything — and always writes the canonical form of the
+resulting unit set (`equipment/training-view.mjs` `canonicalGrant`). The
+evidence that changed the ruling, the surface that carries it, and the one
+token the grammar gained are recorded once, in
+[character-sheet/DECISIONS.md](../character-sheet/DECISIONS.md) (same date).
+`grantedKeys` stays as the class-granularity reading the system sheet's
+injected section still draws.
+
+Ruled with it (user): the module's own character sheet no longer mounts the
+Class modifiers section; the Stats tab is the one editor. The section's
+render-hook injection into the system's sheet stands until that sheet is
+retired ([ROADMAP.md](ROADMAP.md)).
+## 2026-09-04 — A size clause lights only the classes that hold a weapon of that size
+
+The 2026-09-03 entry read `melee:<size>` as every melee class, on the ground
+that size "cannot be told apart at class granularity". Live, the same day the
+canonical grant landed: withdrawing Axes from a size-and-missile grant left
+`melee:tiny` whole, that clause lit the Axe chip again (no axe is tiny), and a
+lit chip withdraws — so the class could never be re-granted from the system
+sheet's grid. Ruled: `weaponTokenClasses` reads a size clause off equipment's
+weapon table when it is live and lights only the classes holding a melee
+weapon of that size; with no table it falls back to every melee class, as
+before. `lib/proficiency-strip.mjs`.

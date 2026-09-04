@@ -216,3 +216,82 @@ An effect that CHANGES a save — the global save modifier or one save's value
 it hurts, split when both are in force. That reading is data-driven and
 replaces the canvas's illustrative "Bless +1" on the Spells cell: Bless does
 not touch saves, so it is a timer on Effects and nothing on the rail.
+
+### Training is edited once, on Stats, at the weapon (2026-09-04)
+
+**Asked.** Three surfaces edited the class training effect and disagreed on
+grain: the Effects tab's class-modifiers grid (eight weapon chips, five
+armour icons), the Stats tab's buckets (class toggles beside an explicit
+weapon list that could not be toggled), and core's Active Effect config —
+reached from the Stats note's EFFECTS button — a fixed-height window outside
+the scroll contract that offers three CSV text fields. User direction:
+training is one thing, edited in one place, on the Stats tab; the grid
+leaves the Effects tab; the core window is no longer a route; **every armour
+rung and the shield are shown explicitly** (overruling the Stats note's
+"heaviest only · lighter is implied"); the weapon list regroups by book tier
+and by size and can be shown ungrouped, with the individual weapons as the
+atomic units that move between groups; a pencil arms editing; a badge marks
+a departure from what the class prints; owners may add training by hand.
+
+**Ruled.** The Stats tab's Training block is the editor. Its units are the
+36 weapons of the equipment table (`equipment/training-view.mjs`), each one
+pill with one glyph, placed once per organisation by first-match against the
+grammar's own tokens: *by category* (the seven narrow tokens), *by size*
+(the four `melee:<size>` clauses, then `missile:all` — the broad kinds), *no
+grouping* (`all`). A group header is a control for its token; a member is a
+control for that weapon. Anything an organisation does not place lands in a
+trailing *Elsewhere* group — empty for the shipped table, present so a
+future weapon cannot vanish. The organisation is a viewing preference and
+lives on the user (the fold's ruling, above); the pencil and the open groups
+are sheet state.
+
+**The grant is always written canonically.** A toggle computes the unit set
+and writes the shortest clause list that covers exactly it, in a fixed order
+(`canonicalGrant`). This supersedes the classes ruling of 2026-09-03
+("append on ON, expand only the clause that must expand on OFF, never
+collapse back to `all`"). New evidence: that ruling's cost — a size clause
+widening to a whole category because a class pill could not say "swords of
+medium size" — existed only because the editor's finest control was the
+class; with a control per weapon every expansion is lossless and every
+collapse is one click reversible, so nothing needs to stay explicit for a
+later edit's sake. The bare `crossbow` is a category in the grammar and a
+weapon in the table, so the one weapon is written `weapon:crossbow`
+(`equipment/proficiency.mjs`), the only token the grammar gained.
+
+**Provenance explains; it never decides.** Each pill's lit state is still the
+strips' and the attack roll's own test. Beside it, `trainingProvenance`
+lists every source that grants the slot — the class effect, another effect
+by name, an ability item by name (the bridge now records which item
+contributed which token), the sheet's own flag — and a pill lit by no class
+source refuses the click in edit mode with the source in its tooltip, since
+a control that will not switch off must say why. The badge compares the
+class effect's grant to the class document's printed one (`editedSlots`,
+reading the document through the effect's `fromClass` uuid plus the chosen
+path options) and is silent when the document is gone.
+
+**Rejected:** shipping the page's numbered pick-combinations (broad choices
+i–vi, "any five") as a fourth organisation. Those are the custom-class
+builder's option table, content under the IP doctrine; a *book picks* view
+would read a registered table the importer emits and appear only in a world
+that imported it ([ROADMAP.md](ROADMAP.md)). The tier CAPTIONS ship: the
+kind of a token is what `classifyGrantToken` already distinguishes.
+
+**Rejected:** keeping the Effects-tab grid on this sheet as a second view.
+Two controls for one document disagree on screen the moment one of them
+rounds; the training row stays in *Managed by the module*, locked, with its
+control sending the reader to Stats. The system sheet's injected grid
+stands, at class granularity, until that sheet is retired.
+
+*Cost:* a grant edited by hand no longer round-trips to the spelling the
+importer wrote — `missile:all,melee:tiny,melee:small,melee:medium` comes
+back from an ON/OFF pair as the same four clauses, but a class that printed
+`swordDagger,spearPolearm` returns as `sworddagger,spearpolearm`. The
+profile compares case-insensitively; only a hand-read notices.
+*Learned live, same day:* the first live pass could not open the sheet for
+any classed character — `printedTraining` called `flatMap` on the class
+document's `effects`, an EmbeddedCollection that has `map` and `filter` and
+no `flatMap`, and every offline mock is a plain array. Two guards came out
+of it: the read spreads the collection first, and the Stats build wraps its
+two explainers so a throw there leaves the pills lit and unannotated rather
+than the sheet unrendered. The test mocks the document's `effects` as a
+Collection-like object so an array cannot hide it again.

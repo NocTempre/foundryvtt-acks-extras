@@ -142,13 +142,24 @@ sheet does.
 
 **Stats** is what is not a throw. The six attributes in the design system's
 attribute boxes, editable, with the modifier under each and no die; the
-system's Modifiers summary and Scores Generator as chips. Training as the
-most explicit list the vocabulary allows: the five styles as toggles on the
-class training effect, *All weapons*, every weapon class of the lib
-vocabulary as a collapsible bucket opened to the weapons the equipment table
-files under it (each lit by the attack roll's own proficiency test, gold
-under Weapon Focus), the heaviest armour rung, and a note naming the effect
-the toggles write. Movement by mode (fields freed when the system's
+system's Modifiers summary and Scores Generator as chips. **Training** is
+the one editor of the class training effect, at the finest grain the grammar
+has: the five styles; every weapon of the equipment table as its own pill
+(name and damage-type glyph, the same in every arrangement), placed once
+under whichever organisation the viewer chose with the view button — by
+category, by size, or ungrouped (`equipment/training-view.mjs`; the choice
+is a user flag, `trainingView`) — each group header captioned with its tier
+and toggling its whole clause; every armour rung, lit to the ceiling, and the
+shield as its own slot, lit by the Weapon & Shield style. Each pill is lit by
+the attack roll's own proficiency test (gold under Weapon Focus or a
+specialisation), names in its tooltip every source beyond the class that
+grants it (`classes/training.mjs` `trainingProvenance`), and wears a dot
+where a hand moved it off what the class prints (`editedSlots`). The pencil
+arms the pills for an owner — a pill another source lit refuses the click
+and says why; a character with no training effect gets one, stamped by hand,
+on the first edit — and *Reset to class* re-applies the printed training
+while a departure exists. A note names the effect the edits write. Movement
+by mode (fields freed when the system's
 auto-movement is off), vision light by light (daylight ∞, the dark at 0′ or
 the sense's reach, each light source's reach, the two dark senses), the
 vitals (HP current over full, the hit dice with a roll that writes a new full
@@ -187,8 +198,9 @@ every light burning — each with its bar in the tone of what it is (amber
 mundane, the magic tone for a spell's effect, red for a condition, green
 otherwise), with douse and shutter on a light, toggle, edit and delete on an
 effect, and a star; the riders on a save, each with its clock and the save's
-die; what the module manages (the class-modifiers section mounted from the
-classes feature, and the managed effects locked with an open control); the
+die; what the module manages (the managed effects, locked, each with an open
+control — except the training effect, whose control goes to the Stats tab,
+the one editor of what it holds); the
 resources — rations, oil, torches from the stacks on Equipment, fate points
 with spend and award, and a caster's pools — each with a star; and the
 modifiers in force with toggle, edit, delete and an add control.

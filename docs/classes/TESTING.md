@@ -273,25 +273,35 @@ carry `flags["acks-extras"].templatePart`), and the fixture `Staff` weapon.
 Confirm no `acks-extras.class` or `acks-extras.race` items named for the
 fixture remain and the template folders are empty.
 
-## Class modifiers (the Effects tab section)
+## Class modifiers (the SYSTEM sheet's Effects tab section)
+
+The module's own character sheet edits training on its Stats tab — that
+recipe is [character-sheet/TESTING.md](../character-sheet/TESTING.md),
+*Training on Stats*. This section is the injected grid on the system's sheet;
+switch the fixture to the system sheet first.
 
 1. Apply a class to a character and open the **Effects** tab.
    *Observable:* a **Class modifiers** section above the effect list, naming the
    class, with three groups of pills; the training effect's own row is GONE from
    the list below it (one control, not two). A character with no class applied
-   has no section at all.
+   has no section at all. The Unarmed chip shows and does not answer the mouse.
 2. Click a style pill, then a weapon pill on a class granting `all`.
    *Observable:* the style leaves `flags.acks-extras.styleProficient` and the
    remainder is rewritten in canonical spelling (`twoHanded,weaponShield`); the
-   weapon grant EXPANDS from `all` to the explicit list minus the one clicked.
+   weapon grant is rewritten CANONICALLY — `all` becomes the size and category
+   clauses that still hold plus the remaining weapons by name, the one clicked
+   absent (`equipment/training-view.mjs`).
 2b. Apply a class whose training is size- or missile-based — an imported class
    carrying `missile:all,melee:tiny,melee:small,melee:medium`.
-   *Observable:* every weapon pill but Unarmed is lit. Click Unarmed: the grant
-   gains `unarmed` and keeps its four clauses verbatim. Click Axes: the grant is
-   rewritten as the explicit class list without `axe`, and the Stats tab's
-   weapon buckets follow — a two-handed sword now reads proficient, because the
-   size was the price of editing at class granularity; re-applying the class
-   restores the printed clause.
+   *Observable:* every weapon pill but Unarmed is lit — a chip lights when ANY
+   of its class is granted, and the great axe (large) is not. Click Axes: a lit
+   chip WITHDRAWS its class, so the grant is rewritten without the three axes;
+   `missile:all` and `melee:tiny` stay whole, while the small and medium
+   clauses, each now missing an axe, become their remaining weapons by name.
+   Nothing widens: the module sheet's Stats tab lights exactly the same
+   weapons. Click Axes again: the three axes return, and the grant is the
+   canonical form of that set — which is NOT the printed four clauses, because
+   the great axe was never in them; re-applying the class restores those.
 3. Click an armour rung below the ceiling, then click the ceiling itself.
    *Observable:* the first sets `armourProficiency` to that rung; the second
    removes the change entirely. It is a ladder, never a hole in the middle.

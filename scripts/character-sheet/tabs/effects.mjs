@@ -10,6 +10,7 @@ import { makeLoc } from "../../lib/util.mjs";
 import { isManagedEffect } from "../../lib/managed-effects.mjs";
 import { bearerLights, LIGHT_SOURCES } from "../../lib/light.mjs";
 import { poolState } from "../../classes/casting.mjs";
+import { trainingEffects } from "../../classes/training.mjs";
 import { effectClock, isTimer, saveRiders, sheetFlag, saveLabel } from "../snapshot.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 
@@ -85,7 +86,12 @@ export function buildEffectsTab(actor) {
 
   const riders = saveRiders(actor).map((r) => ({ ...r, saveLabel: saveLabel(r.save) }));
 
-  const managed = effects.filter(isManagedEffect).map((e) => ({ id: e.id, name: e.name, img: e.img, line: changesLine(e), disabled: !!e.disabled }));
+  // A training row's control goes to Stats, the one editor of what it holds;
+  // core's effect config is a text field for the storage format.
+  const trainingIds = new Set(trainingEffects(actor).map((e) => e.id));
+  const managed = effects
+    .filter(isManagedEffect)
+    .map((e) => ({ id: e.id, name: e.name, img: e.img, line: changesLine(e), disabled: !!e.disabled, training: trainingIds.has(e.id) }));
 
   const modifiers = effects
     .filter((e) => !isTimer(e) && !isManagedEffect(e))

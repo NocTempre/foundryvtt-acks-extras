@@ -1670,3 +1670,53 @@ button.acks-extras-character-sheet__pinchip {
     display: none;
   }
 }
+
+/* --- Stats: training ------------------------------------------------------ */
+
+/* The view cycle, the pencil and Reset, on one line under the rule. */
+.acks-extras-character-sheet__training-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding-block: var(--acks-sp-2) 0;
+}
+
+.acks-extras-character-sheet__chip.is-on {
+  border-color: var(--acks-gold-deep);
+  color: var(--acks-gold-deep);
+}
+
+.acks-extras-character-sheet__hint.is-editing {
+  color: var(--acks-gold-deep);
+}
+
+/* A pill a hand moved off what the class prints wears a dot at its corner. */
+.acks-extras-character-sheet__pill {
+  position: relative;
+}
+
+.acks-extras-character-sheet__pill.is-edited::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--acks-gold-deep);
+  box-shadow: 0 0 0 1px var(--acks-tint-2);
+}
+
+/* A group some but not all of whose weapons are trained. */
+.acks-extras-character-sheet__pill.is-partial {
+  border-style: dashed;
+  border-color: var(--acks-spot);
+  color: var(--acks-spot);
+}
+
+/* Lit by a source this editor cannot withdraw: it answers with the reason, not the mouse. */
+button.acks-extras-character-sheet__pill.is-locked:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}

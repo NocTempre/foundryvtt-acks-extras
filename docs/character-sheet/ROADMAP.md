@@ -19,9 +19,10 @@ the code, not missing from it; the rulings behind the built half are
   boards on page 2 of the canvas. Neither was chosen.
 - **Pick slots on the training list.** The canvas drew dashed drop targets for
   a class's "any five" broad pick, "any three" narrow pick and the four
-  restricted weapons of a caster's list. They need a data model for a pick
-  that is a set of weapons rather than a category, which the training effect
-  does not carry yet.
+  restricted weapons of a caster's list. A pick that is a set of weapons is
+  now expressible — the Stats editor writes single weapons into the grant —
+  but nothing records HOW MANY a class may pick or which tier the picks
+  belong to; the slots need that count, which is the book-picks table below.
 - **The book's six weapon categories.** The lib's `SLOT_VOCAB` (eight classes,
   bows and crossbows split, an unarmed chip) is what the Stats tab renders;
   the canvas's "raw" note asks for the six narrow categories of the book.
@@ -53,3 +54,9 @@ the code, not missing from it; the rulings behind the built half are
 - **Split beyond one unit.** The Split control on a stack peels one unit off
   (`item-sheet/stack.mjs` `splitOne`); moving "part of a stack somewhere else"
   in one gesture wants a quantity prompt.
+- **A *book picks* organisation of the training list.** The Stats editor
+  regroups weapons by category, by size and ungrouped — the kinds of token
+  the grammar has. The page's numbered pick-combinations (which sizes or
+  categories pair into one broad choice, "any five") are the class builder's
+  option table and do not ship; a fourth organisation would read a table the
+  importer registers (`lib/tables.mjs`) and appear only where one exists.

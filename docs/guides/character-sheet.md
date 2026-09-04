@@ -66,11 +66,26 @@ the right column to take it off or out.
 
 ## Stats
 
-![](../releases/v6.4.0/character-sheet-stats.png)
+![](../releases/v6.5.0/character-sheet-stats.png)
 
-What is not a throw: the attributes, the training (every style, every weapon
-class opened to its weapons, the heaviest armour rung), movement by mode,
-vision light by light, the vitals, and the throw targets that Rolls reads.
+What is not a throw: the attributes, the training, movement by mode, vision
+light by light, the vitals, and the throw targets that Rolls reads.
+
+**Training** is where a character's combat training is read and edited. Every
+fighting style, every weapon in the game as its own pill, every armour rung
+and the shield; lit when trained, gold when specialised or focused. The view
+button regroups the weapons — by category, by size, or as one flat list — and
+each group's header is captioned with the kind of choice it is (broad, narrow,
+unrestricted). Hover a pill to see where the training came from when it was
+not the class: an ability, another effect, the sheet's own profile.
+
+An owner presses **Edit** to arm the pills: click a weapon, a whole group's
+toggle, a style, an armour rung (it sets the ceiling; clicking the ceiling
+clears it) or the shield (which is the Weapon & Shield style). A pill that
+another source lit refuses the click and names the source. A pill moved off
+what the class prints wears a dot, and **Reset to class** puts the printed
+training back. A character with no class gets a *Training, by hand* effect on
+the first edit; applying a class later replaces it.
 
 ## Class, Magic, Followers, Notes, Effects
 
@@ -82,7 +97,7 @@ Magic appears for a caster, with the casting pools and the repertoire. Followers
 renders the hirelings as Follower Cards beside the Roster chip. Notes holds the
 notes and the relationships on record.
 
-![](../releases/v6.4.0/character-sheet-effects.png)
+![](../releases/v6.5.0/character-sheet-effects.png)
 
 Effects is where the timers live — what is burning, what is blessing you, what
 is riding on a save — with the counts a player checks between fights (rations,

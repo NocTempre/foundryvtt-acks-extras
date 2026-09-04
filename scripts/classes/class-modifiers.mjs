@@ -1,7 +1,9 @@
 /* global game, Hooks, ui, document */
 /**
  * CLASS MODIFIERS — the character's combat training as its own section of the
- * Effects tab, above the ordinary effect list, with each slot a toggle.
+ * SYSTEM sheet's Effects tab, above the ordinary effect list, each slot a
+ * toggle at class granularity. The module's own character sheet does not
+ * mount this: its Stats tab is the one editor, at weapon granularity.
  *
  * The training arrives as an Active Effect whose changes are three CSV strings.
  * In core's effect list that is one row named after the class, and the only way
@@ -9,7 +11,8 @@
  * weaponShield` in a text field — an editor for the storage format rather than
  * for the thing. So the effect is LIFTED OUT of that list and drawn as the same
  * slot strip the Inventory tab and the follower card use, except that here the
- * pills are buttons: click one and the grant changes.
+ * pills are buttons: click one and the grant changes. Unarmed is no weapon in
+ * the grant grammar — every body strikes unarmed — so its chip only shows.
  *
  * It is the same effect either way. Nothing is duplicated, nothing new is
  * stored, and the section disappears with the effect — a character with no
@@ -67,7 +70,7 @@ function buildGroup(actor, effect, group, labelKey, tipKey, editable) {
       icon.className = slot.icon;
       pill.append(icon);
     }
-    if (!editable) pill.disabled = true;
+    if (!editable || slot.key === "unarmed") pill.disabled = true;
     else {
       pill.addEventListener("click", (ev) => {
         ev.preventDefault();
@@ -75,7 +78,10 @@ function buildGroup(actor, effect, group, labelKey, tipKey, editable) {
         // Our controls live inside core's <form>, and an ApplicationV2 sheet
         // submits on change: an unstopped event reaches core's delegated
         // handler and submits the sheet underneath us.
-        toggleTraining(actor, group, slot.key).catch((err) => {
+        // A lit chip withdraws its class. At class granularity a chip lights
+        // when ANY of the class is granted, so left to decide for itself a
+        // partly covered class would complete rather than clear.
+        toggleTraining(actor, group, slot.key, { on: chip ? !on : null }).catch((err) => {
           console.error(`${MODULE_ID} | toggling class training failed`, err);
           ui.notifications?.error(game.i18n.localize(`${LANG_PREFIX}.modifiers.failed`));
         });
@@ -117,13 +123,6 @@ function buildSection(actor) {
   section.append(el("p", CLS.hint, game.i18n.localize(`${LANG_PREFIX}.modifiers.hint`)));
   return section;
 }
-
-/**
- * The section as an element, for a sheet this module draws itself to place
- * where its own Effects tab wants it (the character sheet mounts it under
- * "Managed by the module"). Null when the actor has no training to show.
- */
-export const classModifiersSection = buildSection;
 
 /**
  * Mount the section on the Effects tab and take the training row out of the

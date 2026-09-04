@@ -313,12 +313,16 @@ function addTypedEffects(actor, item, { addNum, addStr, booleans }) {
  * the effects.mjs collectors serve it.
  * @returns {{numeric: Map<string, {label:string,value:number}[]>,
  *            strings: Map<string, Set<string>>,
- *            booleans: Set<string>}}
+ *            booleans: Set<string>,
+ *            origins: Map<string, Map<string, Set<string>>>}} origins: string domain → item name → its tokens
  */
 export function bridgeContributions(actor) {
-  const out = { numeric: new Map(), strings: new Map(), booleans: new Set() };
+  // `origins` keeps, per string domain, which ITEM contributed which tokens —
+  // the provenance a training editor names beside a pill it cannot switch off.
+  const out = { numeric: new Map(), strings: new Map(), booleans: new Set(), origins: new Map() };
   if (actor?.type !== ACTOR_TYPE.character) return out;
 
+  let current = "";
   const addNum = (domain, label, value) => {
     if (!out.numeric.has(domain)) out.numeric.set(domain, []);
     out.numeric.get(domain).push({ label, value });
@@ -327,11 +331,16 @@ export function bridgeContributions(actor) {
     if (!token) return;
     if (!out.strings.has(domain)) out.strings.set(domain, new Set());
     out.strings.get(domain).add(String(token).toLowerCase());
+    if (!out.origins.has(domain)) out.origins.set(domain, new Map());
+    const byItem = out.origins.get(domain);
+    if (!byItem.has(current)) byItem.set(current, new Set());
+    byItem.get(current).add(String(token).toLowerCase());
   };
 
   for (const item of actor.items ?? []) {
     if (item.type !== ITEM_TYPE.ability) continue;
     if (speaksNative(item)) continue; // native effect items are not bridged
+    current = String(item.name ?? "");
 
     // The typed model first, and independently of the slug tables: an ability
     // that declares its mechanic needs no name to be recognised, which is what

@@ -112,6 +112,7 @@ export function classifyGrantToken(token) {
   if (t === "all") return "all";
   if (t === "missile:all") return "missile";
   if (t.startsWith("melee:")) return SIZE_TOKENS.has(t.slice(6)) ? "meleeSize" : "unknown";
+  if (t.startsWith("weapon:")) return weaponTokenKey(t.slice(7)) ? "weapon" : "unknown";
   if (CATEGORY_TOKENS.has(slug(t))) return "category";
   return weaponTokenKey(t) ? "weapon" : "unknown";
 }
@@ -129,6 +130,8 @@ export function classifyGrantToken(token) {
  *                       spearPolearm | other
  *   <weaponKey>         a single named weapon (the restricted list), by any name
  *                       config.mjs knows — "Great Sword" reaches twohandedsword
+ *   weapon:<key>        the same, written so it cannot be read as a category
+ *                       where the key is also one (`crossbow`)
  *
  * A token outside the grammar (`classifyGrantToken` → "unknown") matches
  * nothing. That is not a silent no-op: a profile with ONLY unknown tokens still
@@ -141,6 +144,13 @@ export function grantMatches(token, profile) {
   if (t === "all") return true;
   if (t === "missile:all") return !!profile.missile;
   if (t.startsWith("melee:")) return !!profile.melee && String(profile.size).toLowerCase() === t.slice(6);
+  // `weapon:<key>` names ONE weapon even where the bare key is also a category
+  // (`crossbow` is both): the category reading wins on a bare token, so a
+  // writer that means the single weapon says so.
+  if (t.startsWith("weapon:")) {
+    const key = weaponTokenKey(t.slice(7));
+    return !!key && profile.key === key;
+  }
   if (CATEGORY_TOKENS.has(slug(t))) return String(profile.cat).toLowerCase() === slug(t);
   const key = weaponTokenKey(t);
   return !!key && profile.key === key;

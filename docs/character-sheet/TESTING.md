@@ -142,3 +142,60 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 Delete both actors, the monster and the scene and confirm `game.actors` and
 `game.scenes` no longer hold them; clear the user's `sheetFold` flag of the
 fixture id.
+
+## Training on Stats
+
+**Fixtures.** A character actor you create; one class whose training effect
+writes weapons by size and missile (`missile:all,melee:tiny,melee:small,
+melee:medium`), armour `medium`, styles `weaponShield`; one imported *Martial
+Training* proficiency. Apply the class to the character.
+
+**Drive mechanics.** The Training block's model is `panels.stats.training`
+from `_prepareContext()` — `groups[].members[]` carry `on`, `edited`,
+`locked`, `others`, `token`. A scripted edit is `toggleTraining(actor,
+"weapons", token, {create: true})` from `scripts/classes/training.mjs`, or
+the real pill click with the pencil armed. The view is
+`game.user.getFlag("acks-extras", "trainingView")`. Read the grant back from
+the effect carrying the `fromClass` flag: its `changes`.
+
+1. Open Stats. *Observable:* Fighting styles as five pills; Weapons under
+   seven category headers each captioned *narrow*, every weapon of the table
+   exactly once across them, no *Elsewhere* group; Armour as five rungs lit
+   to Medium plus a Shield pill; the note names the class. The pills do not
+   answer the mouse.
+2. Press the view button twice. *Observable:* *By size* — Tiny/Small/Medium
+   melee headers lit (*broad*), Large dark, Missile lit, the staff sling under
+   Medium; *No grouping* — one *Any weapon* header (*unrestricted*), every
+   weapon inline. A third press returns to *By category*. Reopen the sheet:
+   the last view stands (user flag).
+3. Press Edit. *Observable:* the chip goes gold, the editing hint shows, the
+   pills become buttons. Click *Lance* (a large weapon whose category the
+   class does not complete — a weapon that completes one, such as the
+   two-handed sword, collapses into its category token instead, which is the
+   canonical form and not a fault). *Observable:* the grant gains `lance`
+   after its four clauses, the pill lights and wears a dot, *Reset to class*
+   appears. Click the *Large melee* header's toggle (size view). *Observable:*
+   the grant is rewritten as `missile:all,melee:tiny,melee:small,melee:medium,
+   melee:large`, the lance's dot is now on every large weapon. Click *Reset to
+   class*. *Observable:* the printed four clauses return, no dots, no Reset.
+4. Armour, still editing. Click *Light*. *Observable:* `armourProficiency`
+   is `light`, Medium goes dark and wears a dot. Click *Shield*.
+   *Observable:* `styleProficient` loses `weaponShield` (the fixture grants
+   it); the Shield and the Weapon & Shield style pills go dark, each with a
+   dot. Click *Shield* again: both light, the dots clear. Reset.
+5. Add the Martial Training item with a swords pick. *Observable:* sword
+   pills the class does not grant light; in edit mode each is disabled with
+   the item's name in its tooltip; the class's own sword pills still toggle.
+6. Effects tab. *Observable:* no Class modifiers section; the training row
+   under *Managed by the module* is locked and its control jumps to Stats.
+   No training control opens core's Active Effect window.
+7. Join as the Trusted Player seat: on a character it owns, the pencil
+   works; on one it observes, the view button cycles and the pencil is
+   replaced by *view only*.
+8. A character with no class: Edit, click a style. *Observable:* an effect
+   named *Training, by hand* appears, locked, and the note names it. Apply a
+   class: the hand-made effect is replaced.
+
+**Teardown.** Delete the character, the class and the proficiency you
+created; clear `trainingView` from your user flags if you want the default
+back.

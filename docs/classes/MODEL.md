@@ -281,38 +281,41 @@ moment their class is re-applied.
 
 `syncClassTraining` writes the class's combat training onto the character as an
 Active Effect whose changes are three CSV strings (`weaponProf`,
-`armourProficiency`, `styleProficient`). `class-modifiers.mjs` draws that effect
-as a **Class modifiers** section at the top of the Effects tab and removes its
-row from the list below, so there is one control rather than two; `training.mjs`
-reads and rewrites the grants inside it.
+`armourProficiency`, `styleProficient`); a class stated per path writes a second
+such effect for the chosen option. `training.mjs` reads and rewrites the grants
+inside them — `trainingEffects` finds them, an edit targets the one already
+carrying the group's change — and answers where the rest of a character's
+training came from:
 
-The pills are the same slot vocabulary the Inventory strip and the follower card
-use (`SLOT_VOCAB`, exported from `lib/proficiency-strip.mjs`), so the three
-surfaces cannot drift on what a slot is or what order slots come in. Here they
-are buttons:
+- **`toggleTraining(actor, group, token, {create})`.** Weapons take ANY grant
+  token — a weapon, `weapon:<key>`, a category, `melee:<size>`, `missile:all`,
+  `all`: ON adds every unit the token covers, OFF removes them, and the grant
+  is rewritten canonically through `equipment/training-view.mjs`. Styles
+  toggle. Armour is a ladder: a rung sets the ceiling, the ceiling clears the
+  grant. `shield` is the Weapon & Shield style by another name. With `create`,
+  a character holding no training effect gets one, stamped
+  `fromClass: "manual"` (`ensureTrainingEffect`), which the next class apply
+  replaces like any effect it stamped. A token nothing recognises is kept as
+  written through every edit.
+- **`trainingProvenance(actor)`** — per group, one contribution per source:
+  the class effects (`class`), any other effect carrying a training change
+  (`effect`, by name), an ability item read through the abilities model or the
+  bridge (`ability`, by name), the actor's own profile flag (`flag`). It
+  explains; the lit state stays the profile's own answer.
+- **`printedTraining` / `classTraining` / `editedSlots`** — what the class
+  document prints (its own effect plus the chosen path options, read through
+  the `fromClass` uuid), what the effects hold now, and the slots on which the
+  two differ — the badge. Unknown, and silent, when the document is gone.
+- **`resetTraining`** re-applies the training alone from the class document.
+- **`grantedKeys`** is the class-granularity reading the system sheet's
+  injected section (`class-modifiers.mjs`) still draws as chips, through
+  `weaponTokenClasses`.
 
-- **Styles and weapons toggle.** A weapon pill is lit when any token of the
-  grant covers its class, read through `weaponTokenClasses`
-  (`lib/proficiency-strip.mjs`) — `all`, `missile:all`, `melee:<size>`, a
-  category key or a named weapon. Switching ON appends the class key; switching
-  OFF drops the tokens that grant the class alone, and where a wider clause
-  still covers it the grant is expanded to the explicit class list minus that
-  one (a size clause loses its size here) and stays explicit afterwards. A
-  token nothing recognises is kept as written.
-- **Armour is a ladder.** A click sets the ceiling; clicking the current ceiling
-  clears the grant.
-- **Written in canonical spelling** (`twoHanded`, `veryLight`) — the profile
-  compares case-insensitively, but what is stored reads the way the rest of the
-  module spells it.
-
-What the section shows is **this effect's grant**, not the character's effective
-profile: training also arrives from proficiency items, actor flags and the
-abilities bridge, and a pill lit by one of those could not be switched off here.
-The Inventory strip is the effective total; this is the class's contribution to
-it. A character with no training effect has no section.
-
-Applying a class REPLACES the effect wholesale, so a re-apply discards edits
-made here — which is what makes re-applying the way to undo them.
+The module's own character sheet edits all of this on its Stats tab
+([character-sheet/MODEL.md](../character-sheet/MODEL.md)); the system's sheet
+keeps the injected **Class modifiers** section at the top of its Effects tab,
+at class granularity. Applying a class REPLACES the effects wholesale, so a
+re-apply discards every edit — which is what makes it the undo.
 
 ## Asking a rung
 

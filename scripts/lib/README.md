@@ -35,7 +35,7 @@ sibling modules) — never the import path for this module's own features.
 | `capabilities.mjs` | "Does this actor hold an ability that provides X?" — name ∪ `kw:` token matching, and `abilityRank` (a proficiency taken thrice is three items). |
 | `effect-scan.mjs` | Active-Effect scanning core: `appliedEffects` / `makeEffectMeta` / `activeNumericChanges` / `csvFlagSet` / `sumModifiers`. |
 | `managed-effects.mjs` | The effects this module maintains and a hand must not delete (class training, equipment loadout): the marker registry, the `preDelete` refusal, and the row lock. |
-| `proficiency-strip.mjs` | Compact profile strips (fighting style, weapon category, armour) from equipment's profile API, and `weaponTokenClasses` — the ONE reading of a weapon grant (`all`, `missile:all`, `melee:<size>`, a category, a weapon) at class granularity; the class-training editor reads it too. |
+| `proficiency-strip.mjs` | Compact profile strips (fighting style, weapon category, armour) from equipment's profile API, `abilityContributions` (what the imported proficiency items state, by item), and `weaponTokenClasses` — the ONE reading of a weapon grant (`all`, `missile:all`, `melee:<size>`, a category, a weapon) at CLASS granularity; the reading at the weapon is equipment's `training-view.mjs`. |
 
 ## Domain models
 

@@ -22,6 +22,8 @@ export const SHEET_FLAG = "sheet";
  * with the viewer: an observer seat can fold a sheet it cannot edit.
  */
 export const FOLD_FLAG = "sheetFold";
+/** User flag: which organisation the Stats tab's weapon list is regrouped by — a viewing preference, so the viewer's. */
+export const TRAINING_VIEW_FLAG = "trainingView";
 
 /** The tab keys, in the one order they ever appear. */
 export const TAB_ORDER = Object.freeze(["rolls", "abilities", "equipment", "stats", "class", "magic", "followers", "notes", "effects"]);

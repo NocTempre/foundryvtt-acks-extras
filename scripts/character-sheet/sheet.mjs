@@ -18,7 +18,7 @@
  * Registered at ready as the default for `character` (module.mjs); the
  * system's own sheet stays registered and Sheet Config switches back.
  */
-import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, FOLD_FLAG, SUMMON_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
+import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, FOLD_FLAG, TRAINING_VIEW_FLAG, SUMMON_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
 import { makeLoc, libStorage } from "../lib/util.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, summonerOf, henchmanIds, currentScene } from "./snapshot.mjs";
 import { buildFrameModel, nextAcMode, togglePin } from "./view-model.mjs";
@@ -47,8 +47,8 @@ import { reopenChargen } from "../classes/reopen-chargen.mjs";
 import { setActorPath } from "../classes/paths.mjs";
 import { classForActor } from "../classes/registry.mjs";
 import { castingStripElement, restPools } from "../classes/casting.mjs";
-import { classModifiersSection } from "../classes/class-modifiers.mjs";
-import { toggleTraining } from "../classes/training.mjs";
+import { toggleTraining, resetTraining } from "../classes/training.mjs";
+import { nextTrainingView, TRAINING_VIEWS } from "../equipment/training-view.mjs";
 import { LANGUAGE_ACTIONS } from "../abilities/language-slots.mjs";
 import { openRosterApp } from "../henchmen/apps/roster-app.mjs";
 import { dismissMonster } from "../henchmen/apps/hirelings-grid.mjs";
@@ -76,7 +76,7 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
  * control on a read-only sheet; these are re-enabled after it does.
  */
 const VIEW_ACTIONS = new Set([
-  "fold", "goTab", "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "formation", "partyMenu", "influence",
+  "fold", "goTab", "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "trainingView", "formation", "partyMenu", "influence",
   "placeOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source", "tab",
 ]);
 
@@ -145,6 +145,9 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       placePin: AcksCharacterSheet.#onPlacePin,
       toggleTraining: AcksCharacterSheet.#onToggleTraining,
       toggleBucket: AcksCharacterSheet.#onToggleBucket,
+      trainingEdit: AcksCharacterSheet.#onTrainingEdit,
+      trainingView: AcksCharacterSheet.#onTrainingView,
+      trainingReset: AcksCharacterSheet.#onTrainingReset,
       classPick: AcksCharacterSheet.#onClassPick,
       classReopen: AcksCharacterSheet.#onClassReopen,
       classOpen: AcksCharacterSheet.#onClassOpen,
@@ -179,7 +182,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   tabGroups = { primary: "rolls" };
 
   /** Sheet-local state that survives the re-render every form change causes. */
-  #ui = { editingBio: false, editingNotes: false, moveMode: "exploration", abilityFilter: "all", openBuckets: new Set() };
+  #ui = { editingBio: false, editingNotes: false, moveMode: "exploration", abilityFilter: "all", openBuckets: new Set(), trainingEdit: false };
 
   /** The roll inventory of the last render — what the folded bar and the row ids read against. */
   #rolls = null;
@@ -279,7 +282,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     panels.rolls = { columns: this.#rollColumns(rolls.groups) };
     panels.abilities = buildAbilitiesTab(actor, { filter: this.#ui.abilityFilter });
     panels.equipment = buildEquipmentTab(actor);
-    panels.stats = buildStatsTab(actor, { openBuckets: this.#ui.openBuckets });
+    panels.stats = buildStatsTab(actor, { openBuckets: this.#ui.openBuckets, editing: this.#ui.trainingEdit, view: this.#trainingView() });
     panels.class = buildClassTab(actor);
     if (tabs.magic) panels.magic = buildMagicTab(actor);
     panels.followers = await buildFollowersTab(actor);
@@ -456,7 +459,6 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const steps = [
       ["band", () => this.#moveBandIntoHeader()],
       ["casting", () => this.#mountCasting()],
-      ["classModifiers", () => this.#mountClassModifiers()],
       ["drops", () => this.#markDropZones()],
       ["itemInputs", () => this.#bindItemInputs()],
       ["paths", () => this.#bindPathSelects()],
@@ -492,13 +494,6 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     if (!mount || mount.children.length) return;
     const strip = castingStripElement(this.actor);
     if (strip) mount.append(strip);
-  }
-
-  #mountClassModifiers() {
-    const mount = this.element.querySelector('[data-mount="classModifiers"]');
-    if (!mount || mount.children.length) return;
-    const section = classModifiersSection(this.actor);
-    if (section) mount.append(section);
   }
 
   #markDropZones() {
@@ -1111,9 +1106,10 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 
   static async #onToggleTraining(event, target) {
     const { group, slot } = target.dataset;
-    if (!group || !slot) return;
+    if (!group || !slot || !this.#ui.trainingEdit) return;
     try {
-      await toggleTraining(this.actor, group, slot);
+      // A character with no training effect gets one on the first hand edit.
+      await toggleTraining(this.actor, group, slot, { create: true });
     } catch (err) {
       console.error(`${MODULE_ID} | toggling class training failed`, err);
       ui.notifications.error(game.i18n.localize("ACKS-CLASSES.modifiers.failed"));
@@ -1125,6 +1121,32 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     if (this.#ui.openBuckets.has(key)) this.#ui.openBuckets.delete(key);
     else this.#ui.openBuckets.add(key);
     this.render();
+  }
+
+  /** The pencil: arm the training pills, or put them back to rest. */
+  static #onTrainingEdit() {
+    this.#ui.trainingEdit = !this.#ui.trainingEdit;
+    this.render();
+  }
+
+  /** The organisation the weapon list is regrouped by — the viewer's own preference. */
+  #trainingView() {
+    const key = game.user.getFlag(MODULE_ID, TRAINING_VIEW_FLAG);
+    return TRAINING_VIEWS.some((v) => v.key === key) ? key : TRAINING_VIEWS[0].key;
+  }
+
+  static async #onTrainingView() {
+    await game.user.setFlag(MODULE_ID, TRAINING_VIEW_FLAG, nextTrainingView(this.#trainingView()));
+    this.render();
+  }
+
+  static async #onTrainingReset() {
+    try {
+      await resetTraining(this.actor);
+    } catch (err) {
+      console.error(`${MODULE_ID} | resetting class training failed`, err);
+      ui.notifications.error(game.i18n.localize("ACKS-CLASSES.modifiers.failed"));
+    }
   }
 
   static #onClassPick() {
