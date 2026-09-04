@@ -1428,3 +1428,43 @@ able to see.
 existence, not its value); flattening the whole file to dotted keys (the nested
 roots are how the file stays readable); checking only keys this repo adds (the
 conflict is between an old key and a new one, so both halves must be in scope).
+
+## 2026-09-04 — The world chooses its defaults; the ladder fills what the choice lacks
+
+Release 6.4.0 made this module's character sheet the default for every world,
+and the look was three per-player client settings with no world half. A table
+that wanted the system's sheets, or no ACKS styling at all, had to walk every
+seat through Configure Settings and pin sheet types one by one.
+
+**Ruled (owner, 2026-09-04): "the sheet UI defaults" become one dismissible
+startup prompt that sets a world default — Foundry, the system's, or this
+module's — and the default is a SELECTION BETWEEN DEFAULTS, not a per-type
+switch.** Verbatim: *"if a specific sheet for that option doesn't exist, that
+sheet uses the extras, core, foundry default in that order."* So the preset
+names a preferred rung, and a type the rung has no sheet for falls through the
+remaining rungs in that fixed order. The order is deliberately richest-first:
+the `foundry` preset lands character actors on this module's sheet, because
+Foundry registers none and the alternative is a seat with no sheet.
+
+**Ruled: the client `look` setting gains a `world` value and it is the new
+default.** A stored `book` or `core` is a player's own override and stands. A
+client that never touched the setting followed `book` before and follows the
+world's `book` now — byte-identical for every existing seat until the Judge
+picks otherwise.
+
+**Rejected: writing every type's default into `core.sheetClasses`.** Explicit
+and visible in Foundry's own UI, but it freezes the world: a later release
+that adds a sheet for a type would never become that type's default, because a
+stored pin outranks every registration. The ladder instead re-flags in memory
+on every load and treats a stored pin as the Judge's word — applying a preset
+drops the pins that name a ladder sheet, which is the one moment the Judge has
+said "the world's choice, not mine".
+
+**Rejected: a socket to push the look to players.** A world setting's
+`onChange` already fires on every client; `look: world` plus that hook is the
+whole transport.
+
+**Cost:** two new world settings, a hidden flag, and one more surface a
+release must live-walk (the prompt, and the three presets against the
+character, monster and party types). Declared a hotfix by the user despite
+carrying a setting, which the minor rule would otherwise claim.

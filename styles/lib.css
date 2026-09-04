@@ -59,6 +59,42 @@
   padding: 0.5rem 0.75rem;
 }
 
+/* --- UI preset prompt (lib/ui-preset.mjs) --- */
+
+.acks-extras-ui-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.acks-extras-ui-preset__option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.6rem;
+  align-items: start;
+  cursor: pointer;
+}
+
+.acks-extras-ui-preset__option input {
+  grid-row: span 2;
+  align-self: center;
+  margin: 0;
+}
+
+.acks-extras-ui-preset__name {
+  font-weight: 600;
+}
+
+.acks-extras-ui-preset__hint,
+.acks-extras-ui-preset__note {
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-ui-preset__note {
+  margin: 0.5rem 0 0;
+}
+
 /* --- acks-lib.group sheet --- */
 
 .acks-lib-group-sheet .acks-lib-group-body {

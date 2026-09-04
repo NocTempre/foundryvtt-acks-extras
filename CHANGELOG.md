@@ -1,5 +1,28 @@
 # Changelog
 
+## 6.5.1
+
+**The world chooses its defaults once, and every seat opens on them.**
+
+### Added
+- **A startup prompt, once per world, asks the Judge what the table opens
+  on**: Foundry (no ACKS styling), the ACKS system's own sheets, or this
+  module's. The choice is the new world setting *Default look and sheets*;
+  every seat that has not picked its own look draws the chosen look, and
+  every Actor and Item type opens on the chosen set's sheet where it has one.
+  Where it does not, the type falls to the next set that does — Extras, then
+  the system, then Foundry — so no type is ever left without a sheet. *Keep
+  as is, don't ask again* dismisses the prompt for good; closing the window
+  asks again at the next launch. Change it later under Configure Settings.
+- The per-player *ACKS look* setting gains **World default**, now its
+  default: a seat that never touched it follows the Judge's choice, and a
+  seat that chose Book or System style keeps its own.
+
+### Changed
+- A type pinned through Foundry's Configure Default Sheets keeps its pin
+  until a preset is applied, which clears the pins naming an ACKS or Extras
+  sheet so the world's choice governs again; a third-party pin is left alone.
+
 ## 6.5.0
 
 **Training is edited once, on Stats, down to the weapon.**

@@ -1,8 +1,10 @@
 # Character sheet — how it works now
 
 The module's own sheet for `character` actors (`scripts/character-sheet/`),
-registered at `ready` as the default for the type. The system's sheet stays
-registered untouched; Sheet Config switches an actor back. Why it is shaped
+registered at `ready` as this module's default for the type; whether the
+world opens on it is the lib's UI preset (lib MODEL § "The UI preset"), which
+ships choosing it. The system's sheet stays registered untouched; Sheet
+Config switches an actor back. Why it is shaped
 this way is [DECISIONS.md](DECISIONS.md); what is not built is
 [ROADMAP.md](ROADMAP.md); the live-test recipe is [TESTING.md](TESTING.md).
 

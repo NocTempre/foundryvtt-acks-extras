@@ -249,9 +249,46 @@ by-the-rules — are carried by the glyph, the glyph's weight, or the rule weigh
 `--acks-gold` is the one accent beyond the spot colour, and it is a real measured
 token, not a per-feature invention.
 
+### The UI preset: whose defaults the world opens on
+
+One world setting, `uiPreset` (`lib/ui-preset.mjs`), chosen by the Judge from a
+startup prompt or Configure Settings: `foundry`, `acksCore` or `acksExtras`
+(the default). It is two defaults in one:
+
+- **The world's look.** `foundry` is the `core` look below; the other two are
+  `book`. A client's own `look` setting reads `world` by default and defers to
+  it; `effectiveLook()` is the one resolver, and every reader that used to ask
+  the client setting asks it instead.
+- **The world's default sheet per Actor and Item type**, resolved by the ladder
+  in `ui-preset-logic.mjs`. Every registered sheet belongs to a rung by the
+  scope of its id (`acks-extras.`, the system's id, `core.`); the preset names
+  the preferred rung, and a type that rung has no sheet for falls through the
+  rest in one fixed order — extras, then the system, then Foundry. Within a
+  rung the rung's own `makeDefault` choice stands (the monster's follower
+  card), captured before the first re-flag moves it. Foundry registers no Actor
+  or Item sheet, so its rung is empty there and the ladder lands on this
+  module's.
+
+The ladder writes the `default` flag in `CONFIG.<Document>.sheetClasses`, the
+flag `ClientDocument#_getSheetClass` reads. It runs from a `ready` hook
+registered during `init` — after every ready-time registration in this module,
+which were all queued at import time — and again on every client when the
+preset changes, closing and forgetting open world sheets the way core does after
+Configure Default Sheets. Two things outrank it, both a Judge's explicit act
+through Foundry's UI: a type pinned in `core.sheetClasses`, and a document's
+`core.sheetClass` flag. Applying a preset drops the pins that name a ladder
+sheet so the ladder governs again, and leaves a third-party pin standing; a
+type whose current default is outside the ladder is left alone too.
+
+The prompt (`promptUiPreset`) fires once per world for the primary GM, until a
+choice is applied or *Keep as is* is pressed — both set the hidden
+`uiPresetPrompted` world flag. Closing the window sets nothing, so it asks again
+at the next launch. Applying offers Foundry's own reload-all confirmation, since
+an embedded item's sheet is not re-resolved until then.
+
 **Four client settings drive it**, all in `lib/module.mjs` and all per player:
 
-- `look` — `book` (default) or `core`, per the section above. Sets
+- `look` — `world` (default), `book` or `core`, per the sections above. Sets
   `data-acks-look` on `<html>`, toggles the body class, and re-dresses open
   windows. `applyLook()` is the single place the whole client state is applied,
   and `ready` calls it rather than setting anything itself.

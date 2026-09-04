@@ -28,6 +28,7 @@ import { acksExtras } from "../namespace.mjs";
 import * as movementScales from "./movement-scales.mjs";
 import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE } from "./constants.mjs";
 import { isPrimaryGM } from "./util.mjs";
+import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
 import * as vocab from "./vocab.mjs";
 import * as fields from "./fields.mjs";
 import * as library from "./library.mjs";
@@ -408,6 +409,18 @@ Hooks.once("init", () => {
     default: "return",
   });
 
+  // WHOSE DEFAULTS the world opens on — Foundry's, the system's or this
+  // module's — for every seat (ui-preset.mjs). It is the world half of `look`
+  // below and the default-sheet ladder in one setting. The ladder runs from a
+  // ready hook registered HERE, during init: every ready-time sheet
+  // registration in this module was queued at import time, so a hook queued
+  // now lands after all of them. The prompt follows, once per world.
+  registerUiPresetSettings({ onLookChange: applyLook });
+  Hooks.once("ready", () => {
+    refreshSheetDefaults();
+    promptUiPreset().catch((err) => console.error(`${MODULE_ID} | the UI preset prompt failed`, err));
+  });
+
   // WHICH PALETTE the ACKS surfaces draw in. Foundry's own colour scheme is the
   // default source of truth; this only exists so a player can hold the ACKS look
   // steady while the rest of their client goes the other way.
@@ -440,6 +453,11 @@ Hooks.once("init", () => {
   // Foundry's own, because the tokens now resolve to Foundry's theme-aware
   // variables; that is the whole point of handing them over, and it is why
   // `theme` stands down alongside `sheetStyle` (see applyTheme).
+  //
+  // `world`, the default, defers to the world's UI preset: a seat that never
+  // touched this draws what the Judge chose for the table, and `effectiveLook`
+  // is the one reader that resolves it. A stored `book` or `core` is a
+  // player's own override and stands whatever the preset says.
   game.settings.register(MODULE_ID, "look", {
     name: `${LANG_PREFIX}.settings.look.name`,
     hint: `${LANG_PREFIX}.settings.look.hint`,
@@ -447,10 +465,11 @@ Hooks.once("init", () => {
     config: true,
     type: String,
     choices: {
+      world: `${LANG_PREFIX}.settings.look.world`,
       book: `${LANG_PREFIX}.settings.look.book`,
       core: `${LANG_PREFIX}.settings.look.core`,
     },
-    default: "book",
+    default: "world",
     onChange: () => applyLook(),
   });
 
@@ -509,7 +528,7 @@ Hooks.once("init", () => {
  * @returns {{ui: boolean, palette: boolean}} which of the two dress classes belong on the root.
  */
 function dressFor(owned) {
-  if (game.settings.get(MODULE_ID, "look") === "core") return { ui: false, palette: false };
+  if (effectiveLook() === "core") return { ui: false, palette: false };
   // A window this module DECLARED as an ACKS surface always wears the full
   // dress: `sheetStyle` governs how much of the look the SYSTEM's windows take,
   // and five of this module's own sheets extend a core sheet and therefore
@@ -537,7 +556,7 @@ function dressFor(owned) {
  * client.
  */
 function applyLook() {
-  const core = game.settings.get(MODULE_ID, "look") === "core";
+  const core = effectiveLook() === "core";
   const html = document.documentElement;
   if (core) html.setAttribute("data-acks-look", "core");
   else html.removeAttribute("data-acks-look");
@@ -590,7 +609,7 @@ function applyTheme(mode) {
  */
 function applyRootPin(mode) {
   const root = document.documentElement;
-  const core = game.settings.get(MODULE_ID, "look") === "core";
+  const core = effectiveLook() === "core";
   if (!core && (mode === "light" || mode === "dark")) root.setAttribute("data-acks-theme", mode);
   else root.removeAttribute("data-acks-theme");
 }

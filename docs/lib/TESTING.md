@@ -280,6 +280,42 @@ proves the handler, not the race.
    *Observable:* identical — this is the warm path, and it proves the await did
    not cost the case that already worked.
 
+## The UI preset and its prompt
+
+Fixtures: none beyond a disposable `character`, `monster` and
+`acks-extras.party` actor. State to reset afterwards: the two world settings
+(`uiPreset` back to `acksExtras`, `uiPresetPrompted` back to `false`) and the
+client `look` back to `world`.
+
+1. **The prompt fires once.** Set `uiPresetPrompted` to `false` and reload as
+   the Gamemaster. Observable: a *Default look and sheets* dialog with three
+   radio options, this module's checked, and two buttons. Close it with the
+   X and reload: it returns. Press *Keep as is*: `uiPresetPrompted` reads
+   `true`, `uiPreset` is unchanged, and a reload shows no prompt.
+2. **The ladder, per preset.** For each of `foundry`, `acksCore`,
+   `acksExtras`, set `uiPreset` and read the flagged default for
+   `CONFIG.Actor.sheetClasses.character`, `.monster` and
+   `["acks-extras.party"]`: the character default is this module's sheet under
+   `acksExtras` and `foundry`, the system's under `acksCore`; the monster
+   default is the follower card under `acksExtras` and `foundry` (the lib's
+   own choice survives the round trip), the system's under `acksCore`; the
+   party sheet is this module's under all three. Opening each fixture actor
+   after a change opens the flagged class — the change closes and forgets
+   open world sheets, so no reload is needed for a world actor.
+3. **The look follows.** With the client `look` at `world`: `foundry` sets
+   `data-acks-look="core"` on `<html>` and removes `body.acks-lib-sheet-theme`;
+   the other two do the reverse. Set the client `look` to `book` and repeat
+   `foundry`: the attribute stays absent — a player's own choice stands.
+4. **A pin outranks the ladder until a preset is applied.** Pin
+   `core.sheetClasses.Actor.character` to the system's sheet, set `acksExtras`
+   through `game.settings.set`: the character default stays the system's.
+   Apply the preset — `applyUiPreset` from `scripts/lib/ui-preset.mjs`
+   (dynamic-import it in page context) or the prompt: the pin is gone and the
+   default is this module's.
+5. **Applying from the prompt.** Reset the flag, reload, choose *ACKS system
+   sheets*, *Apply*: a toast names the preset, Foundry's reload-all
+   confirmation appears, and `uiPreset` reads `acksCore`.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

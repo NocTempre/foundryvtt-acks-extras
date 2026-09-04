@@ -1,0 +1,11 @@
+<p class="acks-extras-ui-preset__lead">{{localize "ACKS-LIB.uiPreset.prompt.lead"}}</p>
+<fieldset class="acks-extras-ui-preset">
+  {{#each options}}
+  <label class="acks-extras-ui-preset__option">
+    <input type="radio" name="preset" value="{{value}}" {{#if checked}}checked{{/if}}>
+    <span class="acks-extras-ui-preset__name">{{name}}</span>
+    <span class="acks-extras-ui-preset__hint">{{hint}}</span>
+  </label>
+  {{/each}}
+</fieldset>
+<p class="acks-extras-ui-preset__note">{{localize "ACKS-LIB.uiPreset.prompt.note"}}</p>

@@ -9,6 +9,7 @@ import * as vocab from "../scripts/lib/vocab.mjs";
 import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
 import { attackTerms, termTotal, resolveAttack, legacyCoreResolves } from "../scripts/lib/attack-logic.mjs";
+import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder } from "../scripts/lib/ui-preset-logic.mjs";
 import {
   buildTransferPayload,
   coinTotalGC,
@@ -1694,6 +1695,57 @@ t("the (spec) suffix is derived from the pick, and replaced rather than stacked"
 t("abilitySlug reads the cookbook id, else the name without its pick suffix", () => {
   assert.equal(vocab.abilitySlug(abilityWith("def.prof.weaponFocus")), "weaponfocus");
   assert.equal(vocab.abilitySlug({ name: "Weapon Focus (Swords)" }), "weaponfocus");
+});
+
+// --- UI preset: the default-sheet ladder ---------------------------------
+
+t("the ladder tries the preferred rung, then extras, core, foundry", () => {
+  assert.deepEqual(rungOrder(UI_PRESET.extras), ["extras", "core", "foundry"]);
+  assert.deepEqual(rungOrder(UI_PRESET.core), ["core", "extras", "foundry"]);
+  assert.deepEqual(rungOrder(UI_PRESET.foundry), ["foundry", "extras", "core"]);
+  assert.equal(presetLook(UI_PRESET.foundry), "core");
+  assert.equal(presetLook(UI_PRESET.core), "book");
+  assert.equal(presetLook(UI_PRESET.extras), "book");
+});
+
+t("chooseDefault falls through to a rung with a sheet, keeps a rung's own choice, stands down for a stranger", () => {
+  const character = [
+    { id: "acks.AcksActorSheetCharacter", rung: "core", default: false },
+    { id: "acks-extras.AcksCharacterSheet", rung: "extras", default: true },
+  ];
+  assert.equal(chooseDefault(character, UI_PRESET.extras), "acks-extras.AcksCharacterSheet");
+  assert.equal(chooseDefault(character, UI_PRESET.core), "acks.AcksActorSheetCharacter");
+  // Foundry registers no character sheet: the foundry preset lands on this module's.
+  assert.equal(chooseDefault(character, UI_PRESET.foundry), "acks-extras.AcksCharacterSheet");
+
+  // Two extras sheets for monsters. The lib declared the card its default, and
+  // that choice survives the flag moving to the system's sheet and back.
+  const monster = [
+    { id: "acks.AcksActorSheetMonster", rung: "core", default: false },
+    { id: "acks-extras.FullMonsterSheet", rung: "extras", default: false },
+    { id: "acks-extras.FollowerCardSheet", rung: "extras", default: true },
+  ];
+  const declared = declaredDefaults(monster);
+  assert.deepEqual(declared, { extras: "acks-extras.FollowerCardSheet" });
+  const moved = monster.map((s) => ({ ...s, default: s.rung === "core" }));
+  assert.equal(chooseDefault(moved, UI_PRESET.extras, declared), "acks-extras.FollowerCardSheet");
+  assert.equal(chooseDefault(moved, UI_PRESET.core, declared), "acks.AcksActorSheetMonster");
+
+  // A type only this module gives a sheet is the same under every preset.
+  const party = [{ id: "acks-extras.PartySheet", rung: "extras", default: true }];
+  for (const p of Object.values(UI_PRESET)) assert.equal(chooseDefault(party, p), "acks-extras.PartySheet");
+
+  // A third-party sheet holding the default is left standing.
+  const foreign = [...character.map((s) => ({ ...s, default: false })), { id: "other.Sheet", rung: null, default: true }];
+  assert.equal(chooseDefault(foreign, UI_PRESET.extras), null);
+
+  // A sheet that cannot be a default is never chosen; nothing registered, no say.
+  const noDefault = [
+    { id: "acks-extras.X", rung: "extras", default: false, canBeDefault: false },
+    { id: "acks.Y", rung: "core", default: true },
+  ];
+  assert.equal(chooseDefault(noDefault, UI_PRESET.extras), "acks.Y");
+  assert.equal(chooseDefault([], UI_PRESET.extras), null);
 });
 
 console.log(`\n${n} tests passed (including the location migration)`);

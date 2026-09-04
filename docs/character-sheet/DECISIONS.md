@@ -35,6 +35,13 @@ and "the original is preserved" is the safeguard that makes that safe: a
 world that prefers the old sheet is one Sheet Config click away, and the old
 sheet's injections are still maintained.
 
+**Refined 2026-09-04** (new evidence: the user's ruling that the sheet
+defaults are a world-level selection between Foundry's, the system's and this
+module's, asked once at startup). `makeDefault` here is now this module's
+declared choice for the lib's default-sheet ladder to read; whether a world
+opens on it is the `uiPreset` world setting — lib DECISIONS 2026-09-04. The
+module's sheets remain the shipped default, so nothing above is reversed.
+
 ### The design canvas is the specification (2026-09-03)
 
 The layout, the tab set, the rails, the tones and the dedup ledger were
