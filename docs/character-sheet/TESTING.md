@@ -121,7 +121,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 12. The system's sheet. Switch the fixture to it through Sheet Config.
     *Observable:* the wear buckets, the class picker control, the Storage tab
     and the roster header button all still appear there.
-13. The party cell, on the disposable scene. *Observable:* with the hireling's
+13. The system's windows. Click Generate Scores and Modifiers on Stats, Tweaks
+    on the tools rail, and the HP cell with hit points at zero. *Observable:*
+    each opens the system's own window — the Scores Generator, Attribute
+    Bonuses, Tweaks, Mortal Wounds — titled for the character; a "could not be
+    reached" notice means the bridge is reading the wrong half of the
+    system's sheet class chain (the four live on two classes).
+14. The party cell, on the disposable scene. *Observable:* with the hireling's
     token on the scene the cell reads `1`; control the monster's token and
     pick *Bind* from the cell's menu — its actor gains `summonedBy` and the
     cell reads `1*`; set `pendingCalamity` on the hireling's henchmen record

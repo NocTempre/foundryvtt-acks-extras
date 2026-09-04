@@ -208,7 +208,9 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       noneLabel: loc("assign.noPackage"),
       // A package on this window ADDS; it never replaces. Said where the choice
       // is made, because the character it is being added to already owns things.
-      ruleHint: template ? loc("assign.packageAdds") : loc("assign.packageHint"),
+      // A class holding no template rows says so: the empty list belongs to the
+      // class document, not to this window, and the fix is an import, not a pick.
+      ruleHint: template ? loc("assign.packageAdds") : legal.length ? loc("assign.packageHint") : loc("chargen.noTemplates"),
       shortfall: template ? templateShortfall(intScore, assumed) : null,
     });
     context.picksColumn = picksPanelHtml({

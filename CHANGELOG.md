@@ -1,5 +1,30 @@
 # Changelog
 
+## 6.4.1
+
+**The system's windows open from the new sheet again.**
+
+### Fixed
+- **Generate Scores, Modifiers, Tweaks and Mortal Wounds reported "could not
+  be reached" from the character sheet.** The sheet reaches those windows
+  through the system's own sheet class, and read its action handlers off one
+  class's declaration; the system keeps Tweaks on its base actor sheet and
+  the other three on the character sheet that extends it, so whichever half
+  was read, the other half was missing. The handlers are now gathered down
+  the inheritance chain the way ApplicationV2 itself gathers them, and all
+  four windows open.
+
+### Changed
+- **The class picker says when a class holds no starting packages.** A class
+  document without template rows — one imported before the importer wrote
+  them, or hand-made — offered only "no starting package" and the sentence
+  about the package being optional, which read as the sheet withholding
+  them. The template box now carries the generator's sentence for that case,
+  naming the class document as the reason. A fresh class import writes the
+  rows; a world whose classes predate them updates through
+  `acksExtras.importer.cookbookUpdateClasses()` (a Judge's hand edits with
+  it) or by removing the imports and importing again.
+
 ## 6.4.0
 
 **A character sheet of the module's own, and it is the default.**

@@ -20,12 +20,29 @@ import { makeLoc } from "../lib/util.mjs";
 
 const loc = makeLoc(LANG);
 
+/**
+ * The action handlers a sheet class answers to, merged down its inheritance
+ * chain the way ApplicationV2 merges `DEFAULT_OPTIONS` at construction. The
+ * system keeps Tweaks on its base actor sheet and the character windows on
+ * the character subclass, so reading one class's own static finds only half.
+ */
+export function sheetActions(cls) {
+  const chain = [];
+  for (let c = cls; typeof c === "function" && c !== Function.prototype; c = Object.getPrototypeOf(c)) chain.unshift(c);
+  const actions = {};
+  for (const c of chain) {
+    if (Object.hasOwn(c, "DEFAULT_OPTIONS")) Object.assign(actions, c.DEFAULT_OPTIONS?.actions ?? {});
+  }
+  return actions;
+}
+
 /** The system's registered character sheet class, found by scope rather than by name. */
 export function coreCharacterSheetClass() {
   const entries = CONFIG.Actor?.sheetClasses?.[ACTOR_TYPE.character] ?? {};
   for (const [id, entry] of Object.entries(entries)) {
     if (!id.startsWith(`${game.system.id}.`)) continue;
-    if (entry?.cls?.DEFAULT_OPTIONS?.actions?.showTweaksDialog) return entry.cls;
+    const actions = sheetActions(entry?.cls);
+    if (actions.showTweaksDialog || actions.generateScores) return entry.cls;
   }
   return null;
 }
@@ -46,7 +63,7 @@ export const CORE_ACTIONS = Object.freeze({
 export function openCoreWindow(key, actor) {
   const action = CORE_ACTIONS[key];
   const cls = coreCharacterSheetClass();
-  const handler = cls?.DEFAULT_OPTIONS?.actions?.[action];
+  const handler = cls ? sheetActions(cls)[action] : null;
   if (typeof handler !== "function") {
     ui.notifications?.warn(loc("core.unreachable", { what: key }));
     return false;

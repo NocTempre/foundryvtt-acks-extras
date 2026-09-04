@@ -119,6 +119,11 @@ gear the world does not hold. A disposable character.
    *Observable:* the character's staff is a `weapon` and equips from the
    sheet; the chat card lists the bundle's contents; coin arrives per the
    row's `gp`/`sp`.
+5a. A class holding no template rows: a disposable `class` item with an empty
+   `system.templates`, chosen in the picker with *Show all classes* on.
+   *Observable:* the template box offers only "no starting package" and its
+   hint is the generator's no-packages sentence, not the optional-package
+   one; picking a class with rows brings the rows and the optional hint back.
 6. The DELETE path: delete one linked gear item, apply the template again.
    *Observable:* the missing name on the chat card's unresolved list,
    everything else lands. Delete the whole bundle and apply: the row falls

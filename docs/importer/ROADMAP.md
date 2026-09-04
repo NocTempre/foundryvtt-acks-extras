@@ -695,3 +695,13 @@ the shape:
 
 Not blocked on anything. The journal-writing machinery exists and is proven by
 the location journals.
+
+## Import everything waits on the monsters step's own question
+
+`cookbookImportMonsters` confirms through a modal every time it runs, so the
+Getting Started chain — whose own note says a chain narrating its progress
+must not stop on a modal, and which skips `cookbookUpdateClasses` for that
+reason — stops at step 7 of 13 until the Judge answers, and an unattended run
+sits there indefinitely. The chain should either ask once, on the panel,
+before it starts, or hand the step a confirmed flag so the modal is the
+standalone macro's alone.
