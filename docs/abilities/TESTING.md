@@ -115,6 +115,16 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the prose editor and the requirements field have real height; a panel that
    survives a re-render at `display: none` while its nav button reads active is
    the failure this step exists to catch.
+12. **Weapon proficiency picks.** On an ability whose category is Weapon
+   Proficiency, type `all missile weapons, dagger` into the selections line;
+   save and reopen.
+   *Observable:* *All missile weapons* is ticked, the line holds only `dagger`,
+   and the stored selections read `["missile:all", "dagger"]` — a box stores
+   equipment's grant token, a single weapon stays as typed and is never widened
+   to its group. The name reads `… (All missile weapons, dagger)`. Put the
+   ability on a character and open the follower card: the weapon strip lights
+   Bows, Crossbows, Other, Swords & Daggers and Unarmed, and NOT Axes, Flails
+   or Spears. Tick *Medium melee* and save: the three dark pills light.
 
 ## Teardown
 

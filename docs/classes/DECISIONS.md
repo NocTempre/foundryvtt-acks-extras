@@ -1126,3 +1126,27 @@ traditions (vancian, points, ritual, ceremonial, gnosis) and per-tradition
 pools now, so By This Axe gnosis and Heroic Fantasy ceremonial content
 materialize into the same fields; the Nobiran's dual pools are tracked fully
 (implementation lands with the casting framework phase, on this schema).
+
+## 2026-09-03 — The training editor reads the whole grant grammar, and expands only what it must
+
+**Problem.** `grantedKeys` recognised class keys and `all`. The importer writes
+most classes' weapon training as size and missile clauses —
+`missile:all,melee:tiny,melee:small,melee:medium` — so the Class modifiers
+section showed every weapon pill dark for a character whose Inventory strip
+was lit end to end, and the first click on any pill rewrote the grant to that
+one class key and threw the rest away.
+
+**Ruled.** Pills light through `weaponTokenClasses`
+(`lib/proficiency-strip.mjs`), the same resolver the strips read, so the two
+surfaces cannot disagree about which classes a clause covers. Toggling ON
+appends the class key and leaves the wider clauses as written. Toggling OFF
+drops the tokens that grant the class alone — its key, or a weapon filed under
+it — and only when a wider clause still covers the class is the grant expanded
+to the explicit class list minus that one: the rule this record already had
+for `all`, applied to every clause that cannot lose one class. A token nothing
+recognises is kept as written through either edit.
+
+*Cost, stated:* expanding a size clause widens it — melee up to medium becomes
+every sword, two-handed included — because a class pill cannot say "swords of
+medium size". Re-applying the class restores the printed clause. The abilities
+side of the same change is [abilities](../abilities/DECISIONS.md), same date.

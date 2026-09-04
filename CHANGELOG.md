@@ -1,5 +1,41 @@
 # Changelog
 
+## 6.4.2
+
+**A book on the server is a journal.**
+
+### Changed
+- **Every book staged on the server is now a journal in the world.** Look in
+  the Journal sidebar under *Your Books*: one entry per book, holding a PDF
+  page — open it and press *Load PDF* to read the book inside Foundry from any
+  GM seat, and share it with a player the way you share any journal. That
+  journal is the record of the book: delete it and the book is no longer read
+  from the server; the Books window's **Remove** does the same, and each row
+  there gains an **Open** button. The file itself stays where it was put. A
+  world that staged books before this carries them across the first time a GM
+  loads it, and says how many.
+
+### Fixed
+- **A weapon proficiency can now say what the book says.** The ability sheet's
+  Weapon Proficiency boxes offered the seven weapon groups and nothing else, so
+  a class trained in every missile weapon, or in melee weapons up to a size,
+  had nowhere to put it and the Training strip lit nothing for the words typed
+  in. The boxes now carry the whole grant vocabulary — *Any weapon*, *All
+  missile weapons*, one box per melee size, the seven groups — and a tick
+  stores the same token the class training and the equipment rules already
+  read, so the strip and the Stats tab light every class a pick covers. A
+  single weapon typed by name stays as typed: a box is a whole group, so
+  "sword" is the one weapon and "swords" ticks the group, and a phrase the
+  boxes recognise is stored as its box on the first save.
+- **The Class modifiers editor no longer destroys a size- or missile-based
+  grant.** For an imported class trained by size and missile it showed every
+  weapon pill dark, and the first click rewrote the grant to that one class.
+  Pills now light for every class the grant covers; switching one on appends
+  it and leaves the printed clauses as written, switching one off rewrites
+  the grant as the explicit class list without it — which loses the size
+  limit, as the section's own rule for *all* always has; re-applying the class
+  restores the clause.
+
 ## 6.4.1
 
 **The system's windows open from the new sheet again.**

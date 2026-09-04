@@ -291,8 +291,14 @@ use (`SLOT_VOCAB`, exported from `lib/proficiency-strip.mjs`), so the three
 surfaces cannot drift on what a slot is or what order slots come in. Here they
 are buttons:
 
-- **Styles and weapons toggle.** `all` is expanded to the explicit list on the
-  first edit that removes one, and stays explicit afterwards.
+- **Styles and weapons toggle.** A weapon pill is lit when any token of the
+  grant covers its class, read through `weaponTokenClasses`
+  (`lib/proficiency-strip.mjs`) — `all`, `missile:all`, `melee:<size>`, a
+  category key or a named weapon. Switching ON appends the class key; switching
+  OFF drops the tokens that grant the class alone, and where a wider clause
+  still covers it the grant is expanded to the explicit class list minus that
+  one (a size clause loses its size here) and stays explicit afterwards. A
+  token nothing recognises is kept as written.
 - **Armour is a ladder.** A click sets the ceiling; clicking the current ceiling
   clears the grant.
 - **Written in canonical spelling** (`twoHanded`, `veryLight`) — the profile

@@ -90,7 +90,7 @@
         <input type="text" name="{{x}}.selections" value="{{selectionsCSV}}"
                placeholder="{{localize 'ACKS-ABILITIES.mech.selectionsPlaceholder'}}">
       </div>
-      <p class="hint">{{#if selectionOptions.length}}{{localize "ACKS-ABILITIES.mech.selectionsBoxHint"}} {{/if}}{{localize "ACKS-ABILITIES.mech.selectionsHint"}}</p>
+      <p class="hint">{{#if selectionOptions.length}}{{localize "ACKS-ABILITIES.mech.selectionsBoxHint"}} {{/if}}{{localize "ACKS-ABILITIES.mech.selectionsHint"}}{{#if weaponPicks}} {{localize "ACKS-ABILITIES.mech.selectionsWeaponHint"}}{{/if}}</p>
     </div>
 
     <div class="form-group">

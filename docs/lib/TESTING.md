@@ -110,6 +110,12 @@ report the same symptom.
    *Observable:* 19 pills under `.fc-build`, an `on` pill painted burgundy and
    a `gold` one gold. The same pill grammar renders on equipment's Inventory
    **Training** row (`.acks-lib-build`) — check both when either changes.
+   What lights a weapon pill is `weaponTokenClasses` — one reading of a grant
+   token or a stored pick (`all`, `missile:all`, `melee:<size>`, a group, a
+   named weapon) shared with the Class modifiers editor; the picks-to-pills
+   recipe is the abilities recipe's weapon-proficiency step, the editor's the
+   classes recipe's size-trained class step. Unarmed is lit whenever any
+   source declares weapon training.
 
 9b. Managed effects (class training + equipment loadout). Build a character,
    apply a class through `applyClass`, and equip two weapons so a loadout

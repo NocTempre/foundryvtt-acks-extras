@@ -9,6 +9,54 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A book the server holds is a journal (2026-09-03)
+
+**Ruled: a staged book is a `JournalEntry` in the world — one per book, filed
+under "Your Books", with a single PDF page whose `src` is the staged path — and
+that page is the shelf record.** The world setting that held the shelf since
+2026-08-21 is read once by the first GM seat to arrive, turned into journals,
+and emptied; nothing reads it after that. `shelf()`, the join-time restore and
+the Books window all read the journals, so every consumer sees the destination
+the write chose.
+
+**Why a journal.** The owner asked that a loaded book leave something readable
+in the world (ROADMAP, 2026-09-03), and the shelf already held the one thing
+that reads as the whole book: the PDF. Foundry's own PDF page renders it in
+pdf.js with the book's own contents, so a Judge opens the book from the
+sidebar instead of from their disk, and shares it the way any journal is
+shared. The file system alone gave them a path in a setting nobody could open.
+
+**Why the page is the record, and not a mirror of the setting.** Two records
+of one shelf drift — the 2026-08-25 window bands were exactly that failure, at
+the scale of one dialog. With the page as the record, a Judge deleting the
+journal has unstaged the book, and a Judge re-pointing the page has re-pointed
+the shelf; both are gestures they already know, and the restore's fingerprint
+refuses a page that no longer answers for its book.
+
+**Rejected: the bytes in the document.** A hundred-megabyte book as a field on
+a JournalEntry is a hundred megabytes sent to every seat at every join, before
+anything renders. The page points at the file; the file stays under the data
+directory, as it always did.
+
+**Ownership is Foundry's default — the creating GM, and nobody else.** Handing
+a book to a player is a deliberate gesture on the journal. The 2026-08-21
+caveat stands unchanged: a file under the data directory is fetchable by anyone
+signed in who learns its path, and the journal changes who can FIND the book,
+not who can fetch it.
+
+**Not an import.** The journals and their folder carry the `shelf` flag, never
+the `cookbook` one, so Remove Imports leaves them alone the way Forget Books
+already did: the shelf is the GM's staged library, not something the module
+made from it.
+
+**Cost.** One more migration at ready, GM-only and idempotent — an entry that
+fails to land leaves the setting for the next load. A player seat that joins
+before any GM has sees an empty shelf until then. Live, 18 staged books
+carried across in one load, and a book staged twice stayed one journal with
+one page.
+
+---
+
 ### The whole chain gets one bar, and it counts steps (2026-09-02)
 
 **Ruled.** *Import Everything* opens a single progress notification for the run
@@ -1118,7 +1166,9 @@ it under the reader mid-task is not tidiness.
 ### A book the server holds asks nobody for anything (2026-08-21)
 
 **Ruled: a PDF staged under the Foundry data directory is recorded in WORLD
-settings, and every GM seat reads it on join with no gesture.**
+settings, and every GM seat reads it on join with no gesture.** — The record
+clause is SUPERSEDED 2026-09-03 by "A book the server holds is a journal": the
+shelf is a journal per book now, not a setting. The rest stands.
 
 Every location kind before this was a property of one browser: a handle needing
 a permission click, or a filename needing the picker again. That is a fair

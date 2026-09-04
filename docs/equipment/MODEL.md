@@ -91,6 +91,12 @@ which kind a token is, or `"unknown"`. A profile that parses to **no** tokens is
 treated as *no profile* (permissive), never as a restriction granting nothing:
 the alternative made one typo silently non-proficient with everything.
 
+The same tokens are the keys of the ability sheet's weapon-proficiency boxes
+(`lib/vocab.mjs` `SELECTION_VOCAB.weaponProficiency`), and
+`lib/proficiency-strip.mjs` `weaponTokenClasses` is the one reading of them at
+class granularity — the strips and the class-training editor both go through
+it. Nothing else spells a grant.
+
 ## 4. Public API & hooks
 
 `game.modules.get("acks-extras").api.equipment` (mirror

@@ -284,6 +284,14 @@ fixture remain and the template folders are empty.
    *Observable:* the style leaves `flags.acks-extras.styleProficient` and the
    remainder is rewritten in canonical spelling (`twoHanded,weaponShield`); the
    weapon grant EXPANDS from `all` to the explicit list minus the one clicked.
+2b. Apply a class whose training is size- or missile-based — an imported class
+   carrying `missile:all,melee:tiny,melee:small,melee:medium`.
+   *Observable:* every weapon pill but Unarmed is lit. Click Unarmed: the grant
+   gains `unarmed` and keeps its four clauses verbatim. Click Axes: the grant is
+   rewritten as the explicit class list without `axe`, and the Stats tab's
+   weapon buckets follow — a two-handed sword now reads proficient, because the
+   size was the price of editing at class granularity; re-applying the class
+   restores the printed clause.
 3. Click an armour rung below the ceiling, then click the ceiling itself.
    *Observable:* the first sets `armourProficiency` to that rung; the second
    removes the change entirely. It is a ladder, never a hole in the middle.

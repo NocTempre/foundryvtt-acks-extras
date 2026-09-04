@@ -38,11 +38,23 @@ gates that anything reaches a document.
 3. **Add to server** on an open book's row.
    *Observable:* the row says it is uploading, then the book appears in the
    server band; `Data/acks-extras-books/` holds the PDF as `<bookId>.pdf`;
-   the world setting `game.settings.get("acks-extras","shelf")` names it.
+   a journal named for the book appears in the Journal sidebar under *Your
+   Books*, its one page a PDF page whose `src` is that path —
+   `game.journal.find(j => j.getFlag("acks-extras","shelf")?.book === "<id>")`
+   — and the world setting `game.settings.get("acks-extras","shelf")` stays
+   `{}`: the journal is the record.
    Press it a second time for the same book (re-open the window): the name is
    already taken on the server, and the copy up there is read and staged
    instead of a second upload being attempted — Foundry refuses to overwrite a
-   non-media file, so an upload here fails the whole request.
+   non-media file, so an upload here fails the whole request. The journal is
+   brought up to date in place: still one journal for the book, still one page.
+3a. **Open** on a shelf row.
+   *Observable:* the book's journal sheet renders with core's *Load PDF*
+   button; pressing it replaces the button with an `iframe` whose `src` is
+   `scripts/pdfjs/web/viewer.html?file=<the staged path>`, and the book
+   renders. Delete the journal from the sidebar: on reopening the window the
+   row is gone from the band and the file is still on disk — deleting the
+   journal IS removing the book from the server list.
 3b. **Add to server** on a book that is NOT open and NOT staged, and the shelf
    band's own picker with several files at once.
    *Observable:* the row carries the control at all — this is the case that had
@@ -53,7 +65,9 @@ gates that anything reaches a document.
 4. **Shut the world down and relaunch it.** This is the check the whole shelf
    exists for and a page reload does not substitute for it.
    *Observable:* the staged book is open at `ready` with NO gesture, no picker
-   and no window prompting for it; its row reads "Open from the server".
+   and no window prompting for it; its row reads "Open from the server"; the
+   console says `opened N book(s) from the shelf` with the setting still `{}`,
+   which proves the restore read the journals.
 5. Copy a second PDF into `acks-extras-books/` by hand, then "Scan the
    folder".
    *Observable:* it is identified by name, opened to confirm it is that book,
@@ -76,7 +90,16 @@ gates that anything reaches a document.
    file inputs rather than pick buttons, and books are remembered by NAME.
 9. Join as the **Player** seat.
    *Observable:* the window does not auto-open; opening it by macro shows the
-   server band read-only, with no Add/Remove/Scan controls.
+   server band read-only, with no Add/Remove/Scan controls. The shelf
+   journals are not in the player's Journal sidebar (Foundry's default
+   ownership — the GM alone) and the rows carry no **Open** button; give the
+   seat Observer on one journal and that row's button appears.
+10. The migration. Delete one book's journal, then put the old record back by
+   hand — `game.settings.set("acks-extras","shelf",{wld1:{path:"acks-extras-books/wld1.pdf",name:"wld1.pdf",size:0}})`
+   — and reload as the GM.
+   *Observable:* the console reports `shelf: 1 book(s) carried from the world
+   setting into journals under "Your Books"`, the journal is back with its PDF
+   page on that path, and the setting reads `{}` again.
 
 ### Driving the pickers
 
@@ -89,6 +112,8 @@ button, which calls `showOpenFilePicker`) cannot be driven at all; exercise
 `acksExtras.importer.stageBook(bookId, file)` instead, which is the function the
 handler calls, and say so in the report. Files themselves come from the data
 directory over HTTP: `new File([await (await fetch(path)).blob()], name)`.
+Either route ends in the book's journal; a book whose file is already on the
+server stages in well under a second, because nothing is uploaded.
 
 To test a FRESH upload where the shelf already holds every book, move one file
 aside on disk (`mv wld1.pdf wld1.pdf.aside`), stage it, then delete what the
@@ -98,10 +123,11 @@ byte-identical, so `md5sum` is the check.
 ### Teardown
 
 "Forget books on this computer…" and confirm; the rows return to absent. Then
-remove each shelved book from the server band, delete
-`Data/acks-extras-books/` and its contents, and clear the setting —
-`game.settings.set("acks-extras","shelf",{})`. Confirm the window shows
-nothing staged.
+remove each shelved book from the server band (its journal goes with it — the
+*Your Books* folder stays, empty, and can be deleted by hand), delete
+`Data/acks-extras-books/` and its contents, and confirm no journal carries the
+shelf flag — `game.journal.filter(j => j.getFlag("acks-extras","shelf")).length`
+is `0` — and that the window shows nothing staged.
 
 ## Remove ALL Imports sweeps materialized rules tables
 

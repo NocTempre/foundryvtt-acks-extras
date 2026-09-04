@@ -266,17 +266,46 @@ export const ABILITY_CATEGORIES = {
  * selections (JJ pp. 290-291). A pick outside it is still valid — it just goes in
  * the free-text field instead of a box. Keys match what the profile strips match
  * on, so ticking a box is guaranteed to light the matching pill.
+ *
+ * A vocabulary may carry META keys beside its entries (`VOCAB_META`): `open`
+ * marks a shortlist a world extends, `exact` a family matched by key, alias and
+ * label only. Enumerate entries through `selectionOptions()`, never through
+ * `Object.entries`, so a meta key is never drawn as a box.
+ *
+ * WEAPONS carry the whole grant grammar of `equipment/proficiency.mjs`, and every
+ * key IS one of its tokens — `all`, `missile:all`, a `melee:<size>` per weapon
+ * size, or a weapon category — so a stored pick can be handed to
+ * `classifyGrantToken` / `grantMatches` unchanged, and the class-training
+ * editor and this sheet spell a grant the same way. The family is `exact`
+ * because a weapon-proficiency pick may also be one NAMED weapon (a restricted
+ * list, broad choice vi): "dagger" grants that weapon alone, and a substring
+ * match would tick Swords & Daggers and widen it to the whole group on the next
+ * save. Groups are written in the plural, as the books write them: "swords"
+ * ticks the box, "sword" stays the weapon it names.
  */
 export const SELECTION_VOCAB = {
   weaponProficiency: {
+    exact: true,
+    all: { label: "Any weapon", aliases: ["all weapons", "any weapons", "unrestricted"] },
+    "missile:all": {
+      label: "All missile weapons",
+      aliases: ["missile", "missiles", "missile weapon", "missile weapons", "all missile weapons", "any missile weapons", "ranged", "ranged weapons"],
+    },
+    "melee:tiny": { label: "Tiny melee", aliases: ["tiny", "tiny melee weapon", "tiny melee weapons", "tiny weapons"] },
+    "melee:small": { label: "Small melee", aliases: ["small", "small melee weapon", "small melee weapons", "small weapons"] },
+    "melee:medium": { label: "Medium melee", aliases: ["medium", "medium melee weapon", "medium melee weapons", "medium weapons"] },
+    "melee:large": { label: "Large melee", aliases: ["large", "large melee weapon", "large melee weapons", "large weapons"] },
     unarmed: { label: "Unarmed" },
     axe: { label: "Axes" },
-    sworddagger: { label: "Swords & Daggers" },
-    flailhammermace: { label: "Flails, Hammers & Maces" },
-    spearpolearm: { label: "Spears & Polearms" },
+    sworddagger: { label: "Swords & Daggers", aliases: ["swords", "daggers", "swords and daggers"] },
+    flailhammermace: {
+      label: "Flails, Hammers & Maces",
+      aliases: ["flails", "hammers", "maces", "flails, hammers and maces", "maces, flails and hammers", "maces, flails & hammers"],
+    },
+    spearpolearm: { label: "Spears & Polearms", aliases: ["spears", "polearms", "spears and polearms"] },
     bow: { label: "Bows" },
     crossbow: { label: "Crossbows" },
-    other: { label: "Other (slings, staffs, nets, whips)" },
+    other: { label: "Other (slings, staffs, nets, whips)", aliases: ["other weapons", "slings", "staffs", "staves", "nets", "whips"] },
   },
   fightingStyle: {
     single: { label: "Single Weapon" },
@@ -436,25 +465,40 @@ export function selectionVocabFor(item, category) {
   return SELECTION_VOCAB[category] ?? null;
 }
 
+/** Keys that describe a vocabulary rather than name a pick in it. */
+const VOCAB_META = new Set(["open", "exact"]);
+
+/**
+ * A vocabulary's pick entries as `[key, {label, aliases}]` pairs, meta keys
+ * left out — the one way to enumerate a vocabulary for display.
+ */
+export const selectionOptions = (vocab) => Object.entries(vocab ?? {}).filter(([k]) => !VOCAB_META.has(k));
+
 /**
  * Which vocabulary entry a stored pick means, or null when it names something
  * the shortlist does not.
  *
- * Exact key and alias matches are tried across the whole vocabulary before any
- * loose match, so a pick that names one entry outright is never claimed by
- * another's substring. Loose matching needs four characters: below that
- * "a" would tick Axes and every one-letter typo would land somewhere.
+ * Key and alias matches are tried across the whole vocabulary first, then label
+ * matches, and only then anything loose — so a pick that names one entry
+ * outright is never claimed by another's substring. A vocabulary marked `exact`
+ * stops before the loose pass: its picks may legitimately name things outside
+ * the list, and a substring would hand one of them to the wrong box. Loose
+ * matching needs four characters: below that "a" would tick Axes and every
+ * one-letter typo would land somewhere.
  */
 export function matchSelectionKey(vocab, pick) {
   const f = slug(pick);
   if (!f || !vocab) return null;
-  const entries = Object.entries(vocab).filter(([k]) => k !== "open");
+  const entries = selectionOptions(vocab);
   for (const [key, def] of entries) {
-    if (f === key || (def.aliases ?? []).some((a) => slug(a) === f)) return key;
+    if (f === slug(key) || (def.aliases ?? []).some((a) => slug(a) === f)) return key;
   }
   for (const [key, def] of entries) {
+    if (f === slug(def.label)) return key;
+  }
+  if (vocab.exact === true) return null;
+  for (const [key, def] of entries) {
     const label = slug(def.label);
-    if (f === label) return key;
     if (f.length >= 4 && (label.includes(f) || key.includes(f) || f.includes(key))) return key;
   }
   return null;

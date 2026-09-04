@@ -1106,4 +1106,68 @@ test("the election is asked on every path, not only in the confirm dialog", () =
   assert.match(src, /damageBonus: \{ class: classKey, applies: election \}/, "and is recorded against its class");
 });
 
+/* ---- the class-training editor reads the whole grant grammar ---- */
+const { grantedKeys, toggleTraining } = await import("../scripts/classes/training.mjs");
+const { FLAG_FROM_CLASS } = await import("../scripts/classes/constants.mjs");
+const { WEAPONS: WEAPON_TABLE } = await import("../scripts/equipment/config.mjs");
+
+// A named weapon is placed through equipment's own table when that feature is
+// live, which in a running module it always is.
+const savedNamespace = globalThis.acksExtras;
+globalThis.acksExtras = { ...(globalThis.acksExtras ?? {}), equipment: { config: { WEAPONS: WEAPON_TABLE } } };
+
+const trainingActor = (weapons) => {
+  const effect = {
+    changes: [{ key: "flags.acks-extras.weaponProf", mode: 2, value: weapons, priority: 20 }],
+    getFlag: (_m, k) => (k === FLAG_FROM_CLASS ? "Item.class1" : undefined),
+    async update(data) {
+      Object.assign(effect, data);
+      return effect;
+    },
+  };
+  return { effects: [effect], effect };
+};
+const weaponGrant = (a) => a.effect.changes.find((c) => c.key === "flags.acks-extras.weaponProf")?.value ?? "";
+
+try {
+  test("the training editor lights the classes a missile or size clause covers", () => {
+    const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
+    const lit = grantedKeys(thief.effect, "weapons");
+    for (const k of ["bow", "crossbow", "other", "axe", "sworddagger", "flailhammermace", "spearpolearm"]) assert.ok(lit.has(k), `${k} lit`);
+    assert.ok(!lit.has("unarmed"), "a class grant says nothing about unarmed");
+    const mage = trainingActor("club,dagger,dart,staff");
+    assert.deepEqual([...grantedKeys(mage.effect, "weapons")].sort(), ["other", "spearpolearm", "sworddagger"]);
+  });
+
+  await atest("switching a class ON appends its key and keeps the clauses as written", async () => {
+    const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
+    assert.equal(await toggleTraining(thief, "weapons", "unarmed"), true);
+    assert.equal(weaponGrant(thief), "missile:all,melee:tiny,melee:small,melee:medium,unarmed");
+  });
+
+  await atest("switching a class OFF drops what grants it alone, and expands only a wider clause", async () => {
+    // A named weapon filed under the class goes; the rest of the list stands.
+    const mage = trainingActor("club,dagger,dart,staff");
+    await toggleTraining(mage, "weapons", "sworddagger");
+    assert.equal(weaponGrant(mage), "club,dart,staff");
+    // A size clause cannot lose one class: the grant is written out as the
+    // explicit classes it covered, minus the one dropped — the `all` rule.
+    const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
+    await toggleTraining(thief, "weapons", "axe");
+    assert.equal(weaponGrant(thief), "sworddagger,flailhammermace,spearpolearm,bow,crossbow,other");
+    // `all` still expands the way it always has.
+    const fighter = trainingActor("all");
+    await toggleTraining(fighter, "weapons", "crossbow");
+    assert.equal(weaponGrant(fighter), "unarmed,axe,sworddagger,flailhammermace,spearpolearm,bow,other");
+    // A token nothing recognises rides along rather than being discarded.
+    const typo = trainingActor("axe,pointy stick");
+    await toggleTraining(typo, "weapons", "bow");
+    assert.equal(weaponGrant(typo), "axe,pointy stick,bow");
+    await toggleTraining(typo, "weapons", "axe");
+    assert.equal(weaponGrant(typo), "pointy stick,bow");
+  });
+} finally {
+  globalThis.acksExtras = savedNamespace;
+}
+
 console.log(`test-classes: ${passed} assertion groups passed.`);

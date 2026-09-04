@@ -14,10 +14,12 @@
  * (the card simply omits them) rather than guessed at.
  */
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
-import { ITEM_TYPE, ACTOR_TYPE } from "./vocab.mjs";
+import { ITEM_TYPE, ACTOR_TYPE, SELECTION_VOCAB, matchSelectionKey } from "./vocab.mjs";
 import { locOr as loc } from "./util.mjs";
 
-const equipmentApi = () => globalThis.acksExtras?.equipment ?? game.modules?.get("acks-extras")?.api?.equipment ?? null;
+// Read off globalThis so a resolver called before `game` exists — or from a
+// Node harness with no Foundry at all — answers null instead of throwing.
+const equipmentApi = () => globalThis.acksExtras?.equipment ?? globalThis.game?.modules?.get("acks-extras")?.api?.equipment ?? null;
 
 /** Fighting styles (JJ p.291), in the order the books present them. */
 const STYLES = [
@@ -59,41 +61,15 @@ const ARMOUR = [
 ];
 
 /**
- * Which weapon CLASSES a proficiency token set covers, read through
- * acks-equipment's own documented grammar (proficiency.mjs):
- *   all            → every class
- *   melee:<size>   → every melee class (a broad choice; size is per-weapon and
- *                    cannot be expressed at class granularity)
- *   missile:all    → every missile class
- *   <category>     → that class
- *   <weaponKey>    → the class that weapon belongs to (via the profile table)
- * Unarmed is always available — anyone may strike unarmed — so it lights for
- * every character and golds only with the Unarmed Fighting proficiency.
+ * Which weapon CLASSES an equipment profile covers — its `{all, tokens}` read
+ * through `weaponTokenClasses`. Unarmed is always available — anyone may strike
+ * unarmed — so it lights for every character and golds only with the Unarmed
+ * Fighting proficiency.
  */
 function coveredClasses(all, tokens, api) {
   const covered = new Set(["unarmed"]);
-  if (all) {
-    for (const c of WEAPON_CLASSES) covered.add(c.key);
-    return covered;
-  }
-  const weaponTable = api?.config?.WEAPONS ?? {};
-  for (const t of tokens) {
-    if (t.startsWith("melee")) {
-      for (const c of WEAPON_CLASSES) if (c.melee) covered.add(c.key);
-      continue;
-    }
-    if (t.startsWith("missile")) {
-      for (const c of WEAPON_CLASSES) if (c.missile) covered.add(c.key);
-      continue;
-    }
-    if (WEAPON_CLASSES.some((c) => c.key === t)) {
-      covered.add(t);
-      continue;
-    }
-    // A bare weapon key: light the class that weapon belongs to.
-    const cat = norm(weaponTable[t]?.cat);
-    if (cat && WEAPON_CLASSES.some((c) => c.key === cat)) covered.add(cat);
-  }
+  if (all) for (const c of WEAPON_CLASSES) covered.add(c.key);
+  else for (const t of tokens) for (const k of weaponTokenClasses(t, api)) covered.add(k);
   return covered;
 }
 
@@ -111,9 +87,11 @@ export const isProfileAbility = (item) =>
  * Synonyms for the free-text picks on an imported proficiency. acks-abilities
  * stores `selections` as free vocabulary BY DESIGN (the meaningful token set is
  * per-ability and lives in the book) and tells consumers to normalise and match
- * against their own vocabulary — this is acks-lib's side of that contract, so an
- * imported "Weapons" proficiency selecting "Swords" lights the swords & daggers
- * class without anyone hand-editing an enum.
+ * against their own vocabulary — this is acks-lib's side of that contract. For
+ * WEAPONS it is the fallback behind the sheet's own vocabulary: a grant token or
+ * a group name resolves there (`weaponTokenClasses`); what reaches this table
+ * is a single weapon's name — "dagger", "long bow" — or a phrasing the
+ * vocabulary does not list, and it lights the class the weapon belongs to.
  */
 const WEAPON_SYNONYMS = {
   sworddagger: ["sword", "swords", "dagger", "daggers", "swordsdaggers", "sworddagger", "swordsanddaggers"],
@@ -151,11 +129,47 @@ const matchSynonym = (token, table) => {
 };
 
 /**
+ * The weapon classes one grant token or stored pick covers, as slot keys.
+ *
+ * ONE resolver for every surface that reads a weapon grant at class granularity
+ * — the strips, the class-training editor — so a class trained in every missile
+ * weapon and every melee weapon up to medium size lights the same pills wherever
+ * it is drawn. The token is read through the sheet's own vocabulary first
+ * (`SELECTION_VOCAB.weaponProficiency`, whose keys ARE the grant tokens of
+ * equipment's `proficiency.mjs`), so a box ticked on the ability sheet and a
+ * clause written into a training effect agree:
+ *   all             → every class
+ *   missile:all     → every missile class
+ *   melee:<size>    → every melee WEAPON class (size is per weapon and cannot
+ *                     be told apart at class granularity; unarmed is no weapon
+ *                     in equipment's grammar, so a size clause never names it —
+ *                     the strips light it for every body on their own)
+ *   <category>      → that class, by key or by the book's plural name
+ * Anything else is a single NAMED weapon or a phrasing the vocabulary does not
+ * list: the synonym table places it, else equipment's own weapon table when
+ * that feature is live. A token nothing recognises covers no class.
+ * @returns {string[]} `SLOT_VOCAB.weapons[].key` values, in vocabulary order
+ */
+export function weaponTokenClasses(token, equipment = equipmentApi()) {
+  const key = matchSelectionKey(SELECTION_VOCAB.weaponProficiency, token);
+  const keysWhere = (test) => WEAPON_CLASSES.filter(test).map((c) => c.key);
+  if (key === "all") return keysWhere(() => true);
+  if (key === "missile:all") return keysWhere((c) => c.missile);
+  if (key?.startsWith("melee:")) return keysWhere((c) => c.melee && c.key !== "unarmed");
+  if (key && WEAPON_CLASSES.some((c) => c.key === key)) return [key];
+  const syn = matchSynonym(token, WEAPON_SYNONYMS);
+  if (syn) return [syn];
+  const cat = norm(equipment?.config?.WEAPONS?.[norm(token)]?.cat);
+  return cat && WEAPON_CLASSES.some((c) => c.key === cat) ? [cat] : [];
+}
+
+/**
  * What the character's IMPORTED proficiency items grant. Read through
  * acks-abilities' own API (`getExtras().category` + `selectionsOf`) — never by
- * parsing item names, which that module explicitly owns.
+ * parsing item names, which that module explicitly owns. `equipment` is that
+ * feature's API, for placing a named weapon by its table.
  */
-function abilityGrants(actor) {
+function abilityGrants(actor, equipment) {
   const out = { styles: new Set(), spec: new Set(), weapons: new Set(), armourRank: -1, has: { styles: false, weapons: false, armour: false } };
   const api = globalThis.acksExtras?.abilities ?? game.modules?.get("acks-extras")?.api?.abilities ?? null;
   if (!api?.selectionsOf) return out;
@@ -185,10 +199,7 @@ function abilityGrants(actor) {
       }
     } else if (category === "weaponProficiency") {
       out.has.weapons = true;
-      for (const t of tokens) {
-        const k = matchSynonym(t, WEAPON_SYNONYMS);
-        if (k) out.weapons.add(k);
-      }
+      for (const t of tokens) for (const k of weaponTokenClasses(t, equipment)) out.weapons.add(k);
     } else if (category === "armorProficiency") {
       out.has.armour = true;
       for (const t of tokens) {
@@ -210,7 +221,7 @@ export function profileStrips(actor) {
   const api = equipmentApi();
   // The character's own imported proficiency items are a first-class source, so
   // the strips work with acks-abilities alone (no acks-equipment profile needed).
-  const grants = abilityGrants(actor);
+  const grants = abilityGrants(actor, api);
   const anyGrant = grants.has.styles || grants.has.weapons || grants.has.armour;
   if (!api && !anyGrant) return { styles: [], weapons: [], armour: [], any: false };
 
@@ -302,6 +313,10 @@ export function profileStrips(actor) {
   const equipmentWeapons = flagSet("weaponProficiency") || profTokens.size > 0;
   const covered = equipmentWeapons ? coveredClasses(allWeapons, profTokens, api) : new Set();
   for (const w of grants.weapons) covered.add(w);
+  // Unarmed is always available whichever source declared the training:
+  // `coveredClasses` adds it for a profile, so a training declared only by
+  // ability items adds it too, rather than showing a fist nobody granted away.
+  if (grants.has.weapons) covered.add("unarmed");
   let unarmedFocus = false;
   try {
     unarmedFocus = !!api?.hasEffectFlag?.(actor, api.EFFECT_DOMAINS?.UNARMED ?? "unarmedFighting");

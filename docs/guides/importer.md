@@ -82,13 +82,24 @@ If the server already holds a file under that book's name, nothing is uploaded
 a second time: the copy already there is read and staged if it is that book,
 and named to you if it is not.
 
-Removing a book from the server only stops the module reading it; the file
-stays where it was put, and the window tells you where.
+Every book on the server is also a **journal**. Look in the Journal sidebar
+under *Your Books*: one entry per book, holding a PDF page. Open it and press
+*Load PDF* to read the book inside Foundry, from any GM seat; the **Open**
+button on the book's row in the Books window goes to the same place. The
+journal is yours alone until you share it — give a player Observer permission
+on it the way you would on any other journal, and they can read the book too.
+
+That journal *is* the module's record of the book. Delete it and the book is
+no longer read from the server; the **Remove** button in the Books window does
+the same. Either way the file stays where it was put, and the window tells you
+where. A world that staged books before they became journals carries them
+across the first time a GM loads it, and says how many.
 
 One thing to be clear about: a file under the Foundry data folder can be
-fetched by anyone signed in to your world who knows the path. Staging a book
-makes it undiscoverable, not inaccessible. If that matters for your table, keep
-your books on your own disk and connect them per seat.
+fetched by anyone signed in to your world who knows the path, whether or not
+you shared its journal. Staging a book makes it undiscoverable, not
+inaccessible. If that matters for your table, keep your books on your own disk
+and connect them per seat.
 
 ### Status and reconnecting
 

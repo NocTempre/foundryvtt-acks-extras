@@ -790,6 +790,52 @@ check("un-configured character stays permissive", isWeaponProficient(actor([]), 
 const broadThief = actor([], { effects: [marker("weaponProf", "melee:tiny,melee:small,melee:medium"), marker("weaponProf", "missile:all")] });
 check("JJ thief broad selection: medium melee + all missile, not great swords", isWeaponProficient(broadThief, pSword) && isWeaponProficient(broadThief, pBow) && !isWeaponProficient(broadThief, pGreat));
 
+// The abilities sheet's weapon-proficiency boxes STORE these tokens: every key
+// it offers (Unarmed aside, which is no weapon grant) must be a kind this
+// grammar resolves, or a ticked box would be a pick that grants nothing.
+const { SELECTION_VOCAB, selectionOptions } = await import(new URL("../scripts/lib/vocab.mjs", import.meta.url));
+const boxKinds = selectionOptions(SELECTION_VOCAB.weaponProficiency).filter(([k]) => k !== "unarmed").map(([k]) => classifyGrantToken(k));
+check("every weapon-proficiency box is a grant token this grammar resolves",
+  boxKinds.length >= 13 && boxKinds.every((k) => k && k !== "unknown" && k !== "weapon"));
+
+// The strips read the same picks at class granularity, through one resolver.
+const { profileStrips, weaponTokenClasses } = await import(new URL("../scripts/lib/proficiency-strip.mjs", import.meta.url));
+const { WEAPONS: WEAPON_TABLE } = await import(new URL("config.mjs", S));
+check("weaponTokenClasses: missile:all lights the missile classes only",
+  (() => { const c = weaponTokenClasses("missile:all"); return c.includes("bow") && c.includes("crossbow") && c.includes("other") && !c.includes("axe"); })());
+check("weaponTokenClasses: a size clause lights every melee class",
+  (() => { const c = weaponTokenClasses("melee:small"); return c.includes("axe") && c.includes("sworddagger") && c.includes("other") && !c.includes("bow"); })());
+check("weaponTokenClasses: a named weapon lights the class it is filed under",
+  weaponTokenClasses("dagger")[0] === "sworddagger" && weaponTokenClasses("dart", { config: { WEAPONS: WEAPON_TABLE } })[0] === "spearpolearm");
+check("weaponTokenClasses: a token nothing recognises covers no class", weaponTokenClasses("pointy stick").length === 0);
+
+const savedAbilities = globalThis.acksExtras.abilities;
+const savedEquipment = globalThis.acksExtras.equipment;
+globalThis.acksExtras.abilities = {
+  getExtras: (item) => item.flags?.["acks-extras"]?.extras ?? {},
+  selectionsOf: (item) => item.flags?.["acks-extras"]?.extras?.selections ?? [],
+};
+globalThis.acksExtras.equipment = { config: { WEAPONS: WEAPON_TABLE } };
+try {
+  const weaponsAbility = (selections) => ({
+    id: "wp", name: "Weapons", type: "ability", system: {}, effects: [], getFlag: () => undefined,
+    flags: { "acks-extras": { cookbook: { id: "def.prof.weaponProficiency" }, extras: { category: "weaponProficiency", selections } } },
+  });
+  const lit = (picks) => new Set(profileStrips(actor([weaponsAbility(picks)])).weapons.filter((w) => w.on).map((w) => w.key));
+  check("strip: a broad missile + small-melee training lights every class", lit(["missile:all", "melee:tiny", "melee:small", "melee:medium"]).size === 8);
+  const missile = lit(["all missile weapons", "dagger"]);
+  check("strip: missile picks light the missile classes, a dagger its own, unarmed always",
+    missile.has("bow") && missile.has("crossbow") && missile.has("other") && missile.has("sworddagger") && missile.has("unarmed")
+    && !missile.has("axe") && !missile.has("flailhammermace") && !missile.has("spearpolearm"));
+  const restricted = lit(["club", "dagger", "dart", "staff"]);
+  check("strip: a restricted list lights the classes its weapons are filed under",
+    restricted.has("other") && restricted.has("sworddagger") && restricted.has("spearpolearm") && !restricted.has("axe") && !restricted.has("bow"));
+  check("strip: an unrestricted pick lights everything", lit(["all"]).size === 8);
+} finally {
+  globalThis.acksExtras.abilities = savedAbilities;
+  globalThis.acksExtras.equipment = savedEquipment;
+}
+
 const lightClass = actor([], { effects: [marker("armourProficiency", "light")] });
 check("armour chunk sets the cap", armorMax(lightClass) === "light");
 const lightPlusTraining = actor([], { effects: [marker("armourProficiency", "light"), marker("armorTraining", "1")] });

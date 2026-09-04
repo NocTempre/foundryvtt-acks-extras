@@ -169,6 +169,14 @@ real language document on the character.*
 says "Swords" ticks *Swords & Daggers*, rather than leaving the words sitting in
 free text where nothing matches them.
 
+**Weapon proficiency offers the whole selection vocabulary.** Beside the seven
+weapon groups sit *Any weapon*, *All missile weapons* and one box per melee
+size, so a class trained in every missile weapon and every melee weapon up to
+medium size is four ticks, and the Training strip lights every class they
+cover. A single weapon is typed by name in the line and stays as typed — "sword"
+is the one weapon, "swords" ticks the group — because a box is a whole group
+and would widen a restricted list.
+
 **The name follows the pick.** Choosing a selection renames the ability to
 carry it — *Weapon Focus* becomes *Weapon Focus (Swords & Daggers)* — so you
 never type the parenthesis yourself. Changing the pick rewrites the suffix

@@ -1628,6 +1628,45 @@ t("a pick the shortlist does not name stays free text", () => {
   assert.equal(vocab.matchSelectionKey(craft, "a"), null);
 });
 
+t("weapon proficiency: every box is a grant token, and the family carries the whole grammar", () => {
+  const weapons = vocab.SELECTION_VOCAB.weaponProficiency;
+  const keys = vocab.selectionOptions(weapons).map(([k]) => k);
+  assert.ok(!keys.includes("exact"), "a meta key is not a box");
+  for (const k of ["all", "missile:all", "melee:tiny", "melee:small", "melee:medium", "melee:large", "axe", "sworddagger", "flailhammermace", "spearpolearm", "bow", "crossbow", "other"]) {
+    assert.ok(keys.includes(k), `${k} is offered`);
+  }
+  // The phrasings a class spread or a Judge writes land on the box the grammar reads.
+  assert.equal(vocab.matchSelectionKey(weapons, "all missile weapons"), "missile:all");
+  assert.equal(vocab.matchSelectionKey(weapons, "missile:all"), "missile:all");
+  assert.equal(vocab.matchSelectionKey(weapons, "tiny melee weapons"), "melee:tiny");
+  assert.equal(vocab.matchSelectionKey(weapons, "medium"), "melee:medium");
+  assert.equal(vocab.matchSelectionKey(weapons, "melee:large"), "melee:large");
+  assert.equal(vocab.matchSelectionKey(weapons, "all weapons"), "all");
+  assert.equal(vocab.matchSelectionKey(weapons, "swordDagger"), "sworddagger");
+  assert.equal(vocab.matchSelectionKey(weapons, "Spears & Pole Arms"), "spearpolearm");
+  assert.equal(vocab.matchSelectionKey(weapons, "Maces, Flails & Hammers"), "flailhammermace");
+});
+
+t("weapon proficiency: a single named weapon is never widened to its group", () => {
+  const weapons = vocab.SELECTION_VOCAB.weaponProficiency;
+  // A restricted list names weapons one at a time; a group is written in the plural.
+  assert.equal(vocab.matchSelectionKey(weapons, "dagger"), null);
+  assert.equal(vocab.matchSelectionKey(weapons, "sword"), null);
+  assert.equal(vocab.matchSelectionKey(weapons, "long bow"), null);
+  assert.equal(vocab.matchSelectionKey(weapons, "sling"), null);
+  assert.equal(vocab.matchSelectionKey(weapons, "swords"), "sworddagger");
+  assert.equal(vocab.matchSelectionKey(weapons, "slings"), "other");
+  // Nor does a compound reach `all` by substring, whatever the entry order.
+  assert.equal(vocab.matchSelectionKey(weapons, "tiny and small melee weapons"), null);
+  assert.equal(
+    vocab.nameWithSelections("Weapons", ["missile:all", "melee:tiny", "dagger"], weapons),
+    "Weapons (All missile weapons, Tiny melee, dagger)",
+  );
+  // Exactness is the weapon family's: Martial Training grants a CATEGORY by
+  // rule, so there a weapon's name still widens to the group it belongs to.
+  assert.equal(vocab.matchSelectionKey(vocab.SELECTION_VOCAB_BY_ABILITY.martialtraining, "Sword"), "sworddagger");
+});
+
 t("the (spec) suffix is derived from the pick, and replaced rather than stacked", () => {
   const styles = vocab.SELECTION_VOCAB_BY_ABILITY.fightingstylespecialization;
   // A template's own phrasing arrives written the way the shortlist names it.

@@ -300,12 +300,14 @@ export function createAbilitySheet(Base) {
       // contradiction in the data, not a preference, so it is drawn as one
       // rather than sitting quietly in a number field nobody re-reads.
       context.qtyConflict = !extras.repeatable && Number(extras.qty) > 1;
-      // Selections: a checkbox per canonical pick for this category (acks-lib's
-      // SELECTION_VOCAB — the class-build shortlist), with the comma-separated
-      // line kept as the fallback for picks the shortlist does not name. A stored
-      // pick is matched loosely (case/punctuation folded), so imported free text
-      // like "Swords" ticks the Swords & Daggers box instead of sitting in the
-      // fallback and never matching anything.
+      // Selections: a checkbox per canonical pick for this ability (acks-lib's
+      // selection vocabularies — the class-build shortlist, or the ability's
+      // own), with the comma-separated line kept as the fallback for picks the
+      // shortlist does not name. A stored pick is matched with case and
+      // punctuation folded, so imported free text like "Swords" ticks the
+      // Swords & Daggers box instead of sitting in the fallback and never
+      // matching anything. Boxes come from selectionOptions(), never
+      // Object.entries: a vocabulary's meta keys are not picks.
       // Read through selectionsOf, never off `extras.selections` directly: it
       // also absorbs the legacy "(X)" name suffix, which is how a pick granted
       // by a template before the selection was stored still ticks its box.
@@ -313,13 +315,17 @@ export function createAbilitySheet(Base) {
       const vocab = V.selectionVocabFor?.(this.item, extras.category) ?? null;
       const matched = new Set();
       context.selectionOptions = vocab
-        ? Object.entries(vocab).map(([key, def]) => {
+        ? (V.selectionOptions?.(vocab) ?? Object.entries(vocab)).map(([key, def]) => {
             const hit = picks.find((p) => V.matchSelectionKey?.(vocab, p) === key);
             if (hit) matched.add(hit);
             return { key, label: def.label, checked: !!hit };
           })
         : [];
       context.selectionsCSV = picks.filter((p) => !matched.has(p)).join(", ");
+      // A weapon proficiency's boxes are grant tokens, and its line may hold
+      // single weapons a box would widen — the hint beside them says which is
+      // which.
+      context.weaponPicks = extras.category === "weaponProficiency" && context.selectionOptions.length > 0;
       context.choices = {
         category: V.choicesOf?.(V.ABILITY_CATEGORIES ?? {}) ?? {},
       };
@@ -572,16 +578,22 @@ export function createAbilitySheet(Base) {
         // Ticked selection boxes are not form fields (they carry no name, so they
         // cannot collide with the array path) — fold them into the free-text line
         // here. Boxes first, in vocabulary order, then whatever the fallback line
-        // still holds; unticking a box therefore removes that pick.
+        // still holds; unticking a box therefore removes that pick. A typed phrase
+        // the vocabulary recognises is stored as its KEY at once — the box it
+        // would tick — so the pick is canonical from the first save, not the
+        // second; a phrase nothing matches stays as typed.
         const root = form instanceof HTMLElement ? form : this.element;
         const boxes = [...(root?.querySelectorAll("[data-selection-pick]") ?? [])];
         if (boxes.length) {
+          const V = globalThis.acksExtras?.lib?.vocab;
+          const vocab = V?.selectionVocabFor?.(this.item, raw.category ?? stored.category);
           const picked = boxes.filter((b) => b.checked).map((b) => b.dataset.selectionPick);
           const free = String(raw.selections ?? "")
             .split(",")
             .map((s) => s.trim())
-            .filter(Boolean);
-          raw.selections = [...picked, ...free.filter((f) => !picked.includes(f))];
+            .filter(Boolean)
+            .map((f) => (vocab && V?.matchSelectionKey?.(vocab, f)) || f);
+          raw.selections = [...picked, ...free.filter((f, i) => !picked.includes(f) && free.indexOf(f) === i)];
         }
         const merged = foundry.utils.mergeObject(stored, raw, { inplace: false, overwrite: true, insertKeys: true });
         // selections is authoritative from the form (an emptied list must stick).

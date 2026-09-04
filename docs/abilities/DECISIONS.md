@@ -494,3 +494,49 @@ we expect the platform to add to it.
 **Rejected:** hand-building a dice block in the extras card. `rollACKS` plus
 `roll.render()` is the system's own renderer; a second one drifts the first time
 core restyles a die.
+
+---
+
+### A weapon proficiency's boxes are the grant grammar, and a weapon's name is not a group (2026-09-03)
+
+**Asked.** A class trained in every missile weapon and every melee weapon up to
+medium size opened its Weapons proficiency on eight boxes — seven categories
+and Unarmed — with nowhere to say missile, or a size. Typed into the line
+instead, the words lit nothing: the strip's synonym table knew categories and
+weapon names and neither of those.
+
+**Ruled.** `SELECTION_VOCAB.weaponProficiency` carries the whole grant grammar
+`equipment/proficiency.mjs` resolves, and **every key is one of its tokens**:
+`all`, `missile:all`, one `melee:<size>` per weapon size, the seven categories.
+The sheet, the strips and the class-training editor therefore spell a grant one
+way. `lib/proficiency-strip.mjs` gained the one reading of that grammar at class
+granularity (`weaponTokenClasses`), which its two paths and
+`classes/training.mjs` now share instead of each carrying a piece of it — the
+editor had recognised class keys and `all` only, so an imported class's
+size-and-missile grant showed as nothing and the first click rewrote it away
+([classes](../classes/DECISIONS.md), same date).
+
+**The family is matched exactly.** A weapon-proficiency pick may be a single
+NAMED weapon — a restricted list is written one weapon at a time — and the
+loose pass that serves every other family ("Sword" → Swords & Daggers, right
+for Martial Training, which grants a category by rule) would have ticked the
+category box for "dagger" and rewritten the pick to the whole group on the next
+save. So the vocabulary declares `exact` and the resolver stops at keys,
+aliases and labels for it. Groups are aliased in the plural, as the books write
+them: "swords" ticks the box, "sword" stays the weapon it names. `exact` and
+`open` are META keys; `selectionOptions()` is the one way to enumerate a
+vocabulary for display, so neither is ever drawn as a box.
+
+**Rejected:** a `melee:all` token. No selection tier is written that way — the
+melee choices are size-qualified — and a token needs a box in the Configure
+Proficiencies macro too. Ticking every size says the same thing.
+
+**Rejected:** guarding named weapons in the sheet through equipment's
+`classifyGrantToken`. It would have fixed the boxes and left
+`nameWithSelections` — the derived "(X)" suffix chargen and the template
+packages write — still widening "dagger" to Swords & Daggers. The widening
+lived in the resolver, so the fix does.
+
+*Cost:* a compound phrase ("medium or smaller melee weapons") ticks nothing
+and stays in the line; it is typed as the sizes it names, which is how the
+Configure Proficiencies macro already asks for it.

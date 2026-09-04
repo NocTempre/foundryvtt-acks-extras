@@ -16,10 +16,12 @@
  * only the number of clicks changes.
  *
  * A book the SERVER holds is the exception, and the reason the shelf exists: a
- * PDF staged under the Foundry data directory is recorded in world settings
- * rather than per seat, so every GM seat reads it on join with no gesture and
- * no picker. The per-seat kinds remain — they are how a book is read the first
- * time, and how its bytes reach the shelf.
+ * PDF staged under the Foundry data directory is a JOURNAL in the world — one
+ * JournalEntry per book, its PDF page pointing at the staged file — rather
+ * than a record per seat, so every GM seat reads it on join with no gesture
+ * and no picker, and the Judge can open the book from the sidebar. The
+ * per-seat kinds remain — they are how a book is read the first time, and how
+ * its bytes reach the shelf.
  *
  * api (acksExtras.importer / game.modules.get("acks-extras").api.importer):
  *   bookStatus()     the Books window: every book's state, and its control
@@ -83,6 +85,7 @@ import { oseManualDialog } from "./ose-manual.mjs";
 import { importOseBook, importOseAreas, importAuthoredOse, authoredOseBooks } from "./ose-book.mjs";
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
+import { isPrimaryGM } from "../lib/util.mjs";
 import { getDoc } from "../lib/tables.mjs";
 import { LEGACY_ID, LEGACY_LOCAL_KEYS, LEGACY_SHELF_DIR, LEGACY_ART_DIR, legacyImporterActive } from "./legacy.mjs";
 import { migrateLegacyScope } from "./migrate.mjs";
@@ -248,7 +251,7 @@ async function dirGet() {
 /* -------------------------------------------- */
 
 /**
- * Books staged in the Foundry data directory, recorded in world settings.
+ * Books staged in the Foundry data directory, each one a JOURNAL in the world.
  *
  * Every other location kind is a property of one seat's browser: a handle that
  * needs a permission gesture, or a filename that needs the picker again. That
@@ -259,16 +262,33 @@ async function dirGet() {
  * treadmill; the per-seat kinds stay, because they are how a book gets read the
  * first time and how its bytes reach the upload.
  *
+ * The record is a JournalEntry — one per book, filed under the shelf folder,
+ * stamped `flags[MODULE_ID].shelf = {book, name, size}` — whose single PDF page
+ * points at the staged file. The page's `src` IS the shelf entry: it is what
+ * `shelf()` reads, what the join-time restore fetches, and what the Judge sees
+ * when they open the journal and press Load PDF. Deleting the journal takes
+ * the book off the shelf; the file stays where it was put, because Foundry
+ * offers no delete.
+ *
  * The record is a PATH, never bytes: `connectBookUrl` fetches it like any other
  * served file. What a shelf entry asserts is only "this path holds this book",
  * and it is asserted by connecting and fingerprinting the file before the entry
  * is written — never by its filename.
  *
- * Worth stating plainly, because "not a journal" invites the wrong conclusion:
- * a file under the data directory is fetchable by any signed-in user who learns
- * its path. The shelf makes a book undiscoverable, not inaccessible.
+ * Worth stating plainly, because a journal invites the wrong conclusion in the
+ * other direction: a file under the data directory is fetchable by any
+ * signed-in user who learns its path, whatever the journal's ownership says.
+ * Ownership decides who can find and open the book from the sidebar — the
+ * journal is created for the GM alone, and sharing it is the Judge's gesture —
+ * but the shelf makes a book undiscoverable, not inaccessible.
+ *
+ * `SETTING_SHELF` is where the shelf lived before it was journals: a world
+ * setting mapping bookId → {path, name, size}. It is still registered so a
+ * world upgraded past that reads it once — `migrateShelfSetting` turns each
+ * entry into a journal and empties it — and nothing else reads it.
  */
 const SETTING_SHELF = "shelf";
+const SHELF_FLAG = "shelf";
 const SHELF_DIR = "acks-extras-books";
 
 /**
@@ -293,22 +313,131 @@ async function shelfListing(FP) {
 
 const filePicker = () => foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
 
-/** The world's shelf: bookId → { path, name, size }. */
-const shelf = () => game.settings.get(MODULE_ID, SETTING_SHELF) ?? {};
+/** The journal that holds one book on the shelf, or null. */
+const shelfJournal = (bookId) => game.journal.find((j) => j.getFlag(MODULE_ID, SHELF_FLAG)?.book === bookId) ?? null;
+
+/** The PDF page of a shelf journal — the one that carries the staged path. */
+const shelfPage = (journal) => journal?.pages.find((p) => p.type === "pdf") ?? null;
+
+/**
+ * The world's shelf: bookId → { path, name, size, journalId }, read off the
+ * shelf journals. A journal whose PDF page is gone holds no book: the page is
+ * the record, so nothing else can vouch for a path.
+ */
+function shelf() {
+  const out = {};
+  for (const journal of game.journal) {
+    const stamp = journal.getFlag(MODULE_ID, SHELF_FLAG);
+    if (!stamp?.book || out[stamp.book]) continue;
+    const page = shelfPage(journal);
+    if (!page?.src) continue;
+    out[stamp.book] = {
+      path: page.src,
+      name: stamp.name ?? page.src.split("/").pop(),
+      size: stamp.size ?? 0,
+      journalId: journal.id,
+    };
+  }
+  return out;
+}
+
+/**
+ * The sidebar folder every shelf journal is filed under. Found by its own
+ * stamp first, then by name, so a folder the Judge renamed is still theirs and
+ * a folder they already had under that name is adopted rather than doubled.
+ * Stamped with the shelf flag, never the cookbook one: Remove Imports sweeps
+ * cookbook-flagged folders, and the shelf is not an import.
+ */
+async function shelfFolder() {
+  const name = game.i18n.localize(`${LANG_PREFIX}.ui.shelfFolder`);
+  const journals = (f) => f.type === "JournalEntry";
+  const found =
+    game.folders.find((f) => journals(f) && f.getFlag(MODULE_ID, SHELF_FLAG) === true) ??
+    game.folders.find((f) => journals(f) && !f.folder && f.name === name);
+  if (found) return found;
+  return game.folders.documentClass.create({
+    name,
+    type: "JournalEntry",
+    sorting: "a",
+    flags: { [MODULE_ID]: { [SHELF_FLAG]: true } },
+  });
+}
+
+/** The PDF page a shelf journal carries: named for the book, pointed at the staged file. */
+const shelfPageData = (label, path) => ({ name: label, type: "pdf", src: path });
 
 /**
  * Write one shelf entry, or drop it when `record` is null.
  *
- * Re-reads the setting immediately before writing rather than editing a copy
- * read earlier: two GM seats staging different books is exactly the case where
- * a stale read silently drops the other's entry.
+ * Writing means the book's journal: made if absent, otherwise brought up to
+ * date in place — the stamp, the title, and the PDF page's `src`, which is
+ * re-pointed rather than duplicated so a second staging of the same book never
+ * leaves two pages. Dropping deletes the journal and only the journal.
+ *
+ * Reads `game.journal` at the moment of writing rather than a copy taken when
+ * the window opened: two GM seats staging different books is exactly the case
+ * where a stale read would make a twin.
  */
 async function shelfPut(bookId, record) {
-  const next = { ...(game.settings.get(MODULE_ID, SETTING_SHELF) ?? {}) };
-  if (record) next[bookId] = record;
-  else delete next[bookId];
-  await game.settings.set(MODULE_ID, SETTING_SHELF, next);
-  return next;
+  const existing = shelfJournal(bookId);
+  if (!record) {
+    if (existing) await existing.delete();
+    return shelf();
+  }
+  const label = BOOKS[bookId]?.label ?? bookId;
+  const stamp = { book: bookId, name: record.name ?? record.path.split("/").pop(), size: record.size ?? 0 };
+  if (existing) {
+    const update = { [`flags.${MODULE_ID}.${SHELF_FLAG}`]: stamp };
+    if (existing.name !== label) update.name = label;
+    await existing.update(update);
+    const page = shelfPage(existing);
+    if (!page) await existing.createEmbeddedDocuments("JournalEntryPage", [shelfPageData(label, record.path)]);
+    else if (page.src !== record.path || page.name !== label) await page.update({ src: record.path, name: label });
+    return shelf();
+  }
+  const folder = await shelfFolder();
+  // Ownership is left at Foundry's default — the creating GM owns it, nobody
+  // else sees it — so handing a book to a player is a deliberate gesture on
+  // the journal, never a side effect of staging.
+  await game.journal.documentClass.create({
+    name: label,
+    folder: folder?.id ?? null,
+    pages: [shelfPageData(label, record.path)],
+    flags: { [MODULE_ID]: { [SHELF_FLAG]: stamp } },
+  });
+  return shelf();
+}
+
+/**
+ * Carry a shelf recorded the old way — the world setting — into journals,
+ * once, on the first GM seat to arrive. Every entry the setting holds was
+ * fingerprinted when it was written, so none is re-read here; the join-time
+ * restore reads each one anyway and refuses a file that no longer answers.
+ *
+ * The setting is emptied only after every entry landed: a write that fails
+ * midway leaves the rest for the next load rather than losing them.
+ */
+async function migrateShelfSetting() {
+  const legacy = game.settings.get(MODULE_ID, SETTING_SHELF) ?? {};
+  const entries = Object.entries(legacy);
+  if (!entries.length || !isPrimaryGM()) return 0;
+  let moved = 0;
+  for (const [bookId, record] of entries) {
+    if (!BOOKS[bookId] || !record?.path) {
+      console.warn(`${MODULE_ID} | the shelf setting named "${bookId}" with no book or no path; dropped.`);
+      continue;
+    }
+    try {
+      await shelfPut(bookId, record);
+      moved++;
+    } catch (err) {
+      console.error(`${MODULE_ID} | the shelf could not be carried into journals at ${BOOKS[bookId].label}; it tries again on the next load.`, err);
+      return moved;
+    }
+  }
+  await game.settings.set(MODULE_ID, SETTING_SHELF, {});
+  console.log(`${MODULE_ID} | shelf: ${moved} book(s) carried from the world setting into journals under "${game.i18n.localize(`${LANG_PREFIX}.ui.shelfFolder`)}".`);
+  return moved;
 }
 
 /**
@@ -1348,12 +1477,17 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
   // GM-only: staging a book writes world settings and uploads to the data
   // directory, neither of which a player may do. A player still SEES the shelf
   // rows, because a book the server holds is why their seat needs nothing.
+  // Each row opens its own journal — the book itself, in the sidebar's PDF
+  // viewer — on any seat that can see that journal; a seat the Judge has not
+  // shared it with gets the row and no button.
+  const openable = (record) => !!game.journal.get(record.journalId)?.visible;
   const shelfRows = Object.entries(staged)
     .filter(([id]) => BOOKS[id])
     .map(
       ([id, record]) => `<div class="acks-extras-importer-reconnect-row acks-extras-importer-shelf-row" data-shelf-row="${esc(id)}">
         <div class="acks-extras-importer-reconnect-head">
           <strong>${esc(BOOKS[id].label)}</strong>
+          ${openable(record) ? `<button type="button" data-shelf-open="${esc(record.journalId)}">${L("shelfOpen")}</button>` : ""}
           ${isGM ? `<button type="button" data-unshelve="${esc(id)}">${L("shelfRemove")}</button>` : ""}
         </div>
         <p class="notes" data-shelf-status="${esc(id)}">${L("shelfHeld", { name: esc(record.name ?? record.path) })}</p>
@@ -1392,6 +1526,7 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
   const shelfBand = `<section class="acks-extras-importer-band">
     <h4>${L("shelfHead")}</h4>
     ${shelfList}
+    ${shelfRows ? `<p class="notes">${L("shelfJournalNote", { folder: esc(L("shelfFolder")) })}</p>` : ""}
     ${shelfControls}
   </section>`;
 
@@ -1588,6 +1723,10 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
 
       /* -- band 2: the shelf ----------------------------------------- */
 
+      for (const button of root.querySelectorAll("button[data-shelf-open]")) {
+        button.addEventListener("click", () => game.journal.get(button.dataset.shelfOpen)?.sheet.render(true));
+      }
+
       for (const button of root.querySelectorAll("button[data-shelve]")) {
         button.addEventListener("click", async () => {
           const bookId = button.dataset.shelve;
@@ -1684,9 +1823,10 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
           button.disabled = true;
           const record = shelf()[bookId];
           await shelfPut(bookId, null);
-          // The FILE stays where it was put — Foundry offers no delete, and a
-          // GM who wants the disk space back needs to be told where to look
-          // rather than left assuming the removal took it with it.
+          // The journal goes with the entry. The FILE stays where it was put —
+          // Foundry offers no delete, and a GM who wants the disk space back
+          // needs to be told where to look rather than left assuming the
+          // removal took it with it.
           await rebuild(L("shelfRemoved", { path: record?.path ?? SHELF_DIR }));
         });
       }
@@ -2468,9 +2608,9 @@ Hooks.once("init", () => {
       }
     },
   });
-  // The shelf: books the SERVER holds, recorded in the world so every GM seat
-  // on any machine reads them with no gesture. World-scoped because that is
-  // exactly what makes it different from every per-seat location kind.
+  // The shelf's former home: books the SERVER holds were a world setting
+  // before they were journals. Still registered so an upgraded world can be
+  // read once and emptied (`migrateShelfSetting`); nothing else touches it.
   game.settings.register(MODULE_ID, SETTING_SHELF, { scope: "world", config: false, type: Object, default: {} });
   registerGettingStartedSettings();
   setWorker(`modules/${MODULE_ID}/vendor/pdfjs/pdf.worker.mjs`);
@@ -2498,6 +2638,9 @@ Hooks.once("ready", async () => {
   // old flag scope; converge it onto this module's before anything reads
   // the shelf or the library.
   await migrateLegacyScope();
+  // Then the shelf's own move: a world that recorded its staged books in the
+  // setting gets a journal per book, once, before the restore below reads it.
+  await migrateShelfSetting();
 
   initCookbook({ sessionDocs, importArtForPage: importArt, uploadPageArt, cachedArt });
   registerAbilityDirectoryButtons();

@@ -656,27 +656,31 @@ missing by accident.
 **Owner request.** Loading a book should put it in a **journal in the world**,
 not only into places a Judge cannot open and read.
 
-Where a loaded book currently lives, and why none of it reads as the book:
+**Built for the shelf the same day:** a book the server holds is a journal
+with a PDF page — the book itself, readable from the sidebar and shareable like
+any journal (DECISIONS 2026-09-03). What is still not readable:
 
-- The **connection** is a `FileSystemHandle` in the seat's IndexedDB
-  (`module.mjs`). It is per-browser, invisible to other seats, and not a world
-  document at all — a GM on a second machine sees no sign a book was ever
-  connected.
-- The **extracted prose** is materialized into the document each recipe creates
-  (`prose.mjs`): a proficiency's paragraphs live in that Item's description with
-  the page reference as the closing line. Readable, but only one entry at a
-  time, and only by finding the Item first.
-- **Location journals** are the one existing exception (`cookbookImportJournals`
-  — one `JournalEntry` per `meta.group`, one page per keyed entry). The shape
-  works. Nothing else uses it.
+- A book connected on a seat's own disk. Its **connection** is a
+  `FileSystemHandle` in that seat's IndexedDB (`module.mjs`) — per-browser,
+  invisible to other seats, and no world document at all. Putting the book on
+  the server is the route to its journal, and the guide says so; whether a
+  seat-only book should leave any trace in the world is open.
+- The **extracted prose**, as a book. It is materialized into the document each
+  recipe creates (`prose.mjs`): a proficiency's paragraphs live in that Item's
+  description with the page reference as the closing line. Readable, but only
+  one entry at a time, and only by finding the Item first. **Location
+  journals** are the one existing exception (`cookbookImportJournals` — one
+  `JournalEntry` per `meta.group`, one page per keyed entry). The shape works.
+  Nothing else uses it.
 
 So a world that has imported everything holds hundreds of readable fragments
-and no readable *book*: no table of contents, no way to read a chapter through,
-nothing to hand a player, and no record of what was taken from which book at
-which pages beyond the per-document citations.
+and, where its books are on the server, the books whole — but no readable
+*extract*: no table of contents of what was taken, no way to read a chapter of
+imported entries through, and no record of what came from which book at which
+pages beyond the per-document citations.
 
-**What has to be decided before this is built**, because each answer changes
-the shape:
+**What has to be decided before the extract journal is built**, because each
+answer changes the shape:
 
 - **What a journal is per: the book, the shelf, or the recipe run?** A journal
   per book reads like the book and grows enormous. A journal per shelf matches
@@ -691,10 +695,11 @@ the shape:
   about what a reader wants, not what is implementable.
 - **Ownership.** Imported book content is app-licensed in-world material. A
   journal is the easiest thing in Foundry to hand to a player, so its default
-  ownership is a deliberate decision and not a default to inherit.
+  ownership is a deliberate decision and not a default to inherit. The shelf
+  journal set the precedent: Foundry's default, the creating GM alone.
 
 Not blocked on anything. The journal-writing machinery exists and is proven by
-the location journals.
+the location journals and the shelf.
 
 ## Import everything waits on the monsters step's own question
 

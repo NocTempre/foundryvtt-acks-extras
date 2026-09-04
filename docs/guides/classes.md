@@ -131,6 +131,11 @@ Two things are worth knowing about it:
   the effective total; this is the class's share of it.
 - **Armour is a ladder.** A click sets the heaviest armour allowed and lights
   every rung below it; clicking the top rung clears the grant entirely.
+- **A class trained by size or by missile lights the slots that covers.** A
+  grant of every missile weapon and every melee weapon up to medium size lights
+  all but Unarmed. Withdrawing one slot rewrites the grant as a list of weapon
+  classes, so the size limit is lost — every sword, not only the medium ones.
+  Re-applying the class brings the printed clause back.
 
 Re-applying the class restores its full grant, which is how you undo a set of
 edits. The effect itself cannot be deleted — see below.

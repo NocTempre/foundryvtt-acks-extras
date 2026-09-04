@@ -55,7 +55,10 @@ other VTTs) while cookbooks stay valid.
 - **Possession model:** per-seat book connection, fingerprint gate, and world
   persistence of everything a GM imported — values and prose alike (the
   hand-typed equivalence; never in the cookbook). Reading an imported document
-  needs no book on any seat.
+  needs no book on any seat. A book staged on the SERVER is a journal in the
+  world — one `JournalEntry` per book under "Your Books", its PDF page pointing
+  at the staged file — and that page is the shelf record every GM seat reads on
+  join (`scripts/importer/module.mjs`, the shelf section).
 - **Destination:** WORLD COMPENDIA, one per document type per LINE — "ACKS
   Cookbook — Actor" for the ACKS library, "ACKS Cookbook — Dolmenwood — Actor"
   and its siblings for everything else — created on first use; folders inside

@@ -700,6 +700,7 @@
   "ACKS-ABILITIES.mech.selectionsPlaceholder": "e.g. Axes, Sword",
   "ACKS-ABILITIES.mech.selectionsHint": "What each take chose, comma-separated and order-aligned with Times Taken - the weapon group, style, discipline, or other pick this ability spends its takes on. Leave blank for abilities where a repeat deepens a rank instead of widening a list.",
   "ACKS-ABILITIES.mech.selectionsBoxHint": "Tick the standard picks;",
+  "ACKS-ABILITIES.mech.selectionsWeaponHint": "A size box covers every melee weapon of that size and the missile box every missile weapon. A single weapon is typed by name in the line and stays as typed: a box is a whole group, so \"sword\" is the one weapon and \"swords\" ticks the group.",
   "ACKS-EQUIPMENT": {
     "settings": {
       "enforceMode": {
@@ -5019,7 +5020,7 @@
   "ACKS-IMPORTER.ui.shelfSource": " [from the server]",
   "ACKS-IMPORTER.ui.shelfAdd": "Add to server",
   "ACKS-IMPORTER.ui.shelfRemove": "Remove",
-  "ACKS-IMPORTER.ui.shelfRemoved": "no longer read from the server. The file itself is still there, at {path}.",
+  "ACKS-IMPORTER.ui.shelfRemoved": "no longer read from the server, and its journal is gone. The file itself is still there, at {path}.",
   "ACKS-IMPORTER.ui.shelfBulkNote": "Pick as many of your PDFs as you like — each one is read here, identified, and only then uploaded. A book does not have to be open on this computer first. Anything that names no book is listed back to you, and its own row below takes it in one pick.",
   "ACKS-IMPORTER.ui.shelfBulkUnmatched": "{count} book(s) now read from the server. These named no book and were left alone: {files}",
   "ACKS-IMPORTER.ui.shelfTaken": "a different book is already on the server at {path}. Remove or rename that file, then try again.",
@@ -5034,6 +5035,9 @@
   "ACKS-IMPORTER.ui.shelfUploadFailed": "the upload did not complete — nothing was staged.",
   "ACKS-IMPORTER.ui.shelfNoBytes": "this book's file is no longer held in memory — reconnect it, then add it to the server.",
   "ACKS-IMPORTER.ui.shelfFailed": "{name} could not be read from the server.",
+  "ACKS-IMPORTER.ui.shelfFolder": "Your Books",
+  "ACKS-IMPORTER.ui.shelfOpen": "Open",
+  "ACKS-IMPORTER.ui.shelfJournalNote": "Every book on the server is a journal in the Journal sidebar, under “{folder}” — open it there to read the book, and share it with a player the way you share any journal. Deleting the journal takes the book off this list; the file itself stays on the server.",
   "ACKS-IMPORTER.ui.forgetGo": "Forget books on this computer…",
   "ACKS-IMPORTER.ui.forgetConfirm": "Drop this browser's remembered book locations and close the books it has open? Books on the server are not affected, and nothing already imported into the world is removed.",
   "ACKS-IMPORTER.ui.forgetDone": "this computer's remembered locations were dropped.",
