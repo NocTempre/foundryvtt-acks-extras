@@ -47,6 +47,7 @@ import {
   senseProfile,
 } from "../scripts/lib/senses.mjs";
 import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
+import { hdFormula, monsterHd } from "../scripts/lib/actor-read.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import {
   capacityOf,
@@ -1746,6 +1747,22 @@ t("chooseDefault falls through to a rung with a sheet, keeps a rung's own choice
   ];
   assert.equal(chooseDefault(noDefault, UI_PRESET.extras), "acks.Y");
   assert.equal(chooseDefault([], UI_PRESET.extras), null);
+});
+
+t("hdFormula writes the rating as core's roll formula, and monsterHd reads it back", () => {
+  assert.equal(hdFormula({ count: 2, dieType: 8 }), "2d8");
+  assert.equal(hdFormula({ count: 3, dieType: 8, bonus: 1 }), "3d8+1");
+  assert.equal(hdFormula({ count: 4, dieType: 8, bonus: -2 }), "4d8-2");
+  assert.equal(hdFormula({ count: 0.5, dieType: 8 }), "1d4", "a fraction of one die scales the die");
+  assert.equal(hdFormula({ count: 0.1, dieType: 8 }), "1d2", "never below d2");
+  assert.equal(hdFormula({ count: 2 }), "2d8", "no die type is the monster d8");
+  assert.equal(hdFormula({ count: null }), null);
+  assert.equal(hdFormula({ count: 0 }), null);
+  assert.equal(hdFormula(), null);
+  for (const hd of [{ count: 2, dieType: 8 }, { count: 3, dieType: 8, bonus: 1 }, { count: 0.5, dieType: 8 }]) {
+    const back = monsterHd({ system: { hp: { hd: hdFormula(hd) } } });
+    assert.equal(back, hd.count >= 1 ? hd.count : 1, `round trip ${JSON.stringify(hd)}`);
+  }
 });
 
 console.log(`\n${n} tests passed (including the location migration)`);

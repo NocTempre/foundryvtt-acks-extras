@@ -9,10 +9,13 @@
     <input class="acks-input acks-input--line acks-extras-character-sheet__name" type="text" name="name" value="{{actor.name}}" {{disabled (not editable)}}>
   </div>
   {{#unless folded}}
-  <button type="button" class="acks-extras-character-sheet__xp{{#if frame.xp.full}} is-full{{/if}}" data-action="goTab" data-tab="class"
-          data-tooltip="{{band.xpTitle}}" style="--acks-extras-fill: {{frame.xp.pct}}%">
+  {{!-- A reading, not a control: no button and no action, so a press on it
+        falls through to the window header and drags the sheet. XP is typed on
+        the Class tab. --}}
+  <div class="acks-extras-character-sheet__xp{{#if frame.xp.full}} is-full{{/if}}"
+       data-tooltip="{{band.xpTitle}}" style="--acks-extras-fill: {{frame.xp.pct}}%">
     <i class="acks-extras-character-sheet__xp-fill"></i>
     <b class="acks-nums">{{band.xpLabel}}</b>
-  </button>
+  </div>
   {{/unless}}
 </div>

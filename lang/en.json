@@ -1156,6 +1156,7 @@
         "value": "Value",
         "stone": "1/6 st",
         "weightHint": "Weight in sixths of a stone. Six to the stone. Where the item states a bundle size, this is the weight of one bundle.",
+        "valueHint": "Listed price, in gold pieces. Plating, masterwork, variations and condition build on it in Details; where they change it, the worth reads beside the field.",
         "openScene": "Open the scene this chart draws.",
         "conditionHint": "Visible to everyone — damage cannot be disguised.",
         "masked": "Masked",
@@ -3783,6 +3784,7 @@
     },
     "action": {
       "generateSavesHint": "Generate the five saving throws from Hit Dice.",
+      "rollHitPointsHint": "Roll hit points from the Hit Dice rating; sets current and maximum.",
       "addSpoil": "Add spoil / item"
     },
     "empty": {
@@ -5097,7 +5099,7 @@
   "ACKS-CHARACTER.band.xp": "XP {xp} of {next}",
   "ACKS-CHARACTER.band.xpOnly": "XP {xp}",
   "ACKS-CHARACTER.band.levelUp": "Level up · {xp}",
-  "ACKS-CHARACTER.band.xpTitle": "Experience toward the next level. Gold when the threshold is reached — the Class tab carries the level-up.",
+  "ACKS-CHARACTER.band.xpTitle": "Experience toward the next level, set on the Class tab. Gold when the threshold is reached — the Class tab carries the level-up.",
   "ACKS-CHARACTER.band.rankTitle": "Level title",
   "ACKS-CHARACTER.art.level": "Level {n}",
   "ACKS-CHARACTER.art.age": "Age {n}",

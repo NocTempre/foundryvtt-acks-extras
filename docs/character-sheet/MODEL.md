@@ -29,7 +29,10 @@ as the item sheet. It carries the class glyph (the bound class document's
 image, else a mortarboard), the level title before the name, the name field,
 and the XP bar: burgundy toward the threshold, gold and labelled *Level up*
 at it. The threshold is the bound class document's next-level XP, else the
-sheet's own `xp.next` field; with neither the bar stays empty.
+sheet's own `xp.next` field; with neither the bar stays empty. The bar is a
+reading, not a control — a plain element with no action, so a press on it
+falls through to the window header and drags the sheet like the rest of the
+title bar. XP is typed on the Class tab.
 
 **The art row** carries the two rails around the portrait, the prose column
 (the biography, enriched; the class and alignment as an overline; alignment,

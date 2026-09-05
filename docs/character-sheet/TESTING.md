@@ -106,6 +106,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 7. Class tab. *Observable:* with a bound class the preview lists the next
    row's deltas; raising XP to the threshold turns the band and the tab gold
    and shows the Level up button, which opens the classes wizard.
+   Back on the band, press the XP bar and drag: the WINDOW moves, as from
+   the title bar; `system.details.xp.value` is unchanged and no tab opens.
+   The class glyph before the name still opens the Class tab.
 8. Followers tab. *Observable:* the hireling's Follower Card renders with the
    four controls; Roster opens the roster app.
 9. Effects tab. *Observable:* both fixtures list under Timers with bars in

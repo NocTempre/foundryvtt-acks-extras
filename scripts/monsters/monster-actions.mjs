@@ -119,4 +119,16 @@ async function serveAsHenchman() {
   ui.notifications.info(game.i18n.format("ACKS-MONSTERS.notify.henchmanSet", { name: manager.name }));
 }
 
-export const ACTIONS = { addRow, removeRow, serveAsHenchman, createSpoil, rollSave };
+/**
+ * Roll hit points from the Hit Dice rating. The rating mirrors into core's
+ * `system.hp.hd` on submit, so the form is submitted first and core's own
+ * `rollHP` (current and maximum both set) rolls the formula that landed.
+ * Core's schema never leaves that formula blank (it falls back to its
+ * initial), so there is no empty case to guard.
+ */
+async function rollHitPoints() {
+  await this.submit();
+  await this.actor.rollHP();
+}
+
+export const ACTIONS = { addRow, removeRow, serveAsHenchman, createSpoil, rollSave, rollHitPoints };

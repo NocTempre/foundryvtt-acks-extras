@@ -21,12 +21,24 @@
     {{localize (concat "ACKS-EQUIPMENT.itemSheet.condition." band.condition)}}
   </span>
   {{/if}}
+  {{#if (and editable band.valueEditable)}}
+  {{!-- The listed price, typed where it is read. Its own form name: the
+        Details ledger binds the same number under `acksListedPrice`, and each
+        counts only when it is the control that fired the change. --}}
+  <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.valueHint'}}">
+    <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.value'}}</span>
+    <input class="acks-extras-item-sheet__badge-input is-gp acks-nums" type="number" name="acksBandValue" value="{{band.listed}}" min="0" step="any"
+           aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.band.valueHint'}}">
+    <span class="acks-extras-item-sheet__badge-note acks-nums">{{#if band.valueDiffers}}{{band.value}}{{else}}gp{{/if}}</span>
+  </span>
+  {{else}}
   <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.value.' band.valueReason)}}">
     <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.value'}}</span>
     <span class="acks-extras-item-sheet__badge-value acks-nums">
       {{#if band.valueUnknown}}{{localize 'ACKS-EQUIPMENT.itemSheet.value.unknownLabel'}}{{else}}{{band.value}}{{/if}}
     </span>
   </span>
+  {{/if}}
   <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.weightHint'}}">
     <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.stone'}}</span>
     {{#if (and editable snap.hasWeight)}}

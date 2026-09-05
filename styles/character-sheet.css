@@ -176,7 +176,8 @@
   border: var(--acks-rule-hair) solid var(--acks-spot);
   background: var(--acks-tint);
   overflow: hidden;
-  cursor: pointer;
+  /* A reading in the header: no cursor of its own, a press drags the window. */
+  user-select: none;
 }
 
 .acks-extras-character-sheet__xp-fill {

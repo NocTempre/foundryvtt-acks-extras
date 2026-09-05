@@ -239,20 +239,27 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
     }
     // The listed price is the PRISTINE cost: with layers applied it lives in
     // the snapshot and the document's cost is recomputed from it; with none,
-    // the document's cost is the listed price itself.
-    if ("acksListedPrice" in data) {
-      const listed = Number(data.acksListedPrice);
-      delete data.acksListedPrice;
-      if (Number.isFinite(listed)) {
-        if (this.item.getFlag(MODULE_ID, PRISTINE)) {
-          foundry.utils.setProperty(data, `flags.${MODULE_ID}.${PRISTINE}.cost`, Math.max(0, listed));
-          this.#recomputeAfterSubmit = true;
-        } else {
-          foundry.utils.setProperty(data, "system.cost", Math.max(0, listed));
-        }
-      }
+    // the document's cost is the listed price itself. Two controls type it —
+    // the band's badge and the Details ledger — each under its own name, and
+    // each counts only when it is the control that fired the change, so the
+    // other's stale copy never writes over a fresh one.
+    for (const name of ["acksBandValue", "acksListedPrice"]) {
+      if (!(name in data)) continue;
+      const listed = Number(data[name]);
+      delete data[name];
+      if (event?.target?.name === name && Number.isFinite(listed)) this.#writeListedPrice(data, listed);
     }
     return data;
+  }
+
+  /** Route a typed listed price to the pristine layer or the document's cost. */
+  #writeListedPrice(data, listed) {
+    if (this.item.getFlag(MODULE_ID, PRISTINE)) {
+      foundry.utils.setProperty(data, `flags.${MODULE_ID}.${PRISTINE}.cost`, Math.max(0, listed));
+      this.#recomputeAfterSubmit = true;
+    } else {
+      foundry.utils.setProperty(data, "system.cost", Math.max(0, listed));
+    }
   }
 
   /** Set when a submit changed the baseline the layers are computed from. */

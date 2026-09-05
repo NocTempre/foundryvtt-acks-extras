@@ -56,7 +56,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 4. Fill the extras: types, size, body form, HD, save-as, speeds, vision.
    *Observable:* each round-trips through `getExtras`, and the derived lines
    on the sheet (save row, encounter numbers) change with them rather than
-   staying at their defaults.
+   staying at their defaults. Set Hit Dice to 3, HD Bonus to 1: the header's
+   HD field reads `3d8+1` and `system.hp.hd` holds it; the follower card
+   reads 3 HD. Type `2d6` into the header's HD field, then change an
+   unrelated extras field: `2d6` survives. Click the dice button on the
+   Rating & Saves legend: `system.hp.value` and `.max` are set from a roll
+   of the formula. (A blank rating still rolls: core's schema never leaves
+   `system.hp.hd` empty, so there is no warning branch to reach.)
 5. Defenses: declare an immunity and a susceptibility, including the
    `mundane` / `extraordinary` / `silverFlaw` switches.
    *Observable:* they appear on the sheet as stated defenses, and damage

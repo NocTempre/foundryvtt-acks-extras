@@ -239,6 +239,17 @@ drag-start sees it. On re-render the mixin cannot find the moved part inside
 the content and appends a fresh one, so the stale band in the header is
 removed first.
 
+**The band types the two numbers it reads.** Weight is a field in sixths
+(below). The value badge is a field for the LISTED price wherever the badge
+would read the plain value (`valueBadge` reason `value`): an apparent worth, a
+disguise's value, an unappraised or unsaleable mode is set where that state is
+set, and the badge stays a reading there. The field submits under its own name
+(`acksBandValue`), as the Details ledger's copy does (`acksListedPrice`), and
+each writes only when it is the control that fired — the same rule as the
+quantity badge (DECISIONS, *A derived control writes back only when it is the
+control that fired*). Where the layers change the price, the worth they make
+of it reads beside the field.
+
 **Sibling changes re-render it.** The sheet shows facts held on other
 documents — what is stored inside it, the variations applied to it, whether
 the bearer holds Lockpicking — and a document sheet re-renders only on its own

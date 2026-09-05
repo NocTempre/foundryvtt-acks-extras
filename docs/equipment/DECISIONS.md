@@ -809,3 +809,25 @@ is nothing more than finishing the job — the guard was the hotfix-safe half.
 
 **What a Judge types changes**, which is why this is a minor and not a patch: a
 sixth is now `1` where it was `0.1667`.
+
+### The band types the listed price where it reads it (2026-09-04)
+
+Field report: *"There does not seem to be a way to edit the value field on
+this one"* — a spoil item's sheet, Details folded, the value badge reading
+0 gp. The price WAS editable, one fold away in the Details ledger; the weight
+beside it was a field on the band and the value was not, and nothing on the
+badge said where its number came from.
+
+Ruling: the value badge is a field for the listed price wherever it would read
+the plain value, and stays a reading everywhere else — apparent worth, a
+disguise's value, an unappraised or unsaleable mode are set where those states
+are set, and a field under a number the badge does not show would write what
+it does not display. The field takes its own form name and writes only when it
+fired, the rule already ruled for the quantity badge.
+
+Rejected: making the badge open Details on click. It answers "where" but not
+"why is the number I typed in Details different from the one up here" on a
+silvered blade; the field with the worth beside it answers both.
+
+Cost: two controls for one number on an open Details panel. Accepted; the
+fired-control rule keeps them from writing over each other.

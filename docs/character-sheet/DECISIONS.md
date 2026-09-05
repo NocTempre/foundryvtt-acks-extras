@@ -302,3 +302,42 @@ of it: the read spreads the collection first, and the Stats build wraps its
 two explainers so a throw there leaves the pills lit and unannotated rather
 than the sheet unrendered. The test mocks the document's `effects` as a
 Collection-like object so an array cannot hide it again.
+### The XP bar is a slider as well as a button (2026-09-04) — SUPERSEDED the same day, below
+
+User direction: *"I would also like to make the xp bar draggable instead of a
+button."* The bar opened the Class tab, where the XP field lives; the request
+is to set the number on the bar itself.
+
+Ruling: a press that travels sets the experience by where it is released,
+mapped across the bar's width and clamped to the threshold; a press that does
+not travel is still the click that opens the Class tab. The fill and the label
+follow the pointer live, the write lands on release, and the re-render settles
+the band. The Class tab's field stays — it is where a number past the
+threshold, or one with no threshold to map against, is typed.
+
+Rejected: replacing the button outright. The Class tab is where the level-up
+lives, and the bar is the one control on the band that points there; a slider
+that could not open it would strand the gold band's promise.
+
+Cost: a click after a drag is swallowed for a moment so the release does not
+also open the tab; a bar with no threshold is not draggable, since there is
+nothing to map the width to.
+
+### The XP bar is a reading, and a press on it drags the window (2026-09-04)
+
+Supersedes the slider ruling above, made earlier the same day. **The new
+evidence is the user's own reading of the request**, given once the slider
+was built and live-verified: *"Not at all what I want. It stays a display
+only, not a control."* "Draggable instead of a button" meant the bar should
+behave like the rest of the title bar — a press on it moves the window — not
+that the bar should set the number. The first ruling read "draggable" as a
+gesture on the value; the author meant a gesture on the sheet.
+
+Ruling: the bar is a plain element with no action and no listeners. The band's
+pointer guard stops only its controls, so a press on the bar reaches Foundry's
+header drag exactly as a press on the title does. XP is typed on the Class
+tab, which the class glyph before the name still opens.
+
+Cost: the bar no longer opens the Class tab on click. Accepted; the glyph
+beside it does, and a reading that is also a button was the confusion the
+report names.

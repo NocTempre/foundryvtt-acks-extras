@@ -40,6 +40,27 @@ export function monsterHd(actor) {
 }
 
 /**
+ * The roll formula a Hit Dice rating stands for — the inverse of `monsterHd`,
+ * written to `system.hp.hd` so the header, the follower card and core's own
+ * HP roll all read the rating the sheet was given. A whole count rolls that
+ * many dice; a fraction of one die rolls one die scaled to the fraction (a ½
+ * rating on a d8 is 1d4), never below d2; a bonus rides as a flat term. Null
+ * when the count is absent or not positive, so a blank rating never writes.
+ * @param {{count?:number, dieType?:number, bonus?:number}} hd
+ * @returns {string|null}
+ */
+export function hdFormula({ count, dieType, bonus } = {}) {
+  const c = Number(count);
+  if (!(c > 0)) return null;
+  const die = Number(dieType) > 0 ? Math.round(Number(dieType)) : 8;
+  const dice = c >= 1 ? Math.round(c) : 1;
+  const sides = c >= 1 ? die : Math.max(2, Math.round(die * c));
+  const flat = Math.round(Number(bonus) || 0);
+  const term = flat > 0 ? `+${flat}` : flat < 0 ? `${flat}` : "";
+  return `${dice}d${sides}${term}`;
+}
+
+/**
  * The number that stands in for "level" across actor types: class level for a
  * character, Hit Dice for a monster (ACKS substitutes HD for level, MM 351).
  * This is exactly acks-influence's getActorHD and the core of henchmen's

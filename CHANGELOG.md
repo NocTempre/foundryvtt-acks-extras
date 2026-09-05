@@ -1,5 +1,32 @@
 # Changelog
 
+## 6.5.3
+
+**The numbers a band reads are typed on it, and the rating a monster is given is the one it rolls.**
+
+### Fixed
+- **Changing a monster's Hit Dice rating now changes what it rolls.** The
+  Rating & Saves count, die and bonus rewrite the header's HD formula on
+  submit, so the header, the follower card and the HP roll all read the
+  rating the Judge set instead of the `1d8` a new monster starts with. A
+  formula typed straight into the header still survives every other edit.
+- **An item's value is typed on its band.** The value badge is a field for the
+  listed price wherever it reads the plain value, beside the weight field it
+  always had; the Details ledger keeps its copy. Where plating, masterwork,
+  variations or condition change the price, the worth they make of it reads
+  beside the field. An apparent, masked, unappraised or unsaleable reading
+  stays a reading.
+
+### Added
+- **A dice button on the monster's Rating & Saves legend** rolls hit points
+  from the rating and sets current and maximum.
+
+### Changed
+- **The character sheet's XP bar is part of the title bar.** It is a reading,
+  no longer a button: pressing on it drags the window like the rest of the
+  header. The class glyph before the name still opens the Class tab, where XP
+  is typed.
+
 ## 6.5.2
 
 **Only a class that leaves the damage bonus to the player asks which side.**

@@ -139,6 +139,19 @@ test("value modes drive the badge", () => {
   assert.equal(valueBadge({ mode: "priced", fullCost: 10000, apparentCost: 15, hideMagic: true }).text, "15 gp");
   assert.equal(valueBadge({ mode: "priced", fullCost: 10000, apparentCost: 15, hideMagic: false }).text, "10,000 gp");
 });
+test("the band types the listed price only where the badge reads the plain value", () => {
+  const plain = buildItemSheetModel(base(), { isGM: true, editable: true });
+  assert.equal(plain.band.valueEditable, true);
+  assert.equal(plain.band.listed, 5);
+  assert.equal(plain.band.valueDiffers, false, "no layers: the field is the value");
+  const layered = buildItemSheetModel(base({ price: { base: 5, lines: [{ key: "listed", amount: 5, running: 5 }, { key: "silver", op: "mul", amount: 2, running: 10 }], final: 10, apparent: null } }), { isGM: true, editable: true });
+  assert.equal(layered.band.listed, 5, "the field holds the listed price, not the worth");
+  assert.equal(layered.band.valueDiffers, true, "and the worth reads beside it");
+  assert.equal(buildItemSheetModel(base({ valueMode: "unknown" }), { isGM: true, editable: true }).band.valueEditable, false);
+  assert.equal(buildItemSheetModel(base({ valueMode: "na" }), { isGM: true, editable: true }).band.valueEditable, false);
+  const apparent = buildItemSheetModel(base({ magic: { is: true, aura: "arcane", identified: "none" }, price: { lines: [], final: 10000, apparent: 15 } }), { isGM: false, editable: true });
+  assert.equal(apparent.band.valueEditable, false, "an apparent worth is not typed over");
+});
 test("a player sees no own effects and the apparent value until identified", () => {
   const snap = base({
     magic: { is: true, aura: "arcane", identified: "partial" },

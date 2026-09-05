@@ -19,6 +19,7 @@ import { oseSourceView } from "./source-view.mjs";
 import * as CFG from "./config.mjs";
 import { loadStone, load6, capacityStone, RIDER_BODY6 } from "../lib/capacity.mjs";
 import { riderOf } from "../lib/mount.mjs";
+import { hdFormula } from "../lib/actor-read.mjs";
 import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
@@ -286,6 +287,15 @@ export function createFullMonsterSheet(Base) {
           if (next && next !== firstOf(stored.encounter, side)) {
             foundry.utils.setProperty(submitData, `system.details.appearing.${key}`, next);
           }
+        }
+        // The Hit Dice rating is the authored source of core's roll formula:
+        // a change to count, die or bonus rewrites `system.hp.hd`, which the
+        // header, the follower card and the HP roll all read. Only the
+        // rating's OWN change writes — a formula typed straight into the
+        // header survives every other submit.
+        const formula = hdFormula(cleaned.hd);
+        if (formula && formula !== hdFormula(stored.hd)) {
+          foundry.utils.setProperty(submitData, "system.hp.hd", formula);
         }
       }
       return submitData;

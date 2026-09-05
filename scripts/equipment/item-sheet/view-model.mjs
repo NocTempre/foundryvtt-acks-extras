@@ -94,6 +94,17 @@ export function resolveTab(active, available) {
 }
 
 /**
+ * The listed (pristine) price the ledger builds from: the snapshot's `base`
+ * where the ledger recorded it, else its first line, else nothing.
+ */
+export function listedPrice(price) {
+  if (!price) return 0;
+  if (Number.isFinite(price.base)) return price.base;
+  const line = (price.lines ?? []).find((l) => l.key === "listed");
+  return Number.isFinite(line?.amount) ? line.amount : 0;
+}
+
+/**
  * What the value badge reads, and why — one rule for the band, the ledger and
  * the tooltip.
  * @returns {{text:string, reason:string}}
@@ -273,6 +284,16 @@ export function buildItemSheetModel(snap, viewer = {}) {
       value: value.text,
       valueReason: value.reason,
       valueUnknown: value.reason === "unknown",
+      // The listed price is typed on the band only where the badge reads the
+      // plain value: a masked, apparent, unappraised or unsaleable reading is
+      // set elsewhere (Details, the disguise, identification), and a field
+      // under it would write a number the badge does not show.
+      valueEditable: value.reason === "value",
+      listed: listedPrice(snap.price),
+      // What the layers make of the listed price, shown beside the field only
+      // where they change it — one number labelled "value" meaning two things
+      // is the quiver-weight mistake again.
+      valueDiffers: value.reason === "value" && listedPrice(snap.price) !== (snap.price?.final ?? 0),
       // The band states the weight of ONE unit — or of one bundle, where the
       // item declares a bundle size. `carried` is what the whole stack costs
       // the bearer, and it is shown beside it whenever the two differ, because

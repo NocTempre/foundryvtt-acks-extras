@@ -149,9 +149,14 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    show Rolls · Durability · Effects · Details; Backpack, Torch, Flask, coin
    are SIMPLE (no tab strip, a Details button); the band holds the name, Value
    and St; the left rail shows the type glyph and the slot cell.
-2. Band: edit the name; type `1` in St. *Observable:* `item.name`,
-   `system.weight6 === 6`. Close button closes; dragging the band's empty area
-   moves the window and clicking into the name does not.
+2. Band: edit the name; type `1` in St; type `12` in Value. *Observable:*
+   `item.name`, `system.weight6 === 6`, `system.cost === 12` and the Details
+   ledger's listed line reads 12; on a silvered or masterwork item the write
+   lands on the pristine layer's cost, `system.cost` is recomputed from it,
+   and the worth the layers make of it reads beside the field. Set the value mode to Unknown in Details:
+   the band's field gives way to the *Unknown* reading. Close button closes;
+   dragging the band's empty area moves the window and clicking into the
+   name does not.
 3. Rolls: pin a row, click Roll. *Observable:* `flags.acks-extras.pins`
    updates; core's attack dialog/card appears.
 4. Editor rail: description editor (save → `system.description`, editor

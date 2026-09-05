@@ -104,3 +104,28 @@ Cost: the fields are now tied to this sheet. A world that switches an animal
 to the system's own monster sheet loses them — accepted, because that is true
 of every other field this sheet adds, and the alternative was decorating a
 sheet we already own from the outside.
+
+## 2026-09-04 — The Hit Dice rating writes core's roll formula
+
+Field report: raising *Hit Dice* under Rating & Saves left the header reading
+`1d8` and the follower card reading 1 HD, and core's HP roll rolled the old
+die. The rating (`hd.count`, `dieType`, `bonus`) and core's `system.hp.hd`
+were two authored fields for one fact, and only the header's was read by
+anything.
+
+Ruling: the rating is the authored source. A change to count, die or bonus
+rewrites `system.hp.hd` on submit through `lib/actor-read.mjs` `hdFormula`,
+the inverse of the parser the family already shared; a fraction of one die
+scales the die (a ½ rating on a d8 is 1d4). Only the rating's OWN change
+writes, so a formula typed straight into the header survives every other
+submit. A dice button on the Rating & Saves legend submits the form and calls
+core's `rollHP`, which sets current and maximum.
+
+Rejected: parsing a header edit back into the rating. `1d4` cannot say whether
+it is a ½ HD monster or a 1 HD one on a small die, so the reverse direction
+would guess; one direction, from the field that carries the information, is
+enough to keep the two agreeing whenever the rating is the one touched.
+
+Rejected: rolling hit points automatically when the rating changes. A Judge
+who set 4/4 by hand and then corrects a die type would lose the hand-set
+value; the roll is one click, and it is the Judge's.

@@ -214,6 +214,10 @@
   color: var(--acks-ink);
 }
 
+.acks-extras-item-sheet .acks-extras-item-sheet__badge-input.is-gp {
+  width: 7ch;
+}
+
 .acks-extras-item-sheet .acks-extras-item-sheet__badge-input {
   width: 5ch;
   min-height: 0;
