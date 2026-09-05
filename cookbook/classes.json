@@ -7763,7 +7763,7 @@
               "x1": 502.3981
             },
             {
-              "key": "damageBonus",
+              "key": "electedDamageBonus",
               "x0": 502.3981,
               "x1": 533.0784000000001
             }

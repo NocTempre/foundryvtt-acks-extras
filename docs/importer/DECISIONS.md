@@ -9,6 +9,28 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### The barbarian's column is declared elected (2026-09-04)
+
+**Problem.** The barbarian's damage-bonus column is headed exactly like the
+fighter's, so the header-driven key could not tell the column the player
+narrows at 1st level from the column that is simply unrestricted — and the
+consumer's answer to that ("ask every unqualified column") had every fighter,
+bard and assassin answering a barbarian's question.
+
+**Ruled.** The register declares the barbarian's column `electedDamageBonus`.
+The qualifier is read off the class's own combat paragraph, which is where the
+page states it; the header stays the locator. `tools/importer/lint-register.mjs`
+is unchanged — it asks that a header's narrowing be present in the key, and an
+elected column's header carries none. `repairClassLadderKeys` reaches a
+barbarian imported before the declaration by its existing rule (the one
+declared key that is the bare name behind a qualifier), so no world needs a
+re-import. Every other bare `damageBonus` column now means both, which is what
+acks-extras writes for it.
+
+Supersedes the last paragraph of the 2026-08-27 entry below.
+
+---
+
 ### A book the server holds is a journal (2026-09-03)
 
 **Ruled: a staged book is a `JournalEntry` in the world — one per book, filed
@@ -516,7 +538,9 @@ a qualifier; anything less certain is left alone rather than guessed at. A label
 moves with the key only while it still reads as the one import derived, so a
 Judge who retitled the column keeps their title.
 
-**Unqualified is not a synonym for "both".** The fighter's column is printed
+**Unqualified is not a synonym for "both".** *(Superseded 2026-09-04: the
+barbarian's column is declared `elected`, and bare now means both.)* The
+fighter's column is printed
 without a qualifier because the bonus is unrestricted; the barbarian's is
 printed without one because the player elects melee or missile and cannot change
 it. No field of a class document separates those two, and the importer does not

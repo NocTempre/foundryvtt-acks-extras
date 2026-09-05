@@ -169,7 +169,10 @@ turns that state into a PLAN:
   raises the effective value before the row is looked up.
 - **Ladders** — mortal wounds from the HD row; the damage bonus borrowed
   from the fighter chassis's printed ladder when the fighting row grants
-  one; each chosen thief skill's ladder copied from the progenitor thief.
+  one, keyed by the damage trade-off ticks (`damageBonusKey`: none → bare,
+  one side kept → the election named on the builder or `elected` where it
+  is blank, both eliminated → no ladder); each chosen thief skill's ladder
+  copied from the progenitor thief.
 - **Racial traits and requirements** — every power the race ladder grants
   up to the chosen rung, and the race's attribute floors.
 
@@ -234,27 +237,28 @@ next apply can make that distinction again. Cells the book leaves blank are
 skipped, never zeroed.
 
 **The damage bonus, and who it applies to.** A class states its damage bonus as
-a progression column, and the column's KEY carries whatever qualification the
-printed header gave it (`meleeDamageBonus`, `missileDamageBonus`, or bare
-`damageBonus`). `damageBonusLadder` reads the key; the value at the character's
-level is the highest rung at or below it, and it is written to core's own
-`system.damage.mod.melee` / `.missile` — the only route by which a class's bonus
-reaches a damage roll, since core pushes those onto the damage parts. The
-loadout effect ADDS to them, so a base written here composes with fighting-style
-specialization rather than fighting it.
+a progression column, and the column's KEY says who it applies to:
+`meleeDamageBonus` and `missileDamageBonus` are narrowed by the page, bare
+`damageBonus` is unrestricted and writes both, and `electedDamageBonus` hands
+the choice to each character. `damageBonusLadder` reads the key; the value at
+the character's level is the highest rung at or below it, and it is written to
+core's own `system.damage.mod.melee` / `.missile` — the only route by which a
+class's bonus reaches a damage roll, since core pushes those onto the damage
+parts. The loadout effect ADDS to them, so a base written here composes with
+fighting-style specialization rather than fighting it.
 
-**An unqualified column is asked, never assumed.** Unqualified is not a synonym
-for "both": the fighter's column is printed without a qualifier because the
-bonus is unrestricted, the barbarian's because the player elects melee or
-missile at 1st level and cannot change it. No field of a class document
-separates those two, so an unqualified column prompts once and the answer is
-recorded at `flags["acks-extras"].classes.damageBonus` **against the class it
-was made for** — one world's barbarians do not all specialize alike, and a
-re-apply must not re-ask a permanent choice. Dismissing the prompt cancels the
-apply rather than picking for the player. The prompt is its own small dialog
-rather than a row in the confirm dialog, because chargen, the level-up wizard
-and the picker all pass `confirm: false` — an election collected there would
-never be asked at all.
+**An elected column is asked, once.** The barbarian's column is printed like
+the fighter's, and the paragraph beside it has the player choose melee or
+missile at 1st level for good — so the importer keys that column `elected` and
+the bare key is left meaning what it says. An elected column prompts once
+(melee or missile) and the answer is recorded at
+`flags["acks-extras"].classes.damageBonus` **against the class it was made
+for** — one world's barbarians do not all specialize alike, and a re-apply must
+not re-ask a permanent choice. Dismissing the prompt cancels the apply rather
+than picking for the player. The prompt is its own small dialog rather than a
+row in the confirm dialog, because chargen, the level-up wizard and the picker
+all pass `confirm: false` — an election collected there would never be asked
+at all.
 
 **A set level grants what it owes.** `{grantAwards: true}` — passed by the
 picker and by a dropped class, the two paths that SET a level — also hands over

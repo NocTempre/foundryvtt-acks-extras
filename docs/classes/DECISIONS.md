@@ -3,6 +3,42 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-09-04 — only a class that leaves the choice to the player asks for it
+
+**Problem.** Every class whose damage-bonus column is printed unqualified —
+the fighter, the bard, the assassin, the explorer, the vaultguard — asked each
+character which attacks the bonus applies to. The 2026-08-27 ruling asked
+because "no field separates" the fighter's unrestricted column from the
+barbarian's elected one, and a bard being asked a barbarian's question was the
+cost of that.
+
+**New evidence.** The page does separate them, just not in the header: the
+barbarian's combat paragraph has the player choose melee or missile at 1st
+level and never change it, and no other class's does. In the builder the
+separation is explicit — the trade-off that keeps one side of the bonus is
+ticked on the barbarian and on nothing else that keeps both.
+
+**Ruled (user): only the choice classes ask.** The key vocabulary gains
+`electedDamageBonus`. Bare `damageBonus` now means what it says — both — and
+only an elected column prompts, offering melee or missile (no "both": the
+class that elects does not offer it). The importer declares the barbarian's
+column elected; `repairClassLadderKeys` re-keys a barbarian a world imported
+before the declaration, on the same "exactly one declared key behind a
+qualifier" rule that repaired the paladin. The builder keys the borrowed
+ladder from the trade-off ticks (`damageBonusKey`): no damage trade-off is
+bare; one side kept is the election the Judge named on the builder, or
+`elected` where the builder leaves it blank; both eliminated is no ladder.
+
+**Cost.** A character elected under the old prompt on a class that is now bare
+keeps the flag, and the flag is no longer read for that class — the bonus
+applies to both, which is what the page says for every class but the
+barbarian. A barbarian built in the builder before this ruling carries a bare
+key until derive runs again with the trade-off ticked.
+
+Supersedes the ask-when-unqualified half of 2026-08-27 below; the rest of that
+entry (the character owns the answer, dismiss cancels, the prompt is its own
+dialog, written through core's fields) stands.
+
 ## 2026-09-02 — a disabled control says why, and the die is not always the reason
 
 **Problem.** Reported from the field as "the template menu doesn't work during
@@ -265,6 +301,9 @@ the rung dialog, and a second authority beside them buys no capability. A
 but not the flag, which would silently suppress the re-mint.
 
 ## 2026-08-27 — an unqualified damage bonus is elected by the character, not assumed
+
+> **Superseded in part** by 2026-09-04 above: a bare column is unrestricted;
+> only an `electedDamageBonus` column asks.
 
 **Problem.** A class's damage-bonus column reached the class sheet and stopped
 there: nothing wrote it to the character, so a fighter's bonus never touched a

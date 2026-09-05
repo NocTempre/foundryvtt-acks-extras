@@ -97,6 +97,31 @@ export function pointsSpent(builder) {
   return (b.hdValue || 0) + (b.fighting?.value || 0) + (b.thievery?.value || 0) + magic + (b.race?.value || 0);
 }
 
+/** Ladder labels for the narrowed damage-bonus keys derive can emit. */
+const DAMAGE_BONUS_LABELS = {
+  meleeDamageBonus: "Melee Damage Bonus",
+  missileDamageBonus: "Missile Damage Bonus",
+  electedDamageBonus: "Damage Bonus (melee or missile)",
+};
+
+/**
+ * The ladder key a builder state's damage bonus is written under, or null
+ * where the trade-offs eliminate it. Bare `damageBonus` applies to both
+ * attacks; `damage.eliminateOne` keeps one side — `fighting.damageBonus`
+ * names it (`melee`/`missile`), and left blank the class hands the choice to
+ * each character (`electedDamageBonus`); `damage.eliminateBoth` keeps none.
+ *
+ * @returns {"damageBonus"|"meleeDamageBonus"|"missileDamageBonus"|"electedDamageBonus"|null}
+ */
+export function damageBonusKey(builder) {
+  const tradeoffs = builder?.tradeoffs ?? [];
+  if (tradeoffs.includes("damage.eliminateBoth")) return null;
+  if (!tradeoffs.includes("damage.eliminateOne")) return "damageBonus";
+  const side = String(builder?.fighting?.damageBonus ?? "").trim().toLowerCase();
+  if (side === "melee" || side === "missile") return `${side}DamageBonus`;
+  return "electedDamageBonus";
+}
+
 /**
  * Custom-power accounting: how many power picks the trade-offs yield and what
  * the chosen powers spend against them. Choices never block — the summary
@@ -503,13 +528,19 @@ export function derivePlan({
   }
   const cleaves = cleavesValue(fightRow);
   if (cleaves) update.cleaves = cleaves;
-  if (fightRow?.damage && fighterLadders?.damageBonus?.values?.length) {
+  // The trade-off ticks say who the borrowed bonus applies to: none narrows
+  // it (bare key, both attacks); eliminating one side leaves the other, named
+  // by the builder's election where the Judge fixed it and ELECTED by each
+  // character where the class leaves the choice to the player; eliminating
+  // both removes the ladder outright.
+  const dmgKey = damageBonusKey(builder);
+  if (fightRow?.damage && dmgKey && fighterLadders?.damageBonus?.values?.length) {
     ladders.push({
-      key: "damageBonus",
-      label: fighterLadders.damageBonus.label || "Damage Bonus",
+      key: dmgKey,
+      label: dmgKey === "damageBonus" ? fighterLadders.damageBonus.label || "Damage Bonus" : DAMAGE_BONUS_LABELS[dmgKey],
       values: fighterLadders.damageBonus.values.filter((r) => r.atLevel <= maxLevel),
     });
-  } else if (fightRow?.damage) {
+  } else if (fightRow?.damage && dmgKey) {
     issues.push({ key: "missingDamageLadder" });
   }
 

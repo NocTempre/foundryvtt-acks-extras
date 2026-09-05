@@ -73,6 +73,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the modifier rather than standing empty. Then submit: the actor stores the
    floor and the modifier its own data model computes, because the modifier
    box is disabled and carries no key into the submitted form.
+7. Give the class a `damageBonus` ladder (`system.ladders`, one rung at
+   level 1) and `applyClass(actor, cls, {level: 1, confirm: false})`; then
+   re-key it `electedDamageBonus` and apply again.
+   *Observable:* the bare key writes both `system.damage.mod.melee` and
+   `.missile` with no prompt; the elected key opens the Damage Bonus prompt
+   offering melee or missile, writes only the chosen side, and stores
+   `flags["acks-extras"].classes.damageBonus` — a third apply does not ask.
 
 ## Template packages
 

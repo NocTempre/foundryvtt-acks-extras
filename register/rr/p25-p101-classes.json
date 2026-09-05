@@ -1442,7 +1442,7 @@
               "header": "Hit Dice"
             },
             {
-              "key": "damageBonus",
+              "key": "electedDamageBonus",
               "header": "Damage Bonus"
             }
           ]

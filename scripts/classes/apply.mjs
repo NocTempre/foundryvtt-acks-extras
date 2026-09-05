@@ -35,22 +35,24 @@ function slotRowAt(tradition, level) {
  * The class's damage-bonus ladder, and who the bonus applies to.
  *
  * A class states its damage bonus as a progression column, and the column's
- * KEY carries whatever qualification the printed header gave it — the
- * paladin's is melee only, the fighter's is unqualified. Unqualified is NOT
- * the same as "both": the barbarian's column is printed unqualified because
- * the player elects melee or missile at 1st level and cannot change it. No
- * field of a class document tells those two apart, so an unqualified column
- * is ASKED rather than assumed — and the answer belongs to the CHARACTER, not
- * to the class, because one world's barbarians do not all specialize alike.
+ * KEY says who it applies to. Four spellings: `meleeDamageBonus` and
+ * `missileDamageBonus` are narrowed by the page; bare `damageBonus` is
+ * unrestricted and applies to both; `electedDamageBonus` is the barbarian's
+ * shape — the page prints the column unqualified and the paragraph beside it
+ * has the player choose melee or missile at 1st level, for good. An elected
+ * column is ASKED, and the answer belongs to the CHARACTER, not to the class,
+ * because one world's barbarians do not all specialize alike.
  *
- * @returns {{ladder: object, scope: "melee"|"missile"|null}|null} `scope` is
- *   null where the column is unqualified and the election is the character's.
+ * @returns {{ladder: object, scope: "melee"|"missile"|"both"|null}|null}
+ *   `scope` is null only for an elected column, where the election is the
+ *   character's.
  */
 export function damageBonusLadder(classItem) {
   const ladder = (classItem?.system?.ladders ?? []).find((l) => /damagebonus$/i.test(String(l.key ?? "")));
   if (!ladder) return null;
   const key = String(ladder.key).toLowerCase();
-  return { ladder, scope: key.startsWith("melee") ? "melee" : key.startsWith("missile") ? "missile" : null };
+  const scope = key.startsWith("melee") ? "melee" : key.startsWith("missile") ? "missile" : key.startsWith("elected") ? null : "both";
+  return { ladder, scope };
 }
 
 /** A ladder's value at `level`: the highest rung at or below it. */
@@ -150,14 +152,14 @@ export function classUpdateData(actor, classItem, level, { election = null } = {
 /** The current actor value at an update path (dot-path read). */
 const currentAt = (actor, path) => foundry.utils.getProperty(actor, path);
 
-/** The elections a damage bonus can be narrowed to, in display order. */
-const DAMAGE_BONUS_OPTIONS = ["both", "melee", "missile"];
+/** The elections an elected damage bonus offers, in display order. */
+const DAMAGE_BONUS_OPTIONS = ["melee", "missile"];
 
 /**
  * Ask which attacks this character's class damage bonus applies to.
  *
- * Asked only where the printed column is unqualified, and only once — the
- * answer is recorded on the character and honoured by every later apply. The
+ * Asked only where the column is elected, and only once — the answer is
+ * recorded on the character and honoured by every later apply. The
  * dialog is deliberately its own small prompt rather than a row in the confirm
  * dialog: every caller that matters suppresses that one.
  *
@@ -295,7 +297,7 @@ export async function applyClass(
     return { applied: false };
   }
   const targetLevel = level ?? Math.max(1, Number(actor.system?.details?.level) || 1);
-  // A damage bonus whose column is unqualified is the CHARACTER's election, so
+  // A damage bonus whose column is elected is the CHARACTER's election, so
   // it is asked here rather than in the confirm dialog below: every surface
   // that applies a class (chargen, the level-up wizard, the picker) suppresses
   // that dialog, and a question only the unused path asks is a question nobody

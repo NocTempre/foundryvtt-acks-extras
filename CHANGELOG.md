@@ -1,5 +1,26 @@
 # Changelog
 
+## 6.5.2
+
+**Only a class that leaves the damage bonus to the player asks which side.**
+
+### Fixed
+- **Applying a fighter, bard, assassin, explorer or vaultguard no longer asks
+  which attacks its damage bonus applies to.** A damage-bonus column the
+  page prints without a qualifier is unrestricted and now writes both melee
+  and missile without a prompt. Only the barbarian's column — the one whose
+  page has the player choose melee or missile at 1st level — asks, once per
+  character, and the prompt now offers only those two.
+- **A barbarian imported before this release is re-keyed on the next import
+  run**; no re-import of the class is needed.
+
+### Changed
+- **The class builder keys the borrowed damage bonus from the trade-off
+  ticks.** No damage trade-off keeps both sides; *eliminate fighter damage
+  bonus (melee or missile)* keeps the side named in the builder's *Damage
+  bonus election*, or hands the choice to each character where that field is
+  blank; *eliminate (both)* writes no damage ladder at all.
+
 ## 6.5.1
 
 **The world chooses its defaults once, and every seat opens on them.**

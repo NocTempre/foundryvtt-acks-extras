@@ -12,6 +12,7 @@ import {
   baseXpCost,
   cleavesValue,
   derivePlan,
+  damageBonusKey,
   deriveTradition,
   effectiveMagicValue,
   pointsSpent,
@@ -382,6 +383,32 @@ test("a race's post-9th hit points add to the chassis rate, and the flat is cumu
   assert.equal(u.levels[8].hd, "9d6");
   assert.equal(u.levels[9].hd, "9d6+2");
   assert.equal(u.levels[10].hd, "9d6+4"); // cumulative, not per-level
+});
+
+test("the trade-off ticks decide who a built class's damage bonus applies to", () => {
+  // No damage trade-off: unrestricted, the bare key (the bard's shape).
+  assert.equal(damageBonusKey({ tradeoffs: [], fighting: { value: 2, damageBonus: "" } }), "damageBonus");
+  // One side kept, unnamed: each character elects (the barbarian's shape).
+  assert.equal(damageBonusKey({ tradeoffs: ["damage.eliminateOne"], fighting: { value: 2, damageBonus: "" } }), "electedDamageBonus");
+  // One side kept and named by the Judge (the paladin's shape).
+  assert.equal(damageBonusKey({ tradeoffs: ["damage.eliminateOne"], fighting: { value: 2, damageBonus: "Melee" } }), "meleeDamageBonus");
+  assert.equal(damageBonusKey({ tradeoffs: ["damage.eliminateOne"], fighting: { value: 2, damageBonus: "missile" } }), "missileDamageBonus");
+  // Both eliminated: no ladder at all, whatever the election says.
+  assert.equal(damageBonusKey({ tradeoffs: ["damage.eliminateBoth"], fighting: { value: 2, damageBonus: "melee" } }), null);
+
+  const fighterLadders = { damageBonus: { key: "damageBonus", label: "Damage Bonus", values: [{ atLevel: 1, value: 1 }] } };
+  const plan = (tradeoffs, damageBonus = "") =>
+    derivePlan({
+      builder: { hdValue: 1, fighting: { value: 2, sub: "", damageBonus }, magic: [], race: { value: 0 }, tradeoffs, powers: [] },
+      tables: TABLES,
+      race: null,
+      chassisAttack: CHASSIS_ATTACK,
+      fighterLadders,
+    }).update.ladders;
+  assert.ok(plan([]).some((l) => l.key === "damageBonus"));
+  assert.ok(plan(["damage.eliminateOne"]).some((l) => l.key === "electedDamageBonus"));
+  assert.ok(plan(["damage.eliminateOne"], "missile").some((l) => l.key === "missileDamageBonus" && l.label === "Missile Damage Bonus"));
+  assert.ok(!plan(["damage.eliminateBoth"]).some((l) => /damageBonus$/i.test(l.key)));
 });
 
 test("derivePlan copies progenitor thief-skill ladders for chosen skills", () => {
@@ -1072,8 +1099,10 @@ const dmgMods = (update) => ({ melee: update["system.damage.mod.melee"], missile
 test("a column's key says who the damage bonus applies to", () => {
   assert.equal(damageBonusLadder(dmgClass("meleeDamageBonus")).scope, "melee");
   assert.equal(damageBonusLadder(dmgClass("missileDamageBonus")).scope, "missile");
-  // Unqualified is NOT "both": it is the character's election, asked at apply.
-  assert.equal(damageBonusLadder(dmgClass("damageBonus")).scope, null);
+  // Bare is unrestricted (the fighter, the bard); only an ELECTED column is
+  // the character's choice, asked at apply.
+  assert.equal(damageBonusLadder(dmgClass("damageBonus")).scope, "both");
+  assert.equal(damageBonusLadder(dmgClass("electedDamageBonus")).scope, null);
   assert.equal(damageBonusLadder({ system: { ladders: [{ key: "acBonus", values: [] }] } }), null);
   assert.equal(damageBonusLadder({ system: {} }), null);
 });
@@ -1084,10 +1113,12 @@ test("a qualified damage bonus reaches only the attacks its column names", () =>
   assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("missileDamageBonus"), 2).update), { melee: undefined, missile: 1 });
 });
 
-test("an unqualified damage bonus waits for the election rather than guessing", () => {
-  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("damageBonus"), 3).update), { melee: undefined, missile: undefined });
-  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("damageBonus"), 3, { election: "both" }).update), { melee: 2, missile: 2 });
-  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("damageBonus"), 3, { election: "missile" }).update), { melee: undefined, missile: 2 });
+test("an elected damage bonus waits for the election rather than guessing; a bare one writes both", () => {
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("electedDamageBonus"), 3).update), { melee: undefined, missile: undefined });
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("electedDamageBonus"), 3, { election: "missile" }).update), { melee: undefined, missile: 2 });
+  // No election needed, and one given does not narrow an unrestricted bonus.
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("damageBonus"), 3).update), { melee: 2, missile: 2 });
+  assert.deepEqual(dmgMods(classUpdateData({}, dmgClass("damageBonus"), 3, { election: "missile" }).update), { melee: 2, missile: 2 });
 });
 
 test("a class with no damage bonus writes no damage mod at all", () => {
