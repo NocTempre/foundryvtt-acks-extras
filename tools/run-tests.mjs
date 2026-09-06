@@ -21,7 +21,10 @@
  * The importer subsystem's own suites live in `tools/importer/`; their names
  * below carry that prefix. The Discord service's suites live in
  * `discord/test/`, beside the service they check, and run from here too, so
- * one `npm test` covers the repo.
+ * one `npm test` covers the repo. They resolve `discord.js` from the root's
+ * own devDependencies: CI installs only the root package, never
+ * `discord/node_modules`, so a suite that needs the bot's dependency needs it
+ * declared here too.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";

@@ -27,6 +27,7 @@
   "devDependencies": {
     "@foundryvtt/foundryvtt-cli": "^1.0.0",
     "classic-level": "^3.0.0",
+    "discord.js": "^14.27.0",
     "handlebars": "^4.7.9",
     "pdfjs-dist": "^4.6.82"
   }

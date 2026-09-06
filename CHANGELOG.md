@@ -1,5 +1,13 @@
 # Changelog
 
+## 7.0.1
+
+**The bot's tests run where CI runs them.** The 7.0.0 tag never published:
+its Release run could not resolve `discord.js` for the bot's suites, which
+CI never installs under `discord/`. The dependency is now declared at the
+root as well. Nothing in the module changed; the 7.0.0 notes below are this
+release's.
+
 ## 7.0.0
 
 **The world answers Discord: a bot holds a seat, and your characters roll and speak from a channel.**

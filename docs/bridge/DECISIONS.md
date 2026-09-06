@@ -158,3 +158,19 @@ The proposal recommends one-to-one time with per-formation expedition clocks
 reconciled on return; that is a change to formation's clock, not to the
 bridge, and it is step two. Recorded on the roadmap so `/travel` does not
 promise what the clock cannot yet keep.
+
+### The bot's dependency is the root's devDependency too (2026-09-06)
+
+The first 7.0.0 tag failed its Release run: `tools/run-tests.mjs` runs the
+bot's suites, the command suites import `discord.js`, and CI's `npm ci`
+installs the root package alone — `discord/node_modules` exists only on a
+host that ran the service's own install. The local gate passed because that
+directory was there. Ruled: `discord.js` is declared in the root
+`package.json` devDependencies as well as in `discord/package.json`; Node
+resolves it from the root when the bot's directory has none, which is what a
+CI checkout is. The service on a Foundry host still installs its own copy
+through `prestart`, so nothing about deployment changes.
+
+**Rejected: skipping the bot's suites when the dependency is absent.** A
+skip on CI would report the release green with the bot untested, which is
+the failure `npm test` exists to catch.
