@@ -10,6 +10,7 @@
     {{#if state.application}}<p class="hint">{{localize "ACKS-BRIDGE.config.application"}}: {{state.application}}</p>{{/if}}
     {{#if state.seen}}<p class="hint">{{localize "ACKS-BRIDGE.config.lastSeen"}}: {{state.seen}}</p>{{/if}}
     {{#unless state.current}}<p class="hint">{{localize "ACKS-BRIDGE.config.pending"}}</p>{{/unless}}
+    {{#if state.fresh}}<p><button type="button" data-action="restart" data-tooltip="{{localize 'ACKS-BRIDGE.config.restartHint'}}"><i class="fas fa-power-off"></i> {{localize "ACKS-BRIDGE.config.restart"}}</button></p>{{/if}}
     {{#each gaps}}<p class="notification warning">{{this.text}}</p>{{/each}}
   </section>
 
@@ -19,7 +20,7 @@
     <div class="form-group">
       <label>{{localize "ACKS-BRIDGE.config.token"}}</label>
       <div class="form-fields">
-        <input type="password" name="token" autocomplete="off" placeholder="{{#if hasToken}}{{localize 'ACKS-BRIDGE.config.tokenKept'}}{{else}}{{localize 'ACKS-BRIDGE.config.tokenEmpty'}}{{/if}}" {{#unless canSeal}}disabled{{/unless}}>
+        <input type="password" name="token" autocomplete="off" placeholder="{{#unless canSeal}}{{localize 'ACKS-BRIDGE.config.tokenLocked'}}{{else if hasToken}}{{localize 'ACKS-BRIDGE.config.tokenKept'}}{{else}}{{localize 'ACKS-BRIDGE.config.tokenEmpty'}}{{/unless}}" {{#unless canSeal}}disabled{{/unless}}>
         {{#if hasToken}}<button type="button" data-action="clearToken" data-tooltip="{{localize 'ACKS-BRIDGE.config.tokenClear'}}"><i class="fas fa-trash"></i></button>{{/if}}
       </div>
     </div>

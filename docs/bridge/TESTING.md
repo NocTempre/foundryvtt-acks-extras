@@ -179,7 +179,11 @@ owner is a Judge without being listed anywhere. Setup is the
    the state is *online*, the application is named, and the server dropdown
    now lists the servers the bot is in — proof the announcement travelled
    back. Save the form again with nothing changed: the bot does **not**
-   restart (the digest, not the revision, decides).
+   restart (the digest, not the revision, decides). Press **Restart the
+   bot**: the toast says the restart is requested, the journal reads `the
+   configuration changed in Foundry; restarting` with no field of the form
+   changed, and the bot is back online within half a minute. The button is
+   absent while the bot has not announced within the last two minutes.
 3. **`npm run register`** answers the nine commands; they appear in the
    test server's command picker at once. A bot configured in Foundry has
    already registered them at its start — this step is the by-hand form and
@@ -225,11 +229,13 @@ owner is a Judge without being listed anywhere. Setup is the
 11. **`/link drop`** and **`/party unbind`** return the server to step 4.
 12. **The install.** On the host, `sudo npm run install-service` in the
     module's `discord/` asks only where Foundry is, who to join as and which
-    browser — every answer already filled in on a stock host — and answers
-    with the unit's name;
+    browser — every answer already filled in on a stock host — then shows
+    npm installing the dependencies as the service's user, and ends with
+    `systemctl is-active` reading `active` and the journal's first lines;
     `systemctl status acks-extras-discord` is active and the journal shows
-    `prestart` installing, the seat ready, the commands registering, the
-    login. On any machine, `npm run install-service -- --dry-run` prints the
+    the seat ready, the commands registering, the login. Run it a second
+    time over the first: same result, and any Discord value an earlier
+    environment file held is named as dropped. On any machine, `npm run install-service -- --dry-run` prints the
     two files it would write, with no placeholder left in the unit.
 13. **The update.** Install a newer module build through Foundry's Add-on
     Modules. Within a minute the journal reads `module updated … restarting`,

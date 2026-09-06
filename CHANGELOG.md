@@ -1,5 +1,32 @@
 # Changelog
 
+## 7.1.1
+
+**The installer installs in front of you, and installs over a failed attempt.**
+
+### Fixed
+- **`install-service` appeared to hang.** The first start installed the
+  bot's dependencies inside the service, out of sight, and `systemctl` waited
+  on it. The installer now runs that step itself, as the service's user, with
+  npm's output on your terminal, and ends by printing the service's state and
+  the first lines of its journal — the seat joining, or the reason it did not.
+- **Running the installer again is the whole install again.** It stops a unit
+  an earlier attempt left, clears its failure state, rewrites both files and
+  takes over a `node_modules` another account created. Discord values an
+  earlier (7.0.x) environment file kept are dropped and named: they are set in
+  Foundry now, and a stale one on the host would have overruled the window.
+- **The Discord Bot window's token field says why it is locked.** It unlocks
+  when the bot has announced its key; until then its placeholder says so and
+  points at the service.
+- A hand-copied `discord/` with no lockfile installs with `npm install`
+  instead of failing `npm ci`.
+
+### Added
+- **Restart the bot from the Discord Bot window.** Offered while the bot has
+  recently been heard from; the bot exits and its service brings it back on
+  the window's current answers. Starting a bot that is not running, or
+  installing one, stays on the host — the guide says why.
+
 ## 7.1.0
 
 **The bot is configured in Foundry, players are linked in Foundry, and the dice belong to everyone.**

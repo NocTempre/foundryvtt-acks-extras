@@ -17,7 +17,7 @@ import { Seat } from "../discord/src/seat.mjs";
 import { Bridge, BridgeRefusal } from "../discord/src/bridge.mjs";
 import { createLog } from "../discord/src/log.mjs";
 import { generateSealingPair, unseal, keyIdOf } from "../scripts/bridge/sealing.mjs";
-import { configGaps } from "../scripts/bridge/client-config-logic.mjs";
+import { configGaps, configDigest } from "../scripts/bridge/client-config-logic.mjs";
 
 const env = process.env;
 for (const key of ["BROWSER", "FOUNDRY_ORIGIN", "FOUNDRY_USER"]) {
@@ -131,6 +131,13 @@ try {
     return m.seal(${JSON.stringify(readConfig.agent.publicKey)}, "walk-token-not-a-real-one");
   })()`);
   check("what the browser seals to the announced key opens on the host, and is not the token", (await unseal(keys.privateKey, sealedInPage)) === "walk-token-not-a-real-one" && !String(sealedInPage).includes("walk-token"), `${String(sealedInPage).length} chars of base64`);
+  // A restart request is the one write the walk makes to the configuration:
+  // a stamp nobody's answers depend on, moved so the digest moves. It is not
+  // put back — a second write would be a second request.
+  const restarted = JSON.parse(await seat.eval(`(async () => { const before = acksExtras.bridge.clientConfig.read(); const after = await acksExtras.bridge.clientConfig.requestRestart(); return JSON.stringify({ before, after }); })()`));
+  const { restartNonce: n0, revision: r0, updatedAt: u0, ...rest0 } = restarted.before;
+  const { restartNonce: n1, revision: r1, updatedAt: u1, ...rest1 } = restarted.after;
+  check("a restart request moves the stamp and the digest, raises the revision, and changes nothing a Judge answered", n1 > n0 && r1 === r0 + 1 && configDigest(restarted.before) !== configDigest(restarted.after) && JSON.stringify(rest0) === JSON.stringify(rest1), JSON.stringify({ revision: [r0, r1], nonceMoved: n1 > n0 }));
   await expectRefusal("an identity that is not the seat cannot read the client's configuration", "unbound", () => asFake("config"));
   await expectRefusal("a non-seat, unbound caller cannot link", "unbound", () => asFake("link", { externalId: FAKE.user, foundryUserName: "Player" }));
 

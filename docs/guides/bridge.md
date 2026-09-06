@@ -75,8 +75,16 @@ found, the local port its seat listens on, and the account it will run as
 dependencies there). On a standard host every answer is already filled in
 and you press Enter through all of them. Then it writes them to
 `/etc/acks-extras-discord.env`, readable by root only, renders the systemd
-unit for this machine, enables it and starts it. Nothing is downloaded
-beforehand: the service installs its own dependencies on its first start.
+unit for this machine, installs the bot's dependencies in front of you (a
+minute or two the first time — npm's own output, as the service's user),
+enables the service, and waits a few seconds to show you its state and the
+first lines of its journal: the seat joining, or the reason it did not.
+
+Run it again whenever you like, including over an earlier attempt that did
+not work: it stops what is there, clears any failure state, rewrites both
+files and takes over a `node_modules` another account left behind. Anything
+Discord-related an earlier install kept in `/etc` is dropped and named — those
+values live in Foundry now.
 
 If `sudo npm` cannot find npm (Node installed through a version manager), run
 the script with the node you have instead:
@@ -91,9 +99,8 @@ Watch it come up:
 sudo journalctl -u acks-extras-discord -f
 ```
 
-The log shows the dependencies installing, the seat joining the world, and
-then the bot saying it has no token yet and is waiting for one. That is the
-expected state at this point.
+The log shows the seat joining the world, then the bot saying it has no
+token yet and is waiting for one. That is the expected state at this point.
 
 ### 5. Configure it in Foundry
 
@@ -179,6 +186,19 @@ registers the commands again only if the release changed them. Your answers
 live in the world and under `/etc`, neither of which the updater touches. The
 journal shows the whole thing happen.
 
+### Restarting, starting, installing
+
+**Restart the bot** sits at the top of the Discord Bot window whenever the
+bot has recently been heard from. Press it and the bot exits and its service
+brings it straight back, on whatever the window holds — the same path a
+saved change takes, for when the bot is running and you want it to start
+over anyway. It cannot start a bot that is not running or install one that is
+not installed: Foundry has no hand on the host, and a request through the
+world reaches only a bot that is already listening. Starting is the service's
+job (`Restart=always`, so a bot that exits or crashes is back within
+seconds, and it comes up with the host), and installing is the one command in
+[Install the service](#4-install-the-service), run again as often as you like.
+
 ### Running it by hand instead
 
 On Windows, or on a test box without systemd, put a `.env` beside `src/`
@@ -245,6 +265,16 @@ not shown twice.
 
 ## When something is off
 
+- **The installer seems to hang, or ends saying the service is not
+  running.** Before 7.1.1 the first start installed the bot's dependencies
+  out of sight, which read as a hang; now npm runs in front of you and the
+  installer ends with `systemctl is-active` and the journal's last lines,
+  which name the cause. Fix it and run the same command again.
+- **The token field is greyed out.** It unlocks when the bot has announced
+  its key, which happens the moment the bot's seat joins the world — so a
+  locked field means the service is not running, or its seat cannot reach
+  the world: `systemctl status acks-extras-discord` and the journal. Press
+  **Refresh** in the window once it is up.
 - **The seat never becomes ready.** The journal names the step: the browser
   path, a world that is not running at the address you gave, or a Foundry
   user that does not exist with that password. Those four are the host's

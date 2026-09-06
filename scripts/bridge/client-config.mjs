@@ -41,6 +41,16 @@ export async function writeClientConfig(config) {
 }
 
 /**
+ * Ask a running client to restart: the stamp moves, the digest moves with
+ * it, and the client leaves for its service manager to bring back. Nothing
+ * on the host is reached — a client that is not running hears nothing, which
+ * is why the window offers this only while one has been heard from.
+ */
+export async function requestRestart() {
+  return writeClientConfig({ ...readClientConfig(), restartNonce: Date.now() });
+}
+
+/**
  * Persist what a client announces about itself. Fields absent from `patch`
  * keep the value they had, so a client can report a status without
  * re-sending its catalogue.

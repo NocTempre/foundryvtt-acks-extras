@@ -17,7 +17,7 @@ import { createRegistry, BridgeError } from "./registry-logic.mjs";
 import { registerBindingsSetting, resolveUser, readStore, writeStore } from "./bindings.mjs";
 import * as bindingsLogic from "./bindings-logic.mjs";
 import { registerCommands } from "./commands.mjs";
-import { registerClientConfigSettings, registerClientConfigCommands, readClientConfig, readAgent, writeClientConfig, writeAgent } from "./client-config.mjs";
+import { registerClientConfigSettings, registerClientConfigCommands, readClientConfig, readAgent, writeClientConfig, writeAgent, requestRestart } from "./client-config.mjs";
 import { BridgeClientConfigApp } from "./apps/client-config.mjs";
 import { BridgeMembersApp } from "./apps/members.mjs";
 import { registerEventTap, drain, emit } from "./events.mjs";
@@ -71,7 +71,7 @@ Hooks.once("init", () => {
     /** The binding store: read whole, write whole, and the pure arithmetic between. */
     bindings: { read: readStore, write: writeStore, ...bindingsLogic },
     /** The client's configuration and the client's own announcement, as the window and the seat use them. */
-    clientConfig: { read: readClientConfig, write: writeClientConfig, readAgent, writeAgent },
+    clientConfig: { read: readClientConfig, write: writeClientConfig, readAgent, writeAgent, requestRestart },
     provenanceOf,
     stampFor,
     flagsFor,

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { installReason, npmCommand } from "../src/prestart.mjs";
-import { renderUnit, parseEnv, renderEnv } from "../src/install-service.mjs";
+import { installReason, npmCommand, installArgs } from "../src/prestart.mjs";
+import { renderUnit, parseEnv, renderEnv, discordHalf } from "../src/install-service.mjs";
 import { findBrowser, BROWSERS } from "../src/browsers.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -49,4 +49,22 @@ test("the browser search takes the first present candidate and answers blank for
   const second = BROWSERS[1];
   assert.equal(findBrowser((p) => p === second), second, "the first present candidate wins even when an earlier one is absent");
   assert.equal(findBrowser(() => false), "");
+});
+
+test("dependencies install against the shipped lock, and without one npm install stands in for ci", () => {
+  assert.equal(installArgs(true)[0], "ci");
+  assert.equal(installArgs(false)[0], "install");
+  assert.ok(installArgs(true).includes("--omit=dev"));
+});
+
+test("a re-install drops an earlier file's Discord half and says so, unless the operator sets it on purpose", () => {
+  const had = { DISCORD_TOKEN: "old", DISCORD_GUILD_ID: "1", FOUNDRY_ORIGIN: "http://localhost:30000" };
+  const dropped = discordHalf(had, {});
+  assert.equal(dropped.values.DISCORD_TOKEN, "");
+  assert.equal(dropped.values.DISCORD_GUILD_ID, "");
+  assert.deepEqual(dropped.dropped, ["DISCORD_TOKEN", "DISCORD_GUILD_ID"]);
+  const kept = discordHalf(had, { DISCORD_GUILD_ID: "2" });
+  assert.equal(kept.values.DISCORD_GUILD_ID, "2");
+  assert.deepEqual(kept.dropped, ["DISCORD_TOKEN"]);
+  assert.deepEqual(discordHalf({}, {}).dropped, []);
 });

@@ -215,6 +215,8 @@ await test("the digest ignores a save that changed nothing and moves for one tha
   const c = { ...emptyClientConfig(), discord: { guildId: "111111111", chatChannelId: "", judgeIds: ["111111111"], relay: true } };
   assert.equal(configDigest(c), configDigest({ ...c, revision: 9, updatedAt: 1234 }));
   assert.notEqual(configDigest(c), configDigest({ ...c, seat: { ...c.seat, width: 800 } }));
+  assert.notEqual(configDigest(c), configDigest({ ...c, restartNonce: 1234 }), "a restart request moves the digest, which is what restarts a running bot");
+  assert.equal(normalizeClientConfig({ restartNonce: "junk" }).restartNonce, 0);
 });
 await test("the hand-written SHA-256 answers what the platform's does, at every padding boundary", () => {
   for (const len of [0, 1, 55, 56, 63, 64, 65, 119, 120, 191, 300]) {

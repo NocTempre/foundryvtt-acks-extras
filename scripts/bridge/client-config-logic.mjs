@@ -29,6 +29,7 @@ export const emptyClientConfig = () => ({
   seat: { width: 1600, height: 1000, readySeconds: 120 },
   service: { logLevel: "info" },
   token: { sealed: "", keyId: "", hint: "" },
+  restartNonce: 0,
   revision: 0,
   updatedAt: 0,
 });
@@ -55,6 +56,9 @@ export function normalizeClientConfig(raw) {
     },
     service: { logLevel: LOG_LEVELS.includes(str(v.logLevel)) ? str(v.logLevel) : base.service.logLevel },
     token: { sealed: str(t.sealed), keyId: str(t.keyId), hint: str(t.hint) },
+    // A stamp the window sets to ask for a restart and nothing else reads:
+    // it is in the digest, so moving it restarts a running client.
+    restartNonce: int(r.restartNonce, 0, 0, Number.MAX_SAFE_INTEGER),
     revision: int(r.revision, 0, 0, Number.MAX_SAFE_INTEGER),
     updatedAt: int(r.updatedAt, 0, 0, Number.MAX_SAFE_INTEGER),
   };
@@ -136,7 +140,7 @@ export const memberLabel = (member) => str(member?.displayName) || str(member?.n
  */
 export function configDigest(config) {
   const c = normalizeClientConfig(config);
-  return JSON.stringify([c.discord.guildId, c.discord.chatChannelId, [...c.discord.judgeIds].sort(), c.discord.relay, c.seat.width, c.seat.height, c.seat.readySeconds, c.service.logLevel, c.token.sealed, c.token.keyId]);
+  return JSON.stringify([c.discord.guildId, c.discord.chatChannelId, [...c.discord.judgeIds].sort(), c.discord.relay, c.seat.width, c.seat.height, c.seat.readySeconds, c.service.logLevel, c.token.sealed, c.token.keyId, c.restartNonce]);
 }
 
 /**

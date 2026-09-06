@@ -302,3 +302,46 @@ Cost: the seat performs `User.create` and `User#update` with its own role,
 so what the two verbs can do is bounded by Foundry's permission tests for
 an Assistant — which is the bound, not a limitation: it is exactly what
 keeps a Player-only creation Player-only whatever the module asks.
+
+### The installer installs in the foreground, and a re-install is the whole install (2026-09-06)
+
+Evidence from the first host to run 7.1.0's installer: it "stalled", and the
+window's token field stayed locked. The unit's `ExecStartPre` ran `npm ci`
+with its output in the journal, and `systemctl enable --now` blocks until a
+`Type=simple` unit's pre-step returns — so the operator watched a silent
+prompt for as long as npm took, and a bot that had not yet joined had
+published no key for the window to seal to. Ruled: the installer runs
+`prestart` itself, as the service's user with the service's HOME, before
+enabling anything, and ends by printing `is-active` and the journal's first
+lines; the unit keeps `ExecStartPre` for the restart after a module update,
+where nobody is watching. The window's locked field now says why it is
+locked.
+
+**A re-install overwrites a failed one.** Owner direction. The unit is
+stopped and `reset-failed` before the files are rewritten (a unit that
+tripped its start limit refuses `start` otherwise), a `node_modules` another
+account made is chowned to the service's, and the Discord half of an earlier
+environment file is **dropped, not carried**: the environment wins over the
+window wherever it is set, so a 7.0.1 host's stale `DISCORD_GUILD_ID` would
+have overruled every choice made in Foundry without a word. An operator who
+wants a host-side override sets it in the installer's own environment, and
+the installer names each value it dropped.
+
+### A restart is a change in the world; a start or an install is a command on the host (2026-09-06)
+
+Owner direction: launch, restart and install "from within Foundry". Only the
+first is buildable, and it is built as a configuration change rather than a
+channel of its own: `restartNonce` sits in `configDigest` and nowhere else,
+so the window moving it restarts a running bot through the exact path a saved
+change takes, with no new command, no new event, and no bot-side code. The
+button is offered only while an announcement is fresh, because the request
+travels through the world and a bot that is not running is not listening.
+
+**Rejected: a start or an install reachable from Foundry.** Foundry runs no
+module code on its server, so a window can reach the host only through a
+process already there — and the process already there is the bot, which is
+the thing that would be down. A second, always-on host agent whose one job is
+to start the first was weighed and refused: it is a privileged daemon to
+install, secure and update for a case the unit's `Restart=always` already
+covers (a crashed bot is back in seconds; a stopped host brings it up on
+boot). Installing stays the one command in the guide; the guide says why.

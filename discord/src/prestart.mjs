@@ -27,6 +27,14 @@ export function npmCommand() {
   return fs.existsSync(beside) ? beside : name;
 }
 
+/**
+ * The npm arguments that put dependencies in place: `ci` against the lock the
+ * module ships, `install` when a hand-copied directory has no lock — `ci`
+ * refuses to run without one, and a refusal here is a service that never
+ * starts. Pure.
+ */
+export const installArgs = (hasLock) => [hasLock ? "ci" : "install", "--omit=dev", "--no-audit", "--no-fund"];
+
 const mtime = (p) => {
   try {
     return fs.statSync(p).mtimeMs;
@@ -45,7 +53,8 @@ if (isMain(import.meta.url)) {
   if (!reason) {
     console.log("prestart: dependencies are in place");
   } else {
-    console.log(`prestart: ${reason}; running npm ci`);
-    execFileSync(npmCommand(), ["ci", "--omit=dev", "--no-audit", "--no-fund"], { cwd: root, stdio: "inherit", shell: process.platform === "win32" });
+    const args = installArgs(fs.existsSync(path.join(root, "package-lock.json")));
+    console.log(`prestart: ${reason}; running npm ${args[0]} — a minute or two the first time, longer on a slow link`);
+    execFileSync(npmCommand(), args, { cwd: root, stdio: "inherit", shell: process.platform === "win32" });
   }
 }

@@ -136,7 +136,12 @@ the window rather than as a login that quietly fails.
 `configDigest` is what a running client compares. It covers what the client
 is configured **by**, so a form saved with nothing changed does not restart a
 bot; `revision` rises on every save and tells the window whether the running
-client has caught up yet.
+client has caught up yet. `restartNonce` is in the digest and in nothing
+else: the window's **Restart the bot** button (`requestRestart`) moves it, and
+a running client restarts on that as on any change. The button is offered only
+while an announcement is fresh, because the request travels through the world
+— a client that is not running hears nothing, and starting or installing one
+is the host's to do (`docs/guides/bridge.md`).
 
 ## Provenance
 
@@ -225,9 +230,11 @@ missed the event.
 **Staying current.** The service runs from the module directory Foundry's
 updater replaces, and follows it without an operator: `install-service`
 renders the systemd unit and the environment file under `/etc`, outside that
-directory; `prestart` (the unit's `ExecStartPre`, and `npm start`'s own
-pre-step) reinstalls dependencies only when `node_modules` is missing,
-incomplete, or older than the lock; the running bot polls the module manifest
+directory, and runs `prestart` itself, in the foreground and as the service's
+user, before enabling anything — re-running it is the whole install over
+whatever an earlier attempt left; `prestart` (the unit's `ExecStartPre`, and
+`npm start`'s own pre-step) reinstalls dependencies only when `node_modules`
+is missing, incomplete, or older than the lock; the running bot polls the module manifest
 and exits cleanly when it vanishes and returns, so the service manager
 restarts it on the new files; and registration runs at every start, sending
 the commands only when their digest differs from the last one sent, kept in

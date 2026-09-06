@@ -16,7 +16,7 @@
  * console could ask for the same value from.
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
-import { readClientConfig, readAgent, writeClientConfig } from "../client-config.mjs";
+import { readClientConfig, readAgent, writeClientConfig, requestRestart } from "../client-config.mjs";
 import { LOG_LEVELS, configGaps, isCurrent, channelsOfGuild } from "../client-config-logic.mjs";
 import { seal, keyIdOf, hintOf } from "../sealing.mjs";
 
@@ -36,6 +36,7 @@ export class BridgeClientConfigApp extends HandlebarsApplicationMixin(Applicatio
     actions: {
       refresh: BridgeClientConfigApp.#onRefresh,
       clearToken: BridgeClientConfigApp.#onClearToken,
+      restart: BridgeClientConfigApp.#onRestart,
     },
   };
 
@@ -84,6 +85,13 @@ export class BridgeClientConfigApp extends HandlebarsApplicationMixin(Applicatio
     this.render();
   }
 
+  /** Ask the running bot to restart. Only offered while one has been heard from: the request travels through the world, and a bot that is not running hears nothing. */
+  static async #onRestart() {
+    await requestRestart();
+    ui.notifications.info(game.i18n.localize(`${LANG}.config.restartRequested`));
+    this.render();
+  }
+
   static async #onClearToken() {
     const config = readClientConfig();
     if (!config.token.sealed) return;
@@ -113,6 +121,7 @@ export class BridgeClientConfigApp extends HandlebarsApplicationMixin(Applicatio
     }
 
     await writeClientConfig({
+      restartNonce: config.restartNonce,
       discord: {
         guildId: data.guildId ?? "",
         chatChannelId: data.chatChannelId ?? "",
