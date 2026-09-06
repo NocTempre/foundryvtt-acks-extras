@@ -76,11 +76,10 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   teardown, so nothing needs restoring.
 - **A formation that vanishes mid-walk was deleted from outside.** Deleting a
   party actor dissolves its formation, so a record that is gone between
-  `setJourneyMode` and the next read was taken by another session — a
-  cleanup that matches fixtures by name prefix takes every session's parties
-  with it. Scope any sweep to the ids your own log printed; a walk that died
-  before its teardown leaves its party and members behind, and those ids are
-  how to find them.
+  `setJourneyMode` and the next read was taken by another session sweeping
+  outside its own ledger. Teardown is by the run's own ids
+  (`.claude/rules/live-testing.md`, step 4); a walk that died before its
+  sweep has its ids in its log — re-track them and `sweepTracked()`.
 
 ## Steps
 
@@ -521,8 +520,11 @@ in the same world session.
 
 ## Teardown
 
-Delete the scene, the party actor (its formation goes with it), the member
-actors, and the trap item. Confirm `getFormations()` no longer lists the
-formation. Sweep the chat too — a trap probe fills it with whispered cards, and
-`game.messages.filter(m => m.content.includes("<your fixture prefix>"))` is what
-finds them.
+`api.sweepTracked()` over the ledger: the scene, the party actor (its
+formation goes with it), the member actors and the trap item were all
+`api.create()`d, so they are already in it. Confirm `getFormations()` no longer
+lists the formation. The chat cards a trap probe posts are not — the module
+creates them — so read each card's id back right after your own probe (the
+newest `game.messages` entry, or the message the probe returns) and
+`api.track(id, "ChatMessage")` it at once; the sweep then takes the cards with
+the rest. Never find them by content or name.

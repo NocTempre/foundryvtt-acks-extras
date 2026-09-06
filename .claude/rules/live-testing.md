@@ -48,7 +48,7 @@ rather than inventing one.
    The test world rarely already holds the actors, items, or documents a
    feature touches. "No data existed to exercise it" is not a limitation to
    report; it is test data you were expected to build. Make it, run the
-   feature through it, then delete it.
+   feature through it, then sweep it — by id, as below.
 
    **Create-and-destroy, never mutate-and-restore.** Editing the world's
    existing documents and rolling back afterwards is the failure this rule
@@ -58,6 +58,21 @@ rather than inventing one.
    think to snapshot, and an exception mid-test strands the world broken. A
    document you created is disposable by construction: deleting it is total,
    needs no snapshot, and cannot half-succeed.
+
+   **Teardown is by the run's own ids; the capture driver's fixture ledger is
+   the mechanism.** `api.create(kind, data)` records the uuid of what it
+   makes; `api.track(uuidOrId, kind)` records a document made any other way,
+   including one the feature wrote itself once its id is read back from the
+   action's result; `api.sweepTracked()` deletes exactly that list and returns
+   what it removed, what it could not find and what refused, and the report
+   quotes that object. A sweep keyed on anything else — a name, a name
+   prefix, a folder, a type, a time window, "looks like a fixture" — is
+   forbidden: the world is shared, and every one of those keys matches
+   another session's documents as readily as yours. A run that dies before
+   its sweep has printed its ids into its log; the next run re-tracks those
+   ids and sweeps them, and never goes looking by name. A session driving a
+   browser pane instead of the driver keeps the same list by hand and deletes
+   by it, with the driver's exported `pageSweep(entries)` as the expression.
 
    Seats are provisioned: the world carries one user of every permission
    level, so verify player-facing behaviour by **joining as that player**.
@@ -75,7 +90,8 @@ rather than inventing one.
 6. **Report what you exercised, and name what you did not.** "Live-verified"
    with no list is not a result. If a surface could not be reached, say which
    and why — a gap you could have closed by creating fixtures is not a gap;
-   close it. Say what you created and confirm you removed it.
+   close it. Quote the sweep result — removed, could not find, refused — as
+   the record of what you created and what became of it.
 
 ## Driving techniques (scripted checks)
 
@@ -113,9 +129,10 @@ all** — there is never a malformed population to migrate from that path.
 ## Concurrency
 
 Parallel sessions share this working tree, this test world, and these
-settings. Expect another session's fixtures and failures in the world log;
-filter what you act on to your own files and your own artifacts. Two rules
-that exist because they were broken: **never modify an in-force canonical doc
+settings. Expect another session's fixtures and failures in the world log.
+The only world documents a session deletes are the ones its own ledger names
+(step 4), and the only files it acts on are its own. Two more rules that
+exist because they were broken: **never modify an in-force canonical doc
 outside an explicitly authorized phase** (a proposal doc opens with a
 NOT-IN-EFFECT banner until adopted), and **shared ledgers are re-read
 immediately before every write, with rows matched by title, never by id** —
