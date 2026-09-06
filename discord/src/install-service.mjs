@@ -5,14 +5,21 @@
  *   sudo npm run install-service -- --remove  stop, disable, remove
  *   npm run install-service -- --dry-run      print what would be written
  *
- * It asks for what the bot needs (Enter keeps a value it already has),
- * writes the environment file the service reads — root-only, in /etc —
+ * It asks only what a bot needs to REACH the world — where Foundry is, who
+ * to join as, which browser to sit in. Everything else (the token, the
+ * Discord server, the relay channel, the seat's size) is set in Foundry
+ * afterwards, in Settings → Extras → Discord Bot, and read from the world by
+ * the running bot. Enter keeps a value it already has, and on a host with a
+ * default Foundry and a browser installed, every answer is already right.
+ *
+ * It writes the environment file the service reads — root-only, in /etc —
  * renders the systemd unit from deploy/ with this machine's node, directory
  * and user, and enables it. Nothing is copied by hand, and a module update
  * replaces none of it: both files live outside the module directory.
  *
  * Without a terminal (a scripted install) every value comes from the
- * environment instead of a prompt.
+ * environment instead of a prompt; the Discord half may be set that way too,
+ * where an operator would rather keep it on the host.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -21,6 +28,7 @@ import readline from "node:readline/promises";
 import { Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { isMain } from "./entry.mjs";
+import { findBrowser } from "./browsers.mjs";
 
 export const ENV_FILE = "/etc/acks-extras-discord.env";
 export const UNIT_NAME = "acks-extras-discord";
@@ -28,7 +36,6 @@ export const UNIT_FILE = `/etc/systemd/system/${UNIT_NAME}.service`;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TEMPLATE = path.join(ROOT, "deploy", `${UNIT_NAME}.service`);
 const KEYS = ["DISCORD_TOKEN", "DISCORD_APP_ID", "DISCORD_GUILD_ID", "DISCORD_JUDGE_IDS", "DISCORD_CHAT_CHANNEL_ID", "FOUNDRY_ORIGIN", "FOUNDRY_USER", "FOUNDRY_PASSWORD", "BROWSER", "SEAT_PORT"];
-const BROWSERS = ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/snap/bin/chromium"];
 
 /** Fill the unit template's placeholders. Pure. */
 export function renderUnit(template, { node, workDir, user }) {
@@ -49,9 +56,6 @@ export function parseEnv(text) {
 export function renderEnv(values) {
   return `${KEYS.map((k) => `${k}=${values[k] ?? ""}`).join("\n")}\n`;
 }
-
-/** The first Chromium-family binary present, or "". */
-export const findBrowser = (exists = fs.existsSync) => BROWSERS.find((p) => exists(p)) ?? "";
 
 function ownerOf(dir) {
   try {
@@ -122,11 +126,9 @@ async function main() {
   const asker = makeAsker();
   const values = {};
   console.log(`Installing the ACKS II Extras Discord bot from ${ROOT}\n`);
-  values.DISCORD_TOKEN = await asker.ask("DISCORD_TOKEN", "Discord bot token", had.DISCORD_TOKEN ?? "", { secret: true });
-  values.DISCORD_APP_ID = await asker.ask("DISCORD_APP_ID", "Discord application id", had.DISCORD_APP_ID ?? "");
-  values.DISCORD_GUILD_ID = await asker.ask("DISCORD_GUILD_ID", "Discord server (guild) id", had.DISCORD_GUILD_ID ?? "");
-  values.DISCORD_JUDGE_IDS = await asker.ask("DISCORD_JUDGE_IDS", "Judge's Discord user id(s), comma-separated", had.DISCORD_JUDGE_IDS ?? "");
-  values.DISCORD_CHAT_CHANNEL_ID = await asker.ask("DISCORD_CHAT_CHANNEL_ID", "Channel id for the world's chat (blank: none)", had.DISCORD_CHAT_CHANNEL_ID ?? "");
+  // The Discord half is Foundry's to hold. It is carried through untouched
+  // so a scripted install (or an older one) can still set it on the host.
+  for (const k of ["DISCORD_TOKEN", "DISCORD_APP_ID", "DISCORD_GUILD_ID", "DISCORD_JUDGE_IDS", "DISCORD_CHAT_CHANNEL_ID"]) values[k] = (process.env[k] ?? had[k] ?? "").trim();
   values.FOUNDRY_ORIGIN = await asker.ask("FOUNDRY_ORIGIN", "Foundry address as this machine sees it", had.FOUNDRY_ORIGIN ?? "http://localhost:30000");
   values.FOUNDRY_USER = await asker.ask("FOUNDRY_USER", "The bot's Foundry user (Assistant Gamemaster)", had.FOUNDRY_USER ?? "Discord");
   values.FOUNDRY_PASSWORD = await asker.ask("FOUNDRY_PASSWORD", "That user's password (blank: none)", had.FOUNDRY_PASSWORD ?? "", { secret: true });
@@ -136,11 +138,9 @@ async function main() {
   const user = await asker.ask("SERVICE_USER", "Run the service as", sudoUser ?? ownerOf(ROOT) ?? "foundry");
   asker.close();
 
-  for (const k of ["DISCORD_TOKEN", "DISCORD_APP_ID", "DISCORD_GUILD_ID", "BROWSER"]) {
-    if (!values[k]) {
-      console.error(`install-service: ${k} is required`);
-      process.exit(2);
-    }
+  if (!values.BROWSER) {
+    console.error("install-service: BROWSER is required — install a Chromium-family browser (apt install chromium) or give its path");
+    process.exit(2);
   }
   const unit = renderUnit(fs.readFileSync(TEMPLATE, "utf8"), { node: process.execPath, workDir: ROOT, user });
   if (dryRun) {
@@ -153,6 +153,7 @@ async function main() {
   execFileSync("systemctl", ["daemon-reload"], { stdio: "inherit" });
   execFileSync("systemctl", ["enable", "--now", UNIT_NAME], { stdio: "inherit" });
   console.log(`\ninstalled and started as ${user}. Follow it with:  journalctl -u ${UNIT_NAME} -f`);
+  console.log("Now open Foundry: Settings → Extras → Discord Bot, paste the bot token and choose the server.");
   console.log("Run this command again to change an answer; a Foundry module update needs nothing from you.");
 }
 

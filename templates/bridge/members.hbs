@@ -1,0 +1,82 @@
+<div class="acks-extras-bridge-members-body">
+
+  <p class="hint">{{localize "ACKS-BRIDGE.members.intro"}}</p>
+  {{#unless botSeen}}<p class="notification warning">{{localize "ACKS-BRIDGE.config.gap.noClient"}}</p>{{/unless}}
+
+  <fieldset>
+    <legend>{{localize "ACKS-BRIDGE.members.linkedLegend"}}</legend>
+    {{#if bindings.length}}
+    <table class="acks-extras-bridge-members-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-BRIDGE.members.member"}}</th>
+          <th>{{localize "ACKS-BRIDGE.members.user"}}</th>
+          <th>{{localize "ACKS-BRIDGE.members.speaksAs"}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each bindings}}
+        <tr>
+          <td>
+            {{member}}
+            {{#unless known}}<span class="hint" data-tooltip="{{localize 'ACKS-BRIDGE.members.unknownHint'}}"><i class="fas fa-circle-question"></i></span>{{/unless}}
+          </td>
+          <td>
+            {{#if user}}<strong>{{user.name}}</strong> <span class="hint">({{user.role}})</span>{{else}}<em>{{localize "ACKS-BRIDGE.members.userGone"}}</em>{{/if}}
+          </td>
+          <td>{{#if actor}}{{actor}}{{else}}<span class="hint">—</span>{{/if}}</td>
+          <td class="acks-extras-bridge-members-actions">
+            <button type="button" data-action="unlink" data-external-id="{{externalId}}" data-tooltip="{{localize 'ACKS-BRIDGE.members.unlink'}}"><i class="fas fa-link-slash"></i></button>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="hint">{{localize "ACKS-BRIDGE.members.none"}}</p>
+    {{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-BRIDGE.members.addLegend"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.members.member"}}</label>
+      <div class="form-fields">
+        {{#if hasMembers}}
+        <select name="member">
+          <option value="">{{localize "ACKS-BRIDGE.members.pick"}}</option>
+          {{#each members}}<option value="{{id}}">{{label}}</option>{{/each}}
+        </select>
+        {{/if}}
+        <input type="text" name="memberId" placeholder="{{localize 'ACKS-BRIDGE.members.idPlaceholder'}}" autocomplete="off">
+      </div>
+      <p class="hint">{{localize "ACKS-BRIDGE.members.memberHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.members.user"}}</label>
+      <div class="form-fields">
+        <select name="userId">
+          <option value="">{{localize "ACKS-BRIDGE.members.pick"}}</option>
+          {{#each users}}<option value="{{id}}">{{name}} ({{role}})</option>{{/each}}
+        </select>
+        <button type="submit"><i class="fas fa-link"></i> {{localize "ACKS-BRIDGE.members.link"}}</button>
+      </div>
+      <p class="hint">{{localize "ACKS-BRIDGE.members.userHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.members.newUser"}}</label>
+      <div class="form-fields">
+        <input type="text" name="newName" placeholder="{{localize 'ACKS-BRIDGE.members.newNamePlaceholder'}}" autocomplete="off">
+        <button type="button" data-action="create"><i class="fas fa-user-plus"></i> {{localize "ACKS-BRIDGE.members.create"}}</button>
+      </div>
+      <p class="hint">{{localize "ACKS-BRIDGE.members.newUserHint"}}</p>
+    </div>
+  </fieldset>
+
+  <footer class="form-footer">
+    <button type="button" data-action="refresh"><i class="fas fa-rotate"></i> {{localize "ACKS-BRIDGE.config.refresh"}}</button>
+  </footer>
+</div>

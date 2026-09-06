@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { clip, refusalText, characterLabel, whoamiText, sheetEmbed, rollChoice, chatLine, rollText, sayText, relayable, LIMITS } from "../src/format.mjs";
+import { clip, refusalText, characterLabel, whoamiText, sheetEmbed, rollChoice, chatLine, rollText, sayText, relayable, looksLikeDice, diceText, LIMITS } from "../src/format.mjs";
 
 test("clip cuts at the limit and marks the cut", () => {
   assert.equal(clip("abc", 5), "abc");
@@ -71,4 +71,25 @@ test("the relay takes public chat that this bot did not already show", () => {
   assert.equal(relayable({ type: "chat", whisper: [], blind: false, text: "hi", bridge: { via: "discord" } }), false);
   assert.equal(relayable({ type: "actor", text: "hi" }), false);
   assert.equal(relayable({ type: "chat", whisper: [], blind: false, text: "", rolls: [] }), false);
+});
+
+test("dice are told from a throw by shape: a die and no colon", () => {
+  for (const f of ["2d6+3", "d20", "1d8 + 2d4", "4dF", "d%", "3d6kh2", "(2d6+1)*2"]) assert.equal(looksLikeDice(f), true, f);
+  for (const f of ["save:death", "atk:sword", "", "   ", "dagger", "5", "wpn:d6-blade"]) assert.equal(looksLikeDice(f), false, JSON.stringify(f));
+});
+
+test("a dice throw reads as who, formula, total and every die; an actor when the world kept it", () => {
+  const t = diceText({ formula: "2d6 + 3", total: 11, dice: [{ faces: 6, results: [{ value: 3, active: true }, { value: 5, active: true }] }], actor: null }, "Bo");
+  assert.match(t, /\*\*Bo\*\* rolls `2d6 \+ 3` → \*\*11\*\*/);
+  assert.match(t, /d6: 3, 5/);
+  assert.doesNotMatch(t, / as \*\*/);
+  const kept = diceText({ formula: "3d6kh2", total: 10, dice: [{ faces: 6, results: [{ value: 6, active: true }, { value: 4, active: true }, { value: 1, active: false }] }], actor: { name: "Aelin" } }, "Bo");
+  assert.match(kept, /as \*\*Aelin\*\*/);
+  assert.match(kept, /~~1~~/, "a dropped die is struck through");
+  assert.match(diceText(null, undefined), /Someone/);
+});
+
+test("a forbidden refusal carries its reason when the world gave one", () => {
+  assert.equal(refusalText("forbidden"), "That is not yours to do.");
+  assert.match(refusalText("forbidden", "a Gamemaster's password is never set from outside Foundry"), /Gamemaster's password/);
 });

@@ -12,7 +12,7 @@ import { chatLine, relayable } from "./format.mjs";
 export function attachRelay({ seat, client, config, log }) {
   const channelId = config.discord.chatChannelId;
   if (!channelId) {
-    log.info("relay: DISCORD_CHAT_CHANNEL_ID unset; the world's chat stays in Foundry");
+    log.info("relay: no chat channel chosen; the world's chat stays in Foundry");
     return () => {};
   }
   let channel = null;

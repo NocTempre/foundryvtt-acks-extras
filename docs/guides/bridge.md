@@ -6,14 +6,19 @@ server roll, speak and read their characters without opening Foundry. It is
 the first step toward play-by-post: the world keeps every roll and every
 word, and Discord is where they are made.
 
+You set it up **in Foundry**: one window under Module Settings holds the
+token, the server and the channel, and the bot on your host reads them from
+the world. The host is asked only how to reach that world.
+
 Every command runs **as the Foundry user the member is linked to**. A member
 can only use characters that user owns, and the bot's own seat decides
 nothing. The Judge links members; nobody links themselves.
 
 ## Walkthrough
 
-Eight steps, once. Afterwards the bot follows Foundry's module updater on its
-own, and nothing is copied by hand at any point.
+Six steps, once. Nothing is typed on the server that a window in Foundry can
+be asked instead, and afterwards the bot follows Foundry's module updater on
+its own.
 
 ### 1. The host
 
@@ -25,8 +30,9 @@ machine needs:
 - **Node 22 or newer.** `node -v` says which you have; Foundry itself runs
   on Node, so it is usually there already.
 - **A Chromium-family browser** for the seat: `sudo apt install chromium`.
-  Nothing shows on a screen; the bot drives it headless.
-- **The Extras module installed** in Foundry, 7.0.0 or later. The bot's code
+  Nothing shows on a screen; the bot drives it headless, and finds the
+  browser by itself.
+- **The Extras module installed** in Foundry, 7.1.0 or later. The bot's code
   is inside it: `discord/` under the module's directory in your Foundry data
   path, `Data/modules/acks-extras/discord`.
 
@@ -36,24 +42,23 @@ In the [Discord Developer Portal](https://discord.com/developers/applications):
 
 1. **New Application**; name it after your table.
 2. On the **Bot** page, **Reset Token**. Keep the token where you can paste
-   it into a terminal in step 4; the portal shows it once.
+   it into Foundry in step 5; the portal shows it once.
 3. On the **OAuth2** page, in the URL generator, tick the scopes **bot** and
    **applications.commands**, then the bot permissions **Send Messages**,
    **Embed Links**, **Attach Files** and **Read Message History**. Open the
    URL it makes, pick your server, authorise.
-4. Note the **Application ID** on the General Information page.
 
-In Discord itself, turn on **Developer Mode** (User Settings → Advanced).
-Right-click your server for **Copy Server ID**, yourself for **Copy User
-ID**, and, if you want the world's chat relayed, the channel that should
-receive it for **Copy Channel ID**.
+That is all the portal is needed for. No ids to copy, no developer mode to
+turn on: the bot reads its own application, the servers it was invited to
+and their channels, and offers them to you in Foundry.
 
 ### 3. The bot's Foundry user
 
 In Foundry's user management, create a user for the bot: role **Assistant
-Gamemaster**, any name ("Discord" reads well in the chat log), and a password
-if your world uses them. The bot joins as this user and everything it posts
-is credited to it, so keep the user for the bot alone.
+Gamemaster**, named **Discord** (the name the bot looks for unless told
+another), and a password if your world uses them. The bot joins as this user
+and everything it posts is credited to it, so keep the user for the bot
+alone.
 
 ### 4. Install the service
 
@@ -63,15 +68,15 @@ On the host, in the bot's directory:
 cd /path/to/foundrydata/Data/modules/acks-extras/discord && sudo npm run install-service
 ```
 
-It asks, one line at a time, for the token, the application id, the server
-id, your user id (the first Judge), the optional chat channel, Foundry's
-address as the machine sees it (usually the default), the bot's Foundry user
-and password, the browser it found, and the account it will run as (the owner
-of the module directory, which is what lets it keep its dependencies there).
-Then it writes your answers to `/etc/acks-extras-discord.env`, readable by
-root only, renders the systemd unit for this machine, enables it and starts
-it. Nothing is downloaded beforehand: the service installs its own
-dependencies on its first start.
+It asks only what the bot needs to reach your world: Foundry's address as
+the machine sees it, the bot's Foundry user and password, the browser it
+found, the local port its seat listens on, and the account it will run as
+(the owner of the module directory, which is what lets it keep its
+dependencies there). On a standard host every answer is already filled in
+and you press Enter through all of them. Then it writes them to
+`/etc/acks-extras-discord.env`, readable by root only, renders the systemd
+unit for this machine, enables it and starts it. Nothing is downloaded
+beforehand: the service installs its own dependencies on its first start.
 
 If `sudo npm` cannot find npm (Node installed through a version manager), run
 the script with the node you have instead:
@@ -86,11 +91,40 @@ Watch it come up:
 sudo journalctl -u acks-extras-discord -f
 ```
 
-The log shows the dependencies installing, the seat joining the world, the
-commands registering on your server, and the bot logging in. Run the install
-command again whenever an answer changes; Enter keeps what is there.
+The log shows the dependencies installing, the seat joining the world, and
+then the bot saying it has no token yet and is waiting for one. That is the
+expected state at this point.
 
-### 5. First commands
+### 5. Configure it in Foundry
+
+![The Discord Bot window, with a bot online and its servers and channels offered as dropdowns](../releases/v7.1.0/bridge.png)
+
+In Foundry, **Settings → Module Settings → ACKS II Extras → Discord Bot**.
+The window opens on the bot's own report: it says the bot is waiting, and
+lists what is still missing.
+
+1. **Paste the bot token** and save. It is encrypted to a key the bot made on
+   your server before it is stored, so it is not readable by anyone in your
+   world — including you, afterwards: the field shows only how long it was
+   and its last four characters. To replace it, paste a new one.
+2. The bot restarts within half a minute and logs in. Re-open the window: it
+   now says **online**, names your application, and the **Server** and
+   **Relay chat** boxes have become dropdowns of the servers and channels
+   the bot can actually see.
+3. **Choose the server** (a bot invited to only one is already using it) and,
+   if you want the world's chat in Discord, the **channel** to relay it to.
+   Save. The bot restarts again and registers its commands on that server.
+
+Every later change — a different channel, relaying off, a bigger map
+capture — is the same window and the same half minute. Nothing goes back to
+the terminal.
+
+**Who may run a Judge command** before anyone is linked: the Discord
+server's owner, always, without being listed. The **Extra Judges** field
+takes Discord user ids for the rare case of a second one (turn on Developer
+Mode in Discord, right-click the member, **Copy User ID**).
+
+### 6. First commands
 
 In your server, `/whoami` answers you as the Judge. Link a player with
 `/link set member: foundry:`; the Foundry name autocompletes. That player's
@@ -99,32 +133,71 @@ In your server, `/whoami` answers you as the Judge. Link a player with
 `/party bind formation:` ties the channel to a formation and `/map` posts its
 scene.
 
-### 6. Staying current
+Anyone can `/roll 2d6` from the first minute, linked or not.
+
+## Players and their accounts
+
+![The Discord Members window: two members linked, one speaking as a character, and the row that links or creates the next](../releases/v7.1.0/bridge-members.png)
+
+Three ways to connect a member of your server to a user in your world; all
+three end in the same place.
+
+- **In Foundry: Settings → Module Settings → ACKS II Extras → Discord
+  Members.** Every link the world holds is listed, with who each member
+  speaks as. To make one, pick the member and the user and press **Link**.
+  The member list is everyone who has used any command in your server — ask
+  a new player to run `/whoami` and they appear by name; for anyone else,
+  paste their Discord id (Developer Mode, right-click, Copy User ID). A
+  member with no user yet: type a name, or leave it to take theirs, and
+  press **Create & link** — a Player user is made and linked in one go.
+- **In Discord: `/link set member: foundry:`** links to a user that exists.
+- **In Discord: `/account create member:`** makes the Player user and links
+  the member, the same as the window's button. `name:` overrides the name.
+
+A user made either way starts with **a password nobody knows** — not you,
+not the bot. Until the player sets one, nobody can join as that user.
+
+**Players set their own password from Discord: `/account password new:`**,
+eight characters or more. The reply is only theirs to see, the bot never
+writes it to its log, and any Foundry session they had open is signed out
+by the change. This is a player's convenience, not a Judge's tool: a member
+can only set the password of the user they are linked to, and a Gamemaster
+user's password is never set from Discord at all, however the member is
+linked — your seat is yours.
+
+Discord itself carries what is typed into a command, as it carries any
+message. A table that would rather no password pass through Discord keeps
+using Foundry's own user management, which is untouched by any of this.
+
+### Staying current
 
 Nothing to do. Update the module in Foundry's **Add-on Modules** like any
 other. The bot checks the module's manifest every half minute: when the
 updater has replaced the directory it exits, the service restarts it on the
 new code, puts its dependencies back if they went with the old directory, and
 registers the commands again only if the release changed them. Your answers
-and the unit live under `/etc`, which the updater never touches. The journal
-shows the whole thing happen.
+live in the world and under `/etc`, neither of which the updater touches. The
+journal shows the whole thing happen.
 
-### 7. Running it by hand instead
+### Running it by hand instead
 
 On Windows, or on a test box without systemd, put a `.env` beside `src/`
-(`.env.example` lists every value, with the Windows browser path as an
-example) and run `npm start` in the bot's directory. It installs its own
-dependencies when they are missing. After a module update you restart it
-yourself.
+(`.env.example` lists every value) and run `npm start` in the bot's
+directory. It installs its own dependencies when they are missing, and it is
+still configured from Foundry — the `.env` carries only how to reach the
+world. Anything you do set there wins over the window, which is the escape
+hatch if you would rather keep the token on the host. After a module update,
+or after a change in the window, you restart it yourself.
 
-### 8. Removing it
+### Removing it
 
 ```bash
 sudo npm run install-service -- --remove
 ```
 
 stops the service and deletes the unit and the environment file. The module
-directory is untouched.
+directory is untouched, and so is the configuration in your world — clear
+the token with the window's own button if the bot is not coming back.
 
 ## The Judge's commands
 
@@ -132,6 +205,8 @@ directory is untouched.
   the Foundry name autocompletes. **`/link drop member:`** removes it and
   **`/link list`** shows every binding the world holds. A member linked to a
   Gamemaster user is a Judge in Discord too.
+- **`/account create member: name:`** makes a Player user for a member and
+  links them (above).
 - **`/party bind formation:`** makes the current channel a party's channel;
   the formation autocompletes from the world's parties. **`/party show`**
   and **`/party unbind`** read and drop it.
@@ -153,6 +228,13 @@ directory is untouched.
   character's sheet can roll: saves, checks, initiative, attacks by weapon,
   abilities. The card lands in the world's chat as the character, and the
   result comes back to you in Discord.
+- **`/roll 2d6+3`** — any dice formula in the same command, for anyone in
+  the server, linked or not. It is Foundry's own dice: `d20`, `3d6kh2`,
+  `4dF`, `d%`, exploding and rerolled dice all read as they do in Foundry's
+  chat. The result is posted to the channel with your name. If you are
+  linked and have a character chosen, the world keeps the throw in its chat
+  as that character too.
+- **`/account password new:`** sets your own Foundry password (above).
 - **`/say text:`** speaks in the world's chat as your character; `emote:`
   makes it an action instead of words.
 
@@ -165,12 +247,27 @@ not shown twice.
 
 - **The seat never becomes ready.** The journal names the step: the browser
   path, a world that is not running at the address you gave, or a Foundry
-  user that does not exist with that password. Fix the answer by running the
-  install command again.
+  user that does not exist with that password. Those four are the host's
+  answers — fix them by running the install command again.
 - **The commands do not appear in Discord.** The bot registers them at
-  start; check the journal for the registration line and that the server id
-  is right. Discord shows guild commands at once.
-- **"You are not linked".** The Judge runs `/link set` for you.
+  start, on the server chosen in the window; check the journal for the
+  registration line and that a server is chosen. Discord shows guild
+  commands at once.
+- **The window says the token was sealed to a key the bot no longer holds.**
+  The bot's state directory was replaced (a rebuilt host, a removed
+  `/var/lib/acks-extras-discord`). Paste the token again and save.
+- **The window says no bot has announced itself.** Nothing has ever joined
+  this world as the bot. Check `systemctl status acks-extras-discord` and
+  the journal: the seat has to reach the world before anything can be
+  configured.
+- **"You are not linked".** The Judge links you — `/link set` in Discord, or
+  the Discord Members window in Foundry, where you are already listed by
+  name because you just ran a command.
+- **"That is not yours to do: a Gamemaster's password…"** By design. A
+  Judge's password changes in Foundry's user management, never from
+  Discord.
+- **A player cannot join as the user you made for them.** They have not set
+  a password yet: `/account password new:` in Discord.
 - **`/map` answers that the seat has no scene.** Bind the channel to a party
   whose formation has a scene, or have the Judge view one; the seat shows the
   party's scene when the channel has a party.

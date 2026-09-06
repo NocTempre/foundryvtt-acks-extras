@@ -1,0 +1,84 @@
+/* The bridge's one window: the Judge's configuration for an outside client.
+   All selectors carry the acks-extras-bridge- prefix (validate-enforced). */
+
+.acks-extras-bridge-config-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.acks-extras-bridge-state {
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+}
+
+.acks-extras-bridge-state h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  border: none;
+}
+
+.acks-extras-bridge-state p {
+  margin: 0.15rem 0 0;
+}
+
+/* Online is the one state worth a colour; the rest read as ordinary text so
+   a waiting bot does not look like a failure. */
+.acks-extras-bridge-state-online h3 i {
+  color: var(--acks-success);
+}
+
+.acks-extras-bridge-state-error h3 i {
+  color: var(--acks-danger);
+}
+
+.acks-extras-bridge-version {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.acks-extras-bridge-config-body .form-fields .sep {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+/* The members window: a table of bindings above the row that makes one. */
+
+.acks-extras-bridge-members-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.acks-extras-bridge-members-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.acks-extras-bridge-members-table th,
+.acks-extras-bridge-members-table td {
+  text-align: left;
+  padding: 0.2rem 0.4rem;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  vertical-align: middle;
+}
+
+.acks-extras-bridge-members-table th {
+  font-weight: bold;
+}
+
+.acks-extras-bridge-members-actions {
+  width: 2.4rem;
+  text-align: right;
+}
+
+.acks-extras-bridge-members-actions button {
+  flex: 0 0 auto;
+  width: 2rem;
+  line-height: 1.6rem;
+  padding: 0;
+}

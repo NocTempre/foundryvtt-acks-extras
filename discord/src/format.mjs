@@ -23,7 +23,7 @@ export function refusalText(code, message = "") {
     case "unbound":
       return "You are not linked to a Foundry user yet — ask the Judge to `/link` you.";
     case "forbidden":
-      return "That is not yours to do.";
+      return `That is not yours to do${message ? `: ${message}` : "."}`;
     case "noActive":
       return "Choose a character first: `/character use`.";
     case "notFound":
@@ -49,7 +49,7 @@ export function characterLabel(c) {
 
 /** `/whoami` as text. */
 export function whoamiText(w) {
-  if (!w?.bound) return "You are not linked to a Foundry user. Ask the Judge to `/link` you.";
+  if (!w?.bound) return "You are not linked to a Foundry user. Ask the Judge to link you — `/link set` here, or the Discord Members window in Foundry, where you are now listed by name. Dice still roll: `/roll 2d6`.";
   const lines = [`Linked to Foundry user **${w.user?.name ?? "?"}**${w.judge ? " (Judge)" : ""}.`];
   lines.push(w.active ? `Speaking as **${characterLabel(w.active)}**.` : "No active character — `/character use` to pick one.");
   if (w.characters?.length) lines.push(`Characters: ${w.characters.map((c) => c.name).join(", ")}${w.characters.length >= 25 ? "…" : ""}`);
@@ -108,6 +108,26 @@ export function rollText(result) {
   const msgs = result?.messages ?? [];
   if (!msgs.length) return `**${result?.actor?.name ?? "?"}** rolled \`${result?.id ?? "?"}\` — the card posted in Foundry carried nothing this bot can read.`;
   return clip(msgs.map(chatLine).join("\n"), LIMITS.content);
+}
+
+/**
+ * Whether `/roll what:` names dice rather than one of the sheet's throws.
+ * A throw's id carries a colon (`save:death`); a formula has a die in it
+ * (`2d6`, `d20`, `4dF`, `d%`) and never a colon.
+ */
+export function looksLikeDice(text) {
+  const s = String(text ?? "").trim();
+  return !!s && !s.includes(":") && /(^|[^a-z])\d*d(\d+|f|%)/i.test(s);
+}
+
+/** A dice throw as public text: who, what, the total, and each die's faces. */
+export function diceText(result, who) {
+  const dice = (result?.dice ?? [])
+    .filter((d) => d.results?.length)
+    .map((d) => `d${d.faces ?? "?"}: ${d.results.map((r) => (r.active === false ? `~~${r.value}~~` : String(r.value))).join(", ")}`)
+    .join(" · ");
+  const as = result?.actor?.name ? ` as **${result.actor.name}**` : "";
+  return clip(`🎲 **${who ?? "Someone"}**${as} rolls \`${result?.formula ?? "?"}\` → **${result?.total ?? "?"}**${dice ? `  (${dice})` : ""}`, LIMITS.content);
 }
 
 /** `/say` as text. */

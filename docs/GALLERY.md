@@ -1,6 +1,6 @@
 # Gallery
 
-**Fourteen plates — one per feature guide.** This is the highlight reel, not the
+**Fifteen plates — one per feature guide.** This is the highlight reel, not the
 archive: for each feature area, the one shot that best answers "what does this
 module actually do?", and nothing else.
 
@@ -31,13 +31,13 @@ the next refresh.
 | Places and storage | A place's Contents tab: a sack of grain filed under the porter who carried it in, and the two people recorded as being there | [guide](guides/location.md) | [v7.0.0](releases/v7.0.0/location.png) |
 | Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, the search day and the masterwork contact | [guide](guides/markets.md) | [v7.0.0](releases/v7.0.0/markets.png) |
 | Vehicles | A galley's stations: sailors short-handed with two named hands beside the unnamed complement, rowers at strength, the captain's chair filled and the navigator's empty with what that costs stated, and the hold below | [guide](guides/vehicles.md) | [v7.0.0](releases/v7.0.0/vehicles.png) |
+| Playing from Discord | The bot's window in Foundry, with a bot online: the server and the relay channel it can see offered as dropdowns, the token field that seals what is pasted to the bot's own key, and what still stands between this world and a bot that answers | [guide](guides/bridge.md#5-configure-it-in-foundry) | [v7.1.0](releases/v7.1.0/bridge.png) |
 
 There is no plate for [Appearance](guides/appearance.md), because the ACKS
 look is in all of the above — a plate of its own would show what every other
-plate already shows. There is none yet for
-[Playing from Discord](guides/bridge.md) either: its subject is a Discord
-channel, shot from a live bot rather than from the world, and no release has
-had one running when its plates were taken.
+plate already shows. The Discord plate is the bot's window in Foundry, not a
+Discord channel: a channel is shot from a live bot, and no release has had one
+running when its plates were taken.
 
 ## Adding to it
 

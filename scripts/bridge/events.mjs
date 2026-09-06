@@ -3,7 +3,8 @@
  * The event tap: what a seat holder hears from the world.
  *
  * Hooks the bridge cares about are folded into one plain-JSON event stream —
- * chat, the vitals of an actor, the clock, the henchmen ledger — kept in a
+ * chat, the vitals of an actor, the clock, the henchmen ledger, and the
+ * client's own configuration being saved — kept in a
  * bounded buffer in the page and pushed, when a seat holder has installed the
  * global named `EMIT_BINDING`, as they happen. A seat that connects late or
  * reconnects calls `drain(lastSeq)` for what it missed; the buffer is the
@@ -20,9 +21,10 @@
  * same stamp onto the message, so a relay can tell a roll made from Discord
  * from one made at the table.
  */
-import { MODULE_ID, BRIDGE_FLAG, EMIT_BINDING, EVENT_BUFFER } from "./constants.mjs";
+import { MODULE_ID, BRIDGE_FLAG, EMIT_BINDING, EVENT_BUFFER, SETTING_CLIENT } from "./constants.mjs";
 import { stampFor, provenanceOf } from "./provenance.mjs";
 import { textOf } from "./text.mjs";
+import { readClientConfig } from "./client-config.mjs";
 
 const buffer = [];
 let seq = 0;
@@ -111,6 +113,14 @@ export function registerEventTap() {
   });
 
   Hooks.on("updateWorldTime", (worldTime, dt) => emit("time", { worldTime: Math.floor(worldTime), dt }));
+
+  // The client's own configuration moved. A client hears this the moment a
+  // Judge saves the window and decides for itself whether the change is one
+  // it must restart for; without it the change waits for the next poll.
+  Hooks.on("updateSetting", (setting) => {
+    if (setting?.key !== `${MODULE_ID}.${SETTING_CLIENT}`) return;
+    emit("config", { revision: Number(readClientConfig().revision) || 0 });
+  });
 
   for (const hook of ["acksExtras.hired", "acksExtras.wagesMissed", "acksExtras.calamity", "acksExtras.rosterChanged"]) {
     Hooks.on(hook, (payload = {}) => {

@@ -1,5 +1,41 @@
 # Changelog
 
+## 7.1.0
+
+**The bot is configured in Foundry, players are linked in Foundry, and the dice belong to everyone.**
+
+### Added
+- **The Discord bot is configured from a window in Foundry.** Settings →
+  Module Settings → ACKS II Extras → *Discord Bot* holds the token, the
+  server, the relay channel, extra Judges, the seat's size and the log level.
+  The server and channel are dropdowns of what the bot can actually see; the
+  application is read off the token; the Discord server's owner is a Judge
+  without being listed. The host is asked only where Foundry is and which
+  user to join as — `install-service` no longer prompts for anything Discord.
+  The token is encrypted to a key the bot generates on the host before it is
+  stored (every world setting is vended to every client, so it cannot be
+  stored in the clear), and the window never reads it back. A change in the
+  window restarts the bot within half a minute.
+- **Discord Members** — a second window listing who in Discord is which
+  Foundry user, with what each speaks as. Link a member to a user, or press
+  *Create & link* to make a Player user for them in one go. Members who have
+  run any command in Discord are offered by name; anyone else by pasted id.
+- **`/account create member:`** (Judge) makes a Player user and links the
+  member from Discord; **`/account password new:`** lets a linked player set
+  their own Foundry password from Discord. A created user starts with a
+  password nobody knows, so nobody can join as them until they set one. A
+  Gamemaster's password is never set from Discord.
+- **`/roll` takes any dice formula, for anyone** — `/roll 2d6+3` from a
+  member who is not even linked answers publicly with each die and the
+  total, using Foundry's own dice syntax. A linked member with an active
+  character has the throw kept in the world's chat as that character.
+
+### Changed
+- `/whoami` for an unlinked member now names both ways to be linked and
+  puts the member on the Members window's list.
+- The bot's `.env.example` shrinks to the values that reach the world; the
+  Discord values become overrides.
+
 ## 7.0.1
 
 **The bot's tests run where CI runs them.** The 7.0.0 tag never published:

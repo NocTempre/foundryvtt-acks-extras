@@ -140,3 +140,14 @@ the whole board, and a legend line naming what is in frame.
   module's primary-GM hooks run on a headless client. Walk them there (party
   actor adoption, the journey's encounter chain) before a table relies on
   the Judge being away.
+
+## Accounts and dice
+
+- **Self-service enrolment** — a window toggle letting any member of the
+  chosen server mint their own Player user with `/account create`. The verb
+  and the guard exist (DECISIONS); the toggle is a ruling the Judge opts
+  into, with the world's user list then gated by guild membership alone.
+- **Inline dice** — `!roll 2d6` or `[[2d6]]` in an ordinary message. Needs
+  the privileged Message Content intent; lands with the proxy prefix.
+- **A Judge's `/roll` for the table** — `private:` for a blind throw whose
+  result goes to the Judge alone, and a whisper route for the reply.

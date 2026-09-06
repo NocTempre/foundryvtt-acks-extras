@@ -16,6 +16,23 @@ export const LANG = "ACKS-BRIDGE";
 export const SETTING_BINDINGS = "bridgeBindings";
 
 /**
+ * World setting holding the client's own configuration — which Discord
+ * server, which relay channel, how the seat is sized, and the bot's token
+ * sealed to the key the seat published. Written by the Judge's config window
+ * and read by the client through the `config` command. Hidden from the
+ * settings UI: the window owns it.
+ */
+export const SETTING_CLIENT = "bridgeClient";
+
+/**
+ * World setting the CLIENT writes and the config window reads: the public
+ * key a token is sealed to, what the client can see of itself (its
+ * application, the servers and channels it reaches) and how it is faring.
+ * A client announces; nobody edits this by hand.
+ */
+export const SETTING_AGENT = "bridgeAgent";
+
+/**
  * Flag key under `flags["acks-extras"]` stamped on every document a bridge
  * command writes, and on every chat message a command's roll posts. A write
  * made from outside Foundry stays identifiable after the session is gone.

@@ -1,11 +1,11 @@
-/* global game, fromUuidSync, ChatMessage, Hooks, canvas, CONST, foundry, document */
+/* global game, fromUuidSync, ChatMessage, Hooks, canvas, CONST, foundry, document, Roll, User */
 /**
  * The v1 verbs. Each is a permission guard over a function another feature
  * already owns; none knows a rule and none renders.
  *
- *   whoami · characters · use · sheet · rolls · roll · say      — a bound user
- *   link · unlink · bindings · users · parties · party · map    — a Judge
- *   events · commands                                           — anyone
+ *   whoami · characters · use · sheet · rolls · roll · say · password  — a bound user
+ *   link · unlink · enroll · bindings · users · parties · party · map  — a Judge
+ *   events · commands · dice                                           — anyone
  *
  * Every actor a command touches is resolved through `actorFor`: the uuid
  * named, else the user's active character, and then `requireOwner` as the
@@ -16,11 +16,18 @@
  * beat after the roll resolves. The command marks the actor in flight for
  * the event tap, collects the messages this client creates for that speaker
  * while it runs, and waits a short settle for the last one.
+ *
+ * The two account verbs write User documents, which the SEAT performs with
+ * its own role: Foundry lets an Assistant create and delete users below a
+ * Gamemaster and change any non-Gamemaster's password, and refuses the rest
+ * server-side whatever this file asks. `enroll` makes a Player and nothing
+ * higher; `password` is a user's own, and never a Gamemaster's, from here.
  */
 import { ERR } from "./constants.mjs";
 import { BridgeError, requireOwner } from "./registry-logic.mjs";
 import { readStore, writeStore } from "./bindings.mjs";
-import { bindUser, unbindUser, setActive, activeOf, bindParty, unbindParty, partyOf, externalIdsOf } from "./bindings-logic.mjs";
+import { bindUser, unbindUser, setActive, activeOf, bindParty, unbindParty, partyOf, externalIdsOf, boundUserId } from "./bindings-logic.mjs";
+import { passwordProblem, userNameProblem, randomSecret, PASSWORD_MIN } from "./accounts-logic.mjs";
 import { markInflight, drain, chatEvent } from "./events.mjs";
 import { flagsFor } from "./provenance.mjs";
 import { rollInventory, rollById } from "../character-sheet/rolls.mjs";
@@ -35,6 +42,9 @@ const LIST_MAX = 100;
 const SETTLE_AFTER_FIRST_MS = 250;
 const SETTLE_MAX_MS = 1500;
 const SAY_MAX = 2000;
+/** A dice formula's ceiling, and how many dice one may ask for: `10000d10000` is a request to hang the seat. */
+const FORMULA_MAX = 200;
+const DICE_MAX = 1000;
 
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 const str = (v, what) => {
@@ -135,6 +145,32 @@ function activeActor(user, store = readStore()) {
   const doc = uuid ? fromUuidSync(uuid) : null;
   return doc && doc.documentName === "Actor" ? doc : null;
 }
+
+/** The speaker a character posts as: the actor, and its token on the scene the seat is viewing when it has one. */
+function speakerFor(actor) {
+  const scene = canvas?.scene ?? game.scenes?.active ?? null;
+  const token = scene?.tokens?.find?.((t) => t.actorId === actor.id) ?? null;
+  return { actor: actor.id, alias: actor.name, scene: scene?.id ?? null, token: token?.id ?? null };
+}
+
+/**
+ * A formula core will evaluate, or a refusal. `Roll.validate` is core's own
+ * parser saying yes; the dice count is read off the parsed terms before any
+ * die is thrown.
+ */
+function parseFormula(raw) {
+  const formula = String(raw ?? "").trim();
+  if (!formula) throw new BridgeError(ERR.invalid, "nothing to roll");
+  if (formula.length > FORMULA_MAX) throw new BridgeError(ERR.invalid, `a formula is at most ${FORMULA_MAX} characters`);
+  if (!Roll.validate(formula)) throw new BridgeError(ERR.invalid, `"${formula}" is not a dice formula`);
+  const roll = new Roll(formula);
+  const dice = roll.dice.reduce((n, d) => n + (Number.isFinite(Number(d.number)) ? Number(d.number) : DICE_MAX), 0);
+  if (dice > DICE_MAX) throw new BridgeError(ERR.invalid, `at most ${DICE_MAX} dice in one throw`);
+  return roll;
+}
+
+/** A user document by name, exactly, case-insensitively — Foundry itself refuses two names that differ only in case. */
+const userNamed = (name) => game.users.find((u) => u.name.toLowerCase() === String(name ?? "").trim().toLowerCase()) ?? null;
 
 /** What `/sheet` shows: the frame snapshot the sheet itself reads, plus the purse. */
 function summary(actor) {
@@ -309,13 +345,11 @@ export function registerCommands(registry) {
       if (!text) throw new BridgeError(ERR.invalid, "nothing to say");
       if (text.length > SAY_MAX) throw new BridgeError(ERR.invalid, `at most ${SAY_MAX} characters`);
       const actor = actorFor(ctx, args);
-      const scene = canvas?.scene ?? game.scenes?.active ?? null;
-      const token = scene?.tokens?.find?.((t) => t.actorId === actor.id) ?? null;
       const styles = CONST.CHAT_MESSAGE_STYLES ?? {};
       const style = args.style === "emote" ? styles.EMOTE : styles.IC;
       const data = {
         content: foundry.utils.escapeHTML(text),
-        speaker: { actor: actor.id, alias: actor.name, scene: scene?.id ?? null, token: token?.id ?? null },
+        speaker: speakerFor(actor),
         flags: flagsFor(ctx.client, { command: "say" }),
       };
       if (style !== undefined) data.style = style;
@@ -324,10 +358,68 @@ export function registerCommands(registry) {
     },
   });
 
+  registry.register("dice", {
+    allowUnbound: true,
+    describe: "throw a dice formula; lands in the world's chat as the active character when there is one",
+    run: async (ctx, args) => {
+      const roll = parseFormula(args.formula);
+      await roll.evaluate();
+      const answer = {
+        formula: roll.formula,
+        total: roll.total,
+        result: roll.result,
+        dice: roll.dice.map((d) => ({ faces: Number.isFinite(Number(d.faces)) ? Number(d.faces) : null, results: d.results.map((r) => ({ value: r.result, active: r.active !== false })) })),
+        messageId: null,
+        actor: null,
+      };
+      // The world keeps what its characters roll. An unbound member, or a
+      // bound one with no character chosen, rolls in the client alone.
+      const actor = ctx.user ? activeActor(ctx.user) : null;
+      if (actor && actor.testUserPermission(ctx.user, "OWNER")) {
+        const msg = await roll.toMessage({ speaker: speakerFor(actor), flavor: args.flavor ? foundry.utils.escapeHTML(String(args.flavor)).slice(0, 200) : undefined, flags: flagsFor(ctx.client, { command: "dice" }) });
+        answer.messageId = msg?.id ?? null;
+        answer.actor = brief(actor);
+      }
+      return answer;
+    },
+  });
+
+  registry.register("password", {
+    describe: "set the bound user's own Foundry password",
+    run: async (ctx, args) => {
+      const problem = passwordProblem(args.password);
+      if (problem) throw new BridgeError(ERR.invalid, problem === "tooShort" ? `a password is at least ${PASSWORD_MIN} characters` : "that password is too long");
+      // Foundry refuses this to an Assistant seat on its own; the rule stands
+      // here too so a seat run as a full Gamemaster does not quietly widen it.
+      if (ctx.user.role >= CONST.USER_ROLES.GAMEMASTER) throw new BridgeError(ERR.forbidden, "a Gamemaster's password is never set from outside Foundry");
+      await ctx.user.update({ password: String(args.password) });
+      return { user: userInfo(ctx.user), changed: true };
+    },
+  });
+
   registry.register("users", {
     judge: true,
     describe: "the world's users, for binding",
     run: () => game.users.map(userInfo).sort((a, b) => a.name.localeCompare(b.name)),
+  });
+
+  registry.register("enroll", {
+    judge: true,
+    describe: "create a Player user for a client identity and bind it; the member sets their own password afterwards",
+    run: async (ctx, args) => {
+      const kind = str(args.kind ?? ctx.client?.kind, "client kind");
+      const externalId = str(args.externalId, "external id");
+      const name = String(args.name ?? "").trim();
+      const nameProblem = userNameProblem(name);
+      if (nameProblem) throw new BridgeError(ERR.invalid, nameProblem === "empty" ? "the new user needs a name" : "that name is too long for a user");
+      const already = boundUserId(readStore(), kind, externalId);
+      if (already) throw new BridgeError(ERR.invalid, `that member is already linked to ${game.users.get(already)?.name ?? "a user"}; unlink them first`);
+      if (userNamed(name)) throw new BridgeError(ERR.invalid, `a user named "${name}" already exists — link the member to it instead`);
+      const user = await User.create({ name, role: CONST.USER_ROLES.PLAYER, password: randomSecret() });
+      if (!user) throw new BridgeError(ERR.failed, "Foundry did not create the user");
+      const store = await writeStore(bindUser(readStore(), kind, externalId, user.id));
+      return { kind, externalId, user: userInfo(user), identities: externalIdsOf(store, user.id), created: true };
+    },
   });
 
   registry.register("link", {

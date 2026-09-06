@@ -4,7 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installReason, npmCommand } from "../src/prestart.mjs";
-import { renderUnit, parseEnv, renderEnv, findBrowser } from "../src/install-service.mjs";
+import { renderUnit, parseEnv, renderEnv } from "../src/install-service.mjs";
+import { findBrowser, BROWSERS } from "../src/browsers.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -15,6 +16,11 @@ test("prestart installs when node_modules is missing, incomplete, or older than 
   assert.equal(installReason({ lockMtime: 10, installedMtime: 20, hasDependency: true }), null);
   assert.equal(installReason({ lockMtime: null, installedMtime: 20, hasDependency: true }), null);
   assert.ok(npmCommand().length > 0);
+});
+
+test("the unit keeps the bot's own state directory, where its key lives", () => {
+  const template = fs.readFileSync(path.join(ROOT, "deploy", "acks-extras-discord.service"), "utf8");
+  assert.match(template, /^StateDirectory=acks-extras-discord$/m);
 });
 
 test("the unit template renders with no placeholder left and this machine's values in place", () => {
@@ -40,6 +46,7 @@ test("the environment file round-trips through parse and render", () => {
 });
 
 test("the browser search takes the first present candidate and answers blank for none", () => {
-  assert.equal(findBrowser((p) => p === "/usr/bin/google-chrome"), "/usr/bin/google-chrome");
+  const second = BROWSERS[1];
+  assert.equal(findBrowser((p) => p === second), second, "the first present candidate wins even when an earlier one is absent");
   assert.equal(findBrowser(() => false), "");
 });

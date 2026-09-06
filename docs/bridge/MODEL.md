@@ -66,11 +66,77 @@ all arithmetic in `bindings-logic.mjs` (Foundry-free, returns new stores):
 | `parties` | `<kind>:<channelId>` | formation id |
 | `active` | Foundry user id | the actor uuid that user speaks as |
 
-Bindings are Judge-made (`link`, `unlink`, `party`), never self-claimed; a
-user chooses their own active character among the actors they own (`use`).
-Unbinding an identity clears the active character only when no other
-identity still reaches that user. The store is keyed by client kind so a
-second client can share it.
+Bindings are Judge-made (`link`, `unlink`, `enroll`, `party`), never
+self-claimed; a user chooses their own active character among the actors
+they own (`use`). Unbinding an identity clears the active character only
+when no other identity still reaches that user. The store is keyed by client
+kind so a second client can share it.
+
+The Judge has two doors onto the same store: the client's `/link` verbs, and
+the **Discord Members** window in Foundry (`apps/members.mjs`), which lists
+every binding, links a member to a user, and makes the user first when there
+is none. Both run the same arithmetic over the same setting.
+
+## Accounts
+
+A Foundry user can be made, and its password set, from the client — within
+what the SEAT may do, which Foundry decides server-side by the seat's own
+role: an Assistant may create users below a Gamemaster and change any
+non-Gamemaster's password, and nothing this module asks widens that.
+
+- **`enroll`** (a Judge, or the window's *Create & link*) creates a **Player**
+  — never higher — with a password nobody knows (`accounts-logic.mjs`
+  `randomSecret`), and binds the identity to it in the same call. Until the
+  member sets a password, nobody can join as that user.
+- **`password`** sets the bound user's OWN password, at least eight
+  characters, and refuses a Gamemaster's whatever the seat could do — a
+  Discord account must never be the key to a Judge's seat. Foundry
+  invalidates that user's open sessions on the change.
+
+The password arrives as a slash-command option: the client never logs it,
+and from the seat to the server it travels as the join screen would send it.
+
+## Dice
+
+**`dice`** throws any formula core's `Roll` accepts, for anyone — bound or
+not — and answers the total and every die. Core's parser is the judge of a
+formula (`Roll.validate`); this feature adds only a ceiling on length and on
+the number of dice, because `10000d10000` is a request to hang the seat. A
+member with an active character has the throw kept in the world's chat as
+that character, stamped; an unbound member, or one with no character chosen,
+rolls in the client alone.
+
+## The configuration and the announcement
+
+A client is configured **in Foundry**, not on the host it runs on. Two more
+hidden world settings carry it, one writer each:
+
+| setting | written by | holds |
+|---|---|---|
+| `bridgeClient` | the Judge's window (`apps/client-config.mjs`) | the Discord server, the relay channel and whether to relay, extra Judges, the seat's size and join timeout, the log level, and the bot token **sealed** |
+| `bridgeAgent` | the client itself, through `announce` | its public key, its version, what it is doing, its application, the servers and channels it can see, and the members it has heard from |
+
+Neither side edits the other's record. The window offers dropdowns for the
+server and the channel out of the client's announcement, and plain id fields
+before one has arrived. The members it lists are the ones who have run any
+command — listing a server's members outright needs a privileged intent, and
+a member who has knocked has named themselves — kept most-recent-first,
+capped, and carried across the client's restarts by the record itself.
+
+**The token is sealed, because a world setting is public.** Foundry vends the
+whole settings table to every connected client, so the client generates a key
+pair on the machine it runs on, publishes only the public half, and the
+window encrypts to it (`sealing.mjs`, one implementation both halves run —
+with the encrypting half written out by hand, because `crypto.subtle` is
+absent from the plain-http world most self-hosted Foundry servers are).
+The window never reads a token back — it shows a length and four characters.
+A token sealed to a key the client no longer holds reads as `staleToken` in
+the window rather than as a login that quietly fails.
+
+`configDigest` is what a running client compares. It covers what the client
+is configured **by**, so a form saved with nothing changed does not restart a
+bot; `revision` rises on every save and tells the window whether the running
+client has caught up yet.
 
 ## Provenance
 
@@ -88,7 +154,8 @@ relay reads the stamp to skip what the client already showed.
 `events.mjs` folds the hooks a client cares about into one plain-JSON stream
 with a running `seq`: `chat` (speaker, whisper list, blind, flavor, plain
 text, every roll's total and dice), `actor` (HP or XP changed), `time`
-(`updateWorldTime`), `henchmen` (the ledger hooks). Each event is kept in a
+(`updateWorldTime`), `henchmen` (the ledger hooks), `config` (the client's
+own configuration was saved). Each event is kept in a
 bounded page buffer and, when a seat holder has installed the global named
 `EMIT_BINDING`, pushed as it happens. `drain(since)` answers a seat that
 connects late. The buffer is the page's: a reload starts it over, which a
@@ -106,10 +173,14 @@ rather than flattening it.
 | `rolls` | owner | `characterSheet.rollInventory`, flattened to `{id, label, value, group}` |
 | `roll` | owner | `characterSheet.rollById(actor, id, {event})` with a synthetic event carrying the world's skip-dialog key, so core posts without its dialog; answers the cards it captured |
 | `say` | owner | `ChatMessage.create` with `speaker.alias` the character, IC or EMOTE style, stamped |
+| `password` | bound user, own account, never a Gamemaster's | `User#update` |
 | `users`, `link`, `unlink`, `bindings` | Judge | the store |
+| `enroll` | Judge | `User.create` as a Player, then the store |
 | `parties`, `party` | Judge | `formation.getFormations` / `getFormation`, the store |
 | `map` | Judge | views the party's scene on the seat, pans to its party token, and answers the board's clip; the seat takes the PNG |
+| `dice` | anyone | core's `Roll`; `Roll#toMessage` as the active character when there is one |
 | `events`, `commands` | anyone | the tap, the registry |
+| `config`, `announce` | the client, as the seat | the two settings above |
 
 `map` is the Judge's view — every token, no fog — which is why only a Judge
 may ask for it (DECISIONS). A player-vision map is on the roadmap.
@@ -118,11 +189,38 @@ may ask for it (DECISIONS). A player-vision map is on the roadmap.
 
 The service (`discord/`) is the seat holder, one serialised bridge
 client, the slash commands, and a relay of the world's public chat into one
-channel. Its discipline: defer every interaction inside Discord's three
+channel.
+
+**What it is told, and where.** Its environment carries only what gets it to
+a world — `FOUNDRY_ORIGIN`, `FOUNDRY_USER`, `FOUNDRY_PASSWORD`, and a
+`BROWSER` it finds by itself in the usual places. Everything else it reads
+from `bridgeClient` once the seat is up, and the environment wins wherever it
+carries a value. A bot with no token yet is not a failure: it announces
+`awaiting` and sits on its seat until a Judge saves the window — with its
+signal handlers and its update watch already armed, so a bot that has never
+been configured still follows a module update and still stops on request. It caches the
+last configuration it saw in its state directory, because the seat it must
+build to read the world is sized by that configuration. The first Judge is
+the Discord server's owner, whose id arrives with the guild and needs no
+privileged intent. Its discipline: defer every interaction inside Discord's three
 seconds, then edit; autocomplete from `characters` / `rolls` / `users` /
 `parties`; ephemeral replies for what is the member's own, public for what
 the table should see; the interaction reply IS the Discord copy of a bridge
-action, so the relay skips stamped messages.
+action, so the relay skips stamped messages. Every chat command it answers
+notes the member (`onMember`) and the next announcement carries them.
+
+**One `/roll` for dice and throws.** `/roll what:` names either a sheet
+throw by its id or a dice formula; the shape decides (`format.mjs`
+`looksLikeDice`: a die in it and no colon). A formula goes to `dice` and
+answers publicly, naming the member and, when the world kept it, the
+character. Inline dice in ordinary messages (`!roll 2d6`) would need the
+privileged Message Content intent and is on the roadmap, not here.
+
+**Restarting on a change.** The tap emits a `config` event when the setting
+is saved; the client compares the digest and, if it is now running the wrong
+thing, exits 0 for the service manager — the same clean exit a module update
+uses. A poll every half minute is the floor under a seat that reconnected and
+missed the event.
 
 **Staying current.** The service runs from the module directory Foundry's
 updater replaces, and follows it without an operator: `install-service`

@@ -4,8 +4,10 @@
 # that owns it. By hand: fill them in, copy to /etc/systemd/system/, then
 # `systemctl daemon-reload && systemctl enable --now acks-extras-discord`.
 #
-# Secrets live in the EnvironmentFile, outside the module directory, so a
-# Foundry module update cannot take them. ExecStartPre puts node_modules back
+# The EnvironmentFile carries only what gets the bot to the world; the token
+# is set in Foundry and reaches the bot sealed to a key kept in the
+# StateDirectory. Both live outside the module directory, so a Foundry module
+# update cannot take them. ExecStartPre puts node_modules back
 # when the update removed it; the bot itself exits when the module changes,
 # and Restart= brings it up on the new code.
 [Unit]

@@ -174,3 +174,131 @@ through `prestart`, so nothing about deployment changes.
 **Rejected: skipping the bot's suites when the dependency is absent.** A
 skip on CI would report the release green with the bot untested, which is
 the failure `npm test` exists to catch.
+
+### The bot is configured in Foundry, and its token is sealed (2026-09-06)
+
+Owner direction: the bot must be configurable from inside Foundry; answering
+an installer over SSH is too finicky. Ruled: everything a Judge sets — which
+Discord server, which channel receives the world's chat, who is a Judge
+before anyone is linked, the seat's size, the log level — lives in a hidden
+world setting written by a settings window (`bridgeClient`), and the bot
+reads it through its own seat. The environment still wins wherever it carries
+a value, so an existing install and a Windows run by hand keep working
+untouched.
+
+**The token could not simply join them.** Foundry vends the whole settings
+table to every connected client — `db.Setting.dump()` builds the payload with
+no filter by scope or user — so a token typed into a window would be a token
+any player could read out of their own console. Ruled: the bot generates an
+RSA-OAEP key pair in its systemd `StateDirectory`, publishes the public half
+in a second setting it alone writes (`bridgeAgent`), and the window seals the
+token to that half before storing it. What reaches a player is ciphertext;
+the private half never enters the world. One implementation of the sealing
+runs on both sides (`scripts/bridge/sealing.mjs`), and one test seals with
+the window's code and opens with the bot's, because a handshake that is
+written twice is a handshake that drifts.
+
+**The sealing half is written out by hand, and that is not gold-plating.**
+`crypto.subtle` exists only in a secure context, and a self-hosted Foundry
+on a LAN is plain http — so on the most ordinary install of all, WebCrypto
+encryption is simply absent from the window. The window therefore carries
+SHA-256, MGF1 and a BigInt modular exponentiation of its own, which is
+RSA-OAEP's encrypting half and needs nothing but `getRandomValues` (not
+secure-context gated). The output is ordinary RSA-OAEP/SHA-256: the bot
+opens it with WebCrypto, where the private key is and where the API is
+always there. The hash is checked against the platform's at every padding
+boundary, because a hash that is subtly wrong seals a token nothing can
+open.
+
+**Two records, one writer each.** The window writes the configuration, the
+client writes the announcement. Neither merges the other's fields, so a
+browser saving a form and a bot announcing at the same moment cannot lose
+each other's work.
+
+**A configuration change restarts the bot.** It hears the save as a `config`
+event on the tap, compares a digest of what it actually runs on — not the
+revision, so a form saved unchanged does not bounce a running bot — and exits
+0 for the service manager, exactly as a module update already does. Rejected:
+reconfiguring in place. Re-logging a Discord client, re-registering commands
+and re-seating the relay is a state machine, and the restart it would avoid
+takes ten seconds.
+
+**What stays on the host, and why it cannot move.** Where Foundry is, which
+user to join as and that user's password: a bot that cannot reach the world
+cannot be told anything by it. The installer therefore asks only those, the
+browser is found in the usual places, and the Foundry user defaults to
+`Discord` — on a stock host every answer is already right and the operator
+presses Enter through all of them.
+
+**The first Judge is the Discord server's owner.** Listing a guild's members
+needs the privileged Server Members intent, which is one more portal switch
+for the sake of a dropdown; the owner's id arrives with the guild and no
+intent. So `DISCORD_JUDGE_IDS` stops being something anyone must find, and
+the window's extra-Judges field is for the rare second one.
+
+**Rejected: a file the module writes into the Foundry data directory.**
+Foundry serves that directory, so it moves the leak rather than closing it.
+**Rejected: handing the token over a socket message.** Foundry's socket
+broadcasts to every client. **Rejected: storing it in the clear and warning
+about it in the hint.** The margin the family keeps on IP it keeps on
+secrets: a token a player can read is a token a player can use.
+
+Cost: a key pair to keep — a bot that loses its state directory cannot open a
+token a Judge already sealed, and says so (`staleToken`) rather than failing
+to log in for no visible reason. The Judge pastes it again.
+
+### Accounts and dice reach the world from Discord, inside the seat's role (2026-09-06)
+
+Owner direction: a Foundry-side window for linking players, a Discord-side
+tool to set up a new player account, players managing their own password
+from Discord, and the bot taking over the server's dice — for anyone, linked
+or not.
+
+**The window is a second door onto the binding store, not a second store.**
+`apps/members.mjs` runs the same `bindings-logic` arithmetic `/link` runs,
+over the same setting. It offers members by name out of the client's
+announcement — the ones who have run any command — because listing a
+server's members needs the privileged Server Members intent (the same
+reason the first Judge is the guild owner), and takes a pasted id for anyone
+else. Rejected: asking for the Members intent. One portal switch and a
+privileged-intent review for the sake of a dropdown, when `/whoami` already
+puts a member on the list.
+
+**A created user is a Player, born with a secret nobody knows.** `enroll`
+never makes anything above Player: a Judge who wants a Trusted Player
+promotes in Foundry's own user management. The initial password is random
+and discarded, so no secret passes through the Judge who ran the command,
+and until the member sets their own nobody can join as that user. Rejected:
+an empty initial password (on a world where players have none, anyone at
+the join screen could take the seat); a random password DMed to the member
+(a secret in a Discord DM is a secret in Discord's database). Rejected for
+now: self-service enrolment — a toggle that lets any server member mint a
+Player. Cheap to add later (roadmap), but it makes guild membership the
+whole gate on a world's user list, and that is the Judge's to opt into, not
+a default.
+
+**A password from Discord is the member's own, and never a Gamemaster's.**
+Foundry itself refuses an Assistant seat a Gamemaster's password
+(`common/documents/user.mjs`, `#canUpdate`); the module refuses it too, so
+an operator who runs the seat as a full Gamemaster does not quietly widen
+the door. A compromised Discord account may take a player's seat at worst,
+never the Judge's. The floor is eight characters: Foundry has no policy, and
+a one-letter password typed into a chat command is a footgun the window
+would never have allowed. Rejected: Judge-reset of another member's password
+from Discord — Foundry's user management does it without the Judge learning
+the new secret through a chat option.
+
+**Dice are core's `Roll`, evaluated on the seat.** A dice parser in the bot
+would be the family's fourth implementation of something Foundry ships, and
+would drift from what a player sees in Foundry's chat (`kh`, `x`, `r<2`,
+`dF`, `d%`). `Roll.validate` judges the formula; the module adds a length
+and a dice-count ceiling and nothing else. The throw is kept in the world's
+chat only when a character can be named for it — an unbound member's roll
+has no user to credit and stays in Discord. Rejected: a separate `/dice`
+command. `/roll 2d6` is what every dice bot answers; the shape of the text
+tells a formula from a throw's id.
+
+Cost: the seat performs `User.create` and `User#update` with its own role,
+so what the two verbs can do is bounded by Foundry's permission tests for
+an Assistant — which is the bound, not a limitation: it is exactly what
+keeps a Player-only creation Player-only whatever the module asks.

@@ -10,5 +10,6 @@ import roll from "./roll.mjs";
 import say from "./say.mjs";
 import party from "./party.mjs";
 import map from "./map.mjs";
+import account from "./account.mjs";
 
-export const commands = [whoami, link, character, sheet, roll, say, party, map];
+export const commands = [whoami, link, account, character, sheet, roll, say, party, map];

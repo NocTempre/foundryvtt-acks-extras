@@ -1,17 +1,25 @@
 /**
- * Configuration, from the environment only. Secrets never live in a file
- * this repo tracks: `.env` is gitignored and loaded when present.
+ * Configuration, in two layers. This file is the bootstrap one: where
+ * Foundry is, who to join as, and which browser the seat runs in — the least
+ * a bot needs to reach a world, and the only layer that cannot come from
+ * inside it. Everything a Judge sets (the token, the server, the relay
+ * channel, the seat's size) is read from the world once the seat is up, in
+ * `world-config.mjs`, and the environment wins wherever it carries a value.
+ *
+ * Secrets never live in a file this repo tracks: `.env` is gitignored and
+ * loaded when present.
  *
  * `fromEnv` is pure so the tests can hand it an object; `loadConfig` reads
  * the process.
  */
 import fs from "node:fs";
+import { findBrowser } from "./browsers.mjs";
 
 /** The global the bridge installs its event push through — must match the module's constant. */
 export const EMIT_BINDING = "acksExtrasBridgeEmit";
 
 /** Bridge commands that run as the seat when an operator-listed Judge calls them. */
-export const JUDGE_COMMANDS = Object.freeze(["link", "unlink", "bindings", "users", "parties", "party", "map"]);
+export const JUDGE_COMMANDS = Object.freeze(["link", "unlink", "enroll", "bindings", "users", "parties", "party", "map"]);
 
 const need = (env, key) => {
   const v = String(env[key] ?? "").trim();
@@ -28,11 +36,15 @@ const int = (env, key, fallback) => {
 };
 
 /**
- * Build the config from an environment-shaped object.
+ * Build the config from an environment-shaped object. The Discord half is
+ * optional by default now that the world carries it: a bot with no token in
+ * its environment starts, takes its seat and waits to be configured.
  * @param {object} env
- * @param {{ discord?: boolean, browser?: boolean }} [require]  which halves must be complete
+ * @param {{ discord?: boolean, browser?: boolean, browserAt?: Function }} [require]
  */
-export function fromEnv(env, { discord = true, browser = true } = {}) {
+export function fromEnv(env, { discord = false, browser = true, browserAt = findBrowser } = {}) {
+  const foundBrowser = opt(env, "BROWSER") || browserAt();
+  if (browser && !foundBrowser) throw new Error(`config: BROWSER is required — no Chromium-family browser was found in the usual places`);
   const judgeIds = new Set(
     opt(env, "DISCORD_JUDGE_IDS")
       .split(",")
@@ -49,11 +61,11 @@ export function fromEnv(env, { discord = true, browser = true } = {}) {
     },
     foundry: {
       origin: opt(env, "FOUNDRY_ORIGIN", "http://localhost:30000").replace(/\/+$/, ""),
-      user: need(env, "FOUNDRY_USER"),
+      user: opt(env, "FOUNDRY_USER", "Discord"),
       password: String(env.FOUNDRY_PASSWORD ?? ""),
     },
     seat: {
-      browser: browser ? need(env, "BROWSER") : opt(env, "BROWSER"),
+      browser: foundBrowser,
       port: int(env, "SEAT_PORT", 9334),
       width: int(env, "SEAT_WIDTH", 1600),
       height: int(env, "SEAT_HEIGHT", 1000),

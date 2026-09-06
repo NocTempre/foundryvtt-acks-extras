@@ -1,4 +1,4 @@
-/* global Hooks */
+/* global Hooks, game, foundry */
 /**
  * The bridge: a command surface for a client outside Foundry.
  *
@@ -12,11 +12,14 @@
  * feature; how a client presents them is the client's.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
-import { MODULE_ID, EMIT_BINDING, ERR, CLIENT_KINDS } from "./constants.mjs";
+import { MODULE_ID, LANG, EMIT_BINDING, ERR, CLIENT_KINDS } from "./constants.mjs";
 import { createRegistry, BridgeError } from "./registry-logic.mjs";
 import { registerBindingsSetting, resolveUser, readStore, writeStore } from "./bindings.mjs";
 import * as bindingsLogic from "./bindings-logic.mjs";
 import { registerCommands } from "./commands.mjs";
+import { registerClientConfigSettings, registerClientConfigCommands, readClientConfig, readAgent, writeClientConfig, writeAgent } from "./client-config.mjs";
+import { BridgeClientConfigApp } from "./apps/client-config.mjs";
+import { BridgeMembersApp } from "./apps/members.mjs";
 import { registerEventTap, drain, emit } from "./events.mjs";
 import { provenanceOf, stampFor, flagsFor } from "./provenance.mjs";
 
@@ -24,7 +27,33 @@ const registry = createRegistry({ resolveUser });
 
 Hooks.once("init", () => {
   registerBindingsSetting();
+  registerClientConfigSettings();
   registerCommands(registry);
+  registerClientConfigCommands(registry);
+
+  game.settings.registerMenu(MODULE_ID, "bridgeClientMenu", {
+    name: `${LANG}.config.title`,
+    label: `${LANG}.config.open`,
+    hint: `${LANG}.config.menuHint`,
+    icon: "fab fa-discord",
+    type: BridgeClientConfigApp,
+    restricted: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, "bridgeMembersMenu", {
+    name: `${LANG}.members.title`,
+    label: `${LANG}.members.open`,
+    hint: `${LANG}.members.menuHint`,
+    icon: "fas fa-user-group",
+    type: BridgeMembersApp,
+    restricted: true,
+  });
+
+  try {
+    foundry.applications.handlebars.loadTemplates([`modules/${MODULE_ID}/templates/bridge/client-config.hbs`, `modules/${MODULE_ID}/templates/bridge/members.hbs`]);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | bridge template preload skipped`, err);
+  }
 
   acksExtras.bridge = {
     apiVersion: 1,
@@ -41,6 +70,8 @@ Hooks.once("init", () => {
     emit,
     /** The binding store: read whole, write whole, and the pure arithmetic between. */
     bindings: { read: readStore, write: writeStore, ...bindingsLogic },
+    /** The client's configuration and the client's own announcement, as the window and the seat use them. */
+    clientConfig: { read: readClientConfig, write: writeClientConfig, readAgent, writeAgent },
     provenanceOf,
     stampFor,
     flagsFor,

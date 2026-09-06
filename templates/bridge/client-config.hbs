@@ -1,0 +1,104 @@
+<div class="acks-extras-bridge-config-body">
+
+  <section class="acks-extras-bridge-state acks-extras-bridge-state-{{state.code}}">
+    <h3>
+      <i class="fas {{#if state.fresh}}fa-circle-check{{else}}fa-circle-question{{/if}}"></i>
+      {{state.label}}
+      {{#if state.version}}<span class="acks-extras-bridge-version">v{{state.version}}</span>{{/if}}
+    </h3>
+    {{#if state.message}}<p class="hint">{{state.message}}</p>{{/if}}
+    {{#if state.application}}<p class="hint">{{localize "ACKS-BRIDGE.config.application"}}: {{state.application}}</p>{{/if}}
+    {{#if state.seen}}<p class="hint">{{localize "ACKS-BRIDGE.config.lastSeen"}}: {{state.seen}}</p>{{/if}}
+    {{#unless state.current}}<p class="hint">{{localize "ACKS-BRIDGE.config.pending"}}</p>{{/unless}}
+    {{#each gaps}}<p class="notification warning">{{this.text}}</p>{{/each}}
+  </section>
+
+  <fieldset>
+    <legend>{{localize "ACKS-BRIDGE.config.tokenLegend"}}</legend>
+    <p class="hint">{{localize "ACKS-BRIDGE.config.tokenHint"}}</p>
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.config.token"}}</label>
+      <div class="form-fields">
+        <input type="password" name="token" autocomplete="off" placeholder="{{#if hasToken}}{{localize 'ACKS-BRIDGE.config.tokenKept'}}{{else}}{{localize 'ACKS-BRIDGE.config.tokenEmpty'}}{{/if}}" {{#unless canSeal}}disabled{{/unless}}>
+        {{#if hasToken}}<button type="button" data-action="clearToken" data-tooltip="{{localize 'ACKS-BRIDGE.config.tokenClear'}}"><i class="fas fa-trash"></i></button>{{/if}}
+      </div>
+    </div>
+    {{#if hasToken}}<p class="hint">{{localize "ACKS-BRIDGE.config.tokenStored"}}: {{tokenHint}}</p>{{/if}}
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-BRIDGE.config.serverLegend"}}</legend>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.config.guild"}}</label>
+      <div class="form-fields">
+        {{#if hasGuilds}}
+        <select name="guildId">
+          <option value="">{{localize "ACKS-BRIDGE.config.none"}}</option>
+          {{#each guilds}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+        </select>
+        {{else}}
+        <input type="text" name="guildId" value="{{config.discord.guildId}}" placeholder="{{localize 'ACKS-BRIDGE.config.idPlaceholder'}}">
+        {{/if}}
+      </div>
+      <p class="hint">{{localize "ACKS-BRIDGE.config.guildHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.config.relay"}}</label>
+      <div class="form-fields">
+        <input type="checkbox" name="relay" {{#if config.discord.relay}}checked{{/if}}>
+        {{#if hasChannels}}
+        <select name="chatChannelId">
+          <option value="">{{localize "ACKS-BRIDGE.config.none"}}</option>
+          {{#each channels}}<option value="{{id}}" {{#if selected}}selected{{/if}}>#{{name}}</option>{{/each}}
+        </select>
+        {{else}}
+        <input type="text" name="chatChannelId" value="{{config.discord.chatChannelId}}" placeholder="{{localize 'ACKS-BRIDGE.config.idPlaceholder'}}">
+        {{/if}}
+      </div>
+      <p class="hint">{{localize "ACKS-BRIDGE.config.relayHint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.config.judges"}}</label>
+      <div class="form-fields">
+        <input type="text" name="judgeIds" value="{{judgeIds}}" placeholder="{{localize 'ACKS-BRIDGE.config.idPlaceholder'}}">
+      </div>
+      <p class="hint">{{localize "ACKS-BRIDGE.config.judgesHint"}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "ACKS-BRIDGE.config.seatLegend"}}</legend>
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.config.size"}}</label>
+      <div class="form-fields">
+        <input type="number" name="width" value="{{config.seat.width}}" min="640" max="4096" step="10">
+        <span class="sep">×</span>
+        <input type="number" name="height" value="{{config.seat.height}}" min="480" max="4096" step="10">
+      </div>
+      <p class="hint">{{localize "ACKS-BRIDGE.config.sizeHint"}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.config.readySeconds"}}</label>
+      <div class="form-fields">
+        <input type="number" name="readySeconds" value="{{config.seat.readySeconds}}" min="10" max="900" step="5">
+      </div>
+      <p class="hint">{{localize "ACKS-BRIDGE.config.readyHint"}}</p>
+    </div>
+    <div class="form-group">
+      <label>{{localize "ACKS-BRIDGE.config.logLevel"}}</label>
+      <div class="form-fields">
+        <select name="logLevel">
+          {{#each logLevels}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </div>
+    </div>
+  </fieldset>
+
+  <footer class="form-footer">
+    <button type="button" data-action="refresh"><i class="fas fa-rotate"></i> {{localize "ACKS-BRIDGE.config.refresh"}}</button>
+    <button type="submit"><i class="fas fa-save"></i> {{localize "ACKS-BRIDGE.config.save"}}</button>
+  </footer>
+</div>

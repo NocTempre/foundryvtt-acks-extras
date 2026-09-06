@@ -13,7 +13,13 @@
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { makeContext, errorText } from "./context.mjs";
 
-export function createBot({ config, bridge, seat, log, commands }) {
+/**
+ * @param {object} opts
+ * @param {(member: {id: string, name: string, displayName: string}) => void} [opts.onMember]
+ *   told of every member who runs a command, so the world can be shown who
+ *   has knocked without a privileged intent
+ */
+export function createBot({ config, bridge, seat, log, commands, onMember }) {
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
   const byName = new Map(commands.map((c) => [c.data.name, c]));
 
@@ -25,6 +31,13 @@ export function createBot({ config, bridge, seat, log, commands }) {
     const cmd = byName.get(interaction.commandName);
     if (!cmd) return;
     const ctx = makeContext(interaction, { config, bridge, seat, log });
+    if (interaction.isChatInputCommand()) {
+      try {
+        onMember?.({ id: interaction.user.id, name: interaction.user.username ?? "", displayName: interaction.member?.displayName ?? interaction.user.displayName ?? "" });
+      } catch (err) {
+        log.warn(`member ledger: ${err.message}`);
+      }
+    }
 
     if (interaction.isAutocomplete()) {
       try {
