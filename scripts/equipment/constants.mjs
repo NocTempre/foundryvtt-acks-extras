@@ -20,7 +20,7 @@ export const EFFECT_PREFIX = `flags.${MODULE_ID}.`;
  * Applied to a base item by the same `containedIn` relation gear uses to sit in
  * a backpack — see `variation-items.mjs`.
  */
-export const VARIATION_ITEM_TYPE = `${MODULE_ID}.variation`;
+export { VARIATION_TYPE as VARIATION_ITEM_TYPE } from "../lib/constants.mjs";
 
 /**
  * Effect domains — the `<domain>` in `flags.acks-extras.<domain>` change keys.
@@ -121,7 +121,7 @@ export const ITEM_FLAGS = Object.freeze({
   // secrecy behind it, and `fragile` says the contents break when it is bashed.
   CONTAINER: "container",
   CONTAINED_IN: "containedIn", // id of the container item this item is stored in
-  HARNESS: "harness", // adventurer's harness: ignore 1 stone of ordinary gear
+  HARNESS: "harness", // adventurer's harness: relieves the wearer of the weight its `gear.relief` states
   BOWQUIVER: "bowquiver", // bowquiver: assembly counts as 2 items when loaded
   NAMED: "named", // {trueName, givenName, ladder[], unlocked, revealed, guesses{}}
   WORN_HAND: "hand", // set by paper-doll normalization: "main" | "off" | "mainOff"

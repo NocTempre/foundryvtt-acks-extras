@@ -219,9 +219,23 @@ function tokenSyncDelta(tokenDoc) {
   return Object.assign({}, vision?.update, light);
 }
 
+/**
+ * True while the canvas is in the middle of drawing THIS scene. Core builds a
+ * placeable for any token document of the scene in view the moment something
+ * touches it, and on a canvas that has never drawn a scene the render-flag
+ * queue that placeable then enqueues into does not exist until the first draw
+ * completes — a token write in that window throws inside core's own update
+ * handler. The `canvasReady` sweep re-derives the whole scene as soon as the
+ * draw is done, so a write here would also be a write twice.
+ */
+export function sceneIsDrawing(scene) {
+  const c = globalThis.canvas;
+  return !!(c && scene && !c.ready && c.scene?.id === scene.id);
+}
+
 /** Sync one token from its own actor's senses and carried lights. */
 export async function syncTokenFromActor(tokenDoc) {
-  if (!enabled()) return;
+  if (!enabled() || sceneIsDrawing(tokenDoc?.parent)) return;
   const update = tokenSyncDelta(tokenDoc);
   if (update) await tokenDoc.update(update);
 }
@@ -235,6 +249,7 @@ export async function syncTokenFromActor(tokenDoc) {
  * standing on the map.
  */
 async function syncTokenBatch(scene, tokenDocs) {
+  if (sceneIsDrawing(scene)) return 0;
   const updates = [];
   for (const tokenDoc of tokenDocs) {
     try {

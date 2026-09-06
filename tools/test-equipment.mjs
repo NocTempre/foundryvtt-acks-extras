@@ -143,8 +143,12 @@ lo = getLoadout(actor([weapon("Sword", { melee: true, id: "a" }), weapon("Dagger
 check("two weapons → dual", lo.activeStyle === "dual" && lo.handsUsed === 2 && lo.legal);
 lo = getLoadout(actor([weapon("Two-Handed Sword", { melee: true, id: "t" })]));
 check("great sword → twoHanded, 2 hands", lo.activeStyle === "twoHanded" && lo.handsUsed === 2);
-lo = getLoadout(actor([weapon("Sword", { melee: true, id: "s" })]));
-check("lone medium sword wielded 2H", lo.weapons[0].wieldTwoHanded && lo.handsUsed === 2);
+lo = getLoadout(actor([weapon("Sword", { melee: true, id: "s" })], { flags: { styles: "twoHanded" } }));
+check("lone medium sword wielded 2H when the style is trained", lo.weapons[0].wieldTwoHanded && lo.handsUsed === 2);
+// The auto grip never volunteers a character for a style they lack: the
+// default would carry the whole non-proficient package for holding one sword.
+lo = getLoadout(actor([weapon("Sword", { melee: true, id: "s" })], { flags: { styles: "single" } }));
+check("untrained in the two-handed style, the auto grip stays one-handed", lo.weapons[0].wieldTwoHanded === false && lo.handsUsed === 1 && lo.activeStyle === "single" && lo.styleProficient);
 lo = getLoadout(actor([armor("Plate", "heavy", { id: "p" }), armor("Chain", "medium", { id: "c" })]));
 check("two suits → multipleArmor, keeps last", lo.violations.some((v) => v.type === VIOLATION.MULTIPLE_ARMOR) && lo.armor?.id === "c");
 lo = getLoadout(actor([armor("Plate", "heavy", { id: "p" }), armor("Heavy Helmet", "medium", { id: "h" })]));
@@ -342,9 +346,11 @@ check("dual style → +1 melee attack in the loadout effect", dualChanges.some((
 // --- Phase 5b: JJ shield-variant overlay -------------------------------------
 const shieldItem = (name, variant, strap = "hand") =>
   armor(name, "shield", { ac: 1, id: name.replace(/\W/g, ""), flags: { shieldVariant: variant, strap } });
+// Trained two-handed as well, so a sword left alone by a back-strapped shield
+// keeps its two-handed grip.
 const wsActor = (items, spec = true) =>
   actor(items, {
-    flags: { styles: "weaponShield" },
+    flags: { styles: "weaponShield,twoHanded" },
     effects: spec ? [marker("styleProficient", "weaponShield:spec")] : [],
   });
 
@@ -403,6 +409,29 @@ globalThis.acksExtras.lib = undefined;
 const phalNoLibAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("no acks-lib → mounted rules dormant, phalanx AC stands", phalNoLibAC === 1);
 globalThis.acksExtras.lib = priorLib;
+
+// --- no style, no shield (RR ch.3) -------------------------------------------
+// Core adds a shield's AC unconditionally; a character without the Weapon &
+// Shield style gains nothing from one, so the loadout says so and the effect
+// cancels the addition — once, however many rules would cancel it.
+const noStyle = actor([weapon("Sword", { melee: true, id: "s7" }), armor("Shield", "shield", { ac: 1, id: "sh7" })], { flags: { styles: "single" } });
+const noStyleLo = getLoadout(noStyle);
+check("shield without the style → shieldStyled false, advisory raised",
+  noStyleLo.shieldStyled === false && noStyleLo.violations.some((v) => v.type === VIOLATION.SHIELD_NO_STYLE && v.advisory));
+const noStyleAC = buildLoadoutChanges(noStyle, noStyleLo).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+check("shield without the style → −1 cancels core's shield AC", noStyleAC === -1);
+const styled = wsActor([weapon("Sword", { melee: true, id: "s8" }), armor("Shield", "shield", { ac: 1, id: "sh8" })], false);
+const styledLo = getLoadout(styled);
+check("shield with the style → shieldStyled, core's shield AC stands untouched",
+  styledLo.shieldStyled === true && !styledLo.violations.some((v) => v.type === VIOLATION.SHIELD_NO_STYLE)
+  && !buildLoadoutChanges(styled, styledLo).some((c) => c.key === "system.aac.mod"));
+const noStyleBuckler = actor([weapon("Sword", { melee: true, id: "s9" }), shieldItem("Buckler", "buckler")], { flags: { styles: "single" } });
+const noStyleBucklerAC = buildLoadoutChanges(noStyleBuckler, getLoadout(noStyleBuckler)).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+check("buckler without style or spec → −1 once, never −2", noStyleBucklerAC === -1);
+const bigShield = actor([weapon("Sword", { melee: true, id: "s10" }), armor("Tower Shield", "shield", { ac: 2, id: "sh10" })], { flags: { styles: "single" } });
+const bigShieldAC = buildLoadoutChanges(bigShield, getLoadout(bigShield)).filter((c) => c.key === "system.aac.mod").reduce((n, c) => n + Number(c.value), 0);
+check("the cut is the shield's own value, whatever it is", bigShieldAC === -2);
+check("no shield in hand → nothing to cut", getLoadout(actor([weapon("Sword", { melee: true, id: "s11" })], { flags: { styles: "single" } })).shieldStyled === true);
 
 // --- single-shield rule (RR p141) + shield-frees-a-hand-for-a-light -----------
 // A character benefits from only ONE shield, however carried. Two in hand:
@@ -524,7 +553,7 @@ const gear = (name, w6, over = {}) => {
   if (type === "weapon" || type === "armor") system.equipped = over.equipped ?? false;
   const flags = { ...(over.flags ?? {}) };
   if (over.slots || over.wornAt) {
-    flags.gear = { slots: over.slots ?? [over.wornAt], wornAt: over.wornAt ?? "" };
+    flags.gear = { ...(flags.gear ?? {}), slots: over.slots ?? [over.wornAt], wornAt: over.wornAt ?? "" };
   }
   return {
     id: over.id ?? name.replace(/\W/g, ""),
@@ -535,8 +564,8 @@ const gear = (name, w6, over = {}) => {
     effects: [],
   };
 };
-const withItems = (items) => {
-  const a = actor(items);
+const withItems = (items, over = {}) => {
+  const a = actor(items, over);
   a.items = Object.assign(items.slice(), {
     filter: (f) => items.filter(f),
     find: (f) => items.find(f),
@@ -588,10 +617,11 @@ check("isContainer only true for flagged items", isContainer(pack) && !isContain
 const ingots = gear("Iron Ingots", 30, { id: "ing", flags: { containedIn: "bp" } });
 check("backpack over capacity flagged", overCapacity(withItems([pack, ingots]), pack));
 
-// Adventurer's harness: ignore up to 1 stone of ORDINARY gear (RR p. 142).
-// WORN VIA THE SLOT, because a harness is a plain `item` and core gives it no
-// `equipped` field to be worn by.
-const harness = gear("Adventurer's Harness", 1, { id: "h", wornAt: "belt", flags: { harness: true } });
+// Adventurer's harness: relieves the wearer of the weight its own text states,
+// drawn from ORDINARY gear (RR p. 142). The figure rides the item as
+// `gear.relief`; the fixture states one stone. WORN VIA THE SLOT, because a
+// harness is a plain `item` and core gives it no `equipped` field to be worn by.
+const harness = gear("Adventurer's Harness", 1, { id: "h", wornAt: "belt", flags: { harness: true, gear: { relief: 1 } } });
 const smalls = [gear("Flask A", 1, { id: "f1" }), gear("Flask B", 1, { id: "f2" }), gear("Torch", 1, { id: "f3" })];
 check("harness ignores up to 1 stone (only 3/6 available -> -3)", encumbranceDelta6(withItems([harness, ...smalls])) === -3);
 const manySmalls = Array.from({ length: 10 }, (_, i) => gear(`Item ${i}`, 1, { id: `s${i}` }));
@@ -599,6 +629,17 @@ check("harness caps its relief at exactly 1 stone", encumbranceDelta6(withItems(
 check("harness cannot secure heavy items", encumbranceDelta6(withItems([harness, gear("Anvil", 12, { id: "an" })])) === 0);
 const plateArm = { id: "pl", name: "Plate", type: "armor", system: { cost: 0, equipped: true, type: "heavy", aac: { value: 6 }, weight6: 36 }, getFlag: () => undefined, effects: [] };
 check("harness gives nothing over heavy armour", encumbranceDelta6(withItems([harness, plateArm, ...smalls])) === 0);
+// A light weapon hangs from the harness like any other small piece; a large
+// one is heavy gear. A thrown weapon has left the body and is not relieved twice.
+check("harness secures a light weapon", encumbranceDelta6(withItems([harness, weapon("Dagger", { melee: true, id: "dg", w6: 1 })])) === -1);
+check("harness cannot secure a two-handed sword", encumbranceDelta6(withItems([harness, weapon("Two-Handed Sword", { melee: true, id: "ths0", w6: 6 })])) === 0);
+check("harness does not count a thrown-away weapon", encumbranceDelta6(withItems([harness, weapon("Dagger", { melee: true, id: "dg2", w6: 1, flags: { thrownAway: true } })])) === -1);
+// The figure is the item's, never a constant: unstated secures nothing, and a
+// half-stone harness caps at its own half.
+const mute = gear("Adventurer's Harness", 1, { id: "h0", wornAt: "belt", flags: { harness: true } });
+check("a harness with no stated relief secures nothing", encumbranceDelta6(withItems([mute, ...smalls])) === 0);
+const half = gear("Adventurer's Harness", 1, { id: "h5", wornAt: "belt", flags: { harness: true, gear: { relief: 0.5 } } });
+check("the relief is the item's own figure", encumbranceDelta6(withItems([half, ...manySmalls])) === -3);
 
 // Bowquiver: a loaded assembly counts as 2 items, not quiver + bow + arrows.
 const quiver = gear("Bowquiver", 1, { id: "bq", flags: { bowquiver: true, container: { capacity: 1 } } });
@@ -634,6 +675,15 @@ const goods = (name) => ({ name, type: "item", system: { cost: 0, weight6: 1, su
 check("the harness rides the belt and is free to reach (RR pp293-294)", inferGear(goods("Adventurer's Harness")).slots.join() === "belt" && inferGear(goods("Adventurer's Harness")).access === "free");
 check("a backpack rides the back and costs an action to open", inferGear(goods("Backpack (holds 4 stone)")).slots.join() === "back" && inferGear(goods("Backpack (holds 4 stone)")).access === "action");
 check("a belt pouch and a quiver are free; a sack is not", inferGear(goods("Pouch/Purse (holds 1/2 stone)")).access === "free" && inferGear(goods("Quiver, 20 Arrows")).access === "free" && inferGear(goods("Sack, Small (holds 2 stone)")).access === "action");
+check("a belt pouch by the name a Judge types is the pouch, not a belt — and states no capacity of its own",
+  inferGear(goods("Belt Pouch")).slots.join() === "belt" && inferGear(goods("Belt Pouch")).access === "free"
+  && inferGear(goods("Belt Pouch")).capacity === null && gearProfileFor("Purse").capacity == null);
+// What a harness secures is read off the item's own text, in stone, fractions
+// included; a harness that says nothing states nothing.
+const described = (text) => ({ ...goods("Adventurer's Harness"), system: { ...goods("").system, description: text } });
+check("a harness states its relief in its own description", inferGear(described("<p>Straps and sheaths. Wearing it you may ignore 1 stone of small gear.</p>")).relief === 1);
+check("a fractional relief reads as a fraction", inferGear(described("Light rigging: ignores 1/2 stone of gear.")).relief === 0.5);
+check("a silent harness states no relief", inferGear(goods("Adventurer's Harness")).relief === null && inferGear(goods("Backpack (holds 4 stone)")).relief === null);
 check("a barrel holds things but is worn nowhere", inferGear(goods("Barrel (20 gallon)")).slots.length === 0 && gearProfileFor("Barrel (20 gallon)").capacity === 15);
 check("inference carries capacity, so annotate has one home to write", inferGear(goods("Backpack (holds 4 stone)")).capacity === 4 && inferGear(goods("Rope, 50'")).capacity === null);
 // A garment gets NO capacity guessed for it: whether a coat has usable pockets
@@ -1081,10 +1131,11 @@ check("the hand flag puts a weapon in the off hand", wearLocation(dressed, offBl
 check("unequipped gear is merely carried", wearLocation(dressed, spare, dLo) === WEAR.carried);
 check("gear inside a container is stowed", wearLocation(dressed, stowedRope, dLo) === WEAR.stowed);
 
-// A lone medium weapon with both hands free is wielded two-handed (RR p. 299),
-// and the wear bucket must agree with the loadout that says so.
+// A lone medium weapon with both hands free is wielded two-handed (RR p. 299)
+// by a character trained to, and the wear bucket must agree with the loadout
+// that says so.
 const soloBlade = weapon("Sword", { melee: true, id: "sw2" });
-const twoHanded = withItems([soloBlade]);
+const twoHanded = withItems([soloBlade], { flags: { styles: "twoHanded" } });
 const tLo = getLoadout(twoHanded);
 check("the loadout wields a lone medium weapon two-handed", tLo.weapons[0].wieldTwoHanded);
 check("wear agrees: both hands", wearLocation(twoHanded, soloBlade, tLo) === WEAR.bothHands);
@@ -1159,8 +1210,10 @@ check("a helm declared to sit nowhere stays nowhere", isHelmetOf(disownedHelm) =
 // p. 106 package on a legal PC. Enforcement must default OFF while it is active.
 const { enforcementActive } = await import(new URL("proficiency.mjs", S));
 
-// A bare unconfigured actor with a weapon its (absent) flags don't cover.
-const unconfigured = () => withItems([weapon("Halberd", { melee: true, id: "hb" })]);
+// A bare unconfigured actor with a weapon its (absent) flags don't cover: a
+// weapon that is two-handed by nature, since the default training covers the
+// one-handed styles and the auto grip never elects a style that is untrained.
+const unconfigured = () => withItems([weapon("Two-Handed Sword", { melee: true, id: "hb" })]);
 
 // "auto" reads the abilities feature off the namespace (the way the runtime
 // reaches it), so the toggle is the acksExtras.abilities stub itself.
@@ -1531,9 +1584,11 @@ const { weaponGrip } = await import(new URL("loadout.mjs", S));
 
 // A versatile weapon (medium melee, Sword) offers a grip choice.
 const gripSword = () => weapon("Sword", { melee: true, id: "gs" });
-const autoLoad = getLoadout(withItems([gripSword()]));
+const autoLoad = getLoadout(withItems([gripSword()], { flags: { styles: "twoHanded" } }));
 check("versatile weapon exposes canTwoHand", autoLoad.weapons[0].canTwoHand === true);
-check("auto grip → two-handed when hands free", autoLoad.weapons[0].wieldTwoHanded && autoLoad.weapons[0].grip === "auto");
+check("auto grip → two-handed when hands free and the style is trained", autoLoad.weapons[0].wieldTwoHanded && autoLoad.weapons[0].grip === "auto");
+const autoUntrained = getLoadout(withItems([gripSword()]));
+check("auto grip → one-handed when the two-handed style is untrained", autoUntrained.weapons[0].wieldTwoHanded === false && autoUntrained.handsUsed === 1 && autoUntrained.weapons[0].gripBlocked !== true);
 
 // Explicit 1H keeps it one-handed even with hands free.
 const oneH = getLoadout(withItems([{ ...gripSword(), getFlag: (_m, k) => (k === "grip" ? "1h" : undefined) }]));

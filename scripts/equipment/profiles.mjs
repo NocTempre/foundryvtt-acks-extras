@@ -68,11 +68,13 @@ export function isHelmet(item) {
  * not gear you wear, and they get the wear features switched off by declaring
  * nowhere to go.
  *
- * @returns {{slots: string[], access: string, capacity: number|null}} `access` is
- *   blank and `capacity` null unless the item holds something.
+ * @returns {{slots: string[], access: string, capacity: number|null, relief: number|null}}
+ *   `access` is blank and `capacity` null unless the item holds something;
+ *   `relief` is null unless the item is a harness whose own text states the
+ *   weight it secures.
  */
 export function inferGear(item) {
-  const none = { slots: [], access: "", capacity: null };
+  const none = { slots: [], access: "", capacity: null, relief: null };
   if (!item) return none;
 
   const profile = gearProfileFor(item.name ?? "");
@@ -81,6 +83,9 @@ export function inferGear(item) {
       slots: [...(profile.slots ?? [])],
       access: profile.access ?? "",
       capacity: profile.capacity ?? null,
+      // What a harness secures is the book's figure, and it arrives with the
+      // item — read off its own name or description — never from a profile.
+      relief: profile.harness ? reliefStated(item) : null,
     };
   }
 
@@ -106,6 +111,26 @@ export function inferGear(item) {
   if (isClothing(item)) return { ...none, slots: [SLOT.worn] };
 
   return none;
+}
+
+/** "1", "1/2" or "0.5" as a number of stone; null for anything else. */
+function stoneNumber(text) {
+  const m = /^(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+))?$/.exec(String(text ?? "").trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  return m[2] ? n / Number(m[2]) : n;
+}
+
+/**
+ * The weight of equipment a harness relieves its wearer of, as the item's own
+ * name or description states it — the sentence that says what may be ignored,
+ * in stone — or null when the item does not say, which leaves it to the Judge
+ * on the item's sheet.
+ */
+function reliefStated(item) {
+  const text = `${item?.name ?? ""} ${item?.system?.description ?? ""}`;
+  const m = /\bignores?\s+(\d+(?:\.\d+)?(?:\s*\/\s*\d+)?)\s*stones?\b/i.exec(text);
+  return m ? stoneNumber(m[1]) : null;
 }
 
 /** Collect the lowercased tag tokens on a core weapon (title or value). */

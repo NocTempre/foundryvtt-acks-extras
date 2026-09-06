@@ -123,9 +123,10 @@ report the same symptom.
    no effect is written). Add ONE hand-made effect as the control.
    *Observable:* on the Effects tab the LOADOUT row shows a lock instead of the
    trash and keeps its toggle and edit controls, while the hand-made row keeps
-   its trash. The class-training effect has no row there at all — the classes
-   feature removes it and renders the same document as the Class modifiers pill
-   strip instead, because two controls for one document can disagree on screen.
+   its trash. The class-training row is locked the same way, but where the
+   loadout row keeps its edit control the training row carries one that goes
+   to the Stats tab: its Training editor is the one place that document is
+   edited, because two controls for one document can disagree on screen.
    `effect.delete()` on a managed one is refused and warns naming its owner;
    the hand-made one deletes, by a real trash click. Emptying
    (`update({changes: []})`) and disabling both succeed on a managed effect.

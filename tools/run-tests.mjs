@@ -19,7 +19,9 @@
  * without them runs the committed half and says how many it skipped.
  *
  * The importer subsystem's own suites live in `tools/importer/`; their names
- * below carry that prefix.
+ * below carry that prefix. The Discord service's suites live in
+ * `discord/test/`, beside the service they check, and run from here too, so
+ * one `npm test` covers the repo.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -35,6 +37,7 @@ const COMMITTED = [
   "test-equipment.mjs",
   "test-item-sheet.mjs",
   "test-character-sheet.mjs",
+  "test-bridge.mjs",
   "test-formation-flows.mjs",
   "test-formation-heading.mjs",
   "test-marching-templates.mjs",
@@ -87,6 +90,12 @@ const COMMITTED = [
   "importer/test-mount-flags.mjs",
   "importer/test-item-shelves.mjs",
   "importer/test-cookbook-coherence.mjs",
+  "../discord/test/config.test.mjs",
+  "../discord/test/format.test.mjs",
+  "../discord/test/seat.test.mjs",
+  "../discord/test/update-watch.test.mjs",
+  "../discord/test/register.test.mjs",
+  "../discord/test/install.test.mjs",
 ];
 
 const RULES_DIR = path.join(HERE, "rules-tests");

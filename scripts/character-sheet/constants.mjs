@@ -40,6 +40,9 @@ export const SAVE_ICONS = Object.freeze({
   spell: "fa-solid fa-hat-wizard",
 });
 
+/** The mark each duration unit wears on a clock, keyed as Foundry names the unit. */
+export const CLOCK_MARKS = Object.freeze({ rounds: "r", turns: "t", seconds: "s", minutes: "m", hours: "h", days: "d", months: "mo", years: "y" });
+
 /**
  * The six movement modes the system derives, each with the glyph its rail
  * cell and its Stats row wear and the unit its figure is read in.

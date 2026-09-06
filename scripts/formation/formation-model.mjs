@@ -3,7 +3,7 @@ import { rootCarrierOf, attachmentOf, ATTACH_ROLES } from "../lib/attachment.mjs
 import { landSpeed } from "../vehicles/vehicle-speed.mjs";
 import { draftPullOf } from "../vehicles/occupants.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
-import { load6 } from "../lib/capacity.mjs";
+import { load6, borneWeight6 } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import {
   carriedBody,
@@ -436,7 +436,10 @@ export function carriedLoad(formation) {
   const totalStone =
     body.stone == null || body.gearShare == null
       ? null
-      : down.reduce((sum, e) => sum + body.stone + Number(e.actor?.system?.encumbrance?.value ?? 0) * body.gearShare, 0);
+      // A casualty's kit is hauled at what it weighs: their encumbrance is a
+      // walking figure, and the carrying rules that lighten it walk nowhere
+      // on a stretcher.
+      : down.reduce((sum, e) => sum + body.stone + (borneWeight6(e.actor) / STONE) * body.gearShare, 0);
   const sharePerCarrier =
     totalStone != null && carriers.length ? Math.round((totalStone / carriers.length) * 10) / 10 : null;
   return {

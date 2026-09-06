@@ -20,6 +20,18 @@ you cannot light one with no hand free. The controls sit in their own box beside
 core's, because core's control column is a fixed 35–60px and anything added
 inside it overflows.
 
+A weapon held in both hands has no bucket of its own: it is listed under
+**Main hand · Off hand**, the two places it spans. A versatile weapon drawn
+alone takes the two-handed grip by itself only when the character is trained
+in the two-handed style; otherwise it stays in one hand until you set the grip
+yourself, so a default never walks you into the non-proficient package.
+
+**A shield counts only in trained hands.** The Weapon & Shield style's benefit
+is the shield's own armour class (RR ch. 3): a character with the style gets
+exactly what the shield says, and Fighting Style Specialization in it adds its
+bonus on top. Without the style the shield is marked with an advisory and its
+AC is cancelled, so the figure on the sheet is the one the rules give.
+
 ## Lighting a lamp from your own sheet
 
 Every character gets light controls on the lamp itself — one to **light** it,
@@ -60,6 +72,26 @@ it fills this in for everything a character (or the whole world) owns:
   movement** (RR pp. 293–294);
 - rations, tools, rope, loot and coin declare nothing, because they are carried
   rather than worn — that is what keeps them plain goods.
+
+The belt and the back take any number of *different* things — a belt, a pouch,
+a scabbard, a quiver and a harness are five forms hung from one place, and a
+pack rides beside a bowcase. The only wear rule ACKS II has refuses a second of
+the same form, so those two places are not capped.
+
+A place counts two things, and clothing is neither. Magic items count by form
+— the Treasure Tome's one of a form, with its own allowance for rings — and
+armour and weapons count against what the body carries once: a second helm is
+over, a coif under the first is not, and a magic circlet over both is fine.
+The badge on a place shows the larger count; hover it for both.
+
+**An adventurer's harness secures gear by weight, not by count.** Worn, it
+relieves you of the weight its own description states — small things and
+light weapons, never a heavy piece, never coin, and nothing at all over heavy
+armour (RR ch. 6). The figure is the book's and travels with the item: Annotate
+reads it off the harness's text into **Secures** on its Construction tab, and
+a harness that says nothing secures nothing until you type it there. The
+character sheet's Load bar shows what it is forgiving as a dashed phantom past
+the fill, so you can see the rule working.
 
 **The slot is a guess, and you can correct it.** Open any item, go to
 **Construction**, and set *Worn at*. Three answers matter:

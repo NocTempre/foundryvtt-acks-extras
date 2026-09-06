@@ -34,7 +34,7 @@
  * Nothing outside this file should know there are two.
  */
 
-import { MODULE_ID, FLAG_GEAR } from "./constants.mjs";
+import { MODULE_ID, FLAG_GEAR, VARIATION_TYPE } from "./constants.mjs";
 import { WEAR_SLOTS, slotCapacity, ITEM_TYPE } from "./vocab.mjs";
 
 const F = () => foundry.data.fields;
@@ -143,6 +143,20 @@ export const weightStoneOf = (item) => weight6Of(item) / STONE;
  * a coil of rope.
  */
 export const isClothing = (item) => item?.type === ITEM_TYPE.item && item?.system?.subtype === "clothing";
+
+/**
+ * Is this item magic? Two stores say so, and either is enough: the markets
+ * feature's declaration on the item (`flags.acks-extras.markets.magic`, the
+ * Judge's toggle on the Construction tab), and a magical variation applied to
+ * it — a variation document inside it whose kind or key family is magical.
+ */
+export function isMagical(item) {
+  const declared = item?.getFlag?.(MODULE_ID, "markets")?.magic ?? item?.flags?.[MODULE_ID]?.markets?.magic;
+  if (declared) return true;
+  return contentsIn(item).some(
+    (v) => v?.type === VARIATION_TYPE && (v.system?.kind === "magical" || String(v.system?.key ?? "").split(".")[0] === "magical"),
+  );
+}
 
 /** Every ammunition name RAW recognises, across all three launcher families. */
 const AMMO_NAME = /arrow|bolt|quarrel|bullet|sling\s*stone|shot/i;
@@ -376,6 +390,18 @@ export function capacityOf(item) {
 /** Can gear be put inside this at all? */
 export const holdsGear = (item) => capacityOf(item) !== null;
 
+/**
+ * The weight of ordinary equipment a harness relieves its wearer of, in
+ * stone, or `null` when the item does not state one. The figure is the
+ * book's, and it arrives with the item — read from its own text by the
+ * annotate pass or typed on its sheet — never from a constant here; an
+ * unstated harness relieves nothing.
+ */
+export function reliefOf(item) {
+  const declared = gearOf(item).relief;
+  return Number.isFinite(declared) ? Number(declared) : null;
+}
+
 /* --- Containment READS. The stow/unstow writes and their warnings stay in the
  * equipment feature; the relation itself is one flag, and the capacity
  * primitive has to read it from lib — same promotion capacityOf took. --- */
@@ -432,18 +458,39 @@ export function contentsWeight6(actor, containerId, seen = new Set()) {
 }
 
 /**
- * Everything the actor has in a given slot. The basis of the exclusivity check:
- * a slot holds `slotCapacity(slot)` items and no more.
+ * Everything the actor has in a given slot, by the wear declaration. A weapon
+ * or a shield is placed by the equipment feature's resolver instead, so a
+ * caller holding that answer passes its own list to `slotUse`.
  */
 export function itemsInSlot(actor, slot) {
   return actor?.items?.filter((i) => wornSlotOf(i) === slot) ?? [];
 }
 
 /**
- * Is the slot carrying more than it can?
+ * How a place is occupied. Two counts, because two rules cap two different
+ * things. The Treasure Tome's one-of-a-form rule caps MAGIC items by form —
+ * `slotCapacity`: two rings, one of everything else — and the body caps what
+ * cannot physically be doubled: a second helm, a second suit, a second weapon
+ * in the same hand, which is anything core can equip. Clothing and plain gear
+ * take no room at all, so a coif under a helm and a magic circlet over both
+ * are three things at one place and none of them over. An uncapped place —
+ * the belt, the back, `worn` — caps neither.
  *
- * The Treasure Tome's rings are why this returns a state rather than blocking a
- * write: a third ring does not fail to go on, it stops all three working. What
- * an over-filled slot MEANS is the caller's to decide.
+ * The Tome's rings are why this is a state rather than a refused write: a
+ * third ring does not fail to go on, it stops all three working. What a full
+ * place MEANS is the caller's to decide.
+ * @param {string} slot a wear-slot key
+ * @param {Item[]} items what is at that place, as the caller resolved it
+ * @returns {{equip:number, magic:number, cap:number, used:number, full:boolean}}
+ *   `cap` the magic capacity (Infinity when uncapped); `used` the larger of
+ *   the two counts, for a badge; `full` when either rule is broken
  */
-export const slotOverfilled = (actor, slot) => itemsInSlot(actor, slot).length > slotCapacity(slot);
+export function slotUse(slot, items) {
+  const cap = slotCapacity(slot);
+  const equip = items.filter(isEquippable).length;
+  const magic = items.filter(isMagical).length;
+  return { equip, magic, cap, used: Math.max(equip, magic), full: magic > cap || (cap !== Infinity && equip > 1) };
+}
+
+/** Is the slot carrying more than it can, by either rule? */
+export const slotOverfilled = (actor, slot) => slotUse(slot, itemsInSlot(actor, slot)).full;

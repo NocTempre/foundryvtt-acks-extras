@@ -341,3 +341,106 @@ tab, which the class glyph before the name still opens.
 Cost: the bar no longer opens the Class tab on click. Accepted; the glyph
 beside it does, and a reading that is also a button was the confusion the
 report names.
+
+### Changes are replayed by type, and the clock reads the unit it was given (2026-09-05)
+
+Evidence: one bridge `sheet` read of a character logged eight Foundry 14
+deprecations — the `CONST.ACTIVE_EFFECT_MODES` enum, the numeric `mode` of
+every change, and the `rounds`/`turns`/`seconds` getters of every effect's
+duration — all removed in Foundry 16. Under them the sheet counted only
+`add` changes: a `subtract` was not read at all, an `override` or a
+`multiply` was summed as if it were an addition, and the clock knew rounds
+alone.
+
+Ruling: the lib's effect scanner is the one reading of what a change does.
+It replays the enabled changes on a field, in Foundry's priority order, from
+the field's source value — add, subtract, multiply, override, upgrade and
+downgrade each by Foundry's own arithmetic — and attributes to each effect
+the movement it caused. A save modifier is that movement: an override reads
+as the difference it makes, a lowered target as help. The CSV grants honour
+subtract and override the same way. The clock reads the unit the effect was
+given — rounds and turns for the game, seconds, minutes and hours for the
+clock, days, months and years for the calendar — and counts down through
+Foundry's prepared remaining, which the world calendar converts; a rounds or
+turns effect outside combat, which Foundry restates in seconds, is converted
+back through the world's round or turn length. The rider and the Effects tab
+print each change with a glyph for its type.
+
+Rejected: reading a modifier as the derived value minus the source. It would
+have been the system's arithmetic rather than a second copy of it, but it
+cannot run under Node, it says nothing about which effect did what, and a
+derived value the system rounds or clamps would hide an effect entirely.
+
+Rejected: keeping the numeric-mode reading behind Foundry's migration shim.
+Foundry 16 removes it, and the shim's once-per-session log is the first thing
+every bridge client sees.
+
+Cost: a `custom` change reads as nothing, since only the package that wrote
+it knows its meaning; an `override` on a CSV grant replaces the set where it
+used to add to it; a thirty-second effect reads `30s` where it used to round
+up to `1m`; Foundry counts a month's remainder up on both ends, so a fresh
+two-month effect stands at its total where Foundry's own label says three;
+and a rounds effect that outlives its combat restates from its full value,
+as Foundry's label does, not from what was left when the combat ended.
+
+### The hands span, and the bar shows what is forgiven (2026-09-05)
+
+Field report: *"two-hands should not be a separate bucket in equipment,
+rather two handed items bridge the main and off hand"*, and *"show the true
+weight as a phantom extension on the bar dashed with no fill so the effect
+is visually explained and clear its working"* — the second after finding
+that a harness makes the number on the sheet smaller than the kit adds up
+to, with nothing saying why.
+
+Ruling: the vocabulary keeps its both-hands place — the lib's resolver and
+core's buckets answer "where is this held" with it — and the sheet folds it.
+When a weapon is held in both hands, the Main hand and Off hand places become
+one row carrying both labels behind one bracket, keyed by the main hand so a
+drop on it still draws; when nothing is held in both hands the two stay
+separate targets and no both-hands row is listed. The Load bar draws two
+readings on one track: the burden core computes as the fill, and the true
+weight — the lib's `carriedWeight6`, everything on the body at what it
+weighs — as a dashed, unfilled phantom running on from the fill. The label
+reads both figures and the tooltip says how much is forgiven. Where the two
+agree, or a correction adds weight, there is no phantom.
+
+Rejected: removing the both-hands place from the vocabulary. It is the true
+answer to where a thing is held, core's inventory and the wear resolver both
+use it, and the report is about the listing, which the sheet owns. Rejected:
+rescaling the track to the true weight so the fill never reaches the end.
+The breakpoints are core's percentages of the maximum, and the bar has to
+keep telling the truth about slowing. Rejected: a setting to hide the
+phantom. It appears only while a rule is working, which is the moment it is
+wanted.
+
+Cost: the folded row's over-capacity mark is the sum of two capacities rather
+than a rule of its own; the over-capacity class is `is-full`, since `is-over`
+is the drag state every drop zone shares and a place wore both; the forgiven
+weight is a tooltip beside the label rather than a third figure on it, so a
+reader who never hovers sees the two figures and the dashed gap between them.
+
+### Magic slots and equip slots are different counts (2026-09-05)
+
+Evidence, the same day as the entry above: that entry marked a place over
+capacity by counting everything at it, and the owner ruled on a helm over a
+coif reading as two of one — a magic item takes its form's slot, a piece of
+armour or a weapon takes the place, and clothing takes neither; a magic item
+stacks over plain wear.
+
+Ruling: the lib counts a place twice (`slotUse`): magic items against the
+Treasure Tome's capacity for the form, armour and weapons against the one the
+body allows, and the place is over when either count is. Clothing and plain
+gear count against neither. The badge shows the larger count and carries both
+in its tooltip; the folded hands row is over when the equipment across both
+hands is more than two hands hold. "Magic" is the markets feature's
+declaration on the item or a magical variation inside it.
+
+Rejected: counting plain gear against the form. A coif under a helm, an amulet
+beside a torc and a pouch beside a scabbard are ordinary wear the rules never
+refuse. Rejected: a physical capacity per place. The one physical exclusion
+the body has is a second piece of armour or a second weapon at one place, and
+that is a type test rather than a number per place.
+
+Cost: a plain ring is jewellery, so three of them show no warning — the
+Tome's rule is about magic rings — and an unmarked magic item counts as plain
+until it is declared magic or wears a magical variation.

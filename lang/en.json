@@ -993,11 +993,13 @@
       "slotAuto": "Auto ({guess})",
       "slotAutoNone": "Auto (carried)",
       "slotNone": "Carried — worn nowhere",
-      "slotCapacity": "A character can wear {n} at {slot} (Treasure Tome: no two of the same).",
+      "slotCapacity": "{n} magic at {slot} (Treasure Tome, one of a form); clothing takes no room, armour or a weapon takes the place.",
       "access": "Retrieve from it",
       "accessUnset": "Unset",
       "capacity": "Holds (stone)",
-      "capacityNone": "nothing"
+      "capacityNone": "nothing",
+      "relief": "Secures (stone)",
+      "reliefNone": "unstated"
     },
     "access": {
       "free": "Free",
@@ -5173,6 +5175,9 @@
   "ACKS-CHARACTER.items.new.spell": "New spell",
   "ACKS-CHARACTER.equipment.load": "Load",
   "ACKS-CHARACTER.equipment.loadLabel": "{load} of {max} st",
+  "ACKS-CHARACTER.equipment.loadLabelEased": "{load} of {max} st · {carried} st carried",
+  "ACKS-CHARACTER.equipment.loadEased": "{eased} st of what you carry does not weigh on you",
+  "ACKS-CHARACTER.equipment.slotUse": "{magic} magic of {cap} here · {equip} equipped. Clothing takes no room.",
   "ACKS-CHARACTER.equipment.loadState.unencumbered": "unencumbered",
   "ACKS-CHARACTER.equipment.loadState.slowed": "slowed",
   "ACKS-CHARACTER.equipment.loadState.overburdened": "overburdened",

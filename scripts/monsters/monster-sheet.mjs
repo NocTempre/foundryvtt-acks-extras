@@ -17,7 +17,7 @@ import MonsterExtras from "./monster-extras.mjs";
 import { ACTIONS } from "./monster-actions.mjs";
 import { oseSourceView } from "./source-view.mjs";
 import * as CFG from "./config.mjs";
-import { loadStone, load6, capacityStone, RIDER_BODY6 } from "../lib/capacity.mjs";
+import { loadStone, capacityStone, borneBy6 } from "../lib/capacity.mjs";
 import { riderOf } from "../lib/mount.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
@@ -62,7 +62,10 @@ function computeEncumbrance(actor, extras) {
     state,
     speedFactor,
     stateLabel: game.i18n.localize(`ACKS-MONSTERS.enc.${state}`),
-    rider: rider ? { name: rider.name, stone: Math.round((RIDER_BODY6 + load6(rider)) / 6 * 10) / 10 } : null,
+    // The rider's line shows the figure the mount's load counts: body plus
+    // kit as it weighs, never the rider's own encumbrance, which a harness or
+    // a slung shield has already lightened for walking.
+    rider: rider ? { name: rider.name, stone: Math.round(borneBy6(rider) / 6 * 10) / 10 } : null,
   };
 }
 

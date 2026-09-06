@@ -1140,9 +1140,12 @@ export const VALUE_ROUNDING = {
  * A slot is fundamentally an EXCLUSION, not a bonus. The Treasure Tome's
  * Miscellaneous Magic Item Form table states the only wear mechanic ACKS II
  * has: an item's form is mechanically irrelevant except that a character may
- * not wear two of the same form at once. So `capacity` is what a slot is FOR,
- * and a slot assignment that is slightly wrong costs only mis-scoped
- * exclusivity — which is why gear may declare its slot as a correctable guess.
+ * not wear two MAGIC items of the same form at once. So `capacity` is the
+ * magic capacity of the place — what `item-model.mjs` `slotUse` counts magic
+ * items against. What the body can physically carry twice is a second count
+ * there: armour and weapons take a place, clothing and plain gear take none.
+ * A slot assignment that is slightly wrong costs only mis-scoped exclusivity,
+ * which is why gear may declare its slot as a correctable guess.
  *
  * `capacity: null` means unlimited. `ring` is 2 on the Tome's own numbers: a
  * creature benefits from two magical rings at once, and wearing more makes NONE
@@ -1161,14 +1164,17 @@ export const WEAR_SLOTS = {
   shoulders: { label: "Shoulders", capacity: 1, icon: "fa-user-tie" }, // cloak, cape, mantle
   body: { label: "Body", capacity: 1, icon: "fa-shirt" }, // the worn suit of armour
   worn: { label: "Worn", capacity: null, icon: "fa-mitten" }, // clothing and other worn-not-armour gear
-  belt: { label: "Belt", capacity: 1, icon: "fa-grip-lines" }, // belt, girdle, sash — and the pouches on it
+  // Uncapped: a belt, a pouch, a scabbard, a quiver and a harness are five
+  // different forms hung from one place, so the one-of-a-form rule caps none
+  // of them. The back is the same — a pack beside a bowcase.
+  belt: { label: "Belt", capacity: null, icon: "fa-grip-lines" }, // belt, girdle, sash — and the pouches on it
   ring: { label: "Ring", capacity: 2, icon: "fa-ring" }, // TT: a third ring stops ALL of them working
   hands: { label: "Hands", capacity: 1, icon: "fa-hand-sparkles" }, // gloves, gauntlets, bracers
   feet: { label: "Feet", capacity: 1, icon: "fa-shoe-prints" }, // boots, sandals
   mainHand: { label: "Main Hand", capacity: 1, icon: "fa-hand-fist" },
   offHand: { label: "Off Hand", capacity: 1, icon: "fa-hand" },
   bothHands: { label: "Both Hands", capacity: 1, icon: "fa-hands" }, // one weapon wielded two-handed
-  back: { label: "Back", capacity: 1, icon: "fa-boxes-packing" }, // pack, rucksack, bowcase
+  back: { label: "Back", capacity: null, icon: "fa-boxes-packing" }, // pack, rucksack, bowcase
   strapped: { label: "Strapped", capacity: 1, icon: "fa-shield-halved" }, // shield slung front or back
 };
 

@@ -4,14 +4,16 @@
  * frame makes — the XP bar's gold state, the HP fill, the AC cycle, the grip
  * glyphs, the light cell's reading order, the condition riders, the tab
  * badges and the pin store — rather than what a running world happens to
- * render. Every figure is invented fixture data.
+ * render. The one snapshot read that touches Foundry's effect shape, the
+ * save modifiers, runs against a hand-built actor whose deprecated numeric
+ * shims throw. Every figure is invented fixture data.
  *
  * Run: npm test
  */
 import assert from "node:assert";
 import {
   xpBar, hpCell, acCell, nextAcMode, slowedTone, moveCell, gripCell, lightCell, saveCells, partyCell, tabList, resolveTab,
-  effectivePins, togglePin, buildFrameModel,
+  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands,
 } from "../scripts/character-sheet/view-model.mjs";
 import { CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, TAB_ORDER } from "../scripts/character-sheet/constants.mjs";
 
@@ -216,6 +218,153 @@ test("the frame model composes the parts and respects the viewer's mode choices"
   assert.ok(!m.rails.tools.some((t) => t.key === "source"), "the source cell is the Judge's");
   assert.ok(buildFrameModel(snap, { isGM: true }).rails.tools.some((t) => t.key === "source"));
   assert.equal(m.tabs.find((t) => t.key === "class").dyn, true);
+});
+
+console.log("character sheet: the snapshot's effect reads");
+// Foundry 14 names an effect change by its string `type` and a duration by
+// `{value, units}`; the numeric enum, a change's `mode` and a duration's
+// `rounds`/`turns`/`seconds` survive only as shims that log a deprecation on
+// every read. All of them THROW here, so a read of any fails the suite
+// instead of logging on a live client.
+globalThis.CONST = {
+  ACTIVE_EFFECT_CHANGE_TYPES: { custom: 0, multiply: 10, add: 20, subtract: 20, downgrade: 30, upgrade: 40, override: 50 },
+};
+Object.defineProperty(globalThis.CONST, "ACTIVE_EFFECT_MODES", {
+  get() {
+    throw new Error("accessed deprecated CONST.ACTIVE_EFFECT_MODES");
+  },
+});
+const { saveModifiers, effectClock, isTimer } = await import("../scripts/character-sheet/snapshot.mjs");
+const throwing = (target, ...keys) => {
+  for (const k of keys) {
+    Object.defineProperty(target, k, {
+      get() {
+        throw new Error(`accessed deprecated ${k}`);
+      },
+    });
+  }
+  return target;
+};
+const change = (key, type, value, priority = null) => throwing({ key, type, value: String(value), priority }, "mode");
+const withEffects = (...effects) => ({
+  _source: { system: { save: { mod: 0 }, saves: { paralysis: { value: 13 }, death: { value: 14 }, breath: { value: 15 }, implements: { value: 16 }, spell: { value: 17 } } } },
+  appliedEffects: effects.map((e) => ({ disabled: false, ...e })),
+});
+test("an add on the all-save modifier colours every save; a subtraction reads negative; a lowered target reads as help", () => {
+  const mods = saveModifiers(withEffects(
+    { changes: [change("system.save.mod", "add", 2)] },
+    { changes: [change("system.save.mod", "subtract", 1)] },
+    { changes: [change("system.saves.breath.value", "add", -1)] },
+  ));
+  assert.deepEqual(mods, { paralysis: 1, death: 1, blast: 2, implements: 1, spell: 1 });
+});
+test("an override, a multiply or a bound reads as the shift it makes to the source value, in Foundry's order", () => {
+  const mods = saveModifiers(withEffects(
+    { changes: [change("system.saves.death.value", "override", 10)] },
+    { changes: [change("system.saves.spell.value", "multiply", 2)] },
+    { changes: [change("system.saves.implements.value", "downgrade", 12), change("system.saves.paralysis.value", "upgrade", 12)] },
+    { changes: [change("system.save.mod", "add", 2), change("system.save.mod", "override", 0)] },
+  ));
+  // death 14 → 10 helps by 4; spell 17 → 34 hinders by 17; implements 16 → 12 helps by 4; paralysis stays 13;
+  // the all-save +2 is set back to 0 by the override, which applies last.
+  assert.deepEqual(mods, { paralysis: 0, death: 4, blast: 0, implements: 4, spell: -17 });
+});
+test("a disabled effect, a custom change, a non-number or another field counts for nothing", () => {
+  const mods = saveModifiers(withEffects(
+    { disabled: true, changes: [change("system.save.mod", "add", 4)] },
+    { changes: [change("system.save.mod", "custom", 1), change("system.save.mod", "add", "not a number"), change("system.hp.max", "add", 3)] },
+  ));
+  assert.deepEqual(mods, { paralysis: 0, death: 0, blast: 0, implements: 0, spell: 0 });
+  assert.deepEqual(saveModifiers({ appliedEffects: [{ disabled: false, changes: [change("system.save.mod", "add", 1)] }] }).death, 1, "no source at all reads from zero");
+});
+
+console.log("character sheet: the clock");
+// A fixture effect as Foundry 14 hands it over: the source duration in
+// {value, units}, the prepared duration with what is left, and the legacy
+// unit getters throwing on both.
+const timed = (value, units, prepared = null) => ({
+  disabled: false,
+  _source: { duration: throwing({ value, units, expiry: null, expired: false }, "rounds", "turns", "seconds") },
+  duration: prepared ? throwing({ ...prepared }, "rounds", "turns") : throwing({ value, units, remaining: Infinity }, "rounds", "turns"),
+});
+globalThis.CONFIG = { time: { roundTime: 60, turnTime: 0 } };
+test("rounds and turns count in combat, and outside it are read back through the world's round length", () => {
+  assert.deepEqual(effectClock(timed(6, "rounds", { units: "rounds", remaining: 4 })), { clock: "4r", remaining: 4, total: 6, units: "rounds" });
+  assert.deepEqual(effectClock(timed(6, "rounds", { units: "seconds", remaining: 360 })), { clock: "6r", remaining: 6, total: 6, units: "rounds" });
+  assert.equal(effectClock(timed(6, "rounds", { units: "seconds", remaining: 330 })).clock, "6r", "a part round still to run rounds up");
+  assert.equal(effectClock(timed(6, "rounds", { units: "seconds", remaining: 300 })).remaining, 5);
+  assert.deepEqual(effectClock(timed(3, "turns", { units: "turns", remaining: 2 })), { clock: "2t", remaining: 2, total: 3, units: "turns" });
+  assert.deepEqual(effectClock(timed(3, "turns")), { clock: "3t", remaining: null, total: 3, units: "turns" }, "turns take no world time here: the clock stands at its total");
+  assert.deepEqual(effectClock(timed(6, "rounds", { units: "rounds", remaining: -2 })), { clock: "0r", remaining: 0, total: 6, units: "rounds" }, "an expired timer reads zero, never negative");
+});
+test("every time unit reads in the unit the effect was given, with the calendar's own count of what is left", () => {
+  assert.deepEqual(effectClock(timed(30, "minutes", { units: "minutes", remaining: 12 })), { clock: "12m", remaining: 12, total: 30, units: "minutes" });
+  assert.equal(effectClock(timed(2, "hours", { units: "hours", remaining: 2 })).clock, "2h");
+  assert.equal(effectClock(timed(3, "days", { units: "days", remaining: 1 })).clock, "1d");
+  assert.equal(effectClock(timed(2, "months", { units: "months", remaining: 2 })).clock, "2mo");
+  assert.deepEqual(effectClock(timed(2, "months", { units: "months", remaining: 3 })), { clock: "2mo", remaining: 2, total: 2, units: "months" }, "core counts a month's remainder up past the total; what is left never exceeds what was given");
+  assert.equal(effectClock(timed(1, "years", { units: "years", remaining: 1 })).clock, "1y");
+  assert.equal(effectClock(timed(2, "hours")).clock, "2h", "nothing prepared: the total stands");
+});
+test("seconds climb to minutes, hours or days by the world calendar, and to Earth's lengths without one", () => {
+  const at = (s) => effectClock(timed(s, "seconds", { units: "seconds", remaining: s })).clock;
+  assert.equal(at(30), "30s");
+  assert.equal(at(90), "2m");
+  assert.equal(at(5400), "2h");
+  assert.equal(at(172800), "2d");
+  globalThis.game = { time: { calendar: { days: { secondsPerMinute: 60, minutesPerHour: 60, hoursPerDay: 10 } } } };
+  assert.equal(at(36000), "1d", "a ten-hour day is a day");
+  assert.equal(at(9000), "3h");
+  delete globalThis.game;
+});
+test("no duration is no timer, and a disabled timer is not one either", () => {
+  assert.deepEqual(effectClock(timed(null, "seconds")), { clock: "—", remaining: null, total: 0, units: null });
+  assert.equal(isTimer(timed(null, "seconds")), false);
+  assert.equal(isTimer(timed(6, "rounds")), true);
+  assert.equal(isTimer({ ...timed(6, "rounds"), disabled: true }), false);
+  assert.equal(effectClock({}).clock, "—");
+});
+delete globalThis.CONFIG;
+
+console.log("character sheet: the Load bar");
+test("the bar fills to the burden and runs a phantom on to the true weight", () => {
+  const bar = loadBar({ value6: 26, true6: 32, max6: 120, pct: 22, breakpoints: { low: 25, mid: 50, high: 75 } });
+  assert.deepEqual(bar, { pct: 22, phantom: 5, capped: false, eased6: 6, ticks: [25, 50, 75] });
+});
+test("past the maximum the phantom stops at the end of the track and says so", () => {
+  const bar = loadBar({ value6: 100, true6: 140, max6: 120, pct: 83, breakpoints: {} });
+  assert.deepEqual([bar.pct, bar.phantom, bar.capped, bar.eased6, bar.ticks], [83, 17, true, 40, []]);
+});
+test("no phantom when nothing is forgiven, or when a correction adds weight", () => {
+  assert.equal(loadBar({ value6: 30, true6: 30, max6: 120, pct: 25, breakpoints: {} }).phantom, 0);
+  const heavier = loadBar({ value6: 36, true6: 30, max6: 120, pct: 30, breakpoints: {} });
+  assert.deepEqual([heavier.phantom, heavier.eased6], [0, 0]);
+});
+test("with no maximum the fill falls back to the system's own percentage and draws no phantom", () => {
+  const bar = loadBar({ value6: 30, true6: 40, max6: 0, pct: 40, breakpoints: {} });
+  assert.deepEqual([bar.pct, bar.phantom, bar.capped], [40, 0, false]);
+});
+
+console.log("character sheet: the hands");
+const place = (key, rows = [], extra = {}) => ({ key, label: key, icon: `i-${key}`, rows, empty: !rows.length, capacity: `${rows.length} / 1`, full: false, equip: rows.length, magic: 0, ...extra });
+test("with nothing held in both hands the hands stay apart and the both-hands place is not listed", () => {
+  const places = bridgeHands([place("head"), place("mainHand", [{ id: "sw" }]), place("offHand"), place("bothHands")]);
+  assert.deepEqual(places.map((p) => p.key), ["head", "mainHand", "offHand"]);
+  assert.equal(places[1].span, undefined);
+});
+test("a weapon in both hands folds the hands into one spanning row that keeps the main hand's key", () => {
+  const places = bridgeHands([place("head"), place("mainHand"), place("offHand"), place("bothHands", [{ id: "gs" }], { label: "Both hands", hint: "held in both" })]);
+  assert.deepEqual(places.map((p) => p.key), ["head", "mainHand"]);
+  const hands = places[1];
+  assert.equal(hands.label, "Both hands");
+  assert.deepEqual(hands.rows.map((r) => r.id), ["gs"]);
+  assert.deepEqual(hands.span, [{ key: "mainHand", label: "mainHand", icon: "i-mainHand" }, { key: "offHand", label: "offHand", icon: "i-offHand" }]);
+  assert.deepEqual([hands.empty, hands.capacity, hands.full], [false, null, false]);
+});
+test("the spanning row lists what both hands hold first and is full past two things", () => {
+  const places = bridgeHands([place("mainHand", [{ id: "a" }]), place("offHand", [{ id: "b" }]), place("bothHands", [{ id: "gs" }])]);
+  assert.deepEqual(places[0].rows.map((r) => r.id), ["gs", "a", "b"]);
+  assert.equal(places[0].full, true);
 });
 
 console.log(`character sheet: ${passed} passed`);

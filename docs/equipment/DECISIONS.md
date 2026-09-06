@@ -831,3 +831,78 @@ silvered blade; the field with the worth beside it answers both.
 
 Cost: two controls for one number on an open Details panel. Accepted; the
 fired-control rule keeps them from writing over each other.
+
+### A shield counts only with its style, and a grip is never volunteered (2026-09-05)
+
+Field report: *"the Weapon & Shield fighting style does not add the
+additional AC +1 when equipping a weapon and shield"* — and, in the same
+batch, that the belt could not hold a belt pouch, that the harness holds by
+count rather than weight, and that nothing said whether something was
+reducing the encumbrance.
+
+Ruling: reproduction showed the style working as the rules read (RR ch. 3):
+the base style's benefit is the shield's own AC, Specialization adds its
+bonus above it, and both landed. Two things the reproduction found were not
+right. A character without the style still counted the shield, where the
+rules give none: the Loadout carries `shieldStyled`, false while enforcement
+is live and a shield is in hand without the style, and the loadout effect
+cancels the shield's AC through the same `system.aac.mod` change the variant
+overlay uses, taking the deeper cut once. And the `auto` grip took the
+two-handed grip for a character untrained in the two-handed style, which
+walked them into the non-proficient package by default: the auto grip widens
+only when that style is trained or enforcement is off, and an explicit `2h`
+stays the player's call. The belt and the back are uncapped, since the
+one-of-a-form rule caps a form and not a place, and "Belt Pouch" and "Purse"
+carry profile keys of their own so the garment patterns cannot claim them as
+a belt. The harness was already relieving by weight; it now also secures a
+light weapon, which hangs from a strap like anything else under a stone, and
+never a thrown one. And what a bearer answers for was misread in three places
+— a thrown weapon in `borneWeight6`, and the monster sheet's rider line and
+the formation's casualty haul, which both read an encumbrance, a walking
+figure the carrying rules had already lightened: all three read the kit as
+it weighs.
+
+Rejected: an extra bonus for the base style. The report read the style's
+benefit as something on top of the shield; the rules make the shield the
+benefit, and the guide now says so. Rejected: cancelling the shield's AC
+through a second change beside the variant overlay's — two rules against
+the same one addition would have cut twice. Rejected: a mount-side flag to
+opt a rider out of the rider line's reading; a mount's load is a fact about
+mass.
+
+Cost: a character with a shield and no style loses the AC it was wrongly
+counting, under the advisory that already existed; a versatile weapon drawn
+alone by a character untrained in the two-handed style defaults to one hand
+and the lesser die until the grip is set; the test fixture that relied on the
+auto grip to gate an unconfigured actor had to become a weapon two-handed by
+nature.
+
+### A harness secures what its own text says, and the default grip is the best option (2026-09-05)
+
+Evidence, the same day as the entry above: that entry left the harness's
+relief as a shipped constant, and the guide printed it; the owner ruled that
+the value follows the rules and the IP doctrine — the book's figure, arriving
+with the item — and that a default is the character's best option under the
+rules.
+
+Ruling: the weight a harness secures is `gear.relief`, in stone, on the item.
+Annotate reads it off the item's own name or description (the sentence that
+says what may be ignored), the Construction tab's **Secures** field takes it
+from the Judge, and a harness with no stated relief secures nothing — the
+same law as an unstated capacity. The heavy line a harness cannot secure past
+stays `STONE`: the unit itself, not a figure. The auto grip is restated as
+the character's best option: the better die when the two-handed style is
+trained or nothing is enforced, one hand where the wider grip would cost the
+non-proficient package. "Belt Pouch" and "Purse" keep their place and their
+reach and state no capacity; core's own pouch carries its figure in its name.
+
+Rejected: a fallback to the old constant when the item is silent. It would
+keep the shipped value in force for every existing harness and defeat the
+ruling. Rejected: reading the heavy line from the text as well — it is the
+unit.
+
+Cost: a harness in an existing world secures nothing until Annotate is run
+once (it reads core's own description) or the figure is typed; and the frozen
+capacities of the other profiles — backpack, sacks, saddlebag, bowquiver, the
+chest and the barrel — are the same kind of value, left for a ruling of their
+own.

@@ -225,6 +225,12 @@ export const SILVER = Object.freeze({ priceMultiplier: 10, quality: "silver" });
  * from a pack (backpack, rucksack, sack). A container with no slots is not worn
  * at all: a barrel and an ironbound chest sit on the floor.
  */
+// A pouch under the names a Judge types, without core's "(holds …)" suffix:
+// where it rides and what reaching into it costs are the device's; how much
+// it holds is the book's, and a name that does not say leaves it unstated
+// for the Judge to set on the item.
+const POUCH = Object.freeze({ slots: [SLOT.belt], access: "free" });
+
 export const GEAR_PROFILES = Object.freeze({
   // Rigging — worn, and RAW-free to draw from.
   adventurersharness: { slots: [SLOT.belt], access: "free", harness: true },
@@ -234,7 +240,12 @@ export const GEAR_PROFILES = Object.freeze({
   // the RAW equipment list is the bolt case.
   case: { slots: [SLOT.belt], access: "free", capacity: 1 },
   scabbard: { slots: [SLOT.belt], access: "free" },
-  pouchpurse: { slots: [SLOT.belt], access: "free", capacity: 0.5 },
+  pouchpurse: { ...POUCH, capacity: 0.5 },
+  // Without keys of their own, "Belt Pouch" falls through to the garment
+  // patterns, which claim the word "belt" and annotate it as a belt that
+  // holds nothing.
+  beltpouch: POUCH,
+  purse: POUCH,
   // Packs — worn, but an action to open.
   backpack: { slots: [SLOT.back], access: "action", capacity: 4 },
   rucksack: { slots: [SLOT.back], access: "action", capacity: 2 },

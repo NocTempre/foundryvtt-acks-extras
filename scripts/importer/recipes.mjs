@@ -17,24 +17,10 @@ export const RECIPES = [
   // One monster (Monstrous Manual)
   { id: "mm.griffon", book: "mm", page: 171, mode: "display", heading: "GRIFFON", cite: "MM PDF p. 171", kind: "monster", name: "Griffon" },
 
-  // One page of proficiencies (Revised Rulebook, PDF p. 110)
-  // payload = the modules' MECHANICAL interpretation (embedded math — ships;
-  // it is not in the book and cannot be extracted). Demo: +1 initiative.
-  {
-    id: "prof.combatReflexes", book: "rr", page: 110, mode: "display", heading: "Combat Reflexes",
-    cite: "RR PDF p. 110", kind: "ability", name: "Combat Reflexes",
-    payload: {
-      effects: [
-        {
-          name: "Combat Reflexes",
-          img: "icons/svg/aura.svg",
-          transfer: true,
-          disabled: false,
-          changes: [{ key: "system.initiative.mod", mode: 2, value: "1", priority: 20 }],
-        },
-      ],
-    },
-  },
+  // One page of proficiencies (Revised Rulebook, PDF p. 110). A recipe carries
+  // no mechanics: what a proficiency does is classified from the connected
+  // book when its text is read, never shipped beside the pointer.
+  { id: "prof.combatReflexes", book: "rr", page: 110, mode: "display", heading: "Combat Reflexes", cite: "RR PDF p. 110", kind: "ability", name: "Combat Reflexes" },
   { id: "prof.blindFighting", book: "rr", page: 110, mode: "display", heading: "Blind Fighting", cite: "RR PDF p. 110", kind: "ability", name: "Blind Fighting" },
   { id: "prof.berserkergang", book: "rr", page: 110, mode: "display", heading: "Berserkergang", cite: "RR PDF p. 110", kind: "ability", name: "Berserkergang" },
   { id: "prof.combatFerocity", book: "rr", page: 110, mode: "display", heading: "Combat Ferocity", cite: "RR PDF p. 110", kind: "ability", name: "Combat Ferocity" },

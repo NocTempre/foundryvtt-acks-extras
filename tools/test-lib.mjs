@@ -9,6 +9,7 @@ import * as vocab from "../scripts/lib/vocab.mjs";
 import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
 import { attackTerms, termTotal, resolveAttack, legacyCoreResolves } from "../scripts/lib/attack-logic.mjs";
+import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet } from "../scripts/lib/effect-scan.mjs";
 import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder } from "../scripts/lib/ui-preset-logic.mjs";
 import {
   buildTransferPayload,
@@ -47,6 +48,7 @@ import {
   senseProfile,
 } from "../scripts/lib/senses.mjs";
 import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
+import { sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { hdFormula, monsterHd } from "../scripts/lib/actor-read.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import {
@@ -59,6 +61,9 @@ import {
   isWorn,
   itemsInSlot,
   slotOverfilled,
+  slotUse,
+  isMagical,
+  reliefOf,
   slotsOf,
   wornSlotOf,
 } from "../scripts/lib/item-model.mjs";
@@ -492,6 +497,139 @@ t("cleanDelta: strips derived effects, keeps authored, leaves the rest intact", 
   const allDerived = cleanDelta({ effects: [{ flags: { x: { managed: true } } }] });
   assert.equal("effects" in allDerived, false);
   delete globalThis.foundry;
+});
+
+// Foundry 14 types a change by a string; the numeric `mode` is a shim that
+// logs a deprecation on every read, so every fixture change THROWS on it and
+// core's enum stands in with the real default priorities.
+const CORE_CHANGE_TYPES = { custom: 0, multiply: 10, add: 20, subtract: 20, downgrade: 30, upgrade: 40, override: 50 };
+const change = (key, type, value, extra = {}) =>
+  Object.defineProperty({ key, ...(type ? { type } : {}), value, ...extra }, "mode", {
+    get() {
+      throw new Error("accessed deprecated change.mode");
+    },
+  });
+const effect = (changes, disabled = false) => ({ disabled, changes });
+
+t("effect-scan: a change applies at its own priority, else its type's default, else zero", () => {
+  globalThis.CONST = { ACTIVE_EFFECT_CHANGE_TYPES: CORE_CHANGE_TYPES };
+  assert.equal(changePriority(change("k", "override", "1")), 50);
+  assert.equal(changePriority(change("k", null, "1")), 20, "an untyped change is an add");
+  assert.equal(changePriority(change("k", "add", "1", { priority: 5 })), 5);
+  assert.equal(changePriority(change("k", "add", "1", { priority: null })), 20, "null is unset, not zero");
+  assert.equal(changePriority(change("k", "acks-extras.special", "1")), 0, "a type nobody registered");
+  globalThis.CONFIG = { ActiveEffect: { changeTypes: { "acks-extras.special": { defaultPriority: 35 } } } };
+  assert.equal(changePriority(change("k", "acks-extras.special", "1")), 35, "a registered type carries its own default");
+  delete globalThis.CONFIG;
+  delete globalThis.CONST;
+  assert.equal(changePriority(change("k", "override", "1")), 0, "no enum at all: everything at zero, in document order");
+});
+
+t("token-sync: a scene the canvas is still drawing is left to the canvas-ready sweep", () => {
+  const scene = { id: "s1" };
+  const prevCanvas = globalThis.canvas;
+  const prevGame = globalThis.game;
+  try {
+    delete globalThis.canvas;
+    assert.equal(sceneIsDrawing(scene), false, "no canvas at all");
+    globalThis.canvas = { ready: true, scene };
+    assert.equal(sceneIsDrawing(scene), false, "drawn and ready");
+    globalThis.canvas = { ready: false, scene: { id: "s2" } };
+    assert.equal(sceneIsDrawing(scene), false, "another scene is the one drawing");
+    globalThis.canvas = { ready: false, scene: null };
+    assert.equal(sceneIsDrawing(scene), false, "nothing in view");
+    globalThis.canvas = { ready: false, scene };
+    assert.equal(sceneIsDrawing(scene), true, "this scene, mid-draw");
+    globalThis.game = { settings: { get: () => true } };
+    let derived = false;
+    let writes = 0;
+    const token = { parent: scene, update: async () => { writes++; }, get actor() { derived = true; return null; } };
+    syncTokenFromActor(token); // the guard runs before the first await
+    assert.equal(derived, false, "nothing is derived for a scene mid-draw");
+    assert.equal(writes, 0);
+    globalThis.canvas = { ready: true, scene };
+    syncTokenFromActor(token);
+    assert.equal(derived, true, "once drawn, the token is read again");
+  } finally {
+    if (prevCanvas === undefined) delete globalThis.canvas; else globalThis.canvas = prevCanvas;
+    if (prevGame === undefined) delete globalThis.game; else globalThis.game = prevGame;
+  }
+});
+
+t("effect-scan: each type does to a number what Foundry does, and anything else leaves it alone", () => {
+  assert.equal(applyNumericChange(4, change("k", CHANGE.ADD, "2")), 6);
+  assert.equal(applyNumericChange(4, change("k", null, "2")), 6, "untyped is add");
+  assert.equal(applyNumericChange(4, change("k", CHANGE.SUBTRACT, "3")), 1);
+  assert.equal(applyNumericChange(4, change("k", CHANGE.MULTIPLY, "2")), 8);
+  assert.equal(applyNumericChange(4, change("k", CHANGE.OVERRIDE, "10")), 10);
+  assert.equal(applyNumericChange(4, change("k", CHANGE.UPGRADE, "10")), 10);
+  assert.equal(applyNumericChange(4, change("k", CHANGE.UPGRADE, "1")), 4);
+  assert.equal(applyNumericChange(4, change("k", CHANGE.DOWNGRADE, "1")), 1);
+  assert.equal(applyNumericChange(4, change("k", CHANGE.DOWNGRADE, "10")), 4);
+  assert.equal(applyNumericChange(4, change("k", CHANGE.CUSTOM, "7")), 4, "custom is the package's to apply");
+  assert.equal(applyNumericChange(4, change("k", CHANGE.ADD, "1d4")), 4, "not a number");
+  assert.equal(applyNumericChange(4, change("k", CHANGE.OVERRIDE, "")), 4, "an empty value sets nothing");
+  assert.equal(applyNumericChange(4, change("k", CHANGE.OVERRIDE, null)), 4);
+});
+
+t("effect-scan: the changes on a key replay in priority order from the base, each step attributed to its effect", () => {
+  globalThis.CONST = { ACTIVE_EFFECT_CHANGE_TYPES: CORE_CHANGE_TYPES };
+  const actor = {
+    appliedEffects: [
+      effect([change("k", "override", "10")]),
+      effect([change("k", null, "2")]),
+      effect([change("k", "subtract", "3")]),
+      effect([change("k", "multiply", "2")]),
+      effect([change("other", "add", "99")]),
+      effect([change("k", "add", "100")], true),
+      effect([change("k", "custom", "7")]),
+      effect([change("k", "add", "1d4")]),
+    ],
+  };
+  assert.deepEqual(orderedChanges(actor, "k").map(({ change: c }) => c.type ?? "untyped"), ["custom", "multiply", "untyped", "subtract", "add", "override"]);
+  // base 4: ×2 → 8, +2 → 10, −3 → 7, override → 10; custom and the die move nothing and are left out.
+  const steps = activeNumericChanges(actor, "k", { base: 4 });
+  assert.deepEqual(steps.map((s) => [s.type, s.value]), [["multiply", 4], ["add", 2], ["subtract", -3], ["override", 3]]);
+  assert.ok(steps.every((s) => s.effect && s.change), "every step names its effect and its change");
+  assert.equal(netNumericChange(actor, "k", 4), 6);
+  assert.equal(netNumericChange(actor, "k"), 10, "from zero the doubling is nothing, +2 −3 is −1, then the override sets 10");
+  assert.deepEqual(activeNumericChanges(actor, "nothing"), []);
+  delete globalThis.CONST;
+});
+
+t("effect-scan: upgrade and downgrade bound the field, a stated priority outranks the type's default, and ties keep document order", () => {
+  globalThis.CONST = { ACTIVE_EFFECT_CHANGE_TYPES: CORE_CHANGE_TYPES };
+  const actor = {
+    appliedEffects: [
+      effect([change("k", "upgrade", "5")]),
+      effect([change("k", "downgrade", "3")]),
+      effect([change("k", "add", "1", { priority: 100 })]),
+    ],
+  };
+  // base 4: downgrade (30) → 3, upgrade (40) → 5, then the +1 at 100 → 6.
+  assert.deepEqual(activeNumericChanges(actor, "k", { base: 4 }).map((s) => s.value), [-1, 2, 1]);
+  const ties = { appliedEffects: [effect([change("k", "add", "1")]), effect([change("k", "override", "0", { priority: 20 })]), effect([change("k", "add", "5")])] };
+  assert.deepEqual(activeNumericChanges(ties, "k").map((s) => s.value), [1, -1, 5], "the override at the adds' priority applies between them");
+  delete globalThis.CONST;
+});
+
+t("effect-scan: CSV grants read the same way — add puts tokens in, subtract takes them out, override replaces the lot", () => {
+  globalThis.CONST = { ACTIVE_EFFECT_CHANGE_TYPES: CORE_CHANGE_TYPES };
+  const actor = {
+    appliedEffects: [
+      effect([change("g", "add", "Sword, dagger")]),
+      effect([change("g", "subtract", "dagger")]),
+      effect([change("g", null, "bow, ")]),
+      effect([change("g", "multiply", "2")]),
+      effect([change("g", "add", "axe")], true),
+    ],
+  };
+  assert.deepEqual([...csvFlagSet(actor, "g")].sort(), ["bow", "sword"]);
+  const replaced = { appliedEffects: [...actor.appliedEffects, effect([change("g", "override", "Axe")])] };
+  assert.deepEqual([...csvFlagSet(replaced, "g")], ["axe"], "the override applies last by priority and replaces everything before it");
+  const afterwards = { appliedEffects: [...replaced.appliedEffects, effect([change("g", "add", "mace", { priority: 60 })])] };
+  assert.deepEqual([...csvFlagSet(afterwards, "g")].sort(), ["axe", "mace"], "a grant priced above the override lands after it");
+  delete globalThis.CONST;
 });
 
 t("sizeFromEcology: reads the rich block, falls back to core, else null", () => {
@@ -1435,6 +1573,10 @@ t("wear slots: the vocabulary carries capacity, and rings are the Tome's two", (
   assert.equal(vocab.slotCapacity("ring"), 2);
   assert.equal(vocab.slotCapacity("head"), 1);
   assert.equal(vocab.slotCapacity("worn"), Infinity); // unlimited
+  // Different forms hung from one place: a belt, a pouch and a scabbard, a
+  // pack beside a bowcase. The one-of-a-form rule caps none of them.
+  assert.equal(vocab.slotCapacity("belt"), Infinity);
+  assert.equal(vocab.slotCapacity("back"), Infinity);
   // A typo must not silently grant unlimited wear, nor forbid all of it.
   assert.equal(vocab.slotCapacity("elbow"), 1);
   assert.ok(vocab.isWearSlot("mainHand") && !vocab.isWearSlot("elbow"));
@@ -1529,16 +1671,52 @@ t("wornSlotOf: a slot the item no longer declares reads as not worn there", () =
   assert.equal(wornSlotOf(stale), null);
 });
 
-t("slot capacity: a third ring overfills, and two do not", () => {
-  const ring = () => mkItem("item", physical(), { slots: ["ring"], wornAt: "ring" });
+t("slot use: magic counts by form, armour and weapons by the place, clothing not at all", () => {
+  // The markets feature's declaration is one way to be magic.
+  const magic = (slot) => ({ ...mkItem("item", physical(), { slots: [slot], wornAt: slot }), flags: { "acks-extras": { gear: { slots: [slot], wornAt: slot }, markets: { magic: true } } } });
+  const ring = () => magic("ring");
   const actor = { items: [ring(), ring()] };
   assert.equal(itemsInSlot(actor, "ring").length, 2);
   assert.equal(slotOverfilled(actor, "ring"), false);
   actor.items.push(ring());
-  assert.equal(slotOverfilled(actor, "ring"), true);
-  // An unlimited slot never overfills however much is worn.
+  assert.equal(slotOverfilled(actor, "ring"), true, "a third magic ring overfills");
+  // Three plain rings are jewellery.
+  const plain = { items: Array.from({ length: 3 }, () => mkItem("item", physical(), { slots: ["ring"], wornAt: "ring" })) };
+  assert.equal(slotOverfilled(plain, "ring"), false);
+  // A coif under a helm takes no room; a second helm does; a magic circlet over both is still fine.
+  const helm = () => mkItem("armor", { ...physical(), equipped: true, type: "light" }, { slots: ["head"], wornAt: "head" });
+  const coif = () => mkItem("item", { ...physical(), subtype: "clothing" }, { slots: ["head"], wornAt: "head" });
+  assert.deepEqual(slotUse("head", [helm(), coif()]), { equip: 1, magic: 0, cap: 1, used: 1, full: false });
+  assert.equal(slotUse("head", [helm(), helm()]).full, true);
+  assert.deepEqual(slotUse("head", [helm(), coif(), magic("head")]), { equip: 1, magic: 1, cap: 1, used: 1, full: false });
+  assert.equal(slotUse("head", [magic("head"), magic("head")]).full, true, "two magic of one form");
+  // An unlimited slot caps neither, however much is worn.
   const clothes = { items: Array.from({ length: 9 }, () => mkItem("item", physical(), { slots: ["worn"], wornAt: "worn" })) };
   assert.equal(slotOverfilled(clothes, "worn"), false);
+  assert.equal(slotUse("belt", [helm(), helm(), magic("belt"), magic("belt")]).full, false);
+});
+
+t("isMagical: the markets declaration or a magical variation inside the item", () => {
+  const plain = { id: "p", type: "weapon", system: { cost: 0, weight6: 6 }, flags: {} };
+  assert.equal(isMagical(plain), false);
+  const declared = { ...plain, flags: { "acks-extras": { markets: { magic: true } } } };
+  assert.equal(isMagical(declared), true);
+  // A variation is a document inside the item, found through its parent's collection.
+  const parent = { items: [] };
+  const sword = { ...plain, id: "sw", parent };
+  const glamour = { id: "v1", type: "acks-extras.variation", system: { key: "magical.glow", kind: "magical" }, flags: { "acks-extras": { containedIn: "sw" } } };
+  const finish = { id: "v2", type: "acks-extras.variation", system: { key: "masterwork.blade", kind: "quality" }, flags: { "acks-extras": { containedIn: "sw" } } };
+  parent.items = [sword, finish];
+  assert.equal(isMagical(sword), false, "a masterwork finish is not magic");
+  parent.items = [sword, finish, glamour];
+  assert.equal(isMagical(sword), true);
+});
+
+t("reliefOf: the harness's own figure, or null when unstated", () => {
+  assert.equal(reliefOf(mkItem("item", physical(), { slots: ["belt"], relief: 1 })), 1);
+  assert.equal(reliefOf(mkItem("item", physical(), { slots: ["belt"], relief: 0.5 })), 0.5);
+  assert.equal(reliefOf(mkItem("item", physical(), { slots: ["belt"] })), null);
+  assert.equal(reliefOf(mkItem("item", physical())), null);
 });
 
 /* ------------------- selection vocabularies ------------------- */

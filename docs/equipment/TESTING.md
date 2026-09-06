@@ -37,7 +37,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   `contentsOf(actor, containerId)`, `contentsWeight6(actor, containerId)`,
   `encumbranceDelta6(actor)`. Reading `contentsOf(container)` returns an empty
   list from a container that really does hold the item — a successful store
-  then looks like a silent failure.
+  then looks like a silent failure. The one exception is `takeOut(item)`,
+  which takes the item alone: passed the actor first it finds no container
+  on it and does nothing, silently.
 - **`canPick` and `canBash` take the ACTOR, not the lock**: they ask whether
   the character has the ability, so they answer false for a GM probing a
   locked chest with nobody selected.
@@ -61,6 +63,17 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    attack with a weapon the character is not proficient in.
    *Observable:* the violation is reported, and the setting genuinely gates it
    — flip the setting off and the same attack passes.
+3b. The shield and its style: on a character trained in the single style only
+   (`flags.acks-extras.styles` = `single`), draw a sword and a shield.
+   *Observable:* `getLoadout(actor).shieldStyled` is false with the
+   `shieldNoStyle` advisory; the managed loadout effect carries
+   `system.aac.mod` at minus the shield's AC, and `system.aac.value` reads
+   as it did without the shield. Add `weaponShield` to the styles flag:
+   the advisory and the change go, and the value climbs by the shield's AC.
+   Add a Specialization marker (`styleProficient` = `weaponShield:spec`):
+   one more. The same character with the sword alone stays one-handed
+   (`wieldTwoHanded` false, `activeStyle` single); add `twoHanded` to the
+   flag and the auto grip widens.
 4. Containers: declare capacity on the sack, `storeIn` the weapon, then
    `takeOut`.
    *Observable:* `contentsOf(sack)` lists it, `encumbranceDelta6` changes, and
@@ -85,6 +98,16 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    weapon still unequips and stows it; an unrelated write to a stowed item (a
    rename) leaves it stowed; and writing an EMPTY `gear.wornAt` — taking a thing
    off — does not take it out of the container.
+4d. The harness, by weight: create the harness from the system's compendium
+   and annotate it — `reliefOf(item)` reads the figure its description states
+   and the Construction tab shows it under **Secures** — then wear it on the
+   belt beside a dagger and three small items, with light armour or none.
+   *Observable:* `encumbranceDelta6` relieves the dagger and the small items
+   up to that figure, and a two-handed sword beside them is not relieved;
+   over heavy armour the relief is 0; clear **Secures** and the relief is 0.
+   The lib's `carriedWeight6(actor)` is the full mass regardless, and
+   `borneWeight6(actor)` agrees with it except for clothing, which is free to
+   bear.
 5. Locks: `setLocked(container, true)`, then `pickLock` and `bashOpen`.
    *Observable:* each reports its throw before rolling; a locked container's
    contents are not readable through `canSeeInside`.
@@ -95,15 +118,14 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    Damage" macro with a token controlled.
    *Observable:* the plan names the stones at risk and which items are
    vulnerable; nothing is deleted until the macro is confirmed.
-8. Training row: open a fresh character's Inventory tab, then grant training
-   the way a class apply does — an Active Effect whose changes set
-   `flags.acks-extras.weaponProf` (CSV), `.armourProficiency` (category) and
-   `.styleProficient` (CSV) — and re-render.
-   *Observable:* `.acks-equipment-training` sits between the encumbrance
-   panel and Worn & Wielded; with no profile every pill is grey (`unset`),
-   after the grant the covered weapon chips, the armour ladder up to the
-   granted rung, and the trained styles light (`on`), and the row appears
-   once however many render hooks fire.
+8. Training: the pills are read and edited on the Stats tab, not the
+   Inventory — the render is walked in `docs/character-sheet/TESTING.md`
+   under "Training on Stats". What a grant does to equipment is steps 3 and
+   3b above: grant training the way a class apply does — an Active Effect
+   whose changes set `flags.acks-extras.weaponProf` (CSV),
+   `.armourProficiency` (category) and `.styleProficient` (CSV) — and the
+   attack that reported `weaponNotProficient`, or the loadout that reported
+   `shieldNoStyle`, reports neither afterwards.
 9. Every shipped macro compiles.
    *Observable:* each `macro.command` parses when compiled as an **async**
    function. Compiling as a plain `Function`, or with Foundry's injected
@@ -261,10 +283,12 @@ Fixtures to create and destroy: one disposable `character`, one disposable
    sheet with the owning actor's sheet CLOSED; a known defect duplicates the
    title band otherwise and hides this readout.
 6. **Annotate declares it.** Create an item named `Quiver, 20 Arrows` with no
-   quantity and no bundle, and press **Annotate**.
-   *Observable:* quantity becomes 20 **and** `gear.per` becomes 20 — the weight
-   does not multiply. Set `per` by hand to something else and re-annotate:
-   *Observable:* the Judge's value survives.
+   bundle, and press **Annotate**.
+   *Observable:* `gear.per` becomes 20 and the weight does not multiply; the
+   quantity stays what it was — core initialises every item's count to 1, so
+   Annotate never meets a blank one to fill, and a half-spent quiver must not
+   refill on re-annotation. Set `per` by hand to something else and
+   re-annotate: *Observable:* the Judge's value survives.
 7. **Containers roll up bundled.** Stow the quiver in a container.
    *Observable:* the container's load counts one bundle, and its capacity rail
    is not over-full.

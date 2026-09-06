@@ -1,5 +1,100 @@
 # Changelog
 
+## 7.0.0
+
+**The world answers Discord: a bot holds a seat, and your characters roll and speak from a channel.**
+
+### Added
+- **A Discord bot, shipped inside the module.** `discord/` is a Node service
+  that runs beside the Foundry server, joins the world through a headless
+  browser as its own Assistant Gamemaster user, and answers slash commands:
+  `/whoami`, `/character list` and `use`, `/sheet`, `/roll` (everything the
+  sheet can roll, autocompleted), `/say`; the Judge's `/link`, `/party` and
+  `/map`. With a chat channel set, the world's public chat is relayed there.
+  Every command runs as the Foundry user the member is linked to, never as
+  the seat. One command on the Foundry host installs it as a service, and
+  from then on it follows Foundry's module updater by itself: it restarts on
+  the new code, reinstalls what it needs and re-registers the commands when
+  a release changed them. The guide is `docs/guides/bridge.md`.
+- **The bridge** (`scripts/bridge/`): the command surface a client outside
+  Foundry calls, with the bindings between external identities and Foundry
+  users, the ownership guard, and a provenance stamp on every message it
+  posts. Discord is its first client; the shape is client-agnostic.
+- **The Load bar shows what the carrying rules forgive.** Where an
+  adventurer's harness, a slung shield or the clothes on your back make the
+  burden lighter than the kit adds up to, a dashed, unfilled phantom runs on
+  from the fill to the true weight, the header reads both figures, and the
+  bar's tooltip says how much does not weigh on you.
+
+### Changed
+- **A weapon held in both hands spans Main hand and Off hand** on the
+  character sheet — one row carrying both labels — instead of taking a place
+  of its own, and core's inventory heads its bucket with the two hands it
+  spans.
+- **The auto grip widens to two hands only when the two-handed style is
+  trained** (or enforcement is off). A versatile weapon drawn alone by a
+  character without that style stays in one hand until the grip is set, so a
+  default never carries the non-proficient package. A grip set to two hands
+  is still honoured.
+- **The belt and the back hold any number of different things.** A belt, a
+  pouch, a scabbard, a quiver and a harness are five forms hung from one
+  place, and the one-of-a-form rule caps none of them; the count and the red
+  tint are gone from those two places.
+- **An adventurer's harness secures what its own description says.** The
+  weight it relieves you of is read off the item by Annotate into a
+  **Secures** field on its Construction tab, where a Judge can also type it;
+  a harness that states nothing secures nothing, so run Annotate once for a
+  harness that predates this. It now secures a light weapon like any other
+  small piece, and never one that has been thrown.
+- **A place counts magic and equipment separately, and clothing not at
+  all.** Magic items count by form, armour and weapons against the one place,
+  so a coif under a helm no longer reads as two of one; the badge shows the
+  larger count and both in its tooltip.
+- **The sheet reads every kind of effect change.** Save modifiers are
+  replayed the way Foundry applies them — add, subtract, multiply, override,
+  upgrade and downgrade, in priority order from the character's own value —
+  so a subtraction shows as a penalty, an override as the difference it
+  makes and a lowered save target as help. The equipment and henchmen
+  modifier readers share the reading, a proficiency grant written as a
+  subtraction or an override is honoured, and the Effects tab prints each
+  change with a glyph for its type.
+- **The effect clock reads every unit an effect can be given**: rounds and
+  turns for the game, seconds, minutes and hours for the clock, days, months
+  and years for the calendar, counted down through the world's calendar.
+  Outside combat a rounds or turns effect reads back in its own unit.
+- **A class path's training effect writes the string change type** Foundry 14
+  uses, not the numeric mode.
+
+### Fixed
+- **A shield no longer counts for a character without the Weapon & Shield
+  style.** Core adds every equipped shield's AC; the rules give none without
+  the style (RR ch. 3), so the loadout effect cancels it, under the advisory
+  that already said so. With the style the shield counts as it did and
+  Specialization still adds its bonus: the style's benefit is the shield's
+  own AC, which the guide now explains.
+- **A "Belt Pouch" is annotated as a pouch, not a belt.** The garment
+  patterns claimed the word; the pouch and the purse have profiles of their
+  own, with the capacity left for the item to state.
+- **A mount's rider line and a formation's casualty haul read the kit as it
+  weighs**, not the rider's or the casualty's encumbrance, which a harness or
+  a slung shield had already lightened for walking; a thrown weapon no longer
+  weighs on its bearer either.
+- **A place over its capacity no longer shares its marker with the drag
+  highlight.**
+- **Opening a character, or reading one through the bridge, no longer logs
+  Foundry deprecations for effect changes or durations.** The sheet read the
+  save modifiers through the numeric change mode and the clock through the
+  duration fields Foundry 14 retired; both read the shapes Foundry 16 keeps.
+- **Placing a token on a scene the canvas is still drawing no longer fails
+  the sense sync.** The module wrote the token's sight while core was drawing
+  the scene, and on a client that had not drawn one before, core's own update
+  handler threw; the write now waits for the sweep that runs once the canvas
+  is ready.
+- **The book loader's refresh-bridge line no longer reports how long the page
+  was away.** Before anything was stamped it measured from zero and read as
+  the epoch; once the live page had stamped, it read negative. The console
+  line at join carries that figure, measured when it means something.
+
 ## 6.5.3
 
 **The numbers a band reads are typed on it, and the rating a monster is given is the one it rolls.**

@@ -12,10 +12,11 @@
  * Only a few RAW rules genuinely disagree with a flat sum, and only those are
  * corrected:
  *
- *  1. **Adventurer's harness** (RR p. 142): the wearer "can ignore 1 stone's
- *     worth of equipment". It cannot secure heavy items, coins, or be worn over
- *     heavy armour — so the stone it forgives is drawn only from ordinary
- *     (non-heavy, non-coin) gear.
+ *  1. **Adventurer's harness** (RR p. 142): the wearer is relieved of a stated
+ *     weight of ordinary equipment — the item's own figure (`gear.relief`),
+ *     never a number of ours. It cannot secure heavy items, coins, or be worn
+ *     over heavy armour — so the weight it forgives is drawn only from
+ *     ordinary (non-heavy, non-coin) gear.
  *  2. **Bowquiver** (RR p. 142): empty it counts as 1 item; holding a bow and 20
  *     arrows the whole assembly counts as **2 items** — not bow (1 stone) plus
  *     quiver plus arrows. A flat sum is wildly heavier than RAW.
@@ -36,7 +37,7 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // wanted instead (harness heavy-check, shield baseline), which do NOT go
 // through it. `isStowable` is where coin's missing cost/weight6 is reconciled:
 // coin is goods without being physical, so asking `isPhysical` here loses it.
-import { weight6Of, coreWeight6Of, bundleSizeOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
+import { weight6Of, coreWeight6Of, bundleSizeOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6 } from "../lib/item-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts } from "./item-sheet/accept-kinds.mjs";
 import { itemBaseType } from "./variation-items.mjs";
 // Containment READS live in lib now (the capacity primitive needs them);
@@ -358,17 +359,22 @@ export function containerReport(actor) {
 /**
  * Ordinary gear the harness is able to secure (RR p. 142): not the harness
  * itself (it is the securing device, not secured equipment), not clothing, not
- * heavy items (>= 1 stone), and not coins — `money` is its own item type, so it
- * is excluded by the type filter.
+ * heavy items, and not coins — `money` is its own item type, so it is excluded
+ * by the type filter. A weapon light enough to hang from a sheath or strap
+ * qualifies like any other item; a large one fails the heavy test, and armour
+ * never passes it, so neither is listed. The heavy line is `STONE` — the unit
+ * the books weigh everything in, and where they draw it.
  */
 function harnessEligible6(actor, harnessId) {
   return actor.items
     .filter((i) => i.id !== harnessId)
-    .filter((i) => i.type === ITEM_TYPE.item && !isClothing(i))
+    .filter((i) => (i.type === ITEM_TYPE.item || i.type === ITEM_TYPE.weapon) && !isClothing(i))
+    // A thrown weapon has left the body; its weight comes off below, and the
+    // harness cannot secure what it no longer holds.
+    .filter((i) => !i.getFlag?.(MODULE_ID, ITEM_FLAGS.THROWN_STATE))
     // Per-UNIT heavy check stays RAW (not weight6Of): a stack of six 1/6-stone
     // torches sums to a stone but no single one is heavy, so quantity must NOT
-    // enter here. The reduce below is over type==="item" rows only, where
-    // weight6Of === the old itemWeight6.
+    // enter here. The reduce below sums the bundle-aware weight of each row.
     .filter((i) => Number(i.system?.weight6 ?? 0) < STONE)
     .reduce((sum, i) => sum + weight6Of(i), 0);
 }
@@ -391,13 +397,15 @@ export function encumbranceDelta6(actor) {
   //    counts as one item, not one stone). Off unless that overlay is enabled.
   delta += shieldEncumbranceDelta6(actor);
 
-  // 1. Adventurer's harness: ignore up to 1 stone of ordinary equipment.
-  //    WORN, not `system.equipped` — a harness is a plain `item`, which core
-  //    gives no `equipped` field, so gating on that field made this rule
-  //    permanently inert. Never re-narrow a worn test to one store.
+  // 1. Adventurer's harness: relieves the wearer of the weight its own text
+  //    states (`gear.relief`, in stone); unstated relieves nothing. WORN, not
+  //    `system.equipped` — a harness is a plain `item`, which core gives no
+  //    `equipped` field, so gating on that field made this rule permanently
+  //    inert. Never re-narrow a worn test to one store.
   const harness = actor.items.find((i) => i.getFlag?.(MODULE_ID, ITEM_FLAGS.HARNESS) && isWorn(i));
-  if (harness && wornArmourType(actor) !== "heavy") {
-    delta -= Math.min(STONE, harnessEligible6(actor, harness.id));
+  const relief = harness ? reliefOf(harness) : null;
+  if (harness && relief !== null && wornArmourType(actor) !== "heavy") {
+    delta -= Math.min(relief * STONE, harnessEligible6(actor, harness.id));
   }
 
   // 2. Bowquiver: the assembly counts as 2 items when holding anything, 1 when

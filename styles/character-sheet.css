@@ -1011,6 +1011,19 @@ a.acks-extras-character-sheet__gear-name:hover {
   background: var(--acks-spot);
 }
 
+/* The phantom: what is carried beyond what is counted. Dashed and unfilled —
+   the relief a carrying rule grants is the gap between the fill and this cap.
+   Spot-coloured like the ticks, in both themes, whatever tone the fill has. */
+.acks-extras-character-sheet__bar.is-thin > s {
+  position: absolute;
+  inset-block: 0;
+  box-sizing: border-box;
+  background: none;
+  border: var(--acks-rule-hair) dashed var(--acks-spot);
+  border-inline-start: none;
+  text-decoration: none;
+}
+
 .acks-extras-character-sheet__bar.is-warn { border-block-end-color: var(--acks-warning); }
 .acks-extras-character-sheet__bar.is-warn > i { background: var(--acks-warning); }
 .acks-extras-character-sheet__bar.is-bad,
@@ -1040,8 +1053,27 @@ a.acks-extras-character-sheet__gear-name:hover {
   align-items: center;
 }
 
-.acks-extras-character-sheet__slot.is-over {
+/* Over capacity. Its own marker: `is-over` is the drag state on every drop
+   zone, and a place wears both. */
+.acks-extras-character-sheet__slot.is-full {
   background: var(--acks-danger-tint);
+}
+
+/* A weapon in both hands spans the two hand places: their labels stack behind
+   one bracket and share the one row. */
+.acks-extras-character-sheet__where.is-span {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding-block-start: 4px;
+  padding-inline-start: 6px;
+  border-inline-start: 2px solid var(--acks-spot);
+}
+
+.acks-extras-character-sheet__where-hand {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .acks-extras-character-sheet__where {

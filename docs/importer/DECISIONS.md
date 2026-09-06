@@ -9,6 +9,33 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### A browse recipe is a pointer and carries no mechanics (2026-09-05)
+
+**Problem.** The PoC recipe for Combat Reflexes carried a `payload.effects`
+array — an embedded effect adding the proficiency's initiative bonus — under a
+comment calling it the module's mechanical interpretation, shipped because it
+"is not in the book and cannot be extracted". Walking the importer recipe for
+7.0.0 found it dead: `createDocFor` (`scripts/importer/poc.mjs`) builds a
+browse-loaded item from name, type, folder, flags and description and never
+reads `payload`, and an item created through it from that recipe held zero
+effects. No test read the field either.
+
+**Rejected: wiring it.** One line in `createDocFor` would have made the
+comment true, and it is the fix the finding first proposed. Refused on the
+value rule of `.claude/rules/ip-doctrine.md`: the bonus is the proficiency's
+stated benefit on the page the recipe cites, so a recipe that ships it ships a
+page value, however small. The comment's premise was wrong — the number is in
+the book, and the cookbook already reads it from there (`tools/test-equipment.mjs`:
+"Combat Reflexes classified from a connected book declares the very bonus").
+Wiring the payload would have given a seat two sources for one number, the
+shipped one and the classified one, which is the disagreement that test
+exists to refuse.
+
+**Taken.** The payload and its comment are removed; a browse recipe is a
+pointer — book, page, heading, citation — and nothing else. The 7.0.0
+changelog entry that had described the payload's change type was reduced to
+the class path it also covered. Cost: none; nothing ever read the field.
+
 ### The barbarian's column is declared elected (2026-09-04)
 
 **Problem.** The barbarian's damage-bonus column is headed exactly like the

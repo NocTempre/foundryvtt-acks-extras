@@ -5,7 +5,7 @@
  * `system`, `flags`, `items`, `getFlag`.
  */
 import assert from "node:assert/strict";
-import { capacity6, load6, overCapacity, capacityStone, loadStone, RIDER_BODY6 } from "../scripts/lib/capacity.mjs";
+import { capacity6, load6, overCapacity, capacityStone, loadStone, RIDER_BODY6, borneWeight6, carriedWeight6 } from "../scripts/lib/capacity.mjs";
 import { STONE } from "../scripts/lib/item-model.mjs";
 
 const flagReader = (flags) => function (scope, key) {
@@ -77,6 +77,23 @@ assert.equal(load6(pack), 6 + 18, "container load sums its contents");
 assert.equal(overCapacity(pack), false);
 carrier.items.push(inPack("z", 6, 1));
 assert.equal(overCapacity(pack), true, "a fifth stone overfills a 4-stone pack");
+
+/* --- what is borne vs what is carried ------------------------------------- */
+const walker = actor({
+  type: "character",
+  system: { encumbrance: { max: 20, value6: 12 } },
+  items: [
+    item({ id: "sw", weight6: 6, type: "weapon" }),                        // a stone in hand
+    item({ id: "cl", weight6: 6, subtype: "clothing" }),                   // worn: weighs, is not charged
+    item({ id: "fl", weight6: 1, qty: 3 }),                                // three flasks
+    item({ id: "th", weight6: 1, type: "weapon", flags: { "acks-extras": { thrownAway: true } } }), // lying where it landed
+    item({ id: "sp", weight6: 60, flags: { "acks-extras": { spoil: true } } }),                     // its own parts
+  ],
+  money: { stone: 1 },
+});
+assert.equal(borneWeight6(walker), 6 + 3 + STONE, "borne: kit and coin; clothing free; a thrown weapon and a spoil are not on the body");
+assert.equal(carriedWeight6(walker), 6 + 6 + 3 + STONE, "carried: everything on the body at what it weighs, clothing included");
+assert.equal(carriedWeight6({ documentName: "Item" }), 0, "only an actor carries");
 
 /* --- rider constant ------------------------------------------------------- */
 assert.equal(RIDER_BODY6, 15 * STONE, "RR prices the adventurer at 15 stone");

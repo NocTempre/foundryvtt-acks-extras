@@ -827,6 +827,7 @@ test("the chosen option's training becomes effect changes, and only the chosen o
   assert.equal(byKey.weaponProf, "bola");
   assert.equal(byKey.armourProficiency, "light");
   assert.equal(byKey.styleProficient, "dual");
+  assert.ok(changes.every((c) => c.type === "add" && !("mode" in c)), "a change is typed by its string, never by the numeric mode");
   // Nothing chosen, nothing granted — a class with an unanswered group grants
   // no training rather than a default one.
   assert.equal(pathTrainingChanges(sys, {}).length, 0);

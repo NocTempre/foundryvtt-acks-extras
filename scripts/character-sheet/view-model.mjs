@@ -1,7 +1,7 @@
 /**
  * The character sheet's view-model — every decision about what the band, the
- * rails, the tab strip and the folded bar show, made once, on plain data, with
- * no Foundry in reach.
+ * rails, the tab strip and the folded bar show, and the Equipment tab's Load
+ * bar and hand places, made once, on plain data, with no Foundry in reach.
  *
  * `snapshot.mjs` reads the actor into the snapshot shape this file consumes;
  * `sheet.mjs` hands the result to the templates. Keeping the decisions here
@@ -257,6 +257,73 @@ export function togglePin(pins, id) {
   if (at !== -1) cur.splice(at, 1);
   else cur.push(id);
   return cur;
+}
+
+/* -------------------------------------------- */
+/*  The Equipment tab                            */
+/* -------------------------------------------- */
+
+/**
+ * The Load bar's two readings on one track: the burden the character moves
+ * under, filled, and what they actually carry, as a dashed phantom running
+ * on from the fill to where the true weight falls. The gap is what the
+ * carrying rules are worth — a harness, a slung bow, the clothes on their
+ * back — drawn so a figure lighter than the kit adds up to reads as a rule
+ * working, not a miscount. No phantom when the two agree or a correction
+ * runs the other way; past the maximum the phantom stops at the end of the
+ * track and `capped` says it did.
+ * @param {object} enc {value6, true6, max6, pct, breakpoints} in sixths
+ * @returns {{pct:number, phantom:number, capped:boolean, eased6:number, ticks:number[]}}
+ *   widths in percent of the track; `eased6` the sixths that do not weigh
+ */
+export function loadBar({ value6, true6, max6, pct, breakpoints }) {
+  const m = num(max6);
+  const counted = m > 0 ? clampPct((num(value6) / m) * 100) : clampPct(pct);
+  const carried = m > 0 ? clampPct((num(true6) / m) * 100) : counted;
+  return {
+    pct: counted,
+    phantom: Math.max(0, carried - counted),
+    capped: m > 0 && num(true6) > m,
+    eased6: Math.max(0, num(true6) - num(value6)),
+    ticks: [breakpoints?.low, breakpoints?.mid, breakpoints?.high].map((n) => num(n)).filter((n) => n > 0 && n < 100),
+  };
+}
+
+/**
+ * The hands on the body map. A weapon held in both hands has no place of its
+ * own: it spans the main and off hand, so those two places fold into one row
+ * carrying both labels and whatever is held. With nothing held in both hands
+ * the two stay separate, each its own drop target, and the both-hands place
+ * is not listed at all.
+ * @param {{key:string, rows:object[]}[]} places in slot order
+ * @returns {object[]} the places with the fold applied. The folded row keeps
+ *   the main hand's key (a drop on it draws), carries `span` — the two hands'
+ *   key, label and icon — and lists the both-hands rows first.
+ */
+export function bridgeHands(places) {
+  const both = places.find((p) => p.key === "bothHands");
+  const rest = places.filter((p) => p.key !== "bothHands");
+  if (!both?.rows?.length) return rest;
+  const main = rest.find((p) => p.key === "mainHand");
+  const off = rest.find((p) => p.key === "offHand");
+  if (!main || !off) return [...rest, both];
+  const rows = [...both.rows, ...main.rows, ...off.rows];
+  // What is held in both hands takes both; the row is over once the hands it
+  // spans hold more equipment than two hands can.
+  const equip = (both.equip ?? both.rows.length) * 2 + (main.equip ?? 0) + (off.equip ?? 0);
+  const joined = {
+    ...main,
+    label: both.label,
+    rows,
+    empty: false,
+    full: equip > 2,
+    capacity: null,
+    capacityHint: "",
+    equip,
+    magic: (both.magic ?? 0) + (main.magic ?? 0) + (off.magic ?? 0),
+    span: [main, off].map(({ key, label, icon }) => ({ key, label, icon })),
+  };
+  return rest.filter((p) => p !== off).map((p) => (p === main ? joined : p));
 }
 
 /* -------------------------------------------- */

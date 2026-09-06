@@ -10,7 +10,8 @@
  * a second reading of the same flag. The tab panels read through their own
  * builders under `tabs/`.
  */
-import { MODULE_ID, SHEET_FLAG, SUMMON_FLAG, CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS } from "./constants.mjs";
+import { MODULE_ID, SHEET_FLAG, SUMMON_FLAG, CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, CLOCK_MARKS } from "./constants.mjs";
+import { netNumericChange } from "../lib/effect-scan.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
 import { realMembers } from "../formation/formation-model.mjs";
 import { getLoadout } from "../equipment/loadout.mjs";
@@ -61,39 +62,56 @@ export function saveKeyOf(text) {
 }
 
 /**
- * A compact clock for an effect's duration: rounds as `3r`, turns as `2t`,
- * seconds as minutes, hours or days. An effect with no duration reads as `—`.
+ * Seconds climbed to the largest clock unit the world calendar makes of
+ * them: `45s`, `3m`, `2h`, `1d`. The minute, hour and day are the calendar's
+ * own lengths, Earth's where no calendar answers.
+ */
+function secondsClock(seconds) {
+  const days = globalThis.game?.time?.calendar?.days ?? {};
+  const minute = num(days.secondsPerMinute) || 60;
+  const hour = minute * (num(days.minutesPerHour) || 60);
+  const day = hour * (num(days.hoursPerDay) || 24);
+  if (seconds >= day) return `${Math.ceil(seconds / day)}d`;
+  if (seconds >= hour) return `${Math.ceil(seconds / hour)}h`;
+  if (seconds >= minute) return `${Math.ceil(seconds / minute)}m`;
+  return `${Math.ceil(seconds)}s`;
+}
+
+/**
+ * A compact clock for an effect's duration, in the unit the effect was
+ * given: rounds `3r`, turns `2t`, minutes `10m`, hours `2h`, days `3d`,
+ * months `2mo`, years `1y`; an effect given in seconds climbs to minutes,
+ * hours or days by the world calendar's lengths. An effect with no duration
+ * reads as `—`.
  *
- * Read off the SOURCE duration for the unit, because Foundry's prepared
- * duration restates a rounds-or-turns effect in seconds whenever no combat
- * is running; what is left is then the prepared `remaining`, converted back
- * through the world's round and turn lengths.
- * @returns {{clock: string, remaining: number|null, total: number}}
+ * The unit and the total are the SOURCE duration's `units` and `value`. What
+ * is left is Foundry's prepared `remaining`, which the calendar has already
+ * counted in that unit for a time unit and combat counts in rounds or turns.
+ * Outside combat Foundry restates a rounds-or-turns effect in seconds, and
+ * that is converted back through the world's round or turn length; a world
+ * whose turns take no time leaves such an effect standing at its total.
+ * @returns {{clock: string, remaining: number|null, total: number, units: string|null}}
  */
 export function effectClock(effect) {
-  const src = effect?._source?.duration ?? effect?.duration ?? {};
+  const src = effect?._source?.duration ?? {};
+  const units = CLOCK_MARKS[src.units] ? src.units : null;
+  const total = num(src.value);
+  if (!units || !(total > 0)) return { clock: "—", remaining: null, total: 0, units: null };
   const d = effect?.duration ?? {};
-  const units = d.units ?? d.type ?? "none";
-  const prepared = Number.isFinite(d.remaining) ? Math.max(0, d.remaining) : null;
-  const time = globalThis.CONFIG?.time ?? {};
-  const inUnit = (per) => (prepared == null ? null : units === "seconds" && per > 0 ? prepared / per : prepared);
-  if (num(src.rounds) > 0) {
-    const total = num(src.rounds);
-    const left = inUnit(num(time.roundTime, 0));
-    return { clock: `${Math.ceil(left ?? total)}r`, remaining: left, total };
+  let left = null;
+  if (Number.isFinite(d.remaining)) {
+    if (d.units === units) left = d.remaining;
+    else if (d.units === "seconds") {
+      const per = num(globalThis.CONFIG?.time?.[`${units.replace(/s$/, "")}Time`]);
+      left = per > 0 ? d.remaining / per : null;
+    }
   }
-  if (num(src.turns) > 0) {
-    const total = num(src.turns);
-    const left = inUnit(num(time.turnTime, 0));
-    return { clock: `${Math.ceil(left ?? total)}t`, remaining: left, total };
-  }
-  if (num(src.seconds) > 0 || (units === "seconds" && num(d.seconds) > 0)) {
-    const total = num(src.seconds) || num(d.seconds);
-    const left = prepared ?? total;
-    const clock = left >= 86400 ? `${Math.ceil(left / 86400)}d` : left >= 3600 ? `${Math.ceil(left / 3600)}h` : `${Math.ceil(left / 60)}m`;
-    return { clock, remaining: left, total };
-  }
-  return { clock: "—", remaining: null, total: 0 };
+  // Foundry counts a month's remainder up on both ends, so a fresh two-month
+  // effect answers three; what is left never exceeds what was given.
+  if (left != null) left = Math.min(total, Math.max(0, left));
+  const shown = left ?? total;
+  const clock = units === "seconds" ? secondsClock(shown) : `${Math.ceil(shown)}${CLOCK_MARKS[units]}`;
+  return { clock, remaining: left, total, units };
 }
 
 /** Is this effect a timer — something with a duration that runs down? */
@@ -128,28 +146,26 @@ export function saveRiders(actor) {
   return riders;
 }
 
+/** A field's value before any effect touched it, read off the actor's source. */
+const sourceValue = (actor, path) => num(path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), actor?._source));
+
 /**
- * The signed modifier in force on each save: the all-save modifier plus any
- * ADD change to that save's own value, read off the applied effects.
+ * The signed modifier in force on each save: the shift every enabled effect
+ * makes to the all-save modifier, plus the shift made to that save's own
+ * target, each replayed from the field's source value the way Foundry
+ * applies the changes (the lib's effect-scan), so a subtraction reads
+ * negative and an override reads as the difference it makes.
  */
 export function saveModifiers(actor) {
-  const out = Object.fromEntries(SAVE_KEYS.map((k) => [k, 0]));
-  const ADD = globalThis.CONST?.ACTIVE_EFFECT_MODES?.ADD ?? 2;
-  for (const effect of actor.appliedEffects ?? []) {
-    if (effect.disabled) continue;
-    for (const change of effect.changes ?? []) {
-      if (Number(change.mode) !== ADD) continue;
-      const value = Number(change.value);
-      if (!Number.isFinite(value) || !value) continue;
-      if (change.key === "system.save.mod") for (const k of SAVE_KEYS) out[k] += value;
-      const m = /^system\.saves\.([a-z]+)\.value$/.exec(change.key ?? "");
-      const book = m ? saveBookKey(m[1]) : null;
+  const all = netNumericChange(actor, "system.save.mod", sourceValue(actor, "system.save.mod"));
+  return Object.fromEntries(
+    SAVE_KEYS.map((k) => {
+      const key = `system.saves.${saveSystemKey(k)}.value`;
       // A change that LOWERS the target helps the throw; the cell states the
       // help as a positive number, the way a player reads it.
-      if (book) out[book] -= value;
-    }
-  }
-  return out;
+      return [k, all - netNumericChange(actor, key, sourceValue(actor, key))];
+    }),
+  );
 }
 
 /** Statuses on the actor that ride on a right-rail cell instead of a save. */

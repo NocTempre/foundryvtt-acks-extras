@@ -28,6 +28,12 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   and the session's mode is null. `assistant` is a `button: true` tool — press
   it through the DOM, which is also the double-fire check: exactly ONE app
   must open.
+- **A closed `SceneControls` makes `activate()` throw inside core.** After a
+  driver has closed every app (the capture driver's `compose()` does), render
+  it back first — `await ui.controls.render({force: true})` — because
+  `activate()` re-renders only its tools part, which no-ops on a closed app,
+  and then reads a null `element`; the throw lands before either window opens,
+  and an unawaited call fails silently.
 - **A backgrounded pane never renders, and stale transforms fail EVERY hit
   test.** The pane does not composite, so PIXI's ticker does not run, the
   overlay's screen-space `updateTransform` never applies, and the catcher is

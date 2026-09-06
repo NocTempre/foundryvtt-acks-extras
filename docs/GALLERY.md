@@ -17,24 +17,27 @@ the next refresh.
 
 | Feature | What it shows | Guide | Shot |
 |---|---|---|---|
-| Importing from your books | The book loader, whole: the server list folded behind its count, the picker that puts a library there at once, and Add to server on the rows of books this computer has never opened | [guide](guides/importer.md#connecting-a-book) | [importer v4.2.1](releases/importer/v4.2.1/book-loader.png) |
-| Battlemaps and token scale | Hex terrain painted onto a scene as Regions — the Terrain Brush open, several cells claimed by different ground, and one terrain per hex however often you paint over it | [guide](guides/battlemap.md) | [v5.0.0](releases/v5.0.0/battlemap-terrain.png) |
-| The character sheet | The sheet at the table: the band in the window header, the saves and the vitals on the rails around the portrait, the Rolls dashboard with every throw and its target, and the Stats tab's Training editor — every weapon its own pill, regrouped at will, edited with the pencil | [guide](guides/character-sheet.md) | [v6.5.0](releases/v6.5.0/character-sheet-stats.png) |
-| Characters and classes | Rolling a character: the attribute rule and the scores, the class above the template die, and what is left to choose | [guide](guides/classes.md) | [v5.0.0](releases/v5.0.0/classes-chargen.png) |
-| Class paths | A class's groups of mutually exclusive options — a region, a dark path, a caste — with the starting templates shown as one of those groups | [guide](guides/classes.md) | [v5.0.0](releases/v5.0.0/classes-paths.png) |
-| Proficiencies and powers | A proficiency's Rolls tab: throws that borrow another class's table, a rung that needs no throw, and a roll with no target | [guide](guides/abilities.md) | [v5.6.0](releases/v5.6.0/abilities.png) |
-| Equipment and containers | The item sheet's weight badge in sixths — a bundled quiver's stated weight beside what the stack carries, and the Per field that ties them | [guide](guides/equipment.md) | [v5.7.0](releases/v5.7.0/equipment.png) |
-| Exploration formations | The party sheet on a journey: the ground it is crossing, the day's sky, the day board and its ancillary hours, the march derived with every factor named — and the camp beneath it, where the packs are counted, the cold is charged by the hour, and tonight's forage is priced | [guide](guides/formation.md) | [v5.3.0](releases/v5.3.0/formation-journey.png) |
-| Monsters | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v5.0.0](releases/v5.0.0/monsters.png) |
-| Henchmen and hirelings | An employer's roster tab: who is hired, on what terms | [guide](guides/henchmen.md) | [v5.0.0](releases/v5.0.0/henchmen.png) |
-| Influence and reactions | A social roll with its modifier stack itemized — here with a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v5.0.0](releases/v5.0.0/influence.png) |
-| Places and storage | A place that holds goods, and who is recorded there | [guide](guides/location.md) | [v5.0.0](releases/v5.0.0/location.png) |
-| Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, search day and masterwork contact | [guide](guides/markets.md) | [v5.0.0](releases/v5.0.0/markets.png) |
-| Vehicles | A galley's stations: every seat group with what it requires and who fills it, named hands as chips beside the unnamed complement, an empty officer's chair stating what it costs, and the hold below | [guide](guides/vehicles.md) | [v5.0.0](releases/v5.0.0/vehicles.png) |
+| Importing from your books | The book loader, whole: the server list folded behind its count, the picker that puts a library there at once, and the rows of books this computer has never opened, each saying what connecting it would bring | [guide](guides/importer.md#connecting-a-book) | [v7.0.0](releases/v7.0.0/importer.png) |
+| Battlemaps and token scale | Hex terrain painted onto a scene as Regions — the Terrain Brush open, seven adjacent cells claimed by different ground, and the centre hex repainted from grassland to mountains still holding exactly one terrain | [guide](guides/battlemap.md) | [v7.0.0](releases/v7.0.0/battlemap-terrain.png) |
+| The character sheet | The sheet at the table: the band in the window header, the saves and the vitals on the rails around the portrait, and the Stats tab with the Training editor armed — every weapon its own pill, regrouped at will, a hand-added one marked with its dot | [guide](guides/character-sheet.md) | [v7.0.0](releases/v7.0.0/character-sheet.png) |
+| Characters and classes | Rolling a character: the attribute rule and the scores rolled under it, the class chosen above the still-unthrown template die, and what is left to choose | [guide](guides/classes.md) | [v7.0.0](releases/v7.0.0/classes-chargen.png) |
+| Class paths | A class's groups of mutually exclusive options — a region, a dark path, a caste — with the starting templates shown as one of those groups | [guide](guides/classes.md) | [v7.0.0](releases/v7.0.0/classes-paths.png) |
+| Proficiencies and powers | A proficiency's Rolls tab: a throw whose borrowed ladder lands on a rung that needs no throw, another reading a plain target from a second borrowed table, and a measure with no target at all | [guide](guides/abilities.md) | [v7.0.0](releases/v7.0.0/abilities.png) |
+| Equipment and containers | The item sheet's weight badge in sixths — a bundled quiver's stated weight beside what the stack carries, and the Per field that ties them | [guide](guides/equipment.md) | [v7.0.0](releases/v7.0.0/equipment.png) |
+| Exploration formations | The party sheet on a journey: the ground it is crossing, the day's sky, the day board and its ancillary hours, the march derived with every factor named — and the camp beneath it, where the packs are counted, the cold is charged by the hour, and tonight's forage is priced | [guide](guides/formation.md) | [v7.0.0](releases/v7.0.0/formation-journey.png) |
+| Monsters | What a monster opens on: attacks, powers and spells on one page | [guide](guides/monsters.md) | [v7.0.0](releases/v7.0.0/monsters.png) |
+| Henchmen and hirelings | An employer's roster: a mercenary, a specialist and a monster henchman, each on its own loyalty, morale and wage, and the henchman limit counting only the one that counts against it | [guide](guides/henchmen.md) | [v7.0.0](releases/v7.0.0/henchmen.png) |
+| Influence and reactions | A social roll with its modifier stack itemized — alignment, authority, favours, Charisma, the proficiency and the target's Will — and a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v7.0.0](releases/v7.0.0/influence.png) |
+| Places and storage | A place's Contents tab: a sack of grain filed under the porter who carried it in, and the two people recorded as being there | [guide](guides/location.md) | [v7.0.0](releases/v7.0.0/location.png) |
+| Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, the search day and the masterwork contact | [guide](guides/markets.md) | [v7.0.0](releases/v7.0.0/markets.png) |
+| Vehicles | A galley's stations: sailors short-handed with two named hands beside the unnamed complement, rowers at strength, the captain's chair filled and the navigator's empty with what that costs stated, and the hold below | [guide](guides/vehicles.md) | [v7.0.0](releases/v7.0.0/vehicles.png) |
 
-There is no plate for [Appearance](guides/appearance.md), the thirteenth guide,
-because the ACKS look is in all of the above. A plate of its own would
-show what every other plate already shows.
+There is no plate for [Appearance](guides/appearance.md), because the ACKS
+look is in all of the above — a plate of its own would show what every other
+plate already shows. There is none yet for
+[Playing from Discord](guides/bridge.md) either: its subject is a Discord
+channel, shot from a live bot rather than from the world, and no release has
+had one running when its plates were taken.
 
 ## Adding to it
 

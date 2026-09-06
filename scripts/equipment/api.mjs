@@ -116,11 +116,14 @@ export async function annotateItem(item) {
   // of gear rather than of a category, which is what lets a Judge give a coat
   // hidden pockets. The container record keeps only the lock's state.
   const gear = inferGear(item);
-  if (gear.slots.length || gear.access || gear.capacity != null) {
+  if (gear.slots.length || gear.access || gear.capacity != null || gear.relief != null) {
     updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = {
       slots: gear.slots,
       access: gear.access,
       capacity: gear.capacity,
+      // Only when the item's own text states it: a silent harness keeps
+      // whatever the Judge typed on its sheet.
+      ...(gear.relief != null ? { relief: gear.relief } : {}),
     };
     key ??= gear.capacity != null ? "container" : "gear";
   }

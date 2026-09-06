@@ -54,11 +54,19 @@ a sheet they cannot edit.
 
 ## Equipment
 
-![](../releases/v6.4.0/character-sheet-equipment.png)
+![](../releases/v7.0.0/character-sheet-load.png)
 
 The Load header's underline is the encumbrance bar with the breakpoints as
-ticks. Every wear slot lists on the left, head to foot then off-body, and is
-a drop target; a worn container shows its capacity bar and its contents. Loose
+ticks. The fill is the burden you move under. Where the carrying rules forgive
+some of what you carry — an adventurer's harness, a slung shield, the clothes
+on your back — a dashed, unfilled phantom runs on from the fill to your true
+weight, the header reads both figures, and hovering the bar says how much is
+forgiven. Every wear slot lists on the left, head to foot then off-body, and is
+a drop target; a weapon held in both hands spans Main hand and Off hand as one
+row rather than taking a place of its own; a worn container shows its capacity
+bar and its contents. The count on a place is magic items against the form's
+allowance or armour and weapons against the one place, whichever is larger,
+and clothing takes no room. Loose
 gear files on the right by kind, containers you carry rather than wear sit
 under Stowed, and every place holding your goods lists under Kept elsewhere.
 Drop a thing on a place to wear or draw it, on a container to store it, on

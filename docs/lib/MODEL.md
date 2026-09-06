@@ -456,7 +456,9 @@ cleared if we set it (`managedLight`). Vision cannot be that shy — the whole
 point is to overwrite the system's stock `sight.range: 60` on every monster — so
 it stamps what it wrote (`managedVision`) and compares before writing again; a
 token whose sight no longer matches the stamp was edited by a human and is
-handed back permanently. `manageVision` is the world-level off switch.
+handed back permanently. `manageVision` is the world-level off switch. A scene
+the canvas is still drawing is never written to; the `canvasReady` sweep
+re-derives it whole once the draw completes.
 
 ## The item taxonomy: goods, gear, and where it sits
 
@@ -498,9 +500,21 @@ gear can go.
 0 is a real answer distinct from `null`: a container of unstated size. RAW
 capacity is a warning rather than a limit, so an unstated one never warns.
 
-> Encumbrance is the same question asked of an actor, and mounts, wagons and a
-> team lifting a body all ask it too. Unifying those is
-> [ROADMAP.md](../ROADMAP.md) work, not done here.
+Encumbrance is the same question asked of an actor, and
+[capacity.mjs](../../scripts/lib/capacity.mjs) answers it for any document
+that can carry — `capacity6` / `load6` / `overCapacity`, in sixths — with a
+character's capacity read from core's resolved maximum and a mount's from its
+load spec. Three readings of an actor's weight, and which one a caller wants
+is the whole question:
+
+| Reading | Function | What it is | Who reads it |
+|---|---|---|---|
+| burden | core's `encumbrance.value6` | what the character moves under, after every carrying rule | movement, the bar's fill |
+| borne | `borneWeight6` | the kit a bearer answers for: no carrying overlay, clothing free, nothing that has left the body (a spoil, a thrown weapon) | a mount's load, a formation's casualty haul |
+| carried | `carriedWeight6` | everything on the body at what it weighs, clothing included | the character sheet's phantom |
+
+A harness makes the walking easier; it does not make a horse's burden lighter,
+and it does not make the kit weigh less.
 
 ### Two stores, and why nothing outside this file knows
 
@@ -521,10 +535,26 @@ bucket for clothing), each gated on a field their own item type cannot carry.
 `vocab.mjs` `WEAR_SLOTS` is the canonical list — fourteen places, each with a
 `capacity`. A slot is fundamentally an **exclusion**: the Treasure Tome's
 Miscellaneous Magic Item Form table states the only wear mechanic ACKS II has,
-that a character may not wear two of the same form at once, and its Rings entry
-sets the one capacity above 1 (two, and a third stops all of them working).
+that a character may not wear two MAGIC items of the same form at once, and
+its Rings entry sets the one capacity above 1 (a third stops all of them
+working). So `capacity` is a place's **magic** capacity, and `slotUse` counts
+a place twice: magic items against that, and what the body cannot carry twice
+— armour and weapons, anything core can equip — against one. Clothing and
+plain gear count against neither: a coif under a helm and a magic circlet over
+both are three things at one place and none of them over, while a second helm
+or a second magic circlet is. The belt and the back are uncapped (`null`): a
+belt, a pouch, a scabbard, a quiver and a harness are five forms hung from one
+place, and a pack rides beside a bowcase — the rule refuses a second of the
+same form, not the place. `isMagical` is the one reading of "is this magic":
+the markets feature's declaration on the item, or a magical variation inside
+it.
 
 `gear.slots` is the list an item MAY occupy; `gear.wornAt` is the one it does.
+`gear.capacity` is how much it holds and `gear.relief` how much a harness
+secures, both in stone and both the book's figures: read off the item — core's
+pouch names its capacity, core's harness describes its relief — by the
+annotate pass, or typed on the item's sheet. Unstated holds nothing and
+secures nothing.
 `declaresSlots` separates "declared to sit nowhere" from "never annotated" —
 both give `slotsOf` an empty list, and every name-heuristic fallback in the
 family gates on the former so a deliberate ruling is not undone by an item's

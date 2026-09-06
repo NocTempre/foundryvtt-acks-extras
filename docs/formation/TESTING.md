@@ -74,6 +74,13 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   Give your own fixture scene `ownership.default = OBSERVER` and `scene.view()`
   it from the player seat rather than activating it — the scene is deleted at
   teardown, so nothing needs restoring.
+- **A formation that vanishes mid-walk was deleted from outside.** Deleting a
+  party actor dissolves its formation, so a record that is gone between
+  `setJourneyMode` and the next read was taken by another session — a
+  cleanup that matches fixtures by name prefix takes every session's parties
+  with it. Scope any sweep to the ids your own log printed; a walk that died
+  before its teardown leaves its party and members behind, and those ids are
+  how to find them.
 
 ## Steps
 

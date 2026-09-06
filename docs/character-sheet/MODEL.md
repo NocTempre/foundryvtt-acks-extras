@@ -89,9 +89,21 @@ no scene the cell falls through to a sense or the dark.
 status or a timer, the origin item's `save` field names the save (free text,
 matched by prefix: paralysis, death/poison, blast/breath, implements/wand/
 staff, spell/magic). `RAIL_CONDITIONS` sends prone and stunned to the
-movement cell, unconscious and dead to HP, blinded to light. A change to
-`system.save.mod` colours all five cells; a change to one save's value
-colours that one — a lowered target reads as help.
+movement cell, unconscious and dead to HP, blinded to light. Every enabled
+change to `system.save.mod` colours all five cells and one to a save's own
+value colours that one, read as the shift the changes make to the field's
+source value in Foundry's order (the lib's effect-scan replay): a
+subtraction reads negative, an override as the difference it makes, a
+lowered target as help.
+
+A timer's clock reads in the unit the effect was given — `6r`, `2t`, `10m`,
+`2h`, `3d`, `2mo`, `1y` — and what is left is Foundry's prepared
+`remaining`: the calendar's count in that unit for a time unit, combat's for
+rounds and turns, and outside combat the seconds Foundry restates a combat
+unit in, converted back through the world's round or turn length (a world
+whose turns take no time leaves the clock at its total), capped at what was
+given. Seconds alone climb to minutes, hours or days by the calendar's own
+lengths.
 
 ## The tabs
 
@@ -126,11 +138,27 @@ whose button runs the abilities feature's picker.
 **Equipment** (`tabs/equipment.mjs`) is the body map made a list. The Load
 header's underline is the encumbrance bar with the system's breakpoints as
 ticks, beside the hands badge (used of budget, the active style, the clause
-for hands a light or the map is taking) and the annotate chip. The left
-column lists every wear slot in the lib's order, each a drop target: worn
-gear at its slot (resolved by the equipment feature's `wearLocation`), a
-worn container with its capacity bar, its header controls and its contents
-nested, and an empty slot as a hint. The right column is a drop target for
+for hands a light or the map is taking) and the annotate chip. `loadBar`
+draws the bar from two readings: core's burden as the fill, and the lib's
+`carriedWeight6` — every item at what it weighs, clothing included — as a
+dashed phantom running on from the fill, stopped at the end of the track when
+the true weight is past the maximum. The difference is the label's second
+figure and the bar's tooltip; the two agree, or a correction adds weight,
+and there is no phantom. The left column lists every wear slot in the lib's
+order, each a drop target: worn gear at its slot (resolved by the equipment
+feature's `wearLocation`), a worn container with its capacity bar, its
+header controls and its contents nested, and an empty slot as a hint. The
+badge on a capped place is the lib's `slotUse`: magic items against the
+form's capacity, armour and weapons against the one the body allows, clothing
+against neither; it shows the larger count, carries both in its tooltip, and
+the place is tinted when either rule is broken.
+`bridgeHands` folds the both-hands place into the main hand's when a weapon
+is held in both — one row carrying both hands' labels and everything held,
+keyed by the main hand so a drop on it still draws — and lists nothing for
+it when empty, so the two hands stay separate targets; the folded row is over
+when the equipment across both hands is more than two hands hold. A place
+over its capacity is marked `is-full`; `is-over` is the drag state every drop
+zone shares. The right column is a drop target for
 taking things off: loose gear filed as weapons, armour, coin and valuables,
 and gear; the unarmed strike when nothing is held; containers carried rather
 than worn under *Stowed*; and *Kept elsewhere*, one row per place holding

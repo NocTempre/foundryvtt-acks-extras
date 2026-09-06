@@ -31,6 +31,7 @@ import {
   STONE,
   capacityOf,
   encumbering6,
+  weight6Of,
   contentsWeight6,
 } from "./item-model.mjs";
 import { riderOf } from "./mount.mjs";
@@ -40,30 +41,60 @@ import { bodyCount } from "./group-logic.mjs";
 export const RIDER_BODY6 = 15 * STONE;
 
 /**
+ * An item listed on the sheet that is not on the body: a spoil (a creature's
+ * own parts, harvestable) and a thrown weapon lying where it landed until it
+ * is recovered. Neither weighs on anyone.
+ */
+const isAbsent = (item) => !!item.getFlag?.(MODULE_ID, "spoil") || !!item.getFlag?.(MODULE_ID, "thrownAway");
+
+/** The coin an actor carries, in sixths, or 0 where the system cannot say. */
+function coin6(actor) {
+  const money = actor.getTotalMoneyEncumbrance?.();
+  return Number.isFinite(money?.stone) ? money.stone * STONE : 0;
+}
+
+/**
  * What an actor's kit actually WEIGHS, as opposed to how burdened they feel.
  *
  * `system.encumbrance` is a movement figure, and this family bends it on
- * purpose: an adventurer's harness ignores a stone of gear, a mounted shield
- * rides lighter, a bowquiver counts as two items instead of its parts, a
- * thrown weapon stops weighing on the hand that threw it. Every one of those
- * is a statement about how well the load is CARRIED, not about how much mass
- * exists — so none of them may reach a mount or a wagon. A harness does not
- * make a horse's burden lighter; it makes the walking easier.
+ * purpose: an adventurer's harness ignores some of the gear, a mounted shield
+ * rides lighter, a bowquiver counts as two items instead of its parts. Every
+ * one of those is a statement about how well the load is CARRIED, not about
+ * how much mass exists — so none of them may reach a mount or a wagon. A
+ * harness does not make a horse's burden lighter; it makes the walking easier.
  *
  * Hence this: the same sum core makes over the actor's own items, without the
- * encumbrance overlay. Clothing still weighs nothing, which is core's own
- * semantics for worn clothes rather than an overlay of ours.
+ * encumbrance overlay and without what is not on the body at all. Clothing
+ * still weighs nothing, which is core's own semantics for worn clothes rather
+ * than an overlay of ours.
  */
 export function borneWeight6(actor) {
   if (!isActor(actor)) return 0;
   let sum = 0;
   for (const item of actor.items ?? []) {
-    if (item.getFlag?.(MODULE_ID, "spoil")) continue;
+    if (isAbsent(item)) continue;
     sum += encumbering6(item);
   }
-  const money = actor.getTotalMoneyEncumbrance?.();
-  if (Number.isFinite(money?.stone)) sum += money.stone * STONE;
-  return sum;
+  return sum + coin6(actor);
+}
+
+/**
+ * What the actor is carrying, as mass: every item at what it weighs, bundle
+ * rules and all, with nothing forgiven — the clothes on their back included,
+ * since a cloak weighs what it weighs whether or not the encumbrance table
+ * charges for it. The counterpart of `borneWeight6` (what a bearer answers
+ * for) and of core's `encumbrance.value6` (the burden the character moves
+ * under): the gap between this and the burden is what the carrying rules are
+ * worth, and the character sheet draws it.
+ */
+export function carriedWeight6(actor) {
+  if (!isActor(actor)) return 0;
+  let sum = 0;
+  for (const item of actor.items ?? []) {
+    if (isAbsent(item)) continue;
+    sum += weight6Of(item);
+  }
+  return sum + coin6(actor);
 }
 
 /**

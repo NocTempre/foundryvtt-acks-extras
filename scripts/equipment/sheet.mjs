@@ -20,18 +20,18 @@
  * its own, this file should be deleted in favour of contributing to it.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
-import { WEAR_ICONS, SHIELD_VARIANTS } from "./config.mjs";
+import { WEAR, WEAR_ICONS, SHIELD_VARIANTS } from "./config.mjs";
 import { getLoadout, cycleGrip, heldHandsClause } from "./loadout.mjs";
 import {
   prepareTorch, rollUnarmed, setMasterwork, masterworkTiersFor, drawItem, sheatheItem,
   scavengeItem, clearScavenged, setScavengedRow, scavengedOptions, setShieldVariant, SHIELD_VARIANT_KEYS,
-  setGearSlots, setGearAccess, setGearCapacity, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
+  setGearSlots, setGearAccess, setGearCapacity, setGearRelief, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
 } from "./actions.mjs";
 import { masterworkTierOf, scavengedOf, layerSummary, silveredFlagOf } from "./properties.mjs";
 import { concealVariation, removeVariation, revealVariation, variationItemsOf } from "./variation-items.mjs";
 import { canBeSilvered, isSilvered, setSilvered } from "./silver.mjs";
 import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
-import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf } from "../lib/item-model.mjs";
+import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf, reliefOf } from "../lib/item-model.mjs";
 import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
 import { cycleStrap, strapOf, variantOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
@@ -128,7 +128,12 @@ function buildWornSection(actor, tab, loadout) {
     if (!claimed) continue;
     moved += claimed;
     injectGripControls(list, loadout);
-    bucket.append(bucketHeader(key, wearLabel(key)), list);
+    // A weapon in both hands has no place of its own: its bucket is headed by
+    // the two hands it spans, with the grip named as the note.
+    const header = key === WEAR.bothHands
+      ? bucketHeader(WEAR.mainHand, `${wearLabel(WEAR.mainHand)} · ${wearLabel(WEAR.offHand)}`, wearLabel(key))
+      : bucketHeader(key, wearLabel(key));
+    bucket.append(header, list);
     section.append(bucket);
   }
 
@@ -977,6 +982,20 @@ export function buildConstructionPanel(item) {
   capBox.value = cap === null ? "" : String(cap);
   onChange(capBox, () => setGearCapacity(item, capBox.value));
   row("ACKS-EQUIPMENT.props.capacity", capBox);
+
+  // WHAT A HARNESS SECURES — the book's figure, read from the item's own text
+  // by the annotate pass or typed here. Unstated secures nothing.
+  if (item.getFlag(MODULE_ID, ITEM_FLAGS.HARNESS)) {
+    const reliefBox = el("input", "acks-equipment-props__input");
+    reliefBox.type = "number";
+    reliefBox.min = "0";
+    reliefBox.step = "0.5";
+    reliefBox.placeholder = game.i18n.localize("ACKS-EQUIPMENT.props.reliefNone");
+    const relief = reliefOf(item);
+    reliefBox.value = relief === null ? "" : String(relief);
+    onChange(reliefBox, () => setGearRelief(item, reliefBox.value));
+    row("ACKS-EQUIPMENT.props.relief", reliefBox);
+  }
 
   // RETRIEVAL COST — only meaningful once something can be inside it.
   if (isContainer(item)) {

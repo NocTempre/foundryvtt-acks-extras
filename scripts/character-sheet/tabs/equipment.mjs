@@ -11,7 +11,9 @@
  * for what is inside what — so this tab and the item sheet cannot disagree.
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
+import { loadBar, bridgeHands } from "../view-model.mjs";
 import { makeLoc } from "../../lib/util.mjs";
+import { carriedWeight6 } from "../../lib/capacity.mjs";
 import { getLoadout, heldHandsClause } from "../../equipment/loadout.mjs";
 import { wearLocation, wearLabel } from "../../equipment/wear.mjs";
 import { WEAR, WEAR_ICONS } from "../../equipment/config.mjs";
@@ -23,8 +25,8 @@ import { lightTypeOf } from "../../equipment/sheet.mjs";
 import { bearerLights } from "../../lib/light.mjs";
 import { canSplit } from "../../equipment/item-sheet/stack.mjs";
 import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
-import { isEquippable, isWorn, slotsOf, weight6Of, isGoods, isClothing, STONE } from "../../lib/item-model.mjs";
-import { WEAR_SLOT_ORDER, WEAR_SLOTS, slotCapacity, ITEM_TYPE } from "../../lib/vocab.mjs";
+import { isEquippable, isWorn, slotsOf, weight6Of, isGoods, isClothing, slotUse, STONE } from "../../lib/item-model.mjs";
+import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { libStorage } from "../../lib/util.mjs";
 import { depositReach, pinnedPlaces } from "../../location/reach.mjs";
 
@@ -218,9 +220,13 @@ export function buildEquipmentTab(actor) {
     where.set(item.id, wearLocation(actor, item, loadout));
   }
 
-  const places = WEAR_SLOT_ORDER.map((key) => {
+  // Every slot in the lib's order; a weapon in both hands then folds the two
+  // hand places into one row rather than taking a place of its own.
+  const places = bridgeHands(WEAR_SLOT_ORDER.map((key) => {
     const items = actor.items.filter((i) => where.get(i.id) === key);
-    const cap = slotCapacity(key);
+    // Two counts against two rules — magic by form, armour and weapons by
+    // the body — and clothing against neither; the badge shows the larger.
+    const use = slotUse(key, items);
     return {
       key,
       label: wearLabel(key),
@@ -228,10 +234,13 @@ export function buildEquipmentTab(actor) {
       rows: items.map((i) => rowOf(actor, i, ctx)),
       empty: !items.length,
       hint: loc(`equipment.slotHint.${key}`),
-      capacity: cap === Infinity ? null : `${items.length} / ${cap}`,
-      over: cap !== Infinity && items.length > cap,
+      capacity: use.cap === Infinity ? null : `${use.used} / ${use.cap}`,
+      capacityHint: use.cap === Infinity ? "" : loc("equipment.slotUse", { magic: use.magic, cap: use.cap, equip: use.equip }),
+      full: use.full,
+      equip: use.equip,
+      magic: use.magic,
     };
-  });
+  }));
 
   const loose = actor.items.filter((i) => where.get(i.id) === WEAR.carried);
   const stowedContainers = loose.filter(isContainer);
@@ -269,11 +278,18 @@ export function buildEquipmentTab(actor) {
   const state = enc.encumbered
     ? "overburdened"
     : pct > num(bp.high, 100) ? "heavy" : pct > num(bp.mid, 100) ? "loaded" : pct > num(bp.low, 0) ? "light" : "unencumbered";
+  // The burden is core's figure after the carrying rules; the mass is summed
+  // here, and the bar draws the difference as its phantom.
+  const true6 = carriedWeight6(actor);
+  const bar = loadBar({ value6: enc.value6, true6, max6: enc.max6, pct, breakpoints: bp });
+  const figures = { load: stoneLabel(num(enc.value6)), max: stoneLabel(num(enc.max6)), carried: stoneLabel(true6) };
   return {
     load: {
-      pct: Math.min(100, Math.round(pct)),
-      ticks: [bp.low, bp.mid, bp.high].map((n) => num(n)).filter((n) => n > 0 && n < 100),
-      label: loc("equipment.loadLabel", { load: stoneLabel(num(enc.value6)), max: stoneLabel(num(enc.max6)) }),
+      pct: bar.pct,
+      phantom: bar.phantom,
+      ticks: bar.ticks,
+      label: loc(bar.eased6 > 0 ? "equipment.loadLabelEased" : "equipment.loadLabel", figures),
+      hint: bar.eased6 > 0 ? loc("equipment.loadEased", { eased: stoneLabel(bar.eased6) }) : "",
       state: loc(`equipment.loadState.${state}`),
       tone: state === "overburdened" || state === "heavy" ? "bad" : state === "unencumbered" ? null : "warn",
     },

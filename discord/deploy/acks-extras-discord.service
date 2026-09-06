@@ -1,0 +1,34 @@
+# systemd unit for the bot, on the machine that runs the Foundry server.
+# `sudo npm run install-service` renders and installs it — the three
+# placeholders become this machine's node, this directory and the account
+# that owns it. By hand: fill them in, copy to /etc/systemd/system/, then
+# `systemctl daemon-reload && systemctl enable --now acks-extras-discord`.
+#
+# Secrets live in the EnvironmentFile, outside the module directory, so a
+# Foundry module update cannot take them. ExecStartPre puts node_modules back
+# when the update removed it; the bot itself exits when the module changes,
+# and Restart= brings it up on the new code.
+[Unit]
+Description=ACKS II Extras — Discord bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{USER}}
+WorkingDirectory={{WORKDIR}}
+EnvironmentFile=/etc/acks-extras-discord.env
+ExecStartPre={{NODE}} src/prestart.mjs
+ExecStart={{NODE}} src/main.mjs
+Restart=always
+RestartSec=10
+# A headless Chromium and npm want a writable HOME and temp of their own.
+StateDirectory=acks-extras-discord
+Environment=HOME=/var/lib/acks-extras-discord
+Environment=NODE_ENV=production
+PrivateTmp=true
+KillMode=control-group
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

@@ -180,6 +180,20 @@ export async function setGearCapacity(item, value) {
 }
 
 /**
+ * Declare the weight of ordinary equipment this harness secures, in stone —
+ * the book's figure, read from the item's own text by the annotate pass or
+ * typed here. Blank is unstated, and an unstated harness secures nothing.
+ */
+export async function setGearRelief(item, value) {
+  if (!item) return false;
+  const raw = String(value ?? "").trim();
+  const relief = raw === "" ? null : Math.max(0, Number(raw));
+  if (raw !== "" && !Number.isFinite(relief)) return false;
+  await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.relief`]: relief });
+  return true;
+}
+
+/**
  * Wear or remove a piece of gear that core cannot equip.
  *
  * Routed through acks-lib's `setWorn`, which writes whichever store the item's

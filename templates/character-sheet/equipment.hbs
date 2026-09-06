@@ -18,7 +18,7 @@
       {{/if}}
       <span class="acks-extras-character-sheet__rule-note acks-nums">{{eq.load.label}} · {{eq.load.state}}</span>
     </div>
-    <div class="acks-extras-character-sheet__bar is-thin{{#if eq.load.tone}} is-{{eq.load.tone}}{{/if}}"><i style="width: {{eq.load.pct}}%"></i>{{#each eq.load.ticks}}<u style="left: {{this}}%"></u>{{/each}}</div>
+    <div class="acks-extras-character-sheet__bar is-thin{{#if eq.load.tone}} is-{{eq.load.tone}}{{/if}}"{{#if eq.load.hint}} data-tooltip="{{eq.load.hint}}"{{/if}}><i style="width: {{eq.load.pct}}%"></i>{{#if eq.load.phantom}}<s style="left: {{eq.load.pct}}%; width: {{eq.load.phantom}}%"></s>{{/if}}{{#each eq.load.ticks}}<u style="left: {{this}}%"></u>{{/each}}</div>
   </div>
 
   <div class="acks-extras-character-sheet__cols is-2">
@@ -28,8 +28,12 @@
         <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.wornNote"}}</span>
       </div>
       {{#each eq.places as |place|}}
-      <div class="acks-extras-character-sheet__slot{{#if place.empty}} is-empty{{/if}}{{#if place.over}} is-over{{/if}}" data-drop="slot:{{place.key}}">
+      <div class="acks-extras-character-sheet__slot{{#if place.empty}} is-empty{{/if}}{{#if place.full}} is-full{{/if}}{{#if place.span}} is-span{{/if}}" data-drop="slot:{{place.key}}">
+        {{#if place.span}}
+        <span class="acks-extras-character-sheet__where is-span" data-tooltip="{{place.label}}">{{#each place.span}}<span class="acks-extras-character-sheet__where-hand"><i class="{{icon}}" inert></i><span class="acks-extras-character-sheet__where-label">{{label}}</span></span>{{/each}}</span>
+        {{else}}
         <span class="acks-extras-character-sheet__where" data-tooltip="{{place.label}}"><i class="{{place.icon}}" inert></i><span class="acks-extras-character-sheet__where-label">{{place.label}}</span></span>
+        {{/if}}
         <div class="acks-extras-character-sheet__slot-body">
           {{#if place.empty}}
           <span class="acks-extras-character-sheet__drop">{{place.hint}}</span>
@@ -37,7 +41,7 @@
           {{#each place.rows}}{{> "modules/acks-extras/templates/character-sheet/gear-row.hbs" this}}{{/each}}
           {{/if}}
         </div>
-        {{#if place.capacity}}<span class="acks-extras-character-sheet__slot-cap acks-nums">{{place.capacity}}</span>{{/if}}
+        {{#if place.capacity}}<span class="acks-extras-character-sheet__slot-cap acks-nums"{{#if place.capacityHint}} data-tooltip="{{place.capacityHint}}"{{/if}}>{{place.capacity}}</span>{{/if}}
       </div>
       {{/each}}
     </div>

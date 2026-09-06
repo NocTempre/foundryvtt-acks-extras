@@ -33,7 +33,7 @@ sibling modules) — never the import path for this module's own features.
 | `actor-compat.mjs` | `acksCompatStubs()` every actor sub-type must spread, + the one BOOK↔RELEASED saving-throw key mapping. |
 | `item-model.mjs` | The shared item baseline: `isPhysical` / `isEquippable` / `weight6Of` / wear slots. |
 | `capabilities.mjs` | "Does this actor hold an ability that provides X?" — name ∪ `kw:` token matching, and `abilityRank` (a proficiency taken thrice is three items). |
-| `effect-scan.mjs` | Active-Effect scanning core: `appliedEffects` / `makeEffectMeta` / `activeNumericChanges` / `csvFlagSet` / `sumModifiers`. |
+| `effect-scan.mjs` | Active-Effect scanning core: `appliedEffects` / `makeEffectMeta` / `orderedChanges` / `activeNumericChanges` / `netNumericChange` / `csvFlagSet` / `sumModifiers`, and the `CHANGE` type vocabulary. Changes are read by their v14 string type, replayed in Foundry's priority order from the field's base — the ONE reading of what a change does; never compare a `mode`. |
 | `managed-effects.mjs` | The effects this module maintains and a hand must not delete (class training, equipment loadout): the marker registry, the `preDelete` refusal, and the row lock. |
 | `proficiency-strip.mjs` | Compact profile strips (fighting style, weapon category, armour) from equipment's profile API, `abilityContributions` (what the imported proficiency items state, by item), and `weaponTokenClasses` — the ONE reading of a weapon grant (`all`, `missile:all`, `melee:<size>`, a category, a weapon) at CLASS granularity; the reading at the weapon is equipment's `training-view.mjs`. |
 

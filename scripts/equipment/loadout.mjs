@@ -226,11 +226,20 @@ export function getLoadout(actor, opts = {}) {
   // swordsman with a free hand reads as having none.
   const handsCommitted = handsUsed;
 
+  const trained = trainedStyles(actor);
+  // The default grip is the character's best option under the rules: "auto"
+  // widens to two hands for the better die when the two-handed style is
+  // trained or nothing is enforced, and stays in one hand otherwise, where
+  // the wider grip would buy the whole non-proficient package for holding a
+  // single sword. An explicit "2h" is the player's call and is honoured.
+  const autoTwoHands = !enforcementActive() || trained.has(styleKey(STYLE.TWO_HANDED));
+
   // GRIP resolution. A two-handed grip needs BOTH hands, so only a lone melee
   // weapon with no in-hand shield can take it (RAW 1d8/1d10). The player's grip
   // choice governs: "1h" forces one hand; "2h" is honoured only when the hands
   // are actually free (else it is BLOCKED and surfaced); "auto" takes the two-
-  // handed grip when hands are free (best damage), one-handed otherwise.
+  // handed grip when hands are free and the style is trained, one-handed
+  // otherwise.
   const loneMelee = weapons.length === 1 && !handShields.length && weapons[0].melee;
   if (loneMelee) {
     const w = weapons[0];
@@ -247,7 +256,7 @@ export function getLoadout(actor, opts = {}) {
       const spare = budget - handsUsed;
       if (w.grip === "1h") {
         w.wieldTwoHanded = false;
-      } else if (w.grip === "2h" || w.grip === "auto") {
+      } else if (w.grip === "2h" || (w.grip === "auto" && autoTwoHands)) {
         if (spare >= twoHandDelta) { w.wieldTwoHanded = true; handsUsed += twoHandDelta; }
       }
     }
@@ -265,8 +274,12 @@ export function getLoadout(actor, opts = {}) {
   const overrideStyle = actor.getFlag?.(MODULE_ID, ACTOR_FLAGS.ACTIVE_STYLE) ?? null;
   const activeStyle = overrideStyle ?? inferStyle(weapons, hasShield);
 
-  const trained = trainedStyles(actor);
   const spec = specializedStyles(actor);
+  // RR ch.3 (Fighting Styles): without the Weapon & Shield style a character
+  // gains no benefit from a shield. False only while enforcement is live and
+  // a shield is in hand without the style — the loadout effect then cancels
+  // the shield's AC, and the advisory below says so.
+  const shieldStyled = !hasShield || !enforcementActive() || canUseShieldStyle(actor, trained);
   // Style training reads the same module-owned flags as weapon/armour
   // proficiency, so it falls under the same kill switch: with acks-abilities
   // installed those flags are absent on a correctly built character and every
@@ -300,7 +313,7 @@ export function getLoadout(actor, opts = {}) {
   if (shields.length > 1) {
     violations.push({ type: VIOLATION.TOO_MANY_SHIELDS, items: shields.slice(0, -1) });
   }
-  if (hasShield && !canUseShieldStyle(actor, trained)) {
+  if (!shieldStyled) {
     violations.push({ type: VIOLATION.SHIELD_NO_STYLE, items: shields, advisory: true });
   }
 
@@ -368,6 +381,7 @@ export function getLoadout(actor, opts = {}) {
     trainedStyles: trained,
     specStyles: spec,
     styleProficient,
+    shieldStyled,
     nonProficientUse,
     thiefSkillsGated: thiefGated,
     condAC: swashbucklingAC(actor, { armor }),
@@ -398,6 +412,7 @@ function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
  * @property {Set<string>} trainedStyles
  * @property {Set<string>} specStyles
  * @property {boolean} styleProficient
+ * @property {boolean} shieldStyled the in-hand shield is backed by the style, so its AC counts
  * @property {number} condAC AC that applies only while lightly equipped
  * @property {number} condInit initiative that applies only while lightly equipped
  * @property {{type,items,advisory?,detail?}[]} violations

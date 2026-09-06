@@ -146,10 +146,15 @@ export function buildLoadoutChanges(actor, loadout) {
     add("system.aac.mod", -Math.max(0, Number(actor.system?.scores?.dex?.mod ?? 0)));
   }
 
-  // JJ shield-variant overlay: core's computeAC adds any equipped shield's AC
-  // unconditionally. Where RAW grants none (a buckler without Specialization, or
-  // a shield strapped on the back), cancel it rather than fight core.
-  add("system.aac.mod", shieldACCorrection(loadout, spec.has(STYLE.WEAPON_SHIELD.toLowerCase()), actor));
+  // Core's computeAC adds the last equipped shield's AC unconditionally. Two
+  // rules say it grants nothing: the JJ variant overlay (a buckler without
+  // Specialization, a shield strapped on the back) and RR ch.3's Fighting
+  // Styles — no Weapon & Shield style, no benefit from a shield. Both cancel
+  // the same one addition, so the deeper cut applies once, never both.
+  const variantCut = shieldACCorrection(loadout, spec.has(STYLE.WEAPON_SHIELD.toLowerCase()), actor);
+  const lastShield = loadout.shields?.[loadout.shields.length - 1] ?? null;
+  const styleCut = loadout.shieldStyled === false && lastShield ? -Number(lastShield.system?.aac?.value ?? 0) : 0;
+  add("system.aac.mod", Math.min(variantCut, styleCut));
 
   // Enclosing (heavy) helmet, RR p140: −1 to surprise rolls. The surprise matrix
   // reads system.surprise.avoidsurprise, so lowering it makes the wearer harder

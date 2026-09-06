@@ -13,15 +13,42 @@ import { poolState } from "../../classes/casting.mjs";
 import { trainingEffects } from "../../classes/training.mjs";
 import { effectClock, isTimer, saveRiders, sheetFlag, saveLabel } from "../snapshot.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
+import { CHANGE, changeType } from "../../lib/effect-scan.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
-/** A one-line reading of an effect's changes: `system.aac.mod +1 · …`. */
+/**
+ * A change's value marked with what its type does: `+1`, `−1`, `×2`, `=10`,
+ * `≥10`, `≤10`; a custom change shows its bare value.
+ */
+function changeGlyph(change) {
+  const raw = String(change.value ?? "").trim();
+  const n = raw === "" ? NaN : Number(raw);
+  const magnitude = Number.isFinite(n) ? String(Math.abs(n)) : raw;
+  switch (changeType(change)) {
+    case CHANGE.ADD:
+      return Number.isFinite(n) ? `${n < 0 ? "−" : "+"}${magnitude}` : raw;
+    case CHANGE.SUBTRACT:
+      return Number.isFinite(n) ? `${n < 0 ? "+" : "−"}${magnitude}` : `−${raw}`;
+    case CHANGE.MULTIPLY:
+      return `×${raw}`;
+    case CHANGE.OVERRIDE:
+      return `=${raw}`;
+    case CHANGE.UPGRADE:
+      return `≥${raw}`;
+    case CHANGE.DOWNGRADE:
+      return `≤${raw}`;
+    default:
+      return raw;
+  }
+}
+
+/** A one-line reading of an effect's changes: `aac.mod +1 · save.mod −1 · …`. */
 function changesLine(effect) {
   return (effect.changes ?? [])
     .slice(0, 4)
-    .map((c) => `${String(c.key).replace(/^system\./, "").replace(/^flags\.acks-extras\./, "")} ${c.value}`)
+    .map((c) => `${String(c.key).replace(/^system\./, "").replace(/^flags\.acks-extras\./, "")} ${changeGlyph(c)}`)
     .join(" · ");
 }
 

@@ -1,0 +1,143 @@
+# Bridge — how it works now
+
+A command surface for a client outside Foundry (`scripts/bridge/`). The first
+client is the Discord service in `discord/`: this repo's own Node process,
+run beside the Foundry server. This feature is everything that has to live
+INSIDE the world for such a client to act, and nothing about how the client
+presents it. Why it is shaped this way is
+[DECISIONS.md](DECISIONS.md); what is not built is [ROADMAP.md](ROADMAP.md);
+the live-test recipe is [TESTING.md](TESTING.md); the user-facing setup is
+[the guide](../guides/bridge.md).
+
+## The shape
+
+```
+client (Discord)  ──slash command──▶  discord/ (Node service, on the Foundry host)
+                                        │ holds a SEAT: a headless browser joined
+                                        │ to the world as the bot's own user
+                                        ▼  Runtime.evaluate
+                                acksExtras.bridge.run(name, { client, ...args })
+                                        │ resolve the BOUND Foundry user; guard
+                                        ▼
+                    the sheet's roll-by-id · the frame snapshot · core chat · formation's record
+                                        │
+                     hooks ──▶ event tap ──▶ window.acksExtrasBridgeEmit(json) ──▶ the seat
+```
+
+Foundry has no server-side module runtime — `esmodules` run in browsers and
+nowhere else — so a client that wants the rules the module performs has to
+reach a running client. The seat IS that client: a browser the service owns,
+sized above Foundry's canvas floor, watched and relaunched. Everything the
+service does in the world is `Runtime.evaluate` of one call; everything it
+hears is the tap calling one global. The join mechanics are the release
+capture driver's (`acks-module-template/bin/foundry-capture.mjs`).
+
+## The registry and its one guard
+
+`registry-logic.mjs` (Foundry-free) holds one name → one handler. `run(name,
+args)` never throws: the answer is `{ok: true, data}` or `{ok: false, code,
+message}`, JSON both ways, and `constants.mjs` `ERR` is the whole code
+vocabulary a client maps to its own words.
+
+Before any handler runs, the guard resolves **who is acting**: `args.client`
+(`{kind, user, guild, channel, message}`) is looked up in the binding store,
+and the handler runs as that Foundry user — never as the seat, whose Assistant
+GM rights decide nothing. A handler that touches a document calls
+`requireOwner(ctx, doc)`, which asks the document `testUserPermission(user,
+"OWNER")` for the bound user. A command declared `judge` requires the bound
+user to be a GM. A command declared `allowUnbound` (`whoami`, `events`,
+`commands`) runs with `ctx.user === null`.
+
+`asSeat` is the one bypass, and it is the client's operator's: the service
+sets it only for a Judge command from a member its own configuration names as
+a Judge, and the command then runs as the seat's user. That is how the first
+Judge is linked before any binding exists. The seat holder has full access to
+the page regardless; the flag only lets the bootstrap travel the same path as
+everything else.
+
+## The binding store
+
+One hidden world setting (`bridgeBindings`, `config: false`), three maps,
+all arithmetic in `bindings-logic.mjs` (Foundry-free, returns new stores):
+
+| map | key | value |
+|---|---|---|
+| `users` | `<kind>:<externalId>` (a Discord user id) | Foundry user id |
+| `parties` | `<kind>:<channelId>` | formation id |
+| `active` | Foundry user id | the actor uuid that user speaks as |
+
+Bindings are Judge-made (`link`, `unlink`, `party`), never self-claimed; a
+user chooses their own active character among the actors they own (`use`).
+Unbinding an identity clears the active character only when no other
+identity still reaches that user. The store is keyed by client kind so a
+second client can share it.
+
+## Provenance
+
+Every document a command creates carries `flags["acks-extras"].bridge =
+{via, user, guild, channel, message, at, command}` (`provenance.mjs`). A roll
+is the exception the tap handles: core's rollers post their card without
+awaiting the create, so the card lands a beat after the command returns and
+the command cannot stamp it. `roll` therefore marks the actor **in flight**
+for its duration; the tap, seeing a message this client posts for that
+speaker while the mark stands, stamps the message and the event alike. The
+relay reads the stamp to skip what the client already showed.
+
+## The event tap
+
+`events.mjs` folds the hooks a client cares about into one plain-JSON stream
+with a running `seq`: `chat` (speaker, whisper list, blind, flavor, plain
+text, every roll's total and dice), `actor` (HP or XP changed), `time`
+(`updateWorldTime`), `henchmen` (the ledger hooks). Each event is kept in a
+bounded page buffer and, when a seat holder has installed the global named
+`EMIT_BINDING`, pushed as it happens. `drain(since)` answers a seat that
+connects late. The buffer is the page's: a reload starts it over, which a
+`seq` going backwards tells the seat. Visibility travels WITH the event —
+`whisper` and `blind` as the message has them — so the client routes a secret
+rather than flattening it.
+
+## The commands (v1)
+
+| command | runs as | over |
+|---|---|---|
+| `whoami` | anyone | the store |
+| `characters`, `use` | bound user | `game.actors` the user OWNS |
+| `sheet` | owner | `characterSheet.snapshotFrame` + the purse (`coinTotalGC`) |
+| `rolls` | owner | `characterSheet.rollInventory`, flattened to `{id, label, value, group}` |
+| `roll` | owner | `characterSheet.rollById(actor, id, {event})` with a synthetic event carrying the world's skip-dialog key, so core posts without its dialog; answers the cards it captured |
+| `say` | owner | `ChatMessage.create` with `speaker.alias` the character, IC or EMOTE style, stamped |
+| `users`, `link`, `unlink`, `bindings` | Judge | the store |
+| `parties`, `party` | Judge | `formation.getFormations` / `getFormation`, the store |
+| `map` | Judge | views the party's scene on the seat, pans to its party token, and answers the board's clip; the seat takes the PNG |
+| `events`, `commands` | anyone | the tap, the registry |
+
+`map` is the Judge's view — every token, no fog — which is why only a Judge
+may ask for it (DECISIONS). A player-vision map is on the roadmap.
+
+## What the service adds
+
+The service (`discord/`) is the seat holder, one serialised bridge
+client, the slash commands, and a relay of the world's public chat into one
+channel. Its discipline: defer every interaction inside Discord's three
+seconds, then edit; autocomplete from `characters` / `rolls` / `users` /
+`parties`; ephemeral replies for what is the member's own, public for what
+the table should see; the interaction reply IS the Discord copy of a bridge
+action, so the relay skips stamped messages.
+
+**Staying current.** The service runs from the module directory Foundry's
+updater replaces, and follows it without an operator: `install-service`
+renders the systemd unit and the environment file under `/etc`, outside that
+directory; `prestart` (the unit's `ExecStartPre`, and `npm start`'s own
+pre-step) reinstalls dependencies only when `node_modules` is missing,
+incomplete, or older than the lock; the running bot polls the module manifest
+and exits cleanly when it vanishes and returns, so the service manager
+restarts it on the new files; and registration runs at every start, sending
+the commands only when their digest differs from the last one sent, kept in
+the unit's state directory.
+
+## Not here
+
+Nothing in `scripts/bridge/` knows a rule, renders a window, or registers
+anything another feature consumes. A verb that needs a headless entry point
+another feature lacks (level-up, the score roll) is that feature's refactor,
+listed on the roadmap.

@@ -14,9 +14,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   stack. Set `system.hp` to a wounded value below the maximum.
 - A second disposable `character` to serve as a hireling (`retainer.enabled`
   with the first as manager, and its id on the first's `henchmenList`).
-- A disposable ActiveEffect on the first with a status id from
-  `CONDITION_SAVES` (e.g. `restrain`) and a duration in rounds; a second with
-  a change to `system.save.mod`.
+- Disposable ActiveEffects on the first: one with a status id from
+  `CONDITION_SAVES` (e.g. `restrain`) and `duration: {value: 6, units:
+  "rounds"}`; one change of each type the sheet reads, each `{key, type,
+  value: "<n>"}` with no `mode` — `add` and `subtract` on `system.save.mod`,
+  `override` on `system.saves.death.value`, `multiply` on
+  `system.saves.spell.value`, `downgrade` on `system.saves.implements.value`;
+  and one timer per remaining unit — turns, seconds, minutes, hours, days,
+  months, years — one of them backdated with `start: {time:
+  game.time.worldTime - 3600}` so part of its life has run.
 - Optionally an imported class document bound through the picker, for the
   Class tab's preview and the band's threshold.
 - For the party cell: a disposable scene, ACTIVATED, holding a token of the
@@ -45,11 +51,36 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   the book folded into Implements). The sheet reads and writes through the
   lib's `BOOK_TO_RELEASED_SAVES`; assert against `system.saves.breath`, not
   `.blast`, and roll through `rollById(actor, "save:blast")`.
-- **A rounds-or-turns effect reads in SECONDS outside combat**: Foundry's
-  prepared duration restates it through the world's round length, so
-  `effect.duration.units` is `seconds` and `remaining` is in seconds. The
-  sheet's clock reads the SOURCE duration for the unit; assert the clock
-  string (`6r`), not the prepared fields.
+- **An effect's duration is `{value, units}` and its start is `start`**:
+  `duration.rounds`/`turns`/`seconds` and `duration.combat` are Foundry 14
+  shims that log once per session — create with `duration: {value, units}`,
+  backdate with `start: {time}` instead of advancing world time. Outside
+  combat Foundry restates a rounds or turns effect in seconds through
+  `CONFIG.time.roundTime`/`turnTime` (`duration.units` reads `seconds` and
+  `remaining` is in seconds; a zero length reads `Infinity` and *None*). The
+  clock converts back, so assert the clock string (`6r`, `3t`), not the
+  prepared fields.
+- **A scene created in a world with no active scene is activated by core**
+  and drawn at once. On a client whose canvas has never drawn a scene, a
+  token or effect written before `canvasReady` throws inside core
+  (`addChild`, `OBJECTS`: the render-flag queue is made by the first draw).
+  Await the hook before placing anything on it:
+  `await new Promise((r) => Hooks.once("canvasReady", r))`.
+- **Starting a combat**: the system's `startCombat` opens the Surprise Matrix
+  and never sets the round, and it reads every combatant's token
+  disposition, so the combatant needs a token on the viewed scene
+  (`Scene.create`, then a token from `actor.getTokenDocument()`,
+  `Combat.create({scene})`, a combatant with `tokenId` and `sceneId`).
+  `combat.nextRound()` is what starts it, and posts a *Round N has started*
+  chat message each call — teardown deletes them. An effect created once the
+  combat is started stamps `start.combat` and counts from its own round; one
+  created before counts from the combatant's `roundJoined`. Core refreshes
+  every registered effect's duration on round start, so the clock is current
+  after `nextRound()` with no re-prepare; deleting the combat restates the
+  effect from its FULL value in seconds.
+- **A month is approximate**: Foundry converts months through the calendar's
+  average month and counts the remainder up, so a fresh two-month effect
+  answers `remaining 3`; the clock caps it at its total (`2mo`).
 - **A template field named `mod` calls the system's Handlebars helper**, not
   the field, and prints `N/A`. The system registers `mod`, `add`, `mult`,
   `readonly`, `getWeight`, `stoneWeight` and a few more; a context key with
@@ -86,9 +117,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the light cell reads the dark at 0′, and a torch readied and lit reads the
    torch glyph with its reach and an amber fill.
 3. Riders. *Observable:* the restrained effect rides on the Paralysis cell
-   (image, clock, corner glyph, red tone); the save-modifier effect colours
-   every save cell with the signed number; a save cell with both is split.
-   Clicking a save cell makes the system's save roll (a chat card).
+   (image, clock, corner glyph, red tone); the save-modifier effects colour
+   every save cell with the net signed number — the subtraction lowers it,
+   the override reads as its difference from the source, the downgrade as
+   help, the multiply as harm in warn tone; a save cell with both a rider
+   and a modifier is split. Clicking a save cell makes the system's save
+   roll (a chat card).
 4. Rolls tab. *Observable:* every group lists; the sword shows melee and
    two-handed rows and the dagger a thrown row; clicking a row makes the roll
    through core's pipeline (a chat card, the module's attack card format);
@@ -100,6 +134,22 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    true) — and back onto the Carried column — sheathed; drag the rations onto
    the backpack — stored (`containedIn` set) and its take-out control appears.
    Annotate, split and the container lock cycle each write.
+   The sword drawn alone in the two-handed grip (from the grip cell's menu,
+   or by itself with the two-handed style trained) lists as **one row
+   spanning Main hand · Off hand** (`.is-span`, both labels behind one
+   bracket), and the two hand slots return, separate, when it is sheathed or
+   the shield is drawn beside it. Wear the harness (created from the system's
+   compendium and annotated, so its Construction tab shows the figure under
+   **Secures**) with three small items loose: the Load bar shows a **dashed
+   phantom** (`<s>`) running on from the fill, the header reads the carried
+   figure after the burden, and the bar's tooltip names the weight forgiven;
+   take the harness off and the phantom shrinks to what the worn clothing
+   weighs, and with no clothing worn it goes. A belt pouch worn beside the
+   harness and a scabbard shows no count on the belt. A helm and a coif at
+   the head read *1 / 1* with no tint and both counts in the badge's tooltip;
+   a second helm tints the place (`is-full`); declaring the coif magic on its
+   Details fold keeps *1 / 1*, and a second magic piece at the head
+   tints.
 6. Stats tab. *Observable:* an attribute edit submits and the modifier
    follows; the weapon buckets open to weapons; the hit dice roll asks first
    and writes a new maximum; the throw fields submit.
@@ -111,9 +161,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    The class glyph before the name still opens the Class tab.
 8. Followers tab. *Observable:* the hireling's Follower Card renders with the
    four controls; Roster opens the roster app.
-9. Effects tab. *Observable:* both fixtures list under Timers with bars in
-   tone; the restrained one also lists under Riding on a save; starring one
-   puts a chip on the folded bar; fate award and spend write.
+9. Effects tab. *Observable:* every timer lists under Timers with its unit
+   mark (`6r`, `3t`, `30m`, `1h`, `3d`, `2mo`, `1y`; seconds climb, `90s` to
+   `2m`, `5400s` to `2h`) and a bar in tone, the backdated one part-spent;
+   the restrained one also lists under Riding on a save; each modifier line
+   carries a glyph for its type (`+2`, `−1`, `=10`, `×2`, `≤12`); starring
+   one puts a chip on the folded bar; fate award and spend write.
 10. Fold. *Observable:* the chevron narrows the window to the card — band,
     portrait, rails and the pin bar with the starred rolls and timers — and
     the user flag records it; unfold restores the tabs; the state survives a
@@ -142,9 +195,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Teardown
 
-Delete both actors, the monster and the scene and confirm `game.actors` and
-`game.scenes` no longer hold them; clear the user's `sheetFold` flag of the
-fixture id.
+Delete both actors, the monster, the scene, any combat and the chat messages
+the rounds and the save roll posted, and confirm `game.actors`,
+`game.scenes`, `game.combats` and `game.messages` no longer hold them; clear
+the user's `sheetFold` flag of the fixture id.
 
 ## Training on Stats
 

@@ -1,0 +1,21 @@
+{
+  "name": "acks-extras-discord",
+  "version": "0.1.0",
+  "description": "Discord bot for ACKS II worlds on Foundry VTT: holds a seat in the world and drives the acks-extras bridge from slash commands.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prestart": "node src/prestart.mjs",
+    "start": "node src/main.mjs",
+    "install-service": "node src/install-service.mjs",
+    "register": "node src/register-commands.mjs",
+    "seat:check": "node src/seat-check.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  }
+}

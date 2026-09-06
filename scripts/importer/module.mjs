@@ -1637,8 +1637,9 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
   const bridge = !windowMs
     ? "refresh bridge: off — every page reload re-picks"
     : `refresh bridge: ${windowMs / 1000}s window, ${cached?.length ?? 0} book(s) bridged` +
-      (stamp ? `, stamped ${Math.round((Date.now() - stamp) / 1000)}s ago` : ", not stamped yet") +
-      `; this page was away ${((performance.timeOrigin - stamp) / 1000).toFixed(1)}s before starting`;
+      // The away figure belongs to the join-time sweep (sweepCache): a live page refreshes the
+      // stamp every 20 s, so measured here it reads negative, and before any stamp it reads the epoch.
+      (stamp ? `, stamped ${Math.round((Date.now() - stamp) / 1000)}s ago` : ", not stamped yet");
   const stateOf = (id) =>
     sessionDocs.has(id)
       ? `OPEN this session${staged[id] ? " (from the shelf)" : ""}`

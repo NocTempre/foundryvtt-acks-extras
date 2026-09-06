@@ -40,7 +40,7 @@ enums; local-only, never in the repo).
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the 10× price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
-| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access}` — where this gear MAY sit, where it sits now, and the RAW cost of drawing from it. The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment). |
+| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access, capacity, relief}` — where this gear MAY sit, where it sits now, the RAW cost of drawing from it, how much it holds and, on a harness, how much it secures (the item's own figure, read from its text by Annotate or typed on its Construction tab). The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment). |
 | Item flag (container) | `flags.acks-extras.container.{quality,lockMod,keys,accepts,refusal}` | The lock's quality text and pick modifier, the keys that open it (`[{uuid,name}]`), the kinds it will accept (`item-sheet/accept-kinds.mjs`) and the refusal it gives a wrong drop. Beside the `locked/opened/concealed/fragile` fields `containers.mjs` already holds. |
 | Item flag | `flags.acks-extras.pins` | Roll ids the item pins to its art, oldest first, at most two. |
 | Item flag | `flags.acks-extras.valueMode` | `priced` \| `unknown` \| `na` — what the value badge reads (`item-sheet/view-model.mjs` `valueBadge`). |
@@ -120,9 +120,31 @@ Three numbers on the Loadout, and asking for the wrong one is the classic bug:
 
 They differ because a lone versatile weapon widens to a two-handed grip to fill
 any hand going, and gives it straight back the moment a torch or a map wants it.
-That grip is elective, so it commits nothing. Anything asking "can this character
-take up one more object?" reads `handsSpare` (API: `spareHands`) — reading
-`handsFree` tells a swordsman with an empty off hand that he has no hands.
+That grip is elective, so it commits nothing — and it is elected only where it
+costs nothing: the `auto` grip widens when the two-handed style is trained or
+enforcement is off, and stays one-handed otherwise, so a default never puts a
+character into an untrained style. An explicit `2h` is the player's call and is
+honoured. Anything asking "can this character take up one more object?" reads
+`handsSpare` (API: `spareHands`) — reading `handsFree` tells a swordsman with an
+empty off hand that he has no hands.
+
+On core's inventory the both-hands bucket is headed by the two hands it spans,
+with the grip as the header's note; the character sheet folds the place
+(`docs/character-sheet/MODEL.md`).
+
+### The shield and its style
+
+Core's `computeAC` adds the last equipped shield's AC unconditionally. Two
+rules say a shield grants nothing, and both are applied through the loadout
+effect's one `system.aac.mod` change: the JJ shield-variant overlay
+(`shieldACCorrection` — a buckler without Specialization, a shield strapped on
+the back, a phalanx shield mounted) and the fighting styles (RR ch. 3 — no
+Weapon & Shield style, no benefit from a shield). The Loadout carries the
+second as `shieldStyled`, false only while enforcement is live and a shield is
+in hand without the style, with the `shieldNoStyle` advisory beside it. The
+effect takes the deeper of the two cuts, once: two rules cancelling the same
+addition never cancel it twice. The style's own benefit is the shield's AC;
+Specialization in it adds its bonus above that.
 
 `formationHands(actor)` is the one call into the formation feature for hands the party
 sheet has already filled: lights borne, and the mapper's kit.
