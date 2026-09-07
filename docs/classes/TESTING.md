@@ -501,7 +501,16 @@ the reason this fixture is BUILT rather than found: the shipped packs hold no
 class with a choice award, because classes arrive by import. Plus a disposable
 `character` actor, owned by both the GM and the provisioned player seat.
 
-**Drive mechanics.** Rungs are addressed by the `<select>` names the two
+**Drive mechanics.** Tick **Show all classes** before looking for the fixture
+in the picker. `offeredClasses` lists core classes plus whatever the actor is
+already bound to, so a hand-built class is invisible until the box is ticked —
+and `#classItem` answers an unlisted selection by falling back to the first
+class offered, so the picker binds some cookbook class instead and says nothing.
+Once the actor is bound to the fixture it stays listed either way; the trap is
+only the first binding. (A class DROPPED on the sheet skips this — that path
+sets the toggle itself.)
+
+Rungs are addressed by the `<select>` names the two
 surfaces mint: `choice-<index>` in the level-up wizard, `rung-<index>:<atLevel>`
 in the picker. `awardKey` is that same positional `<index>:<atLevel>`, which is
 what `awardsTaken` records — so the flag can be read against the ladder without
