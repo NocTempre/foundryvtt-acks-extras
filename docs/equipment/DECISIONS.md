@@ -486,8 +486,10 @@ own equipment pack agrees, shipping it as one `item` carrying `quantity: 20`.
 The load is read off the name so the ammunition tracker can spend it, and the
 annotate pass is the one place that UNDOES its own earlier answer: a world
 already carrying the wrong capacity clears it by re-running the annotate button,
-because nothing else will. The count is written only onto an item that has none,
-so a half-spent quiver does not refill itself every time gear is annotated.
+because nothing else will. ~~The count is written only onto an item that has none,
+so a half-spent quiver does not refill itself every time gear is annotated.~~
+**Superseded 2026-09-05 — see *Annotate declares the bundle and never the
+count*: the count was never absent, so the write never happened, and it is gone.**
 
 `holds` is what separates a load from a capacity — core names every pack, sack
 and pouch "(holds N stone)", and `stone` is both the unit they are measured in
@@ -775,10 +777,12 @@ for is printed, so `per` arrives from the importer, from the item's own name
 (`bundledAmmoCount`, a heuristic over world data), or from the Judge. A shipped
 `BUNDLE_SIZES` map would be the frozen-table failure `ip-doctrine.md` names.
 
-**Annotate now sets it.** `annotateItem` already backfilled `quantity.value` from
+**Annotate now sets it.** ~~`annotateItem` already backfilled `quantity.value` from
 a bundled name and would otherwise have manufactured this defect itself — a
-weight for the whole quiver multiplied by the arrow count it had just written.
-It never overwrites a bundle size a Judge has set.
+weight for the whole quiver multiplied by the arrow count it had just written.~~
+**Superseded 2026-09-05 — see *Annotate declares the bundle and never the
+count*: the backfill never fired; `per` stands on its own.** It never overwrites
+a bundle size a Judge has set.
 
 **No migration.** `per` defaults to 1, which is exactly the arithmetic every
 stored item already gets.
@@ -906,3 +910,131 @@ once (it reads core's own description) or the figure is typed; and the frozen
 capacities of the other profiles — backpack, sacks, saddlebag, bowquiver, the
 chest and the barrel — are the same kind of value, left for a ruling of their
 own.
+
+### Annotate declares the bundle and never the count (2026-09-05)
+
+Evidence, five days after *A stated weight may cover a bundle* and against
+its premise: a live pass over a freshly created "Quiver, 20 Arrows" set
+`gear.per` to 20 and left the count at 1. The branch meant to fill the count
+fired only where `system.quantity.value` was null, and a core item never
+arrives that way — the field is a `NumberField` with `initial: 1`
+(`foundryvtt-acks-core` `src/module/data/item/item-data.mjs`), and Foundry
+writes a field's initial into the source of every document it creates. The
+count was never absent. The guard that "a half-spent quiver must not refill"
+protected a write that never happened, and the 2026-08-31 entry's "already
+backfilled" was that comment read as fact.
+
+What the branch could reach, it should not have. The field is nullable
+(Foundry's `NumberField` default, which the schema does not override), and a
+number input submitted blank stores null (`FormDataExtended` returns null for
+an empty number field), so the one `item` that ever met the test was one
+whose Judge had cleared its count. A weapon-typed bundle, with no `quantity`
+in its schema, met it too, and there the write had nowhere to land.
+
+**Ruled: the branch goes. Annotate stamps what a thing IS, never how much of
+it is left.** `per` — that the stated weight covers twenty — is the item's
+shape, and Annotate keeps declaring it from the name. The count is state,
+and it arrives with the item: core's compendium ships the quiver at 20, the
+importer's bare stack carries its unit count and its loaded device ships at
+1 with the printed load on its `ammo` flag by that pipeline's own ruling
+(`weapon-tables.mjs` `bindAmmoRow`), and a hand-typed item has the quantity
+field on its sheet.
+
+Rejected: keeping the branch under its literal reading, a cleared count
+re-read from the name. The sheet prints a cleared count as 1
+(`item-sheet/snapshot.mjs`), the ammunition tracker falls back to a legacy
+`rounds` flag for it, and the next submit of any field writes the 1 back; a
+state nothing else honours is not a control. Rejected: filling a count of 1
+when no bundle is declared yet. No stored signal tells core's initial from a
+deliberate one, so that fills a quiver spent down to its last arrow on the
+world's first Annotate pass — the one failure the guard exists to prevent.
+Every proxy tried (compendium provenance, the bundle flag's absence) fails
+at that same edge.
+
+Cost: none in any shipped world; the branch has never written. A hand-typed
+"Quiver, 20 Arrows" left at core's count of 1 is one arrow to the tracker
+until the Judge types twenty, which was already so. The offline suite holds
+the ruling: a fresh bundle annotates to `per` with its count untouched, and
+a half-spent one keeps both.
+
+### A weapon that needs both hands is held in both (2026-09-07)
+
+Field report: a character carrying a sword and a bow could not equip a
+torch. Reproduced live: with the bow drawn, the character sheet listed it in
+the Main hand at 1 / 1 and showed the Off hand empty at 0 / 1; the readied
+torch dropped there was refused — *Not enough hands (3/2); free up: Torch,
+Long Bow* — and came straight back off. The count was right and the listing
+was not. `getLoadout` marked a weapon as held in both hands only inside the
+lone-melee grip branch, so a bow, a crossbow, or a great sword beside a
+shield never reached the both-hands place: the resolver put it in the main
+hand, the sheet drew an empty off hand, and the grip cell showed one hand
+open beside a two-hand weapon.
+
+**Ruled: held in both hands is a fact of the weapon before it is a choice of
+grip.** Every weapon whose minimum cost is two hands is marked
+`wieldTwoHanded`, whatever else is carried; the lone-melee branch keeps only
+the versatile grip, and a versatile weapon is now one whose grip changes its
+cost (`canTwoHand`), so a Judge's hand-count override can no longer offer a
+grip control on a weapon it has fixed. The hand arithmetic is unchanged.
+
+Rejected: keying the sheet's place on the hand cost and leaving the flag as
+the grip. Two readers of one fact — the wear resolver, the grip cell — would
+have to agree to ask the second question, and the roll wrapper already gates
+its die upsize on `damage2h`, which no two-hand-only weapon carries, so the
+one flag is safe to widen.
+
+Two smaller findings from the same walk, fixed alongside. Core's compendium
+names the torch stack "Torches (6)", and the strict classifier the importer
+owns passes it over, so the Ready control it was offered — gated on the
+light model's torch pattern — created nothing and said nothing. The ready
+step now recognises what the control recognises, readies it under the
+torch's own name, and says so when handed something else. And a plain item
+dropped on a hand place was refused by the wear model in silence, since it
+declares no place; the sheet now says which place it lacks.
+
+Cost: a bow beside a dagger lists in the spanning row and the dagger in the
+main hand beneath it, which is the overflow the count reports. An unarmed
+strike was suspected and is not involved: it is an unsaved weapon that
+persists nothing, verified live.
+
+### Two hands are two places, and a torch is equipped by readying it (2026-09-07)
+
+Evidence, second walk of the same report. A group's two-weapon fighter listed
+both daggers under Main Hand (2 / 1) with the off hand empty; a weapon dragged
+onto Off Hand landed in Main Hand, and the row's draw control did the same.
+`wearLocation` put every one-hand weapon in the main hand unless its `hand`
+flag said `off`, and nothing wrote that flag — the drop handler drew the
+weapon and ignored which hand it was dropped on; the comment beside the test
+described a rule ("unless something else already claims it") the code never
+implemented. Separately, a torch stack dropped on a hand place was refused
+as gear declaring no place (silently before 7.1.3, with a notice after), and
+the stack's own Equip control said it declares nowhere to be worn: the only
+route into the hand was the Ready control, and it left the torch carried.
+
+A fresh sword-and-bow character, nothing drawn, never has a hand counted
+(verified live, every draw order): the report's "blocked hands" was the torch
+that could not be put in one, and the second weapon that would not go where
+it was dropped. The one state where hands are counted with nothing drawn is
+the party sheet's — the mapper's kit, a light borne there — and on this sheet
+its reason lived in a tooltip; lib's light refusal did not state it at all.
+
+**Ruled.** A weapon dropped on a hand is drawn into that hand by name
+(`drawInto`, one write, so the equip limit weighs it once); a weapon drawn
+without a name takes the main hand unless another one-hand weapon already
+holds it and no shield holds the off hand, then the off hand. Sheathing
+forgets the hand. A torch stack dropped on a hand place, or its Equip
+control, readies one torch and draws it (`prepareTorch` with `draw`). The
+held-hands clause is visible on the hands badge, not a tooltip, and lib's
+light refusal carries it.
+
+Rejected: placing the second weapon by the loadout alone, with no flag. It
+answers the row control but cannot honour a drop — the user names a hand and
+the resolver overrules them, which is the report. Rejected: wearing the
+stack itself in the hand through the gear model. A bundle is not a thing you
+hold, and a worn `item` is not in the hand count; the readied torch is the
+weapon the count charges.
+
+Cost: the `hand` flag now has writers, so a weapon auto-unequipped by the
+resolver keeps its name and returns to that hand when redrawn — the sheathe
+control is what forgets it. A named main hand shifts an unnamed weapon to the
+off hand, which is visible and is what the drop asked for.

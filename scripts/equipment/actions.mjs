@@ -73,9 +73,16 @@ export function readiedWeaponData(item) {
  * decrement the bundle (deleting the stack when the last one is drawn). No-op
  * with a warning when the stack is empty or the item is not a preparable light
  * source — a control that answers nothing reads as a hung sheet.
+ *
+ * The stack itself is never in hand: it declares no place, and a bundle is not
+ * a thing you hold. "Equip a torch" therefore means ready one and draw IT —
+ * `draw` does both in one gesture, for a stack dropped on a hand place or its
+ * own Equip control. The drawn torch answers to the hand count like any weapon.
+ * @param {object} [opts]
+ * @param {boolean} [opts.draw] put the readied torch in hand at once.
  * @returns {Promise<Item|null>} the created weapon, or null.
  */
-export async function prepareTorch(actor, item) {
+export async function prepareTorch(actor, item, { draw = false } = {}) {
   const data = readiedWeaponData(item);
   if (!data) {
     notify("notReadiable", { item: item?.name ?? "" });
@@ -89,6 +96,7 @@ export async function prepareTorch(actor, item) {
   const left = await consumeItem(item, 1);
   if (left <= 0) await item.delete?.();
   notify("readied", { item: item.name });
+  if (draw && created) await drawItem(created);
   return created ?? null;
 }
 
@@ -131,13 +139,27 @@ export function rollUnarmed(actor, options = {}) {
 /*  #3 Draw / sheathe — the equip toggle with a combat verb                   */
 /* -------------------------------------------------------------------------- */
 
-/** Sheathe a wielded weapon (unequip it). */
+/**
+ * Sheathe a wielded weapon (unequip it). The hand it was drawn into goes with
+ * it, so the next draw places it afresh rather than into a hand it no longer
+ * holds.
+ */
 export async function sheatheItem(item) {
-  return item?.update?.({ "system.equipped": false });
+  return item?.update?.({ "system.equipped": false, [`flags.${MODULE_ID}.-=${ITEM_FLAGS.WORN_HAND}`]: null });
 }
-/** Draw a carried weapon (equip it). */
+/** Draw a carried weapon (equip it); the wear resolver places it. */
 export async function drawItem(item) {
   return item?.update?.({ "system.equipped": true });
+}
+/**
+ * Draw a weapon INTO a named hand, "main" or "off" — what a drop on that
+ * place means. One write, so the equip limit weighs the draw once. The name
+ * is where the sheet lists it; the hand count is the loadout's and never
+ * reads it. Any other name is a plain draw.
+ */
+export async function drawInto(item, hand) {
+  if (hand !== "main" && hand !== "off") return drawItem(item);
+  return item?.update?.({ "system.equipped": true, [`flags.${MODULE_ID}.${ITEM_FLAGS.WORN_HAND}`]: hand });
 }
 
 /* -------------------------------------------------------------------------- */

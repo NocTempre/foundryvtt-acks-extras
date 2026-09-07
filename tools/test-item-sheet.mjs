@@ -212,6 +212,13 @@ test("a stack offers a split, a split item offers a restack, a single item equip
   assert.equal(single.rails.right[0].key, "equip");
   assert.equal(single.rails.right[0].on, true);
 });
+test("a torch stack is never worn: its equip cell readies one, and it is not simple", () => {
+  const bundle = buildItemSheetModel(base({ qty: 6, stackable: true, readiable: true }), { isGM: true });
+  assert.equal(bundle.simple, false, "the cell needs the state rail");
+  assert.equal(bundle.rails.right[0].key, "equip");
+  assert.equal(bundle.rails.right[0].title, "readyHint");
+  assert.equal(bundle.rails.right[0].on, false);
+});
 test("the right rail is always four cells tall", () => {
   const m = buildItemSheetModel(base({
     wearable: true, favorite: false, rolls: weaponRolls,

@@ -32,7 +32,7 @@ import { buildFollowersTab } from "./tabs/followers.mjs";
 import { buildNotesTab } from "./tabs/notes.mjs";
 import { buildEffectsTab } from "./tabs/effects.mjs";
 import { openCoreWindow } from "./core-bridge.mjs";
-import { drawItem, sheatheItem, wearItem, removeItem, prepareTorch } from "../equipment/actions.mjs";
+import { drawItem, drawInto, sheatheItem, wearItem, removeItem, prepareTorch, readiedWeaponData } from "../equipment/actions.mjs";
 import { wearLabel } from "../equipment/wear.mjs";
 import { cycleGrip } from "../equipment/loadout.mjs";
 import { cycleStrap } from "../equipment/overlays/shield-variants.mjs";
@@ -56,7 +56,7 @@ import { dismissMonster } from "../henchmen/apps/hirelings-grid.mjs";
 import { openLoyaltyRoll } from "../henchmen/engine/events.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
-import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { ITEM_TYPE, ACTOR_TYPE, SLOT } from "../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -69,6 +69,8 @@ export const CHARACTER_SHEET_TEMPLATES = Object.freeze([
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+/** The places a thing is HELD at, where a dropped torch stack readies one into hand. */
+const HAND_PLACES = Object.freeze([SLOT.mainHand, SLOT.offHand, SLOT.bothHands]);
 
 /**
  * Actions that only LOOK — fold, switch a tab, open a menu or another window,
@@ -605,8 +607,14 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
           if (box && box.id !== own.id && isContainer(box)) await storeIn(this.actor, own, box);
         } else if (kind === "slot") {
           if (containedIn(own)) await takeOut(own);
-          if (own.type === ITEM_TYPE.weapon) await drawItem(own);
+          // A weapon goes into the hand it was dropped on, by name; the
+          // spanning row is keyed by the main hand and draws there.
+          if (own.type === ITEM_TYPE.weapon) await drawInto(own, key === SLOT.offHand ? "off" : key === SLOT.mainHand ? "main" : null);
           else if (isEquippable(own)) await own.update({ "system.equipped": true });
+          // A torch is carried as a stack and held as a weapon: the stack
+          // dropped on a hand readies one torch into it. A hand place only — a
+          // stack dropped on the belt is still a stack, and is refused below.
+          else if (readiedWeaponData(own) && HAND_PLACES.includes(key)) await prepareTorch(this.actor, own, { draw: true });
           // A refused wear says so: the model declines gear that declares no
           // place, or not this one, and a drop that bounces in silence reads as
           // a sheet that ignored it.

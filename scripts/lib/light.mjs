@@ -214,14 +214,19 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
   // empty off hand. Only the call is defended: an unreadable hand count means
   // no check, not a refusal.
   let freeHands;
+  let held = "";
   try {
     const equipment = globalThis.acksExtras?.equipment;
     freeHands = equipment?.spareHands?.(actor) ?? equipment?.freeHands?.(actor);
+    // Hands the party sheet holds — a torch already borne, the mapper's kit —
+    // are named with the refusal: a bearer whose sheet shows nothing in hand
+    // is otherwise refused for no stated reason.
+    held = equipment?.heldHandsClause?.(actor) ?? "";
   } catch (err) {
     console.error(`${MODULE_ID} | acks-equipment hand count failed`, err);
   }
   if (Number.isFinite(freeHands) && freeHands <= 0) {
-    warnLight("noFreeHand", { bearer: actor.name });
+    warnLight(held ? "noFreeHandHeld" : "noFreeHand", { bearer: actor.name, held });
     // Hands the override could not empty are full of lit sources, which
     // sheathing cannot fix. Say so; do not stop a Judge over it.
     if (!override) return false;

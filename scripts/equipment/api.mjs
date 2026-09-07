@@ -7,7 +7,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, HOOKS, EFFECT_DOMAINS, ITEM_FLAGS } from "./constants.mjs";
-import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands, releaseOrder, bestAttackBonus } from "./loadout.mjs";
+import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands, heldHandsClause, releaseOrder, bestAttackBonus } from "./loadout.mjs";
 import { grantGear, clearHands, findGearSource } from "./grant.mjs";
 import {
   mountedCombatCard,
@@ -134,24 +134,23 @@ export async function annotateItem(item) {
   // than merely refining it, because the stale flag is what shows a full quiver
   // as empty and nothing else will clear it. Re-running the annotate button is
   // how a world already carrying the wrong answer gets the right one.
+  //
+  // The count is never written here. Annotate stamps what a thing IS, never
+  // how much of it is left: core initialises every item's count, so there is
+  // no blank one to fill, and a count taken from the name would refill a
+  // half-spent quiver on the next pass. The count arrives with the item — the
+  // compendium's, the importer's, or the Judge's on the sheet.
   const rounds = CONFIG_DATA.bundledAmmoCount(item.name ?? "");
   if (rounds != null) {
     if (capacityOf(item) != null) {
       updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = { slots: gear.slots, access: gear.access, capacity: null };
       key = "ammunition";
     }
-    // Put the count where the ammunition tracker can spend it. Only when the
-    // item has none of its own: a half-spent quiver must not refill itself
-    // every time somebody re-annotates their gear.
-    if (item.system?.quantity?.value == null) {
-      updates["system.quantity.value"] = rounds;
-      key ??= "ammunition";
-    }
     // The name states a bundle, so the printed weight beside it is the
-    // bundle's. Declaring that here is what keeps the quantity written above
-    // from multiplying a whole quiver's weight by its own arrow count — the
-    // annotate step would otherwise manufacture the very over-encumbrance it
-    // exists to tidy. Never overwrite a bundle size a Judge has already set.
+    // bundle's. Declaring that is what keeps the count, however it arrived,
+    // from multiplying a whole quiver's weight by its own arrows — the very
+    // over-encumbrance the annotate step exists to tidy. Never overwrite a
+    // bundle size a Judge has already set.
     if (bundleSizeOf(item) <= 1) {
       const gearNow = updates[`flags.${MODULE_ID}.${FLAG_GEAR}`];
       if (gearNow) gearNow.per = rounds;
@@ -188,6 +187,9 @@ export function buildApi() {
     // it. acks-formation asks THIS before lighting a torch, so a swordsman with
     // an empty off hand is not told he has none.
     spareHands: (actor) => getLoadout(actor).handsSpare,
+    // The hands the party sheet holds, as the clause every hand total carries;
+    // "" when the gear accounts for every hand. lib names it in a light refusal.
+    heldHandsClause: (actor) => heldHandsClause(getLoadout(actor)),
     heldLightHands,
     releaseOrder,
     // The Judge's override, in two mutations: hand over gear the character does

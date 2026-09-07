@@ -170,7 +170,9 @@ export function buildItemSheetModel(snap, viewer = {}) {
   const available = tabDefs.map((t) => t.key);
   const activeTab = resolveTab(viewer.activeTab, available);
 
-  const simple = !flat.length && !effectCount && !holds && !named && !dur && !chart;
+  // A torch stack earns the state rail's equip cell (it readies one torch into
+  // the hand), so it is not simple even with nothing else to show.
+  const simple = !flat.length && !effectCount && !holds && !named && !dur && !chart && !snap.readiable;
 
   /* ---- title band ----------------------------------------------------- */
   const qty = snap.stackable && Number.isFinite(snap.qty) ? snap.qty : null;
@@ -209,7 +211,11 @@ export function buildItemSheetModel(snap, viewer = {}) {
   /* ---- right rail ----------------------------------------------------- */
   const rightCells = [];
   if (!simple) {
-    if (snap.wearable) {
+    // A torch stack is never worn — its equip cell readies one torch into the
+    // hand — so it is offered before the split a wearable stack gets.
+    if (snap.readiable) {
+      rightCells.push({ key: "equip", m: "EQP", v: DASH, on: false, title: "readyHint" });
+    } else if (snap.wearable) {
       if (isStack && !snap.split) {
         rightCells.push({ key: "split", m: "EQP", v: DASH, on: false, title: "splitHint" });
       } else if (snap.split) {

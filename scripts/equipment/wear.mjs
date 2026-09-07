@@ -59,10 +59,19 @@ export function wearLocation(actor, item, loadout = getLoadout(actor)) {
   if (item.type === ITEM_TYPE.weapon) {
     const entry = loadout.weapons.find((w) => w.item.id === item.id);
     if (entry?.wieldTwoHanded) return WEAR.bothHands;
-    // `hand` is set when a weapon is drawn into a specific hand; without it a
-    // weapon is in the main hand unless something else already claims it.
+    // `hand` names the hand a weapon was drawn into. Without it a weapon is in
+    // the main hand unless another one-hand weapon already holds that — the
+    // one drawn there by name, or the earlier of the unnamed — and the off
+    // hand is open. A shield in hand keeps the off hand, so a second weapon
+    // beside one lists in the main hand as the overflow it is. Never list two
+    // unnamed weapons in one hand: the second is what the off hand is for.
     const hand = item.getFlag?.(MODULE_ID, ITEM_FLAGS.WORN_HAND);
     if (hand === "off") return WEAR.offHand;
+    if (hand === "main") return WEAR.mainHand;
+    const oneHanded = loadout.weapons.filter((w) => !w.wieldTwoHanded);
+    const at = oneHanded.indexOf(entry);
+    const mainTaken = oneHanded.some((w, i) => w !== entry && (w.wornHand === "main" || (w.wornHand !== "off" && at >= 0 && i < at)));
+    if (mainTaken && !loadout.handShields?.length) return WEAR.offHand;
     return WEAR.mainHand;
   }
 

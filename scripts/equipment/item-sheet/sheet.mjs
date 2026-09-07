@@ -31,7 +31,7 @@ import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import { applyVariation, isVariationItem, removeVariation, revealVariation, concealVariation } from "../variation-items.mjs";
 import { setBaseType } from "../variation-items.mjs";
 import { baseTypesFor } from "../base-types.mjs";
-import { disguiseItem, revealItem, setGearCapacity } from "../actions.mjs";
+import { disguiseItem, revealItem, setGearCapacity, prepareTorch, readiedWeaponData } from "../actions.mjs";
 import { PRISTINE, recomputeItemFields } from "../properties.mjs";
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
@@ -447,7 +447,12 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       await item.update({ "system.equipped": !isWorn(item) });
       return;
     }
-    if (!slot) return void ui.notifications.warn(loc("itemSheet.equip.noSlot"));
+    if (!slot) {
+      // A torch stack declares no place because the stack is never held: its
+      // Equip readies one torch into the hand instead of refusing.
+      if (readiedWeaponData(item) && item.parent?.documentName === "Actor") return void (await prepareTorch(item.parent, item, { draw: true }));
+      return void ui.notifications.warn(loc("itemSheet.equip.noSlot"));
+    }
     if (!slotsOf(item).length) await item.update({ [`flags.${MODULE_ID}.gear.slots`]: [slot] });
     await setWorn(item, item.getFlag(MODULE_ID, "gear")?.wornAt ? null : slot);
   }

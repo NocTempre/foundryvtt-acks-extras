@@ -90,6 +90,7 @@ sibling modules) — never the import path for this module's own features.
 | --- | --- |
 | `patches/attack-display.mjs` | Core patch: the character sheet's Melee/Ranged boxes, replaced at render. |
 | `patches/attack-roll.mjs` | Core patch: the attack roll remodeled as target vs auditable bonus stack. |
+| `patches/combat-round.mjs` | Core patch: a combatant whose actor was deleted no longer throws out of `nextRound`, which froze the round counter. |
 | `patches/goods-drag.mjs` | Core patch: drag sources for the goods rows core leaves un-draggable. |
 | `patches/initiative-card.mjs` | Core patch: a round's initiative gathered onto one chat card, a combat group as one row. |
 | `patches/surprise-card.mjs` | Core patch: the Surprise Matrix's results gathered onto one chat card. |

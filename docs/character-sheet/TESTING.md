@@ -138,8 +138,18 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    with no grip control, so no empty off hand is offered beside it; drop the
    readied torch on the row and the hand overflow names both while the torch
    comes back off. Drop the torch STACK (the `item`) on a hand place:
-   *Observable:* a notice says it declares no such place, and nothing
-   moves. Wear the harness (created from the system's
+   *Observable:* a `weapon` "Torch" appears drawn in the main hand, the stack
+   reads one fewer, and the hands badge reads 1 / 2; the same stack dropped on
+   the belt is refused with a notice naming the place. Two one-hand weapons
+   (two daggers): draw both by their row controls — *Observable:* the first
+   lists under Main hand and the second under Off hand, 1 / 1 each, the style
+   reads Dual Wield; drag the second onto Main hand — it moves there
+   (`flags.acks-extras.hand` = `main`) and the first shifts to Off hand; drag
+   it onto Off hand — back, `off`; sheathe it — the flag is gone. Add the character to a
+   party formation as its mapper: *Observable:* the badge reads 2 / 2 with
+   "2 held for mapping" visible beside it, not in a tooltip, and the torch
+   dropped on a hand comes back off with the same clause in the notice.
+   Wear the harness (created from the system's
    compendium and annotated, so its Construction tab shows the figure under
    **Secures**) with three small items loose: the Load bar shows a **dashed
    phantom** (`<s>`) running on from the fill, the header reads the carried

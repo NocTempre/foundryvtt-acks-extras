@@ -5,10 +5,11 @@
   <div>
     <div class="acks-extras-character-sheet__rule is-bar">
       <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.load"}}</span>
-      <span class="acks-extras-character-sheet__badge" data-tooltip="{{eq.hands.clause}}">
+      <span class="acks-extras-character-sheet__badge">
         <span class="acks-extras-character-sheet__badge-k">{{localize "ACKS-CHARACTER.equipment.hands"}}</span>
         <span class="acks-extras-character-sheet__badge-v acks-nums">{{eq.hands.used}} / {{eq.hands.budget}}</span>
         <span class="acks-extras-character-sheet__badge-k">{{eq.hands.style}}</span>
+        {{#if eq.hands.clause}}<span class="acks-extras-character-sheet__badge-k">{{eq.hands.clause}}</span>{{/if}}
       </span>
       {{#if eq.hands.untrained}}<span class="acks-tag acks-tag--danger">{{localize "ACKS-EQUIPMENT.wear.untrained"}}</span>{{/if}}
       {{#if eq.editable}}

@@ -128,6 +128,12 @@ honoured. Anything asking "can this character take up one more object?" reads
 `handsSpare` (API: `spareHands`) — reading `handsFree` tells a swordsman with an
 empty off hand that he has no hands.
 
+A weapon whose minimum cost is both hands — a bow, a crossbow, a great sword —
+is held in both (`wieldTwoHanded`) whatever else is carried; anything beside
+it is a hand overflow, never a one-handed bow. Only a versatile weapon's second
+hand is a grip, and only a versatile weapon offers the choice (`canTwoHand`:
+the grip changes the cost).
+
 On core's inventory the both-hands bucket is headed by the two hands it spans,
 with the grip as the header's note; the character sheet folds the place
 (`docs/character-sheet/MODEL.md`).
@@ -152,10 +158,20 @@ sheet has already filled: lights borne, and the mapper's kit.
 Those hands hold nothing the equipment sheet lists, so every surface quoting a
 hand total says so: `heldHandsClause(source)` turns a Loadout — or a hand-overflow
 violation's `detail`, which carries the same two counts — into a display clause,
-and the Worn & Wielded status line, the `handOverflow` violation and the
-auto-unequip notice all append it. A total the visible gear cannot add up to
-reads as a miscount, and sends the player unequipping things that were never the
-problem.
+and the Worn & Wielded status line, the character sheet's hands badge, the
+`handOverflow` violation, the auto-unequip notice and lib's light refusal
+(through the API's `heldHandsClause(actor)`) all append it. A total the visible
+gear cannot add up to reads as a miscount, and sends the player unequipping
+things that were never the problem.
+
+A torch is carried as a stack (an `item`, `equipmentClass` `prepareAs: weapon`)
+and held as a weapon: `prepareTorch(actor, stack, {draw})` readies one — a 1d4
+light-weapon under the torch's own name, one off the bundle — and with `draw`
+puts it in hand at once. The stack itself declares no place and is never worn,
+so "equip a torch" is that gesture: a stack dropped on a hand place, or its
+sheet's Equip control, readies one torch into the hand, where the hand count
+charges it like any weapon. Dropped anywhere else the stack is refused as gear
+declaring no such place.
 
 ### Giving gear, and making room for it — `grant.mjs`
 
@@ -251,7 +267,9 @@ damaged or container item, Contents a declared capacity or a spell book,
 Appearance a Judge and a magical or disguisable item. An item that earns
 nothing beyond the always-on three — coin, gems, a trinket — is **simple**: no
 tab strip, no state rail, and a quiet Details button that unfolds the one
-panel.
+panel. A torch stack is not simple: it earns the state rail's equip cell,
+which readies one torch into the hand (`snap.readiable`), since the stack
+itself is never worn.
 
 **The band is the window header.** The title band renders as its own part and
 `_onRender` moves it into Foundry's `.window-header`, where it keeps the drag
@@ -329,6 +347,11 @@ the books rate by the bundle — a quiver of arrows, a set of spikes — it is t
 bundle's size, and `weight6Of` counts one bundle's weight per started bundle:
 twenty-one arrows out of a twenty-arrow quiver weigh two, because a part-used
 bundle is still one item.
+
+Annotate declares `per` from a name that states its load ("Quiver, 20 Arrows")
+and never overwrites one already declared. It does not write the count: that
+is core's `system.quantity.value`, arriving with the item from the compendium,
+the importer or the Judge, and Annotate leaves it as it finds it.
 
 Core's own encumbrance loop multiplies `weight6` by the whole quantity and
 cannot be changed, so `encumbranceDelta6` contributes the difference. That is

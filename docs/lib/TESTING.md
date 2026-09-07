@@ -317,6 +317,43 @@ client `look` back to `world`.
    sheets*, *Apply*: a toast names the preset, Foundry's reload-all
    confirmation appears, and `uiPreset` reads `acksCore`.
 
+## A combatant whose actor was deleted
+
+Covers `patches/combat-round.mjs`. The wedge is invisible offline — mocked
+globals never call `nextRound`.
+
+**Fixtures.** A scene (activate it), two actors, and a token for each with
+`actorLink: true`. A combat on that scene with a combatant per token,
+`flags.acks.initDone` set, an initiative on each, and `{round: 1, turn: 0}`.
+Then **delete one of the two Actors from the sidebar** — the token and its
+combatant stay, and `combat.turns` reads `[..., null, ...]` for `t.actor`. An
+UNLINKED token will not reproduce it: its delta is the actor.
+
+**Steps and what proves each.**
+
+1. **The reported symptom, if the patch is out.** `await combat.nextRound()`
+   raises `Cannot read properties of null (reading 'hasEffect')` and
+   `combat.round` is unchanged.
+2. **The real trigger.** `ui.combat.element.querySelector('[data-action="nextRound"]').click()`
+   twice: `game.combat.round` goes 1 → 2 → 3. The click handler swallows the
+   throw, so read the round, never the absence of an error.
+3. **The stand-in does not outlive the call.** After it returns, the orphan
+   combatant's `actor` is `null` again and
+   `Object.prototype.hasOwnProperty.call(combatant, "actor")` is `false`.
+   A leaked stand-in surfaces as `combatant.actor?.render is not a function`
+   from `Combat#updateCombatantActors`, one call later.
+4. **`skipDefeated` on.** Merge `{skipDefeated: true}` into the core
+   `combatTrackerConfig` setting, then advance twice: this is the only path
+   that reads `isDefeated` — and through it `actor.statuses` — off the
+   stand-in. Restore the setting after.
+5. **Rolling over the end.** Set `turn` to `turns.length - 1` and call
+   `nextTurn()`: core delegates to `nextRound`, and the round advances.
+6. **A healthy combat is untouched.** Delete the orphan row and advance again —
+   still works, and the patch passed core through without defining anything.
+
+**Teardown.** Sweep the combat, the scene and the surviving actor by uuid; the
+deleted actor is already gone and reads back as `missing`.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

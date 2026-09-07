@@ -1,5 +1,50 @@
 # Changelog
 
+## 7.1.4
+
+**The off hand is a place you can put something, a torch is picked up, and a
+fight whose actor is gone still keeps time.**
+
+### Fixed
+- **A second weapon would not go in the off hand.** Dragging one onto Off Hand
+  dropped it in the main hand, and so did its equip control, so a two-weapon
+  fighter's daggers stacked two-deep in one hand over an empty off hand. The
+  wear resolver filed every one-hand weapon in the main hand unless a flag said
+  otherwise, and nothing ever wrote that flag. A weapon dropped on a hand is now
+  drawn into *that* hand; one drawn by its own control takes the main hand
+  unless another weapon already holds it and no shield holds the off hand, and
+  then it takes the off hand. Sheathing forgets the hand.
+- **A torch could not be put in a hand at all.** A torch is carried as a stack,
+  and a stack is worn nowhere — so a bundle dropped on a hand was refused, and
+  its item sheet offered no way to equip it. Dropping a torch stack on a hand
+  place, or pressing the equip cell on its sheet, now readies one torch and
+  draws it in a single gesture; the stack still refuses any other place, and
+  says which.
+- **A hand count the gear could not explain.** The hands the party sheet holds —
+  a torch borne there, the mapper's kit — were named only in a tooltip on the
+  character sheet, and not at all when a light was refused for want of a hand.
+  Both now state it beside the count, so nobody unequips a sword that was never
+  the problem.
+- **Annotate refilled a half-spent quiver.** It wrote `quantity` from the count
+  in the item's name whenever the item appeared to have none — but core gives
+  every item a count, so the write was either a no-op or a lie. Annotate now
+  stamps only what a thing *is*: the bundle size it reads off the name. The
+  count arrives with the item, from the compendium, the importer or the Judge.
+- **A deleted actor froze the round counter.** Deleting an Actor from the
+  sidebar leaves its linked tokens standing, and a token in a running combat
+  keeps its combatant — after which the system's `nextRound` threw on the
+  actor-less row before it could advance, and the fight stayed on that round for
+  good. Turns still moved until the last one, which made it read as a tracker
+  that had stopped rather than an error. Rounds advance again, the console names
+  the rows once, and the Judge decides whether to delete them.
+- **A world with one homebrew class showed only that class.** The chargen class
+  box and both class-picker entry points warmed the class library only when it
+  looked empty, and one class Item in the world sidebar made an unloaded
+  compendium read as stocked. Foundry evicts a pack's documents after five idle
+  minutes, so this was the steady state, not a startup race: every path now
+  warms the shelf before it reads, player seats included.
+
+
 ## 7.1.3
 
 **The seat will not be handed a browser it cannot run.**

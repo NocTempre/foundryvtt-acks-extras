@@ -73,6 +73,7 @@ import { installAttackDisplayPatch } from "./patches/attack-display.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
+import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -764,6 +765,11 @@ Hooks.once("ready", () => {
   // The consolidated initiative card, on the same terms: the wrapper reads its
   // setting per roll and calls core untouched when off.
   installInitiativeCardPatch();
+
+  // The round counter's guard against a combatant whose actor was deleted.
+  // Unconditional: it repairs a throw in core's nextRound, and there is no
+  // state in which the unguarded read is the wanted one.
+  installCombatRoundPatch();
   const registered = CONFIG.Actor?.sheetClasses?.monster ?? {};
   const entries = Object.values(registered);
   const defaulted = entries.find((e) => e.default) ?? null;

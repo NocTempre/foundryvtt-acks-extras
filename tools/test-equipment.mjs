@@ -143,6 +143,15 @@ lo = getLoadout(actor([weapon("Sword", { melee: true, id: "a" }), weapon("Dagger
 check("two weapons → dual", lo.activeStyle === "dual" && lo.handsUsed === 2 && lo.legal);
 lo = getLoadout(actor([weapon("Two-Handed Sword", { melee: true, id: "t" })]));
 check("great sword → twoHanded, 2 hands", lo.activeStyle === "twoHanded" && lo.handsUsed === 2);
+// A weapon whose minimum is both hands is HELD in both, whatever else is
+// carried — a drawn bow is not a one-handed weapon with an empty off hand, and
+// it offers no grip choice.
+lo = getLoadout(actor([weapon("Long Bow", { missile: true, melee: false, id: "lb" })]));
+check("a lone bow is held in both hands, with no grip choice", lo.weapons[0].wieldTwoHanded === true && lo.weapons[0].canTwoHand === false && lo.handsUsed === 2 && lo.legal);
+lo = getLoadout(actor([weapon("Long Bow", { missile: true, melee: false, id: "lb2" }), weapon("Dagger", { melee: true, id: "dg" })]));
+check("a bow beside a dagger is still in both hands, and the hands overflow", lo.weapons[0].wieldTwoHanded === true && lo.violations.some((v) => v.type === VIOLATION.HAND_OVERFLOW));
+lo = getLoadout(actor([weapon("Two-Handed Sword", { melee: true, id: "t2" }), armor("Shield", "shield", { id: "s2" })]));
+check("a great sword beside a shield in hand is still in both hands", lo.weapons[0].wieldTwoHanded === true && lo.handsUsed === 3 && !lo.legal);
 lo = getLoadout(actor([weapon("Sword", { melee: true, id: "s" })], { flags: { styles: "twoHanded" } }));
 check("lone medium sword wielded 2H when the style is trained", lo.weapons[0].wieldTwoHanded && lo.handsUsed === 2);
 // The auto grip never volunteers a character for a style they lack: the
@@ -984,6 +993,29 @@ for (const fn of ["getLoadout", "containerReport", "contentsOf", "contentsWeight
 }
 check("api.named namespace is present", typeof api.named?.resolveGuess === "function");
 
+// Annotate declares a bundle it reads off the name and never touches the count:
+// core initialises every count, so there is no blank one to fill, and a count
+// written here would refill a half-spent quiver on the next pass.
+{
+  const GEAR_KEY = "flags.acks-extras.gear";
+  const bundled = (qty, gearFlag) => {
+    const flags = gearFlag ? { gear: { ...gearFlag } } : {};
+    const it = { id: "qv" + qty, name: "Quiver, 20 Arrows", type: "item", system: { cost: 0, weight6: 1, quantity: { value: qty }, subtype: "item" }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
+    it.update = async (u) => { it.writes.push(u); };
+    return it;
+  };
+  const wrote = (it, path) => it.writes.some((u) => path in u);
+  const fresh = bundled(1);
+  const freshKey = await api.annotateItem(fresh);
+  check("a fresh bundle annotates to its bundle size", freshKey === "gear" && fresh.writes[0]?.[GEAR_KEY]?.per === 20);
+  check("annotate leaves a fresh bundle's count to core", !wrote(fresh, "system.quantity.value"));
+  const spent = bundled(7, { slots: ["belt"], access: "free", capacity: null, per: 20 });
+  await api.annotateItem(spent);
+  check("a half-spent bundle keeps its count", !wrote(spent, "system.quantity.value"));
+  check("a declared bundle size survives re-annotation",
+    !wrote(spent, `${GEAR_KEY}.per`) && spent.writes.every((u) => u[GEAR_KEY]?.per === undefined));
+}
+
 // v14 AE changes must carry a string `type`, never the deprecated numeric `mode`
 // shim (whose setter does Number(mode) -> NaN, silently never setting type).
 const typedChanges = buildLoadoutChanges(specActor, specLo);
@@ -1139,6 +1171,39 @@ const twoHanded = withItems([soloBlade], { flags: { styles: "twoHanded" } });
 const tLo = getLoadout(twoHanded);
 check("the loadout wields a lone medium weapon two-handed", tLo.weapons[0].wieldTwoHanded);
 check("wear agrees: both hands", wearLocation(twoHanded, soloBlade, tLo) === WEAR.bothHands);
+// A bow needs both hands however it is held, so it sits in both — not in the
+// main hand with the off hand shown empty for a torch the hand count refuses.
+const drawnBow = weapon("Long Bow", { missile: true, melee: false, id: "bw" });
+const bowman = withItems([drawnBow]);
+check("wear agrees: a drawn bow is in both hands", wearLocation(bowman, drawnBow, getLoadout(bowman)) === WEAR.bothHands);
+
+// Two one-hand weapons drawn with no hand named: the first holds the main
+// hand, so the second lists in the off hand — never both under one hand.
+const fang = weapon("Dagger", { melee: true, id: "d1" });
+const bite = weapon("Dagger", { melee: true, id: "d2" });
+const dualist = withItems([fang, bite]);
+const duLo = getLoadout(dualist);
+check("two unnamed one-hand weapons list main, then off", wearLocation(dualist, fang, duLo) === WEAR.mainHand && wearLocation(dualist, bite, duLo) === WEAR.offHand);
+// Drawn INTO the main hand by name, a weapon takes it; the unnamed one shifts.
+const namedMain = weapon("Dagger", { melee: true, id: "d3", flags: { hand: "main" } });
+const shifted = withItems([fang, namedMain]);
+const shLo = getLoadout(shifted);
+check("a named main hand takes it and the unnamed weapon shifts to the off hand", wearLocation(shifted, namedMain, shLo) === WEAR.mainHand && wearLocation(shifted, fang, shLo) === WEAR.offHand);
+// A shield in hand keeps the off hand: the second weapon stays in the main
+// hand, which is the overflow the count reports.
+const guarded = withItems([shield, fang, bite]);
+const gLo = getLoadout(guarded);
+check("beside a shield in hand a second weapon lists in the main hand", wearLocation(guarded, bite, gLo) === WEAR.mainHand && gLo.handsUsed === 3);
+// The draw into a hand and the sheathe are one write each; sheathing forgets the hand.
+const { drawInto, sheatheItem } = await import(new URL("actions.mjs", S));
+const handWrites = [];
+const mockBlade = { async update(u) { handWrites.push(u); } };
+await drawInto(mockBlade, "off");
+await drawInto(mockBlade, "belt");
+await sheatheItem(mockBlade);
+check("drawInto draws and names the hand in one write", handWrites[0]["system.equipped"] === true && handWrites[0]["flags.acks-extras.hand"] === "off");
+check("drawInto with no such hand is a plain draw", handWrites[1]["system.equipped"] === true && !("flags.acks-extras.hand" in handWrites[1]));
+check("sheatheItem clears the hand with the draw", handWrites[2]["system.equipped"] === false && "flags.acks-extras.-=hand" in handWrites[2]);
 
 const buckets = wearBuckets(dressed, dLo);
 check("buckets are display-ordered head first", buckets[0].key === WEAR.head);
@@ -1681,6 +1746,10 @@ const readied = readiedWeaponData({ name: "Torch", img: "t.png", system: { cost:
 check("readied torch is a 1d4 weapon, melee AND thrown, light", readied.type === "weapon" && readied.system.damage === "1d4" && readied.system.melee && readied.system.missile && readied.flags["acks-extras"].light);
 check("readied torch carries no quantity (a single wielded torch)", readied.system.quantity === undefined);
 check("readiedWeaponData ignores non-preparable gear", readiedWeaponData({ name: "Sword" }) === null && readiedWeaponData({ name: "Lantern" }) === null);
+// Core's own compendium stack is named "Torches (6)": it readies as the
+// table's torch, under the torch's name so the readied weapon classifies as one.
+const coreStack = readiedWeaponData({ name: "Torches (6)", img: "t.png", system: { cost: 1, weight6: 1, quantity: { value: 6 } } });
+check("core's torch stack readies under the torch's own name", coreStack?.type === "weapon" && coreStack.system.damage === "1d4" && coreStack.name === "Torch" && coreStack.flags["acks-extras"].light);
 
 const created = [];
 const torchActor = { createEmbeddedDocuments: async (_t, arr) => { created.push(...arr); return arr.map((d, i) => ({ ...d, id: "new" + i })); } };
@@ -1691,6 +1760,14 @@ check("prepareTorch decrements the stack (3 → 2), keeps it", stack.system.quan
 const lastTorch = { name: "Torch", img: "t.png", system: { quantity: { value: 1 } }, deleted: false, getFlag: () => undefined, async update(u) { this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
 await prepareTorch(torchActor, lastTorch);
 check("prepareTorch deletes the stack when the last torch is drawn", lastTorch.system.quantity.value === 0 && lastTorch.deleted === true);
+check("a readied torch is carried, not drawn, unless asked", created.every((d) => d.system.equipped === false));
+// A stack dropped on a hand place, or its Equip pressed, readies one torch INTO
+// the hand: the stack is never held, so "equip a torch" is ready-and-draw.
+const drawn = [];
+const handActor = { createEmbeddedDocuments: async (_t, arr) => arr.map((d, i) => ({ ...d, id: "hand" + i, async update(u) { drawn.push(u); } })) };
+const handStack = { name: "Torches (6)", img: "t.png", system: { quantity: { value: 2 }, cost: 1, weight6: 1 }, deleted: false, getFlag: () => undefined, async update(u) { this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
+const inHand = await prepareTorch(handActor, handStack, { draw: true });
+check("prepareTorch {draw} readies a torch and draws it", inHand?.name === "Torch" && drawn.length === 1 && drawn[0]["system.equipped"] === true && handStack.system.quantity.value === 1);
 
 /* ---------------------------------------------------------------------- */
 /*  #3 Unarmed strike (RR p299: 1d3 nonlethal, melee only)                 */

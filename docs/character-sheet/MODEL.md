@@ -168,8 +168,15 @@ state toggles (draw or sheathe, wear or remove, grip, strap, light, ready a
 torch, take out, split, favourite), and edit and delete.
 
 A drop of the character's own item onto a slot wears or draws it (out of a
-container first), onto a container stores it, onto the loose column takes it
-off or out. Coin arriving from a compendium merges into the stack of the same
+container first; a torch stack dropped on a hand place readies one torch into
+the hand, as the equipment feature's `prepareTorch` with `draw` does), onto a
+container stores it, onto the loose column takes it off or out. A weapon
+dropped on a hand is drawn into that hand by name (`drawInto`); one drawn by
+its row control or its own sheet is placed by the resolver — the main hand,
+unless another one-hand weapon already holds it and no shield holds the off
+hand, then the off hand — so a second weapon lists opposite the first, and
+never both under one hand. Sheathing forgets the hand. The hands badge on the
+Load rule states the hands the party sheet holds beside the count. Coin arriving from a compendium merges into the stack of the same
 name. A dropped place is pinned; any other actor is hired, as the system's
 sheet does.
 

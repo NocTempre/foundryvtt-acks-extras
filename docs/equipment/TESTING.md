@@ -59,6 +59,30 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 2. Draw and sheathe it.
    *Observable:* `system.equipped` flips both ways, and `getLoadout(actor)`
    moves `handsFree`/`handsCommitted`/`handsSpare` accordingly.
+2b. Draw a bow (a `weapon` named "Long Bow", missile only) with nothing else
+   in hand. *Observable:* `getLoadout(actor).weapons[0].wieldTwoHanded` is
+   true and `handsUsed` is 2; `wearLocation` answers `bothHands`, so the
+   character sheet lists it as the one row spanning both hands. Ready a torch
+   and drop it on that row: *Observable:* the hand overflow is reported as
+   3/2 naming both, and the torch comes back off — the off hand was never
+   offered as empty.
+2c. Ready from core's own stack: create "Torches (6)" from the system's
+   equipment compendium and press its Ready control (the character sheet's
+   or the system sheet's). *Observable:* a `weapon` named "Torch" appears,
+   1d4, melee and thrown, `flags.acks-extras.light` true, and the stack
+   reads one fewer. Press Ready on a plain `item` with "torch" nowhere in
+   its name through the API (`prepareTorch(actor, item)`): *Observable:* a
+   notice says it is not a torch stack, and nothing is created.
+   `prepareTorch(actor, stack, {draw: true})` — what the stack's own Equip
+   control and a drop on a hand place call: *Observable:* the Torch is
+   created with `system.equipped` true and `getLoadout(actor).handsUsed` is
+   1; with a bow already drawn the overflow notice names the torch and the
+   torch comes back off, as for any weapon.
+2d. The light refusal names held hands: with the character a formation's
+   mapper (`toggleRole(formation, actor.id, "mapper", {override: true})`)
+   and nothing drawn, light a torch from the sheet. *Observable:* the notice
+   reads "no free hand … (2 held for mapping)" — the same clause the hands
+   badge shows — rather than a bare refusal.
 3. Proficiency enforcement: set the enforcement setting to its strict mode and
    attack with a weapon the character is not proficient in.
    *Observable:* the violation is reported, and the setting genuinely gates it
@@ -285,10 +309,10 @@ Fixtures to create and destroy: one disposable `character`, one disposable
 6. **Annotate declares it.** Create an item named `Quiver, 20 Arrows` with no
    bundle, and press **Annotate**.
    *Observable:* `gear.per` becomes 20 and the weight does not multiply; the
-   quantity stays what it was — core initialises every item's count to 1, so
-   Annotate never meets a blank one to fill, and a half-spent quiver must not
-   refill on re-annotation. Set `per` by hand to something else and
-   re-annotate: *Observable:* the Judge's value survives.
+   quantity stays what it was — Annotate never writes the count. Set the
+   quantity to 7 and `per` by hand to something else, then re-annotate:
+   *Observable:* both survive — a half-spent quiver does not refill, and the
+   Judge's bundle size stands.
 7. **Containers roll up bundled.** Stow the quiver in a container.
    *Observable:* the container's load counts one bundle, and its capacity rail
    is not over-full.

@@ -7,6 +7,42 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-07 — extras guards the system's round counter, and the guard is
+  scoped to core's synchronous prefix.** `AcksCombat#nextRound` dereferences
+  `t.actor` four times with no guard where its own `nextTurn` writes `t.actor?.`,
+  so one combatant whose Actor was deleted throws the method before it reaches
+  its `update()` and the round never changes again. `scripts/lib/patches/combat-round.mjs`
+  shadows `actor` on exactly those combatants with an empty stand-in while core
+  reads. Mechanics are that file; this entry is why the shape is forced.
+
+  **Rejected: routing it upstream and shipping nothing.** The defect is the
+  `acks` system's and the fix belongs there, but a fight that cannot leave round
+  one is dead in the field today and this family does not release that system.
+  Report it upstream *and* guard it here.
+
+  **Rejected: holding the stand-in across the awaited call.** Measured, not
+  reasoned: it breaks `Combat#updateCombatantActors`, which runs inside core's
+  own `update()` and calls `combatant.actor?.render()` — null-tolerant, and
+  type-strict about everything else. Foundry's lifecycle is happier with the
+  null than with a stand-in for it.
+
+  **Rejected: filtering the orphans out of `this.turns`.** Shortens the array
+  core measures, so `advanceTime` and the `skipDefeated` turn index both move —
+  a behaviour change bought for nothing.
+
+  **Rejected: re-implementing `nextRound` with the guards added.** Twenty-five
+  lines of system logic forked to fix a missing `?.`, and silently divergent the
+  first time upstream edits it.
+
+  **Rejected: deleting the actor-less rows.** A destructive write to the world
+  to make a read safe. The patch warns once to the console naming them and
+  leaves the Judge to it.
+
+  **What it cost.** The guard holds only while `nextRound` awaits nothing ahead
+  of those reads, which is what lets the shadows come off before the update's
+  promise settles. Should core insert an `await` there, the original throw comes
+  back — never a new failure, but the guard stops covering silently.
+
 - **2026-09-02 — hiding compendiums was a BAD DIRECTION. Explored, shipped,
   withdrawn; do not propose it again without new argument.** The whole of
   `hideSupersededPacks` is removed — the `SUPERSEDED` map, the coverage floors,

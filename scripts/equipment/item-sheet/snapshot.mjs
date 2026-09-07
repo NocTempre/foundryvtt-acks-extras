@@ -12,7 +12,7 @@ import { MODULE_ID, ITEM_FLAGS, LANG, EFFECT_DOMAINS, SETTINGS } from "../consta
 import { FLAG_GEAR } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { MASTERWORK, SILVER, SIZE } from "../config.mjs";
-import { isDisguised } from "../actions.mjs";
+import { isDisguised, readiedWeaponData } from "../actions.mjs";
 import { masterworkTierOf, scavengedOf, silveredFlagOf, pristineOf, layerDeltas } from "../properties.mjs";
 import { variationItemsOf, itemBaseType } from "../variation-items.mjs";
 import { containerOf, isContainer, isLocked, canSeeInside } from "../containers.mjs";
@@ -426,6 +426,9 @@ export function snapshotItem(item, { gm = false, descriptionHTML = "", trueDescr
     cost: Number(item.system?.cost ?? 0),
     valueMode: item.getFlag(MODULE_ID, SHEET_FLAGS.VALUE_MODE) ?? "priced",
     wearable: declared || gear.slots.length > 0 || item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor,
+    // A stack that readies into a held weapon (a torch bundle): never worn
+    // itself, so the sheet offers readying where it would offer wear.
+    readiable: !!readiedWeaponData(item),
     worn: isWorn(item),
     wornSlot,
     slotGuess,
