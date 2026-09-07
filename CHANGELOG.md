@@ -1,5 +1,62 @@
 # Changelog
 
+## 7.2.0
+
+**A weapon is what it is declared to be, the ACKS font size reaches the sheets
+that ignored it, and a party that turns stays where it stood.**
+
+### Added
+- **Weapon type, Size and Grips are now yours to declare**, on the item sheet's
+  Construction panel, each showing the module's guess until you answer it. What
+  a weapon *is* was previously read off its name, which meant an imported weapon
+  under a name the book prints — a "Francisca" — could match no proficiency at
+  all. A declaration now outranks the guess everywhere the answer matters:
+  proficiency, Weapon Focus, damage type, and how many hands the weapon costs.
+  Grips is a capability the weapon has (one-handed, versatile, two-handed), not
+  the grip you happen to be using this round. **Stowed at** joins them.
+
+### Fixed
+- **A weapon named for its own page matched no proficiency.** An axe-trained
+  Barbarian granted a "Francisca" was marked non-proficient, because the name
+  contains no catalogue weapon and nothing else was consulted. The importer had
+  already recorded what the item was built from; it is now read. A
+  "Two-handed iron sword" likewise offered the *medium* sword's smaller
+  two-handed damage, having matched on "sword" alone.
+- **The ACKS font size setting did nothing to the character and item sheets.**
+  Both are drawn from a pixel-exact design, so their type was written as fixed
+  sizes and the setting had nothing to take hold of — dragging it from 14 to 18
+  moved 26 of some 865 elements on the character sheet and none at all on the
+  item sheet. Every figure in both now scales together: type, cells, rails,
+  portrait and spacing, so a larger setting enlarges the sheet instead of
+  pushing text out of boxes that stayed put. The windows open at a matching
+  width, while the width they can be *shrunk* to stays where it was, so the
+  sheets still fit a small display.
+- **Both sheets clipped their own title band**, at every size, since they
+  shipped — five pixels off its top and three off its bottom. The band is taller
+  than Foundry's window header by design, and the rule meant to let the header
+  grow was being outranked.
+- **The font size stopped at the window frame.** Foundry sets its own type size
+  on a window's content and on its header, which is what a sheet's body and its
+  title band inherit from. Both are now taken back explicitly. A terrain swatch
+  on the battlemap sized its glyph off the browser's text size rather than the
+  ACKS one, and ignored the setting alone.
+- **A party token jumped as it moved, and the jump grew with its frontage.**
+  Resizing the block pivoted it about its top-left corner instead of its centre,
+  charged the turn to the movement clock as distance walked, ran trap checks for
+  it, and — because the write cancelled the walk that triggered it — teleported
+  the party the rest of the way on any move that changed heading. A six-abreast
+  column turning threw its centre a square and a quarter.
+- **"Leave open, ask again next time" was shown in the window that never asks
+  again.** Leaving a class choice open is honest — the pick really does stay
+  free — but the level-up wizard only ever offers the rungs at the level being
+  gained. The place that re-asks is the class picker, and the wizard now says
+  so; a Judge who left every proficiency open while building high-level PCs
+  watched the questions vanish instead.
+- **That new hint was set in 6pt**, the step meant for a table's micro
+  annotations, because the wizard's dialog body was not one of the boxes the
+  hint rule reaches. For a sentence whose whole job is to send you to another
+  window, that was the same as absent.
+
 ## 7.1.4
 
 **The off hand is a place you can put something, a torch is picked up, and a
