@@ -328,15 +328,15 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
 /** Open the class picker for one character. A world with no class documents
  *  says so rather than opening an empty window. */
 export async function openClassPicker(actor) {
+  // Warm before reading, never only when the read came back empty: the world
+  // sidebar answers ahead of every pack, so one homebrew class hides an evicted
+  // shelf and the picker opens on that class alone. Emptiness is not coldness.
+  await whenReady();
   if (!classItems().length) {
-    // This message states what the WORLD holds, so it must be answered against
-    // the whole library rather than against whatever had finished loading.
-    // Awaited only in the empty branch: a warm open pays nothing.
-    await whenReady();
-    if (!classItems().length) {
-      ui.notifications?.info(loc("pick.empty"));
-      return;
-    }
+    // This message states what the WORLD holds, so it is answered against the
+    // whole library rather than whatever had finished loading.
+    ui.notifications?.info(loc("pick.empty"));
+    return;
   }
   return new ClassAssignApp({ actor }).render(true);
 }
@@ -347,8 +347,10 @@ export async function openClassPickerFor(actor, classItem) {
   // back to the first class when the bound uuid is not in it — so a class
   // dropped from a shelf that is still cold would open the window on a
   // DIFFERENT class than the one dropped. Warm before constructing, never
-  // after. Conditional, so a warm drop pays nothing.
-  if (!classItems().some((c) => c.uuid === classItem?.uuid)) await whenReady();
+  // after, and never conditionally: finding the dropped class says nothing
+  // about the rest of the list, and a class dragged from the sidebar is found
+  // on an evicted shelf every time.
+  await whenReady();
   const app = new ClassAssignApp({ actor });
   app.binding.classUuid = classItem.uuid;
   // A dropped class the offer list would have hidden still has to be visible in

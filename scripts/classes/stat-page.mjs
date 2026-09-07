@@ -732,18 +732,16 @@ export function registerChargenPage() {
       if (!root || !isStatPage(root)) return;
       const actor = app.options?.actor ?? app.actor ?? null;
       if (!actor?.isOwner) return;
-      if (!classItems().length) {
-        // The library warms in the background and a cold shelf answers with
-        // what is in hand, so a generator opened in the first seconds of a
-        // session can see no classes at all. Core's page never re-renders
-        // itself, so bailing on that reading loses the injected boxes for the
-        // LIFE of the window rather than for a moment — decide against the
-        // whole library, not against whatever happened to be loaded. Free once
-        // the shelves are warm: nothing above this yields, so a warm session
-        // still injects inside the render hook.
-        await whenReady();
-        if (!root.isConnected || !classItems().length) return;
-      }
+      // Warm unconditionally. A cold shelf answers with what is in hand, and
+      // core's page never re-renders itself, so a partial reading is not a
+      // moment's wrong list — it is the wrong list for the LIFE of the window.
+      // Never gate this warm on the library reading empty: `libraryDocs`
+      // answers from the world sidebar before any pack, so one homebrew class
+      // makes an evicted shelf read as a stocked one, and the page builds its
+      // class box out of the sidebar alone. Emptiness is not coldness. Cheap
+      // when nothing is cold — `warmLibrary` resolves already-settled.
+      await whenReady();
+      if (!root.isConnected || !classItems().length) return;
 
       let state = states.get(app);
       if (!state) {

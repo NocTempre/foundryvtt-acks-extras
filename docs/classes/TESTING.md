@@ -453,3 +453,41 @@ redeemed pick. A world with no spell documents at all shows the marker and says
 so when clicked, rather than offering an empty list silently.
 
 **Teardown.** Delete the characters.
+
+## A class surface built from an evicted library
+
+**Fixtures.** One disposable `acks-extras.class` Item in the world sidebar (the
+"homebrew class" the bug needs), and a disposable `character` actor.
+
+**Drive mechanic — do not wait out the timer.** Foundry evicts a compendium's
+documents 300 s after the last `pack.get`/`pack.set` (`lib/MODEL.md`). Waiting
+for it live is unreliable on a shared world: any other session that opens an
+Item sheet or reads a book re-arms the debounce for that pack, and the wait
+silently measures nothing. The eviction has been observed firing; reproduce the
+STATE it leaves instead, by the same method the debounce itself calls —
+
+```js
+game.packs.find((p) => p.metadata.label === "ACKS Cookbook — Item").clear();
+```
+
+`clear()` `super.delete`s the documents and leaves `pack.index` whole, so
+`pack.size` drops to 0 while `pack.index.size` holds. Verify both numbers in the
+same evaluation that clears, because the first library read afterwards starts a
+background reload — that race is the bug, and it is narrow.
+
+**Steps.**
+1. Clear the pack and open the actor's Scores Generator in ONE page evaluation.
+2. Read `select[name="acks-class"]`.
+3. Tick **Judge override**.
+4. Repeat from a non-GM seat (a separate browser profile — in-pane tabs share
+   one Foundry session).
+
+**Observable.** The dropdown holds the **whole** class list, not the sidebar
+fixture alone; the picks and template boxes describe a real class. Before the
+fix it held exactly the sidebar classes, and ticking Judge override repopulated
+it to 33 — the override is not a fix, it is any control that forces a re-render
+after the background reload lands. On the player seat there is no Judge override
+control in the form at all (`acks-judge` does not appear in the markup), which is
+why a player who hits this can only escalate.
+
+**Teardown.** Delete the class Item and the actor by the uuids the run recorded.

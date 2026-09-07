@@ -3,6 +3,52 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-09-07 — the library is warmed unconditionally, because emptiness is not coldness
+
+**Problem.** A player reported the chargen class box stuck on a homebrew class
+from their own sidebar, with a Judge override the only way out. Both class
+surfaces gated their library warm on `!classItems().length`: an emptiness test
+standing in for a coldness test. `libraryDocs` answers from the world sidebar
+before any pack, so one homebrew class Item makes an unloaded shelf read as a
+stocked one — the warm never runs, and the page builds its class box out of the
+sidebar alone. Core's Scores Generator never re-renders itself, so that is the
+wrong list for the life of the window.
+
+**New evidence, and it supersedes the premise of the 6.1.3 and 6.2.0 fixes
+rather than their conclusions.** Both were written believing a cold shelf was a
+first-seconds-of-the-session race, which made a conditional await look like a
+free optimisation. It is not a race. Foundry evicts a compendium's documents 300
+seconds after the last `pack.get`/`pack.set` and nothing this module does re-arms
+that timer, because `pack.contents` bypasses the overridden `get`. Measured live:
+eight of nine imported shelves at `loaded: 0` with indexes intact after one idle
+window, and the class shelf found already evicted on a later reading. Cold is the
+steady state. The mechanics are [lib/MODEL.md](../lib/MODEL.md).
+
+**Ruled.** `stat-page`'s injection and both `assign-app` entry points await
+`whenReady()` before their first read, unconditionally. `warmLibrary` resolves
+already-settled when nothing is cold, so the warm path pays one microtask.
+
+**Also ruled: a membership test is not a coldness test either.**
+`openClassPickerFor` awaited only when the dropped class was absent from the
+library. A class dragged from the sidebar is present on an evicted shelf every
+time, so the drop path opened the picker on a sidebar-only offer list. Finding
+the one document a caller came for says nothing about the rest of the list.
+
+**Rejected: re-arming the cache from the module's own reads.** Routing
+`libraryDocs` through `pack.get` would hold every shelf warm for as long as any
+sheet renders, which fixes the whole class of silent degradation in one line —
+and pins ~2000 documents in memory against the platform's own eviction policy.
+That is a memory-for-correctness trade across every consumer, not a bug fix, and
+it is not made inside a hotfix. Tracked separately.
+
+**Cost, measured.** The surfaces now block on a cold shelf where they previously
+rendered something immediately: `openClassPicker` on a just-evicted library took
+**5.7 s** to open, against 49 ms warm; the Scores Generator and the drop path
+render in ~1 s warm. It is paid once per open and it buys the only reading that
+is not a lie. Every other library consumer still degrades silently and recovers
+on its next render — this ruling fixes the surfaces that can never recover, not
+the pattern.
+
 ## 2026-09-04 — only a class that leaves the choice to the player asks for it
 
 **Problem.** Every class whose damage-bonus column is printed unqualified —

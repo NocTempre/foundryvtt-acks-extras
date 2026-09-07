@@ -49,20 +49,42 @@ whichever pack Foundry registered first.
 - `whenReady()` — awaits the warm, for callers that can.
 
 The reads are **synchronous**, because their callers are sheet getters and
-`_prepareContext` bodies. That is paid for by warming the packs once at `ready`
+`_prepareContext` bodies. That is paid for by warming the packs at `ready`
 (`registerLibraryWarm`, called from the lib module's own ready hook):
-`getDocuments()` instantiates them, Foundry keeps the collection current as
-documents are created and deleted, and every read afterwards is a filter over
-memory — the same cost the `game.items` reads had. A pack that is still cold
-(the importer creates its packs on first use, and core emits no hook when a
+`getDocuments()` instantiates them, and a read afterwards is a filter over
+memory — the same cost the `game.items` reads had. A pack that is cold (the
+importer creates its packs on first use, and core emits no hook when a
 compendium is created) starts loading in the background and the read answers
 with what is in hand.
+
+**A warm shelf does not stay warm.** Foundry evicts a compendium's instantiated
+documents `CompendiumCollection.CACHE_LIFETIME_SECONDS` (300) after the last
+`pack.get` or `pack.set` — a debounced `clear()` that `super.delete`s every
+document with no rendered application, leaving `pack.index` whole. So `isCold`
+becomes true again on a repeating five-minute cycle, and it stays true through
+this module's own traffic: the reads here take `pack.contents`, which is a bare
+`values()` iteration and does not go through the overridden `get` that re-arms
+the timer. Foundry keeps the collection current as documents are created and
+deleted; it does not keep it populated. Measured on 14.367: eight of nine
+imported shelves at `loaded: 0` with their indexes intact after one idle window.
+
+The consequence for callers is that **cold is the normal state, not the opening
+seconds of a session**, and a read that happens to be complete is not evidence
+that the next one will be.
 
 **A caller that would be WRONG for the life of its window must await instead.**
 Answering with what is in hand assumes the caller renders again; a surface that
 never re-renders — core's Scores Generator is the one that bit — turns a
-half-warm read into a permanent empty. Such a caller awaits `whenReady()` before
-deciding it has found nothing, which costs nothing once the shelves are warm.
+half-warm read into a permanent wrong list. Such a caller awaits `whenReady()`
+**unconditionally, before its first read**, and pays one already-settled promise
+when nothing is cold.
+
+Never gate that await on the library reading empty. `libraryDocs` answers from
+the world sidebar ahead of every pack, so a world holding one homebrew document
+of the type makes an evicted shelf read as a stocked one and the emptiness test
+never fires. **Emptiness is not coldness**, and a membership test for the one
+document a caller came for is not coldness either — finding it says nothing
+about the rest of the list.
 
 Consumers: the class registry and `findByRef`, the race list, proficiency
 grants, the language resolver and its migration, the ability sheet's relation
