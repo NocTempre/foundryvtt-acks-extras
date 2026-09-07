@@ -93,7 +93,18 @@ export const EFFECT_DOMAINS = Object.freeze({
 
 /** Per-item override / annotation flags (on weapon & armor items). */
 export const ITEM_FLAGS = Object.freeze({
+  // WHICH RAW weapon-table row this document is, declared rather than read off
+  // the name. Written by the annotate pass and by the Repair window; outranks
+  // every other source in `weaponIdentity`.
+  PROFILE_KEY: "profileKey",
   SIZE: "size", // "tiny" | "small" | "medium" | "large"
+  // Which grips the weapon OFFERS: "1h" | "versatile" | "2h". A capability of
+  // the weapon, and the declared form of what size otherwise implies (RR
+  // p. 127). Distinct from GRIP below, which is the grip a player has CHOSEN
+  // this round out of the ones offered here.
+  GRIPS: "grips",
+  // Superseded by GRIPS and written by nothing — read so a world that set it by
+  // hand keeps its answer.
   HANDS: "hands", // explicit hand cost override (number)
   STYLE: "style", // required fighting style key
   DAMAGE_TYPE: "damageType", // aligns with acks-monsters DAMAGE_TYPES

@@ -1050,6 +1050,29 @@
   cursor: pointer;
 }
 
+/* A chip is OFF by default and reads as an unticked box — the button skin above
+   is the "this does something now" tier and would make every chip look picked. */
+.acks-extras-item-sheet__mount .acks-equipment-props__chip {
+  min-height: calc(22px * var(--acks-extras-k));
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+  background: transparent;
+  color: var(--acks-ink-soft);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  font-weight: var(--acks-weight-body);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.acks-extras-item-sheet__mount .acks-equipment-props__chip.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+  font-weight: var(--acks-weight-bold);
+}
+
 /* --- Details -------------------------------------------------------------- */
 
 .acks-extras-item-sheet__segmented {

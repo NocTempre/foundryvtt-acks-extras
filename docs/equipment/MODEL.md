@@ -36,7 +36,9 @@ enums; local-only, never in the repo).
 | Actor flag | `flags.acks-extras.styles` | CSV/array of fighting styles the actor is trained in (adds to the mandatory `single,missile`). |
 | Actor flag | `flags.acks-extras.activeStyle` | Player's chosen style when two apply this round (overrides inference). |
 | Actor AE | name `Equipment Loadout`, `flags.acks-extras.loadout = true` | Module-managed effect; `changes[]` target core `system.*.mod`; rebuilt on every loadout change; deleted when empty. |
-| Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by the annotate macro). |
+| Item flag (weapon) | `flags.acks-extras.profileKey` | WHICH RAW weapon-table row this is. The top of the identity ladder below; written by Annotate and by the item sheet's Weapon type control. |
+| Item flag (weapon) | `flags.acks-extras.grips` | `1h` \| `versatile` \| `2h` — which grips the weapon OFFERS. Answers ahead of the size derivation in `handCost`/`isTwoHandedOnly`/`canOneHand`. Distinct from `grip`, which is the grip a player picked this round out of these. |
+| Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by the annotate macro). `hands` is superseded by `grips` and is written by nothing. |
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the 10× price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
@@ -99,12 +101,47 @@ class granularity — the strips and the system sheet's class-modifiers section
 both go through it — and `training-view.mjs` (below) the one reading at the
 weapon. Nothing else spells a grant.
 
+### What makes a sword a sword — `weaponIdentity`
+
+One weapon-table row decides everything a weapon does: the proficiency category
+a class grant is matched against, the Weapon Focus group, the damage type, and
+the size that sets hand cost. `profiles.mjs` `weaponIdentity(item)` is the only
+place that row is chosen, and it returns its own provenance so a sheet, a
+report and a bug can all say which source answered.
+
+A DECLARATION OUTRANKS AN INFERENCE, and the item's name is an inference — the
+only source that can be wrong about an item everything else describes
+correctly. Most-authoritative first:
+
+| Source | Read from | Written by |
+|---|---|---|
+| `flag` | `flags.acks-extras.profileKey` | Annotate, and the item sheet's Weapon type control |
+| `mint` | `flags.acks-extras.cookbook.id` (`def.weapon.<name>`) | the importer's weapon-grid recipe |
+| `name` | the item's own name, exactly or by alias | — |
+| `skin` | `flags.acks-extras.skin.base`, then `.baseName` | `template-packages.mjs` `buildGearData` |
+| `loose` | the longest catalogue name the item's name CONTAINS | — |
+
+The exact name keeps its rank above the skin ("Silver Dagger" says more than
+the Dagger row it was cut from); only the LOOSE match falls below it, which is
+the reading that made a template's "Two-handed iron sword" a medium sword.
+
+`isUnidentifiedWeapon(item)` is the whole ladder coming up empty. Nothing
+throws: size, hand cost, damage type and category all fall back to defaults, so
+the item rolls and weighs and reads as a medium category-`other` weapon, and a
+character trained on it is told it is not proficient. Because it cannot be seen
+from the item, it is reported where items are MADE — `importWeapons` warns per
+grid row, `materializeTemplates` reports `unidentified`, chargen prints its own
+line on the character's card — and corrected on the item sheet's Construction
+tab, which carries Weapon type, Size, Grips and Stowed at.
+
 ## 4. Public API & hooks
 
 `game.modules.get("acks-extras").api.equipment` (mirror
 `globalThis.acksExtras.equipment`): `getLoadout(actor)`, `handBudget`,
 `trainedStyles`, `specializedStyles`, `classifyWeapon`, `handCost`,
-`focusGroup`, `weaponKey`, `annotateItem(item)`, `refreshLoadout(actor)`, the
+`focusGroup`, `weaponKey`, `weaponIdentity`, `isUnidentifiedWeapon`,
+`inferredGrips`, `setWeaponProfile`, `setWeaponSize`, `setWeaponGrips`,
+`setGearSlotList`, `annotateItem(item)`, `refreshLoadout(actor)`, the
 effect collectors, `config`, `HOOKS`, `VIOLATION`, plus the hand and gear
 surfaces below.
 

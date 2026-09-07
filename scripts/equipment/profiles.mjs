@@ -6,11 +6,16 @@
  * Source order (reuse → override → lookup → default):
  *   1. core weapon data (`system.melee/missile`, `system.tags`)
  *   2. per-item overrides `flags.acks-extras.{size,hands,style,handy,thrown,damageType}`
- *   3. built-in RAW name lookup (config.WEAPONS + aliases)
+ *   3. the RAW table row the item is identified as (`weaponIdentity`)
  *   4. default: medium melee, one-handed
  *
  * The annotate macro stamps (2) onto existing core `acks-all-equipment` items so
  * classification is exact; without it, (1)+(3) still classify the RAW weapons.
+ *
+ * Step (3) is the whole of what makes a sword a sword here: WHICH weapon a
+ * document is decides its proficiency category, size, hand cost, damage type
+ * and Weapon Focus group. `weaponIdentity` is where that is decided and where
+ * the answer's provenance is reported.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import {
@@ -145,23 +150,116 @@ function tagTokens(item) {
   return out;
 }
 
+/** A module flag read off a live document or a plain data object alike. */
+function mflag(item, key) {
+  return item?.getFlag?.(MODULE_ID, key) ?? item?.flags?.[MODULE_ID]?.[key];
+}
+
+/** Exact-or-alias resolution of one written name, or null. */
+function namedKey(name) {
+  const key = slug(name);
+  if (WEAPONS[key]) return key;
+  const alias = WEAPON_ALIASES[key];
+  return alias && WEAPONS[alias] ? alias : null;
+}
+
+/**
+ * The longest catalogue name a written name CONTAINS, or null.
+ *
+ * Longest first, because table order would otherwise let a shorter key that is
+ * contained in a longer one win on the strength of being declared earlier:
+ * "Silver Dagger, masterwork" contains both `dagger` and `silverdagger`, and
+ * `dagger` is declared first — so the answer was a plain dagger and the Silver
+ * quality went with it.
+ */
+function containedKey(name) {
+  const key = slug(name);
+  if (!key) return null;
+  const byLength = Object.keys(WEAPONS).sort((a, b) => b.length - a.length);
+  return byLength.find((k) => key.includes(k)) ?? null;
+}
+
+/** Cookbook id prefix the importer mints a weapon row under. */
+const DEF_WEAPON_PREFIX = "def.weapon.";
+
+/** The catalogue key a `def.weapon.<name>` cookbook id names, or null. */
+function refKey(ref) {
+  const s = String(ref ?? "");
+  return s.startsWith(DEF_WEAPON_PREFIX) ? namedKey(s.slice(DEF_WEAPON_PREFIX.length)) : null;
+}
+
+/**
+ * Which RAW weapon a document IS, and on whose authority.
+ *
+ * A DECLARATION OUTRANKS AN INFERENCE, and the name is an inference. It is the
+ * only source that can be wrong about an item everything else describes
+ * correctly: a starting template renames the gear it grants to the words its
+ * own page printed, so a hand axe arrives called "Francisca" and a two-handed
+ * sword called "Two-handed iron sword". Reading those gives no axe at all and
+ * the wrong sword — and the answer is not a longer alias list, because the
+ * descriptor is a Judge's or a book's prose and there is no end to it.
+ *
+ * The ladder, most authoritative first:
+ *
+ * - `flag` — `flags.acks-extras.profileKey`, an explicit answer. The annotate
+ *   pass writes what it resolved, and the Repair window writes what a Judge
+ *   decided; either way nothing below is consulted again.
+ * - `mint` — `flags.acks-extras.cookbook.id`, on a document the importer built
+ *   from the reader's own weapon grid. The document *is* the catalogue row.
+ * - `name` — the document's own name, exactly or by alias. Precise by
+ *   construction, so it outranks the base a skin was copied from: "Silver
+ *   Dagger" says more than the Dagger row it was cut from.
+ * - `skin` — `flags.acks-extras.skin`, what a printed descriptor was skinned
+ *   over. Its `base` cookbook id is asked before its `baseName`, because a
+ *   catalogue name printed head-first ("Sword, Two-Handed") reads no better
+ *   than the descriptor did.
+ * - `loose` — the longest catalogue name the document's name contains.
+ *
+ * `ignoreDeclared` asks what the ladder would say WITHOUT the flag — the reading
+ * the sheet's control shows beside "Auto", so a Judge can see what they are
+ * overriding before they override it.
+ *
+ * @returns {{key: string|null, source: "flag"|"mint"|"skin"|"name"|"loose"|""}}
+ */
+export function weaponIdentity(item, { ignoreDeclared = false } = {}) {
+  if (!item) return { key: null, source: "" };
+
+  const declared = ignoreDeclared ? null : namedKey(mflag(item, ITEM_FLAGS.PROFILE_KEY));
+  if (declared) return { key: declared, source: "flag" };
+
+  const minted = refKey(mflag(item, "cookbook")?.id);
+  if (minted) return { key: minted, source: "mint" };
+
+  const named = namedKey(item.name);
+  if (named) return { key: named, source: "name" };
+
+  const skin = mflag(item, "skin");
+  if (skin) {
+    const base = refKey(skin.base) ?? namedKey(skin.baseName) ?? containedKey(skin.baseName);
+    if (base) return { key: base, source: "skin" };
+  }
+
+  const loose = containedKey(item.name);
+  return loose ? { key: loose, source: "loose" } : { key: null, source: "" };
+}
+
 /** Resolve the canonical WEAPONS key for an item, or null. */
 export function weaponKey(item) {
-  const key = slug(item?.name);
-  if (WEAPONS[key]) return key;
-  if (WEAPON_ALIASES[key] && WEAPONS[WEAPON_ALIASES[key]]) return WEAPON_ALIASES[key];
-  // Partial contains match (e.g. "long bow, masterwork" → "longbow"), LONGEST
-  // key first. Table order would otherwise let a shorter key that is contained
-  // in a longer one win on the strength of being declared earlier: "Silver
-  // Dagger, masterwork" contains both `dagger` and `silverdagger`, and `dagger`
-  // is declared first — so the answer was a plain dagger and the Silver quality
-  // went with it. Length ordering picks the most specific weapon the name
-  // actually contains, whatever order the table happens to be in.
-  const byLength = Object.keys(WEAPONS).sort((a, b) => b.length - a.length);
-  for (const k of byLength) {
-    if (key.includes(k)) return k;
-  }
-  return null;
+  return weaponIdentity(item).key;
+}
+
+/**
+ * A weapon document the module cannot place in the RAW weapon table.
+ *
+ * Nothing throws and nothing is missing on the sheet — which is what makes it
+ * worth naming. Size, hand cost, damage type, the Weapon Focus group and the
+ * proficiency CATEGORY all fall back to their defaults, so the item reads as a
+ * medium, category-`other` weapon and a character trained in axes is told it is
+ * not proficient with the axe in its hand. The Repair window fixes one; the
+ * import report says how many there are.
+ */
+export function isUnidentifiedWeapon(item) {
+  return item?.type === ITEM_TYPE.weapon && !weaponIdentity(item).key;
 }
 
 /** Exact-or-alias key resolution — no fuzzy substring match (see equipmentClass). */
@@ -224,11 +322,26 @@ export function equipmentClass(name) {
 }
 
 /**
+ * The grips a weapon may be held in, as a Judge declares them.
+ *
+ * RR p. 127 derives these from SIZE — tiny and small take one hand, large takes
+ * two, medium takes either — which is right for the printed table and silent
+ * about everything else. A weapon whose size nobody could resolve defaults to
+ * medium and so silently reads as versatile; one a Judge built has no printed
+ * row to derive anything from. Declaring the grips answers both.
+ */
+export const GRIPS = Object.freeze(new Set(["1h", "versatile", "2h"]));
+
+/**
  * Build the resolved profile for a weapon item.
- * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,reqStr}}
+ * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,reqStr,grips}}
  */
 export function classifyWeapon(item) {
-  const flag = (k) => item.getFlag?.(MODULE_ID, k);
+  // `mflag`, not `getFlag`: the classifier is asked about payload OBJECTS as
+  // well as documents — a template's build data is checked before it is created
+  // — and a `getFlag`-only read answers undefined for every one of them, which
+  // reads as "no overrides declared" rather than as "cannot see them".
+  const flag = (k) => mflag(item, k);
   const key = weaponKey(item);
   const base = key ? WEAPONS[key] : null;
   const tags = tagTokens(item);
@@ -258,6 +371,7 @@ export function classifyWeapon(item) {
     cat: base?.cat ?? WEAPON_CATEGORY.OTHER,
     special: base?.special ?? [],
     reqStr: base?.reqStr ?? 0,
+    grips: GRIPS.has(flag(ITEM_FLAGS.GRIPS)) ? flag(ITEM_FLAGS.GRIPS) : null,
     handsOverride: flag(ITEM_FLAGS.HANDS) ?? null,
     styleHint: flag(ITEM_FLAGS.STYLE) ?? null,
   };
@@ -266,10 +380,15 @@ export function classifyWeapon(item) {
 
 /**
  * Hand cost of a weapon given whether it is being wielded two-handed.
+ *
  * RR p. 127: tiny/small = 1; medium = 1 or 2; large = 2; missile = 2 unless
- * Handy or Thrown; net/staff-sling forced 2H.
+ * Handy or Thrown; net/staff-sling forced 2H. A declared grip set answers ahead
+ * of all of it.
  */
 export function handCost(profile, { twoHanded = false } = {}) {
+  if (profile.grips === "1h") return 1;
+  if (profile.grips === "2h") return 2;
+  if (profile.grips === "versatile") return twoHanded ? 2 : 1;
   if (profile.handsOverride != null) return profile.handsOverride;
   if (profile.twoHandedForced) return 2;
   if (profile.missile && !profile.melee) return profile.handy || profile.thrown ? 1 : 2;
@@ -287,14 +406,25 @@ export function handCost(profile, { twoHanded = false } = {}) {
 
 /** True if this weapon can only ever be used two-handed. */
 export function isTwoHandedOnly(profile) {
+  if (profile.grips) return profile.grips === "2h";
   return profile.twoHandedForced || profile.size === SIZE.LARGE || (profile.missile && !profile.melee && !profile.handy && !profile.thrown);
 }
 
 /** True if a melee weapon may be wielded in one hand (for dual/shield styles). */
 export function canOneHand(profile) {
+  if (profile.grips) return profile.grips !== "2h";
   if (profile.handsOverride === 1) return true;
   if (profile.twoHandedForced) return false;
   return [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM].includes(profile.size);
+}
+
+/**
+ * The grip set a weapon offers with nothing declared — what the control shows
+ * as its "Auto" reading, and the starting point when a Judge overrides it.
+ */
+export function inferredGrips(profile) {
+  if (isTwoHandedOnly({ ...profile, grips: null })) return "2h";
+  return handCost({ ...profile, grips: null }, { twoHanded: true }) === 2 ? "versatile" : "1h";
 }
 
 /** The Weapon Focus group key covering this weapon, or null. */

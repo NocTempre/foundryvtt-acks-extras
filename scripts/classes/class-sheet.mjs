@@ -333,6 +333,16 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
         skipped: report.skippedEdited.length,
       }),
     );
+    // A weapon nothing could identify is worth its own warning: the build
+    // reports success, the item looks complete, and the only symptom is a
+    // proficiency badge on a character sheet built from it weeks later.
+    if (report.unidentified.length) {
+      ui.notifications?.warn(
+        game.i18n.format(`${LANG_PREFIX}.sheet.templates.package.unidentified`, {
+          items: report.unidentified.join(", "),
+        }),
+      );
+    }
     this.render();
   }
 

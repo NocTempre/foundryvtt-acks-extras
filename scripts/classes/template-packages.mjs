@@ -30,7 +30,7 @@ import { findByRef, templatePartOf as partOf } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
 import { libraryItems, cookbookId } from "../lib/library.mjs";
-import { equipmentClass } from "../equipment/profiles.mjs";
+import { equipmentClass, isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 import { isOffer } from "./pending-choices.mjs";
 
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -692,13 +692,13 @@ function stampPart(data, part, stamp) {
  *   False is the RELINK-ONLY pass an import runs: it restores the bundle
  *   uuids its `system` rewrite wiped and never turns a world that asked for
  *   no packages into one that has them.
- * @returns {Promise<{created: string[], relinked: string[], skippedEdited: string[], unresolved: string[]}>}
+ * @returns {Promise<{created: string[], relinked: string[], skippedEdited: string[], unresolved: string[], unidentified: string[]}>}
  */
 export async function materializeTemplates(
   classItem,
   { stamp = null, folder = null, tableFolder = null, create = true } = {},
 ) {
-  const report = { created: [], relinked: [], skippedEdited: [], unresolved: [] };
+  const report = { created: [], relinked: [], skippedEdited: [], unresolved: [], unidentified: [] };
   if (!game.user?.isGM || !classItem?.system?.templates?.length) return report;
   // A class ROW in a compendium is fine; the package it builds is not.
   //
@@ -741,6 +741,12 @@ export async function materializeTemplates(
       report.unresolved.push(entry.name);
       return {};
     }
+    // A weapon that resolved to a document but not to a weapon-table ROW is the
+    // half-failure the package shape cannot see: it has damage, it rolls, and
+    // it is silently category-`other`, so the character carrying it is told it
+    // is not proficient with the weapon its own class granted. Reported here
+    // because this is where the descriptor and the base are both still in hand.
+    if (isUnidentifiedWeapon(data)) report.unidentified.push(templateItemName(entry));
     foundry.utils.setProperty(data, "system.quantity.value", 1);
     stampPart(data, { ...identity, kind: "gear", unresolved: false }, stamp);
     if (shelf) data.folder = shelf;

@@ -7,6 +7,73 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+### What a weapon IS is declared, not read off its name (2026-09-07)
+
+**Reported.** A Barbarian generated from the Jutland template was granted a
+"Francisca" — a hand axe under the name its page prints — and the character
+sheet marked it NON-PROFICIENT beside an axe-trained character. The same
+screenshot carries the second half of the bug unremarked: a "Two-handed iron
+sword" offering a two-handed row at a *smaller* die than its one-handed row.
+
+**Cause.** `classifyWeapon` resolved the RAW table row from `item.name` and
+nothing else — exact, then alias, then the longest catalogue name the name
+CONTAINS. Everything downstream reads off that row: the proficiency category a
+class grant is matched against, the Weapon Focus group, the damage type, the
+size that sets hand cost. "Francisca" contains no catalogue name, so the item
+fell to `cat: "other"` and matched no grant. "Two-handed iron sword" contains
+`sword` but not `twohandedsword`, so it classified as the medium versatile
+sword and offered that row's smaller two-handed die over its own.
+
+The information was never missing. `buildGearData` records what a template
+descriptor was skinned over — `flags.acks-extras.skin.{base,baseName}` — and
+`bindWeaponRow` stamps every imported row with `cookbook.id`
+(`def.weapon.handAxe`). Both were sitting on the document; only the name was
+being read.
+
+**Ruled: a declaration outranks an inference, and the name is an inference.**
+`weaponIdentity` is the one place the row is decided, and it reports its own
+provenance. Order: the `profileKey` flag, the mint id, the item's exact name,
+the skinned base, the loose name match. The name keeps its exact-match rank —
+"Silver Dagger" says more than the Dagger row it was cut from — and loses only
+its *loose* rank to a recorded base, which is exactly the case that was wrong.
+
+**Ruled: three declarations on the item sheet, not a repair tool beside it.**
+The first design was a drag-and-drop window that copied attributes from a
+known-good item onto a broken one. Rejected on user direction, and better so: a
+copy tool answers "make this like that one" when the actual question is "what is
+this", it produces a second item whose provenance is a gesture nobody recorded,
+and it needs a donor to exist. The Construction panel now carries **Weapon
+type**, **Size** and **Grips**, each with the panel's own Auto-shows-the-guess
+shape, plus **Stowed at**. Every one of them writes a flag the resolver already
+consults, so a Judge's answer and the importer's answer arrive by the same road.
+
+**Ruled: grips are declarable, and are a capability, not a state.**
+`flags.acks-extras.grips` is `1h` | `versatile` | `2h` and answers ahead of the
+size derivation. It is not `ITEM_FLAGS.GRIP`, which is the grip a player has
+chosen this round out of the ones the weapon offers. The older numeric `hands`
+override is still read and is written by nothing; `grips` supersedes it.
+
+**Ruled: unidentified is reported where it is made, not where it is felt.**
+Three catches, because there are three places a weapon enters a world:
+`importWeapons` warns for any grid row the module has no profile for,
+`materializeTemplates` reports `unidentified` on the class sheet, and chargen
+prints its own line on the character's card. A weapon with no row does not
+throw and does not look broken — it rolls, it weighs, it is silently
+category-`other` — so the only symptom without these is a proficiency badge
+weeks later with no route back to its cause.
+
+**Cost.** One new item flag (`profileKey`), one new declaration flag (`grips`),
+and `annotateItem` now writes the resolved key rather than only the values
+derived from it — the category has no flag of its own, so recording the
+derivations alone left it being re-guessed from the name on every render.
+Live-verified; see [TESTING.md](TESTING.md#weapon-identity).
+
+**Not fixed by this.** The `WEAPONS` table is still a closed list, so a weapon
+outside it can be declared no type at all. That list's retirement onto base type
++ item is already [ROADMAP.md](ROADMAP.md)'s.
+
+---
+
 ### The module stops shipping a library of its own (2026-09-01)
 
 User direction: there is to be no non-import library. Three packs went with it
@@ -1038,7 +1105,6 @@ Cost: the `hand` flag now has writers, so a weapon auto-unequipped by the
 resolver keeps its name and returns to that hand when redrawn — the sheathe
 control is what forgets it. A named main hand shifts an unnamed weapon to the
 off hand, which is visible and is what the drop asked for.
-
 
 ### The item sheet's canvas figures scale with the type knob (2026-09-07)
 

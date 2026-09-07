@@ -8,9 +8,9 @@ import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { setWorn } from "../lib/item-model.mjs";
 import { LIGHT_SOURCES } from "../lib/light.mjs";
-import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { ITEM_TYPE, isWearSlot } from "../lib/vocab.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
-import { equipmentClass, classifyWeapon } from "./profiles.mjs";
+import { equipmentClass, classifyWeapon, GRIPS } from "./profiles.mjs";
 import { consumeItem, roundsOf } from "./ammo.mjs";
 import {
   tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
@@ -170,6 +170,65 @@ export async function drawInto(item, hand) {
 export const SLOT_AUTO = "auto";
 /** The sentinel for "this is carried, not worn" — a real answer, not absence. */
 export const SLOT_NONE = "none";
+
+/**
+ * Declare the whole set of places a piece of gear may sit, rather than one.
+ *
+ * A weapon is the case that needs it: it is held in either hand or in both, and
+ * it also rides somewhere when it is not in a hand — a scabbard on the belt, a
+ * strap across the back. Those are not alternatives to each other, so the
+ * single-slot control cannot state them and the inference never offered the
+ * stowed half at all. An empty list is the `none` answer (carried, worn
+ * nowhere); passing null clears the declaration back to inference.
+ */
+export async function setGearSlotList(item, slots) {
+  if (!item) return false;
+  if (slots == null) {
+    await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.-=slots`]: null });
+    return true;
+  }
+  const list = [...new Set(slots.filter(isWearSlot))];
+  await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.slots`]: list });
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  #3c What a weapon IS — the declarations that outrank every inference       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Declare WHICH RAW weapon this is — the answer the proficiency check, the
+ * Weapon Focus group, the damage type and every derived default hang off.
+ *
+ * `auto` clears the declaration and hands the question back to `weaponIdentity`,
+ * which reads the item's mint id, its name, and the base a template skinned it
+ * over. Declaring is what a Judge does when none of those can be right: a
+ * template renames the axe it grants to the word its page printed, and no alias
+ * list ever catches up with prose.
+ */
+export async function setWeaponProfile(item, key) {
+  if (!item) return false;
+  const path = `flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`;
+  if (key === SLOT_AUTO || !key) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.PROFILE_KEY}`]: null });
+  else await item.update({ [path]: key });
+  return true;
+}
+
+/** Declare a weapon's size (RR p. 127); `auto` returns it to the table's own. */
+export async function setWeaponSize(item, size) {
+  if (!item) return false;
+  if (size === SLOT_AUTO || !size) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.SIZE}`]: null });
+  else await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`]: size });
+  return true;
+}
+
+/** Declare which grips a weapon offers: `1h`, `versatile`, `2h`, or `auto`. */
+export async function setWeaponGrips(item, grips) {
+  if (!item) return false;
+  if (grips === SLOT_AUTO || !GRIPS.has(grips)) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.GRIPS}`]: null });
+  else await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.GRIPS}`]: grips });
+  return true;
+}
 
 /**
  * Declare which slot a piece of gear occupies, from the item sheet's control.

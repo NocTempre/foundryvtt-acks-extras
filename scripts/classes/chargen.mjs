@@ -25,6 +25,7 @@ import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
+import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 
 // The base-resolution and skinning layer lives in template-packages.mjs (the
 // materializer resolves once, at import; this file resolves at grant time only
@@ -200,6 +201,12 @@ async function grantRowEntries(actor, { abilities = [], items = [], spells = [] 
   if (payloads.length) {
     await actor.createEmbeddedDocuments("Item", payloads);
     report.items.push(...payloads.map((p) => (p.system?.quantity?.value > 1 ? `${p.name} ×${p.system.quantity.value}` : p.name)));
+    // A weapon whose table row nothing could name is granted anyway — it rolls
+    // and it weighs — but it carries no proficiency category, so the sheet will
+    // call this character non-proficient with the weapon its own template gave
+    // it. Said on the card, where the player is looking, rather than left to be
+    // discovered as a badge.
+    report.unidentified.push(...payloads.filter(isUnidentifiedWeapon).map((p) => p.name));
   }
   // The spells a spellbook carries land as spell ITEMS — a linked uuid first,
   // else the printed name matched against the world's spells; what no world
@@ -291,7 +298,7 @@ async function grantBundleRows(actor, rows, report) {
 export async function applyTemplate(actor, classItem, template, { generalRefs = [], intScore = null, gold = null } = {}) {
   const gp = Number(gold ?? template.gp) || 0;
   const sp = Number(template.sp) || 0;
-  const report = { granted: [], items: [], unresolved: [], pending: [], gp, sp, dropped: [], path: null };
+  const report = { granted: [], items: [], unresolved: [], unidentified: [], pending: [], gp, sp, dropped: [], path: null };
   // What identifies an offer on THIS package, so the marker minted for it is
   // the same one however the row is rewritten afterwards: the class and the
   // printed band. The kind (ability or spell) is added per list at mint time.
@@ -426,7 +433,7 @@ export async function applyChargen(
   if (template) {
     report = await applyTemplate(actor, cls, template, { generalRefs, intScore, gold });
   } else {
-    report = { granted: [], items: [], unresolved: [], pending: [], gp: Number(gold) || 0, sp: 0, dropped: [] };
+    report = { granted: [], items: [], unresolved: [], unidentified: [], pending: [], gp: Number(gold) || 0, sp: 0, dropped: [] };
     for (const ref of generalRefs) await grantRanked(actor, { ref, rank: 1 }, report);
     await grantCoin(actor, { gp: report.gp });
   }
@@ -476,6 +483,15 @@ export async function applyChargen(
       // to, and it is said as its own line so it is not read as either.
       report.pending.length
         ? `<p><em>${game.i18n.localize(`${LANG_PREFIX}.chargen.pending`)}</em> ${report.pending
+            .map((n) => foundry.utils.escapeHTML(n))
+            .join(", ")}</p>`
+        : ""
+    }${
+      // Granted, and not usable as the class intended: distinct from unresolved
+      // (nothing arrived) and from pending (an answer is owed), so it gets its
+      // own line rather than being folded into either.
+      report.unidentified?.length
+        ? `<p><em>${game.i18n.localize(`${LANG_PREFIX}.chargen.unidentified`)}</em> ${report.unidentified
             .map((n) => foundry.utils.escapeHTML(n))
             .join(", ")}</p>`
         : ""

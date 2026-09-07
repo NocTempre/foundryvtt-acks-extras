@@ -319,3 +319,64 @@ Fixtures to create and destroy: one disposable `character`, one disposable
 
 Teardown: delete the item, the container and the character; confirm nothing
 named for the fixture remains.
+
+## Weapon identity
+
+What a weapon IS, and the three declarations that state it when nothing can
+read it. Everything here is drivable from `api.eval` against the module API; the
+last step is the one that has to be a real gesture.
+
+### Fixtures
+
+A disposable character `ZZ Weapon Identity Probe` with
+`flags.acks-extras.weaponProficiency = "axe"` (the shape a class-training
+effect leaves), carrying four weapons created on it:
+
+| Name | Flags | Reproduces |
+|---|---|---|
+| `Francisca` | `skin: {base: "def.weapon.handAxe", baseName: "Hand Axe"}` | a template's printed descriptor over an imported base |
+| `Francisca (bare)` | none | the same item with nothing to identify it |
+| `Two-handed iron sword` | `skin: {base: "def.weapon.twoHandedSword", …}` | a name whose LOOSE match is a different, smaller row |
+| `Hachereau` | `cookbook: {id: "def.weapon.battleAxe"}` | a row the importer minted from the reader's grid |
+
+No base document has to exist: the resolver reads the recorded id and name, it
+does not dereference them.
+
+### Steps
+
+1. **A skin keeps its base's identity.** `weaponIdentity(francisca)`.
+   *Observable:* `{key: "handaxe", source: "skin"}`, `classifyWeapon().cat` is
+   `axe`, and `isWeaponProficient(actor, profile)` is **true** — the reported
+   bug, inverted.
+2. **Nothing to read is still nothing.** The same on `Francisca (bare)`.
+   *Observable:* `key: null`, `cat: "other"`, proficient **false**. This is the
+   control: it is what every skinned weapon used to do.
+3. **The loose match no longer beats a recorded base.**
+   `weaponIdentity(sword)`. *Observable:* `twohandedsword`, and
+   `classifyWeapon().damage2h` is `null` — the sword stops offering a
+   two-handed row at a smaller die than its own.
+4. **A mint id identifies.** *Observable:* `Hachereau` → `battleaxe`, source
+   `mint`.
+5. **A declaration outranks all of it.** `setWeaponProfile(bare, "handaxe")`.
+   *Observable:* source becomes `flag` and the item reads proficient.
+6. **Grips answer ahead of size.** `setWeaponGrips(francisca, "2h")`.
+   *Observable:* `handCost(profile, {twoHanded: false})` is 2 on a SMALL
+   weapon. `setWeaponGrips(item, "auto")` → `profile.grips` is `null` again.
+7. **Size declares and clears.** `setWeaponSize(item, "large")` then `"auto"`.
+   *Observable:* `classifyWeapon().size` is `large`, then back to the table's
+   own `small`.
+8. **Stowing keeps the hands.** `setGearSlotList(item, [...hands, "belt"])`.
+   *Observable:* `gear.slots` holds all four; the weapon is still wieldable.
+9. **The controls are real.** Render the item sheet, then dispatch a genuine
+   `click` on the `Two-handed` chip and a `change` on the Weapon type bucket.
+   *Observable:* `getFlag("acks-extras", "grips")` is `"2h"` and `profileKey`
+   is what was picked — **re-read from `fromUuid` afterwards**, not from the
+   open sheet's document. These controls live inside core's `<form>` and an
+   un-stopped change re-renders the sheet from ITS form data; a check that
+   reads the in-memory document cannot tell a persisted write from one that is
+   about to be thrown away.
+
+### Teardown
+
+Sweep by the run's own uuids (`api.create` records them; `api.track` the four
+items after they are made). Quote the sweep result.

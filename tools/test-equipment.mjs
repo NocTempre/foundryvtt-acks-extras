@@ -2182,6 +2182,56 @@ check("a decorated Silver Dagger keeps its quality", weaponKeyOf("Silver Dagger,
 check("an ordinary decorated dagger is still a dagger", weaponKeyOf("Dagger, masterwork") === "dagger");
 
 /* ---------------------------------------------------------------------- */
+/*  Weapon identity — a declaration outranks the name                       */
+/* ---------------------------------------------------------------------- */
+//
+// The name is the only source that can be wrong about an item everything else
+// describes correctly: a starting template renames the gear it grants to the
+// words its own page printed, so a hand axe arrives called "Francisca" and a
+// two-handed sword called "Two-handed iron sword".
+
+const { weaponIdentity, isUnidentifiedWeapon, classifyWeapon: classify, handCost: cost, inferredGrips: guessGrips } =
+  await import(new URL("profiles.mjs", S));
+/** A weapon document as a plain object — the shape a build payload has. */
+const weap = (name, mine = {}) => ({ name, type: "weapon", system: { damage: "1d6", melee: true }, flags: { "acks-extras": mine } });
+
+check("a name nothing matches identifies nothing",
+  weaponIdentity(weap("Francisca")).key === null && isUnidentifiedWeapon(weap("Francisca")));
+check("a skinned base identifies the weapon its descriptor hid",
+  weaponIdentity(weap("Francisca", { skin: { base: "def.weapon.handAxe", baseName: "Hand Axe" } })).key === "handaxe");
+check("the skinned base is reported as the source",
+  weaponIdentity(weap("Francisca", { skin: { baseName: "Hand Axe" } })).source === "skin");
+check("a recorded base beats the LOOSE name match that was wrong",
+  weaponIdentity(weap("Two-handed iron sword", { skin: { base: "def.weapon.twoHandedSword" } })).key === "twohandedsword");
+check("without it, the loose match still answers as it always did",
+  weaponIdentity(weap("Two-handed iron sword")).key === "sword");
+check("an importer-minted row identifies by its cookbook id",
+  weaponIdentity(weap("Hachereau", { cookbook: { id: "def.weapon.battleAxe" } })).source === "mint");
+check("an exact name outranks the base it was cut from",
+  weaponIdentity(weap("Silver Dagger", { skin: { base: "def.weapon.dagger" } })).key === "silverdagger");
+check("a declared type outranks every inference",
+  weaponIdentity(weap("Francisca", { profileKey: "greataxe", skin: { base: "def.weapon.handAxe" } })).key === "greataxe");
+check("ignoreDeclared reports what the ladder would say without it",
+  weaponIdentity(weap("Francisca", { profileKey: "greataxe", skin: { base: "def.weapon.handAxe" } }), { ignoreDeclared: true }).key === "handaxe");
+check("a cookbook id outside the weapon table names nothing",
+  weaponIdentity(weap("Case", { cookbook: { id: "def.weapon.case20Bolts" } })).key === null);
+// The consequence the report exists for: an unidentified weapon is silently
+// category-`other`, which no class grant matches.
+check("an identified Francisca carries the axe category",
+  classify(weap("Francisca", { skin: { base: "def.weapon.handAxe" } })).cat === "axe");
+check("an unidentified one falls to `other`", classify(weap("Francisca")).cat === "other");
+
+// GRIPS: the declaration answers ahead of the size derivation, both ways.
+const gripped = (grips) => classify(weap("Hand Axe", grips ? { grips } : {}));
+check("a small weapon takes one hand by the table", cost(gripped(null), { twoHanded: true }) === 1);
+check("declaring two-handed makes it cost two", cost(gripped("2h"), { twoHanded: false }) === 2);
+check("declaring versatile costs one or two", cost(gripped("versatile"), { twoHanded: false }) === 1 && cost(gripped("versatile"), { twoHanded: true }) === 2);
+check("a junk grip value is ignored rather than obeyed", gripped("three-handed").grips === null);
+check("the inferred grip set is what the control shows beside Auto",
+  guessGrips(classify(weap("Hand Axe"))) === "1h" && guessGrips(classify(weap("Sword"))) === "versatile" && guessGrips(classify(weap("Two-Handed Sword"))) === "2h");
+check("only weapons can be unidentified", !isUnidentifiedWeapon({ name: "Rope", type: "item" }));
+
+/* ---------------------------------------------------------------------- */
 /*  One loadout effect, however many syncs ask for it                       */
 /* ---------------------------------------------------------------------- */
 //

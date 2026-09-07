@@ -316,6 +316,30 @@
   min-width: 0;
 }
 
+/* CHIPS — a row of independent on/off answers ("which of these apply"), against
+   the bucket beside them, which is one answer out of many. Wrapping, because a
+   narrow sheet must not clip the last chip out of reach. */
+.acks-equipment-props__chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.acks-equipment-props__chip {
+  min-height: 1.7rem;
+  padding: 0 0.5rem;
+  font-size: var(--acks-fs-label);
+  white-space: nowrap;
+}
+
+.acks-equipment-props__chip.is-on {
+  font-weight: bold;
+  color: var(--acks-spot);
+}
+
 .acks-equipment-props__input {
   flex: 1;
   min-width: 3rem;

@@ -33,7 +33,7 @@ import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
 import { VARIATION_ITEM_TYPE } from "../equipment/constants.mjs";
 import { TRAP_ITEM_TYPE } from "../formation/constants.mjs";
-import { equipmentClass } from "../equipment/profiles.mjs";
+import { equipmentClass, weaponIdentity } from "../equipment/profiles.mjs";
 import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { ANIMAL_TYPE, TEMPLATE_TYPE } from "../lib/constants.mjs";
@@ -7012,8 +7012,18 @@ export async function importWeapons(folderId) {
   // while the wrong documents stand (the lesson importPricedGear records).
   const repaired = await repairAmmoWeapons(rows.filter((r) => r.ammunition).map((r) => weaponId(r.name)));
   let created = 0;
+  // A row the equipment root has no profile for. It imports fine and rolls
+  // fine, and it is silently size-medium and proficiency-category `other`, so
+  // every character trained on it is told it is not proficient — including
+  // every template item skinned over it later. Caught HERE, at the recipe, is
+  // the only place the whole grid is in view at once; found on a character
+  // sheet it is one badge with no way back to its cause.
+  const unidentified = [];
   for (const row of rows) {
     const id = weaponId(row.name);
+    if (!row.ammunition && !weaponIdentity({ type: ITEM_TYPE.WEAPON, name: row.name, flags: { [MODULE_ID]: { cookbook: { id } } } }).key) {
+      unidentified.push(row.name);
+    }
     if (await importedItem(id)) continue;
     const cite = `${BOOKS[WEAPON_TABLE.book]?.short ?? "RR"} p. ${WEAPON_TABLE.page}`;
     // Whether an ammunition row names a carrying device is the equipment root's
@@ -7035,7 +7045,11 @@ export async function importWeapons(folderId) {
     }
     created++;
   }
-  return { table: rows.length, created, repaired };
+  if (unidentified.length) {
+    console.warn(`${MODULE_ID} | weapon grid: no RAW profile for ${unidentified.join(", ")}`);
+    ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.weapons.unidentified`, { items: unidentified.join(", ") }));
+  }
+  return { table: rows.length, created, repaired, unidentified };
 }
 
 /** camelCase cookbook id for a table-materialized armour item. */

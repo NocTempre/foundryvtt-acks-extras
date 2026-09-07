@@ -20,19 +20,21 @@
  * its own, this file should be deleted in favour of contributing to it.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
-import { WEAR, WEAR_ICONS, SHIELD_VARIANTS } from "./config.mjs";
+import { WEAR, WEAR_ICONS, SHIELD_VARIANTS, WEAPONS, SIZE } from "./config.mjs";
 import { getLoadout, cycleGrip, heldHandsClause } from "./loadout.mjs";
 import {
   prepareTorch, rollUnarmed, setMasterwork, masterworkTiersFor, drawItem, sheatheItem,
   scavengeItem, clearScavenged, setScavengedRow, scavengedOptions, setShieldVariant, SHIELD_VARIANT_KEYS,
-  setGearSlots, setGearAccess, setGearCapacity, setGearRelief, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
+  setGearSlots, setGearSlotList, setGearAccess, setGearCapacity, setGearRelief, wearItem, removeItem, SLOT_AUTO, SLOT_NONE,
+  setWeaponProfile, setWeaponSize, setWeaponGrips,
 } from "./actions.mjs";
 import { masterworkTierOf, scavengedOf, layerSummary, silveredFlagOf } from "./properties.mjs";
 import { concealVariation, removeVariation, revealVariation, variationItemsOf } from "./variation-items.mjs";
 import { canBeSilvered, isSilvered, setSilvered } from "./silver.mjs";
-import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
+import { classifyWeapon, isHelmet, inferGear, weaponIdentity, inferredGrips } from "./profiles.mjs";
+import { weaponName } from "./training-view.mjs";
 import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf, reliefOf } from "../lib/item-model.mjs";
-import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity, ITEM_TYPE, ACTOR_TYPE, SLOT } from "../lib/vocab.mjs";
 import { LIGHT_SOURCES } from "../lib/light.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
 import { cycleStrap, strapOf, variantOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
@@ -845,6 +847,101 @@ export function buildConstructionPanel(item) {
     onChange(s, () => onPick(s.value));
     return s;
   };
+
+  /** A row of independent on/off chips — the control for "which of these apply". */
+  const chips = (options, onToggle) => {
+    const group = el("div", "acks-equipment-props__chips");
+    for (const o of options) {
+      const b = el("button", `acks-equipment-props__chip${o.on ? " is-on" : ""}`, o.label);
+      b.type = "button";
+      b.setAttribute("aria-pressed", o.on ? "true" : "false");
+      if (o.tooltipKey) b.dataset.tooltip = game.i18n.localize(o.tooltipKey);
+      b.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        guard(() => onToggle(o.value, !o.on));
+      });
+      group.append(b);
+    }
+    return group;
+  };
+
+  // WHAT THE WEAPON IS. Everything a weapon does downstream — the proficiency
+  // category a class grant is matched against, the Weapon Focus group, the
+  // damage type, the size that sets its hand cost — is read off ONE table row,
+  // and which row that is was inferred from the item's NAME. A template renames
+  // the gear it grants to the words its own page printed ("Francisca", "Two-
+  // handed iron sword"), so the inference misses or lands on the wrong row and
+  // the sheet says non-proficient about a weapon the character trained on.
+  // These controls are where that is stated instead of guessed.
+  if (item.type === ITEM_TYPE.weapon) {
+    const identity = weaponIdentity(item);
+    const profile = classifyWeapon(item);
+    const auto = weaponIdentity(item, { ignoreDeclared: true });
+
+    row("ACKS-EQUIPMENT.props.weaponType", select(
+      [{ value: SLOT_AUTO, label: auto.key
+        ? game.i18n.format("ACKS-EQUIPMENT.props.weaponTypeAuto", { guess: weaponName(auto.key) })
+        : game.i18n.localize("ACKS-EQUIPMENT.props.weaponTypeAutoNone") },
+      ...Object.keys(WEAPONS).map((k) => ({ value: k, label: weaponName(k) })).sort((a, b) => a.label.localeCompare(b.label))],
+      identity.source === "flag" ? identity.key : SLOT_AUTO,
+      (v) => setWeaponProfile(item, v),
+    ));
+    // An unidentified weapon does not fail — it falls back to a medium,
+    // category-`other` weapon and says nothing. Naming the consequence is the
+    // only way a reader connects this control to the badge on the character
+    // sheet that sent them here.
+    row("", el("span", "acks-equipment-props__note",
+      identity.key
+        ? game.i18n.format("ACKS-EQUIPMENT.props.weaponTypeNote", {
+          weapon: weaponName(identity.key),
+          category: game.i18n.localize(`ACKS-EQUIPMENT.category.${profile.cat}`),
+          source: game.i18n.localize(`ACKS-EQUIPMENT.props.weaponTypeSource.${identity.source}`),
+        })
+        : game.i18n.localize("ACKS-EQUIPMENT.props.weaponTypeNone")));
+
+    row("ACKS-EQUIPMENT.props.weaponSize", select(
+      [{ value: SLOT_AUTO, label: game.i18n.format("ACKS-EQUIPMENT.props.weaponSizeAuto", {
+        guess: game.i18n.localize(`ACKS-EQUIPMENT.size.${WEAPONS[identity.key]?.size ?? SIZE.MEDIUM}`) }) },
+      ...Object.values(SIZE).map((s) => ({ value: s, label: game.i18n.localize(`ACKS-EQUIPMENT.size.${s}`) }))],
+      String(item.getFlag(MODULE_ID, ITEM_FLAGS.SIZE) ?? SLOT_AUTO),
+      (v) => setWeaponSize(item, v),
+    ));
+
+    // GRIPS — the hands the weapon may be held in, as two independent chips
+    // because that is what the answer is: one of them, or both (versatile), and
+    // neither means the size table decides. Turning the last one off is the
+    // clear, not a weapon nobody can hold.
+    const declaredGrips = profile.grips;
+    const shown = declaredGrips ?? inferredGrips(profile);
+    const oneOn = declaredGrips ? shown !== "2h" : false;
+    const twoOn = declaredGrips ? shown !== "1h" : false;
+    const writeGrips = (one, two) =>
+      setWeaponGrips(item, one && two ? "versatile" : one ? "1h" : two ? "2h" : SLOT_AUTO);
+    row("ACKS-EQUIPMENT.props.grips", chips(
+      [{ value: "1h", label: game.i18n.localize("ACKS-EQUIPMENT.grip.1h"), on: oneOn, tooltipKey: "ACKS-EQUIPMENT.props.gripsHint" },
+        { value: "2h", label: game.i18n.localize("ACKS-EQUIPMENT.grip.2h"), on: twoOn, tooltipKey: "ACKS-EQUIPMENT.props.gripsHint" }],
+      (v, on) => (v === "1h" ? writeGrips(on, twoOn) : writeGrips(oneOn, on)),
+    ));
+    row("", el("span", "acks-equipment-props__note",
+      game.i18n.format(declaredGrips ? "ACKS-EQUIPMENT.props.gripsNote" : "ACKS-EQUIPMENT.props.gripsAuto",
+        { grips: game.i18n.localize(`ACKS-EQUIPMENT.grip.${shown}`) })));
+
+    // WHERE IT RIDES WHEN IT IS NOT IN A HAND. The hand slots are a weapon's by
+    // construction and are not offered; a scabbard, a back strap or a shield
+    // strap are the parts a Judge decides, and inference has never offered them
+    // at all.
+    const HANDS = [SLOT.mainHand, SLOT.offHand, SLOT.bothHands];
+    const STOW = [SLOT.belt, SLOT.back, SLOT.strapped];
+    const declaredSlots = declaresSlots(item) ? slotsOf(item) : [];
+    row("ACKS-EQUIPMENT.props.stowed", chips(
+      STOW.map((k) => ({ value: k, label: wearLabel(k), on: declaredSlots.includes(k), tooltipKey: "ACKS-EQUIPMENT.props.stowedHint" })),
+      (k, on) => {
+        const picked = STOW.filter((s) => (s === k ? on : declaredSlots.includes(s)));
+        return picked.length ? setGearSlotList(item, [...HANDS, ...picked]) : setGearSlotList(item, null);
+      },
+    ));
+  }
 
   if (item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor) {
     // MASTERWORK — a bucket of the RR p159 tiers.

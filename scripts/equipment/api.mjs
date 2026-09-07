@@ -17,7 +17,7 @@ import {
   riderWaivers,
   hasMilitarySaddle,
 } from "./overlays/mounted.mjs";
-import { classifyWeapon, handCost, focusGroup, weaponKey, equipmentClass, inferGear, isHelmet, isShield } from "./profiles.mjs";
+import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, isHelmet, isShield } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { capacityOf, bundleSizeOf } from "../lib/item-model.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
@@ -31,7 +31,7 @@ import * as variationRules from "./variations.mjs";
 import * as variationItems from "./variation-items.mjs";
 import { BASE_TYPE, baseTypesFor } from "./base-types.mjs";
 import { baseTypeFields, hasBaseTypeFields } from "./variation-defs.mjs";
-import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised } from "./actions.mjs";
+import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised, setWeaponProfile, setWeaponSize, setWeaponGrips, setGearSlotList } from "./actions.mjs";
 import { cycleStrap, strapOf, canStrap } from "./overlays/shield-variants.mjs";
 import { helmetType, isEnclosingHelm, enclosingHelmActive, HELM_MODIFIERS } from "./overlays/enclosing-helm.mjs";
 import { isSpellbook, spellbookValue, pagesUsed, pagesCapacity, spellbookSpells, setSpellbookSpells } from "./spellbook.mjs";
@@ -87,6 +87,11 @@ export async function annotateItem(item) {
     if (key) {
       const base = CONFIG_DATA.WEAPONS[key];
       Object.assign(updates, {
+        // The identity itself, written down. Everything below it is derived
+        // from this row, so recording only the derivations would leave the
+        // proficiency CATEGORY — which has no flag of its own — still being
+        // re-guessed from the name on every render.
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`]: key,
         [`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`]: base.size,
         [`flags.${MODULE_ID}.${ITEM_FLAGS.DAMAGE_TYPE}`]: base.type || "",
         [`flags.${MODULE_ID}.${ITEM_FLAGS.HANDY}`]: !!base.handy,
@@ -209,6 +214,13 @@ export function buildApi() {
     handCost,
     focusGroup,
     weaponKey,
+    weaponIdentity, // which RAW weapon a document is, and on whose authority
+    isUnidentifiedWeapon,
+    inferredGrips,
+    setWeaponProfile, // the three declarations the item sheet writes
+    setWeaponSize,
+    setWeaponGrips,
+    setGearSlotList,
     isHelmet, // armour classification: the one owner for the whole feature
     isShield,
     inferGear, // name/type → where it sits + what it costs to reach into
