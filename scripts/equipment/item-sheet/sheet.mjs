@@ -24,7 +24,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS, VARIATION_ITEM_TYPE } from "../constants.mjs";
 import { LANG } from "../constants.mjs";
-import { makeLoc } from "../../lib/util.mjs";
+import { makeLoc, atTypeScale } from "../../lib/util.mjs";
 import { buildConstructionPanel } from "../sheet.mjs";
 import { buildMagicPanel } from "../../markets/apps/magic-panel.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
@@ -124,6 +124,20 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
     band: { template: `${T}/band.hbs` },
     body: { template: `${T}/body.hbs`, scrollable: [""] },
   };
+
+  /**
+   * Open at the design width for the seat's type size. The stylesheet scales
+   * this sheet's whole drawing by the type knob, so the frame it is drawn in
+   * has to follow; `DEFAULT_OPTIONS` is evaluated before settings exist, which
+   * is why the scale is applied at construction instead. `min-width` stays put
+   * (styles/equipment-item-sheet.css) and core clamps the result to the
+   * viewport, so a raised setting cannot open wider than the display.
+   */
+  _initializeApplicationOptions(options) {
+    const opts = super._initializeApplicationOptions(options);
+    if (opts.position?.width) opts.position.width = atTypeScale(opts.position.width);
+    return opts;
+  }
 
   tabGroups = { primary: "rolls" };
 

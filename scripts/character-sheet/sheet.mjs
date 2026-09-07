@@ -19,7 +19,7 @@
  * system's own sheet stays registered and Sheet Config switches back.
  */
 import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, FOLD_FLAG, TRAINING_VIEW_FLAG, SUMMON_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
-import { makeLoc, libStorage } from "../lib/util.mjs";
+import { makeLoc, libStorage, atTypeScale } from "../lib/util.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, summonerOf, henchmanIds, currentScene } from "./snapshot.mjs";
 import { buildFrameModel, nextAcMode, togglePin } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
@@ -181,6 +181,21 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     band: { template: `${T}/band.hbs` },
     body: { template: `${T}/body.hbs`, scrollable: [""] },
   };
+
+  /**
+   * Open at the canvas width for the seat's type size. `DEFAULT_OPTIONS` is
+   * evaluated at module load, before settings exist, so the figure declared
+   * there is the design's own and the scale is applied here — at construction,
+   * which is late enough to read the setting and early enough that the window
+   * never renders at one width and jumps to another. `min-width` deliberately
+   * does not follow (styles/character-sheet.css); core clamps the result to
+   * the viewport, so a raised setting cannot open wider than the display.
+   */
+  _initializeApplicationOptions(options) {
+    const opts = super._initializeApplicationOptions(options);
+    if (opts.position?.width) opts.position.width = atTypeScale(opts.position.width);
+    return opts;
+  }
 
   tabGroups = { primary: "rolls" };
 
@@ -679,7 +694,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   #sizeForFold(folded) {
     if (this.#foldedWas === folded) return;
     this.#foldedWas = folded;
-    this.setPosition({ width: folded ? 400 : 900, height: "auto" });
+    this.setPosition({ width: atTypeScale(folded ? 400 : 900), height: "auto" });
   }
 
   static #onGoTab(event, target) {

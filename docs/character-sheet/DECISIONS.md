@@ -444,3 +444,51 @@ that is a type test rather than a number per place.
 Cost: a plain ring is jewellery, so three of them show no warning — the
 Tome's rule is about magic rings — and an unmarked magic item counts as plain
 until it is declared magic or wears a magical variation.
+
+### The canvas figures are a specification, scaled by a ratio (2026-09-07)
+
+Field report: the `fontScale` client setting had no effect on this sheet
+while it worked on every other ACKS surface. Measured live, dragging it from
+14 to 18 moved **26 of ~865 elements** — the sheet was written in absolute px
+(63 `font-size` declarations, 62 of them literal, and 213 px lengths in all)
+because the design canvas is stated in px. Two files in the module were off
+the `--acks-fs-*` ramp; every other stylesheet was already on it.
+
+Ruling: the canvas figures stay exactly as drawn and are **multiplied by
+`--acks-extras-k`**, the type knob expressed as a ratio (`calc(var(--acks-fs-base)
+/ 14px)`, published on `.acks-extras` in `styles/lib.css`). The whole drawing
+scales — type, cells, rails, portrait, gaps — so the sheet at 18 is the sheet
+at 14, larger. A px literal that survives in the stylesheet is therefore one
+of exactly two things, a **stroke** (0 and 1px) or a **floor**, which is the
+rule a diff is read against.
+
+Rejected: **snapping the 16 canvas sizes to the vendored ramp.** The ramp is a
+book scale and has one step between 9.38 and 12.46px; 40 of the 63
+declarations live in that gap. Snapping would move them by −6% to +25% *at the
+default setting*, redrawing the sheet for every user in order to fix a knob.
+A form scale wants six steps where a book wants one.
+
+Rejected: **CSS `zoom` on the sheet root**, the one-line answer. It puts the
+frame in a second coordinate space that ApplicationV2 mixes with the first:
+the window travels 1.29px per 1px of pointer drag, the implicit-height branch
+re-measures and re-writes an inflated height on every render, and the
+off-screen clamps compare a zoomed paint against an unzoomed figure. It also
+scales the hairlines the token file keeps at whole pixels, and double-scales
+every shared component that already rides the ramp.
+
+Cost: a large mechanical diff, and a second file (`equipment-item-sheet.css`)
+in the same shape still to follow. The two `@container` breakpoints moved from
+px to `em` so they resolve against the sheet's own size and collapse the row
+when the *drawing* outgrows the frame — verified live: the place column
+collapses below 840px at base 14 and below 1080px at base 18. The opening
+width follows the ratio in `sheet.mjs` (`atTypeScale`), while `min-width`
+deliberately does not: scaling the floor to 823px would push it past those
+breakpoints and disable the narrow layouts for the user most likely to need
+them.
+
+Two cascade defects surfaced with it, both invisible offline. Core pins a
+font-size on `.window-content` **and** on `.window-header`, and those are the
+elements the sheet body and the title band inherit from — so the size set on
+the frame reached neither. And core's `flex: 0 0 36px` on the header outranks
+this sheet's `height: auto`, which had been clipping the 45px band at both
+edges since it shipped; `flex: 0 0 auto` is what makes the declaration real.

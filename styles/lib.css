@@ -8,6 +8,22 @@
    acks-lib loads vendor/acks-design/tokens.css unconditionally, so every name
    below resolves at :root in both themes. */
 
+/* --- The type knob as a ratio ------------------------------------------------
+ * `--acks-fs-base` is a SIZE, and the ramp steps derived from it serve any
+ * surface built on the ramp. A surface transcribed from a px design canvas
+ * needs the same knob as a NUMBER instead, so it can scale its own measured
+ * figures in proportion. Published here, on the class every window in this
+ * module already wears, so each such sheet reads one definition.
+ *
+ * The divisor carries its unit on purpose: length/length is a number, while
+ * `calc(<length> / 14)` is a length, and multiplying a px by a px yields an
+ * area — invalid at computed-value time, which makes the declaration fall back
+ * to its inherited value rather than fail visibly.
+ */
+.acks-extras {
+  --acks-extras-k: calc(var(--acks-fs-base, 14px) / 14px);
+}
+
 /* --- Window scroll contract -------------------------------------------------
  * Core caps every ApplicationV2 frame at the viewport
  * (`max-height: calc(100vh - 1.5 * var(--hotbar-height))`) and gives

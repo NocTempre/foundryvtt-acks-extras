@@ -1,10 +1,18 @@
 /* ACKS II — the item sheet.
  *
  * One window for every piece of gear (scripts/equipment/item-sheet/). Every
- * colour is an --acks-* token read bare; every face and size comes off the
- * design-system scale, so a dark seat and the `core` look both follow. The
- * geometry is the design's: a 620px window, 28px rail cells, 32/34/28px
- * rails, 118px art — stated once here as custom properties on the root.
+ * colour is an --acks-* token read bare and every face comes off the design
+ * system, so a dark seat and the `core` look both follow. The geometry is the
+ * design's: a 620px window, 28px rail cells, 32/34/28px rails, 118px art —
+ * stated once here as custom properties on the root, at the default type size.
+ *
+ * Those figures are a SPECIFICATION, not a fixed size: every px in this file
+ * is multiplied by --acks-extras-k (published on `.acks-extras` in lib.css),
+ * the ratio between the type knob and that default, so raising the knob scales
+ * the drawing rather than growing text inside boxes that stay put. A px
+ * literal that survives here is therefore one of exactly two things — a STROKE
+ * (0 and 1px) or a FLOOR (the frame's min-width). Character sheet DECISIONS
+ * 2026-09-07 is the ruling; this file is the other half of it.
  *
  * The title band is this module's own part, moved into Foundry's
  * `.window-header` at render: the header keeps its drag handle and its two
@@ -12,18 +20,32 @@
  */
 
 .acks-extras-item-sheet {
-  --acks-extras-cell: 28px;
-  --acks-extras-rail-left: 32px;
-  --acks-extras-rail-right: 34px;
-  --acks-extras-rail-editor: 28px;
-  --acks-extras-art: 118px;
+  /* The space ramp, re-declared scaled — the vendor publishes --acks-sp-* as
+     literals at :root, so a declaration here wins for this subtree. Without it
+     every gap and pad written as a token holds still while the figures around
+     them grow. Only the steps this sheet uses are re-declared. */
+  --acks-sp-1: calc(2px * var(--acks-extras-k));
+  --acks-sp-2: calc(4px * var(--acks-extras-k));
+  --acks-sp-3: calc(6px * var(--acks-extras-k));
+  --acks-sp-4: calc(8px * var(--acks-extras-k));
+  --acks-sp-5: calc(12px * var(--acks-extras-k));
+  --acks-extras-cell: calc(28px * var(--acks-extras-k));
+  --acks-extras-rail-left: calc(32px * var(--acks-extras-k));
+  --acks-extras-rail-right: calc(34px * var(--acks-extras-k));
+  --acks-extras-rail-editor: calc(28px * var(--acks-extras-k));
+  --acks-extras-art: calc(118px * var(--acks-extras-k));
   /* Per-cell fill (the capacity cell writes its own percentage inline) and
      the aura ring's colour (set by the school class on the art). */
   --acks-extras-fill: 0%;
   --acks-extras-aura: var(--acks-ink-soft);
-  /* 620px is the design's width, opened by default; the floor is lower so the
-     window still fits a small display, and the window may be dragged wider
-     with the prose column taking the slack. */
+  /* 620px is the design's width and the floor is lower, so the window still
+     fits a small display and may be dragged wider with the prose column taking
+     the slack. Neither carries the ratio here: `width` is shadowed by the
+     inline width core writes from the sheet's own `position`, and the scaled
+     opening width is applied in the sheet where the setting is readable, while
+     `min-width` is the floor a user shrinks to and stays literal — a scaled
+     floor would revoke the small-display promise for the very user who raised
+     the type size. */
   width: 620px;
   min-width: 420px;
   /* GEOMETRY ONLY. Ground, ink and frame belong to the `.acks-ui` dress
@@ -41,12 +63,19 @@
   display: flex;
   align-items: center;
   gap: var(--acks-sp-2);
+  /* The basis, not the height: core pins the header with `flex: 0 0 36px` off
+     its own --header-height, and a flex-basis outranks `height: auto` on a
+     flex item, so the band is clipped without this. */
+  flex: 0 0 auto;
   height: auto;
   min-height: 0;
   padding: 0 var(--acks-sp-2) 0 0;
   background: transparent;
   border-block-end: var(--acks-rule) solid var(--acks-spot);
   color: var(--acks-ink);
+  /* Core sizes its own chrome, and the band lives inside that chrome rather
+     than in the form — without this the band's inherited type ignores the knob. */
+  font-size: var(--acks-fs-body);
 }
 
 .acks-extras-item-sheet.application > .window-header .window-icon,
@@ -61,8 +90,8 @@
 
 .acks-extras-item-sheet.application > .window-header .header-control {
   flex: none;
-  inline-size: 26px;
-  min-height: 26px;
+  inline-size: calc(26px * var(--acks-extras-k));
+  min-height: calc(26px * var(--acks-extras-k));
   padding: 0;
   border: none;
   background: transparent;
@@ -78,6 +107,10 @@
 .acks-extras-item-sheet.application .acks-extras-item-sheet__content {
   padding: 0;
   overflow: visible;
+  /* Re-take the type from core: `.window-content` carries a font-size of its
+     own and is what every panel below inherits from, so the size set on the
+     frame stops here without this. */
+  font-size: var(--acks-fs-body);
 }
 
 .acks-extras-item-sheet__scroll {
@@ -92,8 +125,8 @@
 
 /* A Judge's view of a disguised item: the striped border is the only sign. */
 .acks-extras-item-sheet__scroll.is-striped {
-  border: 6px solid transparent;
-  background: repeating-linear-gradient(45deg, var(--acks-burgundy-deep) 0 7px, var(--acks-burgundy) 7px 14px) border-box;
+  border: calc(6px * var(--acks-extras-k)) solid transparent;
+  background: repeating-linear-gradient(45deg, var(--acks-burgundy-deep) 0 calc(7px * var(--acks-extras-k)), var(--acks-burgundy) calc(7px * var(--acks-extras-k)) calc(14px * var(--acks-extras-k))) border-box;
 }
 
 .acks-extras-item-sheet__scroll.is-striped > * {
@@ -122,7 +155,7 @@
 
 .acks-extras-item-sheet__qty {
   flex: none;
-  height: 24px;
+  height: calc(24px * var(--acks-extras-k));
   width: auto;
   min-width: 3.5ch;
   padding: 0 var(--acks-sp-3);
@@ -140,7 +173,7 @@
   min-width: 6ch;
   font-family: var(--acks-font-display);
   font-weight: var(--acks-weight-bold);
-  font-size: 19px;
+  font-size: calc(19px * var(--acks-extras-k));
   letter-spacing: 0.03em;
   padding-block: var(--acks-sp-1);
   min-height: 0;
@@ -155,7 +188,7 @@
   background: var(--acks-tint);
   color: var(--acks-spot);
   font-family: var(--acks-font-display);
-  font-size: 9px;
+  font-size: calc(9px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -173,7 +206,7 @@
   padding: var(--acks-sp-1) var(--acks-sp-3);
   border: var(--acks-rule-hair) solid currentColor;
   font-family: var(--acks-font-display);
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -200,7 +233,7 @@
 
 .acks-extras-item-sheet__badge-label {
   font-family: var(--acks-font-display);
-  font-size: 9px;
+  font-size: calc(9px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -209,7 +242,7 @@
 
 .acks-extras-item-sheet__badge-value {
   font-family: var(--acks-font-ui);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-medium);
   color: var(--acks-ink);
 }
@@ -227,7 +260,7 @@
   border-block-end: var(--acks-rule-hair) solid var(--acks-ink-faint);
   background: transparent;
   font-family: var(--acks-font-ui);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-medium);
   color: var(--acks-ink);
   text-align: end;
@@ -254,7 +287,7 @@
 
 .acks-extras-item-sheet__rail--right {
   width: var(--acks-extras-rail-right);
-  margin-inline-start: 5px;
+  margin-inline-start: calc(5px * var(--acks-extras-k));
 }
 
 /* The editor rail stacks four cells and spills into further columns that grow
@@ -318,10 +351,10 @@
 .acks-extras-item-sheet__cell--state.is-on::after {
   content: "";
   position: absolute;
-  inset-block-start: 2px;
-  inset-inline-end: 2px;
-  width: 5px;
-  height: 5px;
+  inset-block-start: calc(2px * var(--acks-extras-k));
+  inset-inline-end: calc(2px * var(--acks-extras-k));
+  width: calc(5px * var(--acks-extras-k));
+  height: calc(5px * var(--acks-extras-k));
   background: var(--acks-spot);
   transform: rotate(45deg);
 }
@@ -330,7 +363,7 @@
   border-color: var(--acks-spot);
   background: transparent;
   color: var(--acks-spot);
-  font-size: 13px;
+  font-size: calc(13px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__cell--editor.is-on {
@@ -338,13 +371,13 @@
 }
 
 .acks-extras-item-sheet__cell-glyph {
-  font-size: 13px;
+  font-size: calc(13px * var(--acks-extras-k));
   color: inherit;
 }
 
 .acks-extras-item-sheet__cell-svg {
-  width: 13px;
-  height: 13px;
+  width: calc(13px * var(--acks-extras-k));
+  height: calc(13px * var(--acks-extras-k));
   border: none;
   object-fit: contain;
 }
@@ -359,18 +392,18 @@
 }
 
 .acks-extras-item-sheet__cell-fa {
-  font-size: 11px;
+  font-size: calc(11px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__cell-m {
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.05em;
 }
 
 .acks-extras-item-sheet__cell-sub {
   font-family: var(--acks-font-ui);
-  font-size: 9px;
+  font-size: calc(9px * var(--acks-extras-k));
   color: var(--acks-ink-soft);
 }
 
@@ -405,9 +438,9 @@
 /* The aura ring: two lines of the school's colour around a paper gap. */
 .acks-extras-item-sheet__art.has-aura {
   box-shadow:
-    inset 0 0 0 2px var(--acks-extras-aura),
-    inset 0 0 0 4px var(--acks-paper-pure),
-    inset 0 0 0 5px var(--acks-extras-aura);
+    inset 0 0 0 calc(2px * var(--acks-extras-k)) var(--acks-extras-aura),
+    inset 0 0 0 calc(4px * var(--acks-extras-k)) var(--acks-paper-pure),
+    inset 0 0 0 calc(5px * var(--acks-extras-k)) var(--acks-extras-aura);
 }
 
 .acks-extras-item-sheet__art.is-arcane {
@@ -424,11 +457,11 @@
 
 .acks-extras-item-sheet__aura-label {
   position: absolute;
-  inset-block-end: 7px;
+  inset-block-end: calc(7px * var(--acks-extras-k));
   padding: 0 var(--acks-sp-1);
   background: var(--acks-paper-pure);
   font-family: var(--acks-font-display);
-  font-size: 9px;
+  font-size: calc(9px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -450,8 +483,8 @@
   inset-inline-start: 0;
   display: grid;
   place-items: center;
-  height: 18px;
-  min-width: 24px;
+  height: calc(18px * var(--acks-extras-k));
+  min-width: calc(24px * var(--acks-extras-k));
   padding: 0 var(--acks-sp-2);
   border: var(--acks-rule-hair) solid var(--acks-spot);
   border-block-start: none;
@@ -459,7 +492,7 @@
   background: var(--acks-paper-pure);
   color: var(--acks-spot);
   font-family: var(--acks-font-ui);
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
   line-height: 1;
   cursor: pointer;
 }
@@ -470,7 +503,7 @@
   display: flex;
   gap: var(--acks-sp-4);
   align-items: stretch;
-  padding-inline-start: 14px;
+  padding-inline-start: calc(14px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__prose-body {
@@ -483,7 +516,7 @@
 
 .acks-extras-item-sheet__description {
   font-family: var(--acks-font-body);
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--acks-extras-k));
   line-height: 1.45;
   color: var(--acks-ink);
 }
@@ -501,7 +534,7 @@
 }
 
 .acks-extras-item-sheet__prose .acks-tag {
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
 }
 
 /* --- Simple mode ---------------------------------------------------------- */
@@ -524,7 +557,7 @@
 }
 
 .acks-extras-item-sheet__tabs .acks-tab {
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-medium);
   letter-spacing: 0.07em;
   padding: var(--acks-sp-3) var(--acks-sp-5);
@@ -537,7 +570,7 @@
 
 .acks-extras-item-sheet__tab-count {
   font-family: var(--acks-font-ui);
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
   font-weight: var(--acks-weight-body);
   opacity: 0.75;
   margin-inline-start: var(--acks-sp-2);
@@ -565,7 +598,7 @@
 .acks-extras-item-sheet__two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--acks-sp-4) 26px;
+  gap: var(--acks-sp-4) calc(26px * var(--acks-extras-k));
   align-items: start;
 }
 
@@ -574,13 +607,13 @@
   display: flex;
   align-items: baseline;
   gap: var(--acks-sp-4);
-  padding-block-end: 3px;
+  padding-block-end: calc(3px * var(--acks-extras-k));
   border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
 }
 
 .acks-extras-item-sheet__rule-title {
   font-family: var(--acks-font-display);
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -589,12 +622,12 @@
 
 .acks-extras-item-sheet__rule-note {
   font-family: var(--acks-font-ui);
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
   color: var(--acks-ink-soft);
 }
 
 .acks-extras-item-sheet__rule .acks-tag {
-  font-size: 9px;
+  font-size: calc(9px * var(--acks-extras-k));
 }
 
 /* A row: label over line, tags, an action — underlined in tint. */
@@ -602,7 +635,7 @@
   display: flex;
   align-items: center;
   gap: var(--acks-sp-4);
-  padding-block: 5px;
+  padding-block: calc(5px * var(--acks-extras-k));
   border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
 }
 
@@ -619,7 +652,7 @@
 
 .acks-extras-item-sheet__row-label {
   font-family: var(--acks-font-display);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -631,13 +664,13 @@
 
 .acks-extras-item-sheet__row-line {
   font-family: var(--acks-font-ui);
-  font-size: 11px;
+  font-size: calc(11px * var(--acks-extras-k));
   color: var(--acks-ink-soft);
 }
 
 .acks-extras-item-sheet__row-name {
   font-family: var(--acks-font-ui);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--acks-extras-k));
   color: var(--acks-ink);
   cursor: pointer;
 }
@@ -648,19 +681,19 @@
 
 .acks-extras-item-sheet__row-weight {
   font-family: var(--acks-font-ui);
-  font-size: 12px;
-  min-width: 36px;
+  font-size: calc(12px * var(--acks-extras-k));
+  min-width: calc(36px * var(--acks-extras-k));
   text-align: end;
 }
 
 .acks-extras-item-sheet__row-mods {
   flex: none;
-  max-width: 186px;
+  max-width: calc(186px * var(--acks-extras-k));
   justify-content: flex-end;
 }
 
 .acks-extras-item-sheet__row .acks-tag {
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__grow {
@@ -673,8 +706,8 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 16px;
-  height: 16px;
+  width: calc(16px * var(--acks-extras-k));
+  height: calc(16px * var(--acks-extras-k));
   padding: 0;
   border: var(--acks-rule-hair) solid var(--acks-ink-faint);
   background: none;
@@ -683,8 +716,8 @@
 
 .acks-extras-item-sheet__pin.is-on::before {
   content: "";
-  width: 7px;
-  height: 7px;
+  width: calc(7px * var(--acks-extras-k));
+  height: calc(7px * var(--acks-extras-k));
   background: var(--acks-spot);
   transform: rotate(45deg);
 }
@@ -693,7 +726,7 @@
 .acks-extras-item-sheet__facts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 26px;
+  gap: 0 calc(26px * var(--acks-extras-k));
   align-content: start;
 }
 
@@ -701,7 +734,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--acks-sp-4);
-  padding-block: 4px;
+  padding-block: calc(4px * var(--acks-extras-k));
   border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
 }
 
@@ -711,7 +744,7 @@
 
 .acks-extras-item-sheet__fact-label {
   font-family: var(--acks-font-display);
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -720,7 +753,7 @@
 
 .acks-extras-item-sheet__fact-label.is-plain {
   font-family: var(--acks-font-ui);
-  font-size: 12px;
+  font-size: calc(12px * var(--acks-extras-k));
   font-weight: var(--acks-weight-body);
   letter-spacing: 0;
   text-transform: none;
@@ -732,21 +765,21 @@
 
 .acks-extras-item-sheet__fact-value {
   font-family: var(--acks-font-ui);
-  font-size: 13px;
+  font-size: calc(13px * var(--acks-extras-k));
   font-weight: var(--acks-weight-medium);
   color: var(--acks-ink);
 }
 
 .acks-extras-item-sheet__of {
   margin-inline-start: var(--acks-sp-2);
-  font-size: 11px;
+  font-size: calc(11px * var(--acks-extras-k));
   font-weight: var(--acks-weight-body);
   color: var(--acks-ink-faint);
 }
 
 .acks-extras-item-sheet__note {
   font-family: var(--acks-font-ui);
-  font-size: 11px;
+  font-size: calc(11px * var(--acks-extras-k));
   color: var(--acks-ink-soft);
 }
 
@@ -770,7 +803,7 @@
 
 .acks-extras-item-sheet__field-label {
   font-family: var(--acks-font-display);
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -782,7 +815,7 @@
 .acks-extras-item-sheet .acks-input.is-xs {
   min-height: 0;
   padding-block: var(--acks-sp-1);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__field.is-xs .acks-input,
@@ -809,23 +842,23 @@
 }
 
 .acks-extras-item-sheet .acks-check {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__empty--tight {
-  padding: 14px var(--acks-sp-4);
+  padding: calc(14px * var(--acks-extras-k)) var(--acks-sp-4);
 }
 
 /* --- Named item pips ------------------------------------------------------ */
 
 .acks-extras-item-sheet__pips {
   display: flex;
-  gap: 3px;
+  gap: calc(3px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__pip {
-  width: 8px;
-  height: 8px;
+  width: calc(8px * var(--acks-extras-k));
+  height: calc(8px * var(--acks-extras-k));
   transform: rotate(45deg);
   border: var(--acks-rule-hair) solid var(--acks-spot);
   background: transparent;
@@ -855,12 +888,12 @@
 
 .acks-extras-item-sheet__chart-caption {
   position: absolute;
-  inset-block-end: 6px;
-  inset-inline-start: 8px;
+  inset-block-end: calc(6px * var(--acks-extras-k));
+  inset-inline-start: calc(8px * var(--acks-extras-k));
   padding: 0 var(--acks-sp-1);
   background: var(--acks-paper-pure);
   font-family: var(--acks-font-display);
-  font-size: 9px;
+  font-size: calc(9px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -876,16 +909,16 @@
 
 .acks-extras-item-sheet__tile {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: calc(22px * var(--acks-extras-k));
+  height: calc(22px * var(--acks-extras-k));
   border: var(--acks-rule-hair) solid var(--acks-spot);
   background: var(--acks-tint);
   object-fit: cover;
 }
 
 .acks-extras-item-sheet__tile.is-lg {
-  width: 52px;
-  height: 52px;
+  width: calc(52px * var(--acks-extras-k));
+  height: calc(52px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__drop {
@@ -901,7 +934,7 @@
 
 .acks-extras-item-sheet .acks-extras-item-sheet__spells {
   font-family: var(--acks-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--acks-extras-k));
 }
 
 /* --- Appearance ----------------------------------------------------------- */
@@ -915,13 +948,13 @@
   display: flex;
   align-items: center;
   gap: var(--acks-sp-3);
-  padding: 5px 10px;
+  padding: calc(5px * var(--acks-extras-k)) calc(10px * var(--acks-extras-k));
   border: var(--acks-rule-hair) solid var(--acks-spot);
   margin-inline-start: calc(var(--acks-rule-hair) * -1);
   background: transparent;
   color: var(--acks-spot);
   font-family: var(--acks-font-display);
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
   font-weight: var(--acks-weight-medium);
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -938,8 +971,8 @@
 
 .acks-extras-item-sheet__step.is-on::after {
   content: "";
-  width: 7px;
-  height: 7px;
+  width: calc(7px * var(--acks-extras-k));
+  height: calc(7px * var(--acks-extras-k));
   background: var(--acks-spot);
   transform: rotate(45deg);
 }
@@ -952,7 +985,7 @@
 
 .acks-extras-item-sheet__mask-desc {
   font-family: var(--acks-font-body);
-  font-size: 12px;
+  font-size: calc(12px * var(--acks-extras-k));
   line-height: 1.4;
   color: var(--acks-ink-soft);
 }
@@ -968,7 +1001,7 @@
   display: flex;
   align-items: center;
   gap: var(--acks-sp-4);
-  padding-block: 4px;
+  padding-block: calc(4px * var(--acks-extras-k));
   border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
   margin: 0;
 }
@@ -977,7 +1010,7 @@
 .acks-extras-item-sheet__mount .acks-equipment-props__label {
   flex: 0 0 40%;
   font-family: var(--acks-font-display);
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -987,7 +1020,7 @@
 .acks-extras-item-sheet__mount h3,
 .acks-extras-item-sheet__mount h4 {
   font-family: var(--acks-font-display);
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -999,13 +1032,13 @@
 .acks-extras-item-sheet__mount .acks-equipment-props__note,
 .acks-extras-item-sheet__mount .hint {
   font-family: var(--acks-font-ui);
-  font-size: 11px;
+  font-size: calc(11px * var(--acks-extras-k));
   color: var(--acks-ink-soft);
 }
 
 .acks-extras-item-sheet__mount .acks-equipment-props__btn,
 .acks-extras-item-sheet__mount .acks-location-btn {
-  min-height: 22px;
+  min-height: calc(22px * var(--acks-extras-k));
   padding: var(--acks-sp-2) var(--acks-sp-3);
   border: var(--acks-rule-hair) solid var(--acks-spot);
   background: var(--acks-tint);
@@ -1027,13 +1060,13 @@
   display: flex;
   align-items: center;
   gap: var(--acks-sp-2);
-  padding: 2px 7px;
+  padding: calc(2px * var(--acks-extras-k)) calc(7px * var(--acks-extras-k));
   border: var(--acks-rule-hair) solid var(--acks-spot);
   margin-inline-start: calc(var(--acks-rule-hair) * -1);
   background: transparent;
   color: var(--acks-spot);
   font-family: var(--acks-font-display);
-  font-size: 9px;
+  font-size: calc(9px * var(--acks-extras-k));
   font-weight: var(--acks-weight-medium);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1046,8 +1079,8 @@
 
 .acks-extras-item-sheet__seg.is-on::after {
   content: "";
-  width: 6px;
-  height: 6px;
+  width: calc(6px * var(--acks-extras-k));
+  height: calc(6px * var(--acks-extras-k));
   background: var(--acks-spot);
   transform: rotate(45deg);
 }
@@ -1057,7 +1090,7 @@
 }
 
 .acks-extras-item-sheet__variations .acks-tag {
-  font-size: 10px;
+  font-size: calc(10px * var(--acks-extras-k));
 }
 
 /* Concealed is a fact about who may see it, not a disabled control. */
@@ -1069,14 +1102,14 @@
 .acks-extras-item-sheet__tag-x {
   display: inline-grid;
   place-items: center;
-  width: 14px;
-  height: 14px;
+  width: calc(14px * var(--acks-extras-k));
+  height: calc(14px * var(--acks-extras-k));
   padding: 0;
   margin-inline-start: var(--acks-sp-1);
   border: none;
   background: transparent;
   color: inherit;
-  font-size: 9px;
+  font-size: calc(9px * var(--acks-extras-k));
   cursor: pointer;
   opacity: 0.8;
 }
@@ -1087,7 +1120,7 @@
 
 .acks-extras-item-sheet__accept {
   display: grid;
-  gap: 5px;
+  gap: calc(5px * var(--acks-extras-k));
   padding: var(--acks-sp-4) var(--acks-sp-5);
   border: var(--acks-rule-hair) solid var(--acks-tint-2);
   background: var(--acks-tint);
@@ -1095,7 +1128,7 @@
 
 .acks-extras-item-sheet__chip-toggle {
   cursor: pointer;
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--acks-extras-k));
 }
 
 .acks-extras-item-sheet__chip-toggle.acks-tag--ghost {

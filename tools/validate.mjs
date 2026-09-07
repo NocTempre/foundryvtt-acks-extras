@@ -580,9 +580,10 @@ if (module_?.id) {
   });
 }
 
-/* 8. The UI layout contract — every window a module opens stays reachable on a
- *    small display. Two failure modes are decidable from the source, and both
- *    are invisible to every other check because they need a real viewport:
+/* 8. The UI layout contract — every window a module opens stays reachable and
+ *    legible on a small display, at the type size its user chose. Three failure
+ *    modes are decidable from the source, and all three are invisible to every
+ *    other check because they need a real viewport and a real setting:
  *
  *    a. A window outside the scroll contract. Core caps an application frame at
  *       the viewport height and gives `.window-content` `overflow: hidden`, so a
@@ -594,9 +595,13 @@ if (module_?.id) {
  *       partRoot.querySelector(selector)`, and querySelector searches
  *       DESCENDANTS ONLY — so a part naming its own root element retains
  *       nothing while reading as entirely correct.
+ *    c. A type size the knob cannot reach. A bare px or rem font-size renders
+ *       correctly on the machine it was written on and ignores the user's size
+ *       setting everywhere else — the accessibility knob is present, and inert.
  *
  *    A window that must sit outside the contract says so where it is declared:
- *    `// no-scroll: <reason>` on or just above its `classes:` line. */
+ *    `// no-scroll: <reason>` on or just above its `classes:` line; a size that
+ *    must not move says `/* px-ok: <reason> *\/` beside itself. */
 if (module_?.id) {
   const id = module_.id;
   const SCROLL_CLASS = `${id}-scroll`;
@@ -668,6 +673,56 @@ if (module_?.id) {
       }
     }
   });
+
+  // 8c. every type size answers to the type knob. A bare px or rem font-size
+  // does not: px is deaf outright, and rem reads the BROWSER's root size, which
+  // `--acks-fs-base` never touches. Both render correctly on the machine they
+  // were written on and ignore the setting everywhere else — the reason this is
+  // a gate is that it recurred, at scale, in files that read as finished.
+  //
+  // Two conformant expressions, and the check only has to reject the literal:
+  // a ramp step (`var(--acks-fs-*)`), or a base-derived local ratio
+  // (`calc(<n>px * var(--<id>-k))`) for a surface transcribed from a px design
+  // canvas. `em` is conformant too and deliberately unflagged — it resolves
+  // against whatever its parent computed, so it inherits the knob through the
+  // chain.
+  //
+  // Escape: `/* px-ok: <reason> */` on or just above the declaration, for a
+  // size that genuinely must not move.
+  //
+  // Opt-in per repo, on the same principle as 8a: a module that has not adopted
+  // the ACKS type ramp has no knob for a size to answer to, and demanding
+  // `var(--acks-fs-*)` there would trade a size that ignores the setting for a
+  // variable that resolves to nothing. Adoption is read from the styles
+  // themselves — the first ramp reference turns the check on for the repo.
+  const styleFiles = [];
+  walk(path.join(ROOT, "styles"), (full) => {
+    if (full.endsWith(".css")) styleFiles.push(full);
+  });
+  const onTheRamp = styleFiles.some((f) => /--acks-fs-/.test(fs.readFileSync(f, "utf8")));
+
+  for (const full of onTheRamp ? styleFiles : []) {
+    const text = fs.readFileSync(full, "utf8");
+    const lines = text.split("\n");
+    for (const m of text.matchAll(/font-size:\s*([\d.]+)(px|rem)\b/g)) {
+      const lineNo = lineOf(text, m.index);
+      if (lines[lineNo - 1]?.includes("px-ok:") || lines[lineNo - 2]?.includes("px-ok:")) continue;
+      const why =
+        m[2] === "rem"
+          ? "rem tracks the browser root, which --acks-fs-base does not set"
+          : "a literal px never moves";
+      // The canvas-ratio form is only offered for px: it multiplies a MEASURED
+      // figure, and a rem was never one.
+      const fix =
+        m[2] === "rem"
+          ? "Use a ramp step (var(--acks-fs-*)) or an em off a parent that rides one"
+          : `Use a ramp step (var(--acks-fs-*)), an em off a parent that rides one, or calc(${m[1]}px * var(--${id}-k)) for a surface transcribed from a px design canvas`;
+      fail(
+        rel(full),
+        `line ${lineNo}: font-size ${m[1]}${m[2]} does not answer to the type knob — ${why}. ${fix}; or state why not with "/* px-ok: <reason> */"`,
+      );
+    }
+  }
 }
 
 /* 9. IP leak scan — licensed book material must never reach a public repo or a

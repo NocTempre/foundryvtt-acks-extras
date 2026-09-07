@@ -1,8 +1,9 @@
 # UI layout contract (canonical)
 
 Every window a module opens is **editable, resizable, and able to reflow and
-scroll**. A user whose display is smaller than the one it was built on must
-still be able to reach every control on it.
+scroll**, at the type size its user chose. A user whose display is smaller than
+the one it was built on must still be able to reach every control on it, and a
+user who raises the type size must have it reach every surface.
 
 This is a field rule, not a preference: the failure is silent. Core caps an
 application frame at the viewport height and gives `.window-content`
@@ -12,7 +13,7 @@ sees it, because nothing offline has a viewport.
 
 ## What the gate enforces
 
-`tools/validate.mjs` §8 fails the build on the two halves that are decidable
+`tools/validate.mjs` §8 fails the build on the three halves that are decidable
 from source. Read that section for the mechanics; they are not restated here.
 
 - **Scroll-contract membership** — a window whose `classes` array omits
@@ -21,10 +22,41 @@ from source. Read that section for the mechanics; they are not restated here.
 - **Dead scroll retention** — a part whose `scrollable` names its own root
   element. `querySelector` searches descendants only, so the retention is
   written, correct in intent, and never fires.
+- **A type size the knob cannot reach** — a bare `px` or `rem` font-size in
+  `styles/`. Both look right on the machine they were written on and ignore the
+  size setting everywhere else, which leaves an accessibility control present
+  and inert.
 
-A window that genuinely belongs outside the contract declares it on the spot:
-`// no-scroll: <reason>` on or just above its `classes:` line. The escape is
-deliberate and cheap; an undeclared omission is the bug.
+Each escape is declared on the spot, and both are deliberate and cheap: a
+window outside the scroll contract writes `// no-scroll: <reason>` on or just
+above its `classes:` line, and a size that must not move writes
+`/* px-ok: <reason> */` beside itself. An undeclared omission is the bug.
+
+## Type answers to one knob
+
+`--acks-fs-base` is the size a player sets; every type size in a module is an
+expression of it. Three conformant forms, and nothing else:
+
+- **A ramp step** — `var(--acks-fs-body)`, `var(--acks-fs-fine)`. The default,
+  and what a surface built on the design system uses throughout.
+- **An `em`** off a parent that already rides one. It resolves against whatever
+  the parent computed, so the knob arrives through the chain. Never `rem`:
+  that reads the BROWSER's root size, which `--acks-fs-base` does not set.
+- **A base-derived ratio** — `calc(<n>px * var(--<module-id>-k))`, where the
+  ratio is `calc(var(--acks-fs-base, 14px) / 14px)`. This is for a surface
+  transcribed from a **px design canvas**, whose measured figures cannot be
+  snapped to a ten-step book ramp without redrawing the design. Multiply the
+  whole drawing — type, boxes, rails, gaps, and the space ramp re-declared at
+  the surface's root — never the type alone, or glyphs burst boxes that stayed
+  put. The divisor **carries its unit**: `calc(<length> / 14)` is a length, and
+  a px times a px is an area, which is invalid at computed-value time and falls
+  back to the inherited size — a failure that reads as a rule that never
+  matched.
+
+Two things core will fight for, on every window: it pins a font-size on
+`.window-content` **and** on `.window-header`, and those are what a sheet's body
+and its header-hosted parts inherit from. A size set on the frame alone reaches
+neither. Re-take both explicitly.
 
 ## What the gate cannot see
 

@@ -326,6 +326,11 @@ an embedded item's sheet is not re-resolved until then.
 - `fontScale` — writes `--acks-fs-base` inline on `<html>`, rescaling every ACKS
   surface from one knob. It survives `core`, because size is a player's own
   accessibility knob rather than part of the look; the ACKS *faces* do stand down.
+  Surfaces reach it two ways: off the `--acks-fs-*` ramp, or — for the two
+  sheets transcribed from a px design canvas — through `--acks-extras-k`, the
+  same knob as a ratio, published on `.acks-extras` in `styles/lib.css` and
+  read in JS as `typeScale()` / `atTypeScale()` in `util.mjs`. `validate` §8c
+  is what keeps a new size from quietly leaving the knob behind.
 
 `applyRootPin()` exists so `applyTheme` and `applyLook` can both write the pin
 without calling each other — `core` has to be able to clear a pin `book` set, and

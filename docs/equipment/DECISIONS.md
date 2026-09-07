@@ -1038,3 +1038,22 @@ Cost: the `hand` flag now has writers, so a weapon auto-unequipped by the
 resolver keeps its name and returns to that hand when redrawn — the sheathe
 control is what forgets it. A named main hand shifts an unnamed weapon to the
 off hand, which is visible and is what the drop asked for.
+
+
+### The item sheet's canvas figures scale with the type knob (2026-09-07)
+
+The item sheet is the second surface transcribed from a px design canvas, and
+it failed the `fontScale` setting exactly as the character sheet did — 44 of
+its 47 `font-size` declarations were literal px, and core's font-size pins on
+`.window-content` and `.window-header` stopped the rest at the frame.
+
+Same treatment, same reasons: every px multiplied by `--acks-extras-k`, the
+space ramp re-declared scaled at the sheet root, `flex: 0 0 auto` on the header
+so the band is not clipped, and the opening width scaled at construction
+(`atTypeScale`) while `min-width: 420px` stays literal. The ruling and the
+alternatives it rejects are character sheet DECISIONS 2026-09-07 — not
+restated here.
+
+Shipped in the same release as that one rather than after it: the item sheet
+opens *from* the character sheet, so a scaled sheet next to an unscaled one
+reads as a broken module rather than a migration in progress.

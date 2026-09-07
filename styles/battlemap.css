@@ -383,7 +383,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  /* Not rem: rem reads the BROWSER's root size, which the ACKS type knob does
+     not touch, so the glyph in this chip would sit still while the panel
+     around it resized. The chip's own box stays rem — it is a swatch. */
+  font-size: var(--acks-fs-fine);
 }
 
 .acks-extras-terrain-chip.is-eraser {

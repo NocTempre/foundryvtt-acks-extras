@@ -6,6 +6,8 @@
  * Foundry before it is called, so it is safe to import from anywhere.
  */
 
+import { MODULE_ID } from "./constants.mjs";
+
 /** Prefix-bound i18n formatter: `makeLoc("ACKS-FORMATION")` → `loc(key, data)`. */
 export const makeLoc = (prefix) => (key, data = {}) => game.i18n.format(`${prefix}.${key}`, data);
 
@@ -50,6 +52,28 @@ export const isPrimaryGM = () => game.users.activeGM?.isSelf ?? false;
 
 /** The lib feature's storage surface (attached at import time). */
 export const libStorage = () => globalThis.acksExtras.lib.storage;
+
+/**
+ * The `fontScale` setting as a RATIO against the token default — the JS twin
+ * of the `--acks-extras-k` custom property.
+ *
+ * A window transcribed from a px design canvas scales its whole drawing by
+ * this, so its opening size has to move with it: the canvas figure is how much
+ * room the drawing needs at the default size, and holding the frame still while
+ * the drawing grows is what forces the narrow layouts on a user who asked only
+ * for larger type. Sizes read from this are still floors-and-clamps subject —
+ * core caps a frame at the viewport, which is what keeps a raised setting from
+ * opening a window wider than the display.
+ *
+ * Answers 1 before settings exist, so a construction-time default is safe.
+ */
+export const typeScale = () => {
+  const px = Number(game.settings?.get?.(MODULE_ID, "fontScale"));
+  return Number.isFinite(px) && px > 0 ? px / 14 : 1;
+};
+
+/** A design-canvas px figure at the seat's current type scale. */
+export const atTypeScale = (px) => Math.round(px * typeScale());
 
 /**
  * Is this application a sheet this module draws itself? An injector dresses

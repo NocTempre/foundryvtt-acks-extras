@@ -204,6 +204,40 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     the scene the cell shows the marching-order glyph and its member count
     and opens the party sheet.
 
+## Type scale (the `fontScale` knob)
+
+**Fixture.** One populated `character` — the sheet has to hold weapons, gear,
+an ability, an effect and a follower before a scale change can be judged.
+
+**Drive.** The opening width is computed at CONSTRUCTION (`atTypeScale`), so a
+setting change does not resize an open window: close the sheet, set the
+setting, `actor._sheet = null`, and render again. Read the result off computed
+style rather than a screenshot — `--acks-extras-k`, and the font-size of the
+root, `.window-header` and `.window-content` (three separate answers; core
+pins its own size on the latter two).
+
+**Steps and observables.** At each of base 12, 14 and 18:
+
+- Width is `900 × base/14` (771 / 900 / 1157) and the folded card is
+  `400 × base/14` (343 / 400 / 514). Fold and unfold and confirm both.
+- `--acks-extras-cell` computes `32 × base/14`, and the root, header and
+  content font-sizes all equal the base.
+- The title band fits its header: the band's bottom sits *above* the header's,
+  not below it. It was clipped by 3.5px before the header's `flex: 0 0 auto`.
+- Walk all eight tabs. Diff `scrollHeight - clientHeight` and
+  `scrollWidth - clientWidth` per element against the same reading at base 14:
+  the only elements that may grow are `__scroll` (the designed scroller) and
+  the visually-hidden `.acks-sr-only` / `.window-title` boxes, whose text
+  overflows a 1x1 clip either way. Anything else growing is a real clip.
+- The place column collapses when the DRAWING outgrows the frame, not at a
+  fixed pixel count: step `setPosition({width})` down and watch
+  `__where-label`'s display. It goes `none` below 840px at base 14 and below
+  1080px at base 18 — the same 60em either way. A collapse at the same px
+  width at both bases means the `@container` thresholds went back to px.
+
+**Teardown.** Delete the actor by id and set `fontScale` back to 14 — it is a
+client setting, so a raised value follows you into the next session's test.
+
 ## Teardown
 
 Delete both actors, the monster, the scene, any combat and the chat messages
