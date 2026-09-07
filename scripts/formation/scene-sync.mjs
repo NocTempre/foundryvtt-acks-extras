@@ -1,7 +1,7 @@
 /* global game, ChatMessage, CONST */
 import { MODULE_ID, ROLES } from "./constants.mjs";
 import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
-import { faceWidthFeet, formationHeading, getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyDepth } from "./formation-model.mjs";
+import { faceWidthFeet, formationHeading, getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyDepth, patchFormation } from "./formation-model.mjs";
 import { FEET_PER_RANK } from "./trap-rules.mjs";
 import { tokenSpan } from "../battlemap/footprint.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
@@ -251,14 +251,61 @@ async function syncDeployedMemberTokens(formation) {
 }
 
 /**
+ * Marks a token update as the party token's own RESIZE, so the movement hook
+ * knows the party turned rather than walked. Holding the token's centre still
+ * across a size change moves its top-left corner, and everything hanging off
+ * the movement hook — the dungeon clock, the trap check, the scouts' leash —
+ * measures from that corner.
+ */
+export const RESIZE_OPTION = `${MODULE_ID}.partyResize`;
+
+/** How long a resize waits for the party's step to finish, in ms. */
+const STEP_WAIT_MS = 4000;
+
+/**
+ * Wait for a token's movement animation, but never longer than `STEP_WAIT_MS`.
+ *
+ * The wait is BOUNDED because movement can be paused indefinitely — a Region
+ * behaviour calls `pauseMovement` and holds the key until something resumes it
+ * — and the animation promise stays pending for exactly as long. Timing out
+ * costs the smoothness of one step. Blocking would cost the environment sweep
+ * that runs the resize as one sequential step, and fog, ownership, measurement
+ * and the map session all queue behind it.
+ *
+ * A rejected animation is a settled one: it must not take the sweep down.
+ */
+function stepFinished(token) {
+  const animation = token?.object?.movementAnimationPromise;
+  if (!animation) return Promise.resolve();
+  return Promise.race([
+    Promise.resolve(animation).catch(() => null),
+    new Promise((resolve) => setTimeout(resolve, STEP_WAIT_MS)),
+  ]);
+}
+
+/**
  * The party token wears the formation's face: as wide across the line of
  * march as its frontage in feet at this scene's scale, and as deep as its
  * ranks. Token width/height are axis-aligned and never rotate, so an
  * east/west heading swaps the two. Generic tokens are sized by
  * battlemap/token-scale.mjs; the party token is its one exemption and is
  * sized here only.
+ *
+ * The turn is made ON THE SPOT: the block pivots about its own centre and
+ * passes through walls to do it, because a formation that turns has not gone
+ * anywhere.
  */
 export async function syncPartyTokenSize(formation) {
+  if (!getPartyToken(formation)) return;
+
+  // Wait out the step the party is taking before resizing the token that took
+  // it. `animate: false` calls `stopAnimation`, so a size write issued while a
+  // move is still animating cancels that move and snaps the token to its
+  // destination. Auto-rotation makes that the ordinary case and not a corner:
+  // core turns the token as part of the drag, this runs off that rotation, and
+  // so every move ends by teleporting its own last leg.
+  await stepFinished(getPartyToken(formation));
+
   const token = getPartyToken(formation);
   if (!token) return;
   // The scene's squares in FEET — a frontage is in feet and a wilderness
@@ -272,10 +319,28 @@ export async function syncPartyTokenSize(formation) {
   const width = sideways ? deep : across;
   const height = sideways ? across : deep;
   if (Math.abs(token.width - width) < 1e-6 && Math.abs(token.height - height) < 1e-6) return;
-  // Never animate a size write. A tweened width/height reads as the token
-  // shrinking and swelling, and during a move it rides on top of the position
-  // animation — the same class of artefact as reading a mid-tween rotation.
-  await token.update({ width, height }, { animate: false });
+
+  const before = { x: token.x, y: token.y };
+  // `resize`, never `update({width, height})`. Width and height are MOVEMENT
+  // fields, so a size write IS a movement write: written raw it anchors the
+  // token by its top-left corner — a block turning from 6×2 to 2×6 pivots
+  // about that corner and lurches two squares sideways — and it is measured
+  // and wall-constrained like a walk, so the new footprint gets shoved out of
+  // a corridor the party was standing in perfectly well. `resize` holds the
+  // centre still and carries `ignoreWalls`/`ignoreCost`.
+  //
+  // Never animate a size write: a tweened width/height reads as the token
+  // shrinking and swelling.
+  await token.resize({ width, height }, { animate: false, [RESIZE_OPTION]: true });
+
+  // Holding the centre still moves the top-left corner, and the clock measures
+  // from the corner. Re-baseline it, or the next real step bills the party for
+  // the width of its own turn.
+  if (token.x === before.x && token.y === before.y) return;
+  await patchFormation(formation.id, (record) => {
+    if (!record.clock?.lastPosition) return false;
+    record.clock.lastPosition = { x: token.x, y: token.y };
+  });
 }
 
 /** The sweep in flight, and whether another was asked for while it ran. */

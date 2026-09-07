@@ -1441,3 +1441,66 @@ nullable, and `SWIMMING_BONUS`, `SPEED_SHARE`, `SINK_FEET_PER_STONE` and
 them — `swimming` is reached only through `acksExtras.formation.swimming`, and
 no template or sheet consumes it — so the change is confined to the API surface
 and to the local rules test, which now registers the figures itself.
+
+## 2026-09-07 — A formation that turns has not gone anywhere
+
+**The symptom.** The party token jumped around as it moved, and the jump grew
+with the party's frontage.
+
+**The cause.** `TokenDocument.MOVEMENT_FIELDS` is
+`["x", "y", "elevation", "width", "height", "depth", "shape", "level"]` — width
+and height are *movement* fields in v13+, so `syncPartyTokenSize`'s
+`update({width, height})` was not a data write at all. Three consequences, each
+enough on its own:
+
+- **The block pivoted about its top-left corner.** A raw size write leaves x
+  and y alone, so a six-abreast column turning from 3.5×1 to 1×3.5 threw its
+  centre a square and a quarter diagonally. The wider the party, the further
+  the throw.
+- **The turn was wall-constrained and measured.** A size update is put through
+  `constrainMovementPath` like a walk, so a footprint that swung into a wall
+  was shoved back out — and `#preUpdateMovement` writes every movement field
+  into the change set, so the shove arrived at `onPartyTokenMoved` as distance
+  the party had walked and at `runTrapCheck` as a step across the room.
+- **The write cancelled the walk it was reacting to.** `animate: false` calls
+  `stopAnimation`, and core auto-rotates a dragged token (`tokenAutoRotate`),
+  so the rotation hook fired mid-drag and teleported the party the rest of the
+  way. That is the "disorienting" half: it happened on *every* move that
+  changed heading, not only on a deliberate turn.
+
+**Ruled:** the resize goes through `TokenDocument#resize`, which exists for
+exactly this and supplies all three answers — it recomputes x/y from the
+token's centre, passes `constrainOptions: {ignoreWalls: true, ignoreCost: true}`,
+and sets `autoRotate: false`. It is issued only after the token's
+`movementAnimationPromise` settles, so the party finishes the step it is taking
+before it is reshaped.
+
+A formation wheeling in place occupies different squares but stands in the same
+spot, and it passes through a wall to do it because the pivot is bookkeeping
+about the block's face, not the block walking.
+
+**Ruled:** the pivot carries `RESIZE_OPTION`, and the movement hook skips it —
+the same shape as the trap halt's `HALT_OPTION`, and for the same reason. But
+holding the centre still *moves* the corner, and the dungeon clock, the trap
+check and the scouts' leash all measure from the corner. So `syncPartyTokenSize`
+re-baselines `clock.lastPosition` itself after a pivot; skipping the hook
+without that would have left the next real step billed for the width of the
+turn.
+
+**Rejected:** tracking the clock from the token's centre instead of its corner.
+It is the better model and would make the re-baseline unnecessary, but the
+corner is the coordinate `runTrapCheck`, `reanchorDetached` and the halt path
+all pass around, and converting them is a change to the trap geometry rather
+than a fix to this bug. Left to ROADMAP.
+
+**Rejected:** locking the party token's rotation to stop the swap happening.
+The heading *is* the rotation (2026-08-15) — the marching order's whole layout
+hangs off it — so freezing it would trade a movement bug for a formation that
+can no longer face anywhere.
+
+**What it cost.** `TokenMock` in `tools/test-formation-flows.mjs` had to grow a
+real centre-preserving `resize` and to forward its update options to the hook;
+it had been dropping both, which is why a mocked suite of ~64 files agreed with
+the bug. The regression is pinned by "turning the party pivots it on the spot
+and costs no movement", which fails on the old write with the centre moving
+(1175, 1050) → (1050, 1175).

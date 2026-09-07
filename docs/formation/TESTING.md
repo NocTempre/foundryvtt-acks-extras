@@ -143,6 +143,26 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    width and height swap. Set frontage 1: the token narrows and deepens to
    3 ranks. On a scene with `grid.distance` 50, the same token floors at
    0.25 squares.
+   **The swap must also be a PIVOT** — width and height are Foundry movement
+   fields, so this is the check that the turn stays put rather than lurching.
+   Use a frontage wide enough that the axes differ visibly (6 gives 3.5 × 1),
+   and compare the token's CENTRE (`x + width * grid.size / 2`, same for y),
+   never its `x`/`y` — the corner is *supposed* to move. Across the rotation:
+   the centre is unchanged (±1px, core rounds), `clock.turnsTotal`,
+   `roundsPartial` and `carryFeet` are all unchanged, and `clock.lastPosition`
+   has re-baselined to the token's new corner. Rotate a block sitting against a
+   wall too: the pivot carries `ignoreWalls`, so a footprint that swings into
+   the wall must still land on the centre rather than being shoved off it.
+   Then walk an ordinary step and confirm the distance billed is the distance
+   walked — a stale baseline shows up here and nowhere else.
+   *Drive note:* the animated half needs a real animated move, not
+   `animate: false`. Issue `token.move({x: <far>})` from a north/south facing so
+   core's `tokenAutoRotate` fires, and sample the RENDERED position
+   (`token.object.position.x`, which tweens) against `token.document.x` (the
+   final value) every ~150ms. Partway through, the rendered position must lie
+   between origin and destination; a resize that cancels the walk shows up as
+   the two being equal almost immediately, and is invisible to any check that
+   only reads the document.
 10. Environment sweep under a burst delete: build a party actor, 3 members and
     a scene carrying `fogOriginal` and `measure` (give a member the Mapper role
     and a lit unshielded torch, then run one sweep so the flags land). Delete

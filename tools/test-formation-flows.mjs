@@ -363,11 +363,30 @@ class TokenMock {
     const { parent, ...rest } = this;
     return foundry.utils.deepClone({ ...rest, _id: this.id });
   }
-  async update(changes) {
+  async update(changes, options = {}) {
     for (const [k, v] of Object.entries(changes)) setProp(this, k, v);
     await sleep();
-    Hooks.call("updateToken", this, changes, {}, "GM1");
+    Hooks.call("updateToken", this, changes, options, "GM1");
     return this;
+  }
+  /**
+   * Core's `TokenDocument#resize`, modelled rather than stubbed: it holds the
+   * token's CENTRE still, so a size change MOVES x and y. A mock that only
+   * wrote width and height would agree with the bug this exists to pin —
+   * an x/y-anchored resize is what made a turning formation lurch sideways —
+   * and would report green while the party jumped at the table.
+   */
+  async resize(dimensions, options = {}) {
+    const g = this.parent?.grid?.size ?? 100;
+    const { width = this.width, height = this.height, ...rest } = dimensions;
+    const changes = {
+      ...rest,
+      width,
+      height,
+      x: Math.round(this.x + ((this.width - width) * g) / 2),
+      y: Math.round(this.y + ((this.height - height) * g) / 2),
+    };
+    return this.update(changes, options);
   }
 }
 
@@ -1580,6 +1599,70 @@ await scenario("moving the party token advances the clock", async () => {
   const worldSeconds = game.time.advanced.reduce((a, b) => a + b, 0);
   console.log(`      [probe] world clock +${worldSeconds}s`);
   assert.equal(worldSeconds, (roundsAfter - roundsBefore) * 60, "world clock moved a minute per round");
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
+await scenario("turning the party pivots it on the spot and costs no movement", async () => {
+  // The reported symptom: the party token jumps around as it moves. Core
+  // auto-rotates a dragged token, the rotation swaps the block's width and
+  // height, and width/height are MOVEMENT fields — so an x/y-anchored size
+  // write pivots the block about its top-left CORNER and reports the lurch as
+  // distance walked. A turn moves the party nowhere and costs it nothing.
+  const walker = await member("Wheeler");
+  await drain();
+  const [wToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Wheeler", actorId: walker.id, x: 1000, y: 1000 },
+  ]);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Wheel Party");
+  formation = await model.addMember(formation, walker, wToken);
+  await drain();
+  const id = onlyFormation().id;
+  const partyToken = scene.tokens.get(onlyFormation().tokenId);
+  assert.ok(partyToken, "party token placed");
+
+  // Six abreast: wide across the line of march and one rank deep, so the two
+  // axes differ and a swap is visible. A square block would hide the bug.
+  await model.updateFormation({ ...model.getFormation(id), frontage: 6 });
+  await partyToken.update({ rotation: 0 }); // south: the default facing
+  await drain();
+
+  const centre = (t) => ({ x: t.x + (t.width * scene.grid.size) / 2, y: t.y + (t.height * scene.grid.size) / 2 });
+  const wide = { width: partyToken.width, height: partyToken.height };
+  const before = centre(partyToken);
+  console.log(`      [probe] facing south: ${wide.width}x${wide.height} at centre (${before.x}, ${before.y})`);
+  assert.ok(wide.width > wide.height, "a six-wide block is wider than it is deep");
+
+  const clockBefore = onlyFormation().clock;
+  const roundsBefore = (clockBefore.turnsTotal * 10) + (clockBefore.roundsPartial ?? 0);
+
+  // Quarter turn to the west. Nothing but rotation is written: the resize is
+  // the module's own answer to it.
+  await partyToken.update({ rotation: 90 });
+  await drain();
+
+  const after = centre(partyToken);
+  console.log(`      [probe] facing west:  ${partyToken.width}x${partyToken.height} at centre (${after.x}, ${after.y})`);
+  assert.equal(partyToken.width, wide.height, "the turn swapped width for depth");
+  assert.equal(partyToken.height, wide.width, "the turn swapped depth for width");
+  assert.deepEqual(after, before, "the block pivoted about its own centre");
+  assert.ok(partyToken.x !== 1000 || partyToken.y !== 1000, "which means the corner did move");
+
+  const clockAfter = onlyFormation().clock;
+  const roundsAfter = (clockAfter.turnsTotal * 10) + (clockAfter.roundsPartial ?? 0);
+  console.log(`      [probe] rounds ${roundsBefore} -> ${roundsAfter}`);
+  assert.equal(roundsAfter, roundsBefore, "turning in place spent no time");
+  assert.equal(clockAfter.carryFeet ?? 0, clockBefore.carryFeet ?? 0, "and banked no distance toward the next round");
+
+  // The clock's baseline is the corner, which the pivot moved. Left stale, the
+  // party's next step would be billed for the width of the turn as well.
+  assert.deepEqual(
+    clockAfter.lastPosition,
+    { x: partyToken.x, y: partyToken.y },
+    "the clock re-baselined to where the corner now is",
+  );
 
   await model.disband(model.getFormation(id));
   await drain();

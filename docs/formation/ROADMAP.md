@@ -395,3 +395,11 @@ legitimately sit.
   explicitly**, stated in the helper's own docstring: a trap crossing has no
   declaration, and announcing that the party checked is the leak the 2026-08-18
   secrecy ruling exists to prevent.
+- **The party's position is its centre, not its corner.** `clock.lastPosition`,
+  the trap check's `from`/`to`, the halt's back-out and the scouts' leash all
+  pass the party token's top-left corner around, so any change to the token's
+  face moves the coordinate everything measures from. Today `syncPartyTokenSize`
+  re-baselines the clock after a pivot (2026-09-07); a centre-based position
+  would make that unnecessary and would stop a frontage edit from reading as a
+  step. It is a change to the trap geometry, not to the clock — `trap-zone.mjs`
+  converts corner to centre and back at three seams that would collapse.

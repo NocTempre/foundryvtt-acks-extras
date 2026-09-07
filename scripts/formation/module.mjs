@@ -100,7 +100,7 @@ import * as jumping from "./jumping.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
-import { syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
+import { RESIZE_OPTION, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { addLight, advanceRounds, advanceTurns, onPartyTokenMoved, removeLight, toggleLight, toggleShield } from "./turn-engine.mjs";
 import * as travel from "./travel.mjs";
 import * as weather from "./weather.mjs";
@@ -704,6 +704,11 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   // it costs no turns, and re-entering the trap check here would resolve the
   // same trap a second time before the first pass has spent it.
   if (options?.[HALT_OPTION]) return;
+  // Nor is a turn. Resizing the party token to its new face holds the token's
+  // centre still, which moves the top-left corner every consumer below reads —
+  // a block that pivots 6×2 to 2×6 reports two squares of travel it did not
+  // walk. `syncPartyTokenSize` re-baselines the clock itself.
+  if (options?.[RESIZE_OPTION]) return;
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId) return;
   // Only the active GM client runs the automation, regardless of who moved the token.
