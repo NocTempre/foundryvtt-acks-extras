@@ -33,6 +33,7 @@ import { buildNotesTab } from "./tabs/notes.mjs";
 import { buildEffectsTab } from "./tabs/effects.mjs";
 import { openCoreWindow } from "./core-bridge.mjs";
 import { drawItem, sheatheItem, wearItem, removeItem, prepareTorch } from "../equipment/actions.mjs";
+import { wearLabel } from "../equipment/wear.mjs";
 import { cycleGrip } from "../equipment/loadout.mjs";
 import { cycleStrap } from "../equipment/overlays/shield-variants.mjs";
 import { declareLightAction, lightTypeOf } from "../equipment/sheet.mjs";
@@ -606,7 +607,10 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
           if (containedIn(own)) await takeOut(own);
           if (own.type === ITEM_TYPE.weapon) await drawItem(own);
           else if (isEquippable(own)) await own.update({ "system.equipped": true });
-          else await wearItem(own, key);
+          // A refused wear says so: the model declines gear that declares no
+          // place, or not this one, and a drop that bounces in silence reads as
+          // a sheet that ignored it.
+          else if (!(await wearItem(own, key))) ui.notifications.warn(loc("equipment.notWearable", { name: own.name, slot: wearLabel(key) }));
         } else if (kind === "loose") {
           if (containedIn(own)) await takeOut(own);
           else if (own.type === ITEM_TYPE.weapon && own.system?.equipped) await sheatheItem(own);

@@ -97,10 +97,6 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - **`rollSave` opens the system's roll dialog** unless the skip key is held;
   dispatch a `MouseEvent` carrying `game.settings.get("acks", "skip-dialog-key")`
   to roll straight to chat, or the script waits on a dialog forever.
-- **The RAW torch stack "Torches (6)" is not recognised by
-  `equipmentClass`**, so the Ready control (the sheet's and the system
-  sheet's alike) does nothing for it; a stack named "Torch" readies. An
-  equipment-feature matching gap, not the sheet's.
 
 ## Steps
 
@@ -138,7 +134,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    or by itself with the two-handed style trained) lists as **one row
    spanning Main hand · Off hand** (`.is-span`, both labels behind one
    bracket), and the two hand slots return, separate, when it is sheathed or
-   the shield is drawn beside it. Wear the harness (created from the system's
+   the shield is drawn beside it. A bow drawn lists as the same spanning row
+   with no grip control, so no empty off hand is offered beside it; drop the
+   readied torch on the row and the hand overflow names both while the torch
+   comes back off. Drop the torch STACK (the `item`) on a hand place:
+   *Observable:* a notice says it declares no such place, and nothing
+   moves. Wear the harness (created from the system's
    compendium and annotated, so its Construction tab shows the figure under
    **Secures**) with three small items loose: the Load bar shows a **dashed
    phantom** (`<s>`) running on from the fill, the header reads the carried

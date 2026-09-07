@@ -7,6 +7,7 @@
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { setWorn } from "../lib/item-model.mjs";
+import { LIGHT_SOURCES } from "../lib/light.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
 import { equipmentClass, classifyWeapon } from "./profiles.mjs";
@@ -35,10 +36,20 @@ function notify(key, data) {
  * @returns {object|null} null when `item` is not a preparable light-weapon.
  */
 export function readiedWeaponData(item) {
-  const klass = equipmentClass(item?.name ?? "");
+  const name = item?.name ?? "";
+  const own = equipmentClass(name);
+  // Core's own compendium calls the stack "Torches (6)", which the strict
+  // classifier passes over by design — it is the importer's, and a loose
+  // match there reclassifies ordinary gear. The light model's torch pattern
+  // is what every torch control keys on, so what it names readies as the
+  // table's torch, under the torch's own name so the readied weapon
+  // classifies as one.
+  const stackIsTorch = !own && LIGHT_SOURCES.torch.consumes.test(name);
+  const klass = own ?? (stackIsTorch ? equipmentClass("torch") : null);
   if (klass?.prepareAs !== "weapon") return null;
+  const torchLabel = LIGHT_SOURCES.torch.label;
   return {
-    name: item.name,
+    name: stackIsTorch ? (game.i18n?.has?.(torchLabel) ? game.i18n.localize(torchLabel) : "Torch") : item.name,
     type: "weapon",
     img: item.img,
     system: {
@@ -61,12 +72,15 @@ export function readiedWeaponData(item) {
  * Ready one torch from a carried stack: create the wieldable weapon-torch and
  * decrement the bundle (deleting the stack when the last one is drawn). No-op
  * with a warning when the stack is empty or the item is not a preparable light
- * source.
+ * source — a control that answers nothing reads as a hung sheet.
  * @returns {Promise<Item|null>} the created weapon, or null.
  */
 export async function prepareTorch(actor, item) {
   const data = readiedWeaponData(item);
-  if (!data) return null;
+  if (!data) {
+    notify("notReadiable", { item: item?.name ?? "" });
+    return null;
+  }
   if (roundsOf(item) < 1) {
     notify("noStock", { item: item.name });
     return null;

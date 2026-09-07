@@ -27,6 +27,7 @@ import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { isSnapStub, NO_BROWSER } from "./browsers.mjs";
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -167,6 +168,20 @@ function killByProfile(browser, profile, proc) {
   }
 }
 
+/** How much of the browser's stderr is kept for the error that quotes it. */
+const STDERR_KEEP = 1500;
+
+/**
+ * The sentence for a browser that never answered on its DevTools port: which
+ * binary, whether it died first and how, and what it said — so a journal
+ * names the cause instead of the symptom.
+ */
+export function browserFailure({ browser, exited = null, said = "" }) {
+  const last = said.trim().split("\n").slice(-6).join("\n").trim();
+  const fate = exited === null ? "is still running but never opened its devtools port" : `exited with ${exited} before its devtools port opened`;
+  return `browser: ${browser} ${fate}${last ? `; it said:\n${last}` : ""}\n${NO_BROWSER}`;
+}
+
 /** Backoff between lives: 5s, 10s, 20s, 40s, then a minute. */
 export const reconnectDelay = (attempt) => Math.min(60000, 5000 * 2 ** Math.min(Math.max(0, attempt), 4));
 
@@ -281,17 +296,26 @@ export class Seat extends EventEmitter {
     const { browser, origin, user, password = "", port, width = 1600, height = 1000, readySeconds = 120, bindingName, browserArgs: extra = [] } = this.#config;
     this.#teardown();
     this.#profile = fs.mkdtempSync(path.join(os.tmpdir(), "acks-extras-discord-seat-"));
+    if (isSnapStub(browser)) throw new Error(`browser: ${browser} is the Chromium snap's stub, which cannot run as a service — ${NO_BROWSER}`);
     this.#proc = spawn(browser, browserArgs({ port, profile: this.#profile, width, height, extra }), {
       stdio: ["ignore", "ignore", "pipe"],
       detached: process.platform !== "win32",
     });
-    this.#proc.stderr.on("data", () => {});
+    // The browser's last words, for the error when it never answers: a
+    // missing shared library or a sandbox refusal says so on stderr and
+    // nowhere else.
+    let said = "";
+    let exited = null;
+    this.#proc.stderr.on("data", (chunk) => {
+      said = (said + String(chunk)).slice(-STDERR_KEEP);
+    });
     this.#proc.on("exit", (code) => {
+      exited = code;
       if (this.#ready) this.#down(`browser exited (${code})`);
     });
 
     let wsUrl = null;
-    for (let i = 0; i < 60 && !wsUrl; i++) {
+    for (let i = 0; i < 60 && !wsUrl && exited === null; i++) {
       try {
         const r = await fetch(`http://127.0.0.1:${port}/json/version`);
         if (r.ok) wsUrl = (await r.json()).webSocketDebuggerUrl;
@@ -300,7 +324,7 @@ export class Seat extends EventEmitter {
       }
       if (!wsUrl) await sleep(250);
     }
-    if (!wsUrl) throw new Error("devtools endpoint never came up");
+    if (!wsUrl) throw new Error(browserFailure({ browser, exited, said }));
 
     const cdp = new Cdp(await openWs(wsUrl));
     this.#cdp = cdp;

@@ -13,7 +13,7 @@
  * the process.
  */
 import fs from "node:fs";
-import { findBrowser } from "./browsers.mjs";
+import { findBrowser, NO_BROWSER } from "./browsers.mjs";
 
 /** The global the bridge installs its event push through — must match the module's constant. */
 export const EMIT_BINDING = "acksExtrasBridgeEmit";
@@ -44,7 +44,7 @@ const int = (env, key, fallback) => {
  */
 export function fromEnv(env, { discord = false, browser = true, browserAt = findBrowser } = {}) {
   const foundBrowser = opt(env, "BROWSER") || browserAt();
-  if (browser && !foundBrowser) throw new Error(`config: BROWSER is required — no Chromium-family browser was found in the usual places`);
+  if (browser && !foundBrowser) throw new Error(`config: no Chromium-family browser was found in the usual places — ${NO_BROWSER}`);
   const judgeIds = new Set(
     opt(env, "DISCORD_JUDGE_IDS")
       .split(",")

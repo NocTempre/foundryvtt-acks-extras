@@ -1,5 +1,22 @@
 # Changelog
 
+## 7.1.3
+
+**The seat will not be handed a browser it cannot run.**
+
+### Fixed
+- **On Ubuntu the bot died at every start with `devtools endpoint never
+  came up`.** `/usr/bin/chromium-browser` there is a shell stub for the
+  Chromium snap, and a snap will not start under a system service. The
+  browser search now passes the stub (and the `/snap/bin` symlink) over,
+  the installer neither offers it nor accepts it, and the seat refuses it
+  by name. The guide's host section says what to install instead — Google
+  Chrome's package on Ubuntu, `chromium` on Debian.
+- **A browser that fails to start is named, with its last words.** The seat
+  stops waiting the moment the browser exits, and the journal quotes its
+  stderr — a missing shared library, a sandbox refusal — in place of the
+  bare timeout.
+
 ## 7.1.2
 
 **The installer's questions are on the screen.**

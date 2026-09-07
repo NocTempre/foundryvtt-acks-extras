@@ -35,7 +35,7 @@ import readline from "node:readline/promises";
 import { Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { isMain } from "./entry.mjs";
-import { findBrowser } from "./browsers.mjs";
+import { findBrowser, isSnapStub, NO_BROWSER } from "./browsers.mjs";
 
 export const ENV_FILE = "/etc/acks-extras-discord.env";
 export const UNIT_NAME = "acks-extras-discord";
@@ -170,14 +170,16 @@ async function main() {
   values.FOUNDRY_ORIGIN = await asker.ask("FOUNDRY_ORIGIN", "Foundry address as this machine sees it", had.FOUNDRY_ORIGIN ?? "http://localhost:30000");
   values.FOUNDRY_USER = await asker.ask("FOUNDRY_USER", "The bot's Foundry user (Assistant Gamemaster)", had.FOUNDRY_USER ?? "Discord");
   values.FOUNDRY_PASSWORD = await asker.ask("FOUNDRY_PASSWORD", "That user's password (blank: none)", had.FOUNDRY_PASSWORD ?? "", { secret: true });
-  values.BROWSER = await asker.ask("BROWSER", "Chromium-family browser", had.BROWSER || findBrowser());
+  // An earlier answer that is the snap stub is not offered again: it was the
+  // reason the earlier install did not work.
+  values.BROWSER = await asker.ask("BROWSER", "Chromium-family browser", (had.BROWSER && !isSnapStub(had.BROWSER) ? had.BROWSER : "") || findBrowser());
   values.SEAT_PORT = await asker.ask("SEAT_PORT", "Local DevTools port for the seat", had.SEAT_PORT ?? "9334");
   const sudoUser = process.env.SUDO_USER && process.env.SUDO_USER !== "root" ? process.env.SUDO_USER : null;
   const user = await asker.ask("SERVICE_USER", "Run the service as", sudoUser ?? ownerOf(ROOT) ?? "foundry");
   asker.close();
 
-  if (!values.BROWSER) {
-    console.error("install-service: BROWSER is required — install a Chromium-family browser (apt install chromium) or give its path");
+  if (!values.BROWSER || isSnapStub(values.BROWSER)) {
+    console.error(`install-service: ${values.BROWSER ? `${values.BROWSER} is the Chromium snap's stub, which cannot run as a service` : "BROWSER is required"} — ${NO_BROWSER}`);
     process.exit(2);
   }
   const unit = renderUnit(fs.readFileSync(TEMPLATE, "utf8"), { node: process.execPath, workDir: ROOT, user });

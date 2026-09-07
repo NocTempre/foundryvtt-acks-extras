@@ -33,6 +33,7 @@ import { canBeSilvered, isSilvered, setSilvered } from "./silver.mjs";
 import { classifyWeapon, isHelmet, inferGear } from "./profiles.mjs";
 import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf, reliefOf } from "../lib/item-model.mjs";
 import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { LIGHT_SOURCES } from "../lib/light.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
 import { cycleStrap, strapOf, variantOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
 import { overlayEnabled as scavengedOverlayEnabled, tableFor } from "./overlays/scavenged.mjs";
@@ -167,12 +168,16 @@ function buildWornSection(actor, tab, loadout) {
 
 /** A light source's formation light type from its name, or null. A torch is a
  * WEAPON (RR: 1d4), lanterns/candles are items — so match by name, not type.
- * Exported for the character sheet, which offers the same controls. */
+ * The name test is the light model's own — the device's pattern where the
+ * source has one (a lantern is named for the lamp, not the oil it burns), the
+ * fuel's otherwise — so the controls this gates and the ready step they lead
+ * to recognise the same items. Exported for the character sheet, which offers
+ * the same controls. */
 export function lightTypeOf(item) {
-  const n = String(item?.name ?? "").toLowerCase();
-  if (/lantern/.test(n)) return "lantern";
-  if (/torch/.test(n)) return "torch";
-  if (/candle/.test(n)) return "candle";
+  const n = String(item?.name ?? "");
+  for (const [type, cfg] of Object.entries(LIGHT_SOURCES)) {
+    if ((cfg.holder ?? cfg.consumes).test(n)) return type;
+  }
   return null;
 }
 

@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import { installReason, npmCommand, installArgs } from "../src/prestart.mjs";
 import { PassThrough, Writable } from "node:stream";
 import { renderUnit, parseEnv, renderEnv, discordHalf, makeAsker } from "../src/install-service.mjs";
-import { findBrowser, BROWSERS } from "../src/browsers.mjs";
+import { findBrowser, BROWSERS, isSnapStub } from "../src/browsers.mjs";
+import { browserFailure } from "../src/seat.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -46,10 +47,28 @@ test("the environment file round-trips through parse and render", () => {
   assert.ok(text.endsWith("\n"));
 });
 
-test("the browser search takes the first present candidate and answers blank for none", () => {
-  const second = BROWSERS[1];
-  assert.equal(findBrowser((p) => p === second), second, "the first present candidate wins even when an earlier one is absent");
+test("the browser search takes the first present candidate that is a browser, and answers blank for none", () => {
+  const [first, second, third] = BROWSERS;
+  assert.equal(findBrowser((p) => p === second, () => false), second, "the first present candidate wins even when an earlier one is absent");
   assert.equal(findBrowser(() => false), "");
+  assert.equal(findBrowser((p) => p === first || p === second || p === third, (p) => p === second), first === second ? third : first, "a snap stub is passed over");
+});
+
+test("Ubuntu's chromium-browser stub and the /snap/bin symlink are told from a browser", () => {
+  const stub = Buffer.from('#!/bin/sh\nif ! [ -x /snap/bin/chromium ]; then\n  echo "requires the chromium snap" >&2\n  exit 1\nfi\n');
+  const elf = Buffer.concat([Buffer.from([0x7f, 0x45, 0x4c, 0x46]), Buffer.alloc(600)]);
+  const noLink = () => { throw new Error("EINVAL"); };
+  assert.equal(isSnapStub("/usr/bin/chromium-browser", { read: () => stub, link: noLink }), true);
+  assert.equal(isSnapStub("/usr/bin/chromium", { read: () => elf, link: noLink }), false);
+  assert.equal(isSnapStub("/snap/bin/chromium", { read: () => elf, link: () => "/usr/bin/snap" }), true);
+  assert.equal(isSnapStub("/nowhere", { read: () => { throw new Error("ENOENT"); }, link: noLink }), false);
+});
+
+test("a browser that never answers is named with its fate and its last words", () => {
+  const dead = browserFailure({ browser: "/usr/bin/x", exited: 127, said: "one\nlibnss3.so: cannot open shared object file\n" });
+  assert.match(dead, /\/usr\/bin\/x exited with 127 before its devtools port opened; it said:\none\nlibnss3\.so/);
+  assert.match(dead, /Google Chrome/);
+  assert.match(browserFailure({ browser: "/usr/bin/x" }), /still running but never opened its devtools port/);
 });
 
 test("dependencies install against the shipped lock, and without one npm install stands in for ci", () => {

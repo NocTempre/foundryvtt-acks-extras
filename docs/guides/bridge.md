@@ -29,9 +29,18 @@ machine needs:
   or container is fine.
 - **Node 22 or newer.** `node -v` says which you have; Foundry itself runs
   on Node, so it is usually there already.
-- **A Chromium-family browser** for the seat: `sudo apt install chromium`.
-  Nothing shows on a screen; the bot drives it headless, and finds the
-  browser by itself.
+- **A Chromium-family browser the service can run.** Nothing shows on a
+  screen; the bot drives it headless, and finds the browser by itself. On
+  Debian, `sudo apt install chromium`. On **Ubuntu** the `chromium-browser`
+  package is a stub for the Chromium snap, and a snap will not start under a
+  system service — install Google Chrome's package instead:
+
+  ```bash
+  wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo apt install -y /tmp/chrome.deb
+  ```
+
+  (an ARM host has no Chrome build; use Debian's `chromium` or a Chromium
+  from a non-snap PPA). The installer skips the stub and names what it found.
 - **The Extras module installed** in Foundry, 7.1.0 or later. The bot's code
   is inside it: `discord/` under the module's directory in your Foundry data
   path, `Data/modules/acks-extras/discord`.
@@ -284,6 +293,12 @@ not shown twice.
   locked field means the service is not running, or its seat cannot reach
   the world: `systemctl status acks-extras-discord` and the journal. Press
   **Refresh** in the window once it is up.
+- **The journal says `browser: … is the Chromium snap's stub`, or `exited
+  with 1 before its devtools port opened`.** The seat has no browser it can
+  run. Install one as in [The host](#1-the-host), then run the installer
+  again — it offers the browser it found, and accepts a path you type. The
+  lines the browser said, quoted in the journal, name a missing library when
+  that is the cause (`apt install` what it names).
 - **The seat never becomes ready.** The journal names the step: the browser
   path, a world that is not running at the address you gave, or a Foundry
   user that does not exist with that password. Those four are the host's

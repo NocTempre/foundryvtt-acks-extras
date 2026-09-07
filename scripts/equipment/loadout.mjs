@@ -7,7 +7,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS, ACTOR_FLAGS, SETTINGS } from "./constants.mjs";
 import { STYLE } from "./config.mjs";
-import { classifyWeapon, handCost, inferStyle, canOneHand, isTwoHandedOnly, isHelmet, isShield } from "./profiles.mjs";
+import { classifyWeapon, handCost, inferStyle, isHelmet, isShield } from "./profiles.mjs";
 import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, lightInit, enforcementActive } from "./proficiency.mjs";
@@ -196,9 +196,10 @@ export function getLoadout(actor, opts = {}) {
       wornHand,
       handsMin: handCost(profile, { twoHanded: false }),
       wieldTwoHanded: false,
-      // Versatile: usable one-handed AND costing two hands in a two-handed grip
-      // (a medium melee weapon). Only these offer a grip CHOICE.
-      canTwoHand: profile.melee && canOneHand(profile) && handCost(profile, { twoHanded: true }) === 2,
+      // Versatile: the GRIP changes the cost — one hand held, two in a two-
+      // handed grip (a medium melee weapon). Only these offer a grip CHOICE; a
+      // weapon that costs two hands however it is held has none.
+      canTwoHand: profile.melee && handCost(profile, { twoHanded: false }) === 1 && handCost(profile, { twoHanded: true }) === 2,
       grip: weaponGrip(item), // "auto" | "1h" | "2h"
       gripBlocked: false, // wants 2H but the hands are not free
       thrownAway: !!item.getFlag?.(MODULE_ID, ITEM_FLAGS.THROWN_STATE),
@@ -234,6 +235,15 @@ export function getLoadout(actor, opts = {}) {
   // single sword. An explicit "2h" is the player's call and is honoured.
   const autoTwoHands = !enforcementActive() || trained.has(styleKey(STYLE.TWO_HANDED));
 
+  // HELD IN BOTH HANDS is a fact of the weapon before it is a choice of grip.
+  // A bow, a crossbow, a great sword, a staff-sling: the minimum cost is two,
+  // so both hands are on it whatever else is carried — a shield, a second
+  // weapon or a torch beside it surfaces as a hand overflow below, never as a
+  // one-handed bow. Marked for every such weapon, not only a lone melee one:
+  // a drawn bow left in the main hand shows an empty off hand, an invitation
+  // the hand count then refuses.
+  for (const w of weapons) if (w.handsMin >= 2) w.wieldTwoHanded = true;
+
   // GRIP resolution. A two-handed grip needs BOTH hands, so only a lone melee
   // weapon with no in-hand shield can take it (RAW 1d8/1d10). The player's grip
   // choice governs: "1h" forces one hand; "2h" is honoured only when the hands
@@ -243,12 +253,7 @@ export function getLoadout(actor, opts = {}) {
   const loneMelee = weapons.length === 1 && !handShields.length && weapons[0].melee;
   if (loneMelee) {
     const w = weapons[0];
-    if (isTwoHandedOnly(w.profile)) {
-      // No grip CHOICE — a great sword / staff-sling is inherently two-handed;
-      // its handsMin is already 2. Any hand overflow (e.g. also holding a torch)
-      // surfaces as a violation below, but the grip itself is fixed.
-      w.wieldTwoHanded = true;
-    } else if (w.canTwoHand) {
+    if (w.canTwoHand) {
       // Versatile: the two-handed grip costs ONE hand beyond the one-handed
       // hold, so it needs a spare hand NOW — after weapons, shields, AND any
       // held light are counted. This is what makes a held torch block 2H.

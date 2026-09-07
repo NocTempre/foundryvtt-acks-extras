@@ -327,6 +327,19 @@ non-tty branch was the one every script exercised. Ruled: the question goes
 through readline, the asker takes its streams so a test can be a terminal,
 and the test that would have caught 7.1.0 now exists.
 
+**The third cause, same host, 7.1.2 (2026-09-07):** with the questions
+visible and answered, the unit restarted twenty-two times on `devtools
+endpoint never came up`. The browser the installer had offered,
+`/usr/bin/chromium-browser`, is on Ubuntu a shell stub for the Chromium snap,
+and a snap does not start under a system service. The guide had said `apt
+install chromium`, which on Ubuntu installs that stub. Ruled: a snap stub is
+not a browser anywhere the bot looks — the search skips it, the installer
+refuses it, the seat names it — and a browser that never answers is reported
+with its exit code and its stderr, because the seat had been discarding both
+and reporting only the timeout. Not ruled: bundling a browser (Playwright's
+Chromium) — a hundred-megabyte download inside a Foundry module for a host
+that has `apt`.
+
 **A re-install overwrites a failed one.** Owner direction. The unit is
 stopped and `reset-failed` before the files are rewritten (a unit that
 tripped its start limit refuses `start` otherwise), a `node_modules` another
