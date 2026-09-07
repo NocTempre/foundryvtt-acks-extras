@@ -92,7 +92,8 @@ export async function openLevelUp(actor) {
       hpRoll ? ` <span class="acks-extras-classes-refname">(${hpRoll.formula}: ${hpRoll.total}${conMod ? `, CON ${conMod > 0 ? "+" : ""}${conMod}/die` : ""})</span>` : ""
     }</p>
     ${fixedList ? `<p><strong>${game.i18n.localize(`${LANG_PREFIX}.levelup.granted`)}:</strong></p><ul>${fixedList}</ul>` : ""}
-    ${choiceBlocks}`;
+    ${choiceBlocks}
+    ${choiceBlocks ? `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.levelup.openHint`)}</p>` : ""}`;
 
   // The wizard's body is a list — one line per fixed award, one picker per
   // choice — so it grows with the class it is climbing. `acks-extras-scroll`

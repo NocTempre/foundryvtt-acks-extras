@@ -62,7 +62,9 @@ own decision, and not as a side effect of whatever comes next.
   cannot verify ([DECISIONS.md](DECISIONS.md), 2026-08-15). A Judge who wants
   the question asked again has to clear `flags["acks-extras"].classes
   .awardsTaken` by hand; nothing in the UI lists the rungs a character has
-  closed or takes one back.
+  closed or takes one back. Nor does anything list the ones left OPEN: a
+  character with picks waiting reads exactly like one with none until the
+  picker is opened on them.
 - **A package that knows what the character already carries** — the picker
   offers a starting template and merges it, but `applyTemplate` grants a
   printed rank as N copies by design, so adding one to a character who already

@@ -1264,3 +1264,30 @@ sheet's grid. Ruled: `weaponTokenClasses` reads a size clause off equipment's
 weapon table when it is live and lights only the classes holding a melee
 weapon of that size; with no table it falls back to every melee class, as
 before. `lib/proficiency-strip.mjs`.
+
+## 2026-09-07 — "ask again next time" pointed at the one surface that never asks
+
+Reported from the field: a Judge building high-level PCs left every proficiency
+choice open so their players could make it, and it never came back. The
+behaviour was right and the label was wrong. `closesRung("")` is false, so an
+open rung enters `awardsTaken` nowhere and the choice genuinely stays free —
+but the level-up wizard asks `awardsAt(next)`, the rungs at exactly the level
+being gained, so a rung left open at 5th is not a rung 6th will ever offer. The
+surface that re-asks is the picker, `awardsThrough`: the whole ladder at or
+below the level, minus what is taken.
+
+**Ruled:** the answer states only that the choice waits (`pick.rung.later` —
+"leave open, choose later"), and the level-up wizard carries a hint naming the
+picker as the place to make it. The pointer cannot live on the answer itself:
+`picks.mjs` renders the same control in the picker, where naming the picker
+sends a player to the window they are standing in. It belongs to the surface
+that needs it.
+
+**Rejected:** having level-up re-ask every rung left open below the new level.
+That turns *leave open* into *ask me every level*, which is the nag the answer
+exists to avoid, and makes the wizard's list depend on the character's history
+rather than on the rung being climbed.
+
+**Cost:** discoverability now rests on one sentence in one dialog. Nothing on
+the sheet says a character has picks waiting, which is [ROADMAP.md](ROADMAP.md)'s
+already, beside taking back a rung closed by a claim.

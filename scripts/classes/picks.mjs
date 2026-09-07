@@ -16,6 +16,9 @@
  * them is a plain "already on the sheet" answer for the proficiency that came
  * from somewhere this rung never listed, and a "leave open" answer, so a rung
  * can always be told the truth without inventing a pick to delete afterwards.
+ * An open rung is recorded nowhere, so it returns wherever the WHOLE ladder is
+ * asked — the picker — and not at the next level-up, which asks only the rung
+ * it is climbing.
  */
 import { LANG_PREFIX } from "./constants.mjs";
 import { optionsForChoice, ownsRef } from "./grants.mjs";
@@ -129,6 +132,10 @@ export function rungSelectHtml({
   const body = held.length
     ? `${group("pick.rung.heldGroup", held)}${group("pick.rung.openGroup", open)}`
     : open.map((o) => option(o.ref, o.name)).join("");
+  // The "leave open" answer cannot name WHERE the choice waits: this control
+  // serves the picker too, and the picker is where it waits — it would be
+  // sending a player to the window they are standing in. The surface that
+  // needs the pointer carries it (levelup.mjs).
   const answers = offerAnswered
     ? `${option(ANSWERED, loc("pick.rung.answered"))}${option("", loc("pick.rung.later"))}`
     : "";

@@ -491,3 +491,31 @@ control in the form at all (`acks-judge` does not appear in the markup), which i
 why a player who hits this can only escalate.
 
 **Teardown.** Delete the class Item and the actor by the uuids the run recorded.
+
+## A choice left open, answered later
+
+**Fixtures.** A class document carrying a choice award above 1st level (an
+imported class with a proficiency choice at 4th does), and a disposable
+`character` actor owned by the provisioned player seat.
+
+**Steps.**
+1. Bind the character to the class through the picker at the level below that
+   rung, answering the opening rungs.
+2. Push XP past the threshold and press the level-up arrow. In the wizard, set
+   every choice to *leave open*, then apply.
+3. Read `flags["acks-extras"].classes.awardsTaken` off the actor.
+4. Level up once more.
+5. Open the picker on the same character (the graduation-cap button beside the
+   class name) without changing class or level, and answer the open rung.
+6. Join as the player who owns the character and repeat step 5 from that seat.
+
+**Observable.** The wizard's picks carry a hint naming the picker, and the
+*leave open* answer promises no schedule. After step 2 `awardsTaken` holds the
+keys of the rungs that were closed and nothing for the open one. Step 4's wizard
+offers only the new level's rung — the open one is **not** re-asked, which is the
+behaviour the label used to contradict. Step 5's picker lists the open rung with
+its level beside the label; answering it grants the ability and records the key,
+so re-opening the picker no longer asks. Step 6 reaches the same control from
+the player's own seat: the button injects on ownership, not on GM.
+
+**Teardown.** `api.sweepTracked()` — the actor is the run's own.

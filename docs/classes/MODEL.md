@@ -331,6 +331,11 @@ nothing, because `grantAbility` declines to double what `ownsRef` recognises.
 Beside the options sit two answers no ref can express: *already covered*
 (`ANSWERED` — the rung is satisfied by something it never listed, so stop
 asking) and *leave open* (the empty answer, the only one that closes nothing).
+An open rung enters `awardsTaken` nowhere, so it comes back wherever the whole
+ladder is asked — the picker, `awardsThrough` — and **not** at the next
+level-up, which asks `awardsAt`, the rung of the level being climbed. The
+wizard says so beside its picks, because the shared control cannot: the picker
+renders the same one and would be naming itself.
 `grantsFrom` and `closesRung` are the two halves that used to be conflated:
 what a rung grants and what closes it are different questions.
 

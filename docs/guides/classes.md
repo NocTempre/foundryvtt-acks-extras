@@ -97,10 +97,20 @@ opposite act to generating them.*
 character already holds first, and picking it closes the choice and grants
 nothing — you no longer have to take something unwanted and delete it
 afterwards. Beside the options sit *already covered*, for the proficiency the
-choice never listed, and *leave open*, the one answer that closes nothing and
-asks again next time. A choice answered anywhere — here, at level-up, or during
-character generation — is remembered, so re-applying a class does not walk a
-5th-level character through every decision they have ever made.
+choice never listed, and *leave open*, the one answer that closes nothing. A
+choice answered anywhere — here, at level-up, or during character generation —
+is remembered, so re-applying a class does not walk a 5th-level character
+through every decision they have ever made.
+
+**A choice left open waits in the picker, not at the next level-up.** Level-up
+asks for the level being gained and nothing else, so a proficiency left open at
+5th is not a question 6th will ask. It waits here instead — the picker offers
+every unanswered choice up to the character's level, however long ago it was
+earned. That is how to build a high-level character and leave the proficiencies
+to the player: level them up leaving each choice open, then let them open the
+picker on their own sheet — the button is theirs whenever they own the
+character — and answer their own. Re-applying rewrites the injected **Class
+modifiers** effects, so hand-edits to that block do not survive it.
 
 Casters get a per-tradition slot strip under the class field — click a pip to
 spend, click a spent pip to refund, the bed icon to rest. The Nobiran's
