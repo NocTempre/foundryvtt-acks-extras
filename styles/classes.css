@@ -308,7 +308,8 @@
 .acks-ui .acks-extras-classes-tplbox .hint,
 .acks-ui .acks-extras-classes-picks .hint,
 .acks-ui .acks-extras-classes-rules .hint,
-.acks-ui .acks-extras-classes-col .hint {
+.acks-ui .acks-extras-classes-col .hint,
+.acks-ui .acks-extras-classes-levelup-body .hint {
   color: var(--acks-ink-soft);
   font-size: var(--acks-fs-body);
   line-height: var(--acks-lh-snug);

@@ -494,28 +494,53 @@ why a player who hits this can only escalate.
 
 ## A choice left open, answered later
 
-**Fixtures.** A class document carrying a choice award above 1st level (an
-imported class with a proficiency choice at 4th does), and a disposable
-`character` actor owned by the provisioned player seat.
+**Fixtures.** A disposable `acks-extras.class` Item built by hand with a choice
+award at 1st level and another above it (3rd), each `choice.from:
+"generalList"` — the one option source that needs no imported book content, and
+the reason this fixture is BUILT rather than found: the shipped packs hold no
+class with a choice award, because classes arrive by import. Plus a disposable
+`character` actor, owned by both the GM and the provisioned player seat.
+
+**Drive mechanics.** Rungs are addressed by the `<select>` names the two
+surfaces mint: `choice-<index>` in the level-up wizard, `rung-<index>:<atLevel>`
+in the picker. `awardKey` is that same positional `<index>:<atLevel>`, which is
+what `awardsTaken` records — so the flag can be read against the ladder without
+guessing.
 
 **Steps.**
-1. Bind the character to the class through the picker at the level below that
-   rung, answering the opening rungs.
-2. Push XP past the threshold and press the level-up arrow. In the wizard, set
-   every choice to *leave open*, then apply.
+1. Bind the character to the class through the picker at 2nd, answering the
+   opening rung.
+2. Push XP past the threshold and press the level-up arrow. Set every choice to
+   *leave open*, then apply.
 3. Read `flags["acks-extras"].classes.awardsTaken` off the actor.
-4. Level up once more.
-5. Open the picker on the same character (the graduation-cap button beside the
-   class name) without changing class or level, and answer the open rung.
-6. Join as the player who owns the character and repeat step 5 from that seat.
+4. Level up once more, onto a level the ladder gives no award at all.
+5. As the GM, open the picker (the graduation-cap button beside the class name)
+   without changing class or level — and **read it without answering**, so the
+   grant is left for the seat that has to prove it.
+6. Join as the player who owns the character, open the picker from their own
+   sheet, answer the open rung there, and read the actor back.
 
-**Observable.** The wizard's picks carry a hint naming the picker, and the
-*leave open* answer promises no schedule. After step 2 `awardsTaken` holds the
+**Observable.** The *leave open* answer promises no schedule, and the wizard's
+picks carry the hint naming the picker. After step 2 `awardsTaken` holds the
 keys of the rungs that were closed and nothing for the open one. Step 4's wizard
-offers only the new level's rung — the open one is **not** re-asked, which is the
-behaviour the label used to contradict. Step 5's picker lists the open rung with
-its level beside the label; answering it grants the ability and records the key,
-so re-opening the picker no longer asks. Step 6 reaches the same control from
-the player's own seat: the button injects on ownership, not on GM.
+offers no choice at all — the open rung is **not** re-asked, which is the
+behaviour the label used to contradict. Step 5's picker lists it with its level
+beside the label. Step 6 grants the ability, appends the key to `awardsTaken`,
+and leaves the re-opened picker with no rungs — read off the ACTOR, not off the
+dialog's return value. The button reaching that seat at all is the point: it
+injects on ownership, not on GM.
 
-**Teardown.** `api.sweepTracked()` — the actor is the run's own.
+**Two checks a natural fixture will not make for you.**
+
+- *The hint's size.* It is inside `.acks-extras-classes-levelup-body` so the
+  subsystem's hint rule can reach it; a bare `.hint` in a dialog body falls to
+  the vendored 6pt micro-annotation step and is present, styled and nearly
+  invisible. Compare its computed `font-size` against a hint inside
+  `.acks-extras-classes-col` — `--acks-fs-fine` means the box was lost.
+- *The scroll contract.* One rung and a hint do not overflow the window, so the
+  contract is asserted and not exercised. Force it — cap `.window-content`'s
+  height until `scrollHeight > clientHeight` — then confirm the footer is inside
+  the scrolling region and scrolling to the bottom brings it back into frame.
+
+**Teardown.** `api.sweepTracked()` — the class Item and both actors are the
+run's own.

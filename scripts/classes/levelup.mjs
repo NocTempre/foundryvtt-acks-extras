@@ -86,14 +86,20 @@ export async function openLevelUp(actor) {
     .map((a) => `<li>${foundry.utils.escapeHTML(findByRef(a.ref)?.name ?? a.name ?? a.ref)}</li>`)
     .join("");
 
+  // Boxed: the subsystem's hint rule reaches a `.hint` only inside a named
+  // box (styles/classes.css), and a bare one in a dialog body falls to the
+  // vendored micro-annotation step — present, styled, and too small to read
+  // as the sentence it is.
   const content = `
+    <div class="acks-extras-classes-levelup-body">
     <p>${game.i18n.format(`${LANG_PREFIX}.levelup.prompt`, { name: actor.name, class: classItem.name, level: next })}</p>
     <p><strong>${game.i18n.localize(`${LANG_PREFIX}.levelup.hp`)}:</strong> ${oldMax} → ${newMax}${
       hpRoll ? ` <span class="acks-extras-classes-refname">(${hpRoll.formula}: ${hpRoll.total}${conMod ? `, CON ${conMod > 0 ? "+" : ""}${conMod}/die` : ""})</span>` : ""
     }</p>
     ${fixedList ? `<p><strong>${game.i18n.localize(`${LANG_PREFIX}.levelup.granted`)}:</strong></p><ul>${fixedList}</ul>` : ""}
     ${choiceBlocks}
-    ${choiceBlocks ? `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.levelup.openHint`)}</p>` : ""}`;
+    ${choiceBlocks ? `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.levelup.openHint`)}</p>` : ""}
+    </div>`;
 
   // The wizard's body is a list — one line per fixed award, one picker per
   // choice — so it grows with the class it is climbing. `acks-extras-scroll`
