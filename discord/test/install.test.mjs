@@ -4,7 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installReason, npmCommand, installArgs } from "../src/prestart.mjs";
-import { renderUnit, parseEnv, renderEnv, discordHalf } from "../src/install-service.mjs";
+import { PassThrough, Writable } from "node:stream";
+import { renderUnit, parseEnv, renderEnv, discordHalf, makeAsker } from "../src/install-service.mjs";
 import { findBrowser, BROWSERS } from "../src/browsers.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -67,4 +68,34 @@ test("a re-install drops an earlier file's Discord half and says so, unless the 
   assert.equal(kept.values.DISCORD_GUILD_ID, "2");
   assert.deepEqual(kept.dropped, ["DISCORD_TOKEN"]);
   assert.deepEqual(discordHalf({}, {}).dropped, []);
+});
+
+// A terminal readline believes in: it writes escape sequences to `output`,
+// which the reading strips so the assertions see what a person would.
+const terminal = () => {
+  const input = new PassThrough();
+  let shown = "";
+  const output = new Writable({ write(chunk, _enc, cb) { shown += String(chunk); cb(); } });
+  return { input, output, seen: () => shown.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "") };
+};
+
+test("on a terminal every question is on screen while it waits, an empty answer keeps the fallback, and a secret is never echoed", async () => {
+  const t = terminal();
+  const asker = makeAsker({ input: t.input, output: t.output, tty: true });
+  const first = asker.ask("FOUNDRY_ORIGIN", "Foundry address", "http://localhost:30000");
+  assert.match(t.seen(), /Foundry address \[http:\/\/localhost:30000\]: $/, "the question is drawn before readline waits");
+  t.input.write("\n");
+  assert.equal(await first, "http://localhost:30000");
+  const second = asker.ask("FOUNDRY_PASSWORD", "Password", "", { secret: true });
+  assert.match(t.seen(), /Password: $/);
+  t.input.write("hunter2\n");
+  assert.equal(await second, "hunter2");
+  assert.ok(!t.seen().includes("hunter2"), "the secret is muted");
+  asker.close();
+});
+
+test("off a terminal nothing is asked: the environment answers, else the fallback", async () => {
+  const asker = makeAsker({ tty: false, env: { FOUNDRY_USER: " Discord " } });
+  assert.equal(await asker.ask("FOUNDRY_USER", "user", "x"), "Discord");
+  assert.equal(await asker.ask("SEAT_PORT", "port", "9334"), "9334");
 });

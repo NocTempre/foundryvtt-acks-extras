@@ -1,5 +1,20 @@
 # Changelog
 
+## 7.1.2
+
+**The installer's questions are on the screen.**
+
+### Fixed
+- **`install-service` sat at a blank cursor.** Each question was written
+  beside readline instead of through it, and a terminal readline clears its
+  line before it waits — so the installer was asking six invisible questions
+  and looked hung, in 7.1.0 and 7.1.1 alike. The questions are drawn by
+  readline now, and a test holds a terminal to see them. Off a terminal
+  (`</dev/null`, a script) nothing is asked and the environment answers, as
+  before.
+- The guide names the `ENOENT … uv_cwd` npm crash: a shell still standing in
+  a module directory Foundry's updater has replaced.
+
 ## 7.1.1
 
 **The installer installs in front of you, and installs over a failed attempt.**

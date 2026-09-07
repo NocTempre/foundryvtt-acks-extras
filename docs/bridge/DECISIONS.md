@@ -317,6 +317,16 @@ lines; the unit keeps `ExecStartPre` for the restart after a module update,
 where nobody is watching. The window's locked field now says why it is
 locked.
 
+**The stall had a second cause, found on the same host running 7.1.1.** The
+installer wrote each question to stdout by hand and gave readline an empty
+prompt; a terminal readline answers `ESC[1G ESC[0J` — column one, clear to
+the end of the screen — before it waits, so every question was erased the
+instant it appeared and the operator sat at a blank cursor with six answers
+owed. Nothing offline saw it because no test held a terminal: the asker's
+non-tty branch was the one every script exercised. Ruled: the question goes
+through readline, the asker takes its streams so a test can be a terminal,
+and the test that would have caught 7.1.0 now exists.
+
 **A re-install overwrites a failed one.** Owner direction. The unit is
 stopped and `reset-failed` before the files are rewritten (a unit that
 tripped its start limit refuses `start` otherwise), a `node_modules` another

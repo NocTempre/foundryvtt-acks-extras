@@ -92,27 +92,40 @@ function ownerOf(dir) {
   }
 }
 
-/** Ask on a terminal, or take the environment's value when there is none. */
-function makeAsker() {
-  if (!process.stdin.isTTY) {
-    return { ask: async (key, _label, fallback) => (process.env[key] ?? "").trim() || fallback, close() {} };
+/**
+ * The installer's questions. On a terminal each is asked through readline;
+ * anywhere else (a pipe, `</dev/null`, a script) the answer is the
+ * environment variable of the same name, else the fallback, and nothing is
+ * asked. `input`, `output`, `tty` and `env` are taken so a test can hold a
+ * terminal.
+ *
+ * The question text goes THROUGH readline, never beside it: in terminal mode
+ * readline redraws its line from column 0 and clears the rest before it
+ * waits, so a label written to the same line by hand is wiped and the
+ * operator sits at a blank cursor. A secret answer mutes the output only
+ * once the question has been drawn.
+ */
+export function makeAsker({ input = process.stdin, output = process.stdout, tty = process.stdin.isTTY, env = process.env } = {}) {
+  if (!tty) {
+    return { ask: async (key, _label, fallback) => (env[key] ?? "").trim() || fallback, close() {} };
   }
   const mute = { on: false };
   const out = new Writable({
     write(chunk, _enc, cb) {
-      if (!mute.on) process.stdout.write(chunk);
+      if (!mute.on) output.write(chunk);
       cb();
     },
   });
-  const rl = readline.createInterface({ input: process.stdin, output: out, terminal: true });
+  const rl = readline.createInterface({ input, output: out, terminal: true });
   return {
     async ask(_key, label, fallback = "", { secret = false } = {}) {
       const shown = secret ? (fallback ? " [kept]" : "") : fallback ? ` [${fallback}]` : "";
-      process.stdout.write(`${label}${shown}: `);
-      mute.on = secret;
-      const answer = (await rl.question("")).trim();
       mute.on = false;
-      if (secret) process.stdout.write("\n");
+      const asked = rl.question(`${label}${shown}: `);
+      mute.on = secret;
+      const answer = (await asked).trim();
+      mute.on = false;
+      if (secret) output.write("\n");
       return answer || fallback;
     },
     close: () => rl.close(),

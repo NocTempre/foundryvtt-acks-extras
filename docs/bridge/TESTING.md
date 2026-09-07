@@ -229,7 +229,8 @@ owner is a Judge without being listed anywhere. Setup is the
 11. **`/link drop`** and **`/party unbind`** return the server to step 4.
 12. **The install.** On the host, `sudo npm run install-service` in the
     module's `discord/` asks only where Foundry is, who to join as and which
-    browser — every answer already filled in on a stock host — then shows
+    browser — every question visible on the terminal with its default in
+    brackets, every answer already filled in on a stock host — then shows
     npm installing the dependencies as the service's user, and ends with
     `systemctl is-active` reading `active` and the journal's first lines;
     `systemctl status acks-extras-discord` is active and the journal shows

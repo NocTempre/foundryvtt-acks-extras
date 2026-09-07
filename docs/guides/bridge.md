@@ -265,11 +265,20 @@ not shown twice.
 
 ## When something is off
 
+- **`npm` dies at once with `ENOENT … process.cwd … uv_cwd`.** Your shell
+  is inside a directory Foundry's updater has since replaced — every module
+  update deletes and recreates `modules/acks-extras/`. `cd` into the
+  directory again (the same path) and run the command again.
 - **The installer seems to hang, or ends saying the service is not
-  running.** Before 7.1.1 the first start installed the bot's dependencies
-  out of sight, which read as a hang; now npm runs in front of you and the
-  installer ends with `systemctl is-active` and the journal's last lines,
-  which name the cause. Fix it and run the same command again.
+  running.** Two causes before 7.1.2, both fixed: the questions were drawn
+  invisibly (the installer was waiting for an answer at a blank cursor —
+  pressing Enter took the default), and the first start installed the bot's
+  dependencies out of sight. Now the questions show, npm runs in front of
+  you, and the installer ends with `systemctl is-active` and the journal's
+  last lines, which name the cause. Fix it and run the same command again.
+  To run it with no questions at all, redirect stdin (`</dev/null`): every
+  answer comes from the environment variable of the same name, else from
+  the last install.
 - **The token field is greyed out.** It unlocks when the bot has announced
   its key, which happens the moment the bot's seat joins the world — so a
   locked field means the service is not running, or its seat cannot reach
