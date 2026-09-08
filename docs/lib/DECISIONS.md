@@ -7,6 +7,111 @@ Entries are dated and append-only. A superseded entry stays, marked.
 
 ---
 
+- **2026-09-07 — a caption is bound to its control at render, and a summary
+  holds nothing clickable.** Chrome's Issues panel reported three classes
+  against a running world: a control inside `<summary>`, a form field with
+  neither `id` nor `name`, and a `<label>` associated with nothing. The last was
+  272 sites — 216 in `.hbs`, 56 more in HTML built from template literals — and
+  the shape is Foundry's own: `<label>` beside `.form-fields`, no `for`.
+  `scripts/lib/a11y.mjs` makes the binding after render; mechanics are that file
+  and [MODEL.md](MODEL.md).
+
+  **Rejected: writing `for=`/`id=` into the templates.** The id has to be unique
+  per window, and this repo already shipped the proof — 29 literal ids across
+  four item templates, so opening two trap items made the second sheet's label
+  focus the first sheet's field. `{{@root.partId}}` fixes that but exists only
+  inside a HandlebarsApplicationMixin part render, so it reaches neither the
+  bare `renderTemplate` calls nor any dialog built in JS. Those literal ids were
+  removed rather than seeded; the two `<datalist>`s keep an explicit id because
+  a datalist is not labelable and nothing can bind it at runtime.
+
+  **Rejected: swapping the tag at runtime for a caption that fronts nothing.**
+  It would have handled all of them in one place. `styles/` carries 59 rules
+  whose selectors name `label`, six in `styles/lib-follower-card.css` alone, and
+  a runtime swap silently un-styles every one of them — a failure that reads as
+  a CSS bug in a file nobody edited. Those captions are `<span>`s in source.
+
+  **Rejected: giving the nameless controls a `name`.** 71 controls carry neither
+  `id` nor `name` because they are read by `data-*` selectors and their values
+  do not belong in the document. Most render inside a `submitOnChange` form, so
+  a `name` would write an unrecognised path on every keystroke — a location
+  sheet would persist its own search box. They take an `id` and nothing else.
+  `apps/group-sheet.mjs`'s deploy-count guard is the same rule already learned.
+
+  **Rejected: registering the render hook at import time.** `lib` is imported
+  first, and `renderApplicationV2` handlers run in registration order, so an
+  import-time hook would bind before every feature injector had added its DOM.
+
+  **Rejected: binding only inside windows this module draws.** That was the
+  first shape, on the reasoning that an id set in a foreign subtree could
+  collide with the host's and a `for` changes click behaviour the host owns.
+  Measured, the boundary was in the wrong place: the same defect stands in the
+  system's sheets (11 unnamed controls on its character sheet) and in Foundry's
+  own (`SceneConfig`, 43), this module already repairs what it finds beneath it
+  (`patches/`), and the repair is additive — an id where there is none, a `for`
+  where there is none, nothing removed or re-tagged. The collision is answered
+  by minting against `getElementById` rather than by a boundary. What does NOT
+  cross the boundary is the tag: a `<label>` a host left naming nothing stays a
+  `<label>`, because only this repo's own CSS is known to survive the swap.
+
+  **Refined the same day — a binding that CANNOT work is overruled.** New
+  evidence the ruling above did not have: auditing all 242 bindings the widened
+  pass produced found four fields still nameless, and none of them from this
+  pass. The system's monster header carries `for` attributes for ids nothing
+  writes, and its character sheet gives two different inputs one `climb` id, so
+  `getElementById` hands the second caption the first input. "Additive only" was
+  written against overwriting a binding that works; a `for` naming nothing and
+  the loser of an id collision are the other case — the reader gets no name
+  either way, and no host behaviour depends on a handle that resolves to the
+  wrong element. So a dangling `for` is treated as absent and rebound, and a
+  duplicated id is re-minted with the caption that sits with it carried across.
+  A dangling `for` over a caption that fronts no control at all still stands as
+  written: nothing is there to bind, and inventing a control is not this pass's
+  work. That one goes upstream, on the `combat-round.mjs` precedent — report it
+  there, guard what can be guarded here.
+
+  **Rejected for `<summary>`: a CSS overlay keeping the controls on the summary
+  line.** It preserves the one-line look by absolutely positioning a control
+  strip over reflowing text, which is exactly the failure
+  `.claude/rules/ui-layout.md` exists to prevent, and nothing offline sees it.
+
+  **Rejected for `<summary>`: replacing `<details>` with an explicit
+  disclosure.** A `<button aria-expanded>` over a `[hidden]` body would let the
+  controls sit beside the toggle, at the cost of a state machine and open-state
+  retention, for no accessibility gain over moving them into the body.
+
+  **Cost, stated:** the henchmen roster's six GM row actions and its link to the
+  actor now live at the head of the opened row rather than on the row's summary
+  line, so reaching them takes the click that opens the row. They were mouse-only
+  before — href-less anchors are not focusable — and each of them also toggled
+  the disclosure it sat in.
+
+- **2026-09-08 — a caption names every control in its group, not only the one
+  it can point at.** New evidence the entry above did not have: the 7.3.0 live
+  gate ran its probe against thirteen open windows and counted 101 unnamed
+  controls, 29 of them inside a group whose caption was already bound to a
+  sibling. The signature was exact — a group with one caption and two controls
+  named the first and left the second silent, so the Discord Bot window
+  announced its seat width and not its height, and its relay toggle and not the
+  channel it relays to. `for` names one id, so binding alone cannot reach them.
+
+  **Ruled: a still-unnamed control borrows its group's caption through
+  `aria-labelledby`.** The caption keeps its `for`, so the click target does not
+  move and only the announced name spreads. This also reads a caption `for=`
+  must refuse — one inside a rollable header — because naming forwards no click:
+  the reason to keep a caption unclickable says nothing about keeping it silent.
+
+  **Rejected: a second `<label>` per control, written at runtime.** It gives
+  each control a precise name instead of a shared one, and it invents a caption,
+  which is the line the pass draws in its own header. A pair that deserves two
+  names deserves them in the template.
+
+  **Cost:** where a group is genuinely a pair, both halves now announce the same
+  name — imprecise, and better than one of them announcing nothing. The precise
+  fix is a caption per control, and it is template work. It leaves 72 controls
+  with no caption anywhere near them still unnamed; `docs/lib/TESTING.md` names
+  that tranche and gates the part this pass can reach.
+
 - **2026-09-07 — extras guards the system's round counter, and the guard is
   scoped to core's synchronous prefix.** `AcksCombat#nextRound` dereferences
   `t.actor` four times with no guard where its own `nextTurn` writes `t.actor?.`,

@@ -26,7 +26,7 @@ const ids = (v) => [...new Set((Array.isArray(v) ? v : str(v).split(/[\s,]+/)).m
 /** The configuration of a client nobody has configured yet. */
 export const emptyClientConfig = () => ({
   discord: { guildId: "", chatChannelId: "", judgeIds: [], relay: true },
-  seat: { width: 1600, height: 1000, readySeconds: 120 },
+  seat: { width: 1600, height: 1000, readySeconds: 120, gpu: false },
   service: { logLevel: "info" },
   token: { sealed: "", keyId: "", hint: "" },
   restartNonce: 0,
@@ -53,6 +53,11 @@ export function normalizeClientConfig(raw) {
       width: int(s.width, base.seat.width, 640, 4096),
       height: int(s.height, base.seat.height, 480, 4096),
       readySeconds: int(s.readySeconds, base.seat.readySeconds, 10, 900),
+      // Off is the answer for the headless host a bot usually runs on, and the
+      // one a world that predates the field upgrades into: a seat with no GPU
+      // draws its scene on the page's own thread and starves everything the
+      // bot awaits. On costs that and buys `map`.
+      gpu: !!s.gpu,
     },
     service: { logLevel: LOG_LEVELS.includes(str(v.logLevel)) ? str(v.logLevel) : base.service.logLevel },
     token: { sealed: str(t.sealed), keyId: str(t.keyId), hint: str(t.hint) },
@@ -140,7 +145,7 @@ export const memberLabel = (member) => str(member?.displayName) || str(member?.n
  */
 export function configDigest(config) {
   const c = normalizeClientConfig(config);
-  return JSON.stringify([c.discord.guildId, c.discord.chatChannelId, [...c.discord.judgeIds].sort(), c.discord.relay, c.seat.width, c.seat.height, c.seat.readySeconds, c.service.logLevel, c.token.sealed, c.token.keyId, c.restartNonce]);
+  return JSON.stringify([c.discord.guildId, c.discord.chatChannelId, [...c.discord.judgeIds].sort(), c.discord.relay, c.seat.width, c.seat.height, c.seat.readySeconds, c.seat.gpu, c.service.logLevel, c.token.sealed, c.token.keyId, c.restartNonce]);
 }
 
 /**

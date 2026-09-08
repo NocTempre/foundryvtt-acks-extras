@@ -7,17 +7,17 @@
 
   {{#each modifiers}}
   <div class="form-group modifier {{#if locked}}locked{{/if}}">
-    <label for="mod-{{id}}" {{#if hintText}}data-tooltip="{{hintText}}"{{else if sourceTooltip}}data-tooltip="{{sourceTooltip}}"{{/if}}>{{labelText}}{{#if hintText}} <i class="fas fa-circle-info hint-icon"></i>{{/if}}</label>
+    <label {{#if hintText}}data-tooltip="{{hintText}}"{{else if sourceTooltip}}data-tooltip="{{sourceTooltip}}"{{/if}}>{{labelText}}{{#if hintText}} <i class="fas fa-circle-info hint-icon"></i>{{/if}}</label>
     {{#if isCheckbox}}
       <span class="mod-value">{{#if (gte value 0)}}+{{/if}}{{value}}</span>
-      <input id="mod-{{id}}" type="checkbox" name="mod.{{id}}" {{#if initial}}checked{{/if}} {{#if locked}}disabled data-locked{{/if}} />
+      <input type="checkbox" name="mod.{{id}}" {{#if initial}}checked{{/if}} {{#if locked}}disabled data-locked{{/if}} />
     {{/if}}
     {{#if isStepper}}
       <span class="mod-value">{{#if (gte valuePerStep 0)}}+{{/if}}{{valuePerStep}}/step</span>
-      <input id="mod-{{id}}" type="number" name="mod.{{id}}" value="{{initial}}" step="1" min="{{min}}" max="{{max}}" {{#if locked}}disabled data-locked{{/if}} />
+      <input type="number" name="mod.{{id}}" value="{{initial}}" step="1" min="{{min}}" max="{{max}}" {{#if locked}}disabled data-locked{{/if}} />
     {{/if}}
     {{#if isSelect}}
-      <select id="mod-{{id}}" name="mod.{{id}}" {{#if locked}}disabled data-locked{{/if}}>
+      <select name="mod.{{id}}" {{#if locked}}disabled data-locked{{/if}}>
         {{#each options}}
         <option value="{{value}}" {{#if selected}}selected{{/if}} {{#if disabled}}disabled{{/if}}>{{labelText}} ({{#if (gte value 0)}}+{{/if}}{{value}})</option>
         {{/each}}
@@ -27,8 +27,8 @@
   {{/each}}
 
   <div class="form-group modifier misc">
-    <label for="mod-misc">{{localize "ACKS-HENCHMEN.throwUi.misc"}}</label>
-    <input id="mod-misc" type="number" name="mod.misc" placeholder="0" step="1" />
+    <label>{{localize "ACKS-HENCHMEN.throwUi.misc"}}</label>
+    <input type="number" name="mod.misc" placeholder="0" step="1" />
   </div>
 
   <hr />

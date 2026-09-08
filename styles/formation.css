@@ -204,7 +204,7 @@
   text-align: center;
 }
 
-.acks-extras:is(.party-sheet, .skill-audit) .clock .stat label {
+.acks-extras:is(.party-sheet, .skill-audit) .clock .stat :is(label, .stat-label) {
   display: block;
   font-size: var(--acks-fs-label);
   text-transform: uppercase;

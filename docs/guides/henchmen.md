@@ -57,9 +57,11 @@ hundreds of them, and creating hundreds of actors would be unusable.
 hireling with its loyalty and morale standing, the wage ledger, and the event
 history each score is computed from.
 
-![](../releases/v3.0.0/henchmen-roster.png)
+![](../releases/v7.3.0/henchmen.png)
 
-*An employer's roster tab: who is hired, on what terms.*
+*An employer's roster: who is hired, on what terms. Open a row for that
+hireling's history and the Judge's actions on it — a loyalty or obedience
+throw, a calamity or a penalty on the record, a transfer, a dismissal.*
 
 The Judge adds permanents (a rescue, a betrayal), and can mark an entry
 **Compensated** — it stays on record but stops scoring.

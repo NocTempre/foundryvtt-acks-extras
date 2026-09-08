@@ -56,6 +56,7 @@
 }
 
 .acks-extras.monster-v2 .acksm-content .form-group > label,
+.acks-extras.monster-v2 .acksm-content .form-group > span.label,
 .acks-extras.monster-v2 .acksm-lore-label,
 .acks-extras.monster-v2 .acksm-rows-head {
   font-size: var(--acks-fs-label);
@@ -316,12 +317,12 @@
   background: var(--acks-tint);
   border-radius: var(--acks-radius);
 }
-.acks-extras.monster-v2 .acksm-ro label {
+.acks-extras.monster-v2 .acksm-ro :is(label, .acksm-ro-label) {
   font-size: var(--acks-fs-fine);
   text-transform: uppercase;
   opacity: 0.7;
 }
-.acks-extras.monster-v2 .acksm-ro span {
+.acks-extras.monster-v2 .acksm-ro span:not(.acksm-ro-label) {
   font-weight: var(--acks-weight-bold);
 }
 

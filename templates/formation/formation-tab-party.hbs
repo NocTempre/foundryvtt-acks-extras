@@ -3,22 +3,22 @@
   <section class="clock">
     <div class="stats">
       <div class="stat {{#if hurried}}quiet{{/if}}" data-tooltip="{{localize 'ACKS-FORMATION.app.speedHint'}}">
-        <label>{{localize "ACKS-FORMATION.app.speed"}}</label>
+        <span class="stat-label">{{localize "ACKS-FORMATION.app.speed"}}</span>
         <span class="value">{{#if hurried}}{{effSpeed}}'{{else}}{{speed}}'{{/if}}</span>
         <span class="sub">{{#if hurried}}{{localize "ACKS-FORMATION.app.hurriedBadge"}}{{else}}{{localize "ACKS-FORMATION.app.perTurn"}} · {{combatSpeed}}' {{localize "ACKS-FORMATION.app.perRound"}}{{/if}}</span>
       </div>
       <div class="stat">
-        <label>{{localize "ACKS-FORMATION.app.elapsed"}}</label>
+        <span class="stat-label">{{localize "ACKS-FORMATION.app.elapsed"}}</span>
         <span class="value">{{clock.turnsTotal}}</span>
         <span class="sub">{{localize "ACKS-FORMATION.app.turns"}} ({{elapsed}}) · {{localize "ACKS-FORMATION.app.roundShort"}} {{#if clock.roundsPartial}}{{clock.roundsPartial}}{{else}}0{{/if}}/10</span>
       </div>
       <div class="stat {{#if clock.winded}}bad{{/if}}">
-        <label>{{localize "ACKS-FORMATION.app.rest"}}</label>
+        <span class="stat-label">{{localize "ACKS-FORMATION.app.rest"}}</span>
         <span class="value">{{clock.turnsSinceRest}}/{{restMax}}</span>
         <span class="sub">{{#if clock.winded}}{{localize "ACKS-FORMATION.app.windedBadge"}}{{else}}{{localize "ACKS-FORMATION.app.sinceRest"}}{{/if}}</span>
       </div>
       <div class="stat">
-        <label>{{localize "ACKS-FORMATION.app.carry"}}</label>
+        <span class="stat-label">{{localize "ACKS-FORMATION.app.carry"}}</span>
         <span class="value">{{clock.carryFeet}}'</span>
         <span class="sub">{{localize "ACKS-FORMATION.app.carryHint"}}</span>
       </div>

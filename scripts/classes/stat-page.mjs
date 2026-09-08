@@ -45,6 +45,7 @@ import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs"
 import { answeredByTemplate, isGranted, rungLabel, rungOptions } from "./picks.mjs";
 import { templateGrantKeys } from "./template-packages.mjs";
 import { makeLoc } from "../lib/util.mjs";
+import { associateLabels } from "../lib/a11y.mjs";
 import { whenReady } from "../lib/library.mjs";
 
 const PAGE_CLASS = "acks-extras-classes-statgen";
@@ -238,6 +239,10 @@ function put(root, cls, state, html) {
   if (!box || state.html[cls] === html) return;
   state.html[cls] = html;
   box.innerHTML = html;
+  // This page is core's, so only the markup written here is bound - and it is
+  // bound here because the injector is async and lands after the render hook
+  // that binds every window this module draws itself.
+  associateLabels(box);
 }
 
 /**

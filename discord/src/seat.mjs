@@ -11,6 +11,11 @@
  * sized above Foundry's floor because a canvas below it never initialises,
  * and core's chat speaker dereferences the scene.
  *
+ * The canvas is then torn down unless the seat was given a GPU. A software
+ * rasteriser runs on the page's own thread, so a seat that draws answers a
+ * write in tens of seconds rather than tens of milliseconds; `map` is the only
+ * command that reads the canvas and refuses when there is none.
+ *
  * The browser is disposable and the seat assumes it: a lost socket, a failed
  * watchdog probe or a world restart tears the browser down and launches a
  * fresh one with backoff. Nothing in the page is worth keeping between two
@@ -112,11 +117,16 @@ const openWs = (url) =>
   });
 
 /**
- * Flags a headless Chromium needs to run unattended. The Linux extras are
- * what a container or a root service otherwise fails on: no user namespace
- * for the sandbox, a small `/dev/shm`, no GPU.
+ * Flags a headless Chromium needs to run unattended. The Linux extras are what
+ * a container or a root service otherwise fails on: no user namespace for the
+ * sandbox and a small `/dev/shm`.
+ *
+ * `gpu` decides the third. Off, the browser is told there is no GPU, which is
+ * right for a headless host that has none: a scene rasterised in software
+ * saturates the page and nothing but `map` wants a canvas. On, the flag is
+ * withheld so a host with real acceleration can draw one.
  */
-export function browserArgs({ port, profile, width, height, extra = [] }) {
+export function browserArgs({ port, profile, width, height, gpu = false, extra = [] }) {
   const args = [
     "--headless=new",
     `--remote-debugging-port=${port}`,
@@ -127,7 +137,8 @@ export function browserArgs({ port, profile, width, height, extra = [] }) {
     "--disable-features=Translate,AcceptCHFrame",
     "--autoplay-policy=no-user-gesture-required",
   ];
-  if (process.platform !== "win32") args.push("--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu");
+  if (process.platform !== "win32") args.push("--no-sandbox", "--disable-dev-shm-usage");
+  if (!gpu) args.push("--disable-gpu");
   return [...args, ...extra, "about:blank"];
 }
 
@@ -293,11 +304,11 @@ export class Seat extends EventEmitter {
   }
 
   async #connect() {
-    const { browser, origin, user, password = "", port, width = 1600, height = 1000, readySeconds = 120, bindingName, browserArgs: extra = [] } = this.#config;
+    const { browser, origin, user, password = "", port, width = 1600, height = 1000, readySeconds = 120, gpu = false, bindingName, browserArgs: extra = [] } = this.#config;
     this.#teardown();
     this.#profile = fs.mkdtempSync(path.join(os.tmpdir(), "acks-extras-discord-seat-"));
     if (isSnapStub(browser)) throw new Error(`browser: ${browser} is the Chromium snap's stub, which cannot run as a service — ${NO_BROWSER}`);
-    this.#proc = spawn(browser, browserArgs({ port, profile: this.#profile, width, height, extra }), {
+    this.#proc = spawn(browser, browserArgs({ port, profile: this.#profile, width, height, gpu, extra }), {
       stdio: ["ignore", "ignore", "pipe"],
       detached: process.platform !== "win32",
     });
@@ -395,6 +406,24 @@ export class Seat extends EventEmitter {
     if (ready !== "ready") throw new Error(ready);
 
     await cdp.send("Runtime.addBinding", { name: bindingName }, sessionId);
+
+    // The canvas is the seat's largest cost and its least used surface. Without
+    // a GPU the browser rasterises the active scene in software on the page's
+    // own thread, and everything the bot awaits queues behind the render: a
+    // document write that answers in 12ms with the canvas down takes 47 seconds
+    // with it up, which is past every timeout the bridge has. Only `map` reads
+    // the canvas, so a seat that was not given a GPU does without one and `map`
+    // refuses instead. A failure to tear down is not fatal — a seat that draws
+    // is slow, not broken — but it is said out loud, because it is the
+    // difference between a bot that answers and one that times out.
+    if (!gpu) {
+      const canvas = await pageEval(
+        `(async () => { try { globalThis.canvas?.app?.ticker?.stop(); await globalThis.canvas?.tearDown?.(); return "down"; } catch (err) { return "still up: " + err.message; } })()`,
+        30000,
+      );
+      if (canvas === "down") this.#log.info("seat canvas: torn down; `map` is unavailable on this seat");
+      else this.#log.warn(`seat canvas: ${canvas} — commands will be slow while it draws`);
+    }
 
     this.#ready = true;
     this.#attempt = 0;

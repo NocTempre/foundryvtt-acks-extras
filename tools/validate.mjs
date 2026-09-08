@@ -4,7 +4,7 @@
  * do not hand-edit per module. Pure-logic module tests belong in
  * tools/test-logic.mjs (run via `npm test`); a module that needs an extra
  * check to run as PART of validation (e.g. an IP-safety lint) drops a
- * tools/validate-extra.mjs — this validator auto-runs it (section 8), so
+ * tools/validate-extra.mjs — this validator auto-runs it (section 10), so
  * `npm run validate` stays the single canonical entry point everywhere.
  *
  * Checks (each section skips cleanly when the dir/file doesn't exist):
@@ -39,9 +39,16 @@
  *      (Foundry-owned roots like TYPES.* allowlisted); top-level CSS classes
  *      with the module id; top-level pack _ids with the mandatory
  *      module.json `flags.<id>.idPrefix` short key.
- *   8. IP leak scan (tools/ip-scan.mjs): local-only rules extracts, extraction
+ *   8. The window contract: every window a module opens stays reachable,
+ *      resizable, and legible at the user's chosen type size, and behaves when
+ *      two copies of it are open at once — scroll-contract membership, dead
+ *      scroll retention, a type size the size knob can't reach, interactive
+ *      content nested inside <summary>, a <label> no runtime pass could ever
+ *      rescue, and a literal id= that collides the moment a second copy of the
+ *      sheet is open.
+ *   9. IP leak scan (tools/ip-scan.mjs): local-only rules extracts, extraction
  *      pipeline state, and publisher attribution inside data files.
- *   9. Optional module-owned tools/validate-extra.mjs — run last if present;
+ *   10. Optional module-owned tools/validate-extra.mjs — run last if present;
  *      a non-zero exit fails validation.
  *
  * Usage:  npm run validate
@@ -580,10 +587,12 @@ if (module_?.id) {
   });
 }
 
-/* 8. The UI layout contract — every window a module opens stays reachable and
- *    legible on a small display, at the type size its user chose. Three failure
- *    modes are decidable from the source, and all three are invisible to every
- *    other check because they need a real viewport and a real setting:
+/* 8. The window contract — every window a module opens stays reachable and
+ *    legible on a small display, at the type size its user chose, and behaves
+ *    when a second copy of it is open at the same time. Six failure modes are
+ *    decidable from the source, and all six are invisible to every other check
+ *    because they need a real viewport, a real setting, or a second open
+ *    window:
  *
  *    a. A window outside the scroll contract. Core caps an application frame at
  *       the viewport height and gives `.window-content` `overflow: hidden`, so a
@@ -598,10 +607,39 @@ if (module_?.id) {
  *    c. A type size the knob cannot reach. A bare px or rem font-size renders
  *       correctly on the machine it was written on and ignores the user's size
  *       setting everywhere else — the accessibility knob is present, and inert.
+ *    d. Interactive content nested inside a <summary>. A summary is the
+ *       disclosure toggle; a control inside it is reached inconsistently by
+ *       keyboard and assistive technology (Chrome reports it as
+ *       InteractiveContentSummaryDescendant). An <a> with no href inside a
+ *       <summary> gets a separate diagnosis: it is not focusable at all, and
+ *       its click is traded with the toggle.
+ *    e. A <label> that can never name anything — NOT a label without `for`,
+ *       which is the conformant source shape in this family (bound at runtime
+ *       by scripts/lib/a11y.mjs downstream): only a label with no `for`,
+ *       wrapping no control, and with every control between its close tag and
+ *       the close of its own parent already wrapped by a label of its own. The
+ *       runtime pass skips a control another label has claimed, so no pass can
+ *       ever rescue that one — it reaches a user as a caption that announces
+ *       nothing beside a control that already has a name.
+ *    f. A literal id= in a template. A part renders once per open window, so a
+ *       literal id is a duplicate the moment two copies of that sheet are
+ *       open — every for=/list= naming it then resolves to the first window's
+ *       element. `{{@root.partId}}` (Foundry sets it to `<app id>-<part id>`
+ *       on every HandlebarsApplicationMixin part context) is the fix for the
+ *       cases that genuinely need an explicit id, such as a <datalist>.
  *
  *    A window that must sit outside the contract says so where it is declared:
  *    `// no-scroll: <reason>` on or just above its `classes:` line; a size that
- *    must not move says `/* px-ok: <reason> *\/` beside itself. */
+ *    must not move says `/* px-ok: <reason> *\/` beside itself; d/e/f each carry
+ *    their own escape, on or just above the offending line:
+ *    `{{!-- summary-ok: <reason> --}}`, `{{!-- label-ok: <reason> --}}`,
+ *    `{{!-- id-ok: <reason> --}}`.
+ *
+ *    d/e/f strip Handlebars ({{!-- … --}}) and HTML (<!-- … -->) comments
+ *    before matching — an existing family gate's known blind spot is matching
+ *    INSIDE comments, and it is not reproduced here — but the escape comments
+ *    themselves are read from the ORIGINAL text first, since stripping would
+ *    blind the check to its own escape hatch. */
 if (module_?.id) {
   const id = module_.id;
   const SCROLL_CLASS = `${id}-scroll`;
@@ -724,6 +762,205 @@ if (module_?.id) {
     }
   }
 }
+
+// 8d/8e/8f run independent of module_.id — they check template markup, not
+// anything keyed by the module's identity.
+const VOID_ELEMENTS = new Set([
+  "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr",
+]);
+// Foundry's form-associated custom elements, alongside the native labelable
+// set (https://html.spec.whatwg.org/#category-label) minus <input type=hidden>.
+const LABELABLE_ELEMENTS = new Set([
+  "select", "textarea", "meter", "output", "progress", "button",
+  "prose-mirror", "multi-select", "multi-checkbox", "string-tags", "file-picker",
+  "color-picker", "range-picker", "document-tags", "formula-input", "hue-slider",
+  "autocomplete-tags", "code-mirror",
+]);
+const isLabelable = (name, attrs) =>
+  name === "input" ? !/\btype\s*=\s*["']?hidden["']?/i.test(attrs) : LABELABLE_ELEMENTS.has(name);
+
+// Blanks comment bodies to spaces (newlines kept, so indices and line numbers
+// still line up with the original text) — matching inside a comment is the
+// blind spot this deliberately does not reproduce.
+const stripComments = (text) =>
+  text
+    .replace(/\{\{!--[\s\S]*?--\}\}/g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, " "));
+
+const TAG_RE = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)((?:"[^"]*"|'[^']*'|[^>])*)>/g;
+const tokenizeTags = (text) =>
+  [...text.matchAll(TAG_RE)].map((m) => {
+    const name = m[2].toLowerCase();
+    return {
+      closing: m[1] === "/",
+      name,
+      attrs: m[3],
+      selfClosing: VOID_ELEMENTS.has(name) || /\/\s*$/.test(m[3]),
+      index: m.index,
+    };
+  });
+
+// The token closing the element opened at tokens[i], or -1 when the nesting
+// cannot be followed that far. Handlebars branches routinely open a tag in one
+// arm and close it in another, so an unfollowable extent is normal markup, not
+// a defect — every caller stays silent on -1.
+const matchingClose = (tokens, i) => {
+  const stack = [tokens[i].name];
+  for (let j = i + 1; j < tokens.length; j++) {
+    const tk = tokens[j];
+    if (tk.selfClosing) continue;
+    if (!tk.closing) {
+      stack.push(tk.name);
+      continue;
+    }
+    if (stack[stack.length - 1] !== tk.name) return -1;
+    stack.pop();
+    if (stack.length === 0) return j;
+  }
+  return -1;
+};
+
+walk(path.join(ROOT, "templates"), (full) => {
+  if (!full.endsWith(".hbs")) return;
+  const original = fs.readFileSync(full, "utf8");
+  const originalLines = original.split("\n");
+  const text = stripComments(original);
+  const lineOf = (index) => text.slice(0, index).split("\n").length;
+  const escaped = (lineNo, token) => originalLines[lineNo - 1]?.includes(token) || originalLines[lineNo - 2]?.includes(token);
+  const tokens = tokenizeTags(text);
+
+  // 8d. No interactive content nested inside <summary> — a summary is the
+  // disclosure toggle, and a control inside it is reached inconsistently by
+  // keyboard and assistive technology (Chrome: InteractiveContentSummaryDescendant).
+  // An <a> with no href is a separate diagnosis: not focusable at all, its
+  // click traded with the toggle.
+  let inSummary = false;
+  for (const t of tokens) {
+    if (!t.closing && t.name === "summary") {
+      inSummary = true;
+      continue;
+    }
+    if (t.closing && t.name === "summary") {
+      inSummary = false;
+      continue;
+    }
+    if (!inSummary || t.closing) continue;
+    const lineNo = lineOf(t.index);
+    if (escaped(lineNo, "summary-ok:")) continue;
+    if (t.name === "a" && !/\bhref\s*=/i.test(t.attrs)) {
+      fail(
+        rel(full),
+        `line ${lineNo}: <a> with no href inside <summary> — it is not focusable at all, and its click is traded with the disclosure toggle. Give it an href, move it out of the summary, or state why not with "{{!-- summary-ok: <reason> --}}"`,
+      );
+      continue;
+    }
+    const isInteractive =
+      (t.name === "a" && /\bhref\s*=/i.test(t.attrs)) ||
+      ["button", "label", "select", "textarea", "details"].includes(t.name) ||
+      (t.name === "input" && !/\btype\s*=\s*["']?hidden["']?/i.test(t.attrs));
+    if (!isInteractive) continue;
+    fail(
+      rel(full),
+      `line ${lineNo}: <${t.name}> inside <summary> — a summary is the disclosure toggle, and a control inside it is reached inconsistently by keyboard and assistive technology (Chrome reports it as InteractiveContentSummaryDescendant). Move it out of the summary, or state why not with "{{!-- summary-ok: <reason> --}}"`,
+    );
+  }
+
+  // 8e. A <label> with no for=, wrapping no control, and with every control
+  // before the close of its own parent already wrapped by a label of its own —
+  // no runtime binding pass could ever rescue it. Conservative throughout:
+  // whenever the surrounding structure can't be pinned down, this stays
+  // silent rather than failing markup that may be entirely correct.
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.closing || t.name !== "label" || /\bfor\s*=/i.test(t.attrs)) continue;
+
+    // The immediate parent, read off the tag stack up to this point. A
+    // mismatch anywhere in that history, or no parent at all, means the
+    // stack can't be trusted here — skip rather than guess.
+    const stack = [];
+    let sound = true;
+    for (let k = 0; k < i; k++) {
+      const tk = tokens[k];
+      if (tk.selfClosing) continue;
+      if (!tk.closing) {
+        stack.push(tk.name);
+        continue;
+      }
+      if (stack.length === 0 || stack[stack.length - 1] !== tk.name) {
+        sound = false;
+        break;
+      }
+      stack.pop();
+    }
+    if (!sound || stack.length === 0) continue;
+    const parentName = stack[stack.length - 1];
+
+    // Does the label wrap a control anywhere before its OWN close tag?
+    const closeIndex = matchingClose(tokens, i);
+    if (closeIndex < 0) continue; // extent undetermined — stay silent
+    let wraps = false;
+    for (let j = i + 1; j < closeIndex; j++) {
+      const tk = tokens[j];
+      if (!tk.closing && isLabelable(tk.name, tk.attrs)) {
+        wraps = true;
+        break;
+      }
+    }
+    if (wraps) continue; // rescued by wrapping
+
+    // No wrap — scan forward for a control the runtime pass could still bind
+    // to, stopping at the close of the parent found above. A later <label> is
+    // not a boundary, and nothing inside it is a rescue: a control already
+    // wrapped by a label of its own is spoken for, and the runtime pass skips
+    // it (scripts/lib/a11y.mjs `controlFor`), so the whole subtree is skipped
+    // here too. That distinction is the whole check — a caption stranded
+    // beside a wrapped checkbox is exactly the shape that reaches a user as
+    // two names for one control, one of which announces nothing.
+    let depth = 0;
+    let rescued = null;
+    for (let k = closeIndex + 1; k < tokens.length; k++) {
+      const tk = tokens[k];
+      if (!tk.closing && tk.name === "label") {
+        const skipTo = matchingClose(tokens, k);
+        if (skipTo < 0) break; // extent undetermined — stay silent
+        k = skipTo;
+        continue;
+      }
+      if (!tk.closing && isLabelable(tk.name, tk.attrs)) {
+        rescued = true;
+        break;
+      }
+      if (tk.closing && depth === 0) {
+        rescued = tk.name === parentName ? false : null; // parent closed, or a stray close we can't trust
+        break;
+      }
+      if (!tk.closing && !tk.selfClosing) depth++;
+      else if (tk.closing) depth--;
+    }
+    if (rescued !== false) continue; // rescued, or undetermined — either way, no fail
+
+    const lineNo = lineOf(t.index);
+    if (escaped(lineNo, "label-ok:")) continue;
+    fail(
+      rel(full),
+      `line ${lineNo}: <label> has no for=, wraps no control, and every control before the close of its parent is already wrapped by a label of its own — no runtime binding pass can ever rescue it. Wrap a control, add for=, drop it to a <span> if it is decorative, or state why not with "{{!-- label-ok: <reason> --}}"`,
+    );
+  }
+
+  // 8f. A literal id= (a value with no "{{") is a duplicate the instant two
+  // copies of the sheet are open — every for=/list= naming it then resolves
+  // to the first window's element.
+  for (const m of text.matchAll(/(^|\s)id\s*=\s*(["'])([^"']*)\2/gi)) {
+    const value = m[3];
+    if (value.includes("{{")) continue;
+    const lineNo = lineOf(m.index + m[1].length);
+    if (escaped(lineNo, "id-ok:")) continue;
+    fail(
+      rel(full),
+      `line ${lineNo}: literal id="${value}" — a template renders once per open window, so this collides the instant a second copy of the sheet is open, and every for=/list= naming it then resolves to the first window's element. Use {{@root.partId}} (Foundry sets it to "<app id>-<part id>" on every HandlebarsApplicationMixin part context), or state why not with "{{!-- id-ok: <reason> --}}"`,
+    );
+  }
+});
 
 /* 9. IP leak scan — licensed book material must never reach a public repo or a
  *    release artifact. CI runs this again against the built zip and quarantines

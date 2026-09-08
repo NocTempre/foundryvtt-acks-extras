@@ -492,6 +492,12 @@ export function registerCommands(registry) {
     judge: true,
     describe: "view the party's scene on the seat and answer the board's clip for a capture",
     run: async (ctx, args) => {
+      // This is the only command that reads the canvas, and a seat without a
+      // GPU has none — it tears the canvas down at join, because drawing a
+      // scene in software on the page's own thread starves every other command
+      // the client makes. The refusal comes FIRST: `scene.view()` below would
+      // otherwise draw the canvas back and take the seat with it.
+      if (!canvas?.ready) throw new BridgeError(ERR.unavailable, "this seat draws no canvas");
       let formation = null;
       const fid = args.formationId ?? (ctx.client?.channel ? partyOf(readStore(), ctx.client.kind, ctx.client.channel) : null);
       if (fid) formation = formationById(fid);

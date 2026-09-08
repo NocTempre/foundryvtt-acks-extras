@@ -354,6 +354,108 @@ UNLINKED token will not reproduce it: its delta is the actor.
 **Teardown.** Sweep the combat, the scene and the surviving actor by uuid; the
 deleted actor is already gone and reads back as `missing`.
 
+## Captions bound to their controls
+
+Covers `a11y.mjs`. Nothing offline sees it — the binding is made on a rendered
+DOM that mocked globals never build. The observable is a counter, not a look.
+
+**Fixtures.** Two `acks-extras.trap` items (two windows of one class is the
+point), one `acks-extras.vehicle`, one `acks-extras.location`, one
+`acks-extras.class`, a `character`, and three `monster`s hired to that character
+so the roster has rows.
+
+**The probe.** Paste this with the windows below open. `inSummary`,
+`hreflessInSummary`, `noIdName` and `nameless` must read 0 and `dupIds` must be
+empty; `noLabel` and `deadLabel` are counted, not gated, and the paragraph under
+the block says what the standing numbers are and why.
+
+```js
+const LABELABLE = 'input:not([type=hidden]),select,textarea,meter,output,progress,'
+  + 'prose-mirror,multi-select,multi-checkbox,string-tags,file-picker,color-picker,'
+  + 'range-picker,document-tags,formula-input,hue-slider,autocomplete-tags,code-mirror';
+const INTERACTIVE = (el) => (el.tagName === 'A' && el.hasAttribute('href'))
+  || ['BUTTON','SELECT','TEXTAREA','LABEL','DETAILS','EMBED','IFRAME'].includes(el.tagName)
+  || (el.tagName === 'INPUT' && el.type !== 'hidden');
+const ours = (el) => !!el.closest('[class*="acks-extras"]');
+const ctrls = [...document.querySelectorAll(LABELABLE)].filter(ours);
+console.log({
+  inSummary: [...document.querySelectorAll('summary *')].filter(ours).filter(INTERACTIVE).length,
+  hreflessInSummary: [...document.querySelectorAll('summary a:not([href])')].filter(ours).length,
+  noIdName: ctrls.filter(c => !c.id && !c.getAttribute('name')).length,
+  noLabel: ctrls.filter(c => !c.labels?.length && !c.closest('label')
+    && !c.getAttribute('aria-label') && !c.getAttribute('aria-labelledby')).length,
+  nameless: ctrls.filter(c => !c.labels?.length && !c.closest('label')
+    && !c.getAttribute('aria-label') && !c.getAttribute('aria-labelledby')
+    && c.closest('.form-group')?.querySelector('label')).length,
+  deadLabel: [...document.querySelectorAll('label:not([for])')].filter(ours)
+    .filter(l => !l.querySelector(LABELABLE)).length,
+  misbound: [...document.querySelectorAll('label[for]')]
+    .filter(l => !document.getElementById(l.htmlFor))
+    .map(l => `${l.textContent.trim().slice(0, 20)} -> ${l.htmlFor}`),
+  dupIds: [...new Set([...document.querySelectorAll('[id]')].map(e => e.id)
+    .filter((v, i, a) => a.indexOf(v) !== i))],
+});
+```
+
+**What the two counted numbers stand at, and why they are not zero.** With every
+window below open, `noLabel` reads **72** and `deadLabel` reads **5**. Both are
+template work this pass cannot do from the DOM, and `nameless` is the part of
+`noLabel` it can: a control whose group has a caption. That one reads 0, and a
+rise in it is the regression to chase.
+
+The 72 are controls with no caption anywhere near them — the document `name` box
+in a sheet header, whose only cue is its placeholder, and the character sheet's
+fact grid, whose captions are `<span>`s in a layout the pass will not rewrite. A
+name for those has to be authored. Of the 5 dead captions, 3 belong to the
+system's own sheets and are out of this repo's reach; the 2 in the Full Monster
+sheet are a caption over a drop target and a `<label>` used as a rollable
+heading, and both are fixed by writing the template, not by binding anything.
+
+**Windows the run must have open when it samples** — a zero with nothing open
+proves nothing: the module character sheet, an abilities item sheet, the class
+sheet, the Full Monster sheet on every tab, a vehicle sheet, the location sheet
+on Contents and Recruitment, the henchmen roster, the equipment item sheet, both
+trap sheets, and the scene config.
+
+**The two overruled bindings are only visible on the SYSTEM's own sheets**, and
+this module's sheets are the registered default, so they have to be opened by
+class:
+
+```js
+new CONFIG.Actor.sheetClasses.character['acks.fe'].cls({ document: actor }).render(true);
+new CONFIG.Actor.sheetClasses.monster['acks.ye'].cls({ document: monster }).render(true);
+```
+
+On the character sheet, the two `Climb` captions must resolve to two DIFFERENT
+inputs (`system.adventuring.climb` and `system.movementacks.climb`) — one id for
+both is what the pass re-mints. `misbound` keeps exactly one entry per open
+monster sheet, the header's `Throw` — so two with the Full Monster sheet and the
+system's own sheet both up. The system writes a `for` for an id it never writes
+and puts no control behind the caption, so there is nothing to bind and the
+attribute stands as authored. An entry naming anything else is a regression.
+
+**Four observables that are not counters.**
+
+1. **The summary is a toggle again.** With a roster row closed, click a GM row
+   action: `details.open` stays false and the action fires. Then reach the same
+   button by keyboard — it takes focus, which the anchors it replaced could not.
+2. **A caption activates its control, and the write lands.** Click the caption
+   text of a vehicle sheet checkbox; re-read `actor.system` and confirm the
+   value changed. A ticked box that did not write is the failure this catches.
+3. **A caption over a GROUP still ticks nothing.** Click "Key attributes" on the
+   class sheet: no checkbox changes. That heading fronts a row of boxes each in
+   its own label, and binding it to the first would be a mis-association.
+4. **Two windows of one class stay separate.** With both trap sheets open, click
+   each sheet's "Trigger" caption: focus lands in *that* sheet's input, and
+   `dupIds` is empty. This is what the removed literal ids used to break.
+
+Re-run the probe after editing a field on a sheet that submits on change:
+`nameless` must still be 0, which is what proves the binding re-runs when a part
+is replaced rather than only on first render.
+
+**Teardown.** Sweep the trap, vehicle, location and class items and the actors
+by uuid.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

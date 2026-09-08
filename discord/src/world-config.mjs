@@ -123,6 +123,7 @@ export function applyWorldConfig(config, world, token, env = process.env) {
   if (!has(env, "SEAT_WIDTH")) config.seat.width = w.seat.width;
   if (!has(env, "SEAT_HEIGHT")) config.seat.height = w.seat.height;
   if (!has(env, "SEAT_READY_SECONDS")) config.seat.readySeconds = w.seat.readySeconds;
+  if (!has(env, "SEAT_GPU")) config.seat.gpu = w.seat.gpu;
   if (!has(env, "LOG_LEVEL")) config.logLevel = w.service.logLevel;
   return config;
 }

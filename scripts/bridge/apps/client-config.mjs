@@ -128,7 +128,7 @@ export class BridgeClientConfigApp extends HandlebarsApplicationMixin(Applicatio
         judgeIds: data.judgeIds ?? "",
         relay: !!data.relay,
       },
-      seat: { width: data.width, height: data.height, readySeconds: data.readySeconds },
+      seat: { width: data.width, height: data.height, readySeconds: data.readySeconds, gpu: !!data.gpu },
       service: { logLevel: data.logLevel },
       token,
     });

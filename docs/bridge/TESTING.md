@@ -186,8 +186,22 @@ owner is a Judge without being listed anywhere. Setup is the
    absent while the bot has not announced within the last two minutes.
 3. **`npm run register`** answers the nine commands; they appear in the
    test server's command picker at once. A bot configured in Foundry has
-   already registered them at its start — this step is the by-hand form and
-   needs the Discord values in the environment.
+   already registered them at its start — this step is the by-hand form.
+   With no Discord values in the environment it prints that it is taking the
+   seat, reads them from Foundry instead, and still succeeds; with all three
+   already in the environment it never touches the seat at all.
+3a. **A guild that lost its commands re-registers.** In the test server's own
+   settings, remove and reinvite the bot (or, cheaper, delete one command by
+   hand from the picker) without changing anything the bot itself runs on,
+   then restart it: the journal's registration line does not say "nothing to
+   register" — the application and guild id are part of the digest now, so a
+   guild with no memory of an earlier registration always reads as one that
+   needs it. Reinvite the bot to a **second** server while the first stays
+   configured: nothing changes, because a guild is already chosen. Remove the
+   first server's guild id from Foundry's configuration first, then reinvite
+   to the second: the journal reads `joined … adopting it since no server was
+   chosen`, the commands appear there without a restart, and the Discord Bot
+   window's server dropdown now offers it.
 4. **`/whoami`** before any link answers, ephemerally, that the member is
    not linked — and names both ways to be linked. Within a few seconds the
    Members window in Foundry offers that member by their server name: the
@@ -243,11 +257,35 @@ owner is a Judge without being listed anywhere. Setup is the
     then `prestart` reinstalling, then the seat ready again; the registration
     line says the commands were unchanged unless the build changed them.
     `/whoami` answers afterwards without any hand on the host.
+13a. **A startup failure retries instead of dying.** Point `FOUNDRY_ORIGIN` at
+    a port nothing answers and start the bot: the journal reads `could not
+    announce to the world` with a retry delay, repeating with a longer delay
+    each time, and `systemctl status` shows the unit still `active` — not
+    restarting — because the process itself is retrying, not exiting.
+    Restore the correct origin without touching the unit: the very next
+    retry succeeds and the bot comes up normally. Then break something the
+    retry cannot fix (stop the unit, corrupt `client-key.json`, and start it
+    under a Foundry the bot can join but never reads a key from) enough times
+    quickly to trip `StartLimitBurst`: `systemctl status` reports the unit
+    `failed`, not `activating`, and `systemctl reset-failed
+    acks-extras-discord` (which `install-service.mjs` already runs before
+    every install) clears it once the cause is fixed.
 14. **A key the bot lost.** Delete `client-key.json` from the bot's state
     directory (`/var/lib/acks-extras-discord`) and restart it. The window
     reads *the stored token was sealed to a key this bot no longer holds*,
     and the journal says the same rather than failing to log in for no
     visible reason. Pasting the token again fixes it.
+15. **The seat draws nothing, and says so.** With **Draw the map** off — the
+    default — the journal reads `seat canvas: torn down` a moment after
+    `seat ready`, and that line's `canvas` field reads `false`. `/map` answers
+    that the seat draws no canvas. Every other command still answers.
+16. **A write is fast, which is the whole point.** `npm run seat:check` times
+    the `announce` write and its read-back and fails anything past two
+    seconds. On a seat that draws, the same write takes tens of seconds —
+    that is what this step exists to catch, and no offline check can see it.
+    Turn **Draw the map** on against a host with no GPU to reproduce the
+    failure deliberately; the journal warns `seat canvas: still up` and the
+    check fails on time rather than on a timeout.
 
 ### Teardown
 

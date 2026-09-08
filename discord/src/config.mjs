@@ -34,6 +34,14 @@ const int = (env, key, fallback) => {
   const v = Number(env[key]);
   return Number.isInteger(v) && v > 0 ? v : fallback;
 };
+/** A yes/no an operator may write any of the usual ways; an unset variable keeps the fallback. */
+const flag = (env, key, fallback) => {
+  const v = String(env[key] ?? "")
+    .trim()
+    .toLowerCase();
+  if (!v) return fallback;
+  return ["1", "true", "yes", "on"].includes(v);
+};
 
 /**
  * Build the config from an environment-shaped object. The Discord half is
@@ -70,6 +78,7 @@ export function fromEnv(env, { discord = false, browser = true, browserAt = find
       width: int(env, "SEAT_WIDTH", 1600),
       height: int(env, "SEAT_HEIGHT", 1000),
       readySeconds: int(env, "SEAT_READY_SECONDS", 120),
+      gpu: flag(env, "SEAT_GPU", false),
       browserArgs: opt(env, "SEAT_BROWSER_ARGS")
         .split(/\s+/)
         .map((s) => s.trim())

@@ -248,6 +248,15 @@
   font-size: 0.85em;
 }
 
+/* A section's add control, directly under its summary. The row is what puts it
+   back on the right margin the summary used to hold it at. */
+.acks-extras.acks-extras-location-sheet .section-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-block: 0.15rem;
+}
+
 .acks-extras.acks-extras-location-sheet .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -433,13 +442,20 @@
   color: var(--acks-warning-ink);
 }
 
+/* The row's controls sit at the head of the row body, not on the summary line:
+   a summary is the disclosure toggle, and anything clickable inside it trades
+   clicks with the toggle. */
 .acks-extras.roster-app .row-actions {
-  margin-left: auto;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-block-end: 0.35rem;
 }
 
-.acks-extras.roster-app .row-actions a {
-  margin: 0 0.2rem;
+.acks-extras.roster-app .row-actions button {
+  flex: 0 0 auto;
+  width: auto;
+  line-height: 1.4;
 }
 
 .acks-extras.roster-app .row-details {

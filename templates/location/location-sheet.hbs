@@ -88,14 +88,18 @@
 
     {{!-- ---- Places inside this one, and the goods kept here ---- --}}
     <details class="section" open>
-      <summary>
-        {{localize "ACKS-LOCATION.place.contents"}} ({{contentRows.length}})
-        {{#if isGM}}
+      {{!-- A summary holds the section's name and nothing clickable: a control
+            inside the disclosure toggle is reached inconsistently by keyboard
+            and assistive technology, so every section's add control is the
+            first thing in the section body instead. --}}
+      <summary>{{localize "ACKS-LOCATION.place.contents"}} ({{contentRows.length}})</summary>
+      {{#if isGM}}
+      <div class="section-actions">
         <button type="button" class="inline-add" data-action="addChildPlace">
           <i class="fas fa-plus"></i> {{localize "ACKS-LOCATION.place.addChild"}}
         </button>
-        {{/if}}
-      </summary>
+      </div>
+      {{/if}}
       {{#if contentRows.length}}
       <ul class="acks-extras-place-list">
         {{#each contentRows}}
@@ -194,10 +198,10 @@
   {{!-- ------------------------- Recruitment ------------------------- --}}
   <section class="tab location-tab {{tabs.recruitment.cssClass}}" data-group="primary" data-tab="recruitment">
     <details class="section" open>
-      <summary>
-        {{localize "ACKS-HENCHMEN.location.postings"}} ({{postings.length}})
+      <summary>{{localize "ACKS-HENCHMEN.location.postings"}} ({{postings.length}})</summary>
+      <div class="section-actions">
         <button type="button" class="inline-add" data-action="createPosting"><i class="fas fa-plus"></i> {{localize "ACKS-HENCHMEN.posting.create"}}</button>
-      </summary>
+      </div>
       {{#if postings.length}}
       <table class="postings-table acks-table acks-table--compact acks-table--interactive">
         <thead>
@@ -664,10 +668,10 @@
     </div>
 
     <details class="section">
-      <summary>
-        {{localize "ACKS-HENCHMEN.location.slander"}} ({{slander.length}})
+      <summary>{{localize "ACKS-HENCHMEN.location.slander"}} ({{slander.length}})</summary>
+      <div class="section-actions">
         <button type="button" class="inline-add" data-action="addSlander"><i class="fas fa-plus"></i></button>
-      </summary>
+      </div>
       <p class="hint">{{localize "ACKS-HENCHMEN.location.slanderHint"}}</p>
       {{#each slander}}
       <div class="slander-row" data-slander-index="{{index}}">

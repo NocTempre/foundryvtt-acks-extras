@@ -32,6 +32,8 @@ export function refusalText(code, message = "") {
       return `That will not work${message ? `: ${message}` : "."}`;
     case "unknownCommand":
       return "The world does not know that command — the module and the bot may be out of step.";
+    case "unavailable":
+      return "The bot's seat cannot do that. A board picture needs a seat that draws the map, which needs hardware acceleration on the machine the bot runs on — a Judge turns it on in Foundry, under **Discord Bot → The bot's seat**.";
     case "seatDown":
       return "The Foundry seat is reconnecting; try again in a moment.";
     default:

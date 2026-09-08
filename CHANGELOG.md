@@ -1,5 +1,82 @@
 # Changelog
 
+## 7.3.0
+
+**The Discord bot stops drawing a map nobody asked for, and every caption on
+every window names the field it sits beside.**
+
+### Fixed
+- **The bot answers, on a server with no graphics card.** Its commands
+  appeared in Discord and every one of them came back *The application did not
+  respond*, while in Foundry the bot's user joined and left the world every
+  fifty seconds. The bot plays by holding a seat — a browser joined to your
+  world as its own user — and a browser with no hardware acceleration draws the
+  scene by hand, on the same thread it has to answer you with. Measured on an
+  ordinary server: one write to the world took 47 seconds with the map drawn
+  and 12 milliseconds without it, which is past every deadline the bot has, so
+  it died on the first thing it ever writes and was restarted, and died again.
+  The seat now draws nothing. **Draw the map** puts the picture back for a host
+  that can afford one, and `/map` — the only command that needs it — says it is
+  unavailable rather than working slowly and freezing everyone else's turn
+  behind it.
+- **A bot that cannot reach the world says so, once.** Anything the world
+  refused at startup killed the bot outright, and the service manager started
+  it again ten seconds later, forever: one server did that 408 times overnight,
+  each life costing it a browser and five minutes of processor. The bot now
+  keeps its seat and retries, saying what failed and when it will try again,
+  and a failure it cannot retry its way out of parks the service instead of
+  grinding on it.
+- **A bot re-invited to a server gets its commands back.** The bot remembers
+  which commands it last registered, so that it does not re-register them at
+  every start; it did not remember *where* it sent them. A bot removed from a
+  server and invited again — Discord drops a bot's commands when it leaves —
+  found its own note, decided there was nothing to do, and left the server with
+  an empty command list permanently.
+- **A bot invited to a server while it is already running notices.** It read
+  the list of servers it belonged to exactly once, at login, so a bot invited
+  afterwards sat there online and did nothing at all until something restarted
+  it. It now adopts a server it is invited to, registers on it, and tells your
+  Foundry window it has.
+- **The by-hand command registration runs on an installed bot.** `npm run
+  register` — the documented repair for a server that has lost its commands —
+  demanded three Discord values from the environment that the installer
+  deliberately removes, because they live in Foundry now. On every supported
+  install it stopped with `DISCORD_TOKEN is required`. It reads the world
+  through the bot's own seat instead, and still runs from plain environment
+  variables for a bare development run.
+- **Clean Up After the Merge is in the module again.** Nine features arrived as
+  separate modules and were merged into this one; a world that ran them keeps
+  documents whose kind no longer exists, and Foundry refuses to load such an
+  Actor, so it reports a failure on every single world load, forever. The macro
+  that finds and removes that residue was documented, then lost — it went out
+  with the content packs a hotfix removed and has been missing since. It is
+  back in the macros compendium: it reports everything before it touches
+  anything, and running it twice is safe.
+- **A caption names the field it sits beside.** Across the module's windows a
+  label was just text next to a control: clicking it did nothing, and anything
+  reading the page aloud announced the field as unnamed — 272 places, and the
+  same shape appears in the system's sheets and Foundry's own. The binding is
+  made when a window renders, so two copies of one sheet each get their own,
+  which a fixed answer written into the template cannot do — and did not: four
+  item sheets shipped fixed ones, so opening two traps at once made the second
+  sheet's caption focus the first sheet's field. Where one caption stands over
+  two fields — a width beside a height, a toggle beside the channel it turns on
+  — the caption clicks through to the first and is announced over both, so the
+  second is no longer read out as having no name at all.
+
+### Added
+- **Draw the map**, in the bot's window under *The bot's seat*. Off, and on
+  most hosts it should stay off: it is what lets the seat render the board for
+  `/map`, and a machine without hardware acceleration pays for that on every
+  other command. A world that upgrades keeps the behaviour it had.
+
+### Changed
+- **The henchmen roster's Judge actions moved into the row.** Its six row
+  actions and its link to the henchman sat on the row's summary line, where
+  each of them also opened or closed the row it was in and none could be
+  reached from the keyboard. They are at the head of the opened row now, which
+  costs the click that opens it.
+
 ## 7.2.0
 
 **A weapon is what it is declared to be, the ACKS font size reaches the sheets

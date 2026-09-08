@@ -69,6 +69,13 @@ test("the browser gets a profile, a port, a size above Foundry's floor and the o
   assert.equal(args.at(-1), "about:blank");
 });
 
+test("a seat is told there is no GPU unless it was given one", () => {
+  const off = browserArgs({ port: 9334, profile: "/tmp/p", width: 1600, height: 1000 });
+  assert.ok(off.includes("--disable-gpu"), "the default seat draws nothing it does not have to");
+  const on = browserArgs({ port: 9334, profile: "/tmp/p", width: 1600, height: 1000, gpu: true });
+  assert.ok(!on.includes("--disable-gpu"), "a seat given a GPU is allowed to use it");
+});
+
 test("the bridge client serialises calls, unwraps data and turns a refusal into an error", async () => {
   const seat = new EventEmitter();
   const log = [];

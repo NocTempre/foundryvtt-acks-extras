@@ -29,25 +29,31 @@
   <div class="roster-rows">
     {{#each rows}}
     <details class="roster-row {{#if wageDue}}wage-due{{/if}}" data-actor-id="{{id}}">
+      {{!-- The summary is the row's disclosure toggle and carries text only.
+            A control placed inside it either loses its own click to the toggle
+            or swallows the toggle's, and an anchor with no href cannot be
+            reached from the keyboard at all - so every control for the row,
+            the link to the actor included, lives in the row's body below. --}}
       <summary>
-        <img src="{{img}}" alt="{{name}}" />
-        <a data-action="openActor" class="row-name">{{name}}</a>
+        <img src="{{img}}" alt="" />
+        <span class="row-name">{{name}}</span>
         <span class="row-tag">{{category}}{{#if isMonster}} ({{localize "ACKS-HENCHMEN.roster.monster"}}){{/if}}{{#if noSlot}} <i class="fas fa-star-of-life" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.noSlot'}}"></i>{{/if}}</span>
         <span class="row-stat" data-tooltip="{{loyaltyBreakdown}}">{{localize "ACKS-HENCHMEN.roster.loyalty"}} <strong>{{loyalty}}</strong></span>
         <span class="row-stat">{{localize "ACKS-HENCHMEN.roster.morale"}} <strong>{{morale}}</strong></span>
         <span class="row-stat {{#if wageDue}}due{{/if}}">{{wage}} gp{{#if wageDue}} <i class="fas fa-triangle-exclamation" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.wageDue'}}"></i>{{/if}}</span>
-        {{#if @root.isGM}}
-        <span class="row-actions">
-          <a data-action="loyaltyRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.throw.hirelingLoyalty'}}"><i class="fas fa-user-secret"></i></a>
-          <a data-action="obedienceRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.throw.hirelingObedience'}}"><i class="fas fa-list-check"></i></a>
-          <a data-action="calamity" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.recordCalamity'}}"><i class="fas fa-skull"></i></a>
-          <a data-action="penalty" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.recordPenalty'}}"><i class="fas fa-bandage"></i></a>
-          <a data-action="transfer" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.transfer'}}"><i class="fas fa-right-left"></i></a>
-          <a data-action="dismiss" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.dismiss'}}"><i class="fas fa-door-open"></i></a>
-        </span>
-        {{/if}}
       </summary>
       <div class="row-details">
+        <div class="row-actions">
+          <button type="button" data-action="openActor" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.openSheet'}}"><i class="fas fa-id-badge"></i></button>
+          {{#if @root.isGM}}
+          <button type="button" data-action="loyaltyRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.throw.hirelingLoyalty'}}"><i class="fas fa-user-secret"></i></button>
+          <button type="button" data-action="obedienceRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.throw.hirelingObedience'}}"><i class="fas fa-list-check"></i></button>
+          <button type="button" data-action="calamity" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.recordCalamity'}}"><i class="fas fa-skull"></i></button>
+          <button type="button" data-action="penalty" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.recordPenalty'}}"><i class="fas fa-bandage"></i></button>
+          <button type="button" data-action="transfer" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.transfer'}}"><i class="fas fa-right-left"></i></button>
+          <button type="button" data-action="dismiss" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.dismiss'}}"><i class="fas fa-door-open"></i></button>
+          {{/if}}
+        </div>
         {{#if origin}}<p class="hint">{{origin}}{{#if arrears}} — {{localize "ACKS-HENCHMEN.roster.arrears"}}: {{arrears}} gp{{/if}} — {{localize "ACKS-HENCHMEN.roster.calamities"}}: {{calamities}}</p>{{/if}}
         {{#if rolledLine}}
         <p><strong>{{localize "ACKS-HENCHMEN.roster.rolled"}}:</strong> {{rolledLine}}</p>

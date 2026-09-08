@@ -344,6 +344,69 @@ selector for the mirror-image reason — it *reads* the host's variables, and
 Foundry re-declares those on `<body>` (which it does **not** mark `.themed`) and
 again on each themed application root.
 
+## Label association
+
+Every rendered window binds its captions to their controls. `a11y.mjs`'s
+`associateLabels` walks the rendered root; for each
+`<label>` that carries no `for` and wraps no control it finds the control the
+caption fronts, mints an id on it seeded from the window's own root element id,
+and points the label at it. Foundry's `createFormGroup` does the same thing for
+a group built from a DataField — this covers the hand-written groups and the
+dialogs whose body is a template literal, which is nearly all of them.
+
+The binding is made at runtime because the id has to be unique per WINDOW, not
+per template. Two copies of one sheet are ordinary, so a literal `id=` in a
+`.hbs` makes the second window's label focus the first window's field; and
+`templates/lib/follower-card.hbs` fronts an `<input>` or a `<span>` from one
+caption depending on `editable`, so no static `for=` is right for both.
+
+The hook is registered at `ready`, not at import. `renderApplicationV2` handlers
+run in registration order and every feature injector registers its own at import
+time, so ready-time registration is what puts this one last and lets it see the
+DOM the injectors added. The two async injectors, which land after any hook,
+call `associateLabels` on the fragment they just built.
+
+**It runs on every window, not only this module's.** The system's sheets and
+Foundry's own configuration windows carry the same defect, and this module
+already repairs what it finds in the layers beneath it. What a repair does is
+bounded: it ADDS an id where there is none and a `for` where there is none, so a
+host that sets its own later is unaffected, and a `<label>` the host left naming
+nothing stays as the host wrote it.
+
+Two shapes overrule what the host wrote, because in both the host's binding
+cannot work and the reader is left with a field that has no name at all. A `for`
+naming an id no window holds is treated as absent, and the caption is bound to
+what it actually fronts. Of two controls sharing one id — the same literal-`id=`
+collision the templates are gated against, arriving from a template this module
+does not own — the later one is re-minted and the caption sitting WITH it is
+carried across, since `getElementById` was handing that caption its neighbour's
+field. Both are measured, not theoretical: the ACKS character sheet ships two
+inputs under one `climb` id, and its monster header a `for` for an id nothing
+writes.
+
+One shape it leaves alone on purpose: a caption over a GROUP of controls, each
+already in its own `<label class="checkbox">`, finds no candidate — a control
+inside another label is excluded — so a heading never ticks its first member.
+A `<button>` is a last resort rather than an exclusion: label activation
+forwards a click, so a field always wins the binding where the group holds one,
+and the button takes it only when the group holds nothing else. Core's settings
+menus are rows of exactly that shape.
+
+A group holding more than one control gets its caption bound to the first and
+the rest named after it with `aria-labelledby` — `for` names a single id, so
+binding alone leaves a seat height or a chat channel silent beside the width or
+the toggle that took the caption. Naming forwards no click, which is why this
+second route may read a caption the binding must refuse, such as one inside a
+rollable header.
+
+A `<label>` that fronts nothing is a template bug rather than this pass's work,
+and is written as a `<span>` where it stands. So is anything clickable inside a
+`<summary>`: a summary is a disclosure toggle, it swallows or is swallowed by
+whatever is placed in it, and controls belong in the body it discloses. Both,
+and the literal `id=`, are gated in this repo's own templates by
+`tools/validate.mjs` §8d–f (`.claude/rules/ui-layout.md`); the runtime pass is
+what answers for every window this repo does not author.
+
 ## Perception: senses, light, and the token
 
 Three files answer "what can this creature see, and how brightly does it burn?"

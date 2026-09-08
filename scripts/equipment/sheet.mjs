@@ -37,6 +37,7 @@ import { STONE, declaresSlots, slotsOf, gearOf, isWorn, isEquippable, capacityOf
 import { WEAR_SLOT_ORDER, ACCESS_COSTS, slotCapacity, ITEM_TYPE, ACTOR_TYPE, SLOT } from "../lib/vocab.mjs";
 import { LIGHT_SOURCES } from "../lib/light.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
+import { LABELABLE } from "../lib/a11y.mjs";
 import { cycleStrap, strapOf, variantOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
 import { overlayEnabled as scavengedOverlayEnabled, tableFor } from "./overlays/scavenged.mjs";
 import { helmetType } from "./overlays/enclosing-helm.mjs";
@@ -813,7 +814,15 @@ export function buildConstructionPanel(item) {
   const section = el("section", "acks-equipment-props");
   const row = (labelKey, control) => {
     const g = el("div", "acks-equipment-props__row");
-    g.append(el("label", "acks-equipment-props__label", labelKey ? game.i18n.localize(labelKey) : ""), control);
+    // The caption is a `<label>` only where the row holds something a label can
+    // name. Half these rows carry a note or a strip of buttons instead, and a
+    // `<label>` over one of those names nothing — a defect, not a style. The
+    // class is what carries the look, so both tags render the same.
+    const names = control.matches?.(LABELABLE) || !!control.querySelector?.(LABELABLE);
+    g.append(
+      el(names ? "label" : "span", "acks-equipment-props__label", labelKey ? game.i18n.localize(labelKey) : ""),
+      control,
+    );
     section.append(g);
   };
   const guard = (fn) => Promise.resolve(fn()).catch((e) => console.error(`${MODULE_ID} | item property`, e));

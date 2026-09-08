@@ -10,10 +10,19 @@
 # update cannot take them. ExecStartPre puts node_modules back
 # when the update removed it; the bot itself exits when the module changes,
 # and Restart= brings it up on the new code.
+#
+# StartLimitIntervalSec/StartLimitBurst bound that restart, on top of it: a
+# failure the bot cannot retry its way out of (a bad seat config, a crash on
+# every life) parks the unit as failed after this many starts in this many
+# seconds, instead of restarting forever at ten-second intervals. `systemctl
+# reset-failed acks-extras-discord` clears it once the cause is fixed, which
+# `install-service.mjs` already does before every install.
 [Unit]
 Description=ACKS II Extras — Discord bridge
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=10
 
 [Service]
 Type=simple

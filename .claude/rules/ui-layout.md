@@ -3,7 +3,9 @@
 Every window a module opens is **editable, resizable, and able to reflow and
 scroll**, at the type size its user chose. A user whose display is smaller than
 the one it was built on must still be able to reach every control on it, and a
-user who raises the type size must have it reach every surface.
+user who raises the type size must have it reach every surface. Reaching a
+control also means reaching it from the keyboard and hearing it named, and
+means the window behaves when a second copy of it is open beside the first.
 
 This is a field rule, not a preference: the failure is silent. Core caps an
 application frame at the viewport height and gives `.window-content`
@@ -13,7 +15,7 @@ sees it, because nothing offline has a viewport.
 
 ## What the gate enforces
 
-`tools/validate.mjs` §8 fails the build on the three halves that are decidable
+`tools/validate.mjs` §8 fails the build on the six halves that are decidable
 from source. Read that section for the mechanics; they are not restated here.
 
 - **Scroll-contract membership** — a window whose `classes` array omits
@@ -26,11 +28,28 @@ from source. Read that section for the mechanics; they are not restated here.
   `styles/`. Both look right on the machine they were written on and ignore the
   size setting everywhere else, which leaves an accessibility control present
   and inert.
+- **Interactive content inside a `<summary>`** — the summary IS the disclosure
+  toggle, so a control placed in it either loses its click to the toggle or
+  swallows the toggle's, and assistive technology reaches it inconsistently. An
+  `<a>` with no `href` there is diagnosed separately: it is not focusable at
+  all, so its only route is the click it is already losing.
+- **A `<label>` that can never name anything** — a caption with no `for`, no
+  wrapped control, and nothing left to name because every control before its
+  parent's close is already claimed by a label of its own. A bare `<label>` is
+  NOT the defect and never fails: those are bound at runtime, per window.
+- **A literal `id=` in a `.hbs`** — a template renders once per open window, so
+  a literal id is a duplicate the moment a second copy of that sheet is open,
+  and every `for=`/`list=` naming it then resolves to the FIRST window's
+  element. `{{@root.partId}}` is the per-window seed for the cases that
+  genuinely need an explicit id, such as a `<datalist>`.
 
-Each escape is declared on the spot, and both are deliberate and cheap: a
+Each escape is declared on the spot, and they are deliberate and cheap: a
 window outside the scroll contract writes `// no-scroll: <reason>` on or just
-above its `classes:` line, and a size that must not move writes
-`/* px-ok: <reason> */` beside itself. An undeclared omission is the bug.
+above its `classes:` line, a size that must not move writes
+`/* px-ok: <reason> */` beside itself, and the three template checks answer to
+`{{!-- summary-ok: <reason> --}}`, `{{!-- label-ok: <reason> --}}` and
+`{{!-- id-ok: <reason> --}}` on or just above the offending line. An undeclared
+omission is the bug.
 
 ## Type answers to one knob
 

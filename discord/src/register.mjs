@@ -13,8 +13,14 @@ import { REST, Routes } from "discord.js";
 /** The bodies Discord receives, in command order. */
 export const commandBody = (commands) => commands.map((c) => c.data.toJSON());
 
-/** A stable digest of a registration body. */
-export const digest = (body) => createHash("sha256").update(JSON.stringify(body)).digest("hex");
+/**
+ * A stable digest of a registration body AND where it was last sent. A guild
+ * that lost its commands (the bot was kicked and reinvited, or is now
+ * pointed at a different server) needs the same bodies sent again even
+ * though no command changed — so the application and guild id are part of
+ * what the digest covers, not just the bodies.
+ */
+export const digest = (body, { appId = "", guildId = "" } = {}) => createHash("sha256").update(JSON.stringify({ body, appId, guildId })).digest("hex");
 
 /** Whether a body must be sent, given the digest of the last one sent (null when none). */
 export const needsRegistration = (sha, stored) => !stored || stored.trim() !== sha;
@@ -29,7 +35,7 @@ export const stateDirectory = (env = process.env) => env.STATE_DIRECTORY || path
  */
 export async function registerGuildCommands({ config, commands, stateDir = null, force = false, log, rest }) {
   const body = commandBody(commands);
-  const sha = digest(body);
+  const sha = digest(body, { appId: config.discord.appId, guildId: config.discord.guildId });
   const marker = stateDir ? path.join(stateDir, "commands.sha256") : null;
   const stored = marker && fs.existsSync(marker) ? fs.readFileSync(marker, "utf8") : null;
   if (!force && !needsRegistration(sha, stored)) {

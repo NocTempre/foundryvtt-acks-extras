@@ -47,6 +47,7 @@ import {
 } from "./compendium-folders.mjs";
 import { installPolyglotBridge, publishWorldLanguages } from "./polyglot.mjs";
 import { registerManagedEffectGuard, lockManagedEffectRows } from "./managed-effects.mjs";
+import { associateLabels } from "./a11y.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
@@ -738,6 +739,18 @@ Hooks.once("ready", () => {
   // clears them.
   applyLook();
   applyFontScale(game.settings.get(MODULE_ID, "fontScale"));
+
+  // Bind every caption in every rendered window to the control it fronts — this
+  // module's windows, the system's sheets, and Foundry's own configuration
+  // windows alike. The defect does not stop at the module boundary and neither
+  // does the repair; a11y.mjs states what it will and will not touch.
+  //
+  // Registered at READY, not at import: `renderApplicationV2` handlers fire in
+  // registration order, every feature injector registers its own at import
+  // time, and lib is imported first — so registering here is what puts this
+  // last and lets it see the DOM the injectors added. The surfaces that still
+  // land after it (the async injectors) call `associateLabels` themselves.
+  Hooks.on("renderApplicationV2", (app, element) => associateLabels(element, { seed: app.id }));
 
   if (game.system?.id !== "acks") return;
 

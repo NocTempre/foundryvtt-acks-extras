@@ -63,5 +63,9 @@ export const ERR = Object.freeze({
   notFound: "notFound",
   noActive: "noActive",
   invalid: "invalid",
+  // The command is registered and the caller is entitled to it, but this seat
+  // cannot serve it. Distinct from `failed` because nothing is wrong and
+  // retrying will not help — the client says so instead of offering hope.
+  unavailable: "unavailable",
   failed: "failed",
 });

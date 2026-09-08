@@ -19,6 +19,7 @@
  * repaired from the flag whenever the two are seen to disagree.
  */
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "./constants.mjs";
+import { associateLabels } from "../lib/a11y.mjs";
 
 /* -------------------------------------------- */
 /*  Reading the link                             */
@@ -221,6 +222,9 @@ export function registerSceneConfigRow() {
       </div>
       <p class="hint">${game.i18n.localize(`${LANG_PREFIX}.place.sceneHint`)}</p>`;
     anchor.after(group);
+    // The scene config is core's window, so the binding is scoped to the group
+    // this module built and reaches nothing core owns.
+    associateLabels(group);
 
     // Written immediately rather than on form submit: the link is a flag on
     // the scene plus a field on an actor, and a submit handler could only ever

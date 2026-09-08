@@ -4,13 +4,13 @@
     <img class="attitude-portrait" src="{{system.targetImg}}" alt="{{system.targetName}}"/>
     <div class="attitude-header-fields">
       <div class="form-group">
-        <label for="attitude-target">{{localize 'ACKS-INFLUENCE.attitude.target'}}</label>
-        <input type="text" id="attitude-target" name="system.targetName" value="{{system.targetName}}"
+        <label>{{localize 'ACKS-INFLUENCE.attitude.target'}}</label>
+        <input type="text" name="system.targetName" value="{{system.targetName}}"
                data-dtype="String" {{#unless editable}}disabled{{/unless}}/>
       </div>
       <div class="form-group">
-        <label for="attitude-current">{{localize 'ACKS-INFLUENCE.field.currentAttitude'}}</label>
-        <select id="attitude-current" name="system.attitude" data-dtype="Number"
+        <label>{{localize 'ACKS-INFLUENCE.field.currentAttitude'}}</label>
+        <select name="system.attitude" data-dtype="Number"
                 {{#unless editable}}disabled{{/unless}}>
           {{selectOptions attitudeChoices valueAttr="value" labelAttr="label" selected=system.attitude}}
         </select>
@@ -22,8 +22,8 @@
     <legend>{{localize 'ACKS-INFLUENCE.attitude.attempts'}}</legend>
     {{#each tones}}
       <div class="form-group">
-        <label for="attitude-att-{{this.key}}">{{this.label}}</label>
-        <input type="number" id="attitude-att-{{this.key}}" name="system.attempts.{{this.key}}"
+        <label>{{this.label}}</label>
+        <input type="number" name="system.attempts.{{this.key}}"
                value="{{this.value}}" data-dtype="Number" min="0" {{#unless ../editable}}disabled{{/unless}}/>
       </div>
     {{/each}}

@@ -34,32 +34,28 @@
   {{!-- CLASS · LEVEL · XP · ALIGNMENT --}}
   <div class="fc-topline">
     <div class="fc-field fc-class">
-      <label>{{localize "ACKS.details.class"}}</label>
       {{#if klassPath}}
-        {{#if editable}}<input type="text" name="{{klassPath}}" value="{{klass}}" />{{else}}<span>{{klass}}</span>{{/if}}
+        {{#if editable}}<label>{{localize "ACKS.details.class"}}</label><input type="text" name="{{klassPath}}" value="{{klass}}" />{{else}}<span class="fc-label">{{localize "ACKS.details.class"}}</span><span>{{klass}}</span>{{/if}}
       {{else}}
-        <span>{{klass}}</span>
+        <span class="fc-label">{{localize "ACKS.details.class"}}</span><span>{{klass}}</span>
       {{/if}}
     </div>
     <div class="fc-field fc-level">
-      <label>{{localize levelLabel}}</label>
       {{#if editable}}
-        {{#if levelPath}}<input type="text" name="{{levelPath}}" value="{{level}}" data-dtype="Number" />{{else}}<span>{{level}}</span>{{/if}}
+        {{#if levelPath}}<label>{{localize levelLabel}}</label><input type="text" name="{{levelPath}}" value="{{level}}" data-dtype="Number" />{{else}}<span class="fc-label">{{localize levelLabel}}</span><span>{{level}}</span>{{/if}}
       {{else}}
-        <span>{{level}}</span>
+        <span class="fc-label">{{localize levelLabel}}</span><span>{{level}}</span>
       {{/if}}
     </div>
     <div class="fc-field fc-xp">
-      <label>{{localize "ACKS.details.experience.baseshort"}}</label>
       {{#if editable}}
-        {{#if xpPath}}<input type="text" name="{{xpPath}}" value="{{xp}}" data-dtype="Number" />{{else}}<span>{{xp}}</span>{{/if}}
+        {{#if xpPath}}<label>{{localize "ACKS.details.experience.baseshort"}}</label><input type="text" name="{{xpPath}}" value="{{xp}}" data-dtype="Number" />{{else}}<span class="fc-label">{{localize "ACKS.details.experience.baseshort"}}</span><span>{{xp}}</span>{{/if}}
       {{else}}
-        <span>{{xp}}</span>
+        <span class="fc-label">{{localize "ACKS.details.experience.baseshort"}}</span><span>{{xp}}</span>
       {{/if}}
     </div>
     <div class="fc-field fc-alignment">
-      <label>{{localize "ACKS.details.alignment"}}</label>
-      {{#if editable}}<input type="text" name="system.details.alignment" value="{{alignment}}" />{{else}}<span>{{alignment}}</span>{{/if}}
+      {{#if editable}}<label>{{localize "ACKS.details.alignment"}}</label><input type="text" name="system.details.alignment" value="{{alignment}}" />{{else}}<span class="fc-label">{{localize "ACKS.details.alignment"}}</span><span>{{alignment}}</span>{{/if}}
     </div>
   </div>
 
@@ -69,20 +65,22 @@
     <div class="fc-rail">
       <div class="fc-acx">
         <div class="fc-box fc-ac{{#if acOverridden}} overridden{{/if}}">
-          <label>{{localize "ACKS-LIB.followerCard.ac"}}</label>
           {{#if editable}}
+            <label>{{localize "ACKS-LIB.followerCard.ac"}}</label>
             <input type="number" data-fc-ac value="{{ac}}" data-dtype="Number" />
           {{else}}
+            <span class="fc-label">{{localize "ACKS-LIB.followerCard.ac"}}</span>
             <span>{{ac}}</span>
           {{/if}}
         </div>
         <div class="fc-box fc-hp">
-          <label>{{localize "ACKS-LIB.followerCard.hp"}}</label>
           {{#if editable}}
+            <label>{{localize "ACKS-LIB.followerCard.hp"}}</label>
             <span class="fc-hp-edit">
               <input type="number" name="system.hp.value" value="{{hp.value}}" data-dtype="Number" />/<input type="number" name="system.hp.max" value="{{hp.max}}" data-dtype="Number" />
             </span>
           {{else}}
+            <span class="fc-label">{{localize "ACKS-LIB.followerCard.hp"}}</span>
             <span>{{hp.value}} / {{hp.max}}</span>
           {{/if}}
         </div>
@@ -93,7 +91,7 @@
           <div class="fc-ability-head"><span></span><span></span><span>{{localize "ACKS-LIB.followerCard.mod"}}</span></div>
           {{#each abilities}}
             <div class="fc-ability">
-              <label>{{this.label}}</label>
+              {{#if @root.editable}}<label>{{this.label}}</label>{{else}}<span class="fc-label">{{this.label}}</span>{{/if}}
               {{#if @root.editable}}<input type="number" name="system.scores.{{this.key}}.value" value="{{this.value}}" data-dtype="Number" />{{else}}<span class="fc-ability-value">{{this.value}}</span>{{/if}}
               <span class="fc-ability-mod">{{this.mod}}</span>
             </div>
@@ -108,41 +106,45 @@
               they are the pair's other half, not a second thing to set. --}}
         {{#if speed}}
           <div class="fc-field{{#if speed.overridden}} overridden{{/if}}">
-            <label>{{localize "ACKS-LIB.followerCard.speed"}}</label>
             {{#if editable}}
+              <label>{{localize "ACKS-LIB.followerCard.speed"}}</label>
               <span class="fc-pair">
                 <input type="number" data-fc-speed value="{{speed.primary}}" data-dtype="Number" />{{#if speed.secondary}}<span class="fc-pair-rest"> / {{speed.secondary}}</span>{{/if}}
               </span>
             {{else}}
+              <span class="fc-label">{{localize "ACKS-LIB.followerCard.speed"}}</span>
               <span>{{speed.primary}}{{#if speed.secondary}} / {{speed.secondary}}{{/if}}</span>
             {{/if}}
           </div>
         {{/if}}
         {{#if enc}}
           <div class="fc-field{{#if enc.overridden}} overridden{{/if}}">
-            <label>{{localize "ACKS.Encumbrance"}}</label>
             {{#if editable}}
+              <label>{{localize "ACKS.Encumbrance"}}</label>
               <span class="fc-pair">
                 <input type="number" data-fc-enc value="{{enc.value}}" data-dtype="Number" /><span class="fc-pair-rest"> / {{enc.max}}</span>
               </span>
             {{else}}
+              <span class="fc-label">{{localize "ACKS.Encumbrance"}}</span>
               <span>{{enc.value}} / {{enc.max}}</span>
             {{/if}}
           </div>
         {{/if}}
         <div class="fc-field">
-          <label>{{localize "ACKS.details.morale"}}</label>
           {{#if editable}}
+            <label>{{localize "ACKS.details.morale"}}</label>
             <input type="number" name="system.details.morale" value="{{morale}}" data-dtype="Number" min="-6" max="4" />
           {{else}}
+            <span class="fc-label">{{localize "ACKS.details.morale"}}</span>
             <a data-action="hirelingMorale" class="fc-roll"><i class="fas fa-dice-d20"></i> {{morale}}</a>
           {{/if}}
         </div>
         <div class="fc-field">
-          <label>{{localize "ACKS.Loyalty"}}</label>
           {{#if editable}}
+            <label>{{localize "ACKS.Loyalty"}}</label>
             <input type="number" name="system.retainer.loyalty" value="{{loyalty}}" data-dtype="Number" min="-4" max="4" />
           {{else}}
+            <span class="fc-label">{{localize "ACKS.Loyalty"}}</span>
             <a data-action="hirelingLoyalty" class="fc-roll"><i class="fas fa-dice-d20"></i> {{loyalty}}</a>
           {{/if}}
         </div>
@@ -185,7 +187,7 @@
                 <i class="{{this.icon}}"></i> <span class="fc-attack-name">{{this.label}}</span> <span class="fc-attack-throw">{{this.target}}+</span> <span class="fc-attack-bonus">{{this.bonus}}</span>{{#if this.size.count}} <span class="fc-size" data-tooltip="{{this.size.label}}">{{#each this.size.pips}}<i class="fas fa-circle"></i>{{/each}}</span>{{/if}}
               </a>
             {{else}}
-              <label data-tooltip="{{this.damageTypeLabel}}"><i class="{{this.icon}}"></i> {{this.label}} {{this.target}}+ <span class="fc-attack-bonus">{{this.bonus}}</span></label>
+              <span class="fc-label" data-tooltip="{{this.damageTypeLabel}}"><i class="{{this.icon}}"></i> {{this.label}} {{this.target}}+ <span class="fc-attack-bonus">{{this.bonus}}</span></span>
             {{/if}}
             <span>{{this.at}}</span>
             <span>{{this.dmg}}</span>

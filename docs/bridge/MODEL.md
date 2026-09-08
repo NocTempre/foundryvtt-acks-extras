@@ -32,6 +32,15 @@ service does in the world is `Runtime.evaluate` of one call; everything it
 hears is the tap calling one global. The join mechanics are the release
 capture driver's (`acks-module-template/bin/foundry-capture.mjs`).
 
+**The seat draws nothing.** Once the page is ready the canvas is torn down,
+because a browser without hardware acceleration rasterises the scene on the
+same thread that has to answer the bot — with a canvas up, a document write
+costs tens of seconds instead of tens of milliseconds, which is past every
+timeout the bridge has. A Judge who has a host with a GPU turns **Draw the
+map** on and gets a canvas; everyone else has one command fewer and a bot that
+answers. `map` is that command, and it refuses rather than redrawing
+([DECISIONS.md](DECISIONS.md)).
+
 ## The registry and its one guard
 
 `registry-logic.mjs` (Foundry-free) holds one name → one handler. `run(name,
@@ -113,7 +122,7 @@ hidden world settings carry it, one writer each:
 
 | setting | written by | holds |
 |---|---|---|
-| `bridgeClient` | the Judge's window (`apps/client-config.mjs`) | the Discord server, the relay channel and whether to relay, extra Judges, the seat's size and join timeout, the log level, and the bot token **sealed** |
+| `bridgeClient` | the Judge's window (`apps/client-config.mjs`) | the Discord server, the relay channel and whether to relay, extra Judges, the seat's size, join timeout and whether it draws a canvas, the log level, and the bot token **sealed** |
 | `bridgeAgent` | the client itself, through `announce` | its public key, its version, what it is doing, its application, the servers and channels it can see, and the members it has heard from |
 
 Neither side edits the other's record. The window offers dropdowns for the
@@ -182,7 +191,7 @@ rather than flattening it.
 | `users`, `link`, `unlink`, `bindings` | Judge | the store |
 | `enroll` | Judge | `User.create` as a Player, then the store |
 | `parties`, `party` | Judge | `formation.getFormations` / `getFormation`, the store |
-| `map` | Judge | views the party's scene on the seat, pans to its party token, and answers the board's clip; the seat takes the PNG |
+| `map` | Judge | views the party's scene on the seat, pans to its party token, and answers the board's clip; the seat takes the PNG. `unavailable` on a seat that draws no canvas |
 | `dice` | anyone | core's `Roll`; `Roll#toMessage` as the active character when there is one |
 | `events`, `commands` | anyone | the tap, the registry |
 | `config`, `announce` | the client, as the seat | the two settings above |
@@ -214,6 +223,34 @@ the table should see; the interaction reply IS the Discord copy of a bridge
 action, so the relay skips stamped messages. Every chat command it answers
 notes the member (`onMember`) and the next announcement carries them.
 
+**A bridge call that fails at startup is retried, not fatal.** The first
+`announce` (`main.mjs`) can fail before the world is reachable at all — the
+world still booting, a slow first `Runtime.evaluate` — and a failure there
+retries on the seat's own backoff (`reconnectDelay`, five seconds doubling to
+a minute) rather than exiting, logging what failed and how long until the
+next attempt. Nothing else in the running process is allowed to take the
+process down silently either: `unhandledRejection` and `uncaughtException`
+are caught at the top level, logged, and answered with the same shutdown a
+signal gets — seat and Discord client torn down — except the exit code is 1,
+not 0, so the journal tells an unhandled failure apart from a restart the
+process chose for itself (a module update, a configuration change, a
+signal). The unit's own `StartLimitIntervalSec`/`StartLimitBurst`
+(`deploy/acks-extras-discord.service`) is the backstop above that: a failure
+neither retry survives parks the unit as failed after repeated restarts in
+one window, instead of restarting every ten seconds forever.
+
+**A guild invited to the bot while it is already running is adopted, not
+ignored.** The guild the bot logs into with is only resolved once, at login
+— but a Judge inviting the bot to a server AFTER it is already running (the
+common shape of "the bot lost its commands and I reinvited it") fires
+`Events.GuildCreate`, and a bot with no server chosen yet adopts that guild
+exactly as it would adopt the one guild it found itself in at login:
+`guild-adopt.mjs`'s `adoptGuild` (Discord-free, one decision) makes the
+guild's owner a Judge, the guild the configured one, registers the commands
+on it, and re-announces so the Foundry window sees it at once. A bot already
+pointed at a guild ignores a second invite; that is the Judge's to resolve in
+Foundry, not the bot's to grab.
+
 **One `/roll` for dice and throws.** `/roll what:` names either a sheet
 throw by its id or a dice formula; the shape decides (`format.mjs`
 `looksLikeDice`: a die in it and no colon). A formula goes to `dice` and
@@ -238,7 +275,24 @@ is missing, incomplete, or older than the lock; the running bot polls the module
 and exits cleanly when it vanishes and returns, so the service manager
 restarts it on the new files; and registration runs at every start, sending
 the commands only when their digest differs from the last one sent, kept in
-the unit's state directory.
+the unit's state directory. That digest (`register.mjs`) covers the
+application and guild id alongside the command bodies, not the bodies alone —
+a guild that lost its registration without a single command changing (the
+bot kicked and reinvited, or repointed at a different server) still reads as
+a digest it has never sent, and registers again with no `--force` needed.
+
+**`npm run register` reads the same configuration the running bot does.**
+The token, application and guild a Judge sets live in Foundry, and
+`install-service` deliberately strips them from the host's environment file
+once they do — so the by-hand form for "the guild lost its commands" cannot
+assume they are on the host. When the environment does not already carry a
+token and a guild, `register-commands.mjs` takes a seat, reads
+`bridgeClient` the way `main.mjs` boots (`ensureKeyPair`, `readWorld`,
+`openToken`, `applyWorldConfig`), and asks Discord for the application id
+over a plain REST call (`/applications/@me`) rather than logging a gateway
+client in — `bridgeClient` has nowhere to keep an application id, since
+nothing that reads it needs one. A dev run with the three Discord values
+already in the environment never touches a world.
 
 ## Not here
 

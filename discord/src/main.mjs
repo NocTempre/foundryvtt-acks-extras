@@ -20,7 +20,7 @@
 import { Events } from "discord.js";
 import { loadConfig } from "./config.mjs";
 import { createLog } from "./log.mjs";
-import { Seat } from "./seat.mjs";
+import { Seat, sleep, reconnectDelay } from "./seat.mjs";
 import { Bridge } from "./bridge.mjs";
 import { createBot } from "./bot.mjs";
 import { attachRelay } from "./relay.mjs";
@@ -29,6 +29,7 @@ import { registerGuildCommands, stateDirectory } from "./register.mjs";
 import { watchModule, moduleJsonPath, readManifest } from "./update-watch.mjs";
 import { ensureKeyPair, readCache, writeCache, announce, openToken, applyWorldConfig, catalogueOf, configDigest, waitForConfigChange } from "./world-config.mjs";
 import { noteMember } from "../../scripts/bridge/client-config-logic.mjs";
+import { adoptGuild } from "./guild-adopt.mjs";
 
 /** How often the bot says it is still there, so the window can show when it was last heard from. */
 const HEARTBEAT_MS = 10 * 60 * 1000;
@@ -55,9 +56,12 @@ const state = (code, message = "") => ({ ...identity, status: { state: code, mes
 
 // Leaving is armed before anything can take a while, so a bot still waiting
 // to be configured still answers a signal and still follows a module update.
+// `code` tells the two paths apart in the journal: 0 for a shutdown this
+// process chose (a signal, a module update, a configuration change), 1 for
+// one an unhandled failure forced.
 let bot = null;
 let leaving = false;
-const shutdown = async (reason) => {
+const shutdown = async (reason, code = 0) => {
   if (leaving) return;
   leaving = true;
   log.info(`${reason}: shutting down`);
@@ -67,7 +71,7 @@ const shutdown = async (reason) => {
     /* already gone */
   }
   await seat.stop();
-  process.exit(0);
+  process.exit(code);
 };
 for (const s of ["SIGINT", "SIGTERM"]) process.on(s, () => shutdown(s));
 watchModule({
@@ -75,7 +79,39 @@ watchModule({
   onChange: (change) => shutdown(change.reason === "version" ? `module updated ${change.from} → ${change.to}; restarting on the new code` : "module directory replaced; restarting on the new files"),
 });
 
-let { config: world, agent: known } = await announce(bridge, state("starting"));
+// A rejection or a throw nothing local caught used to fall straight through
+// to the process and exit whatever the runtime does with an unhandled one —
+// no seat teardown, and on Windows the profile directory and the browser it
+// pointed at outlive it. Both land here instead: logged, the seat and the
+// Discord client taken down the same way a signal takes them down, and a
+// non-zero exit so the difference shows in the journal.
+process.on("unhandledRejection", (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  log.error(`unhandled rejection: ${err.message}`, err);
+  shutdown("unhandled rejection", 1);
+});
+process.on("uncaughtException", (err) => {
+  log.error(`uncaught exception: ${err.message}`, err);
+  shutdown("uncaught exception", 1);
+});
+
+// The world may not be reachable the moment this starts — a restart mid
+// deploy, a slow world boot, a timed-out first call — and that is not a
+// reason to hand the failure to the service manager as a crash. Retry with
+// the seat's own backoff and keep the seat, the way a missing token already
+// keeps it below.
+let world;
+let known;
+for (let attempt = 0; ; attempt++) {
+  try {
+    ({ config: world, agent: known } = await announce(bridge, state("starting")));
+    break;
+  } catch (err) {
+    const delay = reconnectDelay(attempt);
+    log.warn(`startup: could not announce to the world (${err.message}); retrying in ${Math.round(delay / 1000)}s`);
+    await sleep(delay);
+  }
+}
 writeCache(stateDir, world);
 
 // Members who have knocked — run any command — kept in the world's own
@@ -118,18 +154,42 @@ waitForConfigChange({ seat, bridge, digest: configDigest(world), log }).then((pa
 await bot.login();
 const client = await ready;
 
+// A guild reference cell `online` closes over before it exists: Discord can
+// hand this client a brand-new guild (an invite accepted while it is already
+// running) the instant it is logged in, and the handler has to be in place
+// for that from here — `online` itself is only assigned once the catalogue
+// below is built, and every call before then is a no-op.
+let online = () => {};
+client.on(Events.GuildCreate, async (guild) => {
+  const adopted = adoptGuild(settings.discord, { id: guild.id, ownerId: guild.ownerId });
+  if (!adopted) return; // already pointed at a server; a second invite is the Judge's to choose in Foundry
+  settings.discord.guildId = adopted.guildId;
+  settings.discord.judgeIds = adopted.judgeIds;
+  log.info(`configuration: joined ${guild.name} (${guild.id}); adopting it since no server was chosen`);
+  try {
+    await registerGuildCommands({ config: settings, commands, stateDir, log });
+  } catch (err) {
+    log.warn(`commands: registration failed (${err.message}); the guild keeps what it had`);
+  }
+  await online();
+});
+
 // Facts only a logged-in client knows: which application this token is, and
 // which servers it actually reaches. A bot invited to exactly one server
 // needs nobody to say which.
 settings.discord.appId ||= client.application?.id ?? "";
 if (!settings.discord.guildId && client.guilds.cache.size === 1) {
-  settings.discord.guildId = client.guilds.cache.firstKey();
+  const only = client.guilds.cache.first();
+  const adopted = adoptGuild(settings.discord, { id: only.id, ownerId: only.ownerId });
+  settings.discord.guildId = adopted.guildId;
+  settings.discord.judgeIds = adopted.judgeIds;
   log.info(`configuration: no server chosen; using the only one this bot is in (${settings.discord.guildId})`);
+} else {
+  // The server's owner is a Judge without being linked: the bootstrap has to
+  // belong to someone who exists before any binding does.
+  const owner = client.guilds.cache.get(settings.discord.guildId)?.ownerId;
+  if (owner) settings.discord.judgeIds.add(owner);
 }
-// The server's owner is a Judge without being linked: the bootstrap has to
-// belong to someone who exists before any binding does.
-const owner = client.guilds.cache.get(settings.discord.guildId)?.ownerId;
-if (owner) settings.discord.judgeIds.add(owner);
 
 if (settings.discord.guildId) {
   try {
@@ -143,7 +203,7 @@ if (settings.discord.guildId) {
 
 attachRelay({ seat, client, config: settings, log });
 
-const online = () => announce(bridge, { ...state("online", settings.discord.guildId ? "" : "No Discord server chosen"), application: { id: client.application?.id ?? "", name: client.application?.name ?? "" }, ...catalogueOf(client), members, revisionSeen: world.revision }).catch((err) => log.warn(`announce: ${err.message}`));
+online = () => announce(bridge, { ...state("online", settings.discord.guildId ? "" : "No Discord server chosen"), application: { id: client.application?.id ?? "", name: client.application?.name ?? "" }, ...catalogueOf(client), members, revisionSeen: world.revision }).catch((err) => log.warn(`announce: ${err.message}`));
 announceMembers = online;
 await online();
 const heartbeat = setInterval(online, HEARTBEAT_MS);

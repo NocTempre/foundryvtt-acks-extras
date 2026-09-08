@@ -32,7 +32,9 @@
       <input name="system.hitDie" type="text" value="{{system.hitDie}}" placeholder="1d8" />
     </div>
     <div class="form-group">
-      <label>{{localize "ACKS-CLASSES.sheet.keyAttributes"}}</label>
+      {{!-- A caption over a group, not a label: each box below carries its own,
+            and a label bound to the first of them would tick it. --}}
+      <span class="acks-extras-caption">{{localize "ACKS-CLASSES.sheet.keyAttributes"}}</span>
       <div class="acks-extras-classes-checks">
         {{#each keyAttributes}}
           <label class="checkbox"><input type="checkbox" name="system.keyAttributes" value="{{value}}" {{#if checked}}checked{{/if}} /> {{label}}</label>
@@ -143,7 +145,7 @@
       <p class="hint">{{localize "ACKS-CLASSES.builder.magicHint"}}</p>
       {{#each builderMagic}}
         <div class="acks-extras-classes-row">
-          <input name="system.builder.magic.{{index}}.type" type="text" value="{{type}}" list="acks-extras-magic-types" placeholder="{{localize "ACKS-CLASSES.builder.magicType"}}" />
+          <input name="system.builder.magic.{{index}}.type" type="text" value="{{type}}" list="{{@root.partId}}-magic-types" placeholder="{{localize "ACKS-CLASSES.builder.magicType"}}" />
           <span class="acks-extras-classes-refname">{{typeLabel}}</span>
           <input name="system.builder.magic.{{index}}.label" type="text" value="{{label}}" placeholder="{{localize "ACKS-CLASSES.sheet.label"}}" />
           <input name="system.builder.magic.{{index}}.value" type="number" value="{{value}}" min="0" step="1" title="{{localize "ACKS-CLASSES.builder.value"}}" />
@@ -154,7 +156,7 @@
           <a data-action="rowDelete" data-array="builder.magic" data-index="{{index}}"><i class="fa-solid fa-trash"></i></a>
         </div>
       {{/each}}
-      <datalist id="acks-extras-magic-types">
+      <datalist id="{{@root.partId}}-magic-types">
         {{#each magicTypeKeys}}<option value="{{this}}"></option>{{/each}}
       </datalist>
     </fieldset>

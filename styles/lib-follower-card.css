@@ -79,8 +79,11 @@
   font-variant: small-caps;
 }
 
-/* --- Labels: small-caps burgundy, as printed --- */
-.acks-lib-follower-card label {
+/* --- Labels: small-caps burgundy, as printed ---
+   `.fc-label` is the same caption, decorative where the field beside it is a
+   read-out rather than a control — a `<label>` there fronts nothing, so it
+   renders as a `<span>` and takes this look by class instead of by element. */
+.acks-lib-follower-card :is(label, .fc-label) {
   font-family: var(--acks-font-banner);
   font-variant: small-caps;
   letter-spacing: var(--acks-tracking-caps);
@@ -112,8 +115,8 @@
   gap: 1px;
   min-width: 0;
 }
-.acks-lib-follower-card .fc-field span,
-.acks-lib-follower-card .fc-box span,
+.acks-lib-follower-card .fc-field span:not(.fc-label),
+.acks-lib-follower-card .fc-box span:not(.fc-label),
 .acks-lib-follower-card .fc-field input,
 .acks-lib-follower-card .fc-box input,
 .acks-lib-follower-card .fc-ability input,
@@ -188,7 +191,7 @@
   gap: 3px;
   align-items: center;
 }
-.acks-lib-follower-card .fc-ability label {
+.acks-lib-follower-card .fc-ability :is(label, .fc-label) {
   text-align: left;
 }
 .acks-lib-follower-card .fc-ability-mod {
@@ -214,7 +217,7 @@
    read as a chip and MORALE as a full-width field in the same column, 40px
    against 195px. The floor is shared so the boxes line up; only a span may grow
    past it, for a speed that prints two figures. */
-.acks-lib-follower-card .fc-vitals .fc-field span,
+.acks-lib-follower-card .fc-vitals .fc-field span:not(.fc-label),
 .acks-lib-follower-card .fc-vitals .fc-field a,
 .acks-lib-follower-card .fc-vitals .fc-field input {
   flex: 0 0 auto;
@@ -355,7 +358,7 @@
   color: var(--acks-spot);
   text-align: center;
 }
-.acks-lib-follower-card .fc-attack-row label {
+.acks-lib-follower-card .fc-attack-row :is(label, .fc-label) {
   color: var(--acks-ink);
   font-variant: normal;
   font-family: inherit;
@@ -365,7 +368,7 @@
    (ellipsis, full text in the tooltip) — the throw, bonus and size pips are the
    numbers you came for and always stay visible. */
 .acks-lib-follower-card .fc-attack-row > a,
-.acks-lib-follower-card .fc-attack-row > label {
+.acks-lib-follower-card .fc-attack-row > :is(label, .fc-label) {
   display: flex;
   align-items: center;
   gap: 3px;
@@ -382,7 +385,7 @@
 .acks-lib-follower-card .fc-size {
   flex: 0 0 auto;
 }
-.acks-lib-follower-card .fc-attack-row span {
+.acks-lib-follower-card .fc-attack-row span:not(.fc-label) {
   text-align: center;
 }
 
@@ -667,7 +670,7 @@
 }
 /* An edited attack reads in the spot colour, like the other overrides. */
 .acks-lib-follower-card .fc-attack-wrap.overridden .fc-attack-row > a,
-.acks-lib-follower-card .fc-attack-wrap.overridden .fc-attack-row > label {
+.acks-lib-follower-card .fc-attack-wrap.overridden .fc-attack-row > :is(label, .fc-label) {
   color: var(--acks-spot);
   font-weight: 600;
 }
@@ -679,7 +682,7 @@
 }
 
 /* An overridden target reads in the spot colour, so you can see the quick change. */
-.acks-lib-follower-card .fc-ac.overridden span,
+.acks-lib-follower-card .fc-ac.overridden span:not(.fc-label),
 .acks-lib-follower-card .fc-adv-row.overridden .fc-adv-val {
   color: var(--acks-spot);
   font-weight: 600;
@@ -719,7 +722,7 @@
    Restated here under the theme's own root, which outweighs it, so the card
    keeps its field colours wherever the theme is active. Same values as above —
    this changes which rule WINS, not what the card looks like when it does. */
-body.acks-lib-sheet-theme .acks-lib-follower-card :is(.fc-field, .fc-box, .fc-ability, .fc-adv-row, .fc-attack-editor) :is(input, span, .fc-ability-value) {
+body.acks-lib-sheet-theme .acks-lib-follower-card :is(.fc-field, .fc-box, .fc-ability, .fc-adv-row, .fc-attack-editor) :is(input, span:not(.fc-label), .fc-ability-value) {
   background: var(--acks-field);
   border: var(--acks-border-ink);
   border-radius: var(--acks-radius);

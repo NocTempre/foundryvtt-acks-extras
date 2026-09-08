@@ -113,7 +113,7 @@ token yet and is waiting for one. That is the expected state at this point.
 
 ### 5. Configure it in Foundry
 
-![The Discord Bot window, with a bot online and its servers and channels offered as dropdowns](../releases/v7.1.0/bridge.png)
+![The Discord Bot window, with its servers and channels offered as dropdowns and the bot's seat below them](../releases/v7.3.0/bridge.png)
 
 In Foundry, **Settings → Module Settings → ACKS II Extras → Discord Bot**.
 The window opens on the bot's own report: it says the bot is waiting, and
@@ -134,6 +134,16 @@ lists what is still missing.
 Every later change — a different channel, relaying off, a bigger map
 capture — is the same window and the same half minute. Nothing goes back to
 the terminal.
+
+**Draw the map** is off, and on most hosts it should stay off. The bot's seat
+is a browser joined to your world, and a browser with no hardware acceleration
+draws a scene by hand on the same thread it answers you with: on one ordinary
+server a single write took 47 seconds with the map drawn and 12 milliseconds
+without it, which is the difference between a bot that answers and a bot that
+times out. So the seat draws nothing unless you say otherwise, and `/map` is
+the one command that costs — it says it is unavailable rather than working
+slowly. Turn this on only if the machine running the bot has a real GPU, and
+watch the journal for `seat canvas:` afterwards.
 
 **Who may run a Judge command** before anyone is linked: the Discord
 server's owner, always, without being listed. The **Extra Judges** field
@@ -242,7 +252,10 @@ the token with the window's own button if the bot is not coming back.
 - **`/map`** posts the party's scene as the bot's seat sees it, centred on
   the party token when the scene has one. `scale:` zooms (1 is the scene's
   own size), `private:` shows it only to you. It is the Judge's view, with
-  everything the Judge can see; a players'-eyes map is planned.
+  everything the Judge can see; a players'-eyes map is planned. It needs
+  **Draw the map** turned on in the bot's window, and a host with hardware
+  acceleration to turn it on for; otherwise it answers that the seat draws no
+  canvas.
 
 ## Playing
 
@@ -325,3 +338,11 @@ not shown twice.
 - **`/map` answers that the seat has no scene.** Bind the channel to a party
   whose formation has a scene, or have the Judge view one; the seat shows the
   party's scene when the channel has a party.
+- **`/map` answers that the seat draws no canvas.** **Draw the map** is off,
+  which is the default. Turn it on in the bot's window if — and only if — the
+  machine running the bot has hardware acceleration.
+- **Every command times out, though the bot is online and the world is up.**
+  The seat is drawing the scene in software and starving itself. The journal
+  says so at start: `seat canvas: still up`, alongside Foundry's own
+  "does not have hardware acceleration" warning at `debug`. Turn **Draw the
+  map** off.

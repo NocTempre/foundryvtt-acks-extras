@@ -32,12 +32,12 @@
       <legend>{{localize "ACKS-MONSTERS.section.henchmanSummary"}}</legend>
       <p class="acksm-hint">{{localize "ACKS-MONSTERS.hint.henchmanSummary"}}</p>
       <div class="flexrow acksm-readout">
-        <div class="acksm-ro"><label>{{localize "ACKS-MONSTERS.field.hdShort"}}</label><span>{{acksExtrasVal extras.hd.count}}{{#if extras.hd.bonus}}+{{extras.hd.bonus}}{{/if}}</span></div>
-        <div class="acksm-ro"><label>HP</label><span>{{acksExtrasVal system.hp.value}}/{{acksExtrasVal system.hp.max}}</span></div>
-        <div class="acksm-ro"><label>AC</label><span>{{acksExtrasVal system.aac.value}}</span></div>
-        <div class="acksm-ro"><label>{{localize "ACKS-MONSTERS.field.morale"}}</label><span>{{acksExtrasVal system.details.morale}}</span></div>
-        <div class="acksm-ro"><label>XP</label><span>{{acksExtrasVal system.details.xp}}</span></div>
-        <div class="acksm-ro"><label>{{localize "ACKS-MONSTERS.field.alignment"}}</label><span>{{acksExtrasVal system.details.alignment}}</span></div>
+        <div class="acksm-ro"><span class="acksm-ro-label">{{localize "ACKS-MONSTERS.field.hdShort"}}</span><span>{{acksExtrasVal extras.hd.count}}{{#if extras.hd.bonus}}+{{extras.hd.bonus}}{{/if}}</span></div>
+        <div class="acksm-ro"><span class="acksm-ro-label">HP</span><span>{{acksExtrasVal system.hp.value}}/{{acksExtrasVal system.hp.max}}</span></div>
+        <div class="acksm-ro"><span class="acksm-ro-label">AC</span><span>{{acksExtrasVal system.aac.value}}</span></div>
+        <div class="acksm-ro"><span class="acksm-ro-label">{{localize "ACKS-MONSTERS.field.morale"}}</span><span>{{acksExtrasVal system.details.morale}}</span></div>
+        <div class="acksm-ro"><span class="acksm-ro-label">XP</span><span>{{acksExtrasVal system.details.xp}}</span></div>
+        <div class="acksm-ro"><span class="acksm-ro-label">{{localize "ACKS-MONSTERS.field.alignment"}}</span><span>{{acksExtrasVal system.details.alignment}}</span></div>
       </div>
     </fieldset>
 

@@ -75,6 +75,19 @@
   padding: 0.5rem 0.75rem;
 }
 
+/* A caption over something no `<label>` can name — a drop panel, or a group of
+   controls that each carry their own label. It reads as a form-group caption
+   because it is one; it is not a `<label>` because a label that names nothing is
+   a defect, and the design system's caption look is keyed on the tag. Same
+   tokens, one declaration, wherever such a caption stands. */
+.acks-extras .acks-extras-caption {
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+}
+
 /* --- UI preset prompt (lib/ui-preset.mjs) --- */
 
 .acks-extras-ui-preset {

@@ -25,6 +25,13 @@ test("the unit keeps the bot's own state directory, where its key lives", () => 
   assert.match(template, /^StateDirectory=acks-extras-discord$/m);
 });
 
+test("the unit bounds its own restart loop instead of retrying forever", () => {
+  const template = fs.readFileSync(path.join(ROOT, "deploy", "acks-extras-discord.service"), "utf8");
+  assert.match(template, /^StartLimitIntervalSec=\d+$/m);
+  assert.match(template, /^StartLimitBurst=\d+$/m);
+  assert.match(template, /^Restart=always$/m);
+});
+
 test("the unit template renders with no placeholder left and this machine's values in place", () => {
   const template = fs.readFileSync(path.join(ROOT, "deploy", "acks-extras-discord.service"), "utf8");
   const unit = renderUnit(template, { node: "/usr/bin/node", workDir: "/srv/foundry/Data/modules/acks-extras/discord", user: "foundry" });

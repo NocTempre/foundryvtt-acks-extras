@@ -368,3 +368,134 @@ to start the first was weighed and refused: it is a privileged daemon to
 install, secure and update for a case the unit's `Restart=always` already
 covers (a crashed bot is back in seconds; a stopped host brings it up on
 boot). Installing stays the one command in the guide; the guide says why.
+
+### A failed startup retries; an unbounded restart loop parks the unit instead (2026-09-08)
+
+Field evidence: a host whose bridge call to the world timed out at startup
+restarted the process 408 times, each life spawning and killing a browser
+(peak 1.5 GB) before dying on the same unguarded top-level `await`, with
+`Restart=always` and no `StartLimit*` giving the loop nothing to hit. Ruled:
+the startup `announce` retries with the seat's own backoff instead of
+throwing, because a world that is merely slow to answer is not a
+misconfiguration the operator needs to see — it is the same shape of problem
+the token-wait loop already treats as normal. `unhandledRejection` and
+`uncaughtException` are now caught process-wide, logged, and routed through
+the same clean shutdown a signal gets (seat and Discord client torn down,
+exit 1 instead of `shutdown`'s 0) rather than left to whatever Node's default
+handling of an unhandled rejection does, which does not tear the seat down at
+all. The unit's `StartLimitIntervalSec=600`/`StartLimitBurst=10` is the
+backstop above both: ten starts in ten minutes is generous next to a working
+bot's occasional config-change or module-update restart, and still turns a
+crash loop that would otherwise run all night into a unit `systemctl` reports
+as failed.
+
+**Rejected: no retry, just a clearer crash.** A cleaner stack trace on the
+same top-level `await` still hands the failure to `Restart=always` with
+nothing to distinguish "the world is not up yet" from "this host is
+misconfigured." The bot already treats the first case as ordinary for a
+missing token; a slow world deserves the same patience, not a different one.
+**Rejected: an iteration cap on the startup retry itself.** The unit's own
+`StartLimitBurst` already bounds how many times systemd will restart the
+process; a second, smaller cap inside the process would fire first and start
+handing genuinely-transient failures back to the service manager anyway,
+buying nothing.
+
+### `seat:check` proves a write lands, not only that a read comes back (2026-09-08)
+
+Field evidence: the same host reported `seat:check` green all night while
+every document write in the world hung for 47 seconds — because the check
+only ever called `commands`, `users`, `parties` and `whoami`, four local
+reads of data the seat already holds cached, none of which touch the
+network. Ruled: the check now calls `config` and `announce` — the two
+commands the running bot calls to start — timing each, and closes a write
+round trip: `announce` writes a nonce into the world's `bridgeAgent` setting,
+and a fresh `config` call must see that same nonce, because `{ok:true}` from
+`announce` is a resolved promise, not proof the setting was persisted. A
+write (or its read-back) past two seconds fails the check outright — ordinary
+bridge calls run in the tens of milliseconds (MODEL.md), and two seconds is
+already what a hung write short of its own timeout looks like, well below
+the seconds a `Runtime.evaluate` is given before it gives up entirely.
+
+### The registration digest covers where it was sent, not only what was sent (2026-09-08)
+
+Field evidence: a bot kicked from a guild and reinvited — or repointed at a
+different one entirely — kept answering "the guild already holds these N;
+nothing to register" forever, because `digest(body)` hashed only the command
+bodies and neither changed. Ruled: the digest folds in the application and
+guild id (`register.mjs`), so a guild with no memory of the bot's commands
+reads as a digest never sent to it, and registers with no operator
+intervention. `register-commands.mjs` (`npm run register`, the by-hand form
+of the same fix) no longer requires the three Discord values in the
+environment either: `install-service.mjs` strips them from the host on
+purpose once a Judge holds them in Foundry, so the escape hatch for "the
+guild lost its commands" was dead on every supported install. It now takes a
+seat and reads `bridgeClient` the same way `main.mjs` boots, falling back to
+the environment wherever that already carries a value, and reads the
+application id off the token over a plain REST call rather than logging a
+gateway client in for a fact the world setting has nowhere to keep.
+
+**Also ruled: a guild invited after the bot is already running is adopted.**
+The guild used to resolve once, at login (`client.guilds.cache`), which is
+also why a kicked-and-reinvited bot needed a restart before it noticed
+anything to register. `Events.GuildCreate` now adopts a newly joined guild
+when none is chosen yet (`guild-adopt.mjs`, Discord-free), registers on it,
+and re-announces — discord.js only emits that event once the client's own
+`Ready` status has already been reached, so it never fires for the guilds
+the bot was already in at login and never races the boot-time adoption of a
+lone guild.
+
+---
+
+### The seat draws no canvas, and `map` is what pays for one (2026-09-08)
+
+Measured on a field install, not reasoned about. Every document write the seat
+made took **47,304 ms**; the same write with the canvas torn down took **12 ms**.
+The bot therefore died on its first `announce` — the first write it makes — and
+the service manager restarted it 408 times.
+
+Nothing was refused and nothing was dropped. The Foundry server's own log
+recorded each write landing immediately; what never arrived in time was the
+acknowledgement, because the page's main thread was rasterising a hex battlemap
+in software. A headless browser on a host with no GPU renders through
+SwiftShader, on the same thread that has to run the socket callback the bot is
+awaiting. Foundry says so itself, in a console warning present on every life:
+*your web browser does not have hardware acceleration enabled.*
+
+**Ruled.** The seat tears its canvas down as soon as the page is ready. Hardware
+acceleration is a knob — `SEAT_GPU` in the environment, **Draw the map** in the
+Judge's window — default off, which is both the previous behaviour of the browser
+flags and the right answer for the host a bot actually runs on. `map` is the only
+command that reads the canvas and answers `unavailable` when there is none. Its
+guard runs FIRST, before the `scene.view()` that would otherwise draw the canvas
+back and take the seat with it.
+
+Writes still work with no canvas: the field probe created and deleted a
+`ChatMessage` in 12 ms after teardown. That is worth recording, because the seat
+is sized above Foundry's canvas floor precisely on the grounds that core's chat
+speaker dereferences the scene — the floor governs a canvas that initialises, not
+one that was never drawn.
+
+**Why it hid for four releases.** `seat:check` called only `commands`, `users`,
+`parties` and `whoami` — every one a local read, all of them answered inside the
+first 300 ms after `ready`, before the canvas gets going. The check reported OK
+all night against a bot that could not start. That is a separate ruling, above.
+
+**Rejected: drawing on demand, so `map` keeps working everywhere.** The bridge is
+serialised on purpose, so the fifty seconds a redraw costs is fifty seconds in
+which no other member's command is answered. A refusal that names its cause beats
+a command that appears to work and stops the table.
+
+**Rejected: keeping the canvas and raising the timeouts.** The timeout is where
+the failure surfaced, not what it is. Starvation is paid by every command on the
+seat, and a limit generous enough to survive it would turn each of them into a
+minute of silence.
+
+**Rejected: core's `noCanvas` client setting.** It is client-scoped, so it lives
+in the browser profile's storage — and the seat mints a throwaway profile for
+every life, which is what makes a lost socket recoverable. It would be re-set to
+its default before every join.
+
+**Cost, stated.** `map` is unavailable on a host without hardware acceleration,
+which is the common one. It is recoverable by a Judge with a suitable host and one
+checkbox, it says why rather than failing obscurely, and the alternative on those
+hosts was never a working `map` — it was a bot that answered nothing at all.
