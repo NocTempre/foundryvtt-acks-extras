@@ -1,5 +1,65 @@
 # Changelog
 
+## 7.3.1
+
+**An ability that breaks across a column comes in whole, and six other ways the
+importer used to stop reading early.**
+
+### Fixed
+- **An ability printed across a column break imports all of it.** The shaman's
+  totem animal (RR pp. 71–72) arrived as a single paragraph that stopped
+  mid-sentence, and everything printed in the next column was simply gone. The
+  importer was reading a table's caption as the heading that ends an entry: a
+  caption sits flush left, is a whole short line, and ends without a full stop,
+  which is exactly what the end of a passage looks like. It now treats a caption
+  as an interruption rather than an ending when a table really does follow it
+  *and* the sentence really does break off, and picks the passage up on the
+  other side. That entry went from one paragraph to seven.
+- **Dolmenwood creatures keep the line that introduces them.** Most entries in
+  the *Dolmenwood Monster Book* open with a line set across both columns, larger
+  than the body text and smaller than a heading. Because it was neither, nothing
+  collected it, and 113 of 165 creatures imported without their opening line. 87
+  are now recovered; the rest are lines too short to tell apart from a label,
+  which the importer declines rather than guesses at.
+- **A creature that continues in the next column stops at its neighbour.** An
+  entry running on into the following column ran until it met something that
+  started another entry *below* it — but these books open every column with a
+  heading set above where the importer began looking, so it read straight
+  through the next creature's opening paragraph. 94 entries were carrying a
+  piece of the creature after them; 4 remain.
+- **The last line of an entry is no longer cut off.** The importer trimmed a
+  fixed strip from the foot of every page to drop page numbers and running feet.
+  Books do not share a page design, so in some of them that strip was eating a
+  line or two of real text. It now learns each book's own furniture — separately
+  for left- and right-hand pages — and removes only that, keeping the old
+  behaviour for a book whose foot is too irregular to learn.
+- **NPCs that imported as a single dash, or as nothing at all.** Where a page
+  sets an NPC's statistics and their description at different left margins, the
+  importer measured the column from the statistics and then looked for the
+  description to the right of every line of it, finding only the hyphens of
+  broken words at the far edge. In *AX3 Capital of the Borderlands*, three
+  entries imported a literal `-` or `- -` and two imported no description at
+  all; two others that were quietly claiming their neighbours' paragraphs now
+  keep to their own.
+- **Dwarven class descriptions no longer stop mid-sentence.** Eight classes in
+  *By This Axe* ended their description a fixed distance down the page instead
+  of at their first section heading, because those headings are set in small
+  capitals and reach the importer in fragments. It now recognises a heading by
+  its size as well as by its name, so a book using section names the importer
+  has never seen still ends its passages in the right place.
+- **An illustration belongs to the creature it depicts.** Five full-width plates
+  printed at the foot of a page were attached to the entry in the left-hand
+  column instead of the one they illustrate; the cockatrice, drow and zombie
+  pictures now sit on the right creatures.
+
+### Added
+- **The build checks where a description stops, not only where it starts.** A
+  box that ends mid-sentence still looks perfectly well-formed — the importer
+  found text, and the text was prose — so nothing ever caught one. `validate`
+  now reads the page below every description and fails on a passage that breaks
+  off with the next line continuing it, against a ledger of the cases still
+  open. It found nine on its first run, every one a real fault in a different
+  part of the importer, and seven of them are the fixes above.
 ## 7.3.0
 
 **The Discord bot stops drawing a map nobody asked for, and every caption on

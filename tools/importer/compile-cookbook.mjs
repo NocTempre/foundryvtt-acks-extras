@@ -169,6 +169,74 @@ async function pageFlow(doc, page, isAnchor) {
   );
   return { pd: pd2, cols: cols2, items, page: page + 1 };
 }
+/**
+ * A printed line whose runs stand in fixed positions instead of flowing: three
+ * or more runs with two or more inter-run gaps wider than a word space. That is
+ * a table row, and a sentence never has that shape — its words are set one
+ * space apart, so a wrapped line of prose carries no wide interior gap at all.
+ */
+const isGridLine = (ln) =>
+  ln.length >= 3 && ln.slice(1).filter((r, i) => r.x - (ln[i].x + (ln[i].w ?? 0)) > 12).length >= 2;
+
+/** How far a table's caption and header rows reach above its first data row,
+ *  and how far below a caption that row can sit. */
+const GRID_BAND = 60;
+
+/** One column's runs, grouped into printed lines, top to bottom. */
+function columnRows(pd, cols, col) {
+  const rows = new Map();
+  for (const it of pd.items) {
+    if (colOf(it.x, cols) !== col || !it.str.trim()) continue;
+    const k = Math.round(it.y / 3);
+    if (!rows.has(k)) rows.set(k, []);
+    rows.get(k).push(it);
+  }
+  return [...rows.values()].map((a) => a.sort((p, q) => p.x - q.x)).sort((a, b) => a[0].y - b[0].y);
+}
+
+/** A row's joined text, spaces squashed — extraction welds words together. */
+const joinLine = (ln) => ln.map((i) => i.str).join("").replace(/\s+/g, " ").trim();
+
+/**
+ * Where prose in a column gives way to a table: the first gridded line below
+ * `fromY`, raised to the header rows and caption that belong to it. A header
+ * row is not itself gridded — its cells are single words — and a caption is one
+ * run, so the top is walked back line by line while each stays within one band
+ * of the line below it.
+ */
+function tableTop(rows, fromY) {
+  const i = rows.findIndex((ln) => ln[0].y > fromY && isGridLine(ln));
+  if (i < 0) return null;
+  let top = rows[i];
+  for (let k = i - 1; k >= 0; k--) {
+    if (rows[k][0].y <= fromY || top[0].y - rows[k][0].y > GRID_BAND) break;
+    top = rows[k];
+  }
+  return top[0].y;
+}
+
+/**
+ * The leading run of rows that is CONTIGUOUS type: prose sets one line under
+ * the last, and whatever the page prints next does not. The pitch is measured
+ * from the rows already taken rather than from the page, so a table below the
+ * passage cannot widen it.
+ */
+function contiguousRows(rows, yEnd) {
+  const kept = [];
+  const gaps = [];
+  for (const ln of rows) {
+    if (ln[0].y >= yEnd) break;
+    if (kept.length) {
+      const gap = ln[0].y - kept[kept.length - 1][0].y;
+      const pitch = gaps.length ? [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] : gap;
+      if (gap > pitch * 3) break;
+      gaps.push(gap);
+    }
+    kept.push(ln);
+  }
+  return kept;
+}
+
 const LABEL_RE = /^[A-Z][A-Za-z ()'/]{0,28}:$/;
 const DICE_RE = /\d*d\d+(?:[×xX]\d+)?(?:[+-]\d+)?/; // mirrors scripts/executor.mjs
 const cleanSeg = (s) => (s ?? "").replace(/[-′″]/g, "").replace(/\s+/g, " ").trim();
@@ -2007,6 +2075,29 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
   }
 
   if (!opened) {
+    // A bare roster block is one that nothing above NAMES. Where the label's own
+    // column carries a punctuation-free line spelling the entry's name words in
+    // order, that line is the entry's printed runin: the entry has an intro, and
+    // this arm — which flows no prose — ships it without one. Such an entry
+    // belongs on the runin path (anchor.runin, carrying the title the line prints
+    // where it differs from the display name). This warns rather than throws: a
+    // throw here is caught per entry and drops the entry from the cookbook, which
+    // trades a missing paragraph for a missing NPC.
+    const nameRe = new RegExp(collapse(entry.name).split(" ").map(axFold).filter(Boolean).join(".*"));
+    const ownName = toLines(
+      spd.items.filter(
+        (it) => it.h <= AX_BODY_MAX_H && it.x >= sColX0 && it.x <= sColX1 && it.y > AX_TOP_BAND && it.y < labelRun.y - 2,
+      ),
+    ).find((ln) => {
+      const runs = [...ln.items].sort((p, q) => p.x - q.x).map((i) => i.str);
+      return !/[.,;:!?]/.test(runs.join(" ")) && nameRe.test(axFold(runs.join("")));
+    });
+    if (ownName) {
+      warn(
+        `${entry.id}: anchorAtStatline, but p.${statPage} prints its own name line at y${ownName.y.toFixed(1)} ` +
+          "— anchor on that runin so the intro prose is reachable",
+      );
+    }
     // The expect text is the LABEL as printed (sans colon) — always right by
     // construction, where the display name may normalize nicknames away.
     fields.name = {
@@ -2968,9 +3059,32 @@ async function compileClass(doc, entry, kindRow) {
     // search must not pre-filter on body height.
     const colAll = pd.items
       .filter((i) => colOf(i.x, cols) === anchor.col && i.y > anchor.y + 55 && i.str.trim())
-      .sort((a, b) => a.y - b.y);
-    const stop = colAll.find((i) => stopHeadings.some((h) => fold(i.str).startsWith(fold(h))));
-    const intro = colAll.filter((i) => i.h < HEADING_MIN_H && i.y < (stop?.y ?? anchor.y + 300) - 3);
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    // A section heading is set in small caps, which reaches extraction
+    // shattered into fragments ("CO", "mbat"), so its NAME exists only once the
+    // line is rejoined. Display HEIGHT survives the shattering intact and ends
+    // the passage whatever the heading happens to be called, which is what a
+    // book using section names outside the list needs.
+    const lines = [];
+    for (const i of colAll) {
+      const ln = lines[lines.length - 1];
+      if (ln && Math.abs(ln.y - i.y) < 3) {
+        ln.str += i.str;
+        ln.h = Math.max(ln.h, i.h ?? 0);
+      } else lines.push({ y: i.y, str: i.str, h: i.h ?? 0 });
+    }
+    // Three independent readings, and the passage ends at the EARLIEST. Taking
+    // the earliest is what makes them safe to combine: a rejoin that scrambles
+    // a line (a neighbouring column's table row sits within 3pt of a heading on
+    // a three-column page) can then only miss a stop, never invent a later one.
+    const named = (s) => stopHeadings.some((h) => fold(s).startsWith(fold(h)));
+    const byRun = colAll.find((i) => named(i.str));
+    const byLine = lines.find((l) => named(l.str));
+    const byHeight = colAll.find((i) => (i.h ?? 0) >= HEADING_MIN_H && i.x <= colX + 15);
+    const stopY = Math.min(byRun?.y ?? Infinity, byLine?.y ?? Infinity, byHeight?.y ?? Infinity);
+    const intro = colAll.filter(
+      (i) => i.h < HEADING_MIN_H && i.y < (Number.isFinite(stopY) ? stopY : anchor.y + 300) - 3,
+    );
     if (intro.length >= 3) {
       fields.description = {
         op: "text",
@@ -3719,9 +3833,98 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     // question exactly as `stop` does — leaving it out was what sent an entry
     // that had already finished on to collect the next column and the page
     // after it.
-    const ended = !!stop || !!section || assists.descStopY != null;
-    const cont = columnFlow(pd, cols, col, ended, isRunin);
-    if (cont.length) {
+    // A table CAPTION has a section heading's shape and does not mean what one
+    // means. It names the grid printed under it, so the passage above it has
+    // been INTERRUPTED by the table, not ended by it, and resumes in the next
+    // column past the same table. Two page facts separate the two and BOTH are
+    // required: a section heading is followed by prose while a caption is
+    // followed by gridded lines, and a passage a table interrupts breaks off
+    // mid-sentence while one a section heading closes has come to a full stop.
+    // A block that also holds a run-in stop is not interrupted whatever sits
+    // above that stop — the next entry starts on this page, so the column to
+    // the right is the sibling's and not this one's.
+    const colRows = section ? columnRows(pd, cols, col) : [];
+    const captioned =
+      !!section &&
+      colRows.filter((ln) => ln[0].y > section.y + 2 && ln[0].y < section.y + GRID_BAND && isGridLine(ln)).length >= 2;
+    const interrupted = captioned && !stop && !/[.!?)”’"']\s*$/.test(bodyText);
+    const ended = !!stop || (!!section && !interrupted) || assists.descStopY != null;
+    const cont = interrupted ? [] : columnFlow(pd, cols, col, ended, isRunin);
+    if (interrupted) {
+      // A full-width table lies across every column at one y, so the horizontal
+      // band this column's prose occupies is the band the continuation occupies
+      // too. Its floor is the last gridded line above the anchor — the table the
+      // page opens with, where there is one; its ceiling is the caption that
+      // stopped this column. Resuming at DEF_TOP_BAND instead would take that
+      // upper table's next-column half before reaching the prose under it.
+      const above = colRows.filter((ln) => ln[0].y < anchor.y && isGridLine(ln));
+      const bandTop = above.length ? above[above.length - 1][0].y + 4 : DEF_TOP_BAND;
+      const next = col + 1;
+      const band = columnRows(pd, cols, next).filter((ln) => ln[0].y > bandTop && ln[0].y < section.y - 2);
+      // What ends the band early, tested by SHAPE rather than by font alias: a
+      // display heading of any kind, or the next entry's own name-and-colon at
+      // the column edge. The alias cannot decide it, for the same reason the
+      // `stop` rule cannot decide on the alias alone — a line-initial italic
+      // phrase sits at the column edge in the anchor's own face and is not a
+      // heading.
+      const endAt = band.find(
+        (ln) =>
+          ln[0].h >= HEADING_MIN_H ||
+          ((Math.abs(ln[0].x - cols[next]) < 15 || startsSibling(joinLine(ln))) &&
+            /^[A-Z][^:]{0,44}:/.test(joinLine(ln))),
+      );
+      const carried = band
+        .filter((ln) => !endAt || ln[0].y < endAt[0].y - 4)
+        .flat()
+        .filter((it) => it.h < DEF_BODY_MAX_H);
+      if (carried.length) {
+        const bx0 = cols[next] - 5;
+        const bx1 = cols[next + 1] ? cols[next + 1] - 6 : pd.width;
+        paras.push(...paragraphBoxes(toLines(carried), bx0, bx1).map((p) => withFixes(p, pd, tabs)));
+        bodyText = `${bodyText} ${joinBody(carried)}`.trim();
+      }
+      // Nothing on this page ended the band and it held the LAST column, so the
+      // passage ran out of page and resumes at the top of the page after.
+      // `assists.flowColumns` states that page's columns where its own detection
+      // fails, as it does for the sub-heading turn and for the same reason: the
+      // page being turned onto is not the page the entry was measured on, and
+      // nothing about it has been stated.
+      //
+      // Of the four ceilings below only `contiguousRows` is load-bearing on a
+      // page whose continuation is followed by a table set at BODY height: the
+      // heading test needs a display size, the name-and-colon test needs a
+      // sibling run-in, and `tableTop` needs the table's cells to fall in one
+      // detected column, and a templates grid satisfies none of the three. The
+      // pitch break is what separates the prose from the grid under it — never
+      // remove it on the grounds that the other three cover it.
+      if (!endAt && next >= cols.length - 1 && page + 1 <= doc.numPages) {
+        const pd2 = await pageItems(doc, page + 1);
+        const cols2 = assists.flowColumns?.[String(page + 1)] ?? defColumns(pd2);
+        const rows2 = columnRows(pd2, cols2, 0).filter((ln) => ln[0].y > DEF_TOP_BAND);
+        const head2 = rows2.find((ln) => ln[0].h >= HEADING_MIN_H);
+        const runin2 = rows2.find(
+          (ln) => Math.abs(ln[0].x - cols2[0]) < 15 && /^[A-Z][^:]{0,44}:/.test(joinLine(ln)),
+        );
+        const yEnd =
+          Math.min(
+            head2?.[0].y ?? pd2.height,
+            runin2?.[0].y ?? pd2.height,
+            tableTop(rows2, DEF_TOP_BAND) ?? pd2.height,
+          ) - 2;
+        const tabs2 = marginTabs(pd2);
+        const over = contiguousRows(rows2, yEnd)
+          .flat()
+          .filter((it) => it.h < DEF_BODY_MAX_H && !tabs2.has(it));
+        if (over.length) {
+          const px0 = cols2[0] - 5;
+          const px1 = cols2[1] ? cols2[1] - 6 : pd2.width;
+          paras.push(
+            ...paragraphBoxes(toLines(over), px0, px1).map((p) => withFixes({ ...p, page: page + 1 }, pd2, tabs2)),
+          );
+          bodyText = `${bodyText} ${joinBody(over)}`.trim();
+        }
+      }
+    } else if (cont.length) {
       const cx0 = cols[col + 1] - 5;
       const cx1 = cols[col + 2] ? cols[col + 2] - 6 : pd.width;
       paras.push(...paragraphBoxes(toLines(cont), cx0, cx1).map((p) => withFixes(p, pd, tabs)));

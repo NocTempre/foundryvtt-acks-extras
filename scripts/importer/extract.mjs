@@ -11,7 +11,13 @@
 import { getDocument, GlobalWorkerOptions, OPS } from "../../vendor/pdfjs/pdf.mjs";
 
 const HEADING_MIN_H = 12; // display headings are >=14pt; body is 9-10pt
-const FOOTER_BAND = 32; // pt from page bottom: folios + DTRPG watermark line
+const FOOTER_BAND = 32; // pt from page bottom: the stop for a document too short to profile
+const FOOTER_ZONE_SHARE = 0.05; // the strip furniture can live in, as a share of trim height
+const FOOTER_LINE_RUNS = 4; // a folio or running foot is a few runs wide; a line of type is many
+const FOOTER_SHARE = 0.7; // a furniture line prints on this share of its parity's pages
+const PROFILE_PAGES = 24; // pages sampled to learn a document's furniture
+const PROFILE_MIN_RUNS = 20; // runs that make a page evidence rather than a plate
+const PROFILE_MIN_PAGES = 3; // sampled pages a parity needs before its profile is trusted
 
 // Spoil component: "name (W st, Ngp, effects…)" where W = "2", "2 3/6", or
 // "4/6" — the whole-stone part is OPTIONAL (fractional-only weights are
@@ -47,18 +53,167 @@ export async function openBook(data) {
   return { doc, numPages: doc.numPages, title: meta?.info?.Title ?? "" };
 }
 
-/** All positioned text items of a page (top-origin y), footers filtered. */
+/**
+ * The strip furniture can occupy, as a share of the trim. Generous, because the
+ * profile inside it does the deciding; proportional, because a constant
+ * measured on one page size reaches into the last line of type on a smaller one
+ * and falls short of the folio on a larger one.
+ */
+const footerZone = (height) => Math.max(FOOTER_BAND, height * FOOTER_ZONE_SHARE);
+
+/**
+ * A footer line's identity: page parity, baseline, type size.
+ *
+ * Parity is part of it because furniture mirrors recto to verso — a folio can
+ * sit on a different baseline on facing pages, and merging the two halves the
+ * evidence for each. Type size is part of it because a book set on a tight
+ * bottom margin drops its last line of type onto a baseline within a point of
+ * the folio's; the sizes still differ, and that is what keeps the line.
+ */
+const footerKey = (pageNo, it) => `${pageNo % 2}@${it.transform[5].toFixed(1)}@${it.height.toFixed(1)}`;
+
+/**
+ * A page's non-empty text runs, coincident duplicates removed.
+ *
+ * Faux-bold headings and folios are DOUBLE-STRUCK: the same glyph painted twice
+ * at the same coordinates ("eencountersncounters", "Black BlobBlack Blob").
+ * Dropping exact (str,x,y) coincidences makes a heading read once and a folio
+ * count as one run, which the footer profile's width test depends on. Runs
+ * before the footer test so compiler and runtime dedupe identically and boxes
+ * still line up.
+ */
+function textRuns(content) {
+  const seen = new Set();
+  const runs = [];
+  for (const it of content.items) {
+    if (typeof it.str !== "string" || !it.str.trim()) continue;
+    const key = `${it.str}|${it.transform[4].toFixed(1)}|${it.transform[5].toFixed(1)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    runs.push(it);
+  }
+  return runs;
+}
+
+/** How many runs each footer key carries on one page. */
+function footerLines(pageNo, runs, zone) {
+  const per = new Map();
+  for (const it of runs) {
+    if (it.transform[5] > zone) continue;
+    const key = footerKey(pageNo, it);
+    per.set(key, (per.get(key) ?? 0) + 1);
+  }
+  return per;
+}
+
+/**
+ * The pages a profile is built from: consecutive PAIRS spread through the
+ * document, so both page parities are sampled. An even stride lands on one
+ * parity and leaves the other unprofiled, which is a whole book's worth of
+ * folios left in the text. Derived from the page count alone, so the compiler
+ * and the runtime executor learn the same profile from the same document.
+ */
+function profilePages(numPages) {
+  const pairs = Math.max(1, Math.min(Math.ceil(numPages / 2), Math.floor(PROFILE_PAGES / 2)));
+  const out = new Set();
+  for (let i = 0; i < pairs; i++) {
+    const p = 1 + Math.round((i * (numPages - 1)) / Math.max(1, pairs - 1));
+    out.add(p);
+    out.add(p < numPages ? p + 1 : p - 1);
+  }
+  return [...out].filter((p) => p >= 1 && p <= numPages).sort((a, b) => a - b);
+}
+
+/** Footer profiles, one per open document; the promise is cached so concurrent
+ *  page reads share a single sampling pass. */
+const profiles = new WeakMap();
+
+/**
+ * Which lines of this document are page furniture.
+ *
+ * Furniture is what REPEATS: a folio or a running foot prints on nearly every
+ * page of its parity, on one baseline, in one size, a few runs wide. Body type
+ * in the same strip is content — it arrives there only when a column happens to
+ * fill, and when it does it is a whole line of runs. BOTH tests are needed:
+ * recurrence alone cannot separate a justified block that bottoms out on a
+ * fixed grid from the folio beside it, and thinness alone calls every short
+ * line furniture.
+ *
+ * @returns `{ keys, parity }` — the footer keys to drop, and per page parity
+ *          whether the sample is enough to trust them.
+ */
+async function footerProfile(doc) {
+  if (profiles.has(doc)) return profiles.get(doc);
+  const job = (async () => {
+    const evidence = [0, 0];
+    const found = [0, 0];
+    const lines = new Map();
+    for (const p of profilePages(doc.numPages)) {
+      const page = await doc.getPage(p);
+      const vp = page.getViewport({ scale: 1 });
+      const runs = textRuns(await page.getTextContent());
+      // A plate or a blank leaf carries no furniture and says nothing about
+      // where it sits; counted as a page, it argues the folio away.
+      if (runs.length < PROFILE_MIN_RUNS) continue;
+      evidence[p % 2]++;
+      for (const [key, n] of footerLines(p, runs, footerZone(vp.height))) {
+        const rec = lines.get(key) ?? { pages: 0, widest: 0 };
+        rec.pages++;
+        rec.widest = Math.max(rec.widest, n);
+        lines.set(key, rec);
+      }
+    }
+    const keys = new Set();
+    for (const [key, rec] of lines) {
+      const seen = evidence[+key[0]];
+      if (seen < PROFILE_MIN_PAGES) continue;
+      if (rec.widest > FOOTER_LINE_RUNS) continue;
+      if (rec.pages < seen * FOOTER_SHARE) continue;
+      keys.add(key);
+      found[+key[0]]++;
+    }
+    // A parity sampled well enough and yielding NO furniture line has not
+    // learned that the book has none: it has failed to recognise the one it
+    // has. Trusting the profile there would leak a folio into every page it
+    // filters, so such a parity keeps the flat band instead.
+    return {
+      keys,
+      parity: [
+        evidence[0] >= PROFILE_MIN_PAGES && found[0] > 0,
+        evidence[1] >= PROFILE_MIN_PAGES && found[1] > 0,
+      ],
+    };
+  })();
+  profiles.set(doc, job);
+  return job;
+}
+
+/** All positioned text items of a page (top-origin y), furniture filtered. */
 export async function pageItems(doc, pageNo) {
   const page = await doc.getPage(pageNo);
   const vp = page.getViewport({ scale: 1 });
   const content = await page.getTextContent();
-  // Faux-bold section headings are DOUBLE-STRUCK: the same glyph painted twice
-  // at the same coordinates ("eencountersncounters", "Black BlobBlack Blob").
-  // Drop exact (str,x,y) coincident duplicates so headings read once — this
-  // must run identically here for compiler and runtime so boxes still line up.
-  const seen = new Set();
-  const items = content.items
-    .filter((it) => typeof it.str === "string" && it.str.trim())
+  const profile = await footerProfile(doc);
+  const runs = textRuns(content);
+  const zone = footerZone(vp.height);
+  const lines = footerLines(pageNo, runs, zone);
+  const profiled = profile.parity[pageNo % 2];
+  const items = runs
+    .filter((it) => {
+      // The DTRPG stamp carries a buyer's name and order number and is not set
+      // on a repeatable baseline in every printing, so it answers to its own
+      // test wherever it lands.
+      if (/Order #\d+/.test(it.str)) return false;
+      if (it.transform[5] > zone) return true;
+      // No profile — a document too short for furniture to repeat in, or a
+      // parity whose furniture was not recognised — leaves the flat band as the
+      // only stop there is.
+      if (!profiled) return it.transform[5] > FOOTER_BAND;
+      const key = footerKey(pageNo, it);
+      // A footer line carrying a whole line of type on THIS page is a
+      // collision, not furniture: keep the line, and lose the folio inside it.
+      return !(profile.keys.has(key) && lines.get(key) <= FOOTER_LINE_RUNS);
+    })
     .map((it) => ({
       str: it.str,
       x: it.transform[4],
@@ -66,14 +221,7 @@ export async function pageItems(doc, pageNo) {
       w: it.width,
       h: it.height,
       alias: it.fontName,
-    }))
-    .filter((it) => it.y < vp.height - FOOTER_BAND && !/Order #\d+/.test(it.str))
-    .filter((it) => {
-      const key = `${it.str}|${it.x.toFixed(1)}|${it.y.toFixed(1)}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    }));
   return { items, width: vp.width, height: vp.height };
 }
 

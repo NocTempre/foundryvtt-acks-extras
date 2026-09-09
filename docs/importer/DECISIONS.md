@@ -3201,3 +3201,271 @@ Conventional Brewing. Two of the three ran on into their class's progression
 tables, because a run-in that reaches the foot of the last column continues
 overleaf; both carry `assists.descStopY`, which is the assist that gates both
 the column flow and the page flow.
+
+---
+
+### A roster block that prints its own name is not a bare roster block (2026-09-08)
+
+**Problem.** `assists.anchorAtStatline` anchors an NPC on its quick-stat label,
+for blocks with no printed intro of their own. That arm has no anchor line to
+flow from, so it never attempts `description`. Seventeen AX3 entries carry the
+assist; probing the column above each label found two that do print a name line
+of their own with a biography under it, and both shipped with no description at
+all while every offline gate stayed green.
+
+**Ruled: those two move to the runin path; the other fifteen keep the assist.**
+No entry carrying the assist has a heading-size line on its page, so the display
+anchor is genuinely unavailable — but a runin anchor is a body-size match, and
+the two offenders print one. Of the rest, eleven are preceded by the previous
+block's statline, and four by text ANOTHER entry already claims: two rows of a
+special-encounters rolltable and two location-key bodies. A description there
+would be a cross-entry double-claim, not a recovery, so the assist is right for
+them. Teaching the arm to flow prose upward from the label was rejected on the
+same count: it would have to guess a boundary the book prints, and on this
+corpus it recovers two entries by mis-claiming four.
+
+**Cost.** `compileNpc` now warns when an `anchorAtStatline` entry's own column
+carries a punctuation-free line spelling its name words in order. It warns
+rather than throws because a throw is caught per entry and drops the entry from
+the cookbook — a missing NPC in exchange for a missing paragraph.
+
+---
+
+### A caption is not an ending, and an interruption is not one either (2026-09-08)
+
+**Problem.** A shaman's totem-animal ability printed across a column break
+imported only its first half. The run-in flow ended the passage at a table
+CAPTION: the caption is flush left, a whole line, short, carries no terminal
+period and no open bracket, and its glyph alias differs from the body's — it
+passes every test the `section` rule applies, so the flow treated it as the
+heading that ends the entry and never turned the column. RR pp.71–72.
+
+**Ruled: a caption ends a passage only when the passage has actually finished.**
+Two conditions together, because either alone is common: the caption must be
+followed by at least two GRIDDED lines (a printed line with three or more runs
+and two or more inter-run gaps above 12pt — a wrapped sentence never has that
+shape), AND the passage must break off mid-sentence. When both hold the caption
+is an INTERRUPTION: the flow resumes in the next column inside the anchor's own
+horizontal band, bounded below by the last gridded line and above by the caption,
+and ends by SHAPE — display height, or a name-and-colon at the column edge.
+Ending the band at a fixed distance was rejected; that is the same class of
+defect as the bug being fixed.
+
+**Cost.** One entry moved (`def.power.totemanimal`, and its alias
+`def.power.animalCompanion`): 1 paragraph / 380 normalized characters became 7
+paragraphs / 2,153. It needs `assists.flowColumns` for RR p.72, whose columns
+detection reads differently from p.71. Of the three mechanisms the fix adds,
+only the contiguous-rows ceiling is load-bearing on that page — the other two
+are carried because the shape they guard is what makes the rule safe to
+generalise, not because this entry exercises them. The wider mechanism this
+shares a cause with is NOT fixed: 134 descriptions still hold 1,037 table-shaped
+lines, because `endsFlow` stops at a heading and a body-height table row is not
+one.
+
+---
+
+### Furniture is learned per document, not cut at a fixed height (2026-09-08)
+
+**Problem.** `FOOTER_BAND = 32` deleted every text run within 32pt of the foot
+of every page, in every book. It is a page-design constant applied to books that
+do not share a page design: where the folio sits higher, the band ate the last
+line or two of body type, and 135 entries were quietly missing their final
+sentence.
+
+**Ruled: profile each document's actual furniture and cut only that.** Sample up
+to 24 pages per parity (recto and verso print different furniture), keep the
+lines that repeat across pages in the bottom 5% of the page, and drop only runs
+matching that learned profile. A parity that samples enough pages but recognises
+no furniture falls back to the flat band, so a book whose foot is genuinely
+irregular loses nothing it did not already lose. Raising the constant was
+rejected: it moves which books are wrong, not whether they are.
+
+**Cost.** 708 runs / 5,085 characters returned to the extractor across dmb, aft
+and bta; 1,454 of those now reach a description box, the rest reaching a
+statline, a table, or no op at all. 80 runs / 208 characters are newly dropped,
+every one a bare folio number in AX2/AX3. Eight books are unaffected. The number
+to state is the 1,454, not the earlier projection of 3,797 — that figure counted
+every band character in a description's column, including text belonging to the
+NEXT entry, and was an upper bound rather than a target.
+
+---
+
+### A passage ends where its shape ends, not a fixed distance down the page (2026-09-08)
+
+**Problem.** A class's intro prose ends at the first of three named section
+headings. Those headings are set in SMALL CAPS, which reaches extraction
+shattered into fragments — the first run of "Combat Characteristics" is "CO" —
+so no run ever matched a name, and the intro fell back to a window of
+`anchor.y + 300`. Eight BTA dwarven classes ended at exactly that fallback,
+seven of them at an identical y on five different pages, each cutting a sentence
+in half and each having already over-run the real section heading above it.
+
+**Ruled: read three independent signals and end the passage at the EARLIEST.**
+The original per-run name match is kept; a rejoined-line name match is added for
+shattered small caps; and display HEIGHT at the column's left edge ends a
+passage whatever the heading is called, which is what a book using section names
+outside the list needs. Taking the earliest is what makes them safe to combine —
+a rejoin that scrambles a line can then only MISS a stop, never invent a later
+one. That mattered: a three-column RR page prints a table row within 3pt of a
+heading, and the naive rejoin fused the two and silently doubled that class's
+description.
+
+**Cost.** Eight entries moved, in both directions — four shrank back to their
+real section heading and four grew past the fallback. Every other class is
+byte-identical, which is the evidence that the added signals fire only where the
+name match had already failed.
+
+---
+
+### Column detection is overridden per page, never per constant (2026-09-08)
+
+**Problem.** Two AX3 residents shipped a description consisting of a single
+hyphen. Their page prints statlines at one left edge and prose 18pt further
+left; detection votes for the statline edge, and the flow window — the column
+left less a fixed 12pt hanging allowance — began to the RIGHT of every prose
+line on the page. The only runs it could see were the hyphens of hyphenated
+word-breaks at the column's right edge. A third entry on the page captured its
+own statline as prose and swept two neighbours' regions as well.
+
+**Ruled: author `assists.columns` (and `flowColumns` for a continuation page).**
+Widening the hanging allowance was rejected: it is the same fixed-distance
+reasoning that caused the defect, and a wider window pulls the neighbouring
+column in on every well-detected page. A survey settled the scope — 7 of the 851
+pages the cookbook reads vote one column while the body plainly sits in two — so
+this is per-page authoring, not a detector rewrite.
+
+**Cost.** Three entries fixed: two went from a hyphen to 350 and 391 characters
+of their own prose; the third fell from 3,695 characters to 1,156 by giving back
+the two neighbours' text it had been claiming. That entry still carries its own
+statline inside its description box — a pre-existing defect of the same page, not
+introduced here. The two remaining open stops in the ledger look like the same
+class of fault in the OSE harvester, and are not: an override there was built
+and rejected, below.
+
+---
+
+### A description is asked where it STOPS, and only where the page can answer (2026-09-08)
+
+**Problem.** `check-prose-boxes` gates where a description STARTS. Nothing gated
+where it stops, which is where the silent losses are: a box ending mid-sentence
+still looks well-formed, and a reader without the book cannot tell the passage
+was cut in half.
+
+**Ruled: gate the stop on a clause boundary, and give NO VERDICT where the page
+cannot answer.** A description is asked the question only when a body line sits
+immediately below its box, in the same column and x band, claimed by no other
+entry. It fails only when BOTH halves agree the sentence runs on — the last line
+ends without terminal punctuation and the next opens lower-case — because either
+alone is ordinary. `prose-stops.json` ratchets: a new open stop fails the build,
+a recorded one is named and counted. The gate prints ids, pages and coordinates
+and never the text it inspected.
+
+**Cost.** The honest metric is that most descriptions get no verdict: 422 of
+1,829 reach a discrimination at all, and 1,349 do not because the next line
+belongs to a neighbour (439) or the column ends (910). Stating "1,829
+descriptions stop correctly" would be false. The gate found nine open stops on
+its first run and every one was a real defect in a different mechanism — five a
+fixed-window class intro, two a mis-detected column, two the OSE harvester's
+single-column vote. Seven were fixed; the two the harvester cannot express are
+in the ledger.
+
+---
+
+### The line that introduces a creature is set between the two sizes nothing looked at (2026-09-08)
+
+**Problem.** DMB opens most creature entries with a standfirst — a line set over
+both columns, larger than body type and smaller than a heading. The harvester
+collects body-height lines inside a column, so a line that is neither body
+height nor heading height and belongs to no single column was collected by
+nothing. 114 of 165 entries lost it: 17,703 characters that never reached a
+description, with every offline gate green.
+
+**Ruled: box the standfirst before the column walk, never inside it.** It is
+keyed on the band between the name and the first body-height line, and admitted
+only when it reads as prose — lower-case density at or above 0.5, at least 24
+characters, and straddling the gutter. It is boxed first because it reads first,
+and outside the walk because a column span would cut it at the gutter and drag
+the first body paragraph's box across with it.
+
+**Cost.** M2 fell from 113 lost standfirsts to 26, recovering 15,075 characters.
+The 26 that remain are lines the prose test declines — mostly too short to
+distinguish from a label. Declining them is the deliberate half of the rule: the
+test admits a line only on positive evidence that it is prose.
+
+---
+
+### What ends an entry is looked for ABOVE as well as below (2026-09-08)
+
+**Problem.** An entry continuing into the next column ran from `PAGE_TOP` down to
+the first thing that starts another entry BELOW that point. These books open
+every column with a heading set above `PAGE_TOP`, so the thing that ends the
+region was invisible to the search that looked only downward, and the region ran
+straight through the next creature's opening prose into its stat block. 94
+entries were over-capturing their neighbour's first paragraph.
+
+**Ruled: a column that already holds another entry's start at or above the entry
+point is not available.** `startsOf` became the one list of everything that
+starts an entry in a column; `startsIn` reads it downward for where an entry
+ends, and the new `takenAt` reads it as a whole for whether the column is
+somebody else's before the walk enters it. Lowering `PAGE_TOP` was rejected: it
+changes which headings are missed, not that some are.
+
+**Cost.** M1 fell from 94 over-runs to 4, and overlapping box pairs from 685 to
+484. One area entry stops producing boxes and keeps the wrong one it was
+authored with; it is reported as an orphan by the refresh rather than silently
+dropped. Five illustrations changed owner as a consequence, because art is
+placed by containment in an entry's regions — four AX3-style full-width plates at
+a page foot moved from the left column's entry to the later-starting right
+column's, and three of those were checked against the plate itself and are now
+correct.
+
+---
+
+### A bulleted statistic is not a stat line (2026-09-08)
+
+**Problem.** A stat-line probe recognises a line carrying enough known labels.
+One book sets each statistic on its own bullet, so a single bulleted line can
+carry a label and be mistaken for a whole block's stat line.
+
+**Ruled: scope the guard to `statLineTest` and require two distinct labels behind
+a bullet.** The full-scope version of this guard — applying the bullet rule
+inside `isStatLine` and `findStatBlocks` as well — was built and then rejected on
+evidence: it takes a bulleted block from one candidate with eight labels to ZERO
+candidates, which deletes the whole creature silently from a book nothing in this
+audit had checked. A guard that can erase a creature to avoid mis-typing a line
+is the worse trade.
+
+**Cost.** `isStatLine` and `findStatBlocks` keep the old behaviour, so the
+mis-typing they can still produce is unfixed and deliberate.
+
+---
+
+### The OSE harvester's single-column pages are not a column-lefts problem (2026-09-08)
+
+**Problem.** Four DMB pages and one AFT page vote a SINGLE column while the body
+plainly sits in two, which collapses everything downstream that reasons about
+"the same column": a heading on the left ends a passage on the right, and a stat
+block's header row lands where a description belongs. It accounts for both open
+rows in `prose-stops.json` and for eight entries whose whole description is a
+small-caps stat header. The definition compiler answers this with
+`assists.columns`; the harvesters take detection's word and have nothing to
+author against, so the obvious fix is a per-page override table.
+
+**Ruled: the override is REJECTED, and the ledger rows stay open.** It was built
+— a measured table of column lefts, read by both harvesters ahead of detection —
+and it made things worse. Isolated against a with/without re-harvest, it touched
+exactly the five overridden pages and 19 rows, every one gaining prose boxes,
+which read as a clean win until the entries were materialized: on p.107 the
+level-1 enchanter, level-3 enchanter and level-1 fighter all END WITH THE SAME
+SENTENCE, and on p.116 the giant frog closes with another creature's swoop
+attack while the griffon opens with the frog's. Declaring the second column lets
+an entry walk into a column that CONTINUES an entry from an earlier page, and
+nothing marks such a column as taken — so every entry on the page claims it.
+
+**Cost.** Two ledgered stops and eight header-only descriptions stay broken,
+all of them pre-existing and none of them regressions. The real defect is one
+level down: the column walk knows a column is taken when something STARTS in it,
+and has no way to know a column is taken because an entry from the previous page
+has not finished. Raising column detection before teaching the walk that would
+convert a truncation into a cross-entry bleed, which is the worse of the two —
+the same trade already ruled on for the bulleted stat line.

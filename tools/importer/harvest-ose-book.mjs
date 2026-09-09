@@ -16,7 +16,9 @@
  * So the output is a floor, not a finished register: it turns "author 565
  * entries" into "review 565 boxes and hand-author the few dozen the locator
  * could not see". Re-running is safe — existing rows are kept by id and only
- * new ones are added, so a chef's hand edits survive.
+ * new ones are added, so a chef's hand edits survive. When the MEASUREMENT
+ * changes rather than the page, `--refresh` re-writes `assists` on rows that
+ * already exist and leaves every other field as authored.
  *
  * IP: emits geometry and a name, never values or prose. The name comes from
  * the book's own heading, which is a locator, and is capped like every other
@@ -26,6 +28,7 @@
  *   node tools/harvest-ose-book.mjs qd1            report only
  *   node tools/harvest-ose-book.mjs qd1 --write    write register/qd1/
  *   node tools/harvest-ose-book.mjs qd1 --pages 8-9
+ *   node tools/harvest-ose-book.mjs qd1 --write --refresh   re-measure existing rows
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -39,11 +42,14 @@ import { OSE_FILES } from "./reference-lib.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** Items this tall are display headings, not body text (ose-blocks' rule). */
 const HEADING_MIN_H = 12;
+/** A standfirst is display type; the entry title over it is larger again. */
+const STANDFIRST_MAX_H = HEADING_MIN_H * 2;
 /** Top of the body area: above this sit running heads and folios. */
 const PAGE_TOP = 50;
 const argv = process.argv.slice(2);
 const BOOK = argv.find((a) => !a.startsWith("--"));
 const WRITE = argv.includes("--write");
+const REFRESH = argv.includes("--refresh");
 const RANGE = (() => {
   const i = argv.indexOf("--pages");
   if (i < 0 || !argv[i + 1]) return null;
@@ -232,6 +238,61 @@ function proseBoxesFor(pd, c, bounds, isStat) {
   });
 }
 
+/**
+ * The full-measure standfirst box of an entry, or null when it has none.
+ *
+ * A bestiary can set an entry's opening sentences in display type across the
+ * WHOLE measure, over the top of the two-column body. That run is not a column
+ * object: a column span cuts it at the gutter, and `proseBoxesFor` drops it on
+ * height along with the headings it is sized like. So it is boxed once, here,
+ * outside the column walk.
+ *
+ * The BAND is what makes this decidable without reading the page: only display
+ * type between the name and the first line of BODY type is a standfirst. A
+ * section heading is display type too, and sits below that line inside the
+ * body, so it is never in the band. What is in the band must still read as
+ * running prose and must span the measure — that is what separates a
+ * standfirst from a title, a kicker, and a column-width subhead.
+ *
+ * @param bounds  `{startY, endY}` — from whatever named the entry down to the
+ *                top of its stat block
+ * @returns one box, or null
+ */
+function standfirstBoxFor(pd, cols, bounds) {
+  const { startY, endY } = bounds;
+  const inBand = (it) => String(it.str).trim() && it.y > startY + 4 && it.y < endY - 2;
+  const bodyTop = Math.min(endY, ...pd.items.filter((it) => inBand(it) && (it.h ?? 0) < HEADING_MIN_H).map((it) => it.y));
+  const band = pd.items.filter(
+    (it) => inBand(it) && it.y < bodyTop && (it.h ?? 0) >= HEADING_MIN_H && (it.h ?? 0) < STANDFIRST_MAX_H,
+  );
+  if (!band.length) return null;
+
+  const lines = [];
+  for (const it of [...band].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const line = lines.find((l) => Math.abs(l.y - it.y) <= 3);
+    if (line) line.items.push(it);
+    else lines.push({ y: it.y, items: [it] });
+  }
+  // Leading run only: the standfirst stops at the first line that is not
+  // running prose, so a capitalised label under it cannot extend the box.
+  const lower = (s) => (s.match(/[a-z]/g) ?? []).length / Math.max(1, s.length);
+  const kept = [];
+  for (const l of lines) {
+    if (lower(l.items.map((i) => i.str).join(" ")) < 0.5) break;
+    kept.push(l);
+  }
+  if (!kept.length) return null;
+  const items = kept.flatMap((l) => l.items);
+  if (items.map((i) => i.str).join(" ").replace(/\s+/g, " ").trim().length < 24) return null;
+
+  const x0 = Math.min(...items.map((i) => i.x)) - 2;
+  const x1 = Math.max(...items.map((i) => i.x + (i.w ?? 0))) + 2;
+  // Full measure, or it is a column object and the column walk already owns it.
+  const gutter = cols.length > 1 ? cols[1] : null;
+  if (gutter === null ? x1 - x0 < pd.width * 0.5 : !(x0 < gutter && x1 > gutter)) return null;
+  return { x0, x1, y0: Math.min(...items.map((i) => i.y)) - 3, y1: Math.max(...items.map((i) => i.y)) + 3 };
+}
+
 /** Register id slug, matching the family's camel-cased convention. */
 const slugOf = (s) =>
   String(s ?? "")
@@ -285,6 +346,12 @@ for (let page = from; page <= to; page++) {
   }
 
   const cols = detectColumns(pd.items);
+  // Where type stops on this page. `pageItems` has already dropped the footer
+  // line, so the lowest run left IS the last line of the body; a constant here
+  // re-imposes the trim size it was measured on and clips that line away on
+  // any book set tighter. PAGE_TOP floors it so a page of nothing but a
+  // heading cannot produce an inverted region.
+  const bodyBottom = Math.max(PAGE_TOP, ...pd.items.map((it) => it.y)) + 3;
   /** This page's accepted entries, so art is placed once the set is known. */
   const onPage = [];
   // Every run-in label on the page, so one creature description stops where the
@@ -331,29 +398,42 @@ for (let page = from; page <= to; page++) {
     // label, another block. Nothing is claimed past that, so one creature's
     // description can never absorb the creature after it.
     const nameY = runin?.y ?? (above && !parsed.name ? above.y : null);
-    // Where an entry ENDS in a given column: the next thing that starts one —
-    // another heading, another block, another run-in label.
-    const startsIn = (col, after) =>
-      Math.min(
-        pd.height - 30,
-        ...[
-          ...heads.filter((h) => Math.abs((h.col ?? 0) - col) < 1).map((h) => h.y),
-          ...candidates.filter((o) => o !== c && o.col === col).map((o) => o.box.y0),
-          ...runinYs.filter((r) => r.col === col && r.y !== nameY).map((r) => r.y),
-        ].filter((y) => y > after),
-      );
+    // Everything in a column that starts an entry other than this one: another
+    // heading, another block, another run-in label. One list, because what ends
+    // an entry and what starts the next one are the same three things.
+    const startsOf = (col) => [
+      ...heads.filter((h) => Math.abs((h.col ?? 0) - col) < 1).map((h) => h.y),
+      ...candidates.filter((o) => o !== c && o.col === col).map((o) => o.box.y0),
+      ...runinYs.filter((r) => r.col === col && r.y !== nameY).map((r) => r.y),
+    ];
+    // Where an entry ENDS in a column: the first of those below `after`.
+    const startsIn = (col, after) => Math.min(bodyBottom, ...startsOf(col).filter((y) => y > after));
+    // Whether a column is already somebody else's at a given height.
+    const takenAt = (col, y) => startsOf(col).some((t) => t <= y);
 
     // The entry runs from whatever named it to that boundary, and CONTINUES in
     // the columns after it. Following it across is what a two-column entry
-    // needs; it costs a one-column book nothing, because the next column starts
-    // with its own creature's heading and so contributes an empty region.
+    // needs, and a column that already holds another entry's start is where it
+    // stops.
     const prose = [];
     const regions = [];
+    // The standfirst is set over the columns, so it is boxed BEFORE the walk
+    // and never inside it: a column span would cut it at the gutter, and its
+    // lines would drag the first body paragraph's box across the gutter with
+    // them. It reads first, so it is the first box.
+    const standfirst = standfirstBoxFor(pd, cols, { startY: nameY ?? c.box.y0 - 1, endY: c.box.y0 });
+    if (standfirst) prose.push(standfirst);
     for (let col = c.col; col < cols.length; col++) {
       if (cols[col] === undefined) break;
       const span = columnSpan(cols, col, pd.width);
       const own = col === c.col;
       const startY = own ? (nameY ?? c.box.y0 - 1) : PAGE_TOP;
+      // A column that already starts another entry at or above this point is
+      // that entry's. Never gate this on `startsIn` alone: it looks only BELOW,
+      // so a heading set above PAGE_TOP — which is where these books open every
+      // column — is invisible to it and the region runs straight through the
+      // next creature's opening prose to its stat block.
+      if (!own && takenAt(col, startY)) break;
       const endY = startsIn(col, own ? c.box.y1 + 2 : startY);
       if (endY <= startY) break;
       regions.push({ ...span, y0: startY, y1: endY });
@@ -463,14 +543,53 @@ if (!WRITE) {
 const dir = path.join(HERE, "..", "..", "register", BOOK);
 fs.mkdirSync(dir, { recursive: true });
 const out = path.join(dir, `p${from}-p${to}-creatures.json`);
+// --refresh re-measures rows that already exist, so it has nothing to do
+// against a file that does not — and a --pages run names a different file,
+// which is the shape that would otherwise write a fragment over a full book.
+if (REFRESH && !fs.existsSync(out)) {
+  console.error(`harvest-ose-book: --refresh needs an existing ${path.basename(out)} to re-measure.`);
+  process.exit(1);
+}
 // Keep whatever a chef has already hand-authored: merge by id, existing wins.
 const existing = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, "utf8")) : [];
 const byId = new Map(existing.map((e) => [e.id, e]));
-let added = 0;
+// A row already in the file is matched by the page and heading it was harvested
+// from, never by id: an id is minted from emission order, so a row that stops
+// producing boxes renames every sibling after it and an id match would then
+// write one entry's boxes into the next entry's row.
+const key = (r) => `${r.pages?.[0]}|${r.anchor?.display ?? ""}`;
+const byKey = new Map();
+for (const e of existing) {
+  if (!byKey.has(key(e))) byKey.set(key(e), []);
+  byKey.get(key(e)).push(e);
+}
+const paired = new Map();
 for (const r of rows) {
+  const e = byKey.get(key(r))?.shift();
+  if (e) paired.set(r, e);
+}
+// --refresh re-measures GEOMETRY: it replaces `assists` and nothing else,
+// because id, name, anchor and meta are what a chef corrects by hand and an id
+// is the spine the cookbook, the ledger and the icon rows are all keyed by.
+let added = 0;
+let remeasured = 0;
+for (const r of rows) {
+  const e = paired.get(r);
+  if (e) {
+    if (!REFRESH) continue;
+    if (JSON.stringify(e.assists) !== JSON.stringify(r.assists)) remeasured++;
+    byId.set(e.id, { ...e, assists: r.assists });
+    continue;
+  }
   if (byId.has(r.id)) continue;
   byId.set(r.id, r);
   added++;
 }
 fs.writeFileSync(out, JSON.stringify([...byId.values()], null, 2) + "\n");
-console.error(`wrote ${out} — ${added} new, ${existing.length} kept`);
+console.error(
+  `wrote ${out} — ${added} new, ${existing.length} kept${REFRESH ? `, ${remeasured} re-measured` : ""}`,
+);
+// A row this run no longer produces keeps whatever it was authored with, and is
+// named because it is the one case a refresh cannot repair on its own.
+const orphans = [...byKey.values()].flat().map((e) => e.id);
+if (orphans.length) console.error(`  no longer harvested, left as authored: ${orphans.join(", ")}`);

@@ -290,7 +290,7 @@
       "group": "NPC Party — Imperial Vanguard"
     },
     "assists": {
-      "descStopY": 185,
+      "descStopY": 140,
       "grid": {
         "page": 203,
         "y0": 168,
@@ -305,7 +305,11 @@
           166
         ],
         "centerDies": true
-      }
+      },
+      "columns": [
+        52,
+        322
+      ]
     }
   }
 ]

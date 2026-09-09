@@ -23,6 +23,9 @@
  *                       gain an unplaced one (`npm run icons`).
  *   check-prose-boxes    Does each definition's description come from the
  *                       column its own heading starts? Pure geometry, no PDFs.
+ *   check-prose-stops   Does each description STOP where the passage stops, or
+ *                       mid-sentence? Reads the page below the box, so it needs
+ *                       the PDFs and skips without them; ratchets on a ledger.
  *   check-cookbook-drift  Is the committed cookbook/ what register/ compiles
  *                       to? Needs the local reference PDFs and skips cleanly
  *                       without them, so it gates the authoring machines only.
@@ -148,6 +151,6 @@ if (failed) {
 // Re-exec so each check's own output surfaces and its non-zero exit propagates
 // (execFileSync throws, this process exits non-zero). Sequential and
 // fail-fast: a drift report is noise while the register itself is broken.
-for (const [tool, ...args] of [["lint-register.mjs"], ["icon-ledger.mjs", "--check"], ["test-ose-statline.mjs"], ["test-ose-convert.mjs"], ["test-ose-blocks.mjs"], ["test-ose-binding.mjs"], ["test-ose-template.mjs"], ["test-ose-location.mjs"], ["test-ose-manual.mjs"], ["test-ose-lang.mjs"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-cookbook-drift.mjs"]]) {
+for (const [tool, ...args] of [["lint-register.mjs"], ["icon-ledger.mjs", "--check"], ["test-ose-statline.mjs"], ["test-ose-convert.mjs"], ["test-ose-blocks.mjs"], ["test-ose-binding.mjs"], ["test-ose-template.mjs"], ["test-ose-location.mjs"], ["test-ose-manual.mjs"], ["test-ose-lang.mjs"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"]]) {
   execFileSync(process.execPath, [path.join(ROOT, "tools", "importer", tool), ...args], { stdio: "inherit" });
 }

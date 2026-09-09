@@ -34,7 +34,13 @@
     },
     "assists": {
       "statLabel": "Hesta Faunus:",
-      "statlineAt": 77
+      "statlineAt": 77,
+      "flowColumns": {
+        "77": [
+          54,
+          324
+        ]
+      }
     }
   },
   {
@@ -52,7 +58,11 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Aranth Faunus:"
+      "statLabel": "Aranth Faunus:",
+      "columns": [
+        54,
+        324
+      ]
     }
   },
   {
@@ -73,6 +83,10 @@
       "statLabel": "Megaravicos:",
       "stopLines": [
         "Other Members"
+      ],
+      "columns": [
+        54,
+        324
       ]
     }
   },

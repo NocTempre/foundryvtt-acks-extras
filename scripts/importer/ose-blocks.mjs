@@ -24,6 +24,14 @@ const LINE_GAP = 14;
 const HEADING_MIN_H = 12;
 /** A candidate needs the armour-class label plus this many other labels. */
 const MIN_OTHER_LABELS = 2;
+/**
+ * Glyphs a book leads a list item with. Matched only at the head of a line and
+ * only before a space, so a glyph used as an inline separator ("AC 5 • HD 2")
+ * is untouched.
+ */
+const BULLET_LEAD = /^\s*[•‣⁃∙■▪▶►○●◦♦]\s/u;
+/** Distinct labels that admit a bulleted line as statistics rather than a list. */
+const BULLET_MIN_LABELS = 2;
 
 /**
  * Join one cluster's runs into a line-aware string.
@@ -111,8 +119,29 @@ function isStatLine(text, labelRe) {
  * gives a creature whose description opens "Morale 10 XP 80".
  */
 export function statLineTest(profile = OSE_CANONICAL) {
-  const { re } = labelProbe(profile);
-  return (text) => isStatLine(String(text ?? ""), re);
+  const { re, keyOf } = labelProbe(profile);
+  return (text) => {
+    const s = String(text ?? "");
+    if (!isStatLine(s, re)) return false;
+    // A BULLETED line is a list item, and the length escape in isStatLine cannot
+    // reach it: these books set a creature's special abilities as bulleted
+    // run-in entries directly under its block, so one naming a die carries its
+    // marker in eight words. The glyph is the evidence the marker count cannot
+    // supply.
+    //
+    // Stricter than the locator on purpose. This answers the harvester's
+    // question — "is this line the block continuing, so the description starts
+    // below it" — where refusing a line only widens a description box. The
+    // locator's question costs a whole creature when it answers wrongly, and a
+    // book that sets its block AS a bulleted list would lose every line of it.
+    if (!BULLET_LEAD.test(s)) return true;
+    const keys = new Set();
+    for (const m of s.matchAll(re)) {
+      const key = keyOf.get(m[0].toLowerCase().replace(/\s+/g, " "));
+      if (key) keys.add(key);
+    }
+    return keys.size >= BULLET_MIN_LABELS;
+  };
 }
 
 /** Bounding box of a set of runs, padded so the box re-selects them exactly. */

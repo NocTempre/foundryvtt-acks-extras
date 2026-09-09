@@ -24,7 +24,7 @@
     "book": "ax3",
     "name": "Lady Syrena Austiria Basilio",
     "anchor": {
-      "label": "Lady Syrena Austiria Basilio:"
+      "runin": "Lady Syrena Austiria Basilio"
     },
     "pages": [
       191
@@ -33,8 +33,7 @@
       "group": "Palace District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Lady Syrena Austiria Basilio:",
-      "anchorAtStatline": true
+      "statLabel": "Lady Syrena Austiria Basilio:"
     }
   },
   {
@@ -63,7 +62,7 @@
     "book": "ax3",
     "name": "Gundus Jannion",
     "anchor": {
-      "label": "Gundus Jannion:"
+      "runin": "Legate Gundus Zelicus Jannion"
     },
     "pages": [
       192
@@ -72,8 +71,7 @@
       "group": "Palace District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Gundus Jannion:",
-      "anchorAtStatline": true
+      "statLabel": "Gundus Jannion:"
     }
   }
 ]

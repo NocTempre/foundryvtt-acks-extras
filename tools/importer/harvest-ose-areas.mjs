@@ -17,6 +17,7 @@
  *   node tools/harvest-ose-areas.mjs qd1            report only
  *   node tools/harvest-ose-areas.mjs qd1 --write    write register/qd1/
  *   node tools/harvest-ose-areas.mjs qd1 --pages 10-12
+ *   node tools/harvest-ose-areas.mjs qd1 --write --refresh   re-measure existing rows
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -38,6 +39,7 @@ const AREA_KEY = /^\s*(\d{1,3})\s*[.)]\s*(\S.*)$/;
 const argv = process.argv.slice(2);
 const BOOK = argv.find((a) => !a.startsWith("--"));
 const WRITE = argv.includes("--write");
+const REFRESH = argv.includes("--refresh");
 const RANGE = (() => {
   const i = argv.indexOf("--pages");
   if (i < 0 || !argv[i + 1]) return null;
@@ -164,6 +166,11 @@ for (let page = from; page <= to; page++) {
           .map((o) => o.y)
           .filter((y) => y > after),
       );
+    // Whether another area already opens column `c` at or above `y`. The
+    // `titleEndY` clause above is scoped to this area's OWN column, where it
+    // skips the area's wrapped title lines; a foreign column is tested without
+    // it, or every heading printed above this area's title stops counting.
+    const takenAt = (c, y) => heads.some((o) => o !== h && Math.abs((o.col ?? 0) - c) < 1 && o.y <= y);
 
     const prose = [];
     for (let c = col; c < cols.length; c++) {
@@ -171,6 +178,11 @@ for (let page = from; page <= to; page++) {
       const span = columnSpan(cols, c, pd.width);
       const own = c === col;
       const y0 = own ? titleEndY : PAGE_TOP;
+      // A column that already opens another area is that area's. Never gate
+      // this on `endIn` alone: it looks only BELOW, so a heading set above
+      // PAGE_TOP — which is where these books open every column — is invisible
+      // to it and the area runs straight through the next area's opening text.
+      if (!own && takenAt(c, y0)) break;
       const y1 = endIn(c, y0);
       if (y1 <= y0) break;
       prose.push(...proseBoxes(pd, { ...span, y0, y1 }));
@@ -219,14 +231,53 @@ if (!rows.length) {
 const dir = path.join(HERE, "..", "..", "register", BOOK);
 fs.mkdirSync(dir, { recursive: true });
 const out = path.join(dir, `p${from}-p${to}-areas.json`);
+// --refresh re-measures rows that already exist, so it has nothing to do
+// against a file that does not — and a --pages run names a different file,
+// which is the shape that would otherwise write a fragment over a full book.
+if (REFRESH && !fs.existsSync(out)) {
+  console.error(`harvest-ose-areas: --refresh needs an existing ${path.basename(out)} to re-measure.`);
+  process.exit(1);
+}
 // Keep whatever a chef has already hand-authored: merge by id, existing wins.
 const existing = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, "utf8")) : [];
 const byId = new Map(existing.map((e) => [e.id, e]));
-let added = 0;
+// A row already in the file is matched by the page and heading it was harvested
+// from, never by id: an id here is minted from emission order and only by rows
+// that produced boxes, so a row that stops producing them renames every sibling
+// after it and an id match would write one area's boxes into the next area's row.
+const key = (r) => `${r.pages?.[0]}|${r.anchor?.display ?? ""}`;
+const byKey = new Map();
+for (const e of existing) {
+  if (!byKey.has(key(e))) byKey.set(key(e), []);
+  byKey.get(key(e)).push(e);
+}
+const paired = new Map();
 for (const r of rows) {
+  const e = byKey.get(key(r))?.shift();
+  if (e) paired.set(r, e);
+}
+// --refresh re-measures GEOMETRY: it replaces `assists` and nothing else,
+// because id, name, anchor and meta are what a chef corrects by hand and an id
+// is the spine the cookbook, the ledger and the icon rows are all keyed by.
+let added = 0;
+let remeasured = 0;
+for (const r of rows) {
+  const e = paired.get(r);
+  if (e) {
+    if (!REFRESH) continue;
+    if (JSON.stringify(e.assists) !== JSON.stringify(r.assists)) remeasured++;
+    byId.set(e.id, { ...e, assists: r.assists });
+    continue;
+  }
   if (byId.has(r.id)) continue;
   byId.set(r.id, r);
   added++;
 }
 fs.writeFileSync(out, JSON.stringify([...byId.values()], null, 2) + "\n");
-console.error(`wrote ${out} — ${added} new, ${existing.length} kept`);
+console.error(
+  `wrote ${out} — ${added} new, ${existing.length} kept${REFRESH ? `, ${remeasured} re-measured` : ""}`,
+);
+// A row this run no longer produces keeps whatever it was authored with, and is
+// named because it is the one case a refresh cannot repair on its own.
+const orphans = [...byKey.values()].flat().map((e) => e.id);
+if (orphans.length) console.error(`  no longer harvested, left as authored: ${orphans.join(", ")}`);

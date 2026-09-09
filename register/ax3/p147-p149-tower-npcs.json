@@ -52,7 +52,11 @@
       "group": "Tower District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Clitus Omnus:"
+      "statLabel": "Clitus Omnus:",
+      "columns": [
+        40,
+        307
+      ]
     }
   },
   {
