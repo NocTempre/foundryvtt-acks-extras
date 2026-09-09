@@ -762,3 +762,15 @@ page count, so the citation is derivable from what is already there. The window
 no longer renders a separator around the hole, but the hole is upstream: the
 same empty string reaches every document those entries import, and a citation
 is the one thing that ships everywhere by doctrine.
+
+## Apply Stats has nothing to re-read for an OSE creature
+
+`refillMonster` re-reads a stat block through `bindMonster`, which is the ACKS
+grammar. An authored OSE entry carries its numbers inside its `block` region
+instead, so the surface now declines those actors (`no-stats`) rather than
+writing over them. The refill an OSE creature should get is its own path — the
+`block` re-read through `ose-statline` and `convertOse` under this seat's
+current SCG constants — and it has questions the ACKS refill never had: whether
+a re-conversion may overwrite conversions a Judge has since corrected, and what
+happens to `flags["acks-extras"].ose.conversions` when the constants moved
+between the import and the refill.

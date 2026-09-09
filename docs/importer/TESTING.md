@@ -887,6 +887,76 @@ is what separates them.
 10. Delete the folders and every actor in them. Report which books were
    exercised and which were not reached.
 
+## Apply Stats re-reads a stat block, or refuses
+
+`applyStats()` UPDATES system data on documents that already exist, so this is
+the recipe where a wrong target costs someone else's work. Two things decide the
+targets and both are easy to get wrong from a script:
+`applyStatsTargets` takes the selected tokens PLUS every open actor sheet, and a
+COMPENDIUM actor's sheet counts — which is the only way to point at an imported
+creature in a world with no canvas and no token. So **close every application
+first** (`app.close({ animate: false })` over `foundry.applications.instances`,
+then `ui.windows`), open exactly the fixture's sheet, and assert what the surface
+sees before pressing it.
+
+### Fixtures
+
+1. One creature from an authored OSE book and one ACKS monster, both imported by
+   this run. In a shared world the importers dedup by identity, so a book whose
+   creatures are all present creates nothing and leaves you with no fixture you
+   may write to. Find the free ids first: index every world Actor pack on
+   `flags["acks-extras"].cookbook.id`, fetch
+   `modules/acks-extras/cookbook/<book>.json`, and diff. `dmb` held two
+   (`dmb.fireBeetleGiant`, `dmb.flyGiant`) against a fully imported library;
+   `mm` held over a hundred.
+2. For the retraction half, an ACKS monster whose block leaves a
+   `REFILL_STAT_PATHS` entry unset — `mm.golemBone` prints no morale and no
+   encounter numbers, so `details.morale` and `details.appearing.d` arrive at
+   their schema initials and are free to tamper with.
+
+### Steps
+
+3. Import the OSE creature (`oseImportBook(<book>, { art: false })`), read the 18
+   `REFILL_STAT_PATHS` off it, open its sheet, run `applyStats()`, read them
+   again. *Observable:* every value unchanged, `_stats.modifiedTime` unchanged,
+   and a warning naming the creature as left unchanged — no stat block for this
+   surface to re-read. A creature whose fields all sit at
+   `actor.system.schema.getField(path).getInitialValue()` afterwards is the
+   blanking bug; a success notification for it is the same bug reporting green.
+4. Import the ACKS monster, open its sheet, run `applyStats()`. *Observable:*
+   "refilled 1 monster from your book" and a stat block that still holds the
+   printed values.
+5. Tamper with the two unset paths on the second ACKS fixture by hand
+   (`details.morale`, `details.appearing.d`), then run `applyStats()`.
+   *Observable:* both back at their schema initial values. This is the retraction
+   itself — the thing the OSE refusal must not have disabled.
+
+### Teardown
+
+6. `oseImportBook` and `cookbookImportIds` return counts, not ids, so read the
+   uuids back out of the pack index by the free cookbook ids from step 1 — the
+   moment the import resolves, before anything else runs — and delete by that
+   list, re-resolving each and skipping what has gone. Two runs can be told to
+   import the same free id — the claim in `claimActorImport` is per client, so
+   both miss presence and both build — which makes a uuid read back late a
+   document that may be a peer's, freshly made and identical by id. Read early,
+   and harden it: note the run's start once with `Date.now()` and delete only
+   what carries a `_stats.createdTime` at or after it — both are epoch
+   milliseconds and the server stamps `createdTime` within a few ms of the
+   client's clock. **Not `game.time.serverTime`**: the server computes it as
+   `Date.now() - <world launch>` and the client adds its own latency delta, so
+   it is a DURATION since the world launched, not a timestamp. Against an epoch
+   `createdTime` every document in the world compares as newer, and a filter
+   built on it deletes the library. Where a run genuinely needs a server-stamped
+   epoch, mint one: create a throwaway document, read its `_stats.createdTime`,
+   delete it by its own uuid. The filter is a safety net under the early
+   read-back, never the key — a clock skew that excludes leaves a fixture
+   behind, which is the direction to fail in.
+   `_stats.lastModifiedBy` is not a second opinion either: it is a static stamp
+   of the USER who last wrote, so it is exact about users and blind to sessions,
+   and sessions are what a teardown must tell apart. Quote what was removed,
+   missing and refused.
+
 ## Shelves: one line, one set of compendia
 
 Imports are shelved by SERIES, so another game's books never share a compendium

@@ -2596,8 +2596,10 @@ const REFILL_STAT_PATHS = [
  * are left alone — a refill that re-added the abilities would duplicate them
  * on every run, and the stats are what go stale when a recipe improves.
  *
- * Returns null when the actor is not ours or its book is not open this
- * session, so the caller can fall back or explain.
+ * Returns null when the actor is not ours, so the caller can fall back to its
+ * own recipes; otherwise `{ ok }` with a `reason` the caller can explain —
+ * `book-closed`, `no-match`, or `no-stats` for an entry this binding cannot
+ * read a stat block from.
  */
 export async function refillMonster(actor) {
   const id = actor?.getFlag(MODULE_ID, "cookbook")?.id;
@@ -2609,6 +2611,15 @@ export async function refillMonster(actor) {
   if (!session) return { ok: false, reason: "book-closed", book: bookId, name: found.entry.name };
   const node = await executeEntry(session.doc, found.cb, data.registers, found.id);
   if (!node.ok) return { ok: false, reason: "no-match", book: bookId, name: found.entry.name };
+  // The retraction below is what makes a field a recipe no longer produces
+  // disappear from the actor, and it only means that for an entry that HAS a
+  // stat block. An entry declaring no `stats.*` fields describes none for this
+  // binding — an OSE creature's numbers sit inside its `block` region and are
+  // read by the OSE grammar, not here — so binding it yields nothing and every
+  // path would retract at once. Never retract fields the entry never claimed.
+  if (!node.fields.stats || !Object.keys(node.fields.stats).length) {
+    return { ok: false, reason: "no-stats", book: bookId, name: found.entry.name };
+  }
   const { system, prototypeToken } = bindMonster(node);
   for (const path of REFILL_STAT_PATHS) {
     if (foundry.utils.getProperty(system, path) !== undefined) continue;
@@ -8229,6 +8240,11 @@ export async function cookbookDebug(entryId) {
 /**
  * GM/dev: import an explicit id list (QA + scripted tests — the same bounded
  * pool the dialog and import-all use, folders included).
+ *
+ * Builds only the actor kinds `importOne` dispatches (the `actorKindOf` set).
+ * Any other kind returns null and goes uncounted, so a list this declines —
+ * OSE creatures, which come in through `importOseBook` — returns the same `0`
+ * as a run over a world that already holds every id.
  */
 export async function cookbookImportIds(ids) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);

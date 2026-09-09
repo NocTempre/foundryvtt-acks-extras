@@ -2532,6 +2532,7 @@ async function applyStats() {
   let touched = 0;
   const closed = new Set();
   const unknown = [];
+  const noStats = [];
   for (const actor of selected) {
     // A cookbook-imported monster knows exactly which entry it came from, so
     // ask it rather than guessing from its name. Before this, Apply Stats
@@ -2550,6 +2551,13 @@ async function applyStats() {
       closed.add(BOOKS[refilled.book]?.label ?? refilled.book);
       continue;
     }
+    // Ours, but its entry carries no stat block this surface can re-read. Named
+    // rather than counted as a refill: nothing was written, and a silent skip
+    // reads as "applied" to the GM who pressed the button.
+    if (refilled?.reason === "no-stats") {
+      noStats.push(actor.name);
+      continue;
+    }
     if (refilled) continue; // ours, but this printing did not match — already logged
     const recipe = monsterRecipeForActor(actor);
     if (!recipe) {
@@ -2560,6 +2568,11 @@ async function applyStats() {
   }
   if (closed.size) {
     ui.notifications.warn(`${MODULE_ID} | not open this session: ${[...closed].join(", ")} — connect to refill from it.`);
+  }
+  if (noStats.length) {
+    ui.notifications.warn(
+      `${MODULE_ID} | no stat block for this surface to re-read — left unchanged: ${noStats.slice(0, 5).join(", ")}${noStats.length > 5 ? ` (+${noStats.length - 5})` : ""}.`,
+    );
   }
   if (unknown.length) {
     ui.notifications.warn(

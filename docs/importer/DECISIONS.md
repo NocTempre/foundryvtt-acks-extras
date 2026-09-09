@@ -3613,3 +3613,57 @@ answer after it, one shelf read restores 1028 documents, `importClasses()`
 returns `[]` with a create-hook ledger recording nothing, and a fixture deleted
 warm and deleted cold both report gone. `tools/importer/test-imported-index.mjs`
 holds the case; it fails against the previous code at the eviction.
+
+### A refill retracts only what its entry claimed to fill (2026-09-09)
+
+**Problem.** *Apply Stats* took an imported OSE creature's whole stat block to
+schema defaults and reported success. The path is four steps, none of them
+OSE-aware: `applyStatsTargets` (`scripts/importer/module.mjs`) selects any actor
+of `type: "monster"`, and the OSE binding creates its creatures as `monster`;
+every authored OSE creature carries a `flags["acks-extras"].cookbook.id` naming
+a shipped entry, so `refillMonster` resolves it and proceeds; a `kind.oseMonster`
+entry declares `name`, `block` and `description` and no `stats.*` fields at all,
+because an OSE creature's numbers sit inside the `block` region and are read by
+`ose-statline.mjs`, never by `bindMonster`; so the bind yielded `{details:{}}`
+and the retraction loop — there so a field a recipe no longer produces
+disappears from the actor — read all eighteen `REFILL_STAT_PATHS` as dropped and
+wrote each one's schema initial value. 577 shipped creatures across eleven
+authored OSE books stand on that path, and the failure is silent: the sheet
+still names the creature and still shows its biography and provenance.
+
+Live in world `test`, dmb connected, a Dolmenwood Giant Fire Beetle imported
+fresh, its sheet open, `applyStats()`: armour class 5 → 0, attacks
+`Bite (+0, 1d4)` → empty, morale −1 → 0, number appearing 2d6 → empty, speed
+40 → 120, every save and THAC0 to the ladder's initial row. All seventeen paths
+this system's schema declares ended at their initial value — the eighteenth,
+`saves.blast.value`, has no field here and was skipped by the loop's own
+`if (field)` guard — and the notification read "refilled 1 monster from your
+book."
+
+**Ruling.** `refillMonster` declines an entry whose executed node carries no
+`stats`, with `{ ok: false, reason: "no-stats" }`, and `applyStats` names those
+actors as left unchanged. A retraction is only meaningful against an entry that
+HAS a stat block: an absent `stats` says the entry describes none for this
+binding, not that its recipe dropped eighteen fields at once.
+
+**Rejected: excluding OSE-lineage actors in `applyStatsTargets`.** It looks like
+the narrower fix and is the weaker one — it puts the constraint at the selection
+site while the destructive write stays reachable through the exported
+`refillMonster`, and it answers only the lineage that happened to be found. Any
+later kind whose node yields no stats would blank again. The guard belongs at
+the write.
+
+**Rejected: making Apply Stats re-read an OSE block here.** Running the `block`
+region back through `ose-statline` and `convertOse` is the right eventual
+behaviour, and it is a feature with its own conversion and provenance
+questions — ROADMAP, not a bug fix.
+
+**Cost and measure.** An OSE creature's Apply Stats is now a refusal a Judge can
+read instead of a wrong write. Verified live both ways: the same fixture deleted
+and re-imported, then pointed at, reports "no stat block for this surface to
+re-read — left unchanged" with `_stats.modifiedTime` untouched; `mm.batGiant`
+still refills; and a `mm.golemBone` whose morale and number appearing were
+tampered with by hand had both retracted to their schema initials, so the
+retraction is unchanged for entries that carry stats. Pre-existing — the
+retraction loop and the OSE authored-book importer were written for different
+questions and never met.

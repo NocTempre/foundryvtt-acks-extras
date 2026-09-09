@@ -1,5 +1,27 @@
 # Changelog
 
+## 7.4.1
+
+**Apply Stats leaves an imported OSE creature alone instead of emptying its
+stat block.**
+
+### Fixed
+- **Apply Stats no longer blanks a creature imported from an authored OSE
+  book.** The button re-reads a stat block through the ACKS binding, and it
+  accepted any actor of type `monster` — which is what the OSE importer
+  creates. An OSE entry keeps its numbers inside the block region the OSE
+  grammar reads and declares no stat fields of its own, so the binding
+  produced nothing, and the step that clears a field a recipe has stopped
+  producing cleared every field at once: armour class, hit dice and hit
+  points, all four saves, morale, alignment, treasure, numbers appearing,
+  speed, attack throw and attack text went back to their defaults. The module
+  then reported a successful refill, so the loss was silent unless the sheet
+  was open at the time. Every creature imported from the eleven authored OSE
+  books could be hit. Apply Stats now declines an entry it cannot read a stat
+  block from, and names the creatures it left untouched; ACKS creatures still
+  refill exactly as before. Re-reading an OSE block is a path of its own and
+  is not built yet.
+
 ## 7.4.0
 
 **A creature description stops where the column does, importing classes twice
