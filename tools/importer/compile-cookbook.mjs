@@ -3272,10 +3272,11 @@ const slugOf = (s) =>
 
 /**
  * Column starts for a DEFINITION page. `detectColumns` needs a bin to hold >8%
- * of body items, which a page dominated by a table can starve — RR p33 reports
- * one column when it prints two, collapsing both into a single region so an
- * entry swallows its neighbour's prose. Same histogram, gentler threshold.
- * Scoped to definitions so monster compilation is untouched.
+ * of body items, or an edge its line rescue can vouch for; a page dominated by
+ * a table starves both — RR p27 reports one column when it prints two,
+ * collapsing them into a single region so an entry swallows its neighbour's
+ * prose. Same histogram, gentler threshold. Scoped to definitions so monster
+ * compilation is untouched.
  */
 function defColumns(pd) {
   const cols = detectColumns(pd.items);
@@ -3289,7 +3290,7 @@ function defColumns(pd) {
   }
   // Trust the proven detector whenever it found a multi-column layout. Lowering
   // its threshold globally invents columns out of table cells, indents and the
-  // page-edge chapter tabs (RR p33 reported EIGHT), which is far worse than the
+  // page-edge chapter tabs (RR p27 reports EIGHT), which is far worse than the
   // miss being fixed.
   //
   // It also cannot be repaired by ADDING the edges run-in headings imply. The
@@ -3299,10 +3300,8 @@ function defColumns(pd) {
   // closes at 134, and the entry loses the continuation it flows into — trading
   // a wrong description for a truncated one, which is the worse of the two.
   // Overruling a detected column needs evidence this function does not have.
-  // The 23 entries whose prose box does not contain their own anchor are the
-  // measure of what is still wrong here; see ROADMAP.md.
   if (cols.length > 1) return cols;
-  // It reported one column where the page prints two (RR p33), which made an
+  // It reported one column where the page prints two (RR p27), which made an
   // entry swallow its neighbour's prose.
   return starts.length > 1 ? starts : cols;
 }

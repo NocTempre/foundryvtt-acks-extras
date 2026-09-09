@@ -710,3 +710,55 @@ reason — stops at step 7 of 13 until the Judge answers, and an unattended run
 sits there indefinitely. The chain should either ask once, on the panel,
 before it starts, or hand the step a confirmed flag so the modal is the
 standalone macro's alone.
+
+## An OSE column that CONTINUES an entry is claimed by everything on the page
+
+The harvester's column walk knows a column is taken when something STARTS in
+it: `startsOf(col)` reads the headings that open there, `startsIn(col, after)`
+finds the next one below a y, and `takenAt(col, y)` refuses a y another entry
+already holds. A column carrying the tail of an entry begun on an EARLIER page
+starts nothing, so it reads as empty from `PAGE_TOP` down and every entry on
+the page is handed the same region. aft p.57 is the clean case: the giant
+sturgeon, the giant swordfish and the flail snail each carry an identical
+right-column prose box at x226.8 y422.8–499.8, and only one of them is printed
+there.
+
+What makes it more than a missing check is that one column can be both at once.
+dmb p.106 hands its three bards the same right-column box at x307 y160–256 —
+the continuation — while the SAME column below it holds three clerics that are
+a genuinely parallel group with regions of their own. A rule keyed on the
+column, or on a region reaching the body floor, answers both halves the same
+way; the walk needs a notion of INHERITED occupancy, carried forward from the
+previous page's unfinished entry, to cut the column at the right y. That floor
+gate was built and rejected: it answered both halves the same way and cost real
+prose on about three entries.
+
+Its visible cost is bounded and small. `check-prose-stops.mjs` reports 0 open
+stops, so nothing is truncated by this; what it produces is a repeated region,
+and the duplicate text it yields is one passage arriving under two or three
+neighbouring names.
+
+Related, and reached the same way: a full-height plate's centre lies inside no
+entry's region, so art falls through containment to the nearest stat block. The
+aft p.57 plate is the flail snail and lands on a fish either way.
+
+## The debug window's two remaining gaps
+
+`cookbookDebug` executes a definition id correctly now, but two things around
+it are still short of the surface's own promise.
+
+The picker it raises with no argument walks the per-book cookbooks alone, so a
+Judge can only reach a content-cookbook entry — every class, power, skill,
+proficiency and piece of equipment, ~800 of them — by typing its id from the
+console. Offering them means answering what a picker with two thousand options
+should look like; a second grouped select, keyed by content type, is the shape
+that fits the dialog it already has.
+
+The entries the OSE compile paths emit carry `cite: ""` — 340 in aft, 171 in
+dmb, and every other authored-book entry — because those builders read
+`entry.cite ?? ""` off the recipe where the ACKS paths call
+`citeFor(entry.book, page)`. Both books are in `BOOKS` with a `short` and a
+page count, so the citation is derivable from what is already there. The window
+no longer renders a separator around the hole, but the hole is upstream: the
+same empty string reaches every document those entries import, and a citation
+is the one thing that ships everywhere by doctrine.

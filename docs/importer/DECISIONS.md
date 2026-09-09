@@ -389,6 +389,9 @@ named after the chapter.
 lowering its threshold invents columns out of table cells and page tabs, and
 supplying the edges run-in headings imply leaves the false edges in place. The
 fix here needs no such evidence — it uses a bound the field already has.
+*(Superseded 2026-09-09 by "The column histogram counts runs against lines" —
+the detector was repaired by neither of the two routes rejected here. The
+per-class measurements this entry rules on stand.)*
 
 **Cost.** Three per-class measurements that a re-printing can invalidate. They
 are visible: `tools/dev-proflists.mjs` reports every class's list against the
@@ -3442,6 +3445,11 @@ mis-typing they can still produce is unfixed and deliberate.
 
 ### The OSE harvester's single-column pages are not a column-lefts problem (2026-09-08)
 
+> **Superseded 2026-09-09** by "The column histogram counts runs against lines".
+> The diagnosis below is wrong in its first clause and its cost paragraph; the
+> ruling against a per-page override table stands, and so does the walk defect
+> it identifies.
+
 **Problem.** Four DMB pages and one AFT page vote a SINGLE column while the body
 plainly sits in two, which collapses everything downstream that reasons about
 "the same column": a heading on the left ends a passage on the right, and a stat
@@ -3469,3 +3477,139 @@ and has no way to know a column is taken because an entry from the previous page
 has not finished. Raising column detection before teaching the walk that would
 convert a truncation into a cross-entry bleed, which is the worse of the two —
 the same trade already ruled on for the bulleted stat line.
+
+---
+
+### The column histogram counts runs against lines (2026-09-09)
+
+**Problem.** `detectColumns` keeps a 10pt bin of body-item `x` origins when it
+holds more than 8% of the page's body runs. The numerator is what a column edge
+can actually supply — the runs that BEGIN a printed line — but the denominator
+is every run on the page, and pdf.js emits a run per style change. Runs per line
+range from 1.98 to 6.97 across this corpus, so the same 8% asks for between
+17.7% and 54.7% of the page's lines depending on how finely the page is set. A
+column of stat blocks or small caps fragments into many runs and starves the
+quieter column beside it: the page reports one column, a span covers the whole
+width, and a passage ends at a heading printed in the other column. It is a
+dimensional error, not a threshold to tune and not a binning artefact — the
+peaks are crisp, and the exemplar offered for bin fragmentation (dmb p.35's
+x310/320/330 spread) is a centre-aligned numbered list whose x varies with
+glyph width above a single prose edge at 313.64.
+
+**New evidence, against the entry of 2026-09-08.** That entry ruled from a
+per-page override table that made materialized entries worse, and concluded the
+defect could not be in column detection. The override was **half-applied**: it
+reached the harvester's own `cols` but not the `detectColumns` calls inside
+`findStatBlocks`, `listHeadings` and `runinLabelAbove`, so `startsOf(1)` came
+back empty and every entry on the page took the whole right column. Three
+independent reproductions show the shared closing sentences and the swapped
+attacks are that, not a property of declaring two columns. Its "eight entries
+whose whole description is a small-caps stat header" does not reproduce against
+the shipped harvester either — dmb has exactly one such entry
+(`dmb.level3Enchanter`, p.107); the eight were measured under the override.
+
+**Ruled: the histogram stays and a line-based rescue is added beside it.** The
+8% bar is what separates a column's edge from the background of runs that merely
+begin at some x mid-line, so it is not lowered — lowering it globally invents
+columns out of table cells, indents and page-edge chapter tabs (RR p27 returns
+EIGHT at 3%). The rescue re-asks the question of the page's LINES and admits an
+edge only where the page's own extents vouch for it: it starts enough of the
+page's lines, its lines stand alone on their baselines often enough that a
+table's cells cannot pass, its median measure matches the widest the page
+already sets, and nothing reaches across either gutter that bounds it. The
+right-gutter test runs in a second phase so a rescued column can serve as its
+predecessor's neighbour. A page whose histogram found no column at all is left
+alone: with nothing set in columns to extend, a line-start histogram finds only
+a table's stops.
+
+Reconstructing those lines exposed a second defect in the same function. Runs
+were grouped by a page-wide `y` then `x` sort, which leaves x out of order
+inside a baseline tolerance band — a left-hand run then joins a segment that
+began to its right and the line's true start is lost. Each line's runs are
+sorted by x before they are joined.
+
+**Cost and measure.** 3172 pages across every book in the library: 37 change,
+none loses a column, and none has a column value move — the change is purely
+additive. Materialized against the books themselves, every entry it moves is an
+OSE one: 21 in the Dolmenwood Monster Book, 7 in the Advanced Fantasy Referee's
+Tome. It recovers 10 creatures (8 on dmb p.108 and p.116, 2 on aft p.55, where
+a welded title splits), fills
+the one description that was empty, and retires the 4 phantom rows the welded
+titles had minted; on dmb p.107 the same seven entries carry 1374 characters
+between them where they carried 925, redistributed — the level-5 fighter gives
+back the 345 it had swallowed. `check-prose-stops.mjs` reports 0 open with no
+new stops, so `prose-stops.json` is emptied.
+
+**The definition side changes geometry and nothing else.** 28 of the 37 changed
+pages are ACKS books, and the 9 definition entries whose boxes they move — 4
+classes, 3 skills, 2 powers — materialize byte-identical text before and after.
+`defColumns` and the flow logic were already reaching the right prose through
+the histogram's miss: what it produced there was a wrong BOX, not wrong text.
+
+**One defect grows where the same defect shrinks.** Recovering aft p.57's right
+column hands it to all three entries printed in the left one, because the walk
+cannot see that it continues an entry begun on p.56 — a passage that used to be
+missed is now imported three times. Counted across both OSE registers the rows
+sharing a prose box go from 13 to 12, and the shared boxes from 13 to 11: a net
+improvement carrying one new instance. The walk defect is ROADMAP.md's.
+
+Five plates change owner as a side effect, and the plate settles each: dmb
+p.107's cat-folk spellcaster casting a growth spell moves from the level-1
+fighter to the level-1 enchanter, and dmb p.108's mushroom-gathering friar from
+the level-3 knight to the level-5 friar — both corrections. The aft p.57 plate
+moves between the giant swordfish and the giant sturgeon and depicts neither: it
+is the flail snail printed below them, which the nearest-block fallback cannot
+reach because a full-height plate's centre lies in no entry's region. A wash,
+inside a defect this change neither causes nor repairs.
+
+**What stays rejected.** The per-page column override table, on the 2026-09-08
+entry's own reasoning about the walk. **What stays broken:** the walk's shared
+regions, in ROADMAP.md.
+
+---
+
+### A compendium is a cache; presence is asked of its index (2026-09-09)
+
+**Problem.** In one session, against a world that already held all 31 classes,
+`importClasses()` reported everything already present and created nothing — and
+then, some minutes of read-only probing later, created all 31 a second time.
+Nothing was written between the two runs and no hook fired; both copies of
+`Dwarven Delver` carry a `_stats.createdTime`, six days apart.
+
+The guard is `if (await importedItem(id))`, and `importedItem` confirmed its
+cached hit with `cached.collection.get(cached.id)`. For a compendium document
+that collection is the `CompendiumCollection`, which is not a shelf but a cache
+over one: every `get` and `set` re-arms a debounce that calls `clear()`
+`CACHE_LIFETIME_SECONDS` (300) later, dropping every document whose sheet is not
+open. The pack's INDEX is kept — `clear()` deletes through `super.delete`
+exactly so the rows survive — but the confirmation was not asking the index. So
+five minutes of doing anything else turned a full library into an empty one as
+far as the guard could see, and every id it was then asked about was built
+again. The window is invisible while a run is busy and opens the moment one
+pauses, which is why repeat-use checks never caught it.
+
+**Ruling.** Presence is asked of the pack index, never of the documents the pack
+happens to be holding (`liveCopy`, `scripts/importer/cookbook.mjs`). A real
+delete takes the index row with it, so the one thing the confirmation exists for
+— a Judge deleting a document to re-import it fresh — still answers null, warm
+or cold. The document is re-read only once the index has said yes, and the read
+takes the whole shelf rather than the one document, because an eviction dropped
+every id the caller's loop is about to ask for; concurrent workers share the one
+read through `shelfReloads`, and the rebuilt instance replaces the evicted one
+in the session index.
+
+**What was rejected.** Trusting the session cache and dropping the confirmation
+— it is what makes delete-then-reimport work, and a cache that answers for
+deleted documents is the failure the family already shipped once. Re-fetching
+per id: correct, and a server round trip for each of a thousand ids after every
+pause. Widening `forgetImportedIndex` to fire on a timer: the same guess about
+staleness the pack already answers exactly.
+
+**Cost and measure.** The actor side had asked the index all along
+(`importedIdsOfType`, `importedActor`) and was never exposed; this is the item
+side saying the same thing. Live in world `test` with the eviction forced by
+hand (`pack.clear()` — what the debounce calls, and no write): all 31 class ids
+answer after it, one shelf read restores 1028 documents, `importClasses()`
+returns `[]` with a create-hook ledger recording nothing, and a fixture deleted
+warm and deleted cold both report gone. `tools/importer/test-imported-index.mjs`
+holds the case; it fails against the previous code at the eviction.

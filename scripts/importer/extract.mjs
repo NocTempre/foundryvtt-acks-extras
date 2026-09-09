@@ -19,6 +19,17 @@ const PROFILE_PAGES = 24; // pages sampled to learn a document's furniture
 const PROFILE_MIN_RUNS = 20; // runs that make a page evidence rather than a plate
 const PROFILE_MIN_PAGES = 3; // sampled pages a parity needs before its profile is trusted
 
+const COL_BIN_SHARE = 0.08; // a column-left bin holds this share of the page's body runs
+const COL_MIN_GAP = 40; // lefts nearer than this are one column: the inner one is an indent
+const LINE_TOL = 2; // pt between BASELINES that still print as one line: sub-point jitter, under the 9-10pt leading
+const LINE_GAP = 12; // a hole this wide parts two blocks: over a stretched word space, under the corpus's 16pt gutter
+const EDGE_TOL = 6; // how ragged one column's left edge is across the lines starting there
+const COL_MIN_LINES = 5; // fewer lines than this is a caption or a stub, not a column
+const COL_MIN_SHARE = 0.15; // a rescued column starts this share of the page's lines
+const COL_MAX_CROSS = 0.1; // lines that may reach across a gutter and leave it one
+const COL_MIN_SOLO = 0.15; // lines of a rescued column alone on their baseline; a table's cell never is
+const COL_MIN_MEASURE = 0.5; // a rescued column's median line against the page's widest measure
+
 // Spoil component: "name (W st, Ngp, effects…)" where W = "2", "2 3/6", or
 // "4/6" — the whole-stone part is OPTIONAL (fractional-only weights are
 // common), and the effects group is paren-aware so an effect list containing
@@ -268,7 +279,64 @@ export async function glyphColorRuns(doc, pageNo, codepoints) {
   return runs;
 }
 
-/** Column left edges from a histogram of body-item x origins (1-3 columns). */
+/**
+ * The page's printed lines, each as the blocks of type that touch along it.
+ *
+ * pdf.js emits a run per style change, so one printed line arrives as several
+ * items sharing a baseline, and a run's x is its own origin rather than the
+ * line's. Joining runs that touch and cutting where a hole is wider than a
+ * stretched word space recovers the two measurements a histogram of run
+ * origins cannot make: where a line STARTS, and how far it reaches.
+ *
+ * Each line's runs are ordered by x before they are joined. The page sort is
+ * by baseline first, so two runs a fraction of a point apart in y arrive in
+ * whatever order their y put them — and a left-hand run reaching a segment
+ * that began to its right would be swallowed by it, filing the line's start at
+ * the right-hand column's edge.
+ */
+function textLines(body) {
+  const rows = [];
+  let row = null;
+  for (const it of body.slice().sort((a, b) => a.y - b.y || a.x - b.x)) {
+    if (!row || it.y - row.y > LINE_TOL) rows.push((row = { y: it.y, items: [it] }));
+    else row.items.push(it);
+  }
+  return rows.map(({ y, items }) => {
+    const segs = [];
+    for (const it of items.sort((a, b) => a.x - b.x)) {
+      const seg = segs[segs.length - 1];
+      if (seg && it.x - seg.x1 <= LINE_GAP) seg.x1 = Math.max(seg.x1, it.x + it.w);
+      else segs.push({ x0: it.x, x1: it.x + it.w });
+    }
+    return { y, segs };
+  });
+}
+
+/**
+ * Column left edges from a histogram of body-item x origins, with columns the
+ * histogram starves recovered from the page's lines.
+ *
+ * The histogram asks a 10pt bin to hold 8% of the page's body runs. That level
+ * is what separates a column's edge from the background of runs that merely
+ * BEGIN at some x mid-line, which is why it stays; but it counts line starts in
+ * the numerator against every run in the denominator, so the bar rises with the
+ * page's typographic fragmentation rather than with its column count. A column
+ * of stat blocks or small caps runs several runs to the line and starves the
+ * quieter column beside it — the page then reports one column, a span covers
+ * the whole width, and a passage ends at a heading printed in the other column.
+ *
+ * The rescue re-asks the question of the page's LINES, the population a column
+ * edge can actually supply, and admits an edge only where the page's extents
+ * agree it is one: nothing reaches across either gutter that bounds it, its
+ * lines stand alone on their baselines often enough (a table's cells never do —
+ * every cell shares its row with the rest), and its measure matches the widest
+ * the page already sets, which is what a marginal tab and a numeral stub fail.
+ * A page whose histogram found no column at all is left alone: with nothing set
+ * in columns to extend, a table's stops are all a line-start histogram finds.
+ *
+ * The rescue only ever ADDS. A column the histogram named is never moved or
+ * dropped, so a page it already reads correctly cannot change.
+ */
 export function detectColumns(items) {
   const body = items.filter((it) => it.h < HEADING_MIN_H);
   const bins = {};
@@ -278,14 +346,82 @@ export function detectColumns(items) {
   }
   const peaks = Object.entries(bins)
     .map(([x, n]) => ({ x: +x, n }))
-    .filter((b) => b.n > body.length * 0.08)
+    .filter((b) => b.n > body.length * COL_BIN_SHARE)
     .sort((a, b) => a.x - b.x);
   const cols = [];
   for (const p of peaks) {
-    if (cols.length && p.x - cols[cols.length - 1] < 40) continue;
+    if (cols.length && p.x - cols[cols.length - 1] < COL_MIN_GAP) continue;
     cols.push(p.x);
   }
-  return cols.length ? cols : [0];
+  if (!cols.length) return [0];
+
+  const lines = textLines(body);
+  const segs = lines.flatMap((l) => l.segs);
+  // Line starts, grouped so one ragged edge is counted once.
+  const groups = [];
+  for (const x of segs.map((s) => s.x0).sort((a, b) => a - b)) {
+    const group = groups[groups.length - 1];
+    if (group && x - group.lo <= EDGE_TOL) group.at.push(x);
+    else groups.push({ lo: x, at: [x] });
+  }
+  const spanning = (x) => segs.filter((s) => s.x0 < x - EDGE_TOL && s.x1 > x + EDGE_TOL).length;
+  const measureOf = (group) => {
+    const hi = group.at[group.at.length - 1];
+    const widths = segs
+      .filter((s) => s.x0 >= group.lo - 0.5 && s.x0 <= hi + 0.5)
+      .map((s) => s.x1 - s.x0)
+      .sort((a, b) => a - b);
+    return widths[widths.length >> 1] ?? 0;
+  };
+  // What this page calls a column: the widest measure set at an edge already
+  // detected. A rescued column is held to it.
+  let measure = 0;
+  for (const group of groups) {
+    if (cols.some((c) => Math.abs(c - group.lo) < COL_MIN_GAP)) measure = Math.max(measure, measureOf(group));
+  }
+
+  const floor = Math.max(COL_MIN_LINES, lines.length * COL_MIN_SHARE);
+  const crossing = lines.length * COL_MAX_CROSS;
+  const held = [...cols];
+  const candidates = [];
+  for (const group of groups) {
+    if (group.at.length < floor) continue;
+    // The edge is where most of the group's lines start. A hanging indent and a
+    // numeral centred on a tab both sit inboard of the measure and would carry
+    // the column a few points to the right of where its paragraphs open.
+    let edge = group.lo;
+    let most = 0;
+    for (let i = 0; i < group.at.length; ) {
+      let j = i;
+      while (j < group.at.length && group.at[j] === group.at[i]) j++;
+      if (j - i > most) {
+        most = j - i;
+        edge = group.at[i];
+      }
+      i = j;
+    }
+    const x = Math.round(edge / 10) * 10;
+    if (held.some((c) => Math.abs(c - x) < COL_MIN_GAP)) continue;
+    const hi = group.at[group.at.length - 1];
+    const own = lines.filter((l) => l.segs.some((s) => s.x0 >= group.lo - 0.5 && s.x0 <= hi + 0.5));
+    if (own.filter((l) => l.segs.length === 1).length < own.length * COL_MIN_SOLO) continue;
+    if (measureOf(group) < measure * COL_MIN_MEASURE) continue;
+    if (spanning(edge) > crossing) continue;
+    held.push(x);
+    candidates.push({ x, edge });
+  }
+  // The gutter on a candidate's RIGHT is tested once every candidate is known.
+  // Testing it while the list is still being built asks the question against
+  // whichever edges happened to be found first, so on a page rescuing two
+  // columns the boundary between them would never be examined at all.
+  const all = held.slice().sort((a, b) => a - b);
+  const extras = candidates
+    .filter(({ x }) => {
+      const next = all.find((c) => c > x);
+      return next == null || spanning(next) <= crossing;
+    })
+    .map((c) => c.x);
+  return [...cols, ...extras].sort((a, b) => a - b);
 }
 
 export const colOf = (x, cols) => {

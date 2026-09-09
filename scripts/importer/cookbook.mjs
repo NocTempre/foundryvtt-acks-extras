@@ -1146,18 +1146,64 @@ export async function importedItemsByName() {
 }
 
 /**
+ * Shelf re-reads in flight, keyed by pack collection id — see `liveCopy`.
+ *
+ * An eviction drops the whole shelf at once, so every concurrent worker meets
+ * it in the same instant; without this each of them would order its own full
+ * copy of a thousand-document pack.
+ */
+const shelfReloads = new Map();
+
+/**
+ * The live document behind a cached one, or null once it is really gone.
+ *
+ * A compendium is a CACHE, not the shelf: it drops every document it holds
+ * `CompendiumCollection.CACHE_LIFETIME_SECONDS` (300) after the last access,
+ * keeping only its index. So `collection.get` answers "gone" for a document
+ * that is merely cold, and a presence check built on it reports a fully
+ * imported library as empty the moment a run pauses five minutes — which is how
+ * one session skipped all 31 classes as already present and then, after a
+ * stretch of read-only probing, imported all 31 a second time.
+ *
+ * The index is what survives an eviction and what a real delete takes with it,
+ * so it is what the question is asked of; the document itself is re-read only
+ * when the answer is yes. A world document has no eviction and answers from its
+ * own collection.
+ */
+async function liveCopy(doc) {
+  if (!doc.pack) return doc.collection?.get?.(doc.id) ?? null;
+  const pack = game.packs.get(doc.pack);
+  if (!pack?.index?.has(doc.id)) return null;
+  if (pack.has(doc.id)) return pack.get(doc.id);
+  let pending = shelfReloads.get(doc.pack);
+  if (!pending) {
+    // The whole shelf, not the one document: the eviction dropped every id the
+    // caller's loop is about to ask for, and one read restores all of them.
+    pending = pack.getDocuments().catch(() => []);
+    shelfReloads.set(doc.pack, pending);
+    pending.finally(() => shelfReloads.delete(doc.pack));
+  }
+  await pending;
+  return pack.get(doc.id) ?? null;
+}
+
+/**
  * The already-imported item for this cookbook id, or null.
  *
  * The index is cached for a whole session, so it can hold a document the GM has
  * since deleted — and answering "already imported" for a document that is gone
  * would break the one refresh a GM has: delete the item, import again, get the
- * new derived values. So the cached hit is confirmed against its collection
- * before it is trusted, and a stale one is dropped.
+ * new derived values. So the cached hit is confirmed by `liveCopy` before it is
+ * trusted, and a stale one is dropped.
  */
 const importedItem = async (id) => {
   const cached = (await importedIndex()).get(id) ?? null;
   if (!cached) return null;
-  const live = cached.collection?.get?.(cached.id) ?? null;
+  const live = await liveCopy(cached);
+  // A re-read after an eviction builds NEW instances, so the index has to take
+  // the one the pack now holds — the evicted object it was holding answers for
+  // a document nothing else in the session will ever hand out again.
+  if (live && live !== cached) importedCache?.set(id, live);
   if (live) return live;
   importedCache?.delete(id);
   return null;
@@ -1261,17 +1307,18 @@ async function ensureWorldFolderPath(type, names) {
 }
 
 /**
- * The folder a book's imports are filed under. A shipped book is named by the
- * registry; a Judge-registered source by the name they typed for it, which is
- * the only name it has.
+ * What a book is CALLED — the folder its imports are filed under, and the name
+ * any message about it uses. A shipped book is named by the registry; a
+ * Judge-registered source by the name they typed for it, which is the only name
+ * it has. Falls back to the id so a book with neither is still named something.
  */
-const bookFolderName = (bookId) => BOOKS[bookId]?.label ?? oseSourceLabel(bookId) ?? bookId;
+const bookLabel = (bookId) => BOOKS[bookId]?.label ?? oseSourceLabel(bookId) ?? bookId;
 /**
  * The folder an entry of this kind belongs in, creating the path as needed —
  * inside its book's LINE pack, so the tree and the pack always agree.
  */
 const targetFolder = (type, bookId, group) =>
-  ensureFolderPath(type, [bookFolderName(bookId), group], lineOf(bookId));
+  ensureFolderPath(type, [bookLabel(bookId), group], lineOf(bookId));
 
 /**
  * Every cookbook id already held for one document type, in WHICHEVER target is
@@ -2788,7 +2835,7 @@ export async function cookbookImportJournals() {
       if (!locs.length) continue;
       // The BOOK is the folder now, so the journal itself is named by its group
       // alone ("A. Entrance Caves") rather than repeating the book on every row.
-      const folder = await ensureFolderPath("JournalEntry", [bookFolderName(bookId)], lineOf(bookId));
+      const folder = await ensureFolderPath("JournalEntry", [bookLabel(bookId)], lineOf(bookId));
       const groups = new Map();
       for (const [id, e] of locs) {
         const g = e.meta?.group ?? BOOKS[bookId]?.label ?? bookId;
@@ -8107,7 +8154,7 @@ export async function cookbookDebug(entryId) {
       .map((bookId) => {
         const opts = Object.entries(data.books.get(bookId).entries)
           .sort((a, b) => a[1].pages[0] - b[1].pages[0])
-          .map(([id, e]) => `<option value="${esc(id)}">${esc(e.name)} — ${esc(e.cite)}</option>`)
+          .map(([id, e]) => `<option value="${esc(id)}">${esc(e.name)}${e.cite ? ` — ${esc(e.cite)}` : ""}</option>`)
           .join("");
         return `<optgroup label="${esc(BOOKS[bookId]?.label ?? bookId)}">${opts}</optgroup>`;
       })
@@ -8126,10 +8173,20 @@ export async function cookbookDebug(entryId) {
 
   const found = cookbookEntry(entryId);
   if (!found) return ui.notifications.warn(`${MODULE_ID} | unknown cookbook id "${entryId}".`);
-  const session = ctx.sessionDocs.get(found.cb.book.id);
-  if (!session) return ui.notifications.warn(`${MODULE_ID} | ${found.cb.book.label} is not open this session.`);
+  // A content-type cookbook spans books and names one per ENTRY, so the file
+  // carries no `book` at all — reading `cb.book.id` throws for every definition
+  // id. `bookOf` is the one resolution that answers for both shapes.
+  const bookId = bookOf(found);
+  const session = bookId ? ctx.sessionDocs.get(bookId) : null;
+  if (!session) {
+    return ui.notifications.warn(`${MODULE_ID} | ${bookLabel(bookId) ?? entryId} is not open this session.`);
+  }
 
   const node = await executeEntry(session.doc, found.cb, data.registers, entryId);
+  // A FAMILY id resolves to a synthesized entry that lives in `cb.families`,
+  // never in `cb.entries` — so there is nothing to execute and the node comes
+  // back as a bare refusal with no `misses` to render.
+  if (node.reason) return ui.notifications.warn(`${MODULE_ID} | ${entryId} is not executable (${node.reason}).`);
   const f = node.fields;
   const pre = (v) => `<pre class="acks-extras-importer-debug-pre">${esc(JSON.stringify(v, null, 1) ?? "null")}</pre>`;
   const statRows = Object.entries(f.stats ?? {})
@@ -8138,8 +8195,19 @@ export async function cookbookDebug(entryId) {
   const paras = (f.description ?? [])
     .map((p, i) => `<p class="acks-extras-importer-debug-para"><b>[${i}]</b> ${esc(p.text)}</p>`)
     .join("");
+  // Built from the parts that are actually present: an entry whose recipe
+  // carries no citation would otherwise render its separators around nothing.
+  const head = [
+    bookLabel(bookId),
+    node.cite || null,
+    Array.isArray(found.entry.pages) ? `pages ${JSON.stringify(found.entry.pages)}` : null,
+    `ok=${node.ok}`,
+  ]
+    .filter(Boolean)
+    .map((part) => esc(String(part)))
+    .join(" · ");
   const content = `<div class="acks-extras-importer-debug">
-    <p><b>${esc(node.name)}</b> — ${esc(node.cite)} · pages ${esc(JSON.stringify(found.entry.pages))} · ok=${node.ok}</p>
+    <p><b>${esc(node.name ?? entryId)}</b> — ${head}</p>
     <details open><summary>expect</summary>${pre(f.name)}</details>
     <details open><summary>stats (${Object.keys(f.stats ?? {}).length})</summary>
       <table class="acks-extras-importer-debug-table">${statRows}</table></details>

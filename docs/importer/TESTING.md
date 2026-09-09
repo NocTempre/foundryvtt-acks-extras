@@ -191,6 +191,78 @@ AND the class-template documents; afterwards `game.packs` holds no
 "ACKS Cookbook — …" pack, and no orphan is left in the sidebar —
 `game.items.filter(i => i.flags?.["acks-extras"]?.templatePart).length` is 0.
 
+## A geometry change, checked against the GM's own book
+
+Anything that moves a box — a detector, a compiled cookbook, a re-harvested
+register — is verified by executing the entry rather than by reading the
+geometry back. `cookbookDebug(id)` is the scriptable route: it runs the same
+`executeEntry` the importer runs and renders `ok`, the miss list and the
+description paragraphs into a dialog, and it writes nothing.
+
+Fire it without awaiting — `DialogV2.prompt` resolves on DISMISSAL, so an
+`await` hangs until the pane's timeout — then read the dialog's own instance:
+
+```js
+acksExtras.importer.cookbookDebug("dmb.level5Friar");
+await new Promise(r => setTimeout(r, 5000));
+const dlg = [...foundry.applications.instances.values()]
+  .filter(a => /Dialog/.test(a.constructor.name)).pop();
+dlg.element.querySelectorAll("details").forEach(d => (d.open = true));
+```
+
+*Observable:* `ok=true`, `misses (0)`, and a description paragraph count and
+length per paragraph. Compare the lengths against the same ids run offline
+through `executeEntry` with the PREVIOUS cookbook (`git show HEAD:cookbook/…`)
+against the same PDF — that pair is what separates "the box moved" from "the
+text changed", and the two are routinely different: a box can split into two
+columns and materialize byte-identical prose.
+
+`stats (0)` is normal for an OSE row, not a regression — check a row the change
+did not touch before reading it as one.
+
+A definition id (`def.class.thief` and every other content-cookbook entry) opens
+the window like any other; the header names the book the entry itself declares,
+since those cookbooks span books. Only ids the picker offers — the per-book
+ones — are reachable from `cookbookDebug()` with no argument, so a definition id
+is typed in by hand. A FAMILY id (`mm.familyAttercop`) is not executable at all
+and says so: the family is synthesized from `cb.families`, and nothing there
+runs against a page.
+
+The closed-book branch is exercised from a **throwaway browser profile**, not by
+disconnecting the shelf: book locations live in IndexedDB, so the capture
+driver's own profile starts with every book closed and the message can be read
+without touching the seat's shelf.
+
+### Where the importer actually writes
+
+Not the sidebar. Classes, abilities and the rest land in the world compendium
+`world.acks-cookbook--item`, and OSE creatures in
+`world.acks-cookbook--<book>--actor` — so a presence check written against
+`game.items` or `game.actors` reports "nothing imported" for a world that holds
+the whole corpus, and invites a fixture run that duplicates it. Ask
+`game.packs.get(<pack>).getDocuments()`.
+
+### Teardown, when the feature chooses its own ids
+
+A bulk importer names nothing back, so the ledger is built from the writes
+themselves — register the create hooks before the run and delete exactly what
+they recorded:
+
+```js
+const fx = [];
+const off = [["createItem","Item"],["createActor","Actor"],["createFolder","Folder"],
+             ["createJournalEntry","JournalEntry"],["createRollTable","RollTable"]]
+  .map(([h, kind]) => [h, Hooks.on(h, (d) => d?.uuid && fx.push({ kind, uuid: d.uuid, name: d.name }))]);
+// … run the importer …
+for (const f of fx) (await fromUuid(f.uuid))?.delete();
+for (const [h, id] of off) Hooks.off(h, id);
+```
+
+*Observable:* every pack is back to the document count it held before the run,
+and `fromUuid` answers null for every uuid in the ledger. Deleting a hundred
+pack documents one at a time takes about a minute — poll for the result rather
+than awaiting it inside one page evaluation.
+
 ## Recipes, audited without importing
 
 `acksExtras.importer.cookbookAudit()` answers "does this recipe still match the
@@ -250,6 +322,26 @@ The dedup rules, each with a case that used to break it.
   (document count, unique cookbook ids, duplicate count) before and after; the
   duplicate count is 0 either way. This is the check that caught two
   `def.race.dwarf` and two `def.race.elf`.
+- **A shelf that has gone cold.** A compendium drops the documents it holds 300
+  seconds after the last access and keeps its index, so "run it twice" only
+  covers the warm case — the interesting one is a second run after a pause.
+  Force it rather than waiting: `game.packs.get("world.acks-cookbook--item").clear()`
+  is exactly what the debounce calls and writes nothing. Then ask
+  `importedItemFor(id)` for every class id and run
+  `acksExtras.importer.importClasses()` with a `createItem` hook ledger armed.
+  *Observable:* after the clear `pack.size` is 0 and `pack.index.size` is
+  unchanged; every id still answers with a document, and with a NEW instance —
+  one shelf re-read, `pack.size` back to full; `importClasses()` returns `[]`
+  and the ledger is empty. Before the 2026-09-09 fix every id answered null and
+  the run wrote 31 twins into a world that already held them.
+- **The delete half of the same guard.** Create an Item in the pack carrying
+  `flags["acks-extras"].cookbook.id`, `forgetImportedIndex()`, and ask for it;
+  `clear()` the pack and ask again; delete it and ask again. Repeat with the
+  delete happening while the pack is cold.
+  *Observable:* found, found, null — and null again for the cold delete. Both
+  states have to stay distinguishable: a cold shelf that reads as deleted mints
+  twins, and a deleted document that reads as present breaks the Judge's one
+  refresh. Delete the fixtures by the uuids the run recorded.
 - **One thing printed two ways.** After a full equipment import, search the
   library for "oil".
   *Observable:* `Military Oil` (Weapons) and `Common Oil` (Adventuring Gear)

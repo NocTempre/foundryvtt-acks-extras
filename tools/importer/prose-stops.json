@@ -1,7 +1,4 @@
 {
-  "known": {
-    "dmb.druneAudrune": "dmb p.35 detects as ONE column, so the display heading opening the right-hand column ends the left-hand passage a line early. A per-page column override was built and rejected: giving the harvester two columns lets an entry walk into a continuation column nothing marks as taken, and the page's entries then all swallow each other.",
-    "dmb.griffon2": "dmb p.116 detects as ONE column, same mechanism as dmb.druneAudrune, and the same override fails the same way — with two columns declared, this page's entries converge on identical text. Fixing these needs the walk to recognise a column that CONTINUES an entry from an earlier page, not better column lefts."
-  },
+  "known": {},
   "waived": {}
 }

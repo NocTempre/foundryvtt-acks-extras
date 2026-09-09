@@ -92,6 +92,7 @@ const COMMITTED = [
   "importer/test-land-tables.mjs",
   "importer/test-mount-flags.mjs",
   "importer/test-item-shelves.mjs",
+  "importer/test-imported-index.mjs",
   "importer/test-cookbook-coherence.mjs",
   "../discord/test/config.test.mjs",
   "../discord/test/format.test.mjs",

@@ -1,5 +1,85 @@
 # Changelog
 
+## 7.4.0
+
+**A creature description stops where the column does, importing classes twice
+stops making a second set of them, and the cookbook debug window opens for the
+definitions it always refused.**
+
+### Fixed
+- **A page set in two columns is read as two columns.** Column
+  detection kept a candidate edge when it accounted for enough of the page, but
+  it measured that share against every text run, and a run is a style change
+  rather than a line. Pages in this corpus carry between about two and seven
+  runs per line, so one fixed bar asked for anywhere from a sixth to over half
+  of the page's lines depending on how finely the page was set. A column of stat
+  blocks or small caps fragments into many runs and starved the quieter column
+  beside it: the page reported a single column, a span covered the full width,
+  and a description ran on into whatever was printed alongside it. Entries came
+  in sharing closing sentences with their neighbours, and some carried another
+  creature's attacks. The original bar stays where it is, because lowering it
+  invents columns out of table cells, indents and page-edge tabs. A second pass
+  now asks the same question of the page's own lines instead, admitting an edge
+  only where the page's extents vouch for it: it must start enough lines, those
+  lines must stand alone on their baselines often enough that a table's cells
+  cannot pass, its measure must match the widest the page already sets, and
+  nothing may reach across either gutter bounding it. The Dolmenwood and
+  Advanced Fantasy recipes are rebuilt on the repaired detector, which recovers
+  descriptions that previously came through empty. A separate cause of shared
+  text is NOT fixed here and is recorded in the importer roadmap: where a
+  column carries the tail of an entry that began on an earlier page, it starts
+  nothing, so every entry on the page is still offered that region - three
+  Dolmenwood bards share one such passage before and after this release.
+- **Importing classes a second time no longer builds a second set of them.**
+  A compendium is a cache: it drops the documents it holds five minutes after
+  the last one is touched and keeps only its index. The already-imported check
+  asked the collection directly, so a library that had merely gone cold
+  answered as empty - and a run that paused long enough between two steps
+  imported all thirty-one classes again on top of the thirty-one already
+  there. The question is now put to the index, which is what survives going
+  cold and what a real deletion takes with it, and the document itself is
+  re-read only when the answer is yes. Deleting a class and importing it again
+  still gives you a fresh one; that was the behaviour this check existed to
+  protect and it is unchanged.
+- **The cookbook debug window opens for a definition.** Every class, power,
+  skill, proficiency and piece of equipment lives in a cookbook that spans
+  several books and names the book on each entry, rather than on the file. The
+  window read the book off the file, so all of them - about eight hundred ids -
+  answered a debug call with a TypeError instead of a dialog. It now resolves
+  the book the same way the importers do. A family id, which names a group
+  rather than anything printed, says so instead of throwing, and an entry whose
+  recipe carries no citation no longer draws punctuation around the gap.
+
+### Upgrading an existing world
+
+**The corrected creature text does not reach creatures you have already
+imported, and this release does not change or delete anything in your world.**
+Every OSE import path asks whether a creature is already present before it
+reads the page - it has to, or re-running an import would re-parse a whole book
+to decide it wanted none of it - so a corrected entry is skipped and keeps the
+text it came in with. Verified against a world holding a full Dolmenwood import
+made under the previous release: re-importing the book created the two genuinely
+new creatures and their two generators, updated nothing, and deleted nothing,
+reporting the other 163 as already present.
+
+This release is safer to be on than the one before it, for a reason that has
+nothing to do with the creature text: until the duplicate-import fix below, any
+world was one five-minute pause away from a second copy of everything the next
+import run touched.
+
+To take a correction, delete the document and import the book again. The
+affected documents are the Dolmenwood *Drune-Audrune*, *Gobble*, *Griffon* and
+*Hawk*, the *Enchanter*, *Fighter* and *Knight* generators, and the Advanced
+Fantasy *Giant Sturgeon*, *Giant Swordfish* and *Flail Snail*.
+
+Four entries are withdrawn, having been artefacts of the same fault: two
+duplicate Dolmenwood ids behind a second *Griffon* and a second *Hawk*, and two
+Advanced Fantasy ids behind a pair of creatures whose names had been welded into
+one. Delete both copies of the duplicated pairs, and both copies of the welded
+pair - re-importing yields the two creatures separately. Documents left behind
+from a withdrawn id are inert, and no shipped tool removes them individually;
+"Remove imported documents" clears them along with the rest of an import.
+
 ## 7.3.2
 
 **The bot's installer hands its dependency step a home the service user can
