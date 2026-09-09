@@ -1,5 +1,24 @@
 # Changelog
 
+## 7.3.2
+
+**The bot's installer hands its dependency step a home the service user can
+write.**
+
+### Fixed
+- **Installing the Discord bot puts its dependencies where the account running
+  it can reach them.** The installer switches to the service's own account
+  before fetching them, and told that account to keep its cache in a directory
+  only root can write. On a host where the two differ, `npm` stopped with a
+  permission error deep under `/root`, advised making root's cache writable by
+  somebody else, and the installer ended having enabled nothing — so the bot
+  never started, and the same command produced the same failure however many
+  times it was run. The home now travels with the command rather than around
+  it, so it survives the switch. A host that had already installed the bot is
+  unaffected; nothing about a running service changes. If you took npm's advice
+  and opened root's cache directory, nothing reads it now and you can put it
+  back.
+
 ## 7.3.1
 
 **An ability that breaks across a column comes in whole, and six other ways the

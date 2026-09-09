@@ -301,6 +301,14 @@ not shown twice.
   To run it with no questions at all, redirect stdin (`</dev/null`): every
   answer comes from the environment variable of the same name, else from
   the last install.
+- **The installer stops at `npm error code EACCES` on a path under
+  `/root/.npm`, and says the dependencies could not be installed.** Before
+  7.3.2 the installer handed npm the service user without handing it that
+  user's home, so npm looked for its cache in root's — which the service user
+  cannot write. npm's own advice there, to make root's cache directory
+  writable by someone else, is not the fix and is worth undoing if you took
+  it. Update the module and run the install command again; nothing was
+  enabled, so there is nothing to undo on the service side.
 - **The token field is greyed out.** It unlocks when the bot has announced
   its key, which happens the moment the bot's seat joins the world — so a
   locked field means the service is not running, or its seat cannot reach

@@ -499,3 +499,31 @@ its default before every join.
 which is the common one. It is recoverable by a Judge with a suitable host and one
 checkbox, it says why rather than failing obscurely, and the alternative on those
 hosts was never a working `map` — it was a bot that answered nothing at all.
+
+### HOME travels inside the command, not in the runner's environment (2026-09-09)
+
+Field report: `sudo node src/install-service.mjs` on an Ubuntu host stopped at
+the dependency step. `npm ci` ran as the service user and died `EACCES` on
+`/root/.npm/_cacache`, npm advised making root's cache writable by uid 1001,
+and the installer enabled nothing. The installer had set the child's `HOME`
+since 7.1.1 — in the environment it handed `runuser`. Both runners re-decide
+`HOME` for the user they switch to, so the value reached the runner and stopped
+there, and npm resolved its cache under whatever home the root shell had.
+
+**Ruled: the value is set by `env` inside the argv the runner executes.** After
+the switch there is no policy left to overrule it, and it reads the same on
+both branches. `dependencyCommand` is the one place that argv is built, so a
+test can assert the ordering that makes it work.
+
+**Rejected: `sudo -E`.** It was already on the sudo branch and is what made
+that branch look correct. It preserves the CALLER's environment — the wrong
+`HOME` with it — and a sudoers policy without `SETENV` refuses the flag
+outright, turning a wrong home into a failed run. It is dropped.
+
+**Rejected: pre-creating the cache under the state directory.** It fixes npm
+and leaves every other child of the runner reading root's home, which is the
+class of bug rather than the instance.
+
+**Cost:** an operator who already followed npm's advice owns a `/root/.npm`
+chowned to the service user. Nothing reads it after this, so it is untidy
+rather than harmful — the guide's troubleshooting entry says to undo it.

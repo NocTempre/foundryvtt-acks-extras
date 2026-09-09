@@ -214,8 +214,12 @@ async function main() {
   execFileSync("chown", ["-R", user, STATE_DIR]);
   console.log(`\nPutting the bot's dependencies in place as ${user}…`);
   try {
-    const [runner, ...as] = fs.existsSync("/usr/sbin/runuser") || fs.existsSync("/sbin/runuser") ? ["runuser", "-u", user, "--"] : ["sudo", "-u", user, "-E", "--"];
-    execFileSync(runner, [...as, process.execPath, "src/prestart.mjs"], { cwd: ROOT, stdio: "inherit", env: { ...process.env, HOME: STATE_DIR } });
+    const [runner, ...args] = dependencyCommand({
+      user,
+      hasRunuser: fs.existsSync("/usr/sbin/runuser") || fs.existsSync("/sbin/runuser"),
+      node: process.execPath,
+    });
+    execFileSync(runner, args, { cwd: ROOT, stdio: "inherit" });
   } catch {
     console.error(`\ninstall-service: dependencies could not be installed as ${user} (see npm's output above). Fix that, then run this command again; nothing was enabled.`);
     process.exit(1);
@@ -232,6 +236,30 @@ async function main() {
 
 /** Where the unit's StateDirectory lands — the bot's key and cache, and the HOME its npm and browser get. */
 export const STATE_DIR = `/var/lib/${UNIT_NAME}`;
+
+/**
+ * The argv that runs `prestart` as the service's user with the service's HOME.
+ *
+ * `HOME` is set by `env` INSIDE the command the runner executes, never in the
+ * environment handed to the runner: both runners re-decide `HOME` for the user
+ * they switch to, so a value passed from outside reaches the runner and stops
+ * there. npm then resolves its cache under whatever `HOME` the root shell had —
+ * `/root/.npm`, which the service user cannot write — and `npm ci` dies EACCES
+ * with an installer that enables nothing. Inside the argv, `env` sets it after
+ * the switch and no runner policy is left to overrule.
+ *
+ * @param {object} o
+ * @param {string} o.user        The account the service runs as.
+ * @param {boolean} o.hasRunuser Whether `runuser` is on this host; `sudo` stands in when it is not.
+ * @param {string} o.node        Absolute path to the node that is running this installer.
+ * @param {string} [o.home]      The HOME the child gets; the unit's StateDirectory.
+ * @param {string} [o.script]    The script to run, relative to the bot's directory.
+ * @returns {string[]} Command and arguments, ready to spread into `execFileSync`.
+ */
+export function dependencyCommand({ user, hasRunuser, node, home = STATE_DIR, script = "src/prestart.mjs" }) {
+  const runner = hasRunuser ? ["runuser", "-u", user, "--"] : ["sudo", "-u", user, "--"];
+  return [...runner, "env", `HOME=${home}`, node, script];
+}
 
 /** The service's state and its last journal lines, once it has had a moment to join or to fail. */
 async function report() {

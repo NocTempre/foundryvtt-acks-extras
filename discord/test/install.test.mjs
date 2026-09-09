@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installReason, npmCommand, installArgs } from "../src/prestart.mjs";
 import { PassThrough, Writable } from "node:stream";
-import { renderUnit, parseEnv, renderEnv, discordHalf, makeAsker } from "../src/install-service.mjs";
+import { renderUnit, parseEnv, renderEnv, discordHalf, makeAsker, dependencyCommand, STATE_DIR } from "../src/install-service.mjs";
 import { findBrowser, BROWSERS, isSnapStub } from "../src/browsers.mjs";
 import { browserFailure } from "../src/seat.mjs";
 
@@ -82,6 +82,25 @@ test("dependencies install against the shipped lock, and without one npm install
   assert.equal(installArgs(true)[0], "ci");
   assert.equal(installArgs(false)[0], "install");
   assert.ok(installArgs(true).includes("--omit=dev"));
+});
+
+test("the dependency step carries HOME inside the command, where no runner can re-decide it", () => {
+  for (const hasRunuser of [true, false]) {
+    const argv = dependencyCommand({ user: "foundry", hasRunuser, node: "/usr/bin/node" });
+    assert.equal(argv[0], hasRunuser ? "runuser" : "sudo");
+    // `env HOME=…` stands between the runner's own arguments and the command it
+    // runs: outside that boundary the runner resets HOME for the user it
+    // switches to, and npm resolves its cache under the root shell's home.
+    const boundary = argv.indexOf("--");
+    const env = argv.indexOf("env");
+    assert.ok(boundary > 0 && env === boundary + 1, `env must follow -- : ${argv.join(" ")}`);
+    assert.equal(argv[env + 1], `HOME=${STATE_DIR}`);
+    assert.deepEqual(argv.slice(env + 2), ["/usr/bin/node", "src/prestart.mjs"]);
+    assert.ok(argv.includes("foundry"));
+    // `sudo -E` would preserve the caller's environment — the wrong HOME with
+    // it — and a sudoers policy without SETENV refuses the flag outright.
+    assert.ok(!argv.includes("-E"));
+  }
 });
 
 test("a re-install drops an earlier file's Discord half and says so, unless the operator sets it on purpose", () => {
