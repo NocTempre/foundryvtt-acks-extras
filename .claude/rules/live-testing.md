@@ -137,3 +137,17 @@ outside an explicitly authorized phase** (a proposal doc opens with a
 NOT-IN-EFFECT banner until adopted), and **shared ledgers are re-read
 immediately before every write, with rows matched by title, never by id** —
 ids are the thing two sessions mint in collision.
+
+**A create-hook ledger is an OBSERVER, never a delete list.**
+`Hooks.on("createItem", …)` fires for every session on the server, so what it
+records is the WORLD's creations and not yours — and sweeping it deletes a
+peer's fixtures by exactly the route step 4 exists to close, wearing the shape
+of compliance. Arm one to prove a run created NOTHING, which is what it is good
+for, and take teardown from the ledger that records only what YOU asked for
+(`api.create` / `api.track` / `api.sweepTracked`). Where a feature reports
+counts rather than ids, `api.track` the ids read back from the action's own
+result, read the moment it resolves: a presence claim is per CLIENT, so two
+sessions handed the same not-yet-imported id both miss and both build, and an
+id read back late may be the other one's. Three sessions reached for a
+create-hook ledger in a single afternoon and all three were safe by accident —
+one expected an empty ledger, one reset it between calls, one never swept.
