@@ -60,6 +60,6 @@
     <div class="acks-bar{{#if spellbook.over}} acks-bar--danger{{/if}}"><div class="acks-bar-fill" style="--acks-bar-value: {{spellbook.pct}}"></div></div>
   </div>
   <p class="acks-extras-item-sheet__note">{{localize 'ACKS-EQUIPMENT.spellbook.prompt'}}</p>
-  <textarea class="acks-input acks-extras-item-sheet__spells" rows="10" data-field="spellbook" {{disabled (not editable)}}>{{spellbookText}}</textarea>
+  <textarea class="acks-input acks-extras-item-sheet__spells" rows="10" data-field="spellbook" {{disabled (not editing)}}>{{spellbookText}}</textarea>
   {{/if}}
 </div>

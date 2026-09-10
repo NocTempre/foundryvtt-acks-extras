@@ -6,10 +6,10 @@
         inputs of one name reach FormDataExtended as an array. The sheet maps
         this to the quantity path only when THIS control fired the change. --}}
   <input class="acks-extras-item-sheet__qty acks-nums" type="number" name="acksBandQty" value="{{band.qty}}" min="0" step="1"
-         data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.quantity'}}" {{disabled (not editable)}}>
+         data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.quantity'}}" {{disabled (not editing)}}>
   {{/if}}
   <input class="acks-input acks-input--line acks-extras-item-sheet__name" type="text" name="{{namePath}}" value="{{band.name}}"
-         {{disabled (not editable)}}>
+         {{disabled (not editing)}}>
   {{#if band.scene}}
   <button type="button" class="acks-extras-item-sheet__chip acks-extras-item-sheet__chip--link" data-action="openScene"
           data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.openScene'}}">
@@ -21,7 +21,7 @@
     {{localize (concat "ACKS-EQUIPMENT.itemSheet.condition." band.condition)}}
   </span>
   {{/if}}
-  {{#if (and editable band.valueEditable)}}
+  {{#if (and editing band.valueEditable)}}
   {{!-- The listed price, typed where it is read. Its own form name: the
         Details ledger binds the same number under `acksListedPrice`, and each
         counts only when it is the control that fired the change. --}}
@@ -41,7 +41,7 @@
   {{/if}}
   <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.weightHint'}}">
     <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.stone'}}</span>
-    {{#if (and editable snap.hasWeight)}}
+    {{#if (and editing snap.hasWeight)}}
     <input class="acks-extras-item-sheet__badge-input acks-nums" type="number" name="system.weight6" value="{{snap.weight6}}" min="0" step="1"
            aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.band.weightHint'}}">
     <span class="acks-extras-item-sheet__badge-note acks-nums">{{band.weight}}{{#if band.carriedDiffers}} · {{band.carried}}{{/if}}</span>

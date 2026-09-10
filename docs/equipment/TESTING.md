@@ -195,7 +195,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    show Rolls · Durability · Effects · Details; Backpack, Torch, Flask, coin
    are SIMPLE (no tab strip, a Details button); the band holds the name, Value
    and St; the left rail shows the type glyph and the slot cell.
-2. Band: edit the name; type `1` in St; type `12` in Value. *Observable:*
+2. Press the pencil (editor rail, first cell). *Observable:* until then the
+   band's inputs, every Details field and the construction controls are
+   disabled and a drop only warns; armed, the cell's `aria-pressed` is true
+   and the description editor is open. Then edit the name; type `1` in St;
+   type `12` in Value. *Observable:*
    `item.name`, `system.weight6 === 6`, `system.cost === 12` and the Details
    ledger's listed line reads 12; on a silvered or masterwork item the write
    lands on the pristine layer's cost, `system.cost` is recomputed from it,
@@ -203,11 +207,30 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    the band's field gives way to the *Unknown* reading. Close button closes;
    dragging the band's empty area moves the window and clicking into the
    name does not.
+2a. Construction (Details, armed), on the axe. *Observable:* Base type,
+   Weapon type, Class and Size are selects, Auto first and naming the guess,
+   and Class lists the character sheet's classes in its order. Pick Class
+   *Bow* → `flags.acks-extras.category === "bow"` and `classifyWeapon(item).cat`
+   reads it; Auto clears the flag. Grips: both chips dashed, since the
+   axe offers either; click *Two-handed* → `grips === "1h"` (One-handed
+   solid, Two-handed ghost); click *Two-handed* again → `versatile`, both
+   solid; click *One-handed* → `2h`; click *Two-handed* → both off, the flag
+   gone, both dashed again. Qualities: one chip per `CONFIG.ACKS.tags`
+   entry, *Melee* lit from the field; click *Slow* → `system.slow` true and
+   `system.tags` gains a `{title, value}` entry whose value is the registry's
+   own word for it (`Slow` in a running world); click again → both gone. Other tags: type a word, Enter → `system.tags` gains it; its ×
+   removes it. Worn at: every `WEAR_SLOT_ORDER` place in the rail's order,
+   Main Hand / Off Hand / Both Hands solid and locked (tooltip says why), no
+   other lit; click *Belt* → `gear.slots` holds the three hands and `belt`;
+   *Auto* → the key is gone. On the Chainmail: *Body* dashed; click it →
+   declared `["body"]`; click it off → `gear.slots` is `[]` and the note
+   reads carried; *Auto* → dashed again.
 3. Rolls: pin a row, click Roll. *Observable:* `flags.acks-extras.pins`
    updates; core's attack dialog/card appears.
-4. Editor rail: description editor (save → `system.description`, editor
-   closes), art (FilePicker), tags ("Masterwork" → `system.tags` and a tag
-   under the prose), ownership only on the world item.
+4. Editor rail: the armed sheet's description editor (save →
+   `system.description`); *Done editing* disables the fields again, and a
+   sheet closed and reopened is locked; art (FilePicker); ownership only on
+   the world item.
 5. Right rail: EQP toggles `system.equipped`; PIN toggles `system.favorite`.
    Torch: `splitOne` → a worn qty-1 split with `splitFrom`, stack reads 2;
    `restack` → split gone, stack reads 3.
@@ -367,10 +390,14 @@ does not dereference them.
    own `small`.
 8. **Stowing keeps the hands.** `setGearSlotList(item, [...hands, "belt"])`.
    *Observable:* `gear.slots` holds all four; the weapon is still wieldable.
-9. **The controls are real.** Render the item sheet, then dispatch a genuine
-   `click` on the `Two-handed` chip and a `change` on the Weapon type bucket.
-   *Observable:* `getFlag("acks-extras", "grips")` is `"2h"` and `profileKey`
-   is what was picked — **re-read from `fromUuid` afterwards**, not from the
+9. **The controls are real.** Render the item sheet, press the pencil, then
+   dispatch a genuine `click` on the Grips strip's *Two-handed* chip and a
+   `change` on each of the Weapon type and Class selects.
+   *Observable:* `getFlag("acks-extras", "grips")` is `"versatile"` (the
+   inferred one-handed grip kept, the second added), `profileKey` is
+   what was picked and `category` is the class chosen, which
+   `classifyWeapon().cat` now reads ahead of the row's own — **re-read from
+   `fromUuid` afterwards**, not from the
    open sheet's document. These controls live inside core's `<form>` and an
    un-stopped change re-renders the sheet from ITS form data; a check that
    reads the in-memory document cannot tell a persisted write from one that is

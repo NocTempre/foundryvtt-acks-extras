@@ -38,7 +38,7 @@
     <span class="acks-extras-item-sheet__fact-label" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.condition.materialHint'}}">{{localize 'ACKS-EQUIPMENT.props.material'}}</span>
     <span class="acks-tag-group"><span class="acks-tag">{{durability.material}}</span></span>
     <span class="acks-spacer"></span>
-    {{#if gm}}
+    {{#if (and gm editing)}}
     <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="markDestroyed">
       <i class="fa-solid {{#if durability.destroyed}}fa-wrench{{else}}fa-heart-crack{{/if}}" inert></i>
       {{localize (concat 'ACKS-EQUIPMENT.itemSheet.condition.' (ifThen durability.destroyed 'restore' 'markDestroyed'))}}
@@ -56,19 +56,19 @@
     </div>
     <div class="acks-extras-item-sheet__row acks-row--wrap">
       <label class="acks-check">
-        <input type="checkbox" data-action="toggleLock" {{checked durability.lock.lockOn}} {{disabled (not editable)}}>
+        <input type="checkbox" data-action="toggleLock" {{checked durability.lock.lockOn}} {{disabled (not editing)}}>
         <span>{{localize 'ACKS-EQUIPMENT.itemSheet.lock.locked'}}</span>
       </label>
       <label class="acks-extras-item-sheet__field is-md">
         <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.lock.quality'}}</span>
-        <input class="acks-input acks-input--line" type="text" name="{{containerPath}}.quality" value="{{durability.lock.quality}}" {{disabled (not editable)}}>
+        <input class="acks-input acks-input--line" type="text" name="{{containerPath}}.quality" value="{{durability.lock.quality}}" {{disabled (not editing)}}>
       </label>
       <label class="acks-extras-item-sheet__field is-xs">
         <span class="acks-extras-item-sheet__field-label" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.lock.pickHint'}}">{{localize 'ACKS-EQUIPMENT.itemSheet.lock.pick'}}</span>
-        <input class="acks-input acks-input--line acks-nums" type="number" name="{{containerPath}}.lockMod" value="{{durability.lock.lockMod}}" step="1" {{disabled (not editable)}}>
+        <input class="acks-input acks-input--line acks-nums" type="number" name="{{containerPath}}.lockMod" value="{{durability.lock.lockMod}}" step="1" {{disabled (not editing)}}>
       </label>
       <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.lock.fragileHint'}}">
-        <input type="checkbox" name="{{containerPath}}.fragile" {{checked durability.lock.fragile}} {{disabled (not editable)}}>
+        <input type="checkbox" name="{{containerPath}}.fragile" {{checked durability.lock.fragile}} {{disabled (not editing)}}>
         <span>{{localize 'ACKS-EQUIPMENT.itemSheet.lock.fragile'}}</span>
       </label>
     </div>
@@ -78,7 +78,7 @@
       </span>
       <span class="acks-tag-group">
         {{#each durability.lock.keys}}
-        <span class="acks-tag">{{name}}{{#if @root.editable}}<button type="button" class="acks-extras-item-sheet__tag-x" data-action="removeKey" data-uuid="{{uuid}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.lock.removeKey'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}</span>
+        <span class="acks-tag">{{name}}{{#if @root.editing}}<button type="button" class="acks-extras-item-sheet__tag-x" data-action="removeKey" data-uuid="{{uuid}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.lock.removeKey'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}</span>
         {{else}}
         <span class="acks-tag acks-tag--ghost">{{localize 'ACKS-EQUIPMENT.itemSheet.lock.noKey'}}</span>
         {{/each}}

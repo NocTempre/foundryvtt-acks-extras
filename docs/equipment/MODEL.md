@@ -38,6 +38,7 @@ enums; local-only, never in the repo).
 | Actor AE | name `Equipment Loadout`, `flags.acks-extras.loadout = true` | Module-managed effect; `changes[]` target core `system.*.mod`; rebuilt on every loadout change; deleted when empty. |
 | Item flag (weapon) | `flags.acks-extras.profileKey` | WHICH RAW weapon-table row this is. The top of the identity ladder below; written by Annotate and by the item sheet's Weapon type control. |
 | Item flag (weapon) | `flags.acks-extras.grips` | `1h` \| `versatile` \| `2h` — which grips the weapon OFFERS. Answers ahead of the size derivation in `handCost`/`isTwoHandedOnly`/`canOneHand`. Distinct from `grip`, which is the grip a player picked this round out of these. |
+| Item flag (weapon) | `flags.acks-extras.category` | Which proficiency CLASS the weapon belongs to (a `WEAPON_CATEGORY` value), read by `classifyWeapon` ahead of the table row's own. Written by the item sheet's Class control; absent = the row's. |
 | Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by the annotate macro). `hands` is superseded by `grips` and is written by nothing. |
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the 10× price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
@@ -132,7 +133,7 @@ character trained on it is told it is not proficient. Because it cannot be seen
 from the item, it is reported where items are MADE — `importWeapons` warns per
 grid row, `materializeTemplates` reports `unidentified`, chargen prints its own
 line on the character's card — and corrected on the item sheet's Construction
-tab, which carries Weapon type, Size, Grips and Stowed at.
+tab, which carries Weapon type, Class, Size, Grips and Worn at.
 
 ## 4. Public API & hooks
 
@@ -348,10 +349,28 @@ value until `markets.identified` is `full`; the aura shows from `partial`.
 Grants from the bearer stay visible throughout. The condition tag in the band
 reads off the real condition whatever else is masked.
 
-**What it mounts rather than rebuilds.** The construction controls
-(`sheet.mjs` `buildConstructionPanel`) sit under the Details tab's Construction
-rule; the markets feature's magic panel under Appearance for the Judge and, for
-an owner identifying a magical item, under Details.
+**Editing is armed, not assumed.** `editable` is the permission; `editing` is
+the permission AND the editor rail's pencil, held on the sheet instance and
+reset on close. Every control that writes the document (the band's fields, the
+Details fields, the construction controls, the effect and key removers, the
+drop zones) is disabled until armed; the use-actions (equip, roll, pin, take
+out, configure an effect, identify) answer to `editable` alone.
+
+**Construction is one shape.** `item-sheet/construction.mjs` builds the
+Details tab's Construction rule over the pure `construction-model.mjs`: a
+select for every registered single answer, with *Auto (guess)* first wherever
+the module infers; a strip of toggles for every registered set, showing every
+option, with a declared option solid, an inferred one dashed and an *Auto*
+chip that returns the set to inference; and *Other tags* for free text. The
+strips are grips, the core weapon tags of `CONFIG.ACKS.tags` as Qualities,
+and the `WEAR_SLOT_ORDER` places as Worn at, where a weapon's hand places are
+locked and no place lit while declared is `gear.slots = []`. The Class select
+is the character sheet's `CATEGORY_TOKENS` vocabulary and writes
+`flags.acks-extras.category`. A quality writes core's `{title, value}` tag and,
+for melee/missile/slow, the boolean field beside it; a stored tag is matched
+by the slug of its key, label or raw value, since core's registry reads as lang
+keys in source and as localized words in a running world. The markets feature's magic panel mounts under Appearance for
+the Judge and, for an owner identifying a magical item, under Details.
 
 ## 2026-07-24 — containers live on the sheet; locks roll the character's own proficiency
 

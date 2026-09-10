@@ -28,7 +28,7 @@
 </div>
 
 <div class="acks-extras-item-sheet__art{{#if art.aura}} has-aura is-{{art.aura}}{{/if}}{{#if art.struck}} is-struck{{/if}}">
-  {{#if editable}}
+  {{#if editing}}
   <img class="acks-extras-item-sheet__img" src="{{art.img}}" alt="{{band.name}}" data-action="editImage" data-edit="img"
        data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.rail.changeArt'}}">
   {{else}}
@@ -65,7 +65,7 @@
 
 <div class="acks-extras-item-sheet__prose">
   <div class="acks-extras-item-sheet__prose-body">
-    {{#if editingDescription}}
+    {{#if editing}}
     <prose-mirror class="acks-extras-item-sheet__editor" name="{{descriptionPath}}" value="{{descriptionSource}}" toggled
                   data-document-uuid="{{item.uuid}}">{{{description}}}</prose-mirror>
     {{else}}
@@ -81,9 +81,9 @@
   <div class="acks-extras-item-sheet__rail acks-extras-item-sheet__rail--editor">
     {{#each rails.editor}}
     <button type="button" class="acks-extras-item-sheet__cell acks-extras-item-sheet__cell--editor{{#if on}} is-on{{/if}}" data-action="{{key}}"
-            data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.editor.' key)}}">
+            aria-pressed="{{#if on}}true{{else}}false{{/if}}" data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.editor.' title)}}">
       <i class="{{icon}}" inert></i>
-      <span class="acks-sr-only">{{localize (concat 'ACKS-EQUIPMENT.itemSheet.editor.' key)}}</span>
+      <span class="acks-sr-only">{{localize (concat 'ACKS-EQUIPMENT.itemSheet.editor.' title)}}</span>
     </button>
     {{/each}}
   </div>

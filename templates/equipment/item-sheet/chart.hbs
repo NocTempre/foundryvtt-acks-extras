@@ -25,6 +25,8 @@
             data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.chart.updateHint'}}">
       <i class="fa-solid fa-rotate" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.chart.update'}}
     </button>
+    {{/if}}
+    {{#if editing}}
     <span class="acks-spacer"></span>
     <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="unbindScene">{{localize 'ACKS-EQUIPMENT.itemSheet.chart.unbind'}}</button>
     {{/if}}

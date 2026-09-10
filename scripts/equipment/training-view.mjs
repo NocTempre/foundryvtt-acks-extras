@@ -81,8 +81,14 @@ export const tokenUnits = (token) => WEAPON_UNITS.filter((u) => covers(token, u)
 /** Tier captions: the kind of clause a group's token is, as the grammar names them. */
 export const TIER = Object.freeze({ UNRESTRICTED: "unrestricted", BROAD: "broad", NARROW: "narrow", RESTRICTED: "restricted" });
 
-/** The seven category tokens in the strips' order, spelled as grant tokens. */
-const CATEGORY_TOKENS = Object.freeze([
+/**
+ * The seven weapon classes in the strips' order, each as the grant token that
+ * names it, the `WEAPON_CATEGORY` value a weapon declares, and the lib label
+ * every surface prints — the character sheet's training and the item sheet's
+ * Class control list the same seven words in the same order because both read
+ * this.
+ */
+export const CATEGORY_TOKENS = Object.freeze([
   { token: "axe", cat: WEAPON_CATEGORY.AXE, label: "ACKS-LIB.weaponCat.axe" },
   { token: "sworddagger", cat: WEAPON_CATEGORY.SWORD_DAGGER, label: "ACKS-LIB.weaponCat.swordDagger" },
   { token: "flailhammermace", cat: WEAPON_CATEGORY.FLAIL_HAMMER_MACE, label: "ACKS-LIB.weaponCat.flailHammerMace" },

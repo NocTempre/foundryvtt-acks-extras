@@ -254,16 +254,16 @@ function recordOf(item) {
   const opt = (choices) => Object.entries(choices ?? {}).map(([value, label]) => ({ value, label: game.i18n.localize(label) }));
   switch (item.type) {
     case ITEM_TYPE.weapon:
+      // Melee, missile and slow are not here: they are core's registered
+      // qualities, and the Construction panel's Qualities strip writes the
+      // field and the tag together (`construction-model.mjs` TAG_FIELDS).
       return [
         { name: "system.damage", label: loc("itemSheet.field.damage"), type: "text", value: sys.damage ?? "", width: "sm" },
         { name: "system.bonus", label: loc("itemSheet.field.bonus"), type: "number", value: sys.bonus ?? 0, width: "xs" },
-        { name: "system.melee", label: loc("itemSheet.field.melee"), type: "checkbox", value: !!sys.melee },
-        { name: "system.missile", label: loc("itemSheet.field.missile"), type: "checkbox", value: !!sys.missile },
         { name: "system.range.short", label: loc("itemSheet.field.rangeShort"), type: "number", value: sys.range?.short ?? 0, width: "xs" },
         { name: "system.range.medium", label: loc("itemSheet.field.rangeMedium"), type: "number", value: sys.range?.medium ?? 0, width: "xs" },
         { name: "system.range.long", label: loc("itemSheet.field.rangeLong"), type: "number", value: sys.range?.long ?? 0, width: "xs" },
         { name: "system.save", label: loc("itemSheet.field.save"), type: "select", value: sys.save ?? "", choices: [{ value: "", label: "—" }, ...opt(CONFIG.ACKS?.saves_short)] },
-        { name: "system.slow", label: loc("itemSheet.field.slow"), type: "checkbox", value: !!sys.slow },
       ];
     case ITEM_TYPE.armor:
       return [

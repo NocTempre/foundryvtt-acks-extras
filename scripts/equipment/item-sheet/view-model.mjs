@@ -50,11 +50,13 @@ export const KNOW_STEPS = Object.freeze([
   { n: 3, key: "full" },
 ]);
 
-/** The editor rail's cells: what each edits, and the Font Awesome glyph it wears. */
+/**
+ * The editor rail's cells and the Font Awesome glyph each wears. The pencil
+ * arms the whole sheet; the rest open a dialog of their own and stay live.
+ */
 const EDITOR_CELLS = Object.freeze([
-  { key: "editDescription", icon: "fa-solid fa-pen-to-square" },
+  { key: "edit", icon: "fa-solid fa-pen" },
   { key: "changeArt", icon: "fa-solid fa-image" },
-  { key: "editTags", icon: "fa-solid fa-tags" },
   { key: "ownership", icon: "fa-solid fa-user-lock", worldOnly: true },
   { key: "source", icon: "fa-solid fa-book-open", gmOnly: true },
 ]);
@@ -127,10 +129,15 @@ export function valueBadge({ mode, fullCost, apparentCost, hideMagic, masked, ma
  * @param {boolean} [viewer.previewAsPlayer]  a Judge looking through a player's eyes
  * @param {string|null} [viewer.activeTab]
  * @param {boolean} [viewer.showDetails]      simple mode's one unfolded panel
- * @param {boolean} [viewer.editingDescription]
+ * @param {boolean} [viewer.editing]          the pencil is armed
  */
 export function buildItemSheetModel(snap, viewer = {}) {
   const gm = !!viewer.isGM && !viewer.previewAsPlayer;
+  // `editable` is the permission; `editing` is the permission AND the pencil.
+  // Templates gate what DESCRIBES the item on the second and what USES it on
+  // the first, so a locked sheet still rolls, equips and pins.
+  const editable = !!viewer.editable;
+  const editing = editable && !!viewer.editing;
   const magic = snap.magic ?? { is: false, aura: null, identified: "full" };
   const know = magic.is ? (KNOW_STEPS.find((s) => s.key === magic.identified)?.n ?? 1) : 3;
   const hideMagic = !gm && magic.is && know < 3;
@@ -238,11 +245,12 @@ export function buildItemSheetModel(snap, viewer = {}) {
   const rightPads = Math.max(0, RIGHT_CELLS - rightCells.length);
 
   /* ---- editor rail ---------------------------------------------------- */
-  const editorCells = EDITOR_CELLS.filter((c) => (!c.worldOnly || !snap.embedded) && (!c.gmOnly || gm)).map((c) => ({
-    key: c.key,
-    icon: c.icon,
-    on: c.key === "editDescription" && !!viewer.editingDescription,
-  }));
+  const editorCells = EDITOR_CELLS.filter((c) => (!c.worldOnly || !snap.embedded) && (!c.gmOnly || gm)).map((c) => {
+    const on = c.key === "edit" && editing;
+    // The pencil's caption changes with its state; every other cell is named
+    // by its key.
+    return { key: c.key, icon: c.icon, on, title: on ? "editDone" : c.key };
+  });
 
   /* ---- tabs ------------------------------------------------------------ */
   const tabs = tabDefs.map((t) => ({ key: t.key, count: t.count, active: t.key === activeTab }));
@@ -272,7 +280,8 @@ export function buildItemSheetModel(snap, viewer = {}) {
 
   return {
     gm,
-    editable: !!viewer.editable,
+    editable,
+    editing,
     previewAsPlayer: !!viewer.previewAsPlayer,
     simple,
     showDetails: simple && !!viewer.showDetails,
@@ -332,7 +341,6 @@ export function buildItemSheetModel(snap, viewer = {}) {
     },
     description: maskedForJudge ? dis.trueDescription : snap.description,
     descriptionSource: maskedForJudge ? dis.trueDescriptionSource : snap.descriptionSource,
-    editingDescription: !!viewer.editingDescription,
     tags: snap.tags ?? [],
     rolls: {
       groups: groups.map((g) => ({
@@ -392,7 +400,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       acceptChips: (snap.acceptKinds ?? []).map((k) => ({ key: k, on: (container?.accepts ?? []).includes(k) })),
       refusal: container?.refusal ?? "",
       disguisable: !!dis.enabled,
-      identifyOffered: !gm && magic.is && know < 3 && !!viewer.editable,
+      identifyOffered: !gm && magic.is && know < 3 && editable,
     },
     record: snap.record ?? null,
     masked,

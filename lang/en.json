@@ -933,15 +933,6 @@
       "medium": "Medium",
       "large": "Large"
     },
-    "category": {
-      "axe": "Axes",
-      "bow": "Bows",
-      "crossbow": "Crossbows",
-      "flailHammerMace": "Flails, hammers & maces",
-      "swordDagger": "Swords & daggers",
-      "spearPolearm": "Spears & pole arms",
-      "other": "Other"
-    },
     "light": {
       "light": "Light this source (uses a free hand)",
       "douse": "Douse / re-light",
@@ -1002,14 +993,20 @@
         "skin": "item it was made from",
         "loose": "item name"
       },
+      "weaponClass": "Class",
+      "weaponClassAuto": "Auto ({guess})",
       "weaponSize": "Size",
       "weaponSizeAuto": "Auto ({guess})",
       "grips": "Grips",
-      "gripsHint": "Which hands this may be held in. Both on is either; neither returns the answer to the weapon's size.",
+      "gripsHint": "Which hands this may be held in — both lit is either. Lit dashed while the size table answers; a click declares it.",
       "gripsNote": "Held: {grips}.",
       "gripsAuto": "Auto: {grips}, from the weapon's size (RR p. 127).",
-      "stowed": "Stowed at",
-      "stowedHint": "Where this rides when it is not in a hand — a scabbard, a back strap, a shield strap. The hands are always available and are not listed.",
+      "qualities": "Qualities",
+      "qualitiesHint": "Core's registered weapon tags. Melee, Missile and Slow also set the fields the attack reads.",
+      "otherTags": "Other tags",
+      "otherTagsHint": "Free text, for what no quality above names.",
+      "otherTagsAdd": "Add a tag",
+      "removeTag": "Remove this tag",
       "masterwork": "Masterwork",
       "condition": "Condition",
       "pristine": "Pristine",
@@ -1030,16 +1027,21 @@
       "disguise": "Apparent identity (GM)",
       "net": "Net effect",
       "slot": "Worn at",
-      "slotAuto": "Auto ({guess})",
+      "slotHint": "Every place this may sit. Lit dashed while inferred from the name and type; a click declares it. None lit is carried — worn nowhere.",
+      "handsLocked": "A weapon is held: its hands are its own and are not offered.",
+      "slotDeclared": "Declared: {slots}.",
+      "slotInferred": "Auto: {slots}, from the item's name and type.",
       "slotAutoNone": "Auto (carried)",
       "slotNone": "Carried — worn nowhere",
       "slotCapacity": "{n} magic at {slot} (Treasure Tome, one of a form); clothing takes no room, armour or a weapon takes the place.",
       "access": "Retrieve from it",
       "accessUnset": "Unset",
-      "capacity": "Holds (stone)",
-      "capacityNone": "nothing",
       "relief": "Secures (stone)",
-      "reliefNone": "unstated"
+      "reliefNone": "unstated",
+      "baseType": "Base type",
+      "baseTypeAuto": "Auto ({guess})",
+      "auto": "Auto",
+      "autoHint": "Return the answer to inference — the item's name, its type and its table row."
     },
     "access": {
       "free": "Free",
@@ -1138,7 +1140,6 @@
         "selfContained": "A variation cannot be applied to itself.",
         "legacyClash": "This item already records {key} in its own field above. Clear that first."
       },
-      "applied": "Applied variations",
       "sheet": "Variation",
       "kindUnset": "— unset —",
       "kind": {
@@ -1257,8 +1258,8 @@
         "hint": "Detectable before identification — a disguise does not mask it."
       },
       "editor": {
-        "editDescription": "Edit the description",
-        "editTags": "Tags and base type",
+        "edit": "Edit this item",
+        "editDone": "Done editing",
         "ownership": "Ownership and visibility",
         "source": "Compendium source and identification",
         "changeArt": "Change the art"
@@ -1269,13 +1270,10 @@
       "field": {
         "damage": "Damage",
         "bonus": "Bonus",
-        "melee": "Melee",
-        "missile": "Missile",
         "rangeShort": "Short",
         "rangeMedium": "Medium",
         "rangeLong": "Long",
         "save": "Save",
-        "slow": "Slow",
         "ac": "Armor class",
         "armorType": "Armor type",
         "subtype": "Kind",
@@ -1514,18 +1512,11 @@
         "noSlot": "This item declares nowhere to be worn.",
         "splitDone": "{name} split from the stack and equipped."
       },
-      "tags": {
-        "title": "Tags",
-        "hint": "One tag per line.",
-        "save": "Save",
-        "baseTypeTitle": "Base type",
-        "baseTypeHint": "What this item is, refining its document type.",
-        "baseTypeNone": "Not declared"
-      },
       "source": {
         "from": "From {source}",
         "none": "Not from a compendium."
-      }
+      },
+      "locked": "Unlock the sheet with the pencil to change it."
     }
   },
   "ACKS-EQUIPMENT.container.expand": "Show contents",

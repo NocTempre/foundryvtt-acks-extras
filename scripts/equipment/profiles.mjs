@@ -332,6 +332,9 @@ export function equipmentClass(name) {
  */
 export const GRIPS = Object.freeze(new Set(["1h", "versatile", "2h"]));
 
+/** The proficiency classes a weapon may be declared to belong to. */
+export const WEAPON_CATEGORY_VALUES = Object.freeze(new Set(Object.values(WEAPON_CATEGORY)));
+
 /**
  * Build the resolved profile for a weapon item.
  * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,reqStr,grips}}
@@ -368,7 +371,10 @@ export function classifyWeapon(item) {
     damage: item.system?.damage || base?.damage || "1d6",
     damage2h: base?.damage2h ?? null,
     type: flag(ITEM_FLAGS.DAMAGE_TYPE) ?? base?.type ?? "",
-    cat: base?.cat ?? WEAPON_CATEGORY.OTHER,
+    // The declared class outranks the row's, and an unknown value is no
+    // declaration at all — a hand-edited flag degrades to the row, never to a
+    // class no grant can name.
+    cat: WEAPON_CATEGORY_VALUES.has(flag(ITEM_FLAGS.CATEGORY)) ? flag(ITEM_FLAGS.CATEGORY) : base?.cat ?? WEAPON_CATEGORY.OTHER,
     special: base?.special ?? [],
     reqStr: base?.reqStr ?? 0,
     grips: GRIPS.has(flag(ITEM_FLAGS.GRIPS)) ? flag(ITEM_FLAGS.GRIPS) : null,

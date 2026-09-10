@@ -1,5 +1,32 @@
 # Changelog
 
+## 7.5.0
+
+**The item sheet asks every registered question the same way, and the pencil
+unlocks the whole sheet.**
+
+### Changed
+- **One shape for the Construction tab.** A drop-down wherever an item takes
+  one answer from a registered list (base type, weapon type, class, size,
+  masterwork, condition, silver, material, shield variant, helm); a strip of
+  toggles wherever it takes several (grips, qualities, where it is worn), every
+  option always shown, a declared one solid, an inferred one dashed, and an
+  *Auto* chip that hands the set back to the guess; *Other tags* only for
+  free text. Where a thing is worn is now one list, the character sheet's
+  Worn rail in its order, so the old three-place strip and the separate slot
+  picker are gone, and no place lit while declared means carried. A weapon's
+  class is declared in the character sheet's own words and read ahead of the
+  weapon table. Qualities are core's own tags: toggling one writes the tag
+  core expects and, for melee, missile and slow, the checkbox beside it.
+- **The pencil arms the whole sheet.** A sheet opens locked: every field that
+  writes the item is disabled until the pencil is pressed, and a drop only
+  warns. Equip, roll, pin, take out, configure and identify still work on a
+  locked sheet.
+
+### Removed
+- The Construction tab's capacity field and applied-variations list (Details
+  carries both), and the tags editor popup.
+
 ## 7.4.2
 
 **Installing the Discord bot with the command the guide gives you gets past

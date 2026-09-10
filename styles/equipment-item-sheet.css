@@ -994,10 +994,10 @@
   display: none;
 }
 
-/* The markets panel and the construction panel inherit the sheet's own
-   control styling rather than core's form-group look. */
-.acks-extras-item-sheet__mount .form-group,
-.acks-extras-item-sheet__mount .acks-equipment-props__row {
+/* The markets panel inherits the sheet's own control styling rather than
+   core's form-group look; the construction panel is drawn in the sheet's own
+   classes (§ Construction below). */
+.acks-extras-item-sheet__mount .form-group {
   display: flex;
   align-items: center;
   gap: var(--acks-sp-4);
@@ -1006,8 +1006,7 @@
   margin: 0;
 }
 
-.acks-extras-item-sheet__mount .form-group > label,
-.acks-extras-item-sheet__mount .acks-equipment-props__label {
+.acks-extras-item-sheet__mount .form-group > label {
   flex: 0 0 40%;
   font-family: var(--acks-font-display);
   font-size: calc(9.5px * var(--acks-extras-k));
@@ -1029,14 +1028,12 @@
   margin: var(--acks-sp-4) 0 var(--acks-sp-2);
 }
 
-.acks-extras-item-sheet__mount .acks-equipment-props__note,
 .acks-extras-item-sheet__mount .hint {
   font-family: var(--acks-font-ui);
   font-size: calc(11px * var(--acks-extras-k));
   color: var(--acks-ink-soft);
 }
 
-.acks-extras-item-sheet__mount .acks-equipment-props__btn,
 .acks-extras-item-sheet__mount .acks-location-btn {
   min-height: calc(22px * var(--acks-extras-k));
   padding: var(--acks-sp-2) var(--acks-sp-3);
@@ -1050,27 +1047,80 @@
   cursor: pointer;
 }
 
-/* A chip is OFF by default and reads as an unticked box — the button skin above
-   is the "this does something now" tier and would make every chip look picked. */
-.acks-extras-item-sheet__mount .acks-equipment-props__chip {
-  min-height: calc(22px * var(--acks-extras-k));
-  padding: var(--acks-sp-2) var(--acks-sp-3);
-  border: var(--acks-rule-hair) solid var(--acks-tint-2);
-  background: transparent;
-  color: var(--acks-ink-soft);
-  font-family: var(--acks-font-ui);
-  font-size: var(--acks-fs-fine);
-  font-weight: var(--acks-weight-body);
-  letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
-  cursor: pointer;
+/* --- Construction --------------------------------------------------------- */
+
+/* One row per declaration: the caption, then a dropdown, a strip or a note.
+   A note rides under the control it explains, inside that control's rule. */
+.acks-extras-item-sheet__props {
+  display: grid;
 }
 
-.acks-extras-item-sheet__mount .acks-equipment-props__chip.is-on {
-  border-color: var(--acks-spot);
-  background: var(--acks-tint);
-  color: var(--acks-spot);
+.acks-extras-item-sheet__prop {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding-block: calc(4px * var(--acks-extras-k));
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-item-sheet__prop:has(+ .acks-extras-item-sheet__prop.is-note) {
+  padding-block-end: calc(2px * var(--acks-extras-k));
+  border-block-end: none;
+}
+
+.acks-extras-item-sheet__prop.is-note {
+  padding-block-start: 0;
+}
+
+.acks-extras-item-sheet__prop-label {
+  flex: 0 0 40%;
+  font-family: var(--acks-font-display);
+  font-size: calc(9.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__prop-note {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-item-sheet__prop-group {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+}
+
+.acks-extras-item-sheet__prop-group > * {
+  min-width: 0;
+}
+
+.acks-extras-item-sheet .acks-extras-item-sheet__prop-input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  padding-block: var(--acks-sp-1);
+  font-size: calc(12.5px * var(--acks-extras-k));
+}
+
+/* The free-text tag box sits among the chips and takes the room a word needs. */
+.acks-extras-item-sheet .acks-extras-item-sheet__prop-input.is-tag {
+  flex: 0 1 auto;
+  width: 12ch;
+}
+
+.acks-extras-item-sheet__prop-strip {
+  flex: 1;
+  min-width: 0;
+  align-items: center;
 }
 
 /* --- Details -------------------------------------------------------------- */
@@ -1157,4 +1207,23 @@
 .acks-extras-item-sheet__chip-toggle.acks-tag--ghost {
   border-color: var(--acks-ink-faint);
   color: var(--acks-ink-soft);
+}
+
+/* Three states, because a declaration outranks an inference and a strip shows
+   which it is looking at: solid is declared, dashed is inferred, ghost is
+   neither. A locked chip is lit by construction and offered to nobody, and a
+   chip on a locked sheet keeps its colour — the reading is the point. */
+.acks-extras-item-sheet__chip-toggle.is-auto {
+  border-style: dashed;
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+  color: var(--acks-spot);
+}
+
+.acks-extras-item-sheet__chip-toggle.is-locked {
+  opacity: 0.75;
+}
+
+.acks-extras-item-sheet__chip-toggle:disabled {
+  cursor: default;
 }

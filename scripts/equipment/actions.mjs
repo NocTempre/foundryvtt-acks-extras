@@ -10,7 +10,7 @@ import { setWorn } from "../lib/item-model.mjs";
 import { LIGHT_SOURCES } from "../lib/light.mjs";
 import { ITEM_TYPE, isWearSlot } from "../lib/vocab.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
-import { equipmentClass, classifyWeapon, GRIPS } from "./profiles.mjs";
+import { equipmentClass, classifyWeapon, GRIPS, WEAPON_CATEGORY_VALUES } from "./profiles.mjs";
 import { consumeItem, roundsOf } from "./ammo.mjs";
 import {
   tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
@@ -227,6 +227,19 @@ export async function setWeaponGrips(item, grips) {
   if (!item) return false;
   if (grips === SLOT_AUTO || !GRIPS.has(grips)) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.GRIPS}`]: null });
   else await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.GRIPS}`]: grips });
+  return true;
+}
+
+/**
+ * Declare which proficiency class a weapon belongs to — a `WEAPON_CATEGORY`
+ * value — or `auto` to take the table row's own. The class is what a class
+ * training grant is matched against, so this is the declaration that lets a
+ * weapon no row identifies count as trained.
+ */
+export async function setWeaponCategory(item, category) {
+  if (!item) return false;
+  if (category === SLOT_AUTO || !WEAPON_CATEGORY_VALUES.has(category)) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.CATEGORY}`]: null });
+  else await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.CATEGORY}`]: category });
   return true;
 }
 

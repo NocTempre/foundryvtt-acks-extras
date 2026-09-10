@@ -16,6 +16,8 @@
       <span class="acks-tag">{{when}}</span>
       {{#if @root.editable}}
       <button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="configureEffect" data-effect="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.effects.configure'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
+      {{/if}}
+      {{#if @root.editing}}
       <button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="deleteEffect" data-effect="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.effects.delete'}}"><i class="fa-solid fa-trash" inert></i></button>
       {{/if}}
     </div>
@@ -25,7 +27,7 @@
       <span class="acks-empty-hint">{{#if effects.hiddenByIdentification}}{{localize 'ACKS-EQUIPMENT.itemSheet.effects.unidentifiedHint'}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.effects.mundaneHint'}}{{/if}}</span>
     </div>
     {{/each}}
-    {{#if editable}}
+    {{#if editing}}
     <div class="acks-row">
       <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="addEffect"><i class="fa-solid fa-plus" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.effects.add'}}</button>
     </div>
@@ -102,7 +104,7 @@
       <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="renameItem">{{localize 'ACKS-EQUIPMENT.named.rename'}}</button>
     </div>
     {{/if}}
-    {{#if gm}}
+    {{#if (and gm editing)}}
     <div class="acks-extras-item-sheet__row acks-row--wrap">
       <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="trueName" value="{{effects.named.trueName}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.trueHint'}}">
       <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="ladder" value="{{effects.named.ladderText}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.ladderHint'}}">
@@ -113,7 +115,7 @@
     <span class="acks-extras-item-sheet__note">{{localize 'ACKS-EQUIPMENT.named.gmHint'}}</span>
     {{/if}}
   </div>
-  {{else if gm}}
+  {{else if (and gm editing)}}
   {{#if effects.namedOffered}}
   <div class="acks-row">
     <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="saveNamed" data-tooltip="{{localize 'ACKS-EQUIPMENT.named.badgeNone'}}"><i class="fa-solid fa-signature" inert></i>{{localize 'ACKS-EQUIPMENT.named.make'}}</button>

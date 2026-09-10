@@ -31,7 +31,7 @@ import * as variationRules from "./variations.mjs";
 import * as variationItems from "./variation-items.mjs";
 import { BASE_TYPE, baseTypesFor } from "./base-types.mjs";
 import { baseTypeFields, hasBaseTypeFields } from "./variation-defs.mjs";
-import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised, setWeaponProfile, setWeaponSize, setWeaponGrips, setGearSlotList } from "./actions.mjs";
+import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised, setWeaponProfile, setWeaponSize, setWeaponGrips, setWeaponCategory, setGearSlotList } from "./actions.mjs";
 import { cycleStrap, strapOf, canStrap } from "./overlays/shield-variants.mjs";
 import { helmetType, isEnclosingHelm, enclosingHelmActive, HELM_MODIFIERS } from "./overlays/enclosing-helm.mjs";
 import { isSpellbook, spellbookValue, pagesUsed, pagesCapacity, spellbookSpells, setSpellbookSpells } from "./spellbook.mjs";
@@ -217,9 +217,10 @@ export function buildApi() {
     weaponIdentity, // which RAW weapon a document is, and on whose authority
     isUnidentifiedWeapon,
     inferredGrips,
-    setWeaponProfile, // the three declarations the item sheet writes
+    setWeaponProfile, // the declarations the item sheet's Construction panel writes
     setWeaponSize,
     setWeaponGrips,
+    setWeaponCategory,
     setGearSlotList,
     isHelmet, // armour classification: the one owner for the whole feature
     isShield,

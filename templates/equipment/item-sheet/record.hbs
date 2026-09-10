@@ -8,16 +8,16 @@
   {{#each record}}
   <label class="acks-extras-item-sheet__field{{#if width}} is-{{width}}{{/if}}{{#if (eq type "checkbox")}} acks-check{{/if}}">
     {{#if (eq type "checkbox")}}
-      <input type="checkbox" name="{{name}}" {{checked value}} {{disabled (not ../editable)}}>
+      <input type="checkbox" name="{{name}}" {{checked value}} {{disabled (not ../editing)}}>
       <span>{{label}}</span>
     {{else}}
       <span class="acks-extras-item-sheet__field-label"{{#if hint}} data-tooltip="{{hint}}"{{/if}}>{{label}}</span>
       {{#if (eq type "select")}}
-      <select class="acks-input acks-input--line" name="{{name}}" {{disabled (not ../editable)}}>
+      <select class="acks-input acks-input--line" name="{{name}}" {{disabled (not ../editing)}}>
         {{#each choices}}<option value="{{value}}" {{#if (eq value ../value)}}selected{{/if}}>{{label}}</option>{{/each}}
       </select>
       {{else}}
-      <input class="acks-input acks-input--line acks-nums" type="{{type}}" name="{{name}}" value="{{value}}" {{#if (eq type "number")}}step="any"{{/if}} {{disabled (not ../editable)}}>
+      <input class="acks-input acks-input--line acks-nums" type="{{type}}" name="{{name}}" value="{{value}}" {{#if (eq type "number")}}step="any"{{/if}} {{disabled (not ../editing)}}>
       {{/if}}
     {{/if}}
   </label>

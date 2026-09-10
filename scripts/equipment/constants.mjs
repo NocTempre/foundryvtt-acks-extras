@@ -103,6 +103,11 @@ export const ITEM_FLAGS = Object.freeze({
   // p. 127). Distinct from GRIP below, which is the grip a player has CHOSEN
   // this round out of the ones offered here.
   GRIPS: "grips",
+  // Which proficiency CLASS the weapon belongs to (a config.WEAPON_CATEGORY
+  // value), declared ahead of the table row's own. The class is what a
+  // training grant is matched against, so it is the declaration that makes a
+  // weapon no row identifies count as trained.
+  CATEGORY: "category",
   // Superseded by GRIPS and written by nothing — read so a world that set it by
   // hand keeps its answer.
   HANDS: "hands", // explicit hand cost override (number)

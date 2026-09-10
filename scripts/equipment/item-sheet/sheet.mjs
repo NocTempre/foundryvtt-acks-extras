@@ -21,16 +21,21 @@
  * subclass-of-core sheet that moved core's nodes around: the whole surface is
  * this module's own markup now, so nothing depends on the shape of the
  * system's template.
+ *
+ * The sheet opens LOCKED. Every field, toggle and construction control reads
+ * but does not write until the editor rail's pencil arms it (`#ui.editing`),
+ * and a sheet closed and reopened is locked again. What stays live while
+ * locked is what USES the item rather than describes it — rolling, equipping,
+ * pinning, splitting, storing, taking out, guessing a name — and the rail
+ * cells that open a dialog of their own.
  */
 import { MODULE_ID, ITEM_FLAGS, VARIATION_ITEM_TYPE } from "../constants.mjs";
 import { LANG } from "../constants.mjs";
 import { makeLoc, atTypeScale } from "../../lib/util.mjs";
-import { buildConstructionPanel } from "../sheet.mjs";
+import { buildConstructionPanel } from "./construction.mjs";
 import { buildMagicPanel } from "../../markets/apps/magic-panel.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import { applyVariation, isVariationItem, removeVariation, revealVariation, concealVariation } from "../variation-items.mjs";
-import { setBaseType } from "../variation-items.mjs";
-import { baseTypesFor } from "../base-types.mjs";
 import { disguiseItem, revealItem, setGearCapacity, prepareTorch, readiedWeaponData } from "../actions.mjs";
 import { PRISTINE, recomputeItemFields } from "../properties.mjs";
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
@@ -84,9 +89,8 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       split: AcksItemSheet.#onSplit,
       restack: AcksItemSheet.#onRestack,
       favorite: AcksItemSheet.#onFavorite,
-      editDescription: AcksItemSheet.#onEditDescription,
+      edit: AcksItemSheet.#onEdit,
       changeArt: AcksItemSheet.#onChangeArt,
-      editTags: AcksItemSheet.#onEditTags,
       ownership: AcksItemSheet.#onOwnership,
       source: AcksItemSheet.#onSource,
       showDetails: AcksItemSheet.#onShowDetails,
@@ -142,7 +146,7 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
   tabGroups = { primary: "rolls" };
 
   /** Sheet-local state that survives the re-render every form change causes. */
-  #ui = { previewAsPlayer: false, showDetails: false, editingDescription: false };
+  #ui = { previewAsPlayer: false, showDetails: false, editing: false };
 
   /** The model of the last render — what the actions read their ids against. */
   #model = null;
@@ -185,6 +189,9 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
   async _onClose(options) {
     for (const [hook, id] of this.#siblingHooks) Hooks.off(hook, id);
     this.#siblingHooks = [];
+    // Foundry keeps one sheet instance per document, so the armed state would
+    // otherwise survive the window: a sheet reopens locked.
+    this.#ui.editing = false;
     await super._onClose(options);
   }
 
@@ -209,7 +216,7 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       previewAsPlayer: this.#ui.previewAsPlayer,
       activeTab: this.tabGroups.primary,
       showDetails: this.#ui.showDetails,
-      editingDescription: this.#ui.editingDescription,
+      editing: this.#ui.editing,
     });
     this.#model = model;
     if (model.activeTab) this.tabGroups.primary = model.activeTab;
@@ -279,11 +286,8 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
   /** Set when a submit changed the baseline the layers are computed from. */
   #recomputeAfterSubmit = false;
 
-  /** A saved description closes the editor it was typed in. */
+  /** A submit that moved the listed price recomputes the layered fields from it. */
   async _processSubmitData(event, form, submitData, options) {
-    if (foundry.utils.hasProperty(submitData, "system.description") || foundry.utils.hasProperty(submitData, `flags.${MODULE_ID}.${ITEM_FLAGS.DISGUISE}.true.description`)) {
-      this.#ui.editingDescription = false;
-    }
     const result = await super._processSubmitData(event, form, submitData, options);
     if (this.#recomputeAfterSubmit) {
       this.#recomputeAfterSubmit = false;
@@ -343,7 +347,7 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
   #mountConstruction() {
     const mount = this.element.querySelector('[data-mount="construction"]');
     if (!mount || mount.children.length) return;
-    mount.append(buildConstructionPanel(this.item));
+    mount.append(buildConstructionPanel(this.item, { editing: !!this.#model?.editing }));
   }
 
   #mountMagic() {
@@ -386,8 +390,17 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
   async _onDrop(event) {
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     const zone = event.target?.closest?.("[data-drop]")?.dataset.drop ?? null;
+    // A drop that DESCRIBES the item — a chart's scene, a variation, a key, a
+    // disguise — is an edit and waits for the pencil; storing gear in a
+    // container is using it and stays live.
+    const locked = () => {
+      if (this.#model?.editing) return false;
+      ui.notifications.warn(loc("itemSheet.locked"));
+      return true;
+    };
     try {
       if (data?.type === "Scene" && data.uuid) {
+        if (locked()) return;
         const scene = await foundry.utils.fromUuid(data.uuid);
         if (scene && (await bindScene(this.item, scene))) return this.render();
         return;
@@ -396,10 +409,12 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       const dropped = await foundry.utils.fromUuid(data.uuid);
       if (!dropped || dropped.id === this.item.id) return;
       if (isVariationItem(dropped)) {
+        if (locked()) return;
         await applyVariation(this.item, dropped, { move: !!containedIn(dropped) });
         return this.render();
       }
       if (zone === "disguise" && game.user.isGM) {
+        if (locked()) return;
         await disguiseItem(this.item, {
           name: dropped.name,
           img: dropped.img,
@@ -411,6 +426,7 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
         return this.render();
       }
       if (zone === "keys") {
+        if (locked()) return;
         const rec = containerOf(this.item) ?? {};
         const keys = [...(rec.keys ?? [])];
         if (!keys.some((k) => k.uuid === dropped.uuid)) keys.push({ uuid: dropped.uuid, name: dropped.name });
@@ -486,8 +502,9 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
     await this.item.update({ "system.favorite": !this.item.system.favorite });
   }
 
-  static #onEditDescription() {
-    this.#ui.editingDescription = !this.#ui.editingDescription;
+  /** The pencil: arm or lock the whole sheet. */
+  static #onEdit() {
+    this.#ui.editing = !this.#ui.editing;
     this.render();
   }
 
@@ -502,45 +519,6 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
       current: this.item.img,
       callback: (path) => this.item.update({ img: path }),
     }).browse();
-  }
-
-  /**
-   * The ◇ cell: a weapon edits its core tags, anything else declares its base
-   * type. Both are small prompts rather than a tab — a tag is a word, and a
-   * base type is one pick.
-   */
-  static async #onEditTags() {
-    const item = this.item;
-    const Dialog = foundry.applications.api.DialogV2;
-    if (item.type === ITEM_TYPE.weapon) {
-      const current = (item.system.tags ?? []).map((t) => t.title || t.value).join("\n");
-      const result = await Dialog.prompt({
-        window: { title: loc("itemSheet.tags.title") },
-        content: `<p class="hint">${loc("itemSheet.tags.hint")}</p><textarea name="tags" rows="6" class="acks-input">${foundry.utils.escapeHTML(current)}</textarea>`,
-        ok: { label: loc("itemSheet.tags.save"), callback: (_ev, button) => button.form.elements.tags.value },
-        rejectClose: false,
-      });
-      if (result === null || result === undefined) return;
-      const tags = String(result).split(/\r?\n/).map((s) => s.trim()).filter(Boolean).map((title) => ({ title, value: title }));
-      await item.update({ "system.tags": tags });
-      return;
-    }
-    const types = baseTypesFor(item.type);
-    const options = [`<option value="">${loc("itemSheet.tags.baseTypeNone")}</option>`]
-      .concat(types.map((k) => `<option value="${k}" ${this.#snapBaseType() === k ? "selected" : ""}>${game.i18n.localize(`ACKS-EQUIPMENT.baseType.${k}`)}</option>`))
-      .join("");
-    const picked = await Dialog.prompt({
-      window: { title: loc("itemSheet.tags.baseTypeTitle") },
-      content: `<p class="hint">${loc("itemSheet.tags.baseTypeHint")}</p><select name="baseType" class="acks-input">${options}</select>`,
-      ok: { label: loc("itemSheet.tags.save"), callback: (_ev, button) => button.form.elements.baseType.value },
-      rejectClose: false,
-    });
-    if (picked === null || picked === undefined) return;
-    await setBaseType(item, picked || null);
-  }
-
-  #snapBaseType() {
-    return this.item.getFlag(MODULE_ID, "baseType") ?? "";
   }
 
   static #onOwnership() {

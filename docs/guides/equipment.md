@@ -93,18 +93,29 @@ a harness that says nothing secures nothing until you type it there. The
 character sheet's Load bar shows what it is forgiving as a dashed phantom past
 the fill, so you can see the rule working.
 
-**The slot is a guess, and you can correct it.** Open any item, go to
-**Construction**, and set *Worn at*. Three answers matter:
+**The slot is a guess, and you can correct it.** Open any item, press the
+pencil, and find *Worn at* under **Construction**: every place the character
+sheet's Worn rail knows, in its order, as a strip of toggles. Three readings
+matter:
 
-| Choice | Means |
+| Reading | Means |
 |---|---|
-| *Auto (…)* | let the module infer it from the item's name and type |
-| a slot | this is where it sits, whatever it is called |
-| *Carried — worn nowhere* | it is not worn at all — and this **overrides the name**, so a "Great Helm" you have ruled to be a trophy stays a trophy |
+| *Auto* lit, some places dashed | the module inferred those places from the item's name and type; nothing is declared yet |
+| places lit solid | this is where it sits, whatever it is called. Click a place to add or drop it; the first click turns the guess into your answer |
+| nothing lit | it is not worn at all, and this **overrides the name**, so a "Great Helm" you have ruled to be a trophy stays a trophy; *Auto* hands it back to the guess |
 
-![](../releases/v3.3.0/equipment-slot-picker.png)
+A weapon's hand places are lit and locked: holding it is what they mean. The
+whole tab keeps this shape: a drop-down wherever an item takes one answer from
+a registered list (base type, weapon type, class, size, masterwork, condition,
+silver, material, shield variant, helm), a strip of toggles wherever it takes
+several (grips, qualities, where it is worn), and *Other tags* only for what no
+list names.
 
-*Where a piece of gear is worn, what it holds, and what reaching into it costs.*
+![](../releases/v7.5.0/equipment.png)
+
+*The Construction tab armed: Auto naming its guess on every drop-down, the
+grips dashed from the size table, Melee lit from its field, and the axe's
+hands locked at Worn at with a belt declared beside them.*
 
 A slot's only rule is that you cannot wear two of the same thing, so a wrong
 guess costs nothing but that. Rings are the exception the Treasure Tome spells
@@ -300,8 +311,15 @@ it as a button. Right of the art, the state cells: **EQP** wears or wields it
 (on a stack it splits one out and equips that; click again to restack), **PIN**
 favourites it on the character sheet, **CAP** shows how full a container is,
 **LOCK** appears on a locked one. Beside the description, the editor rail:
-description editor, art, tags and base type, ownership (on a world item), and
-for the Judge the item's source and identification.
+the **pencil**, which unlocks the whole sheet (until you press it every field is
+a reading and only the use controls answer; press it again when done), then
+art, ownership (on a world item), and for the Judge the item's source and
+identification.
+
+![](../releases/v7.5.0/equipment-locked.png)
+
+*A sheet as it opens: the pencil unpressed, every field a reading, and the
+use cells on the rails still live.*
 
 **The tabs**, always in this order and only when earned:
 
@@ -335,8 +353,8 @@ that names what it accepts.*
 - **Details** — the price ledger (listed price, plating, masterwork, variations,
   condition, final) with the value mode (Priced / Unknown / N/A), the applied
   variations, the feature switches (*Holds other items*, capacity, *Will
-  Accept* kinds and the refusal message), the construction controls, and the
-  core record fields.
+  Accept* kinds and the refusal message), the construction controls (their shape is *Worn at*,
+  above), and the core record fields.
 
 An item with nothing to roll, no effects, no durability and no contents — coin,
 gems, a trinket — drops the tabs and the state rail entirely; a quiet **Details**

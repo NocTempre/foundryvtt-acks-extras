@@ -1123,3 +1123,81 @@ restated here.
 Shipped in the same release as that one rather than after it: the item sheet
 opens *from* the character sheet, so a scaled sheet next to an unscaled one
 reads as a broken module rather than a migration in progress.
+
+### One control per kind of answer, and the pencil arms the whole sheet (2026-09-09)
+
+The user set the Construction tab beside the character sheet's Stats training
+block and asked for one vocabulary between them; the same review found the
+sheet asking one kind of question three ways. A registered single choice was a
+select in one row (masterwork, condition) and a popup in another (base type).
+A registered set was a chip pair for grips that lit only once declared, a
+fourteen-place select for where a thing is worn beside a three-place strip
+that did not agree with it, and free text for the booleans core's attack
+pipeline reads (melee, missile, slow). The proficiency class was a note in a
+third vocabulary with no control under it. And the pencil opened the
+description editor and nothing else, while the band and every Details field
+wrote on each keystroke whether or not anyone meant to edit.
+
+**Ruled: a registered enum is a select when it takes one answer and a strip of
+toggles when it takes several, and a strip shows every option, always.** Base
+type, weapon type, class, size, masterwork, condition, silver, material, shield
+variant and helm are selects, each with *Auto (guess)* first where the module
+infers. Grips, qualities and where the item is worn are strips. Free text
+survives only as *Other tags*, for what no registry names and no effect reads.
+
+**Ruled: three chip states, and Auto is a chip of its own.** A chip is *on*
+(declared, solid), *auto* (inferred, dashed) or *off* (ghost). Auto lights
+dashed while nothing is declared; the first click on any option declares the
+inferred set with that one change, so a Judge who agrees with the guess and
+adds a belt does not lose the hands; Auto hands the set back to inference.
+Both grips off is Auto again, since a weapon offers at least one grip. Every
+place off while the places are declared is the empty declaration: carried,
+worn nowhere, which is what the old *Carried — worn nowhere* option said and
+what `gear.slots = []` has always meant. A weapon's hand places are lit and
+locked: holding it is what they mean.
+
+**Ruled: the class is a declaration with a flag of its own, and the item sheet
+and the character sheet share one list.** `flags.acks-extras.category` is read
+by `classifyWeapon` ahead of the table row's own; the select lists the lib
+classes in the order and words the Stats tab draws them (character-sheet
+DECISIONS 2026-09-03, *The training list keeps the lib vocabulary*), and the
+Worn-at strip is the fourteen places of `WEAR_SLOT_ORDER` the Worn rail draws.
+The 2026-09-07 entry's cost line left the category without a flag, riding on
+`profileKey`; the new evidence is the user's screenshot pair — a class
+corrected on the character sheet had nowhere to be recorded on the item, and
+the two surfaces did not even name the classes alike.
+
+**Ruled: qualities are core's own tag registry, written as core writes them.**
+The strip is `CONFIG.ACKS.tags`, nine registered weapon tags. Toggling one
+writes the `{title, value}` tag core's `pushTag` expects and, for the three
+that have a field (melee, missile, slow), sets the boolean beside it, so core's
+attack pipeline and its tag icons agree with the chip. Core's registry holds
+lang keys in source and the localized words once the world's language has
+loaded, so the same tag can be stored under either spelling; the strip matches
+by the slug of its key, its label or its raw value, and a hand-typed "Melee"
+lights the chip.
+
+**Ruled: the pencil arms the whole sheet.** `editing` is permission AND the
+pencil; every control that writes the document is disabled until armed, and a
+drop on a locked sheet warns and refuses. The use-actions (equip, roll, pin,
+take out, configure an effect, identify) stay live, because using a thing is
+not editing it. The state is sheet-local and forgotten on close, so a sheet
+never opens armed.
+
+**Rejected.** A popup for base type (a select is the same answer with fewer
+steps). Two controls for where a thing is worn (the screenshots put them beside
+the rail they should match). A *Carried* chip among the places (the answer
+"none of these" is the strip's empty state, not one of its options). Editing
+qualities through core's tag popup (it writes free text, and free text is what
+the strips exist to retire for registered values). Leaving the fields live
+behind a pencil that unlocked only the description (a field that writes on
+every keystroke is not a reading, and the band's name and price are the ones
+most often brushed by accident).
+
+**Cost.** One flag (`category`) and one action (`setWeaponCategory`). The panel
+moves out of `sheet.mjs` into `item-sheet/construction.mjs` over a pure
+`construction-model.mjs` that `tools/test-item-sheet.mjs` asserts. The panel's
+capacity field and applied-variations list are gone, since Details already
+carried both, with the `stowed`, `slotAuto`, `category.*` and
+`itemSheet.tags.*` lang keys. Live-verified; see
+[TESTING.md](TESTING.md#the-item-sheet).
