@@ -1,5 +1,32 @@
 # Changelog
 
+## 7.4.2
+
+**Installing the Discord bot with the command the guide gives you gets past
+npm's cache error.**
+
+### Fixed
+- **`sudo npm run install-service` no longer fails at the dependency step.**
+  7.3.2 gave that step the service user's own `HOME`, and it was still
+  refused: `npm run` hands the script it runs every npm setting the CALLER
+  resolved, so `npm_config_cache=/root/.npm` and
+  `npm_config_userconfig=/root/.npmrc` were already in the installer's
+  environment before it started. Those names outrank `HOME` in npm's own
+  resolution and `runuser` scrubs nothing, so the correct home arrived and was
+  ignored, npm read and wrote root's directories as the service user, and the
+  install died `EACCES` with nothing enabled — the same failure on every
+  re-run. The whole `npm_config_*` family is now stripped from the environment
+  that step is handed, so the child resolves against the home the command
+  gives it, which is the one the service runs with. Reaching the installer as
+  `sudo node src/install-service.mjs` was the way past this on 7.3.2 and still
+  works.
+
+### Changed
+- **`npm run validate` now runs the docs site's staging gate.** It fires on
+  every push with no path filter, so a guide the sidebar does not name failed
+  CI on a release commit and on every push after it, while the release
+  procedure told the session a green validate had already covered it.
+
 ## 7.4.1
 
 **Apply Stats leaves an imported OSE creature alone instead of emptying its

@@ -947,11 +947,15 @@ sees before pressing it.
    `Date.now() - <world launch>` and the client adds its own latency delta, so
    it is a DURATION since the world launched, not a timestamp. Against an epoch
    `createdTime` every document in the world compares as newer, and a filter
-   built on it deletes the library. Where a run genuinely needs a server-stamped
-   epoch, mint one: create a throwaway document, read its `_stats.createdTime`,
-   delete it by its own uuid. The filter is a safety net under the early
-   read-back, never the key — a clock skew that excludes leaves a fixture
-   behind, which is the direction to fail in.
+   built on it deletes the library. The server names the same quantity honestly
+   one layer up — `/api/status` serves it as `uptime`, and both read the one
+   `Activity#serverTime` getter — so if the endpoint's word for a number is
+   `uptime`, that is what the client's `serverTime` is too. Where a run
+   genuinely needs a server-stamped epoch, mint one: create a throwaway
+   document, read its `_stats.createdTime`, delete it by its own uuid. The
+   filter is a safety net under the early read-back, never the key — a clock
+   skew that excludes leaves a fixture behind, which is the direction to fail
+   in.
    `_stats.lastModifiedBy` is not a second opinion either: it is a static stamp
    of the USER who last wrote, so it is exact about users and blind to sessions,
    and sessions are what a teardown must tell apart. Quote what was removed,

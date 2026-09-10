@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installReason, npmCommand, installArgs } from "../src/prestart.mjs";
 import { PassThrough, Writable } from "node:stream";
-import { renderUnit, parseEnv, renderEnv, discordHalf, makeAsker, dependencyCommand, STATE_DIR } from "../src/install-service.mjs";
+import { renderUnit, parseEnv, renderEnv, discordHalf, makeAsker, dependencyCommand, withoutNpmConfig, STATE_DIR } from "../src/install-service.mjs";
 import { findBrowser, BROWSERS, isSnapStub } from "../src/browsers.mjs";
 import { browserFailure } from "../src/seat.mjs";
 
@@ -101,6 +101,22 @@ test("the dependency step carries HOME inside the command, where no runner can r
     // it — and a sudoers policy without SETENV refuses the flag outright.
     assert.ok(!argv.includes("-E"));
   }
+});
+
+test("npm's own config does not travel from the root shell into the dependency step", () => {
+  // `sudo npm run install-service` exports the cache and config paths it
+  // resolved against root's home. They outrank HOME in the child npm and
+  // runuser scrubs nothing, so root's directories are what the service user
+  // would read and write — EACCES, and an installer that enables nothing.
+  const cleaned = withoutNpmConfig({
+    PATH: "/usr/bin",
+    HOME: "/root",
+    npm_config_cache: "/root/.npm",
+    npm_config_userconfig: "/root/.npmrc",
+    NPM_CONFIG_PREFIX: "/root/.npm-global",
+    npm_lifecycle_event: "install-service",
+  });
+  assert.deepEqual(Object.keys(cleaned).sort(), ["HOME", "PATH", "npm_lifecycle_event"]);
 });
 
 test("a re-install drops an earlier file's Discord half and says so, unless the operator sets it on purpose", () => {

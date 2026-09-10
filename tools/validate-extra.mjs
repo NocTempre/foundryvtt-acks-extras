@@ -181,3 +181,13 @@ console.log(`  ok: every registry read is declared (${declared.size} document(s)
   const { execFileSync } = await import("node:child_process");
   execFileSync(process.execPath, [path.join(ROOT, "tools", "importer", "validate-extra.mjs")], { stdio: "inherit" });
 }
+
+/* --- 6. The docs site's staging gate --------------------------------------
+   `pages.yml` fires on every push with no `paths:` filter, so a guide the
+   sidebar does not name fails CI on the release commit and on every push
+   after it. The release procedure tells a session a green `npm run validate`
+   already covers this; that is only true while this chain is here. */
+{
+  const { execFileSync } = await import("node:child_process");
+  execFileSync(process.execPath, [path.join(ROOT, "docs", "site", "tools", "sync.mjs")], { stdio: "inherit" });
+}

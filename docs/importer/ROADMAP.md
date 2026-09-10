@@ -774,3 +774,57 @@ current SCG constants — and it has questions the ACKS refill never had: whethe
 a re-conversion may overwrite conversions a Judge has since corrected, and what
 happens to `flags["acks-extras"].ose.conversions` when the constants moved
 between the import and the refill.
+
+The family's existing "a Judge's repair is never overwritten" check does not
+transfer to it. `editedSinceImport` compares a document against an
+`asImported` snapshot and treats an absent snapshot as edited, which is correct
+where every document it asks about is one that path created — and no actor the
+importer makes carries one, so reusing the check unchanged skips every creature
+in every world and reports success. The gap does not close by backfilling
+either. A snapshot derived from a document's own current state makes every hand
+repair certify as pristine, and one re-derived from a fresh conversion is not
+what the original import produced: the extraction has since changed what it
+yields for these books, and what it changed is the description — the field a
+Judge is likeliest to have written by hand, because it arrived empty. So the
+rule for whoever builds this is that a snapshot is never derived from a
+document's current state — which leaves two designs open and the choice
+unmade: an OSE import that stamps a snapshot at creation, so later refills
+have something honest to compare against, or a refill carrying no edited-check
+at all, which instead names what it will overwrite before it writes. Only the
+first puts a second writer on `asImported`, so what may assign that flag is
+downstream of this choice and not settled by it being true today.
+
+## An actor keeps whatever the recipe said the day it was imported
+
+Every actor import path asks whether the id is already present and stops there,
+so a release that corrects an entry's geometry reaches new worlds only. The
+Item side can already carry a withdrawn id forward through the `merged` array;
+the actor side compares ids exactly and has nothing equivalent, and there is no
+per-document prune for an actor whose id no longer resolves — only the
+whole-library removal. What is unbuilt is the pair: an actor-side alias so a
+retired id resolves to its replacement, and a dangling-actor sweep beside
+`cookbookPruneAbilities`. The 2026-09-09 decision records what was measured and
+why the first release shipped a written remedy instead.
+
+## `cookbookImportIds` declines an entry without saying so
+
+Which kinds it builds is stated at the entry point; what is unbuilt is the
+refusal. `importMany` counts the actors that came back and has no branch for a
+null, so a declined id produces no notification, no count and no reason — two
+sessions have now spent time probing an OSE change through this entry point
+before finding the guard in `importOne`.
+
+Making the refusal audible is a placement question, and `importOne` is the
+wrong place for it. Its contract is document-or-null and `importMany` counts
+`if (actor)`, so a reason object returned in place of null is truthy and lands
+in the success total — the change would have to reach a loop every caller
+shares, and that loop is not where the bad input arrives. It arrives in exactly
+one place: the dialog and import-all both enumerate through
+`actorEntriesAcrossBooks`, which filters on `actorKindOf`, so neither can hand
+`importMany` a kind it will decline, and `cookbookImportIds` is the only entry
+point given an unvalidated list. It already pre-filters that list once, on
+`importedIdSet()`. A kind filter sits beside the presence filter, in the one
+place a wrong kind can enter, and the counting loop never learns the check
+exists. What the Judge then gets is the declined kinds named beside the count
+of what was already present — the two silences that currently look identical,
+told apart.

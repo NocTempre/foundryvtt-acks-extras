@@ -3667,3 +3667,58 @@ tampered with by hand had both retracted to their schema initials, so the
 retraction is unchanged for entries that carry stats. Pre-existing — the
 retraction loop and the OSE authored-book importer were written for different
 questions and never met.
+
+### A corrected recipe does not reach a world that already imported it (2026-09-09)
+
+**Problem.** The column fix rewrote 14 OSE entries' geometry and retired 4 ids
+that never named a real creature. None of it reaches a Judge who has already
+imported those books. `importOseBook` asks the shelf whether the id is present
+BEFORE it renders the page, in its per-entry loop, deliberately — the check
+was moved ahead of the read so that re-running "import everything" over a full
+world does not pay for three hundred page parses to decide it wants none of
+them. The consequence is that a corrected box produces nothing at all on a
+document that exists. There is no actor-side refresh anywhere to compensate:
+`cookbookUpdateAbilities` and `cookbookUpdateClasses` rewrite Items, and
+`cookbookReimportShelf` selects by id PREFIX from a table whose every prefix is
+`def.`, so neither can reach an `aft.`/`dmb.` actor.
+
+**Measured, twice, against a world holding 163 of the two books' entries.**
+Re-importing creates **6 actors and changes nothing else**: aft's two new ids,
+Dolmenwood's two new creatures, and the two generators its six new class-step
+rows collapse into. 163 entries report already present; zero `updateActor` or
+`updateItem` hooks fire; nothing is deleted. Confirmed independently by the
+release session against its own pre-upgrade world — 163 already present, 4
+created, 0 updated, 0 deleted. The retired ids are referenced nowhere, so no
+dangling reference is created, and `cookbookAudit` builds its list from the
+shipped cookbook alone, which puts an orphan outside its domain rather than in
+its error list.
+
+**Ruled: disclose it and hand over the remedy; do not build a migration.** The
+release notes carry an "Upgrading an existing world" section saying that
+already-imported creatures keep what they have, that nothing is changed or
+deleted, and which ids to delete and re-import to pick the corrections up.
+
+**Rejected: adopting the retired ids into their replacements.** The Item side
+already has the mechanism — `byId` indexes each document under its own id and
+every id in its `merged` array, so a withdrawn id keeps
+resolving. `importedActor` compares the id exactly and has
+no equivalent. Building one is a schema commitment and a new collision surface,
+made to serve four documents in two third-party books, delivering a fix a Judge
+can also get by deleting them.
+
+**The remedy is 14 actor ids, and the indirection is what gets a remedy list
+wrong.** `dmb.level{1,3,5}Enchanter`, `dmb.level{1,3,5}Fighter` and
+`dmb.level3Knight` are template-group MEMBERS and own no actor of their own —
+the documents to delete are `dmb.group.enchanter`, `dmb.group.fighter` and
+`dmb.group.knight`. A list built by copying the changed entry ids matches
+nothing for seven of the fourteen.
+
+**Cost.** Four orphan actors with no per-document cleanup. `danglingAbilities`
+walks imported Items and skips anything that is not type `ability`, so
+`cookbookPruneAbilities` cannot see an actor; only the whole-library "Remove ALL
+Imports" reaches one. Two of the four are the phantom Griffon and Hawk rows,
+whose names are identical to creatures that also exist correctly — and on those
+two pages BOTH documents have to go, because the surviving flagged one holds
+what the old box read and the orphan holds the rest, so neither is right on its
+own. The other two carry a welded title naming two creatures at once, which is
+at least unmistakable.

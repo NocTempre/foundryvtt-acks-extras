@@ -219,7 +219,7 @@ async function main() {
       hasRunuser: fs.existsSync("/usr/sbin/runuser") || fs.existsSync("/sbin/runuser"),
       node: process.execPath,
     });
-    execFileSync(runner, args, { cwd: ROOT, stdio: "inherit" });
+    execFileSync(runner, args, { cwd: ROOT, stdio: "inherit", env: withoutNpmConfig(process.env) });
   } catch {
     console.error(`\ninstall-service: dependencies could not be installed as ${user} (see npm's output above). Fix that, then run this command again; nothing was enabled.`);
     process.exit(1);
@@ -238,15 +238,30 @@ async function main() {
 export const STATE_DIR = `/var/lib/${UNIT_NAME}`;
 
 /**
+ * The environment handed to the dependency step, with npm's own config removed.
+ *
+ * `npm run` exports every npm setting to the script it runs, cache and config
+ * paths among them, already RESOLVED against the caller's home:
+ * `sudo npm run install-service` puts `npm_config_cache=/root/.npm` and
+ * `npm_config_userconfig=/root/.npmrc` into this process's environment. Those
+ * names outrank `HOME` in npm's own resolution and survive `runuser`, which
+ * scrubs nothing, so the npm that runs as the service user reads and writes
+ * root's directories and dies EACCES — an installer that enables nothing, and
+ * the same failure on every re-run. Stripping them lets the child's own `HOME`
+ * decide, which is what the service gets at runtime.
+ */
+export const withoutNpmConfig = (env) => Object.fromEntries(Object.entries(env).filter(([k]) => !/^npm_config_/i.test(k)));
+
+/**
  * The argv that runs `prestart` as the service's user with the service's HOME.
  *
  * `HOME` is set by `env` INSIDE the command the runner executes, never in the
  * environment handed to the runner: both runners re-decide `HOME` for the user
  * they switch to, so a value passed from outside reaches the runner and stops
- * there. npm then resolves its cache under whatever `HOME` the root shell had —
- * `/root/.npm`, which the service user cannot write — and `npm ci` dies EACCES
- * with an installer that enables nothing. Inside the argv, `env` sets it after
- * the switch and no runner policy is left to overrule.
+ * there. Inside the argv, `env` sets it after the switch and no runner policy
+ * is left to overrule. What the child then resolves against that `HOME` — npm's
+ * cache among it — is only reached when npm's own config is not in the
+ * environment overruling it; {@link withoutNpmConfig} is what keeps it out.
  *
  * @param {object} o
  * @param {string} o.user        The account the service runs as.

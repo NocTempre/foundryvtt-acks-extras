@@ -527,3 +527,29 @@ class of bug rather than the instance.
 **Cost:** an operator who already followed npm's advice owns a `/root/.npm`
 chowned to the service user. Nothing reads it after this, so it is untidy
 rather than harmful — the guide's troubleshooting entry says to undo it.
+
+### npm's own config does not travel into the dependency step (2026-09-09)
+
+New evidence the same day's ruling above did not have: a second field report,
+from the invocation the guide actually documents. `sudo npm run install-service`
+fails at the dependency step exactly as `sudo node src/install-service.mjs` did
+before it — `EACCES` under `/root/.npm`, npm advising a chown of root's cache,
+nothing enabled — and the `HOME` fix cannot touch it. `npm run` exports every
+npm setting to the script it runs, resolved against the CALLER's home:
+`npm_config_cache=/root/.npm` and `npm_config_userconfig=/root/.npmrc` are in
+the installer's environment before it starts. Those names outrank `HOME` in the
+child npm's resolution and `runuser -u` scrubs nothing, so the correct `HOME`
+arrives and is ignored.
+
+**Ruled: the whole `npm_config_*` family is stripped from the environment the
+dependency step is handed** (`withoutNpmConfig`). The child then resolves
+against the `HOME` the argv gives it, which is what the service gets at runtime.
+
+**Rejected: naming `npm_config_cache` in the argv beside `HOME`.** It fixes npm
+and leaves every other inherited setting — `userconfig`, `prefix` — pointing at
+root, which is the same instance-over-class objection the entry above rejected
+pre-creating a cache for. Stripping the family answers both.
+
+**Cost:** an operator who set an npm cache or registry config deliberately, in
+root's environment, for this install loses it here; the service's own npm never
+had it either, so the dependency step and the running service now agree.
