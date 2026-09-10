@@ -125,9 +125,11 @@ export function joinRuns(runs, fixes = {}, dropText) {
 /**
  * Drop a trailing "[Class, Class, …]" list — the classes a JJ custom power is
  * available to. Deliberately tight: it must be the LAST thing in the text and
- * contain only capitalised names, so a bracket used for anything else survives.
+ * open with capitalised names, so a bracket used for anything else survives.
+ * The list may close with one semicolon clause qualifying who else may take
+ * it (JJ p317); the clause is the list's business as much as the names are.
  */
-const OWNER_LIST = /\s*\[\s*[A-Z][A-Za-z'’’.\- ]*(?:,\s*[A-Z][A-Za-z'’’.\- ]*)*\s*\]\s*$/;
+const OWNER_LIST = /\s*\[\s*[A-Z][A-Za-z'’’.\- ]*(?:,\s*[A-Z][A-Za-z'’’.\- ]*)*(?:;[^\]]*)?\s*\]\s*$/;
 const stripOwnerList = (text) => String(text ?? "").replace(OWNER_LIST, "").trim();
 
 /** Names vary by small-caps and spacing between books, so compare folded. */
@@ -1275,7 +1277,18 @@ async function execInstruction(instr, ctx) {
         const runs = runsIn(ppd, para);
         claim(runs, ctx.field);
         const text = clean(joinRuns(runs, para.fixes ?? instr.fixes, para.dropText));
-        if (text) paras.push({ type: "paragraph", ...(para.section ? { section: para.section } : {}), text });
+        if (!text) continue;
+        // A box that opens mid-sentence continues the box before it: the
+        // passage turned a column or a page there, and the print never broke
+        // a paragraph at that turn. Lower-case first letter after a previous
+        // box that closed without terminal punctuation is that shape and no
+        // other; a box carrying its own section label is always a new one.
+        const prev = paras[paras.length - 1];
+        if (prev && !para.section && /^[a-z]/.test(text) && !/[.!?:;"”’)\]]$/.test(prev.text)) {
+          prev.text = `${prev.text} ${text}`;
+          continue;
+        }
+        paras.push({ type: "paragraph", ...(para.section ? { section: para.section } : {}), text });
       }
       // The JJ closes a custom power with the classes that may take it —
       // "[Beastmaster, Cultist of Atlach-Nacha, Elven Nightblade, Fool]". That

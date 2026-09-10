@@ -285,6 +285,12 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "columns": [
+        45,
+        301.5
+      ]
     }
   },
   {
@@ -3723,7 +3729,22 @@
     "meta": {
       "category": "classPower"
     },
-    "icon": "systems/acks/assets/icons/acrobatics.webp"
+    "icon": "systems/acks/assets/icons/acrobatics.webp",
+    "assists": {
+      "columns": [
+        45,
+        190
+      ],
+      "descStopY": 740,
+      "descAppend": [
+        {
+          "x0": 296,
+          "x1": 612,
+          "y0": 512,
+          "y1": 540
+        }
+      ]
+    }
   },
   {
     "id": "def.power.attunementToNature",

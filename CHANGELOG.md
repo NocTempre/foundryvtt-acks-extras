@@ -1,5 +1,35 @@
 # Changelog
 
+## 7.5.2
+
+**Descriptions keep the examples printed inside them, and the register's known
+bounds land.**
+
+### Fixed
+- **An entry keeps its own example or note.** The book sets a worked example
+  or a note inset inside the entry it illustrates, under a run-in label, and
+  the compiler read that label as the next entry. Hard to Kill, Savage
+  Resilience, Supernatural Resilience, Treachery, Mercantile Network, Monopoly
+  Power, Traditional Medicine, Death Healing, Arcane Striking and Wall now
+  carry theirs (RR pp. 43–153).
+- **Acrobatics ends at its own ending.** RR p. 88 wraps the entry around a
+  grid and finishes it in a frame above its own foot; the description stops at
+  the foot and continues in the frame, instead of importing the grid.
+- **Expert Bargaining reads in order.** RR p. 42's columns were detected from
+  the progression grid; the register now states them, and the continuation
+  under the illustration follows the opening.
+- **Class introductions are the introduction.** Every class intro in RR and
+  By This Axe had its words welded together. Warlock, Witch and Shaman carried
+  cells of the level grid or its footnote; Nobiran Wonderworker and the ten
+  By This Axe classes opened on the stat block's last line; eight RR intros
+  carried a straddling grid column or a margin tab.
+- **A paragraph that turns a column or a page stays one paragraph.**
+  Thirty-seven descriptions across RR, JJ and By This Axe were split where
+  the print never broke one.
+- **Eldritch Talent's owner list is stripped whole.** JJ p. 316 closes its
+  list of who may take the power with a clause after a semicolon; the bracket
+  now goes with the clause instead of staying in the text.
+
 ## 7.5.1
 
 **An imported ability's description stops where the entry stops.**

@@ -3843,7 +3843,8 @@ inside its own entry, labelled in the anchor's face and inset four and a half
 points — inside the stop rule's tolerance, so the block ends at the callout
 and loses it. JJ p316 Eldritch Talent closes with a bracket holding a remark
 rather than a list of names; `stripOwnerList` is deliberately tight and leaves
-it, and one bracket in the book is not evidence to widen it.
+it, and one bracket in the book is not evidence to widen it. *Superseded the
+same day by the entry below, for every item but the p113 tables.*
 
 **The instrument, withdrawn as a check.** Its verdict mode was run here after
 each merge and each mechanism round, and over 36 entries nobody was authoring.
@@ -3856,3 +3857,87 @@ the op diff and the page.
 next page is cut at the pull-quote. A continuation whose first line is alone a
 short capitalised phrase in a non-body face ends there. Neither exists in the
 corpus today; the recompile diff would show one.
+
+### A callout is named, not measured; a class intro is the prose in its own face (2026-09-10)
+
+**Problem.** The entry above left five diagnosed defects open, and the user
+directed that they be fixed rather than carried. Working them showed that they
+were not five register rows but three mechanisms and two bounds, and the
+measurement turned up more of the same shape. RR p153 Wall's note is inset
+four and a half points in the run-in face; so are the examples under RR p43,
+p45, p51, p79 and p99 — ten entries in all, and every one ended at its own
+callout. RR p88 Acrobatics narrows beside a grid and finishes in a frame above
+its foot; RR p42 Expert Bargaining's page detects the progression grid's edges
+as its columns. JJ p316 closes its owner list with a semicolon clause and kept
+the bracket. Thirty-seven entries across the three books arrived as two
+paragraphs where the print turned a column or a page mid-sentence. And every
+class intro — the band read from a class page's left column — had its words
+welded, because the intro para was the one text block never sent through
+`withFixes`; Warlock, Witch and Shaman carried the level grid's XP cells or its
+footnote, Nobiran Wonderworker and the ten By This Axe classes opened on the
+stat block's last line, and eight more carried a straddling grid column or a
+margin tab.
+
+**Ruled.** A run-in labelled as an example or a note never ends a block
+(`CALLOUT_RE`): no entry in any book is named so, and the label's word is the
+only thing that separates an inset callout from an inset sibling — RR p151
+Headquarters sets a whole block of siblings, AC and SHP among them, at the same
+four-and-a-half-point inset. The stop rule keeps its column-edge bound as it
+was. The executor joins a box that opens with a lower-case letter to a
+previous box that closed without terminal punctuation, unless the new box
+carries its own section label; the frame RR p88 finishes in is stated by a new
+assist, `descAppend`, and joins that way. `stripOwnerList` accepts one
+semicolon clause after the names — it qualifies who else may take the power,
+which is the list's business as much as the names are; the pattern stays
+anchored to a capitalised list and to the closing bracket at the end of the
+text. The class intro is the candidate lines that hold a word — the stat block
+opens each of its lines with a control-character run on the edge (RR p94,
+U+008D), which `trim` does not blank — in their dominant face; what the box
+still encloses of the grid is dropped by FACE, read off the gridded rows the
+band holds page-wide, and shipped as drop ordinals, never as text; and the
+intro para receives the run fixes every other block does. A gridded row holds
+at least one body-height run, so a row of superscript ordinals no longer ends
+a column flow (RR p36). Expert Bargaining's page states its columns in the
+register; the carry into the second column skips the grid at its head and
+resumes under the illustration.
+
+**Rejected: the prose edge as the sibling test.** Measured as the mode of
+body-line x it missed bulleted columns (RR p154) and hanging indents (RR p129)
+and grew sixteen entries; measured as the leftmost x it read RR p153's note
+correctly and then read RR p151's structures block — siblings set 4.5pt in as
+a whole — as one entry of seven paragraphs. An inset callout and an inset
+sibling stand on the same x. Geometry cannot tell them apart; the word can.
+The edge survives only where it belongs: the class intro band, where the
+column band also holds the grid's cells and the margin tab.
+
+**Rejected: keeping the grid out of an intro by height or by tolerance.** The
+footnote under RR p74's grid sits 3.8pt above a prose baseline, where an
+ordinal sits, so no vertical tolerance separates the two without losing
+ordinals; the grid's widest XP cell starts inside the prose's right edge, so no
+x bound keeps it out without cutting the lines below the grid. The face is
+what the page actually varies.
+
+**Measured, whole corpus, all books, executor held constant:** RR 33 entries
+changed against 7.5.1 — 21 class intros, ten callout entries longer by their
+callout, Acrobatics 1797 → 1131 characters, Expert Bargaining one paragraph in
+reading order; JJ 0; BTA 10, every dwarven intro shorter by the stat line. The
+executor change alone: 37 joins (RR 14, JJ 20, BTA 3), and Eldritch Talent
+965 → 860. Both together against 7.5.1: 79 of 1937 entries — RR 46 (32
+longer, 14 shorter), JJ 20, BTA 13. Every grown RR entry's last line was read
+against its page and ends at the next sibling, a section heading or a
+pull-quote; every class intro was materialized, holds no grid cell, footnote or
+stat label, and ends on the page's own last intro line. Validate and the suite
+green. The instrument was not used.
+
+**Withdrawn.** The Gambling bound proposed for RR p113 compiled to the box the
+register already produced and was not merged; the games table has no register
+node and stays uncaptured, with the other p113 tables.
+
+**Cost.** An entry genuinely named Note or Example would be absorbed by the
+entry before it; none exists in the three books, and the register lint would
+show a new one. A box that opens with a lower-case letter after a box that
+ended without punctuation is joined even where the print did break the
+paragraph — the corpus holds no such pair; every join was read at its seam. An
+intro whose first or last line opens in an emphasis face would lose that line;
+no intro in the corpus opens a line so. An owner list whose clause holds a
+`]` would keep its bracket.

@@ -157,8 +157,11 @@ function columnFlow(pd, cols, col, stopFound, isAnchor, bodyAlias = null, openDe
   // section test below runs, because its caption has a section heading's
   // shape and does not mean what one means.
   const isProse = (ln) => ln[0].alias === body && ln[0].h >= 7 && ln[0].h < DEF_BODY_MAX_H;
+  // A row of superscript ordinals alone has a gridded row's spacing and none
+  // of its meaning; a table row holds at least one run at body height.
+  const gridRow = (ln) => ln.some((it) => it.h >= 7) && isGridLine(ln);
   let yMin = DEF_TOP_BAND;
-  const g = rows.findIndex(isGridLine);
+  const g = rows.findIndex(gridRow);
   if (g >= 0 && !rows.slice(0, g).some(isProse)) {
     let k = g;
     while (k < rows.length && !isProse(rows[k])) k++;
@@ -168,7 +171,12 @@ function columnFlow(pd, cols, col, stopFound, isAnchor, bodyAlias = null, openDe
   // the anchor's own column; the bracket depth it is tested under carries in
   // from the block's own text.
   const section = firstSection(pd, cols, next, rows.filter((ln) => ln[0].y > yMin), body, openDepth);
-  const yMax = Math.min(yStop, section ? section.y - 4 : pd.height);
+  // A table INSIDE the continuation ends it exactly as a table caption ends
+  // the block in the anchor's own column: the first gridded row below the
+  // continuation's opening prose is where the prose stops (RR p88: an entry
+  // finishes in three lines above the grid its own column narrowed beside).
+  const grid = rows.find((ln) => ln[0].y > yMin && gridRow(ln));
+  const yMax = Math.min(yStop, section ? section.y - 4 : pd.height, grid ? grid[0].y - 4 : pd.height);
   return pd.items.filter(
     (it) => it.h < DEF_BODY_MAX_H && colOf(it.x, cols) === next && it.y > yMin && it.y < yMax,
   );
@@ -176,6 +184,16 @@ function columnFlow(pd, cols, col, stopFound, isAnchor, bodyAlias = null, openDe
 
 /** The shape of a run-in entry's opening line: a capitalised name and its colon. */
 const RUNIN_LINE_RE = /^[A-Z][^:]{0,44}:/;
+/**
+ * A run-in label that opens the entry's OWN callout rather than a sibling:
+ * the book sets examples and notes inset inside the entry they illustrate,
+ * in the run-in face with a colon, and no entry in any book is named this
+ * way. Such a line never ends a block; the block runs on through the callout
+ * to the next true sibling. Any other label at an inset is a sibling as it
+ * always was (RR p151: a structures box whose labels are AC and SHP).
+ */
+const CALLOUT_RE = /^(?:EXAMPLE|Example|Note|Notes)\s*:/;
+const isSiblingLine = (text) => RUNIN_LINE_RE.test(text) && !CALLOUT_RE.test(text);
 
 /**
  * The whole printed line a run sits on, read from that run rightward within
@@ -212,6 +230,43 @@ function bracketDepth(s) {
  * their own face); that depth test is the caller's, since its range differs
  * by site.
  */
+/**
+ * Where a column's prose begins: the leftmost x at which two or more of its
+ * body-height runs start (in one face, when one is given). The detected
+ * column x can sit several points off the print, and a class page's column
+ * band also holds the level grid's cells and the margin tab, so the intro's
+ * lines are the ones opening on this edge or left of it and within the
+ * column's own tolerance. It is NOT the sibling test for definitions: an
+ * inset that is a sibling (RR p151's structures box, labels 4.5pt in) and an
+ * inset that is the entry's own callout (RR p153's note, the examples of
+ * p43, p51, p79, p99) stand at the same x, and only their labels differ.
+ */
+function proseEdge(pd, cols, col, bodyAlias) {
+  const tally = new Map();
+  for (const it of pd.items) {
+    if (colOf(it.x, cols) !== col || it.y <= DEF_TOP_BAND || !it.str.trim()) continue;
+    if (bodyAlias && it.alias !== bodyAlias) continue;
+    if (!(it.h >= 7 && it.h < DEF_BODY_MAX_H)) continue;
+    const k = Math.round(it.x * 2) / 2;
+    tally.set(k, (tally.get(k) ?? 0) + 1);
+  }
+  const xs = [...tally.entries()].filter(([, n]) => n >= 2).map(([x]) => x);
+  return { colX: cols[col], x: xs.length ? Math.min(...xs) : null, tol: 3 };
+}
+const onEdge = (edge, x) => Math.abs(x - edge.colX) < 15 && (edge.x == null || x <= edge.x + edge.tol);
+/**
+ * Explicit continuation boxes authored on the row (`assists.descAppend`):
+ * frames the flow model cannot reach, such as an ending set ABOVE the
+ * block's own foot beside the grid its column narrowed for (RR p88). Each is
+ * on the anchor's page; the executor joins one to the paragraph it continues
+ * when it opens mid-sentence.
+ */
+function appendFrames(paras, assists, pd, tabs) {
+  for (const b of assists?.descAppend ?? []) {
+    paras.push(withFixes({ box: { x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1 } }, pd, tabs));
+  }
+  return paras;
+}
 function sectionShape(pd, cols, col, it, bodyAlias) {
   if (!bodyAlias || it.alias === bodyAlias || Math.abs(it.x - cols[col]) >= 15) return false;
   const own = it.str.trim();
@@ -3203,15 +3258,60 @@ async function compileClass(doc, entry, kindRow) {
     const byLine = lines.find((l) => named(l.str));
     const byHeight = colAll.find((i) => (i.h ?? 0) >= HEADING_MIN_H && i.x <= colX + 15);
     const stopY = Math.min(byRun?.y ?? Infinity, byLine?.y ?? Infinity, byHeight?.y ?? Infinity);
-    const intro = colAll.filter(
-      (i) => i.h < HEADING_MIN_H && i.y < (Number.isFinite(stopY) ? stopY : anchor.y + 300) - 3,
+    // The intro is the column's prose: body-height lines opening on the prose
+    // edge. The column band also holds the level grid's cells (RR p26, p32:
+    // x303+ inside a column whose detected next edge is 340–360) and the
+    // margin tab, which are neither. The box is cut to the prose's own right
+    // edge — measured over every run in the prose face, because a line beside
+    // the grid reaches extraction in several runs (RR p70: seven for 36
+    // characters) and each must stay inside — and short of the first gridded
+    // run set in another face beside it, so the grid alongside the paragraph
+    // stays out.
+    const edge = proseEdge(pd, cols, anchor.col, null);
+    const yStop = (Number.isFinite(stopY) ? stopY : anchor.y + 300) - 3;
+    // A candidate line holds a word: the stat block opens each of its lines
+    // with a one-character control run on the edge (RR p94, U+008D), which
+    // `trim` does not blank and which is not a line. The intro is then the
+    // candidates in their own dominant face — a stat label set on the edge
+    // in the face of emphasis is not the prose it stands above.
+    const cands = colAll.filter(
+      (i) => i.h >= 7 && i.h < HEADING_MIN_H && onEdge(edge, i.x) && i.y < yStop && /[A-Za-z0-9]/.test(i.str),
     );
+    const face = dominantAlias({ items: cands });
+    const intro = cands.filter((i) => i.alias === face);
     if (intro.length >= 3) {
-      fields.description = {
-        op: "text",
-        page,
-        paras: [{ box: { x0: colX - 5, x1: colRight, y0: intro[0].y - 6, y1: intro[intro.length - 1].y + 6 } }],
-      };
+      const y0 = intro[0].y - 6;
+      const y1 = intro[intro.length - 1].y + 6;
+      const inBand = (i) => i.y > y0 && i.y < y1;
+      const right = Math.max(...colAll.filter((i) => inBand(i) && i.alias === face).map((i) => i.x + (i.w ?? 0))) + 4;
+      const beside = columnRows(pd, cols, anchor.col)
+        .filter((ln) => inBand(ln[0]) && ln.some((it) => it.h >= 7) && isGridLine(ln))
+        .flat()
+        .filter((i) => i.alias !== face && i.x > (edge.x ?? edge.colX) + edge.tol)
+        .map((i) => i.x - 2);
+      const para = { box: { x0: (edge.x ?? edge.colX) - 5, x1: Math.min(colRight, right, ...beside), y0, y1 } };
+      // What the box still encloses of the grid is dropped by FACE: the page
+      // sets the level grid and its footnote in the table's own face, and
+      // geometry cannot keep them out — the footnote sits 4pt above a prose
+      // baseline, where an ordinal would, and the XP column's widest cell
+      // starts inside the prose's right edge (RR p70, p74). The faces are
+      // read off the gridded rows the band holds, page-wide, because the
+      // grid straddles the column; the runs go out as ordinals, never text.
+      const byY = new Map();
+      for (const i of pd.items) {
+        if (!inBand(i) || !i.str.trim()) continue;
+        const k = Math.round(i.y / 3);
+        if (!byY.has(k)) byY.set(k, []);
+        byY.get(k).push(i);
+      }
+      const gridFaces = new Set();
+      for (const ln of byY.values()) {
+        const row = ln.sort((a, b) => a.x - b.x);
+        if (!row.some((it) => it.h >= 7) || !isGridLine(row)) continue;
+        for (const it of row) if (it.alias !== face) gridFaces.add(it.alias);
+      }
+      const foreign = new Set(runsIn(pd, para).filter((r) => gridFaces.has(r.alias)));
+      fields.description = { op: "text", page, paras: [withFixes(para, pd, foreign.size ? foreign : null, null)] };
     } else {
       warn(`${entry.id}: intro prose not captured (${intro.length} line(s) before the first section)`);
     }
@@ -3682,7 +3782,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
         bodyText = `${bodyText} ${joinBody(pf.items)}`.trim();
       }
     }
-    fields.description = { op: "text", page, paras };
+    fields.description = { op: "text", page, paras: appendFrames(paras, assists, pd, tabs) };
   } else if (mode === "subheading") {
     // A bold sub-heading sits ALONE on its line at body size with no colon
     // (RR Combat: "Armor", "Weapons", "Fighting Styles"). Anchor on the line
@@ -3769,7 +3869,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
         bodyText = `${bodyText} ${joinBody(carried)}`.trim();
       }
     }
-    fields.description = { op: "text", page, paras };
+    fields.description = { op: "text", page, paras: appendFrames(paras, assists, pd, tabs) };
   } else {
     const want = assists.anchor ?? entry.anchor?.runin ?? `${entry.name}:`;
     let anchor = pd.items.find((it) => it.h < DEF_BODY_MAX_H && it.str.trim().startsWith(want));
@@ -3881,7 +3981,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
           // test is a guess about what a heading looks like; a sibling's own
           // declared run-in is not a guess, so it needs no tolerance.
           (Math.abs(it.x - colX) < 15 || startsSibling(lineFrom(it))) &&
-          RUNIN_LINE_RE.test(lineFrom(it)),
+          isSiblingLine(lineFrom(it)),
       )
       .sort((a, b) => a.y - b.y)[0];
     // A block also ends at a SECTION heading, which is a different thing from
@@ -4020,6 +4120,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     const isRunin = (it) =>
       it.alias === anchor.alias &&
       Math.abs(it.x - cols[colOf(it.x, cols)]) < 15 &&
+      !CALLOUT_RE.test(lineRight(pd, cols, colOf(it.x, cols), it)) &&
       (!anchorShaped || RUNIN_LINE_RE.test(lineRight(pd, cols, colOf(it.x, cols), it)));
     // A block only continues because it ran out of column, and a block that
     // ended at a heading did not run out of anything. `section` answers that
@@ -4064,7 +4165,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
         (ln) =>
           ln[0].h >= HEADING_MIN_H ||
           ((Math.abs(ln[0].x - cols[next]) < 15 || startsSibling(joinLine(ln))) &&
-            RUNIN_LINE_RE.test(joinLine(ln))),
+            isSiblingLine(joinLine(ln))),
       );
       const carried = band
         .filter((ln) => !endAt || ln[0].y < endAt[0].y - 4)
@@ -4091,7 +4192,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       // pitch break is what separates the prose from the grid under it — never
       // remove it on the grounds that the other three cover it.
       if (!endAt && next >= cols.length - 1) {
-        const pf = await pageFlow(doc, page, assists, (text) => RUNIN_LINE_RE.test(text), bracketDepth(bodyText));
+        const pf = await pageFlow(doc, page, assists, isSiblingLine, bracketDepth(bodyText));
         if (pf?.items.length) {
           const px0 = pf.cols[0] - 5;
           const px1 = pf.cols[1] ? pf.cols[1] - 6 : pf.pd.width;
@@ -4112,7 +4213,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       // they must not disagree about what counts as an answer: a chef who sets
       // `descStopY` has stopped the bleed into the next column AND onto the
       // next page, or the only assist left is a false `columns`.
-      const pf = await pageFlow(doc, page, assists, (text) => RUNIN_LINE_RE.test(text), bracketDepth(bodyText));
+      const pf = await pageFlow(doc, page, assists, isSiblingLine, bracketDepth(bodyText));
       if (pf?.items.length) {
         const px0 = pf.cols[0] - 5;
         const px1 = pf.cols[1] ? pf.cols[1] - 6 : pf.pd.width;
@@ -4120,7 +4221,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
         bodyText = `${bodyText} ${joinBody(pf.items)}`.trim();
       }
     }
-    fields.description = { op: "text", page, paras };
+    fields.description = { op: "text", page, paras: appendFrames(paras, assists, pd, tabs) };
   }
 
   /**
