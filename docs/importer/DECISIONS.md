@@ -3722,3 +3722,137 @@ two pages BOTH documents have to go, because the surviving flagged one holds
 what the old box read and the orphan holds the rest, so neither is right on its
 own. The other two carry a welded title naming two creatures at once, which is
 at least unmistakable.
+
+---
+
+### The body face is the entry's own opening, and a heading of any size ends a block (2026-09-10)
+
+**Problem.** `def.power.naturalStealth` has shipped since 6.0.0 as its one
+paragraph plus the Explorer's starting-equipment kits and the "Additional Class
+Powers" line from the page after — ten times its printed length — with
+`cookbookAudit`, `verify:cookbook`, `check-prose-stops` and the chef ledger all
+green. The ruling of 2026-08-13 elects the body face from "whatever face most
+of a block is set in", which asks the column what the block is before the
+block's extent is known: on RR p29 forty lines of kits in their own face
+outvote four lines of the entry, so the sub-heading that closes it reads as
+body and is invisible to the section stop. Independently, that sub-heading is
+set at 10pt over a 9pt body, and the section test excluded any run at or above
+body height — a size that is neither body nor display, so no rule owned it and
+the block ran to the column foot and overleaf.
+
+**New evidence, against the entry of 2026-08-13.** That ruling's rejection of
+"any non-body face" was about the bracket test, not about size; the exclusion
+`it.h >= DEF_BODY_MAX_H` answers to no clause in it. Its whole-corpus
+measurement was taken with a body face a foreign block beneath the entry could
+capture.
+
+**Ruled: the body face is the face of the entry's own opening** — the run that
+follows the heading on the anchor's line, else the first body-height line
+beneath it; weight over the column is the last fallback, never the first
+answer. **And a line-initial run at the column edge in a non-body face is a
+section heading at any size.** `body` already leaves runs at or above body
+height out, so the only thing the size test ever did was stop a block from
+ending there.
+
+**Measured, whole corpus, all books:** 2 of 1937 entries changed, both shorter,
+both of the diagnosed shape — `naturalStealth` 4 paragraphs → 1 (380pt → 36pt,
+no longer reaching p30) and `scrollreading` 4 → 3. Every offline gate green
+after; none of the compile's sixteen warnings concerns a block's bounds.
+
+**The instrument, and where it runs.** What surfaced this was the wiki
+snapshot's paragraph compared to each definition's materialization — every
+entry, aliases resolved to their target, owner lists and bullets normalised —
+which none of the shipped gates asks: `verify:cookbook` skips content
+cookbooks, `check-prose-stops` gates truncation only and gives no verdict where
+a column ends, `dev-runon-scan` sees only a swallowed sibling's name box. It is
+PREPARATION, not a check. Oracle content reaches the author of a row and
+nobody else: it says what SHAPE the passage has — how many paragraphs, whether
+bullets belong, where it ends — while the bound is being read off the page,
+and the printed page decides every conflict. Nothing compares a finished
+materialization to the wiki: not at recompile, not after a merge, not as a
+spot check on entries no one is authoring. A mechanism change is measured by
+the description-op diff between two compiles and by reading the changed
+entries' pages; a merged bound is verified by its paragraph count and its
+page, never by a green re-comparison.
+
+**Cost.** A run-in heading wrapped alone onto a second line in the anchor's own
+face could now end its own block at once; no such entry exists in the corpus
+today, and the recompile diff would show one.
+
+---
+
+### A block's edge is read by the same shapes at every boundary it crosses (2026-09-10)
+
+**Problem.** The oracle instrument of the entry above was dispatched as six
+batches — four chefs reading one entry at a time, two prep passes sampling
+entries it had passed. They came back with twenty per-entry bounds and seven
+mechanism defects, and every one of the seven was a boundary the compiler read
+differently from the others. The display branch's page turn ended only at a
+display heading, so an entry ending in the last column of RR p108, p112 or
+p113 carried the next page's opening table. The display branch had no section
+stop at all, so a body-size heading in the entry's own face on JJ p410 ended
+nothing. The column flow began at the top band whatever stood there, so RR
+p36, RR p78 and BTA p80 carried the table printed at the head of the next
+column, and its stop matched any run in the anchor's face at the column edge,
+so a cross-reference cost RR p36 its last line. `defColumns` tested single runs
+for the run-in shape and missed a name split by a superscript ordinal (RR p51,
+p82). The body-face election took the first run after the anchor, which BTA
+sets as a three-run level tag. And the page-turn pitch was measured with
+superscript rows and margin tabs in it, so JJ p317 carried one line.
+
+**Ruled.** One page turn, `pageFlow`, serves every branch, and its carry ends
+at the first of five ceilings tested by shape: a heading — display size, or a
+whole row set above body size, which is what a caption or a sub-heading is; a
+section heading at body size, against the page's own body face; the next
+entry's opening at the column edge; the top of a table; the pitch break, on
+body rows only. One section shape, `sectionShape`, is applied in the anchor's
+column, in the flowed column and overleaf, with the bracket depth carried from
+the block's own text. The column flow skips a table at the head of the
+destination column before it tests for a section, because a caption has a
+heading's shape, and demands the run-in shape of a stop only where the anchor
+has that shape itself. The body face is the first run of words after the
+anchor, never a run of a few characters. `defColumns` reads lines.
+
+**Rejected: "the block ended on its page".** A block whose text closes on a
+full stop with room for another line below it in the column looked ended, and
+the rule fixed four false page turns at once — but RR p154's Palanquin ends
+three lines short of the foot on a full stop and continues overleaf, because
+its next paragraph was kept whole, and the rule cut it. Room below a block
+reports the typesetter's paragraph control, not the block's extent. Every
+false turn the rule caught is caught by a shape ceiling; the rule is gone.
+
+**Measured, whole corpus, all books:** 57 of 1937 entries changed against
+HEAD, 52 shorter, none longer; five re-boxed at equal height where a column
+was recovered. Twenty-three of the 57 are chef-authored bounds merged through
+the gate (one more held for review); the rest are the mechanism. RR oracle:
+379 → 399 of 443 match, overrun candidates 36 → 21, no truncation; JJ 268 →
+272 of 274. Every remaining non-match is chef-verified against its page, an
+oracle artifact — the classes chapter scored against the Judges' class
+summaries — or a diagnosed defect listed below. Validate green.
+
+**Diagnosed, open.** RR p88 Acrobatics wraps around a grid and finishes in a
+frame printed above its own foot; the column model reads top to bottom and
+cannot reach it. RR p42: detection returns the progression grid's edges as the
+page's columns, and stating the true ones re-opens the head-of-column carry
+because the continuation resumes at the foot of the right column under an
+illustration. Class intros on RR p26 and p32 end where a straddling table
+column begins. Tables set under proficiency entries on RR p113 have no
+register node, so a correct bound leaves them uncaptured. Gambling on p113 is
+held for review: its cells hold sentences. RR p153 Wall prints a callout
+inside its own entry, labelled in the anchor's face and inset four and a half
+points — inside the stop rule's tolerance, so the block ends at the callout
+and loses it. JJ p316 Eldritch Talent closes with a bracket holding a remark
+rather than a list of names; `stripOwnerList` is deliberately tight and leaves
+it, and one bracket in the book is not evidence to widen it.
+
+**The instrument, withdrawn as a check.** Its verdict mode was run here after
+each merge and each mechanism round, and over 36 entries nobody was authoring.
+That use is withdrawn — oracle content is preparation only, as the entry above
+rules — and it was never a reliable arbiter: fifteen of the twenty-one flags
+it still raises are the wiki disagreeing with the page. What the work keeps is
+the op diff and the page.
+
+**Cost.** A continuation that resumes after a pull-quote at the top of the
+next page is cut at the pull-quote. A continuation whose first line is alone a
+short capitalised phrase in a non-body face ends there. Neither exists in the
+corpus today; the recompile diff would show one.

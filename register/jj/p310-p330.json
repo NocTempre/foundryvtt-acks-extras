@@ -13,6 +13,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 498
     }
   },
   {
@@ -871,6 +874,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 158
     }
   },
   {
@@ -1992,6 +1998,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 619
     }
   },
   {
@@ -3773,6 +3782,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 488
     }
   },
   {
@@ -4301,6 +4313,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 388
     }
   },
   {

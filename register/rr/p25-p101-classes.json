@@ -151,6 +151,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 740
     }
   },
   {
@@ -199,6 +202,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 710
     }
   },
   {
@@ -407,6 +413,13 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "columns": [
+        72,
+        328.5
+      ],
+      "descStopY": 710
     }
   },
   {
@@ -487,6 +500,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 566
     }
   },
   {
@@ -576,6 +592,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 163
     }
   },
   {
@@ -640,6 +659,12 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "columns": [
+        72,
+        328.5
+      ]
     }
   },
   {
@@ -656,6 +681,14 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "columns": [
+        72,
+        328.5
+      ],
+      "descStopY": 330,
+      "anchor": "Chieftain’s Hall ("
     }
   },
   {
@@ -2098,7 +2131,10 @@
           "group": 1
         }
       }
-    ]
+    ],
+    "assists": {
+      "descStopY": 710
+    }
   },
   {
     "id": "def.power.fortifiedChurch",
@@ -3760,7 +3796,11 @@
         },
         "note": "Replaces the 14+ Adventuring throw for a character separately proficient in Listening. Distinct from the Searching value above - this is why the entry cannot be an alias of Alertness."
       }
-    ]
+    ],
+    "assists": {
+      "descStopY": 581,
+      "anchor": "Attunement to Nature:"
+    }
   },
   {
     "id": "def.power.connectionToNature",
@@ -3910,6 +3950,12 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "columns": [
+        45,
+        247.5
+      ]
     }
   },
   {
@@ -3926,6 +3972,12 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "columns": [
+        45,
+        247.5
+      ]
     }
   },
   {
@@ -5420,6 +5472,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "anchor": "Witch’s Cottage ("
     }
   },
   {
@@ -5436,6 +5491,9 @@
     ],
     "meta": {
       "category": "classPower"
+    },
+    "assists": {
+      "descStopY": 670
     }
   },
   {

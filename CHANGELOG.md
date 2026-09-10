@@ -1,5 +1,22 @@
 # Changelog
 
+## 7.5.1
+
+**An imported ability's description stops where the entry stops.**
+
+### Fixed
+- **Descriptions no longer carry what follows them.** Natural Stealth arrived
+  with the Explorer's equipment kits and the top of the next page; Scrollreading,
+  Rebuke Undead, Castle, Animal Magnetism and eighteen more carried a
+  sub-heading, a table, a neighbouring section or the next page. Each of those
+  entries now has its own bound in the register, read from its own page
+  (RR pp. 26–123, JJ pp. 310–330).
+- **The compiler reads every block edge by one set of shapes.** A page turn, a
+  column turn, a table at the head of the next column, a sibling's run-in name
+  and a section heading end a description the same way whether the entry is
+  anchored by a heading or by a run-in name. 57 descriptions across RR, JJ and
+  By This Axe are shorter for it; none is longer.
+
 ## 7.5.0
 
 **The item sheet asks every registered question the same way, and the pencil

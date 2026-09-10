@@ -33,3 +33,6 @@ tools/rules-tests/
 
 # Design-canvas scratch (artboards, exports) — never shipped.
 design/
+
+# Session scratch (reports, analysis, continuation prompts) — never shipped, never tracked.
+aia-tmp/

@@ -355,7 +355,10 @@
     "kind": "kind.proficiency",
     "book": "rr",
     "name": "Art/Craft",
-    "aliases": ["Art", "Craft"],
+    "aliases": [
+      "Art",
+      "Craft"
+    ],
     "anchor": {
       "display": "Art/Craft (G)"
     },
@@ -984,7 +987,9 @@
     "kind": "kind.proficiency",
     "book": "rr",
     "name": "Dungeonbashing Expertise",
-    "aliases": ["Dungeon Bashing"],
+    "aliases": [
+      "Dungeon Bashing"
+    ],
     "anchor": {
       "display": "Dungeonbashing Expertise"
     },
@@ -1180,7 +1185,10 @@
     "kind": "kind.proficiency",
     "book": "rr",
     "name": "Fighting Style Specialization",
-    "aliases": ["Fighting Style Spec", "Fighting Style"],
+    "aliases": [
+      "Fighting Style Spec",
+      "Fighting Style"
+    ],
     "anchor": {
       "display": "Fighting Style Specialization"
     },
@@ -1210,7 +1218,10 @@
       }
     ],
     "icon": "systems/acks/assets/icons/dual-wield.webp",
-    "iconNiche": "modules/game-icons-net/blacktransparent/duel.svg"
+    "iconNiche": "modules/game-icons-net/blacktransparent/duel.svg",
+    "assists": {
+      "descStopY": 640.9
+    }
   },
   {
     "id": "def.prof.folkways",
