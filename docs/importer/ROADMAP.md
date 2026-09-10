@@ -785,14 +785,16 @@ either. A snapshot derived from a document's own current state makes every hand
 repair certify as pristine, and one re-derived from a fresh conversion is not
 what the original import produced: the extraction has since changed what it
 yields for these books, and what it changed is the description — the field a
-Judge is likeliest to have written by hand, because it arrived empty. So the
-rule for whoever builds this is that a snapshot is never derived from a
-document's current state — which leaves two designs open and the choice
-unmade: an OSE import that stamps a snapshot at creation, so later refills
-have something honest to compare against, or a refill carrying no edited-check
-at all, which instead names what it will overwrite before it writes. Only the
-first puts a second writer on `asImported`, so what may assign that flag is
-downstream of this choice and not settled by it being true today.
+Judge is likeliest to have written by hand, because it arrived empty. The
+2026-09-09 decision "A corrected recipe does not reach a world that already
+imported it" measures what moved. So the rule for whoever builds this is that
+a snapshot is never derived from a document's current state — which leaves two
+designs open and the choice unmade: an OSE import that stamps a snapshot at
+creation, so later refills have something honest to compare against, or a
+refill carrying no edited-check at all, which instead names what it will
+overwrite before it writes. Only the first puts a second writer on
+`asImported`, so what may assign that flag is downstream of this choice and
+not settled by it being true today.
 
 ## An actor keeps whatever the recipe said the day it was imported
 
