@@ -690,7 +690,8 @@ check is one click on each shape, from two seats.
 4. Press it. *Observable:* the book's journal opens on its PDF page and the
    viewer lands on that page — the iframe's hash reads `page=113`. Press a
    reference to a DIFFERENT page while the viewer is open: the same viewer
-   turns to it rather than a second window opening.
+   turns to it — the same iframe, no re-render — and no browser tab opens
+   (stub `window.open` and count its calls: zero).
 5. Hand-set a description to the pre-upgrade shape — a plain
    `<p class="acks-extras-importer-cite">RR p.111</p>`, no link — and press
    it. *Observable:* the same page opens: the text is parsed at click time, so

@@ -13,6 +13,7 @@ import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { SIZES } from "../monsters/config.mjs";
 import { FLAG_EXTRAS } from "../monsters/constants.mjs";
 import { FLAG_FORMATION_ID } from "../formation/constants.mjs";
+import { unset } from "../lib/util.mjs";
 
 const EPSILON = 1e-6;
 
@@ -90,7 +91,7 @@ export async function resetSelectedFootprints() {
   for (const placeable of canvas?.tokens?.controlled ?? []) {
     const token = placeable.document;
     if (token.getFlag(MODULE_ID, FLAG_FORMATION_ID)) continue;
-    await token.update({ [`flags.${MODULE_ID}.-=${FLAG_FOOTPRINT}`]: null, [`flags.${MODULE_ID}.-=${FLAG_FOOTPRINT_LOCK}`]: null });
+    await token.update({ [`flags.${MODULE_ID}.${FLAG_FOOTPRINT}`]: unset(), [`flags.${MODULE_ID}.${FLAG_FOOTPRINT_LOCK}`]: unset() });
     const size = sizeForToken(token);
     if (size && changed(token, size)) await token.update(size);
     count++;

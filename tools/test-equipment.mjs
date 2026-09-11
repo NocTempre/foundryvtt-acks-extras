@@ -42,6 +42,7 @@ globalThis.foundry = {
     getProperty: (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o),
     mergeObject: (a, b) => ({ ...a, ...b }),
   },
+  data: { operators: { ForcedDeletion: class ForcedDeletion {} } },
   applications: {
     api: {
       ApplicationV2: StubApplicationV2,
@@ -1203,7 +1204,7 @@ await drawInto(mockBlade, "belt");
 await sheatheItem(mockBlade);
 check("drawInto draws and names the hand in one write", handWrites[0]["system.equipped"] === true && handWrites[0]["flags.acks-extras.hand"] === "off");
 check("drawInto with no such hand is a plain draw", handWrites[1]["system.equipped"] === true && !("flags.acks-extras.hand" in handWrites[1]));
-check("sheatheItem clears the hand with the draw", handWrites[2]["system.equipped"] === false && "flags.acks-extras.-=hand" in handWrites[2]);
+check("sheatheItem clears the hand with the draw", handWrites[2]["system.equipped"] === false && handWrites[2]["flags.acks-extras.hand"] instanceof foundry.data.operators.ForcedDeletion);
 
 const buckets = wearBuckets(dressed, dLo);
 check("buckets are display-ordered head first", buckets[0].key === WEAR.head);
@@ -1559,7 +1560,7 @@ check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.val
       for (const [path, value] of Object.entries(u)) {
         if (path === "_id") continue;
         const key = path.split(".").pop();
-        if (key.startsWith("-=")) delete item._flags[key.slice(2)];
+        if (value instanceof foundry.data.operators.ForcedDeletion) delete item._flags[key];
         else item._flags[key] = value;
       }
     }

@@ -20,6 +20,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "./constants.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
+import { isUnset } from "../lib/util.mjs";
 
 /* -------------------------------------------- */
 /*  Reading the link                             */
@@ -119,7 +120,8 @@ export function registerSceneLinkSync() {
   Hooks.on("updateScene", async (scene, changes, _options, userId) => {
     if (userId !== game.userId || !game.user.isGM) return;
     const flag = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${SCENE_LINK_FLAG}`);
-    const cleared = foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.-=${SCENE_LINK_FLAG}`);
+    // Cleared as core's unsetFlag writes it, or as the legacy key spells it.
+    const cleared = isUnset(flag) || foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.-=${SCENE_LINK_FLAG}`);
     if (flag === undefined && !cleared) return;
     for (const actor of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
       const shouldPoint = flag && actor.uuid === flag;

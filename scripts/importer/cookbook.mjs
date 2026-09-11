@@ -40,6 +40,7 @@ import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { ANIMAL_TYPE, TEMPLATE_TYPE } from "../lib/constants.mjs";
 import { acksExtras } from "../namespace.mjs";
+import { unset } from "../lib/util.mjs";
 
 const FOLDER_NAME = "ACKS Cookbook";
 /**
@@ -3220,7 +3221,7 @@ export function bindAbility(entry, node, id, opts = {}) {
  * the conditional spreads above, kept in one list because an UPDATE must
  * retract them: update() merges nested objects and never deletes an absent
  * key, so a rebuild that no longer emits one of these (an entry un-deprecated,
- * a prerequisite dropped) has to say so with an explicit `-=` deletion or the
+ * a prerequisite dropped) has to say so with an explicit forced deletion (`unset()`) or the
  * stale value survives every later run.
  */
 const ABILITY_EXTRAS_OPTIONAL = [
@@ -7878,10 +7879,10 @@ export async function cookbookUpdateAbilities() {
   // write is held back until the GM has answered for them.
   const collisions = [];
   /** Rewrite the generated surface — the descriptor, the cookbook id, the
-   * extras. The written extras carry a `-=` deletion sentinel for every
-   * optional subkey the rebuild no longer emits (ABILITY_EXTRAS_OPTIONAL), in
-   * a copy — `built` stays clean for the create path, which must not carry
-   * sentinels into fresh documents.
+   * extras. The written extras carry a forced deletion for every optional
+   * subkey the rebuild no longer emits (ABILITY_EXTRAS_OPTIONAL), in a copy —
+   * `built` stays clean for the create path, which must not carry deletions
+   * into fresh documents.
    *
    * `keepProse` holds back the description and nothing else. The flag proves
    * this module created the item; it does not prove nobody has written in it
@@ -7891,7 +7892,7 @@ export async function cookbookUpdateAbilities() {
   const writeGenerated = (doc, built, { keepProse = false } = {}) => {
     const extras = { ...built.flags[MODULE_ID].extras };
     for (const key of ABILITY_EXTRAS_OPTIONAL) {
-      if (!(key in extras)) extras[`-=${key}`] = null;
+      if (!(key in extras)) extras[key] = unset();
     }
     return doc.update({
       ...(keepProse ? {} : { "system.description": built.system.description }),

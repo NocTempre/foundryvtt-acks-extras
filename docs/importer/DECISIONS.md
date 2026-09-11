@@ -4035,3 +4035,23 @@ forced the merge.
 
 *Cost:* `monsterHd` reads a scaled die as its fraction (`1d4` → 0.5) where it
 read 1 before; every caller wanted the rating.
+
+### A citation click runs before core's hyperlink handler (2026-09-11)
+
+**Ruled.** `onCiteClick` listens on the document in the CAPTURE phase and
+stops propagation once it has a target. Core's `Game` registers a document
+click listener of its own that opens every `a[href]` it reaches in a new
+browser tab, and a bubble-phase listener registered at `ready` runs after it
+— so a citation link, which carries `href="#"`, opened a second Foundry client
+on every press (7.5.3). Capture runs first whatever the registration order,
+and the stop keeps the click from core. A reference inside an open ProseMirror
+editor is passed over, as core passes it over, so editing a description never
+turns the page. The link keeps its `href`: it is what makes the reference
+reachable from the keyboard.
+
+**Rejected:** an href-less anchor, core's own content-link shape. It dodges
+the handler and loses keyboard focus with it, and the documents older imports
+wrote already carry the `href="#"` form and would have gone on opening tabs.
+
+*Cost:* a citation click reaches no other listener — nothing else has a claim
+on it.

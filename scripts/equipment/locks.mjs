@@ -21,6 +21,7 @@ import { MODULE_ID, HOOKS, ITEM_FLAGS } from "./constants.mjs";
 import { containerOf, isLocked, setOpened, contentsOf, isFragile } from "./containers.mjs";
 import { slug, SLOT, ITEM_TYPE } from "../lib/vocab.mjs";
 import { isWorn, slotsOf, declaresSlots } from "../lib/item-model.mjs";
+import { unset } from "../lib/util.mjs";
 
 /**
  * Proficiency names that defeat a lock, and the ones that break a container.
@@ -184,7 +185,7 @@ export async function destroyContainer(actor, container) {
       // rule says it breaks.
       await actor.updateEmbeddedDocuments(
         "Item",
-        contents.map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.-=${ITEM_FLAGS.CONTAINED_IN}`]: null })),
+        contents.map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINED_IN}`]: unset() })),
       );
       notify("info", "bashedSpilled", { name: container.name, n: contents.length });
     }

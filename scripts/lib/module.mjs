@@ -1011,7 +1011,7 @@ export async function setFollowerSheet(actor, useCard) {
   if (wasOpen) await actor.sheet.close();
   actor._sheet = null;
   if (useCard) await actor.setFlag("core", "sheetClass", FOLLOWER_SHEET_KEY);
-  else await actor.update({ "flags.core.-=sheetClass": null });
+  else await actor.unsetFlag("core", "sheetClass");
   actor._sheet = null;
   if (wasOpen) actor.sheet?.render(true);
   return true;

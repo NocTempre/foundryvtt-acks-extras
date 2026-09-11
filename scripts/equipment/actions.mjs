@@ -17,6 +17,7 @@ import {
   importedTable, importedNeedsReroll, accumulateImported, importedRow, rowToEffects,
 } from "./overlays/scavenged.mjs";
 import { recomputeItemFields, withFlatDelta } from "./properties.mjs";
+import { unset } from "../lib/util.mjs";
 
 function notify(key, data) {
   const full = `ACKS-EQUIPMENT.action.${key}`;
@@ -145,7 +146,7 @@ export function rollUnarmed(actor, options = {}) {
  * holds.
  */
 export async function sheatheItem(item) {
-  return item?.update?.({ "system.equipped": false, [`flags.${MODULE_ID}.-=${ITEM_FLAGS.WORN_HAND}`]: null });
+  return item?.update?.({ "system.equipped": false, [`flags.${MODULE_ID}.${ITEM_FLAGS.WORN_HAND}`]: unset() });
 }
 /** Draw a carried weapon (equip it); the wear resolver places it. */
 export async function drawItem(item) {
@@ -184,7 +185,7 @@ export const SLOT_NONE = "none";
 export async function setGearSlotList(item, slots) {
   if (!item) return false;
   if (slots == null) {
-    await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.-=slots`]: null });
+    await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.slots`]: unset() });
     return true;
   }
   const list = [...new Set(slots.filter(isWearSlot))];
@@ -209,7 +210,7 @@ export async function setGearSlotList(item, slots) {
 export async function setWeaponProfile(item, key) {
   if (!item) return false;
   const path = `flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`;
-  if (key === SLOT_AUTO || !key) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.PROFILE_KEY}`]: null });
+  if (key === SLOT_AUTO || !key) await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`]: unset() });
   else await item.update({ [path]: key });
   return true;
 }
@@ -217,7 +218,7 @@ export async function setWeaponProfile(item, key) {
 /** Declare a weapon's size (RR p. 127); `auto` returns it to the table's own. */
 export async function setWeaponSize(item, size) {
   if (!item) return false;
-  if (size === SLOT_AUTO || !size) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.SIZE}`]: null });
+  if (size === SLOT_AUTO || !size) await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`]: unset() });
   else await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`]: size });
   return true;
 }
@@ -225,7 +226,7 @@ export async function setWeaponSize(item, size) {
 /** Declare which grips a weapon offers: `1h`, `versatile`, `2h`, or `auto`. */
 export async function setWeaponGrips(item, grips) {
   if (!item) return false;
-  if (grips === SLOT_AUTO || !GRIPS.has(grips)) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.GRIPS}`]: null });
+  if (grips === SLOT_AUTO || !GRIPS.has(grips)) await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.GRIPS}`]: unset() });
   else await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.GRIPS}`]: grips });
   return true;
 }
@@ -238,7 +239,7 @@ export async function setWeaponGrips(item, grips) {
  */
 export async function setWeaponCategory(item, category) {
   if (!item) return false;
-  if (category === SLOT_AUTO || !WEAPON_CATEGORY_VALUES.has(category)) await item.update({ [`flags.${MODULE_ID}.-=${ITEM_FLAGS.CATEGORY}`]: null });
+  if (category === SLOT_AUTO || !WEAPON_CATEGORY_VALUES.has(category)) await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.CATEGORY}`]: unset() });
   else await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.CATEGORY}`]: category });
   return true;
 }
@@ -254,7 +255,7 @@ export async function setWeaponCategory(item, category) {
 export async function setGearSlots(item, value) {
   if (!item) return false;
   if (value === SLOT_AUTO) {
-    await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.-=slots`]: null });
+    await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.slots`]: unset() });
     return true;
   }
   const slots = value === SLOT_NONE ? [] : [value];

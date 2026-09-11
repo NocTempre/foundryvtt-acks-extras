@@ -1,5 +1,22 @@
 # Changelog
 
+## 7.5.4
+
+**A citation stays in this window, and a deletion is spelled the way core
+reads it.**
+
+### Fixed
+- **A page reference no longer opens a second Foundry client.** Core opens
+  every hyperlink it reaches in a new browser tab; the citation click now runs
+  ahead of it and keeps the press, so a reference pressed while the viewer is
+  open turns that viewer to the page.
+- **The abilities update pass no longer logs a compatibility warning per
+  document.** Every forced deletion this module writes is core 14's deletion
+  operator rather than the legacy `-=` key — the abilities update pass, the
+  worn-hand and slot clears, container release, nock clears, the footprint
+  reset, the follower card's baked overrides, a rested caster's pools, the
+  save-key aliases, vision reclaim and the uninstall strip.
+
 ## 7.5.3
 
 **A familiar is an inventory slot, a citation opens the book, and the

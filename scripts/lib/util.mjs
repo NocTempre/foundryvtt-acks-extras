@@ -1,4 +1,4 @@
-/* global game, Hooks */
+/* global game, Hooks, foundry */
 /**
  * Tiny cross-feature helpers. Everything here used to exist as N identical
  * copies across the merged features (loc ×11, num ×5, gmIds ×4, …); the
@@ -7,6 +7,16 @@
  */
 
 import { MODULE_ID } from "./constants.mjs";
+
+/**
+ * The forced deletion of the key it is assigned to: `{key: unset()}` in an
+ * update removes `key`, where `null` would store one. Foundry's own operator,
+ * spelled once here so no feature reaches for the legacy `-=key` form.
+ */
+export const unset = () => new foundry.data.operators.ForcedDeletion();
+
+/** Whether an update's value is a forced deletion — what `unset()` and core's `unsetFlag` write. */
+export const isUnset = (value) => value instanceof foundry.data.operators.ForcedDeletion;
 
 /** Prefix-bound i18n formatter: `makeLoc("ACKS-FORMATION")` → `loc(key, data)`. */
 export const makeLoc = (prefix) => (key, data = {}) => game.i18n.format(`${prefix}.${key}`, data);

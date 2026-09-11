@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID } from "./constants.mjs";
-import { isPrimaryGM } from "./util.mjs";
+import { isPrimaryGM, unset } from "./util.mjs";
 import { hasNightVision, senseProfile } from "./senses.mjs";
 import { DETECTION_MODES } from "./perception.mjs";
 import { bearerLights, brightestLightReaching, emittedLight } from "./light.mjs";
@@ -125,7 +125,7 @@ function visionDelta(tokenDoc, { sightRange, visionMode, detection = {} }) {
   for (const id of new Set([...OWNED_DETECTION_MODES, "basicSight", ...Object.keys(detection)])) {
     const want = desiredDetection[id] ?? null;
     const have = stored[id] ?? null;
-    if (!want && have) detectionDelta[`-=${id}`] = null;
+    if (!want && have) detectionDelta[id] = unset();
     else if (want && (have?.range !== want.range || have?.enabled !== want.enabled)) detectionDelta[id] = want;
   }
   const detectionDirty = Object.keys(detectionDelta).length > 0;
@@ -339,7 +339,7 @@ export async function migrateWorldVision({ reclaim = false } = {}) {
     report.tokens += tokens.length;
 
     if (reclaim) {
-      const drops = tokens.filter(isReleased).map((t) => ({ _id: t.id, [`flags.${MODULE_ID}.-=${FLAG_VISION}`]: null }));
+      const drops = tokens.filter(isReleased).map((t) => ({ _id: t.id, [`flags.${MODULE_ID}.${FLAG_VISION}`]: unset() }));
       if (drops.length) {
         await scene.updateEmbeddedDocuments("Token", drops);
         report.reclaimed += drops.length;

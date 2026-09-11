@@ -32,6 +32,7 @@ import { MODULE_ID, LOADOUT_EFFECT_FLAG, ITEM_FLAGS } from "./constants.mjs";
 import { revealItem } from "./actions.mjs";
 import { recomputeItemFields } from "./properties.mjs";
 import { managedDelete } from "../lib/managed-effects.mjs";
+import { unset } from "../lib/util.mjs";
 
 /** All actors the cleanup must visit: world actors + unlinked token actors. */
 function* allActors() {
@@ -56,11 +57,11 @@ async function cleanItems(parent, items, counts, { revertLayers }) {
       await recomputeItemFields(item, { masterwork: null, scavenged: null });
       counts.reverted++;
     }
-    strips.push({ _id: item.id, [`flags.-=${MODULE_ID}`]: null });
+    strips.push({ _id: item.id, [`flags.${MODULE_ID}`]: unset() });
   }
   if (!strips.length) return;
   if (parent) await parent.updateEmbeddedDocuments("Item", strips);
-  else for (const strip of strips) await game.items.get(strip._id)?.update({ [`flags.-=${MODULE_ID}`]: null });
+  else for (const strip of strips) await game.items.get(strip._id)?.update({ [`flags.${MODULE_ID}`]: unset() });
   counts.items += strips.length;
 }
 
@@ -87,7 +88,7 @@ export async function stripModuleData({ revertLayers = false } = {}) {
     }
     await cleanItems(actor, actor.items, counts, { revertLayers });
     if (actor.flags?.[MODULE_ID]) {
-      await actor.update({ [`flags.-=${MODULE_ID}`]: null });
+      await actor.update({ [`flags.${MODULE_ID}`]: unset() });
       counts.actors++;
     }
   }

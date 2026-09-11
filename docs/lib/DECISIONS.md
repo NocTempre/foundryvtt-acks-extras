@@ -1660,3 +1660,20 @@ and the shelf works, and a Judge who wants it tidy detaches and rebuilds.
 **Superseded by this:** the placement half of classes 2026-08-24 and
 2026-08-19, the importer's 2026-08-24 superseding note, and location
 2026-08-20's sidebar tree; each carries a marker to its own entry of this date.
+
+## 2026-09-11 — A deletion is the operator, spelled once
+
+**Ruled.** Every forced deletion this module writes is
+`foundry.data.operators.ForcedDeletion`, through lib's `unset()`; a reader
+that waits on one asks `isUnset(value)` beside the legacy key. Core 14
+migrates the legacy `-=key: null` spelling at diff time and logs a
+compatibility warning for each — the abilities update pass logged one per
+retracted extras subkey per document, which is what surfaced it — and core's
+own `unsetFlag` writes the operator, so a reader that knew only the legacy
+key (`location/scene-link.mjs`) was reading a shape core no longer writes.
+
+**Rejected:** keeping the legacy spelling until core drops it. The warning is
+per write and the update pass writes thousands of them.
+
+*Cost:* the offline mocks model the operator (`tools/test-equipment.mjs`): a
+fake `update` that deleted on `-=` deletes on `instanceof` now.

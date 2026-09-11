@@ -23,6 +23,7 @@ import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "./constants.mjs";
 import { WEAPON_CATEGORY } from "./config.mjs";
 import { isSilvered } from "./silver.mjs";
 import { slug } from "../lib/vocab.mjs";
+import { unset } from "../lib/util.mjs";
 
 /** Ammo-name pattern a launcher consumes, or null if it is not a launcher. */
 export function launcherAmmoPattern(item, profile) {
@@ -184,12 +185,12 @@ export async function nockAmmo(actor, item) {
   if (!actor || !item) return false;
   const updates = actor.items
     .filter((i) => i.getFlag(MODULE_ID, ITEM_FLAGS.NOCKED) && i.id !== item.id)
-    .map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.-=${ITEM_FLAGS.NOCKED}`]: null }));
+    .map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.${ITEM_FLAGS.NOCKED}`]: unset() }));
   const on = !item.getFlag(MODULE_ID, ITEM_FLAGS.NOCKED);
   updates.push(
     on
       ? { _id: item.id, [`flags.${MODULE_ID}.${ITEM_FLAGS.NOCKED}`]: true }
-      : { _id: item.id, [`flags.${MODULE_ID}.-=${ITEM_FLAGS.NOCKED}`]: null },
+      : { _id: item.id, [`flags.${MODULE_ID}.${ITEM_FLAGS.NOCKED}`]: unset() },
   );
   await actor.updateEmbeddedDocuments("Item", updates);
   return on;

@@ -44,6 +44,7 @@ import { itemBaseType } from "./variation-items.mjs";
 // re-exported here so this feature's importers keep one door.
 export { containedIn, contentsOf, contentsWeight6 };
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { unset } from "../lib/util.mjs";
 
 
 /**
@@ -289,7 +290,7 @@ export function unstowOnUse(item, changes) {
   const equipping = foundry.utils.getProperty(changes, "system.equipped") === true;
   const wornAt = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${FLAG_GEAR}.wornAt`);
   if (!equipping && !wornAt) return false;
-  foundry.utils.setProperty(changes, `flags.${MODULE_ID}.-=${ITEM_FLAGS.CONTAINED_IN}`, null);
+  foundry.utils.setProperty(changes, `flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINED_IN}`, unset());
   return true;
 }
 
@@ -309,7 +310,7 @@ export async function emptyContainer(actor, container) {
   if (!contents.length) return 0;
   await actor.updateEmbeddedDocuments(
     "Item",
-    contents.map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.-=${ITEM_FLAGS.CONTAINED_IN}`]: null })),
+    contents.map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINED_IN}`]: unset() })),
   );
   return contents.length;
 }

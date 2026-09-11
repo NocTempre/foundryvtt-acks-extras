@@ -30,6 +30,7 @@
  */
 
 import { ITEM_TYPE } from "./vocab.mjs";
+import { unset } from "./util.mjs";
 const F = () => foundry.data.fields;
 const int = (initial) => new (F().NumberField)({ required: true, integer: true, initial });
 
@@ -203,7 +204,7 @@ export async function repairSaveReferences({ dryRun = true } = {}) {
       const value = savesSource[key]?.value;
       const entry = { uuid: actor.uuid, name: actor.name, kind: "actor-save-key", from: key, to: alias, applied: false };
       if (canWrite) {
-        const update = { [`system.saves.-=${key}`]: null };
+        const update = { [`system.saves.${key}`]: unset() };
         if (typeof value === "number") update[`system.saves.${alias}.value`] = value;
         await actor.update(update);
         entry.applied = true;

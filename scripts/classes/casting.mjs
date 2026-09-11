@@ -17,7 +17,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
-import { ownsSheet } from "../lib/util.mjs";
+import { ownsSheet, unset } from "../lib/util.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** The vancian slot row for `level`: exact rung, else the highest below it. */
@@ -92,7 +92,7 @@ export async function adjustPool(actor, traditionKey, slotKey, delta) {
 export async function restPools(actor) {
   // `update` MERGES objects — an empty object merged into pools changes
   // nothing, so the key must be deleted for the spend to reset.
-  await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.-=pools`]: null });
+  await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.pools`]: unset() });
 }
 
 /** Render the strip markup for one actor (empty string when nothing casts). */

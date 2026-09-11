@@ -386,12 +386,15 @@ function citeTarget(el) {
 /**
  * Every citation this module wrote opens its page. One listener on the
  * document, because the references live in sheets, journal pages and chat
- * cards this module does not render; a reference naming no shelvable book is
- * left to whatever else the click meant.
+ * cards this module does not render — and in the capture phase, because
+ * core's own document listener opens every `a[href]` it reaches in a new
+ * browser tab; a citation stops here and never reaches it. A reference naming
+ * no shelvable book, or one inside an open editor, is left to whatever else
+ * the click meant.
  */
 function onCiteClick(event) {
   const el = event.target?.closest?.(`a.${CITE_LINK_CLASS}, p.${CITE_CLASS}`);
-  if (!el) return;
+  if (!el || el.closest(".editor-content.ProseMirror")) return;
   const target = citeTarget(el);
   if (!target) return;
   event.preventDefault();
@@ -2772,7 +2775,7 @@ Hooks.once("ready", async () => {
     RECIPES, BOOKS,
   };
   acksExtras.importer = api;
-  document.addEventListener("click", onCiteClick);
+  document.addEventListener("click", onCiteClick, { capture: true });
 
   // Provide the ability-resolution contract (lib docs/API.md): other features
   // embed proficiency packages on hired actors through this, without naming
