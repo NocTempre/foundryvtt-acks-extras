@@ -271,6 +271,12 @@ automating them waits on the abilities→attack effects bridge
   aligns to them.
 - **Surprise** determination + the `surprised` status are core's; this feature
   only reads them (first-round interrupt helpers).
+- **abilities** owns the companion slot — the `companion` effect on an
+  ability and its `actorUuid` pointer. This feature only injects the slots into
+  the SYSTEM sheet's inventory as a **Companions** section (`sheet.mjs`
+  `buildCompanionSection`); the module's own character sheet lists them on its
+  Equipment tab. Both forward their controls to `abilities/companions.mjs`;
+  nothing is stored for a companion here (`docs/abilities/MODEL.md`).
 
 ## 6. Shared library — BUILT (`scripts/lib/`)
 

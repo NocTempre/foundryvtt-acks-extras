@@ -1802,3 +1802,9 @@ button.acks-extras-character-sheet__pill.is-locked:disabled {
   cursor: not-allowed;
   opacity: 0.85;
 }
+
+/* A companion slot with no creature in it says so, in soft ink. */
+.acks-extras-character-sheet__gear-name.is-empty {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}

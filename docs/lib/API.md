@@ -106,10 +106,13 @@ content import flows (the importer subsystem, `scripts/importer/`). Shape:
   materializeDocs() → Promise<{exported, placeholders}>,
   // v1.2 (additive): re-mirror the persisted store into the registry
   reload() → {layers, docs},
-  // v1.3 (additive): the materialized world documents, without the data —
+  // v1.3 (additive): the materialized documents, without the data —
   // count for a remove-all confirm, remove for the sweep itself
   countMaterializedDocs() → number,
-  removeMaterializedDocs() → Promise<number>
+  removeMaterializedDocs() → Promise<number>,
+  // v1.4 (additive): count only what the SIDEBAR holds — for a consumer that
+  // deletes the library's packs whole and has counted their contents already
+  countMaterializedDocs({sidebar: true}) → number
 }
 ```
 
@@ -266,10 +269,13 @@ Pass the effect's own `rollType` and the polarity stays honest.
 
 ### Companions
 
-`{type:"companion", ref, actorUuid, amount}` — `ref` is the **monster entry id**
-the ability confers. The pointer ships; the creature's text does not. `actorUuid`
-is the bucket the actor lands in, empty until the citing book is available or a
-GM drops one in, so a bookless seat still gets the slot and can fill it later.
+`{type:"companion", ref, actorUuid, amount, note}` — `ref` is the **monster
+entry id** the ability confers, when the page names one. The pointer ships; the
+creature's text does not. `actorUuid` is the bucket the actor lands in: the
+importer's fill pass writes it from `ref`, and for a slot the page leaves to
+the reader the table chooses (acks-extras `abilities/companions.mjs` — the
+slot, the picker and the sheet section are `docs/abilities/MODEL.md`).
+Empty, a bookless seat still gets the slot and fills it later.
 
 ### Capabilities — the gate pattern
 

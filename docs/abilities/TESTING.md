@@ -9,6 +9,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - A disposable `ability` item on it, with `system.rollTarget` set and
   `system.requiresRoll` true — that is the minimum an ability needs before it
   offers a roll at all.
+- For the companion step: two disposable `monster` actors flagged as imported
+  animals (`flags.acks-extras.extras.types = ["animal"]`) — one whose
+  `extras.hd` reads under one Hit Die, one over — in a library Actor pack, and
+  a disposable `ability` item carrying a `companion` effect with no `ref`.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -126,7 +130,31 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    Bows, Crossbows, Other, Swords & Daggers and Unarmed, and NOT Axes, Flails
    or Spears. Tick *Medium melee* and save: the three dark pills light.
 
+13. **A companion is chosen into its slot.** Drag the companion ability onto
+   the character — a real drop, since the prompt fires on `createItem` for the
+   seat that made the item.
+   *Observable:* the picker opens at once, titled for the ability, the slight
+   animal under the rule's group and the other under "Judge's discretion",
+   plus a name field. Choose the slight one: a new actor of its name appears
+   in the Actors sidebar under **Companions**, carrying
+   `flags.acks-extras.companion = {ownerUuid, abilityId, index}` and NO
+   `cookbook` flag, owned by the character's owners; the effect holds its
+   uuid, and the ability sheet's Mechanics tab names it. Open the character's
+   Equipment tab: a **Companions** section sits between Carried and Stowed,
+   its row naming the creature and the ability; the paw control opens the
+   creature's sheet. Press release: the row reads "No companion chosen yet"
+   with a plus control, the pointer is empty, and the creature is still in
+   the sidebar. Press plus and type a name instead of choosing: a blank
+   monster of that name is made and bound. **Join as the Player seat**, owning
+   the character and without the Create Actor permission, and choose again:
+   the actor is made all the same (on the GM's client — a GM must be
+   connected) and the player owns it.
+
 ## Teardown
 
 Delete the ability item and the character. Confirm no `ability` items named
 for the fixture remain in `game.items` or on any actor.
+
+The companion step's creatures are not imports — Remove ALL Imports leaves
+them — so delete them by the uuids the effect held, then the two animal
+fixtures and their pack.

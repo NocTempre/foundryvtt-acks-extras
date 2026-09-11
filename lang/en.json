@@ -615,6 +615,16 @@
   "ACKS-LIB.size.medium": "Medium",
   "ACKS-LIB.size.large": "Large",
   "ACKS-ABILITIES.sheet.ability": "ACKS Ability",
+  "ACKS-ABILITIES.companion.pickTitle": "Companion for {ability}",
+  "ACKS-ABILITIES.companion.fromLibrary": "From the creatures this world holds",
+  "ACKS-ABILITIES.companion.eligible": "Animals of less than 1 HD (RR p. 113)",
+  "ACKS-ABILITIES.companion.other": "Other animals — Judge’s discretion",
+  "ACKS-ABILITIES.companion.orName": "Or name one — a blank creature is made for it",
+  "ACKS-ABILITIES.companion.noAnimals": "No animals have been imported yet. Name the companion below and a blank creature is made for it.",
+  "ACKS-ABILITIES.companion.chosen": "{name} is now {actor}’s companion.",
+  "ACKS-ABILITIES.companion.notChosen": "(not yet chosen)",
+  "ACKS-ABILITIES.companion.notLoaded": "(not yet loaded)",
+  "ACKS-ABILITIES.companion.folder": "Companions",
   "ACKS-ABILITIES.tab.mechanics": "Mechanics",
   "ACKS-ABILITIES.mech.classification": "Classification",
   "ACKS-ABILITIES.mech.category": "Category",
@@ -833,6 +843,15 @@
     },
     "training": {
       "section": "Training"
+    },
+    "companion": {
+      "section": "Companions",
+      "count": "{n} of {of} chosen",
+      "empty": "No companion chosen yet",
+      "via": "via {ability}",
+      "choose": "Choose a companion",
+      "open": "Open the companion’s sheet",
+      "release": "Release the companion — the creature stays in the world"
     },
     "wear": {
       "section": "Worn & Wielded",
@@ -5118,6 +5137,8 @@
   "ACKS-IMPORTER.ui.legacyActive": "ACKS Extras now includes the importer. Disable the separate “ACKS II — Importer” module (Game Settings → Manage Modules) and reload; until then the built-in importer stays off.",
   "ACKS-IMPORTER.ui.migrated": "ACKS Extras | your imported library now belongs to this module: {documents} document(s), {settings} world setting(s) and {macros} macro(s) carried over from the separate importer.",
   "ACKS-IMPORTER.ui.migrationFailed": "ACKS Extras | the imported library could not be carried over from the separate importer module. Reload to try again; if it persists, report it with the console error.",
+  "ACKS-IMPORTER.ui.citeNoBook": "{book} is not on this world’s shelf, so the cited page cannot be opened here. Stage the book under Your Books and the citation will open it.",
+  "ACKS-IMPORTER.ui.citeNoAccess": "You do not have permission to open {book} in this world.",
   "ACKS-CHARACTER.sheet.label": "ACKS Character Sheet",
   "ACKS-CHARACTER.tabsLabel": "Character sheet tabs",
   "ACKS-CHARACTER.tab.rolls": "Rolls",

@@ -1,0 +1,25 @@
+[
+  {
+    "id": "rr.gamblingGames",
+    "kind": "kind.settingTable",
+    "book": "rr",
+    "name": "Gambling Games",
+    "pages": [
+      113
+    ],
+    "assists": {
+      "nameExpect": {
+        "box": { "x0": 330, "x1": 360, "y0": 473, "y1": 481 },
+        "text": "Game"
+      },
+      "rows": { "x0": 330, "x1": 575, "y0": 484, "y1": 580 }
+    },
+    "columns": [
+      "Game",
+      "Description"
+    ],
+    "meta": {
+      "group": "Setting Details"
+    }
+  }
+]

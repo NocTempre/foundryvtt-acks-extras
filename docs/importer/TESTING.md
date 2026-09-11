@@ -132,13 +132,16 @@ is `0` — and that the window shows nothing staged.
 ## Remove ALL Imports sweeps materialized rules tables
 
 Import rules tables ("Import Rules Tables (GM)", then "Create Foundry Tables
-from Rules Import (GM)"), confirm the sidebar holds "ACKS Imported Tables"
-with per-doc subfolders and readable names, then run "Remove ALL Imports
-(GM)". *Observable:* the confirm counts the materialized rules-table
-documents; afterwards the folder tree, its RollTables, and the "ACKS Ruledata
-(Imported)" journal are all gone, while the imported table DATA still answers
-(the ruledata browser still lists tables, and re-running Create Foundry
-Tables rebuilds the documents without re-importing).
+from Rules Import (GM)"), confirm "ACKS Cookbook — RollTable" holds "ACKS
+Imported Tables" with per-doc subfolders and readable names and "ACKS Cookbook
+— JournalEntry" holds "ACKS Ruledata (Imported)" — the sidebar gains neither —
+then run "Remove ALL Imports (GM)". *Observable:* the confirm counts the
+packs' contents (the rules-table documents among them) plus whatever
+materialized rules-table documents an earlier release left in the sidebar;
+afterwards the packs are gone with the folder tree, its RollTables and the
+journal, the sidebar holds none of them, while the imported table DATA still
+answers (the ruledata browser still lists tables, and re-running Create
+Foundry Tables rebuilds the documents on fresh shelves without re-importing).
 
 ## The library: compendium target and the two-level tree
 
@@ -176,10 +179,11 @@ first), one connected book, and the **Player** seat for the ownership half.
    *Observable:* the pack opens and its documents are readable, from ONE
    setting. No per-folder dialog was involved.
 6. Build class template packages, then open a class.
-   *Observable:* bundles and gear are in the SIDEBAR under
-   `Class Templates / <Class>` — they are world documents on purpose — and the
-   class sheet lists them. This is the acks-extras library reader working: a
-   blank list here means it is reading `game.items` somewhere.
+   *Observable:* bundles and gear are on the line's Item shelf ("ACKS
+   Cookbook — Item") under `Class Templates / <Class>`, the class's 3d6 table
+   on its RollTable shelf under `Class Templates`, the sidebar gains nothing,
+   and the class sheet lists them. This is the acks-extras library reader
+   working: a blank list here means it is reading `game.items` somewhere.
 7. Open an imported template actor and press Generate.
    *Observable:* the new creature is in a top-level **Generated** folder in the
    Actors sidebar, not in the pack and not beside the template.
@@ -187,8 +191,9 @@ first), one connected book, and the **Player** seat for the ownership half.
 ### Teardown
 
 "Remove ALL Imports (GM)". *Observable:* the confirm counts the packs' contents
-AND the class-template documents; afterwards `game.packs` holds no
-"ACKS Cookbook — …" pack, and no orphan is left in the sidebar —
+(class-template documents among them) and whatever an earlier release left in
+the sidebar; afterwards `game.packs` holds no "ACKS Cookbook — …" pack, and no
+orphan is left in the sidebar —
 `game.items.filter(i => i.flags?.["acks-extras"]?.templatePart).length` is 0.
 
 ## A geometry change, checked against the GM's own book
@@ -561,9 +566,10 @@ The recipe lives with the surface's owner: acks-extras
 `docs/classes/TESTING.md` § Template packages. This repo's own observables
 inside that recipe: `acksExtras.importer.importTemplatePackages()` (macro "Build Class Template
 Packages (GM)", Getting Started step after classes) materializes with NO book
-connected; bundles and gear land in the SIDEBAR under `Class Templates /
-<Class>` and tables under `Class Templates` (world documents by design — a
-package exists to be repaired, and imports live in a pack); and after
+connected; bundles and gear land on the class's line's Item shelf under
+`Class Templates / <Class>` and tables on its RollTable shelf under `Class
+Templates` (a package lands beside its class; only a Judge's own sidebar class
+keeps its parts in the sidebar); and after
 `acksExtras.importer.cookbookUpdateClasses()` the rows' bundle links are re-derived and a
 Judge-edited document shows up in the skipped count rather than being
 rewritten.
@@ -662,6 +668,45 @@ cannot read the book than from the one that imported it. Flags are stored in
 11. Delete the folder and everything created, and the hand-made fixtures from
     steps 8 and 9.
 
+## A citation opens the shelved page
+
+Every page reference an import writes is a link to the book it was read from,
+at that page, and the reference an OLDER import wrote still opens — so the
+check is one click on each shape, from two seats.
+
+### Fixtures
+
+1. One book staged on the server (Your Books), so it has a shelf journal, and
+   one entry imported from it — an ability from `rr` reaches the link; the
+   setting-table recipe below reaches the table's.
+2. The **Player** seat, with the shelf journal at its default permission.
+
+### Steps
+
+3. Open the imported document's description. *Observable:* the reference at
+   the foot of the text is a link carrying `data-book` and `data-page`, and
+   the page is the PDF page, not the printed folio (RR p.111 carries
+   `data-page="113"`).
+4. Press it. *Observable:* the book's journal opens on its PDF page and the
+   viewer lands on that page — the iframe's hash reads `page=113`. Press a
+   reference to a DIFFERENT page while the viewer is open: the same viewer
+   turns to it rather than a second window opening.
+5. Hand-set a description to the pre-upgrade shape — a plain
+   `<p class="acks-extras-importer-cite">RR p.111</p>`, no link — and press
+   it. *Observable:* the same page opens: the text is parsed at click time, so
+   a world imported before the link never needs re-importing to get it.
+6. Press a reference to a book that is NOT on the shelf. *Observable:* a
+   warning naming the book, and nothing opens.
+7. **Join as the Player** and press the link. *Observable:* the permission
+   warning, and nothing opens — the player cannot reach a PDF the Judge has
+   not shared. Grant the player Observer on the shelf journal and press
+   again: it opens.
+
+### Teardown
+
+8. Delete the imported document and the hand-set one; leave the shelf as it
+   was.
+
 ## Location journals refuse a page they cannot anchor
 
 The AX books' rooms. Every location entry carries a heading anchor, and the
@@ -706,6 +751,32 @@ the wrong slot to provoke.
 8. Delete the journals AND the folders from the pack (`Folder.deleteDocuments`
    with `{pack}` — deleting the entries leaves the folders behind), remove the
    staged PDFs, and reload so the refresh bridge restores the seat's real books.
+
+## A setting table is a journal page
+
+A sidebar list the book prints without a die — the gambling games of RR
+p. 113 — lands as a two-column table on a Setting Details journal, under the
+register's header words, with no odds column.
+
+### Fixtures
+
+1. `rr` connected; the line's JournalEntry shelf empty first.
+
+### Steps
+
+2. Run `acksExtras.importer.cookbookImportJournals()`. *Observable:* the
+   JournalEntry shelf holds **Setting Details** with a page named **Gambling
+   Games**; the page body is one `<table class="acks-extras-importer-table">`
+   headed *Game* / *Description*, one row per printed game with the game's
+   name in the first cell and its whole description in the second — no die
+   column, no odds, no cell from the neighbouring tables — and the RR p.111
+   reference closes the block as a link.
+3. Run it again. *Observable:* the result counts it as `updated`, not `made`,
+   and the journal still holds one page.
+
+### Teardown
+
+4. Delete the journal and its folder from the pack.
 
 ## OSE import
 

@@ -1038,9 +1038,9 @@ test("a placeholder can never resolve itself", () => {
   // A standing gap is reported on EVERY pass, not only the one that minted
   // the placeholder — a later run that says nothing reads as a clean run.
   assert.match(src, /report\.unresolved\.push\(doc\.name\);/, "an unfilled gap is re-reported each run");
-  // An upgrade to a world definition LINKS it, matching the create path, so
-  // the world never ends up holding a redundant twin of its own ability.
-  assert.match(src, /replacement\.world && part\.kind === "ability"/, "a world source is linked, not copied");
+  // An upgrade to a definition the library holds LINKS it, matching the create
+  // path, so the world never ends up holding a redundant twin of its own ability.
+  assert.match(src, /replacement\.linkable && part\.kind === "ability"/, "a library source is linked, not copied");
   // Gear bases exclude every part this feature minted, so a bare item cannot
   // exact-match its own descriptor and a skin cannot become a second skin's base.
   assert.match(src, /GEAR_TYPES\.includes\(i\.type\) && !partOf\(i\)/, "a base is an import, never our own output");
@@ -1056,7 +1056,7 @@ test("a package never consumes the imports it points at", () => {
   assert.equal(deletions.length, 3, "three deletion sites: detach's items and tables, and a replaced placeholder");
   // Detach deletes only what `mine` (partOf → templatePart) admits.
   assert.match(src, /const mine = \(doc\) => \{\s*const part = partOf\(doc\);/, "detach filters by this module's stamp");
-  assert.match(src, /game\.items\.filter\(mine\)/, "and never by a bare type or name scan");
+  assert.match(src, /libraryItems\(\)\.filter\(mine\)/, "and never by a bare type or name scan");
   // The replacement path only ever deletes a placeholder it itself minted.
   assert.match(src, /if \(!part\?\.unresolved\) continue;/, "upgrades touch only unresolved parts");
   // Gear is SKINNED FROM a base by copying it — the base is read, never moved.

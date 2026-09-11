@@ -376,7 +376,8 @@ market trades goods — presence of `system.market` is the only gate).
 **Ruled:** materialized RollTables are named for readers ("Class Percentages —
 Level 0"), filed under per-doc subfolders of "ACKS Imported Tables", and
 identified by a `tableKey` flag rather than by name; the folder tree and the
-JSON journal carry a `ruledataDocs` flag; and the `ruledata-import` contract
+JSON journal carry a `ruledataDocs` flag *(where they sit was superseded
+2026-09-10, below: on the library's shelves, not in the sidebar)*; and the `ruledata-import` contract
 gains v1.3 (additive) `countMaterializedDocs()` / `removeMaterializedDocs()`
 so the importer's Remove ALL Imports can sweep what materialization created.
 Reported: a sidebar of raw dotted keys in one flat folder, and a cleanup macro
@@ -527,3 +528,25 @@ its parent is a decision about import, not about the sheet.
 **WHO IS HERE needed nothing.** The roster is a stored list on the location
 itself, not a scan, so it never depended on `game.actors` and reads identically
 from a compendium; verified live with an occupant row on a packed location.
+
+## 2026-09-10 — Materialized tables live on the library's shelves
+
+**Reported (user):** the imported tables' RollTables and journal sat in the
+sidebar while every other import sat in a compendium. The ruling is lib's
+(`docs/lib/DECISIONS.md` 2026-09-10: a document derived from an import lands
+where the import lives). Here: `materializeAll` and `exportEntry` write to the
+ACKS RollTable and JournalEntry shelves through `lib/library-target.mjs`, the
+folder tree inside the RollTable pack; a shelf is opened only by a pass that has
+something for it, so a registry with no JSON tables makes no JournalEntry pack;
+and the tree, tables and journal an earlier release wrote to the sidebar are
+retired the first time a shelf opens — one delete each — and rebuilt from the
+registry. The write-count gates in `tools/test-table-docs.mjs` cover the move
+and the settled pass after it. `listMaterializedDocs` answers `journals` (shelf
+and sidebar both) and takes `{sidebar}`; contract v1.4
+`countMaterializedDocs({sidebar: true})` exists for the importer's confirm,
+which deletes the packs whole and would otherwise count a shelf's tables twice.
+
+**Supersedes the placement half of 2026-08-20** ("names, folders, and a way
+out"): the names, the flags, the adoption of a pre-flag document and the way
+out all stand — a legacy raw-key sidebar table is now adopted by being rebuilt
+on the shelf rather than renamed in place.

@@ -186,6 +186,24 @@ export const BOOKS = {
  */
 export const citeFor = (bookId, page) => `${BOOKS[bookId]?.short ?? bookId} p.${page - (BOOKS[bookId]?.printedOffset ?? 0)}`;
 
+/**
+ * The inverse of `citeFor`: the book id and PDF page a citation names, or null
+ * when it names no book this build knows. Reads the short label and the folio
+ * and puts the offset back, so a reference an earlier release wrote as plain
+ * text still opens the right page. The PoC recipes cite the PDF page itself
+ * ("MM PDF p. 171") and say so; those need no offset.
+ * @returns {{book: string, page: number}|null}
+ */
+export function parseCite(text) {
+  const m = /^\s*([A-Za-z][A-Za-z0-9]*)\s+(PDF\s+)?pp?\.?\s*(\d+)/i.exec(String(text ?? ""));
+  if (!m) return null;
+  const short = m[1].toUpperCase();
+  const bookId = Object.keys(BOOKS).find((id) => String(BOOKS[id].short ?? "").toUpperCase() === short);
+  if (!bookId) return null;
+  const printed = Number(m[3]);
+  return { book: bookId, page: m[2] ? printed : printed + (BOOKS[bookId].printedOffset ?? 0) };
+}
+
 /** Human-readable fingerprint check; returns null when OK, else a warning. */
 export function fingerprintWarning(bookId, numPages, title) {
   const book = BOOKS[bookId];

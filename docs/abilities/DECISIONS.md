@@ -540,3 +540,52 @@ lived in the resolver, so the fix does.
 *Cost:* a compound phrase ("medium or smaller melee weapons") ticks nothing
 and stays in the line; it is typed as the sizes it names, which is how the
 Configure Proficiencies macro already asks for it.
+
+### A companion is chosen into a slot the ability confers (2026-09-10)
+
+**Reported (user):** a familiar should have an inventory for whatever
+creature is selected — prompt for the animal the rule allows, and allow a
+custom one; "a special inventory slot unlocked by the ability".
+
+**Ruled.** The companion effect is a SLOT, not a record of a creature: it
+exists while the ability is held, and a creature is put in it or taken out.
+The pointer (`actorUuid`) has exactly two writers — the importer's fill pass
+for a slot the page names by `ref`, and `companions.mjs` for a slot the page
+leaves to the reader — and one reader besides the ability sheet: the
+Equipment tab, where the character sheet lists the slots as a Companions
+section. The character's gear is where a player looks for what they have, and
+a familiar is had.
+
+**Ruled.** The chosen creature is a world COPY of the library's, never the
+library document and never a link into the pack. A pack document is shared by
+every character in the world and rewritten by the next import; a familiar
+takes wounds and a name. The copy sheds the cookbook stamp so Remove ALL
+Imports leaves it, takes the character's ownership so the player can open it,
+and carries `flags.acks-extras.companion` so it can say whose it is.
+
+**Ruled.** The picker offers the library's animals in two groups — those
+under one Hit Die, read off the importer's structured hit-dice record (a
+fraction of a die, or one die with a penalty), and every other animal at the
+Judge's discretion — and a typed name, for which a blank creature is made.
+Which creatures fall under the line is read off the imported actors and never
+listed.
+
+**Ruled.** A player seat that may not create actors still chooses: the
+creation runs on the GM's client through the module's socket
+(`lib/sockets.mjs` `executeAsGM`), and only the pointer is written from the
+player's seat. Without this the feature would be GM-only on exactly the seat
+that plays the familiar.
+
+**Rejected:** a marker Item in the inventory standing for the companion. A
+second record of the same fact, drifting from the effect on the ability the
+moment either was edited, and one more thing Remove ALL Imports and Update
+abilities would each have had to learn.
+
+**Rejected:** filling the slot at import from the ability's selection
+("Totem Animal (rat)" → the rat). A name is not a ref, and a wrong animal in
+the slot reads as an answer where an empty slot reads as a question; the
+picker asks the question instead. The matching stays on the importer roadmap.
+
+*Cost:* releasing a slot leaves the creature in the world, filed under
+Companions; a Judge deletes it by hand. A companion effect on a MONSTER's
+ability is read by nothing — the prompt and the section are the character's.

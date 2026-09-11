@@ -361,6 +361,7 @@ export const WEAR = Object.freeze({
   ...SLOT,
   carried: "carried", // on the character, not worn or wielded
   stowed: "stowed", // inside a container
+  companion: "companion", // a creature an ability confers, kept as a slot
 });
 
 /** Display order for the worn buckets (carried/stowed are handled separately). */
@@ -368,10 +369,11 @@ export const WEAR_ORDER = Object.freeze([...WEAR_SLOT_ORDER]);
 
 /**
  * Font Awesome icon per wear location, for sheet + app headers. The slots carry
- * their own; only the two non-slot buckets are named here.
+ * their own; only the non-slot buckets are named here.
  */
 export const WEAR_ICONS = Object.freeze({
   ...Object.fromEntries(Object.entries(WEAR_SLOTS).map(([k, v]) => [k, v.icon])),
   [WEAR.carried]: "fa-sack-xmark",
   [WEAR.stowed]: "fa-box",
+  [WEAR.companion]: "fa-paw",
 });

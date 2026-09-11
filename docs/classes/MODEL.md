@@ -46,7 +46,7 @@ sheet. Both produce the same document and open in the same sheet.
 
 [template-packages.mjs](../../scripts/classes/template-packages.mjs) is the
 sole owner of the materialized shape: each template row may bind a core
-`bundle` Item — a container of uuid links to REAL world documents — so a
+`bundle` Item — a container of uuid links to REAL documents — so a
 Judge repairs one linked item (retype a mis-imported staff to `weapon`, fix
 its damage) and every character generated from that template afterwards gets
 the fix. A generated 3d6 RollTable per class (`system.templateTable`) links
@@ -54,10 +54,10 @@ the bundles as a VIEW; nothing in code reads it, so it cannot become a second
 authority for the bands.
 
 Ownership, one fact each: the class row keeps the printed band/name/coin/enc;
-the bundle's `itemList` owns WHAT the package contains; each linked world
-item owns what one piece of it IS. `materializeTemplates(classItem, {stamp,
-folder, tableFolder})` builds all of it from the class document alone (no
-book needed).
+the bundle's `itemList` owns WHAT the package contains; each linked item
+owns what one piece of it IS. `materializeTemplates(classItem, {stamp,
+folder, tableFolder, pack, tablePack})` builds all of it from the class
+document alone (no book needed).
 
 **Resolution reads the world first, then the compendia** — `findSource` (a
 ref via the importer's stamp in the pack index, then exact name) and
@@ -108,8 +108,18 @@ leaves it printed on the row, still applying the old way. That is what makes
 single ownership safe: a partial package can never silently shorten a
 starting kit. `detachTemplatePackages` clears every link (documents kept
 unless asked) and the class applies its printed entries again.
-Packages the sheet builds land in a `Class Templates / <Class>` world folder
-so every part is findable; the importer passes its own cookbook folder.
+A package lands beside its class. A class on one of the library's shelves —
+the importer's world packs — writes its bundles, skins and copies to that
+line's Item shelf under `Class Templates / <Class>` and its 3d6 table to the
+line's RollTable shelf under `Class Templates`; a class in the sidebar, a
+Judge's own, keeps its parts in the sidebar under the same path, where Remove
+Imports (which deletes the library's packs whole) cannot reach them. The
+shelves are opened through `lib/library-target.mjs`; the importer passes its
+own cookbook folders and packs. Parts are read across the whole library, so a
+world upgraded from a release that wrote them to the sidebar keeps its earlier
+parts linked where they are. `findSource` answers `linkable` — a sidebar
+document or one on a library shelf may be pointed at; a definition in any
+other compendium is copied onto the class's shelf.
 
 Identity lives on the created documents (`flags["acks-extras"].templatePart`),
 never only on the row — an importer Update pass replaces the whole `system`,

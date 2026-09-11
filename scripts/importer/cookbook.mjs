@@ -14,7 +14,7 @@
  * pipeline. This file only maps executor output onto acks system fields.
  */
 import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs";
-import { bookText, entryText, escapeText, nodeParagraphs, stripBookText } from "./prose.mjs";
+import { bookText, entryText, entryTable, escapeText, nodeParagraphs, stripBookText } from "./prose.mjs";
 import { BOOKS, bookLine } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
@@ -23,10 +23,12 @@ import { pageItems } from "./extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "./weapon-tables.mjs";
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.mjs";
 import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, PRICE_TABLES } from "./gear-prices.mjs";
-import { savesForLevel } from "./stats.mjs";
+import { savesForLevel, parseHitDice } from "./stats.mjs";
+import { hdFormula } from "../lib/actor-read.mjs";
 import { progressBar } from "./progress.mjs";
 import * as services from "../lib/services.mjs";
-import { fileImportedPack } from "../lib/compendium-folders.mjs";
+import { libraryPackLabel } from "../lib/library.mjs";
+import { ensureLibraryPack } from "../lib/library-target.mjs";
 import { nameKeys, ABILITY_CATEGORIES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
 import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
@@ -275,15 +277,8 @@ export function buildExtras(node) {
   if (stone != null && /st/.test(massText)) extras.mass = { stone, lbs: stone * 10 };
 
   /* --- rating & saves --- */
-  const hdm = /^(\d+)(?:\s*([+-])\s*(\d+))?\s*(\**)/.exec(String(s.hitDice ?? "").trim());
-  if (hdm) {
-    extras.hd = {
-      count: parseInt(hdm[1], 10),
-      bonus: hdm[2] ? (hdm[2] === "-" ? -1 : 1) * parseInt(hdm[3], 10) : null,
-      asterisks: hdm[4]?.length || null,
-      dieType: 8,
-    };
-  }
+  const hd = parseHitDice(s.hitDice);
+  if (hd) extras.hd = { ...hd, dieType: 8 };
   const sv = /^([A-Z]+)\s*(\d+)?/.exec(String(s.save ?? "").trim());
   if (sv) extras.saveAs = { class: SAVE_CLASS_BY_ABBR[sv[1]] ?? "fighter", level: sv[1] === "NH" ? 0 : parseInt(sv[2] ?? "0", 10) || 0 };
   if (s.normalLoad != null || s.maxLoad != null) {
@@ -459,12 +454,13 @@ export function bindStatsScalars(s) {
 
   if (Number.isInteger(s.armorClass)) system.aac = { value: s.armorClass };
 
-  const hdm = /^(\d+)(?:\s*([+-])\s*(\d+))?/.exec(String(s.hitDice ?? "").trim());
-  if (hdm) {
-    const count = parseInt(hdm[1], 10);
-    const bonus = hdm[2] ? (hdm[2] === "-" ? -1 : 1) * parseInt(hdm[3], 10) : 0;
-    const avg = Math.max(1, Math.floor(count * 4.5 + bonus));
-    system.hp = { hd: `${count}d8${bonus ? (bonus > 0 ? `+${bonus}` : bonus) : ""}`, value: avg, max: avg };
+  // A fraction of a die rolls a smaller die (a ½ rating is 1d4), which is what
+  // lets a sub-1-HD animal read back as one — the familiar rule's whole test.
+  const hd = parseHitDice(s.hitDice);
+  if (hd) {
+    const bonus = hd.bonus ?? 0;
+    const avg = Math.max(1, Math.floor(hd.count * 4.5 + bonus));
+    system.hp = { hd: hdFormula({ count: hd.count, dieType: 8, bonus }), value: avg, max: avg };
   }
 
   const sv = /^([A-Z]+)\s*(\d+)?/.exec(String(s.save ?? "").trim());
@@ -711,7 +707,7 @@ const packCache = new Map();
  * this module's packs by that prefix alone, so a line added by a later release
  * is swept up by a Remove Imports that has never heard of it.
  */
-const packLabel = (type, line = null) => (line ? `${FOLDER_NAME} — ${line} — ${type}` : `${FOLDER_NAME} — ${type}`);
+const packLabel = libraryPackLabel;
 
 /**
  * Every world pack of a type this module owns, whatever line it holds.
@@ -782,23 +778,12 @@ async function packFor(type, line = null) {
   }
   if (!pending) {
     pending = (async () => {
-      const label = packLabel(type, line);
-      const found = game.packs.find(
-        (p) => p.metadata.packageType === "world" && p.documentName === type && p.metadata.label === label,
-      );
-      if (found) return found.collection;
-      const CC = foundry.documents?.collections?.CompendiumCollection ?? globalThis.CompendiumCollection;
-      const made = await CC.createCompendium({ label, type });
-      // A pack created this way carries no folder and lands loose at the
-      // sidebar root, which is where every imported library sat. The LINE the
-      // label was built from is handed over with it, so the shelf and the
-      // label can never disagree about which books this pack holds; the folder
-      // for a line is made by the first pack that needs it and by no other
-      // path, so a world that never imported that line has no empty shelf.
-      await fileImportedPack(made.collection, line).catch((err) =>
-        console.warn(`${MODULE_ID} | could not shelve the ${label} compendium`, err),
-      );
-      return made.collection;
+      // The shelf is the lib's to open (`library-target.mjs`): the class
+      // templates and the rules tables write to the same shelves, and one
+      // opener is what keeps three writers on one label per line.
+      const pack = await ensureLibraryPack(type, line);
+      if (!pack) throw new Error(`no ${packLabel(type, line)} compendium`);
+      return pack.collection;
     })().catch((err) => {
       // The sidebar is the only place left to put it. Say so loudly: a silent
       // fall-back to the world is how a library ends up split across two
@@ -1277,36 +1262,6 @@ async function ensureFolderPath(type, names, line = null) {
 }
 
 /**
- * A folder in the SIDEBAR, whatever the import target is.
- *
- * The one caller is the class-template materializer. Its documents are world
- * documents by design — acks-extras copies them out of the pack precisely so a
- * Judge can repair one — so filing them needs a world folder. Handing that
- * materializer a folder from `ensureFolderPath` gives it a PACK folder id for a
- * document it creates in the world, and the document lands unfiled pointing at
- * a folder the sidebar does not have.
- *
- * Deliberately not routed through `folderCache`: that cache is keyed per target
- * and this is the exception to the target, not a member of it.
- */
-async function ensureWorldFolderPath(type, names) {
-  let parent = null;
-  for (const name of names.filter(Boolean).map((n) => String(n).trim()).filter(Boolean).slice(0, FOLDER_MAX_DEPTH)) {
-    const parentId = parent?.id ?? null;
-    parent =
-      game.folders.find((fo) => fo.type === type && fo.name === name && (fo.folder?.id ?? null) === parentId) ??
-      (await Folder.create({
-        name,
-        type,
-        folder: parentId,
-        sorting: "a",
-        flags: { [MODULE_ID]: { cookbook: { id: `folder.${type}.${name}` } } },
-      }));
-  }
-  return parent;
-}
-
-/**
  * What a book is CALLED — the folder its imports are filed under, and the name
  * any message about it uses. A shipped book is named by the registry; a
  * Judge-registered source by the name they typed for it, which is the only name
@@ -1331,21 +1286,31 @@ const targetFolder = (type, bookId, group) =>
  * re-imports the lot on every run.
  */
 async function importedIdsOfType(type, worldCollection) {
-  const ids = new Set([...worldCollection].map((d) => d.getFlag(MODULE_ID, "cookbook")?.id).filter(Boolean));
+  // Never a class template's part: a skinned copy inherits the id of the
+  // definition it was made from, and counting it would let one class's
+  // engraved waterskin answer for the shared Waterskin — which then never
+  // imports, because the index says it is already here.
+  const part = (flags) => !!flags?.[MODULE_ID]?.[TEMPLATE_PART];
+  const ids = new Set(
+    [...worldCollection].filter((d) => !part(d.flags)).map((d) => d.getFlag(MODULE_ID, "cookbook")?.id).filter(Boolean),
+  );
   // Every shelf, because a batch mixes lines: "import everything" walks the
   // ACKS books and the OSE ones in one pass, and asking one pack about all of
   // them answers "not imported" for every book shelved somewhere else.
   for (const collection of ourPacksOfType(type)) {
     // A failed index read must be LOUD: returning an empty set here reads as
     // "nothing imported yet" and a bulk run re-creates everything as twins.
-    const index = await collection.getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`] }).catch((err) => {
-      console.warn(
-        `${MODULE_ID} | importedIdsOfType: index of ${collection.collection} unreadable — imported ${type}s may be recreated`,
-        err,
-      );
-      return null;
-    });
+    const index = await collection
+      .getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.${TEMPLATE_PART}`] })
+      .catch((err) => {
+        console.warn(
+          `${MODULE_ID} | importedIdsOfType: index of ${collection.collection} unreadable — imported ${type}s may be recreated`,
+          err,
+        );
+        return null;
+      });
     for (const row of index ?? []) {
+      if (part(row.flags)) continue;
       const id = row.flags?.[MODULE_ID]?.cookbook?.id;
       if (id) ids.add(id);
     }
@@ -1516,11 +1481,12 @@ function monsterProseChannels(node, id, cite) {
   }
   const last = FIELD_ORDER.filter((f) => texts.get(f)?.length).pop() ?? "appearance";
   const description = {};
-  for (const [field, lines] of texts) description[field] = bookText(lines, field === last ? cite : "", { id });
+  const where = { id, book: node.book, page: node.page };
+  for (const [field, lines] of texts) description[field] = bookText(lines, field === last ? cite : "", where);
   // A page that matched but yielded no prose still says where it was read from.
-  if (!description[last]) description[last] = bookText([], cite, { id });
+  if (!description[last]) description[last] = bookText([], cite, where);
   const extras = { ...buildExtras(node), description };
-  return { biography: bookText(nodeParagraphs(node), cite, { id }), extras };
+  return { biography: bookText(nodeParagraphs(node), cite, where), extras };
 }
 
 const IMPORT_CONCURRENCY = 4;
@@ -1746,11 +1712,13 @@ export async function cookbookRemoveImports() {
   // The rules-table import also materialized documents — RollTables, their
   // folders, and the JSON journal — through the ruledata provider (ACKS
   // Extras), which stamps no cookbook flag. The provider owns them, so it
-  // counts and removes them here. The imported table DATA (the world store
-  // the automation reads) deliberately stays: removing documents is a tidy-up,
-  // not an un-import.
+  // counts and removes them here. Only what the SIDEBAR holds: the provider
+  // writes to the library's shelves, and those go with the packs above,
+  // already counted. The imported table DATA (the world store the automation
+  // reads) deliberately stays: removing documents is a tidy-up, not an
+  // un-import.
   const ruledata = services.get("ruledata-import");
-  const materialized = ruledata?.countMaterializedDocs?.() ?? 0;
+  const materialized = ruledata?.countMaterializedDocs?.({ sidebar: true }) ?? 0;
   const total = groups.reduce((n, [, docs]) => n + docs.length, 0) + packed + materialized;
   if (!total) return ui.notifications.info(`${MODULE_ID} | nothing imported by this module to remove.`);
   const lines = [
@@ -2819,11 +2787,16 @@ async function importAdventureActor(bookId, id, folderId) {
   return actor;
 }
 
+/** The kinds that bind to a journal page: a keyed room, and a setting-detail table. */
+const JOURNAL_KINDS = new Set(["kind.location", "kind.settingTable"]);
+
 /**
- * Location journals: one JournalEntry per meta.group, one page per keyed
- * entry, page body = the room's own text + creature names (the seat-extracted creature
- * lookups, deferring to the ACKS II entry when the register maps one). Pages
- * update in place on re-import, so coverage grows without duplicating.
+ * Journals: one JournalEntry per meta.group, one page per keyed entry. A
+ * location's page body is the room's own text + creature names (the
+ * seat-extracted creature lookups, deferring to the ACKS II entry when the
+ * register maps one); a setting table's is the printed rows laid out as a
+ * table under the register's header words. Pages update in place on
+ * re-import, so coverage grows without duplicating.
  */
 export async function cookbookImportJournals() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates journals).`);
@@ -2836,13 +2809,13 @@ export async function cookbookImportJournals() {
   // through them it is rather than only that it is busy.
   const bar = progressBar(
     game.i18n.localize(`${LANG_PREFIX}.ui.progressJournals`),
-    openBooks.reduce((n, b) => n + Object.values(data.books.get(b).entries).filter((e) => e.kind === "kind.location").length, 0),
+    openBooks.reduce((n, b) => n + Object.values(data.books.get(b).entries).filter((e) => JOURNAL_KINDS.has(e.kind)).length, 0),
   );
   try {
     for (const bookId of openBooks) {
       const cb = data.books.get(bookId);
       const session = ctx.sessionDocs.get(bookId);
-      const locs = Object.entries(cb.entries).filter(([, e]) => e.kind === "kind.location");
+      const locs = Object.entries(cb.entries).filter(([, e]) => JOURNAL_KINDS.has(e.kind));
       if (!locs.length) continue;
       // The BOOK is the folder now, so the journal itself is named by its group
       // alone ("A. Entrance Caves") rather than repeating the book on every row.
@@ -2897,7 +2870,11 @@ export async function cookbookImportJournals() {
           const creatureHtml = creatures.length
             ? `<p><strong>Creatures:</strong> ${creatures.map((c) => escapeText(c.text)).join(" · ")}</p>`
             : "";
-          const content = entryText(node, id, e.cite) + creatureHtml;
+          // A setting table is its rows under the register's header words; the
+          // executor paired each row's label and text by section, and the page
+          // holds the pairs as a table rather than as prose.
+          const content =
+            e.kind === "kind.settingTable" ? entryTable(node, id, e.cite, e.columns ?? []) : entryText(node, id, e.cite) + creatureHtml;
           const existing = journal.pages.find((p) => p.getFlag(MODULE_ID, "cookbook")?.id === id);
           if (existing) {
             await existing.update({ "text.content": content, sort });
@@ -5783,21 +5760,25 @@ export async function importClasses() {
 
 /**
  * Materialize template packages for a set of class documents: each printed
- * template row becomes a core `bundle` Item of repairable world documents,
- * and the class gains a generated 3d6 RollTable linking them. The classes
- * feature owns the shape (`materializeTemplates`) — this side only supplies
- * the folders. Idempotent; a no-op for a document that carries no template
- * rows.
+ * template row becomes a core `bundle` Item of repairable documents on the
+ * class's own shelf, and the class gains a generated 3d6 RollTable linking
+ * them. The classes feature owns the shape (`materializeTemplates`) — this
+ * side only names the shelves and the folders on them, so a package lands
+ * beside the library it was built from, filed `Class Templates / <Class>`.
+ * Idempotent; a no-op for a document that carries no template rows.
  */
 async function materializeClassTemplates(docs, { create = true } = {}) {
   const totals = { created: 0, relinked: 0, skippedEdited: 0, unresolved: 0 };
   let touched = 0;
   for (const doc of docs ?? []) {
     if (doc?.type !== CLASS_ITEM_TYPE || !(doc.system?.templates?.length > 0)) continue;
+    const line = lineOfData(doc);
+    const pack = await packFor("Item", line);
+    const tablePack = await packFor("RollTable", line);
     // A relink-only pass creates no folders — it has nothing to file.
-    const folder = create ? ((await ensureWorldFolderPath("Item", ["Class Templates", doc.name]))?.id ?? null) : null;
-    const tableFolder = create ? ((await ensureWorldFolderPath("RollTable", ["Class Templates"]))?.id ?? null) : null;
-    const report = await materializeTemplates(doc, { folder, tableFolder, create });
+    const folder = create ? ((await ensureFolderPath("Item", ["Class Templates", doc.name], line))?.id ?? null) : null;
+    const tableFolder = create ? ((await ensureFolderPath("RollTable", ["Class Templates"], line))?.id ?? null) : null;
+    const report = await materializeTemplates(doc, { folder, tableFolder, pack, tablePack, create });
     for (const key of Object.keys(totals)) totals[key] += report?.[key]?.length ?? 0;
     touched++;
   }
@@ -5914,7 +5895,7 @@ export function bindVehicleRow(row, entry, id) {
     system: {
       kind: "land",
       source: { book: entry.book ?? "rr", cite: entry.cite ?? "", ref: id },
-      description: bookText([], entry.cite ?? "", { id }),
+      description: bookText([], entry.cite ?? "", { id, book: entry.book, page: entry.pages?.[0] }),
       ...(cargo.length ? { cargo: { capacityStone: cargo[0], ...(passengers ? { passengers } : {}) } } : {}),
       ...(roles.length ? { crew: { roles } } : {}),
       ...(tiers.length && !trades ? { speeds: { tiers } } : {}),
@@ -5986,7 +5967,7 @@ function bindSeaVesselRow(row, entry, id) {
     system: {
       kind: "sea",
       source: { book: entry.book ?? "rr", cite: entry.cite ?? "", ref: id },
-      description: bookText([], entry.cite ?? "", { id }),
+      description: bookText([], entry.cite ?? "", { id, book: entry.book, page: entry.pages?.[0] }),
       ...(cargo != null ? { cargo: { capacityStone: cargo } } : {}),
       ...(roles.length ? { crew: { roles } } : {}),
       ...(Object.keys(speeds).length ? { speeds } : {}),
@@ -6273,7 +6254,7 @@ export function bindTrap(entry, node, id) {
       source: { book: entry.book ?? "jj", cite, ref: id },
       // The passage that precedes the first tier is the trap's description;
       // the plain split above is what fills the rows.
-      description: bookText([description], cite, { id }),
+      description: bookText([description], cite, { id, book: entry.book, page: entry.pages?.[0] }),
       level: 1,
       levels: levels.map((row) => ({ text: row.text, damageFormula: row.damageFormula })),
     },

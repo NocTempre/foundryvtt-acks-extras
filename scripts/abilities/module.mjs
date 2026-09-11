@@ -14,6 +14,7 @@ import { createAbilitySheet } from "./ability-sheet.mjs";
 import { rankOf, scalesFor, targetOf, rollsOf, rollAbility, defaultKeyOf, setDefaultKey, throwModifiers, scoreTerm } from "./ability-rolls.mjs";
 import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheetRolls } from "./sheet-rolls.mjs";
+import { companionSlots, openCompanionPicker, bindCompanion, releaseCompanion, registerCompanions } from "./companions.mjs";
 
 /** The dynamically-created sheet class (base is resolved at ready). */
 let AcksAbilitySheet = null;
@@ -77,11 +78,20 @@ Hooks.once("init", () => {
     // array and absorbs the legacy "(X)" name-suffix convention — consumers
     // must never parse item names themselves.
     selectionsOf,
+    // The companion SLOTS a character's abilities confer, and the gestures on
+    // them: choose (the picker), bind (a chosen creature), release. The slot's
+    // pointer is the effect's `actorUuid`; these are its only writers from the
+    // table side — the importer's fill pass is the other.
+    companionSlots,
+    openCompanionPicker,
+    bindCompanion,
+    releaseCompanion,
     get AcksAbilitySheet() {
       return AcksAbilitySheet;
     },
   };
   acksExtras.abilities = api;
+  registerCompanions();
 
   // Best-effort template preload (the base sheet's own parts preload with the system).
   try {

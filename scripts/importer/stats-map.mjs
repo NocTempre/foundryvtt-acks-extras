@@ -7,7 +7,8 @@
  * recipe directions come later, per the recipe philosophy. Enum keys mirror
  * acks-monsters scripts/config.mjs (public shipped data).
  */
-import { savesForLevel } from "./stats.mjs";
+import { savesForLevel, parseHitDice } from "./stats.mjs";
+import { hdFormula } from "../lib/actor-read.mjs";
 import { MODULE_ID, DEFAULT_IMG } from "./constants.mjs";
 
 const TYPE_KEYS = ["animal", "beastman", "construct", "enchanted", "giant", "humanoid", "incarnation", "monstrosity", "ooze", "plant", "undead", "vermin"];
@@ -146,14 +147,12 @@ export function mapPairs(pairs) {
 
   const hd = take("Hit Dice");
   if (hd) {
-    const m = /^(\d+)(?:\s*([+-])\s*(\d+))?\s*(\**)/.exec(hd);
-    if (m) {
-      const count = parseInt(m[1], 10);
-      const bonus = m[2] ? (m[2] === "-" ? -1 : 1) * parseInt(m[3], 10) : 0;
-      const asterisks = (m[4] ?? "").length;
-      const avg = Math.max(1, Math.floor(count * 4.5 + bonus));
-      system.hp = { hd: `${count}d8${bonus ? (bonus > 0 ? `+${bonus}` : bonus) : ""}`, value: avg, max: avg };
-      extras.hd = { count, bonus: bonus || null, asterisks: asterisks || null, dieType: 8 };
+    const parsed = parseHitDice(hd);
+    if (parsed) {
+      const bonus = parsed.bonus ?? 0;
+      const avg = Math.max(1, Math.floor(parsed.count * 4.5 + bonus));
+      system.hp = { hd: hdFormula({ count: parsed.count, dieType: 8, bonus }), value: avg, max: avg };
+      extras.hd = { ...parsed, dieType: 8 };
     }
   }
 

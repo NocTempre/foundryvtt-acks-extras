@@ -22,7 +22,11 @@ other VTTs) while cookbooks stay valid.
   attach it to the map); `kind.rolltable` → RollTable (ranges from shipped
   section structure, row text materialized at import into the GM's world — the
   hand-typed-table equivalence — formula from the page's dice locator, else
-  derived mechanically from ranges starting at 1); notes → JournalEntry (the
+  derived mechanically from ranges starting at 1); `kind.settingTable` →
+  JournalEntry page beside the locations (one JournalEntry per `meta.group`,
+  body = the printed rows as a two-column table under the register's header
+  words, no die column and no odds — the labels and rows the executor pairs by
+  section); notes → JournalEntry (the
   "memorial wall"). Unrouted kinds
   default to JournalEntry — routing coverage may lag capture without losing
   anything.

@@ -10,7 +10,8 @@
  * repairing anything again. The live world cannot gate the third — proving it
  * there means running the update pass over every ability a world holds.
  */
-import { bookText, entryText, nodeParagraphs, nodeText, stripBookText, escapeText } from "../../scripts/importer/prose.mjs";
+import { bookText, bookTable, entryText, entryTable, nodeParagraphs, nodeTablePairs, nodeText, stripBookText, escapeText } from "../../scripts/importer/prose.mjs";
+import { parseCite } from "../../scripts/importer/books.mjs";
 
 let failed = 0;
 const ok = (name, cond, detail = "") => {
@@ -59,6 +60,42 @@ eq("nor a bare legacy tag inside other markup", stripBookText("<p>@PdfText[def.x
 ok("but a Judge's own paragraph survives the strip", stripBookText(`${full}<p>My table's ghouls are worse.</p>`).includes("ghouls are worse"));
 ok("and so does writing that precedes the block", stripBookText(`<p>Note.</p>${full}`).includes("Note."));
 ok("two generated blocks both strip", stripBookText(full + entryText(node, "x", "c")).trim() === "");
+
+/* --- the reference as a link --- */
+const linked = bookText(["A line."], "RR p.111", { id: "def.prof.familiar", book: "rr", page: 113 });
+ok("with a book and a PDF page the reference is a link carrying both", /<p class="acks-extras-importer-cite"><a class="acks-extras-importer-cite-link" href="#" data-book="rr" data-page="113">RR p\.111<\/a><\/p><\/div>$/.test(linked));
+ok("the link names the PDF page, not the printed folio", linked.includes('data-page="113"') && !linked.includes('data-page="111"'));
+ok("without a page the reference stays plain text", !/cite-link/.test(bookText(["A line."], "RR p.111", { id: "x", book: "rr" })));
+ok("without a book the reference stays plain text", !/cite-link/.test(bookText(["A line."], "RR p.111", { id: "x", page: 113 })));
+ok("a book id with a quote cannot break out of the attribute", bookText([], "RR p.1", { book: 'r"r', page: 1 }).includes('data-book="r&quot;r"'));
+const fromNode = entryText({ ...node, book: "mm", page: 171 }, "mm.griffon", "MM p.169");
+ok("an executed node carries its book and page into the link", fromNode.includes('data-book="mm"') && fromNode.includes('data-page="171"'));
+eq("a linked block is still not the Judge's writing", stripBookText(linked).trim(), "");
+
+/* --- a table --- */
+const tableNode = {
+  book: "rr",
+  page: 113,
+  fields: {
+    labels: [{ section: "r1", text: "First" }, { section: "r2", text: "Second & third" }],
+    rows: [{ section: "r2", text: "Two <b>" }, { section: "r1", text: "One" }],
+  },
+};
+const pairs = nodeTablePairs(tableNode);
+ok("rows pair with their labels by section, in label order", JSON.stringify(pairs) === JSON.stringify([["First", "One"], ["Second & third", "Two <b>"]]));
+const table = entryTable(tableNode, "rr.games", "RR p.111", ["Game", "Description"]);
+ok("the header words are the register's, the cells the page's, escaped", table.includes("<thead><tr><th>Game</th><th>Description</th></tr></thead>") && table.includes("<td>Second &amp; third</td><td>Two &lt;b&gt;</td>"));
+ok("the table is stamped and closes with the linked reference", table.includes('data-acks-entry="rr.games"') && /data-page="113">RR p\.111<\/a><\/p><\/div>$/.test(table));
+ok("a row with nothing in it is not rendered", !/<tr><td><\/td><td><\/td><\/tr>/.test(bookTable([], [["", ""], ["a", "b"]], "c")));
+eq("no rows and nowhere to cite is empty, not an empty table", bookTable(["x"], [], ""), "");
+eq("a table block is not the Judge's writing either", stripBookText(table).trim(), "");
+
+/* --- reading a reference back --- */
+ok("a citation names its book and PDF page again", JSON.stringify(parseCite("RR p.111")) === JSON.stringify({ book: "rr", page: 113 }));
+ok("a PoC citation names the PDF page itself", JSON.stringify(parseCite("MM PDF p. 171")) === JSON.stringify({ book: "mm", page: 171 }));
+ok("case and spacing do not matter", parseCite("rr p 5")?.book === "rr");
+eq("a reference to no known book names nobody", parseCite("XYZ p.4"), null);
+eq("prose is not a reference", parseCite("See page 4 of the book"), null);
 
 if (failed) { console.error(`\ntest-prose: ${failed} failure(s)`); process.exit(1); }
 console.log("test-prose: all checks passed");

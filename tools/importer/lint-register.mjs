@@ -190,6 +190,17 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         if (/(?:^|[^A-Za-z0-9])\d+(?![A-Za-z])/.test(a.expect?.text ?? "")) {
           err(`${id}: expect text carries a standalone number — anchor on a clause without the value`);
         }
+      } else if (e.kind === "kind.settingTable") {
+        // A setting table is a sidebar list with no heading of its own: the
+        // printed column header framed by nameExpect is its anchor, and the
+        // rows box bounds what the compiler reads. The header must be a word,
+        // never a value, for the same reason a constant's clause must be.
+        const a = e.assists ?? {};
+        if (!a.nameExpect?.box || typeof a.nameExpect.text !== "string") err(`${id}: settingTable needs assists.nameExpect {box, text}`);
+        if (!a.rows || ["x0", "x1", "y0", "y1"].some((k) => typeof a.rows[k] !== "number")) err(`${id}: settingTable needs assists.rows {x0, x1, y0, y1}`);
+        if (/(?:^|[^A-Za-z0-9])\d+(?![A-Za-z])/.test(a.nameExpect?.text ?? "")) {
+          err(`${id}: expect text carries a standalone number — anchor on a header word without the value`);
+        }
       } else {
         const anchorKeys = Object.keys(e.anchor ?? {});
         if (anchorKeys.length !== 1 || !["display", "runin", "label", "subheading"].includes(anchorKeys[0])) {

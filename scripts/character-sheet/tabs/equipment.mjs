@@ -13,6 +13,7 @@
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { loadBar, bridgeHands } from "../view-model.mjs";
 import { makeLoc } from "../../lib/util.mjs";
+import { companionSlots } from "../../abilities/companions.mjs";
 import { carriedWeight6 } from "../../lib/capacity.mjs";
 import { getLoadout, heldHandsClause } from "../../equipment/loadout.mjs";
 import { wearLocation, wearLabel } from "../../equipment/wear.mjs";
@@ -205,7 +206,24 @@ function placeRow(actor, provider, items, coinGC, pinned) {
 }
 
 /** Build the tab's data. */
+/**
+ * The companion slots the character's abilities confer, as rows: the creature
+ * in the slot or the empty slot, and the ability that confers it. The slot and
+ * its pointer are the abilities feature's (`abilities/companions.mjs`).
+ */
+function companionRows(actor) {
+  return companionSlots(actor).map((s) => ({
+    abilityId: s.item.id,
+    index: s.index,
+    empty: !s.companion,
+    name: s.companion?.name ?? "",
+    img: s.companion?.img ?? s.item.img,
+    via: game.i18n.format("ACKS-EQUIPMENT.companion.via", { ability: s.item.name }),
+  }));
+}
+
 export function buildEquipmentTab(actor) {
+  const companions = companionRows(actor);
   const sys = actor.system ?? {};
   const loadout = getLoadout(actor);
   const lights = bearerLights(actor);
@@ -305,6 +323,10 @@ export function buildEquipmentTab(actor) {
     carriedCount: carriedItems.length,
     stowed: stowedContainers.map((i) => rowOf(actor, i, ctx)),
     elsewhere,
+    companions,
+    companionsNote: companions.length
+      ? game.i18n.format("ACKS-EQUIPMENT.companion.count", { n: companions.filter((c) => !c.empty).length, of: companions.length })
+      : "",
     hasContainers: reports.size > 0,
     unarmed: !loadout.weapons.length,
     editable: actor.isOwner,

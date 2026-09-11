@@ -299,3 +299,25 @@
   border: var(--acks-border-ink);
   border-radius: var(--acks-radius);
 }
+
+/* --- Companions (an ability's creature, kept as an inventory slot) ------- */
+
+/* The row is built here, not moved from core, so its name is a control of its
+   own: pressing it opens the creature. */
+.acks-equipment-companion .item__name a {
+  cursor: pointer;
+}
+
+/* An empty slot says so in soft ink, the way an empty container's hint does. */
+.acks-equipment-companion__empty {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
+
+/* Which ability confers the slot — a caption beside the name, never the name. */
+.acks-equipment-companion__via {
+  flex: 0 0 auto;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  white-space: nowrap;
+}

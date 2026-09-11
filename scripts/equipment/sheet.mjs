@@ -43,6 +43,7 @@ import {
 } from "./containers.mjs";
 import { pickLock, bashOpen, canPick, canBash } from "./locks.mjs";
 import { annotateItem } from "./api.mjs";
+import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
 
 /** Stone display shared with the container app. */
 function st(weight6) {
@@ -737,17 +738,86 @@ function wireDropTargets(actor, root) {
   }).bind(root);
 }
 
+/**
+ * One companion slot as an inventory row. Not one of core's rows moved here —
+ * a companion is not an Item — but the same row anatomy, so it sits in the
+ * list like the gear around it: icon, name, which ability confers it, and the
+ * controls (open the creature's sheet and release it, or choose one).
+ */
+function companionRow(actor, slot) {
+  const li = el("li", "item acks-equipment-companion");
+  li.dataset.abilityId = slot.item.id;
+  li.dataset.slot = String(slot.index);
+  const row = el("div", "item-row");
+  const icon = el("div", "item__icon");
+  const img = document.createElement("img");
+  img.className = "item__image";
+  img.src = slot.companion?.img ?? slot.item.img;
+  img.alt = "";
+  icon.append(img);
+  const name = el("div", "item__name");
+  if (slot.companion) {
+    const open = el("a", "", slot.companion.name);
+    open.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      slot.companion.sheet?.render(true);
+    });
+    name.append(open);
+  } else {
+    name.append(el("span", "acks-equipment-companion__empty", game.i18n.localize("ACKS-EQUIPMENT.companion.empty")));
+  }
+  row.append(icon, name, el("div", "item__tags acks-equipment-companion__via", game.i18n.format("ACKS-EQUIPMENT.companion.via", { ability: slot.item.name })));
+  if (actor.isOwner) {
+    const controls = el("div", "list-header__controls");
+    if (slot.companion) {
+      controls.append(
+        ctrl("fa-paw", "ACKS-EQUIPMENT.companion.open", () => slot.companion.sheet?.render(true), "acks-equipment-companion__ctrl"),
+        ctrl("fa-link-slash", "ACKS-EQUIPMENT.companion.release", () => releaseCompanion(actor, slot.item, slot.index), "acks-equipment-companion__ctrl"),
+      );
+    } else {
+      controls.append(ctrl("fa-plus", "ACKS-EQUIPMENT.companion.choose", () => openCompanionPicker(actor, slot.item, slot.index), "acks-equipment-companion__ctrl"));
+    }
+    row.append(controls);
+  }
+  li.append(row);
+  return li;
+}
+
+/**
+ * Build the "Companions" section — one row per slot an ability confers — or
+ * null when the character holds no such ability. The slot and its pointer are
+ * the abilities feature's (`abilities/companions.mjs`); this only lays them
+ * out beside the gear, which is where a player looks for what they have.
+ */
+function buildCompanionSection(actor, tab) {
+  const slots = companionSlots(actor);
+  if (!slots.length) return null;
+  const section = el("section", "acks-equipment-wear acks-equipment-companions item-list-section");
+  const head = el("div", "acks-equipment-wear__title");
+  head.append(el("span", "acks-equipment-wear__title-text", game.i18n.localize("ACKS-EQUIPMENT.companion.section")));
+  section.append(head);
+  const bucket = el("div", "acks-equipment-wear__bucket");
+  const filled = slots.filter((s) => s.companion).length;
+  bucket.append(bucketHeader(WEAR.companion, game.i18n.localize("ACKS-EQUIPMENT.companion.section"), game.i18n.format("ACKS-EQUIPMENT.companion.count", { n: filled, of: slots.length })));
+  const list = el("ul", "item-list unlist");
+  for (const slot of slots) list.append(companionRow(actor, slot));
+  bucket.append(list);
+  section.append(bucket);
+  return section;
+}
+
 function regroup(actor, tab) {
   const loadout = getLoadout(actor);
   const worn = buildWornSection(actor, tab, loadout);
+  const companions = buildCompanionSection(actor, tab);
   const stowed = buildStowedSection(actor, tab);
-  if (!worn && !stowed) return;
+  if (!worn && !stowed && !companions) return;
 
   // Slot in below the encumbrance bar, above core's type lists.
   const column = tab.querySelector(".content > .flexcol") ?? tab.querySelector(".content") ?? tab;
   const anchor = column.querySelector(".encumbrance-panel");
   const after = anchor?.nextSibling ?? column.firstChild;
-  for (const node of [worn, stowed].filter(Boolean)) column.insertBefore(node, after);
+  for (const node of [worn, companions, stowed].filter(Boolean)) column.insertBefore(node, after);
 
   // Core's own type lists are the "take it back out" target: dragging a stowed
   // item back down to the ordinary inventory un-stows it. The section belongs to

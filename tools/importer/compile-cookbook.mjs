@@ -2591,10 +2591,69 @@ async function compileLegacyMonster(doc, entry, kindRow) {
   return out;
 }
 
+/**
+ * kind.settingTable — a sidebar list with no die column and no odds: each row
+ * opens with a NAME set in the label face and continues in the body face, on
+ * the same line and the lines below it, until the next name. The list has no
+ * heading of its own, so `assists.nameExpect` frames the printed column header
+ * (the anchor, checked like any expect) and `assists.rows` bounds the rows.
+ *
+ * Ships two text instructions paired by section (r1, r2, …): `labels`, one box
+ * per name, and `rows`, one box per row with the name's run dropped by ordinal
+ * — so the binding lays the pairs out as a two-column table without ever
+ * having seen the words. The body face is whichever face most of the region's
+ * runs are set in; a line opening in any other face opens a row.
+ */
+async function compileSettingTable(doc, entry) {
+  const assists = entry.assists ?? {};
+  const page = entry.pages[0];
+  const ne = assists.nameExpect;
+  const region = assists.rows;
+  if (!ne?.box || !region) throw new Error(`${entry.id}: settingTable needs assists.nameExpect {box, text} and assists.rows {x0, x1, y0, y1}`);
+  const pd = await pageItems(doc, ne.page ?? page);
+  const fields = { name: { op: "expect", page: ne.page ?? page, box: ne.box, text: ne.text ?? entry.name } };
+  const items = pd.items.filter((it) => it.x >= region.x0 && it.x <= region.x1 && it.y >= region.y0 && it.y <= region.y1);
+  const lines = toLines(items).map((ln) => ({ y: ln.y, items: [...ln.items].sort((a, b) => a.x - b.x) }));
+  if (!lines.length) throw new Error(`${entry.id}: nothing printed in the rows region p.${page}`);
+  const counts = new Map();
+  for (const it of items) counts.set(it.alias, (counts.get(it.alias) ?? 0) + 1);
+  const body = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  const rows = [];
+  for (const ln of lines) {
+    const first = ln.items[0];
+    if (first.alias !== body) rows.push({ label: first, lines: [ln] });
+    else if (rows.length) rows[rows.length - 1].lines.push(ln);
+    else throw new Error(`${entry.id}: the rows region opens on body text, not a label (p.${page} y${ln.y})`);
+  }
+  if (!rows.length) throw new Error(`${entry.id}: no row labels in the rows region p.${page}`);
+  const labels = [];
+  const texts = [];
+  rows.forEach((r, i) => {
+    const section = `r${i + 1}`;
+    const next = r.lines[0].items[1];
+    const labelEnd = r.label.x + (r.label.w ?? 0);
+    // The label box ends halfway to the row's first body run, so a run that
+    // starts on the shared edge falls in exactly one of the pair.
+    const x1 = next ? (labelEnd + next.x) / 2 : labelEnd + 2;
+    labels.push(withFixes({ box: { x0: r.label.x - 2, x1, y0: r.label.y - 3, y1: r.label.y + 3 }, section }, pd));
+    const y0 = r.lines[0].y - 3;
+    const y1 = r.lines[r.lines.length - 1].y + 3;
+    texts.push(withFixes({ box: { x0: region.x0 - 2, x1: region.x1, y0, y1 }, section }, pd, new Set([r.label])));
+  });
+  fields.labels = { op: "text", page, paras: labels };
+  fields.rows = { op: "text", page, paras: texts };
+  return {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
+    ...(entry.columns ? { columns: entry.columns } : {}),
+    ...(entry.meta ? { meta: entry.meta } : {}), fields,
+  };
+}
+
 const AX_COMPILERS = {
   "kind.location": compileLocation,
   "kind.npc": compileNpc,
   "kind.rolltable": compileRollTable,
+  "kind.settingTable": compileSettingTable,
   "kind.monsterLegacy": compileLegacyMonster,
   "kind.monsterTemplate": compileMonsterTemplate,
 };

@@ -27,10 +27,13 @@ sibling modules (henchmen today; domains later) read through acks-lib.
   - World-imported table documents, registered into `acksLib.tables` at
     priority 20 (world) via the lib's `ruledata-import` contract; the
     acks-importer binding writes through that contract, never through this
-    module's name. Materialization mirrors rollable tables into world
-    RollTables — reader-facing names, filed per ruledata doc under "ACKS
-    Imported Tables", identity in a `tableKey` flag — and everything else into
-    JSON journal pages named by raw key (the drop-override match). The
+    module's name. Materialization mirrors rollable tables into RollTables on
+    the ACKS library's RollTable shelf — reader-facing names, filed per
+    ruledata doc under "ACKS Imported Tables", identity in a `tableKey` flag —
+    and everything else into JSON journal pages named by raw key (the
+    drop-override match) on its JournalEntry shelf; a shelf is opened by the
+    first pass that needs it (`lib/library-target.mjs`), and a sidebar tree an
+    earlier release wrote is retired then and rebuilt on the shelf. The
     contract's `countMaterializedDocs`/`removeMaterializedDocs` remove the
     documents without touching the imported data.
 - **Enhance**: the location sheet — contents, roster and nesting on every place,

@@ -92,18 +92,29 @@ gear the world does not hold. A disposable character.
    **Build packages** button on the Templates tab).
    *Observable:* one bundle Item per row; `system.templates[i].bundle`
    filled; a `<Class> Templates` RollTable, formula 3d6, ranges matching the
-   bands; the materialized entries GONE from the row arrays.
+   bands; the materialized entries GONE from the row arrays; every created
+   document beside its class — this sidebar fixture's in the sidebar under
+   `Class Templates / <Class>`.
 1a. **Open the bundle's Contents tab.** *Observable:* the proficiencies are
    listed under Abilities and the eye icon opens each as its own editable
-   item. An empty Abilities group is the compendium-mode failure below.
-1b. **Compendium-mode worlds.** Where the importer was pointed at a pack
-   rather than the world, proficiencies and bases resolve out of the pack
-   INDEX and are COPIED into the world. *Observable:* the bundle's abilities
-   are world items (editable), not pack links; nothing is left on the row
+   item. An empty Abilities group is the cold-library failure below.
+1b. **Where a definition lives.** Proficiencies and bases resolve out of the
+   pack INDEX when the library is cold. A definition on a library shelf is
+   LINKED (the bundle row carries the import's own uuid); a base is COPIED
+   onto the class's shelf, because a skin is a copy by nature; a definition
+   in a foreign compendium is copied too. *Observable:* the bundle's abilities
+   open as editable documents wherever they sit; nothing is left on the row
    except what genuinely resolved nowhere. A name nothing defines is a
    **placeholder** ability — named as printed, empty, and repairable; re-run
    materialize after importing the real definition and it is replaced, the
    bundle repointed, the placeholder deleted.
+1c. **A class on a shelf.** Repeat step 1 on a class the importer put in
+   "ACKS Cookbook — Item" (one holding template rows).
+   *Observable:* its bundles, skins and copies are in that pack under
+   `Class Templates / <Class>`, its table in "ACKS Cookbook — RollTable" under
+   `Class Templates`, and the sidebar gains nothing; a lined book's class
+   (Dolmenwood, By This Axe) lands on its own line's packs. Delete the
+   package documents by id afterwards — they are the run's fixtures too.
 2. Open the first row's bundle → its staff item.
    *Observable:* `type === "weapon"` (the reported bug — assert the type, not
    that the code ran), name is the printed descriptor, `flags["acks-extras"]
@@ -145,7 +156,8 @@ gear the world does not hold. A disposable character.
    *Observable:* `system.templates[i].bundle` re-derived (relinked) after the
    system rewrite, and the row arrays re-stripped — applying the template
    grants the package ONCE.
-8. Core's own path: drag a bundle from the sidebar onto the character sheet.
+8. Core's own path: drag a bundle from its pack (or the sidebar) onto the
+   character sheet.
    *Observable:* contents arrive via core's bundle-drop.
 
 ### Base-vs-descriptor resolution (the whole point of a skin)

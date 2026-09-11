@@ -1,5 +1,36 @@
 # Changelog
 
+## 7.5.3
+
+**A familiar is an inventory slot, a citation opens the book, and the
+gambling games are a setting table.**
+
+### Added
+- **Companions on the Equipment tab.** An ability that confers a creature
+  opens a slot beside the character's gear. Dropping such an ability on a
+  character asks which creature fills it — the imported animals the rule
+  allows first, every other animal at the Judge's discretion, or a typed name
+  for a blank creature — and the chosen one becomes a world actor of the
+  character's own, under a Companions folder, owned by the character's
+  owners. The row opens the creature's sheet or releases it; a player seat
+  that cannot create actors is served by the GM's client (RR p. 113).
+- **Setting tables.** A sidebar list printed without a die imports as a
+  two-column table on a Setting Details journal page; the gambling games of
+  RR p. 113 are the first.
+- **Page references are links.** Every reference an import writes opens the
+  book's shelf journal at that page, in the viewer already open where there
+  is one; a reference written by an earlier release opens too. A seat that
+  cannot observe the book's journal is told so.
+
+### Changed
+- **The class-template items and tables and the rules tables land on the
+  library's shelves** — "ACKS Cookbook — Item", "— RollTable" and
+  "— JournalEntry" — instead of the sidebar, and Remove ALL Imports finds
+  them there.
+- **One reader of the printed Hit Dice rating.** The three parsers agreed on
+  whole ratings and disagreed on fractions; a half-die creature now rolls a
+  d4 wherever it is imported from, and its rating reads back as a half.
+
 ## 7.5.2
 
 **Descriptions keep the examples printed inside them, and the register's known

@@ -32,8 +32,8 @@
  *   forgetBooks()    drop this computer's remembered locations (not the shelf)
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE, DEFAULT_IMG } from "./constants.mjs";
-import { bookText } from "./prose.mjs";
-import { BOOKS, fingerprintWarning, identifyBook } from "./books.mjs";
+import { bookText, CITE_CLASS, CITE_LINK_CLASS } from "./prose.mjs";
+import { BOOKS, fingerprintWarning, identifyBook, parseCite } from "./books.mjs";
 import { matchFilesToBooks } from "./book-match.mjs";
 import { RECIPES } from "./recipes.mjs";
 import { openBook, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
@@ -318,6 +318,86 @@ const shelfJournal = (bookId) => game.journal.find((j) => j.getFlag(MODULE_ID, S
 
 /** The PDF page of a shelf journal — the one that carries the staged path. */
 const shelfPage = (journal) => journal?.pages.find((p) => p.type === "pdf") ?? null;
+
+/**
+ * Open the shelved copy of a book at one PDF page — what a citation does when
+ * it is pressed.
+ *
+ * The shelf journal's PDF page is rendered by core's own sheet, whose Load PDF
+ * button builds a pdf.js viewer URL from the page's source. This builds the
+ * same URL and adds the page fragment the viewer scrolls to, so the reader
+ * lands on the cited page rather than on the cover; a viewer already open is
+ * moved by its hash instead of reloaded. A book not on the shelf, or one this
+ * user may not observe, is refused with a notice — never a blank frame.
+ *
+ * @param {string} bookId register book id ("rr")
+ * @param {number} pdfPage 1-based PDF page — the register's page, not the printed folio
+ * @returns {Promise<boolean>} whether a viewer was opened at the page
+ */
+export async function openBookPage(bookId, pdfPage) {
+  const label = BOOKS[bookId]?.label ?? bookId;
+  const journal = shelfJournal(bookId);
+  const page = shelfPage(journal);
+  if (!page?.src) {
+    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.citeNoBook`, { book: label }));
+    return false;
+  }
+  if (!page.testUserPermission(game.user, "OBSERVER")) {
+    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.citeNoAccess`, { book: label }));
+    return false;
+  }
+  const n = Math.max(1, Math.trunc(Number(pdfPage) || 1));
+  const sheet = journal.sheet;
+  // A viewer already open turns to the page; a closed one opens on it.
+  if (sheet.rendered && typeof sheet.goToPage === "function") await sheet.goToPage(page.id);
+  else await sheet.render({ force: true, pageId: page.id });
+  const view = sheet.element?.querySelector?.(`.journal-entry-page[data-page-id="${page.id}"]`);
+  const frame = view?.querySelector("iframe");
+  if (frame) {
+    try {
+      frame.contentWindow.location.hash = `page=${n}`;
+    } catch {
+      frame.src = `${frame.src.replace(/#.*$/, "")}#page=${n}`;
+    }
+    return true;
+  }
+  const loader = view?.querySelector(".load-pdf");
+  if (!loader) return false;
+  const params = new URLSearchParams();
+  params.append("file", URL.parse(page.src) ? page.src : foundry.utils.getRoute(page.src));
+  const iframe = document.createElement("iframe");
+  iframe.src = `scripts/pdfjs/web/viewer.html?${params}#page=${n}`;
+  loader.replaceWith(iframe);
+  return true;
+}
+
+/**
+ * The book and PDF page a citation element names: a link carries its own
+ * target; a plain reference from an earlier import still names the book and
+ * folio, which `parseCite` turns back into a page.
+ */
+function citeTarget(el) {
+  const book = el.dataset?.book;
+  const page = Number(el.dataset?.page);
+  if (book && Number.isInteger(page) && page > 0) return { book, page };
+  return parseCite(el.textContent);
+}
+
+/**
+ * Every citation this module wrote opens its page. One listener on the
+ * document, because the references live in sheets, journal pages and chat
+ * cards this module does not render; a reference naming no shelvable book is
+ * left to whatever else the click meant.
+ */
+function onCiteClick(event) {
+  const el = event.target?.closest?.(`a.${CITE_LINK_CLASS}, p.${CITE_CLASS}`);
+  if (!el) return;
+  const target = citeTarget(el);
+  if (!target) return;
+  event.preventDefault();
+  event.stopPropagation();
+  openBookPage(target.book, target.page).catch((err) => console.error(`${MODULE_ID} | could not open the cited page`, err));
+}
 
 /**
  * The world's shelf: bookId → { path, name, size, journalId }, read off the
@@ -2433,7 +2513,7 @@ async function applyStatsToActor(actor, doc, pageData, recipe) {
   const prose = await extractRecipe(doc, recipe).catch(() => null);
   extras.description = {
     ...(extras.description ?? {}),
-    appearance: bookText(prose ? [prose] : [], recipe.cite, { id: recipe.id }),
+    appearance: bookText(prose ? [prose] : [], recipe.cite, { id: recipe.id, book: recipe.book, page: recipe.page }),
   };
   update[`flags.${MODULE_ID}.extras`] = extras;
   update.system = system;
@@ -2663,6 +2743,8 @@ Hooks.once("ready", async () => {
     connectBook, connectBookUrl, reconnectBooks, browseAndLoad, applyStats, bookStatus, forgetBooks,
     /** Put a book on the server from a File this seat holds: read here, checked here, uploaded only then. */
     stageBook: stageFile,
+    /** Open a shelved book at a PDF page — what pressing a citation does. */
+    openBookPage,
     cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities, cookbookFillCompanions, cookbookPruneAbilities,
     importAbility, cookbookDebug, cookbookCount,
     cookbookImportTables,
@@ -2690,6 +2772,7 @@ Hooks.once("ready", async () => {
     RECIPES, BOOKS,
   };
   acksExtras.importer = api;
+  document.addEventListener("click", onCiteClick);
 
   // Provide the ability-resolution contract (lib docs/API.md): other features
   // embed proficiency packages on hired actors through this, without naming

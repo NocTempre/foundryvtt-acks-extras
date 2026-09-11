@@ -39,9 +39,12 @@ whichever pack Foundry registered first.
 
 - `libraryItems()` / `libraryActors()` / `libraryDocs(type)` — the sidebar's
   documents first, then every shelf's. The sidebar still counts: a Judge's
-  homebrew class lives there, and so do the class-template packages, which are
-  world documents on purpose so a Judge can repair one.
+  homebrew class lives there with the template package it builds, and so does
+  whatever an earlier release wrote there.
 - `libraryPacks(type)` — the shelves themselves, unlined first.
+- `libraryPackLabel(type, line)` / `findLibraryPack(type, line)` /
+  `isLibraryPack(collection)` / `lineOfPack(collection)` — one shelf by its
+  label, and whether a document's `pack` is one of ours (and which line).
 - `byCookbookId(type, id)` — the id lookup, skipping template parts. A skinned
   copy inherits the id of the definition it was made from, so a plain id search
   finds one class's engraved silver waterskin where the shared Waterskin was
@@ -89,8 +92,24 @@ about the rest of the list.
 Consumers: the class registry and `findByRef`, the race list, proficiency
 grants, the language resolver and its migration, the ability sheet's relation
 labels, and template-packages' source resolution — where `findSource` reads
-`world` off `doc.pack` rather than assuming it, because a ref now resolves to
-either side and only a world document may be LINKED rather than copied.
+`linkable` off `doc.pack` rather than assuming it, because a ref now resolves
+to either side and only a sidebar document or one on a library shelf may be
+LINKED rather than copied.
+
+### Writing to the library
+
+Three writers put documents on the shelves — the importer, the classes
+feature's template packages, and the location feature's materialized rules
+tables — and every one opens its shelf through `lib/library-target.mjs`:
+`ensureLibraryPack(type, line)` finds or creates the pack for a type and line
+and files it under the line's sidebar folder (`fileImportedPack`);
+`ensureFolderIn(pack, type, names)` makes a stamped folder path inside it, two
+deep at most, which is what a pack allows. The importer keeps its own confirmed
+cache in front of the opener; the feature writers open a shelf once per run. A
+derived document lands where its import lives: a class held on a shelf builds
+its package on that line's shelves, the rules tables land on the ACKS RollTable
+and JournalEntry shelves, and only a Judge's own sidebar class keeps its parts
+in the sidebar. The ruling is [DECISIONS.md](DECISIONS.md) 2026-09-10.
 
 ## The compendium sidebar
 

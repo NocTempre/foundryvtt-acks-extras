@@ -1609,3 +1609,54 @@ whole transport.
 release must live-walk (the prompt, and the three presets against the
 character, monster and party types). Declared a hotfix by the user despite
 carrying a setting, which the minor rule would otherwise claim.
+
+## 2026-09-10 — Every writer of the library opens its shelf through one door
+
+**Reported (user):** "the class templates items, class templates roll tables,
+and acks imported tables are not imported into a compendium." Three writers put
+documents on the library's shelves — the importer, which materializes a world's
+books; the classes feature, whose template packages are derived from an
+imported class; and the location feature, which materializes the rules tables a
+world imported — and only the first wrote to the packs. A Judge found half of
+"everything imported" in a compendium and the rest loose in the sidebar; one
+ownership setting on the pack reached only the first half; and Remove Imports
+had to be taught each writer's own stamps to find the rest.
+
+**Ruled: a document derived from an import lands where the import lives.**
+`lib/library-target.mjs` is the one door: `ensureLibraryPack(type, line)` finds
+or creates the `ACKS Cookbook — [<line> —] <Type>` pack and files it under the
+line's sidebar folder the moment it exists; `ensureFolderIn(pack, type, names)`
+makes a stamped folder path inside it. The importer's `packFor` delegates to it;
+a class on a library shelf builds its package on that line's Item and RollTable
+shelves; the rules tables materialize on the ACKS RollTable and JournalEntry
+shelves. `library.mjs` gains the label builder (`libraryPackLabel`) and the two
+pack predicates the writers need (`isLibraryPack`, `lineOfPack`), so a shelf's
+label is spelled once and matched once.
+
+**What stays in the sidebar.** A Judge's own class, and the package it builds:
+Remove Imports deletes the library's packs whole, and a homebrew class's parts
+must not go with them. The sidebar is also the fallback when no pack can be
+opened — loudly, in the importer's case, and with every library read still
+covering it.
+
+**Upgrade cost.** A world that materialized rules tables before this holds
+sidebar copies; the first materialize after the upgrade retires them (one
+delete each for tables, folders and the journal) and rebuilds them on the
+shelves, which loses nothing a re-materialize did not already rewrite — an
+override a Judge meant to keep lives in the registry, never in those documents.
+Class-template parts an earlier release put in the sidebar are NOT moved: they
+stay linked and repairable where they are, `libraryItems()` finds them beside
+the shelf's, and only new parts land on the shelf. The `ruledata-import`
+contract gains v1.4 `countMaterializedDocs({sidebar: true})`, so the importer's
+Remove Imports confirm — which deletes the packs whole and has counted their
+contents — does not count a shelf's tables twice.
+
+**Rejected:** moving existing sidebar template parts onto the shelf. A move is
+delete-and-recreate, every bundle row pointing at the old uuid would have to be
+rewritten, and a Judge's repair on the old document is exactly what the
+`asImported` snapshot exists to protect; a package that straddles the sidebar
+and the shelf works, and a Judge who wants it tidy detaches and rebuilds.
+
+**Superseded by this:** the placement half of classes 2026-08-24 and
+2026-08-19, the importer's 2026-08-24 superseding note, and location
+2026-08-20's sidebar tree; each carries a marker to its own entry of this date.

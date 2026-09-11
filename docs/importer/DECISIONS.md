@@ -1111,6 +1111,9 @@ the sidebar, which is what acks-extras' own `defaultFolder` already built; the
 two paths now agree, where before this file's ruling of 2026-08-19 gave the
 importer a different four-level one.
 
+> **Superseded 2026-09-10** ("A package and a rules table land where the
+> import lives", below): a pack class's package lands on that line's shelves.
+
 ### A namespace with no shelf is a failing test, not a folder nobody notices (2026-08-24)
 
 **Ruled: `tools/test-item-shelves.mjs` asserts the shelf table against the
@@ -3941,3 +3944,94 @@ paragraph — the corpus holds no such pair; every join was read at its seam. An
 intro whose first or last line opens in an emphasis face would lose that line;
 no intro in the corpus opens a line so. An owner list whose clause holds a
 `]` would keep its bracket.
+
+### A package and a rules table land where the import lives (2026-09-10)
+
+**Reported (user):** the class-template items and tables and the materialized
+rules tables were in the sidebar while every other import was in a compendium.
+The ruling is lib's (`docs/lib/DECISIONS.md` 2026-09-10). This side: `packFor`
+opens its shelf through `lib/library-target.mjs`, the same door the two feature
+writers use, so one label per line is spelled once; `materializeClassTemplates`
+hands the classes feature the line's Item and RollTable packs beside its
+folders (`ensureWorldFolderPath` went with the placement it served);
+`importedIdsOfType` skips template parts in the index, since a shelf now holds
+a class's skinned copies beside the definitions they copied and a copy answering
+for its definition would stop the definition ever importing; and the Remove
+Imports confirm counts the ruledata provider's SIDEBAR documents only
+(`countMaterializedDocs({sidebar: true})`), the shelf's being counted with the
+packs it deletes. Supersedes the 2026-08-24 superseding note ("class-template
+packages stay WORLD documents").
+
+### A setting table is a journal page holding a table (2026-09-10)
+
+**Reported (user):** the gambling games list on RR p. 113 should import as a
+setting-detail journal — a table, no odds. **Ruled.** A new kind,
+`kind.settingTable`: a sidebar list printed without a die column, whose rows
+open with a NAME in the label face and continue in the body face. It has no
+heading to anchor, so the register frames the printed column header
+(`assists.nameExpect`) and bounds the rows (`assists.rows`); the compiler
+splits the region on face changes into label/row paragraph pairs (section
+`r<n>`) and the executor's `text` op materializes them. The binding routes
+the kind to a JournalEntry page beside the locations, one entry per
+`meta.group`, the body a two-column table under the register's header words
+(`prose.mjs` `entryTable`), stamped and cited like every other block so
+`stripBookText` still tells the import from a Judge's writing. The register
+carries the header words and the box; the names and the descriptions arrive
+from the page. The withdrawn Gambling bound above was a bound on the games as
+an ABILITY's text; this is the games as the table they are.
+
+**Rejected:** a RollTable with no formula. The rows are not outcomes and the
+book gives no odds; a table document that cannot be rolled is a journal page
+wearing the wrong sidebar.
+
+**Rejected:** materializing the rows as paragraphs. The printed shape is a
+grid, and a reader scanning for one game reads the first column.
+
+*Cost:* a region that opens in the body face throws at compile, by design — a
+mis-drawn box is a build error, not a page with a headless row.
+
+### A citation is a link, and the plain reference still resolves (2026-09-10)
+
+**Reported (user):** page references should link to the PDFs they were pulled
+from. **Ruled.** `bookText` writes the reference as an
+`<a class="acks-extras-importer-cite-link" data-book data-page>` when the
+writer knows the book and the PDF page; `executeEntry` returns both and every
+binder passes them. One document-level click handler (`module.mjs`
+`onCiteClick`) opens the book's shelf journal on its PDF page
+(`openBookPage`): a viewer already open turns to the page through its hash; a
+viewer not yet loaded is built with the hash on its URL, the way core's Load
+PDF button builds it. A plain `<p class="acks-extras-importer-cite">` — every
+reference an earlier release wrote — is parsed back at click time (`books.mjs`
+`parseCite`, the inverse of `citeFor`), so an upgraded world gets the link
+without a re-import. The gate is the shelf journal's own permission: a seat
+that cannot observe the book's journal is told so and nothing opens. The link
+carries the PDF page, never the folio; `parseCite` adds the printed offset
+back.
+
+**Rejected:** a Foundry text enricher. The reference lives in the document
+text by the ruling that retired `@PdfText`; an enricher would put the
+resolution back at render time, which is the shape that was retired.
+
+**Rejected:** one click handler per sheet. Descriptions render inside core
+sheets, journal pages and chat cards; a document-level delegate reaches all
+three and is registered once.
+
+*Cost:* the audit dialog's citation cells stay `<span>`s — that dialog is
+about the recipe, not the page.
+
+### The hit-dice rating is parsed once (2026-09-10)
+
+**Ruled.** `stats.mjs` `parseHitDice` is the one reader of the printed Hit
+Dice string — a whole rating with a bonus, a fraction as a glyph or a slash,
+the special-ability marks before or after a hit-point aside, and the slight
+creatures printed as a hit die or a hit-point total — and `buildExtras`,
+`bindStatsScalars` and `stats-map.mjs` all call it. It returns `{count, bonus,
+asterisks}`; the binders derive the roll formula through lib's `hdFormula`,
+which scales a fractional count to a smaller die, and lib's `monsterHitDice`
+reads a formula back. Three sites each held a regex of their own and
+disagreed on fractions; a familiar picker that needs "under one Hit Die" to
+mean the same thing for an imported creature and a hand-typed one is what
+forced the merge.
+
+*Cost:* `monsterHd` reads a scaled die as its fraction (`1d4` → 0.5) where it
+read 1 before; every caller wanted the rating.

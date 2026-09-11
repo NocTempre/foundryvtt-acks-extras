@@ -93,15 +93,18 @@ export const ruledataImport = {
     return materializeAll();
   },
 
-  /** Contract v1.3 (additive): how many world documents materialization has
-   *  created — the figure a remove-all confirm shows before deleting. */
-  countMaterializedDocs() {
-    return countMaterialized();
+  /** Contract v1.3 (additive): how many documents materialization has
+   *  created — the figure a remove-all confirm shows before deleting. v1.4
+   *  adds `{sidebar: true}`: only the sidebar's, for a caller that deletes the
+   *  library's packs whole and wants what those take with them left out. */
+  countMaterializedDocs(options = {}) {
+    return countMaterialized(options);
   },
 
   /** Contract v1.3 (additive): delete the materialized documents (tables,
-   *  folders, journal). Documents only — the imported table DATA in the world
-   *  store stays registered, and the next materialize rebuilds them. */
+   *  folders, journal), on the shelves and in the sidebar both. Documents
+   *  only — the imported table DATA in the world store stays registered, and
+   *  the next materialize rebuilds them. */
   async removeMaterializedDocs() {
     if (!game.user.isGM) throw new Error(`${MODULE_ID}: only a GM may remove rules-table documents`);
     return removeMaterialized();

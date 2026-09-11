@@ -1,4 +1,4 @@
-/* global foundry, game */
+/* global foundry, game, fromUuidSync */
 /**
  * The ACKS Abilities sheet is built at ready as a SUBCLASS of the system's own
  * registered `ability` item sheet, so it inherits the header, description and
@@ -33,6 +33,16 @@ const CORE_EFFECTS_PARTIAL = "systems/acks/templates/items/v2/common/item-active
  * holds and what survives a rename; this is display only, and falls back to the
  * id whenever the referenced ability has not been imported.
  */
+/** The name of the creature a companion slot points at, or "" when the pointer is empty or stale. */
+function companionName(uuid) {
+  if (!uuid) return "";
+  try {
+    return fromUuidSync(uuid)?.name ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function refName(ref) {
   if (!ref) return ref;
   // lib owns the provenance-flag read (and the importer's scope name with it);
@@ -231,10 +241,13 @@ function describeEffect(e, V) {
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${what} ${total}× — ${label(V.REROLL_KEEP, e.keep) || "Keep the Better"}` };
     }
     case "companion": {
-      // The slot exists whether or not the creature has been loaded: a seat
-      // without the citing book still sees what the ability confers.
-      const who = e.actorUuid ? e.note || e.actorUuid : e.note || refName(e.ref) || "creature";
-      const state = e.actorUuid ? "" : " (not yet loaded)";
+      // The slot exists whether or not a creature is in it: a seat without the
+      // citing book still sees what the ability confers, and a slot the page
+      // leaves to the reader's choice says it is waiting for one. A filled slot
+      // names the creature itself; the note is the slot's own label.
+      const bound = companionName(e.actorUuid);
+      const who = bound || e.note || refName(e.ref) || "creature";
+      const state = e.actorUuid ? "" : ` ${game.i18n.localize(e.ref ? "ACKS-ABILITIES.companion.notLoaded" : "ACKS-ABILITIES.companion.notChosen")}`;
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${e.amount > 1 ? `${e.amount}× ` : ""}${who}${state}` };
     }
     case "capability":

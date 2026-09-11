@@ -50,7 +50,7 @@ export function oseLocationData({
     folder: folderId,
     system: {
       region: bookLabel,
-      notes: bookText(paragraphs, cite || `${book ?? ""} p.${page ?? "?"}`.trim(), { id: entryId }),
+      notes: bookText(paragraphs, cite || `${book ?? ""} p.${page ?? "?"}`.trim(), { id: entryId, book: book ?? "", page }),
       parentUuid,
     },
     flags: {

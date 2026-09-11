@@ -65,7 +65,7 @@ function stones(value6) {
 /** Hit Dice as the printed card writes it: an integer, or the ½ fraction. */
 function hdLabel(actor) {
   const hd = monsterHd(actor);
-  return hd === 0.5 ? "½" : String(hd);
+  return { 0.5: "½", 0.25: "¼", 0.125: "⅛" }[hd] ?? String(hd);
 }
 
 /**

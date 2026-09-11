@@ -24,6 +24,7 @@ import { snapshotFrame, sheetFlag, saveLabel, partyOf, summonerOf, henchmanIds, 
 import { buildFrameModel, nextAcMode, togglePin } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
 import { buildEquipmentTab } from "./tabs/equipment.mjs";
+import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
 import { buildStatsTab } from "./tabs/stats.mjs";
 import { buildClassTab } from "./tabs/class.mjs";
 import { buildAbilitiesTab } from "./tabs/abilities.mjs";
@@ -80,7 +81,7 @@ const HAND_PLACES = Object.freeze([SLOT.mainHand, SLOT.offHand, SLOT.bothHands])
  */
 const VIEW_ACTIONS = new Set([
   "fold", "goTab", "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "trainingView", "formation", "partyMenu", "influence",
-  "placeOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source", "tab",
+  "placeOpen", "companionOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source", "tab",
 ]);
 
 /** A movement figure in its mode's unit: feet for the round and turn scales, miles for the day. */
@@ -142,6 +143,9 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       containerBash: AcksCharacterSheet.#onContainerBash,
       containerEmpty: AcksCharacterSheet.#onContainerEmpty,
       annotateAll: AcksCharacterSheet.#onAnnotateAll,
+      companionOpen: AcksCharacterSheet.#onCompanionOpen,
+      companionChoose: AcksCharacterSheet.#onCompanionChoose,
+      companionRelease: AcksCharacterSheet.#onCompanionRelease,
       placeOpen: AcksCharacterSheet.#onPlaceOpen,
       placeDeposit: AcksCharacterSheet.#onPlaceDeposit,
       placeRetrieveAll: AcksCharacterSheet.#onPlaceRetrieveAll,
@@ -1101,6 +1105,29 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   #placeOf(target) {
     const uuid = target?.closest?.("[data-place-uuid]")?.dataset.placeUuid;
     return uuid ? libStorage()?.resolveActorSync?.(uuid) ?? null : null;
+  }
+
+  /** The companion slot a row names: its ability and the effect's index. */
+  #companionSlotOf(target) {
+    const row = target.closest("[data-ability-id]");
+    const item = this.actor.items.get(row?.dataset.abilityId ?? "");
+    return item ? { item, index: Number(row.dataset.slot) } : null;
+  }
+
+  static #onCompanionOpen(event, target) {
+    const slot = this.#companionSlotOf(target);
+    const found = slot && companionSlots(this.actor).find((s) => s.item.id === slot.item.id && s.index === slot.index);
+    found?.companion?.sheet?.render(true);
+  }
+
+  static async #onCompanionChoose(event, target) {
+    const slot = this.#companionSlotOf(target);
+    if (slot) await openCompanionPicker(this.actor, slot.item, slot.index);
+  }
+
+  static async #onCompanionRelease(event, target) {
+    const slot = this.#companionSlotOf(target);
+    if (slot) await releaseCompanion(this.actor, slot.item, slot.index);
   }
 
   static #onPlaceOpen(event, target) {

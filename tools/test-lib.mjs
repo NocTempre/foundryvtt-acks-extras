@@ -49,7 +49,7 @@ import {
 } from "../scripts/lib/senses.mjs";
 import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
 import { sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
-import { hdFormula, monsterHd } from "../scripts/lib/actor-read.mjs";
+import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import {
   capacityOf,
@@ -1937,10 +1937,24 @@ t("hdFormula writes the rating as core's roll formula, and monsterHd reads it ba
   assert.equal(hdFormula({ count: null }), null);
   assert.equal(hdFormula({ count: 0 }), null);
   assert.equal(hdFormula(), null);
-  for (const hd of [{ count: 2, dieType: 8 }, { count: 3, dieType: 8, bonus: 1 }, { count: 0.5, dieType: 8 }]) {
+  for (const hd of [{ count: 2, dieType: 8 }, { count: 3, dieType: 8, bonus: 1 }, { count: 0.5, dieType: 8 }, { count: 0.25, dieType: 8 }]) {
     const back = monsterHd({ system: { hp: { hd: hdFormula(hd) } } });
-    assert.equal(back, hd.count >= 1 ? hd.count : 1, `round trip ${JSON.stringify(hd)}`);
+    assert.equal(back, hd.count, `round trip ${JSON.stringify(hd)} — a scaled die reads back as the fraction it stands for`);
   }
+});
+
+t("monsterHitDice reads the rating and its bonus whichever way the field was written", () => {
+  const read = (hd) => monsterHitDice({ system: { hp: { hd } } });
+  assert.deepEqual(read("3d8+1"), { count: 3, bonus: 1 });
+  assert.deepEqual(read("1d8-1"), { count: 1, bonus: -1 }, "one die with a penalty keeps the penalty");
+  assert.deepEqual(read("1d4"), { count: 0.5, bonus: 0 }, "a d4 is half a d8");
+  assert.deepEqual(read("1d2"), { count: 0.25, bonus: 0 });
+  assert.deepEqual(read("2d4"), { count: 2, bonus: 0 }, "only a single scaled die is a fraction");
+  assert.deepEqual(read("1/2"), { count: 0.5, bonus: 0 });
+  assert.deepEqual(read("2+1"), { count: 2, bonus: 1 });
+  assert.deepEqual(read(4), { count: 4, bonus: 0 });
+  assert.deepEqual(read("d8"), { count: 0, bonus: 0 }, "no leading rating is no rating");
+  assert.deepEqual(read(""), { count: 0, bonus: 0 });
 });
 
 console.log(`\n${n} tests passed (including the location migration)`);

@@ -53,7 +53,7 @@ const loadedFor = (recipe) => {
 export async function createDocFor(recipe, prose = "") {
   const existing = loadedFor(recipe);
   if (existing) return existing;
-  const html = bookText(prose ? [prose] : [], recipe.cite, { id: recipe.id });
+  const html = bookText(prose ? [prose] : [], recipe.cite, { id: recipe.id, book: recipe.book, page: recipe.page });
   const flags = { [MODULE_ID]: { browsed: { id: recipe.id, cite: recipe.cite } } };
   if (recipe.kind === "monster") {
     const folder = await ensureFolder("Actor");

@@ -528,3 +528,41 @@
   padding-left: var(--acks-sp-2);
   color: var(--acks-ink);
 }
+
+/* The citation as a link: the same figure as the plain reference, marked as
+   something a reader can press. Inherits the ink so it reads as part of the
+   block rather than as a hyperlink to somewhere else. */
+.acks-extras-importer-cite-link {
+  color: inherit;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+.acks-extras-importer-cite-link:hover,
+.acks-extras-importer-cite-link:focus-visible {
+  text-decoration: underline;
+}
+
+/* A materialized book table: the header words are authored and the rows are
+   the page's, laid out as the sidebar printed them — a name column and its
+   description. Type sizes ride the ramp so the size knob reaches them. */
+.acks-extras-importer-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 var(--acks-sp-2);
+}
+.acks-extras-importer-table th,
+.acks-extras-importer-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--acks-sp-1) var(--acks-sp-2);
+  border-bottom: var(--acks-border-soft);
+}
+.acks-extras-importer-table th {
+  font-size: var(--acks-fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--acks-tracking-caps);
+}
+.acks-extras-importer-table td:first-child {
+  white-space: nowrap;
+  font-weight: bold;
+}

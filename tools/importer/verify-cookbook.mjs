@@ -166,6 +166,17 @@ for (const file of bookFiles) {
       );
       continue;
     }
+    if (kind === "kind.settingTable") {
+      // A setting table is pairs: every row needs its label and every label its
+      // row, so the two lists must be the same length and both non-empty.
+      const labels = Array.isArray(f.labels) ? f.labels : [];
+      if (!nameOk || !rows.length || labels.length !== rows.length) {
+        fail(`labels=${labels.length} rows=${rows.length}`);
+        continue;
+      }
+      console.log(`OK   ${id}: ${rows.length} row(s)/${wordsOf(rows)}w`);
+      continue;
+    }
     if (kind === "kind.rolltable") {
       if (!nameOk || !rows.length) {
         fail(`rows=${rows.length}`);

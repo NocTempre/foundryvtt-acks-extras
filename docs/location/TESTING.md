@@ -56,12 +56,20 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `countMaterializedDocs()`, then `removeMaterializedDocs()`. The write COUNTS
    are gated offline (`node tools/test-table-docs.mjs`); what only a live run
    proves is that the batched calls reach real documents.
-   *Observable:* the sidebar gains "ACKS Imported Tables" with one subfolder
-   per ruledata doc and readable table names (identity in
-   `flags["acks-extras"].tableKey`); the count matches the tree plus the
-   journal; after removal the tree and journal are gone while the browser
-   still lists every imported table, and a second `materializeDocs()` rebuilds
-   the documents without re-importing.
+   *Observable:* "ACKS Cookbook — RollTable" gains "ACKS Imported Tables"
+   with one subfolder per ruledata doc and readable table names (identity in
+   `flags["acks-extras"].tableKey`), "ACKS Cookbook — JournalEntry" gains
+   "ACKS Ruledata (Imported)", and the sidebar gains nothing; the count
+   matches the tree plus the journal; after removal the tree and journal are
+   gone while the browser still lists every imported table, and a second
+   `materializeDocs()` rebuilds the documents without re-importing.
+   *The upgrade shape:* build the pre-upgrade sidebar by hand — a RollTable
+   folder "ACKS Imported Tables" flagged `ruledataDocs`, a child folder, one
+   table in it flagged `tableKey` with a real entry key, and a journal "ACKS
+   Ruledata (Imported)" flagged `ruledataDocs` — then `materializeDocs()`.
+   *Observable:* the three are gone from the sidebar and their shelf
+   counterparts exist; a second run writes nothing (the tables' "last
+   modified" times do not move).
    *Also observable, and the point of the batching:* a full materialize on a
    multi-book world completes in seconds, and an immediate second run reports
    the same totals while writing nothing at all — no result rows rebuilt and

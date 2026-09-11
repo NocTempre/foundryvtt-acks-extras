@@ -1,0 +1,162 @@
+{
+  "schema": "acks-cookbook/2",
+  "book": {
+    "id": "rr",
+    "label": "ACKS II Revised Rulebook",
+    "short": "RR",
+    "pages": 553,
+    "titleRe": "Revised Rulebook"
+  },
+  "entries": {
+    "rr.gamblingGames": {
+      "kind": "kind.settingTable",
+      "name": "Gambling Games",
+      "cite": "RR p.111",
+      "pages": [
+        113
+      ],
+      "columns": [
+        "Game",
+        "Description"
+      ],
+      "meta": {
+        "group": "Setting Details"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 113,
+          "box": {
+            "x0": 330,
+            "x1": 360,
+            "y0": 473,
+            "y1": 481
+          },
+          "text": "Game"
+        },
+        "labels": {
+          "op": "text",
+          "page": 113,
+          "paras": [
+            {
+              "box": {
+                "x0": 330.6,
+                "x1": 366.6286,
+                "y0": 487.1801,
+                "y1": 493.1801
+              },
+              "section": "r1"
+            },
+            {
+              "box": {
+                "x0": 330.6,
+                "x1": 382.6935,
+                "y0": 516.5201,
+                "y1": 522.5201
+              },
+              "section": "r2"
+            },
+            {
+              "box": {
+                "x0": 330.6,
+                "x1": 381.64875,
+                "y0": 536.86,
+                "y1": 542.86
+              },
+              "section": "r3"
+            },
+            {
+              "box": {
+                "x0": 330.6,
+                "x1": 358.6633,
+                "y0": 557.2,
+                "y1": 563.2
+              },
+              "section": "r4"
+            }
+          ]
+        },
+        "rows": {
+          "op": "text",
+          "page": 113,
+          "paras": [
+            {
+              "box": {
+                "x0": 328,
+                "x1": 575,
+                "y0": 487.1801,
+                "y1": 511.1801
+              },
+              "section": "r1",
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 328,
+                "x1": 575,
+                "y0": 516.5201,
+                "y1": 531.5201
+              },
+              "section": "r2",
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 328,
+                "x1": 575,
+                "y0": 536.86,
+                "y1": 551.86
+              },
+              "section": "r3",
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 328,
+                "x1": 575,
+                "y0": 557.2,
+                "y1": 572.2
+              },
+              "section": "r4",
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

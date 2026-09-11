@@ -49,7 +49,7 @@ check("it sits inside the adventure", room.system.parentUuid, "Actor.abcdefghijk
 ok("the room carries the text the import read", /A statue of a cow/.test(room.system.notes));
 ok("every paragraph lands, in order", /cow[\s\S]*hall is cold/i.test(room.system.notes));
 ok("extracted text is escaped, never parsed as markup", room.system.notes.includes("&lt;milk&gt;"));
-ok("the page reference closes it", /acks-extras-importer-cite">QD1 p\.10<\/p><\/div>$/.test(room.system.notes));
+ok("the page reference closes it, as a link to the book's page", /acks-extras-importer-cite"><a class="acks-extras-importer-cite-link" href="#" data-book="qd1" data-page="10">QD1 p\.10<\/a><\/p><\/div>$/.test(room.system.notes));
 ok("and the block is stamped with the entry it came from", room.system.notes.includes('data-acks-entry="qd1.area2"'));
 check("provenance records which area it is", room.flags["acks-extras"].ose.areaKey, "2");
 check("and that a person has not checked it", room.flags["acks-extras"].ose.unaudited, true);

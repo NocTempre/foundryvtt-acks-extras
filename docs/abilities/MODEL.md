@@ -72,3 +72,39 @@ and a score-bearing throw reads differently for two characters, which is the
 point. The chat card and the editor's preview name the term, because a target
 that moved with no visible cause reads as a typo. On a measure the term goes into
 the DICE instead — there is no target to move — and the line says so.
+
+## A companion is an inventory slot
+
+An ability that confers a creature — a familiar, a totem animal, a summoned
+servant — carries a `companion` effect, and that effect is a SLOT: it exists
+the moment the character holds the ability, filled or not. The slot's pointer
+is the effect's `actorUuid`; the creature it names is a world actor of the
+character's own, never a library document.
+
+Two writers fill a slot, and they never meet. A slot whose page NAMES the
+creature carries a cookbook `ref`, and the importer's fill pass writes the
+pointer from the library (`resolveCompanion`). A slot whose page leaves the
+creature to the reader carries no `ref`, and is filled from the table:
+`companions.mjs` offers a picker the moment such an ability lands on a
+character, and again from the Equipment tab, where the character sheet lists
+every slot as a **Companions** section between Carried and Stowed
+(`character-sheet/tabs/equipment.mjs`; the equipment feature injects the same
+section into the system's own sheet) with the creature's name, the ability
+that confers it, and its controls — open, release, or choose.
+
+The picker reads the imported library: the animals the rule allows first
+(`underOneHitDie` over `hitDiceOf`, which reads the importer's structured
+hit-dice record and falls back to the roll formula), every other animal after
+them at the Judge's discretion, and a typed name for a creature the library
+has not got. What is chosen is COPIED into the world — a library creature keeps
+its stat block and embedded items and sheds the cookbook stamp, so Remove ALL
+Imports never takes a character's companion with the library it was copied
+from — filed under a Companions folder, owned by whoever owns the character,
+and stamped `flags.acks-extras.companion = {ownerUuid, abilityId, index}` so
+the creature can say whose slot it fills. A seat that may not create actors
+asks the GM's client to, over the module's socket, and writes only the pointer.
+
+Releasing a slot clears the pointer and leaves the creature in the world. The
+ability sheet reads the same pointer: a filled slot names the creature, an
+empty one says "(not yet chosen)" or "(not yet loaded)" by which writer owns
+it. Nothing else reads or writes `actorUuid`.

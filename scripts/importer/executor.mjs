@@ -1689,6 +1689,11 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     kind: entry.kind,
     name: entry.name,
     cite: entry.cite,
+    // Where the text was read from, for the citation link a binding writes:
+    // the book id and the entry's first PDF page — the page a viewer opens,
+    // not the printed folio the cite names.
+    book: entry.book ?? bookCookbook.book?.id ?? null,
+    page: entry.pages?.[0] ?? null,
     ok,
     fields,
     misses,

@@ -1,0 +1,10 @@
+{
+  "id": "kind.settingTable",
+  "role": "table",
+  "note": "A setting-detail list printed as a sidebar: no die column, no odds. Each row opens with a NAME in the label face and continues in the body face until the next name. No heading to anchor, so assists.nameExpect frames the printed column header and assists.rows bounds the rows; labels and rows ship as paired text instructions (section r<n>). Binds to a JournalEntry page holding the table.",
+  "fields": {
+    "name": { "locate": "expect" },
+    "labels": { "locate": "tableRows", "type": "blocks" },
+    "rows": { "locate": "tableRows", "type": "blocks" }
+  }
+}

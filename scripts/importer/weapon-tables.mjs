@@ -333,7 +333,7 @@ export function bindWeaponRow(row, id, cite) {
   const modes = damageModes(row);
   const primary = modes.find((m) => m.damage) ?? null;
   const system = {
-    description: bookText([], cite, { id }),
+    description: bookText([], cite, { id, book: WEAPON_TABLE.book, page: WEAPON_TABLE.page }),
     tags,
     melee,
     missile,
@@ -422,7 +422,7 @@ export function bindAmmoRow(row, id, cite, { device = false } = {}) {
   const printed6 = encToWeight6(c.enc);
   const cost = costGp(c.cost);
   const system = {
-    description: bookText([], cite, { id }),
+    description: bookText([], cite, { id, book: WEAPON_TABLE.book, page: WEAPON_TABLE.page }),
     subtype: "item",
     quantity: { value: device ? 1 : count, max: 0 },
   };

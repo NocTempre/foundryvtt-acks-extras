@@ -9,11 +9,11 @@
  * all of them: the class list rendered blank, `findByRef` answered null for
  * every imported ref, and chargen offered no proficiencies at all.
  *
- * THE SIDEBAR STILL COUNTS. A Judge's own homebrew class lives there, and so
- * do the class-template packages — bundles and their skinned gear, deliberately
- * world documents so a Judge can repair one and have every character built from
- * that template inherit the repair. So a library read is world PLUS pack, in
- * that order: what this seat made itself wins over what it imported.
+ * THE SIDEBAR STILL COUNTS. A Judge's own homebrew class lives there, with the
+ * template package it builds, and so does whatever an earlier release wrote
+ * there. So a library read is world PLUS pack, in that order: what this seat
+ * made itself wins over what it imported. Writing goes through
+ * `library-target.mjs`, which opens the shelves this file reads.
  *
  * SYNCHRONOUS, because its callers are sheet getters and `_prepareContext`
  * bodies that cannot await. That is paid for by warming the packs once at
@@ -31,8 +31,39 @@ import { MODULE_ID } from "./constants.mjs";
  */
 export const cookbookId = (doc) => String(doc?.flags?.[MODULE_ID]?.cookbook?.id ?? "");
 
-/** How the importer labels its packs. Matching its `packLabel`. */
+/** How the importer labels its packs — the one place the prefix is spelled. */
 const PACK_LABEL_PREFIX = "ACKS Cookbook — ";
+
+/**
+ * The label of the shelf holding one document type of one line: the ACKS
+ * library's own shelf carries no line. Every writer that mints a pack and
+ * every reader that matches one builds the label here, so the two cannot
+ * drift.
+ */
+export const libraryPackLabel = (type, line = null) =>
+  line ? `${PACK_LABEL_PREFIX}${line} — ${type}` : `${PACK_LABEL_PREFIX}${type}`;
+
+/** The shelf for one type and line, or null when this world has none yet. */
+export function findLibraryPack(type, line = null) {
+  const label = libraryPackLabel(type, line);
+  return (
+    (game.packs ?? []).find(
+      (p) => p.metadata.packageType === "world" && p.documentName === type && p.metadata.label === label,
+    ) ?? null
+  );
+}
+
+/** Is this pack collection id one of the library's own shelves? */
+export const isLibraryPack = (collection) =>
+  !!collection && importedPacks().some(({ pack }) => pack.collection === collection);
+
+/**
+ * The line a library shelf holds, read off its label; null for the ACKS
+ * shelf, and null for a collection that is not a library shelf at all — a
+ * document in a foreign compendium belongs to no line.
+ */
+export const lineOfPack = (collection) =>
+  importedPacks().find(({ pack }) => pack.collection === collection)?.line ?? null;
 
 /** Document types the importer keeps a pack for. */
 const LIBRARY_TYPES = ["Item", "Actor", "JournalEntry", "RollTable"];

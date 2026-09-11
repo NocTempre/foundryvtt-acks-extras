@@ -30,7 +30,7 @@ sibling modules) — never the import path for this module's own features.
 
 | File | Owns |
 | --- | --- |
-| `actor-read.mjs` | `abilityMod` / `classLevel` / `monsterHd` / `hitDiceOrLevel` — graceful-degradation reads of the system schema. Never inline these. |
+| `actor-read.mjs` | `abilityMod` / `classLevel` / `monsterHd` / `monsterHitDice` / `hitDiceOrLevel` — graceful-degradation reads of the system schema. Never inline these. |
 | `actor-compat.mjs` | `acksCompatStubs()` every actor sub-type must spread, + the one BOOK↔RELEASED saving-throw key mapping. |
 | `item-model.mjs` | The shared item baseline: `isPhysical` / `isEquippable` / `weight6Of` / wear slots. |
 | `capabilities.mjs` | "Does this actor hold an ability that provides X?" — name ∪ `kw:` token matching, and `abilityRank` (a proficiency taken thrice is three items). |
@@ -65,6 +65,7 @@ sibling modules) — never the import path for this module's own features.
 | `follower-card.mjs` | The printed ACKS II Follower Card: one layout, two surfaces. |
 | `roll-card.mjs` | ONE chat card for a roll several people made at once — use this before hand-building a `ChatMessage`. |
 | `library.mjs` | The imported library, wherever it lives: sidebar + the importer subsystem's world packs. **Every "what has this world imported?" read goes through it** — a bare `game.items` finds an empty shelf. `cookbookId(doc)` is the ONE read of the importer's stamp. |
+| `library-target.mjs` | Where a library document is WRITTEN: `ensureLibraryPack(type, line)` opens (finds or creates and files) the shelf for a type and line, `ensureFolderIn(pack, type, names)` a stamped folder path inside it. Every writer of the library — the importer, class template packages, materialized rules tables — goes through it, so a derived document lands where its import lives. |
 | `compendium-folders.mjs` | Where every ACKS compendium sits in the sidebar, read from each package's own manifest `packFolders` — the system's tree is the system's. Two strengths: `organizeCompendiumFolders()` fills an empty or dangling slot at every load, `restoreCompendiumLibrary()` is the macro and overrules. Also shelves the importer's world packs, a line's folder made by the first pack that needs it. |
 | `polyglot.mjs` | Publishing world-imported languages to Polyglot's selector (core owns the base integration). |
 

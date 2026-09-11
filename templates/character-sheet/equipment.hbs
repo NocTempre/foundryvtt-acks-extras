@@ -72,6 +72,32 @@
       </div>
       {{/if}}
 
+      {{#if eq.companions.length}}
+      <div class="acks-extras-character-sheet__rule is-spaced">
+        <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-EQUIPMENT.companion.section"}}</span>
+        <span class="acks-extras-character-sheet__rule-note">{{eq.companionsNote}}</span>
+      </div>
+      {{#each eq.companions as |slot|}}
+      <div class="acks-extras-character-sheet__row is-companion" data-ability-id="{{slot.abilityId}}" data-slot="{{slot.index}}">
+        <img class="acks-extras-character-sheet__gear-img" src="{{slot.img}}" alt="" inert>
+        <span class="acks-extras-character-sheet__row-text">
+          {{#if slot.empty}}<span class="acks-extras-character-sheet__gear-name is-empty">{{localize "ACKS-EQUIPMENT.companion.empty"}}</span>{{else}}<a class="acks-extras-character-sheet__gear-name" data-action="companionOpen">{{slot.name}}</a>{{/if}}
+          <span class="acks-extras-character-sheet__row-line">{{slot.via}}</span>
+        </span>
+        {{#if eq.editable}}
+        <span class="acks-extras-character-sheet__ctls"><span class="acks-extras-character-sheet__grp">
+          {{#if slot.empty}}
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="companionChoose" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.choose'}}"><i class="fa-solid fa-plus" inert></i></button>
+          {{else}}
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="companionOpen" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.open'}}"><i class="fa-solid fa-paw" inert></i></button>
+          <button type="button" class="acks-extras-character-sheet__ctl" data-action="companionRelease" data-tooltip="{{localize 'ACKS-EQUIPMENT.companion.release'}}"><i class="fa-solid fa-link-slash" inert></i></button>
+          {{/if}}
+        </span></span>
+        {{/if}}
+      </div>
+      {{/each}}
+      {{/if}}
+
       <div class="acks-extras-character-sheet__rule is-spaced">
         <span class="acks-extras-character-sheet__rule-title">{{localize "ACKS-CHARACTER.equipment.stowed"}}</span>
         <span class="acks-extras-character-sheet__rule-note">{{localize "ACKS-CHARACTER.equipment.stowedNote"}}</span>

@@ -1,15 +1,18 @@
 /**
- * Materializing imported rules tables: how many WRITES it costs.
+ * Materializing imported rules tables: where the documents land, and how many
+ * WRITES it costs.
  *
  * `materializeAll()` runs automatically after every table import, so the count
  * of round trips is the behaviour under test, not an implementation detail —
  * one write per document is what made a six-book world take minutes. These
  * tests drive the real function against a mock world that records every call,
- * and assert both the resulting documents and the number of calls it took.
+ * and assert the resulting documents, the shelf they sit on, and the number of
+ * calls it took.
  *
  * The mock is deliberately thin: it models what this code actually uses —
- * document collections with `find`/`filter`, embedded page collections, and
- * flags — and nothing else.
+ * document collections with `find`/`filter`, the library's packs with their
+ * `contents` and `folders`, embedded page collections, and flags — and
+ * nothing else.
  */
 import assert from "node:assert/strict";
 
@@ -50,6 +53,7 @@ const htmlNormalize = (s) => String(s ?? "").replace(/&(?!(?:amp|lt|gt|quot|#39)
 function doc(data, extra = {}) {
   const d = {
     id: data._id ?? mkId(),
+    pack: null,
     ...data,
     flags: data.flags ?? {},
     getFlag(scope, key) {
@@ -75,6 +79,62 @@ class Coll extends Array {
   }
 }
 
+/** `game.packs`: a Map that iterates its VALUES and answers `find`, as Foundry's Collection does. */
+class Packs extends Map {
+  find(fn) {
+    for (const v of this.values()) if (fn(v)) return v;
+    return undefined;
+  }
+  filter(fn) {
+    return [...this.values()].filter(fn);
+  }
+  some(fn) {
+    return [...this.values()].some(fn);
+  }
+  [Symbol.iterator]() {
+    return this.values();
+  }
+}
+
+/**
+ * One of the library's shelves: a world compendium the way `lib/library.mjs`
+ * recognises it (label, package type, document name) with the two collections
+ * this code reads — `contents` and `folders` — and an index that says the
+ * shelf is never cold.
+ */
+function fakePack(type) {
+  const collection = `world.acks-cookbook-${type.toLowerCase()}`;
+  return {
+    metadata: { packageType: "world", label: `ACKS Cookbook — ${type}`, id: collection },
+    documentName: type,
+    collection,
+    folders: new Coll(),
+    contents: new Coll(),
+    index: { size: 0 },
+    get size() {
+      return this.contents.length;
+    },
+    async getDocuments() {
+      return [...this.contents];
+    },
+  };
+}
+
+/** The shelf of a type, or null when this world has none. */
+const shelf = (type) => game.packs.find((p) => p.documentName === type) ?? null;
+
+/** Where a kind of document lives: the shelf named by `pack`, else the sidebar. */
+const collections = {
+  RollTable: { world: () => game.tables, set: (c) => (game.tables = c), packKey: "contents" },
+  JournalEntry: { world: () => game.journal, set: (c) => (game.journal = c), packKey: "contents" },
+  Folder: { world: () => game.folders, set: (c) => (game.folders = c), packKey: "folders" },
+};
+const collOf = (kind, pack) => (pack ? game.packs.get(pack)[collections[kind].packKey] : collections[kind].world());
+const setColl = (kind, pack, coll) => {
+  if (pack) game.packs.get(pack)[collections[kind].packKey] = coll;
+  else collections[kind].set(coll);
+};
+
 /**
  * A RollTable, with an embedded results collection.
  *
@@ -84,9 +144,9 @@ class Coll extends Array {
  * write, and a mock that stored the raw string would let a broken comparison
  * pass.
  */
-function table(data) {
-  const t = doc(data);
-  t.folder = data.folder ? ([...game.folders].find((f) => f.id === data.folder) ?? null) : null;
+function table(data, pack = null) {
+  const t = doc({ ...data, pack });
+  t.folder = data.folder ? ([...collOf("Folder", pack)].find((f) => f.id === data.folder) ?? null) : null;
   const result = (r) => doc({ ...r, description: htmlNormalize(r.description) });
   t.results = new Coll(...(data.results ?? []).map(result));
   t.deleteEmbeddedDocuments = async (type, ids) => {
@@ -111,8 +171,8 @@ function table(data) {
 }
 
 /** A JournalEntry, with an embedded pages collection. */
-function journalDoc(data) {
-  const j = doc(data);
+function journalDoc(data, pack = null) {
+  const j = doc({ ...data, pack });
   j.pages = new Coll(...(data.pages ?? []).map((p) => doc({ ...p })));
   j.createEmbeddedDocuments = async (type, rows) => {
     record(`page.create:${rows.length}`);
@@ -131,12 +191,24 @@ function journalDoc(data) {
     record(`page.delete:${ids.length}`);
     j.pages = new Coll(...[...j.pages].filter((p) => !ids.includes(p.id)));
   };
+  j.delete = async () => {
+    record("journal.delete");
+    setColl("JournalEntry", j.pack, new Coll(...[...collOf("JournalEntry", j.pack)].filter((x) => x.id !== j.id)));
+  };
   return j;
+}
+
+/** A Folder, resolving its parent among the folders of the same collection. */
+function folderDoc(data, pack = null) {
+  const f = doc({ ...data, pack });
+  f.folder = data.folder ? ([...collOf("Folder", pack)].find((x) => x.id === data.folder) ?? null) : null;
+  return f;
 }
 
 /**
  * Install a world. `tables` is the ruledata registry this materialize reads;
- * `expected` is what consumers want but no import provided.
+ * `expected` is what consumers want but no import provided. The world starts
+ * with no shelves: the first pass that needs one creates it, as live.
  */
 function world({ registry = {}, expected = [] } = {}) {
   calls = [];
@@ -144,65 +216,76 @@ function world({ registry = {}, expected = [] } = {}) {
     tables: new Coll(),
     journal: new Coll(),
     folders: new Coll(),
+    packs: new Packs(),
+    user: { isGM: true },
     i18n: { localize: (k) => k, format: (k) => k },
   };
   globalThis.CONST = { JOURNAL_ENTRY_PAGE_FORMATS: { HTML: 1 } };
-  globalThis.foundry = { utils: { deepClone: (v) => structuredClone(v) } };
+  globalThis.foundry = {
+    utils: { deepClone: (v) => structuredClone(v) },
+    documents: {
+      collections: {
+        CompendiumCollection: {
+          async createCompendium({ type }) {
+            record(`createCompendium:${type}`);
+            const pack = fakePack(type);
+            game.packs.set(pack.collection, pack);
+            return pack;
+          },
+        },
+      },
+    },
+  };
   globalThis.RollTable = {
-    async createDocuments(rows) {
+    async createDocuments(rows, { pack = null } = {}) {
       record(`RollTable.createDocuments:${rows.length}`);
-      const made = rows.map((r) => table(r));
-      game.tables.push(...made);
+      const made = rows.map((r) => table(r, pack));
+      collOf("RollTable", pack).push(...made);
       return made;
     },
-    async updateDocuments(rows) {
+    async updateDocuments(rows, { pack = null } = {}) {
       record(`RollTable.updateDocuments:${rows.length}`);
       for (const row of rows) {
-        const t = [...game.tables].find((x) => x.id === row._id);
+        const t = [...collOf("RollTable", pack)].find((x) => x.id === row._id);
         for (const [k, v] of Object.entries(row)) {
           if (k === "_id") continue;
           if (k.startsWith("flags.")) {
             const [, scope, key] = k.split(".");
             t.flags[scope] = { ...(t.flags[scope] ?? {}), [key]: v };
           } else if (k === "folder") {
-            t.folder = v ? ([...game.folders].find((f) => f.id === v) ?? null) : null;
+            t.folder = v ? ([...collOf("Folder", pack)].find((f) => f.id === v) ?? null) : null;
           } else t[k] = v;
         }
       }
     },
-    async deleteDocuments(ids) {
+    async deleteDocuments(ids, { pack = null } = {}) {
       record(`RollTable.deleteDocuments:${ids.length}`);
-      game.tables = new Coll(...[...game.tables].filter((t) => !ids.includes(t.id)));
+      setColl("RollTable", pack, new Coll(...[...collOf("RollTable", pack)].filter((t) => !ids.includes(t.id))));
     },
   };
   globalThis.Folder = {
-    async create(data) {
+    async create(data, { pack = null } = {}) {
       record("Folder.create");
-      const f = doc(data);
-      f.folder = data.folder ? [...game.folders].find((x) => x.id === data.folder) : null;
-      game.folders.push(f);
+      const f = folderDoc(data, pack);
+      collOf("Folder", pack).push(f);
       return f;
     },
-    async createDocuments(rows) {
+    async createDocuments(rows, { pack = null } = {}) {
       record(`Folder.createDocuments:${rows.length}`);
-      const made = rows.map((r) => {
-        const f = doc(r);
-        f.folder = r.folder ? [...game.folders].find((x) => x.id === r.folder) : null;
-        return f;
-      });
-      game.folders.push(...made);
+      const made = rows.map((r) => folderDoc(r, pack));
+      collOf("Folder", pack).push(...made);
       return made;
     },
-    async deleteDocuments(ids) {
+    async deleteDocuments(ids, { pack = null } = {}) {
       record(`Folder.deleteDocuments:${ids.length}`);
-      game.folders = new Coll(...[...game.folders].filter((f) => !ids.includes(f.id)));
+      setColl("Folder", pack, new Coll(...[...collOf("Folder", pack)].filter((f) => !ids.includes(f.id))));
     },
   };
   globalThis.JournalEntry = {
-    async create(data) {
+    async create(data, { pack = null } = {}) {
       record("JournalEntry.create");
-      const j = journalDoc(data);
-      game.journal.push(j);
+      const j = journalDoc(data, pack);
+      collOf("JournalEntry", pack).push(j);
       return j;
     },
   };
@@ -219,7 +302,19 @@ function world({ registry = {}, expected = [] } = {}) {
   };
 }
 
-const { materializeAll, entryLabel, parseDrop, listEntries } = await import("../scripts/location/table-docs.mjs");
+/** A shelf that already exists when a pass begins, holding what an earlier pass left on it. */
+function installShelf(type, { contents = [], folders = [] } = {}) {
+  const pack = fakePack(type);
+  game.packs.set(pack.collection, pack);
+  pack.contents.push(...contents);
+  pack.folders.push(...folders);
+  for (const d of [...contents, ...folders]) d.pack = pack.collection;
+  return pack;
+}
+
+const { materializeAll, entryLabel, parseDrop, listEntries, listMaterializedDocs, countMaterializedDocs } = await import(
+  "../scripts/location/table-docs.mjs"
+);
 
 /** Write calls only — the folder/journal lookups are reads. */
 const writeCount = () => calls.length;
@@ -251,32 +346,36 @@ await test("every new table is created in ONE call, whatever the count", async (
   world({ registry: manyRollables(40) });
   const report = await materializeAll();
   assert.equal(report.exported, 40, "one entry per level row");
-  assert.equal(game.tables.length, 40);
+  assert.equal(shelf("RollTable").contents.length, 40);
   const creates = calls.filter((c) => c.startsWith("RollTable.createDocuments"));
   assert.equal(creates.length, 1, "one create call, not forty");
   assert.equal(creates[0], "RollTable.createDocuments:40");
-  // The whole pass: one root folder, one child folder, one create.
-  assert.ok(writeCount() <= 3, `expected at most 3 writes, got ${writeCount()}: ${calls.join(", ")}`);
+  // The whole pass: one shelf, one root folder, one child folder, one create.
+  assert.ok(writeCount() <= 4, `expected at most 4 writes, got ${writeCount()}: ${calls.join(", ")}`);
 });
 
-await test("tables land in a per-doc subfolder under one flagged root", async () => {
+await test("tables land on the RollTable shelf, in a per-doc subfolder under one flagged root", async () => {
   world({ registry: manyRollables(3) });
   await materializeAll();
-  const root = [...game.folders].find((f) => !f.folder);
-  const child = [...game.folders].find((f) => f.folder);
+  const pack = shelf("RollTable");
+  assert.ok(pack, "the shelf is opened by the pass that first needs it");
+  assert.equal(game.tables.length, 0, "and nothing lands in the sidebar");
+  assert.equal(game.folders.length, 0);
+  const root = [...pack.folders].find((f) => !f.folder);
+  const child = [...pack.folders].find((f) => f.folder);
   assert.equal(root.name, "ACKS Imported Tables");
   assert.equal(root.getFlag(MODULE_ID, "ruledataDocs"), true);
   assert.equal(child.name, "People", "humanized doc id");
-  assert.ok([...game.tables].every((t) => t.folder?.id === child.id), "every table filed in it");
+  assert.ok([...pack.contents].every((t) => t.folder?.id === child.id), "every table filed in it");
 });
 
 await test("re-materializing changes nothing and writes NOTHING AT ALL", async () => {
   world({ registry: manyRollables(25) });
   await materializeAll();
-  const before = [...game.tables].map((t) => t.id);
+  const before = [...shelf("RollTable").contents].map((t) => t.id);
   calls = [];
   const report = await materializeAll();
-  assert.deepEqual([...game.tables].map((t) => t.id), before, "adopted by flag, never duplicated or replaced");
+  assert.deepEqual([...shelf("RollTable").contents].map((t) => t.id), before, "adopted by flag, never duplicated or replaced");
   assert.equal(report.exported, 25, "still reports every entry as materialized");
   // Not one write: an unchanged pass must not even stamp _stats.modifiedTime.
   assert.deepEqual(calls, [], `an unchanged re-materialize must write nothing: ${calls.join(", ")}`);
@@ -285,13 +384,13 @@ await test("re-materializing changes nothing and writes NOTHING AT ALL", async (
 await test("adoption is by flag, so a renamed table keeps its identity", async () => {
   world({ registry: manyRollables(2) });
   await materializeAll();
-  const renamed = [...game.tables][0];
+  const renamed = [...shelf("RollTable").contents][0];
   renamed.name = "The Judge's own name for it";
   calls = [];
   await materializeAll();
-  assert.equal(game.tables.length, 2, "still two tables — the rename did not orphan one");
+  assert.equal(shelf("RollTable").contents.length, 2, "still two tables — the rename did not orphan one");
   assert.ok(
-    [...game.tables].some((t) => t.id === renamed.id),
+    [...shelf("RollTable").contents].some((t) => t.id === renamed.id),
     "the same document was updated, not replaced",
   );
   assert.equal(renamed.name, "Class Percentages — Level 0", "and materialization renamed it back");
@@ -299,19 +398,71 @@ await test("adoption is by flag, so a renamed table keeps its identity", async (
   assert.deepEqual(calls, ["RollTable.updateDocuments:1"], `only the drifted table updates: ${calls.join(", ")}`);
 });
 
-await test("a legacy raw-key name is adopted and migrated once", async () => {
+await test("a legacy raw-key sidebar table is retired and rebuilt on the shelf", async () => {
   world({ registry: manyRollables(1) });
-  // A world materialized before the flag existed: named by raw key, unfiled.
+  // A world materialized before the flag existed: named by raw key, unfiled,
+  // and in the SIDEBAR, where every release before the shelves wrote.
   const legacy = table({ name: "people.classPercentages.level.0", folder: null, results: [] });
   game.tables.push(legacy);
   await materializeAll();
-  assert.equal(game.tables.length, 1, "adopted rather than duplicated");
-  const t = [...game.tables][0];
-  assert.equal(t.id, legacy.id, "the same document");
-  assert.equal(t.name, "Class Percentages — Level 0", "renamed");
+  assert.equal(game.tables.length, 0, "the sidebar copy is retired");
+  assert.equal(shelf("RollTable").contents.length, 1, "and rebuilt once on the shelf");
+  const t = [...shelf("RollTable").contents][0];
+  assert.notEqual(t.id, legacy.id, "a shelf document, not the sidebar one moved");
+  assert.equal(t.name, "Class Percentages — Level 0", "named for readers");
   assert.equal(t.getFlag(MODULE_ID, "tableKey"), "people.classPercentages.level.0", "and stamped");
   assert.equal(t.folder?.name, "People", "and filed under its doc's subfolder");
-  assert.equal(t.results.length, 2, "and its empty result set was rebuilt from the registry");
+  assert.equal(t.results.length, 2, "with its results built from the registry");
+  assert.ok(calls.includes("RollTable.deleteDocuments:1"), `the retirement is one delete: ${calls.join(", ")}`);
+});
+
+await test("a sidebar tree from an earlier release is retired once, and the shelf takes over", async () => {
+  world({ registry: { ...manyRollables(2), wages: { labour: { rows: [1] } } } });
+  // What a release that wrote to the sidebar left behind: the flagged root,
+  // one child, two flagged tables filed in it, and the JSON journal.
+  const root = folderDoc({ name: "ACKS Imported Tables", type: "RollTable", flags: { [MODULE_ID]: { ruledataDocs: true } } });
+  game.folders.push(root);
+  const child = folderDoc({ name: "People", type: "RollTable", folder: root.id, flags: { [MODULE_ID]: { ruledataDocs: true } } });
+  game.folders.push(child);
+  for (const level of [0, 1]) {
+    game.tables.push(
+      table({
+        name: `Class Percentages — Level ${level}`,
+        folder: child.id,
+        results: [],
+        flags: { [MODULE_ID]: { tableKey: `people.classPercentages.level.${level}` } },
+      }),
+    );
+  }
+  game.journal.push(journalDoc({ name: "ACKS Ruledata (Imported)", flags: { [MODULE_ID]: { ruledataDocs: true } } }));
+  assert.equal(countMaterializedDocs({ sidebar: true }), 5, "the sidebar's five are what an earlier release made");
+
+  await materializeAll();
+  assert.equal(game.tables.length, 0, "sidebar tables retired");
+  assert.equal(game.folders.length, 0, "sidebar tree retired");
+  assert.equal(game.journal.length, 0, "sidebar journal retired");
+  assert.equal(shelf("RollTable").contents.length, 2, "rebuilt on the RollTable shelf");
+  assert.equal(shelf("RollTable").folders.length, 2, "with its tree");
+  assert.equal(shelf("JournalEntry").contents.length, 1, "and the journal on the JournalEntry shelf");
+  assert.equal(shelf("JournalEntry").contents[0].pages.length, 1);
+  const retired = calls.filter((c) => /^(RollTable|Folder)\.deleteDocuments|^journal\.delete/.test(c));
+  assert.deepEqual(retired, ["RollTable.deleteDocuments:2", "Folder.deleteDocuments:2", "journal.delete"], "one delete per kind");
+  assert.equal(countMaterializedDocs({ sidebar: true }), 0, "nothing of ours is left in the sidebar");
+  assert.equal(countMaterializedDocs(), 5, "the shelves hold what the sidebar held");
+
+  calls = [];
+  await materializeAll();
+  assert.deepEqual(calls, [], `the pass after the move writes nothing: ${calls.join(", ")}`);
+});
+
+await test("removal lists the shelves' documents and the sidebar's both", async () => {
+  world({ registry: { ...manyRollables(1), wages: { labour: { rows: [1] } } } });
+  await materializeAll();
+  const { tables, folders, journals } = listMaterializedDocs();
+  assert.equal(tables.length, 1);
+  assert.equal(folders.length, 2);
+  assert.equal(journals.length, 1);
+  assert.ok(tables[0].pack && folders[0].pack && journals[0].pack, "each names the shelf it is deleted through");
 });
 
 await test("an ampersand in the book's own wording does not rebuild forever", async () => {
@@ -336,7 +487,7 @@ await test("an ampersand in the book's own wording does not rebuild forever", as
     },
   });
   await materializeAll();
-  const stored = [...[...game.tables][0].results].map((r) => r.description);
+  const stored = [...[...shelf("RollTable").contents][0].results].map((r) => r.description);
   assert.ok(stored[0].includes("&amp;"), "the mock stores what an HTML field stores");
   calls = [];
   await materializeAll();
@@ -357,7 +508,7 @@ await test("a dropped table reads back the words, not the entities", async () =>
     },
   });
   await materializeAll();
-  const dropped = [...game.tables][0];
+  const dropped = [...shelf("RollTable").contents][0];
   globalThis.fromUuid = async () => ({ ...dropped, documentName: "RollTable", results: dropped.results, uuid: dropped.uuid });
   const entry = { docId: "people", tableId: "occupationSubTables", subId: "merchant", key: "people.occupationSubTables.merchant", rollable: true };
   const { data } = await parseDrop(entry, { uuid: dropped.uuid });
@@ -398,14 +549,17 @@ await test("a table that rebuilt once does not rebuild forever after", async () 
 /* -------------------------------------------- */
 
 /** Non-rollable tables — these materialize as JSON journal pages. */
-const manyPages = (n) =>
-  Object.fromEntries([["people", Object.fromEntries(Array.from({ length: n }, (_, i) => [`grid${i}`, { rows: [i] }]))]]);
+function manyPages(n) {
+  return Object.fromEntries([["people", Object.fromEntries(Array.from({ length: n }, (_, i) => [`grid${i}`, { rows: [i] }]))]]);
+}
 
-await test("every new page is created in ONE call", async () => {
+await test("every new page is created in ONE call, on the JournalEntry shelf", async () => {
   world({ registry: manyPages(30) });
   const report = await materializeAll();
   assert.equal(report.exported, 30);
-  const journal = [...game.journal][0];
+  assert.equal(game.journal.length, 0, "nothing in the sidebar");
+  assert.equal(shelf("RollTable"), null, "and no RollTable shelf opened for a registry with nothing rollable");
+  const journal = [...shelf("JournalEntry").contents][0];
   assert.equal(journal.pages.length, 30);
   const creates = calls.filter((c) => c.startsWith("page.create"));
   assert.equal(creates.length, 1);
@@ -438,7 +592,7 @@ await test("expected-but-missing tables get one placeholder each", async () => {
   world({ registry: manyPages(2), expected: [{ docId: "wages", tableIds: ["labour", "skilled"] }] });
   const report = await materializeAll();
   assert.equal(report.placeholders, 2);
-  const journal = [...game.journal][0];
+  const journal = [...shelf("JournalEntry").contents][0];
   assert.ok([...journal.pages].some((p) => p.name === "wages.labour"));
   // Placeholders ride the same single create call as the real pages.
   assert.deepEqual(calls.filter((c) => c.startsWith("page.create")), ["page.create:4"]);
@@ -464,11 +618,12 @@ await test("an unsupplied table is listed for authoring, and counted once", asyn
 await test("a page whose table became rollable is retired after the writes", async () => {
   world({ registry: manyPages(3) });
   await materializeAll();
-  const journal = [...game.journal][0];
+  const journal = [...shelf("JournalEntry").contents][0];
   assert.equal(journal.pages.length, 3);
-  // The same doc now ships one rollable table instead of the three grids.
+  // The same doc now ships one rollable table instead of the three grids; the
+  // shelf journal is still there from the earlier pass.
   world({ registry: manyRollables(2) });
-  game.journal.push(journal);
+  installShelf("JournalEntry", { contents: [journal] });
   await materializeAll();
   assert.equal(journal.pages.length, 0, "the stale JSON pages are swept");
   assert.ok(
@@ -477,10 +632,11 @@ await test("a page whose table became rollable is retired after the writes", asy
   );
 });
 
-await test("a world with no JSON tables gets no empty journal", async () => {
+await test("a world with no JSON tables gets no empty journal, and no empty shelf for it", async () => {
   world({ registry: manyRollables(2) });
   await materializeAll();
   assert.equal(game.journal.length, 0, "an empty ruledata journal is clutter, not a fixture");
+  assert.equal(shelf("JournalEntry"), null, "and so is an empty JournalEntry pack");
 });
 
 console.log(`test-table-docs: ${passed} tests passed`);

@@ -25,19 +25,33 @@ export const abilityMod = (actor, key) => Number(actor?.system?.scores?.[key]?.m
 export const classLevel = (actor) => Number(actor?.system?.details?.level ?? 0);
 
 /**
- * A monster's Hit Dice rating parsed from `system.hp.hd`. Handles a raw number,
- * an "a/b" fraction (½-HD monsters → 0.5), and a leading integer or decimal
- * ("3d8+1" → 3, "0.5d4" → 0.5). Anchored so "d8" (no leading rating) → 0, not 8.
+ * A monster's Hit Dice rating as `{count, bonus}`, parsed from `system.hp.hd`.
+ * Handles a raw number, an "a/b" fraction (½-HD monsters → 0.5), a roll
+ * formula ("3d8+1" → 3 with a bonus of 1; one die smaller than a d8 is the
+ * fraction of a die it stands for, so the "1d4" `hdFormula` writes for a ½
+ * rating reads back as 0.5, not 1), and a leading integer or decimal with an
+ * optional bonus ("2+1"). Anchored so "d8" (no leading rating) → 0, not 8.
+ * @returns {{count: number, bonus: number}}
  */
-export function monsterHd(actor) {
+export function monsterHitDice(actor) {
   const hd = actor?.system?.hp?.hd;
-  if (typeof hd === "number") return hd;
+  if (typeof hd === "number") return { count: hd, bonus: 0 };
   const s = String(hd ?? "").trim();
+  const bonusOf = (m) => (m ? Number(m.replace(/\s+/g, "")) : 0);
   const frac = s.match(/^(\d+)\s*\/\s*(\d+)/);
-  if (frac) return Number(frac[1]) / Number(frac[2]);
-  const m = s.match(/^\s*(\d+(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : 0;
+  if (frac) return { count: Number(frac[1]) / Number(frac[2]), bonus: 0 };
+  const dice = s.match(/^(\d+(?:\.\d+)?)\s*d\s*(\d+)\s*([+-]\s*\d+)?/i);
+  if (dice) {
+    const n = parseFloat(dice[1]);
+    const sides = Number(dice[2]);
+    return { count: n === 1 && sides < 8 ? sides / 8 : n, bonus: bonusOf(dice[3]) };
+  }
+  const m = s.match(/^(\d+(?:\.\d+)?)\s*([+-]\s*\d+)?/);
+  return m ? { count: parseFloat(m[1]), bonus: bonusOf(m[2]) } : { count: 0, bonus: 0 };
 }
+
+/** A monster's Hit Dice rating — the count alone (see `monsterHitDice`). */
+export const monsterHd = (actor) => monsterHitDice(actor).count;
 
 /**
  * The roll formula a Hit Dice rating stands for — the inverse of `monsterHd`,

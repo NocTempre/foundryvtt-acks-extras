@@ -15,6 +15,38 @@
  * publishes (scripts/config.mjs MONSTER_SAVES_LUT).
  */
 
+/** The fractions the books set as single glyphs. */
+const VULGAR = { "½": 0.5, "¼": 0.25, "⅓": 1 / 3, "¾": 0.75, "⅛": 0.125 };
+
+/**
+ * A printed Hit Dice rating as `{count, bonus, asterisks}`, or null when the
+ * text leads with no rating. Whole dice with a bonus ("3", "2+1", "1-1"); a
+ * fraction of one die as a glyph or a slash ("½", "1/2", with or without a
+ * hit-point aside); and a creature too slight to rate, which prints its hit
+ * die or hit points instead ("1d4 hp", "1 hp") — read as the fraction of a d8
+ * that die stands for, never above one. Asterisks are the special-ability
+ * marks. A bonus absent is null, so a consumer can tell "none printed" from
+ * zero; the same for the marks.
+ */
+export function parseHitDice(text) {
+  const s = String(text ?? "").trim();
+  // The marks may sit before OR after a hit-point aside ("½* (1d4 hp)",
+  // "½ (2 hp)*"), so both places are read.
+  const MARKS = /\s*(\**)\s*(?:\([^)]*\))?\s*(\**)/;
+  const tail = (m, i) => (m[i] ?? "").length + (m[i + 1] ?? "").length || null;
+  let m = new RegExp(`^([½¼⅓¾⅛])${MARKS.source}`, "u").exec(s);
+  if (m) return { count: VULGAR[m[1]], bonus: null, asterisks: tail(m, 2) };
+  m = new RegExp(`^(\\d+)\\s*/\\s*(\\d+)${MARKS.source}`).exec(s);
+  if (m) return { count: Number(m[1]) / Number(m[2]), bonus: null, asterisks: tail(m, 3) };
+  m = new RegExp(`^1\\s*d\\s*(\\d+)\\s*(?:hp)?${MARKS.source}`, "i").exec(s);
+  if (m) return { count: Math.min(1, Number(m[1]) / 8), bonus: null, asterisks: tail(m, 2) };
+  m = new RegExp(`^(\\d+)\\s*hp\\b${MARKS.source}`, "i").exec(s);
+  if (m) return { count: Math.min(1, Math.max(0.125, Number(m[1]) / 4.5)), bonus: null, asterisks: tail(m, 2) };
+  m = new RegExp(`^(\\d+)(?:\\s*([+-])\\s*(\\d+))?${MARKS.source}`).exec(s);
+  if (m) return { count: parseInt(m[1], 10), bonus: m[2] ? (m[2] === "-" ? -1 : 1) * parseInt(m[3], 10) : null, asterisks: tail(m, 4) };
+  return null;
+}
+
 const SAVES_LUT = {
   0: { paralysis: 14, death: 15, blast: 16, implements: 17, spell: 18 },
   1: { paralysis: 13, death: 14, blast: 15, implements: 16, spell: 17 },

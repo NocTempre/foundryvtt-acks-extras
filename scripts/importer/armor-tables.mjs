@@ -180,7 +180,7 @@ export function bindArmorRow(row, id, cite) {
   const isBarding = /barding/i.test(row.name);
   const isSpiked = /spiked/i.test(row.name);
   const system = {
-    description: bookText([], cite, { id }),
+    description: bookText([], cite, { id, book: ARMOR_TABLE.book, page: ARMOR_TABLE.page }),
     aac: { value: acValue(c.ac) },
     type,
     equipped: false,

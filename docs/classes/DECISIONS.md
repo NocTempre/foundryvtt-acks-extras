@@ -3,6 +3,35 @@
 Dated, append-only. How it works now is [MODEL.md](MODEL.md); what is not
 built is [ROADMAP.md](ROADMAP.md).
 
+## 2026-09-10 — a package lands beside its class
+
+**Reported (user):** "the class templates items, class templates roll tables
+… are not imported into a compendium" — every other import was. The ruling is
+lib's (`docs/lib/DECISIONS.md` 2026-09-10: a document derived from an import
+lands where the import lives). Here it means `materializeTemplates` writes a
+pack class's bundles, skins, copies and table to that line's Item and RollTable
+shelves, filed `Class Templates / <Class>` and `Class Templates`, and a sidebar
+class's parts to the sidebar as before — Remove Imports deletes the library's
+packs whole, and a Judge's homebrew class must not lose its package with them.
+
+**This reverses the placement half of 2026-08-24 and 2026-08-19** ("a Judge
+repairs nothing inside a compendium"). The library's packs are unlocked world
+packs, and a part in one is edited exactly as one in the directory — which the
+2026-08-24 change to `planAbility` (link a pack ability rather than copy it)
+had already conceded for abilities. The bundle-of-repairable-documents ruling
+itself stands untouched.
+
+**Also ruled:** `findSource` answers `linkable` (sidebar or library shelf)
+instead of `world`, and a foreign-compendium source is still copied; the pack
+index reads carry the `templatePart` stamp, so a shelf that now holds a class's
+skinned copies beside the definitions they copied never answers a source
+lookup with a copy; parts are read across the whole library, so a world
+upgraded from a sidebar-writing release keeps its earlier parts linked where
+they are and only new parts land on the shelf.
+
+**Cost:** after an upgrade a class's parts may straddle the sidebar and the
+shelf until the Judge detaches and rebuilds; detach-with-delete sweeps both.
+
 ## 2026-09-07 — the library is warmed unconditionally, because emptiness is not coldness
 
 **Problem.** A player reported the chargen class box stuck on a homebrew class
@@ -472,6 +501,9 @@ it had been passing the id of a folder it created in the pack, so every bundle
 and every piece of gear was created pointing at a folder the sidebar does not
 have.
 
+> **Placement superseded 2026-09-10** (entry above): a pack class's package
+> lands on that line's shelves, and a folder a caller supplies is inside them.
+
 **Cost:** the class row and its package now live in different places. That is
 what the repairability rule already implied; the guard was hiding it.
 
@@ -697,7 +729,9 @@ be fixed on every generated character or by re-import.
 
 **Ruled (user):** each template becomes a container of its abilities and items
 — real, independent, GM-repairable world documents — linked from a RollTable
-attached to the class. Realized as core's own `bundle` Item type (reuse over
+attached to the class. *(Placement superseded 2026-09-10: the documents are
+as repairable on the class's own shelf, and that is where they land.)*
+Realized as core's own `bundle` Item type (reuse over
 invention: core's actor sheet already explodes one on drop; no new sub-type,
 no `documentTypes` change, no world relaunch) holding uuid links; the 3d6
 RollTable is a generated view that nothing reads. Repair the bundle's staff

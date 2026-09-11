@@ -2,8 +2,8 @@
 /**
  * Imported tables ⇄ Foundry documents.
  *
- * Every imported ruledata table can be EXPORTED as a world document
- * (prefilled with the imported default) for audit and tweaking, and a world
+ * Every imported ruledata table can be EXPORTED as a Foundry document
+ * (prefilled with the imported default) for audit and tweaking, and such a
  * document can be dropped back to OVERRIDE the table (registry priority 30,
  * above world imports — see acks-lib tables.mjs). Two shapes:
  *
@@ -12,10 +12,20 @@
  *  - Everything else (grids, ladders, prose values) round-trips through a
  *    JournalEntry page holding pretty-printed JSON in a code block.
  *
+ * The documents live on the ACKS library's shelves — the RollTable and
+ * JournalEntry packs the importer keeps for everything imported
+ * (`lib/library-target.mjs`) — so a Judge finds them beside the books they
+ * came from and one ownership setting covers the lot. The sidebar is the
+ * fallback when no shelf can be opened, and the place an earlier release
+ * wrote to: what it left there is retired the first time a shelf opens and
+ * rebuilt on the shelf from the same registry data.
+ *
  * No table values ship in this module: exports read whatever the WORLD
  * imported from the GM's own books.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { findLibraryPack, whenReady } from "../lib/library.mjs";
+import { ensureLibraryPack } from "../lib/library-target.mjs";
 
 const FOLDER_NAME = "ACKS Imported Tables";
 const JOURNAL_NAME = "ACKS Ruledata (Imported)";
@@ -395,11 +405,102 @@ export function parseJsonContent(html) {
   return JSON.parse(raw.trim());
 }
 
+/* ------------------------- shelves ------------------------- */
+
+/**
+ * One of the library's shelves, opened and loaded, or null when no pack can
+ * be opened — a seat that may not create one. The sidebar is the target then,
+ * and every read below covers it. Loaded, because the reads are synchronous
+ * over `pack.contents`: a shelf this session has not instantiated would
+ * answer "nothing here" and the pass would rebuild every document as a twin.
+ */
+async function openShelf(type) {
+  const pack = await ensureLibraryPack(type);
+  if (pack) await whenReady();
+  return pack;
+}
+
+/** The create/update/delete options that aim a write at a shelf. */
+const packOpts = (pack) => (pack ? { pack: pack.collection } : {});
+
+/** RollTable folders on the shelf, else the sidebar's. */
+const folderDocs = (pack) => [...(pack ? pack.folders : game.folders)];
+/** Every RollTable a pass may adopt: the shelf's, else the sidebar's. */
+const tableDocs = (pack) => [...(pack ? pack.contents : game.tables)];
+/** Every JournalEntry a pass may adopt: the shelf's, else the sidebar's. */
+const journalDocs = (pack) => [...(pack ? pack.contents : game.journal)];
+
+/**
+ * What materialization owns among the given documents: the flagged tables and
+ * every table filed in the flagged folder tree, the tree itself, and the
+ * flagged journal. Name fallbacks cover documents made before the flags
+ * existed — the unflagged root folder and journal, and a table still NAMED by
+ * its raw key (`entryKeys`), the pre-flag identity.
+ */
+function materializedIn({ tables, folders, journals }, entryKeys = []) {
+  const keys = new Set(entryKeys);
+  const folderIds = new Set(
+    folders
+      .filter((f) => f.type === "RollTable" && (f.getFlag(MODULE_ID, FLAG_DOCS) || (!f.folder && f.name === FOLDER_NAME)))
+      .map((f) => f.id),
+  );
+  for (const f of folders) {
+    if (f.type === "RollTable" && f.folder && folderIds.has(f.folder.id)) folderIds.add(f.id);
+  }
+  return {
+    tables: tables.filter(
+      (t) => t.getFlag(MODULE_ID, FLAG_KEY) || (t.folder && folderIds.has(t.folder.id)) || keys.has(t.name),
+    ),
+    folders: folders.filter((f) => folderIds.has(f.id)),
+    journals: journals.filter((j) => j.getFlag(MODULE_ID, FLAG_DOCS) || j.name === JOURNAL_NAME),
+  };
+}
+
+/** Materialized documents the SIDEBAR holds — an earlier release's, or a world with no shelf. */
+const sidebarMaterialized = (entryKeys = []) =>
+  materializedIn({ tables: [...game.tables], folders: [...game.folders], journals: [...game.journal] }, entryKeys);
+
+/** Materialized documents on the shelves, read without opening them. */
+function shelfMaterialized(entryKeys = []) {
+  const tables = findLibraryPack("RollTable");
+  const journals = findLibraryPack("JournalEntry");
+  return materializedIn(
+    { tables: [...(tables?.contents ?? [])], folders: [...(tables?.folders ?? [])], journals: [...(journals?.contents ?? [])] },
+    entryKeys,
+  );
+}
+
+/**
+ * The RollTable shelf, with the sidebar's tables and folder tree retired the
+ * moment it is open: the pass that follows rebuilds them on the shelf from
+ * the same registry data, so nothing is lost that a re-materialize does not
+ * already rewrite — a tweak a Judge meant to keep lives in the registry as a
+ * dropped-back override, never in these documents. Tables before folders: a
+ * folder deleted first orphans its contents to the sidebar root, where the
+ * tree filter no longer finds them.
+ */
+async function openTableShelf(entryKeys) {
+  const pack = await openShelf("RollTable");
+  if (!pack) return null;
+  const { tables, folders } = sidebarMaterialized(entryKeys);
+  if (tables.length) await RollTable.deleteDocuments(tables.map((t) => t.id));
+  if (folders.length) await Folder.deleteDocuments(folders.map((f) => f.id));
+  return pack;
+}
+
+/** The JournalEntry shelf, with the sidebar's ruledata journal retired the moment it is open. */
+async function openJournalShelf() {
+  const pack = await openShelf("JournalEntry");
+  if (!pack) return null;
+  for (const journal of sidebarMaterialized().journals) await journal.delete();
+  return pack;
+}
+
 /* ------------------------- export ------------------------- */
 
 /**
  * The root folder plus one child per ruledata doc ("People", "Rarity", …), so
- * the sidebar groups tables the way the registry does. Both are flagged; a
+ * the shelf groups tables the way the registry does. Both are flagged; a
  * root created before the flag existed is adopted by name and stamped.
  *
  * Every missing child is created in ONE call: folders must exist before the
@@ -407,18 +508,26 @@ export function parseJsonContent(html) {
  * and waiting once beats waiting per doc.
  *
  * @param {string[]} docIds  ruledata doc ids needing a folder
+ * @param {object|null} pack  the RollTable shelf, or null for the sidebar
  * @returns {Promise<Map<string, Folder>>} docId → the folder its tables go in
  */
-async function ensureFolders(docIds) {
+async function ensureFolders(docIds, pack) {
   const out = new Map();
   if (!docIds.length) return out;
+  const isRoot = (f) => f.type === "RollTable" && !f.folder;
   let root =
-    game.folders.find((f) => f.type === "RollTable" && !f.folder && f.getFlag(MODULE_ID, FLAG_DOCS)) ??
-    game.folders.find((f) => f.type === "RollTable" && !f.folder && f.name === FOLDER_NAME);
-  if (!root) root = await Folder.create({ name: FOLDER_NAME, type: "RollTable", flags: { [MODULE_ID]: { [FLAG_DOCS]: true } } });
-  else if (!root.getFlag(MODULE_ID, FLAG_DOCS)) await root.setFlag(MODULE_ID, FLAG_DOCS, true);
+    folderDocs(pack).find((f) => isRoot(f) && f.getFlag(MODULE_ID, FLAG_DOCS)) ??
+    folderDocs(pack).find((f) => isRoot(f) && f.name === FOLDER_NAME);
+  if (!root) {
+    root = await Folder.create(
+      { name: FOLDER_NAME, type: "RollTable", flags: { [MODULE_ID]: { [FLAG_DOCS]: true } } },
+      packOpts(pack),
+    );
+  } else if (!root.getFlag(MODULE_ID, FLAG_DOCS)) await root.setFlag(MODULE_ID, FLAG_DOCS, true);
   const children = new Map(
-    game.folders.filter((f) => f.type === "RollTable" && f.folder?.id === root.id).map((f) => [f.name, f]),
+    folderDocs(pack)
+      .filter((f) => f.type === "RollTable" && f.folder?.id === root.id)
+      .map((f) => [f.name, f]),
   );
   const missing = [];
   for (const docId of docIds) {
@@ -436,6 +545,7 @@ async function ensureFolders(docIds) {
         sorting: "a",
         flags: { [MODULE_ID]: { [FLAG_DOCS]: true } },
       })),
+      packOpts(pack),
     );
     created.forEach((folder, i) => out.set(missing[i].docId, folder));
   }
@@ -443,24 +553,36 @@ async function ensureFolders(docIds) {
 }
 
 /** One doc's folder — the single-entry path (the browser's Export button). */
-const ensureFolder = async (docId) => (await ensureFolders([docId])).get(docId);
+const ensureFolder = async (docId, pack) => (await ensureFolders([docId], pack)).get(docId);
 
-async function ensureJournal() {
-  let journal = game.journal.find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ?? game.journal.find((j) => j.name === JOURNAL_NAME);
-  if (!journal) journal = await JournalEntry.create({ name: JOURNAL_NAME, flags: { [MODULE_ID]: { [FLAG_DOCS]: true } } });
-  else if (!journal.getFlag(MODULE_ID, FLAG_DOCS)) await journal.setFlag(MODULE_ID, FLAG_DOCS, true);
+/** The ruledata journal on the shelf (else in the sidebar), or null. */
+const findJournal = (pack) =>
+  journalDocs(pack).find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ??
+  journalDocs(pack).find((j) => j.name === JOURNAL_NAME) ??
+  null;
+
+async function ensureJournal(pack) {
+  let journal = findJournal(pack);
+  if (!journal) {
+    journal = await JournalEntry.create(
+      { name: JOURNAL_NAME, flags: { [MODULE_ID]: { [FLAG_DOCS]: true } } },
+      packOpts(pack),
+    );
+  } else if (!journal.getFlag(MODULE_ID, FLAG_DOCS)) await journal.setFlag(MODULE_ID, FLAG_DOCS, true);
   return journal;
 }
 
 /**
- * The world table that IS this entry, or null.
+ * The table that IS this entry, or null.
  *
  * Identity is the flagged key; the raw-key NAME is the legacy form, and
- * matching it is what migrates a pre-flag world (rename + refile + stamp) on
- * its next materialize instead of duplicating every table.
+ * matching it is what migrates a pre-flag document (rename + refile + stamp)
+ * on its next materialize instead of duplicating every table.
  */
-const findTable = (key) =>
-  game.tables.find((t) => t.getFlag(MODULE_ID, FLAG_KEY) === key) ?? game.tables.find((t) => t.name === key) ?? null;
+const findTable = (key, pack) =>
+  tableDocs(pack).find((t) => t.getFlag(MODULE_ID, FLAG_KEY) === key) ??
+  tableDocs(pack).find((t) => t.name === key) ??
+  null;
 
 /**
  * Does this table already hold exactly these results?
@@ -528,8 +650,8 @@ function placeholderContent() {
 }
 
 /**
- * Materialize an entry as a world document PREFILLED with its current
- * effective data. Re-export updates the same document.
+ * Materialize an entry as a document PREFILLED with its current effective
+ * data, on the shelf its kind lives on. Re-export updates the same document.
  *
  * The single-entry path, for the browser's per-row Export button;
  * `materializeAll` batches the same decisions rather than calling this in a
@@ -548,7 +670,7 @@ export async function exportEntry(entry) {
     data = null;
   }
   if (entry.absent || data == null) {
-    const journal = await ensureJournal();
+    const journal = await ensureJournal(await openJournalShelf());
     const content = placeholderContent();
     const page = journal.pages.find((p) => p.name === entry.key);
     if (page) return { uuid: page.uuid, kind: "journal" };
@@ -560,8 +682,9 @@ export async function exportEntry(entry) {
 
   if (entry.rollable) {
     const spec = rollTableSpec(entry, data);
-    const folder = await ensureFolder(entry.docId);
-    const existing = findTable(entry.key);
+    const pack = await openTableShelf([entry.key]);
+    const folder = await ensureFolder(entry.docId, pack);
+    const existing = findTable(entry.key, pack);
     if (existing) {
       if (!resultsMatch(existing, spec.results)) {
         await existing.deleteEmbeddedDocuments("TableResult", existing.results.map((r) => r.id));
@@ -570,10 +693,10 @@ export async function exportEntry(entry) {
       await existing.update(tableUpdateData(entry, spec, folder.id, existing.id));
       return { uuid: existing.uuid, kind: "rolltable" };
     }
-    const table = await RollTable.create(tableCreateData(entry, spec, folder.id));
+    const table = await RollTable.create(tableCreateData(entry, spec, folder.id), packOpts(pack));
     return { uuid: table.uuid, kind: "rolltable" };
   }
-  const journal = await ensureJournal();
+  const journal = await ensureJournal(await openJournalShelf());
   const content = jsonPageContent(data);
   const page = journal.pages.find((p) => p.name === entry.key);
   if (page) {
@@ -606,18 +729,26 @@ export async function exportEntry(entry) {
  * Ordering is load-bearing: folders exist before the tables that name them,
  * and the stale-page sweep runs after the page writes have landed, or it
  * measures the world as it was before this pass.
+ *
+ * A shelf is opened only when the pass has something for it, or when the
+ * sidebar holds what an earlier release wrote there and the shelf is where
+ * it is rebuilt — never for an empty registry, so a world with no JSON tables
+ * gains no empty JournalEntry pack.
  * @returns {{exported: number, placeholders: number}}
  */
 export async function materializeAll() {
   const entries = listEntries();
+  const keys = entries.map((e) => e.key);
   const t = lib()?.tables;
   let exported = 0;
   let placeholders = 0;
+  const legacy = sidebarMaterialized(keys);
 
   /* --- RollTables: one folder pass, one create, one update, rebuilds only
      where the results actually moved. --- */
   const rollable = entries.filter((e) => e.rollable);
-  const folders = await ensureFolders([...new Set(rollable.map((e) => e.docId))]);
+  const tablePack = rollable.length || legacy.tables.length || legacy.folders.length ? await openTableShelf(keys) : null;
+  const folders = await ensureFolders([...new Set(rollable.map((e) => e.docId))], tablePack);
   const creates = [];
   const updates = [];
   const rebuilds = [];
@@ -626,7 +757,7 @@ export async function materializeAll() {
       const spec = rollTableSpec(entry, entryData(entry));
       if (!spec) throw new Error("no rollable spec");
       const folderId = folders.get(entry.docId)?.id ?? null;
-      const existing = findTable(entry.key);
+      const existing = findTable(entry.key, tablePack);
       if (existing) {
         if (!tableIsCurrent(existing, entry, spec, folderId)) updates.push(tableUpdateData(entry, spec, folderId, existing.id));
         if (!resultsMatch(existing, spec.results)) rebuilds.push({ table: existing, results: spec.results });
@@ -638,8 +769,8 @@ export async function materializeAll() {
       console.warn(`${MODULE_ID} | materialize failed for ${entry.key}`, err);
     }
   }
-  if (creates.length) await RollTable.createDocuments(creates);
-  if (updates.length) await RollTable.updateDocuments(updates);
+  if (creates.length) await RollTable.createDocuments(creates, packOpts(tablePack));
+  if (updates.length) await RollTable.updateDocuments(updates, packOpts(tablePack));
   // Per table, necessarily: embedded documents batch only within one parent.
   // Read the ids before deleting — `table.results` is live.
   for (const { table, results } of rebuilds) {
@@ -670,11 +801,12 @@ export async function materializeAll() {
   // "ACKS Ruledata (Imported)" is clutter a world with no JSON tables never
   // asked for. An existing one is still picked up when there is nothing to
   // write, because its pages have all just become stale and the sweep below
-  // is what retires them.
-  const journal =
-    pageEntries.length || expected.length
-      ? await ensureJournal()
-      : (game.journal.find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ?? game.journal.find((j) => j.name === JOURNAL_NAME) ?? null);
+  // is what retires them; a sidebar journal an earlier release left behind is
+  // retired outright, every page of it being stale.
+  const wantJournal = pageEntries.length > 0 || expected.length > 0;
+  const journalPack =
+    wantJournal || legacy.journals.length || findLibraryPack("JournalEntry") ? await openJournalShelf() : null;
+  const journal = wantJournal ? await ensureJournal(journalPack) : findJournal(journalPack);
   if (journal) {
     const pageCreates = [];
     const pageUpdates = [];
@@ -724,46 +856,56 @@ export async function materializeAll() {
 /* ------------------------- removal ------------------------- */
 
 /**
- * Everything materialization has put in this world: the flagged RollTables,
- * the folder tree, and the JSON journal. Name fallbacks cover worlds
- * materialized before the flags existed (raw-key table names, the unflagged
- * root folder and journal).
+ * Everything materialization has put in this world, on the shelves and in
+ * the sidebar both: the flagged RollTables, the folder tree, and the JSON
+ * journal (`materializedIn` for what counts and the name fallbacks).
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.sidebar] only what the SIDEBAR holds — for a
+ *   caller that is deleting the shelves whole and wants what is left over
+ * @returns {{tables: object[], folders: object[], journals: object[]}}
  */
-export function listMaterializedDocs() {
-  const folderIds = new Set(
-    game.folders
-      .filter((f) => f.type === "RollTable" && (f.getFlag(MODULE_ID, FLAG_DOCS) || (!f.folder && f.name === FOLDER_NAME)))
-      .map((f) => f.id),
-  );
-  for (const f of game.folders) {
-    if (f.type === "RollTable" && f.folder && folderIds.has(f.folder.id)) folderIds.add(f.id);
-  }
+export function listMaterializedDocs({ sidebar = false } = {}) {
+  const keys = listEntries().map((e) => e.key);
+  const own = sidebarMaterialized(keys);
+  if (sidebar) return own;
+  const shelved = shelfMaterialized(keys);
   return {
-    tables: game.tables.filter((t) => t.getFlag(MODULE_ID, FLAG_KEY) || (t.folder && folderIds.has(t.folder.id))),
-    folders: game.folders.filter((f) => folderIds.has(f.id)),
-    journal: game.journal.find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ?? game.journal.find((j) => j.name === JOURNAL_NAME) ?? null,
+    tables: [...shelved.tables, ...own.tables],
+    folders: [...shelved.folders, ...own.folders],
+    journals: [...shelved.journals, ...own.journals],
   };
 }
 
-/** How many documents removeMaterializedDocs would delete. */
-export function countMaterializedDocs() {
-  const { tables, folders, journal } = listMaterializedDocs();
-  return tables.length + folders.length + (journal ? 1 : 0);
+/** How many documents removeMaterializedDocs would delete; `sidebar` as `listMaterializedDocs`. */
+export function countMaterializedDocs(options = {}) {
+  const { tables, folders, journals } = listMaterializedDocs(options);
+  return tables.length + folders.length + journals.length;
 }
 
 /**
  * Delete every materialized document. DOCUMENTS only: the imported table DATA
  * in the world store stays registered, so automation keeps its values and the
- * next materialize rebuilds the documents from them.
+ * next materialize rebuilds the documents from them. Deleted per collection —
+ * a shelf's documents go through their pack, the sidebar's through the world.
  */
 export async function removeMaterializedDocs() {
-  const { tables, folders, journal } = listMaterializedDocs();
-  const total = tables.length + folders.length + (journal ? 1 : 0);
+  const { tables, folders, journals } = listMaterializedDocs();
+  const total = tables.length + folders.length + journals.length;
+  const perCollection = (docs) => {
+    const groups = new Map();
+    for (const doc of docs) {
+      const key = doc.pack ?? "";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(doc.id);
+    }
+    return [...groups].map(([pack, ids]) => [pack ? { pack } : {}, ids]);
+  };
   // Tables before folders: a folder deleted first would orphan its contents
-  // to the sidebar root, where the table filter no longer finds them.
-  if (tables.length) await RollTable.deleteDocuments(tables.map((t) => t.id));
-  if (journal) await journal.delete();
-  if (folders.length) await Folder.deleteDocuments(folders.map((f) => f.id));
+  // to the root, where the tree filter no longer finds them.
+  for (const [opts, ids] of perCollection(tables)) await RollTable.deleteDocuments(ids, opts);
+  for (const journal of journals) await journal.delete();
+  for (const [opts, ids] of perCollection(folders)) await Folder.deleteDocuments(ids, opts);
   return total;
 }
 

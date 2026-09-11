@@ -1,16 +1,24 @@
 /* global game, foundry, fromUuid, fromUuidSync, Item, RollTable, Folder, console */
 /**
  * Template packages: a class's printed starting templates materialized as
- * repairable world documents.
+ * repairable documents on the class's own shelf.
  *
  * Each template row on a class may bind a core `bundle` Item — a container of
- * uuid links to REAL world documents: the abilities it grants (shared links,
- * or specialized copies), its gear as already-skinned items (the printed
+ * uuid links to REAL documents: the abilities it grants (shared links, or
+ * specialized copies), its gear as already-skinned items (the printed
  * descriptor over the base's mechanics), and its spells. Repairing one linked
  * document — retyping a mis-imported staff to a weapon, fixing its damage —
  * repairs every character generated from that template afterwards. A 3d6
  * RollTable per class links the bundles as a generated VIEW: nothing in code
  * reads it, so it cannot drift into a second authority.
+ *
+ * A package lands beside its class. A class held on one of the library's
+ * shelves — the importer's world packs — writes its parts to that line's Item
+ * and RollTable shelves, filed `Class Templates / <Class>`; those packs are
+ * unlocked world packs, so a part in one is as repairable as a part in the
+ * directory. A class in the sidebar, a Judge's own, keeps its parts in the
+ * sidebar, where Remove Imports (which deletes the library's packs whole)
+ * cannot reach them.
  *
  * Ownership: the class row keeps the printed band, name, annotation, caste,
  * coin and encumbrance note; the bundle owns WHAT the package contains; each
@@ -29,7 +37,8 @@ import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef, templatePartOf as partOf } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
-import { libraryItems, cookbookId } from "../lib/library.mjs";
+import { libraryItems, libraryDocs, cookbookId, isLibraryPack, lineOfPack } from "../lib/library.mjs";
+import { ensureLibraryPack, ensureFolderIn } from "../lib/library-target.mjs";
 import { equipmentClass, isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 import { isOffer } from "./pending-choices.mjs";
 
@@ -167,8 +176,10 @@ export function templateItemName(entry) {
 /** The three item types a piece of starting gear can be. */
 const GEAR_TYPES = [ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item];
 
-/** Index fields every pack lookup needs: the type, and the importer's stamp. */
-const INDEX_FIELDS = ["type", `flags.${MODULE_ID}.cookbook.id`];
+/** Index fields every pack lookup needs: the type, the importer's stamp, and
+ *  this module's own part stamp — a shelf now holds the parts it built beside
+ *  the imports they were built from, and a row must say which it is. */
+const INDEX_FIELDS = ["type", `flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.${TEMPLATE_PART}`];
 
 /** One pack's index, or null when it cannot be read (never fatal). */
 async function packIndex(pack) {
@@ -218,8 +229,10 @@ async function importPacks() {
 async function findInPacks({ ref = "", name = "", types = [] }) {
   const wanted = fold(name);
   for (const { pack, rows } of await importPacks()) {
-    let row = ref ? rows.find((r) => cookbookId(r) === ref) : null;
-    if (!row && wanted) row = rows.find((r) => (!types.length || types.includes(r.type)) && fold(r.name) === wanted);
+    let row = ref ? rows.find((r) => cookbookId(r) === ref && usableAsSource(r)) : null;
+    if (!row && wanted) {
+      row = rows.find((r) => (!types.length || types.includes(r.type)) && fold(r.name) === wanted && usableAsSource(r));
+    }
     if (!row) continue;
     const doc = await pack.getDocument(row._id).catch(() => null);
     if (doc) return doc;
@@ -242,26 +255,28 @@ async function findInPacks({ ref = "", name = "", types = [] }) {
 export const usableAsSource = (doc) => !doc?.flags?.[MODULE_ID]?.[TEMPLATE_PART]?.unresolved;
 
 /**
- * The document a template entry names, and whether it is a WORLD document.
+ * The document a template entry names, and whether a package may LINK it.
  *
- * `world: true` means the caller may simply LINK it — a plain proficiency the
- * sidebar already holds. A pack document is copied into the world instead,
- * because a package exists to be repaired and a compendium document is not
- * where a Judge repairs anything.
+ * `linkable: true` means the caller may simply point at it — a plain
+ * proficiency the sidebar or one of the library's own shelves already holds.
+ * Those shelves are unlocked world packs, so a link into one is as repairable
+ * as a link into the directory. A document in any other compendium is copied
+ * onto the class's shelf instead: a package exists to be repaired, and a
+ * locked module pack is not where a Judge repairs anything.
  *
  * The distinction is read off the document (`doc.pack`), never assumed from
  * which search found it: the library searches span the sidebar AND the
- * importer's pack, so a ref can now resolve to either.
+ * importer's packs, so a ref can resolve to either.
  *
  * @param {object} [options]
  * @param {string[]} [options.exclude] uuids that may not answer — the
  *   document being upgraded names itself here, so a second pass can never
  *   close a gap with the placeholder that marks it.
- * @returns {Promise<{doc: object|null, world: boolean}>}
+ * @returns {Promise<{doc: object|null, linkable: boolean}>}
  */
 export async function findSource({ ref = "", name = "", types = [], exclude = [] } = {}) {
   const allowed = (doc) => doc && usableAsSource(doc) && !exclude.includes(doc.uuid);
-  const found = (doc) => ({ doc, world: !doc.pack });
+  const found = (doc) => ({ doc, linkable: !doc.pack || isLibraryPack(doc.pack) });
   if (ref) {
     const byRef = findByRef(ref);
     if (allowed(byRef)) return found(byRef);
@@ -275,7 +290,8 @@ export async function findSource({ ref = "", name = "", types = [], exclude = []
   }
   // The pack INDEX, for a library this session has not instantiated: the
   // searches above see only loaded documents.
-  return { doc: await findInPacks({ ref, name, types }), world: false };
+  const indexed = await findInPacks({ ref, name, types });
+  return indexed ? found(indexed) : { doc: null, linkable: false };
 }
 
 /**
@@ -311,8 +327,10 @@ export async function resolveBaseDoc(entry, { exclude = [] } = {}) {
   const world = resolveBase(entry, { exclude });
   if (world) return world;
   for (const { pack, rows } of await importPacks()) {
-    let row = entry.ref ? rows.find((r) => cookbookId(r) === entry.ref) : null;
-    if (!row) row = bestBaseMatch(entry.name, rows.filter((r) => GEAR_TYPES.includes(r.type)));
+    // The same exclusion `resolveBase` applies: a part is never a base.
+    const imports = rows.filter((r) => !partOf(r) && !exclude.includes(`Compendium.${pack.collection}.Item.${r._id}`));
+    let row = entry.ref ? imports.find((r) => cookbookId(r) === entry.ref) : null;
+    if (!row) row = bestBaseMatch(entry.name, imports.filter((r) => GEAR_TYPES.includes(r.type)));
     if (!row) continue;
     const doc = await pack.getDocument(row._id).catch(() => null);
     if (doc) return doc;
@@ -523,7 +541,7 @@ export async function expandTemplate(template) {
 /*  Materializing                                                      */
 /* ------------------------------------------------------------------ */
 
-/** One itemList row linking a world document. */
+/** One itemList row linking a document, wherever it sits. */
 const listRow = (doc, quantity = 1) => ({
   id: doc.id,
   uuid: doc.uuid,
@@ -531,7 +549,7 @@ const listRow = (doc, quantity = 1) => ({
   name: doc.name,
   img: doc.img,
   type: doc.type,
-  inCompendium: false,
+  inCompendium: !!doc.pack,
 });
 
 /**
@@ -583,8 +601,8 @@ export function stripRepresented(row, bundle) {
 /**
  * Detach every package from a class: the rows' `bundle` links and the
  * table's cleared, so the class applies from its own printed entries again —
- * exactly as it did before packages existed. The documents are left in the
- * world unless `deleteDocuments`, because they may hold a Judge's repairs.
+ * exactly as it did before packages existed. The documents are left on their
+ * shelf unless `deleteDocuments`, because they may hold a Judge's repairs.
  *
  * **A package never consumes what it points at.** `deleteDocuments` removes
  * only documents carrying this module's own `templatePart` stamp — the
@@ -607,11 +625,14 @@ export async function detachTemplatePackages(classItem, { deleteDocuments = fals
     const part = partOf(doc);
     return part && (part.classUuid === classItem.uuid || part.classKey === classKey);
   };
-  for (const doc of game.items.filter(mine)) {
+  // The whole library, because the parts sit wherever the class does — and a
+  // world upgraded from a sidebar-writing release still holds its old ones in
+  // the directory beside the shelf's.
+  for (const doc of libraryItems().filter(mine)) {
     removed.push(doc.name);
     await doc.delete();
   }
-  for (const table of game.tables?.filter(mine) ?? []) {
+  for (const table of libraryDocs("RollTable").filter(mine)) {
     removed.push(table.name);
     await table.delete();
   }
@@ -639,14 +660,35 @@ const snapshotOf = (data) => ({
 });
 
 /**
- * Where packages land when no caller supplies a folder (the sheet's own
- * build): one world folder per class under a shared root, so every
- * materialized document is findable — and therefore repairable — in the
- * sidebar instead of loose at the top of the Items directory. The importer
- * passes its own cookbook folder and never reaches this.
+ * The shelves a class's package is written to: the caller's, else the library
+ * shelves of the line the class itself sits on, else none — a Judge's own
+ * sidebar class keeps its parts in the sidebar. A shelf the line lacks yet
+ * (a RollTable pack for a line that has only imported Items) is opened here.
+ * @returns {Promise<{items: string|null, tables: string|null}>} pack
+ *   collection ids, null for the sidebar
  */
-async function defaultFolder(classItem) {
-  const rootName = game.i18n?.localize?.(`${LANG_PREFIX}.templates.folder`) ?? "Class Templates";
+async function shelvesFor(classItem, { pack = null, tablePack = null } = {}) {
+  const shelved = isLibraryPack(classItem?.pack);
+  const line = shelved ? lineOfPack(classItem.pack) : null;
+  const open = async (type) => (shelved ? ((await ensureLibraryPack(type, line))?.collection ?? null) : null);
+  return { items: pack ?? (await open("Item")), tables: tablePack ?? (await open("RollTable")) };
+}
+
+/** The root every package folder hangs from, in the reader's language. */
+const templatesRootName = () => game.i18n?.localize?.(`${LANG_PREFIX}.templates.folder`) ?? "Class Templates";
+
+/**
+ * Where packages land when no caller supplies a folder (the sheet's own
+ * build): `Class Templates / <Class>` on the shelf the parts are written to —
+ * inside the pack when there is one, else in the sidebar — so every
+ * materialized document is findable, and therefore repairable, instead of
+ * loose at the top of a directory. The importer passes its own cookbook
+ * folder and never reaches this.
+ */
+async function defaultFolder(classItem, packId = null) {
+  const rootName = templatesRootName();
+  const pack = packId ? game.packs?.get(packId) : null;
+  if (pack) return (await ensureFolderIn(pack, "Item", [rootName, classItem.name]).catch(() => null))?.id ?? null;
   const isItemFolder = (f, name, parent) => f.type === "Item" && f.name === name && (f.folder?.id ?? null) === parent;
   const root =
     game.folders?.find((f) => isItemFolder(f, rootName, null)) ??
@@ -660,6 +702,14 @@ async function defaultFolder(classItem) {
   return made?.id ?? null;
 }
 
+/** The table's folder when no caller supplies one: the `Class Templates` root
+ *  of the table shelf; a table written to the sidebar stays unfiled. */
+async function defaultTableFolder(packId = null) {
+  const pack = packId ? game.packs?.get(packId) : null;
+  if (!pack) return null;
+  return (await ensureFolderIn(pack, "RollTable", [templatesRootName()]).catch(() => null))?.id ?? null;
+}
+
 /** Stamp identity, snapshot and the caller's opaque flags onto a payload. */
 function stampPart(data, part, stamp) {
   data.flags = foundry.utils.mergeObject(data.flags ?? {}, {
@@ -671,9 +721,9 @@ function stampPart(data, part, stamp) {
 
 /**
  * Materialize a class's template rows into bundle documents, their contents
- * into world items, and the class's 3d6 RollTable — idempotent, and driven by
- * the class DOCUMENT alone, so a world imported long ago upgrades with no
- * book connected.
+ * into items, and the class's 3d6 RollTable — idempotent, and driven by the
+ * class DOCUMENT alone, so a world imported long ago upgrades with no book
+ * connected.
  *
  * A row whose bundle already resolves is left alone (gear still flagged
  * unresolved is retried when it is unedited); a row with none gets one. Gear
@@ -686,8 +736,12 @@ function stampPart(data, part, stamp) {
  * @param {object} [options.stamp] opaque flags merged onto every created
  *   document (the importer's claim); this module never invents another
  *   module's flag itself
- * @param {string} [options.folder] folder id for bundles and gear
+ * @param {string} [options.folder] folder id for bundles and gear — inside
+ *   `pack` when one is given
  * @param {string} [options.tableFolder] folder id for the RollTable
+ * @param {string} [options.pack] collection id of the Item shelf the parts
+ *   are written to; omitted, the class's own shelf (`shelvesFor`)
+ * @param {string} [options.tablePack] collection id of the RollTable shelf
  * @param {boolean} [options.create] build packages for rows that have none.
  *   False is the RELINK-ONLY pass an import runs: it restores the bundle
  *   uuids its `system` rewrite wiped and never turns a world that asked for
@@ -696,35 +750,32 @@ function stampPart(data, part, stamp) {
  */
 export async function materializeTemplates(
   classItem,
-  { stamp = null, folder = null, tableFolder = null, create = true } = {},
+  { stamp = null, folder = null, tableFolder = null, pack = null, tablePack = null, create = true } = {},
 ) {
   const report = { created: [], relinked: [], skippedEdited: [], unresolved: [], unidentified: [] };
   if (!game.user?.isGM || !classItem?.system?.templates?.length) return report;
-  // A class ROW in a compendium is fine; the package it builds is not.
-  //
-  // This used to refuse a pack class outright, on the grounds that the registry
-  // never read one. It does now (`lib/library.mjs` spans the sidebar and the
-  // importer's packs), and since importer 3.0.0 every imported class IS a pack
-  // document — so the refusal made template packages a permanent no-op for
-  // exactly the classes that ship with them.
-  //
-  // What stays true is where the PACKAGE lands: bundles, gear and the table are
-  // created in the world, because a package exists to be repaired and a Judge
-  // repairs nothing inside a compendium. `defaultFolder` files them there, and
-  // a caller passing `folder` must pass a world folder for the same reason.
+  // A class ROW in a compendium builds its package on that same shelf. The
+  // registry reads the library's packs (`lib/library.mjs` spans the sidebar
+  // and the importer's world packs), and since importer 3.0.0 every imported
+  // class IS a pack document — refusing one would make template packages a
+  // permanent no-op for exactly the classes that ship with them.
   const classKey = classItem.system.key || fold(classItem.name);
   const identity = { classUuid: classItem.uuid, classKey };
   const isMine = (doc) => {
     const part = partOf(doc);
     return part && (part.classUuid === classItem.uuid || part.classKey === classKey);
   };
-  const worldGear = () => game.items.filter((i) => isMine(i) && partOf(i).kind === "gear");
-
-  const worldAbilities = () => game.items.filter((i) => isMine(i) && partOf(i).kind === "ability");
-  const shelf = folder ?? (await defaultFolder(classItem));
+  const shelves = await shelvesFor(classItem, { pack, tablePack });
+  const itemOpts = shelves.items ? { pack: shelves.items } : {};
+  // Read across the WHOLE library, never one collection: the parts sit
+  // wherever the class does, and a world upgraded from a sidebar-writing
+  // release still holds its earlier parts in the directory beside the shelf's.
+  const ownGear = () => libraryItems().filter((i) => isMine(i) && partOf(i).kind === "gear");
+  const ownAbilities = () => libraryItems().filter((i) => isMine(i) && partOf(i).kind === "ability");
+  const shelf = folder ?? (await defaultFolder(classItem, shelves.items));
 
   /**
-   * The world gear document for one descriptor, created on first need.
+   * The gear document for one descriptor, created on first need.
    *
    * A descriptor nothing can answer for yields NULL rather than an empty item.
    * The caller keeps such an entry on the row, printed, which is this file's
@@ -734,7 +785,7 @@ export async function materializeTemplates(
    */
   const planGear = async (entry) => {
     const nameKey = fold(templateItemName(entry));
-    const existing = worldGear().find((g) => fold(g.name) === nameKey);
+    const existing = ownGear().find((g) => fold(g.name) === nameKey);
     if (existing) return { doc: existing };
     const { data, resolution } = await buildGearData(entry);
     if (resolution === "bare") {
@@ -759,9 +810,9 @@ export async function materializeTemplates(
    * A definition that already exists is LINKED, wherever it lives — one shared
    * document, no duplicate Adventuring per band and no second copy of an
    * ability the GM imported. Linking a document held in the importer's pack is
-   * the point: those packs are world packs, which are unlocked and editable, so
-   * the copy that used to be made "because a Judge cannot fix a pack document"
-   * bought nothing and cost a duplicate of every granted ability.
+   * the point: those packs are world packs, unlocked and editable, so a copy
+   * made "because a Judge cannot fix a pack document" buys nothing and costs a
+   * duplicate of every granted ability.
    *
    * A printed SELECTION still becomes its own copy — "Weapon Focus (spear)" is
    * a different document from the definition it specializes, and writing the
@@ -783,27 +834,28 @@ export async function materializeTemplates(
     if (!entry.selection) return { doc: source };
     const data = buildProfData(entry, source);
     const nameKey = fold(data.name);
-    const existing = worldAbilities().find((a) => fold(a.name) === nameKey);
+    const existing = ownAbilities().find((a) => fold(a.name) === nameKey);
     if (existing) return { doc: existing };
     stampPart(data, { ...identity, kind: "ability", unresolved: false }, stamp);
     if (shelf) data.folder = shelf;
     return { data, nameKey };
   };
 
-  /** The world spell for one spellbook entry: linked when the world holds it,
-   *  copied when only a compendium does, null when nothing answers. */
+  /** The spell for one spellbook entry: linked when the library holds it,
+   *  copied onto the shelf when only a foreign compendium does, null when
+   *  nothing answers. */
   const planSpell = async (entry) => {
     if (entry.uuid) {
       const linked = await fromUuid(entry.uuid).catch(() => null);
       if (linked) return { doc: linked };
     }
     const f = fold(entry.name);
-    const loose = f.length >= 6 ? game.items.find((i) => i.type === ITEM_TYPE.spell && fold(i.name).includes(f)) : null;
+    const loose = f.length >= 6 ? libraryItems().find((i) => i.type === ITEM_TYPE.spell && fold(i.name).includes(f)) : null;
     if (loose) return { doc: loose };
-    const { doc: source, world } = await findSource({ name: entry.name, types: [ITEM_TYPE.spell] });
+    const { doc: source, linkable } = await findSource({ name: entry.name, types: [ITEM_TYPE.spell] });
     if (!source) return {};
-    if (world) return { doc: source };
-    const existing = game.items.find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === fold(source.name));
+    if (linkable) return { doc: source };
+    const existing = libraryItems().find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === fold(source.name));
     if (existing) return { doc: existing };
     const data = stampPart(copyOf(source), { ...identity, kind: "spell", unresolved: false }, stamp);
     if (shelf) data.folder = shelf;
@@ -838,13 +890,13 @@ export async function materializeTemplates(
       if (plan.nameKey) byKey.set(plan.nameKey, plan);
     }
     if (!pending.length) return;
-    const made = await Item.implementation.createDocuments(pending).catch((err) => {
+    const made = await Item.implementation.createDocuments(pending, itemOpts).catch((err) => {
       console.warn(`${MODULE_ID} | template row: batched create failed, writing singly`, err);
       return null;
     });
     for (const plan of plans) {
       if (plan.at == null) continue;
-      plan.doc = made ? made[plan.at] : await Item.implementation.create(plan.data).catch(() => null);
+      plan.doc = made ? made[plan.at] : await Item.implementation.create(plan.data, itemOpts).catch(() => null);
       if (plan.doc) report.created.push(plan.doc.name);
     }
     for (const plan of plans) if (plan.shareWith) plan.doc = plan.shareWith.doc;
@@ -862,7 +914,7 @@ export async function materializeTemplates(
   const upgradeUnresolved = async (bundles) => {
     const swaps = new Map();
     const stale = [];
-    for (const doc of [...worldGear(), ...worldAbilities()]) {
+    for (const doc of [...ownGear(), ...ownAbilities()]) {
       const part = partOf(doc);
       if (!part?.unresolved) continue;
       if (editedSinceImport(doc)) {
@@ -874,7 +926,7 @@ export async function materializeTemplates(
       // with the emptiness that defined it.
       const exclude = [doc.uuid];
       let fresh = null;
-      let replacement = { doc: null, world: false };
+      let replacement = { doc: null, linkable: false };
       if (part.kind === "gear") {
         const built = await buildGearData(
           {
@@ -906,17 +958,17 @@ export async function materializeTemplates(
         report.unresolved.push(doc.name);
         continue;
       }
-      // A proficiency the WORLD itself defines is LINKED, not copied — the
+      // A proficiency the LIBRARY itself defines is LINKED, not copied — the
       // same rule the create path follows, so an upgrade does not leave the
       // world holding a redundant twin of an ability it already had. Gear is
       // always a copy, because a skin is by definition a copy of its base.
       const made =
-        replacement.world && part.kind === "ability"
+        replacement.linkable && part.kind === "ability"
           ? replacement.doc
           : await (async () => {
               stampPart(fresh, { ...identity, kind: part.kind, unresolved: false }, stamp);
               if (shelf) fresh.folder = shelf;
-              return Item.implementation.create(fresh);
+              return Item.implementation.create(fresh, itemOpts);
             })();
       if (!made) continue;
       swaps.set(doc.uuid, made);
@@ -939,8 +991,8 @@ export async function materializeTemplates(
   };
 
   const templates = foundry.utils.deepClone(classItem.system.toObject?.().templates ?? classItem.system.templates);
-  const worldBundles = game.items.filter((i) => i.type === ITEM_TYPE.bundle && isMine(i) && partOf(i).kind === "bundle");
-  await upgradeUnresolved(worldBundles);
+  const ownBundles = libraryItems().filter((i) => i.type === ITEM_TYPE.bundle && isMine(i) && partOf(i).kind === "bundle");
+  await upgradeUnresolved(ownBundles);
   let changed = false;
 
   for (const row of templates) {
@@ -949,7 +1001,7 @@ export async function materializeTemplates(
     if (!bundle) {
       // The row's uuid is a cache; the flag on the bundle is the identity an
       // importer Update pass cannot wipe.
-      bundle = worldBundles.find((b) => partOf(b).band === row.rollMin) ?? null;
+      bundle = ownBundles.find((b) => partOf(b).band === row.rollMin) ?? null;
       if (bundle) {
         row.bundle = bundle.uuid;
         changed = true;
@@ -1024,7 +1076,7 @@ export async function materializeTemplates(
       stamp,
     );
     if (shelf) data.folder = shelf;
-    const created = await Item.implementation.create(data);
+    const created = await Item.implementation.create(data, itemOpts);
     if (!created) continue;
     report.created.push(created.name);
     // One owner: what the bundle now carries leaves the row. What it could
@@ -1036,7 +1088,11 @@ export async function materializeTemplates(
     changed = true;
   }
 
-  const tableUuid = await syncTemplateTable(classItem, templates, { stamp, tableFolder });
+  const tableUuid = await syncTemplateTable(classItem, templates, {
+    stamp,
+    tableFolder: tableFolder ?? (await defaultTableFolder(shelves.tables)),
+    tablePack: shelves.tables,
+  });
   if (tableUuid !== classItem.system.templateTable) changed = true;
   if (changed) {
     await classItem.update({ "system.templates": templates, "system.templateTable": tableUuid });
@@ -1050,7 +1106,7 @@ export async function materializeTemplates(
  * created; a table it did not create (or a class with no bundles) is left
  * alone and the existing uuid kept.
  */
-async function syncTemplateTable(classItem, templates, { stamp = null, tableFolder = null } = {}) {
+async function syncTemplateTable(classItem, templates, { stamp = null, tableFolder = null, tablePack = null } = {}) {
   const rows = templates.filter((t) => t.bundle);
   if (!rows.length) return classItem.system.templateTable ?? "";
   const results = rows.map((t) => {
@@ -1067,7 +1123,7 @@ async function syncTemplateTable(classItem, templates, { stamp = null, tableFold
   if (!table) {
     const classKey = classItem.system.key || fold(classItem.name);
     table =
-      game.tables?.find((t) => {
+      libraryDocs("RollTable").find((t) => {
         const part = partOf(t);
         return part?.kind === "table" && (part.classUuid === classItem.uuid || part.classKey === classKey);
       }) ?? null;
@@ -1094,6 +1150,6 @@ async function syncTemplateTable(classItem, templates, { stamp = null, tableFold
     ),
   };
   if (tableFolder) data.folder = tableFolder;
-  const created = await RollTable.implementation.create(data);
+  const created = await RollTable.implementation.create(data, tablePack ? { pack: tablePack } : {});
   return created?.uuid ?? "";
 }

@@ -435,14 +435,19 @@ splitter's.
 
 Since 2.13.4 a template names WHICH creature fills an ability's companion slot —
 "Rat totem animal" becomes `Totem Animal (rat)`, the selection on the ability —
-and that is what the page says. What it is not yet is a link: the ability's
-`actorUuid` stays empty, so a Judge still drops the rat in by hand.
+and that is what the page says. The slot itself is now filled from the table:
+the picker in `abilities/companions.mjs` asks the moment such an ability lands
+on a character, and the Inventory tab offers the slot after that
+(`docs/abilities/MODEL.md`). What is still not built is the LINK from the
+selection: a slot whose selection already names the creature is offered the
+whole library rather than opened on the rat.
 
-The pieces are all present and pointing at each other. `resolveCompanion` fills
-a slot from a cookbook `ref`, and leaves it alone when there is none — which is
-every one of these, because the creature is chosen rather than named by the
-ability. The selection is a NAME, and the monsters are imported as actors from
-the same book. Matching the one against the other would fill the slot on import.
+The pieces are all present and pointing at each other. `resolveCompanion`
+fills a slot from a cookbook `ref`, and leaves it alone when there is none —
+which is every one of these, because the creature is chosen rather than named
+by the ability. The selection is a NAME, and the monsters are imported as
+actors from the same book. Matching the one against the other would pre-select
+the picker, or fill the slot on import.
 
 Two things to settle before it is built, and they are why it was not done in a
 hotfix:
