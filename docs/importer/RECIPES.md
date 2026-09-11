@@ -210,7 +210,10 @@ failed batch.
 structural signature + field template (authoring-side compression and
 contextual understanding). Minting a new kind is resolver-gated (high blast
 radius). The runtime never interprets kinds — the compiler flattens each entry
-into explicit instructions; the binding maps kinds to engine documents.
+into explicit instructions; the binding maps kinds to engine documents. A
+kind whose entries become ability items says so in its row (`binds:
+"ability"`), and the register lint holds those entries' `meta.category` to
+the ability vocabulary.
 
 ## Seeding and coverage
 

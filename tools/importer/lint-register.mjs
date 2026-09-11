@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { BOOKS } from "../../scripts/importer/books.mjs";
+import { ABILITY_CATEGORIES } from "../../scripts/lib/vocab.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, "..", "..", "register");
@@ -22,6 +23,8 @@ const MAX_PATTERN = 200; // a regex locator, validated by looksLikeRegex
 const COMPOSITE_ID = /^[a-z][a-z0-9]{1,3}\.[A-Za-z0-9-]+$/; // book ids may carry digits (ax2, ax3)
 const DEF_ID = /^def\.[a-z]+\.[A-Za-z0-9-]+$/;
 const KIND_ID = /^kind\.[a-z][A-Za-z0-9]*$/;
+// What a kind's entries become at import; the binding reads the same rows.
+const BINDS = new Set(["ability"]);
 const SHAPES = new Set(["open", "descriptor", "keyword", "table"]);
 const OPS = new Set(["expect", "text", "value", "attacks", "art", "effects", "progression", "rolls", "grid"]);
 const PATTERNS = new Set(["raw", "statValue", "int", "dice", "refList", "parenSplit", "spoilList", "statline"]);
@@ -131,6 +134,7 @@ function recordSurface(key, id, what) {
 }
 const kindIds = new Set();
 const kindRoles = new Map(); // kind id -> role (composite | definition | note | table)
+const kindBinds = new Map(); // kind id -> what its entries become (ability)
 
 const kindsDir = path.join(REGISTER, "_kinds");
 if (fs.existsSync(kindsDir)) {
@@ -141,6 +145,10 @@ if (fs.existsSync(kindsDir)) {
     if (!KIND_ID.test(k.id ?? "")) err(`_kinds/${f}: bad kind id "${k.id}"`);
     kindIds.add(k.id);
     kindRoles.set(k.id, k.role);
+    if (k.binds !== undefined) {
+      if (!BINDS.has(k.binds)) err(`_kinds/${f}: unknown binds "${k.binds}"`);
+      kindBinds.set(k.id, k.binds);
+    }
     capStrings(k, `_kinds/${f}`);
   }
 }
@@ -176,6 +184,16 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
       if (e.book !== bookId) err(`${id}: book "${e.book}" != directory "${bookId}"`);
       if (!Array.isArray(e.pages) || !e.pages.every((p) => Number.isInteger(p) && p > 0)) err(`${id}: pages must be positive ints`);
       if (!e.name) err(`${id}: name required`);
+      // An ability-bound kind hands `meta.category` to a CONSTRAINED choice
+      // field on the ability model. The runtime clamps a value it does not know
+      // to the default and warns on every import and update, so the register is
+      // where a category outside the vocabulary is caught.
+      if (kindBinds.get(e.kind) === "ability") {
+        const c = e.meta?.category;
+        if (typeof c !== "string" || !(c in ABILITY_CATEGORIES)) {
+          err(`${id}: meta.category ${JSON.stringify(c)} is not an ability category (${Object.keys(ABILITY_CATEGORIES).join("|")})`);
+        }
+      }
       // A constant is a clause in the middle of a paragraph, not a titled
       // block: it has no heading of any kind to locate, so it is anchored by
       // an authored box carrying an `expect` instead. Its assists are checked

@@ -4055,3 +4055,23 @@ wrote already carry the `href="#"` form and would have gone on opening tabs.
 
 *Cost:* a citation click reaches no other listener — nothing else has a claim
 on it.
+
+### A kind says what it binds to, and the lint holds its categories to the vocabulary (2026-09-11)
+
+**Ruled.** A kind whose entries become ability items declares `binds:
+"ability"` in its `_kinds` row, and the register lint fails any such entry
+whose `meta.category` is not a key of the ability vocabulary
+(`ABILITY_CATEGORIES`). The runtime clamp in `abilityCategory` stays: it
+answers for a cookbook the lint never saw, and it warns on every import and
+update it clamps — which is how `def.skill.dowsing`, authored in 6.0.0 with
+a category spelled outside the vocabulary, reached a Judge's console as a
+warning per run and an actor sheet as a proficiency for ten days before
+anyone read the line.
+
+**Rejected:** a list of ability kinds inside the linter. The compiler already
+keys the content lists by kind, and a second list drifts the day a kind is
+minted; the kind row is the one place that already said what it binds to — in
+prose, until now.
+
+*Cost:* minting an ability-bound kind means one more key in its row, or the
+lint never looks at its categories.

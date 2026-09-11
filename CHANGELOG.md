@@ -1,5 +1,18 @@
 # Changelog
 
+## 7.5.5
+
+**An imported skill keeps its category, and the register lint holds every
+ability kind to the vocabulary.**
+
+### Fixed
+- **The Dowsing skill (By This Axe) no longer imports as a proficiency.** Its
+  register entry spelled a category outside the ability vocabulary, so every
+  import and update clamped it to the default and logged a warning. The
+  register lint now holds every ability-bound kind's entries to the
+  vocabulary, so a misspelled category fails the build instead of reaching a
+  Judge's console.
+
 ## 7.5.4
 
 **A citation stays in this window, and a deletion is spelled the way core

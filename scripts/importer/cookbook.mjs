@@ -3056,11 +3056,12 @@ export function abilityIcon(entry) {
 }
 
 /**
- * `meta.category` is descriptive metadata a kind may set freely, but the
- * ability model stores it in a CONSTRAINED choice field. Clamp rather than
- * trust: an unknown value reached the DataModel and failed validation on every
- * sheet render (the v0.26.0 equipment leak). Falls back to the model's own
- * default so the item stays valid and usable.
+ * `meta.category` lands in a CONSTRAINED choice field on the ability model.
+ * The register lint holds every ability-bound kind's entries to that vocabulary
+ * before a cookbook compiles; this clamp stands behind it for whatever the lint
+ * never saw: an unknown value reached the DataModel and failed validation on
+ * every sheet render (the v0.26.0 equipment leak). Falls back to the model's
+ * own default so the item stays valid and usable.
  */
 function abilityCategory(value) {
   if (!value) return "proficiency";
