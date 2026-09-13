@@ -18,6 +18,18 @@ const LANG_PREFIX = "ACKS-INFLUENCE";
 /** Ruledata document holding this feature's printed tables, once imported. */
 const TABLE_DOC = "influence";
 
+/** camelCased module id — the namespace custom hooks fire under (TOOLCHAIN §5b). */
+const NAMESPACE = MODULE_ID.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
+
+/** Custom hooks fired by this feature. */
+export const HOOKS = Object.freeze({
+  // Fired before the roller opens: listeners push {label, value} entries onto
+  // the shared `modifiers` array to inject a flat external contribution (a
+  // district's reaction figure, a settlement's slander penalty). Sourced from
+  // where the party stands, never from the target — see module.mjs.
+  INFLUENCE_MODIFIERS: `${NAMESPACE}.influenceModifiers`,
+});
+
 /**
  * Active Effect convention: an effect on any item/actor with a change keyed
  * `flags.acks-extras.<family>` contributes a modifier equal to the change

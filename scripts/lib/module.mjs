@@ -30,6 +30,8 @@ import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE } from "
 import { isPrimaryGM } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
 import * as vocab from "./vocab.mjs";
+import * as wallGeometry from "./wall-geometry.mjs";
+import * as wallLayers from "./wall-layers.mjs";
 import * as fields from "./fields.mjs";
 import * as library from "./library.mjs";
 import { registerLibraryWarm } from "./library.mjs";
@@ -104,9 +106,21 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  apiVersion: 15,
+  apiVersion: 16,
   vocab,
   fields,
+  /**
+   * Segments and the graph a set of them draws (wall-geometry.mjs): crossings,
+   * distances, an endpoint-tolerant graph, and how far it is ALONG the lines.
+   * Foundry-free, so a macro can measure a route without a canvas.
+   */
+  wallGeometry,
+  /**
+   * A LAYER over a wall (wall-layers.mjs) — what a drawn line MEANS to this
+   * module. The flag read and write, the non-blocking shape, core's one
+   * drawing-preset slot, and the region a selection's loop encloses.
+   */
+  wallLayers,
   /**
    * The imported library, wherever it lives (library.mjs): `libraryItems` /
    * `libraryActors` / `libraryDocs(type)` read the sidebar AND the importer's

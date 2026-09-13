@@ -43,8 +43,12 @@ import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import {
   SETTLEMENT_PACES, SETTLEMENT_LOCATIONS, ROUTE_KNOWLEDGE,
   SETTLEMENT_INTENTS, CONVEYANCES,
-  blocksPerTurn, citySpec, streetCadence, strayBlocks, settlementReady,
+  blocksPerTurn, citySpec, streetCadence, strayBlocks,
+  resolveCityCadence, cadenceAttribution, districtReaction,
 } from "./settlement.mjs";
+import { streetUnder } from "./zones.mjs";
+import { findEncounterZone } from "./encounter-zone.mjs";
+import { findDistrict } from "./district-zone.mjs";
 import { TERRAIN, travelMultiplier, canEnter } from "../vehicles/vehicle-speed.mjs";
 import {
   CLIMATES,
@@ -496,6 +500,13 @@ export function travelReadout(formation, feet) {
   };
 }
 
+/** Why a city turn owes no navigation throw, keyed by `citySpec`'s reason. */
+const NO_THROW_REASONS = Object.freeze({
+  route: "noThrowRoute",
+  pace: "noThrowPace",
+  stationary: "noThrowStationary",
+});
+
 /**
  * The settlement board's context: the two pickers, the derived block rate with
  * its factors named, and the turn's navigation prospect.
@@ -508,11 +519,60 @@ function buildSettlementView(formation, t) {
   const s = t.settlement;
   const opt = (value, label, selected) => ({ value, label, selected });
   const loc = (key) => game.i18n.localize(key);
-  const heads = Array.isArray(formation?.members) ? formation.members.length : 0;
+  // The SAME count the tick straggles by. A marching order keeps blank cells
+  // for the ranks a Judge has left open, and counting them puts a straggling
+  // tier on the panel that the turn never applies.
+  const heads = realMembers(formation ?? {}).length;
 
-  const rate = blocksPerTurn({ pace: s.pace, headcount: heads });
-  const spec = citySpec({ pace: s.pace, route: s.route });
-  const cadence = streetCadence({ where: s.where, night: s.night, intent: s.intent });
+  // A party staying put covers no ground, never navigates, and is thrown for
+  // by the DAY. The tick branches on exactly this; a panel that did not would
+  // show a holed-up party a block rate and a navigation target it is not
+  // subject to, which reads as the tick forgetting to apply them.
+  // Where the party actually is, by the two readers the tick consults: the road
+  // drawn under the token, then the picker. A panel showing the picker's
+  // cadence while the tick used the road's reads as the tick ignoring the panel.
+  const { road, here } = streetUnder(formation, s);
+
+  const stationary = !!SETTLEMENT_LOCATIONS[here.where]?.stationary;
+  const rate = stationary ? { blocks: 0, parts: [] } : blocksPerTurn({ pace: s.pace, headcount: heads });
+  const spec = stationary
+    ? { throws: false, reason: "stationary" }
+    : citySpec({ pace: s.pace, route: s.route });
+
+  // What a Judge has drawn over the ground the party is standing on — the SAME
+  // two lookups the tick resolves the cadence with, so the panel can never show
+  // a rhythm the tick does not also use. Reading both from one lookup avoids a
+  // panel that asked only the street while the turn also asked the zone.
+  const zoneHit = findEncounterZone(formation);
+  const districtHit = findDistrict(formation);
+  const zone = zoneHit?.behavior?.system ?? null;
+  const district = districtHit?.behavior?.system ?? null;
+  const cadence = resolveCityCadence(
+    streetCadence({ where: here.where, night: s.night, intent: s.intent }),
+    { zone, district, night: s.night, intent: s.intent },
+  );
+  // WHERE the rhythm came from, so a zone or district override never reads as
+  // the street's own number. The same reader the turn card uses, and per
+  // FIGURE: the interval and the target can have different owners.
+  const said = cadenceAttribution(cadence, {
+    street: loc("ACKS-FORMATION.settlement.cadenceStreet"),
+    zone: zoneHit?.region?.name ?? "",
+    district: districtHit?.region?.name ?? "",
+  });
+  const cadenceLine = said ? game.i18n.format(said.key, said.data) : "";
+  const districtName = districtHit?.region?.name ?? "";
+  const reaction = districtReaction(district, { where: here.where });
+  let districtReactionLine = "";
+  if (reaction) {
+    // A bare negative already reads as a penalty; a bare positive does not, so
+    // the sign is written out rather than trusted to `Number#toString`.
+    const modifier = reaction.modifier >= 0 ? `+${reaction.modifier}` : `${reaction.modifier}`;
+    districtReactionLine = reaction.scope === "any"
+      ? game.i18n.format("ACKS-FORMATION.settlement.district.reaction", { place: districtName, modifier })
+      : game.i18n.format("ACKS-FORMATION.settlement.district.reactionWhere", {
+        place: districtName, modifier, where: loc(SETTLEMENT_LOCATIONS[reaction.scope].label),
+      });
+  }
 
   // What the party's own movement is being timed by here. The scene answers,
   // so the panel and the tracker can never disagree about the rate.
@@ -524,7 +584,8 @@ function buildSettlementView(formation, t) {
 
   return {
     ...s,
-    ready: settlementReady(),
+    // The SAME count `blocksPerTurn` straggles by, so a Judge asking why the
+    // party is crowded here can be told the number rather than only the word.
     headcount: heads,
     blockFeet,
     turnFeet,
@@ -537,7 +598,17 @@ function buildSettlementView(formation, t) {
     conveyanceOptions: Object.entries(CONVEYANCES).map(([k, v]) => opt(k, loc(v.label), k === s.conveyance)),
     // Holing up is measured in DAYS, and the world clock credits them: a party
     // that is not going anywhere has no movement for the tracker to read.
-    stationary: !!SETTLEMENT_LOCATIONS[s.where]?.stationary,
+    stationary,
+    // Which layer priced the cadence below, so the readout can name the
+    // quarter or the drawn zone instead of printing an overridden rhythm as
+    // though it were the street's own.
+    cadenceLine,
+    // The district the party is standing in, or "" outside one.
+    districtName,
+    // How the quarter's own reputation reads here, or "" when the district is
+    // silent about it (no district, no modifier, or a modifier owed somewhere
+    // else in the quarter).
+    districtReactionLine,
     // The RATE, kept apart from the tally the spread above carries: a panel
     // that showed one where the other belongs reads as a party that has walked
     // five blocks and never gets any further.
@@ -545,14 +616,43 @@ function buildSettlementView(formation, t) {
     blocksUnpriced: rate.blocks == null,
     straggling: (rate.parts ?? []).some((p) => p.key === "straggling"),
     throws: !!spec.throws,
-    // A suppressed throw says WHY: the route is known, or the pace never gets lost.
-    noThrowReason: spec.throws ? "" : loc(`ACKS-FORMATION.settlement.${spec.reason === "route" ? "noThrowRoute" : "noThrowPace"}`),
+    // A suppressed throw says WHY: staying put, a known route, or a pace that
+    // never gets lost.
+    noThrowReason: spec.throws ? "" : loc(`ACKS-FORMATION.settlement.${NO_THROW_REASONS[spec.reason] ?? "noThrowPace"}`),
     navTarget: spec.throws ? spec.target : null,
     navModifier: spec.throws ? (spec.modifier ?? 0) : 0,
     navUnpriced: !!spec.throws && spec.target == null,
+    // Been there before, and by how much that helps never arrived. An imported
+    // zero and a figure that never came read the same on the panel unless the
+    // panel says which it is.
+    navRouteUnpriced: !!spec.throws && !!spec.unpricedRoute,
+    unpricedIntent: !!cadence?.unpricedIntent,
+    // What a failed throw costs, named beside the throw itself rather than
+    // only after the fact on the card: a Judge deciding whether to risk the
+    // throw at all needs the price up front.
     stray: strayBlocks(),
     cadence,
     cadenceMissing: !cadence,
+    // The tracker's own question, answered here rather than re-derived from
+    // `blockFeet` alone in the template: the clock only times by blocks when
+    // the map declared a block size AND the registry priced the pace. With one
+    // half missing it falls back to walking speed, and a readout that claimed
+    // blocks anyway would name a rate nothing is using.
+    timedByBlocks: !stationary && !!blockFeet && rate.blocks != null,
+    // The street the MAP says the party is on, when a road says so. The picker
+    // stays on its own value — it is what the Judge typed, and a select that
+    // silently re-pointed itself would hide the override rather than show it.
+    whereFromRoad: here.from === "road",
+    roadLine: here.from === "road"
+      ? game.i18n.format(
+        `ACKS-FORMATION.settlement.road.${road.name ? "here" : "hereUnnamed"}`,
+        { road: road.name, where: loc(`ACKS-FORMATION.settlement.street.${here.where}`) },
+      )
+      : "",
+    // Whether the last move was counted along the streets. Null until the party
+    // has moved: a tracker claiming either of two measurements before one has
+    // been made is naming a rate nothing used.
+    measuredAlong: s.measuredAlong,
   };
 }
 

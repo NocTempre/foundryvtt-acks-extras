@@ -1,46 +1,192 @@
 /* global game, canvas */
 /**
- * Where a scene's declared routes live.
+ * Where a scene's routes come from.
  *
  * [hex-topology.mjs](./hex-topology.mjs) is the pure model — nodes, links,
- * hubs, cost. This is the half that knows about a scene: reading the link set
- * off it, writing one back, and turning a click into a node.
+ * hubs, cost. This is the half that knows about a scene: turning a click into a
+ * node, and answering what links the scene has.
  *
- * Links are a single scene FLAG rather than one document each. A route network
- * is read on every step of every march, and a hundred Region documents would
- * be a hundred documents to load, index and keep in sync for something that is
- * only ever consulted as a whole. Terrain earns its regions because terrain is
- * DRAWN; a link is a fact about the map, not a shape on it.
+ * **A road is DRAWN, and the links are derived from it.** A road is a wall
+ * ([roads.mjs](./roads.mjs)) on any grid, and on a hex grid the crossings it
+ * makes ARE the link set: nothing has to be declared twice, and a street
+ * dragged into a new shape brings its links with it. Core's own snapping puts a
+ * wall's ends on the hex vertices, side midpoints and centres that the topology
+ * addresses, so the two models meet without either reimplementing the other.
+ *
+ * The older DECLARED links live on in a single scene flag and are read
+ * alongside the derived ones, so a world part-way through a network keeps
+ * working; `convertRoutesToWalls` retires them into walls. Nothing in the
+ * module writes new ones.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { isHexScene } from "./terrain-paint.mjs";
-import { nodeId, makeLink, withLink, withoutLink, onRoad, routeCost, hubs } from "./hex-topology.mjs";
+import {
+  nodeId, parseNode, makeLink, withLink, withoutLink, onRoad, routeCost, hubs, linksFromRoadSegments,
+} from "./hex-topology.mjs";
+import { roadGraph, roadSegmentsOf, roadWallData } from "./roads.mjs";
 
-/** The scene flag holding the declared link set. */
+/** The scene flag holding the legacy declared link set. */
 export const ROUTES_FLAG = "hexRoutes";
 
-/** Every link declared on a scene. Always an array, never null. */
-export function routesOf(scene) {
+/**
+ * The links a Judge DECLARED on this scene with the retired node tool.
+ *
+ * Kept apart from the derived ones because this is what the writers read and
+ * write back: a write over the union would freeze today's roads into the flag,
+ * and the whole point of deriving them is that they follow the walls.
+ */
+export function declaredRoutesOf(scene) {
   const raw = scene?.getFlag?.(MODULE_ID, ROUTES_FLAG);
   return Array.isArray(raw) ? raw.filter((l) => l && l.a && l.b) : [];
 }
 
-/** Declare a link, replacing any between the same two nodes. */
+/** Derived link sets, keyed by the road network they came from. */
+const derived = new WeakMap();
+
+/** The scene's grid, as the adapter the pure derivation asks for. */
+function gridAdapter(scene) {
+  return {
+    // Samples have to be finer than a hex, or a wall can step clean over one
+    // and the crossing it made goes unseen.
+    step: Math.max(4, (scene.grid?.size ?? 100) / 4),
+    offsetAt: (p) => scene.grid.getOffset(p),
+    centre: (o) => scene.grid.getCenterPoint(o),
+    facing: (from, to) => facingNodes(scene, from, to),
+  };
+}
+
+/**
+ * The links this scene's drawn roads imply.
+ *
+ * Cached against the road network object itself, which the road layer replaces
+ * whenever a wall changes — so the derivation is done once per edit and needs
+ * no invalidation of its own.
+ */
+export function derivedRoutesOf(scene) {
+  if (!isHexScene(scene) || !scene.grid?.getOffset) return [];
+  const graph = roadGraph(scene);
+  if (derived.has(graph)) return derived.get(graph);
+  const links = linksFromRoadSegments(roadSegmentsOf(scene), gridAdapter(scene));
+  derived.set(graph, links);
+  return links;
+}
+
+/**
+ * Every link on a scene: drawn roads first, then any legacy declaration the
+ * roads have not replaced.
+ *
+ * The drawn road wins a boundary both describe, because the wall is the thing
+ * the Judge can see and move.
+ */
+export function routesOf(scene) {
+  const fromRoads = derivedRoutesOf(scene);
+  if (!fromRoads.length) return declaredRoutesOf(scene);
+  const declared = declaredRoutesOf(scene).filter(
+    (l) => !fromRoads.some((r) => r.a === l.a && r.b === l.b));
+  return [...declared, ...fromRoads];
+}
+
+/**
+ * Declare a link on the scene flag. **Legacy** — a road is drawn as a wall now,
+ * and nothing in the module calls this; it stays exported for a world's own
+ * macros and for the conversion's tests.
+ */
 export async function declareLink(scene, from, to, { road = "earth", winding = 1 } = {}) {
   if (!game.user?.isGM || !isHexScene(scene)) return false;
   const link = makeLink(from, to, { road, winding });
   if (!link) return false;
-  await scene.setFlag(MODULE_ID, ROUTES_FLAG, withLink(routesOf(scene), link));
+  await scene.setFlag(MODULE_ID, ROUTES_FLAG, withLink(declaredRoutesOf(scene), link));
   return true;
 }
 
-/** Remove a link. Safe to call when there is none. */
+/**
+ * Remove a declared link. **Legacy**, as above — a DERIVED link is removed by
+ * editing the wall that draws it, which is the point of drawing it.
+ */
 export async function removeLink(scene, from, to) {
   if (!game.user?.isGM || !isHexScene(scene)) return false;
-  const next = withoutLink(routesOf(scene), from, to);
-  if (next.length === routesOf(scene).length) return false;
+  const next = withoutLink(declaredRoutesOf(scene), from, to);
+  if (next.length === declaredRoutesOf(scene).length) return false;
   await scene.setFlag(MODULE_ID, ROUTES_FLAG, next);
   return true;
+}
+
+/**
+ * The middle of the hex a node belongs to.
+ *
+ * Rounded, because a wall drawn by hand carries the integer core snapped it to
+ * and a converted one should be indistinguishable from it.
+ */
+function hexCentre(scene, id) {
+  const n = parseNode(id);
+  if (!n || !scene?.grid?.getCenterPoint) return null;
+  const c = scene.grid.getCenterPoint({ i: n.i, j: n.j });
+  return c ? { x: Math.round(c.x), y: Math.round(c.y) } : null;
+}
+
+/**
+ * Turn every declared link on this scene into a road wall.
+ *
+ * The Judge's way off the retired tool, and it is one press rather than a
+ * migration: a link becomes a wall carrying the surface it was declared with.
+ *
+ * The winding a Judge TYPED is not carried across. It cannot be: winding is now
+ * measured off the shape of the drawn line, and writing the old figure onto a
+ * straight wall would make the two disagree the moment the wall is dragged.
+ *
+ * Drawn hex MIDDLE to hex middle, never between the link's own two ends: those
+ * are the two halves of one shared boundary and sit at the same point, so a wall
+ * between them would have no length. A line through both hexes is also the only
+ * shape the derivation can re-read, so a converted link comes back as a derived
+ * one and the network is unchanged by the press.
+ *
+ * A link that cannot be placed STAYS on the flag. Clearing the whole flag after
+ * a partial conversion would destroy exactly the declarations the press failed
+ * to carry.
+ *
+ * @returns {Promise<{made: number, skipped: number}|null>}
+ */
+export async function convertRoutesToWalls(scene) {
+  if (!game.user?.isGM || !scene) return null;
+  const links = declaredRoutesOf(scene);
+  if (!links.length) return { made: 0, skipped: 0 };
+  const data = [];
+  const kept = [];
+  for (const link of links) {
+    const a = hexCentre(scene, link.a);
+    const b = hexCentre(scene, link.b);
+    if (!a || !b || (a.x === b.x && a.y === b.y)) {
+      kept.push(link);
+      continue;
+    }
+    data.push({ c: [a.x, a.y, b.x, b.y], ...roadWallData({ surface: link.road }) });
+  }
+  if (data.length) await scene.createEmbeddedDocuments("Wall", data);
+  if (kept.length) await scene.setFlag(MODULE_ID, ROUTES_FLAG, kept);
+  else await clearRoutes(scene);
+  return { made: data.length, skipped: kept.length };
+}
+
+/**
+ * Where on the map a node sits: a hex's middle, one of its corners, or the
+ * midpoint of one of its sides.
+ *
+ * The inverse of `nodeAtPoint`. Published for a world's own macros; the
+ * conversion draws between hex MIDDLES instead, because a link's two ends are
+ * one shared boundary and resolve here to the same point.
+ */
+export function nodePoint(scene, id) {
+  const n = parseNode(id);
+  if (!n || !scene?.grid?.getCenterPoint) return null;
+  const offset = { i: n.i, j: n.j };
+  const centre = scene.grid.getCenterPoint(offset);
+  if (n.kind === "centre") return centre;
+  const v = scene.grid.getVertices?.(offset) ?? [];
+  if (!v.length) return centre;
+  if (n.kind === "corner") return v[n.index % v.length];
+  const a = v[n.index % v.length];
+  const b = v[(n.index + 1) % v.length];
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
 /** Clear every route. The Judge's undo for a network gone wrong. */

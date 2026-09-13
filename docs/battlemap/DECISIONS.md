@@ -1,5 +1,115 @@
 # Battlemap — decisions
 
+## 2026-09-12 — What the live walk of the road layer found
+
+Four rulings, each forced by driving the surface rather than by design. All
+four passed a green offline suite first, which is the point of the gate.
+
+**A road that restricts movement is not in the network.** Marking an existing
+blocking wall as a road warns the Judge that the party cannot walk along it —
+and the measurement then credited 150 feet of travel along exactly that wall.
+The warning's own sentence was false in effect. `roadGraph` now filters such
+walls out; the overlay still draws them, because the Judge has to be able to
+find the wall the warning is about. Rejected: opening the wall up on the
+Judge's behalf, which is the doctrine a layer exists to refuse.
+
+**A road measurement needs BOTH ends on the roads.** The geometry answers when
+either end is within reach, deliberately, so a caller can price stepping onto a
+street or off one. Travel cannot use that rule: a move from a street out across
+open ground was charged the street plus the trek off it — 1905 feet where the
+straight line was 1028 — so the feature built to stop a bend being charged as
+its chord was charging open ground as street frontage. The narrowing lives in
+`roadDistance`, not in the geometry, because it is a statement about travel.
+Rejected: taking the lesser of the two measurements, which reads as the safe
+choice and silently deletes the whole feature — the bend case is exactly the
+one where the road is the LONGER answer and is right.
+
+**A converted declaration is drawn between hex middles.** A link's two ends are
+the two halves of one shared boundary, so they resolve to the same point: the
+conversion built zero-length walls, skipped every one of them, and cleared the
+flag anyway — a press that reported success and destroyed the declarations it
+had not carried. Centre-to-centre is also the only shape the derivation can
+re-read, so the press is now idempotent. A declaration that cannot be placed
+stays on the flag.
+
+**A layer's row goes inside the wall sheet's scrolling body.** A WallConfig's
+application root IS its form, so the search for a form inside the window
+content found nothing and the fallback appended the row to the root — below the
+pinned submit footer and outside the element core pins its font-size on. The
+second consequence was worse and invisible: core's re-render never replaced a
+row that was not inside the content it rebuilds, the duplicate-guard then saw
+the survivor, and the row was never rebuilt, so it showed stale values after
+every write. The trap row had carried both faults since it shipped. One shared
+`wallSheetFields` answers for both, in the file that owns core's wall-sheet
+mechanics.
+
+## 2026-09-12 — A road is a wall, on every grid
+
+**Ruled.** A road is a **Wall document that restricts nothing**, flagged
+`flags["acks-extras"].road`. The hex node tool that declared links between a
+hex's sides, corners and middle is retired; the links are now DERIVED from the
+walls that were drawn.
+
+**What the node tool cost.** It could only exist on a hex grid, because a node
+id names a hex. A city is drawn on a square or gridless map, so the one place
+the module most needed to say "the party is on this street" was the one place
+roads could not be drawn at all — and the settlement tick had no choice but to
+measure a walk as the straight line between its ends, charging a party that
+followed a curving avenue for the block it went round. It also carried its own
+canvas overlay, its own click-to-anchor gesture, its own snapping and its own
+idea of what a Judge had pressed, none of which core needed help with.
+
+**Why a wall.** A wall is the only LINE Foundry draws, and the module already
+means something by one: a trap is a layer over a wall, and that shape had
+already been paid for. Drawing with core's own tool means core's own snapping —
+on a hex grid it offers exactly the vertices, side midpoints and centres the
+topology addresses, so the two models meet without either reimplementing the
+other; on a square grid it offers vertices and midpoints; on a gridless map,
+the free hand. A wall is also draggable, selectable, and visible in a tool the
+Judge already knows.
+
+**A drawn road wins over a typed picker.** Where a road says avenue or alley,
+that is where the party is; the panel's picker answers only where no road does.
+The alternative — keeping the two in step by hand — is the bookkeeping the map
+exists to end.
+
+**Rejected: a Region per road.** A region is an AREA, and a street is a line;
+every question asked of a road is a question about following it. Region
+membership would answer "is the party in the street's bounding shape", which is
+true of the buildings either side of it.
+
+**Rejected: opening up a wall that is marked as a road.** A layer never alters
+the wall beneath it — the Judge may have meant the building's wall and
+forgotten the flag, and reaching in to clear its restrictions would knock a
+hole in the building. A road that still restricts movement is a street the
+party cannot walk down, so the wall's own sheet says so and leaves the fix to
+the Judge.
+
+**The trap line and the road share core's ONE preset slot**, and nothing here
+can change that: core keeps a single setting for what the wall tool creates.
+Arming a street disarms a tripwire. The notification names what is now armed,
+because a Judge who believes a tripwire is armed and draws a street has left a
+corridor unwatched.
+
+**Winding is measured, not typed — and the measure is a floor.** A link's
+winding is the road lying inside the two hexes it joins, half of each, over the
+distance between their centres, with the road inside a hex summed over every
+segment there. That is what makes a snaking street drawn as six short lengths
+cost what its shape says rather than what each length does. **What it costs:**
+two roads that cross one hex without meeting are counted together there, so
+that hex reports more bend than either road has. The figure is floored at 1, so
+the measure can never make a road cheaper than crossing straight, and the
+over-count is visible as a distance tax rather than as a road that vanishes.
+
+**The legacy flag is READ, and retired by a press.** `hexRoutes` is still read
+beside the derived links, so a world part-way through a hand-declared network
+keeps working. `route-convert` writes the declarations out as walls and drops
+the flag. It is not a migration on load: converting writes walls to a scene,
+and a module that did that unasked would edit maps the Judge had not opened.
+The winding a Judge TYPED is not carried across — it is read off the line's
+shape now, and writing the old figure onto a straight wall would make the two
+disagree the moment it is dragged.
+
 ## 2026-08-30 — The tool says what a scene IS: family, units, system
 
 **Ruled.** The panel asked one question (fit a square grid) and inferred the

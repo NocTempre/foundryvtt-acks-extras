@@ -15,6 +15,10 @@ import {
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
 import { SETTING_ABILITY_OVERRIDES, initLadders } from "./ability-bridge.mjs";
 import { registerEncounterZone } from "./encounter-zone.mjs";
+import { registerDistrictZone, findDistrict, DISTRICT_TYPE } from "./district-zone.mjs";
+import { districtReaction } from "./settlement.mjs";
+import { districtFromSelection, installDistrictControls, markControlledRegions } from "./district-tools.mjs";
+import { installDistrictInfluence } from "./district-influence.mjs";
 import {
   HALT_OPTION,
   TRAP_ZONE_TYPE,
@@ -154,6 +158,8 @@ Hooks.once("init", () => {
   // Judge already is when a stuck one stops the party.
   installDoorControl();
   installTrapControls();
+  installDistrictControls();
+  installDistrictInfluence();
   installTrapDrop();
   installTrapMarkers();
   // Core's party overview deals XP by its own reckoning; with this module's
@@ -325,6 +331,12 @@ Hooks.once("init", () => {
   expectTables(SETTLEMENT_DOC, [
     "paces", "navigation", "straggling", "encounters",
     "encounterIntent", "encounters100", "encounterAfterDark",
+    // Declared without a consumer: the district-travel figures are the time
+    // to cross between POINTS OF INTEREST, which are not built yet. Declaring
+    // it is what makes its absence VISIBLE — the table browser lists an
+    // expected table that never arrived, where an undeclared one is simply
+    // not there and reads as nothing having been meant.
+    "districtTravel",
   ]);
   // Flight: the day-aloft factor, what wind costs a flier, and the load
   // threshold's own factor. All printed, so none of them ship.
@@ -423,6 +435,9 @@ Hooks.once("init", () => {
   /* --- Encounter Zone region behavior --- */
   registerEncounterZone();
 
+  /* --- District region behavior --- */
+  registerDistrictZone();
+
   /* --- Trap Zone region behavior, trap Item sub-type + sheet --- */
   // Wrapped whole: everything below this point in `init` — the party actor,
   // its sheet, the public api — is dead if anything here throws, and traps are
@@ -501,11 +516,24 @@ Hooks.once("init", () => {
      * (the hidden true-position token, and the distance queries between lost
      * parties that it makes possible) and `lostEpisode` — the one caller that
      * knows the ORDER the three move in.
+     *
+     * 9 adds `district` — a settlement quarter drawn as a Region:
+     * `DISTRICT_TYPE`, `findDistrict(formation)` (the district the party is
+     * standing in, if any), `districtReaction(district, {where})` (what it
+     * charges a reaction or influence throw made there), and the two Judge
+     * tools that make one (`markControlledRegions`, `districtFromSelection`).
      */
-    apiVersion: 8,
+    apiVersion: 9,
     travel: { ...travel, closeDay, offerDayEnd },
     weather,
     settlement,
+    district: {
+      DISTRICT_TYPE,
+      findDistrict,
+      districtReaction,
+      markControlledRegions,
+      districtFromSelection,
+    },
     lost,
     shadow,
     lostEpisode,

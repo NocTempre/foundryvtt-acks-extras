@@ -16,6 +16,7 @@ import {
   INFLUENCE_RELATIONSHIP_MOD,
   influenceTimeLadder,
   henchmanMonthlyWage,
+  HOOKS,
 } from "./constants.mjs";
 import { getActorHD, monthlyWageForHD, getProficiencies, getEffectReactionMods } from "./actor-data.mjs";
 import { kindOf, matchesKind, registerRaceRelations, relationFor } from "./racial.mjs";
@@ -25,13 +26,40 @@ const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
 
 /**
  * Open the influence roller for a given actor (or standalone if none).
+ *
+ * Collects external modifiers from two routes before construction: whatever
+ * the caller already passed in `options.modifiers` (a consumer module that
+ * holds the roll, e.g. the henchmen feature's per-settlement slander
+ * penalty), and whatever `HOOKS.INFLUENCE_MODIFIERS` listeners push onto the
+ * same array (a consumer that only knows the party's current surroundings,
+ * e.g. a district's reaction figure). Neither route replaces the other.
+ *
+ * Deliberately synchronous: the hook call is synchronous and a constructor
+ * throw (a bad `options.mode`, an invalid actor) must reach the caller as a
+ * real exception, not a rejected promise — a consumer that opens this app as
+ * its first choice and falls back to its own dialog on failure (the henchmen
+ * feature's `openLoyaltyRoll`/`openObedienceRoll`) wraps the call in a plain
+ * `try/catch`, which only a synchronous throw satisfies.
  * @param {Actor|null} actor
- * @param {object} [options] - { targetActor, modifiers: [{label, value}] } —
- *   `modifiers` lets consumer modules inject flat externals (e.g.
- *   acks-henchmen's per-settlement slander penalty).
+ * @param {object} [options] - { targetActor, mode, modifiers: [{label, value}] }
+ * @returns {Promise<InfluenceApp>} what `render` returns. Synchronous here
+ *   means the THROW is synchronous, which is what the fallback depends on;
+ *   the render itself is core's and is async.
  */
 function openInfluenceApp(actor = null, options = {}) {
-  return new InfluenceApp({ actor, ...options }).render(true);
+  const modifiers = [...(options.modifiers ?? [])];
+  try {
+    Hooks.callAll(HOOKS.INFLUENCE_MODIFIERS, {
+      actor,
+      targetActor: options.targetActor ?? null,
+      mode: options.mode ?? null,
+      modifiers,
+    });
+  } catch (err) {
+    // A listener's own throw must not stop the roller from opening.
+    console.error(`${MODULE_ID} | ${HOOKS.INFLUENCE_MODIFIERS} listener failed`, err);
+  }
+  return new InfluenceApp({ actor, ...options, modifiers }).render(true);
 }
 
 // GM-side socket handler (via the shared transport): resolve a player's roll
@@ -61,8 +89,12 @@ Hooks.once("init", () => {
   // Public API for macros / other modules. Set this FIRST so nothing below can
   // prevent it from being assigned.
   const api = {
-    apiVersion: 7, // 7: morale-family pages — combat morale, obedience, irrefusable offer
-    open: openInfluenceApp,
+    apiVersion: 8, // 8: HOOKS.INFLUENCE_MODIFIERS — external modifiers collected via hook
+    // Synchronous: a listener's own throw is already caught inside
+    // openInfluenceApp, but a constructor throw must reach the caller
+    // unaltered so a consumer's own try/catch fallback (e.g. the henchmen
+    // feature's fall-through to its own ThrowDialog) actually fires.
+    open: (actor, options) => openInfluenceApp(actor, options),
     InfluenceApp,
     // Racial & cross-species helpers (docs/RACIAL_REACTIONS_PLAN.md):
     kindOf,
@@ -168,7 +200,11 @@ function injectSheetButton(app, element) {
     btn.addEventListener("click", (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      openInfluenceApp(actor);
+      try {
+        openInfluenceApp(actor);
+      } catch (err) {
+        console.error(`${MODULE_ID} | failed to open influence app`, err);
+      }
     });
     wrap.appendChild(btn);
 
@@ -297,6 +333,10 @@ Hooks.on("chatMessage", (_chatLog, message) => {
   // Prefer a controlled token's actor, then the user's assigned character.
   const controlled = canvas?.tokens?.controlled?.[0]?.actor ?? null;
   const actor = controlled ?? game.user?.character ?? null;
-  openInfluenceApp(actor);
+  try {
+    openInfluenceApp(actor);
+  } catch (err) {
+    console.error(`${MODULE_ID} | failed to open influence app`, err);
+  }
   return false;
 });

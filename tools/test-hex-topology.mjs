@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import {
   NODE_KINDS, nodeId, parseNode, hexOf, makeLink, hasLink, withLink, withoutLink,
-  hubs, connected, routeCost, onRoad,
+  hubs, connected, routeCost, onRoad, linksFromRoadSegments,
 } from "../scripts/battlemap/hex-topology.mjs";
 
 let passed = 0;
@@ -133,6 +133,83 @@ ok("a route counts the hexes it actually crosses", () => {
   links = withLink(links, makeLink(S(0, 1, 0), S(0, 1, 3)));
   const cost = routeCost(links, [S(0, 0, 3), S(0, 1, 0), S(0, 1, 3)]);
   assert.equal(cost.hexes, 2, "two cells touched, not three steps");
+});
+
+/* -------------------------------------------- */
+/*  Links derived from drawn roads              */
+/* -------------------------------------------- */
+
+/**
+ * A square stand-in for a hex grid: 100-pixel cells, neighbours share an EDGE.
+ *
+ * Square on purpose — the derivation asks the grid three questions and must
+ * work for any layout core supports, so the test answers them the simplest way
+ * that still has corners. A DIAGONAL step is a corner, and `facing` refuses it
+ * exactly as the real one does for two hexes that only touch.
+ */
+const fakeGrid = {
+  step: 5,
+  offsetAt: (p) => ({ i: Math.floor(p.x / 100), j: Math.floor(p.y / 100) }),
+  centre: (o) => ({ x: o.i * 100 + 50, y: o.j * 100 + 50 }),
+  facing: (from, to) => {
+    const di = to.i - from.i;
+    const dj = to.j - from.j;
+    if (Math.abs(di) + Math.abs(dj) !== 1) return null;
+    // Side 0 faces east and side 3 west, so a step east leaves by 0 and
+    // arrives at the far cell's 3 — two ids at one place, one per cell.
+    const out = di === 1 ? 0 : di === -1 ? 3 : dj === 1 ? 1 : 4;
+    const back = di === 1 ? 3 : di === -1 ? 0 : dj === 1 ? 4 : 1;
+    return { near: S(from.i, from.j, out), far: S(to.i, to.j, back) };
+  },
+};
+
+ok("a drawn road across three cells declares its two crossings", () => {
+  const links = linksFromRoadSegments([{ seg: [10, 50, 290, 50], surface: "paved" }], fakeGrid);
+  assert.equal(links.length, 2);
+  assert.ok(hasLink(links, makeLink(S(0, 0, 0), S(1, 0, 3))));
+  assert.ok(hasLink(links, makeLink(S(1, 0, 0), S(2, 0, 3))));
+  assert.equal(links[0].road, "paved", "the wall's surface, not a default");
+});
+
+ok("a straight crossing is never priced above going straight", () => {
+  const links = linksFromRoadSegments([{ seg: [10, 50, 290, 50] }], fakeGrid);
+  for (const l of links) assert.equal(l.winding, 1);
+});
+
+ok("a road that doubles back through a cell costs the bends", () => {
+  // Several lengths inside the middle cell before it leaves: a party following
+  // it walks further than the straight crossing, and pays for it.
+  const links = linksFromRoadSegments([
+    { seg: [10, 50, 150, 50] },
+    { seg: [150, 50, 150, 90] },
+    { seg: [150, 90, 110, 90] },
+    { seg: [110, 90, 110, 20] },
+    { seg: [110, 20, 290, 20] },
+  ], fakeGrid);
+  const crossing = links.find((l) => l.a === S(1, 0, 0) || l.b === S(1, 0, 0));
+  assert.ok(crossing, "it still crosses into the third cell");
+  assert.ok(crossing.winding > 1, "winding " + crossing.winding + " should exceed a straight crossing");
+});
+
+ok("a wall that only clips a corner declares nothing", () => {
+  // A perfect diagonal steps from one cell to its diagonal neighbour, which is
+  // a corner and not a crossing: the hex it merely touches earns nothing.
+  assert.deepEqual(linksFromRoadSegments([{ seg: [10, 10, 190, 190] }], fakeGrid), []);
+});
+
+ok("two roads over one boundary are one crossing", () => {
+  const links = linksFromRoadSegments([
+    { seg: [10, 50, 190, 50] },
+    { seg: [10, 80, 190, 80] },
+  ], fakeGrid);
+  assert.equal(links.length, 1);
+});
+
+ok("nothing drawn declares nothing, and a degenerate wall is not a road", () => {
+  assert.deepEqual(linksFromRoadSegments([], fakeGrid), []);
+  assert.deepEqual(linksFromRoadSegments(null, fakeGrid), []);
+  assert.deepEqual(linksFromRoadSegments([{ seg: [50, 50, 50, 50] }], fakeGrid), []);
+  assert.deepEqual(linksFromRoadSegments([{ seg: [0, 0] }], fakeGrid), []);
 });
 
 console.log("\ntest-hex-topology: all " + passed + " checks passed");

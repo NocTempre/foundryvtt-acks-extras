@@ -1,4 +1,4 @@
-/* global game, Hooks, foundry, document */
+/* global game, canvas, ui, Hooks, foundry, document */
 /**
  * acks-battlemap — map alignment and token scaling for the ACKS II module
  * family: a GM assistant that best-fits the scene grid to a battlemap image
@@ -31,7 +31,23 @@ import {
   registerTerrainPaintHooks,
   TERRAIN_COLORS,
 } from "./terrain-paint.mjs";
-import { routePaint, LINK_ROADS } from "./route-paint.mjs";
+import {
+  ROAD_SURFACES,
+  armAlleyPreset,
+  armRoadPreset,
+  installRoadControls,
+  registerRoadHooks,
+  roadDistance,
+  roadFromSelection,
+  roadGraph,
+  roadSurfaceKeys,
+  roadUnder,
+  roadWallData,
+  roadWallsOf,
+  wallRoad,
+} from "./roads.mjs";
+import { installRoadMarkers } from "./road-markers.mjs";
+import { convertRoutesToWalls, derivedRoutesOf, nodePoint, routesOf, stepBetweenHexes } from "./hex-routes.mjs";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`,
@@ -44,6 +60,9 @@ Hooks.once("init", () => {
   installSceneConfigRow();
   installTokenAutoScale();
   registerTerrainPaintHooks();
+  registerRoadHooks();
+  installRoadControls();
+  installRoadMarkers();
   // The session owns the samples, so it is what a scene change clears — the
   // window is only a view and may not even be open.
   Hooks.on("canvasReady", () => session.onCanvasReady());
@@ -75,6 +94,26 @@ Hooks.once("ready", () => {
     rescaleSceneTokens,
     applyFootprintToSelected,
     resetSelectedFootprints,
+    /** Roads as walls (roads.mjs): the layer, the network, and what a walk
+     *  along it costs — plus the hex links derived from it (hex-routes.mjs). */
+    roads: {
+      ROAD_SURFACES,
+      roadSurfaceKeys,
+      roadWallData,
+      roadWallsOf,
+      wallRoad,
+      roadGraph,
+      roadUnder,
+      roadDistance,
+      armRoadPreset,
+      armAlleyPreset,
+      roadFromSelection,
+      convertRoutesToWalls,
+      routesOf,
+      derivedRoutesOf,
+      nodePoint,
+      stepBetweenHexes,
+    },
     /** Hex terrain painting (terrain-paint.mjs): the map-prep brush and the
      *  reads the journey hangs off — terrain by hex, labels from offsets. */
     terrain: {
@@ -164,38 +203,54 @@ function installSceneControls() {
         }
       },
     };
-    // Routes: the road network, drawn between a hex's nodes rather than
-    // filled into its cells. One tool per road kind, so Foundry's own
-    // one-active-tool rule is the kind selection — the same shape the terrain
-    // brush uses, and the reason neither needs a palette window.
-    LINK_ROADS.forEach((kind, i) => {
+    // Roads: drawn as WALLS with core's own wall tool, on any grid. Each of
+    // these is a PRESET — it arms what the next wall is created as and hands
+    // over the drawing tool — so they are buttons rather than canvas modes,
+    // and the pip that says one is live belongs to the wall tool, not here.
+    ROAD_SURFACES.forEach((kind, i) => {
       tools[`route-${kind}`] = {
         name: `route-${kind}`,
         title: game.i18n.localize(`${LANG_PREFIX}.routes.${kind}`),
         icon: "fa-solid fa-road",
         order: CAPTURE_MODES.length + 2 + i,
-        onChange: (_event, active) => {
-          if (active) routePaint.arm(kind);
-          else routePaint.disarm();
-        },
+        button: true,
+        // ONE handler: v13+ calls BOTH `onChange` and `onClick` on a
+        // `button: true` tool, so a second arming would arrive unasked.
+        onChange: () => armRoadPreset({ surface: kind }),
       };
     });
+    // Alley is a modifier on whichever road is armed, not a road of its own: a
+    // paved alley and an earthen one are both alleys.
+    tools["route-alley"] = {
+      name: "route-alley",
+      title: game.i18n.localize(`${LANG_PREFIX}.routes.alley`),
+      icon: "fa-solid fa-road-barrier",
+      order: CAPTURE_MODES.length + 2 + ROAD_SURFACES.length,
+      button: true,
+      onChange: () => armAlleyPreset(),
+    };
+    tools["route-convert"] = {
+      name: "route-convert",
+      title: game.i18n.localize(`${LANG_PREFIX}.routes.convert`),
+      icon: "fa-solid fa-arrow-right-arrow-left",
+      order: CAPTURE_MODES.length + 3 + ROAD_SURFACES.length,
+      button: true,
+      onChange: () => convertRoutes(),
+    };
 
     tools.wipe = {
       name: "wipe",
       title: game.i18n.localize(`${LANG_PREFIX}.samples.wipe`),
       icon: "fa-solid fa-trash",
-      order: CAPTURE_MODES.length + 2,
+      order: CAPTURE_MODES.length + 10,
       button: true,
-      // One handler only: v13+ calls BOTH `onChange` and `onClick` on a
-      // `button: true` tool, so a second press would arrive unasked.
       onChange: () => session.wipe(),
     };
     tools.assistant = {
       name: "assistant",
       title: game.i18n.localize(`${LANG_PREFIX}.controls.assistant`),
       icon: "fa-solid fa-sliders",
-      order: CAPTURE_MODES.length + 3,
+      order: CAPTURE_MODES.length + 11,
       button: true,
       onChange: () => openAssistant(),
     };
@@ -283,4 +338,23 @@ function installSceneConfigRow() {
       });
     });
   });
+}
+
+/**
+ * Retire this scene's declared hex links into road walls, and say what became
+ * of them.
+ *
+ * A press rather than a migration on load: converting writes walls to a scene,
+ * and a module that did that unasked would edit maps the Judge had not opened.
+ */
+async function convertRoutes() {
+  const scene = canvas?.scene;
+  if (!scene) return;
+  const result = await convertRoutesToWalls(scene);
+  if (!result) return;
+  if (!result.made && !result.skipped) {
+    ui.notifications?.info(game.i18n.localize(`${LANG_PREFIX}.routes.convertNone`));
+    return;
+  }
+  ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.routes.converted`, result));
 }

@@ -1369,7 +1369,8 @@
   align-items: end;
 }
 
-.acks-extras-formation-settlement-night {
+.acks-extras-formation-settlement-night,
+.acks-extras-formation-settlement-wanted {
   display: flex;
   align-items: center;
   gap: var(--acks-sp-2);
@@ -1378,6 +1379,20 @@
 
 .acks-extras-formation-settlement-straggle {
   color: var(--acks-warning-ink);
+}
+
+/* The street the MAP says the party is on, under the picker that says
+   something else. Its own line rather than inline after the select: the
+   pickers row is a flex label, and a hint sharing that line squeezes the
+   control it is explaining. */
+.acks-extras-formation-settlement-road {
+  display: block;
+}
+
+/* The quarter the party is in, and what it makes of them. Read alongside
+   the tracker rather than instead of it, so it keeps the same quiet gap. */
+.acks-extras-formation-settlement-district {
+  margin: var(--acks-sp-1) 0 0;
 }
 
 .acks-extras-formation-settlement-nav {

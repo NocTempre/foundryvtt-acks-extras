@@ -1504,3 +1504,242 @@ it had been dropping both, which is why a mocked suite of ~64 files agreed with
 the bug. The regression is pinned by "turning the party pivots it on the spot
 and costs no movement", which fails on the old write with the centre moving
 (1175, 1050) → (1050, 1175).
+
+---
+
+### A city turn owes two throws, on two dice (2026-09-12)
+
+**Ruled.** The navigation throw is a d20 and the street's encounter throw is a
+d6, and both dice are named as exported constants the tick and the card read.
+One helper rolled both and defaulted to the d20, so the street was thrown for
+on a d20 against a target the registry prices on the d6 scale — an avenue that
+should answer on a 6+ answered on roughly three turns in four. Offline it was
+invisible: the tick is pure, takes the roll as an argument, and every suite
+passes it a number.
+
+**What it cost.** The live walk found it on the first card that showed a
+throw — *Threw 18 against 6+*. The card now names the die for exactly that
+reason: a wrongly scaled throw changes how often the street answers while
+changing nothing else a Judge can see, so the scale has to sit on the surface
+where the mistake would show.
+
+---
+
+### A zone in a city overrides interval, target and table (2026-09-12)
+
+**Ruled.** `onTurnCompleted` hands a settlement turn to `cityTurnCompleted` and
+returns, so the delve's zone consult never ran: an Encounter Zone drawn over a
+quarter changed nothing in a city, while MODEL said it still overrode. The city
+tick now consults `findEncounterZone` itself, and `resolveCityCadence` puts the
+layers in order — street, zone, district — innermost-first and per field.
+
+**A zero means inherit.** The behaviour schemas initialise their number fields
+to 0, so a Judge who leaves a box alone means the layer beneath to answer. An
+override that states only an interval keeps the target beneath it.
+
+**A fully stated override can price a throw the registry never did.** A Judge
+who typed both figures meant them, and refusing to throw because the city's own
+table is unimported would discard the one answer available. A half-stated
+override cannot: an interval with no target is not a throw.
+
+**Rejected: reading an override's table through the city's d100 procedure.**
+The imported incident table is a d100 of banded rows and carries the registry's
+after-dark shift; a table a Judge drew is an ordinary RollTable with a formula
+of its own, and a d100 forced onto a 1d6 table misses every row. Override
+tables are drawn the way the delve clock already draws a zone's, and the
+after-dark shift stays with the table it belongs to.
+
+**Rejected: one lookup for both questions.** Whether something finds the party
+and what it turns out to be are answered in different places — a zone may
+change how busy the harbour is without changing who is on it — so
+`pickIncidentSource` picks the table independently of `resolveCityCadence`.
+
+---
+
+### A stay is credited in days actually thrown for (2026-09-12)
+
+**Ruled.** `creditHoledUpDays` moved the stay stamp by the days that had
+PASSED while `runHoledUpDays` rolled at most thirty of them, so a calendar
+dragged forty-five days ahead credited thirty and retired forty-five. Fifteen
+days got no throw, were never counted, and left no trace: the board and the
+calendar simply disagreed. The credit now reports what it charged, and the
+stamp moves by that alone — the remainder stays on the clock for the next
+advance.
+
+**The cap stays, and it bounds the dice rather than the stay.** A Judge who
+drags the calendar a year forward means a year to pass, not a year of throws in
+one frame. The card says how much is still catching up, because a stay that is
+behind and a stay that lost the difference look identical on a card that says
+nothing.
+
+**`advanceRounds` settles the credit itself.** It advances the world clock at
+the top and saves its own copy of the record whole at the end, so a credit the
+watcher landed in between was written back over. It now awaits
+`creditHoledUpDays` immediately after the advance and re-reads the board.
+
+---
+
+### Re-entering a city keeps what the Judge set, not what the last city counted (2026-09-12)
+
+**Ruled.** `setJourneyMode` replaced the whole board on entry, under a comment
+promising that "stepping out to the country and back does not forget the route"
+— which is precisely the case that branch reset. `reenterSettlement` keeps the
+six pickers and clears the tallies: blocks, turns, days and the stay's stamp
+belong to the city they were spent in.
+
+**Rejected: keeping the whole board.** A party would arrive in a new city
+already forty blocks into it, and the progress line would read as a tracker
+that never resets.
+
+---
+
+### The panel derives from the readers the tick derives from (2026-09-12)
+
+**Ruled.** Every figure the settlement panel shows is computed by the call the
+tick makes, not by a second expression that agrees with it today. Headcount is
+`realMembers` at both ends; a stationary party is gated in the view exactly as
+in the tick; and the tracker's "timed by blocks" claim is published by the view
+instead of being re-derived in the template from the block size alone.
+
+**What it cost.** Three separate readings had drifted. The panel counted the
+marching order's blank ranks, so fifteen empty cells put a straggling tier on
+the panel at half the rate the turn actually applied. A holed-up party was
+shown a block rate and a navigation target nothing was going to consult. And
+the tracker claimed block timing whenever a scene declared a block size, even
+where the pace was unpriced and the clock had already fallen back to walking
+speed — a readout naming a rate nothing was using.
+
+**A template re-deriving a predicate is the shape to watch for.** It is the one
+place a view's own reader cannot be reused, so the agreement is by eye and only
+holds until one side changes.
+
+---
+
+### A figure that never arrived is never shown as a zero (2026-09-12)
+
+**Ruled.** `citySpec` coerced a missing known-destination modifier to `+0`,
+which on the panel is indistinguishable from an imported zero. It now reports
+`unpricedRoute` the way `streetCadence` already reports `unpricedIntent`, and
+both reach the panel and the card. The two figures are parsed from separate
+sentences, so one arriving without the other is an ordinary import, not a
+corrupt one.
+
+**`unpricedIntent` had been computed, carried through the tick on its event,
+and read by nothing.** A flag with no surface is the same defect as a schema a
+Judge cannot populate: the work is done and the Judge is still not told.
+---
+
+### A district states a day figure and a night figure, not a figure and a shift (2026-09-12)
+
+**Ruled.** The District behaviour carries `encounterEveryDay`/`encounterEveryNight` and
+`encounterTargetDay`/`encounterTargetNight` — four independent boxes — and carries no
+after-dark shift of its own.
+
+**Rejected: `afterDarkShift` on the district.** It was in the plan and it does not ship.
+Two reasons, and the second is the one that decides it. It had no consumer:
+`settlementEncounter` takes the after-dark figure from the registry, and
+`rollSettlementIncident` hard-codes zero on the drawn-table branch, so the field would have
+been a box a Judge could fill and nothing would read — the same defect as a schema the
+importer never writes. And the day/night pair already *is* the district's after-dark
+difference: a gazetteer describes a quarter by what it is like in daylight and what it is
+like after dark (JJ ch. 7), not by one figure and a correction. Shipping both shapes would
+let a Judge state the same thing twice with no rule for which wins.
+
+**Where a shift does belong, unchanged.** The city's own d100 incident table carries one,
+priced by the registry, because that is the figure the page prints for it. A district-level
+shift on that roll has no printed analogue; if one is ever found it is a new field, not a
+reinstatement of this one.
+
+---
+
+### A district's reaction figure is signed, and never inherits (2026-09-12)
+
+**Ruled.** `reactionModifier` is a signed integer where **0 means "this quarter is
+unremarkable"**, and it never passes through `stated()`.
+
+**Why the guard is worth writing down.** `stated()` is the cadence layering's reader and
+its whole contract is the opposite: it treats 0 as *inherit the layer outside me* and
+rejects a negative outright (`Number.isFinite(n) && n > 0`). A reaction penalty of −2 routed
+through it becomes null, which the layering reads as "not stated", which inherits — so the
+unwelcoming quarter would silently read as an ordinary one. The two fields look alike on the
+sheet and mean opposite things by zero; that is exactly how one comes to be read by the
+other's helper. `districtReaction` is a separate reader for this reason.
+
+**`reactionWhere` reuses the board's own vocabulary** — `any` plus the `SETTLEMENT_LOCATIONS`
+keys — rather than inventing a second spelling of "where". A gazetteer scopes the unwelcome
+to the alleyways rather than to the quarter entire (JJ ch. 7), so the figure carries the
+place it is owed in and is owed nowhere else.
+
+**`holedUp` is in the list and is meant.** It arrives for free from reusing the vocabulary,
+and it is a real case: a quarter can be unwelcoming to sleep in and unremarkable to walk
+through. The scope test needs no special case for it — a party indoors matches `holedUp` or
+`any` and never matches `avenue` or `alley`.
+
+---
+
+### A district does not name its own place actor (2026-09-12)
+
+**Rejected: `locationUuid` on the District behaviour.** It was in the plan and it does not
+ship.
+
+The canonical link between a map and the place it depicts is the scene flag
+`scene.flags["acks-extras"].location`, mirrored as the location actor's `system.sceneUuid`
+and read by `locationOfScene`/`sceneOfLocation`. A second link, per district behaviour,
+states the same fact in a second place and can disagree with it — and the disagreement would
+surface as a district that reports a different place than the scene it is drawn on.
+
+**A district's name is the Region's name.** Nothing else is needed for the surfaces that
+exist: the card and the panel already name a region by `region.name`, which is what a Judge
+typed and what they will recognise. Binding a quarter to a place *document* is Phase 3's
+question, where points of interest are actors with tokens and a district is one of the things
+they sit inside.
+
+---
+
+### Being hunted is a board fact, and it does not travel (2026-09-12)
+
+**Ruled.** `wanted` is a boolean on the settlement board, set by the Judge, and it selects a
+district's `wantedTableUuid` over its ordinary table. `reenterSettlement` **drops it**.
+
+**Why a second table and not a modifier.** What a watch that is hunting a particular party
+sends after them is a different list, not the ordinary list rolled higher. `pickIncidentSource`
+therefore picks innermost-first on the table alone, independently of the cadence: a district
+may change who is on its streets without changing how often they are met.
+
+**Why re-entry drops it.** Everything else the Judge told the board survives leaving a city
+and coming back, which is the whole reason the known route is remembered. Being hunted is a
+fact about *one settlement's own powers*, and `reenterSettlement` cannot tell one settlement
+from another — it sees only the previous board. A party arriving somewhere new therefore
+arrives unhunted, and the Judge says so again if the hunt followed them. The durable,
+per-settlement version of this is Phase 4's standing ledger, and this field is what it will
+replace.
+
+**A fall-through worth naming.** `wanted` with no `wantedTableUuid` declared does **not**
+fall through to the city — it falls to the district's ordinary table. A quarter that has said
+who is on its streets has answered the question; being hunted there does not un-answer it.
+
+---
+
+### The district travel figures ship before the thing they measure between (2026-09-12)
+
+**Ruled.** The `ax3` recipe extracts `districtTravel: {same: {commuting, meandering},
+adjacent: {commuting, meandering}}` into the registry, in turns, and **nothing consumes it
+yet**.
+
+The figures on the page (AX3 p60) are stated as the time to cross between *points of
+interest* — within one district, and into an adjacent one. Points of interest are Phase 3.
+Extracting them now costs one pass over a page the recipe is already reading; extracting them
+later costs re-walking it, and the prose is the kind that is easy to miss on a second look
+because it is prose rather than a grid.
+
+**This is the dependency half, not half a feature** (TOOLCHAIN §10e). The distinction that
+makes it legitimate: no user-facing surface claims the figures exist. There is no field, no
+picker, and no default — an absent import reads as absent, and the importer test asserts the
+emitted shape so a Phase 3 consumer has a contract rather than a guess. The failure this
+avoids is the opposite one: extras 4.16.0 shipped a schema with no importer and a sheet that
+listed options it could not add, so the feature existed only for the API.
+
+**The two speeds were already right.** `SETTLEMENT_PACES` ships `commuting` throwing for
+navigation and `meandering` not, which is what the page says, and which pace throws is
+structural. The target, the known-destination modifier and the displacement dice are all read
+from the registry, which is what they are.

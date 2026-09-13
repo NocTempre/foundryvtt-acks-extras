@@ -17,8 +17,10 @@ import {
 import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, realMembers, updateFormation } from "./formation-model.mjs";
 import { onJourneyTokenMoved } from "./travel.mjs";
 import { feetPerTurn, settlementOf } from "./settlement.mjs";
-import { cityTurnCompleted } from "./settlement-turn.mjs";
+import { cityTurnCompleted, creditHoledUpDays } from "./settlement-turn.mjs";
 import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
+import { roadDistance } from "../battlemap/roads.mjs";
+import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { maybeHexThrow } from "./encounter-card.mjs";
 import { prepareToLight } from "../lib/light.mjs";
 import { equipForLight } from "./judge-override.mjs";
@@ -414,6 +416,24 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
   // downtime, so the gate lives in lib.
   if (mayAdvanceWorldTime()) {
     await game.time.advance((TURN_SECONDS / ROUNDS_PER_TURN) * rounds);
+    // Settle what that advance owes BEFORE this call ticks, and take the
+    // result back into the clone. The holed-up day credit rides the world
+    // clock and writes the stored record; this function saves its own copy
+    // whole at the end, so a credit landing in between is written back over
+    // and the stay silently loses the day it was just charged for.
+    await creditHoledUpDays();
+    const stored = getFormation(formation.id)?.travel?.settlement;
+    if (stored) {
+      // The stored board wins on everything the day credit touches. It does NOT
+      // win on how the move being resolved was measured: the caller established
+      // that from the drag a moment ago and it has not reached the record yet, so
+      // taking the stored value here would report every city move as a straight
+      // line. Carried only when this call set one, so a rest does not erase it.
+      const next = { ...stored };
+      const board = formation.travel?.settlement;
+      if (board?.measuredAlong != null) next.measuredAlong = board.measuredAlong;
+      formation.travel = { ...(formation.travel ?? {}), settlement: next };
+    }
   }
 
   for (let i = 0; i < rounds; i++) {
@@ -560,6 +580,20 @@ export function turnDistance(formation, scene) {
  * move's worth of distance is spent. Straight-line distance between the last
  * processed position and the new one (waypoint drags are approximated).
  */
+/**
+ * A token's centre, optionally at a corner position it is not standing in.
+ *
+ * A token's `x`/`y` is its top-LEFT corner, which is the wrong point to ask
+ * which street it is on: a four-square wagon's corner can sit a block from the
+ * street its middle is on. `at` moves the same offset to an earlier corner, so
+ * both ends of a move are measured from the same part of the token.
+ */
+function centreOf(tokenDoc, at = null) {
+  const centre = tokenDoc.getCenterPoint?.() ?? { x: tokenDoc.x, y: tokenDoc.y };
+  if (!at) return centre;
+  return { x: at.x + (centre.x - tokenDoc.x), y: at.y + (centre.y - tokenDoc.y) };
+}
+
 export async function onPartyTokenMoved(tokenDoc, formationId) {
   const formation = getFormation(formationId);
   if (!formation) return;
@@ -585,7 +619,23 @@ export async function onPartyTokenMoved(tokenDoc, formationId) {
   formation.clock.lastPosition = { x: tokenDoc.x, y: tokenDoc.y };
   if (!dx && !dy) return;
 
-  const feet = (Math.hypot(dx, dy) / scene.grid.size) * scene.grid.distance;
+  // FEET, through the scene's own units — not `grid.distance` raw. A map drawn
+  // in yards or miles states its cell in those, and the speed this is about to
+  // be spent against is in feet.
+  const perCell = sceneFeetPerCell(scene) || scene.grid.distance;
+  const straight = (Math.hypot(dx, dy) / scene.grid.size) * perCell;
+  // In a city, the streets are the distance. A drag round a bend is measured
+  // ALONG the roads under it, so a party that followed a curving avenue pays
+  // for the avenue rather than for the chord across the block it went round.
+  // No roads, or neither end on one, falls back to the straight line and the
+  // panel says which happened.
+  const measured = formation.travel?.mode === "settlement"
+    ? roadDistance(scene, centreOf(tokenDoc, last), centreOf(tokenDoc))
+    : null;
+  const feet = measured?.feet ?? straight;
+  if (formation.travel?.mode === "settlement" && formation.travel.settlement) {
+    formation.travel.settlement.measuredAlong = !!measured;
+  }
   // How far one turn carries this party HERE. A dungeon turn is an exploration
   // move; a city turn is the pace's blocks, which the scene sizes in feet.
   // Same tracker either way — only the currency changes.

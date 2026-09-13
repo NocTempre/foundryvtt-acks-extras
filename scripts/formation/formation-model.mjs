@@ -312,9 +312,17 @@ export function explorationSpeedOf(actor) {
   return actor?.system?.movement?.base ?? 0;
 }
 
-/** Real members of the marching order (grid cells minus blank slots). */
+/**
+ * Real members of the marching order (grid cells minus blank slots).
+ *
+ * This is the party's HEADCOUNT wherever one is wanted — anything that counts
+ * `members` instead counts the empty ranks a Judge left in the grid, and a
+ * panel and a tick that count differently disagree about the same party.
+ */
 export function realMembers(formation) {
-  return formation.members.filter((m) => m && !m.blank && m.actorId);
+  const cells = formation?.members;
+  if (!Array.isArray(cells)) return [];
+  return cells.filter((m) => m && !m.blank && m.actorId);
 }
 
 /**

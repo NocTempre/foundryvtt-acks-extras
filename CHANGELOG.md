@@ -1,5 +1,101 @@
 # Changelog
 
+## 7.6.0
+
+**A city is walked along its streets, and a quarter keeps its own time.**
+
+### Added
+- **A wall can be a street, and a city walk is measured along the ones that
+  are.** Walls carry a road layer — avenue or alley, with its own tools on the
+  Walls control and a row on the wall sheet — and in settlement mode a drag is
+  measured over the graph those walls draw rather than as the straight line
+  between its ends. A party that follows a curving avenue pays for the avenue,
+  not for the chord across the block it went round. Nothing is measured along a
+  wall that blocks movement, both ends have to be within a cell of the network,
+  and where any of that fails the straight line answers exactly as before — the
+  tracker says which of the two happened. A map with no roads drawn behaves
+  identically to 7.5.5.
+- **A district is a quarter of the city that keeps its own encounter rhythm,
+  its own people, and its own opinion of strangers.** A scene Region carrying
+  the new District behaviour states an interval and a target for day and
+  another pair for after dark, the table its encounters are drawn from, a
+  second table for a party being hunted through it, and a signed figure for how
+  the quarter receives strangers with the street kind that figure applies on.
+  Every box is optional: a zero means *inherit the layer outside me*, so a
+  district that prices only its nights is quiet by day, and a district with
+  every box at zero changes nothing at all.
+- **Two Judge tools make a district out of whatever is already selected** —
+  mark the Regions selected on the Regions control, or enclose a closed loop of
+  walls selected on the Walls control. Both can be pressed twice safely: a
+  region that already carries the behaviour opens the one it has, and a wall
+  loop that already bounds a district hands that district back rather than
+  stacking a second over the same ground. A district is not GM-pinned the way a
+  trap area is — the party knows which quarter it is standing in.
+- **A party can be hunted, and being hunted changes who finds them.** *Hunted
+  here* on the settlement panel routes the street's encounter to the district's
+  hunted table; where the district has named nobody for that case, its ordinary
+  table still answers rather than the city's. The flag belongs to the
+  settlement the party is in and is dropped on leaving it, while the pace, the
+  place, the route and the hour a Judge set are all kept.
+- **A quarter's reception reaches an influence throw.** Where a district states
+  a reaction figure and the party is standing where it applies, the roller
+  carries it as a named, read-only row — the district by name and the signed
+  figure — and the subtotal and the posted card include it. Only reaction
+  throws take it: loyalty, morale and obedience are about someone already
+  known, not about how a quarter receives a stranger, and a throw this module
+  has never classified is left alone rather than charged.
+
+### Fixed
+- **A place is reached through its own token, whichever way that token was
+  dropped.** Storage offered a market cart or a wayside shrine only to whoever
+  owned it: the check that was meant to notice a party standing at its marker
+  compared a token's per-token actor against the world actor, and those never
+  match on an ordinary unlinked token, so the whole branch was unreachable on
+  any map. Standing at a place's token now reaches it. A character marching in
+  a formation reaches through the party's token — joining a formation removes
+  their own — and that same rule now decides a place whose whole scene is the
+  place, where a member standing in the inn with their company was previously
+  told they were not there.
+- **"You must be at ‹somewhere›" is only said about a place that is somewhere.**
+  A place with no map and no marker is refused as not yours, which is what it
+  is; a place that is on a map names the map, so the refusal is somewhere to
+  walk instead of a blank. A marker a step above the floor is still underfoot,
+  and one a storey up is not — the band is the scene's own square distance
+  rather than a figure chosen here.
+- **An Encounter Zone drawn over a city quarter overrides the street again, and
+  the panel shows it.** The city turn never consulted zones at all, and the
+  panel read the bare street, so a zone a Judge drew changed nothing and said
+  nothing. Street, zone and district now layer per field and in that order, so
+  an override stating only an interval keeps the target beneath it.
+- **The line naming an override names the right layer for each figure.** An
+  interval and a target can come from different layers, and one name was
+  printed over both — a zone's interval could be credited to the district
+  around it. Each figure carries its own attribution, the panel and the turn
+  card read it from one place, and a figure with no name to print is left
+  unattributed rather than mislabelled.
+- **A street encounter is thrown on the die the rule uses.** The throw was made
+  on the navigation die against a target on the encounter die's scale, which
+  made the street answer several times too often and was invisible on every
+  surface. The card now names the die it rolled.
+- **A holed-up stay is charged in the days it actually threw for.** A long
+  calendar advance retired more days than it rolled, and a turn taken in the
+  same breath as the advance could write the pre-advance board back over the
+  credit. What is not charged is not forgiven: the stamp stays behind and the
+  next advance charges the next stretch.
+- **The panel counts the party, not the blanks in the marching order.** Empty
+  ranks a Judge leaves for spacing were counted as bodies, so a straggling tier
+  could appear on the panel that the turn never applied.
+- **The road and trap rows on the wall sheet refresh after a write.** Both sat
+  outside the sheet's scrolling body, below the pinned footer, so they showed
+  the values they were first rendered with however many times the wall changed.
+
+### Changed
+- **The settlement panel and the turn tick derive from the same readers.**
+  Where the party is standing — the street drawn under their token, over the
+  picker, except a stationary answer no road overrules — is read once and
+  shared, so the panel can no longer disagree with the turn about the same
+  party.
+
 ## 7.5.5
 
 **An imported skill keeps its category, and the register lint holds every

@@ -68,7 +68,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   #attitudeItem = null;
   /** Forces the hidden (GM-whisper) posting path when a GM resolves a player's roll. */
   #forceHidden = false;
-  /** Externally injected modifiers (api.open(actor, {modifiers: [{label, value}]})). */
+  /**
+   * Externally injected modifiers: `api.open(actor, {modifiers: [{label, value}]})`
+   * plus whatever `HOOKS.INFLUENCE_MODIFIERS` listeners added before this app
+   * was constructed (module.mjs merges both into one array). Read-only here —
+   * see the render-context note in _prepareContext.
+   */
   #externalModifiers = [];
   /** External mode (hiring / loyalty page hosted for consumer modules). */
   #modeId = "";
@@ -541,12 +546,24 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     return !this.#targetActor.testUserPermission?.(game.user, "OBSERVER");
   }
 
-  /** GM-side: rebuild the roll with full target data and post it (hidden path). */
+  /**
+   * GM-side: rebuild the roll with full target data and post it (hidden path).
+   *
+   * `payload.externalModifiers` is carried verbatim from the player's dialog
+   * rather than re-derived by firing `HOOKS.INFLUENCE_MODIFIERS` again on the
+   * GM client: those figures (a district's reaction modifier, a settlement's
+   * slander penalty) were already rendered read-only to the player before the
+   * roll, so trusting the same values back costs nothing a re-derive would
+   * guard against, while re-firing the hook cannot promise the identical list
+   * if scene state moved between opening the dialog and clicking roll. The
+   * invariant this keeps is that the resolved roll's modifier list equals
+   * what the player saw.
+   */
   static async resolveExternal(payload = {}) {
     const actor = payload.actorUuid ? await fromUuid(payload.actorUuid) : null;
     if (!actor) return;
     const target = payload.targetUuid ? await fromUuid(payload.targetUuid) : null;
-    const app = new InfluenceApp({ actor, targetActor: target });
+    const app = new InfluenceApp({ actor, targetActor: target, modifiers: payload.externalModifiers });
     app.#forceHidden = true;
     app.#applyExternalState(payload);
     await app.#rollInfluence();
@@ -600,6 +617,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       currentAttitude: this.#system.currentAttitude,
       gmAdjustment: this.#system.gmAdjustment,
       playerMods: foundry.utils.deepClone(this.#modifiers[this.#system.tone]),
+      // The externally-injected modifiers this dialog is already showing
+      // (read-only rows: a district's reaction figure, a settlement's slander
+      // penalty) — forwarded so the GM's resolve computes against the same
+      // list the player saw. See resolveExternal for why this is sent rather
+      // than re-derived.
+      externalModifiers: foundry.utils.deepClone(this.#externalModifiers),
       // Blind bribe guess: the gp the player offers without knowing the tiers.
       bribeOffer: Number(this.#modifiers[INFLUENCE_TONE.DIPLOMACY]?.bribeFee) || 0,
     };
@@ -725,6 +748,15 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     context.hasTarget = Boolean(this.#targetActor);
     context.ladder = this.#attitudeLadder();
     context.groups = this.#buildGroups();
+    // Externally injected modifiers (a district's reaction figure, a
+    // settlement's slander penalty): read-only, since their value comes from
+    // where the party stands rather than anything typed here, and disagreeing
+    // with their own source is worse than not being editable. They already
+    // move #computeSubtotal() and the chat card regardless of whether this
+    // list is empty — this is what lets the dialog say why. Not target-derived,
+    // so unlike bribeFee/targetWill/etc. they carry no target secret and are
+    // never subject to #targetHidden() masking.
+    context.externalModifiers = this.#externalModifiers.map((m) => ({ label: m.label, value: m.value }));
     context.relationshipModifier = this.#relationshipModifier();
     context.finalModifier = this.#finalModifier;
     context.targetHidden = this.#targetHidden();

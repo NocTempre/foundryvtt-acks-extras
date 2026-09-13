@@ -90,7 +90,7 @@ export const ANCILLARY_ACTIVITIES = Object.freeze({
 /** The road vocabulary is the vehicles feature's; re-exported for callers. */
 export { ROAD_KINDS } from "../vehicles/vehicle-speed.mjs";
 import { ROAD_KINDS, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
-import { settlementOf, freshSettlement, carryStay } from "./settlement.mjs";
+import { settlementOf, reenterSettlement, carryStay } from "./settlement.mjs";
 import { skyFor, readSkyCache, priorSky } from "./sky.mjs";
 import { runProvisionDay } from "./provision-day.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
@@ -310,9 +310,12 @@ export function setJourneyMode(formationId, journey) {
     record.travel = {
       ...t,
       mode,
-      // Entering a settlement starts a fresh board; leaving one keeps it, so
-      // stepping out to the country and back does not forget the route.
-      settlement: mode === "settlement" && t.mode !== "settlement" ? freshSettlement() : t.settlement,
+      // Entering a settlement starts a fresh TALLY and keeps what the Judge
+      // set, so stepping out to the country and back does not forget the
+      // route; leaving one keeps the board whole.
+      settlement: mode === "settlement" && t.mode !== "settlement"
+        ? reenterSettlement(t.settlement)
+        : t.settlement,
     };
     record.clock = { ...(record.clock ?? {}), paused: mode === "journey" };
   });
@@ -340,15 +343,23 @@ export async function adoptSceneSystem(formationId, scene) {
   return system;
 }
 
-/** The settlement board's own writer: pace, where, route, night. */
+/** The settlement board's own writer: pace, where, route, night, hunted. */
 export function patchSettlement(formationId, patch = {}) {
   return patchFormation(formationId, (record) => {
     const t = travelOf(record);
     const next = { ...t.settlement };
-    for (const key of ["pace", "where", "route"]) {
+    // Every picker the panel shows, because this is the api the panel's own
+    // vocabulary is reachable through: a key accepted by the form and dropped
+    // here is a setting a caller can write and never see take effect.
+    // `settlementOf` below is what rejects a value outside a vocabulary.
+    // `days` and `holeUpSince` are deliberately absent — the world clock owns
+    // the stay, and a caller writing either desynchronises it from the
+    // calendar it is counted against.
+    for (const key of ["pace", "where", "route", "intent", "conveyance"]) {
       if (patch[key] !== undefined) next[key] = String(patch[key]);
     }
     if (patch.night !== undefined) next.night = !!patch.night;
+    if (patch.wanted !== undefined) next.wanted = !!patch.wanted;
     if (patch.blocks !== undefined) next.blocks = Number(patch.blocks) || 0;
     if (patch.turns !== undefined) next.turns = Number(patch.turns) || 0;
     if (patch.lost !== undefined) next.lost = !!patch.lost;
@@ -624,7 +635,11 @@ export function applyTravelForm(formationId, tv = {}) {
         settlement: {
           ...t.settlement,
           ...tv.settlement,
+          // Both checkboxes are read explicitly rather than left to the spread:
+          // an unticked checkbox is ABSENT from the submit, so a spread keeps
+          // whatever was there and the box can be ticked but never cleared.
           night: !!tv.settlement.night,
+          wanted: !!tv.settlement.wanted,
         },
       });
       // Stepping back into the street ends the stay, stamp and all.

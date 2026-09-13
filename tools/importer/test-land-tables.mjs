@@ -30,7 +30,7 @@ import {
 } from "../../scripts/importer/searching-binding.mjs";
 import {
   parseBlocks, parseStragglingTiers, parseCadenceTurns, assembleCadence,
-  assembleCityTravelTables,
+  assembleCityTravelTables, assembleDistrictTravel,
 } from "../../scripts/importer/city-travel-binding.mjs";
 import { parseFactor, parseHeavyLoadFactor, assembleFlightTables } from "../../scripts/importer/flight-binding.mjs";
 import { terrainKey, terrainKeys, keyTerrainMap } from "../../scripts/importer/terrain-vocab.mjs";
@@ -244,6 +244,61 @@ check("the paces, the target, the modifier and the stray all read",
   city.paces.commuting.blocksPerTurn === 9 && city.paces.meandering.blocksPerTurn === 1
   && city.navigation.target === 13 && city.navigation.knownDestination === 6
   && city.navigation.strayBlocks === "2d6+3");
+check("a doc with no district paragraph carries no districtTravel key",
+  city.districtTravel === undefined);
+
+/* --- district travel (AX3) ------------------------------------------------
+   Invented pace names ("hustle"/"stroll") and invented figures throughout —
+   only the scope phrasing the parser locates on ("the same district",
+   "adjacent districts") and the paragraph split marker ("at meandering
+   speed") are shaped like the page, the same way every other reader here is
+   pinned against a shape rather than a transcript. The block-rate sentence
+   ahead of each district sentence carries its OWN bracketed figure too, the
+   way the page's per-block time is bracketed right before the district
+   figure it is not — a fixture without that second bracket cannot exercise
+   the one failure that matters: a lost sentence break letting the match
+   reach back across it. */
+const districtProse =
+  "it takes about 30 seconds (2 turns) to cross one plaza tile. it takes about 5 minutes (6 turns) to "
+  + "hustle between two landmarks in the same district. it takes about 15 minutes (3 turns) to hustle "
+  + "between two landmarks in adjacent districts. characters who hustle must make a bearing check every "
+  + "turn or drift off course. at meandering speed, it takes about eight minutes (9 turns) to cross one "
+  + "plaza tile. it takes about 40 minutes (4 turns) to stroll between two landmarks in the same district. "
+  + "it takes about 3 hours (18 turns) to stroll between two landmarks in adjacent districts. characters "
+  + "who stroll never lose their bearings.";
+const districtTravel = assembleDistrictTravel(districtProse);
+check("the same-district figures read for both paces",
+  districtTravel.same.commuting === 6 && districtTravel.same.meandering === 4);
+check("the adjacent-district figures read for both paces",
+  districtTravel.adjacent.commuting === 3 && districtTravel.adjacent.meandering === 18);
+
+// The block-rate sentence's own bracket sits ahead of the district sentence
+// with NO full stop between them — the shape a degraded page's lost sentence
+// break produces. `[^.(]` refuses to cross the block-rate bracket to reach
+// the district one; `[^.]` alone would not, and would credit the block-rate
+// reading (2) to the district figure (6) instead.
+const noStop = assembleDistrictTravel(
+  "it takes about 30 seconds (2 turns) to cross one plaza tile it takes about 5 minutes (6 turns) "
+  + "to hustle between two landmarks in the same district.",
+);
+check("a missing sentence break before a district clause still credits the district's own bracket, "
+  + "not the block-rate one ahead of it", noStop.same.commuting === 6);
+
+const wrapped = assembleDistrictTravel(
+  "it takes about 5 minutes (7 turns) to hus - tle between two landmarks in the same district. "
+  + "at meandering speed, it takes about 40 minutes (4 turns) to str - oll between two landmarks in the "
+  + "same district.",
+);
+check("a line-wrap hyphen splitting the verb does not lose the reading",
+  wrapped.same.commuting === 7 && wrapped.same.meandering === 4);
+
+check("no paragraph reads as no districtTravel, not a guess",
+  assembleDistrictTravel("") === null && assembleDistrictTravel() === null);
+
+const cityWithDistricts = assembleCityTravelTables({ districtProse: { paragraph: districtProse } });
+check("assembleCityTravelTables files it under districtTravel",
+  cityWithDistricts.districtTravel.same.commuting === 6
+  && cityWithDistricts.districtTravel.adjacent.meandering === 18);
 
 /* --- one terrain vocabulary ----------------------------------------------
    The book names the same country differently table to table. These are NAMES,

@@ -550,3 +550,57 @@ which deletes the packs whole and would otherwise count a shelf's tables twice.
 out"): the names, the flags, the adoption of a pre-flag document and the way
 out all stand — a legacy raw-key sidebar table is now adopted by being rebuilt
 on the shelf rather than renamed in place.
+
+## 2026-09-12 — Deposit reach asks one question of one subject
+
+**Reported (review of the settlement layer's own work):** the ground half of
+`depositReach` was dead on any ordinary map, and its refusals said the wrong
+thing.
+
+Four rulings, and they are one ruling seen from four sides: **ask the right
+subject.**
+
+**A place on the ground is identified by its token's BASE actor id.** An
+unlinked token — Foundry's default, and what a Judge drops — carries a synthetic
+`token.actor` whose uuid is `Scene…Token…Actor…`, never the world actor's, so an
+identity test routed through it is false for every map that has not been
+deliberately linked. `here.mjs` matches `token.actorId` and nothing else.
+
+**A gate asks about ONE place, so it gets its own predicate.**
+`placeUnderParty` answers "which place, if any" and is a display reader; asking
+it "is it this one" is wrong twice over, because it answers with whichever
+marker it meets first. `placeReachesSpot(place, spot)` is the predicate, and
+both walk the same tokens through the same two tests so they cannot disagree
+about the ground. *Rejected:* making `placeUnderParty` return a list — the
+display wants one name, and the gate wants a yes or no about a place it already
+holds.
+
+**Whose token is on the ground is one question for BOTH halves of the rule.**
+Joining a formation deletes a member's own token, so a member asked for their
+own token is standing nowhere — which silently refused every member of a party
+sitting in a linked scene. `standingSpots` answers once, the formation before
+the character's own tokens, and the linked-scene half and the ground half both
+go through it. A stale token left on a map by an earlier release therefore grants
+nothing while a formation claims its owner, which is the intended reading of "the
+formation answers alone".
+
+**`notHere` names a map, so it is only said about a place that is on one.** A
+place with no token anywhere and no linked scene is `notYours`: it is a claim
+the character does not have, not a journey they have not made, and sending a
+player out to find something that is nowhere is worse than telling them it is
+not theirs. A marker on several maps names the first; a blank `{scene}` in that
+message is worse than an incomplete one.
+
+**A floor is the scene's own square distance**, read off `grid.distance`, so a
+token raised or flying a step above the ground still reaches what is beneath it
+while a storey up does not. Exact equality refused the first; a padding figure
+chosen here would have been the radius this feature has refused since it was
+written. A scene declaring no distance falls back to exact equality rather than
+to a guess.
+
+**Cost:** `depositReach`'s option bag is now `{scan}` — one world token pass
+(`reachScan`) built per render by the Storage tab and the equipment tab, rather
+than one `game.scenes` sweep per place. The distinction between the two refusals
+needs that index or it would cost a second sweep per unreachable place.
+`tools/test-location-reach.mjs` pins all of it; the suite was mutation-checked
+against the identity defect and the formation defect before it was trusted.

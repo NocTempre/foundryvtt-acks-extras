@@ -28,6 +28,11 @@
             <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
           {{/each}}
         </select>
+        {{! A road DRAWN under the party overrides the picker, so the panel says
+            which street the turn will actually be resolved on. }}
+        {{#if travel.settlement.whereFromRoad}}
+          <span class="hint acks-extras-formation-settlement-road">{{travel.settlement.roadLine}}</span>
+        {{/if}}
       </label>
       <label>{{localize "ACKS-FORMATION.settlement.routeLabel"}}
         <select name="travel.settlement.route">
@@ -40,6 +45,12 @@
         <input type="checkbox" name="travel.settlement.night"
                {{#if travel.settlement.night}}checked{{/if}}>
         {{localize "ACKS-FORMATION.settlement.night"}}
+      </label>
+      <label class="acks-extras-formation-settlement-wanted"
+             data-tooltip="{{localize 'ACKS-FORMATION.settlement.wantedHint'}}">
+        <input type="checkbox" name="travel.settlement.wanted"
+               {{#if travel.settlement.wanted}}checked{{/if}}>
+        {{localize "ACKS-FORMATION.settlement.wantedLabel"}}
       </label>
       <label>
         {{localize "ACKS-FORMATION.settlement.intentLabel"}}
@@ -67,7 +78,8 @@
       {{else}}
         <strong>{{travel.settlement.rateBlocks}}</strong> {{localize "ACKS-FORMATION.settlement.blocks"}}
         {{#if travel.settlement.straggling}}
-          · <span class="acks-extras-formation-settlement-straggle">{{localize "ACKS-FORMATION.settlement.straggling"}}</span>
+          · <span class="acks-extras-formation-settlement-straggle"
+                  data-tooltip="{{localize 'ACKS-FORMATION.settlement.stragglingHeadcount' headcount=travel.settlement.headcount}}">{{localize "ACKS-FORMATION.settlement.straggling"}}</span>
         {{/if}}
       {{/if}}
     </p>
@@ -84,7 +96,7 @@
     <p class="hint acks-extras-formation-settlement-tracker">
       {{#if travel.settlement.stationary}}
         {{localize "ACKS-FORMATION.settlement.trackHoledUp"}}
-      {{else if travel.settlement.onMap}}{{#if travel.settlement.blockFeet}}
+      {{else if travel.settlement.onMap}}{{#if travel.settlement.timedByBlocks}}
         {{localize "ACKS-FORMATION.settlement.trackBlocks" feet=travel.settlement.blockFeet units=travel.settlement.units turn=travel.settlement.turnFeet}}
       {{else}}
         {{localize "ACKS-FORMATION.settlement.trackWalk" turn=travel.settlement.turnFeet units=travel.settlement.units}}
@@ -92,6 +104,16 @@
       {{else}}
         {{localize "ACKS-FORMATION.settlement.trackNoMap"}}
       {{/if}}
+      {{! And whether the last move was counted along the streets or across
+          them: a bend measured as its chord costs the party a turn it never
+          spent, so which happened is said where the turns are shown. }}
+      {{#unless travel.settlement.stationary}}
+        {{#if travel.settlement.measuredAlong}}
+          {{localize "ACKS-FORMATION.settlement.road.measuredAlong"}}
+        {{else if travel.settlement.whereFromRoad}}
+          {{localize "ACKS-FORMATION.settlement.road.measuredStraight"}}
+        {{/if}}
+      {{/unless}}
     </p>
     <p class="acks-extras-formation-settlement-nav">
       {{#if travel.settlement.throws}}
@@ -99,16 +121,42 @@
           <span class="hint">{{localize "ACKS-FORMATION.settlement.navUnpriced"}}</span>
         {{else}}
           {{localize "ACKS-FORMATION.settlement.navThrow" target=travel.settlement.navTarget modifier=travel.settlement.navModifier}}
+          {{#if travel.settlement.navRouteUnpriced}}
+            <span class="hint">{{localize "ACKS-FORMATION.settlement.navRouteUnpriced"}}</span>
+          {{/if}}
+          {{#if travel.settlement.stray}}
+            <span class="hint">{{localize "ACKS-FORMATION.settlement.strayHint" dice=travel.settlement.stray}}</span>
+          {{else}}
+            <span class="hint">{{localize "ACKS-FORMATION.settlement.strayUnpriced"}}</span>
+          {{/if}}
         {{/if}}
       {{else}}
         <span class="hint">{{travel.settlement.noThrowReason}}</span>
       {{/if}}
     </p>
+    {{#if travel.settlement.districtName}}
+    <p class="hint acks-extras-formation-settlement-district">
+      {{localize "ACKS-FORMATION.settlement.district.here" name=travel.settlement.districtName}}
+      {{#if travel.settlement.districtReactionLine}}
+        &middot; {{travel.settlement.districtReactionLine}}
+      {{/if}}
+    </p>
+    {{/if}}
     <p class="hint">
       {{#if travel.settlement.cadenceMissing}}
         {{localize "ACKS-FORMATION.settlement.cadenceMissing"}}
       {{else}}
-        {{localize "ACKS-FORMATION.settlement.cadence" turns=travel.settlement.cadence.everyTurns target=travel.settlement.cadence.target}}
+        {{! Already formatted by the view: which layer set the interval and which
+            set the target are two questions, and the answer can name two places.
+            The card renders the same string from the same reader. }}
+        {{#if travel.settlement.cadenceLine}}
+          {{travel.settlement.cadenceLine}}
+        {{else}}
+          {{localize "ACKS-FORMATION.settlement.cadence" turns=travel.settlement.cadence.everyTurns target=travel.settlement.cadence.target}}
+        {{/if}}
+        {{#if travel.settlement.unpricedIntent}}
+          <span class="hint">{{localize "ACKS-FORMATION.settlement.unpricedIntent"}}</span>
+        {{/if}}
       {{/if}}
     </p>
     {{/if}}
@@ -453,6 +501,10 @@
     {{/if}}
   </section>
   {{else if isGM}}
+  {{! Neither mode is active: a party in a city already has its own leave
+      button above, and offering to ENTER one too reads as two contradictory
+      states on screen at once. }}
+  {{#unless travel.isSettlement}}
   <section class="acks-extras-formation-travel">
     <button type="button" data-action="travelMode" data-tooltip="{{localize 'ACKS-FORMATION.travel.beginJourneyHint'}}">
       <i class="fa-solid fa-route"></i> {{localize "ACKS-FORMATION.travel.beginJourney"}}
@@ -461,6 +513,7 @@
       <i class="fa-solid fa-city"></i> {{localize "ACKS-FORMATION.settlement.enter"}}
     </button>
   </section>
+  {{/unless}}
   {{/if}}
 
   {{/if}}

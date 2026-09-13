@@ -13,9 +13,10 @@ import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs"
 import {
   SETTLEMENT_DOC, SETTLEMENT_PACES, SETTLEMENT_LOCATIONS, ROUTE_KNOWLEDGE,
   freshSettlement, settlementOf, straggleTier, blocksPerTurn, citySpec,
-  strayBlocks, streetCadence, settlementReady, advanceSettlementTurn,
+  strayBlocks, streetCadence, advanceSettlementTurn,
   SETTLEMENT_INTENTS, CONVEYANCES, advanceSettlementDays, settlementEncounter,
-  feetPerTurn, carryStay,
+  feetPerTurn, carryStay, resolveCityCadence, cadenceAttribution, pickIncidentSource, districtReaction,
+  reenterSettlement, effectiveWhere, NAVIGATION_DIE, STREET_DIE, INCIDENT_DIE,
 } from "../scripts/formation/settlement.mjs";
 
 let passed = 0;
@@ -73,7 +74,6 @@ ok("the vocabularies are structural and complete", () => {
 // ---- degradation --------------------------------------------------------
 ok("an unimported settlement has no distance and says which table is missing", () => {
   resetTables();
-  assert.equal(settlementReady(), false);
   const r = blocksPerTurn({ pace: "commuting", headcount: 3 });
   assert.equal(r.blocks, null);
   assert.equal(r.missing, "paces");
@@ -86,7 +86,6 @@ ok("an unimported settlement has no distance and says which table is missing", (
 // ---- paces and straggling ----------------------------------------------
 ok("a pace carries its rate and a small party is not slowed", () => {
   resetTables(); load();
-  assert.equal(settlementReady(), true);
   assert.equal(blocksPerTurn({ pace: "commuting", headcount: 4 }).blocks, 7);
   assert.equal(blocksPerTurn({ pace: "meandering", headcount: 4 }).blocks, 2);
 });
@@ -459,5 +458,373 @@ ok("but the day tick still throws for that same stay", () => {
   resetTables();
 });
 
+
+// ---- the dice are structural, and they are not the same die ---------------
+ok("the navigation throw and the street throw are made on different dice", () => {
+  // Both readers price their targets on their own scale, so one die read
+  // against the other's target changes how often the street answers.
+  assert.equal(NAVIGATION_DIE, "1d20");
+  assert.equal(STREET_DIE, "1d6");
+  assert.equal(INCIDENT_DIE, "1d100");
+  assert.notEqual(NAVIGATION_DIE, STREET_DIE);
+});
+
+// ---- what a Judge draws over the street ----------------------------------
+ok("with nothing drawn over it, the street answers for itself", () => {
+  load();
+  const street = streetCadence({ where: "avenue", night: false });
+  const got = resolveCityCadence(street, {});
+  assert.match2(got, {
+    everyTurns: street.everyTurns, target: street.target,
+    everyTurnsSource: "street", targetSource: "street",
+  });
+  resetTables();
+});
+
+ok("a zone overrides the street PER FIELD, and a zero means inherit", () => {
+  load();
+  const street = streetCadence({ where: "avenue", night: false });
+  // Interval only: the target beneath it stands — and is still credited to
+  // the street, not to the zone that never stated one.
+  const interval = resolveCityCadence(street, { zone: { encounterEvery: 2, encounterTarget: 0 } });
+  assert.match2(interval, {
+    everyTurns: 2, target: street.target,
+    everyTurnsSource: "zone", targetSource: "street",
+  });
+  // Target only: the interval beneath it stands, credited to the street.
+  const target = resolveCityCadence(street, { zone: { encounterEvery: 0, encounterTarget: 3 } });
+  assert.match2(target, {
+    everyTurns: street.everyTurns, target: 3,
+    everyTurnsSource: "street", targetSource: "zone",
+  });
+  // Neither: a zone that states nothing changes nothing.
+  const neither = resolveCityCadence(street, { zone: { encounterEvery: 0, encounterTarget: 0 } });
+  assert.match2(neither, {
+    everyTurns: street.everyTurns, target: street.target,
+    everyTurnsSource: "street", targetSource: "street",
+  });
+  resetTables();
+});
+
+ok("a district beats a zone, which beats the street", () => {
+  load();
+  const street = streetCadence({ where: "avenue", night: false });
+  const got = resolveCityCadence(street, {
+    zone: { encounterEvery: 2, encounterTarget: 3 },
+    district: { encounterEveryDay: 1, encounterTargetDay: 2 },
+  });
+  assert.match2(got, {
+    everyTurns: 1, target: 2, everyTurnsSource: "district", targetSource: "district",
+  });
+  // And the district's night pair is the one the dark reads.
+  const dark = resolveCityCadence(street, {
+    zone: { encounterEvery: 2, encounterTarget: 3 },
+    district: { encounterEveryDay: 1, encounterTargetDay: 2, encounterEveryNight: 5, encounterTargetNight: 4 },
+    night: true,
+  });
+  assert.match2(dark, { everyTurns: 5, target: 4 });
+  resetTables();
+});
+
+ok("a district that prices only the night pair inherits the day figures beneath it", () => {
+  load();
+  const day = streetCadence({ where: "avenue", night: false });
+  const night = streetCadence({ where: "avenue", night: true });
+  const district = { encounterEveryNight: 1, encounterTargetNight: 2 };
+  // By day the district has said nothing (its day fields are unstated), so
+  // the street beneath it answers untouched — the realistic gazetteer case.
+  const byDay = resolveCityCadence(day, { district, night: false });
+  assert.match2(byDay, {
+    everyTurns: day.everyTurns, target: day.target,
+    everyTurnsSource: "street", targetSource: "street",
+  });
+  const afterDark = resolveCityCadence(night, { district, night: true });
+  assert.match2(afterDark, {
+    everyTurns: 1, target: 2, everyTurnsSource: "district", targetSource: "district",
+  });
+  resetTables();
+});
+
+ok("each FIGURE is credited to the layer that stated it, not the pair to one", () => {
+  load();
+  const street = streetCadence({ where: "avenue", night: false });
+  const zone = { encounterEvery: 2, encounterTarget: 3 };
+  // The district states only an interval, so the target is still the ZONE's.
+  // Crediting the pair to the district here prints the zone's target under
+  // the district's name, which is the defect this pair of fields exists for.
+  const intervalOnly = resolveCityCadence(street, { zone, district: { encounterEveryDay: 1 } });
+  assert.match2(intervalOnly, {
+    everyTurns: 1, target: 3, everyTurnsSource: "district", targetSource: "zone",
+  });
+  // And the mirror: the interval is the zone's where only a target is stated.
+  // 6 rather than a larger figure because the schema caps a 1d6 target at 6;
+  // a test value outside the field's own range proves nothing about the field.
+  const targetOnly = resolveCityCadence(street, { zone, district: { encounterTargetDay: 6 } });
+  assert.match2(targetOnly, {
+    everyTurns: 2, target: 6, everyTurnsSource: "zone", targetSource: "district",
+  });
+  resetTables();
+});
+
+ok("the attribution line names one place, or two, or nothing at all", () => {
+  load();
+  const street = streetCadence({ where: "avenue", night: false });
+  const names = { street: "the street", zone: "The Harbour", district: "Thieves' Quarter" };
+
+  // Both the street's: no line is owed, because nothing was overridden.
+  assert.equal(cadenceAttribution(resolveCityCadence(street, {}), names), null);
+
+  // One layer owns both figures: one place named.
+  const whole = cadenceAttribution(
+    resolveCityCadence(street, { district: { encounterEveryDay: 1, encounterTargetDay: 2 } }),
+    names,
+  );
+  assert.equal(whole.key, "ACKS-FORMATION.settlement.cadenceInside");
+  assert.equal(whole.data.place, "Thieves' Quarter");
+
+  // Two owners: the SPLIT line, with each figure beside its own owner.
+  const split = cadenceAttribution(
+    resolveCityCadence(street, {
+      zone: { encounterEvery: 2, encounterTarget: 0 },
+      district: { encounterEveryDay: 0, encounterTargetDay: 4 },
+    }),
+    names,
+  );
+  assert.equal(split.key, "ACKS-FORMATION.settlement.cadenceSplit");
+  assert.equal(split.data.turns, 2);
+  assert.equal(split.data.turnsFrom, "The Harbour");
+  assert.equal(split.data.target, 4);
+  assert.equal(split.data.targetFrom, "Thieves' Quarter");
+
+  // A layer with no name to print cannot be attributed, so nothing is said
+  // rather than a figure being left hanging under no owner.
+  const nameless = cadenceAttribution(
+    resolveCityCadence(street, { zone: { encounterEvery: 2, encounterTarget: 0 } }),
+    { street: "the street", zone: "" },
+  );
+  assert.equal(nameless, null);
+  assert.equal(cadenceAttribution(null, names), null);
+  resetTables();
+});
+
+ok("a district whose every cadence field is zero changes nothing beneath it", () => {
+  load();
+  const street = streetCadence({ where: "avenue", night: false });
+  const zone = { encounterEvery: 2, encounterTarget: 3 };
+  const allZero = {
+    encounterEveryDay: 0, encounterTargetDay: 0, encounterEveryNight: 0, encounterTargetNight: 0,
+  };
+  const inert = resolveCityCadence(street, { zone, district: allZero });
+  assert.match2(inert, {
+    everyTurns: 2, target: 3, everyTurnsSource: "zone", targetSource: "zone",
+  });
+  // And AFTER DARK, which is the only call that reads the two night fields at
+  // all: a day-only check leaves half the zeros unexercised.
+  const inertDark = resolveCityCadence(street, { zone, district: allZero, night: true });
+  assert.match2(inertDark, {
+    everyTurns: 2, target: 3, everyTurnsSource: "zone", targetSource: "zone",
+  });
+  resetTables();
+});
+
+ok("resolveCityCadence is null when nothing prices both figures, a district's bare interval included", () => {
+  // BOTH halves of the guard, because they fail independently and a street
+  // cadence always carries an interval — so passing one hides the first half.
+  const onlyInterval = resolveCityCadence(null, { district: { encounterEveryDay: 4, encounterTargetDay: 0 } });
+  assert.equal(onlyInterval, null, "an interval with no target anywhere cannot be thrown");
+  const onlyTarget = resolveCityCadence(null, { district: { encounterEveryDay: 0, encounterTargetDay: 4 } });
+  assert.equal(onlyTarget, null, "a target with no interval anywhere is never reached");
+  const acrossLayers = resolveCityCadence(null, {
+    zone: { encounterEvery: 0, encounterTarget: 5 },
+    district: { encounterEveryDay: 0, encounterTargetDay: 0 },
+  });
+  assert.equal(acrossLayers, null, "two layers stating only targets still price no throw");
+});
+
+ok("looking for trouble eases whichever target answered, and only once", () => {
+  load();
+  // The intent modifier is the PARTY's: it applies to the zone's target the
+  // same way it applies to the street's, and is never subtracted twice by
+  // reading a target that already had it taken off.
+  const street = streetCadence({ where: "avenue", night: false, intent: "trouble" });
+  const got = resolveCityCadence(street, { zone: { encounterEvery: 0, encounterTarget: 6 }, intent: "trouble" });
+  assert.match2(got, { bareTarget: 6, modifier: 2, target: 4, seeking: true });
+  resetTables();
+});
+
+ok("a zone can price a throw the registry never did", () => {
+  // Nothing registered: the street has no cadence at all, and a fully stated
+  // zone is still an answer — a Judge who typed both figures meant them.
+  assert.equal(streetCadence({ where: "avenue" }), null);
+  const got = resolveCityCadence(null, { zone: { encounterEvery: 3, encounterTarget: 5 } });
+  assert.match2(got, {
+    everyTurns: 3, target: 5, everyTurnsSource: "zone", targetSource: "zone",
+  });
+  // A half-stated one is not: an interval with no target cannot be thrown.
+  assert.equal(resolveCityCadence(null, { zone: { encounterEvery: 3, encounterTarget: 0 } }), null);
+});
+
+ok("the incident table is picked innermost-first, on its own", () => {
+  assert.match2(pickIncidentSource({}), { tableUuid: null, source: "city" });
+  assert.match2(pickIncidentSource({ zone: { tableUuid: "RollTable.zone" } }),
+    { tableUuid: "RollTable.zone", source: "zone" });
+  assert.match2(pickIncidentSource({
+    zone: { tableUuid: "RollTable.zone" }, district: { tableUuid: "RollTable.district" },
+  }), { tableUuid: "RollTable.district", source: "district" });
+  // Being hunted here reads the district's wanted table, and only when there
+  // is one — a district with no wanted table falls back to its ordinary one.
+  assert.match2(pickIncidentSource({
+    district: { tableUuid: "RollTable.district", wantedTableUuid: "RollTable.wanted" }, wanted: true,
+  }), { tableUuid: "RollTable.wanted", source: "wanted" });
+  assert.match2(pickIncidentSource({ district: { tableUuid: "RollTable.district" }, wanted: true }),
+    { tableUuid: "RollTable.district", source: "district" });
+});
+
+ok("a district's welcome is owed where its scope names, and district-wide at 'any'", () => {
+  const districtWide = { reactionModifier: -4, reactionWhere: "any" };
+  assert.deepEqual(districtReaction(districtWide, { where: "avenue" }), { modifier: -4, scope: "any" });
+  assert.deepEqual(districtReaction(districtWide, { where: "alley" }), { modifier: -4, scope: "any" });
+
+  const narrowed = { reactionModifier: 3, reactionWhere: "alley" };
+  assert.deepEqual(districtReaction(narrowed, { where: "alley" }), { modifier: 3, scope: "alley" });
+  assert.equal(districtReaction(narrowed, { where: "avenue" }), null, "named elsewhere, not owed here");
+  assert.equal(districtReaction(null, { where: "avenue" }), null, "no district, nothing owed");
+});
+
+ok("no reaction figure is owed at zero, and a negative one survives", () => {
+  assert.equal(districtReaction({ reactionModifier: 0, reactionWhere: "any" }, { where: "avenue" }), null);
+  // reactionModifier is signed and never passes through stated(), whose
+  // contract rejects a negative — the whole point of this field is a quarter
+  // that makes strangers LESS welcome, and it must still answer.
+  const hostile = { reactionModifier: -6, reactionWhere: "any" };
+  assert.deepEqual(districtReaction(hostile, { where: "alley" }), { modifier: -6, scope: "any" });
+});
+
+ok("the turn throws against the cadence it is HANDED, not the street's", () => {
+  load();
+  const board = { ...freshSettlement(), where: "avenue", pace: "meandering" };
+  const cadence = {
+    everyTurns: 1, target: 5, bareTarget: 5, modifier: 0,
+    everyTurnsSource: "zone", targetSource: "zone",
+  };
+  const { events } = advanceSettlementTurn(board, { headcount: 1, encounterRoll: 5, cadence });
+  const owed = events.find((e) => e.kind === "encounterOwed");
+  assert.match2(owed, {
+    target: 5, met: true, everyTurns: 1, everyTurnsSource: "zone", targetSource: "zone",
+  });
+  resetTables();
+});
+
+ok("and a holed-up stay is thrown for at the cadence it is handed too", () => {
+  load();
+  const board = { ...freshSettlement(), where: "holedUp" };
+  const cadence = {
+    everyTurns: 1, target: 6, bareTarget: 6, modifier: 0,
+    everyTurnsSource: "zone", targetSource: "zone",
+  };
+  const { events } = advanceSettlementDays(board, { days: 1, rolls: [6], cadence });
+  assert.match2(events.find((e) => e.kind === "encounterOwed"), { target: 6, met: true });
+  resetTables();
+});
+
+// ---- coming back to a city -----------------------------------------------
+ok("re-entering a city keeps what the Judge set and drops what the last city counted", () => {
+  const previous = {
+    ...freshSettlement(),
+    pace: "commuting", where: "alley", route: "route", night: true,
+    intent: "trouble", conveyance: "litter",
+    blocks: 40, turns: 11, days: 3, holeUpSince: 500, lost: true,
+    lastThrow: { total: 4, target: 9, kept: false },
+  };
+  const back = reenterSettlement(previous);
+  // What was told stays.
+  assert.match2(back, {
+    pace: "commuting", where: "alley", route: "route", night: true,
+    intent: "trouble", conveyance: "litter",
+  });
+  // What was counted goes — another city's mileage is not this one's.
+  assert.match2(back, { blocks: 0, turns: 0, days: 0, holeUpSince: null, lost: false, lastThrow: null });
+});
+
+ok("being hunted starts false, coerces to a boolean, and does not survive re-entry", () => {
+  assert.equal(freshSettlement().wanted, false);
+  assert.equal(settlementOf({ settlement: { wanted: true } }).wanted, true);
+  assert.equal(settlementOf({ settlement: { wanted: 1 } }).wanted, true, "a stored truthy value is coerced");
+  assert.equal(settlementOf({ settlement: { wanted: 0 } }).wanted, false);
+  assert.equal(settlementOf({ settlement: {} }).wanted, false);
+  // A quarter's own powers are not carried to the next one, though the pace
+  // and route the Judge told the board are.
+  const back = reenterSettlement({ ...freshSettlement(), wanted: true, pace: "commuting" });
+  assert.equal(back.wanted, false);
+  assert.equal(back.pace, "commuting", "unrelated Judge-told fields still carry");
+});
+
+// ---- a figure that never arrived is never a zero -------------------------
+ok("a known destination with no imported modifier is TOLD, not quietly bare", () => {
+  registerTable({
+    id: SETTLEMENT_DOC,
+    source: "invented",
+    // The target arrived; the modifier's own sentence did not parse.
+    tables: { navigation: { target: 9 } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const spec = citySpec({ pace: "commuting", route: "destination" });
+  assert.match2(spec, { throws: true, target: 9, modifier: 0, unpricedRoute: true });
+  resetTables();
+
+  load();
+  const priced = citySpec({ pace: "commuting", route: "destination" });
+  assert.match2(priced, { throws: true, modifier: 3 });
+  assert.equal(priced.unpricedRoute, false, "an imported figure is not a gap");
+  // A party that has never been there has no modifier to be missing.
+  assert.equal(citySpec({ pace: "commuting", route: "unknown" }).unpricedRoute, undefined);
+  resetTables();
+});
+
+/* -------------------------------------------- */
+/*  Where the party is, read off the map        */
+/* -------------------------------------------- */
+
+ok("a drawn street answers where the party is, over the picker", () => {
+  const board = { where: "avenue" };
+  // The road was DRAWN and the picker was typed. A Judge who laid an alley and
+  // left the picker on the avenue meant the alley.
+  assert.deepEqual(effectiveWhere(board, "alley"), { where: "alley", from: "road" });
+  // With no street underfoot there is nothing to override with.
+  assert.deepEqual(effectiveWhere(board, null), { where: "avenue", from: "picker" });
+  assert.deepEqual(effectiveWhere(board, ""), { where: "avenue", from: "picker" });
+});
+
+ok("a party holed up is holed up whatever it is standing on", () => {
+  // The room is the answer; the street outside the door is not.
+  assert.deepEqual(effectiveWhere({ where: "holedUp" }, "avenue"), { where: "holedUp", from: "picker" });
+});
+
+ok("nothing but a street kind can be read off a road", () => {
+  const board = { where: "avenue" };
+  // A wall flagged as a street is a street, and nobody is hiding inside one.
+  assert.deepEqual(effectiveWhere(board, "holedUp"), { where: "avenue", from: "picker" });
+  assert.deepEqual(effectiveWhere(board, "sewer"), { where: "avenue", from: "picker" });
+});
+
+ok("the board carries the road it was resolved on, and nothing half-stated", () => {
+  const kept = settlementOf({ settlement: { road: { name: "Fish Row", surface: "paved", street: "alley" } } });
+  assert.deepEqual(kept.road, { name: "Fish Row", surface: "paved", street: "alley" });
+  // A snapshot with no surface is not a road: it would print as a street with
+  // no kind and be read as one the map had nothing to say about.
+  assert.equal(settlementOf({ settlement: { road: { name: "Nowhere" } } }).road, null);
+  assert.equal(settlementOf({ settlement: {} }).road, null);
+  assert.equal(settlementOf({ settlement: { road: { surface: "earth", street: "lane" } } }).road.street, null);
+});
+
+ok("how the last move was measured is remembered, and starts unanswered", () => {
+  assert.equal(settlementOf({ settlement: {} }).measuredAlong, null, "until the party has moved");
+  assert.equal(settlementOf({ settlement: { measuredAlong: true } }).measuredAlong, true);
+  assert.equal(settlementOf({ settlement: { measuredAlong: false } }).measuredAlong, false);
+  // Re-entering a city has measured nothing yet, and keeps no road from the
+  // last one: both belong to the streets they were read off.
+  const again = reenterSettlement({ where: "alley", road: { surface: "paved" }, measuredAlong: true });
+  assert.equal(again.road, null);
+  assert.equal(again.measuredAlong, null);
+});
 
 console.log("\ntest-settlement: all " + passed + " checks passed");

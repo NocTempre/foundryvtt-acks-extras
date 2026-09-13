@@ -147,6 +147,24 @@
     {{/each}}
   </div>
 
+  {{!-- Read-only externals (a district's reaction figure, a settlement's
+        slander penalty): sourced from where the party stands, so there is
+        nothing here to type over — never masked by targetHidden, since none
+        of it comes from the target. Rendered only when at least one applies. --}}
+  {{#if externalModifiers.length}}
+    <fieldset class="influence-group influence-external">
+      <legend data-tooltip="{{localize 'ACKS-INFLUENCE.external.hint'}}">{{localize 'ACKS-INFLUENCE.external.legend'}}</legend>
+      <ul class="influence-external-list">
+        {{#each externalModifiers}}
+          <li class="influence-external-mod">
+            <span class="influence-external-label">{{this.label}}</span>
+            <span class="influence-external-value">{{numberFormat this.value sign=true}}</span>
+          </li>
+        {{/each}}
+      </ul>
+    </fieldset>
+  {{/if}}
+
   {{!-- Roll bar: one editable Final Modifier (preselected to the computed total;
         type over it to override — the difference is banked as a GM adjustment). --}}
   <footer class="form-footer influence-footer">

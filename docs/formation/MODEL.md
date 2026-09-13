@@ -36,8 +36,11 @@ All paths are under `scripts/formation/` unless noted.
 | `formation-model.mjs` | Formation records: storage (world setting `acks-extras.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `formation-view.mjs`, `formation-actions.mjs` | The formation window (GM controls, player read-only) and its action handlers. |
-| `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, and `findZone(formation, type)` testing the party token's CENTRE. |
+| `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE, and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
 | `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID + cadence overrides). |
+| `district-zone.mjs` | `acks-extras.district` RegionBehavior subtype: a quarter's day and night cadence pairs, its own and its hunted encounter tables, and how it takes to strangers. |
+| `district-tools.mjs` | The two Judge tools that make a district — mark the selected Regions, or enclose the selected walls. |
+| `district-influence.mjs` | Carries a district's reaction figure into the influence roller over the `acksExtras.influenceModifiers` hook. |
 | `trap-rules.mjs` | Traps as arithmetic, Foundry-free: probe order, who is caught, the disarm plan, botch bands, the repeat lock, pit damage. |
 | `trap-zone.mjs` | `acks-extras.trapZone` RegionBehavior subtype, the placement abstraction over regions and walls, the crossing sequence, firing, and the Trapbreaking throws. |
 | `trap-walls.mjs` | The trap layer on a wall, the Walls-layer tools, chaining selected walls into a region outline, path-crossing geometry, and drag-to-assign. |
@@ -623,10 +626,13 @@ meandering one is already reading the street signs. A route walked before needs
 no throw at all, while a destination reached before by another way is easier
 but not free. And a large party straggles through a crowd in tiers, which bite
 the commuting pace alone. That those tiers EXIST is the rule; where each starts
-and what it costs is printed, so the ladder is registered
-(`settlement` doc: `paces`, `navigation`, `straggling`, `encounters`). Nothing
-here ships a distance: an unimported city reports which table is missing rather
-than moving the party an invented number of blocks.
+and what it costs is printed, so the ladder is registered — the `cityTravel`
+doc (`paces`, `navigation`, `straggling`, `encounters`), deliberately not
+`settlement`, which henchmen already owns for market class by families.
+Nothing here ships a distance: an unimported city reports which table is
+missing rather than moving the party an invented number of blocks, and a
+figure that never arrived is never shown as a zero — a known destination with
+no imported modifier says so on the panel rather than throwing quietly bare.
 
 **A city turn is marked off the same way a dungeon turn is: the party walks
 it.** The clock pauses for a JOURNEY only (`setJourneyMode`), because a day is
@@ -644,17 +650,74 @@ party that moves and is told nothing happened reads as a broken module.
 Because it is the same tracker, a city turn costs what a dungeon turn costs:
 the torch burns down, the spell runs out, the rest interval accrues, the world
 clock advances. The delve's action surface comes with it — listening, a hasty
-or methodical search, doors and their spikes, traps — since none of those were
-ever gated on the mode, only on the clock that was stopped.
+or methodical search, doors and their spikes, traps — because none of those
+ever consulted the mode or the clock: they call `advanceTurns` directly in
+every mode. `clock.paused` gates exactly one thing, `onPartyTokenMoved`, so
+what a journey stops is the party's own WALKING spending turns, and what a
+settlement restores is the same.
 
 **What the city keeps for itself** is the encounter cadence and the way. The
 street is not the dungeon's every-N-turns throw at a different number: how often
 it comes round is decided by where the party is standing and whether it is dark,
 and the same turn owes a navigation throw the dungeon never asks for. So
 `onTurnCompleted` hands a settlement turn to `cityTurnCompleted` and returns
-rather than falling through to the wandering-monster throw as well. An Encounter
-Zone region still overrides, which is how a quarter with its own reputation is
-drawn.
+rather than falling through to the wandering-monster throw as well.
+
+The two throws a city turn can owe are made on **different dice** and named
+where both readers can see them (`NAVIGATION_DIE`, `STREET_DIE`): the way is
+found on a d20 against a d20-scale target, and the street answers on the same
+d6 the dungeon's wandering-monster throw uses, against a d6-scale cadence
+target. The card names the die it rolled, because a throw whose scale is wrong
+changes how often the street answers while changing nothing a Judge can see.
+
+**What a Judge draws over the street wins.** `resolveCityCadence` puts the
+layers in order — street, then an Encounter Zone, then a district, each
+overriding the one before it — and **per field**, so an override that states
+only an interval keeps the target beneath it and a Judge never restates what
+they did not mean to change. The order is by KIND and not by what is drawn
+inside what: a district is a quarter's gazetteer entry and outranks a zone
+drawn within it, which is also the order `pickIncidentSource` takes a table
+in — the two would be incoherent read any other way.
+A zero in an override's box means *inherit*, which is what the behaviour
+schemas initialise to. The intent modifier is the party's rather than the
+place's, so it is re-derived from whichever layer's bare target answered and
+can never be taken off twice. `pickIncidentSource` settles the other half
+separately, because whether something finds the party and what it turns out to
+be are different questions a Judge answers in different places: a district's
+wanted table, then its ordinary one, then a zone's, then the city's own.
+
+An override's table is **drawn with its own formula**, the way the delve clock
+already draws a zone's; only the city's own imported incident table is read as
+a d100 of bands with the registry's after-dark shift, because that shift
+belongs to that table.
+
+**A city walk is measured along the streets.** In settlement mode
+`onPartyTokenMoved` measures a drag with `roadDistance`
+(`battlemap/roads.mjs`), over the graph the road walls draw, so a party that
+followed a curving avenue pays for the avenue and not for the chord across the
+block it went round. Reach is one grid cell — geometry, not content: a party
+within a cell of a street is on it, and BOTH ends have to be, or a walk off the
+street into open ground costs more than the straight line across it. With no
+roads drawn, either end out of reach, or the two ends on networks that do not
+meet, the straight line answers as it always did, and the board records WHICH
+happened (`measuredAlong`) so the tracker can say so. That record is the one
+field a turn establishes and the stored board must not overwrite: `advanceRounds`
+re-reads the stored settlement board to protect the holed-up day credit, and
+carries `measuredAlong` across that re-read, or every city move would report as
+a straight line however it was measured. The distance is taken in FEET through the scene's own
+units, because the speed it is about to be spent against is in feet and a map
+drawn in yards states its cell in yards.
+
+**Where the party is standing is read off the map.** `effectiveWhere` answers
+in three: a party holed up is holed up whatever it is standing on, then the
+road under the token, then the picker. The DRAWN answer beats the typed one —
+a Judge who laid an alley should not also have to remember to say so on the
+panel — and the card and the panel both name the map as the source, because a
+cadence that changed without a visible cause reads as the tick ignoring the
+panel. The board keeps the road as a SNAPSHOT of what the map said for that
+turn; it is not a second place to edit the map. Nothing but a street kind can
+be read off a road: a wall flagged as a street is a street, and nobody is
+hiding inside one.
 
 **A turn is taken, not simulated.** `advanceSettlementTurn` is pure and owns
 no dice; `settlement-turn.mjs` rolls them, writes the board and whispers the
@@ -669,9 +732,17 @@ overwrite a second write.
 **Holing up is the one rate no movement can report**, so it rides the world
 clock instead (`creditHoledUpDays`, registered through `lib/world-time.mjs`'s
 shared watcher). The board stamps the world time a stay is counted from and
-moves that stamp forward by exactly the days it has charged for, so a calendar
-dragged forward pays once and a party that walks back out into the street
-starts a fresh stay. A stationary party owes nothing at the turn tick
+moves that stamp forward by exactly the days it has **charged for** — not by
+the days that passed. One credit rolls at most thirty days, so a calendar
+dragged a year forward does not roll a year of dice in one frame; what is not
+charged is not forgiven, the stamp stays behind by the remainder, and the next
+advance charges the next stretch until the debt drains. The card says how much
+is still catching up. `advanceRounds` settles that credit itself, immediately
+after the world-time advance it makes and before it ticks, because it saves
+its own copy of the record whole at the end and would otherwise write the
+pre-advance board back over a credit that landed in between. A party that
+walks back out into the street starts a fresh stay. A stationary party owes
+nothing at the turn tick
 at all — neither the street's throw, which counted by both clocks would come
 round twice for one stay, nor the navigation throw, because a party hiding in a
 room is not going anywhere it can fail to arrive at. Its turns still pass:
@@ -681,7 +752,97 @@ The pickers ride the journey panel's own submit — `travel.settlement.*` field
 names, applied by `applyTravelForm` — because an ApplicationV2 action fires on
 click and a select bound to one never reports a change at all. They declare
 STATE (the pace, the place, what the party knows of the way); nothing on the
-panel advances the clock.
+panel advances the clock. `patchSettlement` is the same board from the api and
+accepts the same pickers; the stay's own fields are not among them, because
+the world clock owns those and a caller writing one desynchronises the stay
+from the calendar it is counted against.
+
+**The panel derives what the tick derives, from the same readers.** Headcount
+is `realMembers` at both ends, so the blank ranks a Judge leaves in a marching
+order cannot put a straggling tier on the panel that the turn never applies; a
+stationary party is gated in the view exactly as it is in the tick, so it is
+never shown a block rate or a navigation target it is not subject to; and the
+tracker's "timed by blocks" claim is published by the view rather than
+re-derived in the template from the block size alone, since the clock only
+times by blocks when the map declared a size AND the registry priced the pace.
+
+**A city turn's card cannot cost the turn.** The card is the last thing the
+tick does and the only part of it that talks to the server — the incident
+lookup reaches every RollTable compendium in the world — so it is written
+inside a guard, per pack and as a whole. The turn is already resolved on the
+record the caller holds; a card that cannot be written must not take the
+blocks, the throw, and every other feature's bookkeeping down with it.
+
+### The districts
+
+A **district** is a quarter of the city: a scene Region carrying an
+`acks-extras.district` behaviour. It states two cadence pairs — an interval and
+a target for day, the same two for night — the table its own encounters are
+drawn from, a second table for a party being hunted through it, and one figure
+for how it takes to strangers together with the street kind that figure applies
+on. Every box is optional and a zero means *inherit*, which is what the layering
+above then answers.
+
+The reaction figure is the one number in the schema that is **signed, and never
+inherited**. Zero is silence rather than a request for the layer beneath,
+because a quarter with no feeling about strangers is a real answer and the
+shared "stated" reader every other figure passes through reads zero as absence.
+Its `reactionWhere` picker chooses between *anywhere* and one street kind, and
+its choices are built by a function that localizes as it goes: core does not
+localize a `StringField`'s choices, and the same function is called again when a
+STORED value is validated — outside any guard — so one that can throw is a field
+that can refuse to load. It answers with the key rather than throwing.
+
+**A behaviour sub-type is spelled twice.** `module.json` `documentTypes` carries
+the bare name and code carries the full one. The data model registers at `init`,
+but `documentTypes` is read by the SERVER at world launch, so between adding the
+type and relaunching the sheet works while every create resolves to an empty
+array. Both Judge tools therefore report what they can confirm afterwards rather
+than the size of the selection, and both say *relaunch* rather than *failed*
+when `game.documentTypes.RegionBehavior` does not yet list the type.
+
+**The two tools make a district out of whatever the Judge is already holding.**
+Mark the Regions selected on the Regions layer, or enclose the walls selected on
+the Walls layer — the pair `trap-walls.mjs` already offers a trap area, and
+registered on the same `getSceneControlButtons` hook rather than under a control
+of their own, because leaving a placeables layer releases its selection. Both
+are idempotent, and say which happened: a region already carrying the behaviour
+opens the one it has, and a wall loop already bounding a district hands that
+district back. Neither touches a region's visibility — a trap is a surprise, and
+a quarter the party is standing in is not.
+
+**Being hunted is a fact about the board, not about the party.** `wanted` rides
+the settlement board beside the pace and the place, and re-entering a city drops
+it. It changes one thing: which table answers, a district's hunted table before
+its ordinary one. The card's hunted line follows the incident that actually
+answered rather than the source that was asked, so a hunted party in a district
+with no hunted table is not told it was found by one.
+
+**Two figures, two owners.** A cadence resolves its interval and its target
+independently, so `resolveCityCadence` returns a source for each
+(`everyTurnsSource`, `targetSource`). One name over both credits whichever layer
+answered last with the other layer's number — a zone stating only an interval,
+inside a district stating only a target, printed the district's name over the
+zone's figure. `cadenceAttribution` turns the pair into the one line the panel
+and the turn card both print; it is named once because those two surfaces are
+the ones in this feature that have already drifted, and it prints nothing rather
+than half an attribution when only one of the two has a name to print.
+
+**One reader answers where the party is standing.** `streetUnder(formation,
+board)` takes the party's point, the road under it and `effectiveWhere`'s
+verdict in a single call. The tick, the panel and a district's reaction figure
+had each transcribed the same three steps, and three transcriptions of one
+question are three chances to disagree about the same party.
+
+**A district prices an influence throw through the roller's own hook.**
+`district-influence.mjs` listens on `HOOKS.INFLUENCE_MODIFIERS` and pushes one
+labelled entry onto the throw; the roller is another feature and knows nothing
+about quarters, and the listener knows nothing about how the throw is built or
+shown. The gate is by roll FAMILY and fails closed: the bare influence roll IS
+the reaction roll and counts, an external mode counts only where it is
+registered as REACTION, and a mode the listener has never heard of is refused
+rather than inherited. Loyalty, morale and obedience are about someone already
+known, not about how a quarter receives a stranger.
 
 ## The weather
 
@@ -765,7 +926,7 @@ Still ahead of this mode — supply consumption at End Day — is
 
 - Combat rounds are not auto-counted toward rest (10 rounds = 1 turn); the GM uses the manual Turn button after fights.
 - ~~No socket layer: players never mutate formation state directly~~ — superseded: socketlib relays player declarations (see *The player surface*); token drags are still processed by the GM client's hook.
-- Waypointed drags are measured start→end as a straight line.
+- Waypointed drags are measured start→end, not along their waypoints. In a city that end-to-end line is then measured along the road network, so a drag that follows a drawn street is priced by the street; elsewhere it stays the straight line.
 - The wandering-monster *tables* (which monster appears) are not rolled — dungeon-specific tables belong to the Judge; we roll the throw, distance, and minute only.
 
 ## Ideas for later

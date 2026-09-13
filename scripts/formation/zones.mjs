@@ -1,5 +1,7 @@
 /* global foundry */
 import { getPartyToken } from "./formation-model.mjs";
+import { roadUnder } from "../battlemap/roads.mjs";
+import { effectiveWhere } from "./settlement.mjs";
 
 /**
  * Where the party token is standing, in region terms.
@@ -191,12 +193,9 @@ export function regionEdges(regionDoc) {
  * @returns {{region: RegionDocument, behavior: RegionBehavior}|null}
  */
 export function findZone(formation, type) {
-  const token = getPartyToken(formation);
-  if (!token) return null;
-  const scene = token.parent;
-  const gs = scene.grid.size;
-  const point = { x: token.x + (token.width * gs) / 2, y: token.y + (token.height * gs) / 2 };
-  const elevation = token.elevation ?? 0;
+  const at = partyPoint(formation);
+  if (!at) return null;
+  const { scene, point, elevation } = at;
 
   for (const region of scene.regions) {
     const behavior = region.behaviors.find((b) => b.type === type && !b.disabled);
@@ -204,4 +203,52 @@ export function findZone(formation, type) {
     if (regionContains(region, point, elevation)) return { region, behavior };
   }
   return null;
+}
+
+/**
+ * Where the party is standing: the scene, the point, and the elevation.
+ *
+ * The token's CENTRE, for the reason the zone lookup gives — and ONE
+ * expression of it, because every other question about the ground the party is
+ * on (which zone, which district, which street) has to be asked of the same
+ * point or two of them will disagree about where the party is.
+ *
+ * @returns {{scene: Scene, token: TokenDocument, point: {x: number, y: number},
+ *   elevation: number}|null} null for a party with no token placed anywhere.
+ */
+export function partyPoint(formation) {
+  const token = getPartyToken(formation);
+  if (!token) return null;
+  const scene = token.parent;
+  const gs = scene.grid.size;
+  return {
+    scene,
+    token,
+    point: { x: token.x + (token.width * gs) / 2, y: token.y + (token.height * gs) / 2 },
+    elevation: token.elevation ?? 0,
+  };
+}
+
+/**
+ * The street the party is standing on, and where that puts them.
+ *
+ * ONE reader for the whole question. The street, the zone and the district
+ * have to be answers about the SAME point or two of them will disagree about
+ * where the party is — and the three surfaces that ask (the turn tick, the
+ * settlement panel, and a district's reaction figure) had each transcribed
+ * the same three steps rather than sharing them.
+ *
+ * @param {object} formation the formation whose party token is placed
+ * @param {object|null} board the settlement board, which carries the picker's
+ *   own answer for a party standing on no drawn street
+ * @returns {{at: object|null, road: {name: string, surface: string,
+ *   street: string}|null, here: object}} `road` is a SNAPSHOT shaped for the
+ *   board rather than the live wall; `here` is `effectiveWhere`'s answer and
+ *   carries whether the map or the picker supplied it.
+ */
+export function streetUnder(formation, board) {
+  const at = partyPoint(formation);
+  const found = at ? roadUnder(at.scene, at.point) : null;
+  const road = found ? { name: found.name, surface: found.surface, street: found.street } : null;
+  return { at, road, here: effectiveWhere(board, road?.street) };
 }

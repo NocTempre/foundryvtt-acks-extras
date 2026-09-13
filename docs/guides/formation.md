@@ -201,6 +201,52 @@ Somewhere the party is **holed up** is the one place its own movement cannot
 report, so a stay is counted off the calendar: advance world time however you
 like and each whole day is thrown for once.
 
+### Streets, and quarters
+
+**Draw the streets as walls and the city measures itself along them.** On the
+Walls control, the road tools mark a wall as an **avenue** or an **alley**;
+the wall sheet gains a row saying which it is. In settlement mode a move is
+then measured over the streets rather than across the blocks between them, so
+a party that follows a curving avenue pays for the avenue. The panel says
+which way the last move was measured. A map with no streets drawn behaves
+exactly as it did before — the straight line answers, as it always has.
+
+Where the party is standing is read off the map, not off the picker: a Judge
+who drew an alley does not also have to remember to say so on the panel. The
+one thing no street overrules is **holed up** — a party inside is not out on
+the street its walls happen to sit on.
+
+**A quarter that keeps its own time is a district.** Draw a Region over part
+of the city and press the district tool on the Regions control, or select a
+closed loop of walls and press the one on the Walls control. Either way the
+Region gains a District behaviour and its sheet opens:
+
+![](../releases/v7.6.0/district-behaviour.png)
+
+Every box is optional, and **a zero means "inherit"** — the layer outside the
+district answers for anything the district leaves alone. That is what makes it
+safe to price only what is distinctive: a quarter that is dangerous only after
+dark fills in the two night boxes and leaves the day pair at zero. A district
+with every box at zero changes nothing at all.
+
+The table is who is about in this quarter, and the second one is who is about
+when the party is **hunted here** — a tick on the settlement panel. Being
+hunted belongs to the city the party is in: leave and come back and it is
+gone, while the pace, the place, the route and the hour you set are kept.
+
+**Reaction adjustment** is what the quarter thinks of strangers, and it is
+signed: a negative figure for a quarter that meets outsiders coldly, a
+positive one for a quarter that is glad to see them. *Where it applies* narrows
+it to the alleys, the avenues, or indoors, because a gazetteer usually says the
+unwelcome happens somewhere in particular. When it is owed, the influence
+roller shows it as its own row, naming the district — you can see what is being
+applied and why, not just a total that moved.
+
+A zone and a district can overlap, and a district outranks a zone: it is the
+quarter's own gazetteer entry, and it is the order the tables are picked in
+too. Press either tool twice and nothing is stacked — an existing district is
+opened, not duplicated.
+
 ### Flying
 
 Pick **Flying** under *Moving by* and two more fields appear: how many **hours

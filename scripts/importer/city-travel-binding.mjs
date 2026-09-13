@@ -10,6 +10,13 @@
  * is. Two of those are printed as prose and the third as a real table, so
  * this step reads all three into one shape.
  *
+ * `districtTravel` extends the same document from a second book: AX3 states,
+ * for a city built of districts, how long it takes to cross between two
+ * points of interest in the SAME district versus an ADJACENT one, at each of
+ * the JJ's two paces. It ships no consumer yet — the points of interest it
+ * measures between are a later phase's register rows — so an absent import
+ * reads as absent, same as every other table here.
+ *
  * `cityTravel`, NOT `settlement`: the henchmen feature already registers a
  * `settlement` document for market class, and two features writing one id
  * would have them overwrite each other. Like every binding here, no value
@@ -105,6 +112,67 @@ export function parseThrow(text) {
   return m ? Number(m[1]) : null;
 }
 
+/**
+ * A bracketed travel-time clause anywhere ahead of its own district scope: a
+ * parenthesised duration, then the phrase naming which districts it spans
+ * (AX3 p.58).
+ *
+ * Deliberately silent on the VERB between the bracket and the scope. A
+ * line-wrap hyphen can split a pace's name mid-word, and a pattern that names
+ * the verb loses the reading exactly there; the bracket and the scope phrase
+ * are the two stable parts, so they are all this matches on.
+ *
+ * `[^.(]*?` excludes BOTH the sentence break and a second bracket, and the
+ * second exclusion is the one that matters: the page prints another bracketed
+ * duration in the sentence before this one, so with only the sentence break
+ * excluded a lost full stop lets the match reach back and credit that figure to
+ * this scope. A wrong figure is the failure to design against — an absent one
+ * is the only safe way for an extraction to miss.
+ */
+const DISTRICT_CLAUSE_RE = /\(([^()]+)\)[^.(]*?\bin\s*(the\s*same\s*district|adjacent\s*districts?)/gi;
+
+/** Every district-travel clause in `text`, keyed by scope ("same"|"adjacent"). */
+function districtClauses(text) {
+  const out = {};
+  for (const m of String(text ?? "").matchAll(DISTRICT_CLAUSE_RE)) {
+    const turns = parseCadenceTurns(`(${m[1]})`);
+    if (turns == null) continue;
+    const scope = /same/.test(m[2]) ? "same" : "adjacent";
+    if (!(scope in out)) out[scope] = turns; // first reading per scope wins
+  }
+  return out;
+}
+
+/**
+ * The four district-travel figures out of the whole paces paragraph: how
+ * long each of the two paces takes between two points of interest in the
+ * same district versus an adjacent one, in turns.
+ *
+ * Read as one paragraph and split on "at meandering speed" rather than
+ * windowed per figure, for the same reason the survival paragraphs are: the
+ * commuting reading and the meandering reading share both scope phrases, so
+ * a single scan would not know which paragraph a clause belongs to.
+ */
+export function assembleDistrictTravel(paragraph) {
+  const p = String(paragraph ?? "").toLowerCase();
+  if (!p) return null;
+  const splitAt = p.indexOf("at meandering speed");
+  const commuting = districtClauses(splitAt >= 0 ? p.slice(0, splitAt) : p);
+  const meandering = districtClauses(splitAt >= 0 ? p.slice(splitAt) : "");
+
+  const same = {};
+  if (commuting.same != null) same.commuting = commuting.same;
+  if (meandering.same != null) same.meandering = meandering.same;
+  const adjacent = {};
+  if (commuting.adjacent != null) adjacent.commuting = commuting.adjacent;
+  if (meandering.adjacent != null) adjacent.meandering = meandering.adjacent;
+
+  const out = {};
+  if (Object.keys(same).length) out.same = same;
+  if (Object.keys(adjacent).length) out.adjacent = adjacent;
+  return Object.keys(out).length ? out : null;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
@@ -156,8 +224,11 @@ export function assembleCityTravelTables(raw = {}) {
 
   const navigation = {};
   // The target is stated in the commuting sentence and again where the
-  // known-route modifier is; either window will do.
-  const target = parseTarget(prose.commuting) ?? parseTarget(`throw of ${prose.navigation ?? ""}`);
+  // known-route modifier is; either window will do. Both windows are read as
+  // they stand — prefixing one with the phrase the pattern looks for only
+  // matches prose that happens to OPEN with the figure, which is the one
+  // shape neither window has.
+  const target = parseTarget(prose.commuting) ?? parseTarget(prose.navigation);
   if (target != null) navigation.target = target;
   const known = parseSigned(prose.navigation);
   if (known != null) navigation.knownDestination = known;
@@ -170,6 +241,9 @@ export function assembleCityTravelTables(raw = {}) {
 
   const encounters = assembleCadence(raw.streetCadence ?? {});
   if (encounters) out.encounters = encounters;
+
+  const districtTravel = assembleDistrictTravel(raw.districtProse?.paragraph);
+  if (districtTravel) out.districtTravel = districtTravel;
 
   // What making a nuisance of yourself is worth. Kept as a positive bonus to
   // the THROW; the engine subtracts it from the target, because that is the

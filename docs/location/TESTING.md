@@ -134,6 +134,45 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `{uuid, name, img, kind, quantity, ownerUuid, notes, hidden}` and `kind` is
    one of `actor | group | monster | henchman | place`.
 
+12. **Deposit reach, through a place's own token.** Drop the location's token
+    onto a scene the character's token is also on, one empty square away, and
+    open the character's Storage tab.
+    *Observable:* the place is offered with its deposit control live. Drag the
+    place's token four squares off and re-render: the control is gone and the
+    row reads "You must be at &lt;that scene&gt;".
+
+    **Drop the token the ordinary way — do not link it.** An unlinked token is
+    Foundry's default and is the shape the reach test has to survive; a token
+    with `actorLink` on passes a check that a Judge's own token would fail, so
+    a linked fixture proves the wrong thing. Confirm what you dropped with
+    `token.actorLink` before reading anything off the tab.
+
+13. **The same place, reached by a party.** Put the character into a formation
+    with a placed party token, and move the PARTY token next to the place's
+    token. The character's own token is gone — `addMember` deleted it.
+    *Observable:* the deposit control is live again, driven by the party token.
+    Move the party token away and it refuses, naming the scene.
+
+14. **A linked place, and a party inside it.** Link a scene to a second
+    location (`linkScene`), then put the party token on that scene.
+    *Observable:* every member of the formation can deposit, not just a member
+    who happens to own it. This is the half that was refusing the whole party,
+    and it cannot be seen from one character's sheet alone — check a second
+    member's sheet too, joined as that member's player.
+
+15. **The two refusals are different sentences.** Read the Storage tab against
+    a place whose token is on some other scene, and against a place with no
+    token and no linked scene at all.
+    *Observable:* the first says you must be at a named scene; the second says
+    it is not yours. A "you must be at" with a blank scene name is the defect
+    this step exists to catch.
+
+16. **A floor above is not underfoot.** Raise the place's token's elevation by
+    more than the scene's own square distance (`scene.grid.distance`) with the
+    party token left at ground level.
+    *Observable:* the deposit control goes away. Lower it to within one square's
+    distance and it comes back.
+
 ## Teardown
 
 Delete every document the compendium steps imported (filter the pack index by

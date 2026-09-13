@@ -21,7 +21,7 @@
 import { makeLoc, libStorage as storage, ownsSheet } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
-import { depositReach, pinnedPlaces, setPinnedPlace } from "../reach.mjs";
+import { depositReach, pinnedPlaces, reachScan, setPinnedPlace } from "../reach.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
@@ -37,13 +37,17 @@ const loc = makeLoc(LANG_PREFIX);
 
 function collect(actor) {
   const api = storage();
+  // Every provider below is asked the same two questions about the same
+  // world, so the token pass under them is made once here rather than once
+  // per place (reach.mjs `reachScan`).
+  const scan = reachScan(actor);
   const held = api.providersFor(actor);
   const entry = (provider, items, coinGC) => {
     // `canReach` decides whether the DEPOSIT control is offered. Retrieval is
     // deliberately not gated by it (reach.mjs): a player who cannot reach
     // their own belongings at all is a worse failure than one who withdraws
     // from a distance.
-    const reach = depositReach(actor, provider);
+    const reach = depositReach(actor, provider, { scan });
     return {
     uuid: provider.uuid,
     name: provider.name,
@@ -66,7 +70,7 @@ function collect(actor) {
   const pinned = pinnedPlaces(actor);
   const empty = api
     .providers()
-    .filter((p) => !places.some((e) => e.uuid === p.uuid) && (p.isOwner || pinned.has(p.uuid) || depositReach(actor, p).can))
+    .filter((p) => !places.some((e) => e.uuid === p.uuid) && (p.isOwner || pinned.has(p.uuid) || depositReach(actor, p, { scan }).can))
     .map((p) => entry(p, [], 0));
 
   return {

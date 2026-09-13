@@ -29,7 +29,7 @@ import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
 import { isEquippable, isWorn, slotsOf, weight6Of, isGoods, isClothing, slotUse, STONE } from "../../lib/item-model.mjs";
 import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { libStorage } from "../../lib/util.mjs";
-import { depositReach, pinnedPlaces } from "../../location/reach.mjs";
+import { depositReach, pinnedPlaces, reachScan } from "../../location/reach.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -188,9 +188,9 @@ function rowOf(actor, item, ctx, depth = 0) {
 }
 
 /** A place kept off-person, as the Kept elsewhere rule lists it. */
-function placeRow(actor, provider, items, coinGC, pinned) {
+function placeRow(actor, provider, items, coinGC, pinned, scan) {
   const api = libStorage();
-  const reach = depositReach(actor, provider);
+  const reach = depositReach(actor, provider, { scan });
   return {
     uuid: provider.uuid,
     name: provider.name,
@@ -282,10 +282,12 @@ export function buildEquipmentTab(actor) {
   const storage = libStorage();
   const held = storage?.providersFor?.(actor) ?? [];
   const pinned = pinnedPlaces(actor);
-  const elsewhere = held.map(({ provider, items, coinGC }) => placeRow(actor, provider, items, coinGC, pinned.has(provider.uuid)));
+  // One token pass for every place on the tab (reach.mjs `reachScan`).
+  const scan = reachScan(actor);
+  const elsewhere = held.map(({ provider, items, coinGC }) => placeRow(actor, provider, items, coinGC, pinned.has(provider.uuid), scan));
   for (const p of storage?.providers?.() ?? []) {
     if (elsewhere.some((e) => e.uuid === p.uuid)) continue;
-    if (p.isOwner || pinned.has(p.uuid) || depositReach(actor, p).can) elsewhere.push(placeRow(actor, p, [], 0, pinned.has(p.uuid)));
+    if (p.isOwner || pinned.has(p.uuid) || depositReach(actor, p, { scan }).can) elsewhere.push(placeRow(actor, p, [], 0, pinned.has(p.uuid), scan));
   }
 
   const enc = sys.encumbrance ?? {};

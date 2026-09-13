@@ -42,3 +42,30 @@ sibling modules (henchmen today; domains later) read through acks-lib.
   which book" panel with import pointers.
 - **Invent**: nothing the system provides. No book values, no fallback
   sample tables (ruling 1): absent tables render as stubs + citations.
+
+## Reaching a place
+
+Depositing is gated on being able to reach the place; **retrieving is not** —
+a player who cannot get their own goods back is a worse failure than one who
+withdraws from a distance. A refusal returns its reason, because a control that
+has quietly vanished reads as a broken module.
+
+Places come in two shapes and the rule has two halves to match. A place with a
+**linked scene** IS a map, and being on that map — not the *active* map — is
+what reaches it. A place with **no linked scene** answers to a claim (your own
+vault, a place you own, a place pinned to your sheet, a place someone you march
+with owns) or to standing at its own token, because a market cart or a shrine
+can stand on a map without being one.
+
+Both halves ask the same question first — **where is this character actually
+standing** — and `standingSpots` (`reach.mjs`) is the only reader of it. A
+character in a formation has no token of their own: joining deletes it, so the
+thing on the ground is the party token and it answers for every member. A
+character no formation claims stands wherever their own tokens do, on every map
+at once. The geometry is `here.mjs`: a token's footprint padded by one grid
+square, and a floor being the scene's own square distance.
+
+`reachScan` is one pass over the world's tokens, built once per render by the
+surfaces that ask about every place at once and handed to each call. The rulings
+these follow, and what each cost, are in [DECISIONS.md](DECISIONS.md)
+(2026-09-12).

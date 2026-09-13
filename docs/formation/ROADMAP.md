@@ -239,8 +239,8 @@ walk stays honest about what was once outstanding.
   calendar any other way no longer leaves yesterday's sky standing and two
   parties in the same country get the same day.
 - ~~**Road and development are per-day pickers.**~~ **FIXED 2026-08-29** —
-  roads are painted as declared paths between a hex's sides, corners and
-  centre (`hex-topology.mjs`, `hex-routes.mjs`, `route-paint.mjs`); the picker
+  roads are drawn, and the hex links are derived from what was drawn
+  (`hex-topology.mjs`, `hex-routes.mjs`, `battlemap/roads.mjs`); the picker
   remains for a party not travelling a drawn route.
 - ~~**The terrain vocabulary is frozen.**~~ **FIXED 2026-08-29** — the brush
   now paints the union of shipped and imported keys, with a derived hue for a
@@ -248,6 +248,35 @@ walk stays honest about what was once outstanding.
 - ~~**`mud` and `snow` are paintable terrain.**~~ **FIXED 2026-08-29** — both
   are withheld from the brush and derived from the footing alone. They remain
   valid terrain keys for the multiplier lookup.
+
+### The settlement layer — roads and districts SHIPPED (7.6.0); the rest
+
+Streets and quarters shipped in 7.6.0: walls carry a road layer, a city walk is
+measured along the graph they draw, and a District Region states a quarter's day
+and night cadence, its own and its hunted tables, and how it receives strangers.
+`docs/formation/MODEL.md` "The districts" is how it works; the rulings are the
+2026-09-12 entries in `DECISIONS.md`; the live recipe is `TESTING.md` steps
+15–26.
+
+Two milestones of that plan are **not built**, and were deferred when 7.6.0 was
+cut as a minor rather than held for one major:
+
+| Not built | What it is | What it needs first |
+|---|---|---|
+| **Points of interest** | A static POI is a place actor's token; a transient one is a GM-only Note that expires on the world clock. Carries the rebinding of imported AX3 points and organisations onto location actors. | `placeUnderParty` (`scripts/location/here.mjs`) already answers "which place is the party standing at" and is published on the api with **no runtime consumer** — the settlement panel's place readout is this milestone's, and is what gives it one. |
+| **Factions, reputation and status** | An `acks-extras.faction` Actor sub-type; the henchmen slander registry generalised into a standing ledger. | A world relaunch, as any new sub-type needs (`documentTypes` is server-read). |
+
+Two smaller things the same work left open:
+
+- **A district's sub-tables are not band-routed.** JJ ch. 7 Step 7 routes a
+  result's band to a sub-table; today a district's table simply replaces the
+  city's, which is a Judge's choice and is what core RollTable nesting already
+  covers. Routing by the band a roll landed in needs the incident reader to
+  return the band as well as the row.
+- **`night` is still a picker, not the calendar.** The hour is trivial to read;
+  the boundary that makes it dark is not printed anywhere and nothing in the
+  family computes one. It wants either a pair of Judge-set hour settings with no
+  default, or a sunrise/sunset pair arriving through the importer.
 
 ## 5. Rulings taken 2026-08-29, and what each unblocks
 
@@ -403,3 +432,21 @@ legitimately sit.
   would make that unnecessary and would stop a frontage edit from reading as a
   step. It is a change to the trap geometry, not to the clock — `trap-zone.mjs`
   converts corner to centre and back at three seams that would collapse.
+
+- **The city's "after dark" could follow the calendar, and cannot yet.**
+  `game.time.components.hour` answers the hour trivially (the Auran Imperial
+  Calendar declares a 24-hour day), so a "follow the calendar" toggle beside
+  the manual box is a small change — except that nothing in the world says
+  when dark BEGINS. The calendar's seasons carry `monthStart`/`dayStart` and
+  no sunrise or sunset, and nothing in the module computes one. Gating the
+  imported after-dark shift and the night cadence on an invented boundary
+  would price a printed modifier with an unprinted number. Two honest routes:
+  a pair of Judge-set hour settings with **no default**, so the toggle is
+  offered only once the Judge has said what dark means here; or a sunrise /
+  sunset pair reaching `sky.mjs` through the importer, at which point the
+  toggle follows a figure the Judge's own book supplied.
+- **Dynamic band routing for a district's sub-tables.** JJ ch. 7 Step 7 routes
+  a result's band to a sub-table. Modelled today as *the district's table
+  replaces the city's* — a Judge's choice, and core RollTable nesting covers
+  static routing. Routing chosen by the band the roll landed in wants the
+  incident reader to return the band as well as the row.

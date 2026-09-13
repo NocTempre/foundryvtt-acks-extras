@@ -44,6 +44,12 @@ token-movement seam that ticks dungeon turns when not journeying).
 | `apply.mjs` | Scene writes, one per family: `applyGridCalibration` (square), `applyHexCalibration` (hex), `applyScaleOnly` (no geometry), each one `scene.update`; plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
 | `../lib/distance-units.mjs` | What one `grid.units` is worth in FEET. Every feet→squares conversion divides by `sceneFeetPerCell`. |
+| `roads.mjs` | Roads as a WALL LAYER on any grid: the flag, the non-blocking wall shape, the memoised road network, `roadUnder` (which street is the party on) and `roadDistance` (how far along the streets), the drawing presets, and the road row on a wall's own sheet. |
+| `road-markers.mjs` | The GM-side overlay that makes a street visible: tinted by surface, dashed where it is an alley, drawn only while a map-drawing control is open. Presentation only. |
+| `hex-topology.mjs` | Pure hex nodes and links, and `linksFromRoadSegments` — the links a set of drawn roads implies. No Foundry. |
+| `hex-routes.mjs` | The scene half of the topology: links DERIVED from road walls, the legacy declared flag still read beside them, `convertRoutesToWalls`, `nodeAtPoint` / `nodePoint`. |
+| `../lib/wall-geometry.mjs` | Segments and the graph they draw — the crossing, distance and along-the-lines measurement every wall layer shares. No Foundry. |
+| `../lib/wall-layers.mjs` | What a drawn line MEANS to this module: the flag read and write, the all-NONE shape, core's one drawing-preset slot, a region from an enclosed loop. |
 | `module.mjs` | Registrar: scene-control tool, scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
 
 ## Data flow
@@ -224,19 +230,100 @@ against the grid's own neighbours**: any two hexes have a midpoint, so nudging
 toward it from far apart yields two perfectly valid nodes and a crossing that
 does not exist.
 
-The **Routes tools** sit in the Battlemap group, one per road kind, so Foundry's
-one-active-tool rule is the kind selection — the same shape the terrain brush
-uses. Click a node to anchor, click another to link; the far end becomes the
-next anchor so a road is drawn in one sweep. The anchor is drawn, because a
-tool that remembered a click without showing it would leave a Judge guessing
-whether their last press registered.
+**The links are DERIVED from the roads the Judge drew.** `derivedRoutesOf`
+samples every road wall along its length and emits a link for each move to a
+different, ADJACENT hex — so a street dragged into a new shape brings its links
+with it, and nothing is declared twice. A wall that merely clips a corner emits
+nothing, because the hex before the clip and the hex after it are not
+neighbours. The derivation is cached against the road network object itself,
+which the road layer replaces on any wall change, so it needs no invalidation
+of its own.
 
-The journey consults it: `onJourneyTokenMoved` asks `stepBetweenHexes` and a
-drawn network **overrides the day's road picker**, exactly as painted terrain
-overrides the ground picker. A scene with no routes leaves the picker alone —
-an undrawn map is one where the question has not been asked, not one where
-every march is off-road.
+`winding` is therefore MEASURED: the road lying inside the two hexes a link
+joins, half of each, over the distance between their centres. The road inside a
+hex is summed over every segment there, which is what makes a snaking street
+drawn as six short lines cost what its shape says. Two roads crossing one hex
+without meeting are counted together there, so such a hex reports more bend
+than either road has; `makeLink` floors the figure at 1, so the measure can
+never make a road cheaper than crossing straight.
+
+`declaredRoutesOf` still reads the legacy `hexRoutes` scene flag beside the
+derived set, so a world part-way through a hand-declared network keeps working;
+a drawn road wins a boundary both describe. `convertRoutesToWalls` retires the
+flag into walls on one press — a Judge's act, not a migration on load, because
+converting writes walls to a scene. The winding a Judge TYPED is not carried
+across: winding is now read off the shape of the line, and writing the old
+figure onto a straight wall would make the two disagree the moment it is
+dragged.
+
+A converted link is drawn **hex middle to hex middle**, not between the link's
+own two ends: those ends are the two halves of one shared boundary and resolve
+to the same point, so a wall between them would have no length. A line through
+both hexes is also the only shape the derivation can re-read, which is what
+makes the press idempotent — what it writes comes straight back as a derived
+link. A declaration it cannot place stays on the flag; the press never destroys
+what it failed to carry.
+
+The journey consults the union: `onJourneyTokenMoved` asks `stepBetweenHexes`,
+and a drawn network **overrides the day's road picker**, exactly as painted
+terrain overrides the ground picker. A scene with no roads leaves the picker
+alone — an undrawn map is one where the question has not been asked, not one
+where every march is off-road.
 
 Not yet built: a path's own encounter profile, and feeding `routeCost`'s
 winding tax into the day's distance.
+
+## Roads
+
+A road is a **Wall that restricts nothing**, flagged
+`flags["acks-extras"].road` with a surface, a street kind and a name
+([roads.mjs](../../scripts/battlemap/roads.mjs)). Three things follow from
+being a wall:
+
+- **It is drawn with core's own wall tool**, so snapping is core's: a hex grid
+  offers the vertices, side midpoints and centres the topology already
+  addresses, a square grid its vertices and midpoints, a gridless map the free
+  hand. Nothing here reimplements any of it, and a road can be drawn on every
+  grid — which the node tool it replaced could not.
+- **A bend is measured along its legs.** `roadDistance` measures over the road
+  GRAPH, so a party that follows a curving street pays for the street and not
+  for the chord across the block it went round. It answers null when EITHER end
+  is more than a grid cell off the roads, when the two ends are on networks that
+  do not meet, or when the scene states no scale — every one of which means the
+  caller falls back to the straight line and says so. Both ends, where the
+  underlying geometry asks for either: a move that starts on a street and ends
+  across open ground would otherwise be charged the street plus the trek off it,
+  which comes to MORE than the straight line the party could have walked — the
+  defect this measurement exists to fix, pointing the other way.
+- **The street underfoot is a fact, not a picker.** `roadUnder` reads the
+  surface and street kind off the wall nearest the party's centre.
+
+The restrictions are all NONE and the door type is stated, because the preset
+persists between presses: a road armed after a secret door would otherwise
+inherit the doorway. Marking an EXISTING wall as a road never alters that
+wall's own properties — a layer never does — so a wall that still restricts
+movement is a street the party cannot walk down, and the wall's sheet says so
+rather than silently correcting it. Such a wall is **not in the network**: it is
+drawn by the overlay so the warning can be acted on, but no route is measured
+along a line the party's token cannot cross.
+
+**The trap line and the road share core's ONE preset slot.** Arming a street
+disarms a tripwire and the other way round; nothing in the module can change
+that, so the notification names what is now armed.
+
+The road tools sit in two places for one reason. The **presets** (one per
+surface, plus an alley modifier and the conversion) are in the Battlemap group
+with the rest of map preparation. **Marking a selection** is on the Walls
+control, because leaving a placeables layer releases everything selected on it:
+a Roads control of its own would empty the wall selection at the moment it
+opened, and a selected wall is what that tool acts on.
+
+The **alley tool is a modifier on the armed preset** rather than a road kind of
+its own — pressing paved and then alley means a paved alley, which is what a
+Judge who pressed them in that order meant.
+
+What a surface is WORTH is imported (the `travel` document's `roads` table); a
+wall carries the key. A world whose book names a surface this build never heard
+of can still carry it: `roadSurfaceKeys` widens the wall sheet's choices by
+whatever the registry holds, while the toolbar offers the structural few.
 

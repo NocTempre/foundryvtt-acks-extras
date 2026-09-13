@@ -993,12 +993,15 @@ export const TABLE_RECIPES = {
   },
 
   // City travel (JJ, Settlement Adventures). The paces and the straggling
-  // ladder are prose; the street's encounter cadence IS a grid.
+  // ladder are prose; the street's encounter cadence IS a grid. AX3 (Capital
+  // of the Borderlands) adds a district-scale figure onto the same document:
+  // how long each pace takes between two points of interest in the same
+  // district versus an adjacent one.
   //
   // `cityTravel`, not `settlement`: this file already registers a `settlement`
   // document for market class by families, and the two are unrelated.
   cityTravel: {
-    source: { book: "ACKS II Judges Journal", pages: "JJ 79-80" },
+    source: { book: "ACKS II Judges Journal + AX3 Capital of the Borderlands", pages: "JJ 79-81; AX3 58" },
     tables: {
       pacesProse: {
         shape: "proseValues",
@@ -1063,11 +1066,30 @@ export const TABLE_RECIPES = {
           { key: "avenueNight", labelRe: "^avenue.*night" },
           { key: "alleyDay", labelRe: "^alley.*day" },
           { key: "alleyNight", labelRe: "^alley.*night" },
-          { key: "holedUp", labelRe: "^holed\s*up" },
+          // `labelRe` is a STRING compiled with `new RegExp`, so the backslash
+          // has to survive the string literal: a single one is eaten and
+          // `\s*` becomes a literal `s*`, which matches a welded label and
+          // never a spaced one.
+          { key: "holedUp", labelRe: "^holed\\s*up" },
         ],
         cellColumns: [
           { key: "frequency", x: 132, w: 115, pattern: "raw", row: true },
           { key: "throw", x: 249, w: 60, pattern: "raw", row: true },
+        ],
+      },
+      // District travel (AX3, a specific city built of districts): both
+      // paces' figures between two points of interest in the same district
+      // versus an adjacent one. Taken as one whole window rather than one per
+      // figure — city-travel-binding.mjs reads all four out of it, the same
+      // way the survival paragraphs are read whole.
+      districtProse: {
+        shape: "proseValues",
+        book: "ax3",
+        printedPage: 60,
+        locate: "At commuter speed, it takes",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "paragraph", find: "At commuter speed, it takes", take: "window", span: 1200 },
         ],
       },
     },

@@ -1,8 +1,9 @@
 # lib — the shared subsystem's index
 
-One row per file; `npm run validate` fails when a file and its row disagree
-(a lib file with no row, or a row with no file). **Check this table before
-writing any helper** — most "missing" utilities are a row below.
+One row per file, maintained by hand: **nothing gates this table**, so a new
+helper whose row was not written is invisible exactly where a reader looks for
+it. **Check this table before writing any helper** — most "missing" utilities
+are a row below.
 
 Access rule: internal code imports directly from `scripts/lib/<file>.mjs`;
 `globalThis.acksExtras.lib` is the EXTERNAL contract (the importer, macros,
@@ -47,6 +48,8 @@ sibling modules) — never the import path for this module's own features.
 | `capacity.mjs` | How much any document can hold / is holding / is it over — in sixths of a stone. |
 | `movement-scales.mjs` | The four ACKS speeds (combat/running/exploration/expedition) and their book names. |
 | `distance-units.mjs` | What a scene's `grid.units` is worth in FEET — the picker's unit table, `feetPerUnit`, and `sceneFeetPerCell`. Every feet→squares conversion divides by that. Foundry-free. |
+| `wall-geometry.mjs` | Segments and the GRAPH a set of them draws: crossings, point/segment distance, `chainWalls` (a hand-drawn loop into a ring), `joinSegments` (endpoints within a tolerance are one node), `shortestPath`, and `pathLengthAlong` — how far it is ALONG the lines, with the off-line legs reported apart. The ONE answer to "a bent line is longer than its chord". Foundry-free. |
+| `wall-layers.mjs` | A LAYER over a wall — the module's way of meaning something by a line the Judge drew (a tripwire, a street). The dual flag read, the merge that can empty a field, the all-NONE non-blocking shape, core's ONE wall-drawing preset slot, where a layer's row goes on the wall sheet (whose application root IS its form), and a Region from the loop a selection encloses. What a layer MEANS belongs to the feature owning its key. |
 | `senses.mjs` | What a creature perceives; `canSeeInDark` + `senseProfile`. |
 | `perception.mjs` | Those senses as Foundry vision/detection modes. |
 | `light.mjs` | The RR light table + "how brightly does this actor's token burn?". |

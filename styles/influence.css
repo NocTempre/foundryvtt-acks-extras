@@ -243,6 +243,29 @@
   font-weight: bold;
   color: var(--acks-spot);
 }
+/* Read-only externally-injected modifiers: no input to accept, so the row is
+   a plain label/value pair rather than the control+label shape above. */
+.acks-influence-dialog .influence-external-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.acks-influence-dialog .influence-external-mod {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.75em;
+  line-height: 1.15;
+}
+.acks-influence-dialog .influence-external-value {
+  font-weight: bold;
+  color: var(--acks-spot);
+  flex: 0 0 auto;
+}
 .acks-influence-dialog .influence-masked {
   display: inline-flex;
   align-items: center;

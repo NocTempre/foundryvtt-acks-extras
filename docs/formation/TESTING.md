@@ -423,7 +423,37 @@ with one member, its token placed, `setJourneyMode(id, "journey")`.
 
 Fixture: a disposable `acks-extras.party` Actor (creating it auto-creates the
 formation) and a disposable square scene the party token stands on. Reach the
-formation with `getFormationForActor(actor)` — there is no `listFormations`.
+formation by its ACTOR, not by `getFormationForActor` — that searches MEMBERS,
+and a party actor is not a member of its own formation, so it answers null
+every time:
+
+```js
+const f = Object.values(acksExtras.formation.getFormations())
+  .find((r) => r.actorId === actor.id);
+```
+
+Give the token to the formation the way a Judge does — drag the party actor
+onto the scene, or create its prototype token there. The `createToken` hook
+adopts a manually placed party token, sets `tokenId`, and seeds
+`clock.lastPosition`; nothing else links the two, and without the link the
+tracker measures nothing.
+
+**The party's prototype token is a QUARTER of a cell**, so its centre is
+`x + grid.size / 8`, not `x + grid.size / 2`. Every road read is taken from the
+centre, so a token placed at a road's own endpoint sits ~53px off the line on a
+100px grid — inside `roadDistance`'s one-cell reach but outside `roadUnder`'s
+half-cell, which reads as the board losing its road snapshot for no reason.
+Place the token at `centre - grid.size / 8` when a step needs it ON a street.
+
+**One party, one token: a second placement is NOT adopted.** `tokenId` is only
+seeded while it is null, so moving the fixture to another scene means deleting
+the old token first (which releases it) and then placing the new one. A token
+created on a second scene while the first still stands is inert — the tracker
+goes on measuring the old one, and the move under test registers nothing.
+
+**Declare the block size in scene units you can count.** A square grid at
+100px/50ft makes one 600ft city turn exactly 1200px of path, which is what
+lets steps 6 and 11 be read off the coordinates rather than believed.
 
 1. `travel.setJourneyMode(id, "settlement")`.
    *Observable:* `travel.mode === "settlement"` and `clock.paused === false` —
@@ -462,6 +492,41 @@ formation with `getFormationForActor(actor)` — there is no `listFormations`.
    With the invented `encounters` rows registered, walk past the cadence.
    *Observable:* a city card whispers the throw against the street's target,
    and no wandering-monster card appears alongside it.
+
+   **Read the die off the card, not the fact that a card appeared.** It says
+   `Threw <n> on 1d6 against <t>+`, and `n` is a d6 result. A throw made on the
+   navigation die answers roughly four times too often and is indistinguishable
+   from a busy street on every other surface — this line is the only place the
+   scale is visible. The card also carries its `Roll` objects: `message.rolls`
+   holds the d6 and, on a hit, the incident die.
+
+8b. **A zone drawn over the street wins, per field.** Add a Region covering the
+   token with an `acks-extras.encounterZone` behaviour: `encounterEvery: 1`,
+   `encounterTarget: 2`, `tableUuid` pointing at a disposable two-row RollTable.
+   Walk three turns.
+   *Observable:* every turn owes a throw; each card opens
+   `Inside <region>, the street answers every 1 turn(s), on 2+`; a hit draws
+   from the zone's table by name (`Rolled <n> on <table>: <row>`) and NOT
+   through the city's d100 procedure — the zone's own formula is what rolled.
+   Now set `encounterEvery` back to 0 and leave the target: the interval
+   returns to the street's while the target stays the zone's. A zero is
+   *inherit*, never *never*.
+
+8c. **A stay longer than one credit catches up rather than losing the
+   difference.** Holed up with the stamp fresh, `game.time.advance(86400 * 45)`.
+   *Observable:* `days` rises by 30 (the per-credit cap), `holeUpSince` moves
+   forward by exactly 30 days — **not** 45 — and the stay card says how many
+   are still to catch up. Advance the clock again by any amount: the remaining
+   15 are credited and `days` reaches 45. Moving the stamp by the days that
+   PASSED instead of the days CHARGED loses the difference silently; the board
+   and the calendar simply disagree afterwards and no card says so.
+
+8d. **A day boundary crossed inside a tick survives the tick's own save.** Set
+   `holeUpSince` to `game.time.worldTime - (86400 - 300)`, then
+   `advanceTurns(f, 1)` — its 600s world-time bump crosses the boundary.
+   *Observable:* `days` rises by 1 and stays risen. `advanceRounds` saves its
+   own copy of the record whole at the end, so a credit landing mid-call is
+   written back over unless the credit is settled before the tick.
 9. **Holing up rides the calendar.** Set `where` to `holedUp`, advance world
    time an hour first (the stay is stamped, nothing is charged), then
    `game.time.advance(86400 * 2)`.
@@ -478,7 +543,183 @@ formation with `getFormationForActor(actor)` — there is no `listFormations`.
    first version of the sweep iterated it directly and failed silently that way.
 10. Leave with `setJourneyMode(id, "delve")`.
     *Observable:* mode is `delve`, the clock still runs, and the wandering
-    monster throw returns.
+    monster throw returns. Go straight back in with
+    `setJourneyMode(id, "settlement")`: the pickers the Judge set — pace,
+    streets, the way, the hour, intent, conveyance — are all still there, and
+    `blocks`, `turns`, `days` and `holeUpSince` are back to zero. Another
+    city's mileage is not this one's, and a route walked before is still
+    walked before.
+11. **The panel and the tick agree about the same party.** Push a dozen blank
+    cells into `members` beside one real member (the marching order keeps them
+    for ranks a Judge left open), set the pace to commuting, and read the
+    panel's `headcount`/`rateBlocks` against a single `advanceTurns`.
+    *Observable:* the panel counts the REAL member only, shows no straggling
+    tier, and its `rateBlocks` equals the blocks the turn actually credited.
+    Then set `where` to `holedUp` and re-read: `rateBlocks` is 0, `throws` is
+    false, and the no-throw line names staying put rather than the pace or the
+    route. A panel that derives independently of the tick agrees until one
+    side changes, and then disagrees in a way only a live read can catch.
+12. **A bend costs its legs, not its chord.** Draw two road walls meeting at a
+    right angle across the city scene — 12 squares along, then 12 up, on a
+    100px/50ft scene with a 1200px block — and drag the party token from one
+    far end to the other in ONE drag.
+    *Observable:* the turns credited match the road's length (24 squares =
+    1200 ft = one block at a commuting pace) and NOT the diagonal between the
+    ends (~17 squares). The tracker says the move was measured along the
+    streets. Then drag the party across open ground, more than one grid cell
+    from any road: the tracker says it was measured in a straight line, and
+    the turn is credited from that. **This is the defect the road layer was
+    built for** — before it, both drags cost the same and the bend was free.
+13. **The street underfoot beats the picker.** Mark one of the two walls as an
+    `alley` (its own wall sheet), leave the panel's `where` on avenues, stand
+    the party token on the alley, and take a turn.
+    *Observable:* the panel shows the alley's cadence with a line naming the
+    map as the source while the picker still reads avenues; the turn card says
+    which street it resolved on; the throw comes at the alley's interval and
+    target. Move onto the avenue leg and re-read: it follows. Set `where` to
+    `holedUp` while still standing on the alley: holed up wins, the day tick
+    owns the throw, and the road line is gone — the room is the answer and the
+    street outside it is not.
+14. **No roads changes nothing.** On a city scene with no road walls at all,
+    walk steps 3–8 again.
+    *Observable:* identical results to before the road layer — the picker
+    answers `where`, drags are straight-line, and the tracker says so. An
+    undrawn map is one where the question has not been asked.
+
+## The districts (added with the district behaviour)
+
+A district is a third layer over the same streets, so every step here is read
+against what steps 3–14 already established: the same party, the same city
+scene, the same roads. **What it adds that nothing above it needs is a world
+relaunch** — see the sub-type gate below, and walk it FIRST or every create
+silently does nothing.
+
+Fixtures: the city scene and party from "The city", plus disposable Regions
+created by the run and two disposable RollTables to point the district at.
+Create the tables through the driver so the sweep owns them; a district whose
+table is a world table somebody else made is a district whose test cannot be
+torn down.
+
+**The sub-type gate, before anything else:**
+
+```js
+game.documentTypes.RegionBehavior.includes("acks-extras.district")
+```
+
+`module.json`'s `documentTypes` is read by the SERVER at world launch. After a
+browser reload the data model is registered and the sheet renders, while
+`createEmbeddedDocuments("RegionBehavior", [{type: "acks-extras.district"}])`
+**returns an empty array and logs "not a valid type"** — nothing persists and
+nothing throws. If the check above is false, shut the world down and relaunch
+it; do not spend an hour on a tool that is working.
+
+Two spellings, one sub-type, and confusing them is the other silent failure:
+`"district"` appears ONLY in `module.json`'s `documentTypes`. Everywhere else —
+`CONFIG.RegionBehavior.dataModels`, `typeIcons`, `TYPES.RegionBehavior`, every
+`behavior.type` comparison, every `create` — it is `"acks-extras.district"`.
+
+15. **Mark a drawn region as a district.** Draw a Region over part of the city
+    scene with core's own Regions tools, select it, and press the district tool
+    on the Regions control.
+    *Observable:* the region gains exactly one `acks-extras.district` behavior,
+    its config opens showing eight fields with the localized labels (no raw
+    `ACKS-FORMATION.DISTRICT.*` keys on screen, which is what a missing lang
+    entry looks like), and the notification names how many regions were marked.
+    Press the tool a SECOND time with the same region selected: still exactly
+    one behavior, and the existing one opens. Then press it with nothing
+    selected: a notification asking for a selection, and no region created.
+16. **Enclose walls as a district.** Select a closed loop of walls on the city
+    scene and press the district tool on the Walls control.
+    *Observable:* one Region appears over the loop with a district behavior on
+    it, and its `visibility` is core's own default — `LAYER_UNLOCKED` (4), not
+    `GAMEMASTER` (1). The contrast with the trap-area tool beside it is
+    deliberate: a trap is a surprise and a quarter is not, so a district drawn
+    GM-pinned is the defect. Press again: the same region is reused, not a
+    second one stacked on it.
+17. **A district overrides the street, per field.** On the district from step
+    15, state only the day INTERVAL and leave every target at 0. Stand the
+    party inside it and take turns until a throw is owed.
+    *Observable:* the throw comes at the district's interval and at the
+    STREET's target. The card's override line names the district by its region
+    name. Now state only the day target and clear the interval: the interval
+    comes back from the street and the target is the district's. A district
+    with all four fields at 0 changes nothing at all — which is what makes 0
+    safe to leave alone.
+18. **Day and night are two figures, not a figure and a shift.** Give the
+    district a different night pair, then tick `After dark` on the panel.
+    *Observable:* the cadence changes to the night pair on the panel and in the
+    tick together. A district that prices only the night pair inherits by day —
+    walk that too, because it is the realistic gazetteer case and the one where
+    an inherit bug hides.
+19. **A district outranks a zone, and the card says which answered.** Draw an
+    Encounter Zone over a few blocks INSIDE the district, give it an interval
+    only, and stand the party in the overlap.
+    *Observable:* where the district states that figure, the district's is what
+    answers and the card names the DISTRICT; where it leaves that figure at 0,
+    the zone's answers and the card names the ZONE. Precedence is street →
+    zone → district with the district last and winning, the same order
+    `pickIncidentSource` picks a table in — it is NOT spatial nesting, and a
+    zone drawn inside a district does not outrank it. A card naming the wrong
+    layer while printing the right number is the failure this line exists for.
+20. **The panel shows what the tick will use.** With the party in the overlap,
+    read the panel WITHOUT taking a turn.
+    *Observable:* the panel prints the same interval and target the next turn
+    will throw at, and names the layer. **Before this phase the panel could
+    never show a zone override at all** — it called the street's reader
+    directly — so a panel still reading the bare street here is a regression,
+    not a cosmetic gap.
+21. **The district's list answers, and being hunted changes which list.** Put
+    one RollTable on the district's `tableUuid` and the other on
+    `wantedTableUuid`. Force a met throw.
+    *Observable:* the incident is drawn from the district's table and the card
+    names it. Tick `Hunted here` on the panel and force another: the hunted
+    table answers and the card says why. Now clear `wantedTableUuid` and force
+    a third with `Hunted here` still ticked: it falls back to the district's
+    ORDINARY table, never to the city's — a quarter that has said who is on its
+    streets has answered the question.
+22. **Untick `Hunted here` and confirm it clears.** An unticked checkbox is
+    absent from the submit, so a box that can be set and not cleared is the
+    expected bug here.
+    *Observable:* `travel.settlement.wanted` reads `false` on the record after
+    the untick, and the next incident comes from the ordinary table. Then leave
+    the city and re-enter it: `wanted` is **false again** without being touched.
+    That drop is deliberate — being hunted belongs to one settlement — and is
+    exactly the kind of ruling a later change silently "fixes".
+23. **The reaction figure reaches the roller AND the screen.** Give the
+    district a negative `reactionModifier` with `reactionWhere` on `Anywhere`.
+    Stand a party member in the district and open the influence roller for
+    them.
+    *Observable:* the dialog shows a read-only row naming the district and the
+    SIGNED figure, the subtotal includes it, and the posted card lists it. All
+    three, and the row is the one that regresses: before this phase an external
+    modifier moved the total and the card with **nothing on screen to explain
+    it**, which is how acks-henchmen's slander penalty has been arriving.
+    Verify the henchmen route still works at the same time if that module is
+    installed — two sources must add, not replace.
+24. **`Where it applies` is honoured.** Set `reactionWhere` to `Alleys`.
+    *Observable:* the figure is owed while the party stands on a drawn alley
+    inside the district and NOT while it stands on the avenue, following the
+    same map-beats-picker reading step 13 established. Set `where` to
+    `Holed up`: the figure is owed indoors and not on either street. Set the
+    modifier to 0 with any scope: nothing appears anywhere — 0 here means
+    "unremarkable", not "inherit".
+25. **The place under the party.** Put a location actor's token on the city
+    scene — dropped the ordinary way, NOT linked — and stand the party token
+    one square from it.
+    *Observable:* a member's Storage tab offers that place as somewhere they
+    can deposit, where the same place with its token removed and no scene
+    linked and no ownership is refused with a reason the player can read.
+    Move the party off and the offer goes away. The full recipe for this
+    surface, including the two refusals and the floor band, is
+    [../location/TESTING.md](../location/TESTING.md) steps 12-16.
+
+    **Nothing on the settlement panel names the place yet.** `placeUnderParty`
+    is api-only until the points-of-interest phase gives it a readout; a panel
+    line here would be that phase's, not this one's.
+26. **No district changes nothing.** Delete the district regions and walk steps
+    3–14 again.
+    *Observable:* identical to before this phase. An unmarked city is one where
+    the question has not been asked.
 
 ## Swimming (added with the registry migration)
 

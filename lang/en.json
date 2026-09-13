@@ -10,7 +10,8 @@
     },
     "RegionBehavior": {
       "acks-extras.encounterZone": "ACKS Encounter Zone",
-      "acks-extras.trapZone": "Trap Zone"
+      "acks-extras.trapZone": "Trap Zone",
+      "acks-extras.district": "ACKS District"
     },
     "Item": {
       "acks-extras.attitude": "Attitude",
@@ -2538,9 +2539,12 @@
       "blocksUnpriced": "No block rate imported — the pace has no distance yet.",
       "straggling": "Crowded: the party is large enough to be slowed",
       "navUnpriced": "No navigation target imported — the throw cannot be made yet.",
+      "navRouteUnpriced": "No known-destination modifier imported — the throw is made bare.",
       "noThrowRoute": "The route is known; no throw is needed.",
       "noThrowPace": "A meandering pace reads the street signs; no throw is needed.",
+      "noThrowStationary": "The party is staying put; a stay is thrown for by the day, not by the turn.",
       "cadenceMissing": "No street cadence imported for this spot.",
+      "unpricedIntent": "No figure imported for looking for trouble — the throw is the ordinary one.",
       "leave": "Leave the city",
       "leaveHint": "Return to the delve clock.",
       "enter": "Enter a city",
@@ -2557,16 +2561,23 @@
         "strayed": "Wrong turning — they end up {dice} blocks from where they meant to be.",
         "strayedUnpriced": "Wrong turning — how far off is not imported yet.",
         "owed": "The street stirs: {target}+ owed.",
-        "met": "Threw {rolled} against {target}+ — something finds them.",
-        "quiet": "Threw {rolled} against {target}+ — the street lets them pass.",
+        "met": "Threw {rolled} on {die} against {target}+ — something finds them.",
+        "quiet": "Threw {rolled} on {die} against {target}+ — the street lets them pass.",
         "unpriced": "Not imported: {what}.",
+        "unpricedIntent": "No figure imported for looking for trouble — this was the ordinary throw.",
         "stayTitle": "Out of sight",
         "holedUp": "Holed up. {days} day(s) so far.",
+        "stillCatchingUp": "{credited} day(s) thrown for so far; {left} still to catch up as the calendar advances.",
         "interrupted": "{count} day(s) did not pass quietly — day(s) {days}.",
         "undisturbed": "Nothing found them, over {throws} day(s).",
         "incident": "Rolled {roll} ({total} after the dark): {text}",
+        "incidentDrawn": "Rolled {roll} on {table}: {text}",
         "incidentUnmatched": "no row covers that roll — check the imported table.",
-        "noIncidentTable": "No incident table yet. Import the Judges Journal, or author one in the Ruledata Browser."
+        "noIncidentTable": "No incident table yet. Import the Judges Journal, or author one in the Ruledata Browser.",
+        "onRoad": "Standing on {road} — {where}, read off the map.",
+        "onRoadUnnamed": "Standing on {where}, read off the map.",
+        "measuredStraight": "The move was measured in a straight line: its two ends were not both on a street.",
+        "wanted": "They are being hunted here: the district's own list answers."
       },
       "progress": "{blocks} block(s) over {turns} turn(s).",
       "trackBlocks": "Timed by the map: a block here is {feet} {units}, so a turn is {turn} {units} walked.",
@@ -2590,7 +2601,48 @@
         "strayed": "Turned around in the streets.",
         "incident": "The street answers — see the city card."
       },
-      "notHoledUp": "The party is out on the streets — pick a place to hole up first."
+      "notHoledUp": "The party is out on the streets — pick a place to hole up first.",
+      "street": {
+        "avenue": "an avenue",
+        "alley": "an alley"
+      },
+      "road": {
+        "here": "On {road} — {where}, from the map",
+        "hereUnnamed": "{where}, from the map",
+        "measuredAlong": "Measured along the streets.",
+        "measuredStraight": "Measured in a straight line — the move did not run along a drawn street."
+      },
+      "cadenceInside": "Inside {place}, the street answers every {turns} turn(s), on {target}+.",
+      "wantedLabel": "Hunted here",
+      "wantedHint": "Somebody in this settlement is looking for this party: a district's hunted table answers instead of its ordinary one.",
+      "atPlace": "Standing at {place}.",
+      "district": {
+        "toolRegion": "District from walls",
+        "toolMark": "Mark as a district",
+        "regionName": "District",
+        "behaviorName": "District",
+        "marked": "Marked {count} region(s) as a district.",
+        "noRegions": "Select a region first — or draw one with the Regions tools.",
+        "here": "In {name}.",
+        "reaction": "{place} meets strangers at {modifier}.",
+        "reactionWhere": "{place} meets strangers at {modifier} — {where} only.",
+        "reactionLabel": "{name} (district)",
+        "regionMade": "District region drawn from the selected walls.",
+        "regionReused": "Those walls already had a district region — reused it.",
+        "noScene": "No active scene to draw a district region on.",
+        "selectLoop": "Select the walls that enclose the district — at least three.",
+        "notClosed": "Those walls do not close a shape. Join their ends and try again.",
+        "refused": "The district region could not be created.",
+        "markFailed": "None of the selected regions could be marked as a district.",
+        "markPartial": "Marked {count} of {total} region(s) as a district; the rest could not be changed.",
+        "notRegistered": "The district region type is not registered on this server yet — shut the world down and relaunch it, then mark the region again.",
+        "toolError": "That district tool could not finish; see the console for what stopped it."
+      },
+      "cadenceStreet": "the street",
+      "cadenceSplit": "Not the street's rhythm: every {turns} turn(s) from {turnsFrom}, on {target}+ from {targetFrom}.",
+      "strayHint": "If the throw fails, they end up {dice} blocks off course.",
+      "strayUnpriced": "No distance imported for a wrong turning — what a failed throw costs is not priced yet.",
+      "stragglingHeadcount": "{headcount} in the party."
     },
     "lost": {
       "discovered": {
@@ -2709,6 +2761,43 @@
       "order": "Order",
       "travel": "Travel",
       "kit": "Kit"
+    },
+    "DISTRICT": {
+      "anywhere": "Anywhere in the district",
+      "FIELDS": {
+        "tableUuid": {
+          "label": "District encounter table",
+          "hint": "RollTable drawn from (privately) when the streets throw for the party anywhere in this district. Drag a RollTable here or paste its UUID."
+        },
+        "wantedTableUuid": {
+          "label": "Table when they are hunted",
+          "hint": "Drawn from instead, while the party's settlement board is marked hunted here. Empty = use the table above."
+        },
+        "encounterEveryDay": {
+          "label": "Throw frequency by day (turns)",
+          "hint": "Make an encounter throw every N city turns in this district while it is light. 0 = inherit the layer outside this district."
+        },
+        "encounterEveryNight": {
+          "label": "Throw frequency after dark (turns)",
+          "hint": "As above, once the board says after dark. 0 = inherit."
+        },
+        "encounterTargetDay": {
+          "label": "Target value by day (1d6)",
+          "hint": "Encounter occurs on this value or higher in this district while it is light. 0 = inherit the layer outside this district."
+        },
+        "encounterTargetNight": {
+          "label": "Target value after dark (1d6)",
+          "hint": "As above, once the board says after dark. 0 = inherit."
+        },
+        "reactionModifier": {
+          "label": "Reaction adjustment",
+          "hint": "Added to reaction and influence throws made in this district (JJ ch. 7). Negative where strangers are unwelcome; 0 for a quarter that is unremarkable."
+        },
+        "reactionWhere": {
+          "label": "Where it applies",
+          "hint": "Which part of the district the adjustment is owed in."
+        }
+      }
     }
   },
   "ACKS-HENCHMEN.sheet.location": "Location / Recruitment Market",
@@ -4747,6 +4836,23 @@
   "ACKS-BATTLEMAP.routes.earth": "Earthen road",
   "ACKS-BATTLEMAP.routes.gravel": "Gravel road",
   "ACKS-BATTLEMAP.routes.paved": "Paved road",
+  "ACKS-BATTLEMAP.routes.alley": "Alley (of the armed road)",
+  "ACKS-BATTLEMAP.routes.convert": "Convert declared routes to road walls",
+  "ACKS-BATTLEMAP.routes.converted": "{made} road wall(s) drawn from declared routes; {skipped} skipped.",
+  "ACKS-BATTLEMAP.routes.convertNone": "This scene has no declared routes to convert.",
+  "ACKS-BATTLEMAP.routes.presetArmed": "The wall tool now draws: {road}.",
+  "ACKS-BATTLEMAP.routes.presetUnavailable": "No wall preset is available here — the wall tool is armed, but set the road on the wall after drawing it.",
+  "ACKS-BATTLEMAP.routes.toolMark": "Mark the selected walls as roads",
+  "ACKS-BATTLEMAP.routes.marked": "{added} wall(s) made roads, {updated} updated.",
+  "ACKS-BATTLEMAP.routes.blocking": "{count} of them still restrict movement, so the party cannot walk along them.",
+  "ACKS-BATTLEMAP.routes.wallLabel": "Road",
+  "ACKS-BATTLEMAP.routes.notARoad": "Not a road",
+  "ACKS-BATTLEMAP.routes.streetNone": "No street kind",
+  "ACKS-BATTLEMAP.routes.street.avenue": "Avenue",
+  "ACKS-BATTLEMAP.routes.street.alley": "Alley",
+  "ACKS-BATTLEMAP.routes.namePlaceholder": "Street name",
+  "ACKS-BATTLEMAP.routes.wallHint": "What this line is for travel. A party's route is measured along roads, and a city reads the street it is standing on off them.",
+  "ACKS-BATTLEMAP.routes.wallBlocks": "This road restricts movement, so the party cannot walk along it. Set its Movement restriction to None.",
   "ACKS-LIB.survival.sheltered": "Sheltered",
   "ACKS-LIB.survival.hypothermic": "Hypothermic",
   "ACKS-VEHICLES.reason.aloft.share": "Aloft",
@@ -5516,5 +5622,7 @@
   "ACKS-BRIDGE.members.role.1": "Player",
   "ACKS-BRIDGE.members.role.2": "Trusted Player",
   "ACKS-BRIDGE.members.role.3": "Assistant GM",
-  "ACKS-BRIDGE.members.role.4": "Gamemaster"
+  "ACKS-BRIDGE.members.role.4": "Gamemaster",
+  "ACKS-INFLUENCE.external.legend": "From where they stand",
+  "ACKS-INFLUENCE.external.hint": "Carried in from the party's surroundings. Change the place, not this figure."
 }

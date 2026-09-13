@@ -182,3 +182,97 @@ export function onRoad(links, from, to) {
   const link = (links ?? []).find((l) => l.a === a && l.b === b);
   return link ? { on: true, road: link.road, winding: link.winding } : { on: false };
 }
+
+/* -------------------------------------------- */
+/*  Links derived from drawn roads              */
+/* -------------------------------------------- */
+
+/**
+ * The links a set of DRAWN road segments implies.
+ *
+ * A road is a wall on the map, and a hex link is a fact about a crossing. This
+ * is the translation between them: walk each segment, note which hex each step
+ * of it falls in, and every move to a DIFFERENT, ADJACENT hex is a crossing —
+ * which is a link between the two hexes' facing side nodes.
+ *
+ * A wall that merely clips a hex's corner emits nothing, because the hex before
+ * the clip and the hex after it are not neighbours: there is no crossing to
+ * declare, which is exactly the ruling that a hex a road only touches earns
+ * nothing.
+ *
+ * **Winding is measured, not typed.** A link's `winding` is the road lying in
+ * the two hexes it joins — half of each, which is the stretch between their
+ * middles — over the distance between their centres. A straight run across a
+ * hex is 1; a street that doubles back through one is more, and the party pays
+ * the difference in distance. The road inside a hex is summed over EVERY
+ * segment there, which is what makes a snaking street drawn as six short lines
+ * cost what its shape says rather than what each line does. The cost of that:
+ * two roads that both cross one hex without meeting — a bridge and a ford —
+ * are counted together there, so the hex reports more bend than either has.
+ * `makeLink` floors the result at 1, so the measure can never make a road
+ * cheaper than crossing straight.
+ *
+ * Pure: the grid is an ADAPTER, so this is testable without a scene and works
+ * for any hex layout core supports.
+ *
+ * @param {Array<{seg: number[], surface?: string}>} segments drawn roads
+ * @param {object} grid adapter — `offsetAt(point)` → `{i, j}` or null,
+ *   `centre(offset)` → `{x, y}`, `facing(from, to)` → `{near, far}` node ids or
+ *   null when the two are not neighbours, and `step` (pixels between samples,
+ *   which must be smaller than a hex or a hex can be stepped clean over).
+ * @returns {object[]} links, deduplicated — two roads crossing one boundary are
+ *   one crossing
+ */
+export function linksFromRoadSegments(segments, grid, { step = null } = {}) {
+  const sampleStep = step ?? grid?.step ?? 20;
+  /** Contiguous runs of each wall, one per hex it passes through. */
+  const walls = [];
+  /** Total road length inside each hex, over every segment. */
+  const inside = new Map();
+
+  for (const entry of segments ?? []) {
+    const seg = entry?.seg ?? entry;
+    if (!Array.isArray(seg) || seg.length < 4) continue;
+    const [x1, y1, x2, y2] = seg.map(Number);
+    if (![x1, y1, x2, y2].every(Number.isFinite)) continue;
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    if (!length) continue;
+
+    const runs = [];
+    const n = Math.max(1, Math.ceil(length / sampleStep));
+    for (let k = 0; k <= n; k++) {
+      const t = k / n;
+      const offset = grid?.offsetAt?.({ x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t });
+      if (!offset) continue;
+      const key = `${offset.i}:${offset.j}`;
+      const last = runs[runs.length - 1];
+      if (last?.key === key) {
+        last.to = t * length;
+        continue;
+      }
+      runs.push({ key, offset, from: t * length, to: t * length });
+    }
+    for (const run of runs) inside.set(run.key, (inside.get(run.key) ?? 0) + (run.to - run.from));
+    walls.push({ runs, surface: entry?.surface });
+  }
+
+  let links = [];
+  for (const wall of walls) {
+    for (let r = 1; r < wall.runs.length; r++) {
+      const near = wall.runs[r - 1];
+      const far = wall.runs[r];
+      const pair = grid?.facing?.(near.offset, far.offset);
+      if (!pair) continue;
+      const a = grid.centre(near.offset);
+      const b = grid.centre(far.offset);
+      const across = Math.hypot(b.x - a.x, b.y - a.y);
+      const road = ((inside.get(near.key) ?? 0) + (inside.get(far.key) ?? 0)) / 2;
+      const link = makeLink(pair.near, pair.far, {
+        road: wall.surface ?? "earth",
+        winding: across > 0 ? road / across : 1,
+      });
+      if (link && !hasLink(links, link)) links = withLink(links, link);
+    }
+  }
+  return links;
+}

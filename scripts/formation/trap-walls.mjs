@@ -1,6 +1,18 @@
-/* global game, canvas, ui, foundry, fromUuid, Hooks, CONST */
+/* global game, canvas, ui, fromUuid, Hooks, CONST */
 import { MODULE_ID, TRAP_ITEM_TYPE } from "./constants.mjs";
 import { STATES } from "./trap-rules.mjs";
+import { chainWalls, pointSegmentDistance, segmentCrossing, segmentDistance } from "../lib/wall-geometry.mjs";
+import {
+  armWallPreset,
+  clearWallLayer,
+  controlledWalls,
+  openWallData,
+  regionFromWalls,
+  setWallLayer,
+  wallLayer,
+  wallNear,
+  wallSheetFields,
+} from "../lib/wall-layers.mjs";
 
 /**
  * Traps laid on WALLS: a tripwire across a corridor, a scything blade in a 10'
@@ -24,19 +36,28 @@ import { STATES } from "./trap-rules.mjs";
  * Once the party has FOUND it the marker is theirs too: `known` is what the
  * party has learned, and it outlives the state (a trap they found, disarmed
  * and re-armed themselves is still a trap they know about).
+ *
+ * A trap on a wall is one of the module's wall LAYERS, and the mechanics of
+ * being one — the dual flag read, the merge that can empty a field, the
+ * all-NONE line, the drawing preset, the region a loop encloses — are shared
+ * with the city's streets and live in `lib/wall-layers.mjs`; the segment
+ * geometry lives in `lib/wall-geometry.mjs`. Both are re-exported here, because
+ * this module's name is where the trap api and the trap suite ask for them.
  */
+export { chainWalls, controlledWalls, pointSegmentDistance, segmentCrossing, segmentDistance, wallNear };
 
 /** Flag holding a wall's trap layer. Absent means "no trap on this wall". */
 export const TRAP_FLAG = "trap";
 
 /**
- * A wall's trap layer, or null when it carries none.
+ * A wall's trap layer, resolved, or null when it carries none.
  *
- * Read raw as well as through `getFlag`, matching the door helper: `getFlag`
- * throws for an inactive scope while the data it wrote persists on the wall.
+ * Every field is defaulted here rather than at each reader: a trap written by
+ * an older release is missing keys the current rules consult, and a reader
+ * guessing its own default is a second answer to drift from.
  */
 export function wallTrap(wall) {
-  const f = wall?.getFlag?.(MODULE_ID, TRAP_FLAG) ?? wall?.flags?.[MODULE_ID]?.[TRAP_FLAG] ?? null;
+  const f = wallLayer(wall, TRAP_FLAG);
   if (!f) return null;
   return {
     trapUuid: f.trapUuid ?? "",
@@ -56,17 +77,9 @@ export function wallTrap(wall) {
 /** Does this wall carry a trap layer at all? */
 export const isTrapWall = (wall) => !!wallTrap(wall);
 
-/**
- * Write the trap layer, merging the patch over what is there.
- *
- * The merge is done HERE and the result written as a forced replacement,
- * because a flag write is itself a merge and a merge cannot empty anything: a
- * patch clearing a ledger — `{repeatLock: {}}`, which is exactly what rebuilding
- * a trap writes — merges into the full ledger and leaves every entry standing.
- */
+/** Write the trap layer, merging the patch over what is there. */
 export async function setWallTrap(wall, patch) {
-  const merged = { ...(wallTrap(wall) ?? {}), ...patch };
-  return wall.setFlag(MODULE_ID, TRAP_FLAG, foundry.data.operators.ForcedReplacement.create(merged));
+  return setWallLayer(wall, TRAP_FLAG, patch);
 }
 
 /**
@@ -81,22 +94,8 @@ export async function setWallTrap(wall, patch) {
 export async function clearWallTrap(wall) {
   const restore = wallTrap(wall)?.restore;
   if (restore) await wall.update(restore);
-  return wall.unsetFlag(MODULE_ID, TRAP_FLAG);
+  return clearWallLayer(wall, TRAP_FLAG);
 }
-
-/**
- * A wall that obstructs nothing: the shape a fresh tripwire is drawn as.
- *
- * Resolved at call time, not at module scope — `CONST` is a Foundry global, and
- * this module is imported by the offline suite and by the pure wall geometry
- * that the tests exercise without a world.
- */
-const openWall = () => {
-  // `EDGE_SENSE_TYPES` is v14's name for the same numbers; `WALL_SENSE_TYPES`
-  // still answers behind a deprecation proxy and is the v13 fallback.
-  const none = (CONST.EDGE_SENSE_TYPES ?? CONST.WALL_SENSE_TYPES).NONE;
-  return { move: none, sight: none, sound: none, light: none };
-};
 
 /**
  * The whole shape of a fresh tripwire: a wall that obstructs nothing, carrying
@@ -109,7 +108,7 @@ const openWall = () => {
  */
 export function trapWallData({ trapUuid = "" } = {}) {
   return {
-    ...openWall(),
+    ...openWallData(),
     flags: { [MODULE_ID]: { [TRAP_FLAG]: { trapUuid, state: STATES.armed, repeatLock: {} } } },
   };
 }
@@ -117,11 +116,6 @@ export function trapWallData({ trapUuid = "" } = {}) {
 /* -------------------------------------------- */
 /*  Laying one down                             */
 /* -------------------------------------------- */
-
-/** The walls the Judge currently has selected, as documents. */
-export function controlledWalls() {
-  return (canvas?.walls?.controlled ?? []).map((w) => w.document).filter(Boolean);
-}
 
 /**
  * Add a trap layer to every selected wall — or, with nothing selected, arm the
@@ -170,33 +164,14 @@ export async function layTrapOnSelection({ trapUuid = "" } = {}) {
 /**
  * Make the tripwire the shape the wall tool draws, and hand the Judge that tool.
  *
- * Foundry's wall types — solid, terrain, secret door — are **presets**: pressing
- * one stores the data new walls are created with and lights a pip on the button,
- * and the Judge then drags the wall out themselves. A trap line is a wall type
- * in exactly that sense, so it is one of those presets rather than a button that
- * places something.
- *
- * The preset persists until another is pressed, which is the point: laying a
- * row of tripwires is one press and several drags. The pip on the button is what
- * says it is still armed.
- *
- * Where no palette answers the drawing tool is still handed over, and the
- * notification says so rather than claiming an arming that did not happen: an
- * ordinary wall drawn under a promise of a tripwire is a hole in a corridor the
- * Judge believes is watched.
+ * A trap line is a wall TYPE in core's own sense, so it is armed as a preset
+ * (`armWallPreset`) rather than placed: press it, then drag the line where it
+ * belongs. The notification distinguishes an arming that happened from one that
+ * could not — an ordinary wall drawn under a promise of a tripwire is a hole in
+ * a corridor the Judge believes is watched.
  */
 export async function armTrapPreset({ trapUuid = "" } = {}) {
-  const data = trapWallData({ trapUuid });
-  // Reached through the layer rather than by importing the palette class: the
-  // layer names its own palette, so this follows a rename instead of breaking.
-  const palette = canvas?.walls?.constructor?.paletteClass;
-  const armed = !!palette?.SETTING_KEY;
-  if (armed) {
-    await game.settings.set("core", palette.SETTING_KEY, data);
-    ui.controls?.render?.({ parts: ["tools"] });
-    ui.placeablesPalette?.render?.({ preset: data, preservePlacement: true });
-  }
-  ui.controls?.activate?.({ control: "walls", tool: "wall" });
+  const armed = await armWallPreset(trapWallData({ trapUuid }));
   if (armed) ui.notifications?.info(game.i18n.localize("ACKS-FORMATION.traps.presetArmed"));
   else ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.traps.presetUnavailable"));
 }
@@ -235,79 +210,6 @@ export async function drawTrapWall({ trapUuid = "" } = {}) {
 /* -------------------------------------------- */
 
 /**
- * Chain wall segments into the outline they draw.
- *
- * Walls are unordered segments; a Region needs a ring of points in order. The
- * chaining walks from each segment to whichever unused segment shares its
- * endpoint, which is what makes a hand-drawn loop usable without asking the
- * Judge to have drawn it in sequence.
- *
- * Endpoints are compared with a tolerance because a loop closed by eye is
- * closed to within a pixel or two, not exactly.
- *
- * @param {Array<{c: number[]}>} walls
- * @param {number} [tolerance] pixels within which two endpoints are the same
- * @returns {{points: number[], closed: boolean}} flat [x,y,x,y,…]
- */
-export function chainWalls(walls, tolerance = 8) {
-  const segments = (walls ?? [])
-    .map((w) => w.c)
-    .filter((c) => Array.isArray(c) && c.length >= 4)
-    .map((c) => [
-      { x: c[0], y: c[1] },
-      { x: c[2], y: c[3] },
-    ]);
-  if (!segments.length) return { points: [], closed: false };
-
-  const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
-
-  /** Grow a ring from one starting segment, consuming whatever connects. */
-  const ringFrom = (start) => {
-    const used = new Array(segments.length).fill(false);
-    used[start] = true;
-    const ring = [segments[start][0], segments[start][1]];
-    for (let guard = 0; guard < segments.length; guard++) {
-      const tail = ring[ring.length - 1];
-      let advanced = false;
-      for (let i = 0; i < segments.length; i++) {
-        if (used[i]) continue;
-        const [a, b] = segments[i];
-        if (near(tail, a)) {
-          ring.push(b);
-        } else if (near(tail, b)) {
-          ring.push(a);
-        } else continue;
-        used[i] = true;
-        advanced = true;
-        break;
-      }
-      if (!advanced) break;
-    }
-    return ring;
-  };
-
-  // Try every segment as the start and keep the BIGGEST closed ring found.
-  //
-  // A Judge's selection is rarely exactly the loop: the trap tool leaves the
-  // wall it drew selected, so reaching straight for "enclose these" hands this
-  // four walls of a room plus one stray tripwire. Starting only from the first
-  // segment lets that one leftover decide the answer is "not a shape", which is
-  // true of the whole set and useless as a response.
-  let best = null;
-  for (let start = 0; start < segments.length; start++) {
-    const ring = ringFrom(start);
-    if (ring.length > 3 && near(ring[0], ring[ring.length - 1]) && (!best || ring.length > best.length)) {
-      best = ring;
-    }
-  }
-
-  // A closed ring repeats its first point at the end; a Region polygon does
-  // not want the duplicate.
-  if (best) return { points: best.slice(0, -1).flatMap((p) => [p.x, p.y]), closed: true };
-  return { points: ringFrom(0).flatMap((p) => [p.x, p.y]), closed: false };
-}
-
-/**
  * Build a Trap Zone Region from the selected walls' outline.
  *
  * Works from ANY selected walls, trapped or not: the Judge is describing an
@@ -322,50 +224,33 @@ export function chainWalls(walls, tolerance = 8) {
  */
 export async function regionFromSelection({ trapUuid = "", name = "" } = {}) {
   const walls = controlledWalls();
-  if (walls.length < 3) {
-    ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.traps.selectLoop"));
+  const { region, created, reason } = await regionFromWalls(walls, {
+    name: name || game.i18n.localize("ACKS-FORMATION.traps.regionName"),
+    color: "#a3312c",
+    // A trap area is the Judge's, the way a secret door is. The default draws
+    // it for anyone who opens the Regions control — which players have — so it
+    // is pinned to GAMEMASTER rather than left to a default that shows the trap
+    // to the table.
+    visibility: CONST.REGION_VISIBILITY.GAMEMASTER,
+    behaviorType: `${MODULE_ID}.trapZone`,
+    behaviors: [
+      {
+        type: `${MODULE_ID}.trapZone`,
+        name: game.i18n.localize("ACKS-FORMATION.traps.behaviorName"),
+        system: { trapUuid, state: STATES.armed, repeatLock: {} },
+      },
+    ],
+  });
+  if (!region) {
+    if (reason === "selectLoop" || reason === "notClosed") {
+      ui.notifications?.warn(game.i18n.localize(`ACKS-FORMATION.traps.${reason}`));
+    }
     return null;
   }
-  const { points, closed } = chainWalls(walls);
-  if (!closed || points.length < 6) {
-    ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.traps.notClosed"));
-    return null;
-  }
-
-  const scene = canvas.scene;
-
-  // Idempotent: running the tool twice on the same loop adopts the region it
-  // made the first time instead of stacking a second one on the same ground.
-  // Two trap zones over one outline would each throw their own secret 1d6 and
-  // the party would meet the trap twice for walking in once.
-  const existing = scene.regions.find(
-    (r) => r.behaviors.some((b) => b.type === `${MODULE_ID}.trapZone`) && samePolygon(r, points),
-  );
-  const region =
-    existing ??
-    (
-      await scene.createEmbeddedDocuments("Region", [
-        {
-          name: name || game.i18n.localize("ACKS-FORMATION.traps.regionName"),
-          color: "#a3312c",
-          // A trap area is the Judge's, the way a secret door is. The default
-          // (`LAYER_UNLOCKED`) draws it for anyone who opens the Regions
-          // control — which players have — so it is pinned to GAMEMASTER here
-          // rather than left to a default that shows the trap to the table.
-          visibility: CONST.REGION_VISIBILITY.GAMEMASTER,
-          shapes: [{ type: "polygon", points, hole: false }],
-          behaviors: [
-            {
-              type: `${MODULE_ID}.trapZone`,
-              name: game.i18n.localize("ACKS-FORMATION.traps.behaviorName"),
-              system: { trapUuid, state: STATES.armed, repeatLock: {} },
-            },
-          ],
-        },
-      ])
-    )[0];
-  if (!region) return null;
-  if (existing && trapUuid) {
+  // Reusing the region the tool made before is how running it twice on one loop
+  // stays harmless; a NEW trap named on the second press is the Judge editing
+  // the zone rather than re-drawing it, and is honoured.
+  if (!created && trapUuid) {
     const behavior = region.behaviors.find((b) => b.type === `${MODULE_ID}.trapZone`);
     await behavior?.update({ "system.trapUuid": trapUuid });
   }
@@ -381,55 +266,14 @@ export async function regionFromSelection({ trapUuid = "", name = "" } = {}) {
   }
 
   ui.notifications?.info(
-    game.i18n.format(existing ? "ACKS-FORMATION.traps.regionReused" : "ACKS-FORMATION.traps.regionMade", { lifted }),
+    game.i18n.format(created ? "ACKS-FORMATION.traps.regionMade" : "ACKS-FORMATION.traps.regionReused", { lifted }),
   );
   return region;
-}
-
-/**
- * Does this region already outline these points?
- *
- * Compared as an unordered set of vertices with the same tolerance the chaining
- * uses, because a loop rebuilt from the same walls can start at a different
- * corner and run the other way round.
- */
-function samePolygon(region, points, tolerance = 8) {
-  const shape = (region.shapes ?? []).find((s) => s.type === "polygon" && !s.hole);
-  const have = shape?.points ?? [];
-  if (have.length !== points.length) return false;
-  const pairs = (flat) => Array.from({ length: flat.length / 2 }, (_, i) => [flat[i * 2], flat[i * 2 + 1]]);
-  const mine = pairs(points);
-  return pairs(have).every((h) => mine.some((m) => Math.hypot(h[0] - m[0], h[1] - m[1]) <= tolerance));
 }
 
 /* -------------------------------------------- */
 /*  Crossing one                                */
 /* -------------------------------------------- */
-
-/**
- * Where a movement path crosses a segment, or null.
- *
- * Returns the POINT rather than a yes/no because the party is halted at the
- * crossing when the trap springs — walking on to the far side and then being
- * told a tripwire was stepped over three squares back is not the event the
- * rules describe.
- */
-export function segmentCrossing(from, to, seg) {
-  const [x1, y1, x2, y2] = seg;
-  const rx = to.x - from.x;
-  const ry = to.y - from.y;
-  const sx = x2 - x1;
-  const sy = y2 - y1;
-  const denom = rx * sy - ry * sx;
-  if (!denom) return null; // parallel, including both degenerate
-  const t = ((x1 - from.x) * sy - (y1 - from.y) * sx) / denom;
-  const u = ((x1 - from.x) * ry - (y1 - from.y) * rx) / denom;
-  // `t > 0`, not `t >= 0`: a party STARTING on the line has not crossed it by
-  // stepping away. Without this, a party halted at a trap springs it again on
-  // its next move, in either direction, forever.
-  if (t <= 0 || t > 1 || u < 0 || u > 1) return null;
-  return { x: from.x + t * rx, y: from.y + t * ry, t };
-}
 
 /**
  * Every armed trap wall the party crossed on this move, nearest crossing first.
@@ -462,53 +306,6 @@ export async function trapFromDrop(data) {
   if (data?.type !== "Item" || !data?.uuid) return null;
   const item = await fromUuid(data.uuid);
   return item?.type === TRAP_ITEM_TYPE ? item : null;
-}
-
-/**
- * Perpendicular distance from a point to a segment `[x1,y1,x2,y2]`.
- *
- * Clamped to the segment's ends, so a point off past one end measures to that
- * end rather than to the infinite line through it.
- */
-export function pointSegmentDistance(x, y, seg) {
-  const [x1, y1, x2, y2] = seg;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len2 = dx * dx + dy * dy || 1;
-  const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / len2));
-  return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
-}
-
-/**
- * The shortest distance between two segments.
- *
- * The automatic hasty search is measured against the ground the party WALKED,
- * not against where it stopped: a column crossing a room passes within 5' of a
- * tripwire it never ends its move beside, and RAW gives it the throw anyway.
- * Crossing segments are zero apart; otherwise the closest approach is at one of
- * the four endpoints, which is what the four point tests cover.
- */
-export function segmentDistance(a, b) {
-  if (segmentCrossing({ x: a[0], y: a[1] }, { x: a[2], y: a[3] }, b)) return 0;
-  return Math.min(
-    pointSegmentDistance(a[0], a[1], b),
-    pointSegmentDistance(a[2], a[3], b),
-    pointSegmentDistance(b[0], b[1], a),
-    pointSegmentDistance(b[2], b[3], a),
-  );
-}
-
-/** Perpendicular distance from a point to a wall segment. */
-const distanceToWall = (wall, x, y) => pointSegmentDistance(x, y, wall.c);
-
-/** The wall nearest a canvas point, within `reach` pixels. */
-export function wallNear(scene, x, y, reach) {
-  let best = null;
-  for (const wall of scene?.walls ?? []) {
-    const dist = distanceToWall(wall, x, y);
-    if (dist <= reach && (!best || dist < best.dist)) best = { wall, dist };
-  }
-  return best?.wall ?? null;
 }
 
 /**
@@ -603,7 +400,7 @@ export function installTrapDrop() {
         .catch((err) => console.error(`${MODULE_ID} | trap drop failed`, err));
     });
 
-    (root.querySelector(".window-content form") ?? root).append(row);
+    wallSheetFields(root).append(row);
   });
 }
 

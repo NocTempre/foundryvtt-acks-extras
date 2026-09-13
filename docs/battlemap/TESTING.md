@@ -265,3 +265,85 @@ read).
 
 Teardown: delete both scenes (their regions go with them) and the party
 fixtures.
+
+## Roads (added with the settlement layer)
+
+Fixtures: three disposable scenes — gridless, square, and hex (the hex one
+given a `hexRoutes` flag by hand, so the legacy path and the conversion are
+both exercised); a disposable party with one member.
+
+**Drive mechanics.** Drawing a wall is a real drag on the wall layer: call
+`canvas.app.render()` before each PointerEvent or the hit test runs against a
+stale frame. Creating the wall through `scene.createEmbeddedDocuments("Wall",
+[{c, ...roadWallData({surface})}])` exercises everything downstream of the
+drawing and is the right shortcut for the graph and measurement steps — but at
+least one road must be DRAWN with the tool, because the preset is what the
+drawing step proves. `acksExtras.battlemap.roads` is the api surface; read the
+network with `roadGraph(scene)` and the derived links with
+`derivedRoutesOf(scene)`.
+
+On a PLAYER seat the road surface is absent rather than refused: there is no
+`walls` control and no battlemap group at all, so the tools cannot be reached,
+and the overlay draws nothing though the scene still holds its road walls.
+`convertRoutesToWalls` answers null. Arming a preset, however, SUCCEEDS on a
+player seat and is meant to — the slot is client-scoped, so a seat with no wall
+tool arms something it can never draw with. Do not read a player-armed preset
+as a permission leak.
+
+1. Enter the Battlemap group and press **Paved road**.
+   *Observable:* the wall control opens with the wall tool active, the
+   notification names the paved road, and `game.settings.get("core", <the
+   wall palette's SETTING_KEY>)` holds all-NONE restrictions, `door: 0`, and
+   the road flag with `surface: "paved"`.
+2. Press **Alley** without pressing a surface again.
+   *Observable:* the armed preset keeps `surface: "paved"` and gains
+   `street: "alley"` — the alley is a modifier, not a road kind.
+3. Press the trap line tool on the Walls control, then a road preset again.
+   *Observable:* each press replaces the other's preset. There is one slot;
+   the notifications are the only way to tell which is live. **This is the
+   risk to watch for in any later change** — a silent slot would mean a
+   corridor the Judge believes is watched.
+4. Drag a bent street on the SQUARE scene (two legs meeting at a right angle).
+   *Observable:* two Wall documents with `move`/`sight`/`sound`/`light` all
+   NONE, `door` NONE, and the road flag; the GM overlay tints them; a player
+   seat sees nothing drawn.
+5. Read the network: `roadGraph(scene).nodes.length`.
+   *Observable:* three nodes for two legs — the shared corner is ONE node,
+   because ends dragged by hand land within the join tolerance rather than
+   identically. Edit one wall and read again: the network is rebuilt.
+6. Select an ordinary blocking wall and press **Mark the selected walls as
+   roads** on the Walls control.
+   *Observable:* the flag is added, the wall's own restrictions are NOT
+   changed, and a warning says it still restricts movement. Its own sheet
+   carries the road row and the same warning.
+7. Open a road wall's sheet and change its surface, street and name.
+   *Observable:* each field writes immediately (the sheet's own submit knows
+   nothing of the flag); choosing **Not a road** removes the flag; the row
+   never appears twice however many times the sheet re-renders.
+8. Repeat step 4 on the GRIDLESS scene and on the HEX scene.
+   *Observable:* the same walls and the same network. On the hex scene,
+   `derivedRoutesOf(scene)` returns one link per adjacent-hex crossing and
+   `stepBetweenHexes(scene, from, to)` answers `{on: true}` for a crossing the
+   road makes — with nothing declared in the flag.
+9. Press **Convert declared routes to road walls** on the hex scene, with one
+   declaration the conversion cannot place (both ends in the same hex).
+   *Observable:* one wall per placeable link, drawn hex MIDDLE to hex middle —
+   never between the link's own two ends, which are the two halves of one
+   shared boundary and resolve to the SAME point, so a wall between them would
+   have no length and nothing would be made. `derivedRoutesOf` re-finds each
+   converted link with its declared surface and a MEASURED winding of 1 (the
+   typed figure is not carried across), and `stepBetweenHexes` still answers
+   `{on: true}`. The unplaceable declaration is still on the `hexRoutes` flag
+   and the converted ones are gone — a press must never destroy what it could
+   not carry. A second press is a no-op (`{made: 0, skipped: 1}`); with nothing
+   declared it reports `{made: 0, skipped: 0}`.
+10. Journey read on the hex scene: move the party across a crossing the drawn
+    road makes.
+    *Observable:* the day's road picker follows the drawn road, as it did for
+    a declared link.
+
+Teardown: delete the three scenes (their walls go with them) and the party
+fixtures. Press a road preset once more if the run left the trap preset armed —
+the preset is CLIENT state — one slot per seat, not per world — so it outlives
+the run on the browser profile that drove it while disturbing no other seat, and
+it is the one thing here a sweep cannot delete.

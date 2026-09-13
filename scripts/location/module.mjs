@@ -39,6 +39,7 @@ import {
   unlinkScene,
 } from "./scene-link.mjs";
 import { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds } from "./reach.mjs";
+import { placeUnderParty } from "./here.mjs";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/location/location-sheet.hbs`,
@@ -160,6 +161,11 @@ Hooks.once("ready", () => {
      * character is at a place would answer differently from the tab beside it.
      */
     reach: { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds },
+    /**
+     * A location actor reached through its own TOKEN rather than a scene
+     * link (here.mjs) — the place a party's token happens to be standing on.
+     */
+    here: { placeUnderParty },
   };
 
   if (game.system?.id !== "acks") return;
