@@ -443,4 +443,179 @@ assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort()
   assert.ok(!paintableTerrains().includes("ashWaste"), "dropping the table closes the vocabulary again");
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary)");
+/* --- roads: the wall row, and a wall that the graph split ------------------
+   The row is markup the module assembles itself, so it is asserted as markup:
+   what the Judge typed has to come back out of the attribute it was written
+   into. The sheet is driven through the render hook the module actually
+   registers, over the smallest stand-ins the code touches. Names and surface
+   keys below are invented. */
+{
+  const ENTITIES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" };
+  const escapeHTML = (s) => String(s).replace(/[&<>"']/g, (c) => ENTITIES[c]);
+  /** What a browser hands back when it reads the attribute again. */
+  const decode = (s) => s
+    .replace(/&quot;/g, '"').replace(/&#x27;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+
+  globalThis.CONST = { EDGE_SENSE_TYPES: { NONE: 0 }, EDGE_DOOR_TYPES: { NONE: 0 } };
+  globalThis.foundry = { utils: { escapeHTML } };
+  globalThis.game = {
+    user: { isGM: true },
+    // Every key answers as itself, so a label that is not translated is the
+    // raw imported key — which is the case the escaping has to survive.
+    i18n: { format: (key) => key, localize: (key) => key, has: () => false },
+  };
+  globalThis.HTMLElement = class HTMLElement {};
+
+  /** The row the module last built, captured through its only DOM call. */
+  let built = null;
+  globalThis.document = {
+    createElement: () => {
+      built = {
+        className: "",
+        innerHTML: "",
+        querySelector: () => ({ value: "", addEventListener() {} }),
+      };
+      return built;
+    },
+  };
+
+  const hooks = new Map();
+  globalThis.Hooks = {
+    on: (name, fn) => {
+      if (!hooks.has(name)) hooks.set(name, []);
+      hooks.get(name).push(fn);
+    },
+  };
+
+  const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
+  const { registerRoadHooks, roadSegmentsFromGraph, roadSegmentsOf, invalidateRoadGraph } =
+    await import("../scripts/battlemap/roads.mjs");
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+
+  registerRoadHooks();
+  const appended = [];
+  const root = {
+    querySelector: (sel) => (sel === ".window-content .standard-form" ? { append: (r) => appended.push(r) } : null),
+  };
+  /** Fire the sheet-render hook over one document and report what was added. */
+  const render = (wall) => {
+    appended.length = 0;
+    built = null;
+    for (const fn of hooks.get("renderApplicationV2")) fn({ document: wall, render() {} }, [root]);
+    return built;
+  };
+
+  // The wall PALETTE is a WallConfig over an unsaved preview — the shape of the
+  // next wall to be drawn — and its id is null. A flag written there cannot
+  // land, so no row is offered.
+  assert.equal(render({ documentName: "Wall", id: null, move: 0, flags: {} }), null,
+    "the id-less palette preview gets no road row");
+  assert.equal(appended.length, 0, "and nothing is appended to the palette's form");
+  assert.equal(render({ documentName: "Item", id: "i1" }), null, "and a sheet that is not a wall's still gets none");
+
+  // A placed wall, named with the two characters that break an attribute.
+  const streetName = 'The "Shambles" & Sons';
+  const imported = 'sand & "gravel"';
+  registerTable({
+    id: "travel",
+    source: "invented",
+    tables: { roads: { [imported]: { multiplier: 1 } } },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+
+  const placed = {
+    documentName: "Wall",
+    id: "Wall.1",
+    c: [0, 0, 200, 0],
+    move: 0,
+    flags: { [MODULE_ID]: { road: { surface: "paved", street: "avenue", name: streetName } } },
+  };
+  const row = render(placed);
+  assert.ok(row, "a placed wall gets the road row");
+  assert.equal(appended.length, 1, "appended once, into the sheet's own field list");
+
+  const value = /class="acks-extras-road-name" value="([^"]*)"/.exec(row.innerHTML)?.[1];
+  assert.ok(value != null, "the name input carries a value attribute");
+  assert.equal(decode(value), streetName, "the name survives the attribute it is written into");
+  assert.ok(row.innerHTML.includes("&quot;"), "the quotes went in as entities");
+
+  const options = [...row.innerHTML.matchAll(/<option value="([^"]*)"[^>]*>([^<]*)<\/option>/g)]
+    .map(([, v, label]) => [decode(v), decode(label)]);
+  assert.ok(options.some(([v, label]) => v === imported && label === imported),
+    "an imported surface key survives both halves of its option");
+  assert.ok(options.some(([v]) => v === "paved"), "and the shipped surfaces are still offered");
+
+  unregisterTable("travel");
+
+  // One drawn line, cut by the graph at the junction another street makes on
+  // it. The pieces of one line share ONE `meta` — the same object by reference,
+  // which is what `joinSegments` guarantees — and that reference is the whole
+  // of the identity here. The entries carry no id on purpose: the substitution
+  // and the dedupe both answer to the entry stating a whole line, so an
+  // anonymous street partitions exactly as a named one does.
+  const high = { c: [0, 0, 200, 0], road: { surface: "paved", street: "avenue", name: "High" } };
+  const lane = { c: [100, 0, 100, 100], road: { surface: "earth", street: "alley", name: "Lane" } };
+  const split = roadSegmentsFromGraph({
+    edges: [
+      { a: 0, b: 1, length: 100, seg: [0, 0, 100, 0], meta: high },
+      { a: 1, b: 2, length: 100, seg: [100, 0, 200, 0], meta: high },
+      { a: 1, b: 3, length: 100, seg: [100, 0, 100, 100], meta: lane },
+    ],
+  });
+  assert.equal(split.length, 2, "a line cut at a junction is one street, with or without an id on it");
+  assert.deepEqual(split[0].seg, [0, 0, 200, 0], "and it is reported as the whole line the Judge drew");
+  assert.equal(split[0].surface, "paved");
+  assert.deepEqual(split[1].seg, [100, 0, 100, 100], "the street that cut it is its own line");
+  assert.equal(split[1].surface, "earth");
+
+  // Identity is the OBJECT: two entries that merely look alike are two streets,
+  // so a second line drawn over the first is not swallowed as a repeat of it.
+  const twin = () => ({ c: [0, 0, 200, 0], road: { surface: "paved" } });
+  assert.equal(
+    roadSegmentsFromGraph({ edges: [{ seg: [0, 0, 200, 0], meta: twin() }, { seg: [0, 0, 200, 0], meta: twin() }] }).length,
+    2, "two entries of identical content are two streets");
+
+  assert.equal(roadSegmentsFromGraph({ edges: [{ seg: [0, 0, 10, 0], meta: {} }, { seg: [10, 0, 20, 0], meta: {} }] }).length,
+    2, "an entry stating no whole line leaves each edge standing as the line it is");
+  assert.deepEqual(roadSegmentsFromGraph(null), [], "no graph is no roads");
+
+  // What the partition is FOR, at the consumer that reads it. The hex
+  // derivation sums road length per cell over every entry handed to it and
+  // prices a crossing by what lies inside the two cells, so a street repeated
+  // once per piece is that much road again in each cell it runs through and the
+  // crossing is priced for bends the street does not have. Asserted against the
+  // lines as drawn, which is the answer that cannot drift.
+  const { linksFromRoadSegments, nodeId } = await import("../scripts/battlemap/hex-topology.mjs");
+  /** A square stand-in for a hex grid: 100-pixel cells, neighbours share an edge. */
+  const cells = {
+    step: 5,
+    offsetAt: (p) => ({ i: Math.floor(p.x / 100), j: Math.floor(p.y / 100) }),
+    centre: (o) => ({ x: o.i * 100 + 50, y: o.j * 100 + 50 }),
+    facing: (from, to) => {
+      const di = to.i - from.i;
+      const dj = to.j - from.j;
+      if (Math.abs(di) + Math.abs(dj) !== 1) return null;
+      const out = di === 1 ? 0 : di === -1 ? 3 : dj === 1 ? 1 : 4;
+      return { near: nodeId(from.i, from.j, "side", out), far: nodeId(to.i, to.j, "side", (out + 3) % 6) };
+    },
+  };
+  const drawn = [{ seg: high.c, ...high.road }, { seg: lane.c, ...lane.road }];
+  assert.deepEqual(linksFromRoadSegments(split, cells), linksFromRoadSegments(drawn, cells),
+    "the crossings a cut line declares, and their prices, are the ones its whole line makes");
+
+  // End to end off a scene: two crossing streets are two entries, whole lines.
+  const wallDoc = (id, c, surface) => ({ id, c, move: 0, flags: { [MODULE_ID]: { road: { surface } } } });
+  invalidateRoadGraph();
+  const live = roadSegmentsOf({
+    id: "scene-roads",
+    grid: { size: 100 },
+    walls: [wallDoc("w1", [0, 0, 200, 0], "paved"), wallDoc("w2", [100, 0, 100, 100], "earth")],
+  });
+  assert.equal(live.length, 2, "two drawn streets are two segments");
+  assert.deepEqual(live.map((s) => s.seg), [[0, 0, 200, 0], [100, 0, 100, 100]],
+    "each carrying the wall's own line");
+  invalidateRoadGraph();
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments)");

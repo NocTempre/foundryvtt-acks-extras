@@ -1,5 +1,50 @@
 # Battlemap — decisions
 
+## 2026-09-15 — The road graph is planar, because a city is not a chain
+
+**A junction is wherever two streets meet, not only where two ends touch.**
+`joinSegments` noded a segment at its two endpoints and nowhere else, so a side
+street begun partway along an avenue, or two streets simply drawn across each
+other, produced no shared node and left the two roads in separate networks.
+`roadDistance` answered null and the tracker fell back to the straight line with
+`measuredAlong` false — silently, because a chord is a plausible number. The
+feature this layer exists for was dead on the ordinary shape of a city grid.
+
+**It passed every gate, and the gates were the reason.** A bend drawn as two
+walls sharing an endpoint still measured, and that is the only shape either
+recipe ever drew: `docs/battlemap/TESTING.md` step 4 said "two legs meeting at a
+right angle" and the formation recipe walked the same chained bend. The suite
+asserted "three nodes for two legs", which is true of a chain and says nothing
+about a junction. A recipe that draws only the connected case cannot find the
+disconnected one.
+
+**Segments are cut at every node, in three passes.** Endpoints merge as before;
+crossing points are computed pairwise and registered as nodes; then each segment
+is cut at every node lying within the tolerance of it. The crossing test is the
+file's own, symmetric — `segmentCrossing` refuses `t <= 0` because a mover
+starting ON a line has not crossed it, which is right for a trap springing and
+would drop the commonest T there is.
+
+**The pairing index covers the cells a line crosses; it does not sample them.**
+Two segments that cross must share a cell of that index or the pair is never
+tested. Sampling points along a line registers a staircase, and two oblique lines
+can register complementary staircases and never meet — which is invisible to an
+axis-aligned test, because a level line fills a whole row and an upright one a
+whole column, so those two always share. **Rejected: indexing by bounding box**,
+which also cannot miss a crossing but cost between three and five times the
+column walk on a dense oblique net, at no gain.
+
+**Cost:** one drawn wall is now several edges. Nothing measures differently, but
+anything counting roads counts them by the shared `meta` object rather than by
+edge — the reference `joinSegments` guarantees, where an id is neither certainly
+present nor certainly unique. A sub-tolerance stub is still no edge, and its
+merged node still cuts the street it sits on. A zero-length span between two
+distinct nodes is kept, because dropping it severs the line at exactly the point
+planarization exists to join. And where a street is drawn so its last pixels lie
+back along one already there, the overlap is not emitted twice: the spans fall
+short of the drawn length by at most the tolerance, and a walk recovers it as the
+leg off the lines.
+
 ## 2026-09-12 — What the live walk of the road layer found
 
 Four rulings, each forced by driving the surface rather than by design. All

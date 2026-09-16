@@ -78,9 +78,19 @@ export function coinReach(from, to) {
   if (rosterOf(from).includes(to.id) || rosterOf(to).includes(from.id)) return { can: true, reason: null };
   if (managerOf(to) === from.id || managerOf(from) === to.id) return { can: true, reason: null };
   // Otherwise, actor to actor: they share a scene (a hand can reach a hand).
+  // One token is one BODY. A synthetic token actor is matched by its own token,
+  // because its `id` is the base actor's and matching on that would let an
+  // unlinked copy of a hireling hand coin across the map to whoever is standing
+  // beside another copy of the same sheet. A base actor — which is what a LINKED
+  // token's `actor` is — answers for every token naming it.
+  const standsOn = (scene, a) => {
+    if (!a) return false;
+    if (!a.isToken) return scene.tokens.some((t) => t.actorId === a.id);
+    const own = a.token?.uuid ?? null;
+    return !!own && scene.tokens.some((t) => t.uuid === own);
+  };
   for (const scene of game.scenes ?? []) {
-    const has = (a) => scene.tokens.some((t) => t.actorId === a.id);
-    if (has(from) && has(to)) return { can: true, reason: null };
+    if (standsOn(scene, from) && standsOn(scene, to)) return { can: true, reason: null };
   }
   return { can: false, reason: "notTogether" };
 }

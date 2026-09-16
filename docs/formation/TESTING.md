@@ -13,6 +13,19 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Core drive mechanics (non-obvious, learned live)
 
+- **A member joins through the token HUD, not by being placed.** Dropping a
+  character's token onto the scene the party stands on enrols nobody — the
+  formation's `members` stays empty and every deployment check then silently
+  tests nothing. Select the token, bind its HUD
+  (`canvas.hud.token.bind(canvas.tokens.get(id))`) and click
+  `#token-hud .acks-formation-hud`. Enrolling DELETES the member's own token:
+  they ride inside the party token from then on, and a step that needs their
+  own body on the map must create it afterwards.
+- **Detach is the deploy gesture**, `[data-action="toggleDetach"]` on the party
+  sheet, and it writes `deployedTokenId`. Clicking the same selector again does
+  not reliably recall — re-read the member record and assert
+  `deployedTokenId` rather than assuming the toggle returned them.
+
 - **View the scene before touching its walls.** Core's `Wall#_onUpdate`
   reaches for render flags that do not exist off-canvas —
   `await scene.view()` then wait ~4s, or every wall update throws.
@@ -567,9 +580,23 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
     1200 ft = one block at a commuting pace) and NOT the diagonal between the
     ends (~17 squares). The tracker says the move was measured along the
     streets. Then drag the party across open ground, more than one grid cell
-    from any road: the tracker says it was measured in a straight line, and
-    the turn is credited from that. **This is the defect the road layer was
+    from any road: the turn is credited from the chord, and the tracker says
+    NOTHING about how the move was measured — the straight-line line renders
+    only for a party standing on a street, which is the one case where "not
+    along the streets" is worth saying. **This is the defect the road layer was
     built for** — before it, both drags cost the same and the bend was free.
+
+    **Draw a JUNCTION as well, not only this chained bend.** Both legs here
+    share an endpoint, which is the one shape that is certain to join. The
+    shapes a city is actually drawn in are an avenue dragged in one sweep with
+    a side street begun on the MIDDLE of it (a T), and two streets simply
+    crossed (an X). Walk the party round each.
+    *Observable:* measured along the streets, same as the bend. A chord-priced
+    turn with no measurement line means the two roads never joined into one
+    network — the graph nodes segments at their ENDPOINTS, so a contact partway
+    along a span makes no shared node and the streets are separate islands.
+    Neither this recipe nor `docs/battlemap/TESTING.md` walked that shape
+    before 7.6.0 shipped, and the network does not survive it.
 13. **The street underfoot beats the picker.** Mark one of the two walls as an
     `alley` (its own wall sheet), leave the panel's `where` on avenues, stand
     the party token on the alley, and take a turn.
@@ -583,8 +610,33 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
 14. **No roads changes nothing.** On a city scene with no road walls at all,
     walk steps 3–8 again.
     *Observable:* identical results to before the road layer — the picker
-    answers `where`, drags are straight-line, and the tracker says so. An
-    undrawn map is one where the question has not been asked.
+    answers `where`, drags are straight-line, and the tracker carries no
+    measurement line at all. An undrawn map is one where the question has not
+    been asked, so the panel does not answer it either.
+14b. **A city that is not drawn in feet costs the same walk.** The whole recipe
+    above is a feet scene, which is the one unit where a wrong conversion
+    cannot show. Set the city scene's grid units to `m` with a distance of 5,
+    declare a block of 30 in Scene Configuration, and drag the party exactly
+    one block.
+    *Observable:* ONE city turn is marked off, not three. The tracker reads
+    "a block here is 30 m, so a turn is 180 m walked" — both figures in metres,
+    beside the unit they are printed with. Then set the scene to `mi` and read
+    the tracker with no block declared: the walking-speed line names a figure
+    with decimals, never `0 mi`. A party told it has moved nothing is the
+    failure this step exists to catch, and neither half is visible on a ft map.
+14c. **A board does not follow the party into the next city.** With blocks and
+    turns on the board and `Hunted here` ticked, place the party token on a
+    SECOND scene that also declares `mapSystem: "settlement"` — directly, with
+    no wilderness or delve in between, which is the hop that used to keep
+    everything.
+    *Observable:* the panel opens on 0 blocks over 0 turns, `Hunted here` is
+    clear, and a party that left while holed up is not charged the journey as a
+    stay on the next clock advance. Then walk back to the first city and
+    confirm it too resets rather than restoring what it held. **Also walk the
+    upgrade shape**: `patchSettlement` a board with tallies and no `sceneId`,
+    reload the world so the ready pass claims it, and hop again — a board that
+    was never stamped must reset on arrival, not be adopted by the city it
+    arrives in.
 
 ## The districts (added with the district behaviour)
 
@@ -617,6 +669,32 @@ Two spellings, one sub-type, and confusing them is the other silent failure:
 `"district"` appears ONLY in `module.json`'s `documentTypes`. Everywhere else —
 `CONFIG.RegionBehavior.dataModels`, `typeIcons`, `TYPES.RegionBehavior`, every
 `behavior.type` comparison, every `create` — it is `"acks-extras.district"`.
+
+**Drive mechanics this section needs, learned live:**
+
+- **A placeable cannot be CONTROLLED while its layer is not active.**
+  `region.object.control()` silently no-ops and `canvas.regions.controlled`
+  stays empty, so the Regions tool reports `marked: 0` and reads as the tool
+  being broken rather than as nothing being selected. Call
+  `canvas.regions.activate()` (or `canvas.walls.activate()`) first and give it
+  a beat. Both district tools take their selection from the layer, so both
+  need it.
+- **A RollTable's rows are not creatable inline.** `RollTable.create({results:
+  [...]})` returns undefined here; make the table, then
+  `createEmbeddedDocuments("TableResult", [{type: "text", text, range: [a, b]}])`
+  with the type as a STRING. A table with no rows draws nothing, which reads
+  as the district's table never being consulted.
+- **A GM owns every document they create, so `place.isOwner` is true and
+  `depositReach` short-circuits before the ground branch ever runs.** Step 25
+  cannot be walked from the Gamemaster seat at all — it answers `can: true,
+  scene: null` for a place that is nowhere, which looks like a pass. Give the
+  member actor to the Player seat, drop the places to default ownership, and
+  join as that player.
+- **Do not `close()` every open application before driving the token HUD.**
+  Sweeping `foundry.applications.instances` to compose a clean frame takes the
+  core UI with it, and the HUD then renders without the module's **Add to
+  party** button — which reads as the button having been lost. Compose before
+  the HUD step, not inside it, and bind with the Tokens layer active.
 
 15. **Mark a drawn region as a district.** Draw a Region over part of the city
     scene with core's own Regions tools, select it, and press the district tool

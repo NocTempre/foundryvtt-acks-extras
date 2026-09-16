@@ -303,41 +303,94 @@ as a permission leak.
    the notifications are the only way to tell which is live. **This is the
    risk to watch for in any later change** — a silent slot would mean a
    corridor the Judge believes is watched.
-4. Drag a bent street on the SQUARE scene (two legs meeting at a right angle).
-   *Observable:* two Wall documents with `move`/`sight`/`sound`/`light` all
-   NONE, `door` NONE, and the road flag; the GM overlay tints them; a player
-   seat sees nothing drawn.
-5. Read the network: `roadGraph(scene).nodes.length`.
-   *Observable:* three nodes for two legs — the shared corner is ONE node,
-   because ends dragged by hand land within the join tolerance rather than
-   identically. Edit one wall and read again: the network is rebuilt.
-6. Select an ordinary blocking wall and press **Mark the selected walls as
+4. Drag THREE shapes on the SQUARE scene, well apart from each other. A bent
+   street: two legs meeting at a right angle. A **T**: one long avenue dragged
+   in a single sweep, then a side street begun on the MIDDLE of it — nowhere
+   near either of the avenue's own ends. An **X**: two streets simply crossed,
+   neither of them ending at the crossing.
+
+   **Drag the X's two streets OBLIQUE — at an angle to the grid, neither of
+   them level or upright, and crossing at something well off a right angle.**
+   This is not a garnish. The pairing index a crossing is found through covers
+   whole rows for a level line and whole columns for an upright one, so an
+   axis-aligned pair shares a cell of it whatever shape that index is in: it is
+   the one orientation that cannot fail, and an X drawn along the squares
+   passes this step on a build where every oblique crossing in the world is
+   unnoded. Drag the T oblique too, for the same reason.
+
+   *Observable:* one Wall document per leg, each with `move`/`sight`/`sound`/
+   `light` all NONE, `door` NONE, and the road flag; the GM overlay tints them;
+   a player seat sees nothing drawn.
+5. Read the network: `roadGraph(scene)`, and count the edges each wall became
+   with `graph.edges.filter((e) => e.meta.wallId === <id>)`.
+   *Observable:* the bend gives three nodes for two legs — the shared corner is
+   ONE node, because ends dragged by hand land within the join tolerance rather
+   than identically, and each leg is one edge.
+
+   **The two shapes the bend cannot prove.** At the T, a node sits where the
+   side street lands and the AVENUE is two edges either side of it, though the
+   avenue has no endpoint there. At the X, a node sits at the crossing that
+   NEITHER wall has an endpoint at, and both streets are two edges each. A wall
+   cut into pieces keeps one `meta` across them — `new Set(pieces.map((e) =>
+   e.meta)).size` is 1 — which is why a consumer naming the roads a route used
+   dedupes on `meta` and never on the edge index.
+
+   `shortestPath(graph, a, b)` answers between the T's two arms and between the
+   X's two streets. A null there is the failure this step exists to catch: it
+   means the roads were noded at their ends only and each shape is two islands.
+   Edit one wall and read again: the network is rebuilt.
+6. Measure across each junction: `acksExtras.battlemap.roads.roadDistance(
+   scene, from, to)` with `from` part-way down the side street and `to`
+   part-way along the avenue on the far side of the T.
+   *Observable:* a result rather than null, whose `along` is the walk down the
+   stem PLUS the walk along the avenue — longer than the chord between the two
+   points, and `offRoad` ~0 because both ends stand on a street. The same
+   across the X. Null here is the same failure as a null path above, and it is
+   what a turn falls back to the chord on.
+7. Select an ordinary blocking wall and press **Mark the selected walls as
    roads** on the Walls control.
    *Observable:* the flag is added, the wall's own restrictions are NOT
    changed, and a warning says it still restricts movement. Its own sheet
    carries the road row and the same warning.
-7. Open a road wall's sheet and change its surface, street and name.
+8. Open the **wall palette** — the Walls control's own wall tool, with no wall
+   selected — and look for the module's rows on it.
+   *Observable:* the road row is ABSENT, and so is the trap drop row, while a
+   PLACED wall's own sheet (step 9) still carries both. That absence is the one
+   observable separating the fix from the bug: the palette edits an unsaved
+   preview document with no id, so a flag write aimed at it has nothing to land
+   on — the row would offer a control whose every press is discarded. Rows
+   present here is the failure, however well they render.
+9. Open a road wall's sheet and change its surface, street and name.
    *Observable:* each field writes immediately (the sheet's own submit knows
    nothing of the flag); choosing **Not a road** removes the flag; the row
    never appears twice however many times the sheet re-renders.
-8. Repeat step 4 on the GRIDLESS scene and on the HEX scene.
-   *Observable:* the same walls and the same network. On the hex scene,
-   `derivedRoutesOf(scene)` returns one link per adjacent-hex crossing and
-   `stepBetweenHexes(scene, from, to)` answers `{on: true}` for a crossing the
-   road makes — with nothing declared in the flag.
-9. Press **Convert declared routes to road walls** on the hex scene, with one
-   declaration the conversion cannot place (both ends in the same hex).
-   *Observable:* one wall per placeable link, drawn hex MIDDLE to hex middle —
-   never between the link's own two ends, which are the two halves of one
-   shared boundary and resolve to the SAME point, so a wall between them would
-   have no length and nothing would be made. `derivedRoutesOf` re-finds each
-   converted link with its declared surface and a MEASURED winding of 1 (the
-   typed figure is not carried across), and `stepBetweenHexes` still answers
-   `{on: true}`. The unplaceable declaration is still on the `hexRoutes` flag
-   and the converted ones are gone — a press must never destroy what it could
-   not carry. A second press is a no-op (`{made: 0, skipped: 1}`); with nothing
-   declared it reports `{made: 0, skipped: 0}`.
-10. Journey read on the hex scene: move the party across a crossing the drawn
+
+   **Then type a street name carrying a double quote and an ampersand** —
+   `The "Bell" & Anchor` — into the name field, click another control so the
+   write fires, close the sheet and reopen it. *Observable:* the name comes
+   back WHOLE, both characters included, and the row renders it as text rather
+   than as markup. A name truncated at the quote, or an `&amp;` shown to the
+   Judge, is the flag round-tripping through markup somewhere it should not.
+10. Repeat step 4 on the GRIDLESS scene and on the HEX scene.
+    *Observable:* the same walls and the same network, junction nodes included
+    — and on a GRIDLESS scene there is no "along the squares" to fall back on,
+    so drag the X there at a third angle again. On the hex scene,
+    `derivedRoutesOf(scene)` returns one link per adjacent-hex crossing and
+    `stepBetweenHexes(scene, from, to)` answers `{on: true}` for a crossing the
+    road makes — with nothing declared in the flag.
+11. Press **Convert declared routes to road walls** on the hex scene, with one
+    declaration the conversion cannot place (both ends in the same hex).
+    *Observable:* one wall per placeable link, drawn hex MIDDLE to hex middle —
+    never between the link's own two ends, which are the two halves of one
+    shared boundary and resolve to the SAME point, so a wall between them would
+    have no length and nothing would be made. `derivedRoutesOf` re-finds each
+    converted link with its declared surface and a MEASURED winding of 1 (the
+    typed figure is not carried across), and `stepBetweenHexes` still answers
+    `{on: true}`. The unplaceable declaration is still on the `hexRoutes` flag
+    and the converted ones are gone — a press must never destroy what it could
+    not carry. A second press is a no-op (`{made: 0, skipped: 1}`); with nothing
+    declared it reports `{made: 0, skipped: 0}`.
+12. Journey read on the hex scene: move the party across a crossing the drawn
     road makes.
     *Observable:* the day's road picker follows the drawn road, as it did for
     a declared link.

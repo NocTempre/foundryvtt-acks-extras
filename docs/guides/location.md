@@ -83,6 +83,29 @@ Coin stows like anything else you carry: drag a coin row onto a place or into a
 pouch, or pick it in **Deposit here**. Coin kept in the old **bank** column is
 not carried, so it cannot be stowed from there — it is swept into a vault first.
 
+## Be somewhere to leave something there
+
+A character's own sheet lists the places their goods are, under **Kept
+elsewhere** on the Equipment tab, and each row says whether they can put
+something down there from where they are standing.
+
+![](../releases/v7.7.0/storage-reach.png)
+
+*The lockup is a cart in the street beside them, so the deposit arrow is
+offered. The inn is a map they are not on, so the row names that map and offers
+no arrow — only the ways back out.*
+
+A place that **is a map** is reached by being on it, whether or not it is the
+map currently up on everyone's screen. A place that is not a map — a cart, a
+shrine, a cellar — is reached by standing at its own token, or by a claim on it:
+your own vault, a place you hold, a place somebody you are marching with holds,
+or one you have **pinned** to your sheet by dragging it there. A character in a
+party has no token of their own, so the party's token is where they are.
+
+**Taking things back is never gated.** A character who has walked away from
+their own goods can still withdraw them from anywhere; it is only leaving
+something NEW that asks where you are standing.
+
 ## Give a character a vault
 
 A vault is a place of one character's own: only they and their players can reach

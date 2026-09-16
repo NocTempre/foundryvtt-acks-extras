@@ -140,9 +140,28 @@ function stampOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * A board's city stamp: a scene id, or null for anything that names no scene.
+ *
+ * The one place that says what a stamp is, because the board's writers compare
+ * stamps to decide whether a party has arrived somewhere new. The empty string
+ * is null rather than a stamp of its own: a board carrying it would compare
+ * unequal to every city and start a fresh tally on every arrival.
+ */
+export function sceneStamp(value) {
+  return typeof value === "string" && value ? value : null;
+}
+
 /** A fresh settlement board: on an avenue, by day, going nowhere in particular. */
 export function freshSettlement() {
   return {
+    /**
+     * The scene whose blocks these are, or null for a board no city has
+     * claimed. A tally belongs to the streets it was walked in, and this is
+     * what tells one city from the next: a party placed straight into another
+     * city arrives on a board that names the one it left.
+     */
+    sceneId: null,
     pace: "meandering",
     where: "avenue",
     route: "unknown",
@@ -153,8 +172,7 @@ export function freshSettlement() {
      * Is somebody in this settlement hunting this party? Picks a district's
      * wanted table over its ordinary one. Judge-told, and deliberately NOT
      * carried across re-entry: being hunted is a fact about one settlement's
-     * own powers, and `reenterSettlement` cannot tell one settlement from
-     * another, so a party arriving somewhere new arrives unhunted.
+     * own powers, so a party arriving somewhere new arrives unhunted.
      */
     wanted: false,
     blocks: 0,
@@ -192,6 +210,7 @@ export function settlementOf(travel) {
   return {
     ...fresh,
     ...s,
+    sceneId: sceneStamp(s.sceneId),
     pace: SETTLEMENT_PACES[s.pace] ? s.pace : fresh.pace,
     where: SETTLEMENT_LOCATIONS[s.where] ? s.where : fresh.where,
     route: ROUTE_KNOWLEDGE[s.route] ? s.route : fresh.route,
@@ -267,12 +286,25 @@ export function carryStay(previous, next) {
  * already a mile into it. Stepping out to the country and back therefore does
  * not forget the route, which is the whole reason the route is remembered at
  * all.
+ *
+ * The board comes back stamped with the city it is being entered in, so the
+ * next arrival can tell this city from another one. Naming no city keeps the
+ * stamp `previous` already carries: a board not being told a new city is still
+ * counted in the one it names, and an unstamped board is the state the next
+ * arrival cannot recover from — it can only read a board that names nowhere as
+ * foreign and drop its tally. The rule is stated here, in the function that
+ * owns the field, so a caller cannot forget it.
+ *
+ * @param {object|null} previous the board being left
+ * @param {string|null} [sceneId] the scene the fresh tally is counted in;
+ *   naming none keeps `previous`'s own stamp
  */
-export function reenterSettlement(previous) {
+export function reenterSettlement(previous, sceneId = null) {
   const s = settlementOf({ settlement: previous });
   const fresh = freshSettlement();
   return {
     ...fresh,
+    sceneId: sceneStamp(sceneId) ?? s.sceneId,
     pace: s.pace,
     where: s.where,
     route: s.route,
@@ -569,13 +601,27 @@ export function cadenceAttribution(cadence, names = {}) {
  * the party is being hunted there, then the district's ordinary table, then a
  * zone's, and otherwise the city's own imported incident table.
  *
- * @returns {{tableUuid: string|null, source: string}} a null uuid means the city's own table
+ * The whole ORDER is returned, not only its head, because a uuid is a promise
+ * that a document exists and the promise can be broken — a table deleted, or
+ * left in a compendium the world no longer enables. A single answer makes an
+ * unresolvable inner table skip every table inside it too, so a quarter that
+ * has said who is on its streets is answered by the city's generic list with
+ * nothing saying its own was passed over. `rollSettlementIncident` walks the
+ * order to the first table that EXISTS and reports that candidate's `source`;
+ * the last entry is always the city's own table, which is why the walk always
+ * terminates.
+ *
+ * @returns {{tableUuid: string|null, source: string, candidates: Array<{tableUuid: string|null, source: string}>}}
+ *   the first candidate, spread for callers that want only it, plus the
+ *   ordered list. A null uuid means the city's own table.
  */
 export function pickIncidentSource({ district = null, zone = null, wanted = false } = {}) {
-  if (wanted && district?.wantedTableUuid) return { tableUuid: district.wantedTableUuid, source: "wanted" };
-  if (district?.tableUuid) return { tableUuid: district.tableUuid, source: "district" };
-  if (zone?.tableUuid) return { tableUuid: zone.tableUuid, source: "zone" };
-  return { tableUuid: null, source: "city" };
+  const candidates = [];
+  if (wanted && district?.wantedTableUuid) candidates.push({ tableUuid: district.wantedTableUuid, source: "wanted" });
+  if (district?.tableUuid) candidates.push({ tableUuid: district.tableUuid, source: "district" });
+  if (zone?.tableUuid) candidates.push({ tableUuid: zone.tableUuid, source: "zone" });
+  candidates.push({ tableUuid: null, source: "city" });
+  return { ...candidates[0], candidates };
 }
 
 /**

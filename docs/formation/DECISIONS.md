@@ -1743,3 +1743,86 @@ listed options it could not add, so the feature existed only for the API.
 navigation and `meandering` not, which is what the page says, and which pace throws is
 structural. The target, the known-destination modifier and the displacement dice are all read
 from the registry, which is what they are.
+
+### A block is typed in the map's units and spent in feet (2026-09-15)
+
+**Ruled.** The Judge types a block's width in whatever unit the scene is drawn
+in — the Scene Config field has carried `grid.units` as its placeholder since it
+was added — and the tracker compares it against a distance in feet. 7.6.0
+converted the party's move to true feet and left the budget alone, so on a metre
+city three turns were marked off where the panel promised one: three encounter
+throws, three turns of torch, three sets of effects expiring, for one block of
+walking. The conversion now happens where the figure ENTERS the comparison
+(`turnDistance`), not where it is stored.
+
+**Rejected: converting inside `sceneBlockFeet`.** That reader also feeds the
+panel, which prints the figure back beside the scene's own units — a thirty-metre
+block would have been shown to the Judge as ninety-eight.
+
+**The panel's turn figure is converted the other way, and rounds to what the unit
+can say.** Both branches of the tracker print one `turnFeet` against one
+`{units}`, so dividing once corrects the branch that was wrong and the branch
+that was always wrong; a whole-number round then rendered an ordinary party as
+"a turn is 0 mi", which is a tracker saying nothing moves. A figure below one
+keeps decimals.
+
+**Only a scene whose units were changed was ever affected.** An unset or
+unrecognised unit reads as feet, so every world that never touched the field
+behaves exactly as before.
+
+### A stay is credited once per advance, by the queue and not by the caller (2026-09-15)
+
+**Ruled.** `creditHoledUpDays` serialises against itself. Every world-clock
+advance made by `advanceRounds` reached it twice — once from the `updateWorldTime`
+watcher, un-awaited, once from `advanceRounds`'s own awaited call — and both read
+the board before either wrote, because the stamp moves last. Two stay cards for
+one stretch, doubled dice where a cadence resolved, and a `holeUpSince` pushed
+into the FUTURE by twice the days credited, during which the street gets no throw
+and nothing says so. Supersedes nothing: the 2026-09-12 entry above added the
+direct call to fix a clobber and did not suppress the watcher, which turned one
+run into two.
+
+**Rejected: dropping the direct call.** `advanceRounds` re-reads the record
+below it and needs the credit settled first; an un-awaited watcher is not a
+barrier. Serialising gives it one and leaves the single-run callers — the travel
+day close, henchmen advancing days — reaching the watcher alone, unchanged.
+
+**What it costs:** a doubled trigger now runs two capped passes back to back, so
+a long drag can drain sixty days across two cards where a single-trigger path
+credits thirty and leaves the rest on the clock. `MAX_STAY_DAYS_PER_CREDIT`
+bounds the dice per RUN, not per advance.
+
+**Nothing offline could see it.** The harness advances the clock without calling
+`updateWorldTime`, so the second run did not exist under test.
+
+### A board belongs to the city it was counted in (2026-09-15)
+
+**Ruled.** The settlement board carries the id of the scene whose blocks it
+holds, and arriving on a city that is not that one re-enters. Without the stamp
+`adoptSceneSystem` compared only the MODE, and a party walking from one city
+straight into another was already in settlement mode — so the tallies, the
+hunted flag and the stay stamp all crossed. A party that left while holed up kept
+`holeUpSince`, and the first advance in the new city charged the whole journey as
+a stay. This is the ruling above — "a party arriving somewhere new arrives
+unhunted" — finally holding on the path that reaches it.
+
+**An unstamped board is claimed before it can be misread, not on arrival.** A
+world upgrading from 7.6.0 has no stamp, and a party already standing in its city
+fires no placement hook there, so reading "no stamp" as "somewhere new" would
+wipe a live board while reading it as "here" lets the next hop through. The claim
+is made once at `ready`, from the scene the formation is already recorded on,
+which is by construction the city those blocks were counted in. The panel's own
+settlement toggle names its scene for the same reason.
+
+**A city split across two scenes resets on the crossing.** Scene identity is
+this module's notion of a city everywhere else — `mapSystem`, the block width,
+districts and encounter zones are all per-scene — and a second identity key would
+be a second thing to keep true.
+
+**A table that will not resolve falls through to the next candidate.**
+`pickIncidentSource` returned one uuid, so a district whose hunted table had been
+deleted skipped its OWN list and the zone's and landed on the city d100 — the
+quarter that had answered who walks its streets was silently overruled by a
+dangling pointer. It now returns the candidates in order and the roll takes the
+first that resolves, carrying that candidate's `source`, so the card still names
+the list that actually answered.

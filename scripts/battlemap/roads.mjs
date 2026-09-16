@@ -1,4 +1,4 @@
-/* global game, canvas, ui, document, CONST, Hooks */
+/* global game, canvas, ui, document, foundry, CONST, Hooks */
 /**
  * Roads: a street the Judge DREW, on any grid.
  *
@@ -197,9 +197,57 @@ export function invalidateRoadGraph(sceneId = null) {
   else graphs.clear();
 }
 
+/**
+ * A graph's roads as the LINES they were drawn as — one entry per drawn line,
+ * each carrying that line whole.
+ *
+ * **An edge is not a drawn line.** Joining cuts a line at every junction along
+ * it, so one street stands in `edges` once per stretch between its neighbours.
+ * The pieces of one line share a single `meta` — the entry `joinSegments` was
+ * handed, by reference — which both identifies them as one line and carries
+ * that line whole (`c`). Two things follow, and both are why the pieces are put
+ * back together here rather than downstream:
+ *
+ *  - A hex crossing is read off consecutive samples taken at a uniform step
+ *    along one line. Each piece is stepped from its own end, so the run of
+ *    hexes the pieces derive is not the run the whole line derives: the samples
+ *    land in different places, and a piece shorter than the step names no
+ *    crossing at all.
+ *  - A street reported once per piece is several streets to a caller counting
+ *    them.
+ *
+ * Substitution and dedupe answer to ONE fact — whether the entry states a whole
+ * line — because doing either alone is worse than doing neither: the whole line
+ * emitted once per piece repeats the street, and the pieces emitted separately
+ * derive their links from their own samples rather than the line's. An entry stating no line (a bare `[x1,y1,x2,y2]`, whose
+ * `meta` is empty) has nothing to put back together, so each of its edges
+ * stands as the line it is. Identity is the `meta` OBJECT and not a field on
+ * it: the shared reference is what `joinSegments` guarantees, where an id is
+ * neither guaranteed present nor guaranteed unique.
+ *
+ * @param {object} graph from `joinSegments`
+ * @returns {Array<{seg: number[], surface?: string, street?: string|null,
+ *   name?: string}>}
+ */
+export function roadSegmentsFromGraph(graph) {
+  const segments = [];
+  const seen = new Set();
+  for (const edge of graph?.edges ?? []) {
+    const meta = edge?.meta;
+    if (meta?.c) {
+      if (seen.has(meta)) continue;
+      seen.add(meta);
+      segments.push({ seg: meta.c, ...(meta.road ?? {}) });
+    } else {
+      segments.push({ seg: edge?.seg, ...(meta?.road ?? {}) });
+    }
+  }
+  return segments;
+}
+
 /** The road segments of a scene, in the shape the hex topology derives links from. */
 export function roadSegmentsOf(scene) {
-  return roadGraph(scene).edges.map((e) => ({ seg: e.seg, ...(e.meta.road ?? {}) }));
+  return roadSegmentsFromGraph(roadGraph(scene));
 }
 
 /**
@@ -381,7 +429,12 @@ export function registerRoadHooks() {
 function installRoadRow(app, element) {
   if (!game.user?.isGM) return;
   const wall = app?.document;
-  if (wall?.documentName !== "Wall") return;
+  // An id is what makes it a wall on the SCENE. The wall palette renders this
+  // same sheet over an unsaved preview document — the shape of the next wall to
+  // be drawn — whose id is null, and a flag written to that has no document to
+  // land on: the write throws, the picker springs back on the next re-render,
+  // and touching the palette's form re-writes core's armed preset besides.
+  if (wall?.documentName !== "Wall" || !wall.id) return;
   const root = element instanceof HTMLElement ? element : element?.[0];
   if (!root) return;
   // Re-rendering appends a second copy otherwise, and the sheet re-renders on
@@ -389,11 +442,17 @@ function installRoadRow(app, element) {
   if (root.querySelector(".acks-extras-road-row")) return;
 
   const road = wallRoad(wall);
+  // The row is assembled as markup, so everything interpolated into it is
+  // escaped: a street the Judge named `The "Shambles"` closes the value
+  // attribute early, and the name the next edit reads back off the live DOM is
+  // whatever survived that. Imported surface keys and their labels arrive from
+  // a reader's own book and are no more trusted than a typed name.
+  const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
   const option = (value, label, selected) =>
-    `<option value="${value}"${selected ? " selected" : ""}>${label}</option>`;
+    `<option value="${esc(value)}"${selected ? " selected" : ""}>${esc(label)}</option>`;
   const row = document.createElement("div");
   row.className = "form-group acks-extras-road-row";
-  row.innerHTML = `<label>${loc("routes.wallLabel")}</label>
+  row.innerHTML = `<label>${esc(loc("routes.wallLabel"))}</label>
     <div class="form-fields">
       <select class="acks-extras-road-surface">
         ${option("", loc("routes.notARoad"), !road)}
@@ -404,10 +463,10 @@ function installRoadRow(app, element) {
         ${ROAD_STREETS.map((k) =>
     option(k, loc(`routes.street.${k}`), road?.street === k)).join("")}
       </select>
-      <input type="text" class="acks-extras-road-name" value="${road?.name ?? ""}"
-             placeholder="${loc("routes.namePlaceholder")}">
+      <input type="text" class="acks-extras-road-name" value="${esc(road?.name)}"
+             placeholder="${esc(loc("routes.namePlaceholder"))}">
     </div>
-    <p class="hint">${loc(road && blocksMovement(wall) ? "routes.wallBlocks" : "routes.wallHint")}</p>`;
+    <p class="hint">${esc(loc(road && blocksMovement(wall) ? "routes.wallBlocks" : "routes.wallHint"))}</p>`;
 
   const patch = async () => {
     const surface = row.querySelector(".acks-extras-road-surface").value;

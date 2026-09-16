@@ -367,7 +367,12 @@ export function installTrapDrop() {
   Hooks.on("renderApplicationV2", (app, element) => {
     if (!game.user.isGM) return;
     const wall = app?.document;
-    if (wall?.documentName !== "Wall") return;
+    // An id is what makes it a wall on the SCENE. The wall palette renders this
+    // same sheet over an unsaved preview document — the shape of the next wall
+    // to be drawn — whose id is null, and a trap assigned to that has no
+    // document to land on: the write throws and the drop target reverts to
+    // empty on the next re-render.
+    if (wall?.documentName !== "Wall" || !wall.id) return;
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
     // Re-rendering appends a second copy otherwise, and the sheet re-renders

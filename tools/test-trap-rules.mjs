@@ -25,7 +25,13 @@ import {
   emptyTier,
   mergeTierSubmit,
 } from "../scripts/formation/trap-rules.mjs";
-import { chainWalls, pointSegmentDistance, segmentCrossing, segmentDistance } from "../scripts/formation/trap-walls.mjs";
+import {
+  chainWalls,
+  installTrapDrop,
+  pointSegmentDistance,
+  segmentCrossing,
+  segmentDistance,
+} from "../scripts/formation/trap-walls.mjs";
 import { regionEdges, regionOutlines } from "../scripts/formation/zones.mjs";
 import { spread as spreadMarks } from "../scripts/formation/trap-markers.mjs";
 
@@ -592,6 +598,71 @@ test("a rectangle region becomes its four corners; a hole contributes none", () 
   assert.deepEqual(regionOutlines(region), [[10, 20, 50, 20, 50, 50, 10, 50]]);
 });
 
+/* -------------------------------------------- */
+/*  The drop row on a wall's own sheet          */
+/* -------------------------------------------- */
+
+/**
+ * The smallest stand-ins the drop row's render hook touches: a GM, a localizer
+ * that answers every key as itself, and a sheet root whose field list records
+ * what is appended to it.
+ *
+ * @returns {{appended: object[], created: object[], render: (wall: object) => void}}
+ */
+const wallSheetHarness = () => {
+  const appended = [];
+  const created = [];
+  globalThis.HTMLElement = class HTMLElement {};
+  globalThis.game = { user: { isGM: true }, i18n: { localize: (k) => k, format: (k) => k } };
+  globalThis.document = {
+    createElement: () => {
+      const el = {
+        className: "",
+        innerHTML: "",
+        listeners: [],
+        addEventListener(event, fn) {
+          this.listeners.push([event, fn]);
+        },
+      };
+      created.push(el);
+      return el;
+    },
+  };
+  const rendered = [];
+  globalThis.Hooks = { on: (name, fn) => (name === "renderApplicationV2" ? rendered.push(fn) : null) };
+  installTrapDrop();
+  const root = {
+    querySelector: (sel) =>
+      (sel === ".window-content .standard-form" ? { append: (r) => appended.push(r) } : null),
+  };
+  return { appended, created, render: (wall) => rendered.forEach((fn) => fn({ document: wall, render() {} }, [root])) };
+};
+
+test("the wall palette's id-less preview gets no trap row, so no assignment can be attempted", () => {
+  const h = wallSheetHarness();
+  // The palette renders a WallConfig over an UNSAVED preview — the shape of the
+  // next wall to be drawn — whose id is null. A trap assigned to that has no
+  // document to land on, so the row that accepts the drop is never built and
+  // the write it would start is unreachable.
+  h.render({ documentName: "Wall", id: null, flags: {} });
+  assert.equal(h.created.length, 0, "no row is built for the preview");
+  assert.equal(h.appended.length, 0, "and nothing is appended to the palette's form");
+
+  // A wall that is ON the scene still gets the row: the guard is a filter, not
+  // a switch that turned the feature off.
+  h.render({ documentName: "Wall", id: "Wall.1", flags: {} });
+  assert.equal(h.appended.length, 1, "a placed wall gets the drop row");
+  assert.ok(h.created[0].className.includes("acks-extras-trap-drop"), "and it is the trap row");
+  assert.ok(h.created[0].listeners.some(([event]) => event === "drop"), "listening for the drop that assigns");
+});
+
+test("a sheet that is not a wall's gets no trap row either", () => {
+  const h = wallSheetHarness();
+  h.render({ documentName: "Item", id: "Item.1" });
+  assert.equal(h.created.length, 0);
+  assert.equal(h.appended.length, 0);
+});
+
 console.log(
-  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread, tier submit merge, reaches, path distance, region outlines)`,
+  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread, tier submit merge, reaches, path distance, region outlines, wall-sheet drop row)`,
 );

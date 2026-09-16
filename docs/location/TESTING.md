@@ -27,6 +27,33 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - Coin stored in a location belongs to `HOUSE_OWNER` unless stamped with an
   `ownerUuid`, and that sentinel is deliberately unresolvable — no character
   can claim house coin.
+- **A character's reach list is on ONE of two surfaces, never both**, and which
+  one depends on whose character sheet the world is using. `installStorageTab`
+  returns early on a sheet this module owns, so with the module's sheet active
+  there is no **Storage** tab at all — the list is the **Kept elsewhere** rule
+  at the foot of the **Equipment** tab, and it prints the refusal SENTENCE in
+  the row. On the system's own sheet the Storage tab appears and the same
+  refusal is only a `data-tooltip` behind "Out of reach". Looking for a Storage
+  tab on the module's sheet finds nothing and reads as the tab having failed to
+  inject.
+- **Both seats are read, and they must agree.** `depositReach` asks about the
+  CHARACTER, so a Judge and a player get the same answer about the same sheet;
+  quoting only one seat is what let a seat-keyed ownership test hide behind a
+  Judge's blanket `isOwner` for as long as it did. Give the character to the
+  Player seat, leave the places at OBSERVER for it, and read both.
+- **A `can: true` carrying `scene: null` has been answered by a TITLE, not by a
+  short-circuit** — the vault clause, `ownersShare`, a pin and a companion's
+  ownership all answer that way and all are correct. It is not a defect tell,
+  and reading it as one sends you hunting a bug that is not there. To find out
+  which answered, delete the place's token and ask again: only a ground answer
+  flips to a refusal.
+- **`update()` MERGES an ownership object, so `{default: 0}` strips nothing.**
+  Foundry stamps whoever creates a document at OWNER, so a fixture built from
+  the Judge's seat is owned by them, `ownersShare` answers for it before the
+  ground is ever consulted, and every reach step passes no matter where the
+  tokens stand. Name every user explicitly —
+  `Object.fromEntries(game.users.map((u) => [u.id, 0]))` — when a place is
+  meant to be reachable only by standing beside it.
 
 ## Steps
 
@@ -136,7 +163,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 12. **Deposit reach, through a place's own token.** Drop the location's token
     onto a scene the character's token is also on, one empty square away, and
-    open the character's Storage tab.
+    open the character's reach list.
     *Observable:* the place is offered with its deposit control live. Drag the
     place's token four squares off and re-render: the control is gone and the
     row reads "You must be at &lt;that scene&gt;".
@@ -160,7 +187,32 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     and it cannot be seen from one character's sheet alone — check a second
     member's sheet too, joined as that member's player.
 
-15. **The two refusals are different sentences.** Read the Storage tab against
+14b. **A detached member stands where the deploy put them.** Detach one member
+    from the party sheet and move the token the detach created next to a place's
+    token, leaving the party token many squares away.
+    *Observable:* that member can deposit and the members still riding cannot.
+    Then deploy a member as a STACK instead: the stack's bodies are built from a
+    template actor, so the cell keeps answering through the party token — park
+    the bodies at the place and confirm the cell is still refused, and that the
+    party token beside the place still lets it through. The two deployment kinds
+    answer differently on purpose; a Judge reading it as a bug is the reason it
+    is written down.
+14c. **A formation with no party token falls back to its members' own tokens.**
+    Delete the party token from the canvas — the formation survives, unlinked —
+    with a member's own token standing on a scene linked to a place.
+    *Observable:* that member can deposit there. Before this they could not
+    deposit anywhere at all, and the refusal named the very map they were on.
+14d. **An unlinked copy reaches only what IT is beside.** Drop two unlinked
+    tokens of one hireling: one next to a cart place's token, one on a distant
+    scene. Open the sheet of the DISTANT copy, joined as the player who owns it.
+    *Observable:* the cart is refused. One token is one body; the copy beside
+    the cart still reaches it from its own sheet.
+14e. **The same answer on both seats.** Read one place's row from the Judge's
+    seat with a player's sheet open, and from that player's own seat.
+    *Observable:* the two agree. A Judge owns every document, so a seat-keyed
+    ownership test reads `can` for every unlinked place in the world and hides
+    the whole gate — quote both answers rather than trusting one.
+15. **The two refusals are different sentences.** Read the reach list against
     a place whose token is on some other scene, and against a place with no
     token and no linked scene at all.
     *Observable:* the first says you must be at a named scene; the second says

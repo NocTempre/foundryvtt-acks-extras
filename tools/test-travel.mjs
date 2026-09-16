@@ -9,9 +9,12 @@ import {
   ANCILLARY_ACTIVITIES,
   ANCILLARY_SLOTS,
   DAY_KINDS,
+  adoptSceneSystem,
+  claimUnstampedSettlements,
   composeLogEntry,
   freshDay,
   pushLog,
+  setJourneyMode,
   travelOf,
   withDayKind,
   dayIsSpent,
@@ -135,4 +138,157 @@ assert.equal(nonsense.movement.mode, "foot", "an unknown mode falls back rather 
 assert.equal(nonsense.movement.hoursAloft, 0, "a negative span is no span");
 assert.equal(nonsense.movement.load, "normal", "an unknown load band falls back too");
 
-console.log("test-travel: OK (day board, forced budget, defaults, log cap, one field name, movement axis)");
+/* --- a board belongs to the city it was counted in --------------------------
+   The writers, against a ledger of two settings calls. Mode alone used to
+   decide whether a settlement board started fresh, so a party placed straight
+   from one city into the next stayed "in settlement mode" and kept the first
+   city's blocks, its turns, its hunted flag and — worst — the stay stamp the
+   clock watcher charges days against. */
+globalThis.foundry ??= { utils: {} };
+globalThis.foundry.utils.deepClone ??= (v) => structuredClone(v);
+const settings = { formations: {} };
+globalThis.game ??= {};
+globalThis.game.settings = {
+  get: (_module, key) => settings[key],
+  set: (_module, key, value) => { settings[key] = value; return value; },
+};
+
+/** A scene that declares itself a city, which is all `adoptSceneSystem` reads. */
+const cityScene = (id) => ({ id, getFlag: () => ({ mapSystem: "settlement" }) });
+const boardOf = (id) => travelOf(settings.formations[id]).settlement;
+
+settings.formations = {
+  f1: {
+    id: "f1",
+    travel: {
+      mode: "settlement",
+      settlement: {
+        sceneId: "Scene.riverport", pace: "commuting", route: "route", where: "holedUp",
+        night: true, blocks: 40, turns: 12, days: 3, holeUpSince: 500, wanted: true,
+      },
+    },
+  },
+};
+
+assert.equal(await adoptSceneSystem("f1", cityScene("Scene.riverport")), null,
+  "arriving where the board already says it is moves nothing");
+assert.equal(boardOf("f1").blocks, 40, "and takes nothing off it");
+
+assert.equal(await adoptSceneSystem("f1", cityScene("Scene.hillfort")), "settlement",
+  "another city is an arrival even though the mode does not change");
+const arrived = boardOf("f1");
+assert.equal(arrived.sceneId, "Scene.hillfort");
+assert.equal(arrived.blocks, 0, "the last city's mileage is not this one's");
+assert.equal(arrived.turns, 0);
+assert.equal(arrived.days, 0);
+assert.equal(arrived.wanted, false, "being hunted is one city's own business");
+assert.equal(arrived.holeUpSince, null,
+  "and the stay stamp goes, or the journey between the two is charged as a stay");
+assert.equal(arrived.pace, "commuting", "what the Judge set still carries");
+assert.equal(arrived.route, "route");
+assert.equal(arrived.night, true);
+
+/* A dungeon under the city it is already in: the mode flips, and coming back
+   up starts a fresh tally without forgetting what the Judge set. */
+await setJourneyMode("f1", "delve");
+assert.equal(boardOf("f1").pace, "commuting", "leaving a city keeps the board whole");
+assert.equal(await adoptSceneSystem("f1", cityScene("Scene.hillfort")), "settlement");
+assert.equal(boardOf("f1").pace, "commuting", "and coming back up keeps it too");
+assert.equal(boardOf("f1").route, "route");
+assert.equal(boardOf("f1").sceneId, "Scene.hillfort");
+
+/* --- the UPGRADE path ------------------------------------------------------
+   A world whose board was written before boards carried a stamp, with the party
+   already standing in a city. Nothing places a token there, so no arrival ever
+   runs; the startup claim is the only thing that can name that board's city,
+   and if it does not, the very next hop is the FIRST arrival — and misses. */
+globalThis.game.scenes = {
+  get: (id) => (id === "Scene.hillfort" || id === "Scene.riverport" ? cityScene(id) : null),
+};
+settings.formations.f2 = {
+  id: "f2",
+  sceneId: "Scene.hillfort",
+  travel: {
+    mode: "settlement",
+    settlement: { pace: "commuting", blocks: 17, turns: 5, holeUpSince: 900, wanted: true },
+  },
+};
+/* A party in settlement mode standing nowhere anybody can name: there is no
+   city to claim its board for, so the claim leaves it alone. */
+settings.formations.f3 = {
+  id: "f3",
+  sceneId: null,
+  travel: { mode: "settlement", settlement: { pace: "commuting", blocks: 6 } },
+};
+
+assert.equal(await claimUnstampedSettlements(), 1,
+  "exactly the board whose city is knowable is claimed");
+assert.equal(boardOf("f2").sceneId, "Scene.hillfort", "claimed for the city its party stands in");
+assert.equal(boardOf("f2").blocks, 17, "and the claim writes the stamp and NOTHING else");
+assert.equal(boardOf("f2").holeUpSince, 900);
+assert.equal(boardOf("f2").wanted, true);
+assert.equal(boardOf("f3").sceneId, null, "a party on no named scene has no city to be claimed for");
+assert.equal(await claimUnstampedSettlements(), 0, "and a second pass has nothing left to claim");
+
+assert.equal(await adoptSceneSystem("f2", cityScene("Scene.hillfort")), null,
+  "the city it was claimed for is not an arrival");
+assert.equal(boardOf("f2").blocks, 17, "so the tally the party is standing in the middle of stays");
+
+/* The hop the upgrade used to lose. */
+assert.equal(await adoptSceneSystem("f2", cityScene("Scene.riverport")), "settlement");
+const hopped = boardOf("f2");
+assert.equal(hopped.sceneId, "Scene.riverport");
+assert.equal(hopped.blocks, 0);
+assert.equal(hopped.turns, 0);
+assert.equal(hopped.wanted, false);
+assert.equal(hopped.holeUpSince, null,
+  "the stay stamp above all: kept, the first clock advance in the new city bills the whole journey");
+assert.equal(hopped.pace, "commuting", "what the Judge set still carries across");
+
+/* A board nothing could claim IS read as foreign by the first named city it
+   reaches: a tally counted nowhere anybody can point at has no claim on the
+   streets it has just arrived in, and keeping its stay stamp is the failure
+   that costs a month. */
+assert.equal(await adoptSceneSystem("f3", cityScene("Scene.hillfort")), "settlement");
+assert.equal(boardOf("f3").sceneId, "Scene.hillfort");
+assert.equal(boardOf("f3").blocks, 0);
+
+/* --- the panel path --------------------------------------------------------
+   `settlementMode()` names the scene its formation stands on, so a board
+   entered from the panel with the token already placed is claimed there and
+   the next city can tell it apart. Naming nothing leaves the stamp standing,
+   which is what makes a panel toggle on a party with no token harmless. */
+settings.formations.f4 = {
+  id: "f4",
+  sceneId: "Scene.hillfort",
+  travel: { mode: "delve", settlement: { pace: "commuting" } },
+};
+const panelToggle = (id) => {
+  const formation = settings.formations[id];
+  return setJourneyMode(formation.id, formation.travel?.mode !== "settlement" ? "settlement" : "delve",
+    { sceneId: formation.sceneId });
+};
+await panelToggle("f4");
+assert.equal(settings.formations.f4.travel.mode, "settlement");
+assert.equal(boardOf("f4").sceneId, "Scene.hillfort",
+  "a board entered from the panel is claimed by the city the party is standing in");
+assert.equal(await adoptSceneSystem("f4", cityScene("Scene.riverport")), "settlement",
+  "so the next city is an arrival, not a continuation");
+assert.equal(boardOf("f4").sceneId, "Scene.riverport");
+
+await setJourneyMode("f4", "delve");
+await setJourneyMode("f4", "settlement");
+assert.equal(boardOf("f4").sceneId, "Scene.riverport",
+  "and naming no city keeps the stamp rather than dropping it");
+
+/* An arrival that names NO city cannot be somewhere new: there is no stamp to
+   write, so treating it as foreign would wipe the tally on every call forever.
+   The board's own writer and the arrival's test agree, so nothing is announced
+   and nothing is rewritten. */
+settings.formations.f4.travel.settlement.blocks = 11;
+assert.equal(await adoptSceneSystem("f4", { getFlag: () => ({ mapSystem: "settlement" }) }), null,
+  "a scene with no id names no city, so it is not another one");
+assert.equal(boardOf("f4").blocks, 11, "and the tally is untouched");
+assert.equal(boardOf("f4").sceneId, "Scene.riverport");
+
+console.log("test-travel: OK (day board, forced budget, defaults, log cap, one field name, movement axis, city stamp)");

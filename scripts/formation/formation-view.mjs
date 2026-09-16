@@ -40,6 +40,7 @@ import { FOLLOWING_KINDS } from "./travel.mjs";
 import { driftSummary } from "./lost.mjs";
 import { travelOf, DAY_KINDS, ANCILLARY_ACTIVITIES, ROAD_KINDS, TERRITORY_KEYS } from "./travel.mjs";
 import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
+import { feetPerUnit } from "../lib/distance-units.mjs";
 import {
   SETTLEMENT_PACES, SETTLEMENT_LOCATIONS, ROUTE_KNOWLEDGE,
   SETTLEMENT_INTENTS, CONVEYANCES,
@@ -500,6 +501,35 @@ export function travelReadout(formation, feet) {
   };
 }
 
+/**
+ * A distance the settlement board prints beside the scene's own unit.
+ *
+ * Precision follows magnitude, because the same length is a big number in one
+ * unit and a fraction in another: an ordinary party's turn is 120 ft, 40 yd,
+ * 37 m — and about two hundredths of a mile. A turn measured in miles or
+ * kilometres CANNOT round to a whole number and stay true; rounded that way it
+ * prints as a party that moves nothing, which reads as a dead tracker rather
+ * than as a map drawn at the wrong scale. So:
+ *
+ * - 10 and over — a whole number; tenths of a foot are noise.
+ * - 1 up to 10 — one decimal.
+ * - under 1 — two significant digits, wherever the leading zeros end, so the
+ *   figure survives however coarse the map's unit is.
+ *
+ * A genuine zero prints zero. Only a non-zero distance is protected from
+ * rounding into one.
+ */
+function unitFigure(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n === 0) return 0;
+  const size = Math.abs(n);
+  if (size >= 10) return Math.round(n);
+  if (size >= 1) return Math.round(n * 10) / 10;
+  // `floor(log10)` is the place of the leading digit; one more keeps the second.
+  const places = Math.min(1 - Math.floor(Math.log10(size)), 20);
+  return Number(n.toFixed(places));
+}
+
 /** Why a city turn owes no navigation throw, keyed by `citySpec`'s reason. */
 const NO_THROW_REASONS = Object.freeze({
   route: "noThrowRoute",
@@ -578,7 +608,14 @@ function buildSettlementView(formation, t) {
   // so the panel and the tracker can never disagree about the rate.
   const scene = getPartyScene(formation);
   const blockFeet = sceneBlockFeet(scene);
-  const turnFeet = Math.round(turnDistance(formation, scene) || 0);
+  // The block size as the Judge typed it, and the turn's rate back in the SAME
+  // units, because the readout prints each beside this scene's `units`. The
+  // tracker works in feet whichever half priced the turn — the pace's blocks or
+  // the party's own walking speed — and both branches of the readout name the
+  // scene's unit, so both are converted here rather than one of them. Both go
+  // through ONE formatter: a panel that rounded the turn and printed the block
+  // raw would state two figures in one currency at two precisions.
+  const turnFeet = unitFigure((turnDistance(formation, scene) || 0) / feetPerUnit(scene?.grid?.units));
   // A party with no token anywhere has no map to have said anything: blaming
   // one that does not exist reads as a scene the Judge forgot to configure.
 
@@ -587,7 +624,8 @@ function buildSettlementView(formation, t) {
     // The SAME count `blocksPerTurn` straggles by, so a Judge asking why the
     // party is crowded here can be told the number rather than only the word.
     headcount: heads,
-    blockFeet,
+    // Null stays null — it is the silence `timedByBlocks` reads, not a size.
+    blockFeet: blockFeet == null ? null : unitFigure(blockFeet),
     turnFeet,
     onMap: !!scene,
     units: scene?.grid?.units ?? "",

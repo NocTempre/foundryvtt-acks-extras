@@ -7,6 +7,11 @@
  * scales, that a straggling tier picks the deepest rung reached, that a known
  * route suppresses the throw, and that an unimported table degrades to null
  * with a reason instead of a guess.
+ *
+ * One section at the foot is not pure: the incident PICK is a derivation, but
+ * the walk that resolves its order to a table that exists belongs to
+ * `settlement-turn.mjs` and has to be driven through it. Its Foundry mocks are
+ * installed there, after every check above has run.
  */
 import assert from "node:assert/strict";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
@@ -680,6 +685,22 @@ ok("the incident table is picked innermost-first, on its own", () => {
     { tableUuid: "RollTable.district", source: "district" });
 });
 
+ok("the whole picking order is offered, innermost first, ending at the city", () => {
+  const pick = pickIncidentSource({
+    district: { tableUuid: "RollTable.district", wantedTableUuid: "RollTable.deleted" },
+    zone: { tableUuid: "RollTable.zone" },
+    wanted: true,
+  });
+  assert.deepEqual(pick.candidates.map((c) => c.source), ["wanted", "district", "zone", "city"]);
+  // The head is spread onto the answer, so the single-table question keeps the
+  // answer it has always had; the walk itself is `rollSettlementIncident`'s,
+  // and is exercised through that function below.
+  assert.match2(pick, { tableUuid: "RollTable.deleted", source: "wanted" });
+  // The order always ends at the city's own table, which is what terminates it.
+  const none = pickIncidentSource({ district: { tableUuid: "RollTable.gone" } });
+  assert.deepEqual(none.candidates.at(-1), { tableUuid: null, source: "city" });
+});
+
 ok("a district's welcome is owed where its scope names, and district-wide at 'any'", () => {
   const districtWide = { reactionModifier: -4, reactionWhere: "any" };
   assert.deepEqual(districtReaction(districtWide, { where: "avenue" }), { modifier: -4, scope: "any" });
@@ -744,6 +765,30 @@ ok("re-entering a city keeps what the Judge set and drops what the last city cou
   });
   // What was counted goes — another city's mileage is not this one's.
   assert.match2(back, { blocks: 0, turns: 0, days: 0, holeUpSince: null, lost: false, lastThrow: null });
+});
+
+ok("a board carries the city it was counted in, and re-entry re-stamps it", () => {
+  assert.equal(freshSettlement().sceneId, null, "a board no city has claimed names none");
+  assert.equal(settlementOf({ settlement: { sceneId: "Scene.riverport" } }).sceneId, "Scene.riverport");
+  assert.equal(settlementOf({ settlement: { sceneId: 7 } }).sceneId, null, "a stamp is a scene id or nothing");
+  // An empty stamp would compare unequal to every city and re-enter on every
+  // single arrival, which is the tally loss this field exists to stop.
+  assert.equal(settlementOf({ settlement: { sceneId: "" } }).sceneId, null);
+  // A fresh tally is stamped with the city it is being counted in, so the next
+  // arrival can tell this city from another one.
+  const moved = reenterSettlement(
+    { ...freshSettlement(), sceneId: "Scene.riverport", blocks: 40, turns: 12, holeUpSince: 500, wanted: true },
+    "Scene.hillfort",
+  );
+  assert.match2(moved, { sceneId: "Scene.hillfort", blocks: 0, turns: 0, holeUpSince: null, wanted: false });
+  // Naming no city keeps the stamp the board already carries. A re-entry is
+  // not an un-claiming: an unstamped board is read as foreign by the next city
+  // the party reaches, so a caller that forgot to name one would silently arm
+  // the very tally loss this field exists to stop. The rule is stated in the
+  // function that owns the field, not in each of its callers.
+  assert.equal(reenterSettlement({ sceneId: "Scene.riverport" }).sceneId, "Scene.riverport");
+  assert.equal(reenterSettlement({ sceneId: "Scene.riverport" }, null).sceneId, "Scene.riverport");
+  assert.equal(reenterSettlement({}).sceneId, null, "and a board that names none still names none");
 });
 
 ok("being hunted starts false, coerces to a boolean, and does not survive re-entry", () => {
@@ -825,6 +870,104 @@ ok("how the last move was measured is remembered, and starts unanswered", () => 
   const again = reenterSettlement({ where: "alley", road: { surface: "paved" }, measuredAlong: true });
   assert.equal(again.road, null);
   assert.equal(again.measuredAlong, null);
+});
+
+/* --- the incident walk, through its real consumer --------------------------
+   `pickIncidentSource` is pure and returns an ORDER; the walk that resolves it
+   lives in `rollSettlementIncident`, so a test that walks the order itself
+   proves only that the order is well formed and passes whether or not anything
+   consumes it. This drives the consumer, which needs a table to look up and
+   dice to throw — the mocks below are the whole reason this section sits apart
+   from the pure derivations above. */
+class FieldStub {
+  constructor(...args) { this.args = args; }
+}
+globalThis.foundry = {
+  utils: { deepClone: (v) => structuredClone(v), randomID: () => "id", setProperty: () => {}, hasProperty: () => false },
+  data: { regionBehaviors: { RegionBehaviorType: class {} }, fields: new Proxy({}, { get: () => FieldStub }) },
+};
+globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
+globalThis.CONST = { TOKEN_DISPLAY_MODES: {}, TOKEN_DISPOSITIONS: {} };
+globalThis.game = {
+  user: { isGM: true },
+  i18n: { localize: (k) => k, format: (k) => k },
+  settings: { get: () => undefined, set: () => {}, register: () => {} },
+  // No imported city table and no compendium holding one: the tail of the walk
+  // has nothing to answer with, which is the state the last check below drives.
+  tables: { find: () => null },
+  packs: { filter: () => [] },
+};
+/** The tables this world actually holds; everything else is a broken promise. */
+const WORLD_TABLES = new Map([
+  ["RollTable.district", { name: "Thieves' Quarter", roll: async () => ({ results: [{ text: "A cutpurse sizes you up." }], roll: { total: 3 } }) }],
+  ["RollTable.zone", { name: "Harbour", roll: async () => ({ results: [{ text: "A press gang." }], roll: { total: 2 } }) }],
+]);
+globalThis.fromUuid = async (uuid) => {
+  // A compendium the world no longer enables THROWS rather than answering null;
+  // both are the same broken promise to the walk.
+  if (uuid === "RollTable.unreachable") throw new Error("pack not found");
+  return WORLD_TABLES.get(uuid) ?? null;
+};
+globalThis.Roll = class {
+  constructor(formula) { this.formula = formula; this.total = 1; }
+  async evaluate() { return this; }
+};
+
+const { rollSettlementIncident } = await import("../scripts/formation/settlement-turn.mjs");
+
+/** Run the real consumer over the real picking order. */
+const incidentFor = (args) => rollSettlementIncident({ night: false, ...pickIncidentSource(args) });
+
+const okAsync = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
+
+await okAsync("a table that cannot be resolved falls to the NEXT list, not to the city", async () => {
+  // Hunted, with a wanted table that has been deleted. Answering from the head
+  // of the order alone made one broken promise at the innermost layer skip
+  // every list inside it, so the quarter that had said who walks its streets
+  // was answered by the city's generic d100 with its own list never asked.
+  const got = await incidentFor({
+    district: { tableUuid: "RollTable.district", wantedTableUuid: "RollTable.deleted" },
+    zone: { tableUuid: "RollTable.zone" },
+    wanted: true,
+  });
+  assert.equal(got.table, "Thieves' Quarter", "the district's own list answers");
+  assert.equal(got.source, "district", "and the card names the list that ANSWERED, not the one asked for");
+  assert.equal(got.entry, "A cutpurse sizes you up.");
+});
+
+await okAsync("a uuid whose compendium is gone is skipped like a deleted one", async () => {
+  // The skip is LOGGED — an unreadable pack is worth saying — so the warning is
+  // caught rather than printed into the run, and the catch is what proves it.
+  const said = [];
+  const realWarn = console.warn;
+  console.warn = (...args) => said.push(args[0]);
+  try {
+    const got = await incidentFor({
+      district: { tableUuid: "RollTable.unreachable" },
+      zone: { tableUuid: "RollTable.zone" },
+    });
+    assert.equal(got.source, "zone", "a lookup that THROWS ends that candidate, not the walk");
+    assert.equal(got.table, "Harbour");
+  } finally {
+    console.warn = realWarn;
+  }
+  assert.equal(said.length, 1, "and the unreadable table is named rather than passed over in silence");
+});
+
+await okAsync("a resolvable table still answers where it sits in the order", async () => {
+  const hunted = await incidentFor({
+    district: { tableUuid: "RollTable.zone", wantedTableUuid: "RollTable.district" },
+    wanted: true,
+  });
+  assert.equal(hunted.source, "wanted", "the hunted list answers when it is there");
+  assert.equal(hunted.table, "Thieves' Quarter");
+});
+
+await okAsync("with nothing resolvable the walk reaches the city's own table", async () => {
+  // Every drawn list is a broken promise, and the city has no imported table
+  // either, so the honest answer is that nobody can say what happened.
+  const got = await incidentFor({ district: { tableUuid: "RollTable.gone" }, zone: { tableUuid: "RollTable.alsoGone" } });
+  assert.equal(got, null, "and the card says it has no incident table rather than inventing one");
 });
 
 console.log("\ntest-settlement: all " + passed + " checks passed");

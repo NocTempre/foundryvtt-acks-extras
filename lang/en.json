@@ -2615,7 +2615,6 @@
       "cadenceInside": "Inside {place}, the street answers every {turns} turn(s), on {target}+.",
       "wantedLabel": "Hunted here",
       "wantedHint": "Somebody in this settlement is looking for this party: a district's hunted table answers instead of its ordinary one.",
-      "atPlace": "Standing at {place}.",
       "district": {
         "toolRegion": "District from walls",
         "toolMark": "Mark as a district",

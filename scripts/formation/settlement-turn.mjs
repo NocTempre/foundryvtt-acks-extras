@@ -198,6 +198,30 @@ const DAY_SECONDS = 24 * 60 * 60;
 const MAX_STAY_DAYS_PER_CREDIT = 30;
 
 /**
+ * The queue every credit runs in.
+ *
+ * One clock advance reaches the credit twice — the hook watcher answers it, and
+ * the turn engine awaits it as well before re-reading the board — and a second
+ * pass reading the board while the first is still between its dice and its
+ * stamp prices the same stretch again. Running them in turn is what makes the
+ * stamp the guard it is written as.
+ *
+ * The same shape the ledger's own writer keeps (`formation-model.mjs`): the
+ * chain swallows an outcome so a failed credit does not block the next, while
+ * the promise handed back still rejects for the caller that asked for it.
+ */
+let creditChain = Promise.resolve();
+
+function enqueueCredit(fn) {
+  const run = creditChain.then(fn, fn);
+  creditChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/**
  * Credit whatever whole days have passed for every party holed up in a city.
  *
  * The watcher for the one settlement rate that has no movement to read. It is
@@ -207,10 +231,20 @@ const MAX_STAY_DAYS_PER_CREDIT = 30;
  * the stamp moves forward by exactly the days credited, and the remainder
  * stays on the clock.
  *
+ * Serialised, so two callers answering ONE advance charge it once: the second
+ * starts after the first has moved the stamp, reads the stamp it left, finds no
+ * whole day outstanding and writes nothing. Awaiting the returned promise is
+ * therefore a barrier on the whole credit, whichever caller opened it.
+ *
  * A party that has just holed up is stamped and charged nothing; the first day
  * begins now, not at whatever the calendar said when the world was made.
  */
-export async function creditHoledUpDays() {
+export function creditHoledUpDays() {
+  return enqueueCredit(creditHoledUpDaysNow);
+}
+
+/** One pass of the credit, run only from the queue above. */
+async function creditHoledUpDaysNow() {
   if (!game.user?.isGM) return;
   const now = Number(game.time?.worldTime) || 0;
   // The read-only blob, not a deep copy: this runs on every clock advance and
@@ -300,6 +334,25 @@ export async function findIncidentRows() {
 }
 
 /**
+ * The document a candidate's uuid names, or null when the promise is broken.
+ *
+ * A uuid promises a document exists, and the promise breaks two ways: `fromUuid`
+ * answers null for one that is gone and throws for a compendium the world no
+ * longer has. Both say the same thing to the walk below — this table cannot
+ * answer — so both are answered the same way, and the throw is logged rather
+ * than ending the walk at whichever layer happened to hold the dead uuid.
+ */
+async function incidentTableAt(uuid) {
+  if (!uuid) return null;
+  try {
+    return (await fromUuid(uuid)) ?? null;
+  } catch (err) {
+    console.warn(`${MODULE_ID} | settlement incident table ${uuid} could not be read`, err);
+    return null;
+  }
+}
+
+/**
  * Roll one settlement incident, and say which table answered.
  *
  * TWO procedures, because two kinds of table arrive here. The city's own
@@ -309,23 +362,40 @@ export async function findIncidentRows() {
  * is drawn the way the delve clock already draws a zone's table — its bands are
  * its own business, and a d100 forced onto a 1d6 table would miss every row.
  *
- * Null when neither route has supplied a table.
+ * `candidates` is `pickIncidentSource`'s whole order, innermost first, and is
+ * walked to the first table that EXISTS. Trying only the innermost made one
+ * broken uuid skip every table inside it: a quarter whose hunted list had been
+ * deleted was answered by the city's generic d100 with its own ordinary list
+ * never asked. `source` is taken from the candidate that answered, so the
+ * card's hunted line and its "drawn from" line name the table actually rolled.
+ * The order always ends at the city's own table, which is what terminates the
+ * walk.
+ *
+ * Null when nothing in the order — the city's own table included — supplied a
+ * row.
+ *
+ * @param {object} [opts]
+ * @param {Array<{tableUuid: string|null, source: string}>} [opts.candidates]
+ *   the order to walk; a bare `tableUuid`/`source` pair stands in for a
+ *   one-entry order when it is absent.
  */
-export async function rollSettlementIncident({ night = false, tableUuid = null, source = "city" } = {}) {
-  if (tableUuid) {
-    const table = await fromUuid(tableUuid);
-    if (table) {
-      const drawn = await table.roll();
-      const text = (drawn.results ?? [])
-        .map((r) => r.text ?? r.description ?? "")
-        .filter(Boolean)
-        .join("; ");
-      const total = drawn.roll?.total ?? null;
-      return {
-        roll: total, total, afterDark: 0, entry: text || null, matched: !!text,
-        dice: drawn.roll, source, table: table.name,
-      };
-    }
+export async function rollSettlementIncident({
+  night = false, tableUuid = null, source = "city", candidates = null,
+} = {}) {
+  const order = candidates?.length ? candidates : [{ tableUuid, source }];
+  for (const candidate of order) {
+    const table = await incidentTableAt(candidate.tableUuid);
+    if (!table) continue;
+    const drawn = await table.roll();
+    const text = (drawn.results ?? [])
+      .map((r) => r.text ?? r.description ?? "")
+      .filter(Boolean)
+      .join("; ");
+    const total = drawn.roll?.total ?? null;
+    return {
+      roll: total, total, afterDark: 0, entry: text || null, matched: !!text,
+      dice: drawn.roll, source: candidate.source, table: table.name,
+    };
   }
   const rows = incidentRowsOf(await findCityIncidentTable());
   const roll = await new Roll(INCIDENT_DIE).evaluate();
@@ -435,10 +505,11 @@ async function whisperTurn(
     // turn's bookkeeping down with it.
     if (owed.met) {
       // Where the hunted line goes if the hunted table is the one that ANSWERS.
-      // Keyed on the answer and not on the ask: a `wantedTableUuid` pointing at a
-      // table that is gone falls through to the city's own, and a line promising
-      // the district's list above the city's entry asserts something untrue. The
-      // index is taken first so the reason still reads before the outcome.
+      // Keyed on the answer and not on the ask: a `wantedTableUuid` pointing at
+      // a table that is gone falls to the next list in the order, and a line
+      // promising the hunted list above another list's entry asserts something
+      // untrue. The index is taken first so the reason still reads before the
+      // outcome.
       const beforeIncident = lines.length;
       let incident = null;
       try {

@@ -1,5 +1,95 @@
 # Changelog
 
+## 7.7.0
+
+**A crossroads is a junction, and a board belongs to the city that counted it.**
+
+### Fixed
+- **Two streets that cross meet where they cross.** The road graph joined
+  streets only where one line's END touched another's, so a side street begun
+  partway along an avenue, or two streets simply drawn across each other, left
+  the two roads in separate networks. A walk that turned such a corner was
+  priced as the straight line between its ends and the tracker stopped saying it
+  had been measured at all — silently, because a chord is a plausible number.
+  That is every shape a city grid is drawn in except the chained bend, which is
+  the one shape the recipes walked. Streets are now cut at every junction along
+  them, crossings drawn at an angle to the grid included. A map whose roads only
+  ever meet end to end measures exactly as it did.
+- **A block is measured in the units the map is drawn in.** The block width is
+  typed into Scene Configuration beside the scene's own units and was compared
+  against a move in feet, so on a city drawn in metres three turns were marked
+  off for one block of walking — three encounter throws, three turns of torch
+  and three sets of effects expiring behind them. The width is now converted
+  where it enters that comparison, and the tracker prints both figures in the
+  units they were typed in rather than one of each. A scene in feet, or one that
+  never named a unit, is untouched.
+- **A stay is credited once for the days it covers.** A world-clock advance
+  reached the holed-up credit twice at the same moment — once from the clock
+  watcher, once from the advance itself — and both read the board before either
+  wrote it. Two stay cards for one stretch, doubled dice wherever a cadence
+  resolved, and a stay stamp pushed into the FUTURE by twice the days credited,
+  across which the street got no throw at all and nothing said why. The credit
+  now runs one at a time.
+- **A board belongs to the city whose blocks it counted.** Walking out of one
+  city straight into another kept the first city's tally, its `Hunted here` mark
+  and its stay stamp: a party arrived forty blocks into a city they had just
+  entered, hunted by powers who had never heard of them, and a party that left
+  while holed up had the whole journey charged as a stay on the next advance.
+  A board now names the city it is counting and arriving somewhere else starts a
+  fresh one. **A world upgrading from 7.6.0 keeps the board it has** — at first
+  load every board still being counted is stamped with the city its party is
+  standing in, so the upgrade itself resets nothing and only a genuine arrival
+  does. Crossing between two scenes that are halves of one city counts as
+  arriving, because a scene is what this module has always meant by a city.
+- **A quarter's own list answers when the list it is hunted through has gone.**
+  A district whose hunted table had been deleted, or whose compendium was
+  switched off, skipped its own encounter list AND the surrounding zone's and
+  fell all the way to the city's general table — the quarter that had said who
+  walks its streets was overruled by a pointer to nothing, and the card named
+  the city as though the quarter had never answered. Each list is now tried in
+  turn and the card names whichever one answered.
+- **Where a character is standing is asked about the character, not about the
+  screen.** One clause of the deposit gate asked whether the VIEWING USER owned
+  the place while every other clause asked about the actor. A Judge owns every
+  document, so on the Judge's seat that clause was true for every place without
+  a map of its own: the Judge saw a deposit offered on a player's sheet for
+  places that player was refused, and the same disagreement reached coin
+  transfers, which use this gate to decide whether the write may happen at all.
+  Both seats now give the same answer. A Judge-owned NPC no longer reaches a
+  Judge-owned place by ownership alone — they reach it by being there.
+- **A member the party has sent out stands where they were sent.** Joining a
+  formation deletes a character's token, so the party token answers for
+  everyone riding in it — but a detach, a left-behind or a deploy for combat
+  gives a body back, and that member was still being answered from the party
+  token. A scout detached beside a market cart was refused it while a member who
+  had never left was allowed. A formation with **no party token placed at all**
+  — the state left behind when a party token is deleted, which unlinks rather
+  than disbands — could reach nothing anywhere, and named the very map its
+  members were standing on as the place they had to be. Both now read the
+  ground. A token left behind on some other map still reaches nothing, which is
+  the rule that separates it from a live detachment.
+- **One token is one body.** An unlinked copy of a character was located by the
+  sheet it was made from rather than by itself, so every copy stood wherever any
+  copy stood: a hireling three levels underground was offered the cart their
+  duplicate was standing beside, and could hand coin to someone a map away.
+  A copy now reaches what IT is next to.
+- **The wall palette no longer offers a road row it cannot write.** The palette
+  edits an unsaved preview of the next wall, and the module's road row and trap
+  row were being injected into it — where every pick threw, was swallowed to the
+  console, and visibly reverted. That is the one window whose whole purpose is
+  to say what the next wall will be. Both rows now appear only on a wall that
+  exists; the road tools on the battlemap control are unchanged.
+- **A street name keeps its punctuation.** A name containing a double quote
+  broke the road row's markup, so the field came back holding everything before
+  the quote — and the next time any control in the row was touched, that
+  truncation was written back over the name. An ampersand came back as its
+  markup escape. Names round-trip whole.
+- **The street the map says you are on has its own line.** The line naming the
+  road drawn under the party sat inside the Streets picker's own label, where it
+  shared the control's line and squeezed it, and where a screen reader read the
+  whole sentence out as part of the picker's name. It is now a line of its own
+  beneath the row, which is what its rule always said it was.
+
 ## 7.6.0
 
 **A city is walked along its streets, and a quarter keeps its own time.**

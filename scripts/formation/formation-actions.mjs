@@ -251,11 +251,22 @@ export const SHARED_ACTIONS = {
     this.render();
   },
 
-  /** Enter the city, or leave it. The third mode, on the same clock rule. */
+  /**
+   * Enter the city, or leave it. The third mode, on the same clock rule.
+   *
+   * Names the scene the party's token stands on, so a board entered from here
+   * is stamped with its city. A board left unstamped is read as foreign by the
+   * next city the party reaches, and its tally — the stay stamp included — is
+   * dropped there.
+   */
   async settlementMode() {
     const formation = gmFormation(this);
     if (!formation) return;
-    await setJourneyMode(formation.id, formation.travel?.mode !== "settlement" ? "settlement" : "delve");
+    await setJourneyMode(
+      formation.id,
+      formation.travel?.mode !== "settlement" ? "settlement" : "delve",
+      { sceneId: formation.sceneId },
+    );
     this.render();
   },
 

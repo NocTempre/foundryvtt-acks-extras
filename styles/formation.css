@@ -1364,10 +1364,9 @@
 /* --- The settlement board -------------------------------------------------
    City travel reuses the journey panel's frame; these are only the pieces the
    wilderness board has no equivalent for. The straggle mark and the throw line
-   are Judge-side, so both lean on the warning ink rather than the spot. */
-.acks-extras-formation-settlement .acks-extras-formation-travel-pickers {
-  align-items: end;
-}
+   are Judge-side, so both lean on the warning ink rather than the spot. The
+   pickers row takes the shared alignment: every label here holds one line, so
+   nothing in it is taller than the rest. */
 
 .acks-extras-formation-settlement-night,
 .acks-extras-formation-settlement-wanted {
@@ -1382,11 +1381,15 @@
 }
 
 /* The street the MAP says the party is on, under the picker that says
-   something else. Its own line rather than inline after the select: the
-   pickers row is a flex label, and a hint sharing that line squeezes the
-   control it is explaining. */
+   something else. It is a block BELOW the pickers row rather than an item
+   inside the Streets label, which is what earns it a line of its own: a flex
+   item's `display` is blockified and it is laid along the main axis whatever
+   that display names, so a hint placed in that label shares the select's line
+   and squeezes the control it is explaining. Outside the row it is an ordinary
+   block, and every picker keeps one line and one shared alignment. */
 .acks-extras-formation-settlement-road {
   display: block;
+  margin: var(--acks-sp-1) 0 0;
 }
 
 /* The quarter the party is in, and what it makes of them. Read alongside

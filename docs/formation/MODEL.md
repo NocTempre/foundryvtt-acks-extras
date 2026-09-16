@@ -640,10 +640,14 @@ the wrong grain for a ten-minute tick; a settlement is timed in the same turns
 a delve is, so `onPartyTokenMoved` drives it and there is no button to press.
 One tracker serves both, and only the distance a turn buys differs —
 `turnDistance` asks the mode: a delve spends an exploration move, a city spends
-the pace's blocks in the feet the SCENE draws them at (`feetPerTurn`, taking
+the pace's blocks at the width the SCENE draws them (`feetPerTurn`, taking
 `blockFeet` from the battlemap setup record). How wide a block is belongs to
 the map rather than to the book, which is why it is declared in Scene
-Configuration and not imported. A city map that has not said falls back to the
+Configuration and not imported. **The Judge types that width in the scene's own
+units and the comparison is made in feet**, so it is converted where it enters
+the tracker rather than where it is stored: the stored figure is what the panel
+prints back beside those same units, and converting at the store would show a
+thirty-metre block as ninety-eight. A city map that has not said falls back to the
 party's walking speed and the panel states which of the two is in force — a
 party that moves and is told nothing happened reads as a broken module.
 

@@ -176,13 +176,76 @@ export function chainWalls(walls, tolerance = 8) {
 /* -------------------------------------------- */
 
 /**
- * Join segments into a graph whose nodes are their shared endpoints.
+ * Where two segments meet, or null — symmetric in its two arguments.
+ *
+ * `segmentCrossing` answers a different question and cannot stand in here: it
+ * is tuned for a mover springing a trap, so it rejects `t <= 0` on the grounds
+ * that starting ON a line is not crossing it. That refusal is right for a trap
+ * and wrong for a junction — a side street whose FIRST endpoint sits on an
+ * avenue is the commonest T there is, and the trap rule would drop it.
+ */
+function segmentMeeting(p, q) {
+  const [px1, py1, px2, py2] = p;
+  const [qx1, qy1, qx2, qy2] = q;
+  const rx = px2 - px1;
+  const ry = py2 - py1;
+  const sx = qx2 - qx1;
+  const sy = qy2 - qy1;
+  const denom = rx * sy - ry * sx;
+  if (!denom) return null; // parallel, including both degenerate
+  const t = ((qx1 - px1) * sy - (qy1 - py1) * sx) / denom;
+  const u = ((qx1 - px1) * ry - (qy1 - py1) * rx) / denom;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return { x: px1 + t * rx, y: py1 + t * ry };
+}
+
+/**
+ * Join segments into the PLANAR graph they draw: every place two of them touch
+ * is a node, and a segment is emitted as one edge per span between consecutive
+ * nodes on it.
  *
  * Two endpoints within `tolerance` are ONE node. That tolerance is the whole
  * reason this exists: a Judge drawing a street network drags each length
  * separately, and core's own snapping puts consecutive ends close together
  * rather than identical. Without the merge every segment would be its own
  * island and no route would run further than one length.
+ *
+ * Endpoints alone are not enough, because the ordinary shapes of a street net
+ * put a junction in the MIDDLE of a line: a side street ending on an avenue
+ * (a T) shares no endpoint with it, and two streets crossing (an X) have no
+ * endpoint at the crossing at all. Noding only the ends leaves those roads in
+ * separate components, so a distance over them answers null and the caller
+ * falls back to the chord. So the ends are noded, then the crossings, then each
+ * segment is cut at every node that lies on it.
+ *
+ * One drawn segment therefore becomes SEVERAL edges, all sharing one `meta`
+ * object — the same object the caller passed in, so a consumer deduping the
+ * edges a route used keys on `meta`, never on the edge index.
+ *
+ * Three consequences of cutting at every node, all wanted:
+ *
+ * - **A segment shorter than the tolerance is no edge, but its merged endpoint
+ *   is still a node, and that node cuts whatever it lies on.** A three-pixel
+ *   stub left on an avenue turns one thousand-pixel edge into two of five
+ *   hundred. The stub is a real point of the street, and a route over the two
+ *   halves measures what the one edge did — what changes is the edge COUNT,
+ *   which is why a consumer counts roads by `meta` and not by edge.
+ * - **A segment's own spans need not sum to the length it was drawn at.** Where
+ *   an end merges into a node that projects INSIDE the segment — a street drawn
+ *   so its last few pixels lie back along one already there — the spans stop at
+ *   that node and the overlap is not emitted a second time. The shortfall is at
+ *   most the tolerance and it is always road the graph already holds, so no
+ *   walk loses it: a point past the last node attaches by its projection and
+ *   the remainder is reported as the leg OFF the lines, which is the same
+ *   distance under a different name.
+ * - **A span can have zero length**, where two distinct nodes project to the
+ *   same point of a segment: two side streets ending on opposite flanks of an
+ *   avenue, each within the tolerance of it and further than that from each
+ *   other, cut the avenue twice at one place. Dropping such a span severs the
+ *   line there — the avenue becomes two networks at exactly the point the
+ *   planarization exists to join — so it is emitted. It costs nothing: it adds
+ *   no length to a walk that crosses it, and a walk that does not need it never
+ *   pays for it.
  *
  * Segments are kept whatever else they carry — pass `{c, …}` objects and the
  * rest rides along on each edge's `meta`, so a caller can ask which surfaces a
@@ -226,6 +289,12 @@ export function joinSegments(segments, tolerance = 8) {
     return index;
   };
 
+  // Pass one: the segments worth keeping, and their ends as nodes.
+  const items = [];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
   for (const entry of segments ?? []) {
     const c = Array.isArray(entry) ? entry : entry?.c;
     if (!Array.isArray(c) || c.length < 4) continue;
@@ -234,19 +303,166 @@ export function joinSegments(segments, tolerance = 8) {
     const a = nodeAt(x1, y1);
     const b = nodeAt(x2, y2);
     // A segment shorter than the tolerance has both ends merged into one node.
-    // Keeping it as an edge would be a self-loop of no length: it can never be
-    // a step of a route, and it would be reported as a road the party followed.
+    // Keeping it would be a SELF-loop: an edge from a node to itself can never
+    // be a step of a route, and it would be reported as a road the party
+    // followed. The merged node stays registered, so a stub dropped on a street
+    // still cuts that street where it sits.
     if (a === b) continue;
-    const index = edges.length;
-    edges.push({
-      a,
-      b,
-      length: Math.hypot(x2 - x1, y2 - y1),
-      seg: [x1, y1, x2, y2],
-      meta: Array.isArray(entry) ? {} : entry,
+    items.push({ c: [x1, y1, x2, y2], a, b, meta: Array.isArray(entry) ? {} : entry });
+    minX = Math.min(minX, x1, x2);
+    minY = Math.min(minY, y1, y2);
+    maxX = Math.max(maxX, x1, x2);
+    maxY = Math.max(maxY, y1, y2);
+  }
+  if (!items.length) return { nodes, edges, tolerance };
+
+  // A SECOND, coarser grid, this one holding segments rather than points. Both
+  // remaining passes ask "what is near here", and asking that of every segment
+  // in turn is quadratic on the pairs — which is what a city street net has
+  // hundreds of. The cell is at least two tolerances wide, so a point within a
+  // tolerance of a segment is always found in the nine cells around it; and it
+  // grows with the drawing's extent, so a scene measured in tens of thousands
+  // of pixels does not pay for tens of thousands of cells per line.
+  const span = Math.max(maxX - minX, maxY - minY, 1);
+  const coarse = Math.max(2 * cell, span / 64);
+  const grid = new Map();
+
+  // A segment is registered in every cell its TRAVERSAL covers, walked column
+  // by column: inside one column of the grid the line occupies a single span of
+  // y, so the cells it covers there are one contiguous run, and the whole line
+  // costs a run per column rather than a cell per pixel. Each run is widened by
+  // `cell` on every side — the endpoint index's own width — which absorbs the
+  // rounding of a crossing that lands on a cell edge.
+  //
+  // The invariant that buys, and the one pass two rests on entirely: TWO
+  // SEGMENTS THAT CROSS SHARE AT LEAST ONE CELL OF THIS INDEX. Registering
+  // sampled POINTS along the line does not hold it — two oblique lines crossing
+  // near a cell corner register complementary staircases of cells, so they are
+  // never paired and their crossing is never noded, leaving the two roads in
+  // separate components and every distance across them null. Axis-aligned lines
+  // cannot expose it, because a horizontal line fills its whole row and a
+  // vertical one its whole column, so such a pair always shares a cell however
+  // the covering is computed.
+  const coverCells = (x1, y1, x2, y2, add) => {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const firstCol = Math.floor((Math.min(x1, x2) - cell) / coarse);
+    const lastCol = Math.floor((Math.max(x1, x2) + cell) / coarse);
+    for (let cx = firstCol; cx <= lastCol; cx++) {
+      let ya;
+      let yb;
+      if (!dx) {
+        ya = Math.min(y1, y2);
+        yb = Math.max(y1, y2);
+      } else {
+        // The stretch of the line inside this column, clamped to the segment's
+        // own ends so the padding column past each end reads that end's y.
+        let t0 = (cx * coarse - cell - x1) / dx;
+        let t1 = ((cx + 1) * coarse + cell - x1) / dx;
+        if (t0 > t1) [t0, t1] = [t1, t0];
+        t0 = Math.max(0, Math.min(1, t0));
+        t1 = Math.max(0, Math.min(1, t1));
+        ya = Math.min(y1 + t0 * dy, y1 + t1 * dy);
+        yb = Math.max(y1 + t0 * dy, y1 + t1 * dy);
+      }
+      const firstRow = Math.floor((ya - cell) / coarse);
+      const lastRow = Math.floor((yb + cell) / coarse);
+      for (let cy = firstRow; cy <= lastRow; cy++) add(key(cx, cy));
+    }
+  };
+
+  for (let i = 0; i < items.length; i++) {
+    const [x1, y1, x2, y2] = items[i].c;
+    coverCells(x1, y1, x2, y2, (k) => {
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push(i);
     });
-    nodes[a].edges.push(index);
-    nodes[b].edges.push(index);
+  }
+
+  // Pass two: crossings. Two segments that cross with no endpoint at the
+  // crossing — an X — have nothing for the endpoint pass to merge, so the
+  // crossing point is registered as a node in its own right. Registering it
+  // through `nodeAt` means a crossing that lands on an existing end (a T)
+  // resolves to that end rather than doubling it.
+  const tested = new Set();
+  for (const list of grid.values()) {
+    for (let p = 0; p < list.length; p++) {
+      for (let q = p + 1; q < list.length; q++) {
+        const i = Math.min(list[p], list[q]);
+        const j = Math.max(list[p], list[q]);
+        const pair = i * items.length + j;
+        if (tested.has(pair)) continue;
+        tested.add(pair);
+        const hit = segmentMeeting(items[i].c, items[j].c);
+        if (hit) nodeAt(hit.x, hit.y);
+      }
+    }
+  }
+
+  // Pass three: which nodes lie ON which segment. Walked from the NODES out —
+  // there are far fewer of them than there are cells along a long line, and the
+  // coarse grid answers each in nine reads.
+  const splits = items.map(() => []);
+  for (let n = 0; n < nodes.length; n++) {
+    const cx = Math.floor(nodes[n].x / coarse);
+    const cy = Math.floor(nodes[n].y / coarse);
+    const seen = new Set();
+    for (let ox = -1; ox <= 1; ox++) {
+      for (let oy = -1; oy <= 1; oy++) {
+        for (const i of grid.get(key(cx + ox, cy + oy)) ?? []) {
+          if (seen.has(i)) continue;
+          seen.add(i);
+          const at = nearestPointOnSegment(nodes[n].x, nodes[n].y, items[i].c);
+          if (at.distance <= tolerance) splits[i].push({ t: at.t, node: n });
+        }
+      }
+    }
+  }
+
+  // Pass four: cut each segment at its nodes, in order along it, and emit one
+  // edge per span. The sub-segment's ends are taken from the ORIGINAL line
+  // rather than from the node coordinates, so the pieces stay collinear with
+  // the wall the Judge drew even where a node sits a pixel off it.
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const [x1, y1, x2, y2] = it.c;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const along = splits[i];
+    along.push({ t: 0, node: it.a }, { t: 1, node: it.b });
+    along.sort((p, q) => p.t - q.t);
+    // One appearance per node, at the smallest `t` it was found at: the ends
+    // arrive both from the pass above and from the two pushed here. Keeping the
+    // duplicate would emit a span from a node to ITSELF, a self-loop that can
+    // never be a step of a route. Deduping here is what makes every emitted
+    // span run between two DISTINCT nodes — distinct nodes, not distinct
+    // positions: two nodes projecting to one point of the line emit a span of
+    // zero length, which is kept because it is the only thing joining them.
+    const cut = [];
+    const placed = new Set();
+    for (const s of along) {
+      if (placed.has(s.node)) continue;
+      placed.add(s.node);
+      cut.push(s);
+    }
+    for (let k = 0; k + 1 < cut.length; k++) {
+      const a = cut[k].node;
+      const b = cut[k + 1].node;
+      const ax = x1 + cut[k].t * dx;
+      const ay = y1 + cut[k].t * dy;
+      const bx = x1 + cut[k + 1].t * dx;
+      const by = y1 + cut[k + 1].t * dy;
+      const index = edges.length;
+      edges.push({
+        a,
+        b,
+        length: Math.hypot(bx - ax, by - ay),
+        seg: [ax, ay, bx, by],
+        meta: it.meta,
+      });
+      nodes[a].edges.push(index);
+      nodes[b].edges.push(index);
+    }
   }
   return { nodes, edges, tolerance };
 }

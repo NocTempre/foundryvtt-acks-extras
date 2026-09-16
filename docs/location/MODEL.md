@@ -59,10 +59,19 @@ can stand on a map without being one.
 
 Both halves ask the same question first — **where is this character actually
 standing** — and `standingSpots` (`reach.mjs`) is the only reader of it. A
-character in a formation has no token of their own: joining deletes it, so the
-thing on the ground is the party token and it answers for every member. A
-character no formation claims stands wherever their own tokens do, on every map
-at once. The geometry is `here.mjs`: a token's footprint padded by one grid
+character riding inside a formation has no token of their own, because joining
+deletes it, so the thing on the ground is the party token and it answers for
+everyone it carries — and answers for them alone, so a token left behind on
+some other map grants nothing. A deploy gives a body back: a member sent out as
+an INDIVIDUAL stands at the token the deploy made for them, which is what tells
+a live detachment from a leftover, while a cell deployed as a STACK keeps
+answering through the party token because its bodies are built from the stack's
+template actor and name that, not the cell. A formation with no party token
+placed anywhere has no body to answer with, and its members fall back to their
+own tokens rather than standing nowhere. A character no formation claims stands
+wherever their own tokens do, on every map at once — and one token is one body,
+so an unlinked copy reaches what it is beside and never what another copy of the
+same sheet is. The geometry is `here.mjs`: a token's footprint padded by one grid
 square, and a floor being the scene's own square distance.
 
 `reachScan` is one pass over the world's tokens, built once per render by the

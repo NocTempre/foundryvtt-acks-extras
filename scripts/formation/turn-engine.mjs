@@ -20,7 +20,7 @@ import { feetPerTurn, settlementOf } from "./settlement.mjs";
 import { cityTurnCompleted, creditHoledUpDays } from "./settlement-turn.mjs";
 import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import { roadDistance } from "../battlemap/roads.mjs";
-import { sceneFeetPerCell } from "../lib/distance-units.mjs";
+import { feetPerUnit, sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { maybeHexThrow } from "./encounter-card.mjs";
 import { prepareToLight } from "../lib/light.mjs";
 import { equipForLight } from "./judge-override.mjs";
@@ -420,7 +420,9 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
     // result back into the clone. The holed-up day credit rides the world
     // clock and writes the stored record; this function saves its own copy
     // whole at the end, so a credit landing in between is written back over
-    // and the stay silently loses the day it was just charged for.
+    // and the stay silently loses the day it was just charged for. The credit
+    // is serialised at its own module, so this await settles the hook watcher's
+    // answer to the SAME advance as well, and the read below sees one credit.
     await creditHoledUpDays();
     const stored = getFormation(formation.id)?.travel?.settlement;
     if (stored) {
@@ -559,6 +561,12 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
  * to the walking speed rather than stopping the clock, because a party that
  * moves and is told nothing has happened reads as a broken module. Which of
  * the two is in force is stated on the panel.
+ *
+ * FEET, on both sides of the comparison. A Judge types the block size in the
+ * scene's own units — the Scene Config row is labelled with them — so it is
+ * read through those units here, the way the distance the party actually
+ * dragged is. A block converted on one side only marks off a metre city's
+ * turns three times over.
  */
 export function turnDistance(formation, scene) {
   if (formation.travel?.mode === "settlement") {
@@ -566,7 +574,10 @@ export function turnDistance(formation, scene) {
     const city = feetPerTurn({
       pace: s.pace,
       headcount: realMembers(formation).length || 1,
-      blockFeet: sceneBlockFeet(scene),
+      // A scene that declared no block yields null, which arrives as 0 and is
+      // refused by `feetPerTurn` exactly as a bare null is — the walking-speed
+      // fallback below is unchanged.
+      blockFeet: sceneBlockFeet(scene) * feetPerUnit(scene?.grid?.units),
     });
     if (city.feet) return city.feet;
   }

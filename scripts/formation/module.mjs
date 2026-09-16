@@ -674,6 +674,13 @@ Hooks.once("ready", () => {
     // phantom source), then sync the environments of what remains.
     pruneFormations()
       .then(() => syncEnvironments())
+      // A settlement board names the city its blocks were counted in, and one
+      // that names none is read as foreign by the next city the party walks
+      // into — the tally and the stay stamp go with it. This claims the boards
+      // whose city is knowable from where the party's token actually stands,
+      // before any arrival can ask. Stamp only: no tally moves, so it is
+      // silent.
+      .then(() => travel.claimUnstampedSettlements())
       .catch((err) => console.error(`${MODULE_ID} | startup sync failed`, err));
   }
 });

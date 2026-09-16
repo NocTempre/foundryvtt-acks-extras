@@ -203,13 +203,25 @@ like and each whole day is thrown for once.
 
 ### Streets, and quarters
 
-**Draw the streets as walls and the city measures itself along them.** On the
-Walls control, the road tools mark a wall as an **avenue** or an **alley**;
-the wall sheet gains a row saying which it is. In settlement mode a move is
+**Draw the streets as walls and the city measures itself along them.** The road
+tools are on the **battlemap** control, and each is a preset: pressing one arms
+core's wall tool and hands it to you, so the next wall you draw is that road.
+**Alley** is a modifier on whichever surface is armed rather than a road of its
+own — a paved alley and an earthen one are both alleys. For walls that already
+exist the **Walls** control carries a single tool, which marks everything
+selected as a road of the kind a city scene defaults to. In settlement mode a move is
 then measured over the streets rather than across the blocks between them, so
 a party that follows a curving avenue pays for the avenue. The panel says
 which way the last move was measured. A map with no streets drawn behaves
 exactly as it did before — the straight line answers, as it always has.
+
+Either way the wall's own sheet gains a road row, and that is where the surface,
+the street kind and the street's name are changed afterwards — it is the only
+place an avenue already drawn becomes an alley. Nothing else about the wall is
+touched: a street declared along the front of a building leaves the building
+standing.
+
+![](../releases/v7.7.0/road-wall-row.png)
 
 Where the party is standing is read off the map, not off the picker: a Judge
 who drew an alley does not also have to remember to say so on the panel. The
@@ -234,6 +246,16 @@ when the party is **hunted here** — a tick on the settlement panel. Being
 hunted belongs to the city the party is in: leave and come back and it is
 gone, while the pace, the place, the route and the hour you set are kept.
 
+The board says what all of this has come to:
+
+![](../releases/v7.7.0/settlement-board.png)
+
+Streets still reads **Avenues** while the line under the pickers says the party
+is in an alley — the map has answered, and the board states that rather than
+quietly disagreeing with the picker. The last line is the quarter's cadence with each
+half attributed: the interval is the district's and the target is the street's,
+because the district left that box at zero and inherited it.
+
 **Reaction adjustment** is what the quarter thinks of strangers, and it is
 signed: a negative figure for a quarter that meets outsiders coldly, a
 positive one for a quarter that is glad to see them. *Where it applies* narrows
@@ -241,6 +263,14 @@ it to the alleys, the avenues, or indoors, because a gazetteer usually says the
 unwelcome happens somewhere in particular. When it is owed, the influence
 roller shows it as its own row, naming the district — you can see what is being
 applied and why, not just a total that moved.
+
+![](../releases/v7.6.0/influence-district-row.png)
+
+The row sits under **From where they stand**, apart from the boxes the roller's
+own questions fill in, and it cannot be typed over: it is a fact about the
+ground, not an answer anyone gave. A throw that a quarter's reception has
+nothing to say about — a henchman's loyalty, a monster's morale — gets no row
+and no adjustment.
 
 A zone and a district can overlap, and a district outranks a zone: it is the
 quarter's own gazetteer entry, and it is the order the tables are picked in

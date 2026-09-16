@@ -604,3 +604,64 @@ than one `game.scenes` sweep per place. The distinction between the two refusals
 needs that index or it would cost a second sweep per unreachable place.
 `tools/test-location-reach.mjs` pins all of it; the suite was mutation-checked
 against the identity defect and the formation defect before it was trusted.
+
+## 2026-09-15 — Reach asks about the character, and about one body at a time
+
+Four corrections to the gate shipped on 2026-09-12, all found by reviewing that
+release rather than by playing it. The entry above stands; this one narrows it.
+
+**`isOwner` asks about the screen, not about the character.** Every other clause
+of `depositReach` is keyed on the actor — a vault by its uuid, a pin by a flag on
+it, a companion by the users who own the companion — and one clause asked
+`place.isOwner`, which is `testUserPermission(game.user, …)`. A Judge owns every
+document, so on that seat the clause was true for every unlinked place and every
+clause below it was dead: the Judge saw the deposit control offered on a player's
+sheet for places that player was refused. It is a write gate, not a display —
+`coinReach` re-uses it for `transferCoin` and `exchangeCoins` — so the two seats
+enforced different rules. The question is now put to the users who own the
+ACTOR, which is the mapping `companionOwns` already performed; both now share one
+helper. **Rejected: a `game.user.isGM` bypass**, which restores exactly the
+blindness that hid this for a release. A Judge override, if it is ever wanted,
+belongs at the surface where a Judge can see they are using it.
+
+**Cost, and it is a real one:** a Judge-owned NPC no longer reaches a
+Judge-owned unlinked place by ownership alone, because the ordinary ownership
+shape names no user at OWNER. They reach it by standing at it, like anyone else.
+
+**One token is one body.** `reachScan` matched the subject with
+`token.actorId === actor.id`, and a synthetic token actor's `id` IS its base
+actor's — so every unlinked copy of one sheet shared one reach, and a hireling
+three levels underground was offered the cart its duplicate was standing beside.
+A token actor now stands on its own token and a world actor on all of its own.
+The `placedOn` half keeps matching `actorId` deliberately: a place IS its world
+actor, which is the 2026-09-12 ruling above and is unaffected.
+
+**A formation answers for the members riding inside it, not for the ones on the
+ground.** The header's premise — joining deletes a member's token, so the party
+token is the only body — is true until `deployMembers` gives a body back. A
+detached scout beside a cart was told they were at the party token fourteen
+squares away. A member deployed AS AN INDIVIDUAL now stands at the token the
+deploy made for them, and at no other token bearing their name, which is what
+separates a live detachment from the stale leftover this feature has always
+refused. A formation with **no party token placed anywhere** — a state the module
+maintains on purpose, since `deleteToken` unlinks rather than disbands — used to
+reach nothing at all, including a place linked to the map its members were
+standing on; it now falls back to their own tokens.
+
+**A cell deployed as a STACK keeps answering through the party token**, because
+`groups.deploy` builds every body from the stack's template actor and records no
+token id for the cell. That leaves reach asymmetric between the two deployment
+kinds — a scout reaches from their body, a troop parked at the granary does not
+— and the asymmetry is forced rather than chosen: `standingSpots` is synchronous
+and the group flag lives behind a module that evaluates a Foundry base class at
+load, so the stack's bodies cannot be resolved from here. A stack whose formation
+has also lost its party token falls to the ground like any other member, where
+the only token it can find is a leftover, because a cell never legitimately owns
+one. **Rejected: refusing the ground fallback for a stack**, which would trade a
+rare permissive answer for the common one of a deployed troop reaching nothing.
+A `deployedTokens`-shaped mechanism is the real answer and is ROADMAP work.
+
+**The suite was modelling a client Foundry cannot produce** — `game.user.isGM`
+true beside a hard-coded `isOwner: false` — so every ground-branch assertion was
+pinned under an impossible state. The fixtures now carry real ownership maps and
+a non-GM seat.

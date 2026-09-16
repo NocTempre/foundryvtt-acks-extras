@@ -12,6 +12,13 @@
  * Every token below is unlinked unless a case says otherwise, because that is
  * the shape a Judge actually drops on a map.
  *
+ * `game.user` is a PLAYER, and ownership is stated as the document's own
+ * `ownership` map — the thing Foundry derives every permission answer from.
+ * `isOwner` is derived from it here the way core derives it, seat included, so
+ * moving `game.user` moves the answer: a mock that pins the field to false while
+ * claiming a GM seat models a client that cannot exist, and a reach gate proved
+ * under one is proved under nothing.
+ *
  * Nothing here is a printed value: the coordinates, the grid and the elevations
  * are invented, and what they prove is the SHAPE — that reach follows a
  * footprint, that a floor is the scene's own square distance, and that a
@@ -33,6 +40,13 @@ class Coll extends Map {
   [Symbol.iterator]() { return this.values(); }
 }
 
+/** The user the fixtures below belong to, and the seat the mock sits in. */
+const PLAYER = "u1";
+/** A second player, for a claim this character's owners do not share. */
+const STRANGER = "u2";
+/** Ownership map naming one user as OWNER. */
+const owned = (userId = PLAYER) => ({ ownership: { [userId]: 3 } });
+
 const scenes = new Coll();
 const actors = new Coll();
 const byUuid = new Map();
@@ -49,7 +63,7 @@ globalThis.fromUuidSync = (uuid) => byUuid.get(uuid) ?? null;
 globalThis.game = {
   scenes,
   actors,
-  user: { isGM: true, id: "gm" },
+  user: { isGM: false, id: PLAYER },
   settings: { get: (_module, key) => (key === "formations" ? formations : undefined) },
   i18n: { localize: (k) => k, format: (k) => k },
 };
@@ -63,6 +77,10 @@ globalThis.acksExtras.lib = {
 const { depositReach, reachablePlaces, reachScan } = await import("../scripts/location/reach.mjs");
 const { placeUnderParty, placeReachesSpot, placeStandsOn } = await import("../scripts/location/here.mjs");
 const { LOCATION_TYPE, MODULE_ID, SCENE_LINK_FLAG } = await import("../scripts/location/constants.mjs");
+// `coinReach`'s actor-to-actor branch asks the same question these fixtures are
+// built to answer — which body is on which map — so it is proved here rather
+// than in `test-money.mjs`, which is deliberately Foundry-free.
+const { coinReach } = await import("../scripts/lib/money.mjs");
 
 /* -------------------------------------------- */
 /*  Fixtures                                    */
@@ -108,9 +126,18 @@ function makeActor(name, type, extra = {}) {
     name,
     type,
     ownership: {},
-    isOwner: false,
     system: {},
     getFlag: () => null,
+    /**
+     * Foundry's own derivation (`testUserPermission`), not a stored field: a GM
+     * is OWNER of every document whatever the ownership map says. Pinning this
+     * to false while claiming a GM seat models a client that cannot exist, and a
+     * gate proved under one is proved under nothing — so the two seats are
+     * switched between here by moving `game.user`, exactly as a real world does.
+     */
+    get isOwner() {
+      return game.user.isGM || (this.ownership?.[game.user.id] ?? this.ownership?.default ?? 0) >= 3;
+    },
     ...extra,
   };
   actors.set(aid, actor);
@@ -119,40 +146,72 @@ function makeActor(name, type, extra = {}) {
 }
 
 const makePlace = (name, extra) => makeActor(name, LOCATION_TYPE, extra);
-const makeHero = (name) => makeActor(name, "character");
+const makeHero = (name, extra) => makeActor(name, "character", extra);
 
 /**
  * Drop a token. UNLINKED by default, so `token.actor` is a synthetic document
  * whose uuid is NOT the world actor's — the shape every identity test here has
- * to survive.
+ * to survive. The synthetic actor carries `isToken` and a handle on its own
+ * token, because that pair is how Foundry tells one BODY from the sheet every
+ * copy of it shares, and it keeps the base actor's `id`.
  */
 function drop(scene, actor, { x, y, w = 1, h = 1, elevation = 0, hidden = false, linked = false } = {}) {
   const tid = id("token");
   const token = {
     id: tid,
+    uuid: `${scene.uuid}.Token.${tid}`,
     actorId: actor.id,
     x, y, width: w, height: h, elevation, hidden,
     parent: scene,
-    actor: linked ? actor : { ...actor, uuid: `${scene.uuid}.Token.${tid}.Actor.${actor.id}` },
   };
+  token.actor = linked
+    ? actor
+    : { ...actor, uuid: `${token.uuid}.Actor.${actor.id}`, isToken: true, token };
   scene.tokens.set(tid, token);
   return token;
 }
 
-/** A formation holding these members, its party token dropped at (x, y). */
-function march(scene, members, { x = 600, y = 600, elevation = 0 } = {}) {
+/**
+ * A formation holding these members. Its party token is dropped at (x, y)
+ * unless `placed` says otherwise — a formation with none is what
+ * `createFormation` mints, what a hand-made party actor is adopted into, and
+ * what the deleteToken hook deliberately leaves behind.
+ */
+function march(scene, members, { x = 600, y = 600, elevation = 0, placed = true } = {}) {
   const party = makeActor("The Company", `${MODULE_ID}.party`);
-  const token = drop(scene, party, { x, y, elevation, linked: true });
+  const token = placed ? drop(scene, party, { x, y, elevation, linked: true }) : null;
   const record = {
     id: id("formation"),
     name: "The Company",
     members: members.map((m) => ({ actorId: m.id })),
-    sceneId: scene.id,
-    tokenId: token.id,
+    sceneId: token ? scene.id : null,
+    tokenId: token?.id ?? null,
     clock: {},
   };
   formations[record.id] = record;
   return record;
+}
+
+/** Mark a member as standing on the map under the token the deploy made. */
+function deploy(formation, actor, token) {
+  const member = formation.members.find((m) => m.actorId === actor.id);
+  member.deployedTokenId = token.id;
+  return member;
+}
+
+/**
+ * Send a cell out AS A STACK, the way `deployMembers` does: the bodies are built
+ * from the stack's TEMPLATE actor, so they are dropped here under a separate
+ * actor and the cell records only THAT it is out. No token on any map carries
+ * the cell's own actor id, which is the whole reason a stack is not an
+ * individual for reach.
+ */
+function deployStack(formation, actor, scene, { x = 3000, y = 3000, bodies = 2 } = {}) {
+  const template = makeActor(`${actor.name} (template)`, "character");
+  for (let i = 0; i < bodies; i++) drop(scene, template, { x: x + i * GRID, y });
+  const member = formation.members.find((m) => m.actorId === actor.id);
+  member.deployedStack = true;
+  return member;
 }
 
 const linkScene = (scene, place) => {
@@ -309,6 +368,113 @@ ok("a formation answers alone — a member's stale token does not reach", () => 
   assert.equal(reach.reason, "notHere");
 });
 
+ok("a formation with no party token falls back to its members' own tokens", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const cart = makePlace("The Cart");
+  drop(town, cart, { x: 500, y: 500 });
+  drop(town, hero, { x: 600, y: 600 });
+  march(town, [hero], { placed: false });
+
+  const reach = depositReach(hero, cart);
+  assert.equal(reach.can, true, "a company with no body on any map cannot be the thing standing there");
+  assert.equal(reach.scene, town);
+});
+
+ok("a token-less formation does not strand its members at a linked scene either", () => {
+  const taproom = makeScene("The Wayfarer's Taproom");
+  const hero = makeHero("Balas");
+  const inn = makePlace("The Wayfarer");
+  linkScene(taproom, inn);
+  drop(taproom, hero, { x: 100, y: 100 });
+  march(taproom, [hero], { placed: false });
+
+  assert.equal(depositReach(hero, inn).can, true, "the refusal would have named the very scene they stand on");
+});
+
+ok("a deployed member is at their deployed token, not at the party token", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const cart = makePlace("The Cart");
+  drop(town, cart, { x: 500, y: 500 });
+  const scout = drop(town, hero, { x: 600, y: 600 });
+  const formation = march(town, [hero], { x: 3000, y: 3000 });
+  deploy(formation, hero, scout);
+
+  const reach = depositReach(hero, cart);
+  assert.equal(reach.can, true, "a detached scout beside the cart is beside the cart");
+  assert.equal(reach.scene, town);
+});
+
+ok("a deployed member reaches from THAT token and no other of their own", () => {
+  const town = makeScene("Town Square");
+  const cart = makePlace("The Cart");
+  const hero = makeHero("Balas");
+  drop(town, cart, { x: 500, y: 500 });
+  const stale = drop(town, hero, { x: 600, y: 600 });
+  const scout = drop(town, hero, { x: 3000, y: 3000 });
+  const formation = march(town, [hero], { x: 3000, y: 3000 });
+  deploy(formation, hero, scout);
+
+  const reach = depositReach(hero, cart);
+  assert.equal(reach.can, false, "the leftover beside the cart is not the body the deploy sent out");
+  assert.equal(reach.reason, "notHere");
+  assert.ok(stale.id !== scout.id);
+});
+
+ok("a cell deployed as a stack still stands at the party token", () => {
+  const town = makeScene("Town Square");
+  const troop = makeActor("Kalynn's Spears", `${MODULE_ID}.group`);
+  const cart = makePlace("The Cart");
+  drop(town, cart, { x: 500, y: 500 });
+  const formation = march(town, [troop], { x: 600, y: 600 });
+  deployStack(formation, troop, town);
+
+  const reach = depositReach(troop, cart);
+  assert.equal(reach.can, true, "the bodies are the template's tokens, so the cell is still found at the party");
+  assert.equal(reach.scene, town);
+});
+
+ok("a deployed stack does not reach from a leftover token of its own", () => {
+  const town = makeScene("Town Square");
+  const troop = makeActor("Kalynn's Spears", `${MODULE_ID}.group`);
+  const cart = makePlace("The Cart");
+  drop(town, cart, { x: 500, y: 500 });
+  drop(town, troop, { x: 600, y: 600 });
+  const formation = march(town, [troop], { x: 3000, y: 3000 });
+  deployStack(formation, troop, town);
+
+  const reach = depositReach(troop, cart);
+  assert.equal(reach.can, false, "a stack sends out template bodies; a token wearing the cell's own name is a leftover");
+  assert.equal(reach.reason, "notHere");
+});
+
+ok("an unlinked copy does not reach what its duplicate is standing beside", () => {
+  const town = makeScene("Town Square");
+  const cellar = makeScene("The Cellar");
+  const hireling = makeHero("Dolf");
+  const cart = makePlace("The Cart");
+  drop(town, cart, { x: 500, y: 500 });
+  const above = drop(town, hireling, { x: 600, y: 600 });
+  const below = drop(cellar, hireling, { x: 600, y: 600 });
+
+  assert.equal(depositReach(above.actor, cart).can, true, "this copy is the one beside the cart");
+  assert.equal(depositReach(below.actor, cart).can, false, "one sheet, two bodies — and only one of them is there");
+  assert.equal(depositReach(below.actor, cart).reason, "notHere");
+});
+
+ok("a formation holding the base actor does not answer for an unlinked copy", () => {
+  const town = makeScene("Town Square");
+  const hireling = makeHero("Dolf");
+  const cart = makePlace("The Cart");
+  drop(town, cart, { x: 500, y: 500 });
+  const copy = drop(town, hireling, { x: 600, y: 600 });
+  march(town, [hireling], { x: 3000, y: 3000 });
+
+  assert.equal(depositReach(copy.actor, cart).can, true, "the copy stands on its own feet, not inside the party token");
+  assert.equal(depositReach(hireling, cart).can, false, "the member riding inside still answers through the party token");
+});
+
 ok("a character standing on two maps reaches a place on either", () => {
   const town = makeScene("Town Square");
   const docks = makeScene("The Docks");
@@ -364,8 +530,8 @@ ok("a lone character is AT a linked scene their own token stands on", () => {
 ok("a linked place is gated on presence even for its owner", () => {
   const taproom = makeScene("The Wayfarer's Taproom");
   const road = makeScene("The North Road");
-  const hero = makeHero("Balas");
-  const inn = makePlace("The Wayfarer", { isOwner: true });
+  const hero = makeHero("Balas", owned());
+  const inn = makePlace("The Wayfarer", owned());
   linkScene(taproom, inn);
   march(road, [hero]);
 
@@ -386,13 +552,43 @@ ok("your own vault answers wherever you are", () => {
   assert.equal(depositReach(hero, vault).can, true);
 });
 
-ok("an unlinked place you own answers without standing anywhere", () => {
+ok("an unlinked place your OWNER owns answers without standing anywhere", () => {
   const road = makeScene("The North Road");
-  const hero = makeHero("Balas");
-  const warehouse = makePlace("The Warehouse", { isOwner: true });
+  const hero = makeHero("Balas", owned());
+  const warehouse = makePlace("The Warehouse", owned());
   march(road, [hero]);
 
   assert.equal(depositReach(hero, warehouse).can, true);
+});
+
+ok("a place owned by somebody else is notYours, on the Judge's seat too", () => {
+  const road = makeScene("The North Road");
+  const hero = makeHero("Balas", owned());
+  const stash = makePlace("A Stranger's Stash", owned(STRANGER));
+  march(road, [hero]);
+
+  const asPlayer = depositReach(hero, stash);
+  const seat = game.user;
+  try {
+    // The Judge's client: `isOwner` is true of every document on it, so a gate
+    // that asks the document says yes here and no on the player's screen.
+    game.user = { isGM: true, id: "gm" };
+    const asJudge = depositReach(hero, stash);
+    assert.equal(asJudge.can, false, "the answer belongs to the actor, not to the client reading it");
+    assert.equal(asJudge.reason, "notYours");
+    assert.deepEqual({ can: asJudge.can, reason: asJudge.reason }, { can: asPlayer.can, reason: asPlayer.reason });
+  } finally {
+    game.user = seat;
+  }
+});
+
+ok("a place open to everyone answers for a character with an owner", () => {
+  const road = makeScene("The North Road");
+  const hero = makeHero("Balas", owned());
+  const commons = makePlace("The Common Granary", { ownership: { default: 3 } });
+  march(road, [hero]);
+
+  assert.equal(depositReach(hero, commons).can, true, "the place's default level reaches the character's owners");
 });
 
 ok("a missing actor or place is gone", () => {
@@ -452,6 +648,79 @@ ok("reachablePlaces offers exactly what depositReach allows", () => {
 });
 
 /* -------------------------------------------- */
+/*  Hand to hand: the coin gate                 */
+/* -------------------------------------------- */
+
+ok("coin passes between two actors standing on one map", () => {
+  const town = makeScene("Town Square");
+  const payer = makeHero("Balas");
+  const payee = makeHero("Dolf");
+  drop(town, payer, { x: 100, y: 100 });
+  drop(town, payee, { x: 900, y: 900 });
+
+  assert.equal(coinReach(payer, payee).can, true, "a world actor answers for the tokens naming it");
+});
+
+ok("coin does not pass between actors on different maps", () => {
+  const town = makeScene("Town Square");
+  const cellar = makeScene("The Cellar");
+  const payer = makeHero("Balas");
+  const payee = makeHero("Dolf");
+  drop(town, payer, { x: 100, y: 100 });
+  drop(cellar, payee, { x: 100, y: 100 });
+
+  const reach = coinReach(payer, payee);
+  assert.equal(reach.can, false);
+  assert.equal(reach.reason, "notTogether");
+});
+
+ok("an unlinked copy cannot hand coin across the map from its duplicate", () => {
+  const town = makeScene("Town Square");
+  const cellar = makeScene("The Cellar");
+  const hireling = makeHero("Dolf");
+  const payer = makeHero("Balas");
+  drop(town, payer, { x: 100, y: 100 });
+  drop(town, hireling, { x: 200, y: 200 });
+  const below = drop(cellar, hireling, { x: 100, y: 100 });
+
+  assert.equal(coinReach(payer, below.actor).can, false, "the copy in the cellar is not the one in the square");
+  assert.equal(coinReach(payer, below.actor).reason, "notTogether");
+  assert.equal(coinReach(below.actor, payer).can, false, "and the gate is the same read from either side");
+});
+
+ok("a copy standing beside the payer still takes the coin", () => {
+  const town = makeScene("Town Square");
+  const cellar = makeScene("The Cellar");
+  const hireling = makeHero("Dolf");
+  const payer = makeHero("Balas");
+  drop(town, payer, { x: 100, y: 100 });
+  const above = drop(town, hireling, { x: 200, y: 200 });
+  drop(cellar, hireling, { x: 100, y: 100 });
+
+  assert.equal(coinReach(payer, above.actor).can, true, "matching one body is not refusing every body");
+});
+
+ok("a linked token's actor is the world actor, and pays as one", () => {
+  const town = makeScene("Town Square");
+  const payer = makeHero("Balas");
+  const payee = makeHero("Dolf");
+  const linked = drop(town, payee, { x: 900, y: 900, linked: true });
+  drop(town, payer, { x: 100, y: 100 });
+
+  assert.equal(linked.actor, payee, "a linked token hands back the sheet itself");
+  assert.equal(coinReach(payer, linked.actor).can, true);
+});
+
+ok("an employer reaches their hireling without sharing a map", () => {
+  makeScene("Town Square");
+  const employer = makeHero("Balas");
+  const hireling = makeHero("Dolf");
+  employer.system.henchmenList = [hireling.id];
+
+  assert.equal(coinReach(employer, hireling).can, true, "the roster is the reach, tokens or none");
+});
+
+/* -------------------------------------------- */
 /*  The predicate itself                        */
 /* -------------------------------------------- */
 
@@ -468,4 +737,4 @@ ok("placeReachesSpot answers about the place it was asked about", () => {
   assert.equal(placeReachesSpot(null, spot), false);
 });
 
-console.log(`\ntest-location-reach: OK (${passed} checks — identity, floors, whose token, the linked half, the scan)`);
+console.log(`\ntest-location-reach: OK (${passed} checks — identity, floors, whose token, the linked half, the coin gate, the scan)`);

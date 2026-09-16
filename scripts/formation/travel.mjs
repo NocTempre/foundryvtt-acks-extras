@@ -31,7 +31,7 @@
  * committed tests; everything that writes goes through `patchFormation`.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
-import { patchFormation, getFormation, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
+import { patchFormation, getFormation, getFormations, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
@@ -90,7 +90,7 @@ export const ANCILLARY_ACTIVITIES = Object.freeze({
 /** The road vocabulary is the vehicles feature's; re-exported for callers. */
 export { ROAD_KINDS } from "../vehicles/vehicle-speed.mjs";
 import { ROAD_KINDS, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
-import { settlementOf, reenterSettlement, carryStay } from "./settlement.mjs";
+import { settlementOf, reenterSettlement, carryStay, sceneStamp } from "./settlement.mjs";
 import { skyFor, readSkyCache, priorSky } from "./sky.mjs";
 import { runProvisionDay } from "./provision-day.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
@@ -296,8 +296,17 @@ const logCap = () => {
  * clocks with one running at a time: journeying pauses movement-driven turn
  * ticks; returning to delve mode un-pauses them and holds the day board
  * where it stood (a dungeon on the route does not reset the march).
+ *
+ * @param {string} formationId
+ * @param {string|boolean} journey the mode to adopt (a bare boolean is the
+ *   older journey/delve switch)
+ * @param {string|null} [opts.sceneId] the city a settlement board is being
+ *   counted in. Naming none leaves whatever stamp the board carries — a
+ *   re-entry wherever the party already is. Callers that know the scene pass
+ *   it: a board left unstamped is the one state the next arrival reads as
+ *   foreign.
  */
-export function setJourneyMode(formationId, journey) {
+export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
   // Historically a boolean; a mode string is now accepted and preferred. Only
   // a JOURNEY pauses the clock: a day is the wrong grain for a ten-minute
   // tick. A city is timed in the same turns a dungeon is, so its clock runs
@@ -310,15 +319,101 @@ export function setJourneyMode(formationId, journey) {
     record.travel = {
       ...t,
       mode,
-      // Entering a settlement starts a fresh TALLY and keeps what the Judge
-      // set, so stepping out to the country and back does not forget the
-      // route; leaving one keeps the board whole.
-      settlement: mode === "settlement" && t.mode !== "settlement"
-        ? reenterSettlement(t.settlement)
-        : t.settlement,
+      settlement: mode === "settlement" ? enteredSettlement(t, sceneId) : t.settlement,
     };
     record.clock = { ...(record.clock ?? {}), paused: mode === "journey" };
   });
+}
+
+/**
+ * The settlement board a party entering settlement mode lands on.
+ *
+ * Entering a settlement starts a fresh TALLY and keeps what the Judge set, so
+ * stepping out to the country and back does not forget the route; leaving one
+ * keeps the board whole. Arriving in ANOTHER city is an entry too, whether or
+ * not the mode changed — the blocks, the turns, the hunted flag and the stay's
+ * stamp were all counted in the city being left, and a party walked straight
+ * from one to the next would otherwise open the panel a mile into a city it
+ * has just reached and be charged the journey as a stay.
+ *
+ * A board reaching a NAMED city that it does not itself name is foreign, an
+ * unstamped board included — see `boardIsElsewhere`.
+ */
+function enteredSettlement(travel, sceneId) {
+  const board = travel.settlement;
+  const stamp = sceneStamp(sceneId);
+  if (travel.mode !== "settlement" || boardIsElsewhere(board, stamp)) return reenterSettlement(board, stamp);
+  return { ...board, sceneId: stamp ?? board.sceneId };
+}
+
+/**
+ * Is this board's tally counted in a city OTHER than the one being entered?
+ *
+ * The one test both settlement writers ask. Never spell it twice: the decision
+ * to re-enter and the decision to announce that re-entry must not be able to
+ * disagree, and the boards they disagree over are exactly the ones this field
+ * exists for.
+ *
+ * An UNSTAMPED board is foreign. A board that names no city has no claim on the
+ * one it is arriving in, and the stay stamp it carries was counted somewhere
+ * nobody can point at; reading it as "here" is what lets a whole journey be
+ * charged as a stay in the city at the end of it. `claimUnstampedSettlements`
+ * is what keeps that verdict from costing a real tally: every board whose city
+ * IS knowable is stamped before any of this runs, so a board still unstamped
+ * here was counted nowhere that can be named, and a fresh tally is the honest
+ * answer. The two errors are not the same size — a wrong reset loses blocks and
+ * turns a Judge can re-enter from the panel, a wrong keep silently bills the
+ * party for a month it spent on the road.
+ *
+ * An arrival that names no city is NOT somewhere new: there is no stamp to
+ * write, so calling it foreign would wipe the tally on every call and never
+ * settle.
+ */
+function boardIsElsewhere(board, stamp) {
+  return stamp != null && board.sceneId !== stamp;
+}
+
+/**
+ * Stamp every unstamped settlement board with the city its party stands in.
+ * Run once, at startup.
+ *
+ * A board records the city its blocks were counted in; a board carried in from
+ * a world that kept no such record names none. The formation's own recorded
+ * scene is where its token is, so a board claimed from it is claimed by the
+ * city it was actually counted in — which is why the claim belongs here, and
+ * not inside `adoptSceneSystem`: the token-placement hook that calls that one
+ * fires from `createEmbeddedDocuments` BEFORE the formation's `sceneId` is
+ * written, so the field names the scene being LEFT on exactly the path that
+ * matters most.
+ *
+ * Only the stamp is written, and only on a board that has none whose party is
+ * in settlement mode on a scene declaring itself a city. No tally is reset and
+ * no mode moves, so there is nothing to announce.
+ *
+ * @returns {Promise<number>} how many boards were claimed.
+ */
+export async function claimUnstampedSettlements() {
+  let claimed = 0;
+  for (const formation of Object.values(getFormations())) {
+    const t = travelOf(formation);
+    if (t.mode !== "settlement" || t.settlement.sceneId != null) continue;
+    const sceneId = sceneStamp(formation.sceneId);
+    if (!sceneId) continue;
+    if (sceneTravelSystem(game.scenes?.get(sceneId)) !== "settlement") continue;
+    let wrote = false;
+    // Re-read under the ledger's lock: the startup sync and every other
+    // background writer hold copies of these records, and a board claimed or
+    // re-entered between the read above and here is no longer ours to stamp.
+    await patchFormation(formation.id, (record) => {
+      const cur = travelOf(record);
+      if (cur.mode !== "settlement" || cur.settlement.sceneId != null) return false;
+      record.travel = { ...cur, settlement: { ...cur.settlement, sceneId } };
+      wrote = true;
+      return record;
+    });
+    if (wrote) claimed += 1;
+  }
+  return claimed;
 }
 
 /**
@@ -332,14 +427,23 @@ export function setJourneyMode(formationId, journey) {
  * "dungeon", and a party mid-march must not be reset by crossing an unlabelled
  * scene.
  *
+ * A second CITY is an arrival even though the mode does not change: the board
+ * belongs to the scene it was counted in, so a scene declaring settlement
+ * while the board names a different one enters afresh — `boardIsElsewhere` is
+ * the whole of that test, and is the same one the write itself asks.
+ *
  * @returns {Promise<string|null>} the mode adopted, or null if nothing moved.
  */
 export async function adoptSceneSystem(formationId, scene) {
   const system = sceneTravelSystem(scene);
   if (!system) return null;
   const formation = getFormation(formationId);
-  if (!formation || travelOf(formation).mode === system) return null;
-  await setJourneyMode(formationId, system);
+  if (!formation) return null;
+  const t = travelOf(formation);
+  const sceneId = sceneStamp(scene?.id);
+  const elsewhere = system === "settlement" && boardIsElsewhere(t.settlement, sceneId);
+  if (t.mode === system && !elsewhere) return null;
+  await setJourneyMode(formationId, system, { sceneId });
   return system;
 }
 

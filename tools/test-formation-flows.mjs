@@ -520,7 +520,10 @@ globalThis.game = {
     },
   },
   i18n: { localize: (k) => k, format: (k, d) => `${k}${d ? " " + JSON.stringify(d) : ""}`, has: () => true },
-  user: { id: "GM1", isGM: true },
+  // No `user` here on purpose: it is assigned below, out of `users`, so that
+  // the seat IS one of the table's users. A key here would be a look-alike
+  // sitting where a reader looks first, and a later edit that reordered the
+  // two would restore the identity failure with nothing to go red.
   users: (() => {
     const users = [
       { id: "GM1", name: "GM", isGM: true, isSelf: true },
@@ -539,17 +542,30 @@ globalThis.game = {
   modules: { get: () => ({ active: true }) },
   system: { id: "acks" },
   // `advanced` records what the module asked the world clock for, so the gated
-  // write can be asserted rather than assumed.
+  // write can be asserted rather than assumed. The clock also MOVES and fires
+  // `updateWorldTime` the way core's does: the watchers on that hook are the
+  // other half of what an advance sets going, and a mock that only recorded the
+  // ask leaves every calendar-driven path untested and every race between the
+  // two callers invisible.
   time: {
+    worldTime: 0,
     advanced: [],
     advance: async (seconds) => {
       game.time.advanced.push(seconds);
+      game.time.worldTime += seconds;
       await sleep();
+      Hooks.callAll("updateWorldTime", game.time.worldTime, seconds);
     },
   },
   paused: false,
   socket: { emit() {} },
 };
+
+// `game.user` IS one of `game.users` at a table, and lib's world-clock watcher
+// decides which client acts on an advance by testing that identity. A
+// look-alike object of the same id fails the test, which leaves every
+// calendar-driven feature registered and unreachable from this harness.
+game.user = game.users.get("GM1");
 
 /* -------------------------------------------- */
 /*  Load the module (registers all hooks)        */
@@ -1811,6 +1827,185 @@ await scenario("overlapping environment sweeps coalesce instead of racing", asyn
 
   // And a sweep still runs to completion for a caller that awaits it alone.
   await sceneSync.syncEnvironments();
+  await drain();
+});
+
+await scenario("a city block walked on a metre map costs exactly one turn", async () => {
+  // The two halves of a city turn are a distance and a rate, and they must be
+  // in ONE currency. The drag is converted to feet through the scene's units;
+  // the block the Judge typed is in those same units, so the rate has to be
+  // converted too. Left raw, a metre map marks off a turn for every 3.28 the
+  // party is owed.
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { SETTLEMENT_DOC, freshSettlement } = await import("../scripts/formation/settlement.mjs");
+  // Invented rate: one block a turn is what makes the currency visible — one
+  // block dragged must buy one turn, whatever the map is drawn in.
+  registerTable(
+    { id: SETTLEMENT_DOC, source: "invented", tables: { paces: { commuting: { blocksPerTurn: 1 } } } },
+    { priority: PRIORITY.WORLD, source: "test" },
+  );
+
+  const city = new SceneMock("Metropolis");
+  city.grid = { size: 100, distance: 5, units: "m" }; // five metres to the cell
+  await city.setFlag(MODULE_ID, "battlemap", { blockFeet: 30 }); // thirty METRES, as typed
+  game.scenes.set(city.id, city);
+
+  try {
+    const walker = await member("Citizen");
+    await drain();
+    const [cToken] = await city.createEmbeddedDocuments("Token", [
+      { name: "Citizen", actorId: walker.id, x: 1000, y: 1000 },
+    ]);
+    await game.settings.set(MODULE_ID, "formations", {}); // isolate
+    let formation = await model.createFormation("City Party");
+    formation = await model.addMember(formation, walker, cToken);
+    await drain();
+    const id = onlyFormation().id;
+    await model.patchFormation(id, (rec) => {
+      rec.travel = { mode: "settlement", settlement: { ...freshSettlement(), pace: "commuting" } };
+    });
+    await drain();
+
+    const partyToken = city.tokens.get(onlyFormation().tokenId);
+    assert.ok(partyToken, "party token placed on the city scene");
+    const before = onlyFormation().clock;
+    const roundsBefore = before.turnsTotal * 10 + (before.roundsPartial ?? 0);
+
+    // One block: 30 m at 5 m to the cell is six cells.
+    await partyToken.update({ x: partyToken.x + 6 * city.grid.size });
+    await drain();
+
+    const after = onlyFormation().clock;
+    const rounds = after.turnsTotal * 10 + (after.roundsPartial ?? 0) - roundsBefore;
+    console.log(`      [probe] one block dragged -> ${rounds} round(s), ${rounds / 10} turn(s)`);
+    assert.equal(rounds, 10, "one block is one turn, not one per 3.28 metres");
+
+    await model.disband(model.getFormation(id));
+    await drain();
+  } finally {
+    // The layer this scenario added, and nothing else: `resetTables` would drop
+    // every other registration and every consumer expectation in the process,
+    // so a later scenario needing a load-time table would fail pointing here.
+    unregisterTable(SETTLEMENT_DOC, { priority: PRIORITY.WORLD });
+    game.scenes.delete(city.id);
+  }
+});
+
+await scenario("the settlement readout states a walking turn at every map unit", async () => {
+  // The panel prints the turn's rate beside the scene's unit, so the SAME
+  // distance is a big number on a foot map and a fraction of one on a mile map.
+  // A single rounding rule for both is how a mile city ends up reading "a turn
+  // is 0 mi" — a tracker claiming the party moves nothing. Every unit the
+  // battlemap's picker offers is walked here, against one unchanging party.
+  const view = await import("../scripts/formation/formation-view.mjs");
+  const { freshSettlement } = await import("../scripts/formation/settlement.mjs");
+  const { feetPerUnit } = await import("../scripts/lib/distance-units.mjs");
+
+  const city = new SceneMock("Unit City");
+  city.grid = { size: 100, distance: 5, units: "ft" };
+  game.scenes.set(city.id, city);
+
+  try {
+    const walker = await member("Pedestrian");
+    await drain();
+    const [wToken] = await city.createEmbeddedDocuments("Token", [
+      { name: "Pedestrian", actorId: walker.id, x: 1000, y: 1000 },
+    ]);
+    await game.settings.set(MODULE_ID, "formations", {}); // isolate
+    let formation = await model.createFormation("Unit Party");
+    formation = await model.addMember(formation, walker, wToken);
+    await drain();
+    const id = onlyFormation().id;
+    await model.patchFormation(id, (rec) => {
+      rec.travel = { mode: "settlement", settlement: { ...freshSettlement() } };
+    });
+    await drain();
+
+    // No block size on this map, so the tracker falls back to walking speed —
+    // the `trackWalk` branch, which is the one that printed the zero.
+    const speed = view.buildFormationView(model.getFormation(id)).effSpeed;
+    console.log(`      [probe] walking speed = ${speed}'/turn`);
+    assert.ok(speed > 0, "the party has a walking speed to be timed by");
+
+    // Two significant digits is the floor the formatter guarantees, so the
+    // readback tolerance is one part in twenty — comfortably wider than any
+    // rounding it does, and far tighter than the 3.28× and 5280× errors a
+    // missing or mis-applied conversion produces.
+    for (const units of ["ft", "yd", "m", "km", "mi"]) {
+      await city.update({ "grid.units": units });
+      const settlement = view.buildFormationView(model.getFormation(id)).travel.settlement;
+      const turn = settlement.turnFeet;
+      assert.equal(settlement.units, units, `the readout names ${units}`);
+      assert.ok(!settlement.timedByBlocks, `${units}: timed by walking speed, not blocks`);
+      console.log(`      [probe] a turn is ${turn} ${units}`);
+      assert.ok(turn > 0, `a turn is not 0 ${units}`);
+      const backToFeet = turn * feetPerUnit(units);
+      assert.ok(
+        Math.abs(backToFeet - speed) <= speed / 20,
+        `${units}: ${turn} ${units} is ${backToFeet.toFixed(1)}', not the ${speed}' the party walks`,
+      );
+    }
+
+    await model.disband(model.getFormation(id));
+    await drain();
+  } finally {
+    game.scenes.delete(city.id);
+  }
+});
+
+await scenario("one clock advance credits a holed-up stretch exactly once", async () => {
+  // A world-time advance reaches the credit twice: the hook watcher answers it,
+  // and the turn engine awaits it as well so its own re-read sees a settled
+  // board. Both read the stamp before either moves it, so an unserialised
+  // credit throws the stay's dice twice and pushes the stamp into the future.
+  const { freshSettlement } = await import("../scripts/formation/settlement.mjs");
+  const settlementTurn = await import("../scripts/formation/settlement-turn.mjs");
+  const stayCards = () => chat.filter((m) => String(m.content).includes("settlement.card.stayTitle")).length;
+
+  const guest = await member("Guest");
+  await drain();
+  const [gToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Guest", actorId: guest.id, x: 800, y: 800 },
+  ]);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Inn Party");
+  formation = await model.addMember(formation, guest, gToken);
+  await drain();
+  const id = onlyFormation().id;
+
+  const board = () => model.getFormation(id).travel.settlement;
+  const holeUp = (since) => model.patchFormation(id, (rec) => {
+    rec.travel = { mode: "settlement", settlement: { ...freshSettlement(), where: "holedUp", holeUpSince: since } };
+  });
+
+  // Two whole days on the clock, and one advance to notice them.
+  const since = game.time.worldTime - 2 * 86400;
+  await holeUp(since);
+  await drain();
+  let cards = stayCards();
+  await engine.advanceRounds(model.getFormation(id), 1, { reason: "manual" });
+  await drain();
+
+  console.log(`      [probe] advance -> +${(board().holeUpSince - since) / 86400} day(s) stamped, `
+    + `${board().days} day(s) on the board, ${stayCards() - cards} stay card(s)`);
+  assert.equal(board().holeUpSince, since + 2 * 86400, "the stamp moved by the two days that were owed");
+  assert.equal(board().days, 2, "and the stay was charged for two days, not four");
+  assert.equal(stayCards() - cards, 1, "one stretch, one card");
+
+  // The same guarantee asked of the credit directly, so it holds however the
+  // two callers happen to interleave.
+  await holeUp(game.time.worldTime - 3 * 86400);
+  await drain();
+  cards = stayCards();
+  const mark = board().holeUpSince;
+  await Promise.all([settlementTurn.creditHoledUpDays(), settlementTurn.creditHoledUpDays()]);
+  await drain();
+  console.log(`      [probe] two concurrent credits -> +${(board().holeUpSince - mark) / 86400} day(s), `
+    + `${stayCards() - cards} stay card(s)`);
+  assert.equal(board().holeUpSince, mark + 3 * 86400, "concurrent credits price the stretch once");
+  assert.equal(stayCards() - cards, 1, "and throw for it once");
+
+  await model.disband(model.getFormation(id));
   await drain();
 });
 

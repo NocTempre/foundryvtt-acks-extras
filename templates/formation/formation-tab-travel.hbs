@@ -28,11 +28,6 @@
             <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
           {{/each}}
         </select>
-        {{! A road DRAWN under the party overrides the picker, so the panel says
-            which street the turn will actually be resolved on. }}
-        {{#if travel.settlement.whereFromRoad}}
-          <span class="hint acks-extras-formation-settlement-road">{{travel.settlement.roadLine}}</span>
-        {{/if}}
       </label>
       <label>{{localize "ACKS-FORMATION.settlement.routeLabel"}}
         <select name="travel.settlement.route">
@@ -70,6 +65,14 @@
         </select>
       </label>
     </div>
+    {{! A road DRAWN under the party overrides the Streets picker above, so the
+        panel says which street the turn will actually be resolved on. It sits
+        outside that label: a label lends its whole text to the control it
+        wraps, so a sentence placed inside one is read out as part of the
+        picker's own name. }}
+    {{#if travel.settlement.whereFromRoad}}
+    <span class="hint acks-extras-formation-settlement-road">{{travel.settlement.roadLine}}</span>
+    {{/if}}
     {{/if}}
 
     <p class="acks-extras-formation-travel-readout">
