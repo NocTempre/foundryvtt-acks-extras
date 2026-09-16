@@ -1,5 +1,15 @@
 # Changelog
 
+## 7.7.3
+
+**A book is a reimport unit too.**
+
+### Added
+- **Reimport one book.** The reimport picker offers every book open on this
+  seat beside the shelves. Pick one, and every document imported from it — on
+  every shelf that can be rebuilt — is deleted and imported again from the
+  connected copy, with every other book's documents left alone.
+
 ## 7.7.2
 
 ### Fixed

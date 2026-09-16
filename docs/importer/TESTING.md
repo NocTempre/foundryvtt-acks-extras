@@ -373,6 +373,21 @@ what it held before and the pack's total is unchanged (38 removed, 38 written,
 1,008 either side). Nothing on another shelf is touched, and a class template's
 documents are never among the deleted — they carry acks-extras' stamp.
 
+Reimport one book. Fixtures: a second book open on this seat that is not yet
+imported (By This Axe, read one-off so nothing is remembered), then import
+equipment — its own items appear; note their ids. Steps: the same picker, the
+"Books open on this seat" group, that book, confirm.
+*Observable:* the confirm names the count AND the shelves it spans; afterwards
+every noted id is gone and the same names exist again under new ids; every
+other book's item count is unchanged; a Rulebook item carrying one of the
+book's ids in `cookbook.merged` is still there. The group lists only books
+open on this seat, and `cookbookReimportBook` for a book that is not open
+warns and deletes nothing. Teardown: delete the re-created items by id;
+reload the seat so the one-off book is closed.
+Right after a reload the group can list only part of the shelf while books
+reconnect; wait until `bookStatus()` shows the book before opening the picker.
+A book read one-off is closed by that reload and needs reading again first.
+
 ## Two books, one item
 
 With BOTH the Revised Rulebook and By This Axe connected, import equipment.

@@ -4075,3 +4075,23 @@ prose, until now.
 
 *Cost:* minting an ability-bound kind means one more key in its row, or the
 lint never looks at its categories.
+
+### A book is a reimport unit too (2026-09-16)
+
+**Ruled.** The reimport picker offers every book open on this seat beside the
+shelves, and `cookbookReimportBook(bookId)` deletes every document imported
+from that book — on every shelf with a refill run — and runs those refills.
+The "three controls" ruling (2026-08-24) stands: the macro count stays four,
+the picker gains a group. A shelf is the wrong unit for the case that raised
+this: a book whose copy read badly on one seat lands its documents on
+Equipment, Class Powers, Skills and Classes at once, beside every other
+book's, and rebuilding a shelf to reach them re-reads sixteen books to fix
+one.
+
+**Rejected:** offering a book that is not open on this seat. Deleting first
+is the point of the control, and what nothing can read back stays deleted.
+**Rejected:** a document another book owns that merged one of this book's ids
+(the Rulebook's Boots carrying By This Axe's) — it is that book's document.
+
+*Cost:* a book run walks every refill importer whose shelf it touched; each
+passes over what still exists, so the cost is the walk, not a rebuild.

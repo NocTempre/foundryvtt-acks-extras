@@ -1583,18 +1583,20 @@ const sysObject = (doc) =>
  * shelf re-creates exactly that shelf and passes over everything else.
  */
 const SHELF_REFILL = {
+  // Declared in the order Import Everything runs these steps; a book run,
+  // which may need several, runs them in this order.
   Proficiencies: "cookbookImportAbilities",
   "Class Powers": "cookbookImportAbilities",
   Drawbacks: "cookbookImportAbilities",
   Skills: "cookbookImportAbilities",
-  Languages: "cookbookImportTables",
-  Races: "cookbookImportTables",
-  Classes: "importClasses",
   Equipment: "importAllEquipment",
   Weapons: "importWeapons",
   Armor: "importArmor",
-  Traps: "importTraps",
   Variations: "importVariations",
+  Traps: "importTraps",
+  Classes: "importClasses",
+  Languages: "cookbookImportTables",
+  Races: "cookbookImportTables",
 };
 
 /** id namespaces that file onto a shelf, read off the shelf table itself. */
@@ -1630,16 +1632,26 @@ export async function cookbookReimportShelf(shelf = null) {
   const shelves = reimportableShelves();
   if (!shelf) {
     const esc = foundry.utils.escapeHTML ?? ((x) => x);
-    const options = shelves.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+    const shelfOptions = shelves.map((n) => `<option value="shelf:${esc(n)}">${esc(n)}</option>`).join("");
+    // Books beside shelves, in one picker: the value says which kind it names.
+    const books = reimportableBooks();
+    const bookOptions = books.map((b) => `<option value="book:${esc(b.id)}">${esc(b.label)}</option>`).join("");
     return foundry.applications.api.DialogV2.prompt({
       window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportTitle`) },
       classes: ["acks-ui", "acks-extras-importer-dialog"],
       content: `<p class="notes">${game.i18n.localize(`${LANG_PREFIX}.ui.reimportHint`)}</p>
         <div class="form-group"><label>${game.i18n.localize(`${LANG_PREFIX}.ui.reimportPick`)}</label>
-        <select name="shelf">${options}</select></div>`,
+        <select name="pick">
+          <optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupShelves`))}">${shelfOptions}</optgroup>
+          ${books.length ? `<optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupBooks`))}">${bookOptions}</optgroup>` : ""}
+        </select></div>`,
       ok: {
         label: game.i18n.localize(`${LANG_PREFIX}.ui.reimportGo`),
-        callback: (event, button) => cookbookReimportShelf(button.form.elements.shelf.value),
+        callback: (event, button) => {
+          const [kind, ...rest] = String(button.form.elements.pick.value).split(":");
+          const picked = rest.join(":");
+          return kind === "book" ? cookbookReimportBook(picked) : cookbookReimportShelf(picked);
+        },
       },
     });
   }
@@ -1667,6 +1679,79 @@ export async function cookbookReimportShelf(shelf = null) {
 
 /** The module's own api, for `SHELF_REFILL` to name a run without importing it. */
 const api = () => acksExtras.importer ?? {};
+
+/** The rebuildable shelf a cookbook id files onto, or null when its shelf has no refill run. */
+const refillShelfOf = (id) => {
+  const shelf = ITEM_SHELF[shelfKeyOf(id)] ?? null;
+  return shelf && SHELF_REFILL[shelf] ? shelf : null;
+};
+
+/** The book an imported document was read from: its entry's own book, else what its id spells. */
+const bookOfFlag = (flag) => bookOf(cookbookEntry(flag.id)) ?? bookOfCookbookId(flag.id, flag.book);
+
+/**
+ * Every book open on this seat with something in the cookbook to rebuild,
+ * labelled, in label order. A book that is not open is not offered: a reimport
+ * deletes first, and what nothing can read back would stay deleted.
+ */
+export const reimportableBooks = () => {
+  const withContent = new Set(data.books.keys());
+  for (const cb of data.content.values()) for (const e of Object.values(cb.entries ?? {})) if (e.book) withContent.add(e.book);
+  return [...withContent]
+    .filter((id) => ctx?.sessionDocs?.has(id))
+    .map((id) => ({ id, label: BOOKS[id]?.label ?? id }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+};
+
+/**
+ * GM: delete every document imported from ONE book and import them again.
+ *
+ * The shelf run's sibling, for the case a shelf cannot express: a book
+ * reconnected from a better copy, whose documents sit on several shelves
+ * beside every other book's. Only shelves with a refill run are touched, so
+ * what this deletes is exactly what the refill can put back; a document
+ * another book owns that MERGED one of this book's ids stays, because it is
+ * that book's document, and so does one whose id resolves to no entry — it
+ * has no book to be attributed to (the shelf run still reaches it). The refill
+ * runs are dedup-driven — each passes over what still exists and re-creates
+ * only what was removed.
+ *
+ * @param {string} bookId a key of BOOKS, open on this seat.
+ */
+export async function cookbookReimportBook(bookId) {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
+  const label = BOOKS[bookId]?.label ?? bookId;
+  if (!ctx?.sessionDocs?.has(bookId)) {
+    return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportNotConnected`, { book: label }));
+  }
+  const shelves = new Set();
+  const mine = (d) => {
+    if (d.flags?.[MODULE_ID]?.templatePart) return false;
+    const flag = d.getFlag(MODULE_ID, "cookbook");
+    if (!flag?.id || bookOfFlag(flag) !== bookId) return false;
+    const shelf = refillShelfOf(flag.id);
+    if (shelf) shelves.add(shelf);
+    return !!shelf;
+  };
+  const doomed = (await importedDocs("Item")).filter(mine);
+  const shelfList = [...shelves].sort().join(", ") || "—";
+
+  const ok = await foundry.applications.api.DialogV2.confirm({
+    window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportTitle`) },
+    classes: ["acks-ui", "acks-extras-importer-dialog"],
+    content: `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirmBook`, { n: doomed.length, book: label, shelves: shelfList })}</p>`,
+  });
+  if (!ok) return null;
+
+  await deleteImported("Item", doomed);
+  forgetImportedIndex();
+  // In SHELF_REFILL's order, which is Import Everything's.
+  const runs = [...new Set(Object.entries(SHELF_REFILL).filter(([shelf]) => shelves.has(shelf)).map(([, run]) => run))];
+  const refill = {};
+  for (const run of runs) refill[run] = (await api()[run]()) ?? null;
+  ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportDoneBook`, { n: doomed.length, book: label }));
+  return { book: bookId, removed: doomed.length, shelves: [...shelves].sort(), refill };
+}
 
 /**
  * GM: delete EVERY document this module imported — the packs it created, the
