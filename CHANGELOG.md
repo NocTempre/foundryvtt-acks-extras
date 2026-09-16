@@ -1,5 +1,32 @@
 # Changelog
 
+## 7.7.2
+
+### Fixed
+
+- **A class answer is a document or nothing.** Foundry drops a compendium's
+  documents five minutes after they were last read and keeps only the index,
+  and the sync class lookup accepted the index row it got back as if it were
+  the class. The character sheet then crashed building its context — reading
+  the casting block off an object that has none — and the window never opened
+  until something else reloaded the pack or the page. The lookup now
+  recognises an index row, answers *unbound* and starts the reload in the
+  background; the sheet and the level-up dialog await that reload before they
+  build, so a sheet opened onto a cold library opens.
+- **An editable field holds the stored value.** The Stats and Class tabs bound
+  their inputs to the derived figure, so a field an Active Effect adds to was
+  written back with the effect already in it on every submit of the sheet,
+  and the effect compounded — the AC modifier and Avoid Surprise climbing by
+  one on every recalculation once a proficiency's effect landed on them.
+  Every editable field now shows and writes the stored value; a field an
+  effect changes is marked, and hovering it names the figure in force.
+- **The preset setting drops the pins the prompt drops.** Changing *Default
+  look and sheets* through Configure Settings re-ran the ladder but left a
+  default-sheet pin standing, so a type pinned through Configure Default
+  Sheets kept its pinned sheet after the reload it asked for. The setting now
+  drops the pins naming a ladder sheet, as applying from the prompt always
+  did.
+
 ## 7.7.1
 
 **The adventuring throws are listed once.**

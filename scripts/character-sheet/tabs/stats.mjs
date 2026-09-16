@@ -21,7 +21,7 @@ import { trainingSourceName, trainingProvenance, editedSlots, classTraining, has
 import { LIGHT_SOURCES } from "../../lib/light.mjs";
 import { senseProfile, VISION_MODES } from "../../lib/senses.mjs";
 import { ATTRIBUTES } from "../../lib/vocab.mjs";
-import { signed } from "../view-model.mjs";
+import { signed, storedSystem } from "../view-model.mjs";
 import { saveSystemKey, saveLabel } from "../snapshot.mjs";
 
 const loc = makeLoc(LANG);
@@ -90,12 +90,14 @@ function weaponGroups(actor, strips, { view, openBuckets, editing, prov, edited 
 /** Build the tab's data. */
 export function buildStatsTab(actor, { openBuckets = new Set(), editing = false, view = TRAINING_VIEWS[0].key } = {}) {
   const sys = actor.system ?? {};
+  // Every input below renders `stored`; every figure it does not edit, `sys`.
+  const stored = storedSystem(actor);
   const strips = profileStrips(actor);
   const scores = Object.keys(ATTRIBUTES).map((key) => ({
     key,
     label: ATTRIBUTES[key].label,
     long: game.i18n.localize(`ACKS.scores.${key}.long`),
-    value: num(sys.scores?.[key]?.value),
+    value: num(stored.scores?.[key]?.value),
     // Not `mod`: the system registers a Handlebars helper of that name, and a
     // bare `{{mod}}` in a template calls the helper instead of reading the field.
     modLabel: signed(num(sys.scores?.[key]?.mod)),
@@ -184,35 +186,35 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
   ];
 
   const vitals = {
-    hp: { value: num(sys.hp?.value), max: num(sys.hp?.max) },
-    hd: String(sys.hp?.hd ?? ""),
+    hp: { value: num(stored.hp?.value), max: num(stored.hp?.max) },
+    hd: String(stored.hp?.hd ?? ""),
     ac: [
       { icon: "fa-solid fa-shield-halved", label: loc("vitals.acShield"), value: num(sys.aac?.value), shown: num(sys.aac?.shield) > 0 },
       { icon: "fa-solid fa-shirt", label: loc("vitals.acArmour"), value: num(sys.aac?.value) - num(sys.aac?.shield), shown: true },
       { icon: "fa-regular fa-square", label: loc("vitals.acNaked"), value: num(sys.aac?.naked), shown: true },
     ].filter((r) => r.shown),
-    acMod: num(sys.aac?.mod),
-    cleaves: num(sys.fight?.cleaves),
-    mortalWounds: num(sys.fight?.mortalwounds),
-    attackThrow: num(sys.thac0?.throw, 10),
+    acMod: num(stored.aac?.mod),
+    cleaves: num(stored.fight?.cleaves),
+    mortalWounds: num(stored.fight?.mortalwounds),
+    attackThrow: num(stored.thac0?.throw, 10),
   };
 
   const throws = {
-    saves: SAVE_KEYS.map((k) => ({ key: k, label: saveLabel(k), value: num(sys.saves?.[saveSystemKey(k)]?.value), path: `system.saves.${saveSystemKey(k)}.value` })),
-    saveMod: num(sys.save?.mod),
-    adventuring: ADVENTURING_KEYS.map((k) => ({ key: k, label: game.i18n.localize(`ACKS.adventuring.${k}`), value: num(sys.adventuring?.[k]), path: `system.adventuring.${k}` })),
-    initiativeMod: num(sys.initiative?.mod),
+    saves: SAVE_KEYS.map((k) => ({ key: k, label: saveLabel(k), value: num(stored.saves?.[saveSystemKey(k)]?.value), path: `system.saves.${saveSystemKey(k)}.value` })),
+    saveMod: num(stored.save?.mod),
+    adventuring: ADVENTURING_KEYS.map((k) => ({ key: k, label: game.i18n.localize(`ACKS.adventuring.${k}`), value: num(stored.adventuring?.[k]), path: `system.adventuring.${k}` })),
+    initiativeMod: num(stored.initiative?.mod),
     initiative: signed(num(sys.initiative?.value)),
-    surpriseOthers: num(sys.surprise?.surpriseothers),
-    avoidSurprise: num(sys.surprise?.avoidsurprise),
-    healingRate: String(sys.hp?.bhr ?? ""),
+    surpriseOthers: num(stored.surprise?.surpriseothers),
+    avoidSurprise: num(stored.surprise?.avoidsurprise),
+    healingRate: String(stored.hp?.bhr ?? ""),
   };
 
   const retainer = sys.retainer?.enabled
     ? {
-        wage: String(sys.retainer.wage ?? ""),
-        morale: num(sys.details?.morale),
-        loyalty: num(sys.retainer.loyalty),
+        wage: String(stored.retainer?.wage ?? ""),
+        morale: num(stored.details?.morale),
+        loyalty: num(stored.retainer?.loyalty),
         category: String(sys.retainer.category ?? ""),
         employer: actor.getManagerName?.() ?? "",
       }

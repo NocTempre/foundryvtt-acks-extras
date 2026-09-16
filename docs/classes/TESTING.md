@@ -493,6 +493,10 @@ background reload — that race is the bug, and it is narrow.
 3. Tick **Judge override**.
 4. Repeat from a non-GM seat (a separate browser profile — in-pane tabs share
    one Foundry session).
+5. Bind the actor to a COMPENDIUM class (the picker, or write
+   `flags["acks-extras"].classes.uuid`), then clear the pack and
+   `await actor.sheet.render(true)` in one evaluation; open the level-up
+   dialog on the same actor the same way.
 
 **Observable.** The dropdown holds the **whole** class list, not the sidebar
 fixture alone; the picks and template boxes describe a real class. Before the
@@ -501,6 +505,14 @@ it to 33 — the override is not a fix, it is any control that forces a re-rende
 after the background reload lands. On the player seat there is no Judge override
 control in the form at all (`acks-judge` does not appear in the markup), which is
 why a player who hits this can only escalate.
+
+Step 5's render resolves and the sheet opens on the class's own figures; read
+`pack.size` after it resolves and it is back to the index's count, because the
+sheet awaits the reload the lookup started. Before the fix the render REJECTED
+— `Cannot read properties of undefined (reading 'nextXp')` or `'casting'`,
+depending on which reader met the index row first — and the window never
+opened until a page reload; a player double-clicking a token saw nothing at all,
+then a sheet minutes later once some other read had warmed the pack.
 
 **Teardown.** Delete the class Item and the actor by the uuids the run recorded.
 

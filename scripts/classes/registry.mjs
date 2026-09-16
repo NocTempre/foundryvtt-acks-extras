@@ -1,4 +1,4 @@
-/* global game, fromUuidSync, Hooks */
+/* global game, fromUuid, fromUuidSync, Hooks */
 /**
  * The classes registry: world class documents → the layered tables registry.
  *
@@ -64,14 +64,52 @@ export function classByKey(key) {
 }
 
 /**
+ * Whether a `fromUuidSync` answer is a compendium INDEX ROW rather than a
+ * document. Foundry drops a pack's documents five idle minutes after the last
+ * read and keeps its index, and `fromUuidSync` then answers with the row —
+ * name, type and img, no data model. A row passes a type test and fails on
+ * the first `.system` read, so no lookup below hands one on.
+ */
+const isIndexRow = (doc) => !!doc && typeof doc.documentName !== "string";
+
+/** Loads in flight, by uuid: a miss read a dozen times in one render starts one fetch. */
+const warming = new Map();
+
+/**
+ * Load an evicted compendium document back into its pack, once per uuid at a
+ * time. With `actor` given, its open windows re-render when the document
+ * lands, so a surface that read the cold shelf shows the class without a
+ * reload. Resolves to the document, or null when the pack no longer has it.
+ */
+function warmDocument(uuid, actor = null) {
+  if (warming.has(uuid)) return warming.get(uuid);
+  if (typeof fromUuid !== "function") return Promise.resolve(null);
+  const load = fromUuid(uuid)
+    .then((doc) => {
+      if (doc && actor) for (const app of Object.values(actor.apps ?? {})) app.render();
+      return doc ?? null;
+    })
+    .catch(() => null)
+    .finally(() => warming.delete(uuid));
+  warming.set(uuid, load);
+  return load;
+}
+
+/**
  * The class Item a character is bound to: the flag's uuid first, then a
- * name/key match on the free-text `details.class` the system stores.
+ * name/key match on the free-text `details.class` the system stores. A bound
+ * class whose pack has gone cold answers as unbound while it reloads;
+ * `classForActorAsync` is the read for a caller that can wait for it.
  */
 export function classForActor(actor) {
   const flag = actor?.getFlag?.(MODULE_ID, FLAG_CLASSES);
   if (flag?.uuid) {
     const doc = fromUuidSync(flag.uuid);
-    if (doc?.type === CLASS_TYPE) return doc;
+    if (doc?.type === CLASS_TYPE) {
+      if (!isIndexRow(doc)) return doc;
+      warmDocument(flag.uuid, actor);
+      return null;
+    }
   }
   const name = String(actor?.system?.details?.class ?? "").trim().toLowerCase();
   if (!name) return null;
@@ -79,6 +117,23 @@ export function classForActor(actor) {
     classItems().find((i) => i.name.toLowerCase() === name) ??
     classByKey(name)
   );
+}
+
+/**
+ * The bound class as a document, for a caller that can await: a class
+ * evicted from its pack is loaded back first, and a character bound by name
+ * alone waits for the library. The character sheet reads this before it
+ * snapshots, so a cold shelf costs one fetch rather than a window that never
+ * opens.
+ */
+export async function classForActorAsync(actor) {
+  const flag = actor?.getFlag?.(MODULE_ID, FLAG_CLASSES);
+  if (flag?.uuid) {
+    if (isIndexRow(fromUuidSync(flag.uuid))) await warmDocument(flag.uuid);
+  } else if (String(actor?.system?.details?.class ?? "").trim()) {
+    await whenReady();
+  }
+  return classForActor(actor);
 }
 
 /**
@@ -100,7 +155,12 @@ export function classForActor(actor) {
 export function findByRef(ref) {
   if (!ref) return null;
   if (ref.startsWith("uuid:")) {
-    const doc = fromUuidSync(ref.slice(5));
+    const uuid = ref.slice(5);
+    const doc = fromUuidSync(uuid);
+    if (isIndexRow(doc)) {
+      warmDocument(uuid);
+      return null;
+    }
     return doc ?? null;
   }
   return libraryItems().find((i) => cookbookId(i) === ref && !templatePartOf(i)) ?? null;

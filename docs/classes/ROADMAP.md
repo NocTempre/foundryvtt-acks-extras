@@ -113,3 +113,11 @@ own decision, and not as a side effect of whatever comes next.
   granularity; the module's own sheet edits training on Stats at the weapon.
   When the system sheet stops being a supported surface, the injector and
   `grantedKeys` go with it.
+- **The other sync compendium readers meet the index row too.** The registry
+  answers *unbound* for an evicted class (DECISIONS 2026-09-16), but
+  `template-packages.mjs` reads a bundle's `system.itemList` and
+  `class-sheet.mjs` its bundle and template table through `fromUuidSync`
+  directly, and `training.mjs` reads an item the same way; on a cold shelf
+  each sees a row with no `system` and degrades to an empty list rather than
+  a crash. One stub-aware read in lib, awaited where a surface builds from
+  the answer, would close them together.

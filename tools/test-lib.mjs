@@ -10,7 +10,7 @@ import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdina
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
 import { attackTerms, termTotal, resolveAttack, legacyCoreResolves } from "../scripts/lib/attack-logic.mjs";
 import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet } from "../scripts/lib/effect-scan.mjs";
-import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder } from "../scripts/lib/ui-preset-logic.mjs";
+import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
 import {
   buildTransferPayload,
   coinTotalGC,
@@ -1885,6 +1885,17 @@ t("the ladder tries the preferred rung, then extras, core, foundry", () => {
   assert.equal(presetLook(UI_PRESET.foundry), "core");
   assert.equal(presetLook(UI_PRESET.core), "book");
   assert.equal(presetLook(UI_PRESET.extras), "book");
+});
+
+t("withoutLadderPins drops the pins naming a ladder sheet, keeps a stranger's, and leaves the stored value alone", () => {
+  const rungOf = (id) => (id.startsWith("acks-extras.") ? "extras" : id.startsWith("acks.") ? "core" : null);
+  const stored = { Actor: { character: "acks-extras.AcksCharacterSheet", monster: "acks.AcksActorSheetMonster", "acks-extras.party": "other.PartyBoard" }, Item: {}, Scene: { base: "acks-extras.Whatever" } };
+  const { stored: out, unpinned } = withoutLadderPins(stored, rungOf, ["Actor", "Item"]);
+  assert.equal(unpinned, true);
+  assert.deepEqual(out, { Actor: { "acks-extras.party": "other.PartyBoard" }, Item: {}, Scene: { base: "acks-extras.Whatever" } });
+  assert.equal(stored.Actor.character, "acks-extras.AcksCharacterSheet");
+  assert.deepEqual(withoutLadderPins({ Actor: { character: "other.Sheet" } }, rungOf, ["Actor", "Item"]), { stored: { Actor: { character: "other.Sheet" } }, unpinned: false });
+  assert.deepEqual(withoutLadderPins(undefined, rungOf, ["Actor"]), { stored: {}, unpinned: false });
 });
 
 t("chooseDefault falls through to a rung with a sheet, keeps a rung's own choice, stands down for a stranger", () => {

@@ -24,7 +24,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { makeLoc, isPrimaryGM } from "./util.mjs";
-import { UI_PRESET, RUNG, presetLook, chooseDefault, declaredDefaults } from "./ui-preset-logic.mjs";
+import { UI_PRESET, RUNG, presetLook, chooseDefault, declaredDefaults, withoutLadderPins } from "./ui-preset-logic.mjs";
 
 export { UI_PRESET, presetLook };
 
@@ -115,6 +115,19 @@ export function refreshSheetDefaults(preset = uiPreset()) {
 }
 
 /**
+ * Drop every `core.sheetClasses` pin naming a ladder sheet, so the ladder
+ * governs those types again; a pin naming a third-party sheet stays. Writing
+ * the core setting is a GM's act, so any other seat resolves false.
+ * @returns {Promise<boolean>} whether a pin was dropped.
+ */
+export async function dropLadderPins() {
+  if (!game.user?.isGM) return false;
+  const { stored, unpinned } = withoutLadderPins(game.settings.get("core", "sheetClasses"), rungOf, LADDER_DOCUMENTS);
+  if (unpinned) await game.settings.set("core", "sheetClasses", stored);
+  return unpinned;
+}
+
+/**
  * Set the world's preset. Drops the `core.sheetClasses` pins naming a ladder
  * sheet so the ladder governs again; the preset's own onChange re-flags every
  * other client, and this one is re-flagged here because onChange fires only on
@@ -122,17 +135,7 @@ export function refreshSheetDefaults(preset = uiPreset()) {
  * @returns {Promise<boolean>} whether anything a sheet reads changed.
  */
 export async function applyUiPreset(preset) {
-  const stored = foundry.utils.deepClone(game.settings.get("core", "sheetClasses") ?? {});
-  let unpinned = false;
-  for (const doc of LADDER_DOCUMENTS) {
-    for (const [type, id] of Object.entries(stored[doc] ?? {})) {
-      if (typeof id === "string" && rungOf(id)) {
-        delete stored[doc][type];
-        unpinned = true;
-      }
-    }
-  }
-  if (unpinned) await game.settings.set("core", "sheetClasses", stored);
+  const unpinned = await dropLadderPins();
   const was = uiPreset();
   await game.settings.set(MODULE_ID, PRESET_SETTING, preset);
   await game.settings.set(MODULE_ID, PROMPTED_SETTING, true);
@@ -161,6 +164,14 @@ export function registerUiPresetSettings({ onLookChange } = {}) {
     onChange: (preset) => {
       refreshSheetDefaults(preset);
       onLookChange?.();
+      // A preset chosen through Configure Settings is the Judge's word as much
+      // as one chosen at the prompt: the pins naming a ladder sheet stand
+      // down, and the ladder runs again where one did. This fires on every
+      // client; the primary GM is the one seat that writes the core setting.
+      if (!isPrimaryGM()) return;
+      dropLadderPins()
+        .then((dropped) => dropped && refreshSheetDefaults(preset))
+        .catch((err) => console.error(`${MODULE_ID} | dropping the default-sheet pins failed`, err));
     },
   });
   game.settings.register(MODULE_ID, PROMPTED_SETTING, {

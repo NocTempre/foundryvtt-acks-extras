@@ -34,6 +34,14 @@ const clampPct = (n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 export const signed = (n) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
 
+/**
+ * The system data an EDITABLE field renders: the stored source, never the
+ * prepared value. An active effect adds to the prepared value in memory, and
+ * an input showing that value submits it back as the base on the next save —
+ * once per save, compounding. A read-only figure shows the prepared value.
+ */
+export const storedSystem = (actor) => actor?._source?.system ?? actor?.system ?? {};
+
 /* -------------------------------------------- */
 /*  The band                                     */
 /* -------------------------------------------- */

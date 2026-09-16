@@ -47,7 +47,7 @@ import { openClassPicker } from "../classes/assign-app.mjs";
 import { openLevelUp } from "../classes/levelup.mjs";
 import { reopenChargen } from "../classes/reopen-chargen.mjs";
 import { setActorPath } from "../classes/paths.mjs";
-import { classForActor } from "../classes/registry.mjs";
+import { classForActor, classForActorAsync } from "../classes/registry.mjs";
 import { castingStripElement, restPools } from "../classes/casting.mjs";
 import { toggleTraining, resetTraining } from "../classes/training.mjs";
 import { nextTrainingView, TRAINING_VIEWS } from "../equipment/training-view.mjs";
@@ -284,6 +284,9 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const gm = game.user.isGM;
     const folded = this.folded;
 
+    // A class evicted from its pack is loaded back before anything reads it:
+    // the snapshot, the tabs and the casting strip all deref `classItem.system`.
+    await classForActorAsync(actor);
     const snap = snapshotFrame(actor);
     const frame = buildFrameModel(snap, {
       isGM: gm,
@@ -484,6 +487,7 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       ["drops", () => this.#markDropZones()],
       ["itemInputs", () => this.#bindItemInputs()],
       ["paths", () => this.#bindPathSelects()],
+      ["overrides", () => this.#markOverriddenInputs()],
     ];
     for (const [what, step] of steps) {
       try {
@@ -491,6 +495,21 @@ export class AcksCharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       } catch (err) {
         console.error(`${MODULE_ID} | character sheet: ${what} failed`, err);
       }
+    }
+  }
+
+  /**
+   * Mark every actor field an active effect changes. The input keeps the
+   * STORED value — what a submit writes back — and the effect's result rides
+   * in the tooltip, so the two never trade places on a save.
+   */
+  #markOverriddenInputs() {
+    const overrides = this.actor.overrides ?? {};
+    for (const input of this.element.querySelectorAll('input[name^="system."], select[name^="system."]')) {
+      if (input.closest("[data-item-id], [data-item-uuid]")) continue;
+      if (!foundry.utils.hasProperty(overrides, input.name)) continue;
+      input.classList.add("is-overridden");
+      input.dataset.tooltip = loc("stats.effectiveTip", { value: String(foundry.utils.getProperty(this.actor, input.name) ?? "") });
     }
   }
 

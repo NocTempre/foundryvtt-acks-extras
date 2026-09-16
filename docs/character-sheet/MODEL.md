@@ -208,7 +208,13 @@ total after confirming, AC with and without the shield and unarmoured, the AC
 modifier, cleaves, mortal wounds), and the throw targets — attack throw,
 saves, the save modifier, adventuring throws, initiative modifier, surprise
 modifiers, healing rate — which is the pen for what Rolls shows. A retainer
-gets its wage, morale and loyalty fields.
+gets its wage, morale and loyalty fields. Every field the tab can write holds
+the STORED value (`storedSystem` in view-model.mjs — `actor._source.system`),
+never the prepared one an Active Effect has already added to; the AC
+breakdown, the initiative display and every other read-only figure stay on
+the prepared data. A field whose path an effect touches (`actor.overrides`)
+is marked `is-overridden` at render, and its tooltip names the figure in
+force. The Class tab's level and XP inputs are stored-sourced the same way.
 
 **Class** shows the bound class document (opens on click), the level and
 title, the XP pair and the free-text class field, with chips for the class

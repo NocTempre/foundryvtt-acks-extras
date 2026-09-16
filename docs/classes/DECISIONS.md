@@ -1325,3 +1325,40 @@ rather than on the rung being climbed.
 **Cost:** discoverability now rests on one sentence in one dialog. Nothing on
 the sheet says a character has picks waiting, which is [ROADMAP.md](ROADMAP.md)'s
 already, beside taking back a rung closed by a claim.
+
+## 2026-09-16 — A class answer is a document or nothing
+
+**Ruled:** `classForActor` and `findByRef` return a class DOCUMENT or `null`,
+never the index row `fromUuidSync` hands back for a compendium document the
+cache has evicted. An index row is recognised by what it lacks — no
+`documentName`, no `system` — and answering it starts the pack's reload in the
+background; `classForActorAsync` awaits that reload, and the two surfaces that
+build from the class in one pass — the character sheet's `_prepareContext` and
+the level-up dialog — await it before they build.
+
+**Evidence:** a field report of the character sheet refusing to open, with a
+stack through `poolState` reading `.casting` off `classItem.system` in
+`snapshotFrame`; reproduced in-session by clearing the class pack and
+rendering a bound actor's sheet — the render rejected reading `nextXp` off the
+row. The 2026-09-07 ruling above (the library is warmed unconditionally) had
+already named this shape for the picker; the ledger carried it as a derived
+finding against the registry, unfixed. What the report added: it is not a Judge-only surface —
+a player double-clicking a token gets nothing, and there is no control on the
+sheet that forces the re-render a Judge override forces on the generator.
+
+**Rejected:** making every sync caller stub-aware. Dozens of readers across
+the module take a sync uuid answer; the two that build a whole surface from a
+class's `system` are the ones that crash, and the rest degrade to a missing
+name (the readers that build from OTHER compendium documents are
+[ROADMAP.md](ROADMAP.md)'s). The registry is the one
+door for a class, so the guard lives there and the readers keep their shape.
+Also rejected: awaiting `fromUuid` in `classForActor` itself — `snapshotFrame`
+and the grants walk are synchronous by design, and an async lookup would
+have pushed a Promise through every consumer.
+
+**Cost:** a sheet opened onto a cold shelf renders after the pack's reload
+instead of instantly — one round trip, once per five minutes of disuse.
+`classForActor` returns `null` to a caller that would previously have received
+a row with a `name`, so a surface that showed the class name off the row now
+shows the unbound state for that one render; the reload re-renders the sheet
+through the same route a Judge override did.

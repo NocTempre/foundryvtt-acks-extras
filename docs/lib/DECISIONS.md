@@ -1677,3 +1677,32 @@ per write and the update pass writes thousands of them.
 
 *Cost:* the offline mocks model the operator (`tools/test-equipment.mjs`): a
 fake `update` that deleted on `-=` deletes on `instanceof` now.
+
+## 2026-09-16 — The setting is the same word as the prompt
+
+*Ruled:* the preset's `onChange` drops the `core.sheetClasses` pins naming a
+ladder sheet, on the primary GM, and re-runs the ladder where one dropped —
+the same drop `applyUiPreset` performs for the prompt. The pure half is
+`withoutLadderPins` in ui-preset-logic.mjs, asserted offline.
+
+*Evidence:* the 2026-09-04 ruling put the drop in `applyUiPreset`, the
+function the prompt calls, and left the setting's `onChange` to re-flag alone.
+Foundry's Configure Settings never calls the module's function — it writes the
+setting and fires `onChange` — so a Judge who had once pinned a type through
+Configure Default Sheets (or had a pin left by the ladder's own first run,
+before the 2026-09-04 fix) changed the preset, reloaded as asked, and kept
+the pinned sheet. Reported from the field as "the toggle does nothing";
+reproduced with a pin and a `game.settings.set`.
+
+*Rejected:* dropping the pins on every `ready`. That would erase a pin a Judge
+set deliberately after choosing the preset, which the 2026-09-04 ruling keeps
+as the one thing that outranks the ladder. The drop stays tied to the act of
+choosing a preset — through whichever door.
+
+*Cost:* `onChange` fires on every client, and only the primary GM writes the
+core setting; a world whose GM seat is empty when a player's client sees the
+change (a Judge changing it from a second, non-primary GM seat) keeps its pin
+until the primary GM's next change. The drop is asynchronous inside a
+synchronous `onChange`, so the reload Foundry asks for may fire before the
+core setting is written — Foundry's reload confirmation waits on the Judge,
+which is time enough in practice.

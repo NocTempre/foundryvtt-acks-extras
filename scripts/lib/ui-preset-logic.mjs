@@ -62,6 +62,27 @@ export function chooseDefault(sheets, preset, declared = {}) {
   return null;
 }
 
+/**
+ * The `core.sheetClasses` value with every pin naming a ladder sheet removed,
+ * as a copy, and whether anything was removed. `rungOf` maps a sheet id to
+ * its rung (null outside the ladder); `documents` names the document types
+ * the ladder governs. A pin naming a third-party sheet stays.
+ * @returns {{stored: object, unpinned: boolean}}
+ */
+export function withoutLadderPins(stored, rungOf, documents) {
+  const out = structuredClone(stored ?? {});
+  let unpinned = false;
+  for (const doc of documents) {
+    for (const [type, id] of Object.entries(out[doc] ?? {})) {
+      if (typeof id === "string" && rungOf(id)) {
+        delete out[doc][type];
+        unpinned = true;
+      }
+    }
+  }
+  return { stored: out, unpinned };
+}
+
 /** Each rung's own declared default, read from the flags as the registry stands. */
 export function declaredDefaults(sheets) {
   const out = {};

@@ -235,6 +235,15 @@ ladders. `resolveLevelValue` completes lib's resolver: the `progression` kind
 ("as a fighter of half his level") reads the published chassis attack table —
 the seam named in [abilities/ROADMAP](../abilities/ROADMAP.md).
 
+The same file is the one door to an actor's class: `classForActor` (sync)
+answers the bound class document or `null`, and `findByRef` resolves a
+reference by uuid, id or name. Neither ever answers an index row — the object
+`fromUuidSync` returns for a compendium document the cache has evicted, which
+carries a name and no `system`. Meeting one, they answer `null` and start the
+pack's reload; `classForActorAsync` awaits that reload and is what a surface
+that builds from the class in one pass (the character sheet's
+`_prepareContext`, the level-up dialog) calls before it builds.
+
 ## Applying a class
 
 `applyClass` ([scripts/classes/apply.mjs](../../scripts/classes/apply.mjs))

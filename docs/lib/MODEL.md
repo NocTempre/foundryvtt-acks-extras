@@ -317,9 +317,11 @@ which were all queued at import time — and again on every client when the
 preset changes, closing and forgetting open world sheets the way core does after
 Configure Default Sheets. Two things outrank it, both a Judge's explicit act
 through Foundry's UI: a type pinned in `core.sheetClasses`, and a document's
-`core.sheetClass` flag. Applying a preset drops the pins that name a ladder
-sheet so the ladder governs again, and leaves a third-party pin standing; a
-type whose current default is outside the ladder is left alone too.
+`core.sheetClass` flag. Applying a preset — from the prompt, or by changing
+the setting through Configure Settings, whose `onChange` performs the same
+drop on the primary GM — drops the pins that name a ladder sheet so the
+ladder governs again, and leaves a third-party pin standing; a type whose
+current default is outside the ladder is left alone too.
 
 The prompt (`promptUiPreset`) fires once per world for the primary GM, until a
 choice is applied or *Keep as is* is pressed — both set the hidden

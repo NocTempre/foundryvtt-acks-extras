@@ -99,6 +99,29 @@ System style** is the opt-out done properly — everything stands down together,
 there is no half-dressed state to land in, and nothing is left picking its
 colours from a different scheme than the window around it.
 
+## Choose what the world opens on
+
+**Configure Settings → Module Settings → Extras → Default look and sheets
+(world).** One setting for the whole table, asked once at the world's first
+launch and changeable any time after.
+
+| Choice | What it does |
+|---|---|
+| **Foundry — no ACKS styling** | Foundry's own colours and faces; sheets fall back to the next set that has one |
+| **ACKS system sheets** | The ACKS look, and the system's own sheets wherever it has one |
+| **ACKS Extras sheets** (default) | The ACKS look and this module's sheets throughout |
+
+A type the chosen set has no sheet for takes the next set's — Extras, then
+the system, then Foundry — so nothing is ever left without a sheet. Each
+player's own **ACKS look** setting above still wins on their seat.
+
+Changing it asks for a reload, and after the reload every actor and item
+opens on the chosen set. If you had pinned a type through Foundry's
+**Configure Default Sheets** to one of the ACKS sheets, choosing a preset
+releases that pin so the preset can govern; a pin naming a third-party sheet
+is yours and stays. Pin a type again afterwards if you want one type to
+differ from the rest.
+
 ## Where the ACKS compendia live
 
 The **Compendium Packs** sidebar gathers every ACKS pack under one folder —

@@ -13,7 +13,7 @@ import { classUpdateData } from "../../classes/apply.mjs";
 import { awardsAt } from "../../classes/grants.mjs";
 import { pathGroups, chosenOption, actorPaths, groupLabel } from "../../classes/paths.mjs";
 import { FLAG_CLASSES } from "../../classes/constants.mjs";
-import { xpBar } from "../view-model.mjs";
+import { xpBar, storedSystem } from "../view-model.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -58,6 +58,8 @@ function previewRow(actor, classItem, level) {
 /** Build the tab's data. */
 export function buildClassTab(actor) {
   const sys = actor.system ?? {};
+  // The inputs render `stored`; the level the tab reasons about is `sys`'s.
+  const stored = storedSystem(actor);
   const classItem = classForActor(actor);
   const level = Math.max(1, num(sys.details?.level, 1));
   const threshold = classItem ? classItem.system.nextXp?.(level) : null;
@@ -68,9 +70,10 @@ export function buildClassTab(actor) {
     img: classItem?.img ?? null,
     uuid: classItem?.uuid ?? null,
     level,
+    levelField: num(stored.details?.level, 1),
     title: String(sys.details?.title ?? ""),
     maxLevel: classItem?.system?.maximumLevel ?? null,
-    xp: { ...xp, bonus: num(sys.details?.xp?.bonus), share: num(sys.details?.xp?.share, 100), nextField: num(sys.details?.xp?.next) },
+    xp: { ...xp, bonus: num(sys.details?.xp?.bonus), share: num(sys.details?.xp?.share, 100), valueField: num(stored.details?.xp?.value), nextField: num(stored.details?.xp?.next) },
     full: xp.full && !!classItem,
     atCap: !!classItem && level >= (classItem.system?.maximumLevel || 14),
     nextLevel: level + 1,

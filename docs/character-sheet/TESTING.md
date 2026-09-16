@@ -305,3 +305,28 @@ the effect carrying the `fromClass` flag: its `changes`.
 **Teardown.** Delete the character, the class and the proficiency you
 created; clear `trainingView` from your user flags if you want the default
 back.
+
+## A field an effect changes
+
+**Fixtures.** A disposable `character` with `system.aac.mod` and
+`system.surprise.avoidsurprise` at 0, carrying one Active Effect that ADDs 1
+to both paths (`ActiveEffect.create` on the actor with two `changes` rows,
+mode `ADD`).
+
+**Steps.**
+1. Render the sheet and read the Stats tab's AC-modifier and Avoid Surprise
+   inputs.
+2. Edit an UNRELATED field — HP current — and let the sheet submit; repeat
+   once more.
+3. Read `actor._source.system.aac.mod` and `actor.system.aac.mod` after each
+   submit.
+4. Edit the AC-modifier input itself to 3 and submit.
+
+**Observable.** Both inputs show 0 with the effect in force, wear the
+`is-overridden` class, and their tooltip names 1. After step 2 the stored
+value is still 0 and the prepared value still 1 — before the fix each submit
+wrote the prepared value back as the base, so the pair read 1/2 then 2/3, the
+climb the field report described. After step 4 the stored value is 3 and the
+prepared value 4: the field still writes what was typed.
+
+**Teardown.** Delete the character by its uuid; the effect goes with it.

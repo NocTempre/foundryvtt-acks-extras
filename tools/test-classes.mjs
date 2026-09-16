@@ -26,6 +26,7 @@ import {
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
 import { classUpdateData, damageBonusLadder } from "../scripts/classes/apply.mjs";
+import { classForActor, findByRef } from "../scripts/classes/registry.mjs";
 import { awardsAt, awardsThrough, choosableGenerals } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
 import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
@@ -1300,6 +1301,7 @@ try {
       }
     }
     const printed = {
+      documentName: "Item",
       effects: new CollectionLike([{ changes: [{ key: "flags.acks-extras.weaponProf", value: "axe" }] }]),
       system: {},
       type: "acks-extras.class",
@@ -1311,6 +1313,24 @@ try {
       assert.deepEqual([...edited.weapons].sort(), ["handaxe", "twohandedsword"]);
       assert.equal(editedSlots(trainingActor("axe")).weapons.size, 0);
       assert.equal(editedSlots(trainingActor("axe", { from: "manual" })).known, false);
+    } finally {
+      delete globalThis.fromUuidSync;
+    }
+  });
+
+  /* A compendium keeps only its index once it has gone cold, and fromUuidSync
+   * then answers with the index row: name, type and img, no `system`. A class
+   * lookup must treat that row as "not loaded", never as a class. */
+  test("a class evicted from its pack answers as unbound, not as an index row", () => {
+    const bound = (uuid) => ({ getFlag: (m, k) => (m === "acks-extras" && k === "classes" ? { uuid } : undefined), system: { details: { class: "" } } });
+    const row = { _id: "c1", uuid: "Compendium.world.shelf.Item.c1", name: "Paladin", type: "acks-extras.class", img: "" };
+    const doc = { ...row, uuid: "Item.c2", documentName: "Item", system: { casting: [] } };
+    globalThis.fromUuidSync = (uuid) => (uuid === row.uuid ? row : uuid === "Item.c2" ? doc : null);
+    try {
+      assert.equal(classForActor(bound(row.uuid)), null);
+      assert.equal(classForActor(bound("Item.c2")), doc);
+      assert.equal(findByRef(`uuid:${row.uuid}`), null);
+      assert.equal(findByRef("uuid:Item.c2"), doc);
     } finally {
       delete globalThis.fromUuidSync;
     }

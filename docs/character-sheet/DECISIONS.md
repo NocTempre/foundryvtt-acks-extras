@@ -514,3 +514,36 @@ the tab.
 
 Cost: an Adventuring item edited by hand to carry a throw that is not one of
 the five lists nothing for it here; it still rolls from the Abilities tab.
+
+### An editable field holds the stored value (2026-09-16)
+
+Ruled: every input the Stats and Class tabs submit is bound to
+`actor._source.system` (`storedSystem` in view-model.mjs), never to the
+prepared `actor.system`; the read-only figures — the AC breakdown, the
+initiative display, the retainer category — stay on the prepared data,
+because they are arithmetic, not a pen. A field an Active Effect touches is
+marked at render from `actor.overrides` and its tooltip names the prepared
+figure, so the Judge still sees what is in force.
+
+Evidence: a field report of a fighter whose AC modifier and Avoid Surprise
+climbed by one on every recalculation after a proficiency's effect landed on
+them. Reproduced with one effect adding 1 to both paths and two submits of an
+unrelated field: the stored modifier went 0 → 1 → 2, because the sheet submits
+on change and the whole form goes with every change, so an input showing the
+prepared value writes the effect's contribution back as the new base on every
+keystroke elsewhere. The system's own Tweaks dialog reads `_source` for the
+same reason, which is the precedent.
+
+Rejected: submitting only the changed field. It would stop the compounding
+without stopping the lie — the input would still show the effect's sum as if
+it were the Judge's entry, and a deliberate edit to that field would still
+write the sum plus the edit. Also rejected: leaving the prepared value in the
+input and subtracting the override on submit; the override is not always
+additive (an OVERRIDE mode replaces), so the subtraction is wrong whenever it
+matters most.
+
+Cost: a field with an effect on it shows a figure that differs from the
+figure the sheet rolls with, and only the mark and its tooltip explain why.
+The guide says so. The Class tab's `level` stays prepared for the tab's own
+logic (the XP bar, the awards lookup) and only its input is stored-sourced —
+two readings of one field in one file, named `level` and `levelField`.

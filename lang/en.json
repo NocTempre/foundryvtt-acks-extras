@@ -5416,6 +5416,7 @@
   "ACKS-CHARACTER.stats.throws": "Throw targets",
   "ACKS-CHARACTER.stats.throwsNote": "the pen · Rolls is the gauge",
   "ACKS-CHARACTER.stats.saveMod": "Saving throw modifier",
+  "ACKS-CHARACTER.stats.effectiveTip": "The stored value; with the effects in force it is {value}",
   "ACKS-CHARACTER.stats.retainer": "As a retainer",
   "ACKS-CHARACTER.unit.perTurn": "ft / turn",
   "ACKS-CHARACTER.unit.perRound": "ft / round",

@@ -1493,6 +1493,14 @@ button.acks-extras-character-sheet__pill:not(:disabled) {
   width: 4ch;
 }
 
+/* A field an active effect changes: the input keeps the stored value and the
+   effect's result rides in its tooltip. The rule is doubled to outrank the
+   design system's own control rules on the tie. */
+.acks-extras-character-sheet .acks-input.acks-extras-character-sheet__fact-input.acks-extras-character-sheet__fact-input.is-overridden,
+.acks-extras-character-sheet .acks-attribute-value.acks-extras-character-sheet__score.acks-extras-character-sheet__score.is-overridden {
+  box-shadow: inset 0 calc(-2px * var(--acks-extras-k)) 0 var(--acks-spot);
+}
+
 .acks-extras-character-sheet select.acks-input.acks-extras-character-sheet__fact-input.acks-extras-character-sheet__fact-input {
   width: auto;
   min-width: 12ch;

@@ -32,7 +32,7 @@
         <div class="acks-extras-character-sheet__subhead"><span>{{localize "ACKS.details.experience.base"}}</span></div>
         <div class="acks-extras-character-sheet__fact">
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.experience.baseshort"}}{{#if c.xp.bonus}} <span class="acks-extras-character-sheet__fact-note">+{{c.xp.bonus}}%</span>{{/if}}</span>
-          <input class="acks-input acks-extras-character-sheet__fact-input is-wide acks-nums" type="number" name="system.details.xp.value" value="{{c.xp.value}}" {{disabled (not @root.editable)}}>
+          <input class="acks-input acks-extras-character-sheet__fact-input is-wide acks-nums" type="number" name="system.details.xp.value" value="{{c.xp.valueField}}" {{disabled (not @root.editable)}}>
         </div>
         <div class="acks-extras-character-sheet__fact">
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.experience.next"}}{{#if c.bound}} <span class="acks-extras-character-sheet__fact-note">· {{localize "ACKS-CHARACTER.class.nextFromClass" n=c.xp.next}}</span>{{/if}}</span>
@@ -40,7 +40,7 @@
         </div>
         <div class="acks-extras-character-sheet__fact">
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.level"}}</span>
-          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.details.level" value="{{c.level}}" {{disabled (not @root.editable)}}>
+          <input class="acks-input acks-extras-character-sheet__fact-input acks-nums" type="number" name="system.details.level" value="{{c.levelField}}" {{disabled (not @root.editable)}}>
         </div>
         <div class="acks-extras-character-sheet__fact">
           <span class="acks-extras-character-sheet__fact-label">{{localize "ACKS.details.class"}}</span>

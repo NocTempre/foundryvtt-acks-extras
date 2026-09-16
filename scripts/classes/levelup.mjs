@@ -14,7 +14,7 @@
  * choice awards open their ChoiceSpec's options inside the wizard.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
-import { classForActor, findByRef } from "./registry.mjs";
+import { classForActor, classForActorAsync, findByRef } from "./registry.mjs";
 import { applyClass } from "./apply.mjs";
 import { normalizeHd, parseHd, rollHitDice } from "./hitpoints.mjs";
 import { awardsAt, grantAbility } from "./grants.mjs";
@@ -30,7 +30,7 @@ export { parseHd };
  * SHOWS the roll it will apply; nothing writes until the wizard confirms.
  */
 export async function openLevelUp(actor) {
-  const classItem = classForActor(actor);
+  const classItem = await classForActorAsync(actor);
   if (!classItem) {
     ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.levelup.noClass`, { name: actor.name }));
     return;

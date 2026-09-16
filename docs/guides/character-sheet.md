@@ -79,6 +79,13 @@ the right column to take it off or out.
 What is not a throw: the attributes, the training, movement by mode, vision
 light by light, the vitals, and the throw targets that Rolls reads.
 
+Every field you can type into holds the figure you typed — the stored value,
+never the sum an effect makes of it. Where an effect changes a field (a
+proficiency, an item, an effect written by hand) the field is marked, and
+hovering it names the figure in force. That is why an AC modifier of 0 can sit
+beside an AC that shows the effect applied: the modifier is yours, the AC is
+the sheet's arithmetic.
+
 **Training** is where a character's combat training is read and edited. Every
 fighting style, every weapon in the game as its own pill, every armour rung
 and the shield; lit when trained, gold when specialised or focused. The view

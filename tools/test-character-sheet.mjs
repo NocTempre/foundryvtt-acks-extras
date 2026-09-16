@@ -13,7 +13,7 @@
 import assert from "node:assert";
 import {
   xpBar, hpCell, acCell, nextAcMode, slowedTone, moveCell, gripCell, lightCell, saveCells, partyCell, tabList, resolveTab,
-  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands,
+  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, storedSystem,
 } from "../scripts/character-sheet/view-model.mjs";
 import { CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, TAB_ORDER } from "../scripts/character-sheet/constants.mjs";
 
@@ -365,6 +365,15 @@ test("the spanning row lists what both hands hold first and is full past two thi
   const places = bridgeHands([place("mainHand", [{ id: "a" }]), place("offHand", [{ id: "b" }]), place("bothHands", [{ id: "gs" }])]);
   assert.deepEqual(places[0].rows.map((r) => r.id), ["gs", "a", "b"]);
   assert.equal(places[0].full, true);
+});
+
+console.log("character sheet: the editable fields");
+test("an editable field renders the stored value, so an effect's addition is never written back as the base", () => {
+  const actor = { _source: { system: { aac: { mod: 0 }, surprise: { avoidsurprise: 0 } } }, system: { aac: { mod: 1 }, surprise: { avoidsurprise: 1 } } };
+  assert.equal(storedSystem(actor).aac.mod, 0);
+  assert.equal(storedSystem(actor).surprise.avoidsurprise, 0);
+  assert.equal(storedSystem({ system: { aac: { mod: 2 } } }).aac.mod, 2);
+  assert.deepEqual(storedSystem(null), {});
 });
 
 console.log(`character sheet: ${passed} passed`);

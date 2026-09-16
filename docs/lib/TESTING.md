@@ -307,12 +307,16 @@ client `look` back to `world`.
    `data-acks-look="core"` on `<html>` and removes `body.acks-lib-sheet-theme`;
    the other two do the reverse. Set the client `look` to `book` and repeat
    `foundry`: the attribute stays absent — a player's own choice stands.
-4. **A pin outranks the ladder until a preset is applied.** Pin
-   `core.sheetClasses.Actor.character` to the system's sheet, set `acksExtras`
-   through `game.settings.set`: the character default stays the system's.
-   Apply the preset — `applyUiPreset` from `scripts/lib/ui-preset.mjs`
-   (dynamic-import it in page context) or the prompt: the pin is gone and the
-   default is this module's.
+4. **A pin outranks the ladder until a preset is applied — through either
+   door.** Pin `core.sheetClasses.Actor.character` to the system's sheet and
+   run `refreshSheetDefaults` (dynamic-import `scripts/lib/ui-preset.mjs` in
+   page context): the character default stays the system's. Then CHANGE
+   `uiPreset` through `game.settings.set` — the route Configure Settings
+   takes; a set to the value already stored fires no `onChange` and drops
+   nothing — and read `core.sheetClasses` after the returned promise settles:
+   the pin is gone and the character default is this module's, and
+   `new actor.sheet.constructor` names the module's class. Applying from the
+   prompt (`applyUiPreset`) drops the same pin.
 5. **Applying from the prompt.** Reset the flag, reload, choose *ACKS system
    sheets*, *Apply*: a toast names the preset, Foundry's reload-all
    confirmation appears, and `uiPreset` reads `acksCore`.
