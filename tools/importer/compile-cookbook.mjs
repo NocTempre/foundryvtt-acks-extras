@@ -590,7 +590,8 @@ function toLines(items) {
 /**
  * Text-assembly fixes for a run sequence (the executor's exact enumeration —
  * runsIn/joinRuns imported for parity). Judgment lives here; ordinals ship.
- *  - same-line gap > 1pt        -> joinSpace (pdf runs omit inter-word spaces)
+ *  - same-line gap > 1pt, or a run pdf.js set a space item before (`sp`)
+ *                               -> joinSpace (pdf runs omit inter-word spaces)
  *  - line change, no hyphen     -> joinSpace
  *  - line change after hyphen   -> mergeHyphen when the next run starts
  *    lowercase (plain hyphenation), else keep the hyphen (compound words).
@@ -608,7 +609,7 @@ function computeFixes(runs) {
     const sameLine = Math.abs(a.y - b.y) <= 2 || superscript;
     if (sameLine) {
       const gap = b.x - (a.x + (a.w ?? 0));
-      if (gap > 1 && !/\s$/.test(a.str)) joinSpace.push(i);
+      if ((gap > 1 || b.sp) && !/\s$/.test(a.str)) joinSpace.push(i);
     } else if (/-\s*$/.test(a.str) && /^[a-z]/.test(b.str.trimStart())) {
       mergeHyphen.push(i);
     } else if (!/\s$/.test(a.str)) {
@@ -1242,7 +1243,7 @@ async function compileOseMonster(doc, entry, _kindRow) {
     if (!next) return;
     const gap = next.x - (r.x + (r.w ?? 0));
     // A run that starts a new LINE also needs separating, whatever its x.
-    if (gap > 1 || next.y > r.y + 1) joinSpace.push(i);
+    if (gap > 1 || next.sp || next.y > r.y + 1) joinSpace.push(i);
   });
 
   const text = joinRuns(runs, { joinSpace });
@@ -4068,6 +4069,16 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     // that stops just above the heading still catches it, and the paragraph box
     // built around it swallows the heading line too. End above the superscript.
     let yStop = section && (!stop || section.y < stop.y) ? section.y : stop ? stop.y : pd.height;
+    // A display heading in the anchor's own column ends the block exactly as
+    // it ends the continuation (`endsFlow`). The sibling test sees only run-in
+    // shapes and the section test only a whole-line run, and a title set letter
+    // by letter passes neither (BTA p98: a table's small-caps title, the table
+    // under it and the paragraph after both read as an entry's second and third
+    // paragraphs).
+    const display = pd.items
+      .filter((it) => it.h >= HEADING_MIN_H && colOf(it.x, cols) === col && it.y > anchor.y + 2 && it.y < yStop)
+      .sort((a, b) => a.y - b.y)[0];
+    if (display) yStop = display.y;
     if (stop) {
       for (const it of pd.items) {
         if (it.h >= (stop.h ?? 9) * 0.8 || colOf(it.x, cols) !== col) continue;

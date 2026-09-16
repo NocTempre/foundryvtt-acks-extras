@@ -96,11 +96,22 @@ const footerKey = (pageNo, it) => `${pageNo % 2}@${it.transform[5].toFixed(1)}@$
 function textRuns(content) {
   const seen = new Set();
   const runs = [];
+  // pdf.js sets the word space of a tightly set run as its own zero-width " "
+  // item, and marks a line end with an empty one. Neither is a run, but the
+  // boundary each marks is kept on the run that follows (`spaceBefore`), so a
+  // joiner can put the space back where the x-gap alone reads as nothing.
+  let spaceBefore = false;
   for (const it of content.items) {
-    if (typeof it.str !== "string" || !it.str.trim()) continue;
+    if (typeof it.str !== "string") continue;
+    if (!it.str.trim()) {
+      spaceBefore = true;
+      continue;
+    }
     const key = `${it.str}|${it.transform[4].toFixed(1)}|${it.transform[5].toFixed(1)}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    if (spaceBefore) it.spaceBefore = true;
+    spaceBefore = false;
     runs.push(it);
   }
   return runs;
@@ -232,6 +243,7 @@ export async function pageItems(doc, pageNo) {
       w: it.width,
       h: it.height,
       alias: it.fontName,
+      sp: it.spaceBefore === true,
     }));
   return { items, width: vp.width, height: vp.height };
 }

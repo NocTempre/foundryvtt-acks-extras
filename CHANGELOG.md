@@ -1,5 +1,22 @@
 # Changelog
 
+## 7.7.4
+
+**A word space survives, and a heading ends the paragraph.**
+
+### Fixed
+
+- **A word space the PDF marks survives.** pdf.js sets the word space of a
+  tightly set line as a zero-width item of its own; the extractor dropped it
+  and joined the words around it, so a clause could arrive as one welded token.
+  The boundary is kept and every book's recipes are recompiled with it; reimport
+  a book to pick the corrected text up.
+- **A heading ends an entry's paragraph.** A run-in entry's block stopped only
+  at the next run-in or a whole-line section label, so a display heading set
+  letter by letter, the table under it and the paragraph after both were read
+  as the entry's own. A display heading in the entry's column now ends the
+  block, as it already ended a continuation.
+
 ## 7.7.3
 
 **A book is a reimport unit too.**

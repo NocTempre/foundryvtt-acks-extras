@@ -388,6 +388,13 @@ Right after a reload the group can list only part of the shelf while books
 reconnect; wait until `bookStatus()` shows the book before opening the picker.
 A book read one-off is closed by that reload and needs reading again first.
 
+Content after a reimport. Presence is not content: after a By This Axe
+reimport, scan the rebuilt descriptions as well as counting them.
+*Observable:* no token of 16 or more letters the vocabulary does not know (a
+welded clause), no lowercase run straight into uppercase, and the Earthshooter
+description is one paragraph that ends above the table following it on its
+page. Portable Battering Ram and Personal Automaton read as separate words.
+
 ## Two books, one item
 
 With BOTH the Revised Rulebook and By This Axe connected, import equipment.

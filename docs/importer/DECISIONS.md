@@ -4095,3 +4095,23 @@ is the point of the control, and what nothing can read back stays deleted.
 
 *Cost:* a book run walks every refill importer whose shelf it touched; each
 passes over what still exists, so the cost is the walk, not a rebuild.
+
+### A word boundary pdf.js marks is kept (2026-09-16)
+
+**Ruled:** pdf.js sets the word space of a tightly set line as a zero-width
+" " item of its own. `textRuns` still drops the item but keeps the boundary on
+the run that follows (`sp`), and the compiler's `joinSpace` honours it beside
+the 1pt gap test. Heading text is still joined without it: the registers' display anchors were authored against the welded join, and the keyed-area compile matches them by exact prefix. **Rejected:** lowering the gap threshold — the welded pairs
+sat at 0–1pt, the gap kerned letter pairs inside a word also show, so no
+threshold tells the two apart; the space item is the only witness. **Cost:**
+every book's recipes recompile with more `joinSpace` ordinals, and a seat reads
+the corrected text only after it reimports the book.
+
+### A display heading ends a run-in block in its own column (2026-09-16)
+
+**Ruled:** in `compileDefinition`, a run at display-heading height below the
+anchor in the anchor's own column ends the block, as `endsFlow` already ends a
+continuation. **Rejected:** stopping at the next registered run-in — the
+overrun that surfaced this (Earthshooter, BTA p98) had a table and a paragraph
+between the entry and the next run-in, so a sibling stop alone would have kept
+both. **Cost:** an entry whose block ran past a heading shortens to the heading.
