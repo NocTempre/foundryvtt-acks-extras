@@ -116,8 +116,9 @@ XP bar is full. The chevron before the strip folds the sheet.
 saves, initiative and the two surprise throws (plus morale and loyalty for a
 retainer); the two attack boxes, every weapon's modes (from the item sheet's
 own roll rows, wielded first and ringed), the unarmed strike when nothing is
-held, and the healing rate; the adventuring throws and every ability's
-throws (the abilities feature's roller, one row per throw). The whole row is
+held, and the healing rate; the adventuring throws and every other ability's
+throws (the abilities feature's roller, one row per throw). The Adventuring
+proficiency itself lists no rows: its throws are the adventuring group's. The whole row is
 the button; the pin beside it stars the roll for the folded card. Row ids are
 stable (`save:death`, `wpn:<id>:atk:melee`, `abl:<id>:<key>`), and
 `rollById` dispatches each to the path that owns it: the system's actor

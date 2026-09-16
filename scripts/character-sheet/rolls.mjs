@@ -27,6 +27,7 @@ import { rollsOf, keyOf, rollAbility, throwText, scoreTerm, scoreText, labelOf }
 import { damageTypeOf, damageTypeLabel } from "../lib/damage-type.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { saveSystemKey, saveLabel } from "./snapshot.mjs";
+import { isAdventuring } from "../classes/grants.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -123,8 +124,11 @@ export function rollInventory(actor) {
     rows: ADVENTURING_KEYS.map((k) => row(`adv:${k}`, game.i18n.localize(`ACKS.adventuring.${k}`), `${num(sys.adventuring?.[k])}+`)),
   });
 
+  // The Adventuring proficiency's throws are the five the group above already
+  // lists from the system's fields, which Stats edits; listing the item's copy
+  // too doubles every one of them.
   const profRows = [];
-  for (const item of actor.items.filter((i) => i.type === ITEM_TYPE.ability)) {
+  for (const item of actor.items.filter((i) => i.type === ITEM_TYPE.ability && !isAdventuring(i))) {
     const rolls = rollsOf(item);
     rolls.forEach((r, i) => {
       const key = keyOf(r, i);

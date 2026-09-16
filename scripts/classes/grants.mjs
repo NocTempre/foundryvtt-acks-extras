@@ -66,9 +66,10 @@ export async function grantAbility(actor, ref, grants) {
 /** The cookbook ref of the proficiency every character already has. */
 export const ADVENTURING_REF = "def.prof.adventuring";
 
-/** Is this world item the Adventuring proficiency? Matched by the importer's
- *  stamp, and by name for a world's hand-made copy that carries none. */
-const isAdventuring = (item) =>
+/** Is this item — a world item or an actor's owned copy — the Adventuring
+ *  proficiency? Matched by the importer's stamp, which an owned copy carries,
+ *  and by name for a hand-made copy that carries none. */
+export const isAdventuring = (item) =>
   refOf(item) === ADVENTURING_REF || String(item.name ?? "").trim().toLowerCase() === "adventuring";
 
 /**

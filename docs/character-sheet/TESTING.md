@@ -11,7 +11,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   "shield"), a suit `armor`, an `item` "Torches (6)" with a quantity, an
   `item` "Backpack" annotated so it declares a capacity, an `item` "Rations"
   with a quantity, an `ability` carrying at least one throw, and a `money`
-  stack. Set `system.hp` to a wounded value below the maximum.
+  stack. Set `system.hp` to a wounded value below the maximum. Grant the
+  Adventuring proficiency with `grantAdventuring(actor, [])`
+  (`classes/grants.mjs`), the call chargen and the level-up wizard make.
 - A second disposable `character` to serve as a hireling (`retainer.enabled`
   with the first as manager, and its id on the first's `henchmenList`).
 - Disposable ActiveEffects on the first: one with a status id from
@@ -119,7 +121,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    help, the multiply as harm in warn tone; a save cell with both a rider
    and a modifier is split. Clicking a save cell makes the system's save
    roll (a chat card).
-4. Rolls tab. *Observable:* every group lists; the sword shows melee and
+4. Rolls tab. *Observable:* every group lists; the five adventuring throws
+   appear once, as `adv:*` rows under Adventuring, and no `abl:` row names
+   the Adventuring item; the sword shows melee and
    two-handed rows and the dagger a thrown row; clicking a row makes the roll
    through core's pipeline (a chat card, the module's attack card format);
    the pin on a save row writes the actor flag, the pin on a weapon row flips

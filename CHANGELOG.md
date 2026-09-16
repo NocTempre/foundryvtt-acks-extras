@@ -1,5 +1,17 @@
 # Changelog
 
+## 7.7.1
+
+**The adventuring throws are listed once.**
+
+### Fixed
+- **A character holding the Adventuring proficiency no longer lists its throws
+  twice on the Rolls tab.** Chargen and the level-up wizard both grant
+  Adventuring, and the tab showed its five throws under Adventuring and again
+  under Proficiencies & powers as `Adventuring · Dungeonbashing` and so on.
+  They now appear once, under Adventuring, read from the targets the Stats tab
+  edits. The proficiency still sits on the Abilities tab.
+
 ## 7.7.0
 
 **A crossroads is a junction, and a board belongs to the city that counted it.**

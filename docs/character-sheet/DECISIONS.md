@@ -492,3 +492,25 @@ elements the sheet body and the title band inherit from — so the size set on
 the frame reached neither. And core's `flex: 0 0 36px` on the header outranks
 this sheet's `height: auto`, which had been clipping the 45px band at both
 edges since it shipped; `flex: 0 0 auto` is what makes the declaration real.
+
+### The adventuring throws are listed from the system's fields, once (2026-09-16)
+
+The Rolls tab listed the five adventuring throws twice once a character held
+the Adventuring proficiency, which chargen and the level-up wizard both grant:
+once under Adventuring from `system.adventuring`, and again under
+Proficiencies & powers from the item's own throws.
+
+**Ruled.** The Adventuring group is the one listing, read from the system's
+fields and rolled through `actor.rollAdventuring`; the proficiency's item lists
+no rows. The fields are what Stats edits (the justification round above), what
+core's own sheet rolls and what formation's party rolls read, so a Judge's
+edit reaches every surface through them.
+
+Rejected: **the item's throws as the Adventuring group.** It would route the
+five through the abilities roller, but the rows would exist only while the
+proficiency is owned, their pin ids would change the moment it is granted
+(`adv:climb` to `abl:<id>:climbing`), and a Stats edit would stop showing on
+the tab.
+
+Cost: an Adventuring item edited by hand to carry a throw that is not one of
+the five lists nothing for it here; it still rolls from the Abilities tab.
