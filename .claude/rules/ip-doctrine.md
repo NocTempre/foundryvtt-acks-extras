@@ -26,6 +26,21 @@ and it is finer than it looks:
   explains or paraphrases a rule is its expression. A hint says what the FIELD
   does ("In feet."), never what the rule says ("A pit deals 1d6 per 10 feet
   fallen").
+- **A printed proper NAME is content wherever it is written — an identifier
+  included.** A person, a place, a body, a people: the words are the book's
+  expression in a label, in a row's `name`, in an entry id, in an anchor a
+  compiler matches on, in a test fixture, in a comment's example. The test is
+  whether the word would do its job as a common one. A proficiency called
+  Alchemy would — the module needs a name for the thing and that is what it is
+  called — so it ships. A gate, a guild or a captain would not: nothing but
+  that name makes it that one, which is exactly what makes the name the book's
+  and not the module's. Such a row ships a NEUTRAL label (`POI 15`, `NPC 8`,
+  `Organisation 4`), an id built from the same ordinal, and a LOCATOR — the key
+  number the heading opens with, or a hash of the name's folded letters, which
+  proves a page prints the name and cannot be read back into it. The words
+  arrive at import from the Judge's own copy, like every other piece of
+  content. Which row is whom is real knowledge and is kept: LOCAL-ONLY, on the
+  rules shelf beside the extracts, never in the repo that needed it.
 - **The page reference ships — everywhere, and deliberately.** A citation
   reproduces nothing. It is a pointer that only pays out to a reader who
   already holds the book, so unlike a copied sentence or a copied number it
@@ -70,6 +85,17 @@ paste artifacts and about nothing else — do not read it as a content verdict,
 and do not let a release procedure read it as one either. Both rules need a
 reviewer, every time. Book content reaches a world through the importer,
 materialized from the GM's own books.
+
+**The name rule can be audited, once a book has been aliased, and only then.**
+A shelf that holds the pairing holds the search terms with it: the scanner
+beside it reads the ring and looks for every name it knows in every TRACKED
+file — whole, as a rare word of it, or as the row's id before the aliasing —
+and reports row ids and paths, never the name, so its output is safe to quote.
+It found two book headings serving as test fixtures in a file whose header
+claimed every name in it was invented, and three people named as examples in
+compiler comments; the register itself was clean. What it cannot do is find a
+name in a book nobody has aliased yet — it knows only what the ring knows, so
+a green scan is a statement about one book, never about the repository.
 
 The real gate fires **pre-commit** (`ip-quarantine.mjs`, armed by the
 `prepare` script on every clone): a flagged staged file is unstaged and
