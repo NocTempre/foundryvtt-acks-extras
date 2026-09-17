@@ -1,0 +1,346 @@
+<div class="faction-sheet-body">
+  <header class="faction-header">
+    <img class="profile" src="{{actor.img}}" data-action="editImage" data-edit="img" alt="{{actor.name}}" />
+    <div class="header-fields">
+      <input class="faction-name" name="name" type="text" value="{{actor.name}}" placeholder="{{localize 'ACKS-FACTIONS.sheet.namePlaceholder'}}" />
+      <div class="faction-tags">
+        <label class="faction-kind">
+          {{localize "ACKS-FACTIONS.sheet.kind"}}
+          <select name="system.kind">
+            {{#each kindOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+        {{#if seat}}
+        <a class="acks-tag" data-action="openDoc" data-uuid="{{seat.uuid}}" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.seatHint'}}">
+          <i class="fas fa-map-location-dot"></i> {{seat.name}}
+        </a>
+        {{/if}}
+        {{#if parent}}
+        <a class="acks-tag" data-action="openDoc" data-uuid="{{parent.uuid}}" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.parentHint'}}">
+          <i class="fas fa-sitemap"></i> {{parent.name}}
+        </a>
+        {{/if}}
+        {{#if headcount}}
+        <span class="acks-tag" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.headcountHint'}}">
+          <i class="fas fa-users"></i> {{headcount}}
+        </span>
+        {{/if}}
+        {{#if wantedCount}}
+        <span class="acks-tag is-bad" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.wantedHint'}}">
+          <i class="fas fa-person-circle-exclamation"></i> {{wantedCount}}
+        </span>
+        {{/if}}
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs sheet-tabs" data-group="primary">
+    {{#each tabs}}
+    <a class="{{this.cssClass}}" data-action="tab" data-group="primary" data-tab="{{this.id}}"><i class="{{this.icon}}"></i> {{this.label}}</a>
+    {{/each}}
+  </nav>
+
+  {{!-- --------------------------- Overview --------------------------- --}}
+  <section class="tab faction-tab {{tabs.overview.cssClass}}" data-group="primary" data-tab="overview">
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.holds"}}</summary>
+      <div class="faction-holdings">
+        <div class="faction-holding" data-drop-zone="seat">
+          <span class="faction-holding-label">{{localize "ACKS-FACTIONS.sheet.seat"}}</span>
+          {{#if seat}}
+          <a data-action="openDoc" data-uuid="{{seat.uuid}}" class="{{#if seat.missing}}is-missing{{/if}}">{{seat.name}}</a>
+          {{#if editable}}<a data-action="clearSeat" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.clear'}}"><i class="fas fa-xmark"></i></a>{{/if}}
+          {{else}}
+          <span class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.seatDrop"}}</span>
+          {{/if}}
+        </div>
+        <div class="faction-holding" data-drop-zone="leader">
+          <span class="faction-holding-label">{{localize "ACKS-FACTIONS.sheet.leader"}}</span>
+          {{#if leader}}
+          <a data-action="openDoc" data-uuid="{{leader.uuid}}" class="{{#if leader.missing}}is-missing{{/if}}">{{leader.name}}</a>
+          {{#if editable}}<a data-action="clearLeader" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.clear'}}"><i class="fas fa-xmark"></i></a>{{/if}}
+          {{else}}
+          <span class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.leaderDrop"}}</span>
+          {{/if}}
+        </div>
+        <label class="faction-holding">
+          <span class="faction-holding-label">{{localize "ACKS-FACTIONS.sheet.parent"}}</span>
+          <select name="system.parentUuid">
+            {{#each parentOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+          </select>
+        </label>
+      </div>
+
+      <div class="faction-places">
+        <span class="faction-holding-label">{{localize "ACKS-FACTIONS.sheet.places"}}</span>
+        <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.placesHint"}}</p>
+        {{#if holdings.length}}
+        <table class="acks-table acks-extras-faction-table">
+          <tbody>
+            {{#each holdings}}
+            <tr data-uuid="{{this.uuid}}" class="{{#if this.missing}}is-missing{{/if}}{{#if this.hidden}} is-hidden{{/if}}">
+              <td><a data-action="openDoc" data-uuid="{{this.uuid}}">{{this.name}}</a></td>
+              <td class="row-field">
+                {{#if @root.canCurate}}
+                <input type="text" data-row-field="holdings.note" value="{{this.note}}"
+                       aria-label="{{localize 'ACKS-FACTIONS.sheet.holdingNote'}}"
+                       placeholder="{{localize 'ACKS-FACTIONS.sheet.holdingNote'}}" />
+                {{else}}{{this.note}}{{/if}}
+              </td>
+              <td class="row-actions">
+                {{#if @root.canCurate}}
+                <a data-action="toggleHoldingHidden" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.hideRowHint'}}">
+                  <i class="fas {{#if this.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+                </a>
+                <a data-action="removeHolding" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.removeHoldingHint'}}"><i class="fas fa-xmark"></i></a>
+                {{/if}}
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+        {{else}}
+        <p class="acks-empty">{{localize "ACKS-FACTIONS.sheet.placesEmpty"}}</p>
+        {{/if}}
+      </div>
+    </details>
+
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.controls"}} ({{controls.length}})</summary>
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.controlsHint"}}</p>
+      {{#if controls.length}}
+      <ul class="faction-controls">
+        {{#each controls}}
+        <li data-uuid="{{this.uuid}}" class="{{#if this.missing}}is-missing{{/if}}">
+          <i class="fas fa-city"></i> {{this.label}}
+          {{#if @root.editable}}<a data-action="removeControl" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.releaseHint'}}"><i class="fas fa-xmark"></i></a>{{/if}}
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+      {{#if editable}}
+      <div class="faction-control-pick">
+        <label>
+          {{localize "ACKS-FACTIONS.sheet.controlPick"}}
+          <select name="controlPick">
+            {{#each districtOptions}}<option value="{{uuid}}">{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="addControl" {{#unless districtOptions.length}}disabled{{/unless}}>
+          <i class="fas fa-plus"></i> {{localize "ACKS-FACTIONS.sheet.control"}}
+        </button>
+      </div>
+      {{#unless districtOptions.length}}
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.noDistricts"}}</p>
+      {{/unless}}
+      {{/if}}
+    </details>
+  </section>
+
+  {{!-- --------------------------- Members ---------------------------- --}}
+  <section class="tab faction-tab {{tabs.members.cssClass}}" data-group="primary" data-tab="members">
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.members"}} ({{members.length}})</summary>
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.membersDrop"}}</p>
+      {{#if members.length}}
+      <table class="acks-table acks-extras-faction-table">
+        <tbody>
+          {{#each members}}
+          <tr data-uuid="{{this.uuid}}" class="{{#if this.missing}}is-missing{{/if}}{{#if this.hidden}} is-hidden{{/if}}">
+            <td class="portrait">{{#if this.img}}<img src="{{this.img}}" alt="" />{{/if}}</td>
+            <td>
+              <a data-action="openDoc" data-uuid="{{this.uuid}}">{{this.name}}</a>
+              {{#if this.missing}}<i class="fas fa-triangle-exclamation" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.memberMissing'}}"></i>{{/if}}
+            </td>
+            <td>{{this.kindLabel}}</td>
+            <td>{{#if this.quantity}}{{#unless (eq this.quantity 1)}}×{{this.quantity}}{{/unless}}{{/if}}</td>
+            <td class="row-actions">
+              {{#if this.notes}}<i class="fas fa-note-sticky" data-tooltip="{{this.notes}}"></i>{{/if}}
+              {{#if @root.editable}}
+              {{#if @root.isGM}}
+              <a data-action="toggleMemberHidden" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.hideHint'}}">
+                <i class="fas {{#if this.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+              </a>
+              {{/if}}
+              <a data-action="removeMember" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.removeMemberHint'}}"><i class="fas fa-xmark"></i></a>
+              {{/if}}
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acks-empty">{{localize "ACKS-FACTIONS.sheet.membersEmpty"}}</p>
+      {{/if}}
+    </details>
+  </section>
+
+  {{!-- --------------------------- Relations -------------------------- --}}
+  <section class="tab faction-tab {{tabs.relations.cssClass}}" data-group="primary" data-tab="relations">
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.relations"}} ({{relations.length}})</summary>
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.relationsHint"}}</p>
+      {{#if relations.length}}
+      <table class="acks-table acks-extras-faction-table">
+        <tbody>
+          {{#each relations}}
+          <tr data-uuid="{{this.uuid}}" class="{{#if this.missing}}is-missing{{/if}}{{#if this.hidden}} is-hidden{{/if}}">
+            <td><a data-action="openDoc" data-uuid="{{this.uuid}}">{{this.name}}</a></td>
+            <td class="row-field">
+              {{#if @root.canCurate}}
+              <select data-row-field="relations.stance" aria-label="{{localize 'ACKS-FACTIONS.sheet.stance'}}">
+                {{#each this.stanceOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+              </select>
+              {{else}}{{this.stanceLabel}}{{/if}}
+            </td>
+            <td class="row-field">
+              {{#if @root.canCurate}}
+              <input type="text" data-row-field="relations.note" value="{{this.note}}"
+                     aria-label="{{localize 'ACKS-FACTIONS.sheet.relationNote'}}"
+                     placeholder="{{localize 'ACKS-FACTIONS.sheet.relationNote'}}" />
+              {{else}}{{this.note}}{{/if}}
+            </td>
+            <td class="row-actions">
+              {{#if @root.canCurate}}
+              <a data-action="toggleRelationHidden" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.hideRowHint'}}">
+                <i class="fas {{#if this.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+              </a>
+              <a data-action="removeRelation" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.removeRelationHint'}}"><i class="fas fa-xmark"></i></a>
+              {{/if}}
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acks-empty">{{localize "ACKS-FACTIONS.sheet.relationsEmpty"}}</p>
+      {{/if}}
+      {{#if canCurate}}
+      <div class="faction-control-pick">
+        <label>
+          {{localize "ACKS-FACTIONS.sheet.relationPick"}}
+          <select name="relationPick">
+            {{#each relationOptions}}<option value="{{uuid}}">{{label}}</option>{{/each}}
+          </select>
+        </label>
+        <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="addRelation" {{#unless relationOptions.length}}disabled{{/unless}}>
+          <i class="fas fa-plus"></i> {{localize "ACKS-FACTIONS.sheet.relationAdd"}}
+        </button>
+      </div>
+      {{#unless relationOptions.length}}
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.relationsNoneLeft"}}</p>
+      {{/unless}}
+      {{/if}}
+    </details>
+
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.regardedBy"}} ({{regardedBy.length}})</summary>
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.regardedByHint"}}</p>
+      {{#if regardedBy.length}}
+      <table class="acks-table acks-extras-faction-table">
+        <tbody>
+          {{#each regardedBy}}
+          <tr data-uuid="{{this.uuid}}" class="{{#if this.hidden}}is-hidden{{/if}}">
+            <td><a data-action="openDoc" data-uuid="{{this.uuid}}">{{this.name}}</a></td>
+            <td>{{this.stanceLabel}}</td>
+            <td>{{this.note}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acks-empty">{{localize "ACKS-FACTIONS.sheet.regardedByEmpty"}}</p>
+      {{/if}}
+    </details>
+
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.towardParty"}} ({{totals.length}})</summary>
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.towardPartyHint"}}</p>
+      {{#if totals.length}}
+      <table class="acks-table acks-extras-faction-table">
+        <tbody>
+          {{#each totals}}
+          <tr class="{{#if this.wanted}}is-wanted{{/if}}">
+            <td>{{this.label}}</td>
+            <td><span class="acks-extras-faction-hint">{{this.scopeLabel}}</span></td>
+            <td class="{{this.valueClass}}">{{this.signed}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acks-empty">{{localize "ACKS-FACTIONS.sheet.ledgerEmpty"}}</p>
+      {{/if}}
+    </details>
+  </section>
+
+  {{!-- --------------------------- Standing --------------------------- --}}
+  <section class="tab faction-tab {{tabs.standing.cssClass}}" data-group="primary" data-tab="standing">
+    {{#if totals.length}}
+    <div class="faction-totals">
+      {{#each totals}}
+      <span class="acks-tag {{this.valueClass}}">{{this.label}} <strong>{{this.signed}}</strong></span>
+      {{/each}}
+    </div>
+    {{/if}}
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.ledger"}} ({{standing.length}})</summary>
+      <p class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.ledgerHint"}}</p>
+      {{#if standing.length}}
+      <table class="acks-table acks-extras-faction-table">
+        <thead>
+          <tr>
+            <th>{{localize "ACKS-FACTIONS.standing.about"}}</th>
+            <th>{{localize "ACKS-FACTIONS.standing.value"}}</th>
+            <th>{{localize "ACKS-FACTIONS.standing.source"}}</th>
+            <th>{{localize "ACKS-FACTIONS.standing.reason"}}</th>
+            <th>{{localize "ACKS-FACTIONS.standing.day"}}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each standing}}
+          <tr data-index="{{this.index}}" class="{{#if this.wanted}}is-wanted{{/if}}">
+            <td>{{this.subjectLabel}} <span class="acks-extras-faction-hint">({{this.scopeLabel}})</span></td>
+            <td class="{{this.valueClass}}">{{this.signed}}</td>
+            <td>{{this.sourceLabel}}</td>
+            <td>{{this.reason}}</td>
+            <td>{{this.day}}</td>
+            <td class="row-actions">
+              {{#if @root.isGM}}<a data-action="removeStanding" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.removeStandingHint'}}"><i class="fas fa-xmark"></i></a>{{/if}}
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="acks-empty">{{localize "ACKS-FACTIONS.sheet.ledgerEmpty"}}</p>
+      {{/if}}
+      {{#if isGM}}
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="addStanding">
+        <i class="fas fa-plus"></i> {{localize "ACKS-FACTIONS.standing.add"}}
+      </button>
+      {{/if}}
+    </details>
+  </section>
+
+  {{!-- --------------------------- Notes ------------------------------ --}}
+  <section class="tab faction-tab {{tabs.notes.cssClass}}" data-group="primary" data-tab="notes">
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.notes"}}</summary>
+      {{#if editable}}
+      <prose-mirror class="acks-extras-faction-notes content-sized" name="system.notes" value="{{system.notes}}" toggled
+                    data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{notesHTML}}}</prose-mirror>
+      {{else}}
+      <div class="acks-extras-faction-notes">{{{notesHTML}}}</div>
+      {{/if}}
+    </details>
+    {{#if isGM}}
+    <details class="section" open>
+      <summary>{{localize "ACKS-FACTIONS.sheet.gmNotes"}}</summary>
+      <prose-mirror class="acks-extras-faction-notes content-sized" name="system.gmNotes" value="{{system.gmNotes}}" toggled
+                    data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{gmNotesHTML}}}</prose-mirror>
+    </details>
+    {{/if}}
+  </section>
+</div>

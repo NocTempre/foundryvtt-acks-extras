@@ -13,12 +13,14 @@
  *
  * A shelf is created on first use and filed under the line's sidebar folder
  * the moment it exists (`fileImportedPack`), so a pack made by any writer
- * sits where the others sit. Nothing is cached: the importer keeps its own
- * confirmed cache in front of this, and the two feature writers open a shelf
- * once per run.
+ * sits where the others sit. A Judge's shelf (`isJudgeLine`) is closed to
+ * every player seat BEFORE anything is written to it, and only then: a shelf
+ * that already exists keeps whatever its Judge has since set. Nothing is
+ * cached: the importer keeps its own confirmed cache in front of this, and the
+ * two feature writers open a shelf once per run.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { libraryPackLabel, findLibraryPack } from "./library.mjs";
+import { libraryPackLabel, findLibraryPack, isJudgeLine, JUDGE_SHELF_OWNERSHIP } from "./library.mjs";
 import { fileImportedPack } from "./compendium-folders.mjs";
 
 /**
@@ -39,6 +41,7 @@ export async function ensureLibraryPack(type, line = null) {
   const CC = foundry.documents?.collections?.CompendiumCollection ?? globalThis.CompendiumCollection;
   try {
     const made = await CC.createCompendium({ label: libraryPackLabel(type, line), type });
+    if (isJudgeLine(line)) await made.configure({ ownership: { ...JUDGE_SHELF_OWNERSHIP } });
     await fileImportedPack(made.collection, line).catch((err) =>
       console.warn(`${MODULE_ID} | could not shelve the ${made.metadata.label} compendium`, err),
     );

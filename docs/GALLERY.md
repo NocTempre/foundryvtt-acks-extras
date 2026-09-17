@@ -1,6 +1,6 @@
 # Gallery
 
-**Fifteen plates — one per feature guide.** This is the highlight reel, not the
+**Sixteen plates — one per feature guide.** This is the highlight reel, not the
 archive: for each feature area, the one shot that best answers "what does this
 module actually do?", and nothing else.
 
@@ -29,6 +29,7 @@ the next refresh.
 | Henchmen and hirelings | An employer's roster: three henchmen on their own loyalty, morale and wage against the henchman limit, with the opened row carrying the Judge's actions for that henchman and the closed rows carrying nothing but their numbers | [guide](guides/henchmen.md) | [v7.3.0](releases/v7.3.0/henchmen.png) |
 | Influence and reactions | A social roll with its modifier stack itemized — alignment, authority, favours, Charisma, the proficiency and the target's Will — and a bribe armed, which only moves gold the payer actually has | [guide](guides/influence.md) | [v7.0.0](releases/v7.0.0/influence.png) |
 | Places and storage | A place's Contents tab: a sack of grain filed under the porter who carried it in, and the two people recorded as being there | [guide](guides/location.md) | [v7.0.0](releases/v7.0.0/location.png) |
+| Factions, standing and status | A guild's ledger: a favour owed to the party and an offence held against one of its members, each stamped with its day and its source, the running totals above the rows, and the seat and headcount in the header | [guide](guides/factions.md) | [v8.0.0](releases/v8.0.0/factions.png) |
 | Item markets | The Trade tab: the catalog with live monthly availability at the settlement's class, demand chips, the search day and the masterwork contact | [guide](guides/markets.md) | [v7.0.0](releases/v7.0.0/markets.png) |
 | Vehicles | A galley's stations: sailors short-handed with two named hands beside the unnamed complement, rowers at strength, the captain's chair filled and the navigator's empty with what that costs stated, and the hold below | [guide](guides/vehicles.md) | [v7.0.0](releases/v7.0.0/vehicles.png) |
 | Playing from Discord | The bot's window in Foundry: the server and the relay channel it can see offered as dropdowns, the token field that seals what is pasted to the bot's own key, the seat the bot joins the world with — **Draw the map** among its settings — and what still stands between this world and a bot that answers | [guide](guides/bridge.md#5-configure-it-in-foundry) | [v7.3.0](releases/v7.3.0/bridge.png) |

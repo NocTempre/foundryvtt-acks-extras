@@ -39,6 +39,8 @@ All paths are under `scripts/formation/` unless noted.
 | `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE, and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
 | `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID + cadence overrides). |
 | `district-zone.mjs` | `acks-extras.district` RegionBehavior subtype: a quarter's day and night cadence pairs, its own and its hunted encounter tables, and how it takes to strangers. |
+| `district-find.mjs` | The district under the party and the district over a point — the readers that need no core class at load, re-exported by `district-zone.mjs`. |
+| `hunt.mjs` | The factions feed onto the settlement board's `wanted`: who hunts the party in the quarter it stands in, applied once per quarter through `applyHunt`. |
 | `district-tools.mjs` | The two Judge tools that make a district — mark the selected Regions, or enclose the selected walls. |
 | `district-influence.mjs` | Carries a district's reaction figure into the influence roller over the `acksExtras.influenceModifiers` hook. |
 | `trap-rules.mjs` | Traps as arithmetic, Foundry-free: probe order, who is caught, the disarm plan, botch bands, the repeat lock, pit damage. |
@@ -688,12 +690,27 @@ place's, so it is re-derived from whichever layer's bare target answered and
 can never be taken off twice. `pickIncidentSource` settles the other half
 separately, because whether something finds the party and what it turns out to
 be are different questions a Judge answers in different places: a district's
-wanted table, then its ordinary one, then a zone's, then the city's own.
+wanted table, then its ordinary one, then a zone's, then the city list the MAP
+names, then the world's own.
 
 An override's table is **drawn with its own formula**, the way the delve clock
-already draws a zone's; only the city's own imported incident table is read as
-a d100 of bands with the registry's after-dark shift, because that shift
-belongs to that table.
+already draws a zone's. The two city lists are **read by band** instead,
+because each carries a shift after dark that reaches rows past the die's last
+face, where a draw can never land: the world's imported list is a d100 with the
+registry's shift, and the map's list (`sceneIncidents`, the battlemap setup
+record) is thrown on its own formula with the shift the map states. One pure
+reader serves both (`readIncident`); the shift and the band are handed in,
+because they belong to whichever list is being read.
+
+**A city list can hand its roll to the quarter.** The map states a band of its
+own list, and a total inside it is answered by the `specialTableUuid` of the
+district the party stands in — a plain draw, reported with the city throw that
+sent it there (`via`) so the card shows both dice. The band is asked of the
+TOTAL, so the dark can carry a roll into it or out the far side. A band with
+nothing to hand to — no district, none with a special list, a list that is
+gone — leaves the city row's own words standing. A district's special list is
+not its `tableUuid`: that one REPLACES the city's list for the whole quarter
+and is picked ahead of it, so a quarter that sets both never sees its band.
 
 **A city walk is measured along the streets.** In settlement mode
 `onPartyTokenMoved` measures a drag with `roadDistance`
@@ -822,6 +839,17 @@ its ordinary one. The card's hunted line follows the incident that actually
 answered rather than the source that was asked, so a hunted party in a district
 with no hunted table is not told it was found by one.
 
+The flag has two writers. The Judge ticks it on the tracker, and the factions
+feed sets it: `hunt.mjs` asks the factions controlling the district under the
+party whether any wants the party or a member (`docs/factions/MODEL.md`) and
+`applyHunt` writes the answer onto the board — `huntRegion`, the district last
+asked about, and `huntedBy`, the hunter's uuid, which the tracker and the card
+name. The board is asked once per QUARTER: on entering the city and on a turn
+that finds the party in a different district than `huntRegion`. While the party
+stays, the Judge's own word stands, ticked or cleared; crossing into a quarter
+nobody hunts in clears the name and leaves the flag as it was. Clearing the
+flag by hand clears the name with it.
+
 **Two figures, two owners.** A cadence resolves its interval and its target
 independently, so `resolveCityCadence` returns a source for each
 (`everyTurnsSource`, `targetSource`). One name over both credits whichever layer
@@ -847,6 +875,53 @@ the reaction roll and counts, an external mode counts only where it is
 registered as REACTION, and a mode the listener has never heard of is refused
 rather than inherited. Loyalty, morale and obedience are about someone already
 known, not about how a quarter receives a stranger.
+
+### Points of interest
+
+A **static** point of interest is a place's own token on the city scene, and
+the location feature owns what one is (`docs/location/MODEL.md` "A place on the
+map"). What this feature adds is the surfaces that use one, and the two things
+a city does with points that are not yet places.
+
+**The panel names where the party is.** `buildSettlementView` reads
+`placeUnderParty` for the place whose token the party is standing at and
+`locationOfRegion` for the quarter's own place, each with an open button, both
+through the location api rather than an import: the formation feature is
+loaded before the location feature and reaches it late, at render.
+
+**A transient point of interest is an incident's marker.** When the city turn's
+incident throw matches a row, `whisperTurn` drops a Note where the party stood,
+with no journal entry behind it — a Note that has none and was authored by a
+Judge is one core shows to nobody else (`Note#isVisible`), so the marker is
+Judge-only by construction. The flag under it carries the row's whole text, the
+source and table that answered, the formation and the district, and an
+`expiresAt` in world seconds: the world setting **Incident markers last**, in
+city turns, and `0` drops none. `expireTransientNotes` runs on the same
+world-clock watcher that credits a stay, so a marker goes when the calendar
+passes it and never on a timer of its own. The turn card carries **Make it a
+place** beside the incident line: the Judge names it, `promoteIncident` makes a
+location actor under the quarter's place (else the city's) carrying the text as
+its notes, drops its token where the marker was, and deletes the marker.
+Dismissing one is deleting the Note. All of this is `poi.mjs`; the data half
+(`poi-logic.mjs`) needs no world.
+
+**The walk to a point of interest is priced by quarter, not by block.** The
+panel's **Go to a point of interest** lists every visible place token on the
+scene; the hop is classed by the District under each end — the same quarter,
+two that touch, two that do not, or no quarter at one end — and the imported
+`districtTravel` figure for that relation and the current pace is spent through
+`advanceTurns` as an action — so the light burns, the stay credits, the street
+throws on its cadence and the board's blocks line credits the pace's rate per
+turn, as any turn does — after which the party token is moved with a
+`TRAVEL_OPTION` the movement hook steps over (the `HALT_OPTION` shape) and the
+clock's last position re-baselined, so the move is never measured a second
+time and priced again by the streets. Two quarters touch when a corner of either outline lies within the join
+tolerance of an edge of the other (`ringsTouch`), which is what two hand-drawn
+regions along one street look like. A hop the figures do not price — no
+figures, no figure for this pace, two quarters that do not touch, an end
+outside every quarter — is refused with the missing thing named and the token
+is not moved; the Judge drags it and the streets price the drag as they always
+have.
 
 ## The weather
 

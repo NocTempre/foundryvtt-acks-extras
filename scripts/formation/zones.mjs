@@ -194,10 +194,17 @@ export function regionEdges(regionDoc) {
  */
 export function findZone(formation, type) {
   const at = partyPoint(formation);
-  if (!at) return null;
-  const { scene, point, elevation } = at;
+  return at ? zoneAt(at.scene, at.point, at.elevation, type) : null;
+}
 
-  for (const region of scene.regions) {
+/**
+ * The zone of a given behavior type drawn over a POINT of a scene — the same
+ * test as `findZone`, asked about somewhere the party is not: the far end of
+ * a walk, a marker, a place's token.
+ * @returns {{region: RegionDocument, behavior: RegionBehavior}|null}
+ */
+export function zoneAt(scene, point, elevation, type) {
+  for (const region of scene?.regions ?? []) {
     const behavior = region.behaviors.find((b) => b.type === type && !b.disabled);
     if (!behavior) continue;
     if (regionContains(region, point, elevation)) return { region, behavior };

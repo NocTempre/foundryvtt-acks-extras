@@ -15,7 +15,7 @@ import { travelOf } from "./travel.mjs";
 import { districtReaction } from "./settlement.mjs";
 import { findDistrict } from "./district-zone.mjs";
 import { streetUnder } from "./zones.mjs";
-import { HOOKS, EXTERNAL_MODES, ROLL_FAMILY } from "../influence/constants.mjs";
+import { HOOKS, isReactionMode } from "../influence/constants.mjs";
 
 /** Register the listener (called from the init hook). */
 export function installDistrictInfluence() {
@@ -30,28 +30,6 @@ export function installDistrictInfluence() {
 }
 
 /**
- * Does this throw belong to the family a district's reception prices?
- *
- * A district's figure is a REACTION figure — how a quarter takes to a
- * stranger, or to an offer put to someone in it. It has nothing to say about
- * whether a henchman already on the payroll stays loyal (Hireling Loyalty),
- * keeps its nerve (Monster Morale) or obeys an order (Hireling Obedience) —
- * those throws are about someone already known, not about the quarter's
- * reception, and their own family (LOYALTY, MORALE) says so.
- *
- * The bare influence roll (`mode` falsy) has no external mode of its own and
- * IS the reaction/attitude roll, so it counts. An external mode counts only
- * when it is registered under `EXTERNAL_MODES` as REACTION family — a mode
- * this check has never heard of answers false rather than inheriting the
- * modifier, so a family added later without being priced here stays silent
- * by exclusion, never by leak.
- */
-function isReactionThrow(mode) {
-  if (!mode) return true;
-  return EXTERNAL_MODES[mode]?.family === ROLL_FAMILY.REACTION;
-}
-
-/**
  * Push the district's reaction figure onto `context.modifiers`, when one is
  * owed — never more than one entry, and never onto the wrong side of the roll.
  *
@@ -62,7 +40,9 @@ function isReactionThrow(mode) {
  * not the party's mark.
  *
  * Pushes nothing when the throw's own family is not one a district's
- * reception bears on, when there is no settlement board under the actor, no
+ * reception bears on (a district's figure is a REACTION figure — how a quarter
+ * takes to a stranger — and `isReactionMode` is the one gate that says which
+ * throws those are), when there is no settlement board under the actor, no
  * district drawn where the party is standing, or the district owes no figure
  * for the place the party is actually in (`districtReaction` itself answers
  * that last question).
@@ -72,7 +52,7 @@ function isReactionThrow(mode) {
 function pushDistrictModifier(context) {
   const { actor, mode, modifiers } = context ?? {};
   if (!Array.isArray(modifiers)) return;
-  if (!isReactionThrow(mode)) return;
+  if (!isReactionMode(mode)) return;
 
   const formation = getFormationForActor(actor?.id);
   if (!formation) return;

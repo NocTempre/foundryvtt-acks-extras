@@ -1,14 +1,13 @@
 /* global foundry, CONFIG, game */
-import { MODULE_ID } from "./constants.mjs";
-import { findZone } from "./zones.mjs";
 import { SETTLEMENT_LOCATIONS } from "./settlement.mjs";
+import { DISTRICT_TYPE, findDistrict, districtAt } from "./district-find.mjs";
 
 /**
  * "District" scene-region behavior: draw a Region over a quarter of a city and
  * give the whole quarter its own character — how often the streets throw by day
  * and by night, which table answers when they do, which table answers when the
- * quarter's own powers are hunting the party, and how the locals take to
- * strangers there.
+ * quarter's own powers are hunting the party, which table the city's own list
+ * hands over to, and how the locals take to strangers there.
  *
  * A district is the OUTERMOST of three layers and the widest: the street the
  * party is standing on, then an Encounter Zone drawn over a few blocks, then
@@ -25,9 +24,12 @@ import { SETTLEMENT_LOCATIONS } from "./settlement.mjs";
  *
  * The point-in-region geometry is shared with every other zone behavior and
  * lives in `zones.mjs`, which also states why these extend `RegionBehaviorType`.
+ * The readers — which district the party stands in, which is drawn over a
+ * point — live in `district-find.mjs`, which needs no core class at load, and
+ * are re-exported here for the importers that think of them as the district's.
  */
 
-export const DISTRICT_TYPE = `${MODULE_ID}.district`;
+export { DISTRICT_TYPE, findDistrict, districtAt };
 
 /**
  * Where a district's reaction figure applies, as a select.
@@ -64,6 +66,10 @@ export class DistrictBehavior extends foundry.data.regionBehaviors.RegionBehavio
       // hunting you sends is a different list, not the ordinary list rolled
       // higher.
       wantedTableUuid: new fields.DocumentUUIDField({ type: "RollTable" }),
+      // The quarter's special list: NOT a replacement for the city's list the
+      // way `tableUuid` is, but what that list hands its roll to when the total
+      // lands in the stretch the map says defers to the quarter.
+      specialTableUuid: new fields.DocumentUUIDField({ type: "RollTable" }),
       // 0 = inherit the layer outside this one, on each field independently.
       // Bounds mirror the street's: a cadence in turns, a target on 1d6.
       encounterEveryDay: new fields.NumberField({ required: true, initial: 0, min: 0, max: 24, integer: true }),
@@ -85,12 +91,4 @@ export class DistrictBehavior extends foundry.data.regionBehaviors.RegionBehavio
 export function registerDistrictZone() {
   CONFIG.RegionBehavior.dataModels[DISTRICT_TYPE] = DistrictBehavior;
   if (CONFIG.RegionBehavior.typeIcons) CONFIG.RegionBehavior.typeIcons[DISTRICT_TYPE] = "fa-solid fa-city";
-}
-
-/**
- * The district the party token currently stands in, if any.
- * @returns {{region: RegionDocument, behavior: RegionBehavior}|null}
- */
-export function findDistrict(formation) {
-  return findZone(formation, DISTRICT_TYPE);
 }

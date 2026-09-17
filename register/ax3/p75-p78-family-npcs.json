@@ -1,11 +1,12 @@
 [
   {
-    "id": "ax3.liberFaunus",
+    "id": "ax3.npc1",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Liber Faunus",
+    "name": "NPC 1",
     "anchor": {
-      "runin": "Liber Faunus"
+      "hash": "10spk5p",
+      "as": "runin"
     },
     "pages": [
       76
@@ -14,16 +15,17 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Liber Faunus:"
+      "statLabelKey": "10spk5p"
     }
   },
   {
-    "id": "ax3.hestaFaunus",
+    "id": "ax3.npc2",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Hesta Faunus",
+    "name": "NPC 2",
     "anchor": {
-      "runin": "Hesta Faunus"
+      "hash": "n8zo1y",
+      "as": "runin"
     },
     "pages": [
       76,
@@ -33,7 +35,7 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Hesta Faunus:",
+      "statLabelKey": "n8zo1y",
       "statlineAt": 77,
       "flowColumns": {
         "77": [
@@ -44,12 +46,13 @@
     }
   },
   {
-    "id": "ax3.aranthFaunus",
+    "id": "ax3.npc3",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Aranth Faunus",
+    "name": "NPC 3",
     "anchor": {
-      "runin": "Aranth Faunus"
+      "hash": "1fqzo0f",
+      "as": "runin"
     },
     "pages": [
       77
@@ -58,7 +61,7 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Aranth Faunus:",
+      "statLabelKey": "1fqzo0f",
       "columns": [
         54,
         324
@@ -66,12 +69,13 @@
     }
   },
   {
-    "id": "ax3.megaravicos",
+    "id": "ax3.npc4",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Megaravicos Eight-Fingers",
+    "name": "NPC 4",
     "anchor": {
-      "runin": "Megaravicos Eight-Fingers"
+      "hash": "1l9898d",
+      "as": "runin"
     },
     "pages": [
       77
@@ -80,9 +84,9 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Megaravicos:",
-      "stopLines": [
-        "Other Members"
+      "statLabelKey": "1djfx6a",
+      "stopKeys": [
+        "6mx3mo"
       ],
       "columns": [
         54,
@@ -91,12 +95,13 @@
     }
   },
   {
-    "id": "ax3.balcadurBrogitarius",
+    "id": "ax3.npc7",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Guildmaster Balcadur Brogitarius",
+    "name": "NPC 7",
     "anchor": {
-      "runin": "Guildmaster Balcadur Brogitarius"
+      "hash": "1ic0cij",
+      "as": "runin"
     },
     "pages": [
       78
@@ -105,7 +110,7 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Balcadur Brogitarius:"
+      "statLabelKey": "qqjhj6"
     }
   }
 ]

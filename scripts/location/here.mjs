@@ -117,6 +117,14 @@ export function placeReachesSpot(place, spot) {
   return false;
 }
 
+/**
+ * The visible place tokens on a scene, as documents — the points of interest
+ * a walk can be made to, and the count the settlement board decides by.
+ */
+export function placesOnScene(scene) {
+  return [...placeTokensOn(scene)];
+}
+
 /** Does this place have a visible token anywhere on this scene? */
 export function placeStandsOn(scene, place) {
   for (const _token of placeTokensOn(scene, place)) return true;

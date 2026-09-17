@@ -10,6 +10,10 @@
  * shelved under: a book declaring one goes to that line's own compendia, and a
  * book declaring none goes to the ACKS ones. Only books from outside the ACKS
  * library carry it — the ACKS line is the default, not a name in this file.
+ *
+ * `judge` marks a book written for the Judge alone — an adventure, a
+ * gazetteer: its keyed places, people, organisations and lists are shelved
+ * where no player seat can open them (`lineOf` in `cookbook.mjs`).
  */
 
 /**
@@ -65,6 +69,7 @@ export const BOOKS = {
     pages: 186,
     titleRe: /Secrets of the Nethercity/i,
     printedOffset: 2,
+    judge: true,
   },
   ax3: {
     label: "AX3 Capital of the Borderlands",
@@ -72,6 +77,7 @@ export const BOOKS = {
     pages: 226,
     titleRe: /Capital of the Borderlands/i,
     printedOffset: 2,
+    judge: true,
   },
   // Authored third-party titles (DECISIONS: "Third-party books get shipped
   // cookbooks"). Everything else in the OSE library is registered per world and
@@ -82,6 +88,7 @@ export const BOOKS = {
     short: "QD1",
     pages: 20,
     titleRe: /^Milk$/i,
+    judge: true,
   },
   qd2: {
     label: "Quick Delve #2: The Grotesques' Grotto",
@@ -89,6 +96,7 @@ export const BOOKS = {
     short: "QD2",
     pages: 20,
     titleRe: /Grotesques/i,
+    judge: true,
   },
   qd3: {
     label: "Quick Delve #3: Against the Horselord",
@@ -96,6 +104,7 @@ export const BOOKS = {
     short: "QD3",
     pages: 24,
     titleRe: /Against the Horselord/i,
+    judge: true,
   },
   aft: {
     label: "OSE Advanced Fantasy Referee's Tome",
@@ -123,6 +132,7 @@ export const BOOKS = {
     short: "WLD1",
     pages: 25,
     titleRe: /Wickedv1/i,
+    judge: true,
   },
   wld2: {
     label: "Wicked Little Delves, vol 2",
@@ -130,6 +140,7 @@ export const BOOKS = {
     short: "WLD2",
     pages: 25,
     titleRe: /Wickedv2/i,
+    judge: true,
   },
   wld3: {
     label: "Wicked Little Delves, vol 3",
@@ -137,6 +148,7 @@ export const BOOKS = {
     short: "WLD3",
     pages: 29,
     titleRe: /Wickedv3/i,
+    judge: true,
   },
   pc1: {
     label: "Planar Compass, Issue 1",
@@ -144,6 +156,7 @@ export const BOOKS = {
     short: "PC1",
     pages: 60,
     titleRe: /Planar\s*Compass\s*1/i,
+    judge: true,
   },
   pc2: {
     label: "Planar Compass, Issue 2",
@@ -151,6 +164,7 @@ export const BOOKS = {
     short: "PC2",
     pages: 72,
     titleRe: /Planar\s*Compass\s*2/i,
+    judge: true,
   },
   pc3: {
     label: "Planar Compass, Issue 3",
@@ -158,6 +172,7 @@ export const BOOKS = {
     short: "PC3",
     pages: 72,
     titleRe: /Planar\s*Compass\s*3/i,
+    judge: true,
   },
   // The conversion instrument. It unlocks the OSE import path: the constants
   // that turn a foreign stat block into ACKS II values are printed here, so
@@ -242,3 +257,6 @@ export function identifyBook(numPages, title) {
  * asks both.
  */
 export const bookLine = (bookId) => BOOKS[bookId]?.line ?? null;
+
+/** Whether a shipped book is the Judge's alone (`judge` in the registry). */
+export const bookIsJudges = (bookId) => BOOKS[bookId]?.judge === true;

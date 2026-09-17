@@ -175,6 +175,14 @@ export function freshSettlement() {
      * own powers, so a party arriving somewhere new arrives unhunted.
      */
     wanted: false,
+    /**
+     * The faction hunting the party here, when `wanted` was set by one (the
+     * uuid of a faction actor), and the district the ledger was last asked
+     * for. Both belong to this city: re-entry drops them with the flag.
+     * `hunt.mjs` is the only writer; a Judge's untick clears the name.
+     */
+    huntedBy: "",
+    huntRegion: "",
     blocks: 0,
     turns: 0,
     days: 0,
@@ -218,6 +226,8 @@ export function settlementOf(travel) {
     intent: SETTLEMENT_INTENTS[s.intent] ? s.intent : fresh.intent,
     conveyance: CONVEYANCES[s.conveyance] ? s.conveyance : fresh.conveyance,
     wanted: !!s.wanted,
+    huntedBy: typeof s.huntedBy === "string" ? s.huntedBy : "",
+    huntRegion: typeof s.huntRegion === "string" ? s.huntRegion : "",
     blocks: Number(s.blocks) || 0,
     turns: Number(s.turns) || 0,
     days: Number(s.days) || 0,
@@ -312,6 +322,23 @@ export function reenterSettlement(previous, sceneId = null) {
     intent: s.intent,
     conveyance: s.conveyance,
   };
+}
+
+/**
+ * The board asked about the hunt for the quarter the party now stands in.
+ * Unchanged while that is the quarter it was last asked for (`huntRegion`),
+ * so the Judge's own word on `wanted`, ticked or cleared, stands until the
+ * party crosses into another one. Entering a quarter whose holder wants the
+ * party sets `wanted` and names the hunter in `huntedBy`; entering one where
+ * nobody does clears the name and leaves `wanted` as the Judge had it. The
+ * quarter is "" when the party stands in none. A fresh tally
+ * (`reenterSettlement`) names no quarter, so an arrival is always asked.
+ * @param {{regionUuid?: string, hunterUuid?: string}} hunt
+ */
+export function applyHunt(board, { regionUuid = "", hunterUuid = "" } = {}) {
+  const s = settlementOf({ settlement: board });
+  if (regionUuid === s.huntRegion) return board;
+  return { ...s, huntRegion: regionUuid, huntedBy: hunterUuid, wanted: hunterUuid ? true : s.wanted };
 }
 
 /**
@@ -611,17 +638,52 @@ export function cadenceAttribution(cadence, names = {}) {
  * the last entry is always the city's own table, which is why the walk always
  * terminates.
  *
+ * A MAP may name a city list of its own (`city`), which sits between the drawn
+ * lists and the world's: a gazetteer's city has its own incident table, and a
+ * world can hold two cities. That candidate alone is `banded` — read by range
+ * with the map's after-dark shift rather than drawn — and carries the band
+ * that defers to the quarter together with the quarter's special list, so the
+ * walk can hand the roll over without asking the canvas a second time.
+ *
+ * @param {object} [opts]
+ * @param {{tableUuid?: string, afterDark?: number, band?: {from: number, to: number}|null}|null} [opts.city]
+ *   what the map says of its own list (`sceneIncidents`)
  * @returns {{tableUuid: string|null, source: string, candidates: Array<{tableUuid: string|null, source: string}>}}
  *   the first candidate, spread for callers that want only it, plus the
- *   ordered list. A null uuid means the city's own table.
+ *   ordered list. A null uuid means the world's own table.
  */
-export function pickIncidentSource({ district = null, zone = null, wanted = false } = {}) {
+export function pickIncidentSource({ district = null, zone = null, wanted = false, city = null } = {}) {
   const candidates = [];
   if (wanted && district?.wantedTableUuid) candidates.push({ tableUuid: district.wantedTableUuid, source: "wanted" });
   if (district?.tableUuid) candidates.push({ tableUuid: district.tableUuid, source: "district" });
   if (zone?.tableUuid) candidates.push({ tableUuid: zone.tableUuid, source: "zone" });
+  if (city?.tableUuid) {
+    candidates.push({
+      tableUuid: city.tableUuid,
+      source: "map",
+      banded: true,
+      afterDark: numOrNull(city.afterDark) ?? 0,
+      band: incidentBand(city.band?.from, city.band?.to),
+      specialTableUuid: district?.specialTableUuid || null,
+    });
+  }
   candidates.push({ tableUuid: null, source: "city" });
   return { ...candidates[0], candidates };
+}
+
+/**
+ * The stretch of a city list that defers to the quarter, as a pair of edges.
+ *
+ * Null unless both edges are stated and in order: a band with one edge matches
+ * everything above it or nothing at all depending on which edge is missing, and
+ * either sends rolls to a list nobody meant them for.
+ * @returns {{from: number, to: number}|null}
+ */
+export function incidentBand(from, to) {
+  const lo = numOrNull(from);
+  const hi = numOrNull(to);
+  if (lo == null || hi == null || lo < 1 || hi < lo) return null;
+  return { from: lo, to: hi };
 }
 
 /**
@@ -701,13 +763,39 @@ export function settlementEncounter(roll, { night = false, rows: given = null } 
   // it rather than going looking. A world that authored the table by hand
   // supplies it through the registry instead, and both read the same way.
   const rows = given ?? table("encounters100");
+  // The world's list names no stretch of its own for the quarter, so nothing
+  // read here is ever `special`.
+  return readIncident(roll, { night, afterDark: table("encounterAfterDark"), rows });
+}
+
+/**
+ * A banded incident list, read the way a gazetteer reads its own: one roll, a
+ * shift once it is dark, the row the total lands in — and, where the list has
+ * a stretch that defers to the quarter the party is in, whether this total is
+ * inside it.
+ *
+ * The shift and the band are the CALLER's, because they belong to whichever
+ * list is being read: the world's list takes its shift from the registry, a
+ * map's list takes both from the map. A total no row covers is an answer, not
+ * an error — a printed list can skip numbers — and comes back unmatched.
+ *
+ * @param {number} roll the die as thrown
+ * @param {object} [opts]
+ * @param {number|null} [opts.afterDark] added to the roll when `night`
+ * @param {Array<{min: number, max: number, text: string}>} [opts.rows]
+ * @param {{from: number, to: number}|null} [opts.band] the stretch that defers to the quarter
+ * @returns {{roll: number, afterDark: number, total: number, entry: string|null, matched: boolean, special: boolean}|null}
+ *   null when there are no rows to read or the roll is not a number
+ */
+export function readIncident(roll, { night = false, afterDark = 0, rows = null, band = null } = {}) {
   if (!Array.isArray(rows) || !rows.length) return null;
   const base = Number(roll);
   if (!Number.isFinite(base)) return null;
-  const after = night ? (numOrNull(table("encounterAfterDark")) ?? 0) : 0;
+  const after = night ? (numOrNull(afterDark) ?? 0) : 0;
   const total = base + after;
   const row = rows.find((r) => total >= Number(r.min) && total <= Number(r.max));
-  return { roll: base, afterDark: after, total, entry: row?.text ?? null, matched: !!row };
+  const special = !!band && total >= band.from && total <= band.to;
+  return { roll: base, afterDark: after, total, entry: row?.text ?? null, matched: !!row, special };
 }
 
 /**

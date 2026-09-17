@@ -14,6 +14,7 @@ import { SIZES } from "../monsters/config.mjs";
 import { FLAG_EXTRAS } from "../monsters/constants.mjs";
 import { FLAG_FORMATION_ID } from "../formation/constants.mjs";
 import { unset } from "../lib/util.mjs";
+import { isLocation } from "../lib/place.mjs";
 
 const EPSILON = 1e-6;
 
@@ -31,6 +32,9 @@ export function autoScaleEnabled(scene) {
 export function sizeForToken(tokenDoc, scene = tokenDoc.parent) {
   if (!tokenDoc || tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return null;
   if (tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK)) return null;
+  // A place's token is as big as the Judge drew it: a market square is not a
+  // creature with a size category to fit to the scene's squares.
+  if (isLocation(tokenDoc.actor)) return null;
   // Footprints are in FEET and a scene's squares are in its own units, so
   // the conversion goes through them: six MILES per hex is the case that
   // makes an unconverted distance size a man as though he were a county.

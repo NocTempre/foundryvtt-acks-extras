@@ -1,11 +1,12 @@
 [
   {
-    "id": "ax3.prelateRomus",
+    "id": "ax3.npc20",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Prelate Romus",
+    "name": "NPC 20",
     "anchor": {
-      "runin": "Prelate Romus"
+      "hash": "ygt930",
+      "as": "runin"
     },
     "pages": [
       130
@@ -14,16 +15,17 @@
       "group": "Bridge District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Romus, Prelate of the Solar Citadel:"
+      "statLabelKey": "qb8nod"
     }
   },
   {
-    "id": "ax3.drusus",
+    "id": "ax3.npc21",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Rector Drusus",
+    "name": "NPC 21",
     "anchor": {
-      "runin": "Drusus"
+      "hash": "1uyfb4k",
+      "as": "runin"
     },
     "pages": [
       130,
@@ -33,17 +35,18 @@
       "group": "Bridge District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Drusus, Rector of the Solar Citadel:",
+      "statLabelKey": "16d2l0b",
       "statlineAt": 131
     }
   },
   {
-    "id": "ax3.bodilkasGargoris",
+    "id": "ax3.npc22",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Guildmaster Bodilkas Gargoris",
+    "name": "NPC 22",
     "anchor": {
-      "runin": "Bodilkas Gargoris"
+      "hash": "1ytouz5",
+      "as": "runin"
     },
     "pages": [
       131
@@ -52,25 +55,25 @@
       "group": "Bridge District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Bodilkas:"
+      "statLabelKey": "qwc7hc"
     }
   },
   {
-    "id": "ax3.vicarOfAmmonar",
+    "id": "ax3.npc23",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Vicar of Ammonar",
+    "name": "NPC 23",
     "anchor": {
-      "label": "Vicar of Ammonar:"
+      "hash": "1hrt6vq",
+      "as": "label"
     },
     "pages": [
       134
     ],
     "meta": {
-      "group": "Bridge District — Solar Citadel"
+      "group": "Bridge District — Special Locations"
     },
     "assists": {
-      "statLabel": "Vicar of Ammonar:",
       "anchorAtStatline": true
     }
   }

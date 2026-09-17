@@ -203,8 +203,26 @@ function buildContext(actor, targetActor) {
     alignment: alignmentModifier(actor, targetActor),
     levelGap: levelGapModifier(actor, targetActor),
     age: ageModifier(actor, targetActor),
+    socialRank: socialRankModifier(actor, targetActor),
     profs,
   };
+}
+
+/**
+ * Social status for Seduction: how many rungs the character stands ABOVE the
+ * target, or 0 when level with or below — the row prices higher status and
+ * says nothing about lower. Undefined, and so skipped, when either rank is
+ * unknown: the rank is a fact the henchmen feature's chain answers
+ * (`facts.getSocialRank`, read through the api at call time so this feature
+ * never imports that one), and a status nobody has stated is not zero.
+ */
+function socialRankModifier(charActor, targetActor) {
+  const read = globalThis.acksExtras?.henchmen?.facts?.getSocialRank;
+  if (typeof read !== "function" || !charActor || !targetActor) return undefined;
+  const mine = read(charActor)?.rank;
+  const theirs = read(targetActor)?.rank;
+  if (!Number.isFinite(mine) || !Number.isFinite(theirs)) return undefined;
+  return Math.max(0, mine - theirs);
 }
 
 /**
@@ -264,6 +282,7 @@ function resolveAutoValue(source, ctx) {
   if (source === "alignment") return ctx.alignment;
   if (source === "levelGap") return ctx.levelGap;
   if (source === "age") return ctx.age;
+  if (source === "socialRank") return ctx.socialRank;
   if (source.startsWith("prof:")) return Boolean(ctx.profs[source.slice(5)]);
   // Caller-supplied values (external modes): api.open(actor, {mode, ctx}).
   if (source.startsWith("ctx:")) {

@@ -1417,3 +1417,84 @@ that rather than assuming it: note one old item's `img`, reimport its shelf,
 read the `img` back.
 
 **Teardown.** Delete the items and the actor the check imported.
+
+## Points of interest land as places
+
+The chain's `stepPoi` — `acksExtras.importer.cookbookImportPoiPlaces()`, after
+the journals. Needs a seat with AX3 connected.
+
+### Fixtures
+
+None of its own. The pass claims under cookbook ids, so the ledger is what the
+run REPORTS MADE, read back by those ids the moment it resolves: for each of
+the book's `kind.location` entries in a quarter group, plus `ax3.adventure` and
+each `ax3.district.<slug>`, the actor whose
+`flags["acks-extras"].cookbook.id` is that id, tracked with `api.track`. An
+actor the run reports as already held is the world's and stays. The actors
+land on the library's Actor shelf — a WORLD compendium
+(`world.acks-cookbook--actor`, see "Where the importer actually writes"), so
+a read-back that scans only `acks-extras`-packaged packs finds nothing and
+leaves the run's documents behind; scan `game.packs` by `documentName`. The
+pass also makes the pack folders `<Book> / Places`: delete `Places` once it
+holds nothing, and leave the book folder, which other imports share.
+
+### Steps
+
+1. Run the pass on a world holding neither the pages nor the actors.
+   *Observable:* under `<Book> / Places`, the city place, one place per quarter
+   inside it (`system.parentUuid` is the city's), and one place per keyed point
+   inside its quarter, each carrying the page's text as notes with the citation
+   last and `cookbook.kind === "kind.location"`. The notification counts what
+   was made.
+2. Run `cookbookImportJournals()` afterwards.
+   *Observable:* no page is written for any of them; every other location page
+   the book prints (the organisations' rooms) still lands.
+3. Run the pass again.
+   *Observable:* "already held", nothing created — presence is asked by id
+   before the page is read.
+4. On a world that imported the book under an earlier release (pages present),
+   run the pass.
+   *Observable:* the actors land beside the pages; the pages are untouched.
+5. Delete one point's actor and run again.
+   *Observable:* that one is rebuilt and nothing else is — the claim cache
+   answers for a deleted document only if invalidation is broken.
+
+### Teardown
+
+`api.sweepTracked()` over the ids read back; the pages, where the world had
+them, are the world's.
+
+## Organisations land as factions
+
+The organisations step (`cookbookImportFactions`, the chain's `stepFactions`)
+binds a settlement book's "<Quarter> — <Organisation>" and "NPC Party —
+<Name>" groups as `acks-extras.faction` actors seated in their quarter's
+place, rostering the group's imported people. The sub-type needs a world
+launched with the module carrying it (`docs/factions/TESTING.md`).
+
+### Fixtures
+
+- AX3 connected in the importer; the actor step run first, so the people
+  exist to roster. Track every id the step reads back, and the district and
+  city places it makes when the POI step has not run.
+
+### Steps
+
+1. Run the organisations step.
+   *Observable:* four factions on the book's Factions shelf — the hideout,
+   the cult, the citadel's garrison and the company — each seated in its
+   quarter's place (the company in the city's), each with the group's people
+   on its Members tab, kind `other`; the notification counts them.
+2. Run it again.
+   *Observable:* "already held", nothing created, nobody rostered twice.
+3. Delete one faction and run again.
+   *Observable:* that one is rebuilt with its roster; the others are held.
+4. Run it before the actor step on a fresh world.
+   *Observable:* the factions are made with empty rosters and the
+   notification says how many members are not yet imported; the actor step
+   and a second run fill them.
+
+### Teardown
+
+`api.sweepTracked()` over the ids read back — the factions, and the places
+only when this run made them.

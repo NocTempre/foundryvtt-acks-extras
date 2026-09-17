@@ -26,6 +26,8 @@ import { openBook, pageItems, listHeadings, detectColumns, colOf, glyphColorRuns
 import { runsIn, joinRuns, attackModel } from "../../scripts/importer/executor.mjs";
 import { rowsByY, slugLabel } from "../../scripts/importer/table-extract.mjs";
 import { BOOKS, citeFor, fingerprintWarning } from "../../scripts/importer/books.mjs";
+import { placementHolding, recipeContext, recipeProblems } from "../../scripts/importer/scene-binding.mjs";
+import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { FILES, OSE_FILES } from "./reference-lib.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -1730,36 +1732,63 @@ function axHeadingLines(pd) {
   return out.sort((a, b) => a.y - b.y || a.x0 - b.x0);
 }
 
-/** Column starts for an AX page: assists win, else detection, else full width. */
+// A line-break hyphen set as a run of its own. AX3 hangs them in the gutter, a
+// run apart from the word they break.
+const AX_LONE_HYPHEN = /^[-‐‑]\s*$/u;
+
+/**
+ * Column starts for an AX page: assists win, else detection, else full width.
+ *
+ * Hanging hyphens take no part in the detection. They all start at one x — the
+ * column's right edge — so on a page that breaks many words they outvote a real
+ * column in the line-start histogram, and the phantom column they found ended
+ * the prose box short of them: the hyphen went unclaimed and the word it broke
+ * was joined with a space.
+ */
 function axColumns(pd, assists = {}) {
   if (assists.columns) return assists.columns;
   if (assists.fullWidth) {
     const body = pd.items.filter((it) => it.h <= AX_BODY_MAX_H && it.y > AX_TOP_BAND && it.y < AX_FOOT_Y);
     return [body.length ? Math.min(...body.map((i) => i.x)) : 50];
   }
-  const cols = detectColumns(pd.items);
+  const cols = detectColumns(pd.items.filter((it) => !AX_LONE_HYPHEN.test(it.str)));
   return cols.length ? cols : [50];
 }
 
 /** Locate an entry's heading line, absorbing wrapped continuation lines. */
 function axAnchor(pd, cols, entry, assists) {
-  const want = collapse(assists.anchor ?? entry.anchor?.display ?? entry.name);
   const lines = axHeadingLines(pd);
-  // Progressive word-prefix match, like definition display anchors: the PDF may
-  // break the heading oddly or drop trailing words to a second line.
-  const words = want.split(" ");
-  const candidates = [want];
-  for (let i = words.length - 1; i >= 1; i--) candidates.push(words.slice(0, i).join(" "));
   let line = null;
-  let matched = want;
-  for (const c of candidates) {
-    line = lines.find((l) => axFold(l.text).startsWith(axFold(c)));
-    if (line) {
-      matched = c;
-      break;
+  let matched = null;
+  const number = entry.anchor?.number;
+  if (number != null) {
+    // A keyed heading is found by the key number it opens with, compared whole:
+    // "3." must not find "30.", nor "36." find "36U.". The row ships no word of
+    // the heading, so there is no `matched` label to hand on either.
+    line = lines.find((l) => opensWithNumber(l.text, number));
+    if (!line) throw new Error(`heading numbered "${number}" not found on p.${entry.pages[0]}`);
+  } else {
+    const want = collapse(assists.anchor ?? entry.anchor?.display ?? entry.name);
+    // Progressive word-prefix match, like definition display anchors: the PDF may
+    // break the heading oddly or drop trailing words to a second line.
+    const words = want.split(" ");
+    const candidates = [want];
+    for (let i = words.length - 1; i >= 1; i--) candidates.push(words.slice(0, i).join(" "));
+    matched = want;
+    for (const c of candidates) {
+      line = lines.find((l) => axFold(l.text).startsWith(axFold(c)));
+      if (line) {
+        matched = c;
+        break;
+      }
     }
+    if (!line) throw new Error(`heading "${want}" not found on p.${entry.pages[0]}`);
   }
-  if (!line) throw new Error(`heading "${want}" not found on p.${entry.pages[0]}`);
+  return { ...axAnchorFrom(pd, cols, line, lines), matched };
+}
+
+/** A heading line as an anchor: its column, and the lines set under it that belong to it. */
+function axAnchorFrom(pd, cols, line, lines = axHeadingLines(pd)) {
   const col = axColOf(line.x0, cols);
   // Absorb a wrapped second heading line directly below (AX3 sets long keys on
   // two 12pt lines).
@@ -1782,7 +1811,7 @@ function axAnchor(pd, cols, entry, assists) {
     const txt = collapse(dateLine.items.map((i) => i.str).join(" "));
     if (/^\([^)]{1,24}\)$/.test(txt)) endY = dateLine.y;
   }
-  return { line, col, endY, x1, matched };
+  return { line, col, endY, x1 };
 }
 
 /**
@@ -1800,34 +1829,34 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
   let cols = start.cols;
   let col = start.col;
   let fromY = start.endY + 2;
-  // Sibling stops: NPC residents stack runin-after-runin with no display
-  // heading between them, so another register entry's runin anchor ends this
-  // entry's flow exactly like a heading would. Purely register-driven.
-  const stopAt = (opts.stopAt ?? []).map((s) => axFold(s)).filter(Boolean);
+  // Two stops a heading does not give, both register-driven. Residents stack
+  // run-in after run-in with no display heading between them, so a SIBLING's
+  // name line ends this entry's flow exactly like a heading would: `opts.stops`
+  // are those lines where the siblings' own anchors found them, so no word of a
+  // name is compared here. A run-in that opens a section of the same passage is
+  // a `stopKeys` key of the whole line's folded letters, as the flow sees it.
+  const stops = opts.stops ?? [];
+  const stopKeys = new Set((opts.stopKeys ?? []).map(String).filter(Boolean));
   const siblingStop = (colX0, colX1, yMin) => {
-    if (!stopAt.length) return null;
-    const colItems = pd.items.filter(
-      (it) => it.h <= AX_BODY_MAX_H && it.x >= colX0 && it.x <= colX1 && it.y > yMin && it.y < AX_FOOT_Y,
-    );
-    for (const ln of toLines(colItems)) {
-      const t = axFold(ln.items.map((i) => i.str).join(""));
-      const rawLine = ln.items.map((i) => i.str).join(" ");
-      const clean = !/[.,;!?]/.test(rawLine);
-      // Same clauses as the runin anchor matcher, INCLUDING the suffix rule —
-      // sibling runins print with titles too ("pRovost mentenus Cavië") — and
-      // the same punctuation guard against sentence tails.
-      if (
-        stopAt.some(
-          (w) =>
-            t === w ||
-            (t.startsWith(w) && t.length <= w.length + 6) ||
-            (w.length >= 12 && t.startsWith(w.slice(0, 12)) && Math.abs(t.length - w.length) <= 4) ||
-            (w.length >= 6 && t.endsWith(w) && t.length <= w.length + 14 && clean),
-        )
-      )
-        return ln.y;
+    // A name line hangs left of the body it heads — further than the column
+    // edge, where the sibling needed columns of its own to be found — so it is
+    // the column's whose START it stands nearest, not the one whose range
+    // happens to hold its first run.
+    const nearest = (x) => cols.reduce((best, c, i) => (Math.abs(c - x) < Math.abs(cols[best] - x) ? i : best), 0);
+    const placed = stops
+      .filter((s) => s.page === page && s.y > yMin && s.y < AX_FOOT_Y && nearest(s.x0) === col)
+      .map((s) => s.y);
+    const keyed = [];
+    if (stopKeys.size) {
+      const colItems = pd.items.filter(
+        (it) => it.h <= AX_BODY_MAX_H && it.x >= colX0 && it.x <= colX1 && it.y > yMin && it.y < AX_FOOT_Y,
+      );
+      const hit = toLines(colItems).find((ln) =>
+        stopKeys.has(printKey([...ln.items].sort((p, q) => p.x - q.x).map((i) => i.str).join(""))),
+      );
+      if (hit) keyed.push(hit.y);
     }
-    return null;
+    return placed.length || keyed.length ? Math.min(...placed, ...keyed) : null;
   };
   for (let guard = 0; guard < 24; guard++) {
     const x0 = cols[col] - AX_HANG - 2;
@@ -2058,84 +2087,120 @@ function axResidue(entryId, pd, page, fields) {
   return skips;
 }
 
-/** Shared skeleton: anchor + name expect + flowed prose paragraphs. Anchors
- * are display headings by default; `anchor.runin` instead matches a BODY-size
- * standalone line by folded text — AX3 sets its notable-resident names in
- * small-caps body type ("tRibune naRmiRio dRaKomiR"), which fold-comparison
- * absorbs on both sides. */
+/** Every body-size line of a page as a run-in anchor candidate, column by column. */
+function axRuninLines(pd, cols) {
+  const out = [];
+  for (let c = 0; c < cols.length; c++) {
+    const colItems = pd.items.filter(
+      (it) => it.h <= AX_BODY_MAX_H && axColOf(it.x, cols) === c && it.y > AX_TOP_BAND && it.y < AX_FOOT_Y,
+    );
+    for (const ln of toLines(colItems)) {
+      const items = [...ln.items].sort((x, y) => x.x - y.x);
+      const x1 = Math.max(...items.map((i) => i.x + (i.w ?? 0)));
+      out.push({ line: { y: ln.y, x0: Math.min(...items.map((i) => i.x)), x1, items }, col: c, endY: ln.y, x1 });
+    }
+  }
+  return out;
+}
+
+/** Shared skeleton: anchor + name check + flowed prose paragraphs. Anchors
+ * are display headings by default; a run-in anchor instead matches a BODY-size
+ * standalone line — AX3 sets its notable-resident names in small-caps body
+ * type ("tRibune naRmiRio dRaKomiR"), which fold-comparison absorbs on both
+ * sides.
+ *
+ * Three locators. `anchor.number` finds a keyed heading by the key number it
+ * opens with. `anchor.hash` finds a name the row may not spell: every candidate
+ * line of its sort (`as`: "display" or "runin") is boxed the way it would ship
+ * and the one whose box READS BACK to the key is the anchor, so what is located
+ * here is by construction what the executor checks. `anchor.display` /
+ * `anchor.runin` compare words, for the headings that are nobody's name. */
 async function axOpen(doc, entry) {
   const assists = entry.assists ?? {};
   const page = entry.pages[0];
   const pd = await pageItems(doc, page);
   const cols = axColumns(pd, assists);
-  let a;
-  if (entry.anchor?.runin) {
+  const hash = entry.anchor?.hash != null ? String(entry.anchor.hash) : null;
+  const runin = hash ? entry.anchor.as === "runin" : !!entry.anchor?.runin;
+  // A row anchored by its key number or by a key of its letters ships no label
+  // to compare against, so its name is a `heading`: checked by that, and read
+  // for the binding.
+  const numbered = !hash && entry.anchor?.number != null;
+  const nameOf = (a, check) => {
+    // The box spans to the column's right edge so a same-line "(3000 BE)" date
+    // suffix (body-size, not part of the heading runs) is claimed with it.
+    const colX1 = cols[a.col + 1] ? cols[a.col + 1] - AX_HANG - 3 : pd.width - 40;
+    return withFixes(
+      {
+        op: hash || numbered ? "heading" : "expect", page,
+        box: {
+          x0: a.line.x0 - 3,
+          x1: Math.max(a.x1 + 3, colX1),
+          // Runin boxes must stay INSIDE the 12pt line pitch — at -8 the box
+          // caught the tail of the paragraph above and the expect read that
+          // line first.
+          y0: a.line.y - (runin ? 5 : 14),
+          y1: a.endY + (runin ? 4 : 5),
+        },
+        ...check,
+      },
+      pd,
+    );
+  };
+  const readOf = (instr) => joinRuns(runsIn(pd, instr), instr.fixes);
+  let a = null;
+  let name = null;
+  if (hash) {
+    const lines = axHeadingLines(pd);
+    const candidates = runin ? axRuninLines(pd, cols) : lines.map((line) => axAnchorFrom(pd, cols, line, lines));
+    for (const c of candidates) {
+      const instr = nameOf(c, { hash });
+      const read = readOf(instr);
+      if (printKey(read) !== hash) continue;
+      a = c;
+      // Small capitals extract as a scatter of case; whoever sets the name is
+      // told here, where the line can be seen, that its case carries nothing.
+      name = caseCarriesNothing(read) ? { ...instr, caps: true } : instr;
+      break;
+    }
+    if (!a) throw new Error(`no ${runin ? "run-in line" : "heading"} on p.${page} answers to the anchor hash`);
+    return { assists, page, pd, cols, a, name };
+  }
+  if (runin) {
     const want = collapse(assists.anchor ?? entry.anchor.runin);
     const w = axFold(want);
-    let hit = null;
     let matchedOverride = null;
-    for (let c = 0; c < cols.length && !hit; c++) {
-      const colItems = pd.items.filter(
-        (it) => it.h <= AX_BODY_MAX_H && axColOf(it.x, cols) === c && it.y > AX_TOP_BAND && it.y < AX_FOOT_Y,
-      );
-      for (const ln of toLines(colItems)) {
-        const items = [...ln.items].sort((x, y) => x.x - y.x);
-        const t = axFold(items.map((i) => i.str).join(""));
-        // Prefix clauses mirror the executor's expect fallbacks (including the
-        // 12-char rule for dropped small-caps glyphs). The SUFFIX clause covers
-        // titled runins ("pRovost mentenus Cavië" for anchor "Mentenus Cavië");
-        // since the runtime expect is prefix-only, a suffix hit ships the
-        // line's own printed text as the expect label instead. Suffix matches
-        // demand a punctuation-free standalone line — a sentence tail
-        // ("…with Clitus Omnus.") must never anchor.
-        const rawLine = items.map((i) => i.str).join(" ");
-        const suffix = t.endsWith(w) && t.length <= w.length + 14 && w.length >= 6 && !/[.,;!?]/.test(rawLine);
-        if (
-          t === w ||
-          (t.startsWith(w) && t.length <= w.length + 6) ||
-          (w.length >= 12 && t.startsWith(w.slice(0, 12)) && Math.abs(t.length - w.length) <= 4) ||
-          suffix
-        ) {
-          if (suffix && !t.startsWith(w)) {
-            matchedOverride = collapse(items.map((i) => i.str).join(" "));
-          }
-          hit = {
-            line: {
-              y: ln.y,
-              x0: Math.min(...items.map((i) => i.x)),
-              x1: Math.max(...items.map((i) => i.x + (i.w ?? 0))),
-              items,
-            },
-            col: c,
-          };
-          break;
-        }
-      }
-    }
-    if (!hit) throw new Error(`runin line "${want}" not found on p.${page}`);
-    a = { line: hit.line, col: hit.col, endY: hit.line.y, x1: hit.line.x1, matched: matchedOverride ?? want };
+    a = axRuninLines(pd, cols).find(({ line }) => {
+      const t = axFold(line.items.map((i) => i.str).join(""));
+      // Prefix clauses mirror the executor's expect fallbacks (including the
+      // 12-char rule for dropped small-caps glyphs). The SUFFIX clause covers
+      // a run-in set behind a title the row leaves out; since the runtime
+      // expect is prefix-only, a suffix hit ships the line's own printed text
+      // as the expect label instead. Suffix matches demand a punctuation-free
+      // standalone line — a sentence tail must never anchor.
+      const rawLine = line.items.map((i) => i.str).join(" ");
+      const suffix = t.endsWith(w) && t.length <= w.length + 14 && w.length >= 6 && !/[.,;!?]/.test(rawLine);
+      const hit =
+        t === w ||
+        (t.startsWith(w) && t.length <= w.length + 6) ||
+        (w.length >= 12 && t.startsWith(w.slice(0, 12)) && Math.abs(t.length - w.length) <= 4) ||
+        suffix;
+      if (hit && suffix && !t.startsWith(w)) matchedOverride = collapse(rawLine);
+      return hit;
+    });
+    if (!a) throw new Error(`runin line "${want}" not found on p.${page}`);
+    a = { ...a, matched: matchedOverride ?? want };
   } else {
     a = axAnchor(pd, cols, entry, assists);
   }
-  // The expect box spans to the column's right edge so a same-line "(3000 BE)"
-  // date suffix (body-size, not part of the heading runs) is claimed with it.
-  const colX1 = cols[a.col + 1] ? cols[a.col + 1] - AX_HANG - 3 : pd.width - 40;
-  const name = withFixes(
-    {
-      op: "expect", page,
-      box: {
-        x0: a.line.x0 - 3,
-        x1: Math.max(a.x1 + 3, colX1),
-        // Runin boxes must stay INSIDE the 12pt line pitch — at -8 the box
-        // caught the tail of the paragraph above and the expect read that
-        // line first.
-        y0: a.line.y - (entry.anchor?.runin ? 5 : 14),
-        y1: a.endY + (entry.anchor?.runin ? 4 : 5),
-      },
-      text: a.matched,
-    },
-    pd,
-  );
+  name = nameOf(a, numbered ? { number: String(entry.anchor.number) } : { text: a.matched });
+  if (numbered) {
+    // The box is what a Judge's copy is read through, so prove here that it
+    // opens with the number: a box that caught the tail of the entry above
+    // would compile clean and stub on every import.
+    const read = readOf(name).replace(/[-]/g, "").replace(/\s+/g, " ").trim();
+    if (!opensWithNumber(read, name.number)) throw new Error(`heading box for "${name.number}" on p.${page} opens with other text`);
+  }
   return { assists, page, pd, cols, a, name };
 }
 
@@ -2151,7 +2216,7 @@ async function compileLocation(doc, entry, kindRow) {
     doc, entry, assists,
     { page, pd, cols, col: a.col, endY: a.endY },
     new Set(),
-    { stopAt: assists.stopLines ?? [] },
+    { stopKeys: assists.stopKeys ?? [] },
   );
   const { paras, statlines } = axParas(segs, page, { iconTags: entry.book === "ax2", statlines: true });
   if (!paras.length) throw new Error(`no body paragraphs under "${entry.name}" p.${page}`);
@@ -2175,6 +2240,49 @@ async function compileLocation(doc, entry, kindRow) {
   axAssistSkips(skipsOut2, assists, page);
   if (Object.keys(skipsOut2).length) out._skips = skipsOut2;
   return out;
+}
+
+/**
+ * The run a person's quick-stat block opens with: its label.
+ *
+ * A row that spells the label (`assists.statLabel`, else "<name>:") is matched
+ * as words, in three shapes: an exact run; a run that merely STARTS with the
+ * label (the printer merged label and clause into one run); a run that ends in
+ * the colon and opens with the label's words. A row that may not spell it
+ * carries the label's print key (`assists.statLabelKey`, else the key it is
+ * anchored by): the run whose letters fold to the key, or the run whose letters
+ * UP TO A COLON do — the merged shape, whose label ends at that colon.
+ *
+ * @returns {{labelRun: object, merged: boolean, labelLength: number, label: string|null}}
+ *   `labelLength` counts a merged label's characters; `label` is null for a keyed row
+ */
+function axLabelRun(spd, entry, assists, statPage) {
+  const key = assists.statLabelKey ?? (entry.anchor?.as === "label" ? entry.anchor.hash : null);
+  if (key != null) {
+    const want = String(key);
+    const body = spd.items.filter((it) => it.y > AX_TOP_BAND);
+    // A label closes with its colon, which the key cannot see: without asking
+    // for it, the same name set as a run of its own in the prose would answer.
+    const whole = body.find((it) => /:\s*$/.test(it.str) && printKey(it.str) === want);
+    if (whole) return { labelRun: whole, merged: false, labelLength: 0, label: null };
+    for (const it of body) {
+      for (let i = it.str.indexOf(":"); i >= 0; i = it.str.indexOf(":", i + 1)) {
+        if (printKey(it.str.slice(0, i)) === want) return { labelRun: it, merged: true, labelLength: i + 1, label: null };
+      }
+    }
+    throw new Error(`no run on p.${statPage} answers to the statline label's key`);
+  }
+  // Merged runs strip the label by CHARACTER COUNT (stripPrefix — a count, never
+  // text), since dropText only removes whole runs.
+  const label = assists.statLabel ?? `${entry.name}:`;
+  const exact = spd.items.find((it) => collapse(it.str) === label);
+  const merged = exact ? null : spd.items.find((it) => collapse(it.str).startsWith(label) && it.y > AX_TOP_BAND);
+  const loose = exact || merged ? null : spd.items.find(
+    (it) => /:$/.test(it.str.trim()) && collapse(it.str).toLowerCase().startsWith(label.replace(/:$/, "").toLowerCase()),
+  );
+  const labelRun = exact ?? merged ?? loose;
+  if (!labelRun) throw new Error(`statline label "${label}" not found on p.${statPage}`);
+  return { labelRun, merged: !!merged, labelLength: label.length, label };
 }
 
 /**
@@ -2205,18 +2313,7 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
 
   const statPage = assists.statlineAt ?? page;
   const spd = statPage === page ? pd : await pageItems(doc, statPage);
-  const label = assists.statLabel ?? `${entry.name}:`;
-  // Three label shapes: an exact run; a run that merely STARTS with the label
-  // (the printer merged label and clause into one run); a run whose colon got
-  // its own run. Merged runs strip the label by CHARACTER COUNT (stripPrefix —
-  // a count, never text), since dropText only removes whole runs.
-  const exact = spd.items.find((it) => collapse(it.str) === label);
-  const merged = exact ? null : spd.items.find((it) => collapse(it.str).startsWith(label) && it.y > AX_TOP_BAND);
-  const loose = exact || merged ? null : spd.items.find(
-    (it) => /:$/.test(it.str.trim()) && collapse(it.str).toLowerCase().startsWith(label.replace(/:$/, "").toLowerCase()),
-  );
-  const labelRun = exact ?? merged ?? loose;
-  if (!labelRun) throw new Error(`statline label "${label}" not found on p.${statPage}`);
+  const { labelRun, merged, labelLength, label } = axLabelRun(spd, entry, assists, statPage);
   // The block: contiguous lines at (or right of) the label's indent, WITHIN the
   // label's own column — same-y items of the neighbouring column must not join
   // the cluster or break it.
@@ -2237,19 +2334,20 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
   }
   const clusterItems = new Set(cluster.flatMap((l) => l.items));
   const sx1 = Math.max(...cluster.flatMap((l) => l.items.map((i) => i.x + (i.w ?? 0))));
+  // The label is claimed with the block and is no part of the clause. A row
+  // that spells it drops the run by its text; one that may not drops it by its
+  // ORDINAL. A label the printer merged with the clause loses its leading
+  // characters by COUNT either way.
   fields.statline = withFixes(
     {
       op: "value", page: statPage, pattern: "statline",
-      ...(merged ? {} : { dropText: collapse(labelRun.str) }),
+      ...(merged || label == null ? {} : { dropText: collapse(labelRun.str) }),
       box: { x0: labelRun.x - 3, x1: sx1 + 3, y0: cluster[0].y - 4, y1: cluster[cluster.length - 1].y + 4 },
     },
     spd,
+    !merged && label == null ? new Set([labelRun]) : null,
+    merged ? new Map([[labelRun, labelLength]]) : null,
   );
-  if (merged) {
-    const runs = runsIn(spd, fields.statline);
-    const li = runs.indexOf(labelRun);
-    if (li >= 0) (fields.statline.fixes ??= {}).stripPrefix = { ...(fields.statline.fixes?.stripPrefix ?? {}), [li]: label.length };
-  }
 
   if (!opened) {
     // A bare roster block is one that nothing above NAMES. Where the label's own
@@ -2260,7 +2358,10 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
     // where it differs from the display name). This warns rather than throws: a
     // throw here is caught per entry and drops the entry from the cookbook, which
     // trades a missing paragraph for a missing NPC.
-    const nameRe = new RegExp(collapse(entry.name).split(" ").map(axFold).filter(Boolean).join(".*"));
+    // A row that may not spell its name is held to the label's own words, which
+    // the page supplies.
+    const nameWords = label == null ? labelRun.str.replace(/\s*:\s*$/, "") : entry.name;
+    const nameRe = new RegExp(collapse(nameWords).split(" ").map(axFold).filter(Boolean).join(".*"));
     const ownName = toLines(
       spd.items.filter(
         (it) => it.h <= AX_BODY_MAX_H && it.x >= sColX0 && it.x <= sColX1 && it.y > AX_TOP_BAND && it.y < labelRun.y - 2,
@@ -2275,13 +2376,23 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
           "— anchor on that runin so the intro prose is reachable",
       );
     }
-    // The expect text is the LABEL as printed (sans colon) — always right by
-    // construction, where the display name may normalize nicknames away.
-    fields.name = {
-      op: "expect", page: statPage,
-      box: { x0: labelRun.x - 3, x1: labelRun.x + (labelRun.w ?? 60) + 3, y0: labelRun.y - 5, y1: labelRun.y + 5 },
-      text: label.replace(/\s*:\s*$/, "").slice(0, 60),
-    };
+    // The name IS the label as printed — always right by construction, where a
+    // display name may normalize nicknames away. A row that spells its label
+    // checks it as words; one that may not checks it by the label's key.
+    if (label == null) {
+      // A key answers to the label's letters and no others, so the box holds
+      // the ORIGIN of the label's run and nothing else: the clause's first run
+      // starts within a point of where the label ends.
+      const box = { x0: labelRun.x - 2, x1: labelRun.x + 2, y0: labelRun.y - 2.5, y1: labelRun.y + 2.5 };
+      fields.name = { op: "heading", page: statPage, box, hash: String(entry.anchor.hash) };
+      const inBox = runsIn(spd, fields.name);
+      if (inBox.length !== 1 || inBox[0] !== labelRun || printKey(labelRun.str) !== fields.name.hash) {
+        throw new Error(`the label's box on p.${statPage} does not read back to the anchor hash`);
+      }
+    } else {
+      const box = { x0: labelRun.x - 3, x1: labelRun.x + (labelRun.w ?? 60) + 3, y0: labelRun.y - 5, y1: labelRun.y + 5 };
+      fields.name = { op: "expect", page: statPage, box, text: label.replace(/\s*:\s*$/, "").slice(0, 60) };
+    }
   } else {
     // Residents stack name-over-name with nothing display-size between them:
     // the entry's own statline (same page AND column as the anchor) ends the
@@ -2291,10 +2402,8 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
     // (Gabriol's spell appendix).
     const sameColBlock = statPage === page && sCol === a.col && labelRun.y > a.endY;
     const flowOpts = {
-      stopAt: [
-        ...(bookCtx?.npcAnchors?.filter((s) => s !== (entry.anchor?.runin ?? entry.anchor?.display)) ?? []),
-        ...(assists.stopLines ?? []),
-      ],
+      stops: bookCtx?.npcStops?.filter((s) => s.id !== entry.id) ?? [],
+      stopKeys: assists.stopKeys ?? [],
       ...(sameColBlock && !assists.noDescStop ? { stopYOnce: labelRun.y - 4 } : {}),
     };
     const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.endY }, clusterItems, flowOpts);
@@ -2650,6 +2759,119 @@ async function compileSettingTable(doc, entry) {
   };
 }
 
+/**
+ * kind.organisation — a body of people a gazetteer introduces in running
+ * prose: no heading of its own, only its name set in bold where a sentence
+ * first says it. The row ships none of that name, so the run is FOUND by the
+ * key of its folded letters (`printKey`) and the entry's name is a `heading`
+ * checked by the same key; a name the line broke is two parts, the second
+ * glued on when a hyphen broke a word rather than a space. The description is
+ * the paragraph the name stands in — `assists.paras` takes the ones after it
+ * too — followed across the column turn when it does not end there. A block
+ * that says `nameFrom: "seat"` keeps that run-in as its `anchor` and takes its
+ * name from the heading of the place it is seated at.
+ *
+ * Runs after the book's other entries, like a scene: the block names a seat,
+ * holdings, people and quarters by id, and one that did not compile fails the
+ * organisation here rather than leaving a Judge a faction seated nowhere.
+ */
+async function compileOrganisation(doc, entry, compiled) {
+  const assists = entry.assists ?? {};
+  const page = entry.pages[0];
+  const pd = await pageItems(doc, page);
+  const cols = axColumns(pd, assists);
+  const hash = String(entry.anchor?.hash ?? "");
+  // The last column runs to the margin band, not to the usual body edge: AX3
+  // hangs its line-break hyphens in the gutter, past where prose stops.
+  const rangeOf = (c) => ({ x0: cols[c] - AX_HANG - 2, x1: cols[c + 1] ? cols[c + 1] - AX_HANG - 3 : pd.width - 36 });
+  const bodyOf = (c) => {
+    const { x0, x1 } = rangeOf(c);
+    return pd.items.filter((it) => it.h <= AX_BODY_MAX_H && it.x >= x0 && it.x <= x1 && it.y > AX_TOP_BAND && it.y < AX_FOOT_Y);
+  };
+  const isWord = (it) => !AX_LONE_HYPHEN.test(it.str);
+
+  let found = null;
+  for (let c = 0; c < cols.length && !found; c++) {
+    const lines = toLines(bodyOf(c)).map((ln) => [...ln.items].sort((a, b) => a.x - b.x));
+    for (let i = 0; i < lines.length && !found; i++) {
+      const words = lines[i].filter(isWord);
+      const single = words.find((it) => printKey(it.str) === hash);
+      if (single) {
+        found = { col: c, parts: [{ run: single }] };
+        break;
+      }
+      const last = words[words.length - 1];
+      const next = lines[i + 1]?.find(isWord);
+      if (!last || !next || next.y - last.y > 16 || printKey(`${last.str}${next.str}`) !== hash) continue;
+      const ownHyphen = /[-‐‑]\s*$/u.test(last.str);
+      const hung = lines[i].some((it) => !isWord(it) && it.x > last.x);
+      found = { col: c, parts: [{ run: last, mergeHyphen: ownHyphen }, { run: next, glue: ownHyphen || hung }] };
+    }
+  }
+  if (!found) throw new Error(`no run on p.${page} answers to the anchor hash`);
+
+  // A part's box holds the ORIGIN of its one run and nothing else, so the words
+  // beside the name on the same line stay out of it.
+  const parts = found.parts.map(({ run, glue, mergeHyphen }) => {
+    const part = { box: { x0: run.x - 2, x1: run.x + 2, y0: run.y - 2.5, y1: run.y + 2.5 } };
+    const inBox = runsIn(pd, part);
+    if (inBox.length !== 1 || inBox[0] !== run) throw new Error(`the name's box on p.${page} holds ${inBox.length} runs, not the one it was cut for`);
+    if (mergeHyphen) part.fixes = { mergeHyphen: [0] };
+    if (glue) part.glue = true;
+    return part;
+  });
+  const read = parts.reduce((title, part) => {
+    const piece = joinRuns(runsIn(pd, part), part.fixes).replace(/\s+/g, " ").trim();
+    return title && !part.glue ? `${title} ${piece}` : `${title}${piece}`;
+  }, "");
+  if (printKey(read) !== hash) throw new Error(`the name's parts on p.${page} do not read back to the anchor hash`);
+  const fields = { name: { op: "heading", page, hash, parts } };
+
+  const parasOf = (c) => {
+    const { x0, x1 } = rangeOf(c);
+    return axParas([{ page, pd, x0, x1, items: bodyOf(c) }], page, {}).paras;
+  };
+  const column = parasOf(found.col);
+  const y = found.parts[0].run.y;
+  const at = column.findIndex((p) => y >= p.box.y0 && y <= p.box.y1);
+  if (at < 0) throw new Error(`no paragraph on p.${page} holds the name`);
+  const take = Math.max(1, Number(assists.paras) || 1);
+  const paras = column.slice(at, at + take);
+  // A paragraph the column ends mid-sentence goes on at the top of the next
+  // one. The join is decided here, where the page can be seen, and shipped as
+  // `continues`: the text op's own test for it reads a capital as a new start.
+  const closes = (p) => /[.!?:;…"”’)\]]$/u.test(joinRuns(runsIn(pd, p), p.fixes).trim());
+  if (at + take >= column.length && !closes(paras[paras.length - 1])) {
+    const over = found.col + 1 < cols.length ? parasOf(found.col + 1)[0] : null;
+    if (!over) throw new Error(`the paragraph holding the name runs off p.${page}`);
+    paras.push({ ...over, continues: true });
+  }
+  fields.description = { op: "text", page, paras };
+
+  const { note: _note, ...block } = entry.organisation ?? {};
+  const named = [block.seat, block.leader, ...(block.holdings ?? []), ...(block.members ?? []), ...(block.replaces ?? []), ...(block.controls ?? [])].filter(Boolean);
+  const gone = named.filter((id) => !compiled[id]);
+  if (gone.length) throw new Error(`organisation names ${gone.join(", ")}, which did not compile`);
+  // Where the prose names the body after a PERSON — a master's school — the
+  // run-in is still what finds and guards the paragraph (`anchor`), and the
+  // name is read off the heading of the keyed place it keeps.
+  if (block.nameFrom === "seat") {
+    const seatName = compiled[block.seat]?.fields?.name;
+    if (seatName?.op !== "heading" || !seatName.number) throw new Error(`nameFrom "seat" needs a seat anchored by its key number`);
+    fields.anchor = fields.name;
+    fields.name = { ...seatName };
+  }
+
+  const out = {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
+    ...(entry.meta ? { meta: entry.meta } : {}), organisation: block, fields,
+  };
+  const skips = await axResidueAll(doc, entry.id, fields, { [page]: pd });
+  axAssistSkips(skips, assists, page);
+  if (Object.keys(skips).length) out._skips = skips;
+  return out;
+}
+
 const AX_COMPILERS = {
   "kind.location": compileLocation,
   "kind.npc": compileNpc,
@@ -2658,6 +2880,29 @@ const AX_COMPILERS = {
   "kind.monsterLegacy": compileLegacyMonster,
   "kind.monsterTemplate": compileMonsterTemplate,
 };
+
+/**
+ * kind.scene — a printed map stood up as a play surface. The row IS the
+ * recipe: every figure in it is geometry over one page, authored offline, and
+ * passes through unchanged, less its authoring note. What the compiler adds is
+ * the ANCHOR — the placement of the image the crop is cut from, read off this
+ * printing — which a seat's copy is checked against before anything is built,
+ * the way a heading's `expect` guards a text entry.
+ *
+ * It runs after the book's other entries, because a recipe names places,
+ * quarters and lists by id and is only sound over the ones that compiled: a
+ * place that was dropped, a place drawn over the wrong quarter, or a band that
+ * is no row of its list fails here rather than at a Judge's table.
+ */
+async function compileScene(doc, entry, compiled) {
+  const page = entry.pages[0];
+  const { note: _note, ...recipe } = entry.scene ?? {};
+  const problems = recipeProblems(recipe, recipeContext(compiled));
+  if (problems.length) throw new Error(`scene recipe: ${problems.join("; ")}`);
+  const placement = placementHolding(await pageArtPlacements(doc, page), recipe.crop);
+  if (!placement) throw new Error(`no image on p.${page} holds the crop`);
+  return { kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages, scene: { page, placement, ...recipe } };
+}
 
 /* -------------------------------------------- */
 /*  Class compilation (kind.class)              */
@@ -4626,18 +4871,26 @@ async function main() {
       },
       entries: {},
     };
-    // Per-book authoring context: sibling npc anchors become stop lines for
-    // stacked-resident prose flows (see compileNpc).
+    // Per-book authoring context: where each person's run-in name line stands,
+    // which ends a stacked sibling's prose flow (see compileNpc). Located by the
+    // anchor each row carries; one that cannot be found says so when the row
+    // itself compiles.
+    const npcStops = [];
+    for (const e of list) {
+      if (e.kind !== "kind.npc" || (e.status && e.status !== "active")) continue;
+      if (!(e.anchor?.hash != null ? e.anchor.as === "runin" : e.anchor?.runin != null)) continue;
+      const opened = await axOpen(doc, e).catch(() => null);
+      if (opened) npcStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
+    }
     const bookCtx = {
-      npcAnchors: list
-        .filter((e) => e.kind === "kind.npc")
-        .map((e) => e.anchor?.runin ?? e.anchor?.display)
-        .filter(Boolean),
+      npcStops,
       // The template compiler reads the monster kind's stat-row map so a
       // template page's FIXED rows ("Type: Monstrosity") bind like any
       // monster's; the "varies by …" rows fail their patterns and stay raw.
       kinds,
     };
+    const pendingScenes = [];
+    const pendingOrganisations = [];
     for (const entry of list.sort((a, b) => a.pages[0] - b.pages[0])) {
       const kindRow = kinds[entry.kind];
       if (!kindRow) {
@@ -4727,6 +4980,16 @@ async function main() {
         } catch (err) {
           warn(`${entry.id}: ${err.message}`);
         }
+        continue;
+      }
+      if (entry.kind === "kind.scene") {
+        // Compiled last, over what the rest of the book compiled to.
+        pendingScenes.push(entry);
+        continue;
+      }
+      if (entry.kind === "kind.organisation") {
+        // After the places and people it names, for the same reason.
+        pendingOrganisations.push(entry);
         continue;
       }
       const axCompile = AX_COMPILERS[entry.kind];
@@ -4835,6 +5098,39 @@ async function main() {
         console.error(
           `families: ${Object.keys(families).length} (${Object.values(families).reduce((n, f) => n + f.members.length, 0)} member entr(ies))`
         );
+      }
+    }
+    for (const entry of pendingOrganisations) {
+      try {
+        const { _skips, ...ship } = await compileOrganisation(doc, entry, out.entries);
+        for (const [p, boxes] of Object.entries(_skips ?? {})) {
+          const have = (out.skips ??= {})[p] ?? [];
+          const seen = new Set(have.map((b) => JSON.stringify(b)));
+          out.skips[p] = [...have, ...boxes.filter((b) => !seen.has(JSON.stringify(b)))];
+        }
+        out.entries[entry.id] = ship;
+        const runin = ship.fields.anchor ?? ship.fields.name;
+        console.error(`OK   ${entry.id}: organisation (${ship.fields.description.paras.length} paras, ${runin.parts.length} name part(s)${ship.fields.anchor ? ", named after its seat" : ""})`);
+      } catch (err) {
+        warn(`${entry.id}: ${err.message}`);
+      }
+    }
+    // A relation is only as good as its other end: one that names an
+    // organisation that did not compile is dropped, and said.
+    for (const entry of pendingOrganisations) {
+      const block = out.entries[entry.id]?.organisation;
+      if (!block?.relations) continue;
+      const kept = block.relations.filter((r) => out.entries[r.to]?.kind === "kind.organisation");
+      if (kept.length !== block.relations.length) warn(`${entry.id}: ${block.relations.length - kept.length} relation(s) name an organisation that did not compile — dropped`);
+      block.relations = kept;
+    }
+    for (const entry of pendingScenes) {
+      try {
+        const scene = await compileScene(doc, entry, out.entries);
+        (out.scenes ??= {})[entry.id] = scene;
+        console.error(`OK   ${entry.id}: scene (${scene.scene.districts?.length ?? 0} quarter(s), ${scene.scene.places?.length ?? 0} place(s))`);
+      } catch (err) {
+        warn(`${entry.id}: ${err.message}`);
       }
     }
     if (Object.keys(out.entries).length) {

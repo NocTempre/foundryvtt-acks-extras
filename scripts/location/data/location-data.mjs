@@ -37,7 +37,8 @@ import { acksCompatStubs } from "../../lib/actor-compat.mjs";
 // num/str/int are the family's leaf field-builders — one definition in acks-lib
 // (this file and henchman-record.mjs each had a verbatim copy). `fields` is
 // still needed locally for the non-leaf types (SchemaField, ArrayField, HTMLField).
-import { num, str, int } from "../../lib/fields.mjs";
+// `occupantField` is the roster row a place and a faction share.
+import { num, str, int, occupantField } from "../../lib/fields.mjs";
 import { goodsSchema } from "../../markets/data/goods-schema.mjs";
 import { migrateLocationSource } from "./location-migrate.mjs";
 
@@ -169,41 +170,6 @@ function candidateField() {
 }
 
 /**
- * One occupant — a living thing kept at this place.
- *
- * A REFERENCE, not an embedded document: Foundry cannot embed an Actor in an
- * Actor, so a garrison, a stabled horse and a captive dragon are all uuids. The
- * name and image are DENORMALISED alongside, for the same reason storage stamps
- * `ownerName` next to `ownerUuid` — a deleted actor leaves a row that still says
- * what used to be here, which is a record a GM can act on rather than a blank.
- */
-function occupantField() {
-  return new fields.SchemaField({
-    uuid: str(),
-    name: str(),
-    img: str(),
-    kind: new fields.StringField({
-      required: true,
-      initial: "actor",
-      choices: ["actor", "group", "monster", "henchman", "place"],
-    }),
-    // A group row counts its whole stack: a platoon billeted at an inn is 30
-    // people asleep in it, and a headcount that said 1 would mislead every
-    // capacity decision made from this sheet.
-    quantity: int(1),
-    ownerUuid: str(), // who put it here / whose it is; "" = the place's own
-    // Caller-supplied at placement (acks-lib `occupantRow` / `addOccupant` option
-    // bag), and kept when a stored row absorbs its derived scene duplicate. No
-    // sheet control renders it yet: a consumer's text is stored, not shown.
-    notes: str(),
-    // Display gating only, never a security boundary — the same ruling storage
-    // makes about attribution. A garrison that must genuinely stay secret
-    // belongs on a GM-owned place.
-    hidden: new fields.BooleanField({ initial: false }),
-  });
-}
-
-/**
  * The MARKET subtree: the henchmen recruitment domain's fields, plus the
  * markets feature's `goods` fragment (authored in
  * scripts/markets/data/goods-schema.mjs; every writer lives there).
@@ -233,6 +199,14 @@ function marketSchema() {
     tillRefreshTime: num({ min: 0 }),
     domainUuid: str(),
     classRarityTableId: new fields.StringField({ required: true, initial: "default" }),
+    // The Judge's word on a class's rarity in THIS market, consulted before
+    // the rarity table on every directed search (henchmen `overrideRarity`).
+    rarityOverrides: new fields.ArrayField(
+      new fields.SchemaField({
+        classKey: str(),
+        rarity: str(),
+      })
+    ),
     // Settlement alignment: directed searches for opposed-alignment classes
     // shift one rarity step (alignmentRecruitment table); the default
     // ladders encode a lawful town, other alignments override via variant.
@@ -430,6 +404,10 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       // matching flag) and mirrored here so the sheet can offer "open the map"
       // without a world scan. Never auto-created — the link is made on demand.
       sceneUuid: str(),
+      // The scene REGION this place is — a quarter of a city drawn as a
+      // District. The same link at a finer grain: the region holds the
+      // matching flag and this is its mirror, kept true by scene-link.mjs.
+      regionUuid: str(),
 
       // --- stacking ------------------------------------------------------
       // Eight identical warehouse bays are ONE actor until one of them becomes
@@ -444,7 +422,7 @@ export class LocationData extends foundry.abstract.TypeDataModel {
 
       // --- occupancy -----------------------------------------------------
       // The living things kept here. Goods are embedded items (acks-lib
-      // storage); these cannot be, so they are references.
+      // storage); these cannot be, so they are references (lib `occupantField`).
       roster: new fields.ArrayField(occupantField()),
 
       // --- the market, if this place has one -----------------------------

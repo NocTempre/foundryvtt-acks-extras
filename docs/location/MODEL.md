@@ -13,8 +13,8 @@ sibling modules (henchmen today; domains later) read through acks-lib.
   - Actor sub-type `acks-extras.location` (TypeDataModel), registered here and
     only here: identity and nesting (name, region, notes, `parentUuid`), a
     reference roster, a stack count, and — on the places that have one — a
-    nullable `market` subtree carrying demographics, market class, postings,
-    candidates and slander.
+    nullable `market` subtree carrying demographics, market class, the
+    Judge's rarity overrides, postings, candidates and slander.
   - **Storage at a place**: the lib subsystem owns the primitives (providers, stored
     goods, transfers, the deletion fallback); this module owns the experience
     — the location sheet, the character sheet's Storage tab, the retirement of
@@ -78,3 +78,60 @@ square, and a floor being the scene's own square distance.
 surfaces that ask about every place at once and handed to each call. The rulings
 these follow, and what each cost, are in [DECISIONS.md](DECISIONS.md)
 (2026-09-12).
+
+## A place on the map
+
+A place's own token is a **point of interest**: the shrine in the square, the
+gate, the tavern the party is looking for. Nothing new is stored for one — it
+is the location actor dropped on a scene the ordinary way — and three things
+follow from its being an actor's token rather than a marker's.
+
+**It is made to be a marker.** A location actor created without saying
+otherwise gets a prototype token whose name shows on hover to anyone, with no
+bars, a neutral disposition, no sight, and core's own house for a picture on
+both the actor and the token (`preCreateActor`, `module.mjs`), each default
+applied only where the creation data was silent. `actorLink` is left alone on
+purpose: `here.mjs` matches a place by the token's base actor id, which an
+unlinked token carries too, so a Judge who drops one shrine on three maps has
+one place on three maps.
+
+**It is not a body.** Every reader that takes a token for somebody standing
+there steps over a place's: the roster a linked scene derives
+(`sceneOccupants`, lib `place.mjs`), token sync's vision and light writes
+(`tokenSyncDelta`), the battlemap's size-by-creature scaling, and a
+formation's **Add to party**. A shrine standing in the market square is not
+the square's tenant and cannot join a marching order.
+
+**It keeps its place alive.** `pruneEmptyLocations` spares an empty place that
+has a token on any scene, hidden or not — a marker the Judge hid is a point of
+interest not yet found. The world's tokens are walked once per sweep, not once
+per place.
+
+**A quarter's own place.** A scene Region can carry the same
+`flags["acks-extras"].location` the scene carries, at the Region's grain, and
+the place mirrors it in `system.regionUuid`. `locationOfRegion` /
+`regionOfLocation` read the pair with the flag-wins repair the scene link has,
+`linkRegion` / `unlinkRegion` / `createLocationForRegion` write it, and the
+`updateRegion` / `deleteRegion` / `deleteScene` hooks keep the mirror true (all
+`scene-link.mjs`). The one Judge surface is the District behaviour's sheet,
+into which the formation feature injects a **Place** row that calls this
+feature's api: pick a place, or make one named after the Region and nested
+inside the scene's own place. A quarter's place is what answers "where is the
+market" when the party stands on no point of interest at all; the ruling is
+[DECISIONS.md](DECISIONS.md) 2026-09-16.
+
+## Organisations here
+
+A place's Contents tab lists the organisations at it — seated here, holding
+this place, or controlling the quarter it is — for a GM or an owner, each an
+open link with a small label. It is read through `acksExtras.factions` at
+render time rather than by import, so a world without that feature renders no
+section at all and this module keeps its one family edge; a holding its owner
+marked hidden reaches a Judge only. What an organisation is, what seating and
+holding mean and where the api comes from are the factions feature's
+(`docs/factions/MODEL.md`, "Where a faction stands").
+
+`placesOnScene(scene)` lists every visible place token on a map and is what the
+settlement panel offers as destinations; the panel, the incident markers and
+the walk between points are the formation feature's
+(`docs/formation/MODEL.md` "Points of interest").

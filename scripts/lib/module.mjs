@@ -106,7 +106,8 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  apiVersion: 16,
+  // 17: fields.occupantField — the roster row a place and a faction share.
+  apiVersion: 17,
   vocab,
   fields,
   /**

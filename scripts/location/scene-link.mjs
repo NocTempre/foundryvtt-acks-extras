@@ -50,6 +50,41 @@ export function sceneOfLocation(location) {
 }
 
 /* -------------------------------------------- */
+/*  A region's place                             */
+/* -------------------------------------------- */
+
+/**
+ * The place a scene Region is, or null.
+ *
+ * The same flag the scene carries, at the Region's grain: a quarter of a city
+ * drawn as a District names the location actor that IS the quarter — its
+ * market, its notes, what is kept there — and the place mirrors it in
+ * `system.regionUuid`. The REGION'S flag is authoritative for the reason the
+ * scene's is: it travels with the scene through duplication and import, and
+ * the mirror is repaired from it whenever the two are seen to disagree.
+ */
+export function locationOfRegion(region) {
+  const uuid = region?.getFlag?.(MODULE_ID, SCENE_LINK_FLAG);
+  if (!uuid) return null;
+  const actor = game.actors?.get(String(uuid).split(".")[1]) ?? null;
+  return actor?.type === LOCATION_TYPE ? actor : null;
+}
+
+/** The Region a place is, or null. Reads the mirror, verifies against the flag. */
+export function regionOfLocation(location) {
+  const uuid = location?.system?.regionUuid;
+  if (!uuid) return null;
+  let region = null;
+  try {
+    region = fromUuidSync(uuid);
+  } catch {
+    return null;
+  }
+  if (region?.documentName !== "Region") return null;
+  return region.getFlag(MODULE_ID, SCENE_LINK_FLAG) === location.uuid ? region : null;
+}
+
+/* -------------------------------------------- */
 /*  Making and breaking it                       */
 /* -------------------------------------------- */
 
@@ -104,6 +139,81 @@ export async function createLocationForScene(scene) {
   return location;
 }
 
+/**
+ * Link a Region to a place, writing both ends. A place that pointed at another
+ * region lets it go first, and a region that pointed at another place clears
+ * that place's mirror, so neither end ever claims a link the other denies.
+ */
+export async function linkRegion(region, location) {
+  if (!region || !location || !game.user.isGM) return false;
+  const previous = locationOfRegion(region);
+  if (previous && previous.uuid !== location.uuid) {
+    await previous.update({ "system.regionUuid": "" }).catch(() => null);
+  }
+  await region.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
+  await location.update({ "system.regionUuid": region.uuid });
+  return true;
+}
+
+/** Break a region's link from either end. */
+export async function unlinkRegion(region) {
+  if (!region || !game.user.isGM) return false;
+  const location = locationOfRegion(region);
+  await region.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
+  if (location) await location.update({ "system.regionUuid": "" }).catch(() => null);
+  return true;
+}
+
+/**
+ * Make a place for a Region and link the two.
+ *
+ * Named after the region and nested inside the scene's own place when the
+ * scene has one, so a quarter sits inside its city the way its outline sits
+ * inside the city's map.
+ */
+export async function createLocationForRegion(region) {
+  if (!region || !game.user.isGM) return null;
+  const existing = locationOfRegion(region);
+  if (existing) {
+    existing.sheet?.render(true);
+    return existing;
+  }
+  const location = await Actor.create({
+    name: region.name,
+    type: LOCATION_TYPE,
+    img: "icons/svg/city.svg",
+    system: { regionUuid: region.uuid, parentUuid: locationOfScene(region.parent)?.uuid ?? "" },
+  });
+  if (!location) return null;
+  await region.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
+  ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.regionLinked`, { name: location.name, region: region.name }));
+  location.sheet?.render(true);
+  return location;
+}
+
+/**
+ * Write the mirrors for a scene CREATED already linked, its regions' with it.
+ *
+ * A map built whole carries its link flags from its first write, which the
+ * update hooks below never see; the mirrors cannot ride in the same create,
+ * because they name documents that did not exist yet. One batched update, and
+ * only for a place whose mirror does not already say so.
+ * @returns {Promise<number>} how many places were written
+ */
+export async function mirrorCreatedLinks(scene) {
+  if (!scene || !game.user.isGM) return 0;
+  const updates = new Map();
+  const want = (uuid, key, value) => {
+    const actor = uuid ? game.actors?.get(String(uuid).split(".")[1]) : null;
+    if (actor?.type !== LOCATION_TYPE || actor.system?.[key] === value) return;
+    updates.set(actor.id, { ...(updates.get(actor.id) ?? { _id: actor.id }), [`system.${key}`]: value });
+  };
+  want(scene.getFlag(MODULE_ID, SCENE_LINK_FLAG), "sceneUuid", scene.uuid);
+  for (const region of scene.regions ?? []) want(region.getFlag(MODULE_ID, SCENE_LINK_FLAG), "regionUuid", region.uuid);
+  if (updates.size) await Actor.updateDocuments([...updates.values()]);
+  return updates.size;
+}
+
 /* -------------------------------------------- */
 /*  Keeping the mirror true                      */
 /* -------------------------------------------- */
@@ -138,6 +248,33 @@ export function registerSceneLinkSync() {
     if (userId !== game.userId || !game.user.isGM) return;
     for (const actor of game.actors.filter((a) => a.type === LOCATION_TYPE && a.system.sceneUuid === scene.uuid)) {
       await actor.update({ "system.sceneUuid": "" }).catch(() => null);
+    }
+    // Its regions went with it, and every mirror pointing into it with them.
+    const inside = `${scene.uuid}.Region.`;
+    for (const actor of game.actors.filter((a) => a.type === LOCATION_TYPE && String(a.system.regionUuid ?? "").startsWith(inside))) {
+      await actor.update({ "system.regionUuid": "" }).catch(() => null);
+    }
+  });
+
+  // The region's link, kept true the same way: repaired from the flag when it
+  // moves, dropped when the region dies. The place survives its outline.
+  Hooks.on("updateRegion", async (region, changes, _options, userId) => {
+    if (userId !== game.userId || !game.user.isGM) return;
+    const flag = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${SCENE_LINK_FLAG}`);
+    const cleared = isUnset(flag) || foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.-=${SCENE_LINK_FLAG}`);
+    if (flag === undefined && !cleared) return;
+    for (const actor of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
+      const shouldPoint = flag && actor.uuid === flag;
+      const doesPoint = actor.system.regionUuid === region.uuid;
+      if (shouldPoint && !doesPoint) await actor.update({ "system.regionUuid": region.uuid }).catch(() => null);
+      else if (!shouldPoint && doesPoint) await actor.update({ "system.regionUuid": "" }).catch(() => null);
+    }
+  });
+
+  Hooks.on("deleteRegion", async (region, _options, userId) => {
+    if (userId !== game.userId || !game.user.isGM) return;
+    for (const actor of game.actors.filter((a) => a.type === LOCATION_TYPE && a.system.regionUuid === region.uuid)) {
+      await actor.update({ "system.regionUuid": "" }).catch(() => null);
     }
   });
 }

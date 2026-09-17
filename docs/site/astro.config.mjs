@@ -92,6 +92,7 @@ export default defineConfig({
             { label: "Henchmen & hirelings", slug: "guides/henchmen" },
             { label: "Influence & reactions", slug: "guides/influence" },
             { label: "Places & storage", slug: "guides/location" },
+            { label: "Factions, standing & status", slug: "guides/factions" },
             { label: "Item markets & ventures", slug: "guides/markets" },
             { label: "The Monstrous Manual stat block", slug: "guides/monsters" },
             { label: "Appearance & theming", slug: "guides/appearance" },

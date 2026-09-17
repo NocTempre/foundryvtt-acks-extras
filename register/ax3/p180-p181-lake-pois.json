@@ -1,0 +1,93 @@
+[
+  {
+    "id": "ax3.poi70",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 70",
+    "anchor": {
+      "number": "70."
+    },
+    "pages": [
+      180
+    ],
+    "meta": {
+      "group": "Lake District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi71",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 71",
+    "anchor": {
+      "number": "71."
+    },
+    "pages": [
+      180
+    ],
+    "meta": {
+      "group": "Lake District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi72",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 72",
+    "anchor": {
+      "number": "72."
+    },
+    "pages": [
+      180
+    ],
+    "meta": {
+      "group": "Lake District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi73",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 73",
+    "anchor": {
+      "number": "73."
+    },
+    "pages": [
+      180,
+      181
+    ],
+    "meta": {
+      "group": "Lake District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi74",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 74",
+    "anchor": {
+      "number": "74."
+    },
+    "pages": [
+      181
+    ],
+    "meta": {
+      "group": "Lake District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi75U",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 75U",
+    "anchor": {
+      "number": "75U."
+    },
+    "pages": [
+      181
+    ],
+    "meta": {
+      "group": "Lake District — Points of Interest"
+    }
+  }
+]

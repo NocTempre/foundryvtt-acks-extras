@@ -248,3 +248,19 @@ would have bought conformity at the cost of an abstraction neither store
 actually needs — each feature keeps its own store, and only the shape agrees.
 A graph/map VIEW over both is a different question; see
 [ROADMAP.md](ROADMAP.md).
+
+### Rarity overrides are rows on the market, not a second table variant (2026-09-16)
+
+**Ruled:** a location's market carries `rarityOverrides` rows
+`{classKey, rarity}`, consulted before the rarity table on every directed
+search (`overrideRarity` in `rules/availability.mjs`); the location sheet's
+GM Settings edits them beside the variant picker.
+
+**Why.** A town where wizards are common is a fact about the town, and the
+Judge who knows it types it on the town's sheet rather than registering a
+whole table variant that differs from `default` by one row. The seam was
+already there — `shiftRarity` and the variant argument — and this is the
+untaken half of it.
+
+**Cost:** two places can now say a class's rarity; the row wins, and the
+sheet shows the rows beside the variant so nothing is hidden.

@@ -1,0 +1,9 @@
+{
+  "id": "kind.organisation",
+  "role": "composite",
+  "note": "A body of people a gazetteer introduces in running prose. The row ships no word of its name: a numbered label, a printKey hash that finds the bold run, and a block naming its seat, holdings, leader, members, quarters and rivals BY ID, with this module's own words for what sort of body it is and how it stands to another. Binding routes to a faction actor named from the page.",
+  "fields": {
+    "name": { "locate": "printKey" },
+    "description": { "locate": "paragraph", "type": "blocks" }
+  }
+}

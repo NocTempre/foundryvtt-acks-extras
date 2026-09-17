@@ -1,0 +1,215 @@
+[
+  {
+    "id": "ax3.poi15",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 15",
+    "anchor": {
+      "number": "15."
+    },
+    "pages": [
+      101
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi16",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 16",
+    "anchor": {
+      "number": "16."
+    },
+    "pages": [
+      101
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi17",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 17",
+    "anchor": {
+      "number": "17."
+    },
+    "pages": [
+      101
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi18",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 18",
+    "anchor": {
+      "number": "18."
+    },
+    "pages": [
+      101
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi19",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 19",
+    "anchor": {
+      "number": "19."
+    },
+    "pages": [
+      101,
+      102,
+      103
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi20",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 20/20U",
+    "anchor": {
+      "number": "20/20U."
+    },
+    "pages": [
+      103
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi21",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 21",
+    "anchor": {
+      "number": "21."
+    },
+    "pages": [
+      103
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi22",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 22",
+    "anchor": {
+      "number": "22."
+    },
+    "pages": [
+      103
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi23",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 23",
+    "anchor": {
+      "number": "23."
+    },
+    "pages": [
+      103
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi24",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 24",
+    "anchor": {
+      "number": "24."
+    },
+    "pages": [
+      103
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi25",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 25/25U",
+    "anchor": {
+      "number": "25/25U."
+    },
+    "pages": [
+      103
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi26",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 26",
+    "anchor": {
+      "number": "26."
+    },
+    "pages": [
+      103,
+      104
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi27",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 27",
+    "anchor": {
+      "number": "27."
+    },
+    "pages": [
+      104
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi28U",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 28U",
+    "anchor": {
+      "number": "28U."
+    },
+    "pages": [
+      104
+    ],
+    "meta": {
+      "group": "Festival District — Points of Interest"
+    }
+  }
+]

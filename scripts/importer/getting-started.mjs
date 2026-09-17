@@ -106,7 +106,14 @@ const GM_STEPS = [
   // Judge has to make to import their own books.
   ["stepOseBooks", (api) => api.oseImportAuthored()],
   ["stepJournals", (api) => api.cookbookImportJournals()],
+  // A settlement's keyed places are actors, not pages: after the journals,
+  // because a page path that also held them would have skipped them already.
+  ["stepPoi", (api) => api.cookbookImportPoiPlaces()],
+  ["stepFactions", (api) => api.cookbookImportFactions()],
   ["stepRollTables", (api) => api.cookbookImportRollTables()],
+  // A map stands on the places, names the organisations seated in its quarters
+  // and wires in the lists, so it follows all three.
+  ["stepScenes", (api) => api.cookbookImportScenes()],
   ["stepTables", (api) => api.cookbookImportTables()],
 ];
 

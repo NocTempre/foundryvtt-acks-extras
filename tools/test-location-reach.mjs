@@ -74,7 +74,7 @@ globalThis.acksExtras.lib = {
   },
 };
 
-const { depositReach, reachablePlaces, reachScan } = await import("../scripts/location/reach.mjs");
+const { depositReach, reachablePlaces, reachScan, ownersShare } = await import("../scripts/location/reach.mjs");
 const { placeUnderParty, placeReachesSpot, placeStandsOn } = await import("../scripts/location/here.mjs");
 const { LOCATION_TYPE, MODULE_ID, SCENE_LINK_FLAG } = await import("../scripts/location/constants.mjs");
 // `coinReach`'s actor-to-actor branch asks the same question these fixtures are
@@ -589,6 +589,24 @@ ok("a place open to everyone answers for a character with an owner", () => {
   march(road, [hero]);
 
   assert.equal(depositReach(hero, commons).can, true, "the place's default level reaches the character's owners");
+});
+
+ok("ownersShare asks the users who own the CHARACTER, and only the place's default counts", () => {
+  const hero = makeHero("Balas", owned());
+  assert.equal(ownersShare(hero, makePlace("Mine", owned())), true, "an owner in common");
+  assert.equal(ownersShare(hero, makePlace("Commons", { ownership: { default: 3 } })), true,
+    "a place open to everyone is open to the character's owners");
+  assert.equal(ownersShare(hero, makePlace("Theirs", owned(STRANGER))), false, "somebody else's is not");
+  assert.equal(ownersShare(hero, makePlace("Watched", { ownership: { [PLAYER]: 2 } })), false,
+    "an observer of the place is not its owner");
+  // The subject's default names no user, so reading it as "everyone" would let
+  // any character the world left open reach every place anyone owns.
+  assert.equal(ownersShare(makeHero("Nobody", { ownership: { default: 3 } }), makePlace("Mine", owned())), false,
+    "the subject's default never counts");
+  assert.equal(ownersShare(makeHero("Seen", { ownership: { [PLAYER]: 2 } }), makePlace("Mine", owned())), false,
+    "nor does a user who merely observes the character");
+  assert.equal(ownersShare(null, makePlace("Mine", owned())), false);
+  assert.equal(ownersShare(hero, null), false);
 });
 
 ok("a missing actor or place is gone", () => {

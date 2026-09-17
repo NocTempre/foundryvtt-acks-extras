@@ -68,6 +68,20 @@ export function classRarity(className, variant = "default") {
 }
 
 /**
+ * The Judge's word on a class's rarity in ONE market — the location's
+ * `market.rarityOverrides` rows `{classKey, rarity}` — or null when the
+ * market says nothing about the class. Consulted before the rarity table on
+ * every directed search, so a town where wizards are common is a row on the
+ * town rather than a second table variant.
+ */
+export function overrideRarity(overrides, classKey) {
+  const wanted = String(classKey ?? "").toLowerCase().trim();
+  if (!wanted) return null;
+  const row = (overrides ?? []).find((o) => String(o?.classKey ?? "").toLowerCase().trim() === wanted);
+  return row && RARITY_TIERS.includes(row.rarity) ? row.rarity : null;
+}
+
+/**
  * Shift a rarity tier N steps toward Legendary (JJ: +1 per level above 1st,
  * +1 per proficiency rank, −1 for commissioning). Returns null when shifted
  * past Legendary (not findable by this method).
@@ -94,10 +108,13 @@ export function rarityExpr(tier, marketClass) {
  * @param {(f: string) => Promise<number>} rollDice
  * @param {() => number} [rand]
  * @param {string} [rarityVariant="default"]
+ * @param {Array<{classKey: string, rarity: string}>} [rarityOverrides] the
+ *   market's own word on a class's rarity, consulted before the table
  * @returns {Promise<{quantity:number, detail:string, capExpr?:string, rarity?:string}|{error:string}>}
  */
-export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.random, rarityVariant = "default") {
+export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.random, rarityVariant = "default", rarityOverrides = []) {
   const mc = clampMarketClass(marketClass);
+  const rarityOf = (classKey) => overrideRarity(rarityOverrides, classKey) ?? classRarity(classKey, rarityVariant);
   switch (spec.kind) {
     case "henchman": {
       const found = henchmanExpr(spec.level ?? 0, mc);
@@ -117,7 +134,7 @@ export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.r
       return { ...rolled, wage: found.wage, wageUnit: found.wageUnit };
     }
     case "henchmanByClass": {
-      let tier = spec.rarityOverride ?? classRarity(spec.classKey, rarityVariant);
+      let tier = spec.rarityOverride ?? rarityOf(spec.classKey);
       if (!tier) return { error: "unknown-class" };
       if (spec.levelShift) tier = shiftRarity(tier, spec.levelShift);
       // Alignment openness: recruiting an opposed-alignment class openly is
@@ -148,7 +165,7 @@ export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.r
     case "henchmanByClassProficiency": {
       // CLASS proficiency search: base rarity of the qualifying class the
       // recruiter names, shifted per additional rank (JJ 119).
-      let tier = classRarity(spec.classKey, rarityVariant);
+      let tier = rarityOf(spec.classKey);
       if (!tier) return { error: "unknown-class" };
       // JJ 119: "equal to the base class, plus one for EACH rank" — rank 1
       // already shifts (a Common class's rank-1 class prof is Uncommon).

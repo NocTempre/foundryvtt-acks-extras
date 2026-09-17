@@ -20,6 +20,10 @@
  *              finishes initializing first rather than leaving it to chance.
  *              The `location` Actor sub-type is registered once either way, by
  *              location/module.mjs, which owns it.
+ *   factions   after location — its sheet reads the place layer and the
+ *              district vocabulary through direct imports, and its api is
+ *              what the henchmen feature asks for a standing shift at call
+ *              time; nothing imports it.
  *   markets    after location — it consumes lib registries, equipment's gear
  *              grant, henchmen's coin adapter/time/market-class rules, and
  *              location's market subtree; nothing consumes it.
@@ -49,6 +53,7 @@ import "./formation/module.mjs";
 import "./influence/module.mjs";
 import "./henchmen/module.mjs";
 import "./location/module.mjs";
+import "./factions/module.mjs";
 import "./markets/module.mjs";
 import "./monsters/module.mjs";
 import "./battlemap/module.mjs";

@@ -12,6 +12,7 @@ import {
   MODULE_ID,
   EXTERNAL_MODES,
   ROLL_FAMILY,
+  externalRows,
 } from "./constants.mjs";
 import {
   autoKeysByTone,
@@ -99,11 +100,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     this.#targetActor = options.targetActor ?? getTargetActor();
     // Other modules (e.g. acks-henchmen: per-settlement slander penalties) can
     // inject flat modifiers; they apply to every tone and show on the card.
-    this.#externalModifiers = Array.isArray(options.modifiers)
-      ? options.modifiers
-          .map((m) => ({ label: String(m?.label ?? "external"), value: Number(m?.value) || 0 }))
-          .filter((m) => m.value !== 0)
-      : [];
+    this.#externalModifiers = externalRows(options.modifiers);
     // Don't auto-fill the target with the influencer themselves (e.g. a
     // self-targeted token) — keep the two sides distinct until set explicitly.
     if (this.#targetActor && this.#targetActor === this.#actor) this.#targetActor = null;
@@ -531,7 +528,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         if (contribution !== 0) list.push({ label: game.i18n.localize(mod.label), value: contribution });
       }
     }
-    for (const external of this.#externalModifiers) list.push({ label: external.label, value: external.value });
+    // A note adds nothing, and this is the list of what was added.
+    for (const external of this.#externalModifiers) {
+      if (external.value !== 0) list.push({ label: external.label, value: external.value });
+    }
     const gm = Number(this.#system.gmAdjustment) || 0;
     if (gm !== 0) list.push({ label: game.i18n.localize("ACKS-INFLUENCE.summary.gmAdjustment"), value: gm });
     return list;
@@ -756,7 +756,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     // list is empty — this is what lets the dialog say why. Not target-derived,
     // so unlike bribeFee/targetWill/etc. they carry no target secret and are
     // never subject to #targetHidden() masking.
-    context.externalModifiers = this.#externalModifiers.map((m) => ({ label: m.label, value: m.value }));
+    context.externalModifiers = this.#externalModifiers.map((m) => ({ label: m.label, value: m.value, note: m.note }));
     context.relationshipModifier = this.#relationshipModifier();
     context.finalModifier = this.#finalModifier;
     context.targetHidden = this.#targetHidden();

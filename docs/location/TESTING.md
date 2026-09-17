@@ -224,6 +224,36 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     party token left at ground level.
     *Observable:* the deposit control goes away. Lower it to within one square's
     distance and it comes back.
+17. **A place's token is a marker.** Create a location actor without stating a
+    picture and drop its token on any scene (`const td = await
+    actor.getTokenDocument({x, y}); await scene.createEmbeddedDocuments("Token",
+    [td.toObject()])`; track the token by id).
+    *Observable:* actor and token both show core's house; the token's name
+    shows on hover for anyone, it has no bars, a neutral disposition and sight
+    off. Create a second one WITH `img` and `prototypeToken.disposition`
+    stated: both are kept. `prototypeToken.actorLink` is whatever core gave it
+    — the hook never sets it.
+18. **It is not a body.** Link the scene to a second disposable place and open
+    that place's Roster; select the point's token and open the token HUD;
+    change the point's actor in a way token sync would follow (its senses).
+    *Observable:* the roster lists every creature's token and NOT the point;
+    the HUD shows no **Add to party**; the token neither lights nor sees.
+19. **A quarter's own place.** On a scene carrying a District Region
+    ([../formation/TESTING.md](../formation/TESTING.md) steps 15–16), open the
+    behaviour's sheet: the **Place** row lists every location actor and a
+    **+** button. Press **+**.
+    *Observable:* a place named after the Region appears, inside the scene's
+    place when the scene is linked;
+    `acksExtras.location.scenes.locationOfRegion(region)` returns it and its
+    `system.regionUuid` is the Region's uuid. Pick **— none —**: both ends
+    clear. Pick it again: both set. Delete the Region: the place survives with
+    `regionUuid` empty. Track the place the button made by id.
+20. **A placed or quartered place survives the prune.** With the prune
+    setting on, run the sweep — it is not on the api:
+    `(await import("/modules/acks-extras/scripts/location/module.mjs")).pruneEmptyLocations()`.
+    *Observable:* the quarter's place (empty, but a quarter) and the point
+    (empty, but standing on a map — hide its token and run again) survive; an
+    empty place with no token, no link and nothing in it goes.
 
 ## Teardown
 

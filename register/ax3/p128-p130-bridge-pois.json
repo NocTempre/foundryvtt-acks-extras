@@ -1,0 +1,139 @@
+[
+  {
+    "id": "ax3.poi29",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 29",
+    "anchor": {
+      "number": "29."
+    },
+    "pages": [
+      128
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi30",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 30",
+    "anchor": {
+      "number": "30."
+    },
+    "pages": [
+      128
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi31",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 31",
+    "anchor": {
+      "number": "31."
+    },
+    "pages": [
+      128
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi32",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 32",
+    "anchor": {
+      "number": "32."
+    },
+    "pages": [
+      128
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi33",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 33",
+    "anchor": {
+      "number": "33."
+    },
+    "pages": [
+      128
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi34",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 34",
+    "anchor": {
+      "number": "34."
+    },
+    "pages": [
+      128,
+      129
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi35",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 35",
+    "anchor": {
+      "number": "35."
+    },
+    "pages": [
+      129
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi36",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 36",
+    "anchor": {
+      "number": "36."
+    },
+    "pages": [
+      129
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi36U",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 36U",
+    "anchor": {
+      "number": "36U."
+    },
+    "pages": [
+      129,
+      130
+    ],
+    "meta": {
+      "group": "Bridge District — Points of Interest"
+    }
+  }
+]

@@ -34,6 +34,7 @@ import { isPrimaryGM, unset } from "./util.mjs";
 import { hasNightVision, senseProfile } from "./senses.mjs";
 import { DETECTION_MODES } from "./perception.mjs";
 import { bearerLights, brightestLightReaching, emittedLight } from "./light.mjs";
+import { isLocation } from "./place.mjs";
 
 /**
  * The detection modes this module manages. A token that stops having a sense
@@ -209,6 +210,9 @@ export async function applyTokenLight(tokenDoc, light) {
 function tokenSyncDelta(tokenDoc) {
   const actor = tokenDoc?.actor;
   if (!actor || actor.type === PARTY_ACTOR_TYPE) return null;
+  // A place has no senses and carries no light: its token keeps whatever the
+  // Judge gave it, a lantern over a shrine included.
+  if (isLocation(actor)) return null;
   // Only Night Vision reads the light around the token, and finding it costs a
   // pass over every light and token on the scene. Asked for that one sense
   // rather than for all of them, so an ordinary sweep is unchanged.

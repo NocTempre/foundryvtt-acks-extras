@@ -474,10 +474,20 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    `.acks-extras-formation-settlement` with controls named
    `travel.settlement.{pace,where,route,night,intent,conveyance}` and **no
    button that advances anything**.
-2. Run it once with NO `settlement` document registered.
+2. Run it once with NO city document registered. **The document's id is
+   `acksExtras.formation.settlement.SETTLEMENT_DOC`, which reads `cityTravel`
+   and not `settlement`** — a `settlement` document exists too, belongs to the
+   market classes, and accepts a registration without complaint, so figures
+   filed under it are simply never read and every throw reports itself
+   unpriced.
    *Observable:* `blocksPerTurn` answers `{blocks: null, missing: "paces"}` and
    the panel says the rate is not imported — never a distance of zero.
-3. Register invented rows at priority 20 and re-render.
+3. Register invented rows and re-render: `acksExtras.lib.tables.registerTable(
+   {id, tables}, {priority})`. **On a world that already holds imported city
+   figures, register at 30, not 20**: a layer replaces whatever sat at its own
+   priority, so 20 wipes the world's imported tables from memory until the next
+   reload, where 30 lies over them per table and `unregisterTable(id,
+   {priority: 30})` puts everything back.
    *Observable:* the block count appears, and the no-throw line states its
    REASON (a meandering pace, or a known route) rather than going blank.
 4. Change the pace select and dispatch `change`; read `travel.settlement.pace`
@@ -684,12 +694,13 @@ Two spellings, one sub-type, and confusing them is the other silent failure:
   `createEmbeddedDocuments("TableResult", [{type: "text", text, range: [a, b]}])`
   with the type as a STRING. A table with no rows draws nothing, which reads
   as the district's table never being consulted.
-- **A GM owns every document they create, so `place.isOwner` is true and
-  `depositReach` short-circuits before the ground branch ever runs.** Step 25
-  cannot be walked from the Gamemaster seat at all — it answers `can: true,
-  scene: null` for a place that is nowhere, which looks like a pass. Give the
-  member actor to the Player seat, drop the places to default ownership, and
-  join as that player.
+- **A GM owns every document they create, and `depositReach` asks the users who
+  own the CHARACTER (`ownersShare`), so a place the Judge made is reached from
+  the Gamemaster seat by ownership before the ground branch ever runs.** Step
+  25 cannot be walked from that seat at all — it answers `can: true, scene:
+  null` for a place that is nowhere, which looks like a pass. Give the member
+  actor to the Player seat, drop the places to default ownership, and join as
+  that player.
 - **Do not `close()` every open application before driving the token HUD.**
   Sweeping `foundry.applications.instances` to compose a clean frame takes the
   core UI with it, and the HUD then renders without the module's **Add to
@@ -791,13 +802,95 @@ Two spellings, one sub-type, and confusing them is the other silent failure:
     surface, including the two refusals and the floor band, is
     [../location/TESTING.md](../location/TESTING.md) steps 12-16.
 
-    **Nothing on the settlement panel names the place yet.** `placeUnderParty`
-    is api-only until the points-of-interest phase gives it a readout; a panel
-    line here would be that phase's, not this one's.
+    The settlement panel names it too — "At <place>" with an open button —
+    and that readout is walked in "Points of interest" below.
 26. **No district changes nothing.** Delete the district regions and walk steps
     3–14 again.
     *Observable:* identical to before this phase. An unmarked city is one where
     the question has not been asked.
+
+## Points of interest (added with the POI phase)
+
+The token, the roster, the quarter's place and the prune are the location
+feature's surfaces and are walked first —
+[../location/TESTING.md](../location/TESTING.md) steps 17–20 — on the city
+scene from "The city" with the districts from steps 15–16. Everything below
+rides those fixtures: the point's token from location step 17, the quarter's
+place from step 19, plus invented `districtTravel` figures registered beside
+step 3's city document (`tables.districtTravel: {same: {commuting: 1,
+meandering: 2}, adjacent: {commuting: 3, meandering: 4}}` reads back
+unmistakably). The importer's own pass is
+[../importer/TESTING.md](../importer/TESTING.md) "Points of interest land as
+places".
+
+**Drive mechanics this section needs, learned live:**
+
+- **The marker is a Note, and the Player seat is the only test of its
+  visibility.** From the Judge's seat every Note is visible. Join as the
+  Player with the party's scene active and read
+  `canvas.notes.placeables.map((n) => n.isVisible)` — or look.
+- **Advancing the world clock is `game.time.advance(seconds)`** on the Judge's
+  seat; the watcher runs on the primary Judge only, so a second Judge seat sees
+  the marker go a beat later.
+- **The walk without the picker** is `acksExtras.formation.poi.travelToPlace
+  (formationId, tokenId)`; it returns `{moved, reason, relation, turns,
+  place}`, and `acksExtras.formation.poi.TRAVEL_OPTION` is the bypass the
+  movement hook honours.
+- **`createEmbeddedDocuments("Region", […])` does not hand the documents back
+  in the input's order.** Map the returned regions by name before attaching
+  behaviours, or the cadence lands on a different quarter from the one the
+  script believes it priced — which reads as the incident throw never firing.
+- **A Note stores integer coordinates**, so a marker dropped at the party's
+  point (`x + gridSize / 8` for the quarter-cell party token, 162.5 on a
+  100px grid) reads back rounded (163). Compare within a pixel.
+
+27. **The panel names where the party stands.** Stand the party token one
+    square from the point's token, inside the district that has a place.
+    *Observable:* the travel tab shows "At <point>." and "The quarter's own
+    place: <quarter>."; each line's button opens that sheet. Move the party off
+    the point but not out of the district: the first line goes, the second
+    stays. Unlink the quarter's place (location step 19): the second goes.
+28. **An incident leaves a Judge-only marker.** Point the district's incident
+    table at a one-row table and set its cadence to throw every turn on 1+;
+    walk the party a block.
+    *Observable:* the whispered card carries the incident, "A marker was left
+    where it happened." and a **Make it a place** button; a Note stands at the
+    party's point with `entryId` null and the row's text under
+    `flags["acks-extras"].transient`; from the Player seat there is no Note at
+    all. Set **Incident markers last** to 0 and walk again: a card, no marker.
+    Track each Note by id from `canvas.scene.notes` the moment the card lands.
+29. **The clock takes it away.** Advance world time by the lifetime in city
+    turns (the setting × 600 s).
+    *Observable:* the Note is gone; one dropped after the advance stays. The
+    stay credit of step 9 is unaffected.
+30. **Promotion.** Press **Make it a place** on a card whose marker stands and
+    accept the name it offers.
+    *Observable:* a location actor named after the incident's opening words
+    exists inside the quarter's place, carrying the row's text as its notes;
+    its token stands where the Note stood; the Note is gone; the card's button
+    is disabled; the actor's sheet opened. Press the button on an older card
+    whose marker expired: a warning, nothing made. Track the actor and its
+    token by id.
+31. **The walk is priced by quarter.** With a second district touching the
+    first along one street and a point's token inside each, the party in the
+    first: **Go to a point of interest**, pick the point in the same quarter,
+    then the one across the street.
+    *Observable:* the first hop spends the `same` figure for the panel's pace
+    (the torch's burn and the turn count both move by it), the second the
+    `adjacent` figure, each whispered as "Went to <place>: N turn(s), within
+    the quarter / into the next quarter."; the party token stands beside the
+    point each time; the turn count moves by exactly the figure — the token's
+    move is not measured a second time — while the board's blocks line credits
+    the pace's rate per turn spent, as any turn does; and the formation's
+    `clock.lastPosition` is the new spot. Change the pace: the other column of
+    figures.
+32. **The walk refuses what the figures do not price.** Draw a third district
+    nowhere near the first with a point in it; then move the party outside
+    every district; then unregister the `districtTravel` figures.
+    *Observable:* three different warnings — the quarters do not touch; one
+    end is outside every district; no figures imported — and the token does
+    not move for any of them. Register figures for one pace only and pick the
+    other: a fourth warning, no move.
 
 ## Swimming (added with the registry migration)
 

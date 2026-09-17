@@ -12,8 +12,8 @@ this file only indexes what this repo has.
 - [guides/](guides/) — user-facing how-to, one per feature area.
 
 Per-feature: `abilities`, `battlemap`, `bridge`, `character-sheet`, `classes`,
-`equipment`, `formation`, `henchmen`, `importer`, `influence`, `lib`, `location`,
-`markets`, `monsters`, `vehicles`.
+`equipment`, `factions`, `formation`, `henchmen`, `importer`, `influence`, `lib`,
+`location`, `markets`, `monsters`, `vehicles`.
 The `bridge` feature covers both halves of the Discord bot: `scripts/bridge/`
 inside the world and the `discord/` service beside it.
 The `lib` feature additionally splits by topic (API, GROUPS, PLACES, FOLLOWER-CARD)

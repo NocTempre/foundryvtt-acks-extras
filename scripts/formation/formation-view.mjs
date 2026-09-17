@@ -50,6 +50,7 @@ import {
 import { streetUnder } from "./zones.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import { findDistrict } from "./district-zone.mjs";
+import { hunterName } from "./hunt.mjs";
 import { TERRAIN, travelMultiplier, canEnter } from "../vehicles/vehicle-speed.mjs";
 import {
   CLIMATES,
@@ -616,6 +617,17 @@ function buildSettlementView(formation, t) {
   // through ONE formatter: a panel that rounded the turn and printed the block
   // raw would state two figures in one currency at two precisions.
   const turnFeet = unitFigure((turnDistance(formation, scene) || 0) / feetPerUnit(scene?.grid?.units));
+  // The place the party is standing AT, and the quarter's own place — by the
+  // location feature's readers, because which token is a place is that
+  // feature's question. Read through its api, which is published at ready and
+  // is always there by the time a sheet renders.
+  const location = globalThis.acksExtras?.location;
+  const placeHere = location?.here?.placeUnderParty?.(formation) ?? null;
+  const districtPlace = districtHit?.region
+    ? (location?.scenes?.locationOfRegion?.(districtHit.region) ?? null)
+    : null;
+  const poiTargets = scene ? (location?.here?.placesOnScene?.(scene) ?? []).length : 0;
+  const mayView = (place) => !!place?.testUserPermission?.(game.user, "LIMITED");
   // A party with no token anywhere has no map to have said anything: blaming
   // one that does not exist reads as a scene the Judge forgot to configure.
 
@@ -643,10 +655,22 @@ function buildSettlementView(formation, t) {
     cadenceLine,
     // The district the party is standing in, or "" outside one.
     districtName,
+    // Who set the hunted flag, when a faction's ledger did (hunt.mjs): the
+    // tracker names it beside the Judge's own checkbox.
+    huntedByName: hunterName(s),
     // How the quarter's own reputation reads here, or "" when the district is
     // silent about it (no district, no modifier, or a modifier owed somewhere
     // else in the quarter).
     districtReactionLine,
+    // Where the party is standing, as a PLACE: the token under it and the
+    // quarter's own place. Null is "nowhere in particular". Each is named to
+    // everyone — the token on the map already names it — and opens only for a
+    // seat that may view it: an imported place is owned by nobody until the
+    // Judge shares it.
+    placeHere: placeHere ? { uuid: placeHere.uuid, name: placeHere.name, canOpen: mayView(placeHere) } : null,
+    districtPlace: districtPlace ? { uuid: districtPlace.uuid, name: districtPlace.name, canOpen: mayView(districtPlace) } : null,
+    // How many places have a token on this map: what a walk can be made to.
+    poiTargets,
     // The RATE, kept apart from the tally the spread above carries: a panel
     // that showed one where the other belongs reads as a party that has walked
     // five blocks and never gets any further.

@@ -38,10 +38,14 @@ const describeBoxes = (e) => {
   if (d?.op !== "text") return [];
   return (d.paras ?? []).map((p) => ({ page: p.page ?? d.page, box: p.box })).filter((b) => b.box);
 };
-/** The entry's own name box, which is where its heading is printed. */
+/**
+ * The entry's own name box, which is where its heading is printed. A name read
+ * in `parts` is a run-in inside a paragraph several entries share, so it has no
+ * box of its own and is rightly inside another entry's description.
+ */
 const nameBox = (e) => {
   const n = e.fields?.name;
-  return n?.op === "expect" && n.box ? { page: n.page, box: n.box } : null;
+  return (n?.op === "expect" || n?.op === "heading") && n.box ? { page: n.page, box: n.box } : null;
 };
 const inside = (pt, b) =>
   pt.page === b.page && pt.box.x0 >= b.box.x0 - 2 && pt.box.x0 <= b.box.x1 + 2 && pt.box.y0 >= b.box.y0 - 2 && pt.box.y1 <= b.box.y1 + 2;

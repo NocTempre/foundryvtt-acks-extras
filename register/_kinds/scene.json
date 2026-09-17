@@ -1,0 +1,5 @@
+{
+  "id": "kind.scene",
+  "role": "scene",
+  "note": "A printed map stood up as a play surface. The row is GEOMETRY over one page, in page points with a top-left origin: the crop, the quarter turns that stand it upright, the feet in one point, each quarter's outline, and where each keyed place stands. Places and tables are named by entry id, never by word. The compiler adds the map image's placement, the anchor a seat's copy is checked against."
+}

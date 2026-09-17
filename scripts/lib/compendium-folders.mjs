@@ -30,7 +30,7 @@
  * own compendiums re-shelves them here too, with nothing here to update.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { importedPacks } from "./library.mjs";
+import { importedPacks, isJudgeLine, JUDGE_SHELF_OWNERSHIP } from "./library.mjs";
 
 /**
  * The sub-folder the importer's world packs are shelved under, inside this
@@ -183,7 +183,8 @@ const needsWrite = (entry, reset) =>
  * `reset` is the difference between the two strengths. A restore rewrites each
  * entry down to `{folder}` alone, dropping every per-pack override a world
  * accumulated — a custom sort, a lock, an ownership grant — back to the
- * package's own defaults. Clearing `locked` is not the same as unlocking it:
+ * package's own defaults. A Judge's shelf has a default of its own, and gets
+ * it back: closed to every player seat, as it was made. Clearing `locked` is not the same as unlocking it:
  * with no entry Foundry reads a package's pack as locked and a world pack as
  * writable, which is what each of them is for, and the importer needs its own
  * packs writable to refill them.
@@ -195,6 +196,7 @@ async function filePacks(targets, { reset }) {
   let moved = 0;
   let folders = 0;
   const countFolders = () => game.folders.filter((f) => f.type === "Compendium").length;
+  const judges = new Set(importedPacks().filter(({ line }) => isJudgeLine(line)).map(({ pack }) => pack.collection));
   for (const [collection, path] of targets) {
     const entry = config[collection] ?? {};
     if (!needsWrite(entry, reset)) continue;
@@ -209,9 +211,11 @@ async function filePacks(targets, { reset }) {
     const folderId = built.get(key);
     if (!folderId) continue;
     const current = entry.folder ?? null;
-    if (current === folderId && (!reset || Object.keys(entry).length === 1)) continue;
+    const restored = judges.has(collection) ? { folder: folderId, ownership: { ...JUDGE_SHELF_OWNERSHIP } } : { folder: folderId };
+    const next = reset ? restored : { ...entry, folder: folderId };
+    if (current === folderId && foundry.utils.objectsEqual(entry, next)) continue;
     if (current && current !== folderId) vacated.add(current);
-    config[collection] = reset ? { folder: folderId } : { ...entry, folder: folderId };
+    config[collection] = next;
     moved++;
   }
   if (moved) {

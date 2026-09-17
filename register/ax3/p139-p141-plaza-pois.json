@@ -1,0 +1,154 @@
+[
+  {
+    "id": "ax3.poi37",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 37",
+    "anchor": {
+      "number": "37."
+    },
+    "pages": [
+      139
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi38",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 38",
+    "anchor": {
+      "number": "38."
+    },
+    "pages": [
+      139
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi39",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 39",
+    "anchor": {
+      "number": "39."
+    },
+    "pages": [
+      139
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi40",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 40",
+    "anchor": {
+      "number": "40."
+    },
+    "pages": [
+      139
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi41",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 41",
+    "anchor": {
+      "number": "41."
+    },
+    "pages": [
+      139
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi42",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 42",
+    "anchor": {
+      "number": "42."
+    },
+    "pages": [
+      139,
+      140
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi43",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 43",
+    "anchor": {
+      "number": "43."
+    },
+    "pages": [
+      140
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi44",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 44",
+    "anchor": {
+      "number": "44."
+    },
+    "pages": [
+      140
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi45",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 45",
+    "anchor": {
+      "number": "45."
+    },
+    "pages": [
+      140
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi45U",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 45U",
+    "anchor": {
+      "number": "45U."
+    },
+    "pages": [
+      140,
+      141
+    ],
+    "meta": {
+      "group": "Plaza District — Points of Interest"
+    }
+  }
+]

@@ -64,6 +64,46 @@ export const CHANGE_KEY_FAMILY = Object.freeze({
   [MORALE_CHANGE_KEY]: ROLL_FAMILY.MORALE,
 });
 
+/**
+ * Does a throw opened in this mode belong to the REACTION family — the one a
+ * reception prices? The gate every `HOOKS.INFLUENCE_MODIFIERS` listener that
+ * carries a reception (a quarter's, a faction's) asks, kept here so the
+ * listeners cannot answer it differently.
+ *
+ * The bare influence roll (`mode` falsy) has no external mode of its own and
+ * IS the reaction/attitude roll, so it counts. An external mode counts only
+ * when it is registered under `EXTERNAL_MODES` as REACTION family — a mode
+ * this check has never heard of answers false rather than inheriting the
+ * modifier, so a family added later without being priced stays silent by
+ * exclusion, never by leak. Loyalty, morale and obedience throws are about
+ * someone already known, not about a reception, and their family says so.
+ */
+export function isReactionMode(mode) {
+  if (!mode) return true;
+  return EXTERNAL_MODES[mode]?.family === ROLL_FAMILY.REACTION;
+}
+
+/**
+ * The rows a roller keeps of what its listeners and its opener pushed, as
+ * `{label, value, note}`.
+ *
+ * A zero row adds nothing and says nothing, so it is dropped: a listener that
+ * computed a quarter's figure as 0 has nothing to show. The exception is a
+ * NOTE, a row its pusher marked `note: true` to SAY something with no figure
+ * beside it (who holds legal authority here). A note never carries a value,
+ * so one pushed with a figure is an ordinary row and its mark is ignored.
+ * @param {Array<{label?: string, value?: number, note?: boolean}>} modifiers
+ */
+export function externalRows(modifiers) {
+  if (!Array.isArray(modifiers)) return [];
+  return modifiers
+    .map((m) => {
+      const value = Number(m?.value) || 0;
+      return { label: String(m?.label ?? "external"), value, note: m?.note === true && value === 0 };
+    })
+    .filter((m) => m.value !== 0 || m.note);
+}
+
 /** The three tones a spokesperson can adopt when attempting to influence. */
 export const INFLUENCE_TONE = Object.freeze({
   DIPLOMACY: "diplomacy",
@@ -388,7 +428,9 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
     {
       group: "ACKS-INFLUENCE.group.character",
       mods: [
-        { key: "socialStatus", type: "factor", factor: 1, label: "ACKS-INFLUENCE.mod.seduction.socialStatus" },
+        // Auto-filled with the rungs the character stands above the target
+        // when both ranks are known (henchmen `facts.getSocialRank`).
+        { key: "socialStatus", type: "factor", factor: 1, label: "ACKS-INFLUENCE.mod.seduction.socialStatus", auto: "socialRank" },
         { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
         { key: "seductionProf", type: "check", label: "ACKS-INFLUENCE.mod.seduction.prof", value: 1, auto: "prof:seduction" },
         { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", value: 1, auto: "prof:mysticAura" },

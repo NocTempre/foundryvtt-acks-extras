@@ -343,6 +343,26 @@
   white-space: nowrap;
 }
 
+/* The city-incidents row: the table takes the width, and a figure is a caption
+   beside a box only wide enough for the three digits it will ever hold. */
+.acks-extras-battlemap-incidents .acks-extras-battlemap-incident-table {
+  flex: 1 1 12em;
+  min-width: 0;
+}
+
+.acks-extras-battlemap-figure {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.acks-extras-battlemap-incidents input[type="number"] {
+  flex: 0 0 4.5em;
+  width: 4.5em;
+}
+
 /* The terrain brush palette: one swatch per terrain kind, the armed one
    marked. Colour does the talking; the name confirms it. */
 .acks-extras-terrain-palette .window-content {

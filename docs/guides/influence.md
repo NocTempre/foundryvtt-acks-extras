@@ -54,6 +54,23 @@ character who has the power *and* the proficiency gets the box once, under the
 proficiency's name — they are one capability, and the book does not stack it
 with itself.
 
+## What the surroundings add
+
+Some rows are not yours to type. They come from where the party stands and who
+it is dealing with, and they sit read-only under their own heading.
+
+- A quarter's reception comes from the district the party is standing in
+  ([streets and quarters](formation.md#streets-and-quarters)).
+- **Standing with …** comes from a faction's ledger: the faction being spoken
+  to, any faction the other party belongs to, and whoever controls the quarter
+  ([factions](factions.md)).
+- **Legal authority here** is a note with no number beside it. It says the
+  speaker belongs to the watch or the noble house that holds this quarter; the
+  authority tick is still yours to set.
+
+The social status row fills itself with how many ranks the speaker stands above
+the other party, when both have a rank ([status](factions.md#status)).
+
 ## Badged rows
 
 A row marked **unaudited** (amber, not red) is a mechanic that has not been read

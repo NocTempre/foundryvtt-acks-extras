@@ -95,7 +95,17 @@ export function effectiveMarketClass(location, employer) {
   // answer to "what can you hire in this cave".
   if (base == null) return null;
   const shift = employer ? sumEffectModifiers(employer, "marketClass") : 0;
-  return shiftMarketClass(base, shift);
+  // Standing with the organisations that hold this market moves it too, when
+  // the world prices standing at all (the factions feature's knob, off by
+  // default). Asked through the api at call time, the way the facts chain
+  // asks a sibling module: this engine never imports that feature.
+  const standing = Number(globalThis.acksExtras?.factions?.marketClassShift?.(location, employer)) || 0;
+  return shiftMarketClass(base, shift + standing);
+}
+
+/** The market's own word on class rarity, as plain rows, for `rollMonthlyPool`. */
+function rarityOverridesOf(location) {
+  return (location?.system?.market?.rarityOverrides ?? []).map((r) => r.toObject?.() ?? r);
 }
 
 /**
@@ -588,7 +598,7 @@ export async function createPosting(location, rawSpec, employer, { dedicatedSear
     // does not mint new people — it replaces rolled leveled henchmen still
     // left in the month with what the recruiter sought.
     const mc = effectiveMarketClass(location, employer);
-    const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, location.system.market?.classRarityTableId || "default");
+    const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, location.system.market?.classRarityTableId || "default", rarityOverridesOf(location));
     if (result.error) return { error: result.error };
     posting.totalAvailable = result.quantity;
     posting.rollDetail = result.detail;
@@ -856,7 +866,7 @@ export async function processLocation(location, currentTime = now()) {
       // rarity shifts one step toward common — the JJ mechanic).
       const spec = { ...(posting.spec.toObject?.() ?? posting.spec) };
       if (posting.advertVeteran) spec.commissioned = true;
-      const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, sys.market?.classRarityTableId || "default");
+      const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, sys.market?.classRarityTableId || "default", rarityOverridesOf(location));
       if (!result.error) {
         posting.totalAvailable = result.quantity;
         posting.rollDetail = result.detail;

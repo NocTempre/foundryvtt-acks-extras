@@ -1,11 +1,11 @@
 [
   {
-    "id": "ax3.pylosAurigeus",
+    "id": "ax3.poi1",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "1. Pylos Aurigëus (“Patrician Gate”)",
+    "name": "POI 1",
     "anchor": {
-      "display": "1. PYLOS AURIGËUS"
+      "number": "1."
     },
     "pages": [
       71
@@ -15,12 +15,12 @@
     }
   },
   {
-    "id": "ax3.cityWatchtowerI",
+    "id": "ax3.poi2",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "2. City Watchtower I",
+    "name": "POI 2",
     "anchor": {
-      "display": "2. CITY WATCHTOWER I"
+      "number": "2."
     },
     "pages": [
       71
@@ -30,12 +30,12 @@
     }
   },
   {
-    "id": "ax3.cityWatchtowerII",
+    "id": "ax3.poi3",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "3. City Watchtower II",
+    "name": "POI 3",
     "anchor": {
-      "display": "3. CITY WATCHTOWER II"
+      "number": "3."
     },
     "pages": [
       71
@@ -45,12 +45,12 @@
     }
   },
   {
-    "id": "ax3.imperialWharf",
+    "id": "ax3.poi4",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "4. Imperial Wharf",
+    "name": "POI 4",
     "anchor": {
-      "display": "4. IMPERIAL WHARF"
+      "number": "4."
     },
     "pages": [
       71
@@ -60,12 +60,12 @@
     }
   },
   {
-    "id": "ax3.cityWatchHeadquarters",
+    "id": "ax3.poi5",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "5. City Watch Headquarters",
+    "name": "POI 5",
     "anchor": {
-      "display": "5. CITY WATCH HEADQUARTERS"
+      "number": "5."
     },
     "pages": [
       71
@@ -75,12 +75,12 @@
     }
   },
   {
-    "id": "ax3.cityWatchtowerIII",
+    "id": "ax3.poi6",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "6. City Watchtower III",
+    "name": "POI 6",
     "anchor": {
-      "display": "6. CITY WATCHTOWER III"
+      "number": "6."
     },
     "pages": [
       71
@@ -90,12 +90,12 @@
     }
   },
   {
-    "id": "ax3.emporium",
+    "id": "ax3.poi7",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "7. Emporium",
+    "name": "POI 7",
     "anchor": {
-      "display": "7. EMPORIUM"
+      "number": "7."
     },
     "pages": [
       71,
@@ -106,12 +106,12 @@
     }
   },
   {
-    "id": "ax3.merchantGuildhouse",
+    "id": "ax3.poi8",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "8. Merchant Guildhouse",
+    "name": "POI 8",
     "anchor": {
-      "display": "8. MERCHANT GUILDHOUSE"
+      "number": "8."
     },
     "pages": [
       72,
@@ -122,12 +122,12 @@
     }
   },
   {
-    "id": "ax3.thievesQuarter",
+    "id": "ax3.poi9",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "9. Thieves’ Quarter",
+    "name": "POI 9",
     "anchor": {
-      "display": "9. THIEVES’ QUARTER"
+      "number": "9."
     },
     "pages": [
       73
@@ -137,12 +137,12 @@
     }
   },
   {
-    "id": "ax3.mercenaryGuildhouse",
+    "id": "ax3.poi10",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "10. Mercenary Guildhouse",
+    "name": "POI 10",
     "anchor": {
-      "display": "10. MERCENARY GUILDHOUSE"
+      "number": "10."
     },
     "pages": [
       73
@@ -152,12 +152,12 @@
     }
   },
   {
-    "id": "ax3.theMinkHideout",
+    "id": "ax3.poi11",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "11/11U. The Mink / Argollëan Family Hideout",
+    "name": "POI 11/11U",
     "anchor": {
-      "display": "11/11U. THE MINK/ARGOLLËAN FAMILY"
+      "number": "11/11U."
     },
     "pages": [
       73
@@ -167,12 +167,12 @@
     }
   },
   {
-    "id": "ax3.publicLatrine",
+    "id": "ax3.poi12",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "12. Public Latrine",
+    "name": "POI 12",
     "anchor": {
-      "display": "12. PUBLIC LATRINE"
+      "number": "12."
     },
     "pages": [
       73,
@@ -184,12 +184,12 @@
     }
   },
   {
-    "id": "ax3.leakingCesspool",
+    "id": "ax3.poi12U",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "12U. Leaking Cesspool",
+    "name": "POI 12U",
     "anchor": {
-      "display": "12U. LEAKING CESSPOOL"
+      "number": "12U."
     },
     "pages": [
       75
@@ -199,12 +199,12 @@
     }
   },
   {
-    "id": "ax3.shrineOfTheHornedRat",
+    "id": "ax3.poi13U",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "13U. Shrine of the Horned Rat",
+    "name": "POI 13U",
     "anchor": {
-      "display": "13U. SHRINE OF THE HORNED RAT"
+      "number": "13U."
     },
     "pages": [
       75
@@ -214,12 +214,12 @@
     }
   },
   {
-    "id": "ax3.doppelgangerDen",
+    "id": "ax3.poi14U",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "14U. Doppelgänger Den",
+    "name": "POI 14U",
     "anchor": {
-      "display": "14U. DOPPELGÄNGER DEN"
+      "number": "14U."
     },
     "pages": [
       75
@@ -229,12 +229,13 @@
     }
   },
   {
-    "id": "ax3.argolleanFamily",
+    "id": "ax3.residents1",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "The Argollëan Family",
+    "name": "Residents 1",
     "anchor": {
-      "display": "THE ARGOLLËAN FAMILY"
+      "hash": "1s760dr",
+      "as": "display"
     },
     "pages": [
       75,
@@ -244,18 +245,19 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "stopLines": [
-        "Liber Faunus"
+      "stopKeys": [
+        "10spk5p"
       ]
     }
   },
   {
-    "id": "ax3.cityWatch",
+    "id": "ax3.residents2",
     "kind": "kind.location",
     "book": "ax3",
-    "name": "City Watch",
+    "name": "Residents 2",
     "anchor": {
-      "display": "CITY WATCH"
+      "hash": "5z6hih",
+      "as": "display"
     },
     "pages": [
       78
@@ -268,12 +270,13 @@
     }
   },
   {
-    "id": "ax3.narmirioDrakomir",
+    "id": "ax3.npc5",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Tribune Narmirio Drakomir",
+    "name": "NPC 5",
     "anchor": {
-      "runin": "Tribune Narmirio Drakomir"
+      "hash": "1h475ub",
+      "as": "runin"
     },
     "pages": [
       78
@@ -282,16 +285,17 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Narmirio Drakomir:"
+      "statLabelKey": "1j3rtvr"
     }
   },
   {
-    "id": "ax3.apollonisMeteros",
+    "id": "ax3.npc6",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Guildmaster Apollonis Meteros",
+    "name": "NPC 6",
     "anchor": {
-      "runin": "Guildmaster Apollonis Meteros"
+      "hash": "1md08yw",
+      "as": "runin"
     },
     "pages": [
       78
@@ -300,7 +304,7 @@
       "group": "Old District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Apollonis Meteros:",
+      "statLabelKey": "16vzvvz",
       "descStopY": 390
     }
   },

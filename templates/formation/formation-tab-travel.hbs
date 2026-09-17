@@ -46,6 +46,9 @@
         <input type="checkbox" name="travel.settlement.wanted"
                {{#if travel.settlement.wanted}}checked{{/if}}>
         {{localize "ACKS-FORMATION.settlement.wantedLabel"}}
+        {{#if travel.settlement.huntedByName}}
+        <span class="acks-extras-formation-settlement-hunter">{{localize "ACKS-FORMATION.settlement.huntedBy" name=travel.settlement.huntedByName}}</span>
+        {{/if}}
       </label>
       <label>
         {{localize "ACKS-FORMATION.settlement.intentLabel"}}
@@ -145,6 +148,37 @@
       {{/if}}
     </p>
     {{/if}}
+    {{! Where the party is standing, as a PLACE: the token under it, and the
+        quarter's own place. Each opens; a button rather than a link, so it
+        is reachable from the keyboard and named to a reader. }}
+    {{#if travel.settlement.placeHere}}
+    <p class="hint acks-extras-formation-settlement-place">
+      {{localize "ACKS-FORMATION.settlement.poi.here" name=travel.settlement.placeHere.name}}
+      {{#if travel.settlement.placeHere.canOpen}}
+      <button type="button" data-action="openPlace" data-uuid="{{travel.settlement.placeHere.uuid}}"
+              data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"
+              aria-label="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"><i class="fa-solid fa-house"></i></button>
+      {{/if}}
+    </p>
+    {{/if}}
+    {{#if travel.settlement.districtPlace}}
+    <p class="hint acks-extras-formation-settlement-place">
+      {{localize "ACKS-FORMATION.settlement.poi.districtPlace" name=travel.settlement.districtPlace.name}}
+      {{#if travel.settlement.districtPlace.canOpen}}
+      <button type="button" data-action="openPlace" data-uuid="{{travel.settlement.districtPlace.uuid}}"
+              data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"
+              aria-label="{{localize 'ACKS-FORMATION.settlement.poi.openHint'}}"><i class="fa-solid fa-city"></i></button>
+      {{/if}}
+    </p>
+    {{/if}}
+    {{#if isGM}}{{#if travel.settlement.poiTargets}}
+    <p class="acks-extras-formation-settlement-poi">
+      <button type="button" data-action="settlementTravelTo"
+              data-tooltip="{{localize 'ACKS-FORMATION.settlement.poi.travelHint'}}">
+        <i class="fa-solid fa-person-walking-arrow-right"></i> {{localize "ACKS-FORMATION.settlement.poi.travel"}}
+      </button>
+    </p>
+    {{/if}}{{/if}}
     <p class="hint">
       {{#if travel.settlement.cadenceMissing}}
         {{localize "ACKS-FORMATION.settlement.cadenceMissing"}}

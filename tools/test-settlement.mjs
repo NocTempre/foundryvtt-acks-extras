@@ -21,8 +21,10 @@ import {
   strayBlocks, streetCadence, advanceSettlementTurn,
   SETTLEMENT_INTENTS, CONVEYANCES, advanceSettlementDays, settlementEncounter,
   feetPerTurn, carryStay, resolveCityCadence, cadenceAttribution, pickIncidentSource, districtReaction,
-  reenterSettlement, effectiveWhere, NAVIGATION_DIE, STREET_DIE, INCIDENT_DIE,
+  reenterSettlement, effectiveWhere, sceneStamp, NAVIGATION_DIE, STREET_DIE, INCIDENT_DIE,
+  readIncident, incidentBand,
 } from "../scripts/formation/settlement.mjs";
+import { sceneIncidents, writeSceneIncidents } from "../scripts/battlemap/scene-setup.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
@@ -701,6 +703,108 @@ ok("the whole picking order is offered, innermost first, ending at the city", ()
   assert.deepEqual(none.candidates.at(-1), { tableUuid: null, source: "city" });
 });
 
+/* --- the city list a MAP names -------------------------------------------- */
+/** A gazetteer's list in miniature: rows past the die, a gap, and a stretch for the quarter. */
+const CITY_ROWS = [
+  { min: 1, max: 50, text: "A carter blocks the way." },
+  { min: 51, max: 88, text: "A procession." },
+  { min: 89, max: 100, text: "See the quarter." },
+  { min: 101, max: 112, text: "A skirmish in the dark." },
+  { min: 115, max: 130, text: "A patrol with lanterns." },
+];
+
+ok("a banded list is read by its total, and the dark is the caller's figure", () => {
+  const day = readIncident(40, { night: false, afterDark: 30, rows: CITY_ROWS });
+  assert.match2(day, { roll: 40, afterDark: 0, total: 40, entry: "A carter blocks the way.", matched: true, special: false });
+  // The shift is what reaches the rows past the die's last face.
+  const night = readIncident(80, { night: true, afterDark: 30, rows: CITY_ROWS });
+  assert.match2(night, { roll: 80, afterDark: 30, total: 110, entry: "A skirmish in the dark.", matched: true });
+  // No figure stated is no shift, not a guess at one.
+  assert.equal(readIncident(80, { night: true, rows: CITY_ROWS }).total, 80);
+  assert.equal(readIncident(80, { night: true, afterDark: "", rows: CITY_ROWS }).total, 80);
+});
+
+ok("a total no row covers is an answer, and no rows is none", () => {
+  // A printed list can skip numbers; the roll is still reported, unmatched.
+  const gap = readIncident(84, { night: true, afterDark: 30, rows: CITY_ROWS });
+  assert.match2(gap, { total: 114, entry: null, matched: false, special: false });
+  assert.equal(readIncident(40, { rows: [] }), null);
+  assert.equal(readIncident(40, {}), null);
+  assert.equal(readIncident("nonsense", { rows: CITY_ROWS }), null, "junk is not a roll");
+});
+
+ok("the stretch for the quarter is asked of the TOTAL, and only where a band is stated", () => {
+  const band = incidentBand(89, 100);
+  assert.deepEqual(band, { from: 89, to: 100 });
+  assert.equal(readIncident(93, { rows: CITY_ROWS, band }).special, true);
+  assert.equal(readIncident(88, { rows: CITY_ROWS, band }).special, false);
+  // After dark the shift can carry an ordinary roll INTO the stretch, and a
+  // roll that was in it by day out the far side.
+  assert.equal(readIncident(65, { night: true, afterDark: 30, rows: CITY_ROWS, band }).special, true);
+  assert.equal(readIncident(93, { night: true, afterDark: 30, rows: CITY_ROWS, band }).special, false);
+  assert.equal(readIncident(93, { rows: CITY_ROWS }).special, false, "no band, nothing defers");
+});
+
+ok("a band needs both edges, in order", () => {
+  assert.equal(incidentBand(89, null), null);
+  assert.equal(incidentBand("", 100), null);
+  assert.equal(incidentBand(100, 89), null, "edges the wrong way round name nothing");
+  assert.equal(incidentBand(0, 10), null, "a die has no zero face");
+  assert.deepEqual(incidentBand("7", "7"), { from: 7, to: 7 }, "one face is a band");
+});
+
+ok("the map's list is picked behind every drawn list and ahead of the world's", () => {
+  const city = { tableUuid: "RollTable.city", afterDark: 30, band: { from: 89, to: 100 } };
+  const pick = pickIncidentSource({
+    district: { tableUuid: "RollTable.district", wantedTableUuid: "RollTable.wanted", specialTableUuid: "RollTable.special" },
+    zone: { tableUuid: "RollTable.zone" },
+    wanted: true,
+    city,
+  });
+  assert.deepEqual(pick.candidates.map((c) => c.source), ["wanted", "district", "zone", "map", "city"]);
+  assert.deepEqual(pick.candidates[3], {
+    tableUuid: "RollTable.city", source: "map", banded: true, afterDark: 30,
+    band: { from: 89, to: 100 }, specialTableUuid: "RollTable.special",
+  });
+  // Standing in no district, or in one with no special list: nothing to hand to.
+  assert.equal(pickIncidentSource({ city }).candidates[0].specialTableUuid, null);
+  // A map that names no table adds no layer at all.
+  assert.deepEqual(pickIncidentSource({ city: { tableUuid: "" } }).candidates.map((c) => c.source), ["city"]);
+  assert.deepEqual(pickIncidentSource({ city: null }).candidates.map((c) => c.source), ["city"]);
+  // Half a band is no band, whoever wrote the flag.
+  assert.equal(pickIncidentSource({ city: { tableUuid: "RollTable.city", band: { from: 89 } } }).candidates[0].band, null);
+});
+
+ok("a map says what its city's list is, and silence is null", () => {
+  const sceneWith = (incidents) => ({ getFlag: () => ({ mapSystem: "settlement", incidents }) });
+  assert.deepEqual(
+    sceneIncidents(sceneWith({ tableUuid: "RollTable.city", afterDark: 30, bandFrom: 89, bandTo: 100 })),
+    { tableUuid: "RollTable.city", afterDark: 30, band: { from: 89, to: 100 } },
+  );
+  assert.equal(sceneIncidents(sceneWith({ afterDark: 30 })), null, "a shift with no table names no list");
+  assert.equal(sceneIncidents(sceneWith(undefined)), null);
+  assert.equal(sceneIncidents(null), null);
+  assert.deepEqual(
+    sceneIncidents(sceneWith({ tableUuid: "RollTable.city", afterDark: null, bandFrom: 100, bandTo: 89 })),
+    { tableUuid: "RollTable.city", afterDark: 0, band: null },
+  );
+});
+
+await (async () => {
+  // The writer merges into the map's record and clears a figure at blank or zero.
+  let flag = { mapSystem: "settlement", blockFeet: 200, incidents: { tableUuid: "RollTable.city", afterDark: 30 } };
+  const scene = { getFlag: () => flag, setFlag: async (_scope, _key, value) => { flag = value; } };
+  await writeSceneIncidents(scene, { bandFrom: "89", bandTo: 100 });
+  assert.deepEqual(flag.incidents, { tableUuid: "RollTable.city", afterDark: 30, bandFrom: 89, bandTo: 100 });
+  assert.equal(flag.blockFeet, 200, "the rest of the setup record is left as it was");
+  await writeSceneIncidents(scene, { afterDark: "", bandTo: 0 });
+  assert.deepEqual(flag.incidents, { tableUuid: "RollTable.city", afterDark: null, bandFrom: 89, bandTo: null });
+  await writeSceneIncidents(scene, { afterDark: -10, tableUuid: "" });
+  assert.deepEqual(flag.incidents, { tableUuid: null, afterDark: -10, bandFrom: 89, bandTo: null }, "a shift may be signed");
+  passed++;
+  console.log("ok   the map's incident record is merged, and blank clears a figure");
+})();
+
 ok("a district's welcome is owed where its scope names, and district-wide at 'any'", () => {
   const districtWide = { reactionModifier: -4, reactionWhere: "any" };
   assert.deepEqual(districtReaction(districtWide, { where: "avenue" }), { modifier: -4, scope: "any" });
@@ -789,6 +893,18 @@ ok("a board carries the city it was counted in, and re-entry re-stamps it", () =
   assert.equal(reenterSettlement({ sceneId: "Scene.riverport" }).sceneId, "Scene.riverport");
   assert.equal(reenterSettlement({ sceneId: "Scene.riverport" }, null).sceneId, "Scene.riverport");
   assert.equal(reenterSettlement({}).sceneId, null, "and a board that names none still names none");
+});
+
+ok("a city stamp is a non-empty string, and nothing else", () => {
+  assert.equal(sceneStamp("Scene.riverport"), "Scene.riverport");
+  // The empty string is NOT a stamp of its own: a board carrying it would
+  // compare unequal to every city and start a fresh tally on every arrival.
+  assert.equal(sceneStamp(""), null, "the empty string names no city");
+  assert.equal(sceneStamp(null), null);
+  assert.equal(sceneStamp(undefined), null);
+  assert.equal(sceneStamp(42), null, "a number is not a scene id");
+  assert.equal(settlementOf({ settlement: { sceneId: "" } }).sceneId, null, "and the board reads it as unstamped");
+  assert.equal(settlementOf({ settlement: { sceneId: "Scene.riverport" } }).sceneId, "Scene.riverport");
 });
 
 ok("being hunted starts false, coerces to a boolean, and does not survive re-entry", () => {
@@ -897,11 +1013,23 @@ globalThis.game = {
   tables: { find: () => null },
   packs: { filter: () => [] },
 };
+/** A banded list is READ, never drawn: a draw can only land on a face of the die. */
+const neverDrawn = async () => { throw new Error("a banded list was drawn instead of read"); };
 /** The tables this world actually holds; everything else is a broken promise. */
 const WORLD_TABLES = new Map([
   ["RollTable.district", { name: "Thieves' Quarter", roll: async () => ({ results: [{ text: "A cutpurse sizes you up." }], roll: { total: 3 } }) }],
   ["RollTable.zone", { name: "Harbour", roll: async () => ({ results: [{ text: "A press gang." }], roll: { total: 2 } }) }],
+  ["RollTable.city", {
+    name: "City Encounters", formula: "1d100", roll: neverDrawn,
+    results: CITY_ROWS.map((r) => ({ range: [r.min, r.max], text: r.text })),
+  }],
+  ["RollTable.special", { name: "Old Quarter Specials", roll: async () => ({ results: [{ text: "The fence wants a word." }], roll: { total: 4 } }) }],
+  ["RollTable.unranged", { name: "A list with no ranges", formula: "1d4", roll: neverDrawn, results: [{ text: "No range at all." }] }],
 ]);
+/** The faces the next dice show, in order; an empty queue shows a 1. */
+const NEXT_ROLLS = [];
+/** Every formula a die was thrown on, so a check can say WHICH die answered. */
+const THROWN = [];
 globalThis.fromUuid = async (uuid) => {
   // A compendium the world no longer enables THROWS rather than answering null;
   // both are the same broken promise to the walk.
@@ -910,7 +1038,11 @@ globalThis.fromUuid = async (uuid) => {
 };
 globalThis.Roll = class {
   constructor(formula) { this.formula = formula; this.total = 1; }
-  async evaluate() { return this; }
+  async evaluate() {
+    THROWN.push(this.formula);
+    if (NEXT_ROLLS.length) this.total = NEXT_ROLLS.shift();
+    return this;
+  }
 };
 
 const { rollSettlementIncident } = await import("../scripts/formation/settlement-turn.mjs");
@@ -968,6 +1100,58 @@ await okAsync("with nothing resolvable the walk reaches the city's own table", a
   // either, so the honest answer is that nobody can say what happened.
   const got = await incidentFor({ district: { tableUuid: "RollTable.gone" }, zone: { tableUuid: "RollTable.alsoGone" } });
   assert.equal(got, null, "and the card says it has no incident table rather than inventing one");
+});
+
+/* The map's own list: read on its formula by band, and handing the roll on. */
+const MAP_CITY = { tableUuid: "RollTable.city", afterDark: 30, band: { from: 89, to: 100 } };
+const mapIncident = (roll, args, night = false) => {
+  NEXT_ROLLS.length = 0;
+  NEXT_ROLLS.push(roll);
+  THROWN.length = 0;
+  return rollSettlementIncident({ night, ...pickIncidentSource({ city: MAP_CITY, ...args }) });
+};
+
+await okAsync("the map's list is thrown on its own formula and read by band", async () => {
+  const day = await mapIncident(40, {});
+  assert.match2(day, { source: "map", table: "City Encounters", roll: 40, total: 40, afterDark: 0, entry: "A carter blocks the way." });
+  assert.deepEqual(THROWN, ["1d100"], "the table's own die, thrown once");
+  // After dark the shift reaches a row no face of the die can.
+  const night = await mapIncident(90, {}, true);
+  assert.match2(night, { source: "map", roll: 90, total: 120, afterDark: 30, entry: "A patrol with lanterns." });
+});
+
+await okAsync("a total in the band is handed to the quarter's special list", async () => {
+  const got = await mapIncident(93, { district: { specialTableUuid: "RollTable.special" } });
+  assert.match2(got, { source: "special", table: "Old Quarter Specials", entry: "The fence wants a word.", roll: 4 });
+  assert.match2(got.via, { source: "map", table: "City Encounters", roll: 93, total: 93, special: true });
+  // The shift can carry an ordinary roll into the band once it is dark.
+  const dark = await mapIncident(65, { district: { specialTableUuid: "RollTable.special" } }, true);
+  assert.equal(dark.source, "special");
+  assert.equal(dark.via.total, 95);
+});
+
+await okAsync("a band with nothing to hand to leaves the city row standing", async () => {
+  const nowhere = await mapIncident(93, {});
+  assert.match2(nowhere, { source: "map", entry: "See the quarter.", special: true });
+  assert.equal(nowhere.via, undefined);
+  const broken = await mapIncident(93, { district: { specialTableUuid: "RollTable.deleted" } });
+  assert.match2(broken, { source: "map", entry: "See the quarter." });
+  // Outside the band the special list is never asked, whatever the quarter names.
+  const ordinary = await mapIncident(10, { district: { specialTableUuid: "RollTable.special" } });
+  assert.equal(ordinary.source, "map");
+});
+
+await okAsync("a drawn list still answers ahead of the map's, and a gap is reported unmatched", async () => {
+  const drawn = await mapIncident(93, { district: { tableUuid: "RollTable.district", specialTableUuid: "RollTable.special" } });
+  assert.equal(drawn.source, "district", "a quarter that replaces the city's list is never handed its band");
+  const gap = await mapIncident(84, {}, true);
+  assert.match2(gap, { source: "map", total: 114, entry: null, matched: false });
+});
+
+await okAsync("a map list with no ranged rows cannot answer, and the walk goes on", async () => {
+  NEXT_ROLLS.length = 0;
+  const got = await rollSettlementIncident({ night: false, ...pickIncidentSource({ city: { tableUuid: "RollTable.unranged" } }) });
+  assert.equal(got, null, "it falls to the world's list, which this world does not hold");
 });
 
 console.log("\ntest-settlement: all " + passed + " checks passed");

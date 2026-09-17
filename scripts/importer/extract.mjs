@@ -677,10 +677,6 @@ export function pickArt(infos) {
 }
 
 /**
- * Extract the page illustration as a PNG blob (browser only — needs canvas).
- * Handles pdf.js bitmap images and raw RGB/RGBA/gray data.
- */
-/**
  * Extract a REGION of the rendered page as a PNG blob (browser only). Used
  * when the cookbook ships a placement box: rendering sidesteps XObject
  * delivery entirely (the AX PDFs paint their illustrations inside Form
@@ -724,6 +720,63 @@ export async function extractPageArtRegion(doc, pageNo, box) {
   return blob ? { blob, width: sw, height: sh } : null;
 }
 
+/**
+ * Render a CROP of a page as a map picture, turned upright (browser only).
+ *
+ * `frame` is `sceneFrame(recipe)` and is the only authority on size and turn:
+ * the crop is rendered straight into a canvas of the frame's cut size through
+ * an offset viewport, so a page point lands on the pixel the frame says it
+ * does, and nothing outside the crop — a page footer least of all — is ever
+ * painted into the picture. The cut is then drawn through the frame's own
+ * transform. WebP where the browser encodes it, PNG where it answers with one.
+ *
+ * @param {{x: number, y: number}} crop the recipe's crop, in page points
+ * @param {{scale: number, cut: {w: number, h: number}, width: number, height: number}} frame
+ * @param {number[]} matrix `turnMatrix(frame)`
+ * @returns {Promise<{blob: Blob, width: number, height: number, ext: string}|null>}
+ */
+export async function extractPageMap(doc, pageNo, crop, frame, matrix) {
+  if (typeof document === "undefined") return null;
+  const page = await doc.getPage(pageNo);
+  const vp = page.getViewport({ scale: frame.scale, offsetX: -crop.x * frame.scale, offsetY: -crop.y * frame.scale });
+  const cut = document.createElement("canvas");
+  cut.width = frame.cut.w;
+  cut.height = frame.cut.h;
+  // The PRINT intent, because a display render is paced by animation frames and
+  // a tab that is not in front is given none: a Judge who starts a long import
+  // and looks at something else would otherwise get no map. The race is the one
+  // the illustration crop runs, given longer — a city map at a pixel to the
+  // foot is several times the pixels of a page at scale 2.
+  const task = page.render({ canvasContext: cut.getContext("2d"), viewport: vp, intent: "print" });
+  const done = await Promise.race([
+    task.promise.then(() => true),
+    new Promise((r) => setTimeout(() => r(false), 90000)),
+  ]);
+  if (!done) {
+    try {
+      task.cancel();
+    } catch {
+      /* already settled */
+    }
+    return null;
+  }
+  const out = document.createElement("canvas");
+  out.width = frame.width;
+  out.height = frame.height;
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.setTransform(...matrix);
+  ctx.drawImage(cut, 0, 0);
+  const blob = await new Promise((resolve) => out.toBlob(resolve, "image/webp", 0.92));
+  if (!blob) return null;
+  return { blob, width: out.width, height: out.height, ext: blob.type === "image/webp" ? "webp" : "png" };
+}
+
+/**
+ * Extract the page illustration as a PNG blob (browser only — needs canvas).
+ * Handles pdf.js bitmap images and raw RGB/RGBA/gray data.
+ */
 export async function extractPageArt(doc, pageNo, name = null) {
   if (typeof document === "undefined") return null;
   const infos = await pageArtInfo(doc, pageNo);

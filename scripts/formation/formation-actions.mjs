@@ -20,6 +20,7 @@ import {
 } from "./formation-model.mjs";
 import { maybeHexThrow, postEncounterThrow } from "./encounter-card.mjs";
 import { closeDay } from "./day-close.mjs";
+import { pickAndTravel } from "./poi.mjs";
 import {
   anchorMap,
   archiveSession,
@@ -267,6 +268,24 @@ export const SHARED_ACTIONS = {
       formation.travel?.mode !== "settlement" ? "settlement" : "delve",
       { sceneId: formation.sceneId },
     );
+    this.render();
+  },
+
+  /** Open a place named on the board: the one underfoot, or the quarter's own. */
+  openPlace(_event, target) {
+    const uuid = target?.dataset?.uuid ?? "";
+    if (!uuid) return;
+    fromUuidSync(uuid)?.sheet?.render(true);
+  },
+
+  /**
+   * Walk the party to a point of interest on this map for the imported
+   * district-travel figure, instead of dragging the token block by block.
+   */
+  async settlementTravelTo() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await pickAndTravel(formation.id);
     this.render();
   },
 

@@ -15,11 +15,25 @@
  */
 import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { bookText, entryText, entryTable, escapeText, nodeParagraphs, stripBookText } from "./prose.mjs";
-import { BOOKS, bookLine } from "./books.mjs";
+import { isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData } from "./poi-binding.mjs";
+import {
+  isOrganisationEntry, isOrganisationRow, organisationGroupOf, factionId, factionData, organisationData, organisationPlan,
+  replacedFactionIds, owedRelations, controlledRegions,
+} from "./faction-binding.mjs";
+import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
+import {
+  isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, placementMatches, afterDarkShift, bandOfSection,
+} from "./scene-binding.mjs";
+import { FACTION_TYPE } from "../factions/constants.mjs";
+import { DISTRICT_TYPE } from "../formation/district-find.mjs";
+import { mirrorCreatedLinks } from "../location/scene-link.mjs";
+import { occupantRow } from "../lib/place.mjs";
+import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
+import { BOOKS, bookIsJudges, bookLine } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
 import { slugLabel } from "./table-extract.mjs";
-import { pageItems } from "./extract.mjs";
+import { pageItems, pageArtPlacements } from "./extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "./weapon-tables.mjs";
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.mjs";
 import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, PRICE_TABLES } from "./gear-prices.mjs";
@@ -27,7 +41,7 @@ import { savesForLevel, parseHitDice } from "./stats.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { progressBar } from "./progress.mjs";
 import * as services from "../lib/services.mjs";
-import { libraryPackLabel } from "../lib/library.mjs";
+import { libraryPackLabel, judgeLine } from "../lib/library.mjs";
 import { ensureLibraryPack } from "../lib/library-target.mjs";
 import { nameKeys, ABILITY_CATEGORIES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
@@ -62,12 +76,17 @@ const UNLINED_LINE = "Your Books";
  * A shipped book answers from `BOOKS`. A Judge-registered source answers from
  * its own world record, and an `ose.*` id that names no line still leaves the
  * ACKS shelves: it is another game's creature whatever its source forgot to say.
+ *
+ * A book written for the Judge alone is shelved on its series' JUDGE line
+ * (`judgeLine`), whose packs no player seat can open. What an earlier release
+ * imported from it stays where it was put and is still found — every presence
+ * check reads every shelf — until its book is reimported.
  */
 export function lineOf(bookId) {
   if (!bookId) return null;
   const id = String(bookId);
   if (id === "ose" || id.startsWith(OSE_PREFIX)) return oseSourceLine(id) ?? UNLINED_LINE;
-  return bookLine(id);
+  return bookIsJudges(id) ? judgeLine(bookLine(id)) : bookLine(id);
 }
 
 /**
@@ -1770,6 +1789,10 @@ export async function cookbookReimportBook(bookId) {
  *   them and Foundry re-parented 715 orphans to the top of the sidebar;
  * - the ruledata provider's own count, which it removes itself.
  *
+ * A map stood up from a recipe is a world Scene carrying the first, and so are
+ * the places and organisations brought into the world for it to stand on, so
+ * both go with everything else.
+ *
  * Hand-made documents carry none of the three and are never touched. Art files
  * stay on disk (Foundry exposes no delete API); a re-import reuses them, which
  * is the point — only a changed recipe needs them cleared by hand.
@@ -1783,6 +1806,7 @@ export async function cookbookRemoveImports() {
     ["Item", game.items.filter(mine)],
     ["JournalEntry", game.journal.filter(mine)],
     ["RollTable", game.tables.filter(mine)],
+    ["Scene", game.scenes.filter(mine)],
     // Folders LAST in this list and last in the delete loop below: a folder
     // deleted while it still holds documents re-parents them instead of taking
     // them with it, which is the orphan-maker this pass exists to end.
@@ -1902,7 +1926,8 @@ async function importOne(bookId, id, folderId) {
   // (measured ~2.6x on the write phase alone). Art follows separately — it needs
   // the uploaded file path.
   const actor = await createDoc(Actor, {
-    name: found.entry.name,
+    // A person's row ships a neutral label; the name is the page's own.
+    name: printedNameOf(node, found.entry.name),
     type: "monster",
     folder,
     system,
@@ -2877,6 +2902,13 @@ async function importAdventureActor(bookId, id, folderId) {
 const JOURNAL_KINDS = new Set(["kind.location", "kind.settingTable"]);
 
 /**
+ * A page-bound entry. A keyed place of a settlement's quarter is a location
+ * ACTOR (`cookbookImportPoiPlaces`) and is not a page as well: two documents
+ * for one printed place would be the thing a Judge then keeps in step by hand.
+ */
+const journalBound = (e) => JOURNAL_KINDS.has(e.kind) && !isPoiEntry(e);
+
+/**
  * Journals: one JournalEntry per meta.group, one page per keyed entry. A
  * location's page body is the room's own text + creature names (the
  * seat-extracted creature lookups, deferring to the ACKS II entry when the
@@ -2895,13 +2927,13 @@ export async function cookbookImportJournals() {
   // through them it is rather than only that it is busy.
   const bar = progressBar(
     game.i18n.localize(`${LANG_PREFIX}.ui.progressJournals`),
-    openBooks.reduce((n, b) => n + Object.values(data.books.get(b).entries).filter((e) => JOURNAL_KINDS.has(e.kind)).length, 0),
+    openBooks.reduce((n, b) => n + Object.values(data.books.get(b).entries).filter(journalBound).length, 0),
   );
   try {
     for (const bookId of openBooks) {
       const cb = data.books.get(bookId);
       const session = ctx.sessionDocs.get(bookId);
-      const locs = Object.entries(cb.entries).filter(([, e]) => JOURNAL_KINDS.has(e.kind));
+      const locs = Object.entries(cb.entries).filter(([, e]) => journalBound(e));
       if (!locs.length) continue;
       // The BOOK is the folder now, so the journal itself is named by its group
       // alone ("A. Entrance Caves") rather than repeating the book on every row.
@@ -2997,6 +3029,271 @@ export async function cookbookImportJournals() {
 }
 
 /**
+ * Points of interest: the keyed places of a settlement's quarters, as
+ * location ACTORS nested quarter → city, rather than as journal pages.
+ *
+ * The city is the book's own place — the adventure place the OSE binding also
+ * makes, claimed under one id so whichever path runs first makes it and the
+ * other finds it. Each quarter is a place named after its group; each point is
+ * `poiLocationData`, named by the heading the Judge's page prints under its key
+ * number (`printedNameOf` — the cookbook ships only the number) with the page's
+ * text as its notes. Presence is asked by
+ * cookbook id BEFORE the page is read, so a re-run costs nothing for what the
+ * world already holds. A world that imported these as pages under an earlier
+ * release keeps its pages: nothing here deletes.
+ *
+ * A quarter's overview entry makes no place of its own: its text becomes the
+ * notes of the quarter's place, written only while those notes are empty, so
+ * a re-run reads nothing and a Judge's own words over them are kept.
+ */
+export async function cookbookImportPoiPlaces() {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
+  const jobs = [];
+  for (const bookId of openBooks) {
+    for (const [id, e] of Object.entries(data.books.get(bookId).entries)) {
+      if (isPoiEntry(e)) jobs.push({ bookId, id, e, group: poiGroupOf(e.meta?.group) });
+    }
+  }
+  if (!jobs.length) return ui.notifications.warn(`${MODULE_ID} | no points of interest in any open book — connect AX3 first.`);
+  let made = 0;
+  let described = 0;
+  let already = 0;
+  let refused = 0;
+  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressPoi`), jobs.length);
+  try {
+    for (const { bookId, id, e, group } of jobs) {
+      bar.step(e.name);
+      const overview = group.kind === "overview";
+      if (!overview && (await importedActor(id))) {
+        already++;
+        continue;
+      }
+      const cb = data.books.get(bookId);
+      const label = bookLabel(bookId);
+      const line = lineOf(bookId);
+      // Two levels, which is all a pack allows: the book, then its places.
+      const folder = (await ensureFolderPath("Actor", [label, "Places"], line))?.id ?? null;
+      const city = await claimActorImport(oseAdventureId(bookId), () =>
+        createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })));
+      const district = await claimActorImport(districtPlaceId(bookId, group.district), () =>
+        createDoc(Actor, districtPlaceData({
+          book: bookId, bookLabel: label, district: group.district, parentUuid: city?.uuid ?? "", folderId: folder,
+        })));
+      // Notes that hold anything are the world's — asked before the page is
+      // read, which is what keeps a second run from reading it at all.
+      if (overview && (!district || district.system?.notes)) {
+        already++;
+        continue;
+      }
+      // The anchor proves the heading still titles this place; a printing that
+      // moved the text is refused rather than imported under the wrong name.
+      const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
+      if (!node?.ok) {
+        refused++;
+        continue;
+      }
+      if (overview) {
+        await district.update({ "system.notes": entryText(node, id, e.cite) });
+        described++;
+        continue;
+      }
+      // The entry ships a label built from the key number; the place is named
+      // by the heading the Judge's own page prints under that number.
+      const place = await claimActorImport(id, () =>
+        createDoc(Actor, poiLocationData({
+          name: printedNameOf(node, e.name), entryId: id, notes: entryText(node, id, e.cite), book: bookId, bookLabel: label,
+          district: group.district, parentUuid: district?.uuid ?? "", folderId: folder,
+        })));
+      if (place) made++;
+    }
+  } finally {
+    bar.finish();
+  }
+  if (!made && !described && !already && refused) {
+    return ui.notifications.warn(`${MODULE_ID} | points of interest: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
+  }
+  ui.notifications.info(
+    `${MODULE_ID} | points of interest: ${made} place(s) created${described ? `, ${described} quarter(s) described` : ""}${already ? `, ${already} already held` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}.`,
+  );
+  return { made, described, already, refused };
+}
+
+/**
+ * Organisations, as FACTION actors (`faction-binding.mjs` says which entries
+ * are one, and of which sort).
+ *
+ * An AUTHORED organisation is named, and its notes filled, from the Judge's
+ * page; it is seated at its own keyed place — at the quarter's place while that
+ * one has not been imported — with its holdings, its leader, its members and
+ * the quarters it controls as the entry's block names them. A GROUP
+ * organisation is seated in its quarter's place (the city's, for a company with
+ * no quarter) with the group's imported people as members, unless an authored
+ * one stands in for it.
+ *
+ * Each faction is claimed by cookbook id, and presence is asked BEFORE the page
+ * is read, so a second run finds what the first built and reads nothing for it.
+ * A re-run tops up only what is absent — a person not yet rostered, a holding
+ * not yet held, a keyed seat where the quarter stood in, a relation not yet on
+ * the sheet — and never rewrites a row that is there: those are the Judge's.
+ * People and places arrive through their own steps, which run before this one;
+ * what the world has not imported is left for the next run. Relations are
+ * written last, once every organisation they could name exists.
+ */
+export async function cookbookImportFactions() {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
+  const groups = new Map();
+  const authored = [];
+  for (const bookId of openBooks) {
+    const entries = data.books.get(bookId).entries;
+    const replaced = replacedFactionIds(bookId, entries);
+    for (const [id, e] of Object.entries(entries)) {
+      if (isOrganisationRow(e)) {
+        authored.push({ bookId, id, e, plan: organisationPlan(bookId, e, entries) });
+        continue;
+      }
+      if (!isOrganisationEntry(e)) continue;
+      const org = organisationGroupOf(e.meta.group);
+      const key = factionId(bookId, org);
+      if (replaced.has(key)) continue;
+      if (!groups.has(key)) groups.set(key, { bookId, org, key, memberIds: [] });
+      groups.get(key).memberIds.push(id);
+    }
+  }
+  if (!groups.size && !authored.length) return ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
+  const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0 };
+
+  // The quarter's own place, made the way the POI step makes it, so whichever
+  // step runs first the other finds the same document.
+  const seatsOf = async (bookId, district) => {
+    const label = bookLabel(bookId);
+    const placeFolder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+    const city = await claimActorImport(oseAdventureId(bookId), () =>
+      createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: placeFolder })));
+    if (!district) return city;
+    return claimActorImport(districtPlaceId(bookId, district), () =>
+      createDoc(Actor, districtPlaceData({ book: bookId, bookLabel: label, district, parentUuid: city?.uuid ?? "", folderId: placeFolder })));
+  };
+  const rosterOnto = async (faction, memberIds) => {
+    const rows = (faction.system.members ?? []).map((m) => m.toObject?.() ?? m);
+    const held = new Set(rows.map((m) => m.uuid));
+    let added = 0;
+    for (const id of memberIds) {
+      const found = await importedActor(id);
+      // The lookup may answer with an index row; the roster row wants the
+      // document, for its type and its own retainer record.
+      const person = found?.system ? found : found?.uuid ? await fromUuid(found.uuid) : null;
+      if (!person) {
+        counts.missing++;
+        continue;
+      }
+      if (held.has(person.uuid)) continue;
+      rows.push(occupantRow(person));
+      held.add(person.uuid);
+      added++;
+    }
+    if (added) await faction.update({ "system.members": rows });
+    counts.rostered += added;
+  };
+
+  const built = [];
+  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressFactions`), groups.size + authored.length);
+  try {
+    for (const { bookId, id, e, plan } of authored) {
+      bar.step(e.name);
+      const label = bookLabel(bookId);
+      const folder = (await ensureFolderPath("Actor", [label, "Factions"], lineOf(bookId)))?.id ?? null;
+      const quarter = await seatsOf(bookId, plan.seatQuarter);
+      const keyed = plan.seat ? await importedActor(plan.seat) : null;
+      const leader = plan.leader ? await importedActor(plan.leader) : null;
+      const holdings = [];
+      for (const placeId of plan.holdings) {
+        const place = await importedActor(placeId);
+        if (place && !holdings.some((h) => h.uuid === place.uuid)) holdings.push({ uuid: place.uuid, name: place.name });
+      }
+      let faction = await importedActor(id);
+      if (faction) {
+        counts.already++;
+        const patch = {};
+        if (keyed && faction.system.seatUuid === (quarter?.uuid ?? "")) patch["system.seatUuid"] = keyed.uuid;
+        if (leader && !faction.system.leaderUuid) patch["system.leaderUuid"] = leader.uuid;
+        const held = (faction.system.holdings ?? []).map((h) => h.toObject?.() ?? h);
+        const owed = holdings.filter((h) => !held.some((row) => row.uuid === h.uuid));
+        if (owed.length) patch["system.holdings"] = [...held, ...owed.map((h) => ({ ...h, note: "", hidden: false }))];
+        if (Object.keys(patch).length) await faction.update(patch);
+      } else {
+        // The hash proves the box still holds the name this row was cut for; a
+        // printing that moved it is refused rather than named after other words.
+        const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, data.books.get(bookId), data.registers, id).catch(() => null);
+        if (!node?.ok || node.fields?.anchor?.ok === false) {
+          counts.refused++;
+          continue;
+        }
+        const printed = printedNameOf(node, e.name);
+        faction = await claimActorImport(id, () =>
+          createDoc(Actor, organisationData({
+            entryId: id, book: bookId, bookLabel: label, name: plan.namedAfterSeat ? withoutKeyNumber(printed) : printed, kind: plan.kind,
+            notes: entryText(node, id, e.cite), seatUuid: (keyed ?? quarter)?.uuid ?? "", leaderUuid: leader?.uuid ?? "",
+            holdings, controls: plan.controls, folderId: folder,
+          })));
+        if (!faction) continue;
+        counts.made++;
+      }
+      await rosterOnto(faction, plan.members);
+      built.push({ faction, plan, cite: e.cite });
+    }
+
+    for (const { bookId, org, key, memberIds } of groups.values()) {
+      bar.step(org.name);
+      const label = bookLabel(bookId);
+      const folder = (await ensureFolderPath("Actor", [label, "Factions"], lineOf(bookId)))?.id ?? null;
+      const seat = await seatsOf(bookId, org.district);
+      let fresh = false;
+      const faction = await claimActorImport(key, () => {
+        fresh = true;
+        return createDoc(Actor, factionData({
+          book: bookId, bookLabel: label, name: org.name, district: org.district, seatUuid: seat?.uuid ?? "", folderId: folder,
+        }));
+      });
+      if (!faction) continue;
+      if (fresh) counts.made++;
+      else counts.already++;
+      await rosterOnto(faction, memberIds);
+    }
+
+    for (const { faction, plan, cite } of built) {
+      if (!plan.relations.length) continue;
+      const others = new Map();
+      for (const r of plan.relations) {
+        const other = others.has(r.to) ? null : await importedActor(r.to);
+        if (other) others.set(r.to, { uuid: other.uuid, name: other.name });
+      }
+      const held = (faction.system.relations ?? []).map((r) => r.toObject?.() ?? r);
+      const owed = owedRelations(held, plan.relations, others, cite);
+      if (!owed.length) continue;
+      await faction.update({ "system.relations": [...held, ...owed] });
+      counts.related += owed.length;
+    }
+  } finally {
+    bar.finish();
+  }
+  if (!counts.made && !counts.already && counts.refused) {
+    return ui.notifications.warn(`${MODULE_ID} | organisations: ${counts.refused} page(s) did not match the cookbook (different printing?) — none written.`);
+  }
+  const parts = [
+    `${counts.made} faction(s) created`,
+    counts.already ? `${counts.already} already held` : "",
+    counts.rostered ? `${counts.rostered} member(s) rostered` : "",
+    counts.related ? `${counts.related} relation(s) written` : "",
+    counts.missing ? `${counts.missing} member(s) not yet imported` : "",
+    counts.refused ? `${counts.refused} skipped (page did not match the cookbook)` : "",
+  ].filter(Boolean);
+  ui.notifications.info(`${MODULE_ID} | organisations: ${parts.join(", ")}.`);
+  return counts;
+}
+
+/**
  * Roll tables: ranges are shipped structure (r<lo> / r<lo>-<hi> sections);
  * row TEXT materializes from the seat's book at import and persists in the
  * world — the GM's hand-typed-table equivalence, like imported stat values.
@@ -3088,6 +3385,335 @@ export async function cookbookImportRollTables() {
   }
   ui.notifications.info(`${MODULE_ID} | roll tables: ${made} created, ${skipped} already present, in "${packLabel("RollTable")}".`);
   return { made, skipped };
+}
+
+/** The imported roll table for a cookbook id — the world's own first, then the shelves — or null. */
+async function importedTable(id) {
+  const world = game.tables.find((t) => t.getFlag(MODULE_ID, "cookbook")?.id === id);
+  if (world) return world;
+  for (const collection of ourPacksOfType("RollTable")) {
+    const index = await collection.getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`] }).catch(() => null);
+    const row = [...(index ?? [])].find((r) => r.flags?.[MODULE_ID]?.cookbook?.id === id);
+    if (row) return collection.getDocument(row._id);
+  }
+  return null;
+}
+
+/**
+ * A folder path in the WORLD, whatever target the library writes to. A scene
+ * and the actors standing on it are world documents by construction, so their
+ * folders are too; each is marked the way `ensureFolderPath` marks its own, and
+ * an adopted one left unmarked, so removal takes exactly what was made here.
+ * `made` collects the uuid of each folder this call had to create.
+ */
+async function ensureWorldFolderPath(type, names, made = []) {
+  let parent = null;
+  for (const name of names.map((n) => String(n ?? "").trim()).filter(Boolean)) {
+    const parentId = parent?.id ?? null;
+    let folder = game.folders.find((fo) => fo.type === type && fo.name === name && (fo.folder?.id ?? null) === parentId);
+    if (!folder) {
+      folder = await Folder.create({ name, type, folder: parentId, sorting: "a", flags: { [MODULE_ID]: { cookbook: { id: `folder.${type}.${name}` } } } });
+      if (folder) made.push(folder.uuid);
+    }
+    parent = folder;
+  }
+  return parent;
+}
+
+/**
+ * What bringing a book's places and organisations into the world would take,
+ * worked out WITHOUT writing anything: which of the cookbook ids the world
+ * already holds, which the library holds and would be made again, and which
+ * neither has. The book's organisations are counted in whether or not they were
+ * asked for, so the quarter a faction is seated in is the same document the
+ * map's region names.
+ *
+ * Asked before the picture is drawn, so a map that cannot be built — no quarter
+ * imported yet, a page that will not render — leaves no actor behind it.
+ *
+ * @returns {Promise<{actors: Map<string, Actor>, queued: Map<object, {id: string, _id: string}[]>,
+ *   worldIds: Map<string, string>, missing: string[], known: Set<string>}>}
+ */
+async function planCrossing(bookId, cookbookIds) {
+  const flagOf = (row) => row?.flags?.[MODULE_ID]?.cookbook ?? {};
+  const shelf = new Map();
+  for (const collection of ourPacksOfType("Actor")) {
+    const index = await collection
+      .getIndex({ fields: ["type", ...["id", "kind", "book"].map((k) => `flags.${MODULE_ID}.cookbook.${k}`)] })
+      .catch(() => null);
+    for (const row of index ?? []) {
+      const flag = flagOf(row);
+      if (flag.id && !shelf.has(flag.id)) shelf.set(flag.id, { collection, _id: row._id, faction: flag.kind === "kind.faction" && flag.book === bookId });
+    }
+  }
+  const wanted = new Set(cookbookIds);
+  for (const [id, row] of shelf) if (row.faction) wanted.add(id);
+
+  const actors = new Map();
+  for (const actor of game.actors) {
+    const id = actor.getFlag(MODULE_ID, "cookbook")?.id;
+    if (id && wanted.has(id) && !actors.has(id)) actors.set(id, actor);
+  }
+  const worldIds = new Map();
+  const queued = new Map();
+  const missing = [];
+  for (const id of wanted) {
+    const row = shelf.get(id);
+    const held = actors.get(id);
+    if (row) worldIds.set(row._id, held?.id ?? row._id);
+    if (held) continue;
+    if (!row) missing.push(id);
+    else if (queued.has(row.collection)) queued.get(row.collection).push({ id, _id: row._id });
+    else queued.set(row.collection, [{ id, _id: row._id }]);
+  }
+  const known = new Set([...wanted].filter((id) => actors.has(id) || shelf.has(id)));
+  return { actors, queued, worldIds, missing: missing.filter((id) => cookbookIds.includes(id)), known };
+}
+
+/**
+ * Carry out a crossing plan, and answer with the world's document for every
+ * cookbook id the plan knew.
+ *
+ * A scene link, a region link and a token each need a WORLD actor, and a
+ * faction is only consulted once it is one. What the world already holds under
+ * a cookbook id is used as it stands; what only the library holds is created
+ * again from its source (`worldCopySource`) in one write per chunk, keeping its
+ * id so the references between the copies can be rewritten before any of them
+ * exists.
+ *
+ * @param {{actors: string[], folders: string[]}} created collects the uuid of everything made
+ * @returns {Promise<{actors: Map<string, Actor>, copied: number}>}
+ */
+async function bringAcross(bookId, plan, created) {
+  const { actors, queued, worldIds } = plan;
+  const sources = [];
+  const label = bookLabel(bookId);
+  const folders = new Map();
+  const folderFor = async (name) => {
+    if (!folders.has(name)) folders.set(name, (await ensureWorldFolderPath("Actor", [label, name], created.folders))?.id ?? null);
+    return folders.get(name);
+  };
+  for (const [collection, rows] of queued) {
+    const docs = await collection.getDocuments({ _id__in: rows.map((r) => r._id) });
+    for (const doc of docs) {
+      const folderId = await folderFor(doc.type === FACTION_TYPE ? "Factions" : "Places");
+      // The copy states who owns it (nobody); core's default would strip that
+      // and leave a place to the rule that shares every new place with the table.
+      sources.push(game.actors.fromCompendium(
+        worldCopySource(doc.toObject(), worldIds, { folderId, sourceUuid: doc.uuid }),
+        { keepId: true, clearOwnership: false },
+      ));
+    }
+  }
+  let copied = 0;
+  for (let i = 0; i < sources.length; i += WRITE_CHUNK) {
+    const made = await Actor.createDocuments(sources.slice(i, i + WRITE_CHUNK), { keepId: true });
+    for (const actor of made ?? []) {
+      const id = actor?.getFlag(MODULE_ID, "cookbook")?.id;
+      if (!id) continue;
+      actors.set(id, actor);
+      created.actors.push(actor.uuid);
+      copied++;
+    }
+  }
+  return { actors, copied };
+}
+
+/** How many times one map steps its bar: the anchor, the plan, the picture, the scene. */
+const SCENE_STEPS = 4;
+
+/**
+ * Maps: a book's scene recipes, stood up as WORLD scenes.
+ *
+ * A recipe is geometry over one page of the seat's own book (`scene-binding.mjs`):
+ * the picture is cut from that page and turned upright, each quarter becomes a
+ * District region in its own colour over the quarter's place, each keyed place
+ * a token of its own actor, and the city's list and the quarters' lists are
+ * wired in from the tables the world has imported. The scene is a world
+ * document and so are the actors it stands on (`bringAcross`), which is the one
+ * exception to the library keeping what it imports in compendiums: a map nobody
+ * can open is no map.
+ *
+ * Nothing is drawn until the page answers to the recipe's anchor — the placement
+ * of the map's own image — so a printing that lays the map out elsewhere is
+ * refused rather than given outlines that fit another picture. A scene the
+ * world already holds under the recipe's id is left exactly as it stands.
+ * Places are set down HIDDEN: a keyed place may be a secret, and showing one is
+ * a click where un-showing it is not possible.
+ */
+export async function cookbookImportScenes() {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates scenes).`);
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
+  const jobs = [];
+  for (const bookId of openBooks) {
+    for (const [id, row] of Object.entries(data.books.get(bookId).scenes ?? {})) {
+      if (isSceneRecipe(row)) jobs.push({ bookId, id, row });
+    }
+  }
+  if (!jobs.length) {
+    const carriers = [...data.books.keys()]
+      .filter((b) => Object.keys(data.books.get(b).scenes ?? {}).length)
+      .map((b) => BOOKS[b]?.label ?? b.toUpperCase());
+    return ui.notifications.warn(`${MODULE_ID} | no map in any open book — connect ${carriers.join(" or ") || "a book that has one"} first.`);
+  }
+  // `created` names every world document the run made, by uuid: the counts
+  // say what happened, and the uuids are what a caller can undo it by.
+  const counts = {
+    made: 0, already: 0, refused: 0, unready: 0, copied: 0, missing: 0, regions: 0, tokens: 0, controlled: 0,
+    created: { scenes: [], actors: [], folders: [] },
+  };
+  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressScenes`), jobs.length * SCENE_STEPS);
+  try {
+    for (const job of jobs) {
+      let stepped = 0;
+      const tick = () => {
+        stepped++;
+        bar.step(job.row.name);
+      };
+      await importScene(job, counts, tick).catch((err) => {
+        counts.refused++;
+        console.error(`${MODULE_ID} | map ${job.id} failed`, err);
+      });
+      // A map that stopped early still took its whole share of the bar.
+      while (stepped < SCENE_STEPS) tick();
+    }
+  } finally {
+    bar.finish();
+  }
+  const parts = [
+    `${counts.made} map(s) created`,
+    counts.already ? `${counts.already} already held` : "",
+    counts.made ? `${counts.regions} quarter(s), ${counts.tokens} place(s) set down hidden` : "",
+    counts.copied ? `${counts.copied} place(s) and organisation(s) brought into the world` : "",
+    counts.controlled ? `${counts.controlled} organisation(s) given their quarters` : "",
+    counts.missing ? `${counts.missing} place(s) not yet imported` : "",
+    counts.unready ? `${counts.unready} waiting on the points of interest step` : "",
+    counts.refused ? `${counts.refused} refused (the page did not match the cookbook, or would not render)` : "",
+  ].filter(Boolean);
+  const say = counts.made || counts.already ? "info" : "warn";
+  ui.notifications[say](`${MODULE_ID} | maps: ${parts.join(", ")}.`);
+  return counts;
+}
+
+/**
+ * Hand a new map's quarters to the organisations that control them.
+ *
+ * An imported organisation names its quarters on its flag, by the id of each
+ * quarter's place, because a Region to control only exists once a map does.
+ * Every faction of the book now in the world has those ids turned into the
+ * regions this scene drew; a Region it held that no longer exists — the map it
+ * was on was deleted — is dropped in the same write, and one on some other
+ * scene is kept. A faction whose flag names no quarter is not read at all.
+ * @returns {Promise<number>} how many factions were written to
+ */
+async function claimControlledQuarters(bookId, scene, recipe, districtIds) {
+  const regionOf = new Map();
+  for (const [i, district] of (recipe.districts ?? []).entries()) {
+    const region = scene.regions.find((r) => r.getFlag(MODULE_ID, "cookbook")?.place === district.place);
+    if (region) regionOf.set(districtIds[i], region.uuid);
+  }
+  const exists = (uuid) => {
+    try {
+      return !!fromUuidSync(uuid);
+    } catch {
+      return false;
+    }
+  };
+  let written = 0;
+  for (const faction of game.actors.filter((a) => a.type === FACTION_TYPE && a.getFlag(MODULE_ID, "cookbook")?.book === bookId)) {
+    const quarterIds = faction.getFlag(MODULE_ID, "cookbook")?.controls ?? [];
+    if (!quarterIds.length) continue;
+    const next = controlledRegions([...(faction.system.controls ?? [])], quarterIds, regionOf, exists);
+    if (!next) continue;
+    await faction.update({ "system.controls": next });
+    written++;
+  }
+  return written;
+}
+
+/** One recipe, from anchor to thumbnail. Counts into `counts`; calls `tick` once per stage it reaches. */
+async function importScene({ bookId, id, row }, counts, tick) {
+  const recipe = row.scene;
+  tick();
+  if (game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === id)) return void counts.already++;
+  const cb = data.books.get(bookId);
+  const doc = ctx.sessionDocs.get(bookId).doc;
+  const placements = await pageArtPlacements(doc, recipe.page).catch(() => []);
+  if (!placementMatches(placements, recipe.placement)) return void counts.refused++;
+
+  // Nothing is written until the picture exists: a map with no quarter to
+  // name is turned away before the slow part, with the one thing that fixes it
+  // said, and a page that will not render leaves no actor behind it.
+  tick();
+  const quarterOf = (entryId) => poiGroupOf(cb.entries[entryId]?.meta?.group)?.district ?? "";
+  const cityId = oseAdventureId(bookId);
+  const districtIds = (recipe.districts ?? []).map((d) => districtPlaceId(bookId, quarterOf(d.place)));
+  const placeIds = (recipe.places ?? []).map((p) => p.id);
+  const plan = await planCrossing(bookId, [cityId, ...districtIds, ...placeIds]);
+  if (districtIds.length && !districtIds.some((d) => plan.known.has(d))) return void counts.unready++;
+
+  tick();
+  const up = await ctx.uploadSceneMap(doc, id, recipe);
+  if (!up) return void counts.refused++;
+
+  tick();
+  const world = await bringAcross(bookId, plan, counts.created);
+  counts.copied += world.copied;
+  counts.missing += plan.missing.length;
+  // What the city's list adds after dark is read off the imported list's own
+  // shape and the stretch that defers to the quarter off the row the recipe
+  // points at, so neither figure ships.
+  const list = recipe.incidents?.table ? await importedTable(recipe.incidents.table) : null;
+  const incidents = list
+    ? {
+      tableUuid: list.uuid,
+      afterDark: afterDarkShift(list.results.map((r) => r.range), list.formula),
+      band: bandOfSection(recipe.incidents.band),
+    }
+    : null;
+  const city = world.actors.get(cityId) ?? null;
+  const frame = sceneFrame(recipe);
+  const regions = [];
+  for (const [i, district] of (recipe.districts ?? []).entries()) {
+    const place = world.actors.get(districtIds[i]) ?? null;
+    const special = district.special ? await importedTable(district.special) : null;
+    regions.push(districtRegionData(district, frame, {
+      name: place?.name ?? game.i18n.format(`${LANG_PREFIX}.ui.sceneQuarter`, { n: i + 1 }),
+      districtType: DISTRICT_TYPE,
+      specialTableUuid: special?.uuid ?? "",
+      locationUuid: place?.uuid ?? "",
+    }));
+  }
+  const tokens = [];
+  for (const spot of recipe.places ?? []) {
+    const actor = world.actors.get(spot.id);
+    if (!actor) continue;
+    tokens.push((await actor.getTokenDocument({ ...placeTokenAt(spot.at, frame), hidden: true })).toObject());
+  }
+  const folder = await ensureWorldFolderPath("Scene", [bookLabel(bookId)], counts.created.folders);
+  // ONE create for the whole map (`sceneData` says why); the places' mirrors
+  // are the only thing that has to wait for the documents they name.
+  const scene = await Scene.create(sceneData({
+    id, book: bookId, name: city?.name ?? row.name, recipe, src: up.path, incidents, folderId: folder?.id ?? null,
+    locationUuid: city?.uuid ?? "",
+    level: { id: Scene.metadata.defaultLevelId, name: game.i18n.localize(foundry.documents.Level.metadata.label) },
+    regions, tokens,
+  }));
+  if (!scene) return void counts.refused++;
+  counts.made++;
+  counts.created.scenes.push(scene.uuid);
+  counts.regions += scene.regions.size;
+  counts.tokens += scene.tokens.size;
+  await mirrorCreatedLinks(scene);
+  counts.controlled += await claimControlledQuarters(bookId, scene, recipe, districtIds);
+
+  // A directory card with no picture reads as a scene that failed. Core draws
+  // one at creation only when a canvas is up, so it is asked for here and
+  // allowed to fail: the picture is already uploaded either way.
+  if (!scene.thumb) {
+    const thumb = await scene.createThumbnail().catch(() => null);
+    if (thumb?.thumb) await scene.update({ thumb: thumb.thumb });
+  }
 }
 
 /*

@@ -1,11 +1,12 @@
 [
   {
-    "id": "ax3.seleneNictorian",
+    "id": "ax3.npc8",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Selene Nictorian",
+    "name": "NPC 8",
     "anchor": {
-      "runin": "Selene Nictorian"
+      "hash": "16dr2bo",
+      "as": "runin"
     },
     "pages": [
       104,
@@ -15,17 +16,18 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Selene:",
+      "statLabelKey": "1y48l63",
       "statlineAt": 105
     }
   },
   {
-    "id": "ax3.thanaNyssand",
+    "id": "ax3.npc9",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Thana Nyssand",
+    "name": "NPC 9",
     "anchor": {
-      "runin": "Thana Nyssand"
+      "hash": "12ybe9n",
+      "as": "runin"
     },
     "pages": [
       105
@@ -34,16 +36,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Thana Nyssand:"
+      "statLabelKey": "12ybe9n"
     }
   },
   {
-    "id": "ax3.jonusKrusaro",
+    "id": "ax3.npc10",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Jonus Krusaro",
+    "name": "NPC 10",
     "anchor": {
-      "runin": "Jonus Krusaro"
+      "hash": "ekpjrn",
+      "as": "runin"
     },
     "pages": [
       105
@@ -52,16 +55,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Jonus Krusaro:"
+      "statLabelKey": "ekpjrn"
     }
   },
   {
-    "id": "ax3.lutariusSinorix",
+    "id": "ax3.npc11",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Lutarius Sinorix",
+    "name": "NPC 11",
     "anchor": {
-      "runin": "Lutarius Sinorix"
+      "hash": "58cole",
+      "as": "runin"
     },
     "pages": [
       105
@@ -70,16 +74,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Lutarius Sinorix:"
+      "statLabelKey": "58cole"
     }
   },
   {
-    "id": "ax3.maximusArjenturan",
+    "id": "ax3.npc12",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Lanista Maximus Arjentüran",
+    "name": "NPC 12",
     "anchor": {
-      "runin": "Lanista Maximus Arjentüran"
+      "hash": "161u3d9",
+      "as": "runin"
     },
     "pages": [
       107
@@ -88,16 +93,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Maximus:"
+      "statLabelKey": "jep2ov"
     }
   },
   {
-    "id": "ax3.celictorNuvicus",
+    "id": "ax3.npc13",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Lanista Celictor Nuvicus",
+    "name": "NPC 13",
     "anchor": {
-      "runin": "Lanista Celictor Nuvicus"
+      "hash": "r91l97",
+      "as": "runin"
     },
     "pages": [
       108
@@ -106,16 +112,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Celictor Nuvicus:"
+      "statLabelKey": "1az2xxx"
     }
   },
   {
-    "id": "ax3.omnusPluris",
+    "id": "ax3.npc17",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Lanista Omnus Pluris",
+    "name": "NPC 17",
     "anchor": {
-      "runin": "Lanista Omnus Pluris"
+      "hash": "1gagmdk",
+      "as": "runin"
     },
     "pages": [
       109
@@ -124,17 +131,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Omnus Pluris:",
-      "anchor": "Lanista Omnis Pluris"
+      "statLabelKey": "pvwoga"
     }
   },
   {
-    "id": "ax3.abedsh",
+    "id": "ax3.npc14",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Abedsh, Veteran Gladiator Pursuer",
+    "name": "NPC 14",
     "anchor": {
-      "label": "Abedsh, Veteran Gladiator Pursuer:"
+      "hash": "7h8phw",
+      "as": "label"
     },
     "pages": [
       108
@@ -143,17 +150,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Abedsh, Veteran Gladiator Pursuer:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.baruch",
+    "id": "ax3.npc15",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Baruch, Veteran Gladiator Spearfighter",
+    "name": "NPC 15",
     "anchor": {
-      "label": "Baruch, Veteran Gladiator Spearfighter:"
+      "hash": "5vsiec",
+      "as": "label"
     },
     "pages": [
       108
@@ -162,17 +169,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Baruch, Veteran Gladiator Spearfighter:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.khet",
+    "id": "ax3.npc16",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Khet, Veteran Gladiator Striker",
+    "name": "NPC 16",
     "anchor": {
-      "label": "Khet, Veteran Gladiator Striker:"
+      "hash": "d4xx6p",
+      "as": "label"
     },
     "pages": [
       108
@@ -181,17 +188,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Khet, Veteran Gladiator Striker:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.braig",
+    "id": "ax3.npc18",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Braig, Veteran Gladiator Challenger",
+    "name": "NPC 18",
     "anchor": {
-      "label": "Braig, Veteran Gladiator Challenger:"
+      "hash": "1idknmt",
+      "as": "label"
     },
     "pages": [
       109
@@ -200,17 +207,17 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Braig, Veteran Gladiator Challenger:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.agilusBalventius",
+    "id": "ax3.npc19",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Agilus Balventius",
+    "name": "NPC 19",
     "anchor": {
-      "label": "Agilus Balventius:"
+      "hash": "1j06anr",
+      "as": "label"
     },
     "pages": [
       110
@@ -219,7 +226,6 @@
       "group": "Festival District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Agilus Balventius:",
       "anchorAtStatline": true
     }
   }

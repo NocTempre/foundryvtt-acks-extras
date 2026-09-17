@@ -1,4 +1,4 @@
-/* global game, Roll, ChatMessage, fromUuid */
+/* global game, foundry, Roll, ChatMessage, fromUuid */
 /**
  * A city turn, actually taken.
  *
@@ -14,12 +14,15 @@ import { readFormations, patchFormation, realMembers } from "./formation-model.m
 import { travelOf } from "./travel.mjs";
 import {
   advanceSettlementTurn, advanceSettlementDays, citySpec, streetCadence,
-  resolveCityCadence, cadenceAttribution, pickIncidentSource, settlementEncounter,
+  resolveCityCadence, cadenceAttribution, pickIncidentSource, settlementEncounter, readIncident,
   SETTLEMENT_LOCATIONS, NAVIGATION_DIE, STREET_DIE, INCIDENT_DIE,
 } from "./settlement.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import { findDistrict } from "./district-zone.mjs";
-import { streetUnder } from "./zones.mjs";
+import { streetUnder, partyPoint } from "./zones.mjs";
+import { sceneIncidents } from "../battlemap/scene-setup.mjs";
+import { dropIncidentNote } from "./poi.mjs";
+import { hunterName, withHunt } from "./hunt.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -50,6 +53,12 @@ function drawnOver(formation) {
     zoneName: zone?.region?.name ?? null,
     district: district?.behavior?.system ?? null,
     districtName: district?.region?.name ?? null,
+    // The quarter's own document, for the marker an incident leaves: a place
+    // promoted from one nests inside the quarter's place when it has one.
+    districtUuid: district?.region?.uuid ?? null,
+    // The outermost layer is the map itself: the city list it names, which the
+    // drawn lists are picked ahead of and the world's own behind.
+    city: sceneIncidents(partyPoint(formation)?.scene ?? null),
   };
 }
 
@@ -72,7 +81,10 @@ export async function cityTurnCompleted(formation, notes = []) {
   const t = travelOf(formation);
   if (t.mode !== "settlement") return null;
 
-  const board = t.settlement;
+  // The board, with the hunt asked for the quarter the party now stands in: a
+  // faction that wants them and holds this district marks them hunted here
+  // (hunt.mjs), so the district's hunted list answers this turn.
+  const board = withHunt(t.settlement, formation);
   const headcount = realMembers(formation).length || 1;
 
   // Only roll what the turn will actually consult. A party staying put neither
@@ -83,7 +95,7 @@ export async function cityTurnCompleted(formation, notes = []) {
   const { road, here } = streetUnder(formation, board);
   const stationary = !!SETTLEMENT_LOCATIONS[here.where]?.stationary;
   const nav = stationary ? { throws: false } : citySpec({ pace: board.pace, route: board.route });
-  const { zone, zoneName, district, districtName } = drawnOver(formation);
+  const { zone, zoneName, district, districtName, districtUuid, city } = drawnOver(formation);
   const cadence = stationary
     ? null
     : resolveCityCadence(
@@ -122,8 +134,8 @@ export async function cityTurnCompleted(formation, notes = []) {
   // the throw and every other feature's bookkeeping down with it.
   try {
     await whisperTurn(next, events, [navThrow.roll, encThrow.roll].filter(Boolean), {
-      zoneName, districtName, here,
-      incident: pickIncidentSource({ district, zone, wanted: board.wanted }),
+      zoneName, districtName, here, formation, regionUuid: districtUuid,
+      incident: pickIncidentSource({ district, zone, wanted: board.wanted, city }),
     });
   } catch (err) {
     console.error(`${MODULE_ID} | city turn card failed`, err);
@@ -352,14 +364,55 @@ async function incidentTableAt(uuid) {
   }
 }
 
+/** One plain draw from a table a Judge drew over the street, shaped as an incident. */
+async function drawIncident(table, source) {
+  const drawn = await table.roll();
+  const text = (drawn.results ?? [])
+    .map((r) => r.text ?? r.description ?? "")
+    .filter(Boolean)
+    .join("; ");
+  const total = drawn.roll?.total ?? null;
+  return {
+    roll: total, total, afterDark: 0, entry: text || null, matched: !!text,
+    dice: drawn.roll, source, table: table.name,
+  };
+}
+
+/**
+ * The map's own city list, read by band.
+ *
+ * Thrown on the table's OWN formula and read by range rather than drawn: the
+ * shift after dark reaches rows past the die's last face, which `table.roll()`
+ * can never land on. When the total falls in the stretch that defers to the
+ * quarter and the quarter has a special list that exists, that list is drawn
+ * and answers instead, carrying the city throw as `via` so the card can show
+ * both. A band with nothing to hand over to leaves the city row's own words
+ * standing. Null for a table with no ranged rows, which sends the walk on.
+ */
+async function readMapIncident(table, { source, afterDark = 0, band = null, specialTableUuid = null }, night) {
+  const rows = incidentRowsOf(table);
+  if (!rows?.length) return null;
+  const formula = table.formula && (Roll.validate?.(table.formula) ?? true) ? table.formula : INCIDENT_DIE;
+  const roll = await new Roll(formula).evaluate();
+  const read = readIncident(roll.total, { night, afterDark, rows, band });
+  if (!read) return null;
+  const found = { ...read, dice: roll, source, table: table.name };
+  if (!read.special) return found;
+  const special = await incidentTableAt(specialTableUuid);
+  if (!special) return found;
+  return { ...(await drawIncident(special, "special")), via: found };
+}
+
 /**
  * Roll one settlement incident, and say which table answered.
  *
- * TWO procedures, because two kinds of table arrive here. The city's own
+ * THREE procedures, because three kinds of table arrive here. The world's own
  * imported table is a d100 of banded rows and carries an after-dark shift the
- * registry prices, so it is read the way the book reads it. A table a Judge
- * drew over the street is an ordinary RollTable with a formula of its own, and
- * is drawn the way the delve clock already draws a zone's table — its bands are
+ * registry prices, so it is read the way the book reads it. A city list the
+ * MAP names is read the same way with the map's own shift, and may hand its
+ * roll to the quarter's special list (`readMapIncident`). A table a Judge drew
+ * over the street is an ordinary RollTable with a formula of its own, and is
+ * drawn the way the delve clock already draws a zone's table — its bands are
  * its own business, and a d100 forced onto a 1d6 table would miss every row.
  *
  * `candidates` is `pickIncidentSource`'s whole order, innermost first, and is
@@ -368,16 +421,18 @@ async function incidentTableAt(uuid) {
  * deleted was answered by the city's generic d100 with its own ordinary list
  * never asked. `source` is taken from the candidate that answered, so the
  * card's hunted line and its "drawn from" line name the table actually rolled.
- * The order always ends at the city's own table, which is what terminates the
+ * The order always ends at the world's own table, which is what terminates the
  * walk.
  *
- * Null when nothing in the order — the city's own table included — supplied a
+ * Null when nothing in the order — the world's own table included — supplied a
  * row.
  *
  * @param {object} [opts]
- * @param {Array<{tableUuid: string|null, source: string}>} [opts.candidates]
+ * @param {Array<{tableUuid: string|null, source: string, banded?: boolean}>} [opts.candidates]
  *   the order to walk; a bare `tableUuid`/`source` pair stands in for a
  *   one-entry order when it is absent.
+ * @returns {Promise<object|null>} the incident; `via` is the city throw that
+ *   handed over, on an answer from a quarter's special list.
  */
 export async function rollSettlementIncident({
   night = false, tableUuid = null, source = "city", candidates = null,
@@ -386,16 +441,9 @@ export async function rollSettlementIncident({
   for (const candidate of order) {
     const table = await incidentTableAt(candidate.tableUuid);
     if (!table) continue;
-    const drawn = await table.roll();
-    const text = (drawn.results ?? [])
-      .map((r) => r.text ?? r.description ?? "")
-      .filter(Boolean)
-      .join("; ");
-    const total = drawn.roll?.total ?? null;
-    return {
-      roll: total, total, afterDark: 0, entry: text || null, matched: !!text,
-      dice: drawn.roll, source: candidate.source, table: table.name,
-    };
+    if (!candidate.banded) return drawIncident(table, candidate.source);
+    const found = await readMapIncident(table, candidate, night);
+    if (found) return found;
   }
   const rows = incidentRowsOf(await findCityIncidentTable());
   const roll = await new Roll(INCIDENT_DIE).evaluate();
@@ -449,10 +497,28 @@ async function whisperStay(board, events, rolls, {
   });
 }
 
+/**
+ * The incident's own line, by how its list was read: the world's d100 names no
+ * table, the map's list names itself and its shifted total, a drawn table
+ * names itself and nothing else.
+ */
+function incidentLine(incident, text) {
+  if (incident.source === "city") return loc("settlement.card.incident", { roll: incident.roll, total: incident.total, text });
+  if (incident.source === "map" && incident.afterDark) {
+    return loc("settlement.card.incidentBanded", { roll: incident.roll, total: incident.total, text, table: incident.table });
+  }
+  return loc("settlement.card.incidentDrawn", { roll: incident.roll, text, table: incident.table });
+}
+
+/** The marker's line on the card: that one was left, and the button that makes it a place. */
+const markerLine = (note) =>
+  `${loc("settlement.card.marker")} <button type="button" class="acks-extras-poi-promote" `
+  + `data-note-uuid="${foundry.utils.escapeHTML(note.uuid)}">${loc("settlement.card.promote")}</button>`;
+
 /** The turn as one Judge-side card. Silent when nothing happened worth saying. */
 async function whisperTurn(
   board, events, rolls,
-  { zoneName = null, districtName = null, here = null, incident: pick = null } = {},
+  { zoneName = null, districtName = null, here = null, incident: pick = null, formation = null, regionUuid = null } = {},
 ) {
   const lines = [];
   lines.push(loc("settlement.card.moved", { blocks: board.blocks, turns: board.turns }));
@@ -519,15 +585,41 @@ async function whisperTurn(
       }
       if (incident) {
         if (incident.source === "wanted") {
-          lines.splice(beforeIncident, 0, loc("settlement.card.wanted"));
+          // Named after the faction whose ledger set the flag, when one did;
+          // a Judge's own tick has nobody to name.
+          const hunter = hunterName(board);
+          lines.splice(beforeIncident, 0, hunter
+            ? loc("settlement.card.wantedBy", { name: hunter })
+            : loc("settlement.card.wanted"));
+        }
+        // A quarter's special list answered because the city throw sent it
+        // there: that throw is said first, so the second die has a reason.
+        if (incident.via) {
+          rolls.push(incident.via.dice);
+          lines.push(loc("settlement.card.incidentDeferred", {
+            roll: incident.via.roll, total: incident.via.total, table: incident.via.table,
+          }));
         }
         rolls.push(incident.dice);
         const text = incident.entry ?? loc("settlement.card.incidentUnmatched");
-        // The after-dark shift belongs to the city's own d100 table and to
-        // nothing else, so a drawn table's line does not claim one.
-        lines.push(incident.source === "city"
-          ? loc("settlement.card.incident", { roll: incident.roll, total: incident.total, text })
-          : loc("settlement.card.incidentDrawn", { roll: incident.roll, text, table: incident.table }));
+        // The after-dark shift belongs to a list read by band — the world's
+        // d100, or the map's — so a drawn table's line does not claim one.
+        lines.push(incidentLine(incident, text));
+        // Where it happened, kept on the map: a Judge-only marker the clock
+        // takes away, with the one button that makes it permanent. Guarded
+        // like the lookup above — a marker that cannot be written must not
+        // take the card down with it.
+        if (incident.entry && formation) {
+          const note = await dropIncidentNote(
+            formation,
+            { text: incident.entry, source: incident.source, table: incident.table },
+            { regionUuid },
+          ).catch((err) => {
+            console.error(`${MODULE_ID} | incident marker failed`, err);
+            return null;
+          });
+          if (note) lines.push(markerLine(note));
+        }
       } else {
         lines.push(loc("settlement.card.noIncidentTable"));
       }

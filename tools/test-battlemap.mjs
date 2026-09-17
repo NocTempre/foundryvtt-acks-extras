@@ -618,4 +618,82 @@ assert.deepEqual(Object.keys(TERRAIN_COLORS).sort(), Object.keys(TERRAIN).sort()
   invalidateRoadGraph();
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments)");
+/* --- roads: how far it is along them, in the map's own feet -----------------
+   The measurement the city turn spends. Geometry over a fake scene: the grid,
+   the walls and the scale are invented, and what is pinned is the RULE — both
+   ends on the streets or no answer, a bend priced by its legs, a wall the party
+   cannot cross left out of the network, and a map with no scale refusing rather
+   than guessing. */
+{
+  const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
+  const { roadDistance, roadGraph, invalidateRoadGraph } = await import("../scripts/battlemap/roads.mjs");
+  const { sceneFeetPerCell } = await import("../scripts/lib/distance-units.mjs");
+  let n = 0;
+  const wall = (c, road, move = 0) => ({ id: `w${++n}`, c, move, flags: { [MODULE_ID]: { road } } });
+  /** 100 px squares worth 5 ft each: a pixel is a twentieth of a foot. */
+  const city = (id, walls, grid = { size: 100, distance: 5, units: "ft" }) => ({ id, grid, walls });
+  const close = (a, b, what) => assert.ok(Math.abs(a - b) < 1e-6, `${what}: ${a} is not ${b}`);
+
+  invalidateRoadGraph();
+  const bend = city("scene-bend", [
+    wall([0, 0, 1200, 0], { surface: "paved", street: "avenue", name: "High Street" }),
+    wall([1200, 0, 1200, 1200], { surface: "earth", street: "alley", name: "" }),
+  ]);
+  const walked = roadDistance(bend, { x: 0, y: 0 }, { x: 1200, y: 1200 });
+  assert.ok(walked, "both ends on the streets measure");
+  close(walked.along, 120, "the legs are 2400 px, which is 120 ft here");
+  close(walked.offRoad, 0, "and neither end had to walk to a street");
+  close(walked.feet, 120, "the whole move is the legs");
+  assert.ok(walked.feet > Math.hypot(1200, 1200) / 20, "which is longer than the chord across the block");
+  assert.deepEqual(walked.roads, ["paved", "earth"], "the surfaces walked, once each, in order");
+  assert.equal(walked.street, "alley", "the street the walk ENDED on is where the party now stands");
+
+  // Within a cell of a street is on it — the reach is the grid cell, not a
+  // figure of its own — and the walk to the kerb is reported apart.
+  const stepped = roadDistance(bend, { x: 0, y: 90 }, { x: 1200, y: 1110 });
+  assert.ok(stepped, "a party a step off the kerb is still on the street");
+  close(stepped.offRoad, 4.5, "ninety pixels to the kerb, kept apart from the street");
+  close(stepped.along, 115.5, "and the street itself is what was walked along it");
+
+  assert.equal(roadDistance(bend, { x: 0, y: 0 }, { x: 600, y: 600 }), null,
+    "a move that ends across open ground is not a street walk, however it began");
+  assert.equal(roadDistance(bend, { x: 600, y: 600 }, { x: 1200, y: 1200 }), null,
+    "nor is one that begins there");
+
+  invalidateRoadGraph();
+  const islands = city("scene-islands", [
+    wall([0, 0, 500, 0], { surface: "paved" }),
+    wall([0, 2000, 500, 2000], { surface: "paved" }),
+  ]);
+  assert.equal(roadDistance(islands, { x: 100, y: 0 }, { x: 100, y: 2000 }), null,
+    "two streets that never meet have no distance along anything");
+
+  invalidateRoadGraph();
+  const blocked = city("scene-blocked", [wall([0, 0, 1000, 0], { surface: "paved" }, 20)]);
+  assert.equal(roadGraph(blocked).edges.length, 0, "a road the party cannot cross is not in the network");
+  assert.equal(roadDistance(blocked, { x: 0, y: 0 }, { x: 1000, y: 0 }), null, "so nothing is measured along it");
+
+  invalidateRoadGraph();
+  const unscaled = city("scene-unscaled", [wall([0, 0, 1000, 0], { surface: "paved" })], { size: 100, distance: 0 });
+  assert.equal(roadDistance(unscaled, { x: 0, y: 0 }, { x: 1000, y: 0 }), null,
+    "a map that states no scale cannot price a walk, and says nothing rather than guessing");
+
+  invalidateRoadGraph();
+  const metric = city("scene-metric", [wall([0, 0, 1000, 0], { surface: "paved" })], { size: 100, distance: 5, units: "m" });
+  const metres = roadDistance(metric, { x: 0, y: 0 }, { x: 1000, y: 0 });
+  assert.ok(metres, "a map drawn in metres still measures");
+  close(metres.feet, 10 * sceneFeetPerCell(metric), "through its own units into feet, ten cells' worth");
+
+  // The network is memoised per scene and dropped by the wall hooks: a street
+  // added without the drop is invisible, which is what the hooks exist for.
+  const grown = city("scene-grown", [wall([0, 0, 1000, 0], { surface: "paved" })]);
+  invalidateRoadGraph();
+  assert.equal(roadDistance(grown, { x: 0, y: 0 }, { x: 1000, y: 1000 }), null);
+  grown.walls.push(wall([1000, 0, 1000, 1000], { surface: "paved" }));
+  assert.equal(roadDistance(grown, { x: 0, y: 0 }, { x: 1000, y: 1000 }), null, "until the cache is dropped");
+  invalidateRoadGraph("scene-grown");
+  assert.ok(roadDistance(grown, { x: 0, y: 0 }, { x: 1000, y: 1000 }), "after which the new street measures");
+  invalidateRoadGraph();
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance)");

@@ -11,7 +11,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { BOOKS } from "../../scripts/importer/books.mjs";
+import { bandOfSection, recipeContext, recipeProblems } from "../../scripts/importer/scene-binding.mjs";
 import { ABILITY_CATEGORIES } from "../../scripts/lib/vocab.mjs";
+import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, "..", "..", "register");
@@ -26,7 +28,12 @@ const KIND_ID = /^kind\.[a-z][A-Za-z0-9]*$/;
 // What a kind's entries become at import; the binding reads the same rows.
 const BINDS = new Set(["ability"]);
 const SHAPES = new Set(["open", "descriptor", "keyword", "table"]);
-const OPS = new Set(["expect", "text", "value", "attacks", "art", "effects", "progression", "rolls", "grid"]);
+const OPS = new Set(["expect", "heading", "text", "value", "attacks", "art", "effects", "progression", "rolls", "grid"]);
+// A key number as an adventure prints it before a keyed place: "30.", "36U.",
+// "20/20U.". A pointer of the same standing as a page number.
+const KEY_NUMBER = /^[A-Z]?\d+[A-Za-z]?(?:\/[A-Z]?\d+[A-Za-z]?)?\.?$/;
+// `printKey` output: a 32-bit hash in base 36.
+const PRINT_KEY = /^[0-9a-z]{1,7}$/;
 const PATTERNS = new Set(["raw", "statValue", "int", "dice", "refList", "parenSplit", "spoilList", "statline"]);
 // Grid cell patterns come from table-extract's applyCellPattern library (plus
 // "glyphs", the executor's PUA-char damage-mark map).
@@ -107,6 +114,46 @@ function capStrings(obj, label, keyPath = "") {
   }
 }
 
+/**
+ * An organisation row is the book's proper name for a body of people, so it
+ * ships none of it: a numbered label, a numbered id, a `hash` locator, and a
+ * block that names every place, person, quarter and rival BY ID and says what
+ * sort of body it is, and how it stands to another, in this module's own
+ * vocabulary. Any other word in the block would be a printed name shipping
+ * inside the row that exists to avoid it.
+ */
+const ORG_KEYS = new Set(["kind", "nameFrom", "seat", "holdings", "leader", "members", "replaces", "controls", "relations", "note"]);
+const orgRows = []; // checked against every row once all are read
+const rowShapes = new Map(); // id -> {kind, group}
+function checkOrganisation(e, id, bookId) {
+  orgRows.push({ id, o: e.organisation ?? {} });
+  const n = /^Organisation (\d+)$/.exec(e.name ?? "")?.[1];
+  if (!n) err(`${id}: an organisation is named "Organisation <n>" — its printed name is read at import`);
+  else if (id !== `${bookId}.org${n}`) err(`${id}: an organisation named "Organisation ${n}" has the id "${bookId}.org${n}"`);
+  if (e.anchor?.hash === undefined) err(`${id}: an organisation anchors by hash, never by its printed words`);
+  const o = e.organisation;
+  if (!o || typeof o !== "object") return void err(`${id}: organisation needs an "organisation" block`);
+  for (const k of Object.keys(o)) if (!ORG_KEYS.has(k)) err(`${id}: organisation has an unknown key "${k}"`);
+  if (!FACTION_KINDS.includes(o.kind)) err(`${id}: organisation.kind ${JSON.stringify(o.kind)} is not a faction kind (${FACTION_KINDS.join("|")})`);
+  if (o.nameFrom !== undefined && (o.nameFrom !== "seat" || typeof o.seat !== "string")) err(`${id}: organisation.nameFrom is "seat", beside a seat to take the name from`);
+  const idOk = (v) => typeof v === "string" && COMPOSITE_ID.test(v) && v.startsWith(`${bookId}.`);
+  for (const k of ["seat", "leader"]) if (o[k] !== undefined && !idOk(o[k])) err(`${id}: organisation.${k} must be an entry id of this book`);
+  for (const k of ["holdings", "members", "replaces", "controls"]) {
+    if (o[k] === undefined) continue;
+    if (!Array.isArray(o[k]) || !o[k].every(idOk)) err(`${id}: organisation.${k} must be an array of entry ids of this book`);
+  }
+  if (o.relations !== undefined) {
+    if (!Array.isArray(o.relations)) err(`${id}: organisation.relations must be an array`);
+    for (const r of Array.isArray(o.relations) ? o.relations : []) {
+      const extra = Object.keys(r ?? {}).filter((k) => !["to", "stance", "hidden"].includes(k));
+      if (extra.length) err(`${id}: a relation carries only to|stance|hidden — found ${extra.join(", ")}`);
+      if (!idOk(r?.to) || r.to === id) err(`${id}: a relation names ANOTHER organisation of this book by id`);
+      if (!RELATION_STANCES.includes(r?.stance)) err(`${id}: relation stance ${JSON.stringify(r?.stance)} is not one of ${RELATION_STANCES.join("|")}`);
+      if (r?.hidden !== undefined && typeof r.hidden !== "boolean") err(`${id}: relation hidden must be a boolean`);
+    }
+  }
+}
+
 /* --- register entries --- */
 const seenIds = new Set();
 /**
@@ -180,6 +227,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
       }
       if (seenIds.has(id)) err(`duplicate id ${id}`);
       seenIds.add(id);
+      rowShapes.set(id, { kind: e.kind, group: e.meta?.group ?? "" });
       if (!kindIds.has(e.kind)) err(`${id}: unknown kind "${e.kind}"`);
       if (e.book !== bookId) err(`${id}: book "${e.book}" != directory "${bookId}"`);
       if (!Array.isArray(e.pages) || !e.pages.every((p) => Number.isInteger(p) && p > 0)) err(`${id}: pages must be positive ints`);
@@ -219,11 +267,46 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         if (/(?:^|[^A-Za-z0-9])\d+(?![A-Za-z])/.test(a.nameExpect?.text ?? "")) {
           err(`${id}: expect text carries a standalone number — anchor on a header word without the value`);
         }
+      } else if (e.kind === "kind.scene") {
+        // A scene recipe is geometry over a page: it has no text anchor (the
+        // compiler bakes the map image's placement as one) and it may name
+        // things ONLY by id. Any other word in it would be a printed name
+        // shipping inside a row that exists to avoid exactly that.
+        if (e.anchor !== undefined) err(`${id}: a scene has no text anchor — the compiler bakes the image placement`);
+        if (!e.scene || typeof e.scene !== "object") err(`${id}: scene needs a "scene" block`);
+        const words = [];
+        const walk = (v, key) => {
+          if (typeof v === "string") {
+            if (key === "note" || COMPOSITE_ID.test(v) || /^#[0-9a-f]{6}$/i.test(v) || bandOfSection(v)) return;
+            words.push(v);
+          } else if (Array.isArray(v)) v.forEach((x) => walk(x, key));
+          else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k);
+        };
+        walk(e.scene ?? {}, "scene");
+        if (words.length) err(`${id}: a scene names things by id only — found ${words.slice(0, 3).map((w) => JSON.stringify(w.slice(0, 24))).join(", ")}`);
       } else {
         const anchorKeys = Object.keys(e.anchor ?? {});
-        if (anchorKeys.length !== 1 || !["display", "runin", "label", "subheading"].includes(anchorKeys[0])) {
-          err(`${id}: anchor must have exactly one of display|runin|label|subheading`);
+        if (anchorKeys.length !== 1 || !["display", "runin", "label", "subheading", "number", "hash"].includes(anchorKeys[0])) {
+          err(`${id}: anchor must have exactly one of display|runin|label|subheading|number|hash`);
         }
+        // A keyed place is the book's own proper name under a key number. The
+        // number is a pointer and ships; the words are read off the Judge's page
+        // at import (`printed-name.mjs`), so the row carries neither — a label
+        // built from the number, an id built from the number, and no `display`.
+        const number = e.anchor?.number;
+        if (number !== undefined) {
+          if (typeof number !== "string" || !KEY_NUMBER.test(number)) err(`${id}: anchor.number ${JSON.stringify(number)} is not a printed key number like "30." or "20/20U."`);
+          else {
+            const bare = number.replace(/\.$/, "");
+            if (e.name !== `POI ${bare}`) err(`${id}: a row anchored by number is named "POI ${bare}" — its printed name is read at import`);
+            if (id !== `${bookId}.poi${bare.split("/")[0]}`) err(`${id}: a row anchored by number has the id "${bookId}.poi${bare.split("/")[0]}"`);
+          }
+        }
+        if (e.anchor?.hash !== undefined && !PRINT_KEY.test(String(e.anchor.hash))) err(`${id}: anchor.hash must be a printKey (base-36)`);
+        if (e.kind === "kind.location" && / — Points of Interest$/.test(e.meta?.group ?? "") && number === undefined) {
+          err(`${id}: a keyed place in a "— Points of Interest" group anchors by number, never by its printed words`);
+        }
+        if (e.kind === "kind.organisation") checkOrganisation(e, id, bookId);
       }
       // An alias is a SECOND PRINTED SURFACE for a name this register already
       // owns — never a new name for something the module does not ship. It
@@ -266,6 +349,27 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
       for (const [name, t] of Object.entries(e.class?.tables ?? {})) checkColQualifiers(t.cols, id, `table "${name}"`);
       capStrings(e, id);
     }
+  }
+}
+
+/* --- organisations: every id a block names is a real row of the right sort --- */
+for (const { id, o } of orgRows) {
+  const want = (key, value, test, what) => {
+    const shape = rowShapes.get(value);
+    if (!shape) err(`${id}: organisation.${key} names "${value}", which no row defines`);
+    else if (!test(shape)) err(`${id}: organisation.${key} names "${value}", which is not ${what}`);
+  };
+  const isPlace = (s) => s.kind === "kind.location" && !/ — Overview$/.test(s.group);
+  const isPerson = (s) => s.kind === "kind.npc";
+  const isQuarter = (s) => s.kind === "kind.location" && / — Overview$/.test(s.group);
+  if (typeof o.seat === "string") want("seat", o.seat, isPlace, "a keyed place");
+  if (typeof o.leader === "string") want("leader", o.leader, isPerson, "a person");
+  for (const v of Array.isArray(o.holdings) ? o.holdings : []) want("holdings", v, isPlace, "a keyed place");
+  for (const v of Array.isArray(o.members) ? o.members : []) want("members", v, isPerson, "a person");
+  for (const v of Array.isArray(o.replaces) ? o.replaces : []) want("replaces", v, isPerson, "a person");
+  for (const v of Array.isArray(o.controls) ? o.controls : []) want("controls", v, isQuarter, "a quarter's overview");
+  for (const r of Array.isArray(o.relations) ? o.relations : []) {
+    if (typeof r?.to === "string") want("relations", r.to, (s) => s.kind === "kind.organisation", "an organisation");
   }
 }
 
@@ -324,10 +428,34 @@ if (fs.existsSync(COOKBOOK)) {
     if (!cb) continue;
     if (!["acks-cookbook/1", "acks-cookbook/2", "acks-cookbook/3"].includes(cb.schema)) err(`${label}: bad schema "${cb.schema}"`);
     capStrings(cb, label);
+    // A compiled scene is checked against the entries it was compiled beside:
+    // a recipe whose place was since dropped, or whose band is no longer a
+    // row of its list, fails here and not at a Judge's table.
+    const known = recipeContext(cb.entries);
+    for (const [id, sc] of Object.entries(cb.scenes ?? {})) {
+      if (sc.kind !== "kind.scene") err(`${label}: scenes.${id} has kind "${sc.kind}"`);
+      if (cb.entries?.[id]) err(`${label}: scenes.${id} shares its id with an entry`);
+      const r = sc.scene ?? {};
+      if (!Number.isInteger(r.page) || r.page < 1) err(`${label}: scenes.${id} needs a page`);
+      if (!r.placement || ["x", "y", "w", "h"].some((k) => typeof r.placement[k] !== "number")) err(`${label}: scenes.${id} carries no baked image placement`);
+      if (r.note !== undefined) err(`${label}: scenes.${id} ships its authoring note`);
+      for (const problem of recipeProblems(r, known)) err(`${label}: scenes.${id} ${problem}`);
+    }
     for (const [id, e] of Object.entries(cb.entries ?? {})) {
       for (const [field, instr] of Object.entries(e.fields ?? {})) {
         if (!OPS.has(instr.op)) err(`${label}: ${id}.${field} unknown op "${instr.op}"`);
         if (instr.pattern && !PATTERNS.has(instr.pattern)) err(`${label}: ${id}.${field} unknown pattern "${instr.pattern}"`);
+        if (instr.op === "heading") {
+          // The op exists so that the words do NOT ship: it is checked by a
+          // pointer, and an instruction that also carries a label has leaked it.
+          if (instr.text !== undefined) err(`${label}: ${id}.${field} is a heading and ships a label — that is what "expect" is for`);
+          const byNumber = typeof instr.number === "string" && KEY_NUMBER.test(instr.number);
+          const byHash = typeof instr.hash === "string" && PRINT_KEY.test(instr.hash);
+          if (byNumber === byHash) err(`${label}: ${id}.${field} heading needs exactly one of number|hash`);
+          if (!instr.box && !(Array.isArray(instr.parts) && instr.parts.length && instr.parts.every((p) => p?.box))) {
+            err(`${label}: ${id}.${field} heading needs a box, or parts that each carry one`);
+          }
+        }
         if (instr.op === "grid") {
           for (const col of instr.cols ?? []) {
             if (col.pattern && !GRID_PATTERNS.has(col.pattern)) err(`${label}: ${id}.${field} col "${col.key}" unknown grid pattern "${col.pattern}"`);

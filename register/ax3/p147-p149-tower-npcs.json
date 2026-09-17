@@ -1,11 +1,12 @@
 [
   {
-    "id": "ax3.aureusAmbador",
+    "id": "ax3.npc26",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Regent Aurëus Ambador",
+    "name": "NPC 26",
     "anchor": {
-      "runin": "Regent Aurëus Ambador"
+      "hash": "1tgba47",
+      "as": "runin"
     },
     "pages": [
       147,
@@ -15,17 +16,18 @@
       "group": "Tower District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Aurëus Ambador:",
+      "statLabelKey": "6ygl5a",
       "statlineAt": 148
     }
   },
   {
-    "id": "ax3.mentenusCavie",
+    "id": "ax3.npc27",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Provost Mentenus Cavië",
+    "name": "NPC 27",
     "anchor": {
-      "runin": "Mentenus Cavië"
+      "hash": "u4pww9",
+      "as": "runin"
     },
     "pages": [
       148
@@ -34,16 +36,17 @@
       "group": "Tower District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Mentenus Cavië:"
+      "statLabelKey": "l1f1x6"
     }
   },
   {
-    "id": "ax3.clitusOmnus",
+    "id": "ax3.npc28",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Clitus Omnus",
+    "name": "NPC 28",
     "anchor": {
-      "runin": "Clitus Omnus"
+      "hash": "c24c9a",
+      "as": "runin"
     },
     "pages": [
       148
@@ -52,7 +55,7 @@
       "group": "Tower District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Clitus Omnus:",
+      "statLabelKey": "2185aj",
       "columns": [
         40,
         307
@@ -60,12 +63,13 @@
     }
   },
   {
-    "id": "ax3.maraReavus",
+    "id": "ax3.npc29",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Inspector Mara Rëavus",
+    "name": "NPC 29",
     "anchor": {
-      "runin": "Mara Rëavus"
+      "hash": "1ty2mpr",
+      "as": "runin"
     },
     "pages": [
       149
@@ -74,7 +78,7 @@
       "group": "Tower District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Mara Rëavus:"
+      "statLabelKey": "1hhhodw"
     }
   }
 ]

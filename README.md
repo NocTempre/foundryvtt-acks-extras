@@ -5,8 +5,9 @@
 Rules automation for the **Adventurer Conqueror King System II** in Foundry VTT:
 classes and the class builder, proficiencies and class powers, equipment and
 fighting styles, exploration formations and overland travel, battlemaps and hex
-terrain, henchmen and hirelings, influence and reactions, locations, storage and
-markets, vehicles and voyages, and the full Monstrous Manual stat block — over
+terrain, henchmen and hirelings, influence and reactions, factions and standing,
+locations, storage and markets, vehicles and voyages, and the full Monstrous
+Manual stat block — over
 one set of shared primitives and one rules-table registry — and the importer
 that reads all of it from your own ACKS II PDFs.
 
@@ -346,6 +347,19 @@ retirement of the system's banked-coin column in favour of coin that is actually
 somewhere. The **Ruledata Browser** is the GM's audit surface over imported
 tables — export, edit, override, revert.
 
+### Factions, standing and status
+
+The **Faction** actor: a guild, a temple, a syndicate, a noble house, the watch.
+It has a seat, a leader, members, the quarters of a city it controls, and a
+ledger of how it stands toward a party or a character, in the Judge's own
+figures. The ledger's total is listed on reaction rolls made against the faction,
+against its members, and anywhere in its quarters; a **Wanted** row marks the
+party hunted in those quarters, so the district's hunted table answers there; and
+an optional setting lets standing move a market's class for one recruiter. The
+influence roller also fills its social status row from the ranks of the two
+people talking. Adventure books that describe a settlement's organisations import
+them as factions seated in their quarter.
+
 ### The Full Monster Sheet
 
 An alternate monster sheet carrying the complete structured Monstrous Manual stat
@@ -396,6 +410,8 @@ the UI).
 
 **Influence** — `enableBtaCaste`, `raceRelations`.
 
+**Factions** — `standingPerClassStep`.
+
 ---
 
 ## For module authors
@@ -410,7 +426,7 @@ acksExtras.classes    acksExtras.location
 acksExtras.equipment  acksExtras.markets
 acksExtras.formation  acksExtras.monsters
 acksExtras.battlemap  acksExtras.vehicles
-acksExtras.importer
+acksExtras.importer   acksExtras.factions
 ```
 
 Read it from a hook, not at module top level — features attach during `init`

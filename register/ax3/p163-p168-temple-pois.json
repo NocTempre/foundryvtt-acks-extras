@@ -1,0 +1,262 @@
+[
+  {
+    "id": "ax3.poi53",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 53",
+    "anchor": {
+      "number": "53."
+    },
+    "pages": [
+      163
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi54",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 54",
+    "anchor": {
+      "number": "54."
+    },
+    "pages": [
+      163
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi55",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 55",
+    "anchor": {
+      "number": "55."
+    },
+    "pages": [
+      163
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi56",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 56",
+    "anchor": {
+      "number": "56."
+    },
+    "pages": [
+      163
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi57",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 57",
+    "anchor": {
+      "number": "57."
+    },
+    "pages": [
+      163
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi58",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 58",
+    "anchor": {
+      "number": "58."
+    },
+    "pages": [
+      163,
+      164,
+      165
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi59",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 59",
+    "anchor": {
+      "number": "59."
+    },
+    "pages": [
+      165
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi60",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 60",
+    "anchor": {
+      "number": "60."
+    },
+    "pages": [
+      165
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi61",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 61",
+    "anchor": {
+      "number": "61."
+    },
+    "pages": [
+      165,
+      166
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi62",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 62",
+    "anchor": {
+      "number": "62."
+    },
+    "pages": [
+      166
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi63",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 63",
+    "anchor": {
+      "number": "63."
+    },
+    "pages": [
+      166,
+      167
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi64",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 64",
+    "anchor": {
+      "number": "64."
+    },
+    "pages": [
+      167
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi65",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 65",
+    "anchor": {
+      "number": "65."
+    },
+    "pages": [
+      167,
+      168
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi66",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 66",
+    "anchor": {
+      "number": "66."
+    },
+    "pages": [
+      168
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi67",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 67",
+    "anchor": {
+      "number": "67."
+    },
+    "pages": [
+      168
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi68",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 68/68U",
+    "anchor": {
+      "number": "68/68U."
+    },
+    "pages": [
+      168
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi69U",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 69U",
+    "anchor": {
+      "number": "69U."
+    },
+    "pages": [
+      168
+    ],
+    "meta": {
+      "group": "Temple District — Points of Interest"
+    }
+  }
+]

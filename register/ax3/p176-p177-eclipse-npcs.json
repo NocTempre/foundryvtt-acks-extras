@@ -1,115 +1,115 @@
 [
   {
-    "id": "ax3.destrio",
+    "id": "ax3.npc37",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Destrio, Cult Deathbringer",
+    "name": "NPC 37",
     "anchor": {
-      "label": "Destrio (Cult Deathbringer):"
+      "hash": "1wbt9os",
+      "as": "label"
     },
     "pages": [
       177
     ],
     "meta": {
-      "group": "Temple District — Eclipse Hideout"
+      "group": "Temple District — Special Locations"
     },
     "assists": {
-      "statLabel": "Destrio (Cult Deathbringer):",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.kalbo",
+    "id": "ax3.npc38",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Kalbo, City Watch Subaltern",
+    "name": "NPC 38",
     "anchor": {
-      "label": "Kalbo aka “Baldy,” City Watch Subaltern:"
+      "hash": "cca1mj",
+      "as": "label"
     },
     "pages": [
       177
     ],
     "meta": {
-      "group": "Temple District — Eclipse Hideout"
+      "group": "Temple District — Special Locations"
     },
     "assists": {
-      "statLabel": "Kalbo aka “Baldy,” City Watch Subaltern:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.larce",
+    "id": "ax3.npc39",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Larce, Mercenary Hero",
+    "name": "NPC 39",
     "anchor": {
-      "label": "Larce, Mercenary Hero:"
+      "hash": "cdq6js",
+      "as": "label"
     },
     "pages": [
       177
     ],
     "meta": {
-      "group": "Temple District — Eclipse Hideout"
+      "group": "Temple District — Special Locations"
     },
     "assists": {
-      "statLabel": "Larce, Mercenary Hero:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.virathos",
+    "id": "ax3.npc40",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Virathos, the Krysean Trader",
+    "name": "NPC 40",
     "anchor": {
-      "label": "Virathos, the Krysean Trader:"
+      "hash": "16aheh",
+      "as": "label"
     },
     "pages": [
       177
     ],
     "meta": {
-      "group": "Temple District — Eclipse Hideout"
+      "group": "Temple District — Special Locations"
     },
     "assists": {
-      "statLabel": "Virathos, the Krysean Trader:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.hradTheBloodAxe",
+    "id": "ax3.npc41",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Hrad the Blood Axe",
+    "name": "NPC 41",
     "anchor": {
-      "label": "Hrad the Blood Axe:"
+      "hash": "1bbrp6l",
+      "as": "label"
     },
     "pages": [
       177
     ],
     "meta": {
-      "group": "Temple District — Eclipse Hideout"
+      "group": "Temple District — Special Locations"
     },
     "assists": {
-      "statLabel": "Hrad the Blood Axe:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.una",
+    "id": "ax3.npc42",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Una, the Mysterious Woman",
+    "name": "NPC 42",
     "anchor": {
-      "label": "Una, the Mysterious Woman:"
+      "hash": "16j7vqo",
+      "as": "label"
     },
     "pages": [
       177
     ],
     "meta": {
-      "group": "Temple District — Eclipse Hideout"
+      "group": "Temple District — Special Locations"
     },
     "assists": {
-      "statLabel": "Una, the Mysterious Woman:",
       "anchorAtStatline": true
     }
   }

@@ -54,6 +54,50 @@ export function sceneBlockFeet(scene) {
 }
 
 /**
+ * What this map says of its city's own incident list, or null when it names
+ * none.
+ *
+ * A property of the MAP for the reason a block is: a world can hold two cities,
+ * each printed with a list of its own, and the map is the one thing that knows
+ * which city it draws. The shift is what the list adds once it is dark, and the
+ * band is the stretch of it that defers to the quarter the party is in; both
+ * are the Judge's to state from their own book, and both are silent at zero.
+ *
+ * @returns {{tableUuid: string, afterDark: number,
+ *   band: {from: number, to: number}|null}|null}
+ */
+export function sceneIncidents(scene) {
+  const flag = scene?.getFlag?.(MODULE_ID, FLAG_BATTLEMAP)?.incidents ?? null;
+  if (!flag?.tableUuid) return null;
+  const afterDark = Number(flag.afterDark);
+  const from = Number(flag.bandFrom);
+  const to = Number(flag.bandTo);
+  return {
+    tableUuid: String(flag.tableUuid),
+    afterDark: Number.isFinite(afterDark) ? afterDark : 0,
+    band: from >= 1 && to >= from ? { from, to } : null,
+  };
+}
+
+/**
+ * Merge a patch into the map's incident record, leaving the rest of the setup
+ * record as it was. Blank, zero and junk clear a figure rather than storing it.
+ */
+export function writeSceneIncidents(scene, patch) {
+  const current = scene.getFlag(MODULE_ID, FLAG_BATTLEMAP)?.incidents ?? {};
+  const next = { ...current };
+  if ("tableUuid" in patch) next.tableUuid = patch.tableUuid ? String(patch.tableUuid) : null;
+  // The shift is signed — a list may be read lower after dark as readily as
+  // higher — while an edge of the band is a face of the die and never below 1.
+  for (const [key, floor] of [["afterDark", -Infinity], ["bandFrom", 1], ["bandTo", 1]]) {
+    if (!(key in patch)) continue;
+    const n = patch[key] === "" || patch[key] == null ? NaN : Number(patch[key]);
+    next[key] = Number.isFinite(n) && n !== 0 && n >= floor ? n : null;
+  }
+  return writeSceneSetup(scene, { incidents: next });
+}
+
+/**
  * Merge a patch into the setup record. Read-modify-write over the whole flag,
  * because Foundry replaces a flag object rather than merging into it and the
  * apply and the scene-config row each write only their own half.

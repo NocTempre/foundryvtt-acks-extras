@@ -11,7 +11,7 @@
  */
 import assert from "node:assert/strict";
 import { resolveLevelValue } from "../scripts/lib/vocab.mjs";
-import { EXTERNAL_MODES, INFLUENCE_MODIFIERS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY } from "../scripts/influence/constants.mjs";
+import { EXTERNAL_MODES, INFLUENCE_MODIFIERS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY, externalRows } from "../scripts/influence/constants.mjs";
 import {
   effectRowsForPage,
   getActsAsPowers,
@@ -244,6 +244,27 @@ t("an effect aimed at somebody else is not a modifier on this roll", () => {
   const mods = getAbilityReactionMods({ items: [foe] });
   assert.equal(mods.length, 1);
   assert.equal(effectRowsForPage(mods, { family: ROLL_FAMILY.REACTION }).length, 0);
+});
+
+t("a roller keeps a pushed row that adds something, and a zero row only when it is a note", () => {
+  const rows = externalRows([
+    { label: "Old Quarter (district)", value: -1 },
+    { label: "a quarter that prices nothing", value: 0 },
+    { label: "Legal authority here: Watch", value: 0, note: true },
+    { label: "a figure wearing a note's mark", value: 2, note: true },
+    { value: "3" },
+    null,
+  ]);
+  assert.deepEqual(rows, [
+    { label: "Old Quarter (district)", value: -1, note: false },
+    { label: "Legal authority here: Watch", value: 0, note: true },
+    { label: "a figure wearing a note's mark", value: 2, note: false },
+    { label: "external", value: 3, note: false },
+  ]);
+  assert.deepEqual(externalRows(undefined), [], "no list is no rows");
+  // What a player's dialog forwards to the Judge's is this same shape, and it
+  // must survive the second pass whole.
+  assert.deepEqual(externalRows(rows), rows);
 });
 
 console.log(`\n${n} tests passed (influence modifier sources)`);

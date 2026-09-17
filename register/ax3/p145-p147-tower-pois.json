@@ -1,0 +1,109 @@
+[
+  {
+    "id": "ax3.poi46",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 46",
+    "anchor": {
+      "number": "46."
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "group": "Tower District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi47",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 47",
+    "anchor": {
+      "number": "47."
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "group": "Tower District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi48",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 48",
+    "anchor": {
+      "number": "48."
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "group": "Tower District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi49",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 49",
+    "anchor": {
+      "number": "49."
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "group": "Tower District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi50",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 50/50U",
+    "anchor": {
+      "number": "50/50U."
+    },
+    "pages": [
+      145
+    ],
+    "meta": {
+      "group": "Tower District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi51",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 51/51U",
+    "anchor": {
+      "number": "51/51U."
+    },
+    "pages": [
+      145,
+      146,
+      147
+    ],
+    "meta": {
+      "group": "Tower District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi52",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 52/52U",
+    "anchor": {
+      "number": "52/52U."
+    },
+    "pages": [
+      147
+    ],
+    "meta": {
+      "group": "Tower District — Points of Interest"
+    }
+  }
+]

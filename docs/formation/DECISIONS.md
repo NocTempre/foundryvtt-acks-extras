@@ -1679,6 +1679,10 @@ through. The scope test needs no special case for it — a party indoors matches
 
 ### A district does not name its own place actor (2026-09-12)
 
+**Narrowed 2026-09-16** — the quarter's place is named from the REGION's own flag, never
+from the behaviour, and the rejection below stands: `docs/location/DECISIONS.md` 2026-09-16
+"A district's place names its region", which states the evidence this entry did not have.
+
 **Rejected: `locationUuid` on the District behaviour.** It was in the plan and it does not
 ship.
 
@@ -1721,6 +1725,9 @@ who is on its streets has answered the question; being hunted there does not un-
 ---
 
 ### The district travel figures ship before the thing they measure between (2026-09-12)
+
+**Consumed 2026-09-16** by the walk to a point of interest ("A hop to a point of interest is
+priced by quarter", below). The entry stands as the record of why the figures came first.
 
 **Ruled.** The `ax3` recipe extracts `districtTravel: {same: {commuting, meandering},
 adjacent: {commuting, meandering}}` into the registry, in turns, and **nothing consumes it
@@ -1826,3 +1833,144 @@ quarter that had answered who walks its streets was silently overruled by a
 dangling pointer. It now returns the candidates in order and the roll takes the
 first that resolves, carrying that candidate's `source`, so the card still names
 the list that actually answered.
+
+---
+
+### A transient incident is a Judge-only marker with a clock (2026-09-16)
+
+**Ruled.** An incident the street throw lands leaves a Note at the party's
+point with no journal entry, the row's text in a module flag, and an expiry in
+world seconds; the shared world-clock watcher removes it; a button on the turn
+card turns it into a place.
+
+**Why a Note and not a place at once.** Most of what the d100 throws up is
+weather on the street — a procession, a pickpocket, a patrol — and a place for
+each would bury the city in actors nobody wanted. A marker records that
+something happened HERE, which is the one thing a chat card loses the moment it
+scrolls, and costs the Judge nothing to ignore. Promotion is the Judge's verdict
+that it was a place after all, and it is made under the quarter's own place so a
+promoted tavern sits where a gazetteer would file it.
+
+**Why Judge-only is free.** Core hides a Note with no entry from everyone but
+its author's peers (`Note#isVisible`, read from the installed core), so the
+marker needs no hidden journal to hide behind. **Rejected: a marker journal
+entry per city** — a document to keep, share and sweep for a thing that expires.
+**Rejected: expiry on a real-time timer** — a city turn is walked off the map
+and the calendar is what advances; a marker dying while nobody moved is a marker
+the players never had the chance to reach.
+
+**The lifetime is a world setting with a small default and no book value**: the
+page says nothing about how long an incident lingers, so the figure is the
+Judge's, and `0` means no markers at all.
+
+*Cost:* the turn card's incident line carries a button, and a card whose marker
+has already expired says so rather than promoting nothing.
+
+---
+
+### A hop to a point of interest is priced by quarter (2026-09-16)
+
+**Ruled.** The walk to a place token is classed by the Districts under its two
+ends and priced from the imported `districtTravel` figure for that relation and
+the party's pace; the turns are spent through `advanceTurns` as an ACTION and
+the token is then moved by a bypass the movement hook honours. This is the
+consumer the 2026-09-12 "ship before the thing they measure between" entry was
+waiting for.
+
+**Why through `advanceTurns` and not a bespoke spend.** A turn is a turn: the
+light burns, the stay credits, the street throws on its cadence. A hop that
+advanced a counter of its own would be a walk the city did not notice. The
+engine is reached by a late import because the settlement turn already imports
+the marker's module and the engine imports the settlement turn; the cycle is
+real, and the late import is the cheapest edge to cut.
+
+**Why the token moves AFTER the turns, and by a bypass.** Moving it first would
+price the drag by the streets AND the hop by the quarter — two prices for one
+walk. The bypass is the `HALT_OPTION` shape the engine already honours, and the
+clock's last position is re-baselined so the next drag starts from where the
+party now stands.
+
+**Adjacency is geometry, not a declared list.** Two outlines touch when a corner
+of either is within the join tolerance of an edge of the other. Two straight
+edges that overlap always put one of their ends on the other, and two quarters
+drawn by hand along one street never share a line exactly, so the tolerance is
+the slack the wall chainer already allows. **Rejected: a `neighbours` field on
+the district** — a list the Judge would keep in step with a drawing that already
+says it.
+
+**A hop the figures do not price is refused, not guessed.** Two quarters that
+do not touch have no printed figure — the page prices "within" and "adjacent"
+and nothing further — and an end outside every quarter has nothing to price
+from. The refusal names which, and the Judge's drag still works, priced by the
+streets. **Rejected: chaining adjacent hops across quarters** — a route the page
+does not price is a route the Judge walks.
+
+### The hunt is asked once per quarter (2026-09-16)
+
+**Ruled:** the factions feed writes `wanted` onto the settlement board through
+`applyHunt`, which asks the ledger only when the district under the party is
+not the one the board was last asked about (`huntRegion`): on entering the
+city, and on a turn that finds the party in another quarter. While the party
+stays, the Judge's own word on the flag stands, ticked or cleared. The hunter
+is named on the board (`huntedBy`) so the tracker and the card can say who.
+
+**Why.** The 2026-09-12 ruling made being hunted a fact about the board that
+the standing ledger would one day replace; the ledger arrived, and replacing
+the field would have taken the Judge's tick away. Feeding the field keeps
+both writers. Asking per turn was the obvious feed and the wrong one: a
+Judge who had just cleared the flag — the watch was bribed, the party is in
+disguise — would have it re-armed by the next tick, and the board would
+fight the person running the table. A quarter change is the one event where
+the ledger's answer is new information.
+
+**Rejected:** deriving `wanted` on read from the ledger with no board field —
+the Judge's manual tick, which the 7.6.0 walk verified players rely on,
+would have had nowhere to live. **Rejected:** listing every hunter — the
+first one names the hunt; a list is `docs/factions/ROADMAP.md`.
+
+**Cost:** a wanted row added while the party stands in the quarter is not
+seen until the party leaves and returns, or re-enters the city. The factions
+recipe says so.
+
+### A city's own list belongs to its map, and hands one band to the quarter (2026-09-17)
+
+**Ruled:** a city map names its own incident list in the battlemap setup record
+(`incidents`: the table, what it adds after dark, and one band), and the
+District behaviour gains `specialTableUuid`. `pickIncidentSource` puts the
+map's list behind every drawn list and ahead of the world's;
+`rollSettlementIncident` throws it on its own formula, reads it by band with
+the map's shift (`readIncident`), and draws the district's special list when
+the total lands in the band, reporting the city throw as `via`.
+
+**Why the map.** A gazetteer prints its city with a list of its own (AX3
+ch. 3, the streets of the city, beside JJ ch. 7), so one world holds two city lists and something has to
+say which city this is. The map already says how wide this city's blocks are
+for the same reason, and the three drawn layers are all read off it.
+**Rejected: the city's place actor** — it would make the streets' answer
+depend on the scene link being made, and a Judge with a map and no place has
+everything else working. **Rejected: finding the list by cookbook id**, the
+way the world's list is found — two imported cities would race for one slot.
+
+**Why a band and a special list, and not the district's table.** A district's
+`tableUuid` REPLACES the city's list for the quarter; AX3's quarters do not
+replace it, they are consulted for one stretch of it. Pointing `tableUuid` at
+a quarter's special list would send every incident in the quarter to a list
+written for one roll in eight.
+
+**This narrows "A district states a day figure and a night figure"
+(2026-09-12), five days old. The new evidence:** that ruling kept a shift off
+the district because nothing consumed one and said a printed shift would be "a
+new field, not a reinstatement". The consumer now exists and the figure is
+printed — AX3 ch. 3 states what its city list adds after dark, and rows of
+that list lie past its die — but it is printed for the CITY's list, so the
+field lands on the map and the district still carries none.
+
+**Rejected: deriving the shift from the rows** (highest range less the die's
+last face). It is right for a list built that way and silently wrong for one
+that is not, and the Judge would have no box showing what was assumed. The
+importer derives it that way when it sets a map up and WRITES it, where it can
+be seen and corrected.
+
+**Cost:** one band per map and one special list per district; a list with
+several routed bands is `docs/formation/ROADMAP.md`. The band and the shift
+are not honoured on the world's own list, which has neither.

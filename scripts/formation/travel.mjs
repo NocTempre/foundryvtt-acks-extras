@@ -91,6 +91,7 @@ export const ANCILLARY_ACTIVITIES = Object.freeze({
 export { ROAD_KINDS } from "../vehicles/vehicle-speed.mjs";
 import { ROAD_KINDS, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { settlementOf, reenterSettlement, carryStay, sceneStamp } from "./settlement.mjs";
+import { withHunt } from "./hunt.mjs";
 import { skyFor, readSkyCache, priorSky } from "./sky.mjs";
 import { runProvisionDay } from "./provision-day.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
@@ -319,7 +320,10 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
     record.travel = {
       ...t,
       mode,
-      settlement: mode === "settlement" ? enteredSettlement(t, sceneId) : t.settlement,
+      // Entering a city asks the factions' ledgers whether anyone hunts the
+      // party in the quarter it arrives in (hunt.mjs); leaving one keeps the
+      // board whole.
+      settlement: mode === "settlement" ? withHunt(enteredSettlement(t, sceneId), record) : t.settlement,
     };
     record.clock = { ...(record.clock ?? {}), paused: mode === "journey" };
   });
@@ -463,7 +467,12 @@ export function patchSettlement(formationId, patch = {}) {
       if (patch[key] !== undefined) next[key] = String(patch[key]);
     }
     if (patch.night !== undefined) next.night = !!patch.night;
-    if (patch.wanted !== undefined) next.wanted = !!patch.wanted;
+    if (patch.wanted !== undefined) {
+      next.wanted = !!patch.wanted;
+      // The Judge's untick outranks the ledger: the hunter's name goes with
+      // the flag, and the quarter stays asked so it is not re-armed next turn.
+      if (!next.wanted) next.huntedBy = "";
+    }
     if (patch.blocks !== undefined) next.blocks = Number(patch.blocks) || 0;
     if (patch.turns !== undefined) next.turns = Number(patch.turns) || 0;
     if (patch.lost !== undefined) next.lost = !!patch.lost;

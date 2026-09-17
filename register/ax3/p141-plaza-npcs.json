@@ -1,11 +1,12 @@
 [
   {
-    "id": "ax3.fatima",
+    "id": "ax3.npc24",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Fatima of the Seven Silks",
+    "name": "NPC 24",
     "anchor": {
-      "runin": "Fatima of the Seven Silks"
+      "hash": "19mh3ym",
+      "as": "runin"
     },
     "pages": [
       141
@@ -14,16 +15,17 @@
       "group": "Plaza District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Fatima:"
+      "statLabelKey": "jik225"
     }
   },
   {
-    "id": "ax3.lubbo",
+    "id": "ax3.npc25",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Lubbo the Immaculate",
+    "name": "NPC 25",
     "anchor": {
-      "runin": "Lubbo the Immaculate"
+      "hash": "zabt4e",
+      "as": "runin"
     },
     "pages": [
       141
@@ -32,7 +34,7 @@
       "group": "Plaza District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Lubbo:"
+      "statLabelKey": "18hij0j"
     }
   }
 ]

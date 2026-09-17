@@ -24,9 +24,10 @@ import { chainWalls } from "./wall-geometry.mjs";
 /**
  * A wall's layer under `key`, raw, or null when it carries none.
  *
- * Read through the document's accessor AND off the raw flags: the accessor
- * throws for a scope that is not active, while the data it wrote persists on
- * the wall — a scene opened before a module loads is exactly that state.
+ * Read through the document's accessor where there is one, and off the raw
+ * flags where there is not: a wall reaches here as a document from the canvas
+ * and as plain data from a create hook's bag, the palette's preset or a scene's
+ * source, and the layer is the same layer on each.
  */
 export function wallLayer(wall, key) {
   return wall?.getFlag?.(MODULE_ID, key) ?? wall?.flags?.[MODULE_ID]?.[key] ?? null;

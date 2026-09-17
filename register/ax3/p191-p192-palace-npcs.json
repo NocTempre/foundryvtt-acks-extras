@@ -1,11 +1,12 @@
 [
   {
-    "id": "ax3.justiriusTavicusBasilio",
+    "id": "ax3.npc48",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Prefect Justirius Tavicus Basilio",
+    "name": "NPC 48",
     "anchor": {
-      "runin": "Prefect Justirius Tavicus Basilio"
+      "hash": "x8cfsu",
+      "as": "runin"
     },
     "pages": [
       191
@@ -14,17 +15,18 @@
       "group": "Palace District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Justirius Tavicus Basilio:",
+      "statLabelKey": "lluju1",
       "sameColumnOnly": true
     }
   },
   {
-    "id": "ax3.ladySyrenaAustiriaBasilio",
+    "id": "ax3.npc49",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Lady Syrena Austiria Basilio",
+    "name": "NPC 49",
     "anchor": {
-      "runin": "Lady Syrena Austiria Basilio"
+      "hash": "15pczgw",
+      "as": "runin"
     },
     "pages": [
       191
@@ -33,16 +35,17 @@
       "group": "Palace District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Lady Syrena Austiria Basilio:"
+      "statLabelKey": "15pczgw"
     }
   },
   {
-    "id": "ax3.nicodosEssir",
+    "id": "ax3.npc50",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Court Magist Nicodos Essir",
+    "name": "NPC 50",
     "anchor": {
-      "runin": "Nicodos Essir"
+      "hash": "no228e",
+      "as": "runin"
     },
     "pages": [
       191,
@@ -52,17 +55,18 @@
       "group": "Palace District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Nicodos Essir:",
+      "statLabelKey": "1g173eu",
       "statlineAt": 192
     }
   },
   {
-    "id": "ax3.gundusJannion",
+    "id": "ax3.npc51",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Gundus Jannion",
+    "name": "NPC 51",
     "anchor": {
-      "runin": "Legate Gundus Zelicus Jannion"
+      "hash": "1xst2bv",
+      "as": "runin"
     },
     "pages": [
       192
@@ -71,7 +75,7 @@
       "group": "Palace District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Gundus Jannion:"
+      "statLabelKey": "1nxbc78"
     }
   }
 ]

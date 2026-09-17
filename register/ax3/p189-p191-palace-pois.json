@@ -1,0 +1,139 @@
+[
+  {
+    "id": "ax3.poi76",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 76",
+    "anchor": {
+      "number": "76."
+    },
+    "pages": [
+      189
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi77",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 77",
+    "anchor": {
+      "number": "77."
+    },
+    "pages": [
+      189
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi78",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 78",
+    "anchor": {
+      "number": "78."
+    },
+    "pages": [
+      189
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi78U",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 78U",
+    "anchor": {
+      "number": "78U."
+    },
+    "pages": [
+      189
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi79",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 79",
+    "anchor": {
+      "number": "79."
+    },
+    "pages": [
+      189,
+      190
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi80",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 80",
+    "anchor": {
+      "number": "80."
+    },
+    "pages": [
+      190
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi81",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 81",
+    "anchor": {
+      "number": "81."
+    },
+    "pages": [
+      190
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi81U",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 81U",
+    "anchor": {
+      "number": "81U."
+    },
+    "pages": [
+      190,
+      191
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  },
+  {
+    "id": "ax3.poi82",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "POI 82",
+    "anchor": {
+      "number": "82."
+    },
+    "pages": [
+      191
+    ],
+    "meta": {
+      "group": "Palace District — Points of Interest"
+    }
+  }
+]

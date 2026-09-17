@@ -98,6 +98,43 @@ export function getDomainIncome(actor) {
   return null;
 }
 
+/**
+ * The actor's SOCIAL RANK — a rung on the ladder of titles, for the reaction
+ * roller's status row and anything else that compares two people's station.
+ * The same chain as the other facts: a domains module's own answer, then the
+ * actor flag `socialRank` (a number, or `{rank, title}`), then a marker item
+ * named `Rank: 3 (Baron)` — the number is the rung, the parenthesis the
+ * title — or `Rank: Baron` for a title with no rung. The ladder's rungs are
+ * not printed here: what a title is worth is the Judge's, or the module
+ * that owns titles.
+ * @returns {{rank: number|null, title: string}|null}
+ */
+export function getSocialRank(actor) {
+  const asRank = (value) => {
+    if (value == null || value === "") return null;
+    if (typeof value === "object") {
+      const rank = Number(value.rank);
+      return { rank: Number.isFinite(rank) ? rank : null, title: String(value.title ?? "") };
+    }
+    const rank = Number(value);
+    return Number.isFinite(rank) ? { rank, title: "" } : { rank: null, title: String(value) };
+  };
+  for (const id of ["acks-domains"]) {
+    const api = game.modules.get(id)?.api;
+    const found = api?.getSocialRank?.(actor);
+    if (found) return asRank(found);
+  }
+  const flag = asRank(actor?.getFlag?.(MODULE_ID, "socialRank"));
+  if (flag) return flag;
+  const item = markerItems(actor, /^(?:social\s+)?rank\s*[:\-]/i)[0];
+  if (item) {
+    const rest = item.name.replace(/^(?:social\s+)?rank\s*[:\-]\s*/i, "").trim();
+    const m = rest.match(/^(\d+)\s*(?:[(\-–—]\s*([^)]*?)\s*\)?)?$/);
+    return m ? { rank: Number(m[1]), title: (m[2] ?? "").trim() } : { rank: null, title: rest };
+  }
+  return null;
+}
+
 /** Is the actor a member of the employer's crime syndicate (ruffian loyalty)? */
 export function isSyndicateMember(actor, bossActor = null) {
   const flag = actor?.getFlag?.(MODULE_ID, "syndicateBoss");

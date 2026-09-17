@@ -36,7 +36,8 @@ import { bookText, CITE_CLASS, CITE_LINK_CLASS } from "./prose.mjs";
 import { BOOKS, fingerprintWarning, identifyBook, parseCite } from "./books.mjs";
 import { matchFilesToBooks } from "./book-match.mjs";
 import { RECIPES } from "./recipes.mjs";
-import { openBook, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
+import { openBook, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageMap, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
+import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { extractStatPairs } from "./stats.mjs";
 import { mapPairs } from "./stats-map.mjs";
 import { createDocFor } from "./poc.mjs";
@@ -76,7 +77,7 @@ import {
   importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
   importWeapons, importArmor,
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importVariations, importVehicles,
-  cookbookImportJournals, cookbookImportRollTables, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks,
+  cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks,
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { registerOseSourceSetting } from "./ose-source.mjs";
@@ -2445,9 +2446,11 @@ function artIndex(FP) {
  * skipping the op afterwards is safe: the caller is told "cached" only about a
  * file that really is there and really is usable.
  */
-async function cachedArt(id) {
+const cachedArt = (id) => cachedFile(`${String(id).replaceAll(".", "-")}.png`);
+
+/** The usable file of this name already in the art directory, or null — the check `cachedArt` describes. */
+async function cachedFile(filename) {
   const FP = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
-  const filename = `${String(id).replaceAll(".", "-")}.png`;
   const index = await artIndex(FP);
   const existing = index.get(filename);
   if (!existing) return null;
@@ -2478,6 +2481,36 @@ async function uploadPageArt(doc, recipe) {
   const res = await FP.upload("data", dir, file, {}, { notify: false });
   if (!res?.path) return null;
   index.set(filename, res.path); // the listing stays true without re-browsing
+  return { path: res.path, width: art.width, height: art.height };
+}
+
+/**
+ * Render + upload a scene recipe's picture — returns `{path, width, height}`
+ * or null. A world asset for the same reason a creature's art is: every seat's
+ * canvas has to load it.
+ *
+ * The file is named by the recipe's id AND its picture key, so the picture a
+ * world already holds is reused only while the recipe still draws the same
+ * one; a recipe that moved its crop or its scale renders again under a new
+ * name instead of laying new outlines over old pixels.
+ */
+async function uploadSceneMap(doc, id, recipe) {
+  const FP = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+  const frame = sceneFrame(recipe);
+  const stem = `${String(id).replaceAll(".", "-")}-${pictureKey(recipe)}`;
+  for (const ext of ["webp", "png"]) {
+    const existing = await cachedFile(`${stem}.${ext}`);
+    if (existing) return { path: existing, width: frame.width, height: frame.height, cached: true };
+  }
+  const art = await extractPageMap(doc, recipe.page, recipe.crop, frame, turnMatrix(frame));
+  if (!art) return null;
+  await FP.createDirectory("data", ART_DIR).catch((err) =>
+    console.debug(`${MODULE_ID} | art directory "${ART_DIR}" not created (it usually already exists)`, err),
+  );
+  const filename = `${stem}.${art.ext}`;
+  const res = await FP.upload("data", ART_DIR, new File([art.blob], filename, { type: art.blob.type }), {}, { notify: false });
+  if (!res?.path) return null;
+  (await artIndex(FP)).set(filename, res.path);
   return { path: res.path, width: art.width, height: art.height };
 }
 
@@ -2739,7 +2772,7 @@ Hooks.once("ready", async () => {
   // setting gets a journal per book, once, before the restore below reads it.
   await migrateShelfSetting();
 
-  initCookbook({ sessionDocs, importArtForPage: importArt, uploadPageArt, cachedArt });
+  initCookbook({ sessionDocs, importArtForPage: importArt, uploadPageArt, cachedArt, uploadSceneMap });
   registerAbilityDirectoryButtons();
   await loadCookbook();
   const api = {
@@ -2751,7 +2784,7 @@ Hooks.once("ready", async () => {
     cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities, cookbookFillCompanions, cookbookPruneAbilities,
     importAbility, cookbookDebug, cookbookCount,
     cookbookImportTables,
-    cookbookImportJournals, cookbookImportRollTables, cookbookAudit, lastAudit,
+    cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit,
     cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks,
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),

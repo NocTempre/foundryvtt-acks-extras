@@ -36,6 +36,12 @@ right-click the scene in the sidebar. The link is never made automatically —
 most scenes are battle maps and lighting tests, and forty auto-created actors on
 first load is not a favour.
 
+A place can also stand ON a map: drop the actor on any scene and its token is a
+point of interest — a marker with its name on hover and no bars, which the
+formation guide's [Points of interest](formation.md#points-of-interest) section
+walks. A quarter drawn as a district can name a place as its own from the
+district's sheet.
+
 ## Store goods there
 
 Drag an item onto the sheet's **Storage** tab, or use **Deposit here**.
@@ -126,6 +132,14 @@ Most places have no market. **GM Settings → Add market** creates one, and four
 extra tabs appear.
 
 Removing a market removes the data with it, not just the tabs.
+
+A market can disagree with the book about who is common here. Under **GM
+Settings**, the rarity overrides take a class and a tier, one row each: a
+directed search for that class then rolls on the tier you picked, whatever the
+rarity table says. A university town where mages are easy to find is one row.
+
+Who holds the town can matter too: see
+[what standing does](factions.md#what-standing-does).
 
 ## Common problems
 

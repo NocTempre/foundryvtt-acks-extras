@@ -1,4 +1,4 @@
-/* global canvas, game, ui, Hooks */
+/* global canvas, game, ui, Hooks, foundry, document */
 /**
  * The two ways a Judge turns ground already on the map into a district: mark
  * regions already drawn, or trace one from a loop of walls — the same two
@@ -11,6 +11,70 @@
 import { MODULE_ID } from "./constants.mjs";
 import { DISTRICT_TYPE } from "./district-zone.mjs";
 import { controlledWalls, regionFromWalls } from "../lib/wall-layers.mjs";
+import { associateLabels } from "../lib/a11y.mjs";
+import { LOCATION_TYPE } from "../location/constants.mjs";
+
+/**
+ * A "Place" row on the District behaviour's sheet: the location actor the
+ * quarter IS — its market, its notes, what is kept there.
+ *
+ * The link itself is the location feature's (the Region's own flag, mirrored
+ * on the place, the way a scene's link is made) and is reached through its
+ * api, so this sheet knows nothing about how it is stored. The row is only
+ * where a Judge typing a quarter's figures is already looking.
+ *
+ * DOM injection rather than a sheet subclass, for the reason the scene-config
+ * row gives; rebuilt on every render, because ApplicationV2 replaces its
+ * parts.
+ */
+export function installDistrictPlaceRow() {
+  Hooks.on("renderRegionBehaviorConfig", (app, element) => {
+    if (!game.user?.isGM) return;
+    const behavior = app?.document;
+    if (behavior?.type !== DISTRICT_TYPE) return;
+    const region = behavior.parent;
+    const scenes = globalThis.acksExtras?.location?.scenes;
+    if (!region || typeof scenes?.locationOfRegion !== "function") return;
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+    root.querySelectorAll(".acks-extras-district-place").forEach((n) => n.remove());
+    // Under the behaviour's own fields, which core renders as the last fieldset.
+    const host = root.querySelector("fieldset:last-of-type") ?? root.querySelector("form") ?? root;
+
+    const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
+    const say = (key) => game.i18n.localize(`ACKS-FORMATION.DISTRICT.place.${key}`);
+    const linked = scenes.locationOfRegion(region);
+    const places = game.actors.filter((a) => a.type === LOCATION_TYPE).sort((a, b) => a.name.localeCompare(b.name));
+    const group = document.createElement("div");
+    group.className = "form-group acks-extras-district-place";
+    group.innerHTML = `<label>${esc(say("label"))}</label>
+      <div class="form-fields">
+        <select class="acks-extras-district-place-select">
+          <option value="">${esc(say("none"))}</option>
+          ${places.map((a) => `<option value="${esc(a.uuid)}"${linked?.uuid === a.uuid ? " selected" : ""}>${esc(a.name)}</option>`).join("")}
+        </select>
+        <button type="button" class="acks-extras-district-place-new" data-tooltip="${esc(say("create"))}">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <p class="hint">${esc(say("hint"))}</p>`;
+    host.append(group);
+    associateLabels(group);
+
+    // Written immediately rather than on submit: the link is a flag on the
+    // region plus a field on an actor, and the sheet's submit knows neither.
+    const report = (run) =>
+      Promise.resolve(run).catch((err) => console.error(`${MODULE_ID} | district place link failed`, err));
+    group.querySelector(".acks-extras-district-place-select").addEventListener("change", (ev) => {
+      const uuid = ev.currentTarget.value;
+      const actor = uuid ? game.actors.get(uuid.split(".")[1]) : null;
+      report(actor ? scenes.linkRegion(region, actor) : scenes.unlinkRegion(region));
+    });
+    group.querySelector(".acks-extras-district-place-new").addEventListener("click", () => {
+      report(Promise.resolve(scenes.createLocationForRegion(region)).then((made) => made && app.render()));
+    });
+  });
+}
 
 /**
  * Has the SERVER seen the District sub-type since the world launched?

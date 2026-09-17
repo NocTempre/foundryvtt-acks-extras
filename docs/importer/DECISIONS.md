@@ -4107,6 +4107,41 @@ threshold tells the two apart; the space item is the only witness. **Cost:**
 every book's recipes recompile with more `joinSpace` ordinals, and a seat reads
 the corrected text only after it reimports the book.
 
+### A settlement's keyed places are actors, nested quarter → city (2026-09-16)
+
+*Superseded in part 2026-09-17 — the quarter's own overview no longer stays on
+the page path ("A quarter's overview is the notes of the quarter's place"), and
+a place is named from the page ("A printed proper name is read, never
+shipped").*
+
+**Ruled.** A `kind.location` entry whose group reads `<Quarter> — Points of
+Interest` or `<Quarter> — Notable Residents` binds to a location ACTOR under a
+place for its quarter under the book's own place — the adventure place the OSE
+binding also makes, claimed under one id so whichever path runs first makes it
+and the other finds it — carrying the page's materialized text as its notes.
+`cookbookImportJournals` steps over them; `cookbookImportPoiPlaces` builds them
+as its own step of the chain, after the journals. Any other group shape — a
+hideout, a cult, a party, the quarter's own overview — stays on the page path.
+
+**Why an actor.** A place in this family has a parent, a roster, a market and a
+token; a page grows none of those, and the settlement layer's points of
+interest ARE these entries. Binding them as pages was the dependency half
+shipped first; this is the consumer.
+
+**Why the group words, and only those two.** They are the register's own
+vocabulary for the book's structure, not the book's prose, and the register
+prints exactly those two per quarter. **Rejected: binding every `kind.location`
+in a settlement book** — the organisations' keyed rooms belong to the factions
+phase, which binds them as what they are. **Rejected: a `meta.poi` stamp per
+entry** — a second thing to keep in step with the group it already has.
+
+**Worlds that hold the pages keep them.** Nothing here deletes a page, and the
+pass asks presence by cookbook id before it reads the page, so a re-run over a
+world that has both costs a lookup per entry.
+
+*Cost:* AX3's keyed places no longer land as pages on a fresh import; a Judge
+who wants them as pages has the actor's notes.
+
 ### A display heading ends a run-in block in its own column (2026-09-16)
 
 **Ruled:** in `compileDefinition`, a run at display-heading height below the
@@ -4115,3 +4150,232 @@ continuation. **Rejected:** stopping at the next registered run-in — the
 overrun that surfaced this (Earthshooter, BTA p98) had a table and a paragraph
 between the entry and the next run-in, so a sibling stop alone would have kept
 both. **Cost:** an entry whose block ran past a heading shortens to the heading.
+
+### A settlement's organisations bind as factions seated in their quarter (2026-09-16)
+
+*Superseded in part 2026-09-17 — "Why `other`" and the rejected stamp hold for
+GROUP organisations only ("An organisation the book introduces by name is an
+authored row").*
+
+**Ruled:** a group of the shape "<Quarter> — <Organisation>" — a quarter's
+group that is neither its points of interest nor its notable residents — or
+"NPC Party — <Name>" is an organisation. It becomes an `acks-extras.faction`
+actor (`faction-binding.mjs`, `cookbookImportFactions`) seated in the
+quarter's own place, the city's for a company with no quarter, with the
+people keyed under the group rostered as members. The step runs after the
+points of interest, as its own step of the chain, and asks presence by
+cookbook id before it builds; a member already rostered is not rostered
+twice, and a person the world has not imported is left for the next run.
+
+**Why the group shape.** The register prints exactly two suffixes per quarter
+for its places and residents, and every other dash-joined group under a
+quarter is a body of people: a hideout, a cult, a citadel's garrison. That
+structure is the register's, not the book's prose. The company's head is one
+word the register uses for one thing.
+
+**Why `other`.** What a hideout or a cult is to the law is the Judge's
+reading; the import lands every organisation as `other` and the kind is a
+select on the sheet. **Rejected: a `meta.organisation` stamp** giving each
+group a kind — a second thing to keep in step with the group it already has,
+and a reading of the book shipped as structure.
+
+**The rooms stay pages.** An organisation's keyed rooms, where a book prints
+them, land as they always did; binding them as places under the seat is
+parked (`docs/factions/ROADMAP.md`).
+
+*Cost:* AX3's organisations are four actors on a Factions shelf a world did
+not have; a Judge who wants only the pages deletes them.
+
+### A printed proper name is read, never shipped (2026-09-17)
+
+**Ruled (the user's).** A row for a keyed place or a named organisation ships
+a neutral label — `POI 15`, `Organisation 4` — and an id built from the same
+number (`ax3.poi15`, `ax3.org4`). No word of the printed name is in the row,
+the cookbook or a test. The name is LOCATED instead: a keyed place by the key
+number its heading opens with (`anchor.number`), an unnumbered name by
+`anchor.hash`, the `printKey` of its folded text — a 32-bit hash, which proves
+a page prints the name and cannot be read back into it. The executor's
+`heading` op reads the box, checks it against the number or the hash and hands
+the words back as `title`; the binding names the document with them
+(`printedNameOf`). The lint holds the shape: a numbered row is labelled and
+identified by its number, a place among a quarter's points of interest anchors
+by number, an organisation by hash.
+
+**Why the key number may ship.** It is a reference on the footing of a page
+citation: it says where on the Judge's page and map to look, and pays out only
+to a reader holding the book.
+
+**Scope.** Converted: AX3's 87 numbered places, fifteen of which had shipped
+under name-derived ids. Left as shipped and parked in [ROADMAP.md](ROADMAP.md):
+the quarters' own names, the NPC rows whose ids worlds hold actors under, the
+two unnumbered place rows, the group strings that name a city or a body, AX2's
+numbered place rows and the OSE rows. Each needs an id migration this release
+does not carry.
+
+**Migration.** The fifteen converted ids were only ever imported as journal
+pages, which no step looks up again; this release builds them as actors under
+the new ids and leaves the pages alone.
+
+**Rejected:** matching a shipped prefix of the name — a prefix is a piece of
+it. **Rejected:** keeping the name in the row and hashing only as a check —
+the ruling is about what the row says. **Rejected:** mending a name the line
+broke while importing — judgment in the executor; the compiler decides and
+ships `glue`.
+
+*Cost:* the entry browser lists `POI 15` until the place is imported. The name
+a world gets is the page's own, title-cased from a heading set in capitals, so
+three of AX3's read longer than the labels their rows used to carry.
+
+### A quarter's overview is the notes of the quarter's place (2026-09-17)
+
+Supersedes, for the overview only, "stays on the page path" in the 2026-09-16
+places ruling.
+
+**New evidence.** The map recipe names each quarter by a row, and the overview
+is the only row a quarter has. The first import also built every quarter's
+place EMPTY beside a page holding that quarter's description: one fact in two
+documents, the empty one being the one a Judge opens from the map.
+
+**Ruled.** `<Quarter> — Overview` is a third place group. It makes no place of
+its own: its text becomes the notes of the quarter's place, written only while
+those notes are empty, so a re-run reads nothing and a Judge's own words over
+them are kept. `cookbookImportJournals` steps over it with the other two.
+
+**Rejected:** a child place per overview — a quarter would hold a place named
+after itself.
+
+*Cost:* a world that imported the overview as a page under 7.7 keeps the page
+and gains the notes.
+
+### An organisation the book introduces by name is an authored row (2026-09-17)
+
+Supersedes "Why `other`" and the rejected stamp of the 2026-09-16
+organisations ruling, for organisations a book introduces in its own prose.
+Group organisations stand as ruled there.
+
+**New evidence.** Three things that ruling did not know. The user ruled that
+this release models how factions stand to each other and to places, and that
+the answer may be worked out once and baked into the recipe. The legal
+authority row is gated on a faction's kind (`AUTHORITY_KINDS`), so an import
+that lands every body as `other` leaves that row reachable only for a faction
+built by hand. And a group heading gathers everyone printed under it: AX3's
+first import rostered one body's quarry as its members, and only a row that
+was read can tell the two apart.
+
+**Ruled.** `kind.organisation`: one row per organisation the book introduces,
+labelled by number, found by print key, its description the paragraph that
+introduces it. Its `organisation` block says the rest BY COOKBOOK ID: the
+keyed place it is seated at, the places it holds, who leads it and who belongs
+to it, the quarters it controls, the group it stands in for (`replaces`, by
+naming one of that group's people) and how it stands to the other
+organisations, a tie the page keeps from the players marked `hidden`. What
+sort of body it is and each stance are this module's own words
+(`FACTION_KINDS`, `RELATION_STANCES`), never the book's. `nameFrom: "seat"`
+names a body after the keyed place it keeps, where the page introduces it by a
+person's name. The lint proves every id is a row of the right sort; the
+compiler drops a relation whose other end did not compile, with a warning.
+
+**The import** builds authored organisations first, then the groups nothing
+replaced, then relations once every organisation they could name exists
+(`cookbookImportFactions`). A re-run tops up only what is absent and never
+rewrites a row that is there.
+
+**Quarters wait for a map.** A Region exists only once a scene does, so the
+quarters ride on the faction's flag as the ids of the quarters' places, and
+the map step turns them into the regions it draws.
+
+**A seat the map does not set down stays in the library.** It is not brought
+into the world with its faction: a place with no token, goods or roster is
+what the location feature's ready-time prune deletes. The faction points at
+the library copy, which opens.
+
+**Rejected:** reading a body's kind off the heading it is printed under while
+importing — it ships the book's own categories as a lookup. **Rejected:**
+bringing unplaced seats across and exempting them from the prune — the prune's
+test is the location feature's, and an import is not a reason to bend it.
+
+*Cost:* the kinds and the ties are a reading of the book, shipped as structure
+over ids; a Judge who reads it differently edits the sheet. AX3 lands
+twenty-two factions where it landed four.
+
+### A printed map is a recipe of geometry over its page (2026-09-17)
+
+**Ruled.** `kind.scene`, compiled under a cookbook's `scenes` key: one page's
+crop, the quarter turns that stand it upright, the feet one point is worth,
+each quarter's outline and colour, the point each keyed place stands at, and
+the city's list and each quarter's list by id. Geometry and ids, measured off
+the page once by the author and baked into the row — the user ruled a generic
+map tool out of scope and the working-out in. The scale is a MEASUREMENT: the
+printed scale bar's length in points against the feet it states, so the scene
+is a pixel to the foot and every figure the settlement layer reads off it is
+in the book's own unit. What the city's list adds after dark and the stretch
+of it that defers to the quarter are read from the imported list at import
+(`afterDarkShift`, `bandOfSection`), so neither figure ships.
+
+**The anchor is the placement of the map's own image** on the page
+(`placementMatches`). A printing that lays the map out elsewhere is refused
+before anything is written, where outlines cut for another picture would have
+drawn quarters over the wrong streets.
+
+**A place must stand in the quarter its own group names** (`recipeProblems`,
+asked by the compiler, the lint and the verifier alike): the quarter under a
+place is found by geometry at the table, and a point drawn over its neighbour
+would be priced as the neighbour's.
+
+**The picture is rendered with the print intent.** A display render is paced
+by animation frames and a tab that is not in front is given none; the first
+live import, run in a pane that was not in front, never finished its render.
+Only the crop is painted, so nothing outside it — a page's footer — reaches
+the picture.
+
+**Rejected:** shipping the map's picture or a tracing of it — the picture is
+the book's, and the recipe pays out only over the Judge's own page.
+**Rejected:** the grid and scale as Judge-typed fields after import — a map
+that arrives unscaled is not a play surface, and the scale is on the page.
+
+*Cost:* a recipe is hand-measured, one per map; a second printing with another
+layout imports no map until its recipe is cut.
+
+### A map and what stands on it are world documents, owned by nobody (2026-09-17)
+
+**Ruled.** The scene, the places set down on it, the quarters' places, the
+city's place and the book's factions are WORLD documents — the one exception
+to the library keeping its imports in compendiums. A scene link, a region link
+and a token each need a world actor, and the faction readers consult world
+factions only. `planCrossing` works the crossing out before the slow render,
+so a map that cannot be built leaves no actor behind; `bringAcross` makes each
+copy with its library id kept, so every reference between copies is rewritten
+before any of them exists (`worldCopySource`). A person stays in the library,
+and a roster row or a leader goes on pointing at them there.
+
+**Owned by nobody, and said so.** A copy states `ownership.default` NONE. The
+location feature shares every new place with the table — players have to own a
+place to leave goods in it — and a copy that arrived with no ownership of its
+own was handed to every player by that rule: a keyed place the map had set
+down hidden sat in the players' sidebar with the Judge's page as its notes.
+Found in review before release; the Judge shares a place when the party finds
+it, in the same breath as showing its token.
+
+**Set down hidden.** A keyed place may be a secret, and showing one is a click
+where un-showing is not possible. A hidden token is no travel target, so a
+place joins the walk list as it is revealed.
+
+**One create.** The picture goes in as the scene's first level, spelled out
+with core's own default level id; `active: false` is stated; regions and
+tokens ride in the same create, already linked. Each was forced live: core
+strips the older top-level `background` from creation data, it activates a
+scene that does not say when the world has none active, and an activated scene
+is drawn at once, under whatever a second write is still adding. The places'
+mirrors are the only thing written after, because they name documents the
+create makes (`mirrorCreatedLinks`).
+
+**Rejected:** importing the scene into a compendium for the Judge to drag out
+— a dragged scene's tokens and region links name library actors, which is
+every link broken at once. **Rejected:** leaving ownership to the location
+feature's default and documenting it — a default that publishes a Judge's page
+is not one a Judge would find in time.
+
+*Cost:* a world holds a second copy of each place the map sets down, and the
+library's copy no longer follows a Judge's edits to it. A map imported before
+its book's factions does not hand them their quarters until it is deleted and
+imported again ([ROADMAP.md](ROADMAP.md)).

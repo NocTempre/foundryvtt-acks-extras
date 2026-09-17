@@ -43,6 +43,28 @@ const PACK_LABEL_PREFIX = "ACKS Cookbook — ";
 export const libraryPackLabel = (type, line = null) =>
   line ? `${PACK_LABEL_PREFIX}${line} — ${type}` : `${PACK_LABEL_PREFIX}${type}`;
 
+/** The last segment of a line whose shelves are the Judge's alone. */
+const JUDGE_SHELF = "Judge";
+
+/**
+ * The line a JUDGE'S book is shelved under: its own series with the Judge's
+ * segment added, or that segment alone for a book of the ACKS library. An
+ * adventure's keyed places, people and organisations are the Judge's page, so
+ * they go to shelves no player seat can open, where one pack setting answers
+ * for all of them. The marker rides in the LABEL because the label is the one
+ * thing every reader of a shelf already has (`importedPacks`).
+ */
+export const judgeLine = (line = null) => (line ? `${line} — ${JUDGE_SHELF}` : JUDGE_SHELF);
+
+/** Whether a line is a Judge's own (`judgeLine`). */
+export const isJudgeLine = (line) => line === JUDGE_SHELF || String(line ?? "").endsWith(` — ${JUDGE_SHELF}`);
+
+/**
+ * What a Judge's shelf is created with, and what a library restore puts back:
+ * no player seat, trusted or not, can see the pack or read a document in it.
+ */
+export const JUDGE_SHELF_OWNERSHIP = Object.freeze({ GAMEMASTER: "OWNER", ASSISTANT: "OWNER", TRUSTED: "NONE", PLAYER: "NONE" });
+
 /** The shelf for one type and line, or null when this world has none yet. */
 export function findLibraryPack(type, line = null) {
   const label = libraryPackLabel(type, line);

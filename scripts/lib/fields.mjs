@@ -36,6 +36,7 @@ import {
   VALUE_ROUNDING,
   RUNG_OUTCOMES,
 } from "./vocab.mjs";
+import { OCCUPANT_KIND } from "./place-logic.mjs";
 
 const F = () => foundry.data.fields;
 
@@ -55,6 +56,41 @@ export const choice = (enumObj, opts = {}) =>
 export const choiceSet = (enumObj) => new (F().SetField)(new (F().StringField)({ choices: choicesOf(enumObj) }));
 /** A list of ability refs (def.prof.x / def.power.x). */
 export const refList = () => new (F().ArrayField)(new (F().StringField)({ blank: false }));
+
+/**
+ * One occupant — a living thing recorded on a place's roster, or on a
+ * faction's membership. One definition, because a garrison billeted at an
+ * inn and the guild that pays it are the same kind of row.
+ *
+ * A REFERENCE, not an embedded document: Foundry cannot embed an Actor in an
+ * Actor, so a garrison, a stabled horse and a captive dragon are all uuids.
+ * The name and image are DENORMALISED alongside, for the same reason storage
+ * stamps `ownerName` next to `ownerUuid` — a deleted actor leaves a row that
+ * still says what used to be here, which is a record a GM can act on rather
+ * than a blank. `place-logic.mjs`'s `OCCUPANT_KIND` is the `kind` vocabulary;
+ * `place.mjs`'s `occupantRow` builds a row from a live actor.
+ */
+export function occupantField() {
+  const { SchemaField, StringField, BooleanField } = F();
+  return new SchemaField({
+    uuid: str(),
+    name: str(),
+    img: str(),
+    kind: new StringField({ required: true, initial: OCCUPANT_KIND.ACTOR, choices: Object.values(OCCUPANT_KIND) }),
+    // A group row counts its whole stack: a platoon billeted at an inn is 30
+    // people asleep in it, and a headcount that said 1 would mislead every
+    // capacity decision made from the sheet.
+    quantity: int(1),
+    ownerUuid: str(), // who put it here / whose it is; "" = the holder's own
+    // Caller-supplied at placement (acks-lib `occupantRow` / `addOccupant`
+    // option bag), and kept when a stored row absorbs its derived duplicate.
+    notes: str(),
+    // Display gating only, never a security boundary — the same ruling storage
+    // makes about attribution. A row that must genuinely stay secret belongs
+    // on a GM-owned document.
+    hidden: new BooleanField({ initial: false }),
+  });
+}
 
 /* --- LevelValue: flat | perLevel | breakpoints | progression --- */
 export function levelValueField() {

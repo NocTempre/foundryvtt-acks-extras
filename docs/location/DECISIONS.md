@@ -665,3 +665,65 @@ A `deployedTokens`-shaped mechanism is the real answer and is ROADMAP work.
 true beside a hard-coded `isOwner: false` — so every ground-branch assertion was
 pinned under an impossible state. The fixtures now carry real ownership maps and
 a non-GM seat.
+
+## 2026-09-16 — A point of interest is a place's token, not a note
+
+**Ruled.** A static point of interest — the shrine, the gate, the shop — is the
+location actor's own token on the city scene. A transient one, the thing an
+incident left behind, is a Judge-only Note that expires on the world clock and
+is promoted INTO a place when the Judge decides it was one (the marker is the
+formation feature's: its DECISIONS, 2026-09-16).
+
+**Why the actor's token and not a Note with a journal page.** Reach already
+answers "the party is standing at this place" from the token (2026-09-12); the
+market, the roster, the vault and the nesting are things a place has and a page
+cannot grow; and a Judge who wants the page has the location's notes. A
+Note-based point of interest would have been a second document for the same
+thing, with a second link to keep true. **Rejected: a `poi` flag or sub-type on
+the token** — a location actor's token is already the only token it can have,
+and `isLocation(token.actor)` names it without a second stamp.
+
+**What it cost.** Every reader that takes a token for a body had to learn to
+step over one, and the list is this module's, not core's: the derived roster,
+token sync, the battlemap's scaling and Add to party each gained an
+`isLocation` guard. A place put on a map is also kept from the prune, hidden or
+not, because a hidden marker is a point of interest the party has not found.
+
+**The prototype defaults are applied field by field and only where the creation
+data was silent**, because an importer or a Judge who states a picture or a
+disposition has said what they meant. `actorLink` is deliberately not among
+them: the 2026-09-15 "one token is one body" ruling is about the SUBJECT, and
+the place's half of `reachScan` kept matching `actorId` so that an unlinked
+token still finds its place.
+
+---
+
+## 2026-09-16 — A district's place names its region
+
+**Narrows** the formation ruling of 2026-09-12, "A district does not name its
+own place actor", which stands as written: the District BEHAVIOUR still names
+nothing, and the link is made where the scene link is made.
+
+**The new evidence, which that ruling did not have.** Two surfaces built in
+this phase need "the quarter's own place" while the party stands on no point of
+interest — the settlement panel's readout, and the walk to a point of interest,
+whose price is the quarter's. `placeUnderParty` cannot answer that from
+geometry: a quarter is an outline with nothing standing at its centre, and a
+place linked to the whole scene is the city, not the quarter. The question the
+earlier ruling handed to this phase had one answer left.
+
+**Ruled.** A Region carries the SAME `flags["acks-extras"].location` key the
+scene carries, at the Region's grain, and the place mirrors it in
+`system.regionUuid`. The Region's flag is authoritative for the reason the
+scene's is — it travels with the scene through duplication and import — and
+the `updateRegion` / `deleteRegion` / `deleteScene` hooks repair or clear the
+mirror the way the scene hooks do. The behaviour never sees it: the row on its
+sheet is injected by the formation feature and calls this feature's api.
+
+**Rejected: `locationUuid` on the behaviour**, again and for the same reason —
+a second link that can disagree with the Region's. **Rejected: deriving the
+quarter's place from a place token standing inside the outline** — a quarter
+holds many points of interest and none of them is the quarter.
+
+*Cost:* one more mirror to keep true, and one more clause in the prune's
+survival test — a place that IS a quarter is not empty.

@@ -1,11 +1,12 @@
 [
   {
-    "id": "ax3.matriarchAundeme",
+    "id": "ax3.npc30",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Matriarch Aundëmë",
+    "name": "NPC 30",
     "anchor": {
-      "runin": "Matriarch Aundëmë"
+      "hash": "nhky2t",
+      "as": "runin"
     },
     "pages": [
       168,
@@ -15,17 +16,18 @@
       "group": "Temple District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Matriarch Aundëmë:",
+      "statLabelKey": "nhky2t",
       "statlineAt": 169
     }
   },
   {
-    "id": "ax3.bladeDancerValara",
+    "id": "ax3.npc31",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Blade-Dancer Valara",
+    "name": "NPC 31",
     "anchor": {
-      "runin": "Blade-Dancer Valara"
+      "hash": "19k4vvl",
+      "as": "runin"
     },
     "pages": [
       169
@@ -34,16 +36,17 @@
       "group": "Temple District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Blade-Dancer Valara:"
+      "statLabelKey": "19k4vvl"
     }
   },
   {
-    "id": "ax3.reveredMotherDoare",
+    "id": "ax3.npc32",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Revered Mother Doarë",
+    "name": "NPC 32",
     "anchor": {
-      "runin": "Revered Mother Doarë"
+      "hash": "1tejpok",
+      "as": "runin"
     },
     "pages": [
       169
@@ -52,16 +55,17 @@
       "group": "Temple District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Doarë:"
+      "statLabelKey": "b75tt2"
     }
   },
   {
-    "id": "ax3.motherAurelyn",
+    "id": "ax3.npc33",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Mother Aurëlyn",
+    "name": "NPC 33",
     "anchor": {
-      "runin": "Mother Aurëlyn"
+      "hash": "nftbog",
+      "as": "runin"
     },
     "pages": [
       169
@@ -70,16 +74,17 @@
       "group": "Temple District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Mother Aurëlyn:"
+      "statLabelKey": "nftbog"
     }
   },
   {
-    "id": "ax3.prelateEzelus",
+    "id": "ax3.npc34",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Prelate Ezelus",
+    "name": "NPC 34",
     "anchor": {
-      "runin": "Prelate Ezelus"
+      "hash": "h5w1r4",
+      "as": "runin"
     },
     "pages": [
       169,
@@ -89,17 +94,18 @@
       "group": "Temple District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Ezelus:",
+      "statLabelKey": "gpbh0f",
       "statlineAt": 170
     }
   },
   {
-    "id": "ax3.rectorSuromus",
+    "id": "ax3.npc35",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Rector Süromus",
+    "name": "NPC 35",
     "anchor": {
-      "runin": "Rector Süromus"
+      "hash": "1j0u460",
+      "as": "runin"
     },
     "pages": [
       170
@@ -108,19 +114,20 @@
       "group": "Temple District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Rector Süromus:",
-      "stopLines": [
-        "Other Members"
+      "statLabelKey": "1j0u460",
+      "stopKeys": [
+        "6mx3mo"
       ]
     }
   },
   {
-    "id": "ax3.centurionCelle",
+    "id": "ax3.npc36",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Centurion Cellë",
+    "name": "NPC 36",
     "anchor": {
-      "runin": "Centurion Cellë"
+      "hash": "1mp0cid",
+      "as": "runin"
     },
     "pages": [
       170
@@ -129,7 +136,7 @@
       "group": "Temple District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Cellë:"
+      "statLabelKey": "1r2cz8w"
     }
   }
 ]

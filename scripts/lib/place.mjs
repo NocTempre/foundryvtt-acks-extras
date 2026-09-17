@@ -454,6 +454,9 @@ export function sceneOccupants(scene) {
   for (const token of scene.tokens ?? []) {
     const actor = token.actor;
     if (!actor || actor.isToken) continue; // unlinked: uuid dies with the token
+    // A place's token is a point of interest on the map, not somebody living
+    // here: a shrine standing in the market square is not the square's tenant.
+    if (isLocation(actor)) continue;
     if (seen.has(actor.uuid)) continue;
     seen.add(actor.uuid);
     rows.push(occupantRow(actor));

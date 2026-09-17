@@ -35,6 +35,13 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - Level ladders inside the followers and availability paths are read with
   `lib/tables.mjs`'s `bracketRow`, which returns null off the end of a table
   rather than clamping.
+- **A market's rarity overrides and the standing shift are walked from
+  `docs/factions/TESTING.md`** (steps 10 and 11). The pool roller is
+  importable in page context for a throw with chosen dice:
+  `rollMonthlyPool(spec, marketClass, rollDice, rand, variant, overrides)`
+  from `scripts/henchmen/rules/availability.mjs`, where `overrides` is the
+  location's `system.market.rarityOverrides` read as plain rows, and the
+  result's `rarity` says which tier was rolled on.
 
 ## Steps
 

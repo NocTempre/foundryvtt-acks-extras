@@ -28,6 +28,7 @@ One actor per settlement (see `scripts/data/location-data.mjs`):
 |---|---|
 | `marketClassOverride` / `urbanFamilies` / `domainUuid` | Market-class derivation inputs: override → urban-families bracket (RR 352, local table) → acks-domains courtesy read → default IV. Derived getter: `system.marketClass`. |
 | `classRarityTableId` | Which JJ class-rarity variant applies (`default`, `jutland`, or setting-specific additions). |
+| `rarityOverrides[]` | `{classKey, rarity}` — the Judge's word on a class's rarity in THIS market, consulted before the variant on every directed search (`overrideRarity`). |
 | `desertRealm`, `compositeVariant` | Camel-troop gate; composite-vs-longbow either/or (RR 164). |
 | `postings[]` | One per paid search spec: monthly pool (`totalAvailable`), 3-week `arrivalPlan`, `feesPaid[]`, `monthStartTime`, `status`. |
 | `candidates[]` | Plain records (NOT actors): identity, rolled attributes/class/level (feature 4 — recorded, not generated), wage, `availableFromTime`, `status`, `refusals[]`. |
@@ -176,3 +177,17 @@ actor whose name declares the fact with its value, e.g. `Stronghold: Border
 Fort` (cost 15,000 gp), `Domain Income: 350gp/month`, `Syndicate Member:
 <boss>`. Used for: follower stronghold prerequisites, vassal-domain wage
 waivers, ruffian syndicate loyalty, urban families.
+
+**Social rank** rides the same chain (`getSocialRank`): a domains module's
+answer, then the actor flag `socialRank` (a number, or `{rank, title}`), then
+a marker item `Rank: 3 (Baron)` — the number is the rung, the parenthesis the
+title — or `Rank: Baron` for a title with no rung; nothing stated is null,
+never zero. What a title is worth is the Judge's or the module that owns
+titles; this feature only reads it. Its consumer is the influence feature's
+status row (`docs/influence/MODEL.md`, "The modifier stack"), which reads the
+fact through the api at call time.
+
+**Standing moves a market too.** `effectiveMarketClass` adds the factions
+feature's `marketClassShift` (asked through the api at call time, never
+imported) to the employer's effect shift; at the default setting it is zero
+and every market is exactly what the sheet says (`docs/factions/MODEL.md`).

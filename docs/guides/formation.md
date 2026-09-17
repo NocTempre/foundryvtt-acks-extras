@@ -277,6 +277,39 @@ quarter's own gazetteer entry, and it is the order the tables are picked in
 too. Press either tool twice and nothing is stacked — an existing district is
 opened, not duplicated.
 
+### Points of interest
+
+**A place's token is a point of interest.** Drop a location actor on the city
+map the way you drop any actor and it arrives as a marker: its name on hover,
+no bars, nobody's side, no eyes, and a house for a picture until you give it
+one. It cannot join a marching order and it is not counted among the map's
+tenants. Stand the party beside it and the settlement panel says **At** it,
+with a button to open the place — and the deposit rule already knew, so a
+player can leave goods at the shop they are standing outside.
+
+**A quarter can have a place of its own.** On a district's sheet the **Place**
+row picks the location actor the quarter is — its market, its notes — or makes
+one named after the region with **+**. The panel then names it as the
+quarter's own place whenever the party is inside the district, wherever in it
+they stand.
+
+**An incident leaves a marker.** When the street throws something up, the card
+says a marker was left where it happened, and a note only you can see stands
+at the spot. It lasts as long as **Incident markers last** says, in city turns,
+and the calendar takes it away; set it to 0 for no markers at all. If the thing
+that happened turns out to be a place — the tavern, the hideout — press **Make
+it a place** on the card: name it, and a location actor appears inside the
+quarter's place with the incident's words as its notes and its token where the
+marker stood.
+
+**Go to a point of interest** on the panel walks the party to any place on the
+map for the district-travel figure the book gives — within the quarter, or into
+a neighbouring one — spending the turns like any other turns and moving the
+token for you. Two quarters neighbour each other when their regions touch. A
+walk the book does not price — across quarters that do not touch, from outside
+any quarter, or before the figures are imported — is refused with the reason,
+and dragging the token still works the way it always has.
+
 ### Flying
 
 Pick **Flying** under *Moving by* and two more fields appear: how many **hours

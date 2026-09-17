@@ -1,4 +1,4 @@
-/* global game, canvas, ui, Hooks, foundry, document */
+/* global game, canvas, ui, Hooks, foundry, document, fromUuid */
 /**
  * acks-battlemap — map alignment and token scaling for the ACKS II module
  * family: a GM assistant that best-fits the scene grid to a battlemap image
@@ -17,7 +17,7 @@ import {
   resetSelectedFootprints,
 } from "./token-scale.mjs";
 import { fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
-import { familyOfScene, sceneSetup, sceneTravelSystem } from "./scene-setup.mjs";
+import { familyOfScene, sceneSetup, sceneTravelSystem, sceneIncidents, writeSceneIncidents } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { CAPTURE_MODES, session } from "./session.mjs";
 import {
@@ -87,6 +87,10 @@ Hooks.once("ready", () => {
     sceneSetup,
     sceneTravelSystem,
     familyOfScene,
+    /** A city map's own incident list — its table, its shift after dark and
+     *  the band it hands to the district — read and written (scene-setup.mjs). */
+    sceneIncidents,
+    writeSceneIncidents,
     footprintFeet,
     tokenSpan,
     sizeForToken,
@@ -276,7 +280,8 @@ function installSceneControls() {
 /**
  * A second door in scene config: open the assistant, toggle the scene's
  * autoScale gate (whether tokens placed here are auto-sized to the scale), and
- * — on a city map only — say how big a block is drawn here.
+ * — on a city map only — say how big a block is drawn here and which incident
+ * list is the city's own (`incidentsRow`).
  */
 function installSceneConfigRow() {
   Hooks.on("renderSceneConfig", (app, element) => {
@@ -337,7 +342,75 @@ function installSceneConfigRow() {
         blockFeet: Number.isFinite(feet) && feet > 0 ? feet : null,
       });
     });
+    if (city) group.after(incidentsRow(scene));
   });
+}
+
+/**
+ * The city's own incident list, on a city map: the table, what it adds after
+ * dark, and the band it hands to the district the party is in.
+ *
+ * Each control writes on change, like the rest of the row — the scene-config
+ * submit knows nothing about this flag. The table is named by UUID and takes a
+ * drop; one that is not a RollTable this world can read is refused and the
+ * field put back, because a dead UUID here silently sends every incident to
+ * the world's list instead.
+ */
+function incidentsRow(scene) {
+  const say = (key) => game.i18n.localize(`${LANG_PREFIX}.sceneConfig.${key}`);
+  const esc = foundry.utils.escapeHTML;
+  const held = scene.getFlag(MODULE_ID, FLAG_BATTLEMAP)?.incidents ?? {};
+  const figure = (v) => (Number.isFinite(Number(v)) && Number(v) !== 0 ? Number(v) : "");
+  const row = document.createElement("div");
+  row.className = "form-group acks-extras-battlemap-row acks-extras-battlemap-incidents";
+  row.innerHTML = `
+    <label>${say("incidents")}</label>
+    <div class="form-fields">
+      <input type="text" class="acks-extras-battlemap-incident-table" aria-label="${esc(say("incidentTable"))}"
+             value="${esc(held.tableUuid ?? "")}" placeholder="${esc(say("incidentTablePlaceholder"))}">
+      <label class="acks-extras-battlemap-figure">
+        ${say("incidentAfterDark")}
+        <input type="number" step="1" class="acks-extras-battlemap-incident-dark" value="${figure(held.afterDark)}">
+      </label>
+      <label class="acks-extras-battlemap-figure">
+        ${say("incidentBand")}
+        <input type="number" min="1" step="1" class="acks-extras-battlemap-incident-from" value="${figure(held.bandFrom)}">
+      </label>
+      <input type="number" min="1" step="1" class="acks-extras-battlemap-incident-to"
+             aria-label="${esc(say("incidentBandTo"))}" value="${figure(held.bandTo)}">
+    </div>
+    <p class="hint">${say("incidentsHint")}</p>`;
+
+  const tableInput = row.querySelector(".acks-extras-battlemap-incident-table");
+  const setTable = async (uuid) => {
+    const text = String(uuid ?? "").trim();
+    if (text) {
+      const doc = await fromUuid(text).catch(() => null);
+      if (doc?.documentName !== "RollTable") {
+        ui.notifications?.warn(say("incidentTableUnknown"));
+        tableInput.value = sceneIncidents(scene)?.tableUuid ?? "";
+        return;
+      }
+    }
+    tableInput.value = text;
+    await writeSceneIncidents(scene, { tableUuid: text || null });
+  };
+  tableInput.addEventListener("change", (ev) => setTable(ev.currentTarget.value));
+  tableInput.addEventListener("drop", (ev) => {
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(ev);
+    if (data?.type !== "RollTable" || !data.uuid) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    setTable(data.uuid);
+  });
+  for (const [selector, key] of [
+    [".acks-extras-battlemap-incident-dark", "afterDark"],
+    [".acks-extras-battlemap-incident-from", "bandFrom"],
+    [".acks-extras-battlemap-incident-to", "bandTo"],
+  ]) {
+    row.querySelector(selector).addEventListener("change", (ev) => writeSceneIncidents(scene, { [key]: ev.currentTarget.value }));
+  }
+  return row;
 }
 
 /**

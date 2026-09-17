@@ -1398,6 +1398,25 @@
   margin: var(--acks-sp-1) 0 0;
 }
 
+/* The place the party is standing at, and the quarter's own place. The open
+   button rides inline so each stays one line beside the district's. */
+.acks-extras-formation-settlement-place {
+  margin: var(--acks-sp-1) 0 0;
+}
+
+.acks-extras-formation-settlement-place button {
+  display: inline-flex;
+  width: auto;
+  margin-left: var(--acks-sp-1);
+  padding: 0 var(--acks-sp-1);
+  line-height: 1.6;
+}
+
+/* Going to a point of interest: a whole-line control below the readouts. */
+.acks-extras-formation-settlement-poi {
+  margin: var(--acks-sp-2) 0 0;
+}
+
 .acks-extras-formation-settlement-nav {
   margin: var(--acks-sp-2) 0 0;
   font-size: var(--acks-fs-label);

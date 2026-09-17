@@ -25,6 +25,7 @@ import { emptyMarket } from "../data/location-data.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "../constants.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
+import { RARITY_TIERS } from "../../henchmen/config.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { processLocation, closePosting, reloadMarket } from "../../henchmen/engine/recruitment.mjs";
@@ -109,6 +110,8 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       removeSlander: LocationSheet.#onRemoveSlander,
       addDemographic: LocationSheet.#onAddDemographic,
       removeDemographic: LocationSheet.#onRemoveDemographic,
+      addRarityOverride: LocationSheet.#onAddRarityOverride,
+      removeRarityOverride: LocationSheet.#onRemoveRarityOverride,
       exportDemographics: LocationSheet.#onExportDemographics,
       // --- storage tab ---
       retrieveRow: LocationSheet.#onRetrieveRow,
@@ -223,6 +226,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // A place is its identity, its nesting and its contents first; the market
     // is a specialisation, prepared only where there is one.
     await this.#preparePlace(context);
+    this.#prepareFactions(context);
     if (sys.hasMarket) this.#prepareMarket(context, t);
     if (sys.hasMarket) await this.#prepareTrade(context);
 
@@ -342,6 +346,37 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.coinRollupGC = places.coinRollupGC(actor, nodes);
   }
 
+  /**
+   * The organisations at this place: the ones seated here or holding this
+   * place, and the ones that control the quarter it is.
+   *
+   * Read through the `acksExtras.factions` api at render time rather than by
+   * import — a place knows nothing about organisations, and a world whose
+   * factions feature is absent renders no section at all. A holding its owner
+   * marked hidden is the Judge's own, so a player sees the place without
+   * seeing whose front it is.
+   */
+  #prepareFactions(context) {
+    const api = acksExtras.factions;
+    if (!api?.factionsHolding) return;
+    if (!game.user.isGM && !this.actor.testUserPermission(game.user, "OWNER")) return;
+    const uuid = this.actor.uuid;
+    const label = (key) => game.i18n.localize(`${LANG_PREFIX}.place.factionsHere.${key}`);
+    const rows = [];
+    for (const faction of api.factionsHolding(uuid) ?? []) {
+      const seat = faction.system.seatUuid === uuid;
+      const holding = seat ? null : (faction.system.holdings ?? []).find((h) => h.uuid === uuid);
+      if (holding?.hidden && !game.user.isGM) continue;
+      rows.push({ uuid: faction.uuid, name: faction.name, label: label(seat ? "seat" : "holds"), note: holding?.note ?? "" });
+    }
+    const region = this.actor.system.regionUuid;
+    for (const faction of (region ? (api.factionsControlling?.(region) ?? []) : [])) {
+      if (rows.some((r) => r.uuid === faction.uuid)) continue;
+      rows.push({ uuid: faction.uuid, name: faction.name, label: label("controls"), note: "" });
+    }
+    if (rows.length) context.factionsHere = rows;
+  }
+
   /** Does this uuid still resolve? Never throws — render paths cannot afford it. */
   static #exists(uuid) {
     try {
@@ -392,6 +427,17 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       id,
       label: game.i18n.localize(v.label),
       selected: id === sys.market?.classRarityTableId,
+    }));
+    // The market's own word on a class's rarity: one row per class, the tier
+    // picked from the ladder the availability rules shift along.
+    context.rarityOverrides = (sys.market?.rarityOverrides ?? []).map((r, index) => ({
+      index,
+      classKey: r.classKey,
+      tiers: RARITY_TIERS.map((id) => ({
+        id,
+        label: game.i18n.localize(`ACKS-HENCHMEN.rarity.${id}`),
+        selected: id === r.rarity,
+      })),
     }));
     context.cultureOptions = Object.entries(optTable("people", "cultures")?.list ?? {}).map(([id, c]) => ({
       id,
@@ -888,6 +934,20 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       .map((d) => d.toObject?.() ?? d)
       .filter((_, i) => i !== index);
     await this.actor.update({ "system.market.demographics": demographics });
+  }
+
+  /** A blank rarity row: the class is typed, the tier picked. */
+  static async #onAddRarityOverride() {
+    const rows = (this.actor.system.market?.rarityOverrides ?? []).map((r) => r.toObject?.() ?? r);
+    await this.actor.update({ "system.market.rarityOverrides": [...rows, { classKey: "", rarity: RARITY_TIERS[0] }] });
+  }
+
+  static async #onRemoveRarityOverride(_event, target) {
+    const index = Number(target.closest("[data-rarity-index]")?.dataset.rarityIndex);
+    const rows = (this.actor.system.market?.rarityOverrides ?? [])
+      .map((r) => r.toObject?.() ?? r)
+      .filter((_, i) => i !== index);
+    await this.actor.update({ "system.market.rarityOverrides": rows });
   }
 
   /** Drop a RollTable on the demographics block → set the culture mix. */

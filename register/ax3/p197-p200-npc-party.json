@@ -1,121 +1,127 @@
 [
   {
-    "id": "ax3.gabriolEirenikos",
+    "id": "ax3.npc52",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Gabriol Eirenikos",
+    "name": "NPC 52",
     "anchor": {
-      "display": "GABRIOL EIRENIKOS"
+      "hash": "1xpl5y8",
+      "as": "display"
     },
     "pages": [
       199,
       200
     ],
     "meta": {
-      "group": "NPC Party — Imperial Vanguard"
+      "group": "NPC Party"
     },
     "assists": {
-      "statLabel": "Gabriol Eirenikos:",
+      "statLabelKey": "1xpl5y8",
       "noDescStop": true,
       "artName": "img_p198_1",
       "artPage": 199
     }
   },
   {
-    "id": "ax3.aghilas",
+    "id": "ax3.npc53",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Aghilas, the Lion of the Desert",
+    "name": "NPC 53",
     "anchor": {
-      "display": "AGHILAS, THE LION OF THE DESERT"
+      "hash": "gguz7w",
+      "as": "display"
     },
     "pages": [
       200,
       201
     ],
     "meta": {
-      "group": "NPC Party — Imperial Vanguard"
+      "group": "NPC Party"
     },
     "assists": {
-      "statLabel": "Aghilas:",
+      "statLabelKey": "1y5m2dm",
       "statlineAt": 201,
       "artName": "img_p199_1",
       "artPage": 200
     }
   },
   {
-    "id": "ax3.asryaRaija",
+    "id": "ax3.npc54",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Asrya Raija, the Lotus of Somirea",
+    "name": "NPC 54",
     "anchor": {
-      "display": "ASRYA RAIJA, THE LOTUS OF SOMIREA"
+      "hash": "193e8j1",
+      "as": "display"
     },
     "pages": [
       201
     ],
     "meta": {
-      "group": "NPC Party — Imperial Vanguard"
+      "group": "NPC Party"
     },
     "assists": {
-      "statLabel": "Asrya Raija:"
+      "statLabelKey": "hzuqmw"
     }
   },
   {
-    "id": "ax3.irialUiAedon",
+    "id": "ax3.npc55",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Irial Ui Aedon",
+    "name": "NPC 55",
     "anchor": {
-      "display": "IRIAL UI AEDON"
+      "hash": "16d22lp",
+      "as": "display"
     },
     "pages": [
       201,
       202
     ],
     "meta": {
-      "group": "NPC Party — Imperial Vanguard"
+      "group": "NPC Party"
     },
     "assists": {
-      "statLabel": "Irial Ui Aedon:",
+      "statLabelKey": "16d22lp",
       "statlineAt": 202
     }
   },
   {
-    "id": "ax3.nikolausTheNicean",
+    "id": "ax3.npc56",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Nikolaus the Nicean",
+    "name": "NPC 56",
     "anchor": {
-      "display": "NIKOLAUS THE NICEAN"
+      "hash": "1g1kco6",
+      "as": "display"
     },
     "pages": [
       202
     ],
     "meta": {
-      "group": "NPC Party — Imperial Vanguard"
+      "group": "NPC Party"
     },
     "assists": {
-      "statLabel": "Nikolaus the Nicean:"
+      "statLabelKey": "1g1kco6"
     }
   },
   {
-    "id": "ax3.valenusMirens",
+    "id": "ax3.npc57",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Valenus Mirens, the Antiquarian",
+    "name": "NPC 57",
     "anchor": {
-      "display": "VALENUS MIRENS, THE ANTIQUARIAN"
+      "hash": "19yoc39",
+      "as": "display"
     },
     "pages": [
       202,
       203
     ],
     "meta": {
-      "group": "NPC Party — Imperial Vanguard"
+      "group": "NPC Party"
     },
     "assists": {
-      "statLabel": "Valenus Mirens:",
+      "statLabelKey": "1fxox6j",
       "statlineAt": 203
     }
   }

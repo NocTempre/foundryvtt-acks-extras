@@ -26,6 +26,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - A player's roll against a hidden target is re-resolved on a GM client
   through the `resolveHiddenRoll` socket handler. Testing it needs a real
   second seat (the capture driver's browser), not a second pane tab.
+- **Rows pushed through the modifier hook are read from the context, and a
+  note is told apart in the DOM.** `app._prepareContext({}).externalModifiers`
+  carries `{label, value, note}`; on the dialog each is an
+  `.influence-external-mod`, and a note is the one with no
+  `.influence-external-value` beside its label. The posted card's modifier
+  list leaves notes out. These rows, and the social status row's pre-fill from
+  two rank markers, are walked from `docs/factions/TESTING.md` (steps 7, 8
+  and 12); a district's own row from `docs/formation/TESTING.md` (The
+  districts).
 
 ## Steps
 

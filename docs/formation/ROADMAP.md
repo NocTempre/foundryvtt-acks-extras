@@ -263,20 +263,26 @@ cut as a minor rather than held for one major:
 
 | Not built | What it is | What it needs first |
 |---|---|---|
-| **Points of interest** | A static POI is a place actor's token; a transient one is a GM-only Note that expires on the world clock. Carries the rebinding of imported AX3 points and organisations onto location actors. | `placeUnderParty` (`scripts/location/here.mjs`) already answers "which place is the party standing at" and is published on the api with **no runtime consumer** — the settlement panel's place readout is this milestone's, and is what gives it one. |
+| ~~**Points of interest**~~ | **BUILT** — a static point is a place's token with marker defaults; the panel names the place under the party and the quarter's own place; an incident leaves a Judge-only marker that expires on the world clock and is promoted into a place from the card; the walk to a point is priced by quarter from the imported figures; and AX3's keyed places import as places nested quarter → city. `docs/formation/MODEL.md` "Points of interest", `docs/location/MODEL.md` "A place on the map". The organisations' rooms still land as pages until the factions phase binds them. | — |
 | **Factions, reputation and status** | An `acks-extras.faction` Actor sub-type; the henchmen slander registry generalised into a standing ledger. | A world relaunch, as any new sub-type needs (`documentTypes` is server-read). |
 
-Two smaller things the same work left open:
+Three smaller things the same work left open:
 
-- **A district's sub-tables are not band-routed.** JJ ch. 7 Step 7 routes a
-  result's band to a sub-table; today a district's table simply replaces the
-  city's, which is a Judge's choice and is what core RollTable nesting already
-  covers. Routing by the band a roll landed in needs the incident reader to
-  return the band as well as the row.
+- **A city list routes ONE band, to one list per quarter.** The map states a
+  single stretch and the district a single special list (`docs/formation/MODEL.md`
+  "A city list can hand its roll to the quarter"), which is what a gazetteer
+  with one special row needs. A list with several routed bands, each to its own
+  sub-table (JJ ch. 7 Step 7), is not modelled: it wants the band to become a
+  list of `{from, to, table}` on the map, and the world's own imported list to
+  take one as well. Core RollTable nesting still covers static routing.
 - **`night` is still a picker, not the calendar.** The hour is trivial to read;
   the boundary that makes it dark is not printed anywhere and nothing in the
   family computes one. It wants either a pair of Judge-set hour settings with no
   default, or a sunrise/sunset pair arriving through the importer.
+- **The rest of JJ ch. 7 Step 5 is importer work.** A settlement's dynamic
+  buildings and the per-shop availability fractions are printed figures with
+  no register yet; the place a point of interest now is has the `market`
+  subtree to receive them when they arrive.
 
 ## 5. Rulings taken 2026-08-29, and what each unblocks
 
@@ -445,8 +451,3 @@ legitimately sit.
   offered only once the Judge has said what dark means here; or a sunrise /
   sunset pair reaching `sky.mjs` through the importer, at which point the
   toggle follows a figure the Judge's own book supplied.
-- **Dynamic band routing for a district's sub-tables.** JJ ch. 7 Step 7 routes
-  a result's band to a sub-table. Modelled today as *the district's table
-  replaces the city's* — a Judge's choice, and core RollTable nesting covers
-  static routing. Routing chosen by the band the roll landed in wants the
-  incident reader to return the band as well as the row.

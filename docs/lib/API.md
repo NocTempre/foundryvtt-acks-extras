@@ -1,4 +1,4 @@
-# lib API (apiVersion 12)
+# lib API (apiVersion 17)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,10 +31,12 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 12,
+  apiVersion: 17,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
-  fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only)
+  fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
+  wallGeometry,        // lib/wall-geometry.mjs — segments and the graph they draw (Foundry-free)
+  wallLayers,          // lib/wall-layers.mjs — a flag over a wall: read, write, preset, region (Foundry-only)
   resolveLevelValue,   // (levelValue, level, scales?) → number | null
   tables,              // lib/tables.mjs — layered rules-table registry (Foundry-free)
   services,            // lib/services.mjs — named-contract registry (Foundry-free)
@@ -562,6 +564,42 @@ GM-owned actor.
 
 `providersFor(actor)` scans the world's actors once; call it per render and share
 the result rather than per row.
+
+### `wallGeometry` / `wallLayers` — a line the Judge drew (apiVersion 16)
+
+A wall is Foundry's only drawn line, and the module means more than one thing
+by one: a tripwire across a corridor, a street through a city. Neither is a
+barrier; both are a LAYER — a flag under `flags.acks-extras.<key>` over whatever
+segment is already there — and the mechanics every layer shares live here once.
+
+`wallGeometry` (`lib/wall-geometry.mjs`) is Foundry-free: crossings and
+point-to-segment distances, `chainWalls` (a hand-drawn loop into a ring),
+`joinSegments` (a planar graph — endpoints within a tolerance are one node, and
+a segment is cut wherever another crosses it), `shortestPath`, and
+`pathLengthAlong` — how far it is ALONG the lines between two points, with the
+legs off the lines reported apart; null when neither end is within reach or the
+two ends sit on networks that never meet. A macro can measure a route with it
+and no canvas.
+
+`wallLayers` (`lib/wall-layers.mjs`) needs a world: `wallLayer`/`hasWallLayer`
+(read through the document's accessor where there is one and off the raw flags
+where there is not — a create hook's data bag and the palette preset carry the
+same layer with no accessor), `setWallLayer` (the patch is
+merged here and written as a forced replacement, since a flag write is a merge
+and a merge cannot empty a field), `clearWallLayer`, `wallsFlagged`,
+`openWallData` (the all-NONE restriction shape a non-blocking line is drawn
+with), `blocksMovement`, `wallNear`, `armWallPreset`/`currentWallPreset`
+(core's ONE wall-drawing preset slot — arming a street disarms a tripwire),
+`wallSheetFields` (where a layer's row goes on the wall sheet, whose application
+root is its form), and `regionFromWalls` (the Region a closed loop encloses,
+idempotent by behaviour type). What a layer MEANS belongs to the feature that
+owns its key: the trap line in `docs/formation/MODEL.md`, the road in
+`docs/battlemap/MODEL.md` "Roads".
+
+Versions 13 to 15 landed with 4.19.0 (the library read where the importer
+writes it), 4.20.0 (one name rule; packages that link rather than copy) and the
+carry-model release of 2026-08-28; every surface they added is a row in
+`scripts/lib/README.md`.
 
 ### `acks-extras.template` — the generator actor (v0.16)
 

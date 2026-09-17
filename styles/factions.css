@@ -1,0 +1,173 @@
+/* The faction sheet. Every selector is scoped under the sheet's own class; type
+   sizes are ramp steps so the type-size knob reaches them. */
+
+.acks-extras-faction-sheet .faction-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-faction-sheet .faction-header {
+  display: flex;
+  gap: var(--acks-sp-3);
+  align-items: flex-start;
+}
+.acks-extras-faction-sheet .faction-header .profile {
+  flex: 0 0 auto;
+  width: 5em;
+  height: 5em;
+  object-fit: cover;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  border-radius: var(--acks-radius);
+  cursor: pointer;
+}
+.acks-extras-faction-sheet .header-fields {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+}
+.acks-extras-faction-sheet .faction-name {
+  font-size: var(--acks-fs-h3);
+  font-weight: bold;
+  width: 100%;
+}
+.acks-extras-faction-sheet .faction-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1);
+  align-items: center;
+}
+.acks-extras-faction-sheet .faction-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-1);
+  font-size: var(--acks-fs-label);
+}
+
+/* Holdings: label, value, and the clear control on one line each. */
+.acks-extras-faction-sheet .faction-holdings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+}
+.acks-extras-faction-sheet .faction-holding {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  min-height: 1.8em;
+}
+.acks-extras-faction-sheet .faction-holding-label {
+  flex: 0 0 7em;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+.acks-extras-faction-sheet .faction-holding select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.acks-extras-faction-sheet .is-missing {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* The places beyond the seat, under the seat/leader/parent block. */
+.acks-extras-faction-sheet .faction-places {
+  margin-top: var(--acks-sp-2);
+}
+
+/* A row's own editable field. It fills its cell and wraps with the table
+   rather than forcing a width the window has to grow to. */
+.acks-extras-faction-sheet .acks-extras-faction-table td.row-field {
+  width: 40%;
+}
+.acks-extras-faction-sheet .acks-extras-faction-table td.row-field input,
+.acks-extras-faction-sheet .acks-extras-faction-table td.row-field select {
+  width: 100%;
+  min-width: 0;
+  font-size: inherit;
+}
+
+.acks-extras-faction-sheet .faction-controls {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.acks-extras-faction-sheet .faction-controls li {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-1);
+  padding: 0.15em 0;
+  border-top: var(--acks-rule-hair) dotted var(--acks-rule-color-soft);
+}
+.acks-extras-faction-sheet .faction-control-pick {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--acks-sp-2);
+  margin-top: var(--acks-sp-1);
+}
+.acks-extras-faction-sheet .faction-control-pick label {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-faction-sheet .acks-extras-faction-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-faction-sheet .acks-extras-faction-table td,
+.acks-extras-faction-sheet .acks-extras-faction-table th {
+  padding: 0.15em 0.4em;
+  text-align: left;
+  border-top: var(--acks-rule-hair) dotted var(--acks-rule-color-soft);
+}
+.acks-extras-faction-sheet .acks-extras-faction-table td.portrait img {
+  width: 1.8em;
+  height: 1.8em;
+  object-fit: cover;
+  border: none;
+}
+.acks-extras-faction-sheet .acks-extras-faction-table td.row-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+.acks-extras-faction-sheet .acks-extras-faction-table td.row-actions a {
+  margin-left: 0.35em;
+}
+.acks-extras-faction-sheet tr.is-hidden {
+  opacity: 0.6;
+}
+.acks-extras-faction-sheet tr.is-wanted td:first-child::before {
+  content: "\f2f6";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  margin-right: 0.35em;
+  color: var(--acks-spot);
+}
+
+/* Standing is signed, and the sign is what a Judge reads first. */
+.acks-extras-faction-sheet .is-good {
+  color: var(--acks-success-ink);
+}
+.acks-extras-faction-sheet .is-bad {
+  color: var(--acks-spot);
+}
+.acks-extras-faction-sheet .faction-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1);
+  margin-bottom: var(--acks-sp-1);
+}
+
+.acks-extras-faction-sheet .acks-extras-faction-hint {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+.acks-extras-faction-sheet .acks-extras-faction-notes {
+  min-height: 6em;
+}

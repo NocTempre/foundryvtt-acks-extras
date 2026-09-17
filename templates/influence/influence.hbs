@@ -158,7 +158,7 @@
         {{#each externalModifiers}}
           <li class="influence-external-mod">
             <span class="influence-external-label">{{this.label}}</span>
-            <span class="influence-external-value">{{numberFormat this.value sign=true}}</span>
+            {{#unless this.note}}<span class="influence-external-value">{{numberFormat this.value sign=true}}</span>{{/unless}}
           </li>
         {{/each}}
       </ul>

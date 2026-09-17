@@ -29,17 +29,25 @@ import { installStorageTab } from "./apps/storage-tab.mjs";
 import { StorageManagerMenu, openStorageManager, installManagerRefresh } from "./apps/storage-manager.mjs";
 import { runVaultSweep } from "./vault-sweep.mjs";
 import {
+  createLocationForRegion,
   createLocationForScene,
+  linkRegion,
   linkScene,
+  locationOfRegion,
   locationOfScene,
+  regionOfLocation,
   registerSceneConfigRow,
   registerSceneContextMenu,
   registerSceneLinkSync,
   sceneOfLocation,
+  unlinkRegion,
   unlinkScene,
 } from "./scene-link.mjs";
 import { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds } from "./reach.mjs";
-import { placeUnderParty } from "./here.mjs";
+import { placeUnderParty, placesOnScene } from "./here.mjs";
+
+/** The icon a place is made with when its maker names none: core's own house. */
+const PLACE_IMG = "icons/svg/house.svg";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/location/location-sheet.hbs`,
@@ -142,6 +150,25 @@ Hooks.once("init", () => {
     if (!doc.flags?.["acks-extras"]?.storage) {
       changes.flags = foundry.utils.mergeObject(doc.flags ?? {}, { "acks-extras": { storage: { provider: true } } }, { inplace: false });
     }
+    // A place's token is a marker on the map, not a creature: its name shows
+    // to whoever hovers it, it takes no side, tracks no bars and sees nothing.
+    // Field by field, and only where the creation data said nothing.
+    // `actorLink` is left alone on purpose — `here.mjs` matches a place by the
+    // token's base actor id, which an unlinked token carries too.
+    const proto = data?.prototypeToken ?? {};
+    const token = {};
+    if (proto.displayName == null) token.displayName = CONST.TOKEN_DISPLAY_MODES.HOVER;
+    if (proto.disposition == null) token.disposition = CONST.TOKEN_DISPOSITIONS.NEUTRAL;
+    if (proto.bar1?.attribute === undefined) token.bar1 = { attribute: null };
+    if (proto.bar2?.attribute === undefined) token.bar2 = { attribute: null };
+    if (proto.sight?.enabled == null) token.sight = { enabled: false };
+    // The token's picture is copied from the actor's at construction, before
+    // this hook runs, so a default icon has to land on both.
+    if (data?.img == null && proto.texture?.src == null) {
+      changes.img = PLACE_IMG;
+      token.texture = { src: PLACE_IMG };
+    }
+    if (Object.keys(token).length) changes.prototypeToken = token;
     if (Object.keys(changes).length) doc.updateSource(changes);
   });
 });
@@ -153,8 +180,14 @@ Hooks.once("ready", () => {
     runVaultSweep,
     LOCATION_TYPE,
     LocationSheet,
-    /** Scene ↔ place linking (scene-link.mjs). The scene's flag is canonical. */
-    scenes: { locationOfScene, sceneOfLocation, linkScene, unlinkScene, createLocationForScene },
+    /**
+     * Scene ↔ place and Region ↔ place linking (scene-link.mjs). The scene's
+     * or region's flag is canonical; the place carries the mirror.
+     */
+    scenes: {
+      locationOfScene, sceneOfLocation, linkScene, unlinkScene, createLocationForScene,
+      locationOfRegion, regionOfLocation, linkRegion, unlinkRegion, createLocationForRegion,
+    },
     /**
      * Who can leave something where (reach.mjs). Exposed because it is a RULE
      * a consumer must not re-derive: a sibling deciding for itself whether a
@@ -163,9 +196,10 @@ Hooks.once("ready", () => {
     reach: { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds },
     /**
      * A location actor reached through its own TOKEN rather than a scene
-     * link (here.mjs) — the place a party's token happens to be standing on.
+     * link (here.mjs) — the place a party's token happens to be standing on,
+     * and every place standing on a map.
      */
-    here: { placeUnderParty },
+    here: { placeUnderParty, placesOnScene },
   };
 
   if (game.system?.id !== "acks") return;
@@ -181,18 +215,27 @@ Hooks.once("ready", () => {
  * place holding nothing, remembering nobody, and being nothing in particular
  * is scaffolding, and scaffolding comes down on its own. A location survives
  * empty when it IS something: a market (any market class or a market subtree),
- * someone's vault, or a scene-linked mapped place. Setting-gated for worlds
- * that want their empty rooms kept.
+ * someone's vault, a scene-linked mapped place, a quarter's own place, or a
+ * place standing on a map as a token. Setting-gated for worlds that want
+ * their empty rooms kept.
  */
 export async function pruneEmptyLocations() {
   if (!game.settings.get(MODULE_ID, PRUNE_SETTING)) return { pruned: 0 };
+  // Every actor with a token anywhere, hidden ones included: a marker the
+  // Judge hid is a point of interest not yet found, not an absent one. One
+  // pass over the world's tokens for the whole sweep, not one per place.
+  const placed = new Set();
+  for (const scene of game.scenes ?? []) {
+    for (const token of scene.tokens ?? []) if (token.actorId) placed.add(token.actorId);
+  }
   const doomed = game.actors.filter((a) => {
     if (a.type !== LOCATION_TYPE) return false;
     if (a.items.size > 0) return false;
     if ((a.system?.roster ?? []).length > 0) return false;
     if (a.system?.market != null || a.system?.marketClass != null) return false;
     if (a.getFlag(MODULE_ID, "storage")?.vaultOf) return false;
-    if (sceneOfLocation(a)) return false;
+    if (sceneOfLocation(a) || regionOfLocation(a)) return false;
+    if (placed.has(a.id)) return false;
     return true;
   });
   for (const a of doomed) await a.delete();

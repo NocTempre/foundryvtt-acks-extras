@@ -171,6 +171,24 @@
       {{/if}}
     </details>
 
+    {{!-- ---- Organisations here ---- --}}
+    {{#if factionsHere}}
+    <details class="section" open>
+      <summary>{{localize "ACKS-LOCATION.place.factionsHere.title"}} ({{factionsHere.length}})</summary>
+      <table class="acks-table acks-extras-occupant-table">
+        <tbody>
+          {{#each factionsHere}}
+          <tr data-place-uuid="{{this.uuid}}">
+            <td><a data-action="openPlace" data-place-uuid="{{this.uuid}}">{{this.name}}</a></td>
+            <td><span class="acks-extras-place-hint">{{this.label}}</span></td>
+            <td>{{this.note}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </details>
+    {{/if}}
+
     {{!-- ---- Notes ---- --}}
     <details class="section">
       <summary>{{localize "ACKS-LOCATION.place.notes"}}</summary>
@@ -633,6 +651,25 @@
           <option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>
           {{/each}}
         </select>
+      </div>
+      {{!-- The market's own word on a class's rarity, row by row: the
+            Judge's override consulted before the table above. --}}
+      <div class="form-group acks-extras-rarity-overrides" data-tooltip="{{localize 'ACKS-HENCHMEN.location.rarityOverridesHint'}}">
+        <label class="block-label">
+          {{localize "ACKS-HENCHMEN.location.rarityOverrides"}}
+          <a class="inline-add" data-action="addRarityOverride" data-tooltip="{{localize 'ACKS-HENCHMEN.location.rarityAdd'}}"><i class="fas fa-plus"></i></a>
+        </label>
+        {{#each rarityOverrides}}
+        <div class="demographic-row" data-rarity-index="{{index}}">
+          <input type="text" name="system.market.rarityOverrides.{{index}}.classKey" value="{{classKey}}" placeholder="{{localize 'ACKS-HENCHMEN.location.rarityClass'}}" />
+          <select name="system.market.rarityOverrides.{{index}}.rarity">
+            {{#each tiers}}
+            <option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+          <a data-action="removeRarityOverride"><i class="fas fa-xmark"></i></a>
+        </div>
+        {{/each}}
       </div>
       <div class="form-group">
         <label data-tooltip="{{localize 'ACKS-HENCHMEN.location.desertHint'}}">{{localize "ACKS-HENCHMEN.location.desert"}}</label>

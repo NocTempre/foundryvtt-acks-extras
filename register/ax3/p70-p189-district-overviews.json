@@ -1,0 +1,130 @@
+[
+  {
+    "id": "ax3.oldDistrict",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "Old District",
+    "anchor": {
+      "display": "OLD DISTRICT"
+    },
+    "pages": [
+      70,
+      71
+    ],
+    "meta": {
+      "group": "Old District — Overview"
+    }
+  },
+  {
+    "id": "ax3.festivalDistrict",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "Festival District",
+    "anchor": {
+      "display": "FESTIVAL DISTRICT"
+    },
+    "pages": [
+      100,
+      101
+    ],
+    "meta": {
+      "group": "Festival District — Overview"
+    }
+  },
+  {
+    "id": "ax3.bridgeDistrict",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "Bridge District",
+    "anchor": {
+      "display": "BRIDGE DISTRICT"
+    },
+    "pages": [
+      127,
+      128
+    ],
+    "meta": {
+      "group": "Bridge District — Overview"
+    }
+  },
+  {
+    "id": "ax3.plazaDistrict",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "Plaza District",
+    "anchor": {
+      "display": "PLAZA DISTRICT"
+    },
+    "pages": [
+      138,
+      139
+    ],
+    "meta": {
+      "group": "Plaza District — Overview"
+    }
+  },
+  {
+    "id": "ax3.towerDistrict",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "Tower District",
+    "anchor": {
+      "display": "TOWER DISTRICT"
+    },
+    "pages": [
+      144,
+      145
+    ],
+    "meta": {
+      "group": "Tower District — Overview"
+    }
+  },
+  {
+    "id": "ax3.templeDistrict",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "Temple District",
+    "anchor": {
+      "display": "TEMPLE DISTRICT"
+    },
+    "pages": [
+      162,
+      163
+    ],
+    "meta": {
+      "group": "Temple District — Overview"
+    }
+  },
+  {
+    "id": "ax3.lakeDistrict",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "Lake District",
+    "anchor": {
+      "display": "LAKE DISTRICT"
+    },
+    "pages": [
+      179,
+      180
+    ],
+    "meta": {
+      "group": "Lake District — Overview"
+    }
+  },
+  {
+    "id": "ax3.palaceDistrict",
+    "kind": "kind.location",
+    "book": "ax3",
+    "name": "Palace District",
+    "anchor": {
+      "display": "PALACE DISTRICT"
+    },
+    "pages": [
+      188,
+      189
+    ],
+    "meta": {
+      "group": "Palace District — Overview"
+    }
+  }
+]

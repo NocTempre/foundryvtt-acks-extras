@@ -14,6 +14,7 @@
  */
 import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
 import { rowsByY, applyCellPattern, slugLabel, joinRuns as joinCellRuns } from "./table-extract.mjs";
+import { opensWithNumber, printKey } from "./printed-name.mjs";
 
 /**
  * Schema v2 (2026-07-24) is v1 plus the `grid` instruction — nothing existing
@@ -1267,6 +1268,28 @@ async function execInstruction(instr, ctx) {
       const ok = !!w && (f.startsWith(w) || (w.length >= 12 && f.startsWith(w.slice(0, 12))));
       return { ok, found: found.slice(0, 60) };
     }
+    case "heading": {
+      // `expect` for a name the cookbook does not carry: the box is proved by
+      // the key number the heading opens with, or by a key of its folded
+      // letters, and the words themselves are handed back for the binder to
+      // name the document with. A name the line broke is read in `parts`; a
+      // part marked `glue` continues the word the part before it broke, which
+      // the compiler saw and this does not judge.
+      let title = "";
+      for (const part of instr.parts ?? [instr]) {
+        const ppd = part.page && part.page !== instr.page ? await getPage(part.page) : pd;
+        const runs = runsIn(ppd, part);
+        claim(runs, ctx.field);
+        const piece = clean(joinRuns(runs, part.fixes, part.dropText));
+        if (!piece) continue;
+        title += title && !part.glue ? ` ${piece}` : piece;
+      }
+      const ok = instr.number != null ? opensWithNumber(title, instr.number) : !!instr.hash && printKey(title) === instr.hash;
+      // A box that failed its check names nothing: the words in it are some
+      // other entry's. `caps` is the compiler's word that the line's case
+      // carries nothing, handed on for whoever sets the name.
+      return { ok, found: title.slice(0, 60), title: ok ? title.slice(0, 200) : null, ...(instr.caps === true ? { caps: true } : {}) };
+    }
     case "text": {
       const paras = [];
       for (const para of instr.paras ?? []) {
@@ -1283,8 +1306,11 @@ async function execInstruction(instr, ctx) {
         // a paragraph at that turn. Lower-case first letter after a previous
         // box that closed without terminal punctuation is that shape and no
         // other; a box carrying its own section label is always a new one.
+        // A box marked `continues` is the same case where the turn falls before
+        // a capital — a name, which the letter test reads as a fresh start — and
+        // the compiler, which could see the page, says so.
         const prev = paras[paras.length - 1];
-        if (prev && !para.section && /^[a-z]/.test(text) && !/[.!?:;"”’)\]]$/.test(prev.text)) {
+        if (prev && !para.section && (para.continues || (/^[a-z]/.test(text) && !/[.!?:;"”’)\]]$/.test(prev.text)))) {
           prev.text = `${prev.text} ${text}`;
           continue;
         }

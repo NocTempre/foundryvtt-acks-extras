@@ -17,7 +17,7 @@ import { SETTING_ABILITY_OVERRIDES, initLadders } from "./ability-bridge.mjs";
 import { registerEncounterZone } from "./encounter-zone.mjs";
 import { registerDistrictZone, findDistrict, DISTRICT_TYPE } from "./district-zone.mjs";
 import { districtReaction } from "./settlement.mjs";
-import { districtFromSelection, installDistrictControls, markControlledRegions } from "./district-tools.mjs";
+import { districtFromSelection, installDistrictControls, installDistrictPlaceRow, markControlledRegions } from "./district-tools.mjs";
 import { installDistrictInfluence } from "./district-influence.mjs";
 import {
   HALT_OPTION,
@@ -119,6 +119,11 @@ import { SETTING_TRAVEL_ENCOUNTERS, maybeHexThrow, postEncounterThrow, resolveCr
 import { SETTING_TRAVEL_LOG_CAP } from "./travel.mjs";
 import { SETTING_STRAGGLING } from "./settlement.mjs";
 import { creditHoledUpDays } from "./settlement-turn.mjs";
+import {
+  SETTING_TRANSIENT_TURNS, TRAVEL_OPTION, dropIncidentNote, expireTransientNotes, installIncidentCardActions,
+  pickAndTravel, poiTargets, promoteIncident, transientNotesOn, travelToPlace,
+} from "./poi.mjs";
+import { isLocation } from "../lib/place.mjs";
 import { closeDay, offerDayEnd } from "./day-close.mjs";
 import { onWorldTimeAdvanced } from "../lib/world-time.mjs";
 import { SETTING_SKY_CACHE } from "./sky.mjs";
@@ -160,6 +165,8 @@ Hooks.once("init", () => {
   installTrapControls();
   installDistrictControls();
   installDistrictInfluence();
+  installDistrictPlaceRow();
+  installIncidentCardActions();
   installTrapDrop();
   installTrapMarkers();
   // Core's party overview deals XP by its own reckoning; with this module's
@@ -262,6 +269,19 @@ Hooks.once("init", () => {
     range: { min: 2, max: 6, step: 1 },
   });
 
+  // How long a city incident's marker outlives its turn. A lifetime in the
+  // module's own turns, not a printed figure: nothing in the book says how
+  // long a commotion stays visible on a map.
+  game.settings.register(MODULE_ID, SETTING_TRANSIENT_TURNS, {
+    name: "ACKS-FORMATION.settings.transientIncidentTurns.name",
+    hint: "ACKS-FORMATION.settings.transientIncidentTurns.hint",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 6,
+    range: { min: 0, max: 144, step: 1 },
+  });
+
   game.settings.register(MODULE_ID, "manageFog", {
     name: "ACKS-FORMATION.settings.manageFog.name",
     hint: "ACKS-FORMATION.settings.manageFog.hint",
@@ -331,11 +351,11 @@ Hooks.once("init", () => {
   expectTables(SETTLEMENT_DOC, [
     "paces", "navigation", "straggling", "encounters",
     "encounterIntent", "encounters100", "encounterAfterDark",
-    // Declared without a consumer: the district-travel figures are the time
-    // to cross between POINTS OF INTEREST, which are not built yet. Declaring
-    // it is what makes its absence VISIBLE — the table browser lists an
-    // expected table that never arrived, where an undeclared one is simply
-    // not there and reads as nothing having been meant.
+    // The turns a walk between two points of interest costs (`poi.mjs`). It
+    // arrives from a second book, so a world can hold every figure above and
+    // not this one: declaring it is what makes that absence VISIBLE — the
+    // table browser lists an expected table that never arrived, where an
+    // undeclared one is simply not there and reads as nothing having been meant.
     "districtTravel",
   ]);
   // Flight: the day-aloft factor, what wind costs a flier, and the load
@@ -522,8 +542,18 @@ Hooks.once("init", () => {
      * standing in, if any), `districtReaction(district, {where})` (what it
      * charges a reaction or influence throw made there), and the two Judge
      * tools that make one (`markControlledRegions`, `districtFromSelection`).
+     * 10 adds `poi` — points of interest: `travelToPlace(formationId,
+     * tokenId)` and `pickAndTravel(formationId)` (a walk to a place token
+     * priced by the imported district-travel figure), `poiTargets(formation)`,
+     * the incident marker's `dropIncidentNote`/`expireTransientNotes`/
+     * `transientNotesOn`/`promoteIncident`, and `TRAVEL_OPTION`.
+     *
+     * 11 adds the city list a MAP names: `settlement.readIncident` (one banded
+     * read, the shift and the band handed in), `settlement.incidentBand`, and
+     * `settlement.pickIncidentSource({city})`, whose `map` candidate carries
+     * the district's special list.
      */
-    apiVersion: 9,
+    apiVersion: 11,
     travel: { ...travel, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -533,6 +563,16 @@ Hooks.once("init", () => {
       districtReaction,
       markControlledRegions,
       districtFromSelection,
+    },
+    poi: {
+      TRAVEL_OPTION,
+      travelToPlace,
+      pickAndTravel,
+      poiTargets,
+      dropIncidentNote,
+      expireTransientNotes,
+      transientNotesOn,
+      promoteIncident,
     },
     lost,
     shadow,
@@ -668,6 +708,8 @@ Hooks.once("ready", () => {
   // once for the days it crossed.
   onWorldTimeAdvanced(() => {
     creditHoledUpDays().catch((err) => console.error(`${MODULE_ID} | holed-up day failed`, err));
+    // An incident's marker lasts a stated number of turns of the same clock.
+    expireTransientNotes().catch((err) => console.error(`${MODULE_ID} | incident marker expiry failed`, err));
   });
   if (isPrimaryGM()) {
     // Prune dead records FIRST (formations whose party actor is gone — the
@@ -739,6 +781,10 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   // it costs no turns, and re-entering the trap check here would resolve the
   // same trap a second time before the first pass has spent it.
   if (options?.[HALT_OPTION]) return;
+  // Nor is a walk to a point of interest: that was priced by the printed
+  // district figure before the token moved, and the clock's baseline was
+  // moved with it.
+  if (options?.[TRAVEL_OPTION]) return;
   // Nor is a turn. Resizing the party token to its new face holds the token's
   // centre still, which moves the top-left corner every consumer below reads —
   // a block that pivots 6×2 to 2×6 reports two squares of travel it did not
@@ -913,8 +959,10 @@ Hooks.on("chatMessage", (_chatLog, message) => {
  */
 async function addTokensToParty(seedToken) {
   const scene = seedToken.parent;
+  // A place's token is a marker on the map, not a body that can march.
   const eligible = (tokenDoc) =>
-    tokenDoc.actor && tokenDoc.actor.type !== PARTY_TYPE && !tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
+    tokenDoc.actor && tokenDoc.actor.type !== PARTY_TYPE && !isLocation(tokenDoc.actor)
+    && !tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   const tokens = (canvas?.tokens?.controlled ?? []).map((t) => t.document).filter(eligible);
   if (!tokens.some((t) => t.id === seedToken.id) && eligible(seedToken)) tokens.unshift(seedToken);
   if (!tokens.length) return;
@@ -974,7 +1022,7 @@ Hooks.on("renderTokenHUD", (hud, html) => {
   // A saved order is what the button restores, so with none saved there is
   // nothing to offer and the button stays off the HUD entirely.
   if (isParty && !listTemplates().length) return;
-  if (!isParty && tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return;
+  if (!isParty && (tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID) || isLocation(tokenDoc.actor))) return;
 
   const button = document.createElement("button");
   button.type = "button";

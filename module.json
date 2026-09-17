@@ -29,6 +29,7 @@
     "styles/classes.css",
     "styles/equipment.css",
     "styles/equipment-item-sheet.css",
+    "styles/factions.css",
     "styles/formation.css",
     "styles/henchmen.css",
     "styles/importer.css",
@@ -66,6 +67,12 @@
       "location": {
         "htmlFields": [
           "notes"
+        ]
+      },
+      "faction": {
+        "htmlFields": [
+          "notes",
+          "gmNotes"
         ]
       },
       "vehicle": {

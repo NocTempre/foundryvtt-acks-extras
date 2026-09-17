@@ -1,11 +1,12 @@
 [
   {
-    "id": "ax3.valensIcusAmbador",
+    "id": "ax3.npc43",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Councilor Valens Icus Ambador",
+    "name": "NPC 43",
     "anchor": {
-      "runin": "Valens Icus Ambador"
+      "hash": "1ygn7ck",
+      "as": "runin"
     },
     "pages": [
       182
@@ -14,19 +15,20 @@
       "group": "Lake District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Valens Icus Ambador:",
-      "stopLines": [
-        "Other Members"
+      "statLabelKey": "1ygn7ck",
+      "stopKeys": [
+        "6mx3mo"
       ]
     }
   },
   {
-    "id": "ax3.arjenusIonicusDrakomir",
+    "id": "ax3.npc44",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Councilor Arjenus Ionicus Drakomir",
+    "name": "NPC 44",
     "anchor": {
-      "runin": "Arjenus Ionicus Drakomir"
+      "hash": "dpigsu",
+      "as": "runin"
     },
     "pages": [
       182
@@ -35,16 +37,17 @@
       "group": "Lake District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Arjenus Ionicus Drakomir:"
+      "statLabelKey": "dpigsu"
     }
   },
   {
-    "id": "ax3.jonusAmbador",
+    "id": "ax3.npc45",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Jonus Ambador",
+    "name": "NPC 45",
     "anchor": {
-      "label": "Jonus Ambador:"
+      "hash": "1kujomw",
+      "as": "label"
     },
     "pages": [
       184
@@ -53,45 +56,44 @@
       "group": "Lake District — Notable Residents"
     },
     "assists": {
-      "statLabel": "Jonus Ambador:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.rhankurTheDoombringer",
+    "id": "ax3.npc46",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Rhankur the Doombringer",
+    "name": "NPC 46",
     "anchor": {
-      "label": "Rhankur the Doombringer:"
+      "hash": "18tslsf",
+      "as": "label"
     },
     "pages": [
       187
     ],
     "meta": {
-      "group": "Lake District — Death Cult"
+      "group": "Lake District — Special Locations"
     },
     "assists": {
-      "statLabel": "Rhankur the Doombringer:",
       "anchorAtStatline": true
     }
   },
   {
-    "id": "ax3.malthusia",
+    "id": "ax3.npc47",
     "kind": "kind.npc",
     "book": "ax3",
-    "name": "Malthusia the Diabolist",
+    "name": "NPC 47",
     "anchor": {
-      "label": "Malthusia the Diabolist:"
+      "hash": "1nuii8j",
+      "as": "label"
     },
     "pages": [
       187
     ],
     "meta": {
-      "group": "Lake District — Death Cult"
+      "group": "Lake District — Special Locations"
     },
     "assists": {
-      "statLabel": "Malthusia the Diabolist:",
       "anchorAtStatline": true
     }
   }

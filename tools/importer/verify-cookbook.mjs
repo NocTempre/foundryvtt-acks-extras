@@ -10,6 +10,8 @@
  *   - unknown-token report (lookup misses = promotion candidates);
  *   - per-page line-coverage residue: body items claimed by no instruction
  *     (goal: zero) and cross-entry double-claims.
+ *   - scene recipes: the baked image placement is still on the page, and the
+ *     recipe still holds over the entries compiled beside it.
  *
  * Failures (exit 1): expect mismatch, empty description, zero stats fields.
  * Warnings: stubs, misses, residue.
@@ -19,7 +21,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
+import { openBook, pageArtPlacements, pageItems } from "../../scripts/importer/extract.mjs";
+import { placementMatches, recipeContext, recipeProblems } from "../../scripts/importer/scene-binding.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 import { fingerprintWarning } from "../../scripts/importer/books.mjs";
 import { FILES } from "./reference-lib.mjs";
@@ -95,6 +98,7 @@ for (const file of bookFiles) {
   console.log(`book ${bookId}: ${numPages}pp "${title}"${fw ? ` — WARN ${fw}` : " — fingerprint OK"}`);
 
   const claimedAll = new Map(); // text item -> "entryId.field" (items are unique per cached page)
+  const claimedBy = new Map(); // text item -> entryId, for the kinds that may share one
   const pageCache = new Map();
 
   const ids = Object.keys(cb.entries).filter((id) => {
@@ -110,11 +114,16 @@ for (const file of bookFiles) {
     // Merge claims; flag cross-entry double-claims.
     for (const [item, field] of res.claims ?? []) {
       const prev = claimedAll.get(item);
-      if (prev && !prev.startsWith(`${id}.`)) {
+      // An organisation is a run-in inside running prose: the paragraph that
+      // introduces two of them is rightly the text of both, and one named after
+      // its seat reads the heading the seat's own entry reads.
+      const shared = cb.entries[id].kind === "kind.organisation" || cb.entries[claimedBy.get(item)]?.kind === "kind.organisation";
+      if (prev && !prev.startsWith(`${id}.`) && !shared) {
         console.log(`DUP  item claimed by both ${prev} and ${id}.${field}`);
         warnings++;
       }
       claimedAll.set(item, `${id}.${field}`);
+      claimedBy.set(item, id);
     }
 
     for (const m of res.misses) {
@@ -130,7 +139,10 @@ for (const file of bookFiles) {
     const statCount = Object.values(f.stats ?? {}).filter(
       (v) => v === 0 || (!!v && (typeof v !== "object" || Object.keys(v).length) && v !== ""),
     ).length;
-    const nameOk = f.name?.ok;
+    // A name the cookbook does not carry has to come back READ, not merely
+    // checked: a heading that proved its box and handed on no words would name
+    // the document after its neutral label.
+    const nameOk = f.name?.ok && (cb.entries[id].fields?.name?.op !== "heading" || !!String(f.name?.title ?? "").trim());
     // Pass criteria are KIND-shaped: a location is prose, an npc is a parsed
     // statline, a rolltable is rows; only monster kinds owe a stat block.
     const rows = Array.isArray(f.rows) ? f.rows : [];
@@ -151,6 +163,16 @@ for (const file of bookFiles) {
         ? ` creatures=[${creatures.map((c) => `${c?.text ?? "?"}${c?.ref ? `->${c.ref}` : ""}`).join(", ")}]`
         : "";
       console.log(`OK   ${id}: ${f.description.length} paras/${words}w${cStr}`);
+      continue;
+    }
+    if (kind === "kind.organisation") {
+      // An organisation is a name read off the page and the paragraph that
+      // introduces it; who it seats, holds and rosters is ids, checked by lint.
+      if (!nameOk || !f.name?.title || f.anchor?.ok === false || !words) {
+        fail(`descWords=${words} anchor=${f.anchor ? (f.anchor.ok ? "ok" : "MISMATCH") : "none"}`);
+        continue;
+      }
+      console.log(`OK   ${id}: ${f.description.length} paras/${words}w`);
       continue;
     }
     if (kind === "kind.npc") {
@@ -219,6 +241,22 @@ for (const file of bookFiles) {
         `type=${type?.key ?? type?.text ?? "?"}${type?.paren ? `(${type.paren.map((p) => p.key ?? p.text).join(",")})` : ""} ` +
         `${atkStr} spoils=${(f.spoils ?? []).length} art=${f.art ? `${f.art.width}x${f.art.height}` : "none"}`,
     );
+  }
+
+  // A scene recipe reads no text, so its anchor is the map image's placement:
+  // the same check a seat runs before it builds anything.
+  for (const [id, sc] of Object.entries(cb.scenes ?? {})) {
+    const page = sc.scene?.page;
+    if (!(page >= start && page <= end)) continue;
+    const placements = await pageArtPlacements(doc, page);
+    const problems = recipeProblems(sc.scene, recipeContext(cb.entries));
+    if (!placementMatches(placements, sc.scene?.placement)) problems.unshift(`no image on p${page} sits where the recipe's anchor does`);
+    if (problems.length) {
+      console.log(`FAIL ${id}: ${problems.join("; ")}`);
+      failures++;
+    } else {
+      console.log(`OK   ${id}: scene anchor holds on p${page}; ${sc.scene.districts?.length ?? 0} quarter(s), ${sc.scene.places?.length ?? 0} place(s)`);
+    }
   }
 
   // Line-coverage residue per touched page (shipped skips count as claimed).
