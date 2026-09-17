@@ -4579,9 +4579,9 @@
         }
       }
     },
-    "ax3.argolleanFamily": {
+    "ax3.residents1": {
       "kind": "kind.location",
-      "name": "The Argollëan Family",
+      "name": "Residents 1",
       "cite": "AX3 p.73",
       "pages": [
         75,
@@ -4592,7 +4592,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 75,
           "box": {
             "x0": 321,
@@ -4600,7 +4600,8 @@
             "y0": 242.29989999999998,
             "y1": 261.2999
           },
-          "text": "THE ARGOLLËAN FAMILY"
+          "hash": "1s760dr",
+          "caps": true
         },
         "description": {
           "op": "text",
@@ -4726,9 +4727,9 @@
         }
       }
     },
-    "ax3.liberFaunus": {
+    "ax3.npc1": {
       "kind": "kind.npc",
-      "name": "Liber Faunus",
+      "name": "NPC 1",
       "cite": "AX3 p.74",
       "pages": [
         76
@@ -4738,7 +4739,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 76,
           "box": {
             "x0": 33,
@@ -4746,18 +4747,18 @@
             "y0": 209.46990000000005,
             "y1": 218.46990000000005
           },
-          "text": "Liber Faunus",
+          "hash": "10spk5p",
           "fixes": {
             "joinSpace": [
               1
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 76,
           "pattern": "statline",
-          "dropText": "Liber Faunus:",
           "box": {
             "x0": 321,
             "x1": 561.0390000000002,
@@ -4792,6 +4793,9 @@
               8,
               24,
               30
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -4931,9 +4935,9 @@
         }
       }
     },
-    "ax3.hestaFaunus": {
+    "ax3.npc2": {
       "kind": "kind.npc",
-      "name": "Hesta Faunus",
+      "name": "NPC 2",
       "cite": "AX3 p.74",
       "pages": [
         76,
@@ -4944,7 +4948,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 76,
           "box": {
             "x0": 303,
@@ -4952,18 +4956,18 @@
             "y0": 566.4699,
             "y1": 575.4699
           },
-          "text": "Hesta Faunus",
+          "hash": "n8zo1y",
           "fixes": {
             "joinSpace": [
               0
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 77,
           "pattern": "statline",
-          "dropText": "Hesta Faunus:",
           "box": {
             "x0": 69,
             "x1": 309.0060000000002,
@@ -5000,6 +5004,9 @@
               10,
               13,
               24
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -5076,9 +5083,9 @@
         }
       }
     },
-    "ax3.aranthFaunus": {
+    "ax3.npc3": {
       "kind": "kind.npc",
-      "name": "Aranth Faunus",
+      "name": "NPC 3",
       "cite": "AX3 p.75",
       "pages": [
         77
@@ -5088,7 +5095,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 77,
           "box": {
             "x0": 51,
@@ -5096,18 +5103,18 @@
             "y0": 260.46990000000005,
             "y1": 269.46990000000005
           },
-          "text": "Aranth Faunus",
+          "hash": "1fqzo0f",
           "fixes": {
             "joinSpace": [
               2
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 77,
           "pattern": "statline",
-          "dropText": "Aranth Faunus:",
           "box": {
             "x0": 69,
             "x1": 309.02799999999985,
@@ -5131,6 +5138,9 @@
             ],
             "mergeHyphen": [
               10
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -5162,9 +5172,9 @@
         }
       }
     },
-    "ax3.megaravicos": {
+    "ax3.npc4": {
       "kind": "kind.npc",
-      "name": "Megaravicos Eight-Fingers",
+      "name": "NPC 4",
       "cite": "AX3 p.75",
       "pages": [
         77
@@ -5174,7 +5184,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 77,
           "box": {
             "x0": 51,
@@ -5182,18 +5192,18 @@
             "y0": 527.6699,
             "y1": 536.6699
           },
-          "text": "Megaravicos Eight-Fingers",
+          "hash": "1l9898d",
           "fixes": {
             "joinSpace": [
               6
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 77,
           "pattern": "statline",
-          "dropText": "Megaravicos:",
           "box": {
             "x0": 339,
             "x1": 579.0300000000003,
@@ -5217,6 +5227,9 @@
             ],
             "mergeHyphen": [
               8
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -5249,9 +5262,9 @@
         }
       }
     },
-    "ax3.cityWatch": {
+    "ax3.residents2": {
       "kind": "kind.location",
-      "name": "City Watch",
+      "name": "Residents 2",
       "cite": "AX3 p.76",
       "pages": [
         78
@@ -5261,7 +5274,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 78,
           "box": {
             "x0": 33,
@@ -5269,7 +5282,8 @@
             "y0": 296.4699,
             "y1": 315.4699
           },
-          "text": "CITY WATCH"
+          "hash": "5z6hih",
+          "caps": true
         },
         "description": {
           "op": "text",
@@ -5305,9 +5319,9 @@
         }
       }
     },
-    "ax3.narmirioDrakomir": {
+    "ax3.npc5": {
       "kind": "kind.npc",
-      "name": "Tribune Narmirio Drakomir",
+      "name": "NPC 5",
       "cite": "AX3 p.76",
       "pages": [
         78
@@ -5317,7 +5331,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 78,
           "box": {
             "x0": 33,
@@ -5325,19 +5339,19 @@
             "y0": 491.6699,
             "y1": 500.6699
           },
-          "text": "Tribune Narmirio Drakomir",
+          "hash": "1h475ub",
           "fixes": {
             "joinSpace": [
               2,
               7
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 78,
           "pattern": "statline",
-          "dropText": "Narmirio Drakomir:",
           "box": {
             "x0": 51,
             "x1": 291.02000000000004,
@@ -5357,6 +5371,9 @@
             ],
             "mergeHyphen": [
               4
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -5392,9 +5409,9 @@
         }
       }
     },
-    "ax3.apollonisMeteros": {
+    "ax3.npc6": {
       "kind": "kind.npc",
-      "name": "Guildmaster Apollonis Meteros",
+      "name": "NPC 6",
       "cite": "AX3 p.76",
       "pages": [
         78
@@ -5404,7 +5421,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 78,
           "box": {
             "x0": 303,
@@ -5412,19 +5429,19 @@
             "y0": 97.79989999999998,
             "y1": 106.79989999999998
           },
-          "text": "Guildmaster Apollonis Meteros",
+          "hash": "1md08yw",
           "fixes": {
             "joinSpace": [
               2,
               3
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 78,
           "pattern": "statline",
-          "dropText": "Apollonis Meteros:",
           "box": {
             "x0": 321,
             "x1": 561.0280000000001,
@@ -5451,6 +5468,9 @@
             "mergeHyphen": [
               9,
               12
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -5485,9 +5505,9 @@
         }
       }
     },
-    "ax3.balcadurBrogitarius": {
+    "ax3.npc7": {
       "kind": "kind.npc",
-      "name": "Guildmaster Balcadur Brogitarius",
+      "name": "NPC 7",
       "cite": "AX3 p.76",
       "pages": [
         78
@@ -5497,7 +5517,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 78,
           "box": {
             "x0": 303,
@@ -5505,19 +5525,19 @@
             "y0": 388.9998,
             "y1": 397.9998
           },
-          "text": "Guildmaster Balcadur Brogitarius",
+          "hash": "1ic0cij",
           "fixes": {
             "joinSpace": [
               2,
               6
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 78,
           "pattern": "statline",
-          "dropText": "Balcadur Brogitarius:",
           "box": {
             "x0": 321,
             "x1": 561.0299000000001,
@@ -5537,6 +5557,9 @@
               9,
               11,
               12
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -7009,9 +7032,9 @@
         }
       }
     },
-    "ax3.seleneNictorian": {
+    "ax3.npc8": {
       "kind": "kind.npc",
-      "name": "Selene Nictorian",
+      "name": "NPC 8",
       "cite": "AX3 p.102",
       "pages": [
         104,
@@ -7022,7 +7045,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 104,
           "box": {
             "x0": 33,
@@ -7030,18 +7053,18 @@
             "y0": 582.5699,
             "y1": 591.5699
           },
-          "text": "Selene Nictorian",
+          "hash": "16dr2bo",
           "fixes": {
             "joinSpace": [
               0
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 105,
           "pattern": "statline",
-          "dropText": "Selene:",
           "box": {
             "x0": 69,
             "x1": 309.03500000000014,
@@ -7072,6 +7095,9 @@
             ],
             "mergeHyphen": [
               17
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -7298,9 +7324,9 @@
         }
       }
     },
-    "ax3.thanaNyssand": {
+    "ax3.npc9": {
       "kind": "kind.npc",
-      "name": "Thana Nyssand",
+      "name": "NPC 9",
       "cite": "AX3 p.103",
       "pages": [
         105
@@ -7310,7 +7336,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 105,
           "box": {
             "x0": 51,
@@ -7318,18 +7344,18 @@
             "y0": 596.6699,
             "y1": 605.6699
           },
-          "text": "Thana Nyssand",
+          "hash": "12ybe9n",
           "fixes": {
             "joinSpace": [
               0
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 105,
           "pattern": "statline",
-          "dropText": "Thana Nyssand:",
           "box": {
             "x0": 339,
             "x1": 579.0068,
@@ -7353,6 +7379,9 @@
               5,
               7,
               10
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -7386,9 +7415,9 @@
         }
       }
     },
-    "ax3.jonusKrusaro": {
+    "ax3.npc10": {
       "kind": "kind.npc",
-      "name": "Jonus Krusaro",
+      "name": "NPC 10",
       "cite": "AX3 p.103",
       "pages": [
         105
@@ -7398,7 +7427,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 105,
           "box": {
             "x0": 51,
@@ -7406,18 +7435,18 @@
             "y0": 293.4699,
             "y1": 302.4699
           },
-          "text": "Jonus Krusaro",
+          "hash": "ekpjrn",
           "fixes": {
             "joinSpace": [
               1
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 105,
           "pattern": "statline",
-          "dropText": "Jonus Krusaro:",
           "box": {
             "x0": 69,
             "x1": 309.00050000000005,
@@ -7445,6 +7474,9 @@
             ],
             "mergeHyphen": [
               8
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -7482,9 +7514,9 @@
         }
       }
     },
-    "ax3.lutariusSinorix": {
+    "ax3.npc11": {
       "kind": "kind.npc",
-      "name": "Lutarius Sinorix",
+      "name": "NPC 11",
       "cite": "AX3 p.103",
       "pages": [
         105
@@ -7494,7 +7526,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 105,
           "box": {
             "x0": 321,
@@ -7502,18 +7534,18 @@
             "y0": 404.2299,
             "y1": 413.2299
           },
-          "text": "Lutarius Sinorix",
+          "hash": "58cole",
           "fixes": {
             "joinSpace": [
               2
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 105,
           "pattern": "statline",
-          "dropText": "Lutarius Sinorix:",
           "box": {
             "x0": 339,
             "x1": 579.0400000000002,
@@ -7538,6 +7570,9 @@
             "mergeHyphen": [
               5,
               12
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -7578,9 +7613,9 @@
         }
       }
     },
-    "ax3.maximusArjenturan": {
+    "ax3.npc12": {
       "kind": "kind.npc",
-      "name": "Lanista Maximus Arjentüran",
+      "name": "NPC 12",
       "cite": "AX3 p.105",
       "pages": [
         107
@@ -7590,7 +7625,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 107,
           "box": {
             "x0": 47.4,
@@ -7598,19 +7633,19 @@
             "y0": 377.4699,
             "y1": 386.4699
           },
-          "text": "Lanista Maximus Arjentüran",
+          "hash": "161u3d9",
           "fixes": {
             "joinSpace": [
               0,
               3
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 107,
           "pattern": "statline",
-          "dropText": "Maximus:",
           "box": {
             "x0": 335.4,
             "x1": 575.4072,
@@ -7646,6 +7681,9 @@
               15,
               17,
               23
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -7787,9 +7825,9 @@
         }
       }
     },
-    "ax3.celictorNuvicus": {
+    "ax3.npc13": {
       "kind": "kind.npc",
-      "name": "Lanista Celictor Nuvicus",
+      "name": "NPC 13",
       "cite": "AX3 p.106",
       "pages": [
         108
@@ -7799,7 +7837,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 108,
           "box": {
             "x0": 33,
@@ -7807,19 +7845,19 @@
             "y0": 462.1999,
             "y1": 471.1999
           },
-          "text": "Lanista Celictor Nuvicus",
+          "hash": "r91l97",
           "fixes": {
             "joinSpace": [
               0,
               5
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 108,
           "pattern": "statline",
-          "dropText": "Celictor Nuvicus:",
           "box": {
             "x0": 321,
             "x1": 561.029,
@@ -7838,6 +7876,9 @@
               7,
               8,
               9
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -8013,9 +8054,9 @@
         }
       }
     },
-    "ax3.abedsh": {
+    "ax3.npc14": {
       "kind": "kind.npc",
-      "name": "Abedsh, Veteran Gladiator Pursuer",
+      "name": "NPC 14",
       "cite": "AX3 p.106",
       "pages": [
         108
@@ -8028,7 +8069,6 @@
           "op": "value",
           "page": 108,
           "pattern": "statline",
-          "dropText": "Abedsh, Veteran Gladiator Pursuer:",
           "box": {
             "x0": 321,
             "x1": 561.0289999999999,
@@ -8043,25 +8083,28 @@
               3,
               4,
               5
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 108,
           "box": {
-            "x0": 321,
-            "x1": 479.1189999999999,
-            "y0": 422.4699,
-            "y1": 432.4699
+            "x0": 322,
+            "x1": 326,
+            "y0": 424.9699,
+            "y1": 429.9699
           },
-          "text": "Abedsh, Veteran Gladiator Pursuer"
+          "hash": "7h8phw"
         }
       }
     },
-    "ax3.baruch": {
+    "ax3.npc15": {
       "kind": "kind.npc",
-      "name": "Baruch, Veteran Gladiator Spearfighter",
+      "name": "NPC 15",
       "cite": "AX3 p.106",
       "pages": [
         108
@@ -8074,7 +8117,6 @@
           "op": "value",
           "page": 108,
           "pattern": "statline",
-          "dropText": "Baruch, Veteran Gladiator Spearfighter:",
           "box": {
             "x0": 321,
             "x1": 561.0290000000001,
@@ -8088,25 +8130,28 @@
               2,
               3,
               4
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 108,
           "box": {
-            "x0": 321,
-            "x1": 497.87799999999976,
-            "y0": 491.4699,
-            "y1": 501.4699
+            "x0": 322,
+            "x1": 326,
+            "y0": 493.9699,
+            "y1": 498.9699
           },
-          "text": "Baruch, Veteran Gladiator Spearfighter"
+          "hash": "5vsiec"
         }
       }
     },
-    "ax3.khet": {
+    "ax3.npc16": {
       "kind": "kind.npc",
-      "name": "Khet, Veteran Gladiator Striker",
+      "name": "NPC 16",
       "cite": "AX3 p.106",
       "pages": [
         108
@@ -8119,7 +8164,6 @@
           "op": "value",
           "page": 108,
           "pattern": "statline",
-          "dropText": "Khet, Veteran Gladiator Striker:",
           "box": {
             "x0": 321,
             "x1": 561.0399999999998,
@@ -8135,25 +8179,28 @@
             ],
             "mergeHyphen": [
               5
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 108,
           "box": {
-            "x0": 321,
-            "x1": 462.32899999999984,
-            "y0": 560.4699,
-            "y1": 570.4699
+            "x0": 322,
+            "x1": 326,
+            "y0": 562.9699,
+            "y1": 567.9699
           },
-          "text": "Khet, Veteran Gladiator Striker"
+          "hash": "d4xx6p"
         }
       }
     },
-    "ax3.omnusPluris": {
+    "ax3.npc17": {
       "kind": "kind.npc",
-      "name": "Lanista Omnus Pluris",
+      "name": "NPC 17",
       "cite": "AX3 p.107",
       "pages": [
         109
@@ -8163,7 +8210,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 109,
           "box": {
             "x0": 51.72,
@@ -8171,19 +8218,19 @@
             "y0": 197.46990000000005,
             "y1": 206.46990000000005
           },
-          "text": "Lanista Omnis Pluris",
+          "hash": "1gagmdk",
           "fixes": {
             "joinSpace": [
               0,
               1
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 109,
           "pattern": "statline",
-          "dropText": "Omnus Pluris:",
           "box": {
             "x0": 69.72,
             "x1": 309.7397,
@@ -8203,6 +8250,9 @@
             ],
             "mergeHyphen": [
               7
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -8237,9 +8287,9 @@
         }
       }
     },
-    "ax3.braig": {
+    "ax3.npc18": {
       "kind": "kind.npc",
-      "name": "Braig, Veteran Gladiator Challenger",
+      "name": "NPC 18",
       "cite": "AX3 p.107",
       "pages": [
         109
@@ -8252,7 +8302,6 @@
           "op": "value",
           "page": 109,
           "pattern": "statline",
-          "dropText": "Braig, Veteran Gladiator Challenger:",
           "box": {
             "x0": 69.72,
             "x1": 309.7258,
@@ -8267,25 +8316,28 @@
               3,
               4,
               5
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 109,
           "box": {
-            "x0": 69.72,
-            "x1": 232.1279999999999,
-            "y0": 662.6699,
-            "y1": 672.6699
+            "x0": 70.72,
+            "x1": 74.72,
+            "y0": 665.1699,
+            "y1": 670.1699
           },
-          "text": "Braig, Veteran Gladiator Challenger"
+          "hash": "1idknmt"
         }
       }
     },
-    "ax3.agilusBalventius": {
+    "ax3.npc19": {
       "kind": "kind.npc",
-      "name": "Agilus Balventius",
+      "name": "NPC 19",
       "cite": "AX3 p.108",
       "pages": [
         110
@@ -8298,7 +8350,6 @@
           "op": "value",
           "page": 110,
           "pattern": "statline",
-          "dropText": "Agilus Balventius:",
           "box": {
             "x0": 321,
             "x1": 561.0179999999997,
@@ -8313,19 +8364,22 @@
               3,
               4,
               5
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 110,
           "box": {
-            "x0": 321,
-            "x1": 402.95,
-            "y0": 224.2699,
-            "y1": 234.2699
+            "x0": 322,
+            "x1": 326,
+            "y0": 226.7699,
+            "y1": 231.7699
           },
-          "text": "Agilus Balventius"
+          "hash": "1j06anr"
         }
       }
     },
@@ -9424,9 +9478,9 @@
         }
       }
     },
-    "ax3.prelateRomus": {
+    "ax3.npc20": {
       "kind": "kind.npc",
-      "name": "Prelate Romus",
+      "name": "NPC 20",
       "cite": "AX3 p.128",
       "pages": [
         130
@@ -9436,7 +9490,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 130,
           "box": {
             "x0": 303,
@@ -9444,18 +9498,18 @@
             "y0": 248.46990000000005,
             "y1": 257.46990000000005
           },
-          "text": "Prelate Romus",
+          "hash": "ygt930",
           "fixes": {
             "joinSpace": [
               2
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 130,
           "pattern": "statline",
-          "dropText": "Romus, Prelate of the Solar Citadel:",
           "box": {
             "x0": 321,
             "x1": 561.0289999999999,
@@ -9483,6 +9537,9 @@
             ],
             "mergeHyphen": [
               5
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -9520,9 +9577,9 @@
         }
       }
     },
-    "ax3.drusus": {
+    "ax3.npc21": {
       "kind": "kind.npc",
-      "name": "Rector Drusus",
+      "name": "NPC 21",
       "cite": "AX3 p.128",
       "pages": [
         130,
@@ -9533,7 +9590,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 130,
           "box": {
             "x0": 303,
@@ -9541,18 +9598,18 @@
             "y0": 599.6699,
             "y1": 608.6699
           },
-          "text": "R e C to R d R usus",
+          "hash": "1uyfb4k",
           "fixes": {
             "joinSpace": [
               4
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 131,
           "pattern": "statline",
-          "dropText": "Drusus, Rector of the Solar Citadel:",
           "box": {
             "x0": 66.84,
             "x1": 306.86379999999997,
@@ -9577,6 +9634,9 @@
             ],
             "mergeHyphen": [
               6
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -9820,9 +9880,9 @@
         }
       }
     },
-    "ax3.bodilkasGargoris": {
+    "ax3.npc22": {
       "kind": "kind.npc",
-      "name": "Guildmaster Bodilkas Gargoris",
+      "name": "NPC 22",
       "cite": "AX3 p.129",
       "pages": [
         131
@@ -9832,7 +9892,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 131,
           "box": {
             "x0": 318.84,
@@ -9840,19 +9900,19 @@
             "y0": 149.66989999999998,
             "y1": 158.66989999999998
           },
-          "text": "G uildmaste R bodil K as G a RG o R is",
+          "hash": "1ytouz5",
           "fixes": {
             "joinSpace": [
               2,
               5
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 131,
           "pattern": "statline",
-          "dropText": "Bodilkas:",
           "box": {
             "x0": 336.84,
             "x1": 576.87,
@@ -9866,6 +9926,9 @@
               2,
               3,
               4
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -10378,22 +10441,21 @@
         }
       }
     },
-    "ax3.vicarOfAmmonar": {
+    "ax3.npc23": {
       "kind": "kind.npc",
-      "name": "Vicar of Ammonar",
+      "name": "NPC 23",
       "cite": "AX3 p.132",
       "pages": [
         134
       ],
       "meta": {
-        "group": "Bridge District — Solar Citadel"
+        "group": "Bridge District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 134,
           "pattern": "statline",
-          "dropText": "Vicar of Ammonar:",
           "box": {
             "x0": 51,
             "x1": 291.02600000000007,
@@ -10411,19 +10473,22 @@
             ],
             "mergeHyphen": [
               7
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 134,
           "box": {
-            "x0": 51,
-            "x1": 138.41899999999998,
-            "y0": 578.9999,
-            "y1": 588.9999
+            "x0": 52,
+            "x1": 56,
+            "y0": 581.4999,
+            "y1": 586.4999
           },
-          "text": "Vicar of Ammonar"
+          "hash": "1hrt6vq"
         }
       }
     },
@@ -11081,9 +11146,9 @@
         }
       }
     },
-    "ax3.fatima": {
+    "ax3.npc24": {
       "kind": "kind.npc",
-      "name": "Fatima of the Seven Silks",
+      "name": "NPC 24",
       "cite": "AX3 p.139",
       "pages": [
         141
@@ -11093,7 +11158,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 141,
           "box": {
             "x0": 51,
@@ -11101,7 +11166,7 @@
             "y0": 99.39980000000003,
             "y1": 108.39980000000003
           },
-          "text": "Fatima of the Seven Silks",
+          "hash": "19mh3ym",
           "fixes": {
             "joinSpace": [
               0,
@@ -11109,13 +11174,13 @@
               2,
               3
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 141,
           "pattern": "statline",
-          "dropText": "Fatima:",
           "box": {
             "x0": 69,
             "x1": 309.03,
@@ -11134,6 +11199,9 @@
             "mergeHyphen": [
               4,
               6
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -11170,9 +11238,9 @@
         }
       }
     },
-    "ax3.lubbo": {
+    "ax3.npc25": {
       "kind": "kind.npc",
-      "name": "Lubbo the Immaculate",
+      "name": "NPC 25",
       "cite": "AX3 p.139",
       "pages": [
         141
@@ -11182,7 +11250,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 141,
           "box": {
             "x0": 51,
@@ -11190,19 +11258,19 @@
             "y0": 423.5998,
             "y1": 432.5998
           },
-          "text": "Lubbo the Immaculate",
+          "hash": "zabt4e",
           "fixes": {
             "joinSpace": [
               0,
               1
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 141,
           "pattern": "statline",
-          "dropText": "Lubbo:",
           "box": {
             "x0": 69,
             "x1": 309.0399000000002,
@@ -11220,6 +11288,9 @@
               6,
               7,
               8
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -12296,9 +12367,9 @@
         }
       }
     },
-    "ax3.aureusAmbador": {
+    "ax3.npc26": {
       "kind": "kind.npc",
-      "name": "Regent Aurëus Ambador",
+      "name": "NPC 26",
       "cite": "AX3 p.145",
       "pages": [
         147,
@@ -12309,7 +12380,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 147,
           "box": {
             "x0": 321,
@@ -12317,19 +12388,19 @@
             "y0": 504.1699,
             "y1": 513.1699
           },
-          "text": "Regent Aurëus Ambador",
+          "hash": "1tgba47",
           "fixes": {
             "joinSpace": [
               3,
               6
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 148,
           "pattern": "statline",
-          "dropText": "Aurëus Ambador:",
           "box": {
             "x0": 52.44,
             "x1": 562.4680000000002,
@@ -12427,6 +12498,9 @@
               47,
               68,
               139
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -12603,9 +12677,9 @@
         }
       }
     },
-    "ax3.mentenusCavie": {
+    "ax3.npc27": {
       "kind": "kind.npc",
-      "name": "Provost Mentenus Cavië",
+      "name": "NPC 27",
       "cite": "AX3 p.146",
       "pages": [
         148
@@ -12615,7 +12689,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 148,
           "box": {
             "x0": 34.44,
@@ -12623,19 +12697,19 @@
             "y0": 458.4699,
             "y1": 467.4699
           },
-          "text": "p R ovost mentenus C avië",
+          "hash": "u4pww9",
           "fixes": {
             "joinSpace": [
               2,
               3
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 148,
           "pattern": "statline",
-          "dropText": "Mentenus Cavië:",
           "box": {
             "x0": 322.44,
             "x1": 562.4695000000003,
@@ -12699,6 +12773,9 @@
               62,
               74,
               80
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -12764,9 +12841,9 @@
         }
       }
     },
-    "ax3.clitusOmnus": {
+    "ax3.npc28": {
       "kind": "kind.npc",
-      "name": "Clitus Omnus",
+      "name": "NPC 28",
       "cite": "AX3 p.146",
       "pages": [
         148
@@ -12776,7 +12853,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 148,
           "box": {
             "x0": 304.44,
@@ -12784,18 +12861,18 @@
             "y0": 344.4699,
             "y1": 353.4699
           },
-          "text": "t R easu R e R C litus omnus",
+          "hash": "c24c9a",
           "fixes": {
             "joinSpace": [
               6
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 148,
           "pattern": "statline",
-          "dropText": "Clitus Omnus:",
           "box": {
             "x0": 322.44,
             "x1": 562.4421,
@@ -12850,6 +12927,9 @@
               19,
               46,
               67
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -12887,9 +12967,9 @@
         }
       }
     },
-    "ax3.maraReavus": {
+    "ax3.npc29": {
       "kind": "kind.npc",
-      "name": "Inspector Mara Rëavus",
+      "name": "NPC 29",
       "cite": "AX3 p.147",
       "pages": [
         149
@@ -12899,7 +12979,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 149,
           "box": {
             "x0": 48.84,
@@ -12907,19 +12987,19 @@
             "y0": 372.3599,
             "y1": 381.3599
           },
-          "text": "inspe C to R ma R a R ëavus",
+          "hash": "1ty2mpr",
           "fixes": {
             "joinSpace": [
               3,
               6
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 149,
           "pattern": "statline",
-          "dropText": "Mara Rëavus:",
           "box": {
             "x0": 66.84,
             "x1": 306.87179999999995,
@@ -12953,6 +13033,9 @@
               5,
               21,
               26
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -15162,9 +15245,9 @@
         }
       }
     },
-    "ax3.matriarchAundeme": {
+    "ax3.npc30": {
       "kind": "kind.npc",
-      "name": "Matriarch Aundëmë",
+      "name": "NPC 30",
       "cite": "AX3 p.166",
       "pages": [
         168,
@@ -15175,7 +15258,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 168,
           "box": {
             "x0": 303,
@@ -15183,18 +15266,18 @@
             "y0": 348.1699,
             "y1": 357.1699
           },
-          "text": "Matriarch Aundëmë",
+          "hash": "nhky2t",
           "fixes": {
             "joinSpace": [
               4
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 169,
           "pattern": "statline",
-          "dropText": "Matriarch Aundëmë:",
           "box": {
             "x0": 69,
             "x1": 309.0283999999999,
@@ -15222,6 +15305,9 @@
             ],
             "mergeHyphen": [
               10
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -15330,9 +15416,9 @@
         }
       }
     },
-    "ax3.bladeDancerValara": {
+    "ax3.npc31": {
       "kind": "kind.npc",
-      "name": "Blade-Dancer Valara",
+      "name": "NPC 31",
       "cite": "AX3 p.167",
       "pages": [
         169
@@ -15342,7 +15428,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 169,
           "box": {
             "x0": 51,
@@ -15350,18 +15436,18 @@
             "y0": 632.6699,
             "y1": 641.6699
           },
-          "text": "Blade-Dancer Valara",
+          "hash": "19k4vvl",
           "fixes": {
             "joinSpace": [
               5
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 169,
           "pattern": "statline",
-          "dropText": "Blade-Dancer Valara:",
           "box": {
             "x0": 339,
             "x1": 579.035,
@@ -15385,6 +15471,9 @@
             ],
             "mergeHyphen": [
               8
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -15432,9 +15521,9 @@
         }
       }
     },
-    "ax3.reveredMotherDoare": {
+    "ax3.npc32": {
       "kind": "kind.npc",
-      "name": "Revered Mother Doarë",
+      "name": "NPC 32",
       "cite": "AX3 p.167",
       "pages": [
         169
@@ -15444,7 +15533,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 169,
           "box": {
             "x0": 51,
@@ -15452,19 +15541,19 @@
             "y0": 236.46990000000005,
             "y1": 245.46990000000005
           },
-          "text": "Revered Mother Doarë",
+          "hash": "1tejpok",
           "fixes": {
             "joinSpace": [
               3,
               5
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 169,
           "pattern": "statline",
-          "dropText": "Doarë:",
           "box": {
             "x0": 69,
             "x1": 309.03650000000016,
@@ -15480,6 +15569,9 @@
             "mergeHyphen": [
               3,
               6
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -15524,9 +15616,9 @@
         }
       }
     },
-    "ax3.motherAurelyn": {
+    "ax3.npc33": {
       "kind": "kind.npc",
-      "name": "Mother Aurëlyn",
+      "name": "NPC 33",
       "cite": "AX3 p.167",
       "pages": [
         169
@@ -15536,7 +15628,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 169,
           "box": {
             "x0": 321.0001,
@@ -15544,18 +15636,18 @@
             "y0": 293.4699,
             "y1": 302.4699
           },
-          "text": "Mother Aurëlyn",
+          "hash": "nftbog",
           "fixes": {
             "joinSpace": [
               1
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 169,
           "pattern": "statline",
-          "dropText": "Mother Aurëlyn:",
           "box": {
             "x0": 339.0001,
             "x1": 579.0280999999998,
@@ -15575,6 +15667,9 @@
             "mergeHyphen": [
               5,
               8
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -15607,9 +15702,9 @@
         }
       }
     },
-    "ax3.prelateEzelus": {
+    "ax3.npc34": {
       "kind": "kind.npc",
-      "name": "Prelate Ezelus",
+      "name": "NPC 34",
       "cite": "AX3 p.167",
       "pages": [
         169,
@@ -15620,7 +15715,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 169,
           "box": {
             "x0": 321.0001,
@@ -15628,18 +15723,18 @@
             "y0": 560.6699,
             "y1": 569.6699
           },
-          "text": "Prelate Ezelus",
+          "hash": "h5w1r4",
           "fixes": {
             "joinSpace": [
               2
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 170,
           "pattern": "statline",
-          "dropText": "Ezelus:",
           "box": {
             "x0": 52.44,
             "x1": 292.4846,
@@ -15662,6 +15757,9 @@
             "mergeHyphen": [
               7,
               10
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -15722,9 +15820,9 @@
         }
       }
     },
-    "ax3.rectorSuromus": {
+    "ax3.npc35": {
       "kind": "kind.npc",
-      "name": "Rector Süromus",
+      "name": "NPC 35",
       "cite": "AX3 p.168",
       "pages": [
         170
@@ -15734,7 +15832,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 170,
           "box": {
             "x0": 34.44,
@@ -15742,18 +15840,18 @@
             "y0": 212.46990000000005,
             "y1": 221.46990000000005
           },
-          "text": "Rector Süromus",
+          "hash": "1j0u460",
           "fixes": {
             "joinSpace": [
               4
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 170,
           "pattern": "statline",
-          "dropText": "Rector Süromus:",
           "box": {
             "x0": 52.44,
             "x1": 292.48300000000006,
@@ -15773,6 +15871,9 @@
             ],
             "mergeHyphen": [
               5
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -15808,9 +15909,9 @@
         }
       }
     },
-    "ax3.centurionCelle": {
+    "ax3.npc36": {
       "kind": "kind.npc",
-      "name": "Centurion Cellë",
+      "name": "NPC 36",
       "cite": "AX3 p.168",
       "pages": [
         170
@@ -15820,7 +15921,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 170,
           "box": {
             "x0": 34.44,
@@ -15828,18 +15929,18 @@
             "y0": 491.6699,
             "y1": 500.6699
           },
-          "text": "Centurion Cellë",
+          "hash": "1mp0cid",
           "fixes": {
             "joinSpace": [
               3
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 170,
           "pattern": "statline",
-          "dropText": "Cellë:",
           "box": {
             "x0": 322.44,
             "x1": 562.4779999999997,
@@ -15862,6 +15963,9 @@
               13,
               14,
               15
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -16508,22 +16612,21 @@
         }
       }
     },
-    "ax3.destrio": {
+    "ax3.npc37": {
       "kind": "kind.npc",
-      "name": "Destrio, Cult Deathbringer",
+      "name": "NPC 37",
       "cite": "AX3 p.175",
       "pages": [
         177
       ],
       "meta": {
-        "group": "Temple District — Eclipse Hideout"
+        "group": "Temple District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 177,
           "pattern": "statline",
-          "dropText": "Destrio (Cult Deathbringer):",
           "box": {
             "x0": 69.72,
             "x1": 309.7499999999999,
@@ -16550,38 +16653,40 @@
             "mergeHyphen": [
               11,
               21
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 177,
           "box": {
-            "x0": 69.72,
-            "x1": 200.79899999999998,
-            "y0": 86.99990000000003,
-            "y1": 96.99990000000003
+            "x0": 70.72,
+            "x1": 74.72,
+            "y0": 89.49990000000003,
+            "y1": 94.49990000000003
           },
-          "text": "Destrio (Cult Deathbringer)"
+          "hash": "1wbt9os"
         }
       }
     },
-    "ax3.kalbo": {
+    "ax3.npc38": {
       "kind": "kind.npc",
-      "name": "Kalbo, City Watch Subaltern",
+      "name": "NPC 38",
       "cite": "AX3 p.175",
       "pages": [
         177
       ],
       "meta": {
-        "group": "Temple District — Eclipse Hideout"
+        "group": "Temple District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 177,
           "pattern": "statline",
-          "dropText": "Kalbo aka “Baldy,” City Watch Subaltern:",
           "box": {
             "x0": 339.72,
             "x1": 579.7610000000003,
@@ -16595,38 +16700,40 @@
               2,
               3,
               4
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 177,
           "box": {
-            "x0": 339.72,
-            "x1": 519.3989999999999,
-            "y0": 167.2699,
-            "y1": 177.2699
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 169.7699,
+            "y1": 174.7699
           },
-          "text": "Kalbo aka “Baldy,” City Watch Subaltern"
+          "hash": "cca1mj"
         }
       }
     },
-    "ax3.larce": {
+    "ax3.npc39": {
       "kind": "kind.npc",
-      "name": "Larce, Mercenary Hero",
+      "name": "NPC 39",
       "cite": "AX3 p.175",
       "pages": [
         177
       ],
       "meta": {
-        "group": "Temple District — Eclipse Hideout"
+        "group": "Temple District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 177,
           "pattern": "statline",
-          "dropText": "Larce, Mercenary Hero:",
           "box": {
             "x0": 339.72,
             "x1": 579.7489999999998,
@@ -16640,38 +16747,40 @@
               2,
               3,
               4
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 177,
           "box": {
-            "x0": 339.72,
-            "x1": 445.54999999999995,
-            "y0": 236.2699,
-            "y1": 246.2699
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 238.7699,
+            "y1": 243.7699
           },
-          "text": "Larce, Mercenary Hero"
+          "hash": "cdq6js"
         }
       }
     },
-    "ax3.virathos": {
+    "ax3.npc40": {
       "kind": "kind.npc",
-      "name": "Virathos, the Krysean Trader",
+      "name": "NPC 40",
       "cite": "AX3 p.175",
       "pages": [
         177
       ],
       "meta": {
-        "group": "Temple District — Eclipse Hideout"
+        "group": "Temple District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 177,
           "pattern": "statline",
-          "dropText": "Virathos, the Krysean Trader:",
           "box": {
             "x0": 339.72,
             "x1": 579.7402999999999,
@@ -16684,38 +16793,40 @@
               1,
               2,
               3
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 177,
           "box": {
-            "x0": 339.72,
-            "x1": 474.2999999999999,
-            "y0": 305.2699,
-            "y1": 315.2699
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 307.7699,
+            "y1": 312.7699
           },
-          "text": "Virathos, the Krysean Trader"
+          "hash": "16aheh"
         }
       }
     },
-    "ax3.hradTheBloodAxe": {
+    "ax3.npc41": {
       "kind": "kind.npc",
-      "name": "Hrad the Blood Axe",
+      "name": "NPC 41",
       "cite": "AX3 p.175",
       "pages": [
         177
       ],
       "meta": {
-        "group": "Temple District — Eclipse Hideout"
+        "group": "Temple District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 177,
           "pattern": "statline",
-          "dropText": "Hrad the Blood Axe:",
           "box": {
             "x0": 339.72,
             "x1": 579.7320000000002,
@@ -16731,38 +16842,40 @@
               5,
               6,
               7
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 177,
           "box": {
-            "x0": 339.72,
-            "x1": 436.06000000000006,
-            "y0": 362.2699,
-            "y1": 372.2699
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 364.7699,
+            "y1": 369.7699
           },
-          "text": "Hrad the Blood Axe"
+          "hash": "1bbrp6l"
         }
       }
     },
-    "ax3.una": {
+    "ax3.npc42": {
       "kind": "kind.npc",
-      "name": "Una, the Mysterious Woman",
+      "name": "NPC 42",
       "cite": "AX3 p.175",
       "pages": [
         177
       ],
       "meta": {
-        "group": "Temple District — Eclipse Hideout"
+        "group": "Temple District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 177,
           "pattern": "statline",
-          "dropText": "Una, the Mysterious Woman:",
           "box": {
             "x0": 339.72,
             "x1": 579.7499999999998,
@@ -16782,19 +16895,22 @@
             ],
             "mergeHyphen": [
               8
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 177,
           "box": {
-            "x0": 339.72,
-            "x1": 469.33399999999983,
-            "y0": 443.2699,
-            "y1": 453.2699
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 445.7699,
+            "y1": 450.7699
           },
-          "text": "Una, the Mysterious Woman"
+          "hash": "16j7vqo"
         }
       }
     },
@@ -17313,9 +17429,9 @@
         }
       }
     },
-    "ax3.valensIcusAmbador": {
+    "ax3.npc43": {
       "kind": "kind.npc",
-      "name": "Councilor Valens Icus Ambador",
+      "name": "NPC 43",
       "cite": "AX3 p.180",
       "pages": [
         182
@@ -17325,7 +17441,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 182,
           "box": {
             "x0": 34.44,
@@ -17333,19 +17449,19 @@
             "y0": 579.1999000000001,
             "y1": 588.1999000000001
           },
-          "text": "Valens Icus Ambador",
+          "hash": "1ygn7ck",
           "fixes": {
             "joinSpace": [
               0,
               3
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 182,
           "pattern": "statline",
-          "dropText": "Valens Icus Ambador:",
           "box": {
             "x0": 322.44,
             "x1": 562.488,
@@ -17366,6 +17482,9 @@
             ],
             "mergeHyphen": [
               8
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -17449,9 +17568,9 @@
         }
       }
     },
-    "ax3.arjenusIonicusDrakomir": {
+    "ax3.npc44": {
       "kind": "kind.npc",
-      "name": "Councilor Arjenus Ionicus Drakomir",
+      "name": "NPC 44",
       "cite": "AX3 p.180",
       "pages": [
         182
@@ -17461,7 +17580,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 182,
           "box": {
             "x0": 34.44,
@@ -17469,19 +17588,19 @@
             "y0": 74.99990000000003,
             "y1": 83.99990000000003
           },
-          "text": "Arjenus Ionicus Drakomir",
+          "hash": "dpigsu",
           "fixes": {
             "joinSpace": [
               2,
               5
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 182,
           "pattern": "statline",
-          "dropText": "Arjenus Ionicus Drakomir:",
           "box": {
             "x0": 52.44,
             "x1": 292.48,
@@ -17500,6 +17619,9 @@
               7,
               8,
               9
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -18021,9 +18143,9 @@
         }
       }
     },
-    "ax3.jonusAmbador": {
+    "ax3.npc45": {
       "kind": "kind.npc",
-      "name": "Jonus Ambador",
+      "name": "NPC 45",
       "cite": "AX3 p.182",
       "pages": [
         184
@@ -18036,7 +18158,6 @@
           "op": "value",
           "page": 184,
           "pattern": "statline",
-          "dropText": "Jonus Ambador:",
           "box": {
             "x0": 51,
             "x1": 291.0149999999999,
@@ -18054,38 +18175,40 @@
             ],
             "mergeHyphen": [
               5
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 184,
           "box": {
-            "x0": 51,
-            "x1": 125.60000000000001,
-            "y0": 389.2699,
-            "y1": 399.2699
+            "x0": 52,
+            "x1": 56,
+            "y0": 391.7699,
+            "y1": 396.7699
           },
-          "text": "Jonus Ambador"
+          "hash": "1kujomw"
         }
       }
     },
-    "ax3.rhankurTheDoombringer": {
+    "ax3.npc46": {
       "kind": "kind.npc",
-      "name": "Rhankur the Doombringer",
+      "name": "NPC 46",
       "cite": "AX3 p.185",
       "pages": [
         187
       ],
       "meta": {
-        "group": "Lake District — Death Cult"
+        "group": "Lake District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 187,
           "pattern": "statline",
-          "dropText": "Rhankur the Doombringer:",
           "box": {
             "x0": 339.72,
             "x1": 579.749,
@@ -18114,38 +18237,40 @@
             "mergeHyphen": [
               11,
               19
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 187,
           "box": {
-            "x0": 339.72,
-            "x1": 460.90899999999993,
-            "y0": 176.2699,
-            "y1": 186.2699
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 178.7699,
+            "y1": 183.7699
           },
-          "text": "Rhankur the Doombringer"
+          "hash": "18tslsf"
         }
       }
     },
-    "ax3.malthusia": {
+    "ax3.npc47": {
       "kind": "kind.npc",
-      "name": "Malthusia the Diabolist",
+      "name": "NPC 47",
       "cite": "AX3 p.185",
       "pages": [
         187
       ],
       "meta": {
-        "group": "Lake District — Death Cult"
+        "group": "Lake District — Special Locations"
       },
       "fields": {
         "statline": {
           "op": "value",
           "page": 187,
           "pattern": "statline",
-          "dropText": "Malthusia the Diabolist:",
           "box": {
             "x0": 69.72,
             "x1": 309.765,
@@ -18173,19 +18298,22 @@
             ],
             "mergeHyphen": [
               5
+            ],
+            "drop": [
+              0
             ]
           }
         },
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 187,
           "box": {
-            "x0": 69.72,
-            "x1": 177.58900000000003,
-            "y0": 551.4699,
-            "y1": 561.4699
+            "x0": 70.72,
+            "x1": 74.72,
+            "y0": 553.9699,
+            "y1": 558.9699
           },
-          "text": "Malthusia the Diabolist"
+          "hash": "1nuii8j"
         }
       }
     },
@@ -18898,9 +19026,9 @@
         }
       }
     },
-    "ax3.justiriusTavicusBasilio": {
+    "ax3.npc48": {
       "kind": "kind.npc",
-      "name": "Prefect Justirius Tavicus Basilio",
+      "name": "NPC 48",
       "cite": "AX3 p.189",
       "pages": [
         191
@@ -18910,7 +19038,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 191,
           "box": {
             "x0": 51,
@@ -18918,20 +19046,20 @@
             "y0": 544.4998,
             "y1": 553.4998
           },
-          "text": "Prefect Justirius Tavicus Basilio",
+          "hash": "x8cfsu",
           "fixes": {
             "joinSpace": [
               4,
               8,
               11
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 191,
           "pattern": "statline",
-          "dropText": "Justirius Tavicus Basilio:",
           "box": {
             "x0": 339,
             "x1": 579.0289999999999,
@@ -18958,6 +19086,9 @@
               21,
               22,
               23
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -19005,9 +19136,9 @@
         }
       }
     },
-    "ax3.ladySyrenaAustiriaBasilio": {
+    "ax3.npc49": {
       "kind": "kind.npc",
-      "name": "Lady Syrena Austiria Basilio",
+      "name": "NPC 49",
       "cite": "AX3 p.189",
       "pages": [
         191
@@ -19017,7 +19148,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 191,
           "box": {
             "x0": 321,
@@ -19025,20 +19156,20 @@
             "y0": 398.4699,
             "y1": 407.4699
           },
-          "text": "Lady Syrena Austiria Basilio",
+          "hash": "15pczgw",
           "fixes": {
             "joinSpace": [
               1,
               4,
               7
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 191,
           "pattern": "statline",
-          "dropText": "Lady Syrena Austiria Basilio:",
           "box": {
             "x0": 339,
             "x1": 579.0000000000001,
@@ -19058,6 +19189,9 @@
               6,
               8,
               11
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -19091,9 +19225,9 @@
         }
       }
     },
-    "ax3.nicodosEssir": {
+    "ax3.npc50": {
       "kind": "kind.npc",
-      "name": "Court Magist Nicodos Essir",
+      "name": "NPC 50",
       "cite": "AX3 p.189",
       "pages": [
         191,
@@ -19104,7 +19238,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 191,
           "box": {
             "x0": 321,
@@ -19112,20 +19246,20 @@
             "y0": 677.6699,
             "y1": 686.6699
           },
-          "text": "C ou R t ma G ist ni C odos essi R",
+          "hash": "no228e",
           "fixes": {
             "joinSpace": [
               3,
               6,
               9
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 192,
           "pattern": "statline",
-          "dropText": "Nicodos Essir:",
           "box": {
             "x0": 52.44,
             "x1": 292.4407999999999,
@@ -19168,6 +19302,9 @@
             "mergeHyphen": [
               5,
               49
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -19288,9 +19425,9 @@
         }
       }
     },
-    "ax3.gundusJannion": {
+    "ax3.npc51": {
       "kind": "kind.npc",
-      "name": "Gundus Jannion",
+      "name": "NPC 51",
       "cite": "AX3 p.190",
       "pages": [
         192
@@ -19300,7 +19437,7 @@
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 192,
           "box": {
             "x0": 304.44,
@@ -19308,20 +19445,20 @@
             "y0": 74.99990000000003,
             "y1": 83.99990000000003
           },
-          "text": "Legate Gundus Zelicus Jannion",
+          "hash": "1xst2bv",
           "fixes": {
             "joinSpace": [
               2,
               4,
               8
             ]
-          }
+          },
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 192,
           "pattern": "statline",
-          "dropText": "Gundus Jannion:",
           "box": {
             "x0": 322.44,
             "x1": 562.4497,
@@ -19345,6 +19482,9 @@
             ],
             "mergeHyphen": [
               9
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -19883,20 +20023,20 @@
         }
       }
     },
-    "ax3.gabriolEirenikos": {
+    "ax3.npc52": {
       "kind": "kind.npc",
-      "name": "Gabriol Eirenikos",
+      "name": "NPC 52",
       "cite": "AX3 p.197",
       "pages": [
         199,
         200
       ],
       "meta": {
-        "group": "NPC Party — Imperial Vanguard"
+        "group": "NPC Party"
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 199,
           "box": {
             "x0": 317.4,
@@ -19904,13 +20044,13 @@
             "y0": 67.59990000000005,
             "y1": 86.59990000000005
           },
-          "text": "GABRIOL EIRENIKOS"
+          "hash": "1xpl5y8",
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 199,
           "pattern": "statline",
-          "dropText": "Gabriol Eirenikos:",
           "box": {
             "x0": 335.4,
             "x1": 575.4280000000001,
@@ -19978,6 +20118,9 @@
               50,
               60,
               72
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -20135,20 +20278,20 @@
         }
       }
     },
-    "ax3.aghilas": {
+    "ax3.npc53": {
       "kind": "kind.npc",
-      "name": "Aghilas, the Lion of the Desert",
+      "name": "NPC 53",
       "cite": "AX3 p.198",
       "pages": [
         200,
         201
       ],
       "meta": {
-        "group": "NPC Party — Imperial Vanguard"
+        "group": "NPC Party"
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 200,
           "box": {
             "x0": 33,
@@ -20156,13 +20299,13 @@
             "y0": 281.4699,
             "y1": 300.4699
           },
-          "text": "AGHILAS, THE LION OF THE DESERT"
+          "hash": "gguz7w",
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 201,
           "pattern": "statline",
-          "dropText": "Aghilas:",
           "box": {
             "x0": 69.72,
             "x1": 309.7410000000002,
@@ -20200,6 +20343,9 @@
               19,
               34,
               39
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -20407,19 +20553,19 @@
         }
       }
     },
-    "ax3.asryaRaija": {
+    "ax3.npc54": {
       "kind": "kind.npc",
-      "name": "Asrya Raija, the Lotus of Somirea",
+      "name": "NPC 54",
       "cite": "AX3 p.199",
       "pages": [
         201
       ],
       "meta": {
-        "group": "NPC Party — Imperial Vanguard"
+        "group": "NPC Party"
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 201,
           "box": {
             "x0": 51.72,
@@ -20427,13 +20573,13 @@
             "y0": 508.58989999999994,
             "y1": 527.5899
           },
-          "text": "ASRYA RAIJA, THE LOTUS OF SOMIREA"
+          "hash": "193e8j1",
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 201,
           "pattern": "statline",
-          "dropText": "Asrya Raija:",
           "box": {
             "x0": 339.72,
             "x1": 579.7379999999998,
@@ -20461,6 +20607,9 @@
             ],
             "mergeHyphen": [
               13
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -20572,20 +20721,20 @@
         }
       }
     },
-    "ax3.irialUiAedon": {
+    "ax3.npc55": {
       "kind": "kind.npc",
-      "name": "Irial Ui Aedon",
+      "name": "NPC 55",
       "cite": "AX3 p.199",
       "pages": [
         201,
         202
       ],
       "meta": {
-        "group": "NPC Party — Imperial Vanguard"
+        "group": "NPC Party"
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 201,
           "box": {
             "x0": 321.72,
@@ -20593,13 +20742,13 @@
             "y0": 427.39,
             "y1": 446.39
           },
-          "text": "IRIAL UI AEDON"
+          "hash": "16d22lp",
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 202,
           "pattern": "statline",
-          "dropText": "Irial Ui Aedon:",
           "box": {
             "x0": 52.44,
             "x1": 292.47700000000003,
@@ -20639,6 +20788,9 @@
               9,
               32,
               37
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -20737,19 +20889,19 @@
         }
       }
     },
-    "ax3.nikolausTheNicean": {
+    "ax3.npc56": {
       "kind": "kind.npc",
-      "name": "Nikolaus the Nicean",
+      "name": "NPC 56",
       "cite": "AX3 p.200",
       "pages": [
         202
       ],
       "meta": {
-        "group": "NPC Party — Imperial Vanguard"
+        "group": "NPC Party"
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 202,
           "box": {
             "x0": 34.44,
@@ -20757,13 +20909,13 @@
             "y0": 299.4699,
             "y1": 318.4699
           },
-          "text": "NIKOLAUS THE NICEAN"
+          "hash": "1g1kco6",
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 202,
           "pattern": "statline",
-          "dropText": "Nikolaus the Nicean:",
           "box": {
             "x0": 322.44,
             "x1": 562.4610000000002,
@@ -20796,6 +20948,9 @@
               12,
               17,
               21
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -20979,20 +21134,20 @@
         }
       }
     },
-    "ax3.valenusMirens": {
+    "ax3.npc57": {
       "kind": "kind.npc",
-      "name": "Valenus Mirens, the Antiquarian",
+      "name": "NPC 57",
       "cite": "AX3 p.200",
       "pages": [
         202,
         203
       ],
       "meta": {
-        "group": "NPC Party — Imperial Vanguard"
+        "group": "NPC Party"
       },
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 202,
           "box": {
             "x0": 304.4401,
@@ -21000,13 +21155,13 @@
             "y0": 545.6699,
             "y1": 564.6699
           },
-          "text": "VALENUS MIRENS, THE ANTIQUARIAN"
+          "hash": "19yoc39",
+          "caps": true
         },
         "statline": {
           "op": "value",
           "page": 203,
           "pattern": "statline",
-          "dropText": "Valenus Mirens:",
           "box": {
             "x0": 66.84,
             "x1": 361.02430000000004,
@@ -21048,6 +21203,9 @@
             ],
             "mergeHyphen": [
               30
+            ],
+            "drop": [
+              0
             ]
           }
         },
@@ -21109,7 +21267,7 @@
         203
       ],
       "meta": {
-        "group": "NPC Party — Imperial Vanguard"
+        "group": "NPC Party"
       },
       "fields": {
         "name": {
@@ -21362,10 +21520,10 @@
           "ax3.poi78U",
           "ax3.poi80"
         ],
-        "leader": "ax3.justiriusTavicusBasilio",
+        "leader": "ax3.npc48",
         "members": [
-          "ax3.ladySyrenaAustiriaBasilio",
-          "ax3.nicodosEssir"
+          "ax3.npc49",
+          "ax3.npc50"
         ],
         "controls": [
           "ax3.palaceDistrict"
@@ -21429,8 +21587,8 @@
       "organisation": {
         "kind": "noble",
         "members": [
-          "ax3.valensIcusAmbador",
-          "ax3.arjenusIonicusDrakomir"
+          "ax3.npc43",
+          "ax3.npc44"
         ]
       },
       "fields": {
@@ -21505,7 +21663,7 @@
         "holdings": [
           "ax3.poi81U"
         ],
-        "leader": "ax3.gundusJannion",
+        "leader": "ax3.npc51",
         "controls": [
           "ax3.palaceDistrict"
         ],
@@ -21600,9 +21758,9 @@
           "ax3.poi56",
           "ax3.poi77"
         ],
-        "leader": "ax3.narmirioDrakomir",
+        "leader": "ax3.npc5",
         "members": [
-          "ax3.kalbo"
+          "ax3.npc38"
         ],
         "controls": [
           "ax3.oldDistrict",
@@ -21678,11 +21836,11 @@
       "organisation": {
         "kind": "syndicate",
         "seat": "ax3.poi11",
-        "leader": "ax3.liberFaunus",
+        "leader": "ax3.npc1",
         "members": [
-          "ax3.hestaFaunus",
-          "ax3.aranthFaunus",
-          "ax3.megaravicos"
+          "ax3.npc2",
+          "ax3.npc3",
+          "ax3.npc4"
         ],
         "relations": [
           {
@@ -21763,11 +21921,11 @@
         "holdings": [
           "ax3.poi26"
         ],
-        "leader": "ax3.seleneNictorian",
+        "leader": "ax3.npc8",
         "members": [
-          "ax3.thanaNyssand",
-          "ax3.jonusKrusaro",
-          "ax3.lutariusSinorix"
+          "ax3.npc9",
+          "ax3.npc10",
+          "ax3.npc11"
         ],
         "relations": [
           {
@@ -21909,12 +22067,12 @@
         "kind": "other",
         "nameFrom": "seat",
         "seat": "ax3.poi22",
-        "leader": "ax3.celictorNuvicus",
+        "leader": "ax3.npc13",
         "members": [
-          "ax3.agilusBalventius",
-          "ax3.abedsh",
-          "ax3.baruch",
-          "ax3.khet"
+          "ax3.npc19",
+          "ax3.npc14",
+          "ax3.npc15",
+          "ax3.npc16"
         ],
         "relations": [
           {
@@ -22021,9 +22179,9 @@
         "kind": "other",
         "nameFrom": "seat",
         "seat": "ax3.poi21",
-        "leader": "ax3.omnusPluris",
+        "leader": "ax3.npc17",
         "members": [
-          "ax3.braig"
+          "ax3.npc18"
         ],
         "relations": [
           {
@@ -22116,7 +22274,7 @@
         "kind": "other",
         "nameFrom": "seat",
         "seat": "ax3.poi23",
-        "leader": "ax3.maximusArjenturan",
+        "leader": "ax3.npc12",
         "relations": [
           {
             "to": "ax3.org8",
@@ -22247,7 +22405,7 @@
         "holdings": [
           "ax3.poi7"
         ],
-        "leader": "ax3.apollonisMeteros",
+        "leader": "ax3.npc6",
         "relations": [
           {
             "to": "ax3.org5",
@@ -22313,7 +22471,7 @@
       "organisation": {
         "kind": "guild",
         "seat": "ax3.poi10",
-        "leader": "ax3.balcadurBrogitarius"
+        "leader": "ax3.npc7"
       },
       "fields": {
         "name": {
@@ -22379,12 +22537,12 @@
           "ax3.poi36U"
         ],
         "members": [
-          "ax3.prelateRomus",
-          "ax3.drusus",
-          "ax3.vicarOfAmmonar"
+          "ax3.npc20",
+          "ax3.npc21",
+          "ax3.npc23"
         ],
         "replaces": [
-          "ax3.vicarOfAmmonar"
+          "ax3.npc23"
         ],
         "relations": [
           {
@@ -22458,7 +22616,7 @@
       "organisation": {
         "kind": "temple",
         "seat": "ax3.poi67",
-        "leader": "ax3.centurionCelle",
+        "leader": "ax3.npc36",
         "controls": [
           "ax3.templeDistrict"
         ],
@@ -22531,7 +22689,7 @@
           "ax3.poi60",
           "ax3.poi61"
         ],
-        "leader": "ax3.matriarchAundeme"
+        "leader": "ax3.npc30"
       },
       "fields": {
         "name": {
@@ -22611,10 +22769,10 @@
       "organisation": {
         "kind": "temple",
         "seat": "ax3.poi50",
-        "leader": "ax3.aureusAmbador",
+        "leader": "ax3.npc26",
         "members": [
-          "ax3.mentenusCavie",
-          "ax3.clitusOmnus"
+          "ax3.npc27",
+          "ax3.npc28"
         ]
       },
       "fields": {
@@ -22682,7 +22840,7 @@
       "organisation": {
         "kind": "temple",
         "seat": "ax3.poi13U",
-        "leader": "ax3.mentenusCavie"
+        "leader": "ax3.npc27"
       },
       "fields": {
         "name": {
@@ -22746,7 +22904,7 @@
         "kind": "temple",
         "seat": "ax3.poi63",
         "members": [
-          "ax3.prelateEzelus"
+          "ax3.npc34"
         ]
       },
       "fields": {
@@ -22811,7 +22969,7 @@
         "holdings": [
           "ax3.poi68"
         ],
-        "leader": "ax3.reveredMotherDoare"
+        "leader": "ax3.npc32"
       },
       "fields": {
         "name": {
@@ -22870,9 +23028,9 @@
       "organisation": {
         "kind": "temple",
         "seat": "ax3.poi69U",
-        "leader": "ax3.destrio",
+        "leader": "ax3.npc37",
         "replaces": [
-          "ax3.destrio"
+          "ax3.npc37"
         ],
         "relations": [
           {

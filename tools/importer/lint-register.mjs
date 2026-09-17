@@ -34,6 +34,10 @@ const OPS = new Set(["expect", "heading", "text", "value", "attacks", "art", "ef
 const KEY_NUMBER = /^[A-Z]?\d+[A-Za-z]?(?:\/[A-Z]?\d+[A-Za-z]?)?\.?$/;
 // `printKey` output: a 32-bit hash in base 36.
 const PRINT_KEY = /^[0-9a-z]{1,7}$/;
+// The sorts of heading a hash anchor may be sought among, as the compiler's
+// `axOpen` searches them: a display heading, a body-size run-in line, or the
+// label a statline opens with.
+const ANCHOR_SORTS = ["display", "runin", "label"];
 const PATTERNS = new Set(["raw", "statValue", "int", "dice", "refList", "parenSplit", "spoilList", "statline"]);
 // Grid cell patterns come from table-extract's applyCellPattern library (plus
 // "glyphs", the executor's PUA-char damage-mark map).
@@ -285,9 +289,28 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         walk(e.scene ?? {}, "scene");
         if (words.length) err(`${id}: a scene names things by id only — found ${words.slice(0, 3).map((w) => JSON.stringify(w.slice(0, 24))).join(", ")}`);
       } else {
-        const anchorKeys = Object.keys(e.anchor ?? {});
+        // One locator per anchor. `as` is not a second one: it says which sort
+        // of heading a hash is to be sought among, because a hash locates a
+        // name the row may not spell and so cannot be compared word by word.
+        // The compiler searches display headings, run-in lines and statline
+        // labels by it and can answer to nothing else; a hash without `as` is
+        // a display heading.
+        const anchorKeys = Object.keys(e.anchor ?? {}).filter((k) => k !== "as");
         if (anchorKeys.length !== 1 || !["display", "runin", "label", "subheading", "number", "hash"].includes(anchorKeys[0])) {
           err(`${id}: anchor must have exactly one of display|runin|label|subheading|number|hash`);
+        }
+        if (e.anchor?.as !== undefined) {
+          if (e.anchor.hash === undefined) err(`${id}: anchor.as names the sort of heading a hash is sought among — it belongs only beside anchor.hash`);
+          else if (!ANCHOR_SORTS.includes(e.anchor.as)) err(`${id}: anchor.as ${JSON.stringify(e.anchor.as)} is not a heading sort the compiler searches (${ANCHOR_SORTS.join("|")})`);
+        }
+        // A person the book names is its expression exactly as a place's name
+        // is: the row is labelled and identified by its ordinal and anchors by
+        // the key of the name's letters, so no printed word of it ships.
+        if (e.kind === "kind.npc") {
+          const n = /^NPC (\d+)$/.exec(e.name ?? "")?.[1];
+          if (!n) err(`${id}: an npc is named "NPC <n>" — its printed name is read at import`);
+          else if (id !== `${bookId}.npc${n}`) err(`${id}: an npc named "NPC ${n}" has the id "${bookId}.npc${n}"`);
+          if (e.anchor?.hash === undefined) err(`${id}: an npc anchors by hash, never by its printed words`);
         }
         // A keyed place is the book's own proper name under a key number. The
         // number is a pointer and ships; the words are read off the Judge's page

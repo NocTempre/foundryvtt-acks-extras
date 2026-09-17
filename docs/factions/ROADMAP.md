@@ -5,6 +5,23 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 
 ---
 
+- **A group organisation has no name left to read.** Blocking, and the shipped
+  data is wrong today: a group organisation is a heading of the form
+  `<Quarter> — <Organisation>`, so the body's PRINTED name was the second half
+  of the group string — exactly what the aliasing pass took out
+  ([importer DECISIONS](../importer/DECISIONS.md), "A printed proper name is
+  not an identifier either"). The register now writes a neutral bucket there,
+  so `organisationGroupOf` reads three quarters' `— Special Locations` as three
+  bodies called that, and the roaming company, whose head lost its ` — <Name>`
+  suffix entirely, binds to nothing. `tools/importer/test-faction-binding.mjs`
+  fails on the count and is the tripwire: it is left failing on purpose.
+
+  The shape of the answer is to retire the group-derived path — an organisation
+  the book names is an authored `kind.organisation` row anchored by hash, which
+  is what the other twenty already are. What is missing is authoring: 20 of
+  AX3's 57 people are named by no row, the roaming company among them, and who
+  belongs to which body is read off the page rather than derived.
+
 - **Heat and laying low.** A `crime` row is recorded and shown as a prior
   record; nothing yet cools it with time spent out of sight, and nothing
   raises a search on the party's trail. Needs the crime-and-punishment

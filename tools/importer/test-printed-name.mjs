@@ -77,8 +77,8 @@ await t("numerals, possessives, accents and joined words keep their shape", () =
   assert.equal(titleCaseHeading("16. WATCHTOWER IV"), "16. Watchtower IV");
   assert.equal(titleCaseHeading("41. WATCHTOWER XIX (SQUARE, SOUTHWEST)"), "41. Watchtower XIX (Square, Southwest)");
   assert.equal(titleCaseHeading("24. GAMBLER’S ROW"), "24. Gambler’s Row");
-  assert.equal(titleCaseHeading("9. THIEVES’ QUARTER"), "9. Thieves’ Quarter");
-  assert.equal(titleCaseHeading("14U. DOPPELGÄNGER DEN"), "14U. Doppelgänger Den");
+  assert.equal(titleCaseHeading("7. ANGLERS’ REACH"), "7. Anglers’ Reach");
+  assert.equal(titleCaseHeading("18U. VÄLDRIC HOLLOW"), "18U. Väldric Hollow");
   assert.equal(titleCaseHeading("11/11U. THE OTTER/EEL-HOUSE CELLAR"), "11/11U. The Otter/Eel-House Cellar");
   assert.equal(titleCaseHeading("26. SALT & BONE WAREHOUSES"), "26. Salt & Bone Warehouses");
   assert.equal(titleCaseHeading("VIVID LANE"), "Vivid Lane", "a word is not a numeral for being spelled from its letters");

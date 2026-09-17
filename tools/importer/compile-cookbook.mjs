@@ -1954,7 +1954,7 @@ function axParas(segs, anchorPage, opts = {}) {
       if (opts.statlines) {
         for (let li = 0; li < g.length; li++) {
           const label = g[li].items[0];
-          // A merged label run ("Liber Faunus: Venturer 10; …" in one run)
+          // A merged label run ("Oren Vale: Venturer 10; …" in one run)
           // makes an unusable lookup token — those blocks belong to npc
           // entries; only clean short labels emit creature lookups.
           if (!/:$/.test(label.str.trim()) || label.str.trim().length > 40) continue;
@@ -2106,7 +2106,7 @@ function axRuninLines(pd, cols) {
 /** Shared skeleton: anchor + name check + flowed prose paragraphs. Anchors
  * are display headings by default; a run-in anchor instead matches a BODY-size
  * standalone line — AX3 sets its notable-resident names in small-caps body
- * type ("tRibune naRmiRio dRaKomiR"), which fold-comparison absorbs on both
+ * type ("tRibune oRen vaLe"), which fold-comparison absorbs on both
  * sides.
  *
  * Three locators. `anchor.number` finds a keyed heading by the key number it
@@ -2399,7 +2399,7 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
     // prose, and every sibling npc's anchor is a stop line (plus any
     // chef-authored assists.stopLines, e.g. a section runin). `noDescStop`
     // opts out for blocks whose prose legitimately continues past the block
-    // (Gabriol's spell appendix).
+    // (a caster's spell appendix, which runs on past the block).
     const sameColBlock = statPage === page && sCol === a.col && labelRun.y > a.endY;
     const flowOpts = {
       stops: bookCtx?.npcStops?.filter((s) => s.id !== entry.id) ?? [],
@@ -5042,7 +5042,8 @@ async function main() {
           // ("Cobra, Mechanical (Bronze)" → family "Cobra, Mechanical",
           // variant "Bronze"), else the after-comma piece ("Mummy, Baboon" →
           // "Mummy" / "Baboon"). NPC epithets never reach here — this branch
-          // is monster kinds only, an AX3 "Aghilas, the Lion" stays a person.
+          // is monster kinds only, so an AX3 person whose epithet follows a comma
+          // stays a person.
           const nm = String(entry.name ?? "");
           const paren = /^(.*?)\s*\(([^)]+)\)\s*$/.exec(nm);
           if (paren && paren[1].includes(",")) push(paren[1].trim(), paren[2].trim(), entry);
